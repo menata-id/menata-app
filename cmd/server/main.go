@@ -83,11 +83,12 @@ func main() {
 		pr.Get("/dashboard", showDashboard(store, app.Application.Name))
 		pr.Get("/my-tasks", showMyTasks(store, app.Application.Name, cfg))
 		pr.Get("/board-settings", showBoardSettings(store, app.Application.Name))
+		pr.Get("/activity", showActivity(store, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files, cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machines, store))
-		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store, files))
+		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store, files, cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machines, store))
 		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(machines, store, cfg))
 
@@ -280,26 +281,10 @@ func showDashboard(store *data.Store, appName string) http.HandlerFunc {
 // name (reusing the same label-field convention as loadRelationOptions), and returns the most
 // recent limit entries newest-first.
 func recentActivity(ctx context.Context, store *data.Store, limit int) ([]rendering.ActivityEntry, error) {
-	events, err := store.ListRecords(ctx, "mch_activity")
+	events, names, err := loadRecentEvents(ctx, store, limit)
 	if err != nil {
 		return nil, err
 	}
-	sort.Slice(events, func(i, j int) bool {
-		return events[i].CreatedAt.After(events[j].CreatedAt)
-	})
-	if len(events) > limit {
-		events = events[:limit]
-	}
-
-	users, err := store.ListRecords(ctx, "mch_user")
-	if err != nil {
-		return nil, err
-	}
-	names := make(map[string]string, len(users))
-	for _, u := range users {
-		names[u.ID] = toDisplayString(u.Values["fld_name"])
-	}
-
 	entries := make([]rendering.ActivityEntry, 0, len(events))
 	for _, e := range events {
 		entries = append(entries, rendering.ActivityEntry{
@@ -309,6 +294,86 @@ func recentActivity(ctx context.Context, store *data.Store, limit int) ([]render
 		})
 	}
 	return entries, nil
+}
+
+// loadRecentEvents fetches mch_activity records newest-first (capped at limit, or all when limit
+// is 0), plus an actor-id -> display-name map -- the shared I/O behind both the Dashboard's
+// flat Recent Activity list and the dedicated /activity page's day-grouped feed (ROADMAP.md
+// Phase 14), which need the same data shaped two different ways.
+func loadRecentEvents(ctx context.Context, store *data.Store, limit int) ([]*data.Record, map[string]string, error) {
+	events, err := store.ListRecords(ctx, "mch_activity")
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].CreatedAt.After(events[j].CreatedAt)
+	})
+	if limit > 0 && len(events) > limit {
+		events = events[:limit]
+	}
+
+	users, err := store.ListRecords(ctx, "mch_user")
+	if err != nil {
+		return nil, nil, err
+	}
+	names := make(map[string]string, len(users))
+	for _, u := range users {
+		names[u.ID] = toDisplayString(u.Values["fld_name"])
+	}
+	return events, names, nil
+}
+
+// showActivity is Case 19's cross-project event feed (ROADMAP.md Phase 14,
+// project-activity.html): the same mch_activity data as the Dashboard's Recent Activity section,
+// grouped by day (Today/Yesterday/Earlier) instead of a flat top-10 list.
+func showActivity(store *data.Store, appName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		events, names, err := loadRecentEvents(ctx, store, 50)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		now := time.Now()
+		yesterday := now.AddDate(0, 0, -1)
+		var today, yest, older []rendering.ActivityEntry
+		for _, e := range events {
+			entry := rendering.ActivityEntry{
+				Summary: toDisplayString(e.Values["fld_summary"]),
+				Actor:   names[toDisplayString(e.Values["fld_actor"])],
+			}
+			switch {
+			case sameDay(e.CreatedAt, now):
+				entry.When = e.CreatedAt.Format("15:04")
+				today = append(today, entry)
+			case sameDay(e.CreatedAt, yesterday):
+				entry.When = e.CreatedAt.Format("15:04")
+				yest = append(yest, entry)
+			default:
+				entry.When = e.CreatedAt.Format("2006-01-02 15:04")
+				older = append(older, entry)
+			}
+		}
+
+		rendering.ActivityPage(today, yest, older, appName).Render(ctx, w)
+	}
+}
+
+func sameDay(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
+}
+
+// recordLabel is a Record's display label -- its Machine's first Field's value, the same
+// label-field convention used throughout (loadRelationOptions, rendering.recordTitle).
+func recordLabel(m *domain.Machine, r *data.Record) string {
+	if len(m.Fields) == 0 {
+		return r.ID
+	}
+	return toDisplayString(r.Values[m.Fields[0].ID])
 }
 
 // showMyTasks is Case 19's personal work queue (ROADMAP.md Phase 14): every mch_task assigned to
@@ -453,9 +518,13 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if machine.ID == action.DocumentMachineID {
+		switch machine.ID {
+		case action.DocumentMachineID:
 			actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 			logActivity(req.Context(), store, machine.ID, record.ID, actor, fmt.Sprintf("%q submitted", toDisplayString(record.Values["fld_title"])))
+		case "mch_task", "mch_project":
+			actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+			logActivity(req.Context(), store, machine.ID, record.ID, actor, fmt.Sprintf("%q created", recordLabel(machine, record)))
 		}
 
 		renderMachineBody(w, req, machines, machine, store)
@@ -530,7 +599,7 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store) http.
 	}
 }
 
-func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store) http.HandlerFunc {
+func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -592,10 +661,30 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			return
 		}
 
+		// Case 19's Project Activity feed wants Task status moves as their own event (ROADMAP.md
+		// Phase 14) -- the old status has to be read before the write replaces it.
+		var oldTaskStatus string
+		if machine.ID == "mch_task" {
+			if existing, err := store.GetRecord(req.Context(), machine.ID, id); err == nil {
+				oldTaskStatus = toDisplayString(existing.Values["fld_status"])
+			}
+		}
+
 		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
 		if err != nil {
 			recordError(w, err)
 			return
+		}
+		if machine.ID == "mch_task" {
+			if newStatus := toDisplayString(record.Values["fld_status"]); newStatus != "" && newStatus != oldTaskStatus {
+				actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+				title := recordLabel(machine, record)
+				summary := fmt.Sprintf("%q moved from %s to %s", title, oldTaskStatus, newStatus)
+				if newStatus == "done" {
+					summary = fmt.Sprintf("%q completed", title)
+				}
+				logActivity(req.Context(), store, machine.ID, record.ID, actor, summary)
+			}
 		}
 		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
 		if err != nil {

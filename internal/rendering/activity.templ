@@ -1,0 +1,35 @@
+package rendering
+
+// ActivityPage is Case 19's cross-project event feed (ROADMAP.md Phase 14,
+// project-activity.html): the same mch_activity data as the Dashboard's Recent Activity section
+// (Phase 13), grouped by day instead of a flat top-10 list -- a different shape over the same
+// already-built data, not a new event mechanism.
+templ ActivityPage(today, yesterday, older []ActivityEntry, appName string) {
+	@pageShell("Activity", appName) {
+		<h1>Activity</h1>
+		<p>A cross-project feed of business events.</p>
+		@activityGroup("Today", today)
+		@activityGroup("Yesterday", yesterday)
+		@activityGroup("Earlier", older)
+		if len(today) == 0 && len(yesterday) == 0 && len(older) == 0 {
+			<p>No activity yet.</p>
+		}
+	}
+}
+
+templ activityGroup(label string, entries []ActivityEntry) {
+	if len(entries) > 0 {
+		<h2>{ label }</h2>
+		<ul class="activity-feed">
+			for _, a := range entries {
+				<li>
+					<span>{ a.Summary }</span>
+					if a.Actor != "" {
+						<span class="badge">{ a.Actor }</span>
+					}
+					<span class="muted">{ a.When }</span>
+				</li>
+			}
+		</ul>
+	}
+}
