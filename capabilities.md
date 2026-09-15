@@ -65,6 +65,7 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Team Capacity (weekly capacity + real active/total Task counts per Member) | Built | `GET /team-capacity` |
 | Workflow Automation (read-only Trigger/Condition/Action view over real Constraint + Action) | Built | `GET /automation` |
 | Calendar (week-grid Layout, Tasks grouped by due date) | Built | `GET /calendar` |
+| Sprint Dashboard (real status summary + workload + attention-needed, no fabricated points/burndown) | Built | `GET /sprint` |
 | Approve/Reject action bar | Built, hardcoded to one Machine | `mch_approval_step`'s own detail page only |
 
 **Not yet built:** Timeline/Calendar/Sprint-Dashboard/Team-Capacity Layouts, colored label chips
@@ -132,6 +133,7 @@ own forcing condition in `ROADMAP.md` Phase 14.
 | `GET /team-capacity` | Members' weekly capacity + real active/total Task counts |
 | `GET /automation` | Read-only Trigger/Condition/Action view over real Constraint + Action |
 | `GET /calendar` | Week-grid Layout, Tasks grouped by due date |
+| `GET /sprint` | Sprint Dashboard: status summary, workload preview, attention-needed |
 | `GET /machines/{id}` | A Machine's own page (table or board) |
 | `POST /machines/{id}/records` | Create a record |
 | `GET /machines/{id}/records/{id}` | Record detail page (or a fragment, for HTMX) |

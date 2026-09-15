@@ -463,11 +463,16 @@ single Phase 14 change -- each screen's own composition is independently verifia
       reusing the existing board-column CSS shape. No new Field or Layout mechanism needed after
       all -- `fld_due_date` already existed, this is a different grouping/rendering shape over it,
       same posture as My Tasks' bucketing
-- [ ] Case 19: Timeline (date-range bars grouped by workstream) and Sprint Dashboard (aggregation,
-      likely reuses Phase 13's activity/count mechanisms) -- Timeline specifically needs a Task
-      start-date Field that doesn't exist yet, plus proportional-width bar rendering; the two
-      screens in this phase that plausibly still need a real new rendering shape, not just
-      composition of what already exists
+- [x] Case 19: **Sprint Dashboard** (`project-dashboard.html`, done 2026-09-15) -- `GET /sprint`
+      composes a real Task-status summary (open/in-progress/done/completion %), a workload
+      preview reusing Team Capacity's `MemberCapacity`, and an Attention Needed list reusing My
+      Tasks' SLA bucketing. The mockup's own points/burndown/blocked content is deliberately not
+      reproduced: no story-points Field, no historical snapshot data a real burndown needs, and no
+      "blocked" status option exist -- fabricating any of them would misrepresent real data, which
+      this app avoids everywhere else too
+- [ ] Case 19: Timeline (date-range bars grouped by workstream) -- needs a Task start-date Field
+      that doesn't exist yet, plus proportional-width bar rendering; the one screen in this phase
+      that still plausibly needs a real new rendering shape, not just composition
 - [ ] Case 3: signature coordinate placement (`document-signature-placement.html`) -- a new,
       fairly specialized drag-position editor; no other screen needs this interaction pattern
 
