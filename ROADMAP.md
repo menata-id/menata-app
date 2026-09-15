@@ -321,16 +321,28 @@ immediately, zero metadata/code deploy. Verified end-to-end against real Postgre
 
 ---
 
-## Phase 11 -- File attachments
+## Phase 11 -- File attachments (done, 2026-09-15)
 
 **Forcing condition:** Case 3 is impossible without a PDF attachment (the whole case is "a
 submitted PDF follows an approval flow"); Case 19's Task Detail also lists attachments.
 
-- [ ] `FieldTypeFile`, stored on local disk (matching 007 §4.10's single-binary/modest-server
-      constraint -- no object-storage dependency until a real scale case forces one)
-- [ ] Upload via the existing create/edit form flow; download/preview on the Phase 8 detail page
+- [x] `FieldTypeFile`, stored on local disk (`internal/storage`, matching 007 §4.10's
+      single-binary/modest-server constraint -- no object-storage dependency until a real scale
+      case forces one). Original filename survives inside the storage key itself
+      (`<random>__<filename>`), no second field needed to carry it
+- [x] Upload via the existing create/edit form flow (`hx-encoding="multipart/form-data"` on every
+      form now, `ParseMultipartForm` universally); download on the Phase 8 detail page and every
+      table/board row (`GET /uploads/*`, `Content-Disposition` names the original filename)
 
-**Exit criterion:** a real PDF can be uploaded to a Document record and downloaded back.
+A real gap found and fixed during this phase, not merely anticipated: a browser can't pre-fill
+`<input type="file">`, so an edit that didn't touch the file input was silently dropping the
+attachment (`Store.UpdateRecord` replaces the whole JSONB value) -- `updateRecordForm` now
+explicitly carries the existing file value forward when a fresh upload isn't present.
+
+**Exit criterion met:** a real PDF was uploaded to a Task record and downloaded back
+byte-identical, with the correct `Content-Type` and original filename; an edit that didn't
+re-upload correctly preserved the existing attachment. Verified against real Postgres and local
+disk before deploy.
 
 ---
 
