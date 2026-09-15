@@ -44,29 +44,32 @@ Verified end-to-end against real Postgres before deploy.
 
 ---
 
-## Phase 2 -- Workspace/Application hierarchy + minimal Authorization
+## Phase 2 -- Workspace/Application hierarchy + minimal Authorization (done, 2026-09-15)
 
 **Forcing condition:** every write today is anonymous and unscoped -- anyone who can reach the
 port can create records. Principle #9 (Workspace Isolation) and §4.9 (Security Before
 Optimization) are core, not deferrable, and the longer more surface area gets built on a
 zero-auth foundation the more it all has to be retrofitted at once.
 
-Design pass before code (the lesson from the failed first composable attempt):
+**Design pass (resolved before code):**
 
-- What does a Permission actually gate in this app -- per-Machine, per-Action, or per-Field?
-- Is there a User concept yet, or does Phase 2 start with a single shared admin credential and
-  defer real multi-user identity to a later forcing case?
+- Permission scope: per-Machine + per-Action (Create/Update/Delete), not per-Field -- no case has
+  forced field-level scoping yet.
+- Identity: one shared admin credential (env-configured), no User model -- real multi-user
+  identity deferred until a second real user forces it.
+- Gating: both reads and writes require login, not just writes -- decided this is a real
+  application now, not a public demo.
 
-Then:
+- [x] Workspace -> Application -> Machine hierarchy in metadata (`internal/domain`, `metadata/app.yaml`,
+      `metadata.LoadApplication`) -- one Workspace/Application hardcoded, structure in place for Phase 3
+- [x] Session-cookie auth gating every route except `/health` and `/login` (`internal/authorization`)
+- [x] `internal/authorization` has its first real code (was a doc.go stub)
 
-- [ ] Workspace -> Application -> Machine hierarchy in metadata (`004-runtime-metadata.md`
-      "Organizational Scope") -- even with exactly one Workspace and one Application hardcoded,
-      the structure should exist so Phase 3+ doesn't require a breaking metadata-shape change
-- [ ] Minimal auth: session or token gating writes (`POST`/future `PATCH`/`DELETE`) at minimum;
-      reads may stay open or also gated, depending on the design pass above
-- [ ] `internal/authorization` gets its first real code (currently a doc.go stub)
+**Exit criterion met:** an unauthenticated request is redirected to `/login` (full-page) or gets
+`401` (API/HTMX); verified end-to-end (blocked, wrong password, login, authenticated access,
+logout) before deploy to https://menata.app.
 
-**Exit criterion:** an unauthenticated request cannot create, edit, or delete a record.
+**Phase 2 complete.**
 
 ---
 
