@@ -518,16 +518,56 @@ this codebase's own composition mechanism already works, just not generalized to
 migrate the ~8 existing hand-rendered call sites to call them; verify identical rendered HTML
 before/after. Pure refactor, zero new capability, small and self-contained.
 
-**Rejected, with reasoning (not just noted, per the research pass's own instruction to weigh
-world-class patterns against this repo's stated discipline):**
-- A metadata-driven page-composition mechanism, UI IR, or Component Registry (007 §14-15) --
-  no dispatch-sprawl problem exists yet (~15 templ page functions, all hand-wired), and Phase 6
-  has already tested negative twice; building this now would be exactly the anti-pattern the
-  Method section above exists to prevent.
+**Correction (2026-09-15, same day, owner-prompted):** the first version of this section read as
+"not needed yet, don't even plan it," which overstates what PROPOSED means. 007's own header says
+a PROPOSED claim is "an architectural target awaiting the study or case that would validate it,"
+not an undesigned one -- and `menata-runtime/benchmarks/030-ui-subcomponent-decomposition-
+criteria.md` (Study 40) shows the target schema for several of these mechanisms is not merely
+architecturally proposed, it is **already PROVEN, working, conformance-cited code in `prototype/
+go`**: `type: dashboard` + `sections` (CAP-V10), `display: cards` (CAP-V02), `type:
+decision_stepper` (CAP-V20), `type: coord_placement` (CAP-V21) all shipped there with real schema
+keys before that codebase was frozen. menata-app deliberately did not port that code (owner
+decision, start `app/` from scratch) -- but not porting the code doesn't mean discarding the
+knowledge of what shape already worked. The corrected posture below documents that target shape
+now, informed by real proven prior art and this app's own known case portfolio (not guessed), and
+separates *documenting the target* from *building the generalized mechanism*, which still waits
+for its own real second occurrence -- exactly Study 40's own P4/P5 distinction, not a blanket
+"not yet" applied to everything alike.
+
+**Two different questions, previously conflated:**
+1. **Composable Execution Planner / IR / dependency graph (007 §15-18)** -- a *query-efficiency*
+   question: does hand-composing a page in Go produce a naive-fetch problem? Phase 6 has tested
+   this twice, both negative. **Still correctly not forced** -- nothing in this research pass
+   changes that verdict, it answers a different question.
+2. **Metadata-driven page/View composition (`type: dashboard`'s own `children`/`sections`
+   mechanism, CAP-V10)** -- an *authoring* question: can someone declare "compose these Views
+   into a page" from YAML, without writing Go? menata-app has never actually tested this axis --
+   every composed page here (`/dashboard`, `/sprint`, `/activity`...) is hand-written Go+templ,
+   same as Phase 6 found cheap and correct, but for a *different* reason (no metadata author has
+   needed to compose one without touching code). `prototype/go` already answered this axis real,
+   with a real capability id and Tier 2 conformance backing -- this is closer to forced than
+   axis 1, just not by a menata-app-native case yet.
+
+**Target schema (documented now, converge when a real second occurrence appears -- not built
+speculatively for Case 3 alone):**
+
+| Target mechanism | Proven prior art | menata-app's Case 3 instance (build now, as one component) | Converges when |
+|---|---|---|---|
+| `display: cards` alternate collection rendering | CAP-V02, `runtime-metadata-schema.md`'s `vw_list_cards` | `recordSummaryCard` (Phase 15 Step 1) -- Case 3's Approval Worklist is the *first* menata-app occurrence, P1 not yet cleared | A second Machine (Case 19's own Board card face is the likely next one) needs the identical shape -- reuse this schema key, don't invent a second one |
+| `type: dashboard` + `sections`/`children` page composition | CAP-V10, `internal/ui/dashboard.templ` | Hand-written `showDashboard`/`showSprintDashboard` etc. (Phase 13-14), same posture Phase 6 already found cheap | A metadata author, not an engineer, needs to compose a new dashboard-shaped page without a Go change -- the real P4 test, not "a third page exists" |
+| `type: decision_stepper` | CAP-V20 | `approvalStepper` (Phase 15 Step 2), one instance | A second sequential/staged-decision Machine appears (none in Case 19 today) |
+| `type: coord_placement` | CAP-V21 | Signature placement (Phase 15 Step 4), one instance, vanilla-JS exception | A second coordinate-on-an-image interaction appears (none named in any of the 21 cases yet) |
+| Activity Feed sourced from `record_events` | **Genuinely unresolved even in `prototype/go`** -- Study 40's own Cluster 6 is marked ❌ "no real metadata mechanism, faked with a static placeholder" | `mch_activity` as an ordinary Machine (Phase 13) -- **menata-app's own design already differs from, and arguably improves on, prototype/go's unresolved approach**, by treating activity as ordinary data instead of inventing a bespoke ViewType | Already effectively converged -- no further action, worth noting as a real improvement, not a gap |
+
+**Still rejected, with reasoning (this part of the original verdict stands):**
+- A generic Component Registry (007 §14) -- ~15 hand-wired templ page functions today is not the
+  dispatch-sprawl problem §14 exists to fix; no case names a need for *dynamic* View-type
+  selection at runtime, only for more View types to exist, which is a metadata/schema question
+  (the table above), not a registry question.
 - Generic React-style component-library patterns (hooks, client state) -- inapplicable to a
   server-rendered, minimize-JS stack; explicitly rejected rather than silently ignored.
-- A generic "Choice Card" or "coordinate picker" primitive -- single-occurrence evidence each
-  (Study 38's own Cluster 10 verdict); build the one real instance Case 3 needs, not a primitive.
+- A generic "Choice Card" primitive -- single-occurrence evidence (Study 38's own Cluster 10
+  verdict); build the one real instance Case 3 needs, not a primitive.
 
 **Case 3 UI page/component matrix** (format follows `benchmarks/032`; "Reuse" names the actual
 existing menata-app symbol):
