@@ -22,7 +22,7 @@ case that doesn't exist yet.
 
 ---
 
-## Phase 1 -- Single Machine, full vertical slice (in progress)
+## Phase 1 -- Single Machine, full vertical slice (done, 2026-09-15)
 
 **Forcing condition:** prove the metadata -> domain -> data -> render pipeline works end to end
 on one real capability before adding any breadth.
@@ -30,15 +30,17 @@ on one real capability before adding any breadth.
 - [x] Domain Plane: parse + validate Machine/Field from YAML (`internal/metadata`, `internal/domain`)
 - [x] Data Plane: Postgres-backed records, `ValidateRecord` against Field declarations (`internal/data`, `internal/db`)
 - [x] Experience Plane: minimal server-rendered page showing schema + records (`internal/rendering`)
-- [ ] Create records from the browser (an HTML form), not only via `curl`/JSON -- right now this
-      isn't usable as an application, only as an API
-- [ ] Update and delete a record
-- [ ] `internal/domain`: add the remaining field types actually needed by a second real field
-      (e.g. `number`) -- not the full semantic-type list from 006, only what Phase 1's own Machine
-      needs
+- [x] Create records from the browser (an HTML form), not only via `curl`/JSON
+- [x] Update and delete a record
+- [x] `internal/domain`: add the remaining field types actually needed by a second real field
+      (`number`, via `fld_priority`) -- not the full semantic-type list from 006, only what
+      Phase 1's own Machine needs
 
-**Exit criterion:** a person can open the page in a browser and create/edit/delete a Task record
-without touching the API directly.
+**Exit criterion met (2026-09-15):** a person can open https://menata.app in a browser and
+create/edit/delete a Task record via HTMX-driven forms, without touching the API directly.
+Verified end-to-end against real Postgres before deploy.
+
+**Phase 1 complete.**
 
 ---
 
