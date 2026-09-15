@@ -19,7 +19,9 @@ slate — no code is ported in from prior prototypes.
 ## Build order
 
 See [ROADMAP.md](ROADMAP.md) for the phased build plan — what gets implemented when, and the
-forcing condition that justifies each phase.
+forcing condition that justifies each phase. See [capabilities.md](capabilities.md) for what the
+runtime can actually do right now — field types, composition primitives, Layouts, and every
+Machine currently defined.
 
 ## Trial applications
 
