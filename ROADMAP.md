@@ -429,16 +429,31 @@ the admin login show no actor name -- real per-user login is still a later, sepa
 ## Phase 14 -- Remaining screens (once their own prerequisites above exist)
 
 Grouped because each is small once Phases 7-13 exist, and none has forced anything new in
-`internal/` on its own yet:
+`internal/` on its own yet. Landing incrementally, one screen per commit, rather than as one
+single Phase 14 change -- each screen's own composition is independently verifiable.
 
+- [x] Case 19: **My Tasks** (`project-my-tasks.html`, done 2026-09-15) -- `GET /my-tasks`, every
+      `mch_task` filtered to `authorization.CurrentUserID` ("assigned to me" -- Phase 8's identity
+      resolution, not new per-user login), bucketed Today/Upcoming/Completed by reusing Phase 13's
+      `experience.EvaluateSLA` rather than re-deriving day-truncation. Verified live: real
+      assignee filtering and OVERDUE/"Due today" bucketing confirmed with a scratch
+      `ADMIN_USER_ID` override against real Task data, then fully reverted
+- [x] Case 19: **Board Settings** (`project-settings.html`, done 2026-09-15) -- `GET
+      /board-settings` previews `mch_list`/`mch_label` (already ordinary Machines) and links to
+      their own already-built generic Machine pages for the actual CRUD; no new settings
+      mechanism, pure composition
+- [x] Case 19: **Project Activity** (`project-activity.html`, done 2026-09-15) -- `GET /activity`
+      groups Phase 13's `mch_activity` data by day (Today/Yesterday/Earlier) instead of the
+      Dashboard's flat top-10; `logActivity` coverage widened from Document/Approval-Step-only to
+      `mch_task`/`mch_project` creation and Task status moves ("completed" when the new status is
+      `done`). Verified live: created/moved/completed events all logged and grouped correctly,
+      test records fully reverted afterward
+- [ ] Case 19: Timeline/Calendar (date-range and week-grid Layouts, extending Phase 5's
+      `LayoutKind` set), Sprint Dashboard (aggregation, likely reuses Phase 13's activity/count
+      mechanisms), Team Capacity (aggregation over Phase 10's Members), Workflow Automation (a
+      read-only view over Phase 12's Action metadata)
 - [ ] Case 3: signature coordinate placement (`document-signature-placement.html`) -- a new,
       fairly specialized drag-position editor; no other screen needs this interaction pattern
-- [ ] Case 19: My Tasks (a query filtered by "assigned to me," needs Phase 7's real User tied to
-      the logged-in identity), Timeline/Calendar (date-range and week-grid Layouts, extending
-      Phase 5's LayoutKind set), Sprint Dashboard (aggregation, likely reuses Phase 13's
-      activity/count mechanisms), Team Capacity (aggregation over Phase 10's Members),
-      Workflow Automation (a read-only view over Phase 12's Action metadata), Board Settings
-      (CRUD over Phase 10's `mch_list` ordering and label catalog)
 
 **Exit criterion:** each screen above matches its own `ui-sample/` mockup's real content: no new
 architectural mechanism required per screen, only composition of what Phases 7-13 already built.

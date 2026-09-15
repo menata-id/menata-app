@@ -45,7 +45,7 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Ordered Lists | A Machine's records used as a board's real, renameable, reorderable columns (replaces a fixed status enum) | Built | `mch_list`, grouping `mch_task`'s board |
 | Sort order | Explicit per-Machine ordering (`sort_order` column), assigned at create time | Built | Every Machine — `internal/data.Store.CreateRecord` |
 | SLA badge | A `view.sla_field` date Field rendered as OVERDUE / "N day(s) left" instead of a plain date | Built | `mch_document`'s `fld_due_date`, `internal/experience.EvaluateSLA` |
-| Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `main.go`'s `logActivity` |
+| Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `main.go`'s `logActivity` — Document submission/decision, Task/Project creation, Task status moves |
 
 ---
 
@@ -59,6 +59,9 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Record detail page (`GET /machines/{id}/records/{id}`) | Built | One route, three renderings depending on requester — direct nav / HTMX-detail-context / HTMX-row-context |
 | File download with original filename (`GET /uploads/*`) | Built | `Content-Disposition` names the real filename, not the storage key |
 | Composed Dashboard (hand-assembled, not a generic mechanism) | Built | `GET /dashboard` — Projects+Tasks, Documents status summary, Pending Approval (with SLA badges), Recent Activity feed |
+| My Tasks (personal work queue, "assigned to me" filter + SLA bucketing) | Built | `GET /my-tasks` |
+| Project Activity (day-grouped cross-Machine event feed) | Built | `GET /activity` |
+| Board Settings (Lists/Labels catalog hub, links to their own Machine pages) | Built | `GET /board-settings` |
 | Approve/Reject action bar | Built, hardcoded to one Machine | `mch_approval_step`'s own detail page only |
 
 **Not yet built:** Timeline/Calendar/Sprint-Dashboard/Team-Capacity Layouts, colored label chips
@@ -120,6 +123,9 @@ own forcing condition in `ROADMAP.md` Phase 14.
 | `POST /logout` | Sign out |
 | `GET /` | Machine list (landing page) |
 | `GET /dashboard` | Composed dashboard: Project+Task, Document status summary, Pending Approval, Recent Activity |
+| `GET /my-tasks` | Personal work queue: Tasks assigned to the current identity, Today/Upcoming/Completed |
+| `GET /activity` | Cross-Machine event feed, grouped by day |
+| `GET /board-settings` | Lists/Labels catalog hub, linking to their own Machine pages |
 | `GET /machines/{id}` | A Machine's own page (table or board) |
 | `POST /machines/{id}/records` | Create a record |
 | `GET /machines/{id}/records/{id}` | Record detail page (or a fragment, for HTMX) |
