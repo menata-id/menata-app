@@ -1,0 +1,49 @@
+package rendering
+
+import (
+	"fmt"
+
+	"menata.app/internal/data"
+)
+
+// ProjectSummary is one Project's row on the Dashboard: itself, plus how many Tasks reference
+// it and how many of those are still open. Unlike MachinePage, a Dashboard composes specific
+// Machines for a specific business question ("which projects have open work") -- it is not a
+// generic per-Machine renderer, matching 007's own example ("Dashboard = Page + Layout + Metric/
+// Collection components").
+type ProjectSummary struct {
+	Project    *data.Record
+	OpenTasks  int
+	TotalTasks int
+}
+
+// DashboardPage combines Project and Task data on one page (ROADMAP.md Phase 6's own forcing
+// case, tested here). It fetches each Machine's full record set once and joins in Go --
+// deliberately not a per-project query loop, which is exactly the naive N+1 pattern that would
+// need a planner. Two whole-machine queries stay correct and cheap regardless of how many
+// Projects exist, so this page does not, on its own, force Phase 6.
+templ DashboardPage(summaries []ProjectSummary, appName string) {
+	@pageShell("Dashboard", appName) {
+		<h1>Dashboard</h1>
+		<table>
+			<thead>
+				<tr>
+					<th>Project</th>
+					<th>Status</th>
+					<th>Open Tasks</th>
+					<th>Total Tasks</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, s := range summaries {
+					<tr>
+						<td>{ toString(s.Project.Values["fld_name"]) }</td>
+						<td><span class="badge">{ toString(s.Project.Values["fld_status"]) }</span></td>
+						<td>{ fmt.Sprint(s.OpenTasks) }</td>
+						<td>{ fmt.Sprint(s.TotalTasks) }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}

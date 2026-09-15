@@ -69,6 +69,7 @@ func main() {
 		pr.Post("/api/machines/{machineID}/records", createRecord(machines, store))
 
 		pr.Get("/", showMachineList(app.Machines, app.Application.Name))
+		pr.Get("/dashboard", showDashboard(store, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store))
@@ -186,6 +187,48 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 func showMachineList(machines []*domain.Machine, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		rendering.MachineList(machines, appName).Render(req.Context(), w)
+	}
+}
+
+// showDashboard combines Project and Task data on one page -- ROADMAP.md Phase 6's own forcing
+// case, exercised here for real. It fetches each Machine's full record set once (two queries
+// total, not one per Project) and joins them in Go, so it does not, on its own, demonstrate the
+// naive-fetch problem Phase 6's planner exists to fix.
+func showDashboard(store *data.Store, appName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		projects, err := store.ListRecords(ctx, "mch_project")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		tasks, err := store.ListRecords(ctx, "mch_task")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		open := make(map[string]int, len(projects))
+		total := make(map[string]int, len(projects))
+		for _, t := range tasks {
+			projectID, _ := t.Values["fld_project"].(string)
+			total[projectID]++
+			if toDisplayString(t.Values["fld_status"]) != "done" {
+				open[projectID]++
+			}
+		}
+
+		summaries := make([]rendering.ProjectSummary, 0, len(projects))
+		for _, p := range projects {
+			summaries = append(summaries, rendering.ProjectSummary{
+				Project:    p,
+				OpenTasks:  open[p.ID],
+				TotalTasks: total[p.ID],
+			})
+		}
+
+		rendering.DashboardPage(summaries, appName).Render(ctx, w)
 	}
 }
 
