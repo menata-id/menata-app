@@ -72,4 +72,5 @@ type Machine struct {
 	Name        string
 	Fields      []Field
 	Constraints []Constraint
+	View        View
 }

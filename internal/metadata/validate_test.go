@@ -128,6 +128,33 @@ func TestValidate_constraintUnknownOp(t *testing.T) {
 	assertIssue(t, m, "is not a known operator")
 }
 
+func TestValidate_viewDefaultsToTable(t *testing.T) {
+	m := validMachine() // no View set at all
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_viewUnknownLayout(t *testing.T) {
+	m := validMachine()
+	m.View = domain.View{Layout: "carousel"}
+	assertIssue(t, m, "is not a known layout")
+}
+
+func TestValidate_viewBoardValidGroupBy(t *testing.T) {
+	m := validMachine()
+	m.View = domain.View{Layout: domain.LayoutBoard, GroupBy: "fld_status"}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_viewBoardUnknownGroupBy(t *testing.T) {
+	m := validMachine()
+	m.View = domain.View{Layout: domain.LayoutBoard, GroupBy: "fld_ghost"}
+	assertIssue(t, m, "is not a field of this machine")
+}
+
 func assertIssue(t *testing.T, m *domain.Machine, substr string) {
 	t.Helper()
 	err := Validate(m)

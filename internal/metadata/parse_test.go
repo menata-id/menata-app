@@ -1,6 +1,10 @@
 package metadata
 
-import "testing"
+import (
+	"testing"
+
+	"menata.app/internal/domain"
+)
 
 func TestParse(t *testing.T) {
 	yaml := []byte(`
@@ -33,6 +37,34 @@ fields:
 	}
 	if len(m.Fields[1].Options) != 3 {
 		t.Errorf("Fields[1].Options = %v, want 3 options", m.Fields[1].Options)
+	}
+}
+
+func TestParse_view(t *testing.T) {
+	yaml := []byte(`
+id: mch_task
+name: Task
+view:
+  layout: board
+  group_by: fld_status
+`)
+
+	m, err := Parse(yaml)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if m.View.Layout != domain.LayoutBoard || m.View.GroupBy != "fld_status" {
+		t.Errorf("View = %+v, want {board fld_status}", m.View)
+	}
+}
+
+func TestParse_noView(t *testing.T) {
+	m, err := Parse([]byte("id: mch_task\nname: Task\n"))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if m.View.Layout != "" {
+		t.Errorf("View.Layout = %q, want empty when no view: block is present", m.View.Layout)
 	}
 }
 

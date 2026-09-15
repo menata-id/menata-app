@@ -4,4 +4,9 @@
 //
 // View is a supported convenience abstraction, not the universal composition primitive — new
 // requirements should compose from Layout/Component/Binding before introducing a new View type.
+//
+// Phase 5 (ROADMAP.md) supports exactly two generic Layouts -- table and board -- because those
+// are the two presentations two real Machines actually need. A board here is not a new renderer
+// built for "Task"; it is the same generic table primitive arranged into grouped columns (006
+// §View's own lowering formula, "Board = Collection + Group Dimension + Board renderer").
 package experience

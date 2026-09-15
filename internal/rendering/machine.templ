@@ -5,6 +5,7 @@ import (
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 )
 
 // pageShell is the shared HTML document, styles, and topbar every page uses. It exists so
@@ -42,6 +43,12 @@ templ pageShell(title string, appName string) {
 				ul.machine-list { list-style: none; padding: 0; }
 				ul.machine-list li { padding: 0.75rem; border-bottom: 1px solid #e5e5e5; }
 				ul.machine-list a { color: #1a1a1a; text-decoration: none; font-weight: 500; }
+				.board { display: flex; gap: 1rem; margin-top: 1rem; overflow-x: auto; padding-bottom: 0.5rem; }
+				.board-column { flex: 0 0 260px; background: #f7f8fc; border-radius: 6px; padding: 0.75rem; }
+				.board-column h3 { margin: 0 0 0.5rem 0; font-size: 0.8rem; color: #444; text-transform: uppercase; }
+				.board-column table { margin-top: 0; font-size: 0.85rem; }
+				.board-column th { display: none; }
+				.board-column td { padding: 0.35rem 0.4rem; }
 			</style>
 		</head>
 		<body>
@@ -121,6 +128,17 @@ templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationO
 	</table>
 
 	<h2>Records ({ fmt.Sprint(len(records)) })</h2>
+	switch m.View.EffectiveLayout() {
+		case domain.LayoutBoard:
+			@boardLayout(m, records, relations)
+		default:
+			@tableLayout(m, records, relations)
+	}
+}
+
+// tableLayout is the generic flat-list Layout: every Field as a column, every Record as a row,
+// plus a create-form row (007 §12.2 "Layout is a generic structural composition primitive").
+templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions) {
 	<table>
 		<thead>
 			<tr>
@@ -134,25 +152,58 @@ templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationO
 			for _, r := range records {
 				@RecordRow(m, r, relations)
 			}
-			<tr>
-				<form
-					class="create-form"
-					hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
-					hx-target="#machine-body"
-					hx-swap="innerHTML"
-				>
-					for _, f := range m.Fields {
-						<td>
-							@fieldInput(f, nil, relations)
-						</td>
-					}
-					<td>
-						<button type="submit" class="primary">Add</button>
-					</td>
-				</form>
-			</tr>
+			@createFormRow(m, relations)
 		</tbody>
 	</table>
+}
+
+// boardLayout groups records into columns by m.View.GroupBy and renders each column as the same
+// generic table primitive tableLayout already uses -- a board is not a new renderer, it is
+// Collection + Group Dimension + the existing Table renderer, reused per column
+// (006-runtime-model.md "View" lowering formula).
+templ boardLayout(m *domain.Machine, records []*data.Record, relations RelationOptions) {
+	<div class="board">
+		for _, col := range experience.GroupRecords(m, records) {
+			<div class="board-column">
+				<h3>{ col.Label } ({ fmt.Sprint(len(col.Records)) })</h3>
+				<table>
+					<tbody>
+						for _, r := range col.Records {
+							@RecordRow(m, r, relations)
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	</div>
+	<h3>Add Record</h3>
+	<table>
+		<tbody>
+			@createFormRow(m, relations)
+		</tbody>
+	</table>
+}
+
+// createFormRow is the record-creation form, shared by every Layout so a create form isn't
+// duplicated per Layout kind.
+templ createFormRow(m *domain.Machine, relations RelationOptions) {
+	<tr>
+		<form
+			class="create-form"
+			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
+			hx-target="#machine-body"
+			hx-swap="innerHTML"
+		>
+			for _, f := range m.Fields {
+				<td>
+					@fieldInput(f, nil, relations)
+				</td>
+			}
+			<td>
+				<button type="submit" class="primary">Add</button>
+			</td>
+		</form>
+	</tr>
 }
 
 // RecordRow is one Record in display mode. A relation field shows its target's label, not the

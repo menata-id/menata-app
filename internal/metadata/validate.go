@@ -69,6 +69,15 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateConstraint(m, c, fieldsByID)...)
 	}
 
+	if m.View.Layout != "" && !domain.KnownLayouts[m.View.Layout] {
+		issues = append(issues, fmt.Sprintf("machine %q: view.layout %q is not a known layout", m.ID, m.View.Layout))
+	}
+	if m.View.EffectiveLayout() == domain.LayoutBoard {
+		if _, ok := fieldsByID[m.View.GroupBy]; !ok {
+			issues = append(issues, fmt.Sprintf("machine %q: view.group_by %q is not a field of this machine", m.ID, m.View.GroupBy))
+		}
+	}
+
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}
 	}

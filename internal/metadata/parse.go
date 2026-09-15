@@ -17,6 +17,12 @@ type machineDoc struct {
 	Name        string          `yaml:"name"`
 	Fields      []fieldDoc      `yaml:"fields"`
 	Constraints []constraintDoc `yaml:"constraints"`
+	View        *viewDoc        `yaml:"view"`
+}
+
+type viewDoc struct {
+	Layout  string `yaml:"layout"`
+	GroupBy string `yaml:"group_by"`
 }
 
 type fieldDoc struct {
@@ -81,6 +87,9 @@ func Parse(data []byte) (*domain.Machine, error) {
 				},
 			},
 		})
+	}
+	if doc.View != nil {
+		m.View = domain.View{Layout: domain.LayoutKind(doc.View.Layout), GroupBy: doc.View.GroupBy}
 	}
 	return m, nil
 }
