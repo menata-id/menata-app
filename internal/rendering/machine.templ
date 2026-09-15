@@ -1,11 +1,17 @@
 package rendering
 
-import "menata.app/internal/domain"
+import (
+	"fmt"
+
+	"menata.app/internal/data"
+	"menata.app/internal/domain"
+)
 
 // MachinePage is a minimal reference renderer for a single Machine: a plain HTML table of its
-// fields. It exists to prove the metadata -> render pipeline end to end; it is not yet driven by
-// UI IR or a View Model (007-composable-runtime-architecture.md §10, §23).
-templ MachinePage(m *domain.Machine) {
+// fields, plus its persisted records. It exists to prove the metadata -> data -> render pipeline
+// end to end; it is not yet driven by UI IR or a View Model
+// (007-composable-runtime-architecture.md §10, §23).
+templ MachinePage(m *domain.Machine, records []*data.Record) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -51,6 +57,30 @@ templ MachinePage(m *domain.Machine) {
 					}
 				</tbody>
 			</table>
+
+			<h2>Records ({ fmt.Sprint(len(records)) })</h2>
+			if len(records) == 0 {
+				<p class="no">No records yet.</p>
+			} else {
+				<table>
+					<thead>
+						<tr>
+							for _, f := range m.Fields {
+								<th>{ f.Name }</th>
+							}
+						</tr>
+					</thead>
+					<tbody>
+						for _, rec := range records {
+							<tr>
+								for _, f := range m.Fields {
+									<td>{ fmt.Sprint(rec.Values[f.ID]) }</td>
+								}
+							</tr>
+						}
+					</tbody>
+				</table>
+			}
 		</body>
 	</html>
 }
