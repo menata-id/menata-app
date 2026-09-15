@@ -6,14 +6,17 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 )
 
-// machineDoc and fieldDoc are the YAML serialization of a Machine (004-runtime-metadata.md
-// "Serialization Independence" -- YAML is one possible representation, not the model itself).
+// machineDoc, fieldDoc, and constraintDoc are the YAML serialization of a Machine
+// (004-runtime-metadata.md "Serialization Independence" -- YAML is one possible representation,
+// not the model itself).
 type machineDoc struct {
-	ID     string     `yaml:"id"`
-	Name   string     `yaml:"name"`
-	Fields []fieldDoc `yaml:"fields"`
+	ID          string          `yaml:"id"`
+	Name        string          `yaml:"name"`
+	Fields      []fieldDoc      `yaml:"fields"`
+	Constraints []constraintDoc `yaml:"constraints"`
 }
 
 type fieldDoc struct {
@@ -24,6 +27,21 @@ type fieldDoc struct {
 	Options  []string `yaml:"options"`
 	// Machine is the target Machine ID, meaningful only when type is "relation".
 	Machine string `yaml:"machine"`
+}
+
+type constraintDoc struct {
+	ID         string `yaml:"id"`
+	On         string `yaml:"on"`
+	WhenEquals string `yaml:"when_equals"`
+	BlockIf    struct {
+		RelatedMachine string `yaml:"related_machine"`
+		RelatedField   string `yaml:"related_field"`
+		Condition      struct {
+			Field string `yaml:"field"`
+			Op    string `yaml:"op"`
+			Value string `yaml:"value"`
+		} `yaml:"condition"`
+	} `yaml:"block_if"`
 }
 
 // Parse decodes Runtime Metadata YAML describing a single Machine. It performs structural
@@ -46,6 +64,22 @@ func Parse(data []byte) (*domain.Machine, error) {
 			Required:       fd.Required,
 			Options:        fd.Options,
 			RelatedMachine: fd.Machine,
+		})
+	}
+	for _, cd := range doc.Constraints {
+		m.Constraints = append(m.Constraints, domain.Constraint{
+			ID:         cd.ID,
+			On:         cd.On,
+			WhenEquals: cd.WhenEquals,
+			BlockIf: domain.RelationBlock{
+				RelatedMachine: cd.BlockIf.RelatedMachine,
+				RelatedField:   cd.BlockIf.RelatedField,
+				Condition: expression.Comparison{
+					Field: cd.BlockIf.Condition.Field,
+					Op:    expression.Op(cd.BlockIf.Condition.Op),
+					Value: cd.BlockIf.Condition.Value,
+				},
+			},
 		})
 	}
 	return m, nil

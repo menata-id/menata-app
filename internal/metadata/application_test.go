@@ -159,3 +159,104 @@ application:
 		t.Fatal("LoadApplication() error = nil, want error for zero machines")
 	}
 }
+
+func TestLoadApplication_constraintValid(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_project
+    name: Project
+    type: relation
+    machine: mch_project
+  - id: fld_status
+    name: Status
+    type: status
+    options: [todo, done]
+`)
+	writeFile(t, dir, "project.yaml", `
+id: mch_project
+name: Project
+fields:
+  - id: fld_status
+    name: Status
+    type: status
+    options: [planning, done]
+constraints:
+  - id: cst_project_done_no_open_tasks
+    on: fld_status
+    when_equals: done
+    block_if:
+      related_machine: mch_task
+      related_field: fld_project
+      condition:
+        field: fld_status
+        op: not_equals
+        value: done
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - project.yaml
+    - task.yaml
+`)
+
+	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+}
+
+func TestLoadApplication_constraintRelatedFieldNotARelationBack(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_status
+    name: Status
+    type: status
+    options: [todo, done]
+`)
+	writeFile(t, dir, "project.yaml", `
+id: mch_project
+name: Project
+fields:
+  - id: fld_status
+    name: Status
+    type: status
+    options: [planning, done]
+constraints:
+  - id: cst_project_done_no_open_tasks
+    on: fld_status
+    when_equals: done
+    block_if:
+      related_machine: mch_task
+      related_field: fld_status
+      condition:
+        field: fld_status
+        op: not_equals
+        value: done
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - project.yaml
+    - task.yaml
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: fld_status on mch_task is not a relation field pointing back to mch_project")
+	}
+}

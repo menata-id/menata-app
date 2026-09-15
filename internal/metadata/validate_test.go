@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 )
 
 func validMachine() *domain.Machine {
@@ -72,6 +73,59 @@ func TestValidate_relationWithValidTarget(t *testing.T) {
 	if err := Validate(m); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
 	}
+}
+
+func validConstraint() domain.Constraint {
+	return domain.Constraint{
+		ID:         "cst_status_done",
+		On:         "fld_status",
+		WhenEquals: "done",
+		BlockIf: domain.RelationBlock{
+			RelatedMachine: "mch_project",
+			RelatedField:   "fld_task",
+			Condition:      expression.Comparison{Field: "fld_status", Op: expression.OpNotEquals, Value: "done"},
+		},
+	}
+}
+
+func TestValidate_constraintValid(t *testing.T) {
+	m := validMachine()
+	m.Constraints = []domain.Constraint{validConstraint()}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_constraintBadID(t *testing.T) {
+	m := validMachine()
+	c := validConstraint()
+	c.ID = "status_done"
+	m.Constraints = []domain.Constraint{c}
+	assertIssue(t, m, "constraint id")
+}
+
+func TestValidate_constraintOnUnknownField(t *testing.T) {
+	m := validMachine()
+	c := validConstraint()
+	c.On = "fld_ghost"
+	m.Constraints = []domain.Constraint{c}
+	assertIssue(t, m, "is not a field of machine")
+}
+
+func TestValidate_constraintWhenEqualsNotAnOption(t *testing.T) {
+	m := validMachine()
+	c := validConstraint()
+	c.WhenEquals = "archived"
+	m.Constraints = []domain.Constraint{c}
+	assertIssue(t, m, "is not one of field")
+}
+
+func TestValidate_constraintUnknownOp(t *testing.T) {
+	m := validMachine()
+	c := validConstraint()
+	c.BlockIf.Condition.Op = "greater_than"
+	m.Constraints = []domain.Constraint{c}
+	assertIssue(t, m, "is not a known operator")
 }
 
 func assertIssue(t *testing.T, m *domain.Machine, substr string) {

@@ -15,6 +15,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"menata.app/internal/authorization"
+	"menata.app/internal/behavior"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/db"
@@ -299,6 +300,16 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store) ht
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
+		relatedRecords, err := loadConstraintRelatedRecords(req.Context(), store, machine)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := behavior.CheckConstraints(machine, id, values, relatedRecords); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+
 		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
 		if err != nil {
 			recordError(w, err)
@@ -339,6 +350,23 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 		return
 	}
 	rendering.MachineBody(machine, records, relations).Render(req.Context(), w)
+}
+
+// loadConstraintRelatedRecords fetches every record of each Constraint's related Machine, keyed
+// by that Machine's ID, for behavior.CheckConstraints to evaluate against.
+func loadConstraintRelatedRecords(ctx context.Context, store *data.Store, m *domain.Machine) (map[string][]*data.Record, error) {
+	related := map[string][]*data.Record{}
+	for _, c := range m.Constraints {
+		if _, loaded := related[c.BlockIf.RelatedMachine]; loaded {
+			continue
+		}
+		records, err := store.ListRecords(ctx, c.BlockIf.RelatedMachine)
+		if err != nil {
+			return nil, err
+		}
+		related[c.BlockIf.RelatedMachine] = records
+	}
+	return related, nil
 }
 
 // loadRelationOptions fetches every option a relation field on m could select, keyed by target

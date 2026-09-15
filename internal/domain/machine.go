@@ -1,5 +1,7 @@
 package domain
 
+import "menata.app/internal/expression"
+
 // FieldType is the semantic type of a Field, per 006-runtime-model.md "Field": metadata should
 // prefer a semantic type over a renderer-specific widget.
 type FieldType string
@@ -41,10 +43,33 @@ type Field struct {
 	RelatedMachine string
 }
 
+// Constraint expresses a declarative condition that must hold for a state transition
+// (006-runtime-model.md "Constraint"). Constraints are evaluated by the runtime and are not
+// arbitrary executable code.
+//
+// Phase 4 (ROADMAP.md) supports exactly one shape: block a field transition (On becomes
+// WhenEquals) while a related Machine has any record matching BlockIf's condition. A second,
+// differently-shaped rule generalizes this when it's actually needed, not before.
+type Constraint struct {
+	ID         string
+	On         string
+	WhenEquals string
+	BlockIf    RelationBlock
+}
+
+// RelationBlock names a related Machine, the Field on that Machine that relates back to this
+// one, and the Condition a related record must match to block the transition.
+type RelationBlock struct {
+	RelatedMachine string
+	RelatedField   string
+	Condition      expression.Comparison
+}
+
 // Machine is the primary runtime realization unit for a business capability
 // (006-runtime-model.md "Machine").
 type Machine struct {
-	ID     string
-	Name   string
-	Fields []Field
+	ID          string
+	Name        string
+	Fields      []Field
+	Constraints []Constraint
 }
