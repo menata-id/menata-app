@@ -239,18 +239,27 @@ nonexistent user id is rejected (`422`). Verified end-to-end against real Postgr
 
 ---
 
-## Phase 8 -- Record detail page
+## Phase 8 -- Record detail page (done, 2026-09-15)
 
 **Forcing condition:** Case 19's Task Detail (screen 3) and Case 3's Approval Inbox Detail
 (screen 3) both need a dedicated per-record view -- editing is inline-only today (table row /
 board card), with nowhere to host embedded sections like a checklist or an activity feed.
 
-- [ ] `GET /machines/{machineID}/records/{id}` -- a real detail page, not just the edit-row
-      fragment Phase 1 built
-- [ ] Closes the same gap already named in "Operational backlog" below
+- [x] `GET /machines/{machineID}/records/{id}` -- a real detail page (`rendering.RecordDetailPage`),
+      not just the edit-row fragment Phase 1 built. One route serves three renderings depending
+      on the request (direct navigation vs. HTMX targeting the detail container vs. HTMX
+      targeting a table/board row) -- `internal/rendering/detail.templ`, `cmd/server/main.go`'s
+      `isDetailContext`
+- [x] Closes the same gap already named in "Operational backlog" below
 
-**Exit criterion:** opening a Task or Project record shows a dedicated page, not just an inline
-table/board edit state.
+**Exit criterion met:** opening a Task or Project record shows a dedicated page (`dl.detail-
+fields` label/value layout, Edit/Delete actions), not just an inline table/board edit state.
+Every Layout's `RecordRow` now links its first field to this page for free. Verified end-to-end:
+direct navigation, edit/update/delete from the detail context (delete redirects back to the
+Machine's list/board via `HX-Redirect`), and the pre-existing table/board inline-edit flows
+confirmed unchanged.
+
+**Phase 8 complete.**
 
 ---
 
