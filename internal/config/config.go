@@ -6,15 +6,17 @@ import "os"
 
 // Config holds process-level configuration.
 type Config struct {
-	Port        string
-	DatabaseURL string
+	Port         string
+	DatabaseURL  string
+	MetadataPath string
 }
 
 // Load reads Config from the environment, applying defaults where unset.
 func Load() Config {
 	return Config{
-		Port:        getenv("PORT", "8080"),
-		DatabaseURL: getenv("DATABASE_URL", ""),
+		Port:         getenv("PORT", "8080"),
+		DatabaseURL:  getenv("DATABASE_URL", ""),
+		MetadataPath: getenv("METADATA_PATH", "metadata/task.yaml"),
 	}
 }
 

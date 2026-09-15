@@ -1,0 +1,18 @@
+id: mch_task
+name: Task
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [todo, in_progress, done]
+  - id: fld_assignee
+    name: Assignee
+    type: person
+  - id: fld_due_date
+    name: Due Date
+    type: date
