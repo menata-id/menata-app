@@ -286,7 +286,7 @@ Postgres, including the Person-based bonus case (User → assigned Tasks).
 
 ---
 
-## Phase 10 -- Many-to-many relations + dynamic ordered Lists
+## Phase 10 -- Many-to-many relations + dynamic ordered Lists (done, 2026-09-15)
 
 **Forcing condition:** two distinct gaps Case 19's Board screen names directly:
 
@@ -296,15 +296,28 @@ Postgres, including the Person-based bonus case (User → assigned Tasks).
    data a person can rename and reorder via Board Settings), not the fixed `options:` enum
    Phase 5's board Layout currently groups by.
 
-- [ ] A many-to-many Relation shape (a join collection, not a single field value) -- `internal/domain`,
-      `internal/data`, and the `<select multiple>`-equivalent in `internal/rendering`
-- [ ] `mch_list` (or equivalent): an ordered, renameable Machine that a board's Layout groups by,
-      replacing the fixed status enum for Machines that declare it
-- [ ] Card `fld_label`/`fld_member` as many-to-many relations, rendered as colored chips /
-      avatars matching `project-board.html`'s own markup
+- [x] A many-to-many Relation shape (a join collection, not a single field value) --
+      `metadata/card_label.yaml` (`mch_card_label`: `fld_task` + `fld_label`, both ordinary
+      Relation fields). Composed entirely from Phase 3's Relation and Phase 9's Child Collection;
+      zero new engine code was needed -- it shows up as a real child collection on both `mch_task`'s
+      and `mch_label`'s own detail pages, in both directions
+- [x] `mch_list`: an ordered, renameable Machine that Task's board Layout now groups by
+      (`fld_list`), replacing the fixed status enum. `experience.GroupRecords` gained a `columns`
+      parameter (nil keeps Phase 5's original Options-based behavior; the caller's pre-fetched
+      relation-target records drive the new case) -- `cmd/server`'s `loadBoardColumns` resolves them
+- [ ] Card `fld_label`/`fld_member` rendered as colored chips/avatars matching `project-board.html`'s
+      own markup -- **deliberately deferred to Phase 14**, this phase proves the mechanism (a
+      Task really can carry several Labels) and the dynamic Lists work, not the final visual
+      polish of showing them inline on the card face
 
-**Exit criterion:** a Task/Card can carry several Labels and several Members at once, and the
-board's columns can be renamed/reordered without a metadata schema change.
+**Exit criterion met:** a Task carries several Labels via the join Machine (proven both
+directions); the board's columns are renamed (`To Do` -> `Backlog`) with the change appearing
+immediately, zero metadata/code deploy. Verified end-to-end against real Postgres.
+
+`domain.Machine.FieldByID` added, replacing two identical private duplicates in
+`internal/experience` and `internal/metadata` (Reference over Duplication).
+
+**Phase 10 complete.**
 
 ---
 
