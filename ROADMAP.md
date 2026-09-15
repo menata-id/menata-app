@@ -588,7 +588,12 @@ existing menata-app symbol):
       Dashboard/Team Capacity/Activity. Verified identical rendered content on every page before
       committing, plus one small real enhancement (Dashboard's sections now link "View all →" to
       their own already-built pages via `sectionHeader`)
-- [ ] Step 1: Record Summary Card + SLA filter chips for the Approval Worklist
+- [x] Step 1 (done, 2026-09-15): `GET /approval-inbox` -- Record Summary Card (`recordSummaryCard`/
+      `summaryCardList`, `machine.templ`) + SLA filter chips (plain query-param links, no JS) for
+      the Approval Worklist, plus the "My Documents" section. "Submitted by" derived from the
+      existing `mch_activity` log, not a new Field. Verified live: real assignee filtering,
+      SLA bucket counts/filtering, and submitter resolution all confirmed with a scratch
+      `ADMIN_USER_ID` override, then fully reverted
 - [ ] Step 2: Approval progress stepper (new `approvalStepper` component, no metadata change)
 - [ ] Step 3: `fld_signature_page`/`fld_signature_x`/`fld_signature_y` (plain `number` Fields,
       percentage-based, on `approval_step.yaml`) + a PDF-page-to-image preview step
