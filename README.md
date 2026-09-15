@@ -16,6 +16,11 @@ slate — no code is ported in from prior prototypes.
 6. [006-runtime-model.md](006-runtime-model.md)
 7. [007-composable-runtime-architecture.md](007-composable-runtime-architecture.md)
 
+## Build order
+
+See [ROADMAP.md](ROADMAP.md) for the phased build plan — what gets implemented when, and the
+forcing condition that justifies each phase.
+
 ## Naming
 
 `menata-app` is short for **Menata Runtime App** — the deployed application produced by running
