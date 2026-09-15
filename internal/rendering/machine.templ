@@ -11,7 +11,7 @@ import (
 // and its persisted records with inline edit/delete. It exists to prove the metadata -> data ->
 // render pipeline end to end; it is not yet driven by UI IR or a View Model
 // (007-composable-runtime-architecture.md §10, §23).
-templ MachinePage(m *domain.Machine, records []*data.Record) {
+templ MachinePage(m *domain.Machine, records []*data.Record, appName string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -21,6 +21,9 @@ templ MachinePage(m *domain.Machine, records []*data.Record) {
 			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 			<style>
 				body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
+				header.topbar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e5e5; }
+				header.topbar span { color: #666; font-size: 0.85rem; }
+				header.topbar button { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; }
 				h1 { margin-bottom: 0.25rem; }
 				code { color: #666; font-size: 0.9rem; }
 				table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
@@ -38,6 +41,12 @@ templ MachinePage(m *domain.Machine, records []*data.Record) {
 			</style>
 		</head>
 		<body>
+			<header class="topbar">
+				<span>{ appName }</span>
+				<form method="POST" action="/logout">
+					<button type="submit">Log out</button>
+				</form>
+			</header>
 			<div id="machine-body">
 				@MachineBody(m, records)
 			</div>

@@ -9,10 +9,12 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 
+	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/db"
@@ -26,12 +28,19 @@ func main() {
 	cfg := config.Load()
 	ctx := context.Background()
 
+	if cfg.AdminUsername == "" || cfg.AdminPassword == "" || cfg.SessionSecret == "" {
+		log.Fatal("ADMIN_USERNAME, ADMIN_PASSWORD, and SESSION_SECRET must all be set -- no safe default exists for a credential")
+	}
+
 	// Metadata is loaded and validated once at startup: invalid metadata must not enter
 	// execution (005-runtime-lifecycle.md Phase 3-4).
-	machine, err := metadata.Load(cfg.MetadataPath)
+	app, err := metadata.LoadApplication(cfg.MetadataPath)
 	if err != nil {
 		log.Fatalf("failed to load metadata: %v", err)
 	}
+	// Phase 2 (ROADMAP.md): exactly one Machine. Phase 3 generalizes once a second Machine
+	// forces routing by ID instead of always the first.
+	machine := app.Machines[0]
 
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -45,20 +54,75 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	r.Get("/api/machines", listMachines(machine))
-	r.Get("/api/machines/{machineID}/records", listRecords(store))
-	r.Post("/api/machines/{machineID}/records", createRecord(machine, store))
+	r.Get("/login", showLogin)
+	r.Post("/login", submitLogin(cfg))
 
-	r.Get("/", showMachinePage(machine, store))
-	r.Post("/machines/{machineID}/records", createRecordForm(machine, store))
-	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machine, store))
-	r.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machine, store))
-	r.Put("/machines/{machineID}/records/{id}", updateRecordForm(machine, store))
-	r.Delete("/machines/{machineID}/records/{id}", deleteRecord(machine, store))
+	r.Group(func(pr chi.Router) {
+		pr.Use(requireAuth(cfg))
+
+		pr.Post("/logout", logout(cfg))
+
+		pr.Get("/api/machines", listMachines(machine))
+		pr.Get("/api/machines/{machineID}/records", listRecords(store))
+		pr.Post("/api/machines/{machineID}/records", createRecord(machine, store))
+
+		pr.Get("/", showMachinePage(machine, app.Application.Name, store))
+		pr.Post("/machines/{machineID}/records", createRecordForm(machine, store))
+		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machine, store))
+		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machine, store))
+		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machine, store))
+		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machine, store))
+	})
 
 	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)
 	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
 		log.Fatal(err)
+	}
+}
+
+// requireAuth gates every route in its group behind a valid session cookie
+// (internal/authorization, ROADMAP.md Phase 2). An HTMX/API request gets a plain 401 so the
+// client can react; a full-page navigation is redirected to /login.
+func requireAuth(cfg config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if !authorization.IsAuthenticated(req, cfg.SessionSecret) {
+				if req.Header.Get("HX-Request") == "true" || strings.HasPrefix(req.URL.Path, "/api/") {
+					http.Error(w, "unauthorized", http.StatusUnauthorized)
+					return
+				}
+				http.Redirect(w, req, "/login", http.StatusSeeOther)
+				return
+			}
+			next.ServeHTTP(w, req)
+		})
+	}
+}
+
+func showLogin(w http.ResponseWriter, req *http.Request) {
+	rendering.LoginPage("").Render(req.Context(), w)
+}
+
+func submitLogin(cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if err := req.ParseForm(); err != nil {
+			http.Error(w, "invalid form body", http.StatusBadRequest)
+			return
+		}
+		if !authorization.CheckCredentials(req.FormValue("username"), req.FormValue("password"), cfg.AdminUsername, cfg.AdminPassword) {
+			w.WriteHeader(http.StatusUnauthorized)
+			rendering.LoginPage("Invalid username or password").Render(req.Context(), w)
+			return
+		}
+		authorization.SetSessionCookie(w, cfg.SessionSecret, cfg.SecureCookies)
+		http.Redirect(w, req, "/", http.StatusSeeOther)
+	}
+}
+
+func logout(cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		authorization.ClearSessionCookie(w, cfg.SecureCookies)
+		http.Redirect(w, req, "/login", http.StatusSeeOther)
 	}
 }
 
@@ -113,14 +177,14 @@ func createRecord(machine *domain.Machine, store *data.Store) http.HandlerFunc {
 	}
 }
 
-func showMachinePage(machine *domain.Machine, store *data.Store) http.HandlerFunc {
+func showMachinePage(machine *domain.Machine, appName string, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		records, err := store.ListRecords(req.Context(), machine.ID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		rendering.MachinePage(machine, records).Render(req.Context(), w)
+		rendering.MachinePage(machine, records, appName).Render(req.Context(), w)
 	}
 }
 

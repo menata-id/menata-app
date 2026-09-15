@@ -1,0 +1,9 @@
+workspace:
+  id: ws_default
+  name: Default Workspace
+
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml

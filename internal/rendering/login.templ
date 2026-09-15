@@ -1,0 +1,39 @@
+package rendering
+
+// LoginPage is the sign-in form gating the application (internal/authorization,
+// ROADMAP.md Phase 2). errorMsg is shown when a prior attempt failed; empty renders no message.
+templ LoginPage(errorMsg string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Sign in · Menata App</title>
+			<style>
+				body { font-family: system-ui, -apple-system, sans-serif; max-width: 320px; margin: 6rem auto; padding: 0 1rem; color: #1a1a1a; }
+				h1 { font-size: 1.25rem; }
+				label { display: block; margin-top: 1rem; font-size: 0.85rem; color: #444; }
+				input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; margin-top: 0.25rem; }
+				button { margin-top: 1.5rem; width: 100%; padding: 0.6rem; border: none; border-radius: 4px; background: #3949ab; color: #fff; font-size: 0.95rem; cursor: pointer; }
+				.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }
+			</style>
+		</head>
+		<body>
+			<h1>Menata App</h1>
+			<form method="POST" action="/login">
+				<label>
+					Username
+					<input type="text" name="username" autocomplete="username" autofocus/>
+				</label>
+				<label>
+					Password
+					<input type="password" name="password" autocomplete="current-password"/>
+				</label>
+				if errorMsg != "" {
+					<p class="error">{ errorMsg }</p>
+				}
+				<button type="submit">Sign in</button>
+			</form>
+		</body>
+	</html>
+}
