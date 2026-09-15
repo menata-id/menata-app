@@ -92,17 +92,20 @@ templ MachineList(machines []*domain.Machine, appName string) {
 // and its persisted records with inline edit/delete. It exists to prove the metadata -> data ->
 // render pipeline end to end; it is not yet driven by UI IR or a View Model
 // (007-composable-runtime-architecture.md §10, §23).
-templ MachinePage(m *domain.Machine, records []*data.Record, appName string, relations RelationOptions) {
+templ MachinePage(m *domain.Machine, records []*data.Record, appName string, relations RelationOptions, boardColumns []experience.Column) {
 	@pageShell(m.Name, appName) {
 		<div id="machine-body">
-			@MachineBody(m, records, relations)
+			@MachineBody(m, records, relations, boardColumns)
 		</div>
 	}
 }
 
 // MachineBody is the fragment every mutating endpoint returns for HTMX to swap into
-// #machine-body, so the full page never needs a hard reload.
-templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationOptions) {
+// #machine-body, so the full page never needs a hard reload. boardColumns is non-nil only when
+// m's board Layout groups by a relation field (ROADMAP.md Phase 10's ordered Lists) -- fetching
+// those columns is I/O this package doesn't perform, so the caller supplies them; nil means "use
+// the status field's own Options instead" (Phase 5's original behavior, still supported).
+templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column) {
 	<h1>{ m.Name }</h1>
 	<code>{ m.ID }</code>
 
@@ -135,7 +138,7 @@ templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationO
 	<h2>Records ({ fmt.Sprint(len(records)) })</h2>
 	switch m.View.EffectiveLayout() {
 		case domain.LayoutBoard:
-			@boardLayout(m, records, relations)
+			@boardLayout(m, records, relations, boardColumns)
 		default:
 			@tableLayout(m, records, relations)
 	}
@@ -166,9 +169,9 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 // generic table primitive tableLayout already uses -- a board is not a new renderer, it is
 // Collection + Group Dimension + the existing Table renderer, reused per column
 // (006-runtime-model.md "View" lowering formula).
-templ boardLayout(m *domain.Machine, records []*data.Record, relations RelationOptions) {
+templ boardLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column) {
 	<div class="board">
-		for _, col := range experience.GroupRecords(m, records) {
+		for _, col := range experience.GroupRecords(m, records, boardColumns) {
 			<div class="board-column">
 				<h3>{ col.Label } ({ fmt.Sprint(len(col.Records)) })</h3>
 				<table>

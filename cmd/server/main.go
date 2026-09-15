@@ -20,6 +20,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/db"
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 	"menata.app/internal/metadata"
 	"menata.app/internal/rendering"
 )
@@ -249,7 +250,12 @@ func showMachinePage(machines map[string]*domain.Machine, appName string, store 
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		rendering.MachinePage(machine, records, appName, relations).Render(req.Context(), w)
+		boardColumns, err := loadBoardColumns(req.Context(), store, machines, machine)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rendering.MachinePage(machine, records, appName, relations, boardColumns).Render(req.Context(), w)
 	}
 }
 
@@ -442,7 +448,12 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	rendering.MachineBody(machine, records, relations).Render(req.Context(), w)
+	boardColumns, err := loadBoardColumns(req.Context(), store, machines, machine)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	rendering.MachineBody(machine, records, relations, boardColumns).Render(req.Context(), w)
 }
 
 // loadConstraintRelatedRecords fetches every record of each Constraint's related Machine, keyed
@@ -487,6 +498,36 @@ func machineSlice(machines map[string]*domain.Machine) []*domain.Machine {
 		list = append(list, m)
 	}
 	return list
+}
+
+// loadBoardColumns resolves board columns for m when its board Layout groups by a reference
+// field (ROADMAP.md Phase 10's ordered Lists, e.g. mch_list) -- fetching those real records is
+// I/O experience.GroupRecords doesn't perform itself. Returns nil (not an error) when m isn't a
+// board, or groups by an ordinary status field instead: GroupRecords computes its own columns
+// from that Field's Options in that case, unchanged since Phase 5.
+func loadBoardColumns(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, m *domain.Machine) ([]experience.Column, error) {
+	if m.View.EffectiveLayout() != domain.LayoutBoard {
+		return nil, nil
+	}
+	groupField, ok := m.FieldByID(m.View.GroupBy)
+	if !ok || !groupField.IsReference() {
+		return nil, nil
+	}
+	listMachine, ok := machines[groupField.RelatedMachine]
+	if !ok || len(listMachine.Fields) == 0 {
+		return nil, nil
+	}
+
+	records, err := store.ListRecords(ctx, listMachine.ID)
+	if err != nil {
+		return nil, err
+	}
+	labelFieldID := listMachine.Fields[0].ID
+	columns := make([]experience.Column, 0, len(records))
+	for _, r := range records {
+		columns = append(columns, experience.Column{ID: r.ID, Label: toDisplayString(r.Values[labelFieldID])})
+	}
+	return columns, nil
 }
 
 // loadRelationOptions fetches every option a reference field on m could select (Relation or

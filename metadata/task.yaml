@@ -23,7 +23,11 @@ fields:
     name: Project
     type: relation
     machine: mch_project
+  - id: fld_list
+    name: List
+    type: relation
+    machine: mch_list
 
 view:
   layout: board
-  group_by: fld_status
+  group_by: fld_list

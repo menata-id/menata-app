@@ -91,3 +91,13 @@ type Machine struct {
 	Constraints []Constraint
 	View        View
 }
+
+// FieldByID returns the Field with the given id, if m declares one.
+func (m *Machine) FieldByID(id string) (Field, bool) {
+	for _, f := range m.Fields {
+		if f.ID == id {
+			return f, true
+		}
+	}
+	return Field{}, false
+}

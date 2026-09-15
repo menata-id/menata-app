@@ -132,14 +132,14 @@ func validateConstraintTargets(machines []*domain.Machine) error {
 				continue
 			}
 
-			relatedField, ok := fieldByID(related, c.BlockIf.RelatedField)
+			relatedField, ok := related.FieldByID(c.BlockIf.RelatedField)
 			if !ok {
 				issues = append(issues, fmt.Sprintf("machine %q constraint %q: block_if.related_field %q is not a field of machine %q", m.ID, c.ID, c.BlockIf.RelatedField, related.ID))
 			} else if relatedField.Type != domain.FieldTypeRelation || relatedField.RelatedMachine != m.ID {
 				issues = append(issues, fmt.Sprintf("machine %q constraint %q: block_if.related_field %q must be a relation field on %q pointing back to %q", m.ID, c.ID, c.BlockIf.RelatedField, related.ID, m.ID))
 			}
 
-			if _, ok := fieldByID(related, c.BlockIf.Condition.Field); !ok {
+			if _, ok := related.FieldByID(c.BlockIf.Condition.Field); !ok {
 				issues = append(issues, fmt.Sprintf("machine %q constraint %q: block_if.condition.field %q is not a field of machine %q", m.ID, c.ID, c.BlockIf.Condition.Field, related.ID))
 			}
 		}
@@ -148,13 +148,4 @@ func validateConstraintTargets(machines []*domain.Machine) error {
 		return &ValidationError{Issues: issues}
 	}
 	return nil
-}
-
-func fieldByID(m *domain.Machine, id string) (domain.Field, bool) {
-	for _, f := range m.Fields {
-		if f.ID == id {
-			return f, true
-		}
-	}
-	return domain.Field{}, false
 }

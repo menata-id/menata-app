@@ -21,3 +21,14 @@ func TestField_IsReference(t *testing.T) {
 		})
 	}
 }
+
+func TestMachine_FieldByID(t *testing.T) {
+	m := &Machine{Fields: []Field{{ID: "fld_title", Name: "Title"}}}
+
+	if f, ok := m.FieldByID("fld_title"); !ok || f.Name != "Title" {
+		t.Errorf("FieldByID(fld_title) = (%+v, %v), want (Title, true)", f, ok)
+	}
+	if _, ok := m.FieldByID("fld_ghost"); ok {
+		t.Error("FieldByID(fld_ghost) ok = true, want false")
+	}
+}

@@ -8,4 +8,7 @@ application:
   machines:
     - user.yaml
     - project.yaml
+    - list.yaml
+    - label.yaml
     - task.yaml
+    - card_label.yaml

@@ -1,0 +1,7 @@
+id: mch_list
+name: List
+fields:
+  - id: fld_name
+    name: Name
+    type: text
+    required: true
