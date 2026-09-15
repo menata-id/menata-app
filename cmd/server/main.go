@@ -13,6 +13,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
+	"menata.app/internal/rendering"
 )
 
 func main() {
@@ -31,6 +32,9 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 	r.Get("/api/machines", listMachines(machine))
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		rendering.MachinePage(machine).Render(r.Context(), w)
+	})
 
 	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)
 	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
