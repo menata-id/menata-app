@@ -305,11 +305,21 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 		}
 
 		if req.Header.Get("HX-Request") != "true" {
-			rendering.RecordDetailPage(machine, record, appName, relations).Render(req.Context(), w)
+			children, err := loadChildSections(req.Context(), store, machines, machine, record.ID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			rendering.RecordDetailPage(machine, record, appName, relations, children).Render(req.Context(), w)
 			return
 		}
 		if isDetailContext(req) {
-			rendering.RecordDetailView(machine, record, relations).Render(req.Context(), w)
+			children, err := loadChildSections(req.Context(), store, machines, machine, record.ID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			rendering.RecordDetailView(machine, record, relations, children).Render(req.Context(), w)
 			return
 		}
 		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
@@ -382,7 +392,12 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store) ht
 			return
 		}
 		if isDetailContext(req) {
-			rendering.RecordDetailView(machine, record, relations).Render(req.Context(), w)
+			children, err := loadChildSections(req.Context(), store, machines, machine, record.ID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			rendering.RecordDetailView(machine, record, relations, children).Render(req.Context(), w)
 			return
 		}
 		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
@@ -445,6 +460,33 @@ func loadConstraintRelatedRecords(ctx context.Context, store *data.Store, m *dom
 		related[c.BlockIf.RelatedMachine] = records
 	}
 	return related, nil
+}
+
+// loadChildSections resolves every child collection pointing at (m, recordID) -- every record of
+// another Machine whose reference field names this one (ROADMAP.md Phase 9) -- fetching each
+// collection's records and the relation options its own rows need to render.
+func loadChildSections(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, m *domain.Machine, recordID string) ([]rendering.ChildSection, error) {
+	var sections []rendering.ChildSection
+	for _, cc := range domain.FindChildCollections(machineSlice(machines), m.ID) {
+		records, err := store.ListRecordsBy(ctx, cc.Machine.ID, cc.Field.ID, recordID)
+		if err != nil {
+			return nil, err
+		}
+		relations, err := loadRelationOptions(ctx, store, machines, cc.Machine)
+		if err != nil {
+			return nil, err
+		}
+		sections = append(sections, rendering.ChildSection{Machine: cc.Machine, Records: records, Relations: relations})
+	}
+	return sections, nil
+}
+
+func machineSlice(machines map[string]*domain.Machine) []*domain.Machine {
+	list := make([]*domain.Machine, 0, len(machines))
+	for _, m := range machines {
+		list = append(list, m)
+	}
+	return list
 }
 
 // loadRelationOptions fetches every option a reference field on m could select (Relation or

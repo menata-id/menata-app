@@ -7,20 +7,31 @@ import (
 	"menata.app/internal/domain"
 )
 
+// ChildSection is one resolved child collection ready to render: the child Machine, its records
+// (already filtered to the parent being viewed, in sort_order), and the relation options those
+// records' own reference fields need (ROADMAP.md Phase 9).
+type ChildSection struct {
+	Machine   *domain.Machine
+	Records   []*data.Record
+	Relations RelationOptions
+}
+
 // RecordDetailPage is a dedicated per-record view (ROADMAP.md Phase 8), replacing inline-only
 // editing (table row / board card) as the host for richer content later phases add (Phase 9's
 // child collections, Phase 13's activity feed).
-templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relations RelationOptions) {
+templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relations RelationOptions, children []ChildSection) {
 	@pageShell(m.Name, appName) {
 		<p><a href={ templ.URL("/machines/" + m.ID) }>← { m.Name }</a></p>
 		<div id="record-detail">
-			@RecordDetailView(m, r, relations)
+			@RecordDetailView(m, r, relations, children)
 		</div>
 	}
 }
 
-// RecordDetailView is one Record's read-only detail: every Field as a label/value pair.
-templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions) {
+// RecordDetailView is one Record's read-only detail: every Field as a label/value pair, plus one
+// section per child collection -- every record of another Machine that references this one
+// (ROADMAP.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
+templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection) {
 	<div id="record-detail">
 		<h1>{ recordTitle(m, r) }</h1>
 		<code>{ r.ID }</code>
@@ -48,7 +59,31 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 				hx-confirm="Delete this record?"
 			>Delete</button>
 		</div>
+		for _, cc := range children {
+			@ChildSectionView(cc)
+		}
 	</div>
+}
+
+// ChildSectionView renders one child collection: a compact table of the child Machine's records,
+// each row the same generic RecordRow used everywhere else.
+templ ChildSectionView(cc ChildSection) {
+	<h2>{ cc.Machine.Name } ({ fmt.Sprint(len(cc.Records)) })</h2>
+	<table>
+		<thead>
+			<tr>
+				for _, f := range cc.Machine.Fields {
+					<th>{ f.Name }</th>
+				}
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			for _, rec := range cc.Records {
+				@RecordRow(cc.Machine, rec, cc.Relations)
+			}
+		</tbody>
+	</table>
 }
 
 // RecordDetailEdit is one Record's detail in edit mode: the same Field set as an inline form.

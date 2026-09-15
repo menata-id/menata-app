@@ -13,6 +13,7 @@ type Record struct {
 	ID        string
 	MachineID string
 	Values    map[string]any
+	SortOrder int64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
