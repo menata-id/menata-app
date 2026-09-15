@@ -16,6 +16,13 @@ slate — no code is ported in from prior prototypes.
 6. [006-runtime-model.md](006-runtime-model.md)
 7. [007-composable-runtime-architecture.md](007-composable-runtime-architecture.md)
 
+## Naming
+
+`menata-app` is short for **Menata Runtime App** — the deployed application produced by running
+Menata Runtime, hosted at [menata.app](https://menata.app). Throughout the concept docs below,
+"Menata Runtime" names the engine/system itself (parsing, compiling, executing Runtime Metadata);
+"Menata App" names this repository — the product that ships that runtime as a running application.
+
 ## Relationship to menata-runtime
 
 `menata-runtime` (private) holds the capability-discovery history that produced these concepts:

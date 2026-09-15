@@ -8,6 +8,16 @@
 
 ---
 
+# Naming
+
+**Menata App** is short for **Menata Runtime App** — the deployed application produced by
+running Menata Runtime, hosted at [menata.app](https://menata.app). Throughout this and the
+other concept documents (002–007), "Menata Runtime" names the engine/system itself, as described
+by the principles and architecture below; "Menata App" names the product/repository that ships
+that runtime as a running application.
+
+---
+
 # Core Principles
 
 ## 1. Machine First
