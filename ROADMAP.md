@@ -346,27 +346,43 @@ disk before deploy.
 
 ---
 
-## Phase 12 -- Multi-step Action workflow
+## Phase 12 -- Multi-step Action workflow (done, 2026-09-15)
 
 **Forcing condition:** Case 3's actual mechanism -- a document follows a *sequential or
 parallel* approval flow across several steps, each with its own assignee and Approve/Reject
 decision -- is genuinely new Behavior, beyond the single-Constraint shape Phase 4 built. This is
 the real forcing case for `internal/action`, deliberately left unbuilt until now.
 
-**Design pass required before code** (same discipline as Phases 2 and 4): what's the minimal
-Action shape -- does "sequential" mean step N+1's Constraint simply checks step N's decision
-field, reusing Phase 4's mechanism, or does it need genuinely new Action semantics? Resolve this
-by re-reading `document-submit.html`/`document-approval.html` against Phase 9's child-collection
-mechanism before writing Go code, not while writing it.
+**Design pass (resolved before code):** does "sequential" reduce to Phase 4's single-hop
+Constraint, or does it need genuinely new Action semantics? **Resolves to the latter.**
+Constraint can only check another Machine's records pointing at this one; sequencing needs to
+compare ordinal position among sibling records of the *same* Machine (other Approval Steps of
+the same Document) -- a shape Constraint cannot express. `internal/action` is hardcoded to
+`mch_document`/`mch_approval_step`'s own field ids, not a generic metadata-driven engine, per
+this roadmap's own Method -- generalize on a second real case that needs something similar,
+never the first.
 
-- [ ] `internal/action`: first real code -- Approve/Reject as an Action that writes a decision
-      onto one Approval Step (a Phase 9 child collection) and, for sequential mode, unlocks the
-      next step
-- [ ] Parallel mode: all steps open at once; the Document only advances once every step has a
-      decision
+- [x] `internal/action`: first real code -- `CanDecide`/`DocumentStatus`, pure functions over
+      already-fetched records (same posture as `behavior.CheckConstraints`). `POST
+      /machines/{id}/records/{id}/decide` is the one real Action endpoint: enforces `CanDecide`,
+      writes the decision onto one Approval Step (a Phase 9 child collection), recomputes and
+      saves the Document's aggregate status
+- [x] Parallel mode: `CanDecide` never locks a step when `fld_mode != "sequential"` -- any
+      assignee can act in any order; the Document still only reaches `approved` once every step
+      is `approved` (`rejected` wins immediately if any step is)
+- [x] The generic edit route was a live bypass of the sequencing rule until this phase closed
+      it: `updateRecordForm` now rejects any attempt to change `fld_decision` outside `/decide`
 
-**Exit criterion:** a Document with 3 sequential steps only allows step 2's assignee to act
-after step 1 is decided; a parallel-mode Document allows any assignee to act in any order.
+**Real regression found and fixed the same day:** Phase 11's `ParseMultipartForm` switch
+rejected plain url-encoded bodies outright (`http.ErrNotMultipart`), even though
+`ParseMultipartForm` already runs `ParseForm` first regardless -- a new shared `parseRecordForm`
+helper fixes this for both `createRecordForm` and `updateRecordForm`.
+
+**Exit criterion met:** verified end-to-end against real Postgres -- a 3-step sequential Document
+blocks step 2 until step 1 is decided (`422`), correctly unlocks after, and reaches `approved`
+once all three are; a direct generic-edit bypass attempt on a pending step is blocked (`422`); a
+parallel-mode Document allows step 2 to be decided before step 1 (`303` success). A real Case 3
+demo (one Document, a real PDF, two Approval Steps, one already approved) is seeded live.
 
 ---
 
