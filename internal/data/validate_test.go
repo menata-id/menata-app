@@ -16,6 +16,7 @@ func testMachine() *domain.Machine {
 			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Required: true, Options: []string{"todo", "done"}},
 			{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson},
 			{ID: "fld_priority", Name: "Priority", Type: domain.FieldTypeNumber},
+			{ID: "fld_project", Name: "Project", Type: domain.FieldTypeRelation, RelatedMachine: "mch_project"},
 		},
 	}
 }
@@ -82,6 +83,26 @@ func TestValidateRecord_numberField_notANumber(t *testing.T) {
 		"fld_priority": "high",
 	})
 	assertContains(t, err, `"fld_priority": value high is not a number`)
+}
+
+func TestValidateRecord_relationField_valid(t *testing.T) {
+	err := ValidateRecord(testMachine(), map[string]any{
+		"fld_title":   "Write docs",
+		"fld_status":  "todo",
+		"fld_project": "rec_abc123",
+	})
+	if err != nil {
+		t.Fatalf("ValidateRecord() error = %v, want nil", err)
+	}
+}
+
+func TestValidateRecord_relationField_notAString(t *testing.T) {
+	err := ValidateRecord(testMachine(), map[string]any{
+		"fld_title":   "Write docs",
+		"fld_status":  "todo",
+		"fld_project": 42,
+	})
+	assertContains(t, err, `"fld_project": relation value must be a record id`)
 }
 
 func assertContains(t *testing.T, err error, substr string) {

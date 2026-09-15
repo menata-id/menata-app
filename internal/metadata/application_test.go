@@ -73,6 +73,75 @@ application:
 	}
 }
 
+func TestLoadApplication_relationTargetExists(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "project.yaml", `
+id: mch_project
+name: Project
+fields:
+  - id: fld_name
+    name: Name
+    type: text
+    required: true
+`)
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_project
+    name: Project
+    type: relation
+    machine: mch_project
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - project.yaml
+    - task.yaml
+`)
+
+	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	if len(app.Machines) != 2 {
+		t.Fatalf("Machines = %+v, want 2", app.Machines)
+	}
+}
+
+func TestLoadApplication_relationTargetMissing(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_project
+    name: Project
+    type: relation
+    machine: mch_project
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: fld_project targets mch_project, which isn't in this application")
+	}
+}
+
 func TestLoadApplication_noMachines(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "app.yaml", `

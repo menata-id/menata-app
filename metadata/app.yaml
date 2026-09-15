@@ -6,4 +6,5 @@ application:
   id: app_task_tracker
   name: Task Tracker
   machines:
+    - project.yaml
     - task.yaml

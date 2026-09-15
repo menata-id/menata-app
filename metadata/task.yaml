@@ -19,3 +19,7 @@ fields:
   - id: fld_priority
     name: Priority
     type: number
+  - id: fld_project
+    name: Project
+    type: relation
+    machine: mch_project

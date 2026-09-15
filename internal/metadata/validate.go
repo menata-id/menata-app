@@ -56,6 +56,9 @@ func Validate(m *domain.Machine) error {
 		if f.Type == domain.FieldTypeStatus && len(f.Options) == 0 {
 			issues = append(issues, fmt.Sprintf("field %q: type status requires at least one option", f.ID))
 		}
+		if f.Type == domain.FieldTypeRelation && !machineIDPattern.MatchString(f.RelatedMachine) {
+			issues = append(issues, fmt.Sprintf("field %q: type relation requires a valid target machine id, got %q", f.ID, f.RelatedMachine))
+		}
 	}
 
 	if len(issues) > 0 {

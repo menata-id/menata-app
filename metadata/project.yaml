@@ -1,0 +1,15 @@
+id: mch_project
+name: Project
+fields:
+  - id: fld_name
+    name: Name
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [planning, active, done]
+  - id: fld_owner
+    name: Owner
+    type: person

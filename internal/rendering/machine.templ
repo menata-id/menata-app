@@ -7,22 +7,23 @@ import (
 	"menata.app/internal/domain"
 )
 
-// MachinePage is the reference renderer for a single Machine: its field schema, a create form,
-// and its persisted records with inline edit/delete. It exists to prove the metadata -> data ->
-// render pipeline end to end; it is not yet driven by UI IR or a View Model
-// (007-composable-runtime-architecture.md §10, §23).
-templ MachinePage(m *domain.Machine, records []*data.Record, appName string) {
+// pageShell is the shared HTML document, styles, and topbar every page uses. It exists so
+// generalizing from one Machine to several (ROADMAP.md Phase 3) doesn't duplicate boilerplate
+// per page.
+templ pageShell(title string, appName string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ m.Name } · Menata App</title>
+			<title>{ title } · Menata App</title>
 			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 			<style>
-				body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
+				body { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
 				header.topbar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e5e5; }
+				header.topbar .left { display: flex; align-items: center; gap: 1rem; }
 				header.topbar span { color: #666; font-size: 0.85rem; }
+				header.topbar a { color: #3949ab; font-size: 0.85rem; text-decoration: none; }
 				header.topbar button { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; }
 				h1 { margin-bottom: 0.25rem; }
 				code { color: #666; font-size: 0.9rem; }
@@ -38,25 +39,58 @@ templ MachinePage(m *domain.Machine, records []*data.Record, appName string) {
 				.actions { white-space: nowrap; }
 				.actions button { margin-right: 0.25rem; }
 				form.create-form td { padding-top: 0.75rem; }
+				ul.machine-list { list-style: none; padding: 0; }
+				ul.machine-list li { padding: 0.75rem; border-bottom: 1px solid #e5e5e5; }
+				ul.machine-list a { color: #1a1a1a; text-decoration: none; font-weight: 500; }
 			</style>
 		</head>
 		<body>
 			<header class="topbar">
-				<span>{ appName }</span>
+				<span class="left">
+					<a href="/">Machines</a>
+					<span>{ appName }</span>
+				</span>
 				<form method="POST" action="/logout">
 					<button type="submit">Log out</button>
 				</form>
 			</header>
-			<div id="machine-body">
-				@MachineBody(m, records)
-			</div>
+			{ children... }
 		</body>
 	</html>
 }
 
-// MachineBody is the fragment the create endpoint returns for HTMX to swap into #machine-body,
-// so the full page never needs a hard reload.
-templ MachineBody(m *domain.Machine, records []*data.Record) {
+// MachineList is the landing page: every Machine in the Application, linking to its own page.
+// Adding a third Machine requires no code change here -- it appears because it's in the
+// Application manifest, per ROADMAP.md Phase 3's exit criterion.
+templ MachineList(machines []*domain.Machine, appName string) {
+	@pageShell("Machines", appName) {
+		<h1>Machines</h1>
+		<ul class="machine-list">
+			for _, m := range machines {
+				<li>
+					<a href={ templ.URL("/machines/" + m.ID) }>{ m.Name }</a>
+					<code>{ m.ID }</code>
+				</li>
+			}
+		</ul>
+	}
+}
+
+// MachinePage is the reference renderer for a single Machine: its field schema, a create form,
+// and its persisted records with inline edit/delete. It exists to prove the metadata -> data ->
+// render pipeline end to end; it is not yet driven by UI IR or a View Model
+// (007-composable-runtime-architecture.md §10, §23).
+templ MachinePage(m *domain.Machine, records []*data.Record, appName string, relations RelationOptions) {
+	@pageShell(m.Name, appName) {
+		<div id="machine-body">
+			@MachineBody(m, records, relations)
+		</div>
+	}
+}
+
+// MachineBody is the fragment every mutating endpoint returns for HTMX to swap into
+// #machine-body, so the full page never needs a hard reload.
+templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationOptions) {
 	<h1>{ m.Name }</h1>
 	<code>{ m.ID }</code>
 
@@ -98,7 +132,7 @@ templ MachineBody(m *domain.Machine, records []*data.Record) {
 		</thead>
 		<tbody>
 			for _, r := range records {
-				@RecordRow(m, r)
+				@RecordRow(m, r, relations)
 			}
 			<tr>
 				<form
@@ -109,7 +143,7 @@ templ MachineBody(m *domain.Machine, records []*data.Record) {
 				>
 					for _, f := range m.Fields {
 						<td>
-							@fieldInput(f, nil)
+							@fieldInput(f, nil, relations)
 						</td>
 					}
 					<td>
@@ -121,11 +155,18 @@ templ MachineBody(m *domain.Machine, records []*data.Record) {
 	</table>
 }
 
-// RecordRow is one Record in display mode.
-templ RecordRow(m *domain.Machine, r *data.Record) {
+// RecordRow is one Record in display mode. A relation field shows its target's label, not the
+// raw record id.
+templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
 	<tr id={ "record-" + r.ID }>
 		for _, f := range m.Fields {
-			<td>{ fmt.Sprint(r.Values[f.ID]) }</td>
+			<td>
+				if f.Type == domain.FieldTypeRelation {
+					{ relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
+				} else {
+					{ fmt.Sprint(r.Values[f.ID]) }
+				}
+			</td>
 		}
 		<td class="actions">
 			<button
@@ -144,7 +185,7 @@ templ RecordRow(m *domain.Machine, r *data.Record) {
 }
 
 // RecordEditRow is one Record in edit mode: an inline form pre-filled with its current values.
-templ RecordEditRow(m *domain.Machine, r *data.Record) {
+templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
 	<tr id={ "record-" + r.ID }>
 		<form
 			hx-put={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
@@ -153,7 +194,7 @@ templ RecordEditRow(m *domain.Machine, r *data.Record) {
 		>
 			for _, f := range m.Fields {
 				<td>
-					@fieldInput(f, r.Values[f.ID])
+					@fieldInput(f, r.Values[f.ID], relations)
 				</td>
 			}
 			<td class="actions">
@@ -170,14 +211,22 @@ templ RecordEditRow(m *domain.Machine, r *data.Record) {
 }
 
 // fieldInput renders the input control appropriate to a Field's semantic type, pre-filled with
-// current (nil for a blank create-form field).
-templ fieldInput(f domain.Field, current any) {
+// current (nil for a blank create-form field). relations supplies <select> options for a
+// relation field; unused for every other type.
+templ fieldInput(f domain.Field, current any, relations RelationOptions) {
 	switch f.Type {
 		case domain.FieldTypeStatus:
 			<select name={ f.ID }>
 				<option value=""></option>
 				for _, opt := range f.Options {
 					<option value={ opt } selected?={ toString(current) == opt }>{ opt }</option>
+				}
+			</select>
+		case domain.FieldTypeRelation:
+			<select name={ f.ID }>
+				<option value=""></option>
+				for _, opt := range relations[f.RelatedMachine] {
+					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
 				}
 			</select>
 		case domain.FieldTypeBoolean:
@@ -201,4 +250,18 @@ func toString(v any) string {
 func toBool(v any) bool {
 	b, _ := v.(bool)
 	return b
+}
+
+// relationLabel resolves a relation field's stored record id to its target's display label, or
+// the raw id if the target isn't in relations (e.g. deleted after the reference was made).
+func relationLabel(relations RelationOptions, machineID, id string) string {
+	if id == "" {
+		return ""
+	}
+	for _, opt := range relations[machineID] {
+		if opt.ID == id {
+			return opt.Label
+		}
+	}
+	return id
 }

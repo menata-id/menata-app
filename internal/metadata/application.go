@@ -75,5 +75,36 @@ func LoadApplication(path string) (*App, error) {
 		}
 		app.Machines = append(app.Machines, m)
 	}
+
+	if err := validateRelationTargets(app.Machines); err != nil {
+		return nil, err
+	}
 	return app, nil
+}
+
+// validateRelationTargets checks that every relation field's target Machine ID is actually
+// among the Application's own Machines -- a single Machine file can't know this on its own,
+// since it only sees its own declaration (006-runtime-model.md "Relation": reusable, grounded in
+// existing Machine/reference semantics).
+func validateRelationTargets(machines []*domain.Machine) error {
+	known := make(map[string]bool, len(machines))
+	for _, m := range machines {
+		known[m.ID] = true
+	}
+
+	var issues []string
+	for _, m := range machines {
+		for _, f := range m.Fields {
+			if f.Type != domain.FieldTypeRelation {
+				continue
+			}
+			if !known[f.RelatedMachine] {
+				issues = append(issues, fmt.Sprintf("machine %q field %q: relation target %q is not a machine in this application", m.ID, f.ID, f.RelatedMachine))
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
 }

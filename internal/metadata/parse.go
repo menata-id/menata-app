@@ -22,6 +22,8 @@ type fieldDoc struct {
 	Type     string   `yaml:"type"`
 	Required bool     `yaml:"required"`
 	Options  []string `yaml:"options"`
+	// Machine is the target Machine ID, meaningful only when type is "relation".
+	Machine string `yaml:"machine"`
 }
 
 // Parse decodes Runtime Metadata YAML describing a single Machine. It performs structural
@@ -38,11 +40,12 @@ func Parse(data []byte) (*domain.Machine, error) {
 	}
 	for _, fd := range doc.Fields {
 		m.Fields = append(m.Fields, domain.Field{
-			ID:       fd.ID,
-			Name:     fd.Name,
-			Type:     domain.FieldType(fd.Type),
-			Required: fd.Required,
-			Options:  fd.Options,
+			ID:             fd.ID,
+			Name:           fd.Name,
+			Type:           domain.FieldType(fd.Type),
+			Required:       fd.Required,
+			Options:        fd.Options,
+			RelatedMachine: fd.Machine,
 		})
 	}
 	return m, nil

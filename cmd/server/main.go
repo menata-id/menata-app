@@ -38,9 +38,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load metadata: %v", err)
 	}
-	// Phase 2 (ROADMAP.md): exactly one Machine. Phase 3 generalizes once a second Machine
-	// forces routing by ID instead of always the first.
-	machine := app.Machines[0]
+	machines := make(map[string]*domain.Machine, len(app.Machines))
+	for _, m := range app.Machines {
+		machines[m.ID] = m
+	}
 
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -62,16 +63,17 @@ func main() {
 
 		pr.Post("/logout", logout(cfg))
 
-		pr.Get("/api/machines", listMachines(machine))
+		pr.Get("/api/machines", listMachines(app.Machines))
 		pr.Get("/api/machines/{machineID}/records", listRecords(store))
-		pr.Post("/api/machines/{machineID}/records", createRecord(machine, store))
+		pr.Post("/api/machines/{machineID}/records", createRecord(machines, store))
 
-		pr.Get("/", showMachinePage(machine, app.Application.Name, store))
-		pr.Post("/machines/{machineID}/records", createRecordForm(machine, store))
-		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machine, store))
-		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machine, store))
-		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machine, store))
-		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machine, store))
+		pr.Get("/", showMachineList(app.Machines, app.Application.Name))
+		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
+		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store))
+		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store))
+		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machines, store))
+		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store))
+		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machines, store))
 	})
 
 	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)
@@ -126,7 +128,7 @@ func logout(cfg config.Config) http.HandlerFunc {
 	}
 }
 
-func listMachines(machines ...*domain.Machine) http.HandlerFunc {
+func listMachines(machines []*domain.Machine) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(machines)
@@ -146,11 +148,10 @@ func listRecords(store *data.Store) http.HandlerFunc {
 	}
 }
 
-func createRecord(machine *domain.Machine, store *data.Store) http.HandlerFunc {
+func createRecord(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machineID := chi.URLParam(req, "machineID")
-		if machineID != machine.ID {
-			http.Error(w, "unknown machine", http.StatusNotFound)
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
 			return
 		}
 
@@ -164,8 +165,12 @@ func createRecord(machine *domain.Machine, store *data.Store) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
+		if err := data.ValidateRelations(req.Context(), store, machine, values); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
 
-		record, err := store.CreateRecord(req.Context(), machineID, values)
+		record, err := store.CreateRecord(req.Context(), machine.ID, values)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -177,25 +182,37 @@ func createRecord(machine *domain.Machine, store *data.Store) http.HandlerFunc {
 	}
 }
 
-func showMachinePage(machine *domain.Machine, appName string, store *data.Store) http.HandlerFunc {
+func showMachineList(machines []*domain.Machine, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		rendering.MachineList(machines, appName).Render(req.Context(), w)
+	}
+}
+
+func showMachinePage(machines map[string]*domain.Machine, appName string, store *data.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+
 		records, err := store.ListRecords(req.Context(), machine.ID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		rendering.MachinePage(machine, records, appName).Render(req.Context(), w)
+		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rendering.MachinePage(machine, records, appName, relations).Render(req.Context(), w)
 	}
 }
 
-// createRecordForm, showRecordRow, editRecordRow, updateRecordForm, and deleteRecord serve the
-// browser-facing HTMX flow: only one Machine exists yet, so machineID is checked but not yet
-// used to look up among several (ROADMAP.md Phase 3 generalizes this once a second Machine
-// exists to force it).
-
-func createRecordForm(machine *domain.Machine, store *data.Store) http.HandlerFunc {
+func createRecordForm(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if !isMachine(w, machine, req) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
 			return
 		}
 		if err := req.ParseForm(); err != nil {
@@ -208,18 +225,23 @@ func createRecordForm(machine *domain.Machine, store *data.Store) http.HandlerFu
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
+		if err := data.ValidateRelations(req.Context(), store, machine, values); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
 		if _, err := store.CreateRecord(req.Context(), machine.ID, values); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		renderMachineBody(w, req, machine, store)
+		renderMachineBody(w, req, machines, machine, store)
 	}
 }
 
-func showRecordRow(machine *domain.Machine, store *data.Store) http.HandlerFunc {
+func showRecordRow(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if !isMachine(w, machine, req) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
 			return
 		}
 		record, err := store.GetRecord(req.Context(), machine.ID, chi.URLParam(req, "id"))
@@ -227,13 +249,19 @@ func showRecordRow(machine *domain.Machine, store *data.Store) http.HandlerFunc 
 			recordError(w, err)
 			return
 		}
-		rendering.RecordRow(machine, record).Render(req.Context(), w)
+		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
 	}
 }
 
-func editRecordRow(machine *domain.Machine, store *data.Store) http.HandlerFunc {
+func editRecordRow(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if !isMachine(w, machine, req) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
 			return
 		}
 		record, err := store.GetRecord(req.Context(), machine.ID, chi.URLParam(req, "id"))
@@ -241,13 +269,19 @@ func editRecordRow(machine *domain.Machine, store *data.Store) http.HandlerFunc 
 			recordError(w, err)
 			return
 		}
-		rendering.RecordEditRow(machine, record).Render(req.Context(), w)
+		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rendering.RecordEditRow(machine, record, relations).Render(req.Context(), w)
 	}
 }
 
-func updateRecordForm(machine *domain.Machine, store *data.Store) http.HandlerFunc {
+func updateRecordForm(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if !isMachine(w, machine, req) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
 			return
 		}
 		if err := req.ParseForm(); err != nil {
@@ -261,18 +295,28 @@ func updateRecordForm(machine *domain.Machine, store *data.Store) http.HandlerFu
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
+		if err := data.ValidateRelations(req.Context(), store, machine, values); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
 		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		rendering.RecordRow(machine, record).Render(req.Context(), w)
+		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
 	}
 }
 
-func deleteRecord(machine *domain.Machine, store *data.Store) http.HandlerFunc {
+func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if !isMachine(w, machine, req) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
 			return
 		}
 		if err := store.DeleteRecord(req.Context(), machine.ID, chi.URLParam(req, "id")); err != nil {
@@ -283,21 +327,70 @@ func deleteRecord(machine *domain.Machine, store *data.Store) http.HandlerFunc {
 	}
 }
 
-func renderMachineBody(w http.ResponseWriter, req *http.Request, machine *domain.Machine, store *data.Store) {
+func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store) {
 	records, err := store.ListRecords(req.Context(), machine.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	rendering.MachineBody(machine, records).Render(req.Context(), w)
+	relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	rendering.MachineBody(machine, records, relations).Render(req.Context(), w)
 }
 
-func isMachine(w http.ResponseWriter, machine *domain.Machine, req *http.Request) bool {
-	if chi.URLParam(req, "machineID") != machine.ID {
-		http.Error(w, "unknown machine", http.StatusNotFound)
-		return false
+// loadRelationOptions fetches every option a relation field on m could select, keyed by target
+// Machine ID. The target's first Field is used as the display label -- a minimal convention
+// until a real Projection/semantic "title" role exists (007 SS7.6), which isn't forced yet by a
+// case that needs more than one reasonable label field.
+func loadRelationOptions(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, m *domain.Machine) (rendering.RelationOptions, error) {
+	options := rendering.RelationOptions{}
+	for _, f := range m.Fields {
+		if f.Type != domain.FieldTypeRelation {
+			continue
+		}
+		if _, loaded := options[f.RelatedMachine]; loaded {
+			continue
+		}
+		target, ok := machines[f.RelatedMachine]
+		if !ok || len(target.Fields) == 0 {
+			continue
+		}
+		labelFieldID := target.Fields[0].ID
+
+		records, err := store.ListRecords(ctx, target.ID)
+		if err != nil {
+			return nil, err
+		}
+		list := make([]rendering.RelationOption, 0, len(records))
+		for _, r := range records {
+			list = append(list, rendering.RelationOption{ID: r.ID, Label: toDisplayString(r.Values[labelFieldID])})
+		}
+		options[f.RelatedMachine] = list
 	}
-	return true
+	return options, nil
+}
+
+func toDisplayString(v any) string {
+	if v == nil {
+		return ""
+	}
+	if s, ok := v.(string); ok {
+		return s
+	}
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
+func resolveMachine(w http.ResponseWriter, machines map[string]*domain.Machine, req *http.Request) (*domain.Machine, bool) {
+	m, ok := machines[chi.URLParam(req, "machineID")]
+	if !ok {
+		http.Error(w, "unknown machine", http.StatusNotFound)
+		return nil, false
+	}
+	return m, true
 }
 
 func recordError(w http.ResponseWriter, err error) {

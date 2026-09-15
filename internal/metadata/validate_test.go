@@ -60,6 +60,20 @@ func TestValidate_statusWithoutOptions(t *testing.T) {
 	assertIssue(t, m, "requires at least one option")
 }
 
+func TestValidate_relationWithoutTarget(t *testing.T) {
+	m := validMachine()
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_project", Name: "Project", Type: domain.FieldTypeRelation})
+	assertIssue(t, m, "requires a valid target machine id")
+}
+
+func TestValidate_relationWithValidTarget(t *testing.T) {
+	m := validMachine()
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_project", Name: "Project", Type: domain.FieldTypeRelation, RelatedMachine: "mch_project"})
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
 func assertIssue(t *testing.T, m *domain.Machine, substr string) {
 	t.Helper()
 	err := Validate(m)
