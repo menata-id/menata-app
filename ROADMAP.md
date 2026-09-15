@@ -448,10 +448,20 @@ single Phase 14 change -- each screen's own composition is independently verifia
       `mch_task`/`mch_project` creation and Task status moves ("completed" when the new status is
       `done`). Verified live: created/moved/completed events all logged and grouped correctly,
       test records fully reverted afterward
+- [x] Case 19: **Team Capacity** (`project-team.html`, done 2026-09-15) -- `GET /team-capacity`,
+      every `mch_user`'s declared weekly capacity (`fld_weekly_capacity`, a new Number field on an
+      existing Machine -- using an already-declared Field Type on a new field is not a new
+      mechanism) alongside real active/total `mch_task` counts. Deliberately has no per-task hour
+      estimates: the mockup's "Assigned hours" column would need data this app doesn't have yet
+      and no case has forced adding it
+- [x] Case 19: **Workflow Automation** (`project-automation.html`, done 2026-09-15) -- `GET
+      /automation` describes this Application's real Constraint metadata and Action behavior as
+      Trigger/Condition/Action, not a generic automation engine (no case has forced one) and not
+      fictional example workflows like the mockup's own placeholder content
 - [ ] Case 19: Timeline/Calendar (date-range and week-grid Layouts, extending Phase 5's
-      `LayoutKind` set), Sprint Dashboard (aggregation, likely reuses Phase 13's activity/count
-      mechanisms), Team Capacity (aggregation over Phase 10's Members), Workflow Automation (a
-      read-only view over Phase 12's Action metadata)
+      `LayoutKind` set) and Sprint Dashboard (aggregation, likely reuses Phase 13's activity/count
+      mechanisms) -- the two screens in this phase that plausibly need real new rendering shapes,
+      not just composition of what already exists
 - [ ] Case 3: signature coordinate placement (`document-signature-placement.html`) -- a new,
       fairly specialized drag-position editor; no other screen needs this interaction pattern
 

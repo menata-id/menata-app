@@ -62,6 +62,8 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | My Tasks (personal work queue, "assigned to me" filter + SLA bucketing) | Built | `GET /my-tasks` |
 | Project Activity (day-grouped cross-Machine event feed) | Built | `GET /activity` |
 | Board Settings (Lists/Labels catalog hub, links to their own Machine pages) | Built | `GET /board-settings` |
+| Team Capacity (weekly capacity + real active/total Task counts per Member) | Built | `GET /team-capacity` |
+| Workflow Automation (read-only Trigger/Condition/Action view over real Constraint + Action) | Built | `GET /automation` |
 | Approve/Reject action bar | Built, hardcoded to one Machine | `mch_approval_step`'s own detail page only |
 
 **Not yet built:** Timeline/Calendar/Sprint-Dashboard/Team-Capacity Layouts, colored label chips
@@ -86,7 +88,7 @@ own forcing condition in `ROADMAP.md` Phase 14.
 
 | Machine | Purpose | Fields | Constraints / Actions |
 |---|---|---|---|
-| `mch_user` | Real identity | name, email | — |
+| `mch_user` | Real identity | name, email, weekly capacity | — |
 | `mch_project` | Case 19 groundwork | name, status, owner | `cst_project_done_no_open_tasks` |
 | `mch_list` | Board columns | name | — |
 | `mch_label` | Label catalog | name, color | — |
@@ -126,6 +128,8 @@ own forcing condition in `ROADMAP.md` Phase 14.
 | `GET /my-tasks` | Personal work queue: Tasks assigned to the current identity, Today/Upcoming/Completed |
 | `GET /activity` | Cross-Machine event feed, grouped by day |
 | `GET /board-settings` | Lists/Labels catalog hub, linking to their own Machine pages |
+| `GET /team-capacity` | Members' weekly capacity + real active/total Task counts |
+| `GET /automation` | Read-only Trigger/Condition/Action view over real Constraint + Action |
 | `GET /machines/{id}` | A Machine's own page (table or board) |
 | `POST /machines/{id}/records` | Create a record |
 | `GET /machines/{id}/records/{id}` | Record detail page (or a fragment, for HTMX) |
