@@ -36,7 +36,7 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 
 | Primitive | What it does | Status | Proven by |
 |---|---|---|---|
-| Machine | The primary realization unit; a business capability | Built | 8 Machines currently declared (below) |
+| Machine | The primary realization unit; a business capability | Built | 9 Machines currently declared (below) |
 | Relation | Single-value reference field, validated for shape (`internal/data.ValidateRecord`) and existence (`internal/data.ValidateRelations`) | Built | `mch_task.fld_project` |
 | Many-to-many | A join Machine with two Relation fields — not a new field type or storage shape | Built | `mch_card_label` (`fld_task` + `fld_label`) |
 | Child Collection | Reverse-relation display: every record of another Machine whose field points at this one, shown on the detail page | Built | `internal/domain.FindChildCollections`; a Project's detail page shows its own Tasks |
@@ -44,6 +44,8 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Action | A named business operation beyond a plain field write, with cross-record side effects | Built (one shape, hardcoded) | `POST .../decide` — Approve/Reject, `internal/action` |
 | Ordered Lists | A Machine's records used as a board's real, renameable, reorderable columns (replaces a fixed status enum) | Built | `mch_list`, grouping `mch_task`'s board |
 | Sort order | Explicit per-Machine ordering (`sort_order` column), assigned at create time | Built | Every Machine — `internal/data.Store.CreateRecord` |
+| SLA badge | A `view.sla_field` date Field rendered as OVERDUE / "N day(s) left" instead of a plain date | Built | `mch_document`'s `fld_due_date`, `internal/experience.EvaluateSLA` |
+| Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `main.go`'s `logActivity` |
 
 ---
 
@@ -56,12 +58,12 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Board Layout, grouped by a relation field (ordered Lists) | Built | `mch_task` groups by `fld_list` |
 | Record detail page (`GET /machines/{id}/records/{id}`) | Built | One route, three renderings depending on requester — direct nav / HTMX-detail-context / HTMX-row-context |
 | File download with original filename (`GET /uploads/*`) | Built | `Content-Disposition` names the real filename, not the storage key |
-| Composed Dashboard (hand-assembled, not a generic mechanism) | Built | `GET /dashboard` — Projects joined with their own Task counts |
+| Composed Dashboard (hand-assembled, not a generic mechanism) | Built | `GET /dashboard` — Projects+Tasks, Documents status summary, Pending Approval (with SLA badges), Recent Activity feed |
 | Approve/Reject action bar | Built, hardcoded to one Machine | `mch_approval_step`'s own detail page only |
 
 **Not yet built:** Timeline/Calendar/Sprint-Dashboard/Team-Capacity Layouts, colored label chips
 on a card face, drag-and-drop reordering, signature-coordinate placement — all named with their
-own forcing condition in `ROADMAP.md` Phases 13-14.
+own forcing condition in `ROADMAP.md` Phase 14.
 
 ---
 
@@ -87,8 +89,9 @@ own forcing condition in `ROADMAP.md` Phases 13-14.
 | `mch_label` | Label catalog | name, color | — |
 | `mch_task` | Case 19 groundwork | title, status, assignee, due date, priority, project, list, attachment | Board layout |
 | `mch_card_label` | Task↔Label join | task, label | — |
-| `mch_document` | Case 3 core | title, file, mode, status | Aggregate status driven by its steps |
+| `mch_document` | Case 3 core | title, file, mode, status, due date | Aggregate status driven by its steps; `view.sla_field` |
 | `mch_approval_step` | Case 3 core | document, sequence, assignee, decision | `/decide` Action, sequencing enforced |
+| `mch_activity` | Cross-case event log | machine id, record id, summary, actor | Written by `logActivity`, never by a user form |
 
 ---
 
@@ -102,6 +105,7 @@ own forcing condition in `ROADMAP.md` Phases 13-14.
 | Relation/Person target Machine must exist in the Application | Cross-Machine, once all loaded | `validateRelationTargets` |
 | Constraint's related Machine/field must exist, and the related field must actually be a relation pointing back | Cross-Machine | `validateConstraintTargets` |
 | `view.layout` known, `view.group_by` names a real field | Per-Machine | `internal/metadata.Validate` |
+| `view.sla_field` names a real field on the same Machine, and that field is a `date` | Per-Machine | `internal/metadata.Validate` |
 | Record values: unknown field rejected, required field enforced, type-shape checked (status option, number, reference id, file key) | Every write | `internal/data.ValidateRecord` |
 | Reference existence (does the referenced record actually exist) | Every write with a Relation/Person field | `internal/data.ValidateRelations` |
 
@@ -115,7 +119,7 @@ own forcing condition in `ROADMAP.md` Phases 13-14.
 | `GET /login`, `POST /login` | Sign in |
 | `POST /logout` | Sign out |
 | `GET /` | Machine list (landing page) |
-| `GET /dashboard` | Composed Project+Task dashboard |
+| `GET /dashboard` | Composed dashboard: Project+Task, Document status summary, Pending Approval, Recent Activity |
 | `GET /machines/{id}` | A Machine's own page (table or board) |
 | `POST /machines/{id}/records` | Create a record |
 | `GET /machines/{id}/records/{id}` | Record detail page (or a fragment, for HTMX) |

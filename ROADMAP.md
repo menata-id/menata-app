@@ -386,23 +386,43 @@ demo (one Document, a real PDF, two Approval Steps, one already approved) is see
 
 ---
 
-## Phase 13 -- SLA, activity feed, and composed Dashboard
+## Phase 13 -- SLA, activity feed, and composed Dashboard (done, 2026-09-15)
 
 **Forcing condition:** the three remaining pieces of Case 3's own Approval Inbox and Dashboard
 screens, plus Case 19's Project Activity -- and a second, more demanding test of Phase 6's
 still-unforced Composable Execution Planner (this Dashboard composes three different aggregate
 shapes -- Summary/Pending/Activity -- not two whole-machine lists like the current `/dashboard`).
 
-- [ ] SLA badges: compare a due-date Field against `now`, render OVERDUE / "N day(s) left"
-      (`document-approval.html`'s own real markup)
-- [ ] An append-only activity/event log per record, and a cross-record feed for the Dashboard's
-      Recent Activity section
-- [ ] Re-test Phase 6's forcing condition against this specific composition before building any
-      IR/planner code -- record the result (forced or not) the same honest way Phase 6's first
-      test was recorded above
+- [x] SLA badges: `internal/experience.EvaluateSLA` compares a `view.sla_field` date Field
+      against `now` (day-truncated), rendered as `slaBadge` in both `RecordRow` and
+      `RecordDetailView` -- OVERDUE / "Due today" / "N day(s) left". Metadata-declared
+      (`document.yaml`'s `view.sla_field: fld_due_date`), not hardcoded to one Machine, since it's
+      a genuinely reusable concept unlike Phase 12's Action
+- [x] `mch_activity`: an ordinary Machine (`metadata/activity.yaml`), not a new "system data
+      source" concept -- 007 §4.1's admission question says an existing primitive already
+      expresses this. `logActivity` (`main.go`) appends one record on Document submission
+      (`createRecordForm`) and on each step decision (`decideStep`), resolving the acting user via
+      `authorization.CurrentUserID`
+- [x] `/dashboard` composes four sections now: Projects (Phase 6's original case), Documents
+      Summary (status counts), Pending Approval (in_review Documents with SLA badges), and Recent
+      Activity (newest 10 events, actor names resolved)
 
-**Exit criterion:** the Approval Dashboard renders real Summary/Pending/Activity sections from
-real data; Phase 6's status is re-evaluated with evidence, not assumed either way.
+**Phase 6 re-tested, 2026-09-15 (second time): still not forced.** Four sections, five
+`store.ListRecords` whole-machine calls (projects, tasks, documents, activity, users), joined/
+filtered/sorted in Go (`sort.Slice` on `CreatedAt` for the feed, a `switch` over status for the
+summary). Still O(1) queries regardless of record counts -- no per-row or per-section query loop
+appeared even with twice as many composed sections as the first test. The forcing condition still
+needs a page shape this app doesn't have: N independently-scoped queries, not N aggregate views
+over already-whole-fetched data.
+
+**Exit criterion met:** verified against real Postgres on a scratch server -- a Document with a
+past due date renders `OVERDUE`, a future due date renders "N days left"; submitting a Document
+and deciding an Approval Step each produce a real Activity record, newest-first on the Dashboard;
+all four Dashboard sections render real data. Test records and one real decision made during
+verification were reverted afterward so the live "Vendor Contract 2026" demo data is unchanged.
+One known gap carried over from Phase 8, not new here: the shared admin credential resolves to
+`config.AdminUserID` ("admin"), not a real `mch_user` record id, so Activity entries logged in via
+the admin login show no actor name -- real per-user login is still a later, separate phase.
 
 ---
 
