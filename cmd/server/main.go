@@ -97,6 +97,12 @@ func main() {
 		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(machines, store, cfg))
 
 		pr.Get("/uploads/*", serveUpload(files))
+
+		// Static design references (ROADMAP.md's own case-portfolio.md mockups) -- ui-sample/ is
+		// a design reference, never current-code intent (per this repo's own convention), served
+		// as-is with no rendering logic of its own so it's easy to compare against the real pages
+		// above.
+		pr.Handle("/ui-sample/*", http.StripPrefix("/ui-sample/", http.FileServer(http.Dir("ui-sample"))))
 	})
 
 	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)
