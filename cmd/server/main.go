@@ -84,6 +84,7 @@ func main() {
 		pr.Get("/my-tasks", showMyTasks(store, app.Application.Name, cfg))
 		pr.Get("/board-settings", showBoardSettings(store, app.Application.Name))
 		pr.Get("/activity", showActivity(store, app.Application.Name))
+		pr.Get("/team-capacity", showTeamCapacity(store, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files, cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
@@ -436,6 +437,52 @@ func showMyTasks(store *data.Store, appName string, cfg config.Config) http.Hand
 		}
 
 		rendering.MyTasksPage(summary, today, upcoming, completed, appName).Render(ctx, w)
+	}
+}
+
+// showTeamCapacity is Case 19's Team Capacity screen (ROADMAP.md Phase 14, project-team.html):
+// every mch_user with their declared weekly capacity (a new Number field on an existing Machine,
+// not a new mechanism) and how many mch_task are currently assigned to them, still open.
+func showTeamCapacity(store *data.Store, appName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		users, err := store.ListRecords(ctx, "mch_user")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		tasks, err := store.ListRecords(ctx, "mch_task")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		active := make(map[string]int, len(users))
+		total := make(map[string]int, len(users))
+		for _, t := range tasks {
+			assignee := toDisplayString(t.Values["fld_assignee"])
+			total[assignee]++
+			if toDisplayString(t.Values["fld_status"]) != "done" {
+				active[assignee]++
+			}
+		}
+
+		var totalCapacity, totalActive int
+		members := make([]rendering.MemberCapacity, 0, len(users))
+		for _, u := range users {
+			if cap, ok := u.Values["fld_weekly_capacity"].(float64); ok {
+				totalCapacity += int(cap)
+			}
+			totalActive += active[u.ID]
+			members = append(members, rendering.MemberCapacity{
+				User:        u,
+				ActiveCards: active[u.ID],
+				TotalCards:  total[u.ID],
+			})
+		}
+
+		rendering.TeamCapacityPage(members, totalCapacity, totalActive, appName).Render(ctx, w)
 	}
 }
 

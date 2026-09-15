@@ -1,0 +1,58 @@
+package rendering
+
+import (
+	"fmt"
+
+	"menata.app/internal/data"
+)
+
+// MemberCapacity is one User's row on the Team Capacity page (ROADMAP.md Phase 14,
+// project-team.html): their own record, declared weekly capacity, and how many Tasks currently
+// assigned to them are still open -- all derived from already-fetched User/Task data, not a new
+// aggregation mechanism.
+type MemberCapacity struct {
+	User        *data.Record
+	ActiveCards int
+	TotalCards  int
+}
+
+// TeamCapacityPage is Case 19's workload/ownership view: People, weekly capacity (declared on
+// mch_user), and active Task counts, composed from existing Machines.
+templ TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int, appName string) {
+	@pageShell("Team Capacity", appName) {
+		<h1>Team Capacity</h1>
+		<p>People, weekly capacity, and active work, composed from existing Member and Task data.</p>
+
+		<ul class="summary-counts">
+			<li>Team capacity: { fmt.Sprint(totalCapacity) }h/week</li>
+			<li>Active cards: { fmt.Sprint(totalActive) }</li>
+		</ul>
+
+		<table>
+			<thead>
+				<tr>
+					<th>Member</th>
+					<th>Weekly Capacity</th>
+					<th>Active Cards</th>
+					<th>Total Cards</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, m := range members {
+					<tr>
+						<td>{ toString(m.User.Values["fld_name"]) }</td>
+						<td>
+							if cap, ok := m.User.Values["fld_weekly_capacity"]; ok && toString(cap) != "" {
+								{ toString(cap) }h/week
+							} else {
+								<span class="muted">not set</span>
+							}
+						</td>
+						<td>{ fmt.Sprint(m.ActiveCards) }</td>
+						<td>{ fmt.Sprint(m.TotalCards) }</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}

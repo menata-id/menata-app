@@ -9,3 +9,6 @@ fields:
     name: Email
     type: text
     required: true
+  - id: fld_weekly_capacity
+    name: Weekly Capacity (hours)
+    type: number
