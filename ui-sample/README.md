@@ -1,0 +1,46 @@
+# UI Sample
+
+Static HTML design mockups, copied from `menata-runtime`'s (private) `app/web/static/ui-sample/`
+on 2026-09-15. These are design **references** to build toward — none of this HTML is executed
+or served by `menata-app`; open a file directly in a browser to view it.
+
+Each file is self-contained (Tailwind via CDN, no relative asset dependencies), so it renders
+standalone even outside its original directory.
+
+## What's here and why
+
+**Case 3 (Document Approval) — all 4 screens**, per `case-portfolio.md`'s own screen list:
+
+- `document-submit.html` — Submit document (Wizard/Form)
+- `document-signature-placement.html` — Signature positions (Coordinate editor)
+- `document-approval.html` — Approval inbox (Worklist + Detail)
+- `approval-dashboard.html` — Approval dashboard (Composed page)
+
+**Case 19 (Project Management) — the current 11-screen expanded set**, per that repo's own
+`case-19.html` (dated 2026-09-13, superseding its original 3-screen scope):
+
+- `project-workspace.html` — Project Workspace
+- `project-board.html` — Board Workspace (Kanban)
+- `project-card.html` — Task Detail
+- `project-timeline.html` — Timeline / Roadmap
+- `project-calendar.html` — Calendar
+- `project-dashboard.html` — Sprint Dashboard / Insights
+- `project-team.html` — Team Capacity
+- `project-my-tasks.html` — My Tasks
+- `project-activity.html` — Project Activity
+- `project-automation.html` — Workflow Automation
+- `project-settings.html` — Board Settings
+- `case-19-component-breakdown.html` — a reusable-component inventory across the above screens
+
+**Platform-level (not case-specific)** — generic screens every application needs, useful as
+design reference regardless of which case is being built:
+
+- `login.html`, `choose-workspace.html`, `workspace-home.html`, `workspace-members.html`,
+  `member-role-detail.html`, `approval-role-matrix.html`
+
+## What's deliberately not copied
+
+The other ~19 cases' own mockups, and the navigational chrome (`index.html`, `case.html`,
+per-case redirect stubs) that ties everything back into `menata-runtime`'s own case-browsing UI.
+See `case-portfolio.md` (root of this repo) for all 21 cases' descriptions -- only Case 3 and
+Case 19 are the current priority (owner decision, 2026-09-15), so only their mockups are here.

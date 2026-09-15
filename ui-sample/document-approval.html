@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Document Approval</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+</head>
+<body class="min-h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">UI Sample — Document Approval redesign. Static mockup over Menata Runtime patterns.</div>
+<header class="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+  <div class="mx-auto flex max-w-6xl items-center justify-between gap-4">
+    <div class="text-sm font-semibold">Menata Runtime <span class="font-normal text-slate-400">/ Approval</span></div>
+    <nav class="hidden gap-1 rounded-lg bg-slate-100 p-1 text-sm sm:flex">
+      <a href="#inbox" class="rounded-md bg-white px-3 py-1.5 font-medium shadow-sm">Inbox</a>
+      <a href="#documents" class="rounded-md px-3 py-1.5 text-slate-600">My Documents</a>
+      <a href="#groups" class="rounded-md px-3 py-1.5 text-slate-600">Groups</a>
+      <a href="#admin" class="rounded-md px-3 py-1.5 text-slate-600">Admin</a>
+    </nav>
+    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold">NS</span>
+  </div>
+</header>
+<main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+  <div class="mb-6 flex items-end justify-between gap-4">
+    <div><p class="mb-1 text-xs font-medium uppercase tracking-wide text-blue-600">Approval</p><h1 class="text-2xl font-semibold">Pending my approval</h1><p class="mt-1 text-sm text-slate-500">Documents where your decision is currently required.</p></div>
+    <button class="hidden rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm sm:block">+ New document</button>
+  </div>
+  <div class="mb-4 flex gap-2 overflow-x-auto text-sm">
+    <button class="rounded-full bg-slate-900 px-3 py-1 font-medium text-white">All (3)</button><button class="rounded-full bg-rose-50 px-3 py-1 font-medium text-rose-700">Overdue (1)</button><button class="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700">Due today (1)</button>
+  </div>
+  <div class="grid gap-3 lg:grid-cols-2">
+    <a href="#document" class="rounded-lg border border-rose-200 bg-white p-4 shadow-sm hover:border-blue-300">
+      <div class="mb-3 flex items-start justify-between"><div><span class="text-xs font-medium text-rose-600">OVERDUE</span><h2 class="mt-1 font-semibold">Vendor Contract Q3</h2><p class="text-xs text-slate-400">DOC-0091 · Contract</p></div><span class="rounded-full bg-slate-100 px-2 py-1 text-xs">ALL · 2/3</span></div>
+      <div class="mb-3 text-sm text-slate-600">Submitted by <span class="font-medium text-slate-800">Budi Santoso</span> · 06 Sep 2026</div>
+      <div class="mb-4 flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-500"></span><span class="h-0.5 flex-1 bg-emerald-200"></span><span class="h-2 w-2 rounded-full bg-blue-500 ring-4 ring-blue-100"></span><span class="h-0.5 flex-1 bg-slate-200"></span><span class="h-2 w-2 rounded-full bg-slate-300"></span></div>
+      <div class="flex items-center justify-between"><span class="text-xs font-medium text-rose-600">SLA breached · 4h</span><span class="text-sm font-medium text-blue-600">Review →</span></div>
+    </a>
+    <a href="#document" class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-300">
+      <div class="mb-3 flex items-start justify-between"><div><span class="text-xs font-medium text-amber-600">DUE TODAY</span><h2 class="mt-1 font-semibold">Procurement SOP</h2><p class="text-xs text-slate-400">DOC-0092 · SOP</p></div><span class="rounded-full bg-slate-100 px-2 py-1 text-xs">ANY · 1/2</span></div>
+      <div class="mb-3 text-sm text-slate-600">Submitted by <span class="font-medium text-slate-800">Siti Wulandari</span> · 06 Sep 2026</div>
+      <div class="mb-4 flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-500"></span><span class="h-0.5 flex-1 bg-emerald-200"></span><span class="h-2 w-2 rounded-full bg-blue-500 ring-4 ring-blue-100"></span><span class="h-0.5 flex-1 bg-slate-200"></span><span class="h-2 w-2 rounded-full bg-slate-300"></span></div>
+      <div class="flex items-center justify-between"><span class="text-xs font-medium text-amber-600">8h remaining</span><span class="text-sm font-medium text-blue-600">Review →</span></div>
+    </a>
+  </div>
+  <section id="document" class="mt-10 border-t border-slate-200 pt-8">
+    <div class="mb-5 flex items-center gap-3"><span class="text-xs text-slate-400">DOC-0091</span><span class="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">In Review</span></div>
+    <h2 class="text-xl font-semibold">Vendor Contract Q3</h2><p class="mb-6 text-sm text-slate-500">Contract · submitted by Budi Santoso</p>
+    <div class="grid gap-4 lg:grid-cols-3">
+      <div class="space-y-4 lg:col-span-2">
+        <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"><div class="mb-3 flex items-center justify-between"><h3 class="text-sm font-semibold">Document</h3><div class="flex gap-2"><button class="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium">View PDF</button><button class="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium">Download</button></div></div><div class="flex items-center gap-3 rounded-md bg-slate-50 p-3"><span class="text-xl">📄</span><div><div class="text-sm font-medium">vendor-contract-q3.pdf</div><div class="text-xs text-slate-400">6 pages · 2.4 MB</div></div></div></div>
+        <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"><h3 class="mb-4 text-sm font-semibold">Approval Progress</h3>
+          <div class="space-y-5"><div class="flex gap-3"><span class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">✓</span><div><div class="text-sm font-medium">Finance Review</div><div class="text-xs text-slate-500">Rina Nur · Approved · 10:42</div></div></div><div class="flex gap-3"><span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white ring-4 ring-blue-100">2</span><div><div class="text-sm font-medium">Legal Review <span class="ml-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">You</span></div><div class="text-xs text-slate-500">Pending your decision</div></div></div><div class="flex gap-3"><span class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-400">3</span><div><div class="text-sm font-medium text-slate-500">Director</div><div class="text-xs text-slate-400">Maya Puspita · Waiting</div></div></div></div></div>
+        </div>
+      <aside class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"><h3 class="mb-3 text-sm font-semibold">Your Signature Position</h3><div class="flex aspect-[3/4] items-end justify-center rounded border border-slate-200 bg-slate-50 p-6"><div class="w-3/4 border-t border-dashed border-blue-400 pt-2 text-center text-xs text-blue-600">SIGNATURE · PAGE 6</div></div><p class="mt-3 text-xs leading-5 text-slate-500">Your saved signature image will be stamped at this position automatically when you approve.</p></aside>
+    </div>
+    <div class="sticky bottom-0 mt-6 flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/95 py-4 backdrop-blur"><div><div class="text-xs text-slate-400">SLA</div><div class="text-sm font-medium text-rose-600">Breached · 4 hours ago</div></div><div class="flex gap-2"><button class="rounded-md border border-rose-200 bg-white px-4 py-2 text-sm font-medium text-rose-700">Reject</button><button class="rounded-md bg-slate-900 px-5 py-2 text-sm font-medium text-white shadow-sm">Approve</button></div></div>
+  </section>
+  <section id="documents" class="mt-10 border-t border-slate-200 pt-8">
+    <div class="mb-5"><h2 class="text-xl font-semibold">My Documents</h2><p class="mt-1 text-sm text-slate-500">Documents you've submitted — a list rendered as Record Summary Cards (Study 38 Cluster 2), not a table.</p></div>
+    <div class="space-y-3">
+      <a href="#document" class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm hover:border-blue-300">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">LT</span>
+        <div class="flex-1"><div class="text-sm font-semibold text-slate-900">Vendor Contract Q3</div><div class="text-xs text-slate-400">DOC-0091 · Contract · submitted 06 Sep 2026</div></div>
+        <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">In Review</span>
+      </a>
+      <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">—</span>
+        <div class="flex-1"><div class="text-sm font-semibold text-slate-900">Office Supplies Order</div><div class="text-xs text-slate-400">DOC-0088 · Purchase Order · submitted 28 Aug 2026</div></div>
+        <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Approved</span>
+      </div>
+      <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">MP</span>
+        <div class="flex-1"><div class="text-sm font-semibold text-slate-900">Annual Leave Policy Update</div><div class="text-xs text-slate-400">DOC-0079 · Policy · submitted 15 Aug 2026</div></div>
+        <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Rejected</span>
+      </div>
+      <div class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">—</span>
+        <div class="flex-1"><div class="text-sm font-semibold text-slate-900">Q2 Marketing Budget</div><div class="text-xs text-slate-400">DOC-0071 · Budget · not yet submitted</div></div>
+        <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Draft</span>
+      </div>
+    </div>
+  </section>
+</main>
+<nav class="sticky bottom-0 border-t border-slate-200 bg-white px-2 py-2 sm:hidden"><div class="grid grid-cols-4 text-center text-[11px]"><a class="font-semibold text-blue-600" href="#inbox">Inbox</a><a class="text-slate-500" href="#documents">Documents</a><a class="text-slate-500" href="#groups">Groups</a><a class="text-slate-500" href="#admin">More</a></div></nav>
+</body></html>

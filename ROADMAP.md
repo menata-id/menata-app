@@ -22,6 +22,23 @@ case that doesn't exist yet.
 
 ---
 
+## Trial applications (priority target)
+
+Two trial applications are the concrete, owner-prioritized target for this repo (decision,
+2026-09-15): **Case 3 (Document Approval)** and **Case 19 (Project Management)**, out of the
+larger 21-case portfolio `menata-runtime`'s own discovery phase proved out. See
+[`case-portfolio.md`](case-portfolio.md) for all 21 cases and both priority cases' full screen
+breakdowns, and [`ui-sample/`](ui-sample/) for their design mockups (copied from that repo,
+2026-09-15).
+
+What's already a real slice of one of them: the Task/Project Relation + board Layout (Phases
+3-5 below) is genuinely Case 19's Board screen, built because its own forcing conditions
+happened to align with that case's shape -- not because a phase was scheduled "for Case 19."
+Case 3 is entirely unstarted. Phases are sequenced by architectural forcing condition, per the
+Method above; which case supplies that forcing condition next is not predetermined.
+
+---
+
 ## Phase 1 -- Single Machine, full vertical slice (done, 2026-09-15)
 
 **Forcing condition:** prove the metadata -> domain -> data -> render pipeline works end to end
@@ -173,6 +190,27 @@ that can't just be fetched whole and filtered in Go).
 **Exit criterion:** the forcing case's specific problem (duplicate queries, or whatever it turns
 out to be) is measurably fixed, proven by a before/after comparison, not by the planner's mere
 existence.
+
+---
+
+## Operational backlog (tracked, not phase-numbered)
+
+Found during a security/hygiene review (2026-09-15) -- real gaps, but not part of the
+architectural forcing-condition sequence above, so tracked separately rather than jammed into a
+phase they don't belong to:
+
+- [x] `golang.org/x/text` CVE (GO-2026-5970, infinite loop on invalid input, reachable via
+      `pgxpool`) -- bumped to v0.39.0, `govulncheck` confirmed clean
+- [ ] Rate-limit `POST /login` -- unlimited password guesses are possible today; the
+      constant-time comparison in `internal/authorization` stops timing attacks, not repeated
+      brute-force attempts
+- [ ] CI workflow (`.github/workflows/`) -- build+vet+test on push; none exists yet despite 60+
+      tests already in the repo
+- [ ] Record detail page -- editing is inline-only (table row / board card); no dedicated
+      `/machines/{id}/records/{id}` view exists
+- [ ] Sort/filter/search on record lists -- `Store.ListRecords` only orders by `created_at desc`
+- [ ] JSON API parity -- `/api/machines/{id}/records` only supports create+list; update/delete
+      exist only via the browser HTML routes, not the API
 
 ---
 

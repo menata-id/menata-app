@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Approval Dashboard (composed page)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — CAP-V10 Tier 2 exploration ("a page composing any Views, not only summary tiles").
+  Static mockup, not wired to real data. Every section below is what a real page View would resolve
+  to by referencing an existing View by id — see caption under each section.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
+    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <a href="/ui-sample/approval-dashboard.html" class="rounded-md bg-white px-3 py-1.5 font-medium text-slate-900 shadow-sm">Dashboard</a>
+      <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
+      <a href="/ui-sample/document-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Doc Approval</a>
+      <a href="/ui-sample/process-map.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Process Map</a>
+      <a href="/ui-sample/groups.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Groups</a>
+    </nav>
+    <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold">NS</span>
+  </div>
+</header>
+
+<main class="mx-auto max-w-6xl px-6 py-8">
+  <div class="mb-6">
+    <p class="text-xs font-medium uppercase tracking-wide text-blue-600">Approval</p>
+    <h1 class="mt-1 text-2xl font-semibold">Approval Dashboard</h1>
+    <p class="mt-1 max-w-2xl text-sm text-slate-500">
+      A <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">page</code> View composing three
+      already-existing Views by id — <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">approval_summary</code>
+      (today's real CAP-V10 count tiles, unchanged), <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">pending_documents</code>
+      (an ordinary <code>list</code> View, embedded), and <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">recent_activity</code>
+      (another <code>list</code> View, embedded). Nothing here is a new data mechanism — each section's
+      data is what that View already fetches standalone.
+    </p>
+  </div>
+
+  <!-- Section 1: approval_summary — CAP-V10 as it exists today, count tiles with breakdown -->
+  <section class="mb-8">
+    <div class="mb-3 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-slate-900">Summary</h2>
+      <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">view: approval_summary · ✅ CAP-V10 today</span>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-3">
+      <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="text-xs font-medium uppercase tracking-wide text-slate-400">Total Pending</div>
+        <div class="mt-2 text-3xl font-semibold text-slate-900">12</div>
+        <div class="mt-3 flex flex-wrap gap-1.5 text-xs">
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">Document · 7</span>
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">Leave · 3</span>
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">Corrective Action · 2</span>
+        </div>
+      </div>
+      <div class="rounded-lg border border-rose-200 bg-white p-5 shadow-sm">
+        <div class="text-xs font-medium uppercase tracking-wide text-rose-500">Overdue</div>
+        <div class="mt-2 text-3xl font-semibold text-rose-600">3</div>
+        <div class="mt-3 text-xs text-slate-500">breached SLA, needs immediate attention</div>
+      </div>
+      <div class="rounded-lg border border-amber-200 bg-white p-5 shadow-sm">
+        <div class="text-xs font-medium uppercase tracking-wide text-amber-600">Due Today</div>
+        <div class="mt-2 text-3xl font-semibold text-amber-600">4</div>
+        <div class="mt-3 text-xs text-slate-500">decide before end of day</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid gap-6 lg:grid-cols-3">
+    <!-- Section 2: pending_documents — an embedded `list` View -->
+    <section class="lg:col-span-2">
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-900">Pending Documents</h2>
+        <div class="flex items-center gap-2">
+          <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">view: pending_documents · new, embedded list</span>
+          <a href="/ui-sample/document-approval.html" class="text-xs font-medium text-blue-600 hover:text-blue-700">View all →</a>
+        </div>
+      </div>
+      <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <table class="w-full text-sm">
+          <thead class="border-b border-slate-200 bg-slate-50">
+            <tr>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Document</th>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Requester</th>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Status</th>
+              <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">SLA</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr class="bg-rose-50/40 hover:bg-rose-50">
+              <td class="px-4 py-3"><div class="font-medium text-slate-900">Vendor Contract Q3</div><div class="text-xs text-slate-400">DOC-0091</div></td>
+              <td class="px-4 py-3 text-slate-600">Budi Santoso</td>
+              <td class="px-4 py-3"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">In Review</span></td>
+              <td class="px-4 py-3"><span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700">breached 4h ago</span></td>
+            </tr>
+            <tr class="hover:bg-slate-50">
+              <td class="px-4 py-3"><div class="font-medium text-slate-900">Procurement SOP</div><div class="text-xs text-slate-400">DOC-0092</div></td>
+              <td class="px-4 py-3 text-slate-600">Siti Wulandari</td>
+              <td class="px-4 py-3"><span class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">In Review</span></td>
+              <td class="px-4 py-3"><span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">8h remaining</span></td>
+            </tr>
+            <tr class="hover:bg-slate-50">
+              <td class="px-4 py-3"><div class="font-medium text-slate-900">Line 3 Conveyor Sensor Fault</div><div class="text-xs text-slate-400">CA-2044</div></td>
+              <td class="px-4 py-3 text-slate-600">Andi Prasetyo</td>
+              <td class="px-4 py-3"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Review</span></td>
+              <td class="px-4 py-3"><span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">1d 14h remaining</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Section 3: recent_activity — a second embedded View, different shape (feed, not table) -->
+    <section>
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-900">Recent Activity</h2>
+        <span class="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">view: recent_activity · new</span>
+      </div>
+      <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <ul class="divide-y divide-slate-100">
+          <li class="flex gap-3 px-4 py-3">
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">RN</span>
+            <div class="flex-1 text-sm">
+              <div class="text-slate-800"><span class="font-medium">Rina Nur</span> approved <span class="font-medium">Vendor Contract Q3</span></div>
+              <div class="mt-0.5 text-xs text-slate-400">10:42 · Finance Review</div>
+            </div>
+          </li>
+          <li class="flex gap-3 px-4 py-3">
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">BS</span>
+            <div class="flex-1 text-sm">
+              <div class="text-slate-800"><span class="font-medium">Budi Santoso</span> submitted <span class="font-medium">Vendor Contract Q3</span></div>
+              <div class="mt-0.5 text-xs text-slate-400">06 Sep 2026 · Draft → In Review</div>
+            </div>
+          </li>
+          <li class="flex gap-3 px-4 py-3">
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-100 text-xs font-semibold text-rose-600">!</span>
+            <div class="flex-1 text-sm">
+              <div class="text-slate-800"><span class="font-medium">Legal Review</span> SLA breached on <span class="font-medium">Vendor Contract Q3</span></div>
+              <div class="mt-0.5 text-xs text-slate-400">4 hours ago · escalated to Manager</div>
+            </div>
+          </li>
+          <li class="flex gap-3 px-4 py-3">
+            <span class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">AP</span>
+            <div class="flex-1 text-sm">
+              <div class="text-slate-800"><span class="font-medium">Andi Prasetyo</span> started <span class="font-medium">Line 3 Conveyor Sensor Fault</span></div>
+              <div class="mt-0.5 text-xs text-slate-400">01 Sep 2026 · Assigned → In_Progress</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

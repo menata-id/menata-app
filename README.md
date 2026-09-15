@@ -21,6 +21,13 @@ slate — no code is ported in from prior prototypes.
 See [ROADMAP.md](ROADMAP.md) for the phased build plan — what gets implemented when, and the
 forcing condition that justifies each phase.
 
+## Trial applications
+
+Two priority target applications — Case 3 (Document Approval) and Case 19 (Project Management),
+out of a larger 21-case portfolio. See [case-portfolio.md](case-portfolio.md) for all 21 and
+both priority cases' full screen breakdowns, and [ui-sample/](ui-sample/) for their design
+mockups.
+
 ## Naming
 
 `menata-app` is short for **Menata Runtime App** — the deployed application produced by running

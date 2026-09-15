@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Case 19 — UI Composition Breakdown</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .wire{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;padding:.75rem}
+  .section{border:1px dashed #94a3b8;border-radius:.6rem;padding:.55rem;background:white}
+  .column{border:1px solid #cbd5e1;border-radius:.5rem;padding:.5rem;background:#f8fafc;min-width:0}
+  .component{border:1px solid #dbeafe;background:#eff6ff;border-radius:.4rem;padding:.4rem;font-size:10px;font-weight:600;color:#1e40af}
+  .component.alt{border-color:#e2e8f0;background:white;color:#334155}
+  .label{font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;font-weight:700}
+  pre{white-space:pre-wrap}
+</style>
+</head>
+<body class="min-h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">Case 19 — composable UI · Page + Layout + Component + Metadata</div>
+<header class="border-b bg-white px-6 py-4"><div class="mx-auto flex max-w-7xl items-center justify-between"><a href="case-19.html" class="text-sm font-semibold">Case 19 <span class="font-normal text-slate-400">/ Project Management</span></a><a href="case-19.html" class="text-xs text-blue-600">← Case 19</a></div></header>
+<main class="mx-auto max-w-7xl px-6 py-10">
+<div class="max-w-4xl"><span class="text-xs font-semibold text-slate-400">COMPOSABLE UI · 001–007</span><h1 class="mt-2 text-3xl font-semibold">UI Composition & Metadata Breakdown</h1><p class="mt-3 text-sm leading-6 text-slate-600">Every mockup is authored as a generic experience tree: <b>Page → Layout → Component</b> (007 §12). Layout is <i>one</i> generic structural primitive whose <code>kind</code> spans <code>section</code>, <code>columns</code>, <code>grid</code>, <code>stack</code>, <code>split</code>, <code>tabs</code>, and <code>panel</code> — there is no separate fixed "Column" node type in the runtime vocabulary. Component describes reusable UI capability; Dataset, Projection and a View Model provide semantic data (007 §7, §10); behavior remains outside the visual tree, expressed through the Behavioral Model — Event → Action → Permission/Constraint → Service/Data operation → State change (006 "Behavioral Model").</p></div>
+<section class="mt-8 rounded-lg border bg-white p-6"><h2 class="font-semibold">The composition model</h2><div class="mt-5 grid gap-3 md:grid-cols-4 text-xs"><div class="rounded-lg border p-4"><div class="label">E0 · §12.1</div><b class="mt-1 block">Page</b><p class="mt-1 text-slate-500">Experience root. Should not own business logic.</p></div><div class="rounded-lg border p-4"><div class="label">E1 · §12.2</div><b class="mt-1 block">Layout</b><p class="mt-1 text-slate-500">Generic spatial composition primitive. <code>kind</code>: section, columns, grid, stack, split, tabs, panel.</p></div><div class="rounded-lg border p-4"><div class="label">E2 · §12.3</div><b class="mt-1 block">Component</b><p class="mt-1 text-slate-500">Reusable semantic presentation primitive with a bounded contract.</p></div><div class="rounded-lg border p-4"><div class="label">§12.4–12.6</div><b class="mt-1 block">View · Slot · Static Content</b><p class="mt-1 text-slate-500">Supporting Experience-plane concepts: a precomposed presentation contract, a named extension point, and first-class non-data content.</p></div></div><div class="mt-5 rounded-lg bg-slate-900 p-5 text-xs text-white overflow-x-auto"><pre>Page
+└── Layout · kind=section
+    ├── Layout · kind=columns
+    │   └── Component
+    └── Layout · kind=columns
+        └── Component</pre></div><p class="mt-4 text-xs leading-5 text-slate-500">No BoardLayout, DashboardLayout, TaskTemplate, or other domain-shaped layout primitive is required — the runtime should not require separate layout concepts when their behavior can be expressed through generic Layout kinds (007 §12.2).</p></section>
+<section class="mt-8"><h2 class="text-lg font-semibold">Visual decomposition and Runtime Metadata for the 11 mockup pages</h2><p class="mt-1 text-sm leading-6 text-slate-500">Each wireframe shows the structural tree that its Runtime Metadata authors directly beneath it. IDs are stable references; <code>children</code> expresses composition; <code>binding</code> connects semantic data. The exact serialization may evolve while the normalized model (007) remains the contract.</p><div class="mt-6 grid gap-6 lg:grid-cols-2">
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">01 · Project Workspace</h3><span class="text-xs text-slate-400">project-workspace.html</span></div><div class="wire mt-4 space-y-2"><div class="section"><div class="label">Section · header</div><div class="mt-2 grid grid-cols-2 gap-2"><div class="column"><div class="component">Header</div></div><div class="column"><div class="component alt">Navigation</div></div></div></div><div class="section"><div class="label">Section · overview</div><div class="mt-2 grid grid-cols-3 gap-2"><div class="column"><div class="component">CollectionCard</div></div><div class="column"><div class="component">StatTile</div></div><div class="column"><div class="component">ProgressIndicator</div></div></div></div><div class="section"><div class="label">Section · activity</div><div class="mt-2"><div class="column"><div class="component">ActivityFeed</div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: project.workspace
+  type: Page
+  children:
+    - id: workspace.header
+      type: Layout
+      kind: section
+      children:
+        - id: workspace.header.main
+          type: Layout
+          kind: columns
+          children: [header]
+        - id: workspace.header.nav
+          type: Layout
+          kind: columns
+          children: [navigation]
+    - id: workspace.overview
+      type: Layout
+      kind: section
+      children:
+        - id: workspace.projects
+          type: Layout
+          kind: columns
+          children: [collectionCard]
+        - id: workspace.stats
+          type: Layout
+          kind: columns
+          children: [statTile]
+        - id: workspace.progress
+          type: Layout
+          kind: columns
+          children: [progressIndicator]
+    - id: workspace.activity
+      type: Layout
+      kind: section
+      children:
+        - id: workspace.activity.main
+          type: Layout
+          kind: columns
+          children: [activityFeed]</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">02 · Board Workspace</h3><span class="text-xs text-slate-400">project-board.html</span></div><div class="wire mt-4 space-y-2"><div class="section"><div class="label">Section · toolbar</div><div class="mt-2 grid grid-cols-2 gap-2"><div class="column"><div class="component">Header</div></div><div class="column"><div class="component alt">ActionBar</div></div></div></div><div class="section"><div class="label">Section · grouped collection</div><div class="mt-2 grid grid-cols-3 gap-2"><div class="column"><div class="component">GroupContainer</div><div class="mt-2 space-y-1"><div class="component alt">ItemCard</div><div class="component alt">ItemCard</div></div></div><div class="column"><div class="component">GroupContainer</div><div class="mt-2"><div class="component alt">ItemCard</div></div></div><div class="column"><div class="component">GroupContainer</div><div class="mt-2"><div class="component alt">ItemCard</div></div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: board.workspace
+  type: Page
+  children:
+    - id: board.toolbar
+      type: Layout
+      kind: section
+      children:
+        - id: board.toolbar.header
+          type: Layout
+          kind: columns
+          children: [header]
+        - id: board.toolbar.actions
+          type: Layout
+          kind: columns
+          children: [actionBar]
+    - id: board.groups
+      type: Layout
+      kind: section
+      children:
+        - id: board.group.1
+          type: Layout
+          kind: columns
+          children:
+            - id: board.group.1.container
+              type: GroupContainer
+              children: [itemCard]
+        - id: board.group.2
+          type: Layout
+          kind: columns
+          children: [groupContainer]</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">03 · Task Detail</h3><span class="text-xs text-slate-400">project-card.html</span></div><div class="wire mt-4"><div class="section"><div class="label">Section · detail</div><div class="mt-2 grid grid-cols-3 gap-2"><div class="column col-span-2 space-y-1"><div class="component">ItemHeader</div><div class="component alt">DescriptionBlock</div><div class="component alt">Checklist</div><div class="component alt">CommentList</div></div><div class="column space-y-1"><div class="component">MetadataList</div><div class="component alt">AttachmentList</div><div class="component alt">ActionBar</div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: item.detail
+  type: Page
+  children:
+    - id: item.detail.section
+      type: Layout
+      kind: section
+      children:
+        - id: item.detail.primary
+          type: Layout
+          kind: columns
+          children: [itemHeader, descriptionBlock, checklist, commentList]
+        - id: item.detail.secondary
+          type: Layout
+          kind: columns
+          children: [metadataList, attachmentList, actionBar]
+# "Task" is semantic data, not a layout type.</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">04 · Timeline / Roadmap</h3><span class="text-xs text-slate-400">project-timeline.html</span></div><div class="wire mt-4 space-y-2"><div class="section"><div class="label">Section · controls</div><div class="mt-2 grid grid-cols-2 gap-2"><div class="column"><div class="component">Header</div></div><div class="column"><div class="component alt">ActionBar</div></div></div></div><div class="section"><div class="label">Section · timeline</div><div class="mt-2 grid grid-cols-2 gap-2"><div class="column"><div class="component">GroupContainer</div></div><div class="column"><div class="component">DateRangeBar</div><div class="mt-2"><div class="component alt">MilestoneMarker</div></div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: timeline
+  type: Page
+  children:
+    - id: timeline.controls
+      type: Layout
+      kind: section
+      children:
+        - id: timeline.controls.main
+          type: Layout
+          kind: columns
+          children: [header]
+        - id: timeline.controls.actions
+          type: Layout
+          kind: columns
+          children: [actionBar]
+    - id: timeline.body
+      type: Layout
+      kind: section
+      children:
+        - id: timeline.groups
+          type: Layout
+          kind: columns
+          children: [groupContainer]
+        - id: timeline.ranges
+          type: Layout
+          kind: columns
+          children: [dateRangeBar, milestoneMarker]</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">05 · Calendar</h3><span class="text-xs text-slate-400">project-calendar.html</span></div><div class="wire mt-4 space-y-2"><div class="section"><div class="label">Section · controls</div><div class="mt-2 grid grid-cols-2 gap-2"><div class="column"><div class="component">Header</div></div><div class="column"><div class="component alt">ActionBar</div></div></div></div><div class="section"><div class="label">Section · calendar</div><div class="mt-2 grid grid-cols-4 gap-2"><div class="column"><div class="component">CalendarCell</div></div><div class="column"><div class="component">CalendarCell</div></div><div class="column"><div class="component">CalendarCell</div></div><div class="column"><div class="component">CalendarCell</div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: calendar
+  type: Page
+  children:
+    - id: calendar.controls
+      type: Layout
+      kind: section
+      children:
+        - id: calendar.controls.main
+          type: Layout
+          kind: columns
+          children: [header]
+        - id: calendar.controls.actions
+          type: Layout
+          kind: columns
+          children: [actionBar]
+    - id: calendar.grid
+      type: Layout
+      kind: section
+      children:
+        - id: calendar.week.1
+          type: Layout
+          kind: columns
+          children: [calendarCell]
+        - id: calendar.week.2
+          type: Layout
+          kind: columns
+          children: [calendarCell]</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">06 · Sprint Dashboard / Insights</h3><span class="text-xs text-slate-400">project-dashboard.html</span></div><div class="wire mt-4 space-y-2"><div class="section"><div class="label">Section · metrics</div><div class="mt-2 grid grid-cols-4 gap-2"><div class="column"><div class="component">StatTile</div></div><div class="column"><div class="component">StatTile</div></div><div class="column"><div class="component">StatTile</div></div><div class="column"><div class="component">StatTile</div></div></div></div><div class="section"><div class="label">Section · insights</div><div class="mt-2 grid grid-cols-2 gap-2"><div class="column"><div class="component">Chart</div></div><div class="column"><div class="component">AttentionList</div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: insights
+  type: Page
+  children:
+    - id: insights.metrics
+      type: Layout
+      kind: section
+      children:
+        - id: insights.metric.1
+          type: Layout
+          kind: columns
+          children: [statTile]
+        - id: insights.metric.2
+          type: Layout
+          kind: columns
+          children: [statTile]
+    - id: insights.analysis
+      type: Layout
+      kind: section
+      children:
+        - id: insights.chart
+          type: Layout
+          kind: columns
+          children: [chart]
+        - id: insights.attention
+          type: Layout
+          kind: columns
+          children: [attentionList]</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">07 · Team Capacity</h3><span class="text-xs text-slate-400">project-team.html</span></div><div class="wire mt-4 space-y-2"><div class="section"><div class="label">Section · people</div><div class="mt-2 grid grid-cols-2 gap-2"><div class="column"><div class="component">PersonRow</div></div><div class="column"><div class="component">PersonRow</div></div></div></div><div class="section"><div class="label">Section · capacity</div><div class="mt-2 grid grid-cols-2 gap-2"><div class="column"><div class="component">StatTile</div></div><div class="column"><div class="component">ProgressIndicator</div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: team.capacity
+  type: Page
+  children:
+    - id: team.people
+      type: Layout
+      kind: section
+      children:
+        - id: team.people.list
+          type: Layout
+          kind: columns
+          children: [personRow]
+    - id: team.capacity
+      type: Layout
+      kind: section
+      children:
+        - id: team.capacity.stat
+          type: Layout
+          kind: columns
+          children: [statTile]
+        - id: team.capacity.progress
+          type: Layout
+          kind: columns
+          children: [progressIndicator]</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">08 · My Tasks</h3><span class="text-xs text-slate-400">project-my-tasks.html</span></div><div class="wire mt-4 space-y-2"><div class="section"><div class="label">Section · collection</div><div class="mt-2"><div class="column"><div class="component">ItemRow</div><div class="mt-1"><div class="component alt">ItemRow</div></div><div class="mt-1"><div class="component alt">ItemRow</div></div></div></div></div><div class="section"><div class="label">Section · actions</div><div class="mt-2"><div class="column"><div class="component">ActionBar</div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: my.tasks
+  type: Page
+  children:
+    - id: my.tasks.collection
+      type: Layout
+      kind: section
+      children:
+        - id: my.tasks.items
+          type: Layout
+          kind: columns
+          children: [itemRow]
+    - id: my.tasks.actions
+      type: Layout
+      kind: section
+      children:
+        - id: my.tasks.actions.main
+          type: Layout
+          kind: columns
+          children: [actionBar]</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">09 · Project Activity</h3><span class="text-xs text-slate-400">project-activity.html</span></div><div class="wire mt-4"><div class="section"><div class="label">Section · feed</div><div class="mt-2"><div class="column"><div class="component">ActivityFeed</div><div class="mt-2 space-y-1"><div class="component alt">ActivityFeedItem</div><div class="component alt">ActivityFeedItem</div><div class="component alt">ActivityFeedItem</div></div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: activity
+  type: Page
+  children:
+    - id: activity.feed
+      type: Layout
+      kind: section
+      children:
+        - id: activity.feed.main
+          type: Layout
+          kind: columns
+          children: [activityFeed]</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">10 · Workflow Automation</h3><span class="text-xs text-slate-400">project-automation.html</span></div><div class="wire mt-4 space-y-2"><div class="section"><div class="label">Section · rules</div><div class="mt-2 grid grid-cols-2 gap-2"><div class="column"><div class="component">RuleSummary</div><div class="mt-2"><div class="component alt">StepSequence</div></div></div><div class="column"><div class="component">RuleSummary</div></div></div></div><div class="section"><div class="label">Section · actions</div><div class="mt-2"><div class="column"><div class="component">ActionBar</div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: automation
+  type: Page
+  children:
+    - id: automation.rules
+      type: Layout
+      kind: section
+      children:
+        - id: automation.rule.1
+          type: Layout
+          kind: columns
+          children: [ruleSummary, stepSequence]
+        - id: automation.rule.2
+          type: Layout
+          kind: columns
+          children: [ruleSummary]
+    - id: automation.actions
+      type: Layout
+      kind: section
+      children:
+        - id: automation.actions.main
+          type: Layout
+          kind: columns
+          children: [actionBar]</pre></div></article>
+<article class="rounded-xl border bg-white p-5"><div class="flex items-baseline justify-between"><h3 class="font-semibold">11 · Board Settings</h3><span class="text-xs text-slate-400">project-settings.html</span></div><div class="wire mt-4"><div class="section"><div class="label">Section · settings</div><div class="mt-2 grid grid-cols-4 gap-2"><div class="column"><div class="component">SettingsNavigation</div></div><div class="column col-span-3 space-y-1"><div class="component">Form</div><div class="component alt">FieldGroup</div><div class="component alt">SortableCollection</div></div></div></div></div><div class="mt-4"><div class="label">Runtime Metadata</div><pre class="mt-2 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">experience:
+  id: settings
+  type: Page
+  children:
+    - id: settings.main
+      type: Layout
+      kind: section
+      children:
+        - id: settings.nav
+          type: Layout
+          kind: columns
+          children: [settingsNavigation]
+        - id: settings.form
+          type: Layout
+          kind: columns
+          children: [form, fieldGroup, sortableCollection]</pre></div></article>
+</div></section>
+<section class="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-6"><h2 class="font-semibold text-amber-900">How this maps to today's real, authorable metadata</h2><p class="mt-2 text-sm leading-6 text-amber-900">The <code>Page → Layout(kind) → Component</code> tree above is the 007/006 composable <b>target</b> shape. The generic Layout <code>kind</code> vocabulary (columns/grid/stack/split/tabs/panel beyond <code>main</code>/<code>aside</code>) is tracked as not yet built: "Layout vocabulary beyond <code>main</code>/<code>aside</code> — §12.2 — 🟡 PARTIAL — <code>CAP-V10</code> Tier 2 ships the one pairing; stack/grid/columns extensions are CR-tracked design triggers, not yet built" (007 §40 Claim Citation Matrix). <code>guides/writing-runtime-metadata.md</code> is correct not to document that vocabulary yet — a writing guide should describe real, loadable, validated metadata, not an unbuilt target.</p><p class="mt-3 text-sm leading-6 text-amber-900">What <i>is</i> real and loadable today is the Views <code>children</code> mechanism: <code>view</code> / <code>content</code> / <code>component</code>+<code>dataset_id</code>, laid out with <code>layout: main</code>/<code>aside</code> (<code>CAP-V20</code>, <code>CAP-V10</code>, <code>CR-21</code>/17k — see <code>guides/writing-runtime-metadata.md</code> §"Komposisi View" and §"View tipe page"). Mockup 06 (Sprint Dashboard/Insights) above, expressed in that real shape today:</p><pre class="mt-3 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">views:
+  - id: vw_insights_page
+    type: page
+    children:
+      - component: Metric
+        dataset_id: ds_sprint_open_count
+        title: Open
+      - component: Metric
+        dataset_id: ds_sprint_done_count
+        title: Done
+      - view: vw_insights_chart
+        title: Insights
+        layout: main
+      - view: vw_insights_attention
+        title: Attention
+        layout: aside</pre><p class="mt-3 text-xs leading-5 text-amber-900">No addition to <code>guides/writing-runtime-metadata.md</code> is needed for this experiment — the gap is a not-yet-built runtime capability (007 §40, CR-tracked), not an undocumented one. The guide should gain a Layout-<code>kind</code> section only once that capability actually ships.</p><p class="mt-3 text-xs leading-5"><a class="text-blue-700 underline" href="../../../../guides/writing-runtime-metadata.md">Read guides/writing-runtime-metadata.md</a></p></section>
+<section class="mt-8 rounded-lg border bg-white p-6"><h2 class="font-semibold">Binding semantic data to the visual tree</h2><p class="mt-2 text-sm leading-6 text-slate-600">A Component should not consume raw records directly. The pipeline is <b>Query → Projection → View Model → Component</b> (007 §10); the View Model insulates the Component from whether a value came from a field, an expression, or a joined relation.</p><pre class="mt-4 rounded bg-slate-50 p-4 text-[11px] leading-5">data:
+  dataset: task.items
+  projection:
+    - id: title
+      source: name
+      semantic_type: title
+    - id: status
+      source: status
+      semantic_type: status
+    - id: person
+      source: assignee
+      semantic_type: person
+    - id: date
+      source: due_date
+      semantic_type: date
+
+view_model:
+  title: $projection.title
+  status: $projection.status
+  person: $projection.person
+  date: $projection.date
+
+experience:
+  type: Component
+  component: ItemCard
+  binding:
+    title: { dataset: task.items, value: view_model.title }
+    status: { dataset: task.items, value: view_model.status }
+    person: { dataset: task.items, value: view_model.person }
+    date: { dataset: task.items, value: view_model.date }</pre><p class="mt-4 text-xs leading-5 text-slate-500">The same ItemCard can consume another Projection in HR, CRM, finance, document approval, or another domain. Behavior such as move, archive, approve, or reorder is referenced separately through the Behavioral Model — Event → Action → Permission/Constraint → Service/Data operation → State change (006 "Behavioral Model") — not the visual composition tree.</p></section>
+<section class="mt-8 rounded-lg border bg-white p-6"><h2 class="font-semibold">Component contract</h2><p class="mt-2 text-sm leading-6 text-slate-600">A Component MUST expose a bounded semantic contract — it does not become "generic" merely by accepting arbitrary properties or silently performing arbitrary data access (007 §12.3, §13). Every Component referenced above (Header, StatTile, ItemCard, GroupContainer, …) is expected to declare its identity, inputs, data requirements, child slots, actions/events, accessibility semantics, and renderer implementation:</p><pre class="mt-4 rounded bg-slate-950 p-4 text-[11px] leading-5 text-slate-100">component:
+  id: ItemCard
+  inputs: [title, status, person, date]
+  dataRequirements: [task.items]
+  childSlots: []
+  actionsEvents: [move, archive, approve]
+  accessibility: { role: article }
+  renderer: itemCard.renderer</pre><p class="mt-3 text-xs leading-5 text-slate-500">Contracts should be versionable; breaking contract changes require explicit compatibility handling rather than silently changing the meaning of existing metadata (007 §13).</p></section>
+<section class="mt-8 rounded-lg border border-dashed bg-white p-6"><h2 class="font-semibold">Runtime realization</h2><p class="mt-3 text-sm leading-6 text-slate-600">Metadata declares semantic intent. The runtime parses, validates, normalizes and resolves references, then lowers the logical composition into UI IR and an execution/render plan. The author does not need to describe HTML/CSS or a framework-specific layout template.</p><div class="mt-4 flex flex-wrap gap-2 text-xs"><span class="rounded-full bg-slate-100 px-3 py-1">001 principles</span><span class="rounded-full bg-slate-100 px-3 py-1">002 runtime boundary</span><span class="rounded-full bg-slate-100 px-3 py-1">003 runtime language</span><span class="rounded-full bg-slate-100 px-3 py-1">004 metadata</span><span class="rounded-full bg-slate-100 px-3 py-1">005 lifecycle</span><span class="rounded-full bg-slate-100 px-3 py-1">006 runtime model</span><span class="rounded-full bg-blue-100 px-3 py-1 text-blue-800">007 composable runtime</span></div></section>
+<section class="mt-8 flex flex-wrap gap-3 text-xs"><a class="rounded-md bg-slate-900 px-4 py-2 font-medium text-white" href="case-19.html">Back to Case 19</a><a class="rounded-md border bg-white px-4 py-2" href="../../../../benchmarks/032-case19-ui-page-component-matrix.md">Read architecture matrix</a></section>
+</main></body></html>
