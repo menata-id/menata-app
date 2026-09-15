@@ -263,20 +263,26 @@ confirmed unchanged.
 
 ---
 
-## Phase 9 -- Child collections (one-to-many detail sections)
+## Phase 9 -- Child collections (one-to-many detail sections) (done, 2026-09-15)
 
 **Forcing condition:** Case 19's Checklist (a Card's own child items) and Case 3's Approval
 Steps (a Document's own ordered steps) are both "records that belong to this record," shown
 embedded on the parent's detail page -- the reverse direction of the Relation Phase 3 already
 built (which only renders the child-side label, never the parent-side list).
 
-- [ ] A generic "child collection" section on the Phase 8 detail page: every record of Machine
-      X whose Relation field points at this record, rendered inline
-- [ ] Ordering within a child collection (`sort_order`), since both Checklist items and Approval
-      Steps are meaningfully ordered
+- [x] A generic "child collection" section on the Phase 8 detail page: every record of Machine X
+      whose reference field points at this record, rendered inline (`domain.FindChildCollections`,
+      reused verbatim for Relation and Person -- a User's detail page gets "Tasks assigned to me"
+      for free, with zero extra code)
+- [x] Ordering within a child collection (`sort_order`, `migrations/002_sort_order.sql`) --
+      `Store.CreateRecord` assigns the next value per Machine; `ListRecords`/`ListRecordsBy` both
+      order by it, replacing the old newest-first default everywhere, not only in child collections
 
-**Exit criterion:** a Project's detail page shows its own Tasks as an embedded list -- proving
-the mechanism generically -- before Checklist/Approval Steps reuse it.
+**Exit criterion met:** a Project's detail page shows its own Tasks as an embedded list, reusing
+`RecordRow` per child row with no per-Machine rendering code. Verified end-to-end against real
+Postgres, including the Person-based bonus case (User → assigned Tasks).
+
+**Phase 9 complete.**
 
 ---
 
