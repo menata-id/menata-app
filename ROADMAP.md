@@ -543,7 +543,11 @@ existing menata-app symbol):
       composition `approval-dashboard.html` names): **still not forced** -- same verdict as the
       first two tests, same reasoning (whole-machine queries joined in Go stay cheap regardless
       of section count)
-- [ ] Step 0: shared `summaryCounts`/`activityFeedList`/`sectionHeader` components (above)
+- [x] Step 0 (done, 2026-09-15): shared `summaryCounts`/`activityFeedList`/`sectionHeader`
+      components (`machine.templ`, alongside `slaBadge`), migrated into Dashboard/My Tasks/Sprint
+      Dashboard/Team Capacity/Activity. Verified identical rendered content on every page before
+      committing, plus one small real enhancement (Dashboard's sections now link "View all →" to
+      their own already-built pages via `sectionHeader`)
 - [ ] Step 1: Record Summary Card + SLA filter chips for the Approval Worklist
 - [ ] Step 2: Approval progress stepper (new `approvalStepper` component, no metadata change)
 - [ ] Step 3: `fld_signature_page`/`fld_signature_x`/`fld_signature_y` (plain `number` Fields,
