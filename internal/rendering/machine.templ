@@ -63,6 +63,16 @@ templ pageShell(title string, appName string) {
 				ul.activity-feed li { padding: 0.5rem 0; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0.6rem; align-items: baseline; }
 				.muted { color: #999; font-size: 0.8rem; margin-left: auto; }
 				.section-link { font-size: 0.8rem; font-weight: normal; margin-left: 0.75rem; }
+				.summary-card-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+				.summary-card { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #e5e5e5; border-radius: 6px; text-decoration: none; color: #1a1a1a; }
+				.summary-card:hover { background: #f7f8fc; }
+				.avatar { width: 2rem; height: 2rem; border-radius: 50%; background: #eef1fb; color: #3949ab; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; flex-shrink: 0; }
+				.summary-card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+				.summary-card-title { font-weight: 500; }
+				.summary-card-subtitle { font-size: 0.8rem; color: #666; }
+				.filter-chips { display: flex; gap: 0.5rem; margin-top: 1rem; }
+				.filter-chips a { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 999px; font-size: 0.8rem; color: #444; text-decoration: none; }
+				.filter-chips a.active { background: #3949ab; color: #fff; border-color: #3949ab; }
 			</style>
 		</head>
 		<body>
@@ -70,6 +80,7 @@ templ pageShell(title string, appName string) {
 				<span class="left">
 					<a href="/">Machines</a>
 					<a href="/dashboard">Dashboard</a>
+					<a href="/approval-inbox">Approval Inbox</a>
 					<a href="/my-tasks">My Tasks</a>
 					<a href="/activity">Activity</a>
 					<a href="/team-capacity">Team Capacity</a>
@@ -427,4 +438,40 @@ templ sectionHeader(title, linkHref, linkLabel string) {
 			<a href={ templ.URL(linkHref) } class="section-link">{ linkLabel }</a>
 		}
 	</h2>
+}
+
+// SummaryCard is one Record Summary Card (ROADMAP.md Phase 15 Step 1, Study 38 Cluster 2): an
+// avatar, title, subtitle, status badge, and an optional SLA due-date badge, linking to the
+// record's own detail page. First menata-app occurrence is Case 3's Approval Inbox; a genuinely
+// new presentation shape (a card, not a table row), not yet cleared for schema-level `display:
+// cards` promotion (needs a second Machine, see Phase 15's target-schema table).
+type SummaryCard struct {
+	AvatarInitials string
+	Title          string
+	Subtitle       string
+	StatusLabel    string
+	SLADue         any
+	Href           string
+}
+
+templ recordSummaryCard(c SummaryCard) {
+	<a href={ templ.URL(c.Href) } class="summary-card">
+		<span class="avatar">{ c.AvatarInitials }</span>
+		<span class="summary-card-body">
+			<span class="summary-card-title">{ c.Title }</span>
+			<span class="summary-card-subtitle">{ c.Subtitle }</span>
+		</span>
+		<span class="badge">{ c.StatusLabel }</span>
+		if c.SLADue != nil {
+			@slaBadge(c.SLADue)
+		}
+	</a>
+}
+
+templ summaryCardList(cards []SummaryCard) {
+	<div class="summary-card-list">
+		for _, c := range cards {
+			@recordSummaryCard(c)
+		}
+	</div>
 }

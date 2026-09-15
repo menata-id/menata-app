@@ -1,0 +1,50 @@
+package rendering
+
+import "fmt"
+
+// SLAFilter is one of the Approval Worklist's SLA filter chips (ROADMAP.md Phase 15 Step 1,
+// document-approval.html's own "All / Overdue / Due today" chips).
+type SLAFilter struct {
+	Key    string
+	Label  string
+	Count  int
+	Active bool
+}
+
+// ApprovalInboxPage is Case 3's Approval Inbox (document-approval.html): every Approval Step
+// currently assigned to and actionable by the current identity ("Pending my approval"), filtered
+// by an SLA bucket, plus every Document the current identity has submitted ("My Documents") --
+// both rendered as recordSummaryCard, the same shared component (Phase 15 Step 1), not a table.
+templ ApprovalInboxPage(filters []SLAFilter, pending []SummaryCard, mine []SummaryCard, appName string) {
+	@pageShell("Approval Inbox", appName) {
+		<h1>Approval Inbox</h1>
+		<p>Documents where your decision is currently required.</p>
+
+		<div class="filter-chips">
+			for _, f := range filters {
+				@filterChip(f)
+			}
+		</div>
+
+		if len(pending) == 0 {
+			<p>Nothing pending your approval.</p>
+		} else {
+			@summaryCardList(pending)
+		}
+
+		@sectionHeader("My Documents", "/machines/mch_document", "View all →")
+		if len(mine) == 0 {
+			<p>You haven't submitted any documents yet.</p>
+		} else {
+			@summaryCardList(mine)
+		}
+	}
+}
+
+templ filterChip(f SLAFilter) {
+	if f.Active {
+		<a href={ templ.URL("/approval-inbox?filter=" + f.Key) } class="active">{ f.Label } ({ fmt.Sprint(f.Count) })</a>
+	} else {
+		<a href={ templ.URL("/approval-inbox?filter=" + f.Key) }>{ f.Label } ({ fmt.Sprint(f.Count) })</a>
+	}
+}
