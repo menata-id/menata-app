@@ -87,6 +87,7 @@ func main() {
 		pr.Get("/team-capacity", showTeamCapacity(store, app.Application.Name))
 		pr.Get("/automation", showAutomation(app.Machines, app.Application.Name))
 		pr.Get("/calendar", showCalendar(store, app.Application.Name))
+		pr.Get("/sprint", showSprintDashboard(store, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files, cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
@@ -453,6 +454,69 @@ func showMyTasks(store *data.Store, appName string, cfg config.Config) http.Hand
 // mch_task whose fld_due_date falls in the current Monday-Sunday week, one column per day. Pure
 // composition over the same Task/Project data My Tasks already loads -- fld_due_date already
 // exists, no new Field or Layout mechanism needed.
+// showSprintDashboard is Case 19's analytics view (ROADMAP.md Phase 14, project-dashboard.html):
+// a real Task-status summary, a workload preview (reusing MemberCapacity from Team Capacity), and
+// an Attention Needed list of overdue/due-today Tasks (reusing My Tasks' own SLA bucketing). The
+// mockup's points/burndown/blocked content is deliberately not reproduced -- see
+// rendering.SprintSummary's own doc comment for why.
+func showSprintDashboard(store *data.Store, appName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		tasks, err := store.ListRecords(ctx, "mch_task")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		users, err := store.ListRecords(ctx, "mch_user")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		projects, err := store.ListRecords(ctx, "mch_project")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		projectNames := make(map[string]string, len(projects))
+		for _, p := range projects {
+			projectNames[p.ID] = toDisplayString(p.Values["fld_name"])
+		}
+
+		var summary rendering.SprintSummary
+		active := make(map[string]int, len(users))
+		now := time.Now()
+		var attention []rendering.TaskRow
+		for _, t := range tasks {
+			summary.Total++
+			status := toDisplayString(t.Values["fld_status"])
+			switch status {
+			case "todo":
+				summary.Open++
+			case "in_progress":
+				summary.InProgress++
+			case "done":
+				summary.Done++
+			}
+			if status != "done" {
+				active[toDisplayString(t.Values["fld_assignee"])]++
+				if due, err := time.Parse("2006-01-02", toDisplayString(t.Values["fld_due_date"])); err == nil {
+					if slaStatus, label := experience.EvaluateSLA(due, now); slaStatus == experience.SLAOverdue || label == "Due today" {
+						attention = append(attention, rendering.TaskRow{Task: t, ProjectName: projectNames[toDisplayString(t.Values["fld_project"])]})
+					}
+				}
+			}
+		}
+
+		workload := make([]rendering.MemberCapacity, 0, len(users))
+		for _, u := range users {
+			workload = append(workload, rendering.MemberCapacity{User: u, ActiveCards: active[u.ID]})
+		}
+
+		rendering.SprintDashboardPage(summary, workload, attention, appName).Render(ctx, w)
+	}
+}
+
 func showCalendar(store *data.Store, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()

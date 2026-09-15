@@ -1,0 +1,72 @@
+package rendering
+
+import "fmt"
+
+// SprintSummary is the real, derivable Task-status breakdown this app can show honestly
+// (ROADMAP.md Phase 14, project-dashboard.html) -- open/in-progress/done counts and a completion
+// percentage. The mockup's own points/burndown/blocked content is deliberately not reproduced:
+// this app has no story-points Field and no historical snapshot data a real burndown needs, and
+// mch_task's fld_status has no "blocked" option -- fabricating any of those would misrepresent
+// real data, which this app avoids everywhere else too.
+type SprintSummary struct {
+	Open       int
+	InProgress int
+	Done       int
+	Total      int
+}
+
+// CompletionPercent is Done/Total as a whole-number percentage, 0 when there are no Tasks yet.
+func (s SprintSummary) CompletionPercent() int {
+	if s.Total == 0 {
+		return 0
+	}
+	return s.Done * 100 / s.Total
+}
+
+// SprintDashboardPage composes the same Task/Activity data as the Dashboard and My Tasks, shaped
+// as Case 19's own analytics view: a status summary, a compact workload preview (linking to the
+// full Team Capacity page rather than duplicating it), and an Attention Needed list of
+// overdue/due-today Tasks (reusing My Tasks' own bucketing, not a new SLA mechanism).
+templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow, appName string) {
+	@pageShell("Sprint Dashboard", appName) {
+		<h1>Sprint Dashboard</h1>
+		<p>A composed analytics view over real Task data -- no fabricated points or burndown.</p>
+
+		<ul class="summary-counts">
+			<li>Open: { fmt.Sprint(summary.Open) }</li>
+			<li>In progress: { fmt.Sprint(summary.InProgress) }</li>
+			<li>Done: { fmt.Sprint(summary.Done) }</li>
+			<li>Completion: { fmt.Sprint(summary.CompletionPercent()) }%</li>
+		</ul>
+
+		<h2>Workload</h2>
+		if len(workload) == 0 {
+			<p>No members yet.</p>
+		} else {
+			<ul class="activity-feed">
+				for _, m := range workload {
+					<li>
+						<span>{ toString(m.User.Values["fld_name"]) }</span>
+						<span class="muted">{ fmt.Sprint(m.ActiveCards) } active cards</span>
+					</li>
+				}
+			</ul>
+		}
+		<p><a href="/team-capacity">Full team capacity →</a></p>
+
+		<h2>Attention Needed</h2>
+		if len(attention) == 0 {
+			<p>Nothing overdue or due today.</p>
+		} else {
+			<ul class="activity-feed">
+				for _, t := range attention {
+					<li>
+						<span>{ toString(t.Task.Values["fld_title"]) }</span>
+						<span class="muted">{ t.ProjectName }</span>
+						@slaBadge(t.Task.Values["fld_due_date"])
+					</li>
+				}
+			</ul>
+		}
+	}
+}
