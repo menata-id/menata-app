@@ -126,18 +126,24 @@ Task is also `done` succeeds (`200`).
 
 ---
 
-## Phase 5 -- Experience generalization: Layout/Component/View
+## Phase 5 -- Experience generalization: table and board Layout (done, 2026-09-15)
 
 **Forcing condition:** Phase 3's second Machine likely needs a different presentation than a flat
 table (e.g. a board grouped by status) -- the single hardcoded `MachinePage` template won't
-express that without duplicating structure.
+express that without duplicating structure. Confirmed real: Task naturally wants a status board,
+Project stays a flat list.
 
-- [ ] Replace the single template with composable primitives: Page, Layout, Component
-      (007 §12) -- only the specific ones needed by the two real presentations that exist by now
-- [ ] `internal/experience`, `internal/composition` get their first real code
+- [x] Two generic Layouts -- table (default) and board -- declared per-Machine via
+      `view: {layout, group_by}` metadata, not per-Machine renderer code
+- [x] `internal/experience` gets its first real code (`GroupRecords`, pure/unit-tested)
+- [x] `internal/composition` deliberately left untouched -- no multi-dataset/dependency-sharing
+      case exists yet to force the dependency-graph machinery it's meant for (007 §34's own
+      "design now, implement when forced" applied here too, not only to the CEP)
 
-**Exit criterion:** two Machines render with genuinely different layouts from the same generic
-primitives, no per-Machine renderer code.
+**Exit criterion met:** Task renders as a 3-column board (todo/in_progress/done), Project renders
+flat -- both from the same `tableLayout`/`RecordRow` primitives, board columns are literally that
+same table reused per group (006 §View: "Board = Collection + Group Dimension + Board renderer").
+Create/edit/delete verified working identically on both layouts.
 
 ---
 
@@ -164,6 +170,7 @@ existence.
 ## What's deliberately not phased yet
 
 `internal/registry` (static component registry), `internal/execution` as a distinct physical
-layer, multi-workspace tenancy beyond Phase 2's minimal structure, and the full semantic field
-type vocabulary from 006 -- none of these have a forcing case yet. Adding any of them before one
-exists repeats the mistake this roadmap is written to avoid.
+layer, `internal/action` and Events/Services (006 §Behavioral Model beyond the one Constraint
+shape Phase 4 built), multi-workspace tenancy beyond Phase 2's minimal structure, and the full
+semantic field type vocabulary from 006 -- none of these have a forcing case yet. Adding any of
+them before one exists repeats the mistake this roadmap is written to avoid.
