@@ -1,0 +1,42 @@
+package rendering
+
+// CalendarDay is one column of the Calendar's week grid (ROADMAP.md Phase 14,
+// project-calendar.html): a date label and every Task due that day, reusing TaskRow exactly as
+// My Tasks does.
+type CalendarDay struct {
+	Label   string
+	IsToday bool
+	Tasks   []TaskRow
+}
+
+// CalendarPage is Case 19's week-grid Layout: mch_task filtered by fld_due_date falling in the
+// current week, one column per day -- composed from the same Task/Project data as My Tasks and
+// the Dashboard, reusing the board-column CSS shape already built for the Task board Layout
+// rather than inventing new grid CSS.
+templ CalendarPage(days []CalendarDay, appName string) {
+	@pageShell("Calendar", appName) {
+		<h1>Calendar</h1>
+		<p>Tasks due this week, across all Projects.</p>
+		<div class="board">
+			for _, d := range days {
+				<div class="board-column">
+					<h3>{ d.Label }</h3>
+					if d.IsToday {
+						<span class="badge">today</span>
+					}
+					if len(d.Tasks) == 0 {
+						<p class="muted">Nothing due.</p>
+					} else {
+						for _, t := range d.Tasks {
+							<p>
+								<span>{ toString(t.Task.Values["fld_title"]) }</span>
+								<span class="badge">{ toString(t.Task.Values["fld_status"]) }</span>
+								<span class="muted">{ t.ProjectName }</span>
+							</p>
+						}
+					}
+				</div>
+			}
+		</div>
+	}
+}

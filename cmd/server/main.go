@@ -86,6 +86,7 @@ func main() {
 		pr.Get("/activity", showActivity(store, app.Application.Name))
 		pr.Get("/team-capacity", showTeamCapacity(store, app.Application.Name))
 		pr.Get("/automation", showAutomation(app.Machines, app.Application.Name))
+		pr.Get("/calendar", showCalendar(store, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files, cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
@@ -448,6 +449,62 @@ func showMyTasks(store *data.Store, appName string, cfg config.Config) http.Hand
 // project-automation.html): a read-only Trigger/Condition/Action description of this
 // Application's real Constraint metadata and Action behavior -- not a generic automation engine
 // (no forcing case has built one) and not fictional example workflows.
+// showCalendar is Case 19's week-grid Layout (ROADMAP.md Phase 14, project-calendar.html): every
+// mch_task whose fld_due_date falls in the current Monday-Sunday week, one column per day. Pure
+// composition over the same Task/Project data My Tasks already loads -- fld_due_date already
+// exists, no new Field or Layout mechanism needed.
+func showCalendar(store *data.Store, appName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		tasks, err := store.ListRecords(ctx, "mch_task")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		projects, err := store.ListRecords(ctx, "mch_project")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		projectNames := make(map[string]string, len(projects))
+		for _, p := range projects {
+			projectNames[p.ID] = toDisplayString(p.Values["fld_name"])
+		}
+
+		byDate := make(map[string][]rendering.TaskRow)
+		for _, t := range tasks {
+			due := toDisplayString(t.Values["fld_due_date"])
+			if due == "" {
+				continue
+			}
+			byDate[due] = append(byDate[due], rendering.TaskRow{
+				Task:        t,
+				ProjectName: projectNames[toDisplayString(t.Values["fld_project"])],
+			})
+		}
+
+		now := time.Now()
+		offset := int(now.Weekday()) - int(time.Monday)
+		if offset < 0 {
+			offset += 7
+		}
+		monday := now.AddDate(0, 0, -offset)
+
+		days := make([]rendering.CalendarDay, 0, 7)
+		for i := 0; i < 7; i++ {
+			day := monday.AddDate(0, 0, i)
+			days = append(days, rendering.CalendarDay{
+				Label:   day.Format("Mon Jan 2"),
+				IsToday: sameDay(day, now),
+				Tasks:   byDate[day.Format("2006-01-02")],
+			})
+		}
+
+		rendering.CalendarPage(days, appName).Render(ctx, w)
+	}
+}
+
 func showAutomation(machines []*domain.Machine, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var rules []rendering.AutomationRule
