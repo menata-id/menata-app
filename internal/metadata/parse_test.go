@@ -68,6 +68,29 @@ func TestParse_noView(t *testing.T) {
 	}
 }
 
+func TestParse_personFieldAutoRelatesToUser(t *testing.T) {
+	yaml := []byte(`
+id: mch_task
+name: Task
+fields:
+  - id: fld_assignee
+    name: Assignee
+    type: person
+`)
+
+	m, err := Parse(yaml)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	f := m.Fields[0]
+	if f.RelatedMachine != domain.UserMachineID {
+		t.Errorf("Fields[0].RelatedMachine = %q, want %q (implicit, no `machine:` key needed)", f.RelatedMachine, domain.UserMachineID)
+	}
+	if !f.IsReference() {
+		t.Error("Fields[0].IsReference() = false, want true for a person field")
+	}
+}
+
 func TestParse_invalidYAML(t *testing.T) {
 	_, err := Parse([]byte("id: [this is not a machine"))
 	if err == nil {

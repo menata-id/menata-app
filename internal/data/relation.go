@@ -8,15 +8,16 @@ import (
 	"menata.app/internal/domain"
 )
 
-// ValidateRelations checks that every relation field's value refers to a record that actually
-// exists in its target Machine. Unlike ValidateRecord, this needs the Store, so it stays a
-// separate call -- a shape check (is this a record id?) and an existence check (does that
-// record exist?) are different concerns run at different points.
+// ValidateRelations checks that every reference field's value (Relation or Person alike, per
+// domain.Field.IsReference) refers to a record that actually exists in its target Machine.
+// Unlike ValidateRecord, this needs the Store, so it stays a separate call -- a shape check (is
+// this a record id?) and an existence check (does that record exist?) are different concerns
+// run at different points.
 func ValidateRelations(ctx context.Context, store *Store, m *domain.Machine, values map[string]any) error {
 	var issues []string
 
 	for _, f := range m.Fields {
-		if f.Type != domain.FieldTypeRelation {
+		if !f.IsReference() {
 			continue
 		}
 		id, ok := values[f.ID].(string)

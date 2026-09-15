@@ -214,7 +214,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
 	<tr id={ "record-" + r.ID }>
 		for _, f := range m.Fields {
 			<td>
-				if f.Type == domain.FieldTypeRelation {
+				if f.IsReference() {
 					{ relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
 				} else {
 					{ fmt.Sprint(r.Values[f.ID]) }
@@ -264,29 +264,30 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 }
 
 // fieldInput renders the input control appropriate to a Field's semantic type, pre-filled with
-// current (nil for a blank create-form field). relations supplies <select> options for a
-// relation field; unused for every other type.
+// current (nil for a blank create-form field). relations supplies <select> options for any
+// reference field (Relation or Person, per domain.Field.IsReference); unused for every other
+// type.
 templ fieldInput(f domain.Field, current any, relations RelationOptions) {
-	switch f.Type {
-		case domain.FieldTypeStatus:
+	switch {
+		case f.Type == domain.FieldTypeStatus:
 			<select name={ f.ID }>
 				<option value=""></option>
 				for _, opt := range f.Options {
 					<option value={ opt } selected?={ toString(current) == opt }>{ opt }</option>
 				}
 			</select>
-		case domain.FieldTypeRelation:
+		case f.IsReference():
 			<select name={ f.ID }>
 				<option value=""></option>
 				for _, opt := range relations[f.RelatedMachine] {
 					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
 				}
 			</select>
-		case domain.FieldTypeBoolean:
+		case f.Type == domain.FieldTypeBoolean:
 			<input type="checkbox" name={ f.ID } checked?={ toBool(current) }/>
-		case domain.FieldTypeDate:
+		case f.Type == domain.FieldTypeDate:
 			<input type="date" name={ f.ID } value={ toString(current) }/>
-		case domain.FieldTypeNumber:
+		case f.Type == domain.FieldTypeNumber:
 			<input type="number" step="any" name={ f.ID } value={ toString(current) }/>
 		default:
 			<input type="text" name={ f.ID } value={ toString(current) }/>

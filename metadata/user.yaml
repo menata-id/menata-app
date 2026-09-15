@@ -1,0 +1,11 @@
+id: mch_user
+name: User
+fields:
+  - id: fld_name
+    name: Name
+    type: text
+    required: true
+  - id: fld_email
+    name: Email
+    type: text
+    required: true

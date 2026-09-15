@@ -6,20 +6,24 @@ import (
 	"testing"
 )
 
-func TestVerifySession(t *testing.T) {
-	valid := signSession("s3cret")
+func TestDecodeCookie(t *testing.T) {
+	valid := encodeCookie("s3cret", "rec_user1")
 
-	if !VerifySession(valid, "s3cret") {
-		t.Error("VerifySession() = false for a value signed with the same secret, want true")
+	if subject, ok := decodeCookie(valid, "s3cret"); !ok || subject != "rec_user1" {
+		t.Errorf("decodeCookie() = (%q, %v), want (rec_user1, true)", subject, ok)
 	}
-	if VerifySession(valid, "different-secret") {
-		t.Error("VerifySession() = true for a value signed with a different secret, want false")
+	if _, ok := decodeCookie(valid, "different-secret"); ok {
+		t.Error("decodeCookie() ok = true for a value signed with a different secret, want false")
 	}
-	if VerifySession("", "s3cret") {
-		t.Error("VerifySession() = true for an empty value, want false")
+	if _, ok := decodeCookie("", "s3cret"); ok {
+		t.Error("decodeCookie() ok = true for an empty value, want false")
 	}
-	if VerifySession("garbage", "s3cret") {
-		t.Error("VerifySession() = true for an unsigned value, want false")
+	if _, ok := decodeCookie("garbage", "s3cret"); ok {
+		t.Error("decodeCookie() ok = true for an unsigned value, want false")
+	}
+	// A forged subject with no matching signature must not verify, even though it contains a ".".
+	if _, ok := decodeCookie("rec_attacker.deadbeef", "s3cret"); ok {
+		t.Error("decodeCookie() ok = true for a forged subject/signature pair, want false")
 	}
 }
 
@@ -44,7 +48,7 @@ func TestCheckCredentials(t *testing.T) {
 
 func TestSetSessionCookie_roundTrip(t *testing.T) {
 	rec := httptest.NewRecorder()
-	SetSessionCookie(rec, "s3cret", false)
+	SetSessionCookie(rec, "s3cret", "rec_user1", false)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	for _, c := range rec.Result().Cookies() {
@@ -53,6 +57,9 @@ func TestSetSessionCookie_roundTrip(t *testing.T) {
 
 	if !IsAuthenticated(req, "s3cret") {
 		t.Error("IsAuthenticated() = false after SetSessionCookie with the matching secret, want true")
+	}
+	if userID, ok := CurrentUserID(req, "s3cret"); !ok || userID != "rec_user1" {
+		t.Errorf("CurrentUserID() = (%q, %v), want (rec_user1, true)", userID, ok)
 	}
 }
 

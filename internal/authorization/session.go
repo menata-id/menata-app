@@ -6,32 +6,44 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
+	"strings"
 	"time"
 )
 
 // SessionCookieName is the cookie carrying the signed session value.
 const SessionCookieName = "menata_session"
 
-// sessionSubject is the sole identity Phase 2 recognizes. Real per-user identity is deferred
-// (ROADMAP.md Phase 2 design note) until a second real user forces it.
-const sessionSubject = "admin"
-
-// signSession returns the HMAC-SHA256 of the session subject, keyed by secret. Verifying a
-// cookie means recomputing this and comparing in constant time -- no server-side session store
-// is needed for a single fixed subject.
-func signSession(secret string) string {
+// sign returns the HMAC-SHA256 of subject, keyed by secret.
+func sign(secret, subject string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(sessionSubject))
+	mac.Write([]byte(subject))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// VerifySession reports whether value is a valid signed session for secret.
-func VerifySession(value, secret string) bool {
-	if value == "" {
-		return false
+// encodeCookie packs subject and its signature into one cookie value: "<subject>.<hex hmac>".
+// Signing the subject itself (rather than a fixed literal, ROADMAP.md Phase 2's original design)
+// is what lets a session actually identify a real mch_user record (Phase 7) -- no server-side
+// session store is needed either way, since the signature alone proves the subject wasn't
+// tampered with.
+func encodeCookie(secret, subject string) string {
+	return subject + "." + sign(secret, subject)
+}
+
+// decodeCookie verifies value's signature and returns the subject it names.
+func decodeCookie(value, secret string) (subject string, ok bool) {
+	idx := strings.LastIndex(value, ".")
+	if idx < 0 {
+		return "", false
 	}
-	expected := signSession(secret)
-	return subtle.ConstantTimeCompare([]byte(value), []byte(expected)) == 1
+	subject, sig := value[:idx], value[idx+1:]
+	if subject == "" {
+		return "", false
+	}
+	expected := sign(secret, subject)
+	if subtle.ConstantTimeCompare([]byte(sig), []byte(expected)) != 1 {
+		return "", false
+	}
+	return subject, true
 }
 
 // CheckCredentials compares username/password against the configured admin credential in
@@ -42,11 +54,12 @@ func CheckCredentials(username, password, wantUsername, wantPassword string) boo
 	return userOK && passOK
 }
 
-// SetSessionCookie sets a signed session cookie on the response.
-func SetSessionCookie(w http.ResponseWriter, secret string, secure bool) {
+// SetSessionCookie sets a signed session cookie naming subject -- the mch_user record ID this
+// login resolves to (ROADMAP.md Phase 7), or a placeholder identity if none is configured yet.
+func SetSessionCookie(w http.ResponseWriter, secret, subject string, secure bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
-		Value:    signSession(secret),
+		Value:    encodeCookie(secret, subject),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   secure,
@@ -68,11 +81,19 @@ func ClearSessionCookie(w http.ResponseWriter, secure bool) {
 	})
 }
 
-// IsAuthenticated reports whether the request carries a valid session cookie.
-func IsAuthenticated(r *http.Request, secret string) bool {
+// CurrentUserID returns the subject named by a valid session cookie -- today, always the single
+// configured admin identity (config.AdminUserID); a real per-user login is a later, separate
+// step once a second real user forces it (ROADMAP.md Phase 2's original deferral, still true).
+func CurrentUserID(r *http.Request, secret string) (string, bool) {
 	cookie, err := r.Cookie(SessionCookieName)
 	if err != nil {
-		return false
+		return "", false
 	}
-	return VerifySession(cookie.Value, secret)
+	return decodeCookie(cookie.Value, secret)
+}
+
+// IsAuthenticated reports whether the request carries a valid session cookie.
+func IsAuthenticated(r *http.Request, secret string) bool {
+	_, ok := CurrentUserID(r, secret)
+	return ok
 }

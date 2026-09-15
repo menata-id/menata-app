@@ -118,7 +118,7 @@ func submitLogin(cfg config.Config) http.HandlerFunc {
 			rendering.LoginPage("Invalid username or password").Render(req.Context(), w)
 			return
 		}
-		authorization.SetSessionCookie(w, cfg.SessionSecret, cfg.SecureCookies)
+		authorization.SetSessionCookie(w, cfg.SessionSecret, cfg.AdminUserID, cfg.SecureCookies)
 		http.Redirect(w, req, "/", http.StatusSeeOther)
 	}
 }
@@ -412,14 +412,15 @@ func loadConstraintRelatedRecords(ctx context.Context, store *data.Store, m *dom
 	return related, nil
 }
 
-// loadRelationOptions fetches every option a relation field on m could select, keyed by target
-// Machine ID. The target's first Field is used as the display label -- a minimal convention
-// until a real Projection/semantic "title" role exists (007 SS7.6), which isn't forced yet by a
-// case that needs more than one reasonable label field.
+// loadRelationOptions fetches every option a reference field on m could select (Relation or
+// Person, per domain.Field.IsReference), keyed by target Machine ID. The target's first Field is
+// used as the display label -- a minimal convention until a real Projection/semantic "title"
+// role exists (007 SS7.6), which isn't forced yet by a case that needs more than one reasonable
+// label field.
 func loadRelationOptions(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, m *domain.Machine) (rendering.RelationOptions, error) {
 	options := rendering.RelationOptions{}
 	for _, f := range m.Fields {
-		if f.Type != domain.FieldTypeRelation {
+		if !f.IsReference() {
 			continue
 		}
 		if _, loaded := options[f.RelatedMachine]; loaded {

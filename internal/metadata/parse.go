@@ -63,13 +63,20 @@ func Parse(data []byte) (*domain.Machine, error) {
 		Name: doc.Name,
 	}
 	for _, fd := range doc.Fields {
+		fieldType := domain.FieldType(fd.Type)
+		relatedMachine := fd.Machine
+		if fieldType == domain.FieldTypePerson {
+			// Person always references a real mch_user record -- authors never write
+			// `machine: mch_user` by hand (ROADMAP.md Phase 7).
+			relatedMachine = domain.UserMachineID
+		}
 		m.Fields = append(m.Fields, domain.Field{
 			ID:             fd.ID,
 			Name:           fd.Name,
-			Type:           domain.FieldType(fd.Type),
+			Type:           fieldType,
 			Required:       fd.Required,
 			Options:        fd.Options,
-			RelatedMachine: fd.Machine,
+			RelatedMachine: relatedMachine,
 		})
 	}
 	for _, cd := range doc.Constraints {

@@ -102,7 +102,7 @@ func TestValidateRecord_relationField_notAString(t *testing.T) {
 		"fld_status":  "todo",
 		"fld_project": 42,
 	})
-	assertContains(t, err, `"fld_project": relation value must be a record id`)
+	assertContains(t, err, `"fld_project": value must be a record id`)
 }
 
 func assertContains(t *testing.T, err error, substr string) {

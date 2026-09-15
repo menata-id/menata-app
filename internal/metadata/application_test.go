@@ -142,6 +142,68 @@ application:
 	}
 }
 
+func TestLoadApplication_personFieldRequiresUserMachine(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_assignee
+    name: Assignee
+    type: person
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: fld_assignee implicitly targets mch_user, which isn't in this application")
+	}
+}
+
+func TestLoadApplication_personFieldWithUserMachine(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "user.yaml", `
+id: mch_user
+name: User
+fields:
+  - id: fld_name
+    name: Name
+    type: text
+`)
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_assignee
+    name: Assignee
+    type: person
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - user.yaml
+    - task.yaml
+`)
+
+	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+}
+
 func TestLoadApplication_noMachines(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "app.yaml", `

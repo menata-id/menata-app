@@ -85,10 +85,11 @@ func LoadApplication(path string) (*App, error) {
 	return app, nil
 }
 
-// validateRelationTargets checks that every relation field's target Machine ID is actually
-// among the Application's own Machines -- a single Machine file can't know this on its own,
-// since it only sees its own declaration (006-runtime-model.md "Relation": reusable, grounded in
-// existing Machine/reference semantics).
+// validateRelationTargets checks that every reference field's target Machine ID (Relation's
+// explicit `machine:`, or Person's implicit mch_user) is actually among the Application's own
+// Machines -- a single Machine file can't know this on its own, since it only sees its own
+// declaration (006-runtime-model.md "Relation": reusable, grounded in existing Machine/reference
+// semantics).
 func validateRelationTargets(machines []*domain.Machine) error {
 	known := make(map[string]bool, len(machines))
 	for _, m := range machines {
@@ -98,7 +99,7 @@ func validateRelationTargets(machines []*domain.Machine) error {
 	var issues []string
 	for _, m := range machines {
 		for _, f := range m.Fields {
-			if f.Type != domain.FieldTypeRelation {
+			if !f.IsReference() {
 				continue
 			}
 			if !known[f.RelatedMachine] {

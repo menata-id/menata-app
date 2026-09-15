@@ -60,9 +60,9 @@ func ValidateRecord(m *domain.Machine, values map[string]any) error {
 			default:
 				issues = append(issues, fmt.Sprintf("field %q: value %v is not a number", f.ID, v))
 			}
-		case domain.FieldTypeRelation:
+		case domain.FieldTypeRelation, domain.FieldTypePerson:
 			if s, ok := v.(string); !ok || s == "" {
-				issues = append(issues, fmt.Sprintf("field %q: relation value must be a record id", f.ID))
+				issues = append(issues, fmt.Sprintf("field %q: value must be a record id", f.ID))
 			}
 		}
 	}

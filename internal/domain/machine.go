@@ -30,6 +30,12 @@ var KnownFieldTypes = map[FieldType]bool{
 	FieldTypeRelation: true,
 }
 
+// UserMachineID is the implicit relation target for every FieldTypePerson field
+// (ROADMAP.md Phase 7). Person is a semantic type in its own right, not a spelling of Relation
+// metadata authors write out by hand -- but underneath, it references the same real mch_user
+// records a Relation field would.
+const UserMachineID = "mch_user"
+
 // Field describes a semantic attribute of a Machine (006-runtime-model.md "Field").
 type Field struct {
 	ID       string
@@ -38,9 +44,20 @@ type Field struct {
 	Required bool
 	// Options enumerates valid values for FieldTypeStatus.
 	Options []string
-	// RelatedMachine is the target Machine ID for FieldTypeRelation; meaningless otherwise
-	// (006-runtime-model.md "Relation": grounded in existing Machine/reference semantics).
+	// RelatedMachine is the target Machine ID for FieldTypeRelation, and is set automatically to
+	// UserMachineID for FieldTypePerson (006-runtime-model.md "Relation": grounded in existing
+	// Machine/reference semantics) -- see Parse's own normalization step. Empty for every other
+	// type.
 	RelatedMachine string
+}
+
+// IsReference reports whether f's value is a record id referencing another Machine -- true for
+// FieldTypeRelation and FieldTypePerson alike, since both are grounded in RelatedMachine once
+// normalized. Validation, rendering, and relation-option loading all use this instead of
+// switching on Type themselves, so a future reference-shaped type doesn't need to be added in
+// five places at once.
+func (f Field) IsReference() bool {
+	return f.RelatedMachine != ""
 }
 
 // Constraint expresses a declarative condition that must hold for a state transition
