@@ -28,6 +28,24 @@ out of a larger 21-case portfolio. See [case-portfolio.md](case-portfolio.md) fo
 both priority cases' full screen breakdowns, and [ui-sample/](ui-sample/) for their design
 mockups.
 
+## Tech stack
+
+Go 1.25 + PostgreSQL + `templ` (server-rendered HTML) + `chi` + `pgx` + `goose` — a single
+binary, matching 007-composable-runtime-architecture.md §4.10's "modest-server, server-rendered"
+constraint. No client-side framework.
+
+**Client-side interactivity is minimized deliberately, in this order of preference:**
+
+1. **HTMX** (2.0.4) first — partial page swaps over real HTTP requests, no client state to manage.
+2. **Hyperscript** (0.9.93) when HTMX's request/response model genuinely isn't enough (e.g. drag
+   handles, local UI toggles) — inline, declarative, still no build step.
+3. **Vanilla JS** only as a named exception, when neither of the above can express the
+   interaction (e.g. Phase 14's signature-coordinate drag editor may need this) — kept small,
+   inline or a single `<script>`, no bundler, no framework, and the exception's reason stated in
+   a comment next to the code.
+
+Both `<script>` tags load from `pageShell` (`internal/rendering/machine.templ`) already.
+
 ## Naming
 
 `menata-app` is short for **Menata Runtime App** — the deployed application produced by running

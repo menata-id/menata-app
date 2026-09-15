@@ -20,6 +20,12 @@ primitive only on the second real case that needs it, per 007 §4.1's admission 
 existing primitive express it?") -- never on the first case, and never speculatively for a third
 case that doesn't exist yet.
 
+**Client-side interactivity, whenever a phase touches `internal/rendering`:** HTMX first,
+Hyperscript when HTMX's request/response model genuinely isn't enough, vanilla JS only as a
+named exception (owner instruction, 2026-09-15). See README.md's "Tech stack" section for the
+full statement -- Phase 10's drag-reorder and Phase 14's signature-coordinate editor are the
+two places most likely to actually need the Hyperscript/JS tiers, not HTMX alone.
+
 ---
 
 ## Trial applications (priority target)
