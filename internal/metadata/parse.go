@@ -21,8 +21,9 @@ type machineDoc struct {
 }
 
 type viewDoc struct {
-	Layout  string `yaml:"layout"`
-	GroupBy string `yaml:"group_by"`
+	Layout   string `yaml:"layout"`
+	GroupBy  string `yaml:"group_by"`
+	SLAField string `yaml:"sla_field"`
 }
 
 type fieldDoc struct {
@@ -96,7 +97,11 @@ func Parse(data []byte) (*domain.Machine, error) {
 		})
 	}
 	if doc.View != nil {
-		m.View = domain.View{Layout: domain.LayoutKind(doc.View.Layout), GroupBy: doc.View.GroupBy}
+		m.View = domain.View{
+			Layout:   domain.LayoutKind(doc.View.Layout),
+			GroupBy:  doc.View.GroupBy,
+			SLAField: doc.View.SLAField,
+		}
 	}
 	return m, nil
 }

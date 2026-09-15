@@ -155,6 +155,27 @@ func TestValidate_viewBoardUnknownGroupBy(t *testing.T) {
 	assertIssue(t, m, "is not a field of this machine")
 }
 
+func TestValidate_slaFieldValid(t *testing.T) {
+	m := validMachine()
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_due_date", Name: "Due Date", Type: domain.FieldTypeDate})
+	m.View = domain.View{SLAField: "fld_due_date"}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_slaFieldUnknown(t *testing.T) {
+	m := validMachine()
+	m.View = domain.View{SLAField: "fld_ghost"}
+	assertIssue(t, m, "is not a field of this machine")
+}
+
+func TestValidate_slaFieldNotADate(t *testing.T) {
+	m := validMachine()
+	m.View = domain.View{SLAField: "fld_title"}
+	assertIssue(t, m, "must be a date field")
+}
+
 func assertIssue(t *testing.T, m *domain.Machine, substr string) {
 	t.Helper()
 	err := Validate(m)

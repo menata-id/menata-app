@@ -77,6 +77,14 @@ func Validate(m *domain.Machine) error {
 			issues = append(issues, fmt.Sprintf("machine %q: view.group_by %q is not a field of this machine", m.ID, m.View.GroupBy))
 		}
 	}
+	if m.View.SLAField != "" {
+		f, ok := fieldsByID[m.View.SLAField]
+		if !ok {
+			issues = append(issues, fmt.Sprintf("machine %q: view.sla_field %q is not a field of this machine", m.ID, m.View.SLAField))
+		} else if f.Type != domain.FieldTypeDate {
+			issues = append(issues, fmt.Sprintf("machine %q: view.sla_field %q must be a date field, got %q", m.ID, m.View.SLAField, f.Type))
+		}
+	}
 
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}

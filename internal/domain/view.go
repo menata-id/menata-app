@@ -22,6 +22,10 @@ type View struct {
 	Layout LayoutKind
 	// GroupBy is a Field ID on the same Machine; meaningful only for LayoutBoard.
 	GroupBy string
+	// SLAField is a date Field ID on the same Machine; when set, that Field renders as an
+	// OVERDUE / "N day(s) left" badge instead of a plain date (ROADMAP.md Phase 13). Empty
+	// means no Field on this Machine gets SLA treatment.
+	SLAField string
 }
 
 // EffectiveLayout returns v's Layout, defaulting to LayoutTable for the zero value.

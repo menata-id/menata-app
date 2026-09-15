@@ -1,0 +1,27 @@
+# An append-only event log (ROADMAP.md Phase 13). A regular Machine, not a new "system data
+# source" concept -- 007 SS4.1's admission question ("can an existing primitive express it?")
+# says yes here, so this reuses the same Machine/Record machinery as everything else rather than
+# inventing a non-Machine DataSource kind.
+#
+# fld_machine_id/fld_record_id name the record an event is about as plain text, not a Relation --
+# an event can be about a record of ANY Machine, and Relation only ever targets one specific
+# Machine. A real polymorphic-reference primitive is not built here; no second case has forced
+# it yet.
+id: mch_activity
+name: Activity
+fields:
+  - id: fld_machine_id
+    name: Machine
+    type: text
+    required: true
+  - id: fld_record_id
+    name: Record
+    type: text
+    required: true
+  - id: fld_summary
+    name: Summary
+    type: text
+    required: true
+  - id: fld_actor
+    name: Actor
+    type: person

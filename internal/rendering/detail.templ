@@ -40,7 +40,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			for _, f := range m.Fields {
 				<dt>{ f.Name }</dt>
 				<dd>
-					if f.Type == domain.FieldTypeFile {
+					if f.ID == m.View.SLAField {
+						@slaBadge(r.Values[f.ID])
+					} else if f.Type == domain.FieldTypeFile {
 						@fileLink(r.Values[f.ID])
 					} else if f.IsReference() {
 						{ relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }

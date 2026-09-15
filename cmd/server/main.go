@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -80,12 +81,12 @@ func main() {
 		pr.Get("/", showMachineList(app.Machines, app.Application.Name))
 		pr.Get("/dashboard", showDashboard(store, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
-		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files))
+		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files, cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machines, store))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store, files))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machines, store))
-		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(machines, store))
+		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(machines, store, cfg))
 
 		pr.Get("/uploads/*", serveUpload(files))
 	})
@@ -240,8 +241,71 @@ func showDashboard(store *data.Store, appName string) http.HandlerFunc {
 			})
 		}
 
-		rendering.DashboardPage(summaries, appName).Render(ctx, w)
+		documents, err := store.ListRecords(ctx, "mch_document")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var docs rendering.DocumentSummary
+		var pending []*data.Record
+		for _, d := range documents {
+			switch toDisplayString(d.Values["fld_status"]) {
+			case "draft":
+				docs.Draft++
+			case "in_review":
+				docs.InReview++
+				pending = append(pending, d)
+			case "approved":
+				docs.Approved++
+			case "rejected":
+				docs.Rejected++
+			}
+		}
+
+		activity, err := recentActivity(ctx, store, 10)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		rendering.DashboardPage(summaries, docs, pending, activity, appName).Render(ctx, w)
 	}
+}
+
+// recentActivity loads mch_activity records, resolves each fld_actor id to the actor's display
+// name (reusing the same label-field convention as loadRelationOptions), and returns the most
+// recent limit entries newest-first.
+func recentActivity(ctx context.Context, store *data.Store, limit int) ([]rendering.ActivityEntry, error) {
+	events, err := store.ListRecords(ctx, "mch_activity")
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].CreatedAt.After(events[j].CreatedAt)
+	})
+	if len(events) > limit {
+		events = events[:limit]
+	}
+
+	users, err := store.ListRecords(ctx, "mch_user")
+	if err != nil {
+		return nil, err
+	}
+	names := make(map[string]string, len(users))
+	for _, u := range users {
+		names[u.ID] = toDisplayString(u.Values["fld_name"])
+	}
+
+	entries := make([]rendering.ActivityEntry, 0, len(events))
+	for _, e := range events {
+		entries = append(entries, rendering.ActivityEntry{
+			Summary: toDisplayString(e.Values["fld_summary"]),
+			Actor:   names[toDisplayString(e.Values["fld_actor"])],
+			When:    e.CreatedAt.Format("2006-01-02 15:04"),
+		})
+	}
+	return entries, nil
 }
 
 func showMachinePage(machines map[string]*domain.Machine, appName string, store *data.Store) http.HandlerFunc {
@@ -270,7 +334,7 @@ func showMachinePage(machines map[string]*domain.Machine, appName string, store 
 	}
 }
 
-func createRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store) http.HandlerFunc {
+func createRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -299,9 +363,14 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
-		if _, err := store.CreateRecord(req.Context(), machine.ID, values); err != nil {
+		record, err := store.CreateRecord(req.Context(), machine.ID, values)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+		if machine.ID == action.DocumentMachineID {
+			actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+			logActivity(req.Context(), store, machine.ID, record.ID, actor, fmt.Sprintf("%q submitted", toDisplayString(record.Values["fld_title"])))
 		}
 
 		renderMachineBody(w, req, machines, machine, store)
@@ -485,7 +554,7 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 // enforcing action.CanDecide's sequencing rule, then recomputing and saving the parent
 // Document's own aggregate status. Hardcoded to mch_approval_step/mch_document, matching
 // internal/action's own scope -- not a generic action-dispatch route.
-func decideStep(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -546,6 +615,9 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store) http.Han
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		logActivity(ctx, store, action.DocumentMachineID, documentID, actor, fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
 
 		documentURL := "/machines/" + action.DocumentMachineID + "/records/" + documentID
 		if req.Header.Get("HX-Request") == "true" {
@@ -775,6 +847,23 @@ func carryForwardExistingFiles(ctx context.Context, store *data.Store, machine *
 		}
 	}
 	return nil
+}
+
+// logActivity appends one mch_activity record (ROADMAP.md Phase 13) -- an ordinary Machine, not
+// a new system-data-source concept (007 SS4.1's admission question). Best-effort: a logging
+// failure is not allowed to fail the real operation it's describing, only get logged itself.
+func logActivity(ctx context.Context, store *data.Store, machineID, recordID, actorID, summary string) {
+	values := map[string]any{
+		"fld_machine_id": machineID,
+		"fld_record_id":  recordID,
+		"fld_summary":    summary,
+	}
+	if actorID != "" {
+		values["fld_actor"] = actorID
+	}
+	if _, err := store.CreateRecord(ctx, "mch_activity", values); err != nil {
+		log.Printf("failed to log activity (%s %s): %v", machineID, recordID, err)
+	}
 }
 
 // serveUpload streams a previously uploaded file back. Gated by requireAuth like every other

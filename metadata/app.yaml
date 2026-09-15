@@ -14,3 +14,4 @@ application:
     - card_label.yaml
     - document.yaml
     - approval_step.yaml
+    - activity.yaml

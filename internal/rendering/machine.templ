@@ -2,6 +2,7 @@ package rendering
 
 import (
 	"fmt"
+	"time"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -54,6 +55,13 @@ templ pageShell(title string, appName string) {
 				.board-column table { margin-top: 0; font-size: 0.85rem; }
 				.board-column th { display: none; }
 				.board-column td { padding: 0.35rem 0.4rem; }
+				h2 { margin-top: 2rem; }
+				h3 { margin-top: 1.5rem; font-size: 1rem; color: #444; }
+				ul.summary-counts { list-style: none; padding: 0; display: flex; gap: 1.5rem; }
+				ul.summary-counts li { color: #444; font-size: 0.9rem; }
+				ul.activity-feed { list-style: none; padding: 0; }
+				ul.activity-feed li { padding: 0.5rem 0; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0.6rem; align-items: baseline; }
+				.muted { color: #999; font-size: 0.8rem; margin-left: auto; }
 			</style>
 		</head>
 		<body>
@@ -224,6 +232,8 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
 			<td>
 				if i == 0 {
 					<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
+				} else if f.ID == m.View.SLAField {
+					@slaBadge(r.Values[f.ID])
 				} else if f.Type == domain.FieldTypeFile {
 					@fileLink(r.Values[f.ID])
 				} else if f.IsReference() {
@@ -346,5 +356,19 @@ func relationLabel(relations RelationOptions, machineID, id string) string {
 templ fileLink(v any) {
 	if key := toString(v); key != "" {
 		<a href={ templ.URL("/uploads/" + key) } target="_blank">{ storage.DisplayName(key) }</a>
+	}
+}
+
+// slaBadge renders a date value as an OVERDUE / "N day(s) left" badge (ROADMAP.md Phase 13,
+// matching document-approval.html's own real markup), or nothing if the date can't be parsed
+// (empty/unset).
+templ slaBadge(v any) {
+	if due, err := time.Parse("2006-01-02", toString(v)); err == nil {
+		{{ status, label := experience.EvaluateSLA(due, time.Now()) }}
+		if status == experience.SLAOverdue {
+			<span class="yes">{ label }</span>
+		} else {
+			<span class="badge">{ label }</span>
+		}
 	}
 }
