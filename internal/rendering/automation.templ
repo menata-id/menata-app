@@ -1,0 +1,40 @@
+package rendering
+
+// AutomationRule is one real, already-running rule shown on the Workflow Automation page
+// (ROADMAP.md Phase 14, project-automation.html), expressed as Trigger -> Condition -> Action to
+// match that mockup's own framing -- but populated from this app's actual Constraint metadata and
+// Action behavior, not fictional example workflows. There is no generic automation engine here
+// (006's Behavioral Model has more shapes than Phase 4's Constraint and Phase 12's Action alone);
+// this page is a read-only description of the two real mechanisms that exist, not a builder.
+type AutomationRule struct {
+	Name      string
+	Trigger   string
+	Condition string
+	Action    string
+}
+
+templ AutomationPage(rules []AutomationRule, appName string) {
+	@pageShell("Workflow Automation", appName) {
+		<h1>Workflow Automation</h1>
+		<p>Trigger → Condition → Action, read from this Application's own Constraint metadata and
+		Action behavior -- not a generic automation builder.</p>
+
+		if len(rules) == 0 {
+			<p>No automation rules defined.</p>
+		} else {
+			for _, r := range rules {
+				<section style="margin-top: 1.5rem; padding: 1rem; border: 1px solid #e5e5e5; border-radius: 6px;">
+					<h2 style="margin-top: 0;">{ r.Name }</h2>
+					<dl class="detail-fields">
+						<dt>Trigger</dt>
+						<dd>{ r.Trigger }</dd>
+						<dt>Condition</dt>
+						<dd>{ r.Condition }</dd>
+						<dt>Action</dt>
+						<dd>{ r.Action }</dd>
+					</dl>
+				</section>
+			}
+		}
+	}
+}

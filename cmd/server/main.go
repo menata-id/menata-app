@@ -85,6 +85,7 @@ func main() {
 		pr.Get("/board-settings", showBoardSettings(store, app.Application.Name))
 		pr.Get("/activity", showActivity(store, app.Application.Name))
 		pr.Get("/team-capacity", showTeamCapacity(store, app.Application.Name))
+		pr.Get("/automation", showAutomation(app.Machines, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files, cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
@@ -443,6 +444,51 @@ func showMyTasks(store *data.Store, appName string, cfg config.Config) http.Hand
 // showTeamCapacity is Case 19's Team Capacity screen (ROADMAP.md Phase 14, project-team.html):
 // every mch_user with their declared weekly capacity (a new Number field on an existing Machine,
 // not a new mechanism) and how many mch_task are currently assigned to them, still open.
+// showAutomation is Case 19's Workflow Automation screen (ROADMAP.md Phase 14,
+// project-automation.html): a read-only Trigger/Condition/Action description of this
+// Application's real Constraint metadata and Action behavior -- not a generic automation engine
+// (no forcing case has built one) and not fictional example workflows.
+func showAutomation(machines []*domain.Machine, appName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		var rules []rendering.AutomationRule
+		for _, m := range machines {
+			for _, c := range m.Constraints {
+				onField, _ := m.FieldByID(c.On)
+				relatedFieldName := c.BlockIf.Condition.Field
+				if related := findMachine(machines, c.BlockIf.RelatedMachine); related != nil {
+					if f, ok := related.FieldByID(c.BlockIf.Condition.Field); ok {
+						relatedFieldName = f.Name
+					}
+				}
+				rules = append(rules, rendering.AutomationRule{
+					Name:      c.ID,
+					Trigger:   fmt.Sprintf("%s's %s becomes %q", m.Name, onField.Name, c.WhenEquals),
+					Condition: fmt.Sprintf("a related %s (via its %s field) has %s %s %q", c.BlockIf.RelatedMachine, c.BlockIf.RelatedField, relatedFieldName, c.BlockIf.Condition.Op, c.BlockIf.Condition.Value),
+					Action:    "Block the transition (422)",
+				})
+			}
+		}
+
+		rules = append(rules, rendering.AutomationRule{
+			Name:      "Approval Step sequencing",
+			Trigger:   "POST /machines/mch_approval_step/records/{id}/decide",
+			Condition: "sequential mode: every earlier-sequence step on the same Document is already approved; parallel mode: always",
+			Action:    "Record the decision; recompute the Document's aggregate status (approved once every step is approved, rejected if any step is)",
+		})
+
+		rendering.AutomationPage(rules, appName).Render(req.Context(), w)
+	}
+}
+
+func findMachine(machines []*domain.Machine, id string) *domain.Machine {
+	for _, m := range machines {
+		if m.ID == id {
+			return m
+		}
+	}
+	return nil
+}
+
 func showTeamCapacity(store *data.Store, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
