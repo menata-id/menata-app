@@ -1,0 +1,86 @@
+package rendering
+
+import (
+	"fmt"
+
+	"menata.app/internal/data"
+)
+
+// MyTasksSummary is the three headline counts on the My Tasks page (ROADMAP.md Phase 14):
+// Open (not done), Due today, and Overdue -- all computed from the same already-fetched Task
+// set as the buckets below, not a separate query.
+type MyTasksSummary struct {
+	Open     int
+	DueToday int
+	Overdue  int
+}
+
+// TaskRow is one Task ready to render on My Tasks: the record itself plus its Project's display
+// name, resolved ahead of render time the same way ActivityEntry resolves its actor.
+type TaskRow struct {
+	Task        *data.Record
+	ProjectName string
+}
+
+// MyTasksPage is Case 19's personal work queue (ROADMAP.md Phase 14, project-my-tasks.html):
+// every mch_task assigned to the current user, projected across all Projects and bucketed by
+// due date -- Today (due today or overdue, SLA-badged), Upcoming (due later or undated),
+// Completed (status done). This is a filtered/bucketed view over one whole-machine Task query,
+// not a new query mechanism.
+templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, appName string) {
+	@pageShell("My Tasks", appName) {
+		<h1>My Tasks</h1>
+		<p>Tasks assigned to you, projected across all projects.</p>
+
+		<ul class="summary-counts">
+			<li>Open: { fmt.Sprint(summary.Open) }</li>
+			<li>Due today: { fmt.Sprint(summary.DueToday) }</li>
+			<li>Overdue: { fmt.Sprint(summary.Overdue) }</li>
+		</ul>
+
+		<h2>Today</h2>
+		if len(today) == 0 {
+			<p>Nothing due today or overdue.</p>
+		} else {
+			@taskRowList(today, true)
+		}
+
+		<h2>Upcoming</h2>
+		if len(upcoming) == 0 {
+			<p>Nothing upcoming.</p>
+		} else {
+			@taskRowList(upcoming, false)
+		}
+
+		<h2>Completed</h2>
+		if len(completed) == 0 {
+			<p>No completed tasks yet.</p>
+		} else {
+			<ul class="activity-feed">
+				for _, t := range completed {
+					<li>
+						<span style="text-decoration: line-through; color: #999;">{ toString(t.Task.Values["fld_title"]) }</span>
+						<span class="muted">{ t.ProjectName }</span>
+					</li>
+				}
+			</ul>
+		}
+	}
+}
+
+templ taskRowList(rows []TaskRow, sla bool) {
+	<ul class="activity-feed">
+		for _, t := range rows {
+			<li>
+				<span>{ toString(t.Task.Values["fld_title"]) }</span>
+				<span class="badge">{ toString(t.Task.Values["fld_status"]) }</span>
+				<span class="muted">{ t.ProjectName }</span>
+				if sla {
+					@slaBadge(t.Task.Values["fld_due_date"])
+				} else if due := toString(t.Task.Values["fld_due_date"]); due != "" {
+					<span class="muted">{ due }</span>
+				}
+			</li>
+		}
+	</ul>
+}

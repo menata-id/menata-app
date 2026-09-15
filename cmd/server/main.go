@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
@@ -80,6 +81,7 @@ func main() {
 
 		pr.Get("/", showMachineList(app.Machines, app.Application.Name))
 		pr.Get("/dashboard", showDashboard(store, app.Application.Name))
+		pr.Get("/my-tasks", showMyTasks(store, app.Application.Name, cfg))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files, cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
@@ -306,6 +308,69 @@ func recentActivity(ctx context.Context, store *data.Store, limit int) ([]render
 		})
 	}
 	return entries, nil
+}
+
+// showMyTasks is Case 19's personal work queue (ROADMAP.md Phase 14): every mch_task assigned to
+// the current identity, bucketed into Today/Upcoming/Completed. "Assigned to me" resolves to
+// authorization.CurrentUserID -- the same shared-admin-credential-to-real-mch_user resolution
+// Phase 8 already built, not a new per-user login mechanism. Bucketing reuses
+// experience.EvaluateSLA (Phase 13) rather than re-deriving day-truncation logic.
+func showMyTasks(store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+
+		tasks, err := store.ListRecords(ctx, "mch_task")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		projects, err := store.ListRecords(ctx, "mch_project")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		projectNames := make(map[string]string, len(projects))
+		for _, p := range projects {
+			projectNames[p.ID] = toDisplayString(p.Values["fld_name"])
+		}
+
+		now := time.Now()
+		var summary rendering.MyTasksSummary
+		var today, upcoming, completed []rendering.TaskRow
+		for _, t := range tasks {
+			if toDisplayString(t.Values["fld_assignee"]) != userID {
+				continue
+			}
+			row := rendering.TaskRow{Task: t, ProjectName: projectNames[toDisplayString(t.Values["fld_project"])]}
+
+			if toDisplayString(t.Values["fld_status"]) == "done" {
+				completed = append(completed, row)
+				continue
+			}
+			summary.Open++
+
+			due, err := time.Parse("2006-01-02", toDisplayString(t.Values["fld_due_date"]))
+			if err != nil {
+				upcoming = append(upcoming, row)
+				continue
+			}
+			status, label := experience.EvaluateSLA(due, now)
+			switch {
+			case status == experience.SLAOverdue:
+				summary.Overdue++
+				today = append(today, row)
+			case label == "Due today":
+				summary.DueToday++
+				today = append(today, row)
+			default:
+				upcoming = append(upcoming, row)
+			}
+		}
+
+		rendering.MyTasksPage(summary, today, upcoming, completed, appName).Render(ctx, w)
+	}
 }
 
 func showMachinePage(machines map[string]*domain.Machine, appName string, store *data.Store) http.HandlerFunc {
