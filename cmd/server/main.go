@@ -82,6 +82,7 @@ func main() {
 		pr.Get("/", showMachineList(app.Machines, app.Application.Name))
 		pr.Get("/dashboard", showDashboard(store, app.Application.Name))
 		pr.Get("/my-tasks", showMyTasks(store, app.Application.Name, cfg))
+		pr.Get("/board-settings", showBoardSettings(store, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files, cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
@@ -370,6 +371,25 @@ func showMyTasks(store *data.Store, appName string, cfg config.Config) http.Hand
 		}
 
 		rendering.MyTasksPage(summary, today, upcoming, completed, appName).Render(ctx, w)
+	}
+}
+
+func showBoardSettings(store *data.Store, appName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+
+		lists, err := store.ListRecords(ctx, "mch_list")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		labels, err := store.ListRecords(ctx, "mch_label")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		rendering.BoardSettingsPage(lists, labels, appName).Render(ctx, w)
 	}
 }
 

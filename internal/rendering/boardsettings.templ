@@ -1,0 +1,41 @@
+package rendering
+
+import "menata.app/internal/data"
+
+// BoardSettingsPage is Case 19's board-configuration hub (ROADMAP.md Phase 14,
+// project-settings.html): a read-only preview of the two catalogs every board shares -- Lists
+// (a board's ordered statuses) and Labels -- each linking to its own already-built generic
+// Machine page for the actual create/rename/reorder/delete. This is pure composition of what
+// Phases 3-10 already built, not a new settings mechanism: mch_list and mch_label are ordinary
+// Machines, so their own table page already is board settings.
+templ BoardSettingsPage(lists []*data.Record, labels []*data.Record, appName string) {
+	@pageShell("Board Settings", appName) {
+		<h1>Board Settings</h1>
+		<p>Lists (statuses) and labels shared across every Project's board.</p>
+
+		<h2>Lists & Statuses</h2>
+		if len(lists) == 0 {
+			<p>No lists yet.</p>
+		} else {
+			<ol>
+				for _, l := range lists {
+					<li>{ toString(l.Values["fld_name"]) }</li>
+				}
+			</ol>
+		}
+		<p><a href="/machines/mch_list">Manage lists →</a></p>
+
+		<h2>Labels</h2>
+		if len(labels) == 0 {
+			<p>No labels yet.</p>
+		} else {
+			<p>
+				for _, l := range labels {
+					<span class="badge">{ toString(l.Values["fld_name"]) } ({ toString(l.Values["fld_color"]) })</span>
+					{ " " }
+				}
+			</p>
+		}
+		<p><a href="/machines/mch_label">Manage labels →</a></p>
+	}
+}
