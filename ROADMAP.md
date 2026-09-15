@@ -73,20 +73,28 @@ logout) before deploy to https://menata.app.
 
 ---
 
-## Phase 3 -- Second Machine (forces generalization)
+## Phase 3 -- Second Machine (forces generalization) (done, 2026-09-15)
 
 **Forcing condition:** everything built so far has exactly one Machine ("Task") and may be
 accidentally hardcoded to it in ways that look generic but aren't. A second, genuinely different
 Machine is the real test.
 
-- [ ] Pick a second Machine that differs meaningfully (different field types, and a Relation to
-      Task -- e.g. "Project" that Tasks belong to)
-- [ ] Generalize whatever Phase 1-2 code turns out to assume "Task" specifically
-- [ ] Dynamic routing (`/machines/{id}`) instead of one hardcoded root page
-- [ ] First real use of Relation (006 §Data Model) -- only introduced now because a real
-      relationship exists to model, not speculatively
+- [x] Second Machine: Project (Name/Status/Owner), with a Relation from Task -> Project
+- [x] Generalized every handler to resolve its Machine from the Application manifest instead of
+      a single fixed `*domain.Machine`; factored the shared page shell out of per-page duplication
+- [x] Dynamic routing: `GET /` lists every Machine, `GET /machines/{id}` replaces the hardcoded
+      root page
+- [x] First real use of Relation (006 §Data Model) -- shape validation (`internal/metadata`,
+      per-Machine and cross-Machine target-exists checks), existence validation
+      (`data.ValidateRelations`, store-backed), and a `<select>` input/display label in
+      `internal/rendering`
 
-**Exit criterion:** adding a third Machine later requires no code changes, only metadata.
+**Exit criterion met:** adding a third Machine now requires only a new `metadata/*.yaml` file plus
+one line in `app.yaml`'s `machines:` list -- no code changes. Verified end-to-end (list, create
+Project, create Task with valid/invalid relation, label display) against real Postgres before
+deploy.
+
+**Phase 3 complete.**
 
 ---
 
