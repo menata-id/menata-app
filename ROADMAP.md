@@ -147,13 +147,22 @@ Create/edit/delete verified working identically on both layouts.
 
 ---
 
-## Phase 6 -- IR + Dependency Graph + Composable Execution Planner (only when forced)
+## Phase 6 -- IR + Dependency Graph + Composable Execution Planner (still not forced)
 
 **Forcing condition:** a single page needs data from more than one Dataset/Query and naive
 per-component fetching becomes wasteful or incorrect (e.g. a dashboard combining Task and Project
 data). Do not start this phase before that forcing case exists -- 007 §34 explicitly keeps this
 PROPOSED, and building it earlier means designing IR/DAG shape from guesses instead of a real
 composition to test against.
+
+**Tested for real, 2026-09-15:** built the dashboard this forcing condition names
+(`GET /dashboard`, combines Project + Task). Result: **still not forced.** The obvious
+implementation fetches each Machine's full record set once (two `store.ListRecords` calls total)
+and joins Task -> Project in Go -- that stays O(1) queries regardless of Project count, because
+the composition is "two whole datasets joined in memory," not "N per-component queries." There
+was no naive-fetch problem to fix. The forcing condition needs a page shape this app doesn't have
+yet -- likely N independently-scoped queries (e.g. per-row aggregates, or security-scoped data
+that can't just be fetched whole and filtered in Go).
 
 - [ ] Formalize Domain/Data/UI IR (`internal/ir`) -- scoped to what the forcing case above
       actually needs represented, not the full model from 007 §15-16 at once
