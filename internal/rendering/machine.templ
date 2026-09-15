@@ -41,6 +41,9 @@ templ pageShell(title string, appName string) {
 				.actions { white-space: nowrap; }
 				.actions button { margin-right: 0.25rem; }
 				form.create-form td { padding-top: 0.75rem; }
+				dl.detail-fields { display: grid; grid-template-columns: 10rem 1fr; row-gap: 0.75rem; column-gap: 1rem; margin: 1.5rem 0; }
+				dl.detail-fields dt { color: #666; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; align-self: center; }
+				dl.detail-fields dd { margin: 0; }
 				ul.machine-list { list-style: none; padding: 0; }
 				ul.machine-list li { padding: 0.75rem; border-bottom: 1px solid #e5e5e5; }
 				ul.machine-list a { color: #1a1a1a; text-decoration: none; font-weight: 500; }
@@ -209,12 +212,14 @@ templ createFormRow(m *domain.Machine, relations RelationOptions) {
 }
 
 // RecordRow is one Record in display mode. A relation field shows its target's label, not the
-// raw record id.
+// raw record id; the first field links to the record's own detail page (Phase 8).
 templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
 	<tr id={ "record-" + r.ID }>
-		for _, f := range m.Fields {
+		for i, f := range m.Fields {
 			<td>
-				if f.IsReference() {
+				if i == 0 {
+					<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
+				} else if f.IsReference() {
 					{ relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
 				} else {
 					{ fmt.Sprint(r.Values[f.ID]) }

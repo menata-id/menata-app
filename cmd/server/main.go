@@ -72,7 +72,7 @@ func main() {
 		pr.Get("/dashboard", showDashboard(store, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store))
-		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store))
+		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machines, store))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machines, store))
@@ -282,7 +282,12 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store) ht
 	}
 }
 
-func showRecordRow(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+// showRecordRow serves three different renderings of the same Record from one route, depending
+// on who's asking (ROADMAP.md Phase 8): a direct browser navigation gets the full detail page;
+// an HTMX request targeting the detail page's own container gets just that container's view
+// fragment (used by the detail page's own Cancel-from-edit); any other HTMX request (a table row
+// or board card's Cancel) gets the original RecordRow fragment, unchanged from Phase 1.
+func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -296,6 +301,15 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store) http.
 		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if req.Header.Get("HX-Request") != "true" {
+			rendering.RecordDetailPage(machine, record, appName, relations).Render(req.Context(), w)
+			return
+		}
+		if isDetailContext(req) {
+			rendering.RecordDetailView(machine, record, relations).Render(req.Context(), w)
 			return
 		}
 		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
@@ -316,6 +330,10 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store) http.
 		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if isDetailContext(req) {
+			rendering.RecordDetailEdit(machine, record, relations).Render(req.Context(), w)
 			return
 		}
 		rendering.RecordEditRow(machine, record, relations).Render(req.Context(), w)
@@ -363,6 +381,10 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store) ht
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if isDetailContext(req) {
+			rendering.RecordDetailView(machine, record, relations).Render(req.Context(), w)
+			return
+		}
 		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
 	}
 }
@@ -377,8 +399,21 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		if isDetailContext(req) {
+			// The record is gone; nothing left on this page to show. Send the visitor back to
+			// the Machine's own list/board.
+			w.Header().Set("HX-Redirect", "/machines/"+machine.ID)
+			return
+		}
 		// Empty response: HTMX swaps the row's outerHTML with nothing, removing it.
 	}
+}
+
+// isDetailContext reports whether an HTMX request targets the record-detail page's own
+// container, as opposed to a table row or board card -- the same fragments serve both contexts
+// (ROADMAP.md Phase 8).
+func isDetailContext(req *http.Request) bool {
+	return req.Header.Get("HX-Target") == "record-detail"
 }
 
 func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store) {
