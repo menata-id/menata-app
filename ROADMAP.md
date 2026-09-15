@@ -98,24 +98,31 @@ deploy.
 
 ---
 
-## Phase 4 -- Behavior: Events, Actions, Constraints
+## Phase 4 -- Behavior: Constraints (done, 2026-09-15)
 
 **Forcing condition:** two Machines with a Relation creates real behavioral questions (e.g., can
 a Project be archived while it has open Tasks?) that Domain/Data/Experience alone can't express.
 
-Design pass before code, same reasoning as Phase 2:
+**Design pass (resolved before code):** the rule shipped is "a Project's status cannot become
+`done` while a related Task still references it with a non-`done` status"
+(`metadata/project.yaml`'s `cst_project_done_no_open_tasks`). Built exactly the shape that one
+rule needs -- a single Comparison operator set (`equals`/`not_equals`) and one Constraint pattern
+(block a transition while a related record matches a condition) -- not the full 006 Behavioral
+Model (`internal/action`, Events, Services remain unbuilt; no forcing case for them yet).
 
-- What's the minimal Event/Action/Constraint shape that expresses the *first* real behavioral
-  rule this app needs -- not the full behavioral model from 006 §Behavioral Model at once?
+- [x] `internal/expression`: `Comparison` -- the entire expression vocabulary this rule needs,
+      deterministic, no I/O, no parser (007 §9.1)
+- [x] `internal/behavior`: `CheckConstraints`, a pure evaluator (the caller fetches related
+      records via `internal/data`; behavior performs no I/O itself, fully unit-testable)
+- [x] `internal/metadata` validates constraint shape per-Machine and, once the Application is
+      loaded, that the related Machine/field actually exist and the related field is genuinely a
+      relation pointing back (otherwise it can't identify which records belong to the transition)
 
-Then:
+**Exit criterion met:** verified end-to-end against real Postgres -- marking a Project `done`
+while an open Task references it returns `422` with a clear message; marking it `done` once that
+Task is also `done` succeeds (`200`).
 
-- [ ] `internal/expression`: the bounded expression language, scoped to what Constraints actually
-      need (007 §9) -- not a general-purpose scripting language
-- [ ] `internal/behavior`, `internal/action`: first real Constraint and Action, tied to the rule
-      identified above
-
-**Exit criterion:** at least one real business rule is enforced by the runtime, not by convention.
+**Phase 4 complete.**
 
 ---
 
