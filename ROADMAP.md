@@ -458,10 +458,16 @@ single Phase 14 change -- each screen's own composition is independently verifia
       /automation` describes this Application's real Constraint metadata and Action behavior as
       Trigger/Condition/Action, not a generic automation engine (no case has forced one) and not
       fictional example workflows like the mockup's own placeholder content
-- [ ] Case 19: Timeline/Calendar (date-range and week-grid Layouts, extending Phase 5's
-      `LayoutKind` set) and Sprint Dashboard (aggregation, likely reuses Phase 13's activity/count
-      mechanisms) -- the two screens in this phase that plausibly need real new rendering shapes,
-      not just composition of what already exists
+- [x] Case 19: **Calendar** (`project-calendar.html`, done 2026-09-15) -- `GET /calendar`, the
+      current Monday-Sunday week as one column per day, populated by `mch_task.fld_due_date` and
+      reusing the existing board-column CSS shape. No new Field or Layout mechanism needed after
+      all -- `fld_due_date` already existed, this is a different grouping/rendering shape over it,
+      same posture as My Tasks' bucketing
+- [ ] Case 19: Timeline (date-range bars grouped by workstream) and Sprint Dashboard (aggregation,
+      likely reuses Phase 13's activity/count mechanisms) -- Timeline specifically needs a Task
+      start-date Field that doesn't exist yet, plus proportional-width bar rendering; the two
+      screens in this phase that plausibly still need a real new rendering shape, not just
+      composition of what already exists
 - [ ] Case 3: signature coordinate placement (`document-signature-placement.html`) -- a new,
       fairly specialized drag-position editor; no other screen needs this interaction pattern
 
