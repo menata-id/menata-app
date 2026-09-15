@@ -17,6 +17,7 @@ func testMachine() *domain.Machine {
 			{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson},
 			{ID: "fld_priority", Name: "Priority", Type: domain.FieldTypeNumber},
 			{ID: "fld_project", Name: "Project", Type: domain.FieldTypeRelation, RelatedMachine: "mch_project"},
+			{ID: "fld_attachment", Name: "Attachment", Type: domain.FieldTypeFile},
 		},
 	}
 }
@@ -103,6 +104,36 @@ func TestValidateRecord_relationField_notAString(t *testing.T) {
 		"fld_project": 42,
 	})
 	assertContains(t, err, `"fld_project": value must be a record id`)
+}
+
+func TestValidateRecord_fileField_valid(t *testing.T) {
+	err := ValidateRecord(testMachine(), map[string]any{
+		"fld_title":      "Write docs",
+		"fld_status":     "todo",
+		"fld_attachment": "mch_task/fld_attachment/a1b2c3d4__contract.pdf",
+	})
+	if err != nil {
+		t.Fatalf("ValidateRecord() error = %v, want nil", err)
+	}
+}
+
+func TestValidateRecord_fileField_notAString(t *testing.T) {
+	err := ValidateRecord(testMachine(), map[string]any{
+		"fld_title":      "Write docs",
+		"fld_status":     "todo",
+		"fld_attachment": 42,
+	})
+	assertContains(t, err, `"fld_attachment": value must be a storage key`)
+}
+
+func TestValidateRecord_fileField_optionalOmitted(t *testing.T) {
+	err := ValidateRecord(testMachine(), map[string]any{
+		"fld_title":  "Write docs",
+		"fld_status": "todo",
+	})
+	if err != nil {
+		t.Fatalf("ValidateRecord() error = %v, want nil (fld_attachment is optional)", err)
+	}
 }
 
 func assertContains(t *testing.T, err error, substr string) {

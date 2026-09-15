@@ -15,6 +15,7 @@ const (
 	FieldTypePerson   FieldType = "person"
 	FieldTypeMoney    FieldType = "money"
 	FieldTypeRelation FieldType = "relation"
+	FieldTypeFile     FieldType = "file"
 )
 
 // KnownFieldTypes is the closed set of field types the runtime currently understands. New types
@@ -28,6 +29,7 @@ var KnownFieldTypes = map[FieldType]bool{
 	FieldTypePerson:   true,
 	FieldTypeMoney:    true,
 	FieldTypeRelation: true,
+	FieldTypeFile:     true,
 }
 
 // UserMachineID is the implicit relation target for every FieldTypePerson field

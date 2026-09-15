@@ -64,6 +64,10 @@ func ValidateRecord(m *domain.Machine, values map[string]any) error {
 			if s, ok := v.(string); !ok || s == "" {
 				issues = append(issues, fmt.Sprintf("field %q: value must be a record id", f.ID))
 			}
+		case domain.FieldTypeFile:
+			if s, ok := v.(string); !ok || s == "" {
+				issues = append(issues, fmt.Sprintf("field %q: value must be a storage key (an upload)", f.ID))
+			}
 		}
 	}
 

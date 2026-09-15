@@ -27,6 +27,9 @@ fields:
     name: List
     type: relation
     machine: mch_list
+  - id: fld_attachment
+    name: Attachment
+    type: file
 
 view:
   layout: board

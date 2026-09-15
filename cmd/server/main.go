@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	"menata.app/internal/experience"
 	"menata.app/internal/metadata"
 	"menata.app/internal/rendering"
+	"menata.app/internal/storage"
 )
 
 func main() {
@@ -52,6 +54,11 @@ func main() {
 	defer pool.Close()
 	store := data.NewStore(pool)
 
+	files, err := storage.NewStore(cfg.UploadsDir)
+	if err != nil {
+		log.Fatalf("failed to set up uploads directory: %v", err)
+	}
+
 	r := chi.NewRouter()
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -72,11 +79,13 @@ func main() {
 		pr.Get("/", showMachineList(app.Machines, app.Application.Name))
 		pr.Get("/dashboard", showDashboard(store, app.Application.Name))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
-		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store))
+		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machines, store))
-		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store))
+		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store, files))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machines, store))
+
+		pr.Get("/uploads/*", serveUpload(files))
 	})
 
 	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)
@@ -259,18 +268,27 @@ func showMachinePage(machines map[string]*domain.Machine, appName string, store 
 	}
 }
 
-func createRecordForm(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+func createRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
 			return
 		}
-		if err := req.ParseForm(); err != nil {
+		if err := req.ParseMultipartForm(maxUploadBytes); err != nil {
 			http.Error(w, "invalid form body", http.StatusBadRequest)
 			return
 		}
 
 		values := data.ValuesFromForm(machine, req.Form)
+		uploaded, err := handleFileUploads(req, machine, files)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		for k, v := range uploaded {
+			values[k] = v
+		}
+
 		if err := data.ValidateRecord(machine, values); err != nil {
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
@@ -356,19 +374,35 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store) http.
 	}
 }
 
-func updateRecordForm(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
 			return
 		}
-		if err := req.ParseForm(); err != nil {
+		if err := req.ParseMultipartForm(maxUploadBytes); err != nil {
 			http.Error(w, "invalid form body", http.StatusBadRequest)
 			return
 		}
 
 		id := chi.URLParam(req, "id")
 		values := data.ValuesFromForm(machine, req.Form)
+		uploaded, err := handleFileUploads(req, machine, files)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		for k, v := range uploaded {
+			values[k] = v
+		}
+		// A browser can't pre-fill <input type="file">, so "no new upload" must not be read as
+		// "clear the file" the way an empty text input would be -- carry the existing value
+		// forward for any file field a fresh upload didn't touch (ROADMAP.md Phase 11).
+		if err := carryForwardExistingFiles(req.Context(), store, machine, id, uploaded, values); err != nil {
+			recordError(w, err)
+			return
+		}
+
 		if err := data.ValidateRecord(machine, values); err != nil {
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
@@ -572,6 +606,87 @@ func toDisplayString(v any) string {
 	}
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+// maxUploadBytes bounds one multipart request body (ROADMAP.md Phase 11) -- generous enough for
+// a real PDF or a handful of images, small enough that a malicious upload can't exhaust disk.
+const maxUploadBytes = 20 << 20 // 20MB
+
+// handleFileUploads saves any file actually submitted for one of machine's FieldTypeFile fields,
+// returning fieldID -> storage key for just those fields. A field with no file in this request
+// (http.ErrMissingFile) is simply absent from the result -- not an error, since a file input left
+// untouched on an edit form submits nothing.
+func handleFileUploads(req *http.Request, machine *domain.Machine, files *storage.Store) (map[string]any, error) {
+	uploaded := map[string]any{}
+	for _, f := range machine.Fields {
+		if f.Type != domain.FieldTypeFile {
+			continue
+		}
+		file, header, err := req.FormFile(f.ID)
+		if err != nil {
+			if errors.Is(err, http.ErrMissingFile) {
+				continue
+			}
+			return nil, fmt.Errorf("read upload for %s: %w", f.ID, err)
+		}
+		key, saveErr := files.Save(machine.ID, f.ID, header.Filename, file)
+		file.Close()
+		if saveErr != nil {
+			return nil, saveErr
+		}
+		uploaded[f.ID] = key
+	}
+	return uploaded, nil
+}
+
+// carryForwardExistingFiles fills values with each FieldTypeFile field's current stored value,
+// for every such field uploaded didn't just set -- see handleFileUploads' caller for why. A
+// no-op (and no fetch) when machine has no file fields at all.
+func carryForwardExistingFiles(ctx context.Context, store *data.Store, machine *domain.Machine, recordID string, uploaded map[string]any, values map[string]any) error {
+	hasFileField := false
+	for _, f := range machine.Fields {
+		if f.Type == domain.FieldTypeFile {
+			hasFileField = true
+			break
+		}
+	}
+	if !hasFileField {
+		return nil
+	}
+
+	existing, err := store.GetRecord(ctx, machine.ID, recordID)
+	if err != nil {
+		return err
+	}
+	for _, f := range machine.Fields {
+		if f.Type != domain.FieldTypeFile {
+			continue
+		}
+		if _, justUploaded := uploaded[f.ID]; justUploaded {
+			continue
+		}
+		if v, ok := existing.Values[f.ID]; ok {
+			values[f.ID] = v
+		}
+	}
+	return nil
+}
+
+// serveUpload streams a previously uploaded file back. Gated by requireAuth like every other
+// route in its group -- there is no per-record ownership check yet (ROADMAP.md Phase 2's
+// Machine+Action permission granularity doesn't extend to individual files), matching the rest
+// of the app's current authorization boundary.
+func serveUpload(files *storage.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		key := chi.URLParam(req, "*")
+		path, err := files.Path(key)
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename=%q`, storage.DisplayName(key)))
+		http.ServeFile(w, req, path)
+	}
 }
 
 func resolveMachine(w http.ResponseWriter, machines map[string]*domain.Machine, req *http.Request) (*domain.Machine, bool) {

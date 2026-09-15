@@ -6,6 +6,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
+	"menata.app/internal/storage"
 )
 
 // pageShell is the shared HTML document, styles, and topbar every page uses. It exists so
@@ -201,6 +202,7 @@ templ createFormRow(m *domain.Machine, relations RelationOptions) {
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
 			hx-target="#machine-body"
 			hx-swap="innerHTML"
+			hx-encoding="multipart/form-data"
 		>
 			for _, f := range m.Fields {
 				<td>
@@ -222,6 +224,8 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
 			<td>
 				if i == 0 {
 					<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
+				} else if f.Type == domain.FieldTypeFile {
+					@fileLink(r.Values[f.ID])
 				} else if f.IsReference() {
 					{ relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
 				} else {
@@ -252,6 +256,7 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 			hx-put={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 			hx-target={ "#record-" + r.ID }
 			hx-swap="outerHTML"
+			hx-encoding="multipart/form-data"
 		>
 			for _, f := range m.Fields {
 				<td>
@@ -297,6 +302,15 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions) {
 			<input type="date" name={ f.ID } value={ toString(current) }/>
 		case f.Type == domain.FieldTypeNumber:
 			<input type="number" step="any" name={ f.ID } value={ toString(current) }/>
+		case f.Type == domain.FieldTypeFile:
+			if key := toString(current); key != "" {
+				<div>
+					<a href={ templ.URL("/uploads/" + key) } target="_blank">{ storage.DisplayName(key) }</a>
+					<input type="file" name={ f.ID }/>
+				</div>
+			} else {
+				<input type="file" name={ f.ID }/>
+			}
 		default:
 			<input type="text" name={ f.ID } value={ toString(current) }/>
 	}
@@ -326,4 +340,11 @@ func relationLabel(relations RelationOptions, machineID, id string) string {
 		}
 	}
 	return id
+}
+
+// fileLink renders a FieldTypeFile value as a download link, or nothing if unset.
+templ fileLink(v any) {
+	if key := toString(v); key != "" {
+		<a href={ templ.URL("/uploads/" + key) } target="_blank">{ storage.DisplayName(key) }</a>
+	}
 }

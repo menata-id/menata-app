@@ -24,6 +24,9 @@ type Config struct {
 	// SecureCookies must be true in production (HTTPS); false for local http://localhost dev,
 	// where a Secure cookie would be silently dropped by the browser.
 	SecureCookies bool
+	// UploadsDir is the local-disk root for FieldTypeFile uploads (ROADMAP.md Phase 11) --
+	// 007 SS4.10's single-binary constraint, no object storage until a real scale case forces one.
+	UploadsDir string
 }
 
 // Load reads Config from the environment, applying defaults where unset.
@@ -37,6 +40,7 @@ func Load() Config {
 		SessionSecret: getenv("SESSION_SECRET", ""),
 		AdminUserID:   getenv("ADMIN_USER_ID", "admin"),
 		SecureCookies: getenv("SECURE_COOKIES", "true") == "true",
+		UploadsDir:    getenv("UPLOADS_DIR", "uploads"),
 	}
 }
 

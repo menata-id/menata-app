@@ -39,7 +39,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			for _, f := range m.Fields {
 				<dt>{ f.Name }</dt>
 				<dd>
-					if f.IsReference() {
+					if f.Type == domain.FieldTypeFile {
+						@fileLink(r.Values[f.ID])
+					} else if f.IsReference() {
 						{ relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
 					} else {
 						{ fmt.Sprint(r.Values[f.ID]) }
@@ -93,6 +95,7 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 			hx-put={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 			hx-target="#record-detail"
 			hx-swap="outerHTML"
+			hx-encoding="multipart/form-data"
 		>
 			<h1>{ recordTitle(m, r) }</h1>
 			<code>{ r.ID }</code>
