@@ -210,26 +210,32 @@ full generalization a later screen might also want.
 
 ---
 
-## Phase 7 -- Real User identity
+## Phase 7 -- Real User identity (done, 2026-09-15)
 
 **Forcing condition:** Case 3's per-step Approver and Case 19's Card Members are currently
 impossible to build honestly -- `person`/`fld_assignee` is free-text (`internal/domain`'s
 `FieldTypePerson`), so nothing can be assigned to, filtered by "mine," or shown as a real
 identity. This is the "second real user" ROADMAP.md's Phase 2 said would force a real model.
 
-- [ ] `mch_user` as an ordinary Machine (name, email) -- reuses existing primitives per 007
+- [x] `mch_user` as an ordinary Machine (name, email) -- reuses existing primitives per 007
       §4.1's admission question, rather than a new system-level concept
-- [ ] `FieldTypePerson` becomes a Relation to `mch_user` (reusing Phase 3's Relation machinery),
-      not a new field type
-- [ ] Login identifies a real `mch_user` record, not only the single shared admin credential
-      (`internal/authorization` gains its first real multi-identity code)
+- [x] `FieldTypePerson` becomes a Relation to `mch_user` (reusing Phase 3's Relation machinery,
+      via the new `Field.IsReference()` -- true for Relation and Person alike), not a new field type
+- [x] Login identifies a real `mch_user` record, not only the single shared admin credential --
+      session cookies now sign the actual subject (`config.AdminUserID`) instead of a hardcoded
+      "admin" literal (`internal/authorization` gains its first real multi-identity code)
 
 **Explicitly deferred:** Group-sourced approvers (Case 3 allows User *or* Group) -- no case
 needs Group yet since Case 19 has no Group concept at all; named here so it isn't forgotten, not
-built speculatively.
+built speculatively. Per-user passwords are also still deferred -- the shared admin credential
+now *resolves to* a real `mch_user` record (bootstrap: log in, create the record, set
+`ADMIN_USER_ID`), but logging in is not yet per-user.
 
-**Exit criterion:** a Task/Card can be assigned to a real `mch_user` record and rendered by that
-user's actual name, not a free-text string.
+**Exit criterion met:** a Task can be assigned to a real `mch_user` record via a `<select>`
+populated with actual users, rendered by that user's name, not a free-text string; assigning a
+nonexistent user id is rejected (`422`). Verified end-to-end against real Postgres before deploy.
+
+**Phase 7 complete.**
 
 ---
 
