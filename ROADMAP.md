@@ -40,8 +40,11 @@ breakdowns, and [`ui-sample/`](ui-sample/) for their design mockups (copied from
 What's already a real slice of one of them: the Task/Project Relation + board Layout (Phases
 3-5 below) is genuinely Case 19's Board screen, built because its own forcing conditions
 happened to align with that case's shape -- not because a phase was scheduled "for Case 19."
-Case 3 is entirely unstarted. Phases are sequenced by architectural forcing condition, per the
-Method above; which case supplies that forcing condition next is not predetermined.
+Case 3 is no longer unstarted (Phases 12-13 built `mch_document`/`mch_approval_step`, the
+`/decide` Action, SLA badges, and Activity logging) but its own 4 screens are not all built yet
+-- see Phase 15 below for the remainder, following a 2026-09-15 research pass. Phases are
+sequenced by architectural forcing condition, per the Method above; which case supplies that
+forcing condition next is not predetermined.
 
 ---
 
@@ -473,11 +476,122 @@ single Phase 14 change -- each screen's own composition is independently verifia
 - [ ] Case 19: Timeline (date-range bars grouped by workstream) -- needs a Task start-date Field
       that doesn't exist yet, plus proportional-width bar rendering; the one screen in this phase
       that still plausibly needs a real new rendering shape, not just composition
-- [ ] Case 3: signature coordinate placement (`document-signature-placement.html`) -- a new,
-      fairly specialized drag-position editor; no other screen needs this interaction pattern
 
 **Exit criterion:** each screen above matches its own `ui-sample/` mockup's real content: no new
 architectural mechanism required per screen, only composition of what Phases 7-13 already built.
+
+Case 3's own remaining screens (previously a single bullet here) are broken out into Phase 15
+below, following a dedicated research pass -- they turned out to need more than one line.
+
+---
+
+## Phase 15 -- Case 3 completion: composable UI component research pass + PoC
+
+**Forcing condition:** Case 3 is a priority trial application (see "Trial applications" above)
+with 4 real screens in `ui-sample/`; only its backend half (Document/Approval Step Machines, the
+`/decide` Action, SLA, Activity) exists so far. Before writing more UI code for it, the owner
+asked for a research pass: re-study 001-007's UI/Experience-plane guidance, benchmark against
+`menata-runtime`'s own prior composable-UI-component research, gap-check against applicable
+world-class practice (filtered for this stack -- server-rendered HTML + HTMX + Hyperscript, not
+React/SPA), and propose architecture changes if warranted, before building the PoC.
+
+**Research verdict (2026-09-15):** the gap is discipline, not a missing mechanism. 007
+(`007-composable-runtime-architecture.md` §1, §40) marks nearly everything on the UI/Experience
+side (Dataset/Projection §7, Context/Scope/Binding §11, UI IR §15, the Composable Execution
+Planner §18) as PROPOSED, not built -- the concept docs give component vocabulary (Page/Layout/
+Component/Slot, §12-13) and admission principles (§4.1 Composition over Specialization, §24's
+Specialization Rule), not a component catalog. `menata-runtime/benchmarks/029` (component
+inventory method), `030` (promotion criteria P1-P5, esp. P3 domain-specific-data-stays-
+product-specific and P4 metadata-invocation-reachability), `032` (Case 19's own page/component
+matrix, the format this phase's own matrix below follows), and `024` (Case 3's own prior
+capability study -- CAP-F22 PDF compositing, CAP-V20 decision stepper, CAP-V21 coordinate editor,
+percentage-based coordinates needing no new Field type) are the load-bearing prior art. templ
+already has the composition mechanism this needs (`templ.Component` params, `{ children... }`
+slots, already used once in `pageShell`) -- it's just under-applied: `<ul class="activity-feed">`
+is hand-rendered independently in `dashboard.templ`, `activity.templ`, `sprintdashboard.templ`,
+`mytasks.templ` (4 copies), and `<ul class="summary-counts">` in 4 more places, both past the
+P1 cross-domain-recurrence bar and not yet consolidated -- `slaBadge` (Phase 13) is the proof
+this codebase's own composition mechanism already works, just not generalized to these two.
+
+**Adopted -- Step 0 (do first, unblocks the rest):** promote `summaryCounts`/`activityFeedList`/
+`sectionHeader` to real shared `templ` components (in `machine.templ`, alongside `slaBadge`);
+migrate the ~8 existing hand-rendered call sites to call them; verify identical rendered HTML
+before/after. Pure refactor, zero new capability, small and self-contained.
+
+**Rejected, with reasoning (not just noted, per the research pass's own instruction to weigh
+world-class patterns against this repo's stated discipline):**
+- A metadata-driven page-composition mechanism, UI IR, or Component Registry (007 §14-15) --
+  no dispatch-sprawl problem exists yet (~15 templ page functions, all hand-wired), and Phase 6
+  has already tested negative twice; building this now would be exactly the anti-pattern the
+  Method section above exists to prevent.
+- Generic React-style component-library patterns (hooks, client state) -- inapplicable to a
+  server-rendered, minimize-JS stack; explicitly rejected rather than silently ignored.
+- A generic "Choice Card" or "coordinate picker" primitive -- single-occurrence evidence each
+  (Study 38's own Cluster 10 verdict); build the one real instance Case 3 needs, not a primitive.
+
+**Case 3 UI page/component matrix** (format follows `benchmarks/032`; "Reuse" names the actual
+existing menata-app symbol):
+
+| Screen | New component needed | Reuse already in menata-app |
+|---|---|---|
+| `document-submit.html` | Multi-step HTMX form flow (new, small); per-step approver picker (flat, not Group-sourced -- see below) | `fieldInput` file upload, `fld_mode` status field, Phase 9 child collections, `sort_order` |
+| `document-signature-placement.html` | PDF page-as-image render; draggable coordinate marker (**the named vanilla-JS exception** -- `pointerdown/move/up`, `(clientX-rect.left)/rect.width`, ~30 lines, posts to the existing generic `PUT` route) | `ChildSectionView` (extend with 3 numeric columns) |
+| `document-approval.html` | Record Summary Card (worklist row, a real new presentation shape -- Study 38 Cluster 2); filter chips; approval progress stepper (visual only) | `slaBadge`, `decideButtons` (sticky bar is CSS-only), My Tasks' SLA-bucketing logic for the chips |
+| `approval-dashboard.html` | Step 0's `sectionHeader` | **already built** -- Phase 13's `/dashboard` already composes DocumentSummary + Pending Approval + Recent Activity, the same Summary/Pending/Activity shape this screen names; no new route needed |
+
+- [x] Phase 6 re-test (third time, via Phase 13's existing `/dashboard`, same Document-focused
+      composition `approval-dashboard.html` names): **still not forced** -- same verdict as the
+      first two tests, same reasoning (whole-machine queries joined in Go stay cheap regardless
+      of section count)
+- [ ] Step 0: shared `summaryCounts`/`activityFeedList`/`sectionHeader` components (above)
+- [ ] Step 1: Record Summary Card + SLA filter chips for the Approval Worklist
+- [ ] Step 2: Approval progress stepper (new `approvalStepper` component, no metadata change)
+- [ ] Step 3: `fld_signature_page`/`fld_signature_x`/`fld_signature_y` (plain `number` Fields,
+      percentage-based, on `approval_step.yaml`) + a PDF-page-to-image preview step
+      (new `internal/pdf` package, thin wrapper, pure-Go PDF library)
+- [ ] Step 4: signature-coordinate placement screen (the vanilla-JS exception above)
+- [ ] Step 5: `mch_signature` Machine (`fld_owner: person`, `fld_image: file`) -- ordinary
+      Machine, no identity-model change
+- [ ] Step 6: Document Submit's multi-step wizard flow, flat (non-Group) approver picker
+
+**Deliberately deferred, not part of this phase:** Group-sourced approvers (still no forcing
+case beyond this one screen -- ship flat, per `benchmarks/024`'s own "flat first, swap in groups
+later" resolution; already named as deferred since Phase 7), "save as default flow per Document
+Type" (only one Document Type exists in metadata today), PDF preview zoom/pan (cosmetic).
+
+**Exit criterion:** all 4 Case 3 screens match their own `ui-sample/` mockup's real content,
+using only the components in the matrix above -- no metadata-driven composition mechanism, no
+Component Registry, built.
+
+---
+
+## Phase 16 -- Case 3 signing: PDF signature compositing Action
+
+**Forcing condition:** Case 3's Approve step should produce a real signed PDF (CAP-F22 in
+`menata-runtime/benchmarks/024`) -- burning each approver's signature image onto the document at
+its declared coordinate (Phase 15's `fld_signature_x`/`y`) when the Document reaches `approved`.
+This is genuinely new *capability* (menata-app has no PDF-manipulation code at all today,
+`FieldTypeFile` is opaque blob storage), not new presentation -- Phase 15 deliberately excludes
+it for that reason.
+
+**Design pass (resolve before code, same discipline as Phase 12):** does compositing reduce to
+an existing primitive? No -- `internal/action` (Phase 12's `CanDecide`/`DocumentStatus`) only
+ever reads/writes Field values; burning an image onto a PDF byte stream is a real new operation
+with a real new dependency (a pure-Go PDF library, e.g. `pdfcpu`). It belongs in `internal/action`
+as a second hardcoded function alongside `CanDecide` -- same posture (fires on one triggering
+write, hardcoded to `mch_document`/`mch_approval_step`'s own field IDs, not a generic engine) --
+not a generic "PDF processing" service, since no second case needs one yet.
+
+- [ ] Add a pure-Go PDF dependency; a `CompositeSignatures` function taking the Document's file +
+      each approved step's signature image + coordinates, returning a new file
+- [ ] Wire it into the existing `/decide` handler: once `DocumentStatus` reaches `approved`,
+      write the composited result to a new `fld_signed_file` Field, mirroring `logActivity`'s own
+      "one triggering write, one side effect" shape from Phase 13
+- [ ] Smoke-test against a real PDF + real coordinates on a scratch server before touching
+      production data, per this repo's own established practice
+
+**Exit criterion:** approving a fully-decided Document produces a real downloadable PDF with
+every approver's signature image burned in at its declared position.
 
 ---
 
@@ -508,6 +622,11 @@ more than that one shape), Group-sourced approvers (named in Phase 7), multi-wor
 beyond Phase 2's minimal structure, and the full semantic field type vocabulary from 006 -- none
 of these have a forcing case yet. Adding any of them before one exists repeats the mistake this
 roadmap is written to avoid.
+
+Phase 15's own research pass (2026-09-15) re-confirmed two more belong here, explicitly rather
+than by omission: a metadata-driven page-composition mechanism / UI IR (007 §15, still PROPOSED)
+and a generic Component Registry (007 §14) -- ~15 hand-wired templ page functions today is not
+the dispatch-sprawl problem §14 exists to fix, and Phase 6 has already tested negative twice.
 
 `internal/action` is no longer in this list -- Phase 12 names its real forcing case
 (Case 3's sequential/parallel approval). Until Phase 12 actually lands, treat this line as the
