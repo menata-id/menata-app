@@ -20,16 +20,6 @@ templ ActivityPage(today, yesterday, older []ActivityEntry, appName string) {
 templ activityGroup(label string, entries []ActivityEntry) {
 	if len(entries) > 0 {
 		<h2>{ label }</h2>
-		<ul class="activity-feed">
-			for _, a := range entries {
-				<li>
-					<span>{ a.Summary }</span>
-					if a.Actor != "" {
-						<span class="badge">{ a.Actor }</span>
-					}
-					<span class="muted">{ a.When }</span>
-				</li>
-			}
-		</ul>
+		@activityFeedList(entries)
 	}
 }

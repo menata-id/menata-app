@@ -23,10 +23,10 @@ templ TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int,
 		<h1>Team Capacity</h1>
 		<p>People, weekly capacity, and active work, composed from existing Member and Task data.</p>
 
-		<ul class="summary-counts">
-			<li>Team capacity: { fmt.Sprint(totalCapacity) }h/week</li>
-			<li>Active cards: { fmt.Sprint(totalActive) }</li>
-		</ul>
+		@summaryCounts([]SummaryItem{
+			{Label: "Team capacity", Value: fmt.Sprint(totalCapacity) + "h/week"},
+			{Label: "Active cards", Value: fmt.Sprint(totalActive)},
+		})
 
 		<table>
 			<thead>

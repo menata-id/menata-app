@@ -32,12 +32,12 @@ templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, atte
 		<h1>Sprint Dashboard</h1>
 		<p>A composed analytics view over real Task data -- no fabricated points or burndown.</p>
 
-		<ul class="summary-counts">
-			<li>Open: { fmt.Sprint(summary.Open) }</li>
-			<li>In progress: { fmt.Sprint(summary.InProgress) }</li>
-			<li>Done: { fmt.Sprint(summary.Done) }</li>
-			<li>Completion: { fmt.Sprint(summary.CompletionPercent()) }%</li>
-		</ul>
+		@summaryCounts([]SummaryItem{
+			{Label: "Open", Value: fmt.Sprint(summary.Open)},
+			{Label: "In progress", Value: fmt.Sprint(summary.InProgress)},
+			{Label: "Done", Value: fmt.Sprint(summary.Done)},
+			{Label: "Completion", Value: fmt.Sprint(summary.CompletionPercent()) + "%"},
+		})
 
 		<h2>Workload</h2>
 		if len(workload) == 0 {

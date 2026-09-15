@@ -32,11 +32,11 @@ templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, 
 		<h1>My Tasks</h1>
 		<p>Tasks assigned to you, projected across all projects.</p>
 
-		<ul class="summary-counts">
-			<li>Open: { fmt.Sprint(summary.Open) }</li>
-			<li>Due today: { fmt.Sprint(summary.DueToday) }</li>
-			<li>Overdue: { fmt.Sprint(summary.Overdue) }</li>
-		</ul>
+		@summaryCounts([]SummaryItem{
+			{Label: "Open", Value: fmt.Sprint(summary.Open)},
+			{Label: "Due today", Value: fmt.Sprint(summary.DueToday)},
+			{Label: "Overdue", Value: fmt.Sprint(summary.Overdue)},
+		})
 
 		<h2>Today</h2>
 		if len(today) == 0 {

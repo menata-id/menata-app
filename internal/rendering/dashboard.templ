@@ -42,7 +42,7 @@ templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []
 	@pageShell("Dashboard", appName) {
 		<h1>Dashboard</h1>
 
-		<h2>Projects</h2>
+		@sectionHeader("Projects", "/machines/mch_project", "View all →")
 		<table>
 			<thead>
 				<tr>
@@ -64,13 +64,13 @@ templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []
 			</tbody>
 		</table>
 
-		<h2>Documents</h2>
-		<ul class="summary-counts">
-			<li>Draft: { fmt.Sprint(docs.Draft) }</li>
-			<li>In Review: { fmt.Sprint(docs.InReview) }</li>
-			<li>Approved: { fmt.Sprint(docs.Approved) }</li>
-			<li>Rejected: { fmt.Sprint(docs.Rejected) }</li>
-		</ul>
+		@sectionHeader("Documents", "/machines/mch_document", "View all →")
+		@summaryCounts([]SummaryItem{
+			{Label: "Draft", Value: fmt.Sprint(docs.Draft)},
+			{Label: "In Review", Value: fmt.Sprint(docs.InReview)},
+			{Label: "Approved", Value: fmt.Sprint(docs.Approved)},
+			{Label: "Rejected", Value: fmt.Sprint(docs.Rejected)},
+		})
 
 		<h3>Pending Approval</h3>
 		if len(pending) == 0 {
@@ -94,21 +94,11 @@ templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []
 			</table>
 		}
 
-		<h2>Recent Activity</h2>
+		@sectionHeader("Recent Activity", "/activity", "View all →")
 		if len(activity) == 0 {
 			<p>No activity yet.</p>
 		} else {
-			<ul class="activity-feed">
-				for _, a := range activity {
-					<li>
-						<span>{ a.Summary }</span>
-						if a.Actor != "" {
-							<span class="badge">{ a.Actor }</span>
-						}
-						<span class="muted">{ a.When }</span>
-					</li>
-				}
-			</ul>
+			@activityFeedList(activity)
 		}
 	}
 }
