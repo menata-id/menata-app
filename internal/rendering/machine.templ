@@ -7,9 +7,9 @@ import (
 	"menata.app/internal/domain"
 )
 
-// MachinePage is a minimal reference renderer for a single Machine: a plain HTML table of its
-// fields, plus its persisted records. It exists to prove the metadata -> data -> render pipeline
-// end to end; it is not yet driven by UI IR or a View Model
+// MachinePage is the reference renderer for a single Machine: its field schema, a create form,
+// and its persisted records with inline edit/delete. It exists to prove the metadata -> data ->
+// render pipeline end to end; it is not yet driven by UI IR or a View Model
 // (007-composable-runtime-architecture.md §10, §23).
 templ MachinePage(m *domain.Machine, records []*data.Record) {
 	<!DOCTYPE html>
@@ -18,69 +18,178 @@ templ MachinePage(m *domain.Machine, records []*data.Record) {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ m.Name } · Menata App</title>
+			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 			<style>
-				body { font-family: system-ui, -apple-system, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
+				body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
 				h1 { margin-bottom: 0.25rem; }
 				code { color: #666; font-size: 0.9rem; }
-				table { border-collapse: collapse; width: 100%; margin-top: 1.5rem; }
-				th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e5e5; }
+				table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+				th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e5e5; vertical-align: middle; }
 				th { color: #666; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
 				.badge { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px; background: #eef1fb; color: #3949ab; font-size: 0.8rem; }
 				.yes { color: #b00020; }
 				.no { color: #999; }
+				input, select { padding: 0.35rem 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; width: 100%; box-sizing: border-box; }
+				button { padding: 0.35rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.85rem; }
+				button.primary { background: #3949ab; color: #fff; border-color: #3949ab; }
+				.actions { white-space: nowrap; }
+				.actions button { margin-right: 0.25rem; }
+				form.create-form td { padding-top: 0.75rem; }
 			</style>
 		</head>
 		<body>
-			<h1>{ m.Name }</h1>
-			<code>{ m.ID }</code>
-			<table>
-				<thead>
-					<tr>
-						<th>Field</th>
-						<th>Type</th>
-						<th>Required</th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, f := range m.Fields {
-						<tr>
-							<td>{ f.Name }</td>
-							<td><span class="badge">{ string(f.Type) }</span></td>
-							<td>
-								if f.Required {
-									<span class="yes">yes</span>
-								} else {
-									<span class="no">no</span>
-								}
-							</td>
-						</tr>
-					}
-				</tbody>
-			</table>
-
-			<h2>Records ({ fmt.Sprint(len(records)) })</h2>
-			if len(records) == 0 {
-				<p class="no">No records yet.</p>
-			} else {
-				<table>
-					<thead>
-						<tr>
-							for _, f := range m.Fields {
-								<th>{ f.Name }</th>
-							}
-						</tr>
-					</thead>
-					<tbody>
-						for _, rec := range records {
-							<tr>
-								for _, f := range m.Fields {
-									<td>{ fmt.Sprint(rec.Values[f.ID]) }</td>
-								}
-							</tr>
-						}
-					</tbody>
-				</table>
-			}
+			<div id="machine-body">
+				@MachineBody(m, records)
+			</div>
 		</body>
 	</html>
+}
+
+// MachineBody is the fragment the create endpoint returns for HTMX to swap into #machine-body,
+// so the full page never needs a hard reload.
+templ MachineBody(m *domain.Machine, records []*data.Record) {
+	<h1>{ m.Name }</h1>
+	<code>{ m.ID }</code>
+
+	<h2>Fields</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Field</th>
+				<th>Type</th>
+				<th>Required</th>
+			</tr>
+		</thead>
+		<tbody>
+			for _, f := range m.Fields {
+				<tr>
+					<td>{ f.Name }</td>
+					<td><span class="badge">{ string(f.Type) }</span></td>
+					<td>
+						if f.Required {
+							<span class="yes">yes</span>
+						} else {
+							<span class="no">no</span>
+						}
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+
+	<h2>Records ({ fmt.Sprint(len(records)) })</h2>
+	<table>
+		<thead>
+			<tr>
+				for _, f := range m.Fields {
+					<th>{ f.Name }</th>
+				}
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			for _, r := range records {
+				@RecordRow(m, r)
+			}
+			<tr>
+				<form
+					class="create-form"
+					hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
+					hx-target="#machine-body"
+					hx-swap="innerHTML"
+				>
+					for _, f := range m.Fields {
+						<td>
+							@fieldInput(f, nil)
+						</td>
+					}
+					<td>
+						<button type="submit" class="primary">Add</button>
+					</td>
+				</form>
+			</tr>
+		</tbody>
+	</table>
+}
+
+// RecordRow is one Record in display mode.
+templ RecordRow(m *domain.Machine, r *data.Record) {
+	<tr id={ "record-" + r.ID }>
+		for _, f := range m.Fields {
+			<td>{ fmt.Sprint(r.Values[f.ID]) }</td>
+		}
+		<td class="actions">
+			<button
+				hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
+				hx-target={ "#record-" + r.ID }
+				hx-swap="outerHTML"
+			>Edit</button>
+			<button
+				hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
+				hx-target={ "#record-" + r.ID }
+				hx-swap="outerHTML"
+				hx-confirm="Delete this record?"
+			>Delete</button>
+		</td>
+	</tr>
+}
+
+// RecordEditRow is one Record in edit mode: an inline form pre-filled with its current values.
+templ RecordEditRow(m *domain.Machine, r *data.Record) {
+	<tr id={ "record-" + r.ID }>
+		<form
+			hx-put={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
+			hx-target={ "#record-" + r.ID }
+			hx-swap="outerHTML"
+		>
+			for _, f := range m.Fields {
+				<td>
+					@fieldInput(f, r.Values[f.ID])
+				</td>
+			}
+			<td class="actions">
+				<button type="submit" class="primary">Save</button>
+				<button
+					type="button"
+					hx-get={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
+					hx-target={ "#record-" + r.ID }
+					hx-swap="outerHTML"
+				>Cancel</button>
+			</td>
+		</form>
+	</tr>
+}
+
+// fieldInput renders the input control appropriate to a Field's semantic type, pre-filled with
+// current (nil for a blank create-form field).
+templ fieldInput(f domain.Field, current any) {
+	switch f.Type {
+		case domain.FieldTypeStatus:
+			<select name={ f.ID }>
+				<option value=""></option>
+				for _, opt := range f.Options {
+					<option value={ opt } selected?={ toString(current) == opt }>{ opt }</option>
+				}
+			</select>
+		case domain.FieldTypeBoolean:
+			<input type="checkbox" name={ f.ID } checked?={ toBool(current) }/>
+		case domain.FieldTypeDate:
+			<input type="date" name={ f.ID } value={ toString(current) }/>
+		case domain.FieldTypeNumber:
+			<input type="number" step="any" name={ f.ID } value={ toString(current) }/>
+		default:
+			<input type="text" name={ f.ID } value={ toString(current) }/>
+	}
+}
+
+func toString(v any) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprint(v)
+}
+
+func toBool(v any) bool {
+	b, _ := v.(bool)
+	return b
 }

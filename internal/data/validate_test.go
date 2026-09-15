@@ -15,6 +15,7 @@ func testMachine() *domain.Machine {
 			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText, Required: true},
 			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Required: true, Options: []string{"todo", "done"}},
 			{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson},
+			{ID: "fld_priority", Name: "Priority", Type: domain.FieldTypeNumber},
 		},
 	}
 }
@@ -61,6 +62,26 @@ func TestValidateRecord_optionalFieldOmitted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateRecord() error = %v, want nil (fld_assignee is optional)", err)
 	}
+}
+
+func TestValidateRecord_numberField_valid(t *testing.T) {
+	err := ValidateRecord(testMachine(), map[string]any{
+		"fld_title":    "Write docs",
+		"fld_status":   "todo",
+		"fld_priority": float64(2),
+	})
+	if err != nil {
+		t.Fatalf("ValidateRecord() error = %v, want nil", err)
+	}
+}
+
+func TestValidateRecord_numberField_notANumber(t *testing.T) {
+	err := ValidateRecord(testMachine(), map[string]any{
+		"fld_title":    "Write docs",
+		"fld_status":   "todo",
+		"fld_priority": "high",
+	})
+	assertContains(t, err, `"fld_priority": value high is not a number`)
 }
 
 func assertContains(t *testing.T, err error, substr string) {

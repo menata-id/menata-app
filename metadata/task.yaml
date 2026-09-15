@@ -16,3 +16,6 @@ fields:
   - id: fld_due_date
     name: Due Date
     type: date
+  - id: fld_priority
+    name: Priority
+    type: number

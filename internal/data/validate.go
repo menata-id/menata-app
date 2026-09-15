@@ -48,10 +48,17 @@ func ValidateRecord(m *domain.Machine, values map[string]any) error {
 			continue
 		}
 
-		if f.Type == domain.FieldTypeStatus {
+		switch f.Type {
+		case domain.FieldTypeStatus:
 			s, ok := v.(string)
 			if !ok || !contains(f.Options, s) {
 				issues = append(issues, fmt.Sprintf("field %q: value %v is not one of %v", f.ID, v, f.Options))
+			}
+		case domain.FieldTypeNumber:
+			switch v.(type) {
+			case float64, float32, int, int64:
+			default:
+				issues = append(issues, fmt.Sprintf("field %q: value %v is not a number", f.ID, v))
 			}
 		}
 	}
