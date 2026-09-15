@@ -3,6 +3,7 @@ package rendering
 import (
 	"fmt"
 
+	"menata.app/internal/action"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
@@ -49,6 +50,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 				</dd>
 			}
 		</dl>
+		if m.ID == action.StepMachineID {
+			@decideButtons(m, r)
+		}
 		<div class="actions">
 			<button
 				hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
@@ -63,6 +67,24 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 		</div>
 		for _, cc := range children {
 			@ChildSectionView(cc)
+		}
+	</div>
+}
+
+// decideButtons is Case 3's Approve/Reject action bar (ROADMAP.md Phase 12), shown only on an
+// mch_approval_step's own detail page. A decided step shows its decision instead of buttons --
+// deciding again isn't offered, matching action.CanDecide's own one-way semantics. On success the
+// server redirects to the parent Document's page (POST .../decide), so no hx-target/swap is
+// needed here.
+templ decideButtons(m *domain.Machine, r *data.Record) {
+	<div class="actions">
+		if toString(r.Values[action.FieldStepDecision]) == action.DecisionPending {
+			<form hx-post={ fmt.Sprintf("/machines/%s/records/%s/decide", m.ID, r.ID) }>
+				<button type="submit" name="decision" value={ action.DecisionApproved } class="primary">Approve</button>
+				<button type="submit" name="decision" value={ action.DecisionRejected }>Reject</button>
+			</form>
+		} else {
+			<span class="badge">{ toString(r.Values[action.FieldStepDecision]) }</span>
 		}
 	</div>
 }

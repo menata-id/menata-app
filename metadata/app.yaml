@@ -12,3 +12,5 @@ application:
     - label.yaml
     - task.yaml
     - card_label.yaml
+    - document.yaml
+    - approval_step.yaml

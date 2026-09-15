@@ -1,0 +1,21 @@
+id: mch_document
+name: Document
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_file
+    name: File
+    type: file
+    required: true
+  - id: fld_mode
+    name: Mode
+    type: status
+    required: true
+    options: [sequential, parallel]
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [draft, in_review, approved, rejected]

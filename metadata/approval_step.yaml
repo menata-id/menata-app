@@ -1,0 +1,27 @@
+# A Document's own ordered approval steps (ROADMAP.md Phase 12), shown as a Phase 9 child
+# collection on the Document's detail page. fld_decision is never editable through the generic
+# update route (cmd/server's updateRecordForm blocks it) -- only /decide changes it, and only
+# internal/action.CanDecide decides whether that's currently allowed.
+id: mch_approval_step
+name: Approval Step
+fields:
+  - id: fld_document
+    name: Document
+    type: relation
+    machine: mch_document
+  - id: fld_sequence
+    name: Sequence
+    type: number
+    required: true
+  - id: fld_assignee
+    name: Assignee
+    type: person
+    required: true
+  - id: fld_decision
+    name: Decision
+    type: status
+    required: true
+    options: [pending, approved, rejected]
+
+view:
+  layout: table

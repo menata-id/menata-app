@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 
+	"menata.app/internal/action"
 	"menata.app/internal/authorization"
 	"menata.app/internal/behavior"
 	"menata.app/internal/config"
@@ -84,6 +85,7 @@ func main() {
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machines, store))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store, files))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machines, store))
+		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(machines, store))
 
 		pr.Get("/uploads/*", serveUpload(files))
 	})
@@ -274,7 +276,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 		if !ok {
 			return
 		}
-		if err := req.ParseMultipartForm(maxUploadBytes); err != nil {
+		if err := parseRecordForm(req); err != nil {
 			http.Error(w, "invalid form body", http.StatusBadRequest)
 			return
 		}
@@ -380,7 +382,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 		if !ok {
 			return
 		}
-		if err := req.ParseMultipartForm(maxUploadBytes); err != nil {
+		if err := parseRecordForm(req); err != nil {
 			http.Error(w, "invalid form body", http.StatusBadRequest)
 			return
 		}
@@ -401,6 +403,21 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 		if err := carryForwardExistingFiles(req.Context(), store, machine, id, uploaded, values); err != nil {
 			recordError(w, err)
 			return
+		}
+
+		// An Approval Step's fld_decision only ever changes through POST .../decide, which
+		// enforces action.CanDecide's sequencing rule -- the generic edit route must not become
+		// a bypass for it (ROADMAP.md Phase 12).
+		if machine.ID == action.StepMachineID {
+			existing, err := store.GetRecord(req.Context(), machine.ID, id)
+			if err != nil {
+				recordError(w, err)
+				return
+			}
+			if newDecision, ok := values[action.FieldStepDecision]; ok && fmt.Sprint(newDecision) != fmt.Sprint(existing.Values[action.FieldStepDecision]) {
+				http.Error(w, "use Approve/Reject to change a decision, not a direct edit", http.StatusUnprocessableEntity)
+				return
+			}
 		}
 
 		if err := data.ValidateRecord(machine, values); err != nil {
@@ -461,6 +478,81 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 			return
 		}
 		// Empty response: HTMX swaps the row's outerHTML with nothing, removing it.
+	}
+}
+
+// decideStep is Case 3's core Action (ROADMAP.md Phase 12): Approve or Reject one Approval Step,
+// enforcing action.CanDecide's sequencing rule, then recomputing and saving the parent
+// Document's own aggregate status. Hardcoded to mch_approval_step/mch_document, matching
+// internal/action's own scope -- not a generic action-dispatch route.
+func decideStep(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+		if machine.ID != action.StepMachineID {
+			http.Error(w, "this machine has no decide action", http.StatusNotFound)
+			return
+		}
+		if err := req.ParseForm(); err != nil {
+			http.Error(w, "invalid form body", http.StatusBadRequest)
+			return
+		}
+		decision := req.FormValue("decision")
+		if decision != action.DecisionApproved && decision != action.DecisionRejected {
+			http.Error(w, "decision must be approved or rejected", http.StatusUnprocessableEntity)
+			return
+		}
+
+		ctx := req.Context()
+		id := chi.URLParam(req, "id")
+		step, err := store.GetRecord(ctx, machine.ID, id)
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		documentID, _ := step.Values[action.FieldStepDocument].(string)
+		document, err := store.GetRecord(ctx, action.DocumentMachineID, documentID)
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		siblings, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		mode, _ := document.Values[action.FieldDocumentMode].(string)
+		if !action.CanDecide(mode, step, siblings) {
+			http.Error(w, "an earlier step has not been decided yet", http.StatusUnprocessableEntity)
+			return
+		}
+
+		step.Values[action.FieldStepDecision] = decision
+		if _, err := store.UpdateRecord(ctx, machine.ID, id, step.Values); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		updatedSiblings, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		document.Values[action.FieldDocumentStatus] = action.DocumentStatus(updatedSiblings)
+		if _, err := store.UpdateRecord(ctx, action.DocumentMachineID, documentID, document.Values); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		documentURL := "/machines/" + action.DocumentMachineID + "/records/" + documentID
+		if req.Header.Get("HX-Request") == "true" {
+			w.Header().Set("HX-Redirect", documentURL)
+			return
+		}
+		http.Redirect(w, req, documentURL, http.StatusSeeOther)
 	}
 }
 
@@ -611,6 +703,19 @@ func toDisplayString(v any) string {
 // maxUploadBytes bounds one multipart request body (ROADMAP.md Phase 11) -- generous enough for
 // a real PDF or a handful of images, small enough that a malicious upload can't exhaust disk.
 const maxUploadBytes = 20 << 20 // 20MB
+
+// parseRecordForm parses a create/update request body that may be multipart/form-data (needed
+// for a FieldTypeFile upload -- every form sets hx-encoding for this, ROADMAP.md Phase 11) or a
+// plain url-encoded body (any other client, e.g. a direct API caller). ParseMultipartForm always
+// runs ParseForm first regardless of content type, so http.ErrNotMultipart here just means "no
+// file part was present, req.Form is already populated correctly" -- not a real failure.
+func parseRecordForm(req *http.Request) error {
+	err := req.ParseMultipartForm(maxUploadBytes)
+	if err != nil && !errors.Is(err, http.ErrNotMultipart) {
+		return err
+	}
+	return nil
+}
 
 // handleFileUploads saves any file actually submitted for one of machine's FieldTypeFile fields,
 // returning fieldID -> storage key for just those fields. A field with no file in this request
