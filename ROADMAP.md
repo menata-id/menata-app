@@ -594,7 +594,10 @@ existing menata-app symbol):
       existing `mch_activity` log, not a new Field. Verified live: real assignee filtering,
       SLA bucket counts/filtering, and submitter resolution all confirmed with a scratch
       `ADMIN_USER_ID` override, then fully reverted
-- [ ] Step 2: Approval progress stepper (new `approvalStepper` component, no metadata change)
+- [x] Step 2 (done, 2026-09-16): Approval progress stepper (`approvalStepper`, `machine.templ`) --
+      replaces the generic child-collection table on a Document's own detail page, done/current/
+      waiting states via `action.CanDecide`, no metadata change. Verified live against the real
+      Vendor Contract 2026 document
 - [ ] Step 3: `fld_signature_page`/`fld_signature_x`/`fld_signature_y` (plain `number` Fields,
       percentage-based, on `approval_step.yaml`) + a PDF-page-to-image preview step
       (new `internal/pdf` package, thin wrapper, pure-Go PDF library)
