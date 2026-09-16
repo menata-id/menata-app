@@ -73,6 +73,16 @@ templ pageShell(title string, appName string) {
 				.filter-chips { display: flex; gap: 0.5rem; margin-top: 1rem; }
 				.filter-chips a { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 999px; font-size: 0.8rem; color: #444; text-decoration: none; }
 				.filter-chips a.active { background: #3949ab; color: #fff; border-color: #3949ab; }
+				ul.approval-stepper { list-style: none; padding: 0; margin: 1rem 0; }
+				ul.approval-stepper li { display: flex; gap: 0.75rem; padding: 0.5rem 0; align-items: center; }
+				.step-marker { width: 1.75rem; height: 1.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; flex-shrink: 0; }
+				.step-marker.done { background: #eef1fb; color: #3949ab; }
+				.step-marker.rejected { background: #fdeaea; color: #b00020; }
+				.step-marker.current { background: #3949ab; color: #fff; }
+				.step-marker.waiting { background: #f0f0f0; color: #999; }
+				.step-body { display: flex; flex-direction: column; }
+				.step-title { font-weight: 500; }
+				.step-status { font-size: 0.8rem; color: #666; }
 			</style>
 		</head>
 		<body>

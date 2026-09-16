@@ -1,0 +1,74 @@
+package rendering
+
+import (
+	"fmt"
+	"sort"
+	"strconv"
+
+	"menata.app/internal/action"
+	"menata.app/internal/data"
+)
+
+// approvalStepper is Case 3's Approval Progress visual (ROADMAP.md Phase 15 Step 2,
+// document-approval.html's own "Approval Progress" section): a vertical done/current/waiting
+// stepper over a Document's own Approval Steps, replacing the generic child-collection table
+// (ChildSectionView) only for this one Machine pair. Purely presentational -- reuses
+// action.CanDecide (Phase 12) to tell an actionable "current" step from one still locked behind
+// an earlier step in sequential mode; no new Field, no new metadata.
+templ approvalStepper(steps []*data.Record, mode string, relations RelationOptions) {
+	{{ ordered := sortedBySequence(steps) }}
+	<ul class="approval-stepper">
+		for _, s := range ordered {
+			@approvalStepRow(s, mode, ordered, relations)
+		}
+	</ul>
+}
+
+templ approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relations RelationOptions) {
+	{{ decision := toString(s.Values[action.FieldStepDecision]) }}
+	{{ assignee := relationLabel(relations, "mch_user", toString(s.Values["fld_assignee"])) }}
+	{{ seq := toString(s.Values[action.FieldStepSequence]) }}
+	<li>
+		switch decision {
+			case action.DecisionApproved:
+				<span class="step-marker done">✓</span>
+				<span class="step-body">
+					<span class="step-title">{ assignee }</span>
+					<span class="step-status">Approved · { s.UpdatedAt.Format("15:04") }</span>
+				</span>
+			case action.DecisionRejected:
+				<span class="step-marker rejected">✗</span>
+				<span class="step-body">
+					<span class="step-title">{ assignee }</span>
+					<span class="step-status">Rejected · { s.UpdatedAt.Format("15:04") }</span>
+				</span>
+			default:
+				if action.CanDecide(mode, s, siblings) {
+					<span class="step-marker current">{ seq }</span>
+					<span class="step-body">
+						<span class="step-title">{ assignee }</span>
+						<span class="step-status">Pending decision</span>
+					</span>
+				} else {
+					<span class="step-marker waiting">{ seq }</span>
+					<span class="step-body">
+						<span class="step-title">{ assignee }</span>
+						<span class="step-status">Waiting</span>
+					</span>
+				}
+		}
+	</li>
+}
+
+// sortedBySequence orders Approval Steps by fld_sequence (ascending), independent of storage
+// sort_order -- sequence is the semantic order for this stepper, not creation order.
+func sortedBySequence(steps []*data.Record) []*data.Record {
+	ordered := make([]*data.Record, len(steps))
+	copy(ordered, steps)
+	sort.Slice(ordered, func(i, j int) bool {
+		a, _ := strconv.Atoi(fmt.Sprint(ordered[i].Values[action.FieldStepSequence]))
+		b, _ := strconv.Atoi(fmt.Sprint(ordered[j].Values[action.FieldStepSequence]))
+		return a < b
+	})
+	return ordered
+}
