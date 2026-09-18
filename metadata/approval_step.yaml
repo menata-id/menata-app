@@ -22,6 +22,15 @@ fields:
     type: status
     required: true
     options: [pending, approved, rejected]
+  - id: fld_signature_page
+    name: Signature Page
+    type: number
+  - id: fld_signature_x
+    name: Signature X
+    type: number
+  - id: fld_signature_y
+    name: Signature Y
+    type: number
 
 view:
   layout: table

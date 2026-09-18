@@ -598,9 +598,23 @@ existing menata-app symbol):
       replaces the generic child-collection table on a Document's own detail page, done/current/
       waiting states via `action.CanDecide`, no metadata change. Verified live against the real
       Vendor Contract 2026 document
-- [ ] Step 3: `fld_signature_page`/`fld_signature_x`/`fld_signature_y` (plain `number` Fields,
-      percentage-based, on `approval_step.yaml`) + a PDF-page-to-image preview step
-      (new `internal/pdf` package, thin wrapper, pure-Go PDF library)
+- [x] Step 3 (done, 2026-09-18): `fld_signature_page`/`fld_signature_x`/`fld_signature_y` (plain
+      `number` Fields, percentage-based, on `approval_step.yaml`) + a PDF-page-to-image preview
+      step (`internal/pdf`, `PageCount`/`RenderPagePNG`, a thin wrapper over
+      `github.com/richardwilkes/pdfview`). Library choice required a real supply-chain check, not
+      a blind `go get`: of the "pure-Go PDF" candidates surfaced by search, one
+      (`aspose-pdf-foss`) was near-certainly a fake trading on Aspose's name (4 stars/0 forks,
+      955 commits, an org with no other footprint), another (`go-pdfkit`) had no independent
+      corroboration anywhere despite elaborate self-claims. `richardwilkes/pdfview` was chosen on
+      author reputation (a long-standing, widely-starred Go author -- `unison`, `gcs`) despite
+      being 10 days old and pre-1.0 (v0.8.1, 0 importers at the time) -- the owner's own call,
+      accepting that immaturity risk over pdftoppm/poppler-utils (mature, but breaks 007 §4.10's
+      single-binary/no-native-deps posture) or cgo MuPDF (same posture problem). Pulling it in
+      bumped `go.mod`'s toolchain requirement 1.25.14 -> 1.27.0 (the dependency's own floor), a
+      real side effect worth knowing about if `go build` ever fails elsewhere in this repo for a
+      toolchain reason. Verified against a hand-built minimal single-page PDF fixture
+      (`internal/pdf/testdata/blank.pdf`): correct page count, in-bounds rendered dimensions,
+      and a real error on an out-of-range page.
 - [ ] Step 4: signature-coordinate placement screen (the vanilla-JS exception above)
 - [ ] Step 5: `mch_signature` Machine (`fld_owner: person`, `fld_image: file`) -- ordinary
       Machine, no identity-model change
