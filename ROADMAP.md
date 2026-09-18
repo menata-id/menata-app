@@ -899,13 +899,36 @@ as a second hardcoded function alongside `CanDecide` -- same posture (fires on o
 write, hardcoded to `mch_document`/`mch_approval_step`'s own field IDs, not a generic engine) --
 not a generic "PDF processing" service, since no second case needs one yet.
 
-**Blocking prerequisite: Phase 16 must land first.** `decideStep` today lets any authenticated
-user decide any Approval Step, not only its own `fld_assignee` -- otherwise this phase burns a
-real approver's signature image onto a PDF for a decision nobody verified that approver actually
-made.
+**Design clarification (2026-09-19, owner-prompted): signature source is irrelevant to this
+Action.** A person may reach `mch_signature.fld_image` by uploading an existing image file, or by
+signing manually (e.g. drawing on a canvas, saved as an image) -- both converge to the exact same
+representation before `CompositeSignatures` ever sees them: a plain image file. No new Field type,
+no metadata distinguishing "uploaded" from "drawn," and `CompositeSignatures` needs no branch for
+how the image was produced -- it places whichever image is stored, the same way regardless of
+source. If a manual-signing capture screen is ever built, it is purely a Phase 15-style Experience
+concern (an input method for `fld_image`), not a change to this phase's own compositing logic.
 
+**Design clarification, same date: placement needs a size, not only a position.**
+`approval_step.yaml`'s `fld_signature_page/x/y` (Phase 15) name where the stamp's anchor point
+goes, not how big it is -- there is no size Field today. Add `fld_signature_width` (a fourth
+percentage-based `number` Field, sized relative to the page's own width, same convention as x/y);
+height is derived from the image's own aspect ratio at composite time (`image.DecodeConfig`, no
+full decode needed) rather than a second `fld_signature_height` Field, per this roadmap's own
+admission question -- a redundant height Field isn't forced when the image's own dimensions
+already answer it. Phase 15 Step 4's placement screen shipped with a position-only marker, no
+resize handle; giving it one is this phase's own small follow-up, not a reason to reopen Phase 15.
+
+**Blocking prerequisite, now satisfied: Phase 16 landed 2026-09-18.** Before Phase 16,
+`decideStep` let any authenticated user decide any Approval Step, not only its own `fld_assignee`
+-- this phase would otherwise have burned a real approver's signature image onto a PDF for a
+decision nobody verified that approver actually made. `prm_decide_own_step` closes that; this
+phase is no longer blocked.
+
+- [ ] `fld_signature_width` (percentage, `number` Field) added to `approval_step.yaml`; Step 4's
+      placement screen gains a resize control so a person can set it, not only reposition the
+      marker
 - [ ] Add a pure-Go PDF dependency; a `CompositeSignatures` function taking the Document's file +
-      each approved step's signature image + coordinates, returning a new file
+      each approved step's signature image + page/x/y/width, returning a new file
 - [ ] Wire it into the existing `/decide` handler: once `DocumentStatus` reaches `approved`,
       write the composited result to a new `fld_signed_file` Field, mirroring `logActivity`'s own
       "one triggering write, one side effect" shape from Phase 13
@@ -913,7 +936,8 @@ made.
       production data, per this repo's own established practice
 
 **Exit criterion:** approving a fully-decided Document produces a real downloadable PDF with
-every approver's signature image burned in at its declared position.
+every approver's signature image -- whether originally uploaded or manually signed -- burned in
+at its declared position and size.
 
 ---
 
