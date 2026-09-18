@@ -10,7 +10,7 @@ standalone even outside its original directory.
 ## What's here and why
 
 **Menu Navigasi** (ini belum dibuat)
-1. Menu Lintas Aplikasi - di pojok kanan atas, dekat avatar, jika diklik akan membuka menu untuk pilih ke aplikasi mana yang akan dibuka
+1. Menu Lintas Aplikasi - di pojok kiri atas, dengan icon titik 9, jika diklik akan membuka menu untuk pilih ke aplikasi mana yang akan dibuka
 2. Menu Aplikasi yang sedang berjalan - untuk desktop ada di atas, kalau untuk di mobile, ada di bagian bawah berupa bottom bar menu, dengan 3-4 icon.
 
 **Case 3 (Document Approval) — all 4 screens**, per `case-portfolio.md`'s own screen list:
