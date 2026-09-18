@@ -1033,6 +1033,75 @@ speculative build this phase argues against.
 
 ---
 
+## Phase 19 -- The transport seam: give the handlers a home, and a gate (done, 2026-09-18)
+
+Phase 18 moved the composition functions out of `cmd/server/main.go` and said plainly what it was
+leaving behind: the handlers themselves, in a file that "will grow again". It did. Phase 15 Step 6
+added 110 lines and three handlers, taking `main.go` to 1621.
+
+**Measured state, 2026-09-18 (why this is a forcing case and not a complaint about length):**
+
+- **`cmd/server` had no boundary rule.** `internal/conformance` scanned `internal/` only
+  (`internalDir()`), so the largest file in the repo was the one file free to import whatever it
+  liked -- `database/sql` included -- and nothing would have failed. The least-supervised package
+  was the one holding the most code.
+- **146 lines of untested, untestable derivation.** `showApprovalInbox` resolved submitters from
+  the activity log, counted approved siblings and bucketed by SLA. `go test` reported
+  `cmd/server [no test files]`, and a `package main` binary has nowhere to put a test file.
+- **Four doc comments had drifted off their functions.** `showTeamCapacity`, `showAutomation`,
+  `showCalendar` and `showSprintDashboard` had stacked up above `showApprovalInbox`, so Go read
+  them as one comment belonging to a fifth function. Four functions looked undocumented and one
+  looked documented five times. Nobody had noticed, which is the point.
+
+Neither of the first two is "the file is long". Length was the symptom the 2026-09-18 audit was
+told to check against a number; what it actually found was a package with no declared boundary and
+business logic with no reachable test.
+
+- [x] **Step 1: cover `cmd/` with boundary rules.** Generalize `rule` to packages outside
+      `internal/`, give `cmd/server` a rule, and extend `TestEveryPackageHasARule` to scan `cmd/`
+      so a new binary must declare its boundary like any other package
+- [x] **Step 2: `internal/web`.** Move the handlers, middleware and helpers out of `main.go`
+      behind `web.Routes(web.Deps{...})`, leaving the composition root as a composition root.
+      Scripted rather than retyped, so no line could be silently reworded
+- [x] **Step 3: derivation down a plane.** Per-screen composition into `internal/composition`,
+      each split into a fetch half taking the `Loader` and a pure build half taking records --
+      the split is what makes the derivation testable without a database. Mutation handlers
+      broken into named guards, so the order they run in is legible
+- [x] **Step 4: handler size budget.** A measured per-handler limit in `internal/conformance`,
+      which is the number ROADMAP.md's own deferral asked for and never recorded
+
+**Exit criterion met, 2026-09-18** -- verified, not asserted:
+
+- `cmd/server/main.go` is **71 lines**, from 1621. The largest handler in `internal/web` is
+  `decideStep` at 55, from `updateRecordForm`'s 106
+- All **55 captured GET responses** are byte-identical before and after, and per-route read
+  diagnostics are unchanged at `repeated=0`. Two captures of unchanged code differ in nothing, so
+  that comparison has a measured noise floor of zero
+- The GET capture never calls a write path, so the three refactored mutation handlers were
+  verified separately: **14 checks** over the running app covering the status-move event, a
+  missing required field, the wizard's two steps, decide's sequencing in both orders, the
+  recomputed Document status, and the edit route's refusal to move a decision
+- **25 unit tests** where this logic had none. All four gates verified by violating them:
+  `database/sql` in `cmd/server`, `internal/db` in `internal/web`, a ruleless package under
+  `cmd/`, and a handler inflated past the budget
+
+**What this phase did not fix, deliberately:** the Experience-tree types (`ChildSection`,
+`RelationOptions`) still live in `internal/rendering`, and `internal/composition` still imports
+them. Moving them *is* the UI IR question Phase 18 deferred, and Phase 19 has no better claim on
+answering it. `internal/rendering`'s hardcoded `action.StepMachineID`/`DocumentMachineID` is also
+untouched, for the same reason as before: no second case makes it wrong yet.
+
+**Found while doing this, not fixed here:** a form body that is not `multipart/form-data` fails
+with 400 on any Machine that declares a file field, because `handleFileUploads` treats
+`FormFile`'s "request Content-Type isn't multipart/form-data" as a real error rather than as "no
+file was submitted". Every form in the app sets `hx-encoding`, so the UI never hits it -- but
+`parseRecordForm`'s own comment promises a plain url-encoded body works "for any other client,
+e.g. a direct API caller", and for `mch_task` and `mch_document` it does not. Pre-existing
+(confirmed against `543bcda`), and a behaviour change rather than a move, so it is filed in the
+Operational backlog instead of being smuggled into a refactor.
+
+---
+
 ## Operational backlog (tracked, not phase-numbered)
 
 Found during a security/hygiene review (2026-09-15) -- real gaps, but not part of the
@@ -1052,6 +1121,13 @@ phase they don't belong to:
       there is no projection, filter pushdown, or pagination either
 - [ ] JSON API parity -- `/api/machines/{id}/records` only supports create+list; update/delete
       exist only via the browser HTML routes, not the API
+- [ ] Non-multipart form bodies fail on any Machine with a file field -- `handleFileUploads`
+      (`internal/web/record.go`) reads `req.FormFile`'s "request Content-Type isn't
+      multipart/form-data" as a failure instead of as "no file submitted", so a url-encoded
+      `POST`/`PUT` to `mch_task` or `mch_document` returns 400. Every form in the app sets
+      `hx-encoding`, so only a non-browser client hits it -- but `parseRecordForm`'s own comment
+      promises exactly that client works. Found during Phase 19, pre-existing (reproduced against
+      `543bcda`), left alone there because fixing it changes behaviour
 
 ---
 
@@ -1187,15 +1263,30 @@ roadmap is written to avoid.
 `internal/execution` specifically is not the same gap Phase 18 closed. Phase 18 moved the
 *composition/data-fetch* functions (`loadChildSections`/`loadRelationOptions`/`loadBoardColumns`)
 into `internal/composition`, where their own `doc.go` contract already said they belonged -- it
-did not move the HTTP handlers themselves. `cmd/server/main.go` is 1512 lines as of Phase 18's own
+did not move the HTTP handlers themselves. `cmd/server/main.go` was 1512 lines as of Phase 18's own
 commit, all of it route registration and ~30 handler functions (`showDashboard`,
 `showApprovalInbox`, `decideStep`, `showSignaturePlacement`, ...), and every future phase that adds
 a screen or Action adds another handler there -- the file will grow again, just without Phase 18's
-specific duplicate-fetch failure mode repeating. No forcing case for splitting the handlers out
-exists yet (one hand-wired handler per route is not the dispatch-sprawl problem a registry or
-execution layer would fix, the same reasoning that keeps the Component Registry off this list) --
-named here so the next drift audit checks this file's size against a number instead of rediscovering
-the question from zero.
+specific duplicate-fetch failure mode repeating.
+
+*Closed by Phase 19, 2026-09-18.* This paragraph used to end "No forcing case for splitting the
+handlers out exists yet", and asked that the next audit check the file's size against a number.
+Two things arrived before that audit did. First, the prediction came true faster than expected:
+Phase 15 Step 6 added 110 lines and three handlers, taking the file to 1621. Second, and the
+actual forcing case, the audit found two measurements rather than an aesthetic complaint:
+
+- **`cmd/server` had no boundary rule at all.** `internal/conformance` scanned `internal/` only,
+  so the largest file in the repo was the one file free to import anything, `database/sql`
+  included. The package with the least supervision was the one with the most code in it.
+- **146 lines of derivation with no test, and nowhere to put one.** `showApprovalInbox` resolved
+  submitters from the activity log, counted approved siblings and bucketed by SLA, all inside a
+  package that by definition holds no test files -- `go test` reported `cmd/server [no test
+  files]` for the whole thing.
+
+Neither is "the file is long", which would not have been a forcing case. The handlers now live in
+`internal/web` and the derivation in `internal/composition`, both under boundary rules, with a
+measured 70-line-per-handler budget in `internal/conformance` so the number this paragraph asked
+for now exists and is enforced rather than remembered. `main.go` is 71 lines.
 
 Permission (the fifth Domain Plane primitive, alongside Machine/Field/Event/Constraint) is
 deliberately *not* in this list -- it already has a forcing case (Case 3's per-step

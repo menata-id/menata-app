@@ -46,7 +46,7 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Ordered Lists | A Machine's records used as a board's real, renameable, reorderable columns (replaces a fixed status enum) | Built | `mch_list`, grouping `mch_task`'s board |
 | Sort order | Explicit per-Machine ordering (`sort_order` column), assigned at create time | Built | Every Machine — `internal/data.Store.CreateRecord` |
 | SLA badge | A `view.sla_field` date Field rendered as OVERDUE / "N day(s) left" instead of a plain date | Built | `mch_document`'s `fld_due_date`, `internal/experience.EvaluateSLA` |
-| Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `main.go`'s `logActivity` — Document submission/decision, Task/Project creation, Task status moves |
+| Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `internal/web`'s `logActivity` — Document submission/decision, Task/Project creation, Task status moves |
 
 ---
 
@@ -71,6 +71,11 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | PDF page-to-image rendering | Built | `internal/pdf.PageCount`/`RenderPagePNG`, pure-Go (`richardwilkes/pdfview`); served by `GET .../pdf-preview` |
 | Signature-coordinate placement (drag a marker over a rendered PDF page) | Built, hardcoded to one Machine | `GET .../signature-placement`, `rendering.SignaturePlacementPage` — the one named vanilla-JS exception (drag math only; placing/saving a position is ordinary HTMX to the generic PUT route) |
 | Document submission wizard (Document + its own Approval Steps created together, dynamic flat approver picker) | Built, hardcoded to one Machine pair | `GET /documents/new`, `POST /documents`; add/reorder/remove approver rows are Hyperscript (no server-meaningful state until the whole form submits) |
+
+Every screen above composes in `internal/composition` and renders from `internal/web`: a handler
+resolves what the request carries, asks composition for the page's content, and renders it. The
+joins, rollups and SLA bucketing behind these pages are ordinary unit-tested functions, not
+handler bodies (`ROADMAP.md` Phase 19).
 
 **Not yet built:** Timeline Layout, colored label chips on a card face, drag-and-drop reordering
 of board columns/list items — all named with their own forcing condition in `ROADMAP.md` Phase 14.
@@ -152,6 +157,11 @@ of board columns/list items — all named with their own forcing condition in `R
 | `GET /machines/mch_document/records/{id}/pdf-preview` | One page of the Document's PDF, rasterized to PNG |
 | `GET /uploads/*` | Download an uploaded file |
 | `GET /api/machines`, `GET /api/machines/{id}/records`, `POST /api/machines/{id}/records` | JSON API — create+list only, no update/delete yet (tracked in Operational backlog) |
+
+Every route above is registered in `internal/web.Routes` and served by a handler in that package;
+`cmd/server` builds the dependencies and mounts it. A per-handler size budget in
+`internal/conformance` keeps a handler from quietly becoming a screen's worth of logic again
+(`ROADMAP.md` Phase 19).
 
 Navigation itself is **not** metadata: `rendering.pageShell` hardcodes the topbar link list, so a
 new page needs a code edit. See the architectural limits below.
