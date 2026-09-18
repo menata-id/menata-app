@@ -15,3 +15,4 @@ application:
     - document.yaml
     - approval_step.yaml
     - activity.yaml
+    - signature.yaml

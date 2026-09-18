@@ -1,0 +1,15 @@
+# A person's own reusable signature image (ROADMAP.md Phase 15 Step 5), the input Phase 17's
+# compositing Action burns onto a Document at each Approval Step's declared coordinates
+# (fld_signature_page/x/y on mch_approval_step). An ordinary Machine, reusing Phase 7's Person and
+# Phase 11's File primitives -- no identity-model change, no new Field type.
+id: mch_signature
+name: Signature
+fields:
+  - id: fld_owner
+    name: Owner
+    type: person
+    required: true
+  - id: fld_image
+    name: Image
+    type: file
+    required: true

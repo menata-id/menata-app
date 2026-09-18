@@ -104,6 +104,7 @@ of board columns/list items — all named with their own forcing condition in `R
 | `mch_document` | Case 3 core | title, file, mode, status, due date | Aggregate status driven by its steps; `view.sla_field` |
 | `mch_approval_step` | Case 3 core | document, sequence, assignee, decision, signature page/x/y | `/decide` Action, sequencing enforced, `prm_decide_own_step` |
 | `mch_activity` | Cross-case event log | machine id, record id, summary, actor | Written by `logActivity`, never by a user form |
+| `mch_signature` | Case 3 core | owner, image | Input to Phase 17's PDF-compositing Action, not yet built |
 
 ---
 

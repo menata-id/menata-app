@@ -761,8 +761,17 @@ existing menata-app symbol):
       both new routes confirmed too. All scratch records (Document, 2 Approval Steps, the
       Activity entry the submission logged) and the scratch upload deleted afterward -- record
       counts per Machine verified identical before and after
-- [ ] Step 5: `mch_signature` Machine (`fld_owner: person`, `fld_image: file`) -- ordinary
-      Machine, no identity-model change
+- [x] Step 5 (done, 2026-09-18): `mch_signature` Machine (`fld_owner: person`, `fld_image: file`,
+      `metadata/signature.yaml`) -- ordinary Machine, no identity-model change, no new Field type,
+      zero new engine code (same "composed entirely from existing primitives" posture as Phase
+      10's many-to-many join Machine). Verified end-to-end on a temporary second server instance
+      against the real Postgres database (the live process on :4000 left untouched): the Machine
+      appears on the landing page and gets its own generic CRUD page for free; a real PNG uploaded
+      via the create form, downloaded back byte-identical; the detail page resolves `fld_owner` to
+      a real user's name; that user's own detail page shows the signature back as a Phase 9 child
+      collection ("Signature (1)") with zero extra code, the same free reverse-relation Phase 9
+      already proved for Tasks. Scratch record and upload deleted afterward, record counts
+      verified unchanged
 - [ ] Step 6: Document Submit's multi-step wizard flow, flat (non-Group) approver picker
 
 **Deliberately deferred, not part of this phase:** Group-sourced approvers (still no forcing
