@@ -6,27 +6,12 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"menata.app/internal/composition"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
-
-// initials is a person's display initials for a SummaryCard's avatar (Study 38's Avatar cluster)
-// -- the first letter of up to the first two words of name.
-func initials(name string) string {
-	fields := strings.Fields(name)
-	if len(fields) == 0 {
-		return "?"
-	}
-	out := strings.ToUpper(fields[0][:1])
-	if len(fields) > 1 {
-		out += strings.ToUpper(fields[1][:1])
-	}
-	return out
-}
 
 func sameDay(a, b time.Time) bool {
 	ay, am, ad := a.Date()

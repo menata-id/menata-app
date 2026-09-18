@@ -3,168 +3,51 @@ package web
 import (
 	"fmt"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
+	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
-	"menata.app/internal/experience"
 	"menata.app/internal/rendering"
 )
 
-// showApprovalInbox is Case 3's Approval Inbox (ROADMAP.md Phase 15 Step 1,
-// document-approval.html): every Approval Step assigned to the current identity, still pending,
-// and actually actionable right now (action.CanDecide -- a locked sequential step doesn't belong
-// in "pending my approval" even though its own fld_decision is "pending"), filtered by an SLA
-// bucket; plus every Document the current identity has submitted. Both rendered as
-// rendering.SummaryCard (Phase 15 Step 1's new shared component). "Submitted by" is derived from
-// the existing mch_activity log (Phase 13's own "submitted" event) rather than a new Document
-// Field -- Document already has no user-editable slot for this, and the data already exists.
-func showApprovalInbox(store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
+// showApprovalInbox serves Case 3's Approval Inbox (ROADMAP.md Phase 15 Step 1,
+// document-approval.html). Composing the inbox is composition.ApprovalInbox's job; what stays
+// here is the part that is genuinely about HTTP -- reading the ?filter= tab and reducing the
+// composed list to it.
+func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 
-		steps, err := store.ListRecords(ctx, action.StepMachineID)
+		inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now())
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-		}
-		documents, err := store.ListRecords(ctx, action.DocumentMachineID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		activities, err := store.ListRecords(ctx, "mch_activity")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		users, err := store.ListRecords(ctx, "mch_user")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		docByID := make(map[string]*data.Record, len(documents))
-		for _, d := range documents {
-			docByID[d.ID] = d
-		}
-		stepsByDoc := make(map[string][]*data.Record, len(documents))
-		for _, s := range steps {
-			docID := toDisplayString(s.Values[action.FieldStepDocument])
-			stepsByDoc[docID] = append(stepsByDoc[docID], s)
-		}
-		names := make(map[string]string, len(users))
-		for _, u := range users {
-			names[u.ID] = toDisplayString(u.Values["fld_name"])
-		}
-
-		sort.Slice(activities, func(i, j int) bool {
-			return activities[i].CreatedAt.Before(activities[j].CreatedAt)
-		})
-		submitterByDoc := make(map[string]string, len(documents))
-		for _, a := range activities {
-			docID := toDisplayString(a.Values["fld_record_id"])
-			if _, ok := submitterByDoc[docID]; ok {
-				continue
-			}
-			if actor := toDisplayString(a.Values["fld_actor"]); actor != "" {
-				submitterByDoc[docID] = actor
-			}
-		}
-
-		now := time.Now()
-		var allPending []rendering.SummaryCard
-		var allBuckets []string
-		var overdueCount, todayCount int
-		for _, s := range steps {
-			if toDisplayString(s.Values["fld_assignee"]) != userID {
-				continue
-			}
-			if toDisplayString(s.Values[action.FieldStepDecision]) != action.DecisionPending {
-				continue
-			}
-			docID := toDisplayString(s.Values[action.FieldStepDocument])
-			doc := docByID[docID]
-			if doc == nil {
-				continue
-			}
-			mode := toDisplayString(doc.Values[action.FieldDocumentMode])
-			if !action.CanDecide(mode, s, stepsByDoc[docID]) {
-				continue
-			}
-
-			approved := 0
-			for _, sib := range stepsByDoc[docID] {
-				if toDisplayString(sib.Values[action.FieldStepDecision]) == action.DecisionApproved {
-					approved++
-				}
-			}
-			title := toDisplayString(doc.Values["fld_title"])
-			submitter := names[submitterByDoc[docID]]
-			if submitter == "" {
-				submitter = "someone"
-			}
-
-			bucket := "upcoming"
-			if due, err := time.Parse("2006-01-02", toDisplayString(doc.Values["fld_due_date"])); err == nil {
-				if status, label := experience.EvaluateSLA(due, now); status == experience.SLAOverdue {
-					bucket = "overdue"
-					overdueCount++
-				} else if label == "Due today" {
-					bucket = "today"
-					todayCount++
-				}
-			}
-			allPending = append(allPending, rendering.SummaryCard{
-				AvatarInitials: initials(submitter),
-				Title:          title,
-				Subtitle:       fmt.Sprintf("%s · %d/%d approved · Submitted by %s", mode, approved, len(stepsByDoc[docID]), submitter),
-				StatusLabel:    toDisplayString(doc.Values["fld_status"]),
-				SLADue:         doc.Values["fld_due_date"],
-				Href:           fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID),
-			})
-			allBuckets = append(allBuckets, bucket)
 		}
 
 		filterKey := req.URL.Query().Get("filter")
 		filters := []rendering.SLAFilter{
-			{Key: "all", Label: "All", Count: len(allPending), Active: filterKey == "" || filterKey == "all"},
-			{Key: "overdue", Label: "Overdue", Count: overdueCount, Active: filterKey == "overdue"},
-			{Key: "today", Label: "Due today", Count: todayCount, Active: filterKey == "today"},
+			{Key: "all", Label: "All", Count: len(inbox.Pending), Active: filterKey == "" || filterKey == "all"},
+			{Key: "overdue", Label: "Overdue", Count: inbox.OverdueCount, Active: filterKey == composition.BucketOverdue},
+			{Key: "today", Label: "Due today", Count: inbox.TodayCount, Active: filterKey == composition.BucketToday},
 		}
 
-		pending := allPending
-		if filterKey == "overdue" || filterKey == "today" {
+		pending := inbox.Pending
+		if filterKey == composition.BucketOverdue || filterKey == composition.BucketToday {
 			pending = nil
-			for i, c := range allPending {
-				if allBuckets[i] == filterKey {
+			for i, c := range inbox.Pending {
+				if inbox.Buckets[i] == filterKey {
 					pending = append(pending, c)
 				}
 			}
 		}
 
-		var mine []rendering.SummaryCard
-		for _, d := range documents {
-			if submitterByDoc[d.ID] != userID {
-				continue
-			}
-			title := toDisplayString(d.Values["fld_title"])
-			mine = append(mine, rendering.SummaryCard{
-				AvatarInitials: initials(names[userID]),
-				Title:          title,
-				Subtitle:       "Submitted by you",
-				StatusLabel:    toDisplayString(d.Values["fld_status"]),
-				Href:           fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, d.ID),
-			})
-		}
-
-		rendering.ApprovalInboxPage(filters, pending, mine, appName).Render(ctx, w)
+		rendering.ApprovalInboxPage(filters, pending, inbox.Mine, appName).Render(ctx, w)
 	}
 }
 

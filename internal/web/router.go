@@ -59,7 +59,7 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/automation", showAutomation(d.MachineList, d.AppName))
 		pr.Get("/calendar", showCalendar(d.Store, d.AppName))
 		pr.Get("/sprint", showSprintDashboard(d.Store, d.AppName))
-		pr.Get("/approval-inbox", showApprovalInbox(d.Store, d.AppName, d.Cfg))
+		pr.Get("/approval-inbox", showApprovalInbox(d.Machines, d.Store, d.AppName, d.Cfg))
 		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.AppName))
 		pr.Get("/documents/new/approver-row", newApproverRow(d.Store))
 		pr.Post("/documents", submitDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
