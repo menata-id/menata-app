@@ -60,6 +60,11 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			@decideButtons(m, r, actorID)
 		}
 		<div class="actions">
+			if m.ID == action.DocumentMachineID {
+				<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)) }>
+					<button type="button">Signature Positions</button>
+				</a>
+			}
 			<button
 				hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 				hx-target="#record-detail"

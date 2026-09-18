@@ -173,7 +173,7 @@ Create/edit/delete verified working identically on both layouts.
 
 ---
 
-## Phase 6 -- IR + Dependency Graph + Composable Execution Planner (still not forced)
+## Phase 6 -- IR + Dependency Graph + Composable Execution Planner (dedup now forced; IR/DAG still not)
 
 **Forcing condition:** a single page needs data from more than one Dataset/Query and naive
 per-component fetching becomes wasteful or incorrect (e.g. a dashboard combining Task and Project
@@ -190,15 +190,62 @@ was no naive-fetch problem to fix. The forcing condition needs a page shape this
 yet -- likely N independently-scoped queries (e.g. per-row aggregates, or security-scoped data
 that can't just be fetched whole and filtered in Go).
 
-- [ ] Formalize Domain/Data/UI IR (`internal/ir`) -- scoped to what the forcing case above
-      actually needs represented, not the full model from 007 §15-16 at once
-- [ ] `internal/composition`: derive a real dependency graph from an actual multi-dataset page
-- [ ] `internal/planner`: the smallest planner that fixes the specific inefficiency/bug the
-      forcing case exposed (dedup, batching, etc. -- whichever one is actually needed first)
+**Re-tested 2026-09-18 (fourth time), after Phase 16, as the 2026-09-18 audit instructed. First
+non-negative result -- but on the composition axis, not the security one the audit predicted.**
 
-**Exit criterion:** the forcing case's specific problem (duplicate queries, or whatever it turns
-out to be) is measurably fixed, proven by a before/after comparison, not by the planner's mere
-existence.
+*Method:* a temporary probe on `Store`'s three read entry points (`ListRecords`/`ListRecordsBy`
+via `queryRecords`, plus `GetRecord`), real Postgres, session-authenticated `GET`s to all 14
+composed and detail routes. The probe was reverted after measuring; raw counts below are what the
+running server actually issued, not a static reading of the handlers.
+
+*Security-scoped half: still negative.* Phase 16's Permission gates one write Action
+(`/decide`); it narrowed no read path. `/approval-inbox` still issues 4 whole-Machine reads and
+filters by identity in Go, exactly as "Concept conformance gaps" describes. The audit's
+expectation that Phase 16 would create this forcing condition was wrong: per-Machine visibility
+cannot discriminate while one shared credential means every session is the same person. The real
+trigger is **per-user login** (still deferred, Phase 7), not Permission.
+
+*Composition half: positive, for the first time.* Three pages issue duplicate whole-Machine
+fetches within a single request:
+
+| Route | Queries | Redundant | What repeats |
+|---|---|---|---|
+| `/machines/mch_task` (board) | 5 | 1 | `mch_list` x2 -- `loadRelationOptions` (`fld_list`) and `loadBoardColumns` (`group_by`) each fetch it |
+| `/machines/mch_project/records/{id}` | 6 | 1 | `mch_user` x2 -- the parent's own relation options (`fld_owner`) and the `mch_task` child section's (`fld_assignee`) |
+| `/machines/mch_user/records/{id}` | 12 | 3 (25%) | `mch_user` x4 -- one per child section (`mch_task`, `mch_project`, `mch_approval_step`, `mch_activity`) |
+
+Every other route measured clean: `/dashboard` 5, `/approval-inbox` 4, `/sprint` 3, `/my-tasks`
+`/activity` `/calendar` `/team-capacity` `/board-settings` 2 each, all with zero duplication --
+the "two whole datasets joined in memory" shape the first three tests found, still correct.
+
+*Cause:* `loadRelationOptions` deduplicates *within* one Machine (its own `options` map) but each
+call starts a fresh map; `loadChildSections` calls it once per child section, and
+`loadBoardColumns` does not consult it at all. Nothing in the request shares a fetch across those
+call sites.
+
+*Why this counts, despite small absolute numbers:* the duplication scales with the **number of
+Machines that reference the target**, i.e. with metadata size, not record count. Every future
+Machine carrying a `person` field adds one more full `mch_user` fetch to `mch_user`'s own detail
+page -- 007 §28 invariant #2 (no unbounded fan-out) names exactly this. The first three tests
+looked for waste that grows with *data* and correctly found none; this one grows with *schema*.
+
+**Verdict:** deduplication of shared dependencies -- the CEP's own first named job (007 §18,
+`internal/planner/doc.go`) -- is forced. The IR and the dependency graph are **not**: per the
+Method's "build the minimum," and §4.1's admission question, a request-scoped memo of
+`ListRecords` closes all three rows above without any IR or DAG. Build that; the graph earns its
+place when dedup alone stops being enough (batching, concurrency bounds, or a case where the
+right fetch depends on another fetch's result -- none exists today).
+
+- [ ] Request-scoped read memoization: one shared cache per request, keyed by the read's own
+      arguments, consulted by `loadRelationOptions`, `loadChildSections` and `loadBoardColumns`.
+      Smallest thing that fixes the measured problem; lives with `Store`'s callers, not in
+      `internal/planner`, until a second planner concern appears
+- [ ] Deferred until a second concern exists: Domain/Data/UI IR (`internal/ir`),
+      `internal/composition`'s dependency graph, `internal/planner` proper
+
+**Exit criterion:** re-run the probe above; `/machines/mch_task` drops 5 -> 4,
+`/machines/mch_project/records/{id}` 6 -> 5, `/machines/mch_user/records/{id}` 12 -> 9, with
+rendered HTML identical before and after (same check Phase 15 Step 0 used).
 
 ---
 
@@ -538,7 +585,9 @@ for its own real second occurrence -- exactly Study 40's own P4/P5 distinction, 
 1. **Composable Execution Planner / IR / dependency graph (007 §15-18)** -- a *query-efficiency*
    question: does hand-composing a page in Go produce a naive-fetch problem? Phase 6 has tested
    this twice, both negative. **Still correctly not forced** -- nothing in this research pass
-   changes that verdict, it answers a different question.
+   changes that verdict, it answers a different question. (Superseded 2026-09-18 by Phase 6's
+   fourth test, which found real duplicate fetches on three routes: the *dedup* part of the CEP
+   is now forced, the IR/DAG part still is not. See Phase 6 for the measurements.)
 2. **Metadata-driven page/View composition (`type: dashboard`'s own `children`/`sections`
    mechanism, CAP-V10)** -- an *authoring* question: can someone declare "compose these Views
    into a page" from YAML, without writing Go? menata-app has never actually tested this axis --
@@ -615,7 +664,24 @@ existing menata-app symbol):
       toolchain reason. Verified against a hand-built minimal single-page PDF fixture
       (`internal/pdf/testdata/blank.pdf`): correct page count, in-bounds rendered dimensions,
       and a real error on an out-of-range page.
-- [ ] Step 4: signature-coordinate placement screen (the vanilla-JS exception above)
+- [x] Step 4 (done, 2026-09-18): signature-coordinate placement screen (the vanilla-JS exception
+      above) -- `GET .../signature-placement` renders one page of the Document's own PDF (Step
+      3's `internal/pdf`, served by a new `.../pdf-preview` route) with one draggable marker per
+      Approval Step (`rendering.SignaturePlacementPage`). Only the drag itself is vanilla JS
+      (~25 lines: `pointerdown`/`pointermove`/`pointerup`, `(clientX-rect.left)/rect.width`) --
+      placing a marker on the current page, and saving a drag's final position, are both ordinary
+      HTMX submits to the existing generic PUT route (`hx-swap="none"`, reload on success), no new
+      write path. Both new routes and the screen itself are hardcoded to `mch_document`, same
+      posture as `internal/action` -- Case 3's own screen, not a generic per-Machine mechanism.
+      Verified end-to-end on a temporary second server instance against the real Postgres database
+      (not the live process on :4000, left untouched and never restarted): a hand-built 2-page PDF
+      fixture, two scratch Approval Steps, page navigation (Prev/Next appear correctly at the
+      first/last page), placing a marker, dragging it to a new position (persisted and
+      re-rendered at the exact coordinates), and per-page marker filtering (each step's marker
+      shows only on its own `fld_signature_page`) all confirmed; the wrong-Machine 404 guard on
+      both new routes confirmed too. All scratch records (Document, 2 Approval Steps, the
+      Activity entry the submission logged) and the scratch upload deleted afterward -- record
+      counts per Machine verified identical before and after
 - [ ] Step 5: `mch_signature` Machine (`fld_owner: person`, `fld_image: file`) -- ordinary
       Machine, no identity-model change
 - [ ] Step 6: Document Submit's multi-step wizard flow, flat (non-Group) approver picker
@@ -767,10 +833,12 @@ the code actually does today, and the verdict -- *blocking* (must close before m
 *tracked* (real gap, has a forcing condition, not blocking), or *deferred* (named with the trigger
 that would force it, so it stops being an omission).
 
-Nothing here is a 007 PROPOSED mechanism: IR, Data IR, UI IR, Context/Scope/Binding, the
-Composable Execution Planner and the Component Registry are correctly deferred (007 §34, §40 mark
-them PROPOSED; Phase 6 has tested its own forcing condition three times, all negative) and stay in
-"What's deliberately not phased yet" below.
+Nothing here is a 007 PROPOSED mechanism: IR, Data IR, UI IR, Context/Scope/Binding and the
+Component Registry are correctly deferred (007 §34, §40 mark them PROPOSED) and stay in "What's
+deliberately not phased yet" below. The Composable Execution Planner is the one exception as of
+Phase 6's fourth test (2026-09-18): its *dedup* job is now forced by measured duplicate fetches
+on three routes, and has its own checkbox in Phase 6. Its IR and dependency-graph halves remain
+deferred with the rest.
 
 ### First pass (2026-09-18) -- Permission
 
@@ -833,10 +901,17 @@ them PROPOSED; Phase 6 has tested its own forcing condition three times, all neg
   anti-pattern: "query all data -> render -> trim unauthorized rows." That is literally today's
   shape -- `showApprovalInbox` and `showMyTasks` both `ListRecords` a whole Machine and filter by
   the current identity in Go. Harmless while one shared admin identity sees everything, and
-  correct to leave alone until Phase 16 makes visibility mean something. **This is also the
-  missing half of Phase 6's forcing condition**, which has been looking for "security-scoped data
-  that can't just be fetched whole and filtered in Go" -- Phase 16 is what creates it. Re-run
-  Phase 6's test after Phase 16 lands, not before.
+  correct to leave alone until visibility means something. **This is also the missing half of
+  Phase 6's forcing condition**, which has been looking for "security-scoped data that can't just
+  be fetched whole and filtered in Go."
+
+  *Updated 2026-09-18, after re-running Phase 6's test as this entry instructed:* the prediction
+  that Phase 16 would create that forcing condition was **wrong**. Permission gates one write
+  Action and narrowed no read path -- `/approval-inbox` still measures 4 whole-Machine reads
+  filtered in Go. Per-Machine visibility has nothing to discriminate on while one shared
+  credential makes every session the same person, so the real trigger is **per-user login**
+  (Phase 7's own deferred item), not Permission. Re-run Phase 6's security half after that lands,
+  not before.
 - **Tracked: Workspace never enters the data path.** 001 Principle #9 calls Workspace "the primary
   execution boundary" and 004 calls its isolation "a runtime invariant." It is metadata-only here:
   `domain.Workspace` is parsed from `app.yaml`, and then the `records` table has no workspace or
@@ -882,7 +957,9 @@ any more, which was the actual finding.
 Phase 15's own research pass (2026-09-15) re-confirmed two more belong here, explicitly rather
 than by omission: a metadata-driven page-composition mechanism / UI IR (007 §15, still PROPOSED)
 and a generic Component Registry (007 §14) -- ~15 hand-wired templ page functions today is not
-the dispatch-sprawl problem §14 exists to fix, and Phase 6 has already tested negative twice.
+the dispatch-sprawl problem §14 exists to fix. Both still stand after Phase 6's fourth test
+(2026-09-18): what that test forced is read deduplication, which is neither a UI IR nor a
+registry concern.
 
 `internal/action` is no longer in this list -- Phase 12 names its real forcing case
 (Case 3's sequential/parallel approval). Until Phase 12 actually lands, treat this line as the

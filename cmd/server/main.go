@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
 	"menata.app/internal/metadata"
+	"menata.app/internal/pdf"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
@@ -96,6 +99,8 @@ func main() {
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store, files, cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machines, store))
 		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(machines, store, cfg))
+		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(machines, store, files, app.Application.Name))
+		pr.Get("/machines/{machineID}/records/{id}/pdf-preview", servePDFPreview(machines, store, files))
 
 		pr.Get("/uploads/*", serveUpload(files))
 
@@ -1196,6 +1201,120 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg conf
 			return
 		}
 		http.Redirect(w, req, documentURL, http.StatusSeeOther)
+	}
+}
+
+// loadDocumentPDF fetches document's own fld_file upload and reads it off local disk, for both
+// showSignaturePlacement and servePDFPreview -- the one place either handler needs the raw PDF
+// bytes.
+func loadDocumentPDF(ctx context.Context, store *data.Store, files *storage.Store, documentID string) (*data.Record, []byte, error) {
+	document, err := store.GetRecord(ctx, action.DocumentMachineID, documentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	key := toDisplayString(document.Values[action.FieldDocumentFile])
+	if key == "" {
+		return document, nil, fmt.Errorf("document has no file uploaded")
+	}
+	path, err := files.Path(key)
+	if err != nil {
+		return document, nil, err
+	}
+	fileBytes, err := os.ReadFile(path)
+	if err != nil {
+		return document, nil, err
+	}
+	return document, fileBytes, nil
+}
+
+// pageFromQuery reads a 1-indexed ?page= query param, clamped to [1, totalPages], defaulting to
+// 1 for anything missing or unparseable.
+func pageFromQuery(req *http.Request, totalPages int) int {
+	page, err := strconv.Atoi(req.URL.Query().Get("page"))
+	if err != nil || page < 1 {
+		return 1
+	}
+	if page > totalPages {
+		return totalPages
+	}
+	return page
+}
+
+// showSignaturePlacement is Case 3's signature-coordinate placement screen (ROADMAP.md Phase 15
+// Step 4) -- a real rendered page of the Document's own PDF (Step 3's internal/pdf), one
+// draggable marker per Approval Step. Hardcoded to mch_document, same posture as decideStep: this
+// is Case 3's own screen, not a generic per-Machine feature.
+func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, appName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+		if machine.ID != action.DocumentMachineID {
+			http.Error(w, "signature placement only applies to a Document", http.StatusNotFound)
+			return
+		}
+		ctx := req.Context()
+		documentID := chi.URLParam(req, "id")
+		document, fileData, err := loadDocumentPDF(ctx, store, files, documentID)
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		totalPages, err := pdf.PageCount(fileData)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("unable to read document PDF: %v", err), http.StatusUnprocessableEntity)
+			return
+		}
+		page := pageFromQuery(req, totalPages)
+
+		steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, documentID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		relations, err := loadRelationOptions(ctx, store, machines, machines[action.StepMachineID])
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, appName).Render(ctx, w)
+	}
+}
+
+// servePDFPreview rasterizes one page of a Document's own PDF to PNG (Step 3's internal/pdf),
+// for showSignaturePlacement's own <img> -- not exposed for any other Machine or file field, same
+// hardcoded scope as the rest of Case 3's Action/screen code.
+func servePDFPreview(machines map[string]*domain.Machine, store *data.Store, files *storage.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+		if machine.ID != action.DocumentMachineID {
+			http.Error(w, "PDF preview only applies to a Document", http.StatusNotFound)
+			return
+		}
+		_, fileData, err := loadDocumentPDF(req.Context(), store, files, chi.URLParam(req, "id"))
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		totalPages, err := pdf.PageCount(fileData)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("unable to read document PDF: %v", err), http.StatusUnprocessableEntity)
+			return
+		}
+		page := pageFromQuery(req, totalPages)
+
+		png, err := pdf.RenderPagePNG(fileData, page-1, 900, 1200)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("unable to render page: %v", err), http.StatusUnprocessableEntity)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(png)
 	}
 }
 

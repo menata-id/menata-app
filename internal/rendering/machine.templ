@@ -83,6 +83,13 @@ templ pageShell(title string, appName string) {
 				.step-body { display: flex; flex-direction: column; }
 				.step-title { font-weight: 500; }
 				.step-status { font-size: 0.8rem; color: #666; }
+				.sig-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-top: 1rem; align-items: start; }
+				.sig-pager { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+				.sig-canvas { position: relative; display: inline-block; max-width: 480px; }
+				.sig-canvas img { display: block; width: 100%; border: 1px solid #ccc; border-radius: 4px; }
+				.sig-marker { position: absolute; transform: translate(-50%, -50%); width: 1.75rem; height: 1.75rem; padding: 0; border-radius: 50%; background: #3949ab; color: #fff; border: 3px solid #fff; box-shadow: 0 0 0 1px #3949ab; font-size: 0.75rem; font-weight: 600; cursor: grab; touch-action: none; }
+				.sig-step-card { border: 1px solid #e5e5e5; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; }
+				.sig-step-card form { margin-top: 0.5rem; }
 			</style>
 		</head>
 		<body>

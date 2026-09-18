@@ -22,9 +22,19 @@ const (
 
 	FieldDocumentMode   = "fld_mode"
 	FieldDocumentStatus = "fld_status"
+	FieldDocumentFile   = "fld_file"
 	FieldStepDocument   = "fld_document"
 	FieldStepSequence   = "fld_sequence"
+	FieldStepAssignee   = "fld_assignee"
 	FieldStepDecision   = "fld_decision"
+
+	// Signature placement fields (ROADMAP.md Phase 15 Step 3/4) -- plain, percentage-based number
+	// Fields, not a new Field type. Origin is the top-left of the rendered page image: X grows
+	// right, Y grows down, matching (clientX-rect.left)/rect.width the placement screen's own drag
+	// handler computes.
+	FieldStepSignaturePage = "fld_signature_page"
+	FieldStepSignatureX    = "fld_signature_x"
+	FieldStepSignatureY    = "fld_signature_y"
 
 	ModeSequential = "sequential"
 
