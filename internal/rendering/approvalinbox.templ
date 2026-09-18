@@ -19,6 +19,7 @@ templ ApprovalInboxPage(filters []SLAFilter, pending []SummaryCard, mine []Summa
 	@pageShell("Approval Inbox", appName) {
 		<h1>Approval Inbox</h1>
 		<p>Documents where your decision is currently required.</p>
+		<p><a href="/documents/new"><button type="button" class="primary">+ New Approval</button></a></p>
 
 		<div class="filter-chips">
 			for _, f := range filters {

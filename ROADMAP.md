@@ -772,16 +772,42 @@ existing menata-app symbol):
       collection ("Signature (1)") with zero extra code, the same free reverse-relation Phase 9
       already proved for Tasks. Scratch record and upload deleted afterward, record counts
       verified unchanged
-- [ ] Step 6: Document Submit's multi-step wizard flow, flat (non-Group) approver picker
+- [x] Step 6 (done, 2026-09-18): Document Submit's multi-step wizard flow (`GET /documents/new`,
+      `rendering.DocumentSubmitPage`), flat (non-Group) approver picker. One POST
+      (`/documents`, `submitDocumentWizard`) creates the Document and its own Approval Steps
+      together -- the submitted `<select>`s' own form-submission order becomes each step's
+      `fld_sequence`, so no hidden sequence input is needed; reordering (▲/▼) and removal (✕) are
+      pure client-side DOM operations (Hyperscript's `put ... before/after the previous/next
+      <.approver-row/>` and `remove closest <.approver-row/>`) since nothing server-meaningful
+      exists to persist until the whole form submits -- README.md's own "local UI toggles" case
+      for Hyperscript, verified grammatically correct against hyperscript.org's own command docs
+      (no live browser available in this environment to exercise the click handlers themselves,
+      so that residual risk is real, not zero). Step numbering on the approver list is a pure CSS
+      counter (`counter-increment`/`counter(...)`), staying correct through add/remove/reorder
+      with no JS of its own. "New Approval" linked from the Approval Inbox page. "Document Type"
+      selector and "save as default flow" are correctly omitted, matching the deferrals below --
+      no `fld_document_type` exists in metadata to back either one, and inventing one wasn't
+      forced by this step
+- [x] Phase 15 exit criterion re-checked: all 4 Case 3 screens now match their own `ui-sample/`
+      mockup's real content (Approval Inbox/document-approval.html -- Step 1; the Document detail
+      page's stepper -- Step 2; signature-placement -- Step 4; this wizard -- Step 6;
+      approval-dashboard.html was already covered by the pre-existing `/dashboard`)
 
 **Deliberately deferred, not part of this phase:** Group-sourced approvers (still no forcing
 case beyond this one screen -- ship flat, per `benchmarks/024`'s own "flat first, swap in groups
 later" resolution; already named as deferred since Phase 7), "save as default flow per Document
 Type" (only one Document Type exists in metadata today), PDF preview zoom/pan (cosmetic).
 
-**Exit criterion:** all 4 Case 3 screens match their own `ui-sample/` mockup's real content,
-using only the components in the matrix above -- no metadata-driven composition mechanism, no
-Component Registry, built.
+**Exit criterion met (2026-09-18):** all 4 Case 3 screens match their own `ui-sample/` mockup's
+real content, using only the components in the matrix above -- no metadata-driven composition
+mechanism, no Component Registry, built. Verified end-to-end on a temporary second server instance
+against the real Postgres database (the live process on :4000 left untouched): the wizard's own
+create -> two Approval Steps in submitted order -> redirect to signature-placement -> Document
+detail page's stepper showing the correct current/waiting steps, all confirmed with a real PDF and
+two real users. Scratch records (Document, 2 Approval Steps, the Activity entry) and the scratch
+upload deleted afterward; record counts verified unchanged.
+
+**Phase 15 complete.**
 
 ---
 

@@ -70,6 +70,7 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Approve/Reject action bar | Built, hardcoded to one Machine | `mch_approval_step`'s own detail page only |
 | PDF page-to-image rendering | Built | `internal/pdf.PageCount`/`RenderPagePNG`, pure-Go (`richardwilkes/pdfview`); served by `GET .../pdf-preview` |
 | Signature-coordinate placement (drag a marker over a rendered PDF page) | Built, hardcoded to one Machine | `GET .../signature-placement`, `rendering.SignaturePlacementPage` — the one named vanilla-JS exception (drag math only; placing/saving a position is ordinary HTMX to the generic PUT route) |
+| Document submission wizard (Document + its own Approval Steps created together, dynamic flat approver picker) | Built, hardcoded to one Machine pair | `GET /documents/new`, `POST /documents`; add/reorder/remove approver rows are Hyperscript (no server-meaningful state until the whole form submits) |
 
 **Not yet built:** Timeline Layout, colored label chips on a card face, drag-and-drop reordering
 of board columns/list items — all named with their own forcing condition in `ROADMAP.md` Phase 14.
@@ -146,6 +147,7 @@ of board columns/list items — all named with their own forcing condition in `R
 | `GET /machines/{id}/records/{id}` | Record detail page (or a fragment, for HTMX) |
 | `GET .../edit`, `PUT .../{id}`, `DELETE .../{id}` | Edit / update / delete a record |
 | `POST .../{id}/decide` | Approve/Reject an Approval Step |
+| `GET /documents/new`, `POST /documents` | Document submission wizard: create a Document and its own Approval Steps together |
 | `GET /machines/mch_document/records/{id}/signature-placement` | Signature-coordinate placement screen |
 | `GET /machines/mch_document/records/{id}/pdf-preview` | One page of the Document's PDF, rasterized to PNG |
 | `GET /uploads/*` | Download an uploaded file |
