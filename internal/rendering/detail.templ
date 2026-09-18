@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"menata.app/internal/action"
+	"menata.app/internal/authorization"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
@@ -20,11 +21,14 @@ type ChildSection struct {
 // RecordDetailPage is a dedicated per-record view (ROADMAP.md Phase 8), replacing inline-only
 // editing (table row / board card) as the host for richer content later phases add (Phase 9's
 // child collections, Phase 13's activity feed).
-templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relations RelationOptions, children []ChildSection) {
+// actorID is the viewing identity, needed only so an Action the viewer is not permitted to
+// perform isn't offered in the first place (ROADMAP.md Phase 16) -- the server enforces the same
+// rule regardless, this only keeps the UI honest about it.
+templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relations RelationOptions, children []ChildSection, actorID string) {
 	@pageShell(m.Name, appName) {
 		<p><a href={ templ.URL("/machines/" + m.ID) }>← { m.Name }</a></p>
 		<div id="record-detail">
-			@RecordDetailView(m, r, relations, children)
+			@RecordDetailView(m, r, relations, children, actorID)
 		</div>
 	}
 }
@@ -32,7 +36,7 @@ templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relati
 // RecordDetailView is one Record's read-only detail: every Field as a label/value pair, plus one
 // section per child collection -- every record of another Machine that references this one
 // (ROADMAP.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
-templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection) {
+templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection, actorID string) {
 	<div id="record-detail">
 		<h1>{ recordTitle(m, r) }</h1>
 		<code>{ r.ID }</code>
@@ -53,7 +57,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			}
 		</dl>
 		if m.ID == action.StepMachineID {
-			@decideButtons(m, r)
+			@decideButtons(m, r, actorID)
 		}
 		<div class="actions">
 			<button
@@ -83,15 +87,21 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 // deciding again isn't offered, matching action.CanDecide's own one-way semantics. On success the
 // server redirects to the parent Document's page (POST .../decide), so no hx-target/swap is
 // needed here.
-templ decideButtons(m *domain.Machine, r *data.Record) {
+//
+// A pending step assigned to someone else shows who it's waiting on instead of buttons, asking
+// authorization.AllowsAction the same question the handler asks (Phase 16). This is presentation,
+// not enforcement: the server denies the POST either way.
+templ decideButtons(m *domain.Machine, r *data.Record, actorID string) {
 	<div class="actions">
-		if toString(r.Values[action.FieldStepDecision]) == action.DecisionPending {
+		if toString(r.Values[action.FieldStepDecision]) != action.DecisionPending {
+			<span class="badge">{ toString(r.Values[action.FieldStepDecision]) }</span>
+		} else if authorization.AllowsAction(m, domain.ActionDecide, r.Values, actorID) {
 			<form hx-post={ fmt.Sprintf("/machines/%s/records/%s/decide", m.ID, r.ID) }>
 				<button type="submit" name="decision" value={ action.DecisionApproved } class="primary">Approve</button>
 				<button type="submit" name="decision" value={ action.DecisionRejected }>Reject</button>
 			</form>
 		} else {
-			<span class="badge">{ toString(r.Values[action.FieldStepDecision]) }</span>
+			<span class="step-status">Awaiting its own assignee's decision</span>
 		}
 	</div>
 }

@@ -631,7 +631,78 @@ Component Registry, built.
 
 ---
 
-## Phase 16 -- Case 3 signing: PDF signature compositing Action
+## Phase 16 -- Permission: the Domain Plane's fifth primitive (done, 2026-09-18)
+
+**Forcing condition:** Case 3 already assigns each Approval Step to a real person
+(`mch_approval_step.fld_assignee`, Phase 7) and Phase 15 Step 1's Approval Inbox already *shows*
+each identity only its own steps -- but `POST .../decide` enforces none of it, so any
+authenticated user can approve or reject any step. Permission is one of the five Domain Plane
+primitives 004 §Domain Plane and 006 §Domain Model name alongside Machine/Field/Event/Constraint,
+and it is the only one with a real forcing case that is not built. The 2026-09-18 audit found it
+had fallen through this roadmap's own tracking discipline entirely: neither built, nor named as
+deliberately deferred.
+
+Sequenced here, before Phase 17, because Phase 17 burns an approver's signature image onto a real
+PDF -- doing that for a decision nobody verified that approver actually made is a correctness
+defect, not merely an access-control one.
+
+**Design pass (resolve before code, same discipline as Phases 4 and 12):**
+
+- *Does it reduce to an existing primitive?* No. Constraint (Phase 4) compares a transition
+  against related records of *another* Machine; `internal/expression` has no notion of the acting
+  identity at all -- `current_user` is not in its vocabulary, and 006 §Context is explicit that
+  context "is not an implicit authorization mechanism." Authorization is its own concern.
+- *Declared or hardcoded?* Declared. Hardcoding an actor check in `decideStep` the way Phase 12
+  hardcoded `CanDecide` would close the `/decide` hole while leaving the audit's actual finding --
+  that the Permission primitive does not exist -- untouched. 007 §27 says a capability should be
+  admitted at the lowest useful abstraction level; here that is one small `permissions:` block on
+  the Machine that owns the Action, validated like every other declaration.
+- *Granularity:* record-scoped on one Action (`actor_field` names a `person` Field the acting
+  identity must match). Deliberately **not** built: roles, groups, field-level scoping, a
+  per-Machine CRUD permission matrix, or any expression language in the permission itself. None
+  is forced while there is exactly one shared login credential -- per-Machine CRUD permission has
+  nothing to discriminate on until per-user login exists, which is still deferred (Phase 7).
+- *Where it lives:* `internal/authorization`, as a pure function over an already-fetched record,
+  the same posture as `behavior.CheckConstraints` and `action.CanDecide` -- 007 §20 is explicit
+  that "Permissions remain owned by the existing authorization architecture," and that the Data
+  Plane must consume permission decisions rather than redefine them.
+
+- [x] `permissions:` on a Machine (`id: prm_*`, `action:`, `actor_field:`), parsed and validated
+      like every other declaration (`domain.Permission`, `metadata.validatePermission`) --
+      `actor_field` must be a reference Field on the same Machine, and `action` must be in
+      `domain.KnownActions`, the same closed static seam `KnownFieldTypes` already is (007 §14):
+      a Permission naming an Action the runtime does not realize would silently protect nothing
+- [x] `internal/authorization.AllowsAction`: the pure evaluator, unit-tested (actor matches /
+      is someone else / is unidentified / record unassigned / no Permission declared / a
+      different Action). An unassigned record is actionable by no one rather than by everyone
+- [x] `decideStep` enforces it immediately after loading the step and before anything else is
+      fetched, returning `403` -- authorization is established before any work, per 005
+      §Security Ordering and 007 §20
+- [x] `metadata/approval_step.yaml` declares the one real instance
+      (`prm_decide_own_step`: `action: decide`, `actor_field: fld_assignee`)
+- [x] `decideButtons` asks `AllowsAction` the same question, so a step assigned to someone else
+      shows "Awaiting its own assignee's decision" instead of buttons that would 403. Presentation
+      only -- the server denies the POST either way
+
+**Known consequence, accepted:** the single shared admin credential resolves to one `mch_user`
+record (`ADMIN_USER_ID`), so after this lands that identity can only decide steps assigned to
+*it*. That is the correct behavior and it already matches what Phase 15 Step 1's Approval Inbox
+shows; it does mean the live demo's seeded steps must be assigned to the admin identity to remain
+decidable through the UI.
+
+**Exit criterion met (2026-09-18):** verified end-to-end on a scratch database and scratch server,
+with two real `mch_user` records (Rina, Maya) and the session identity switched between them --
+deciding a step assigned to the other person returns `403` and leaves both the step's own
+`fld_decision` and the parent Document's aggregate status untouched; deciding one's own step
+returns `303` and drives the Document to `approved` exactly as before; a sequential Document's
+step 2, assigned to the acting identity but still locked behind an undecided step 1, returns
+Phase 12's own `422` rather than `403` -- the two rules are independent and both still fire. The
+Approval Inbox's own listing was confirmed to agree with the new enforcement. Scratch database
+dropped afterward; no production data touched.
+
+---
+
+## Phase 17 -- Case 3 signing: PDF signature compositing Action
 
 **Forcing condition:** Case 3's Approve step should produce a real signed PDF (CAP-F22 in
 `menata-runtime/benchmarks/024`) -- burning each approver's signature image onto the document at
@@ -648,10 +719,10 @@ as a second hardcoded function alongside `CanDecide` -- same posture (fires on o
 write, hardcoded to `mch_document`/`mch_approval_step`'s own field IDs, not a generic engine) --
 not a generic "PDF processing" service, since no second case needs one yet.
 
-**Blocking prerequisite (named by the 2026-09-18 audit, Operational backlog):** `decideStep`
-today lets any authenticated user decide any Approval Step, not only its own `fld_assignee`.
-Fix that first (or in the same change) -- otherwise this phase burns a real approver's signature
-image onto a PDF for a decision nobody verified that approver actually made.
+**Blocking prerequisite: Phase 16 must land first.** `decideStep` today lets any authenticated
+user decide any Approval Step, not only its own `fld_assignee` -- otherwise this phase burns a
+real approver's signature image onto a PDF for a decision nobody verified that approver actually
+made.
 
 - [ ] Add a pure-Go PDF dependency; a `CompositeSignatures` function taking the Document's file +
       each approved step's signature image + coordinates, returning a new file
@@ -679,30 +750,116 @@ phase they don't belong to:
       brute-force attempts
 - [ ] CI workflow (`.github/workflows/`) -- build+vet+test on push; none exists yet despite 60+
       tests already in the repo
-- [ ] Sort/filter/search on record lists -- `Store.ListRecords` only orders by `created_at desc`
+- [ ] Sort/filter/search on record lists -- `Store.ListRecords` only orders by `sort_order`
+      (Phase 9 replaced the original `created_at desc`; this line said otherwise until the
+      2026-09-18 audit). See "Concept conformance gaps" below for the architectural half of this:
+      there is no projection, filter pushdown, or pagination either
 - [ ] JSON API parity -- `/api/machines/{id}/records` only supports create+list; update/delete
       exist only via the browser HTML routes, not the API
 
-Found during a 001-007 concept-vs-code gap audit (2026-09-18) -- unlike Event/Service (named
-below in "What's deliberately not phased yet"), the Domain Plane's **Permission** primitive
-(004/006/007, alongside Machine/Field/Event/Constraint) had fallen through this repo's own
-tracking discipline: not built, and not named as deliberately deferred anywhere until now.
+---
 
-- [ ] No Machine- or Action-level authorization exists in code. `internal/authorization` only
-      answers "is this session valid" (`IsAuthenticated`/`CurrentUserID`); there is no per-
-      Machine, per-Action, or per-record permission check anywhere in `cmd/server/main.go`.
-      `capabilities.md`'s Authorization table previously overstated this as "Current granularity
-      is Machine+Action only" -- corrected alongside this entry (2026-09-18). Harmless today only
-      because there is exactly one shared admin identity (Phase 7); stops being harmless the
-      moment a second real user exists, which Phase 15/16 already assume (`fld_assignee` on
-      `mch_approval_step`).
-- [ ] `POST .../decide` (`decideStep`, `cmd/server/main.go`) never checks that the acting user is
-      the Approval Step's own `fld_assignee` -- `internal/action.CanDecide` only enforces
-      sequencing, not identity. Any authenticated user can already approve or reject any step
-      today, which contradicts Phase 12's own stated design ("each with its own assignee and
-      Approve/Reject decision"). Resolve this before or alongside Phase 16: a composited signed
-      PDF that burns in the wrong approver's signature image would be a correctness defect, not
-      merely an access-control one.
+## Concept conformance gaps (001-007 audit)
+
+A different job from the Operational backlog above: those are hygiene items, these are places
+where a **stated obligation in 001-007** is not met by the code. Each entry names the clause, what
+the code actually does today, and the verdict -- *blocking* (must close before more feature work),
+*tracked* (real gap, has a forcing condition, not blocking), or *deferred* (named with the trigger
+that would force it, so it stops being an omission).
+
+Nothing here is a 007 PROPOSED mechanism: IR, Data IR, UI IR, Context/Scope/Binding, the
+Composable Execution Planner and the Component Registry are correctly deferred (007 §34, §40 mark
+them PROPOSED; Phase 6 has tested its own forcing condition three times, all negative) and stay in
+"What's deliberately not phased yet" below.
+
+### First pass (2026-09-18) -- Permission
+
+- **Blocking -> closed by Phase 16 (2026-09-18).** The Domain Plane's **Permission** primitive
+  (004 §Domain Plane, 006 §Domain Model, alongside Machine/Field/Event/Constraint) was not built,
+  and until this audit was not named as deferred anywhere either -- it had fallen through this
+  repo's own tracking discipline. `internal/authorization` only answered "is this session valid"
+  (`IsAuthenticated`/`CurrentUserID`); there was no per-Machine, per-Action, or per-record check
+  anywhere in `cmd/server/main.go`. Concretely, `POST .../decide` never checked that the acting
+  user is the Approval Step's own `fld_assignee` (`action.CanDecide` enforces sequencing, not
+  identity), so any authenticated user could approve or reject any step -- contradicting Phase
+  12's own stated design. Promoted out of this list into **Phase 16**, since it has a real forcing
+  case and therefore deserves a phase, not a backlog line. `capabilities.md`'s Authorization table
+  previously overstated this as "Current granularity is Machine+Action only" -- corrected
+  2026-09-18.
+
+  **Still open after Phase 16, deliberately:** Permission now exists as a real declared primitive,
+  but with exactly one shape (record-scoped, on one Action) and one instance. Ordinary record
+  create/update/delete on every Machine remains ungoverned -- any authenticated identity can still
+  edit or delete any record through the generic routes. That is not an oversight carried forward
+  silently: it is unforced while one shared credential means every session is the same person, and
+  the mechanism to close it now exists rather than having to be invented. Per-user login is its
+  forcing condition.
+
+### Second pass (2026-09-18, deeper) -- the rest of 001-007
+
+- **Tracked: inference is not inspectable.** 001 Principle #6 does not merely prefer inference, it
+  requires that "when inference materially affects data access, composition, authorization,
+  rendering, or execution planning, the runtime should be able to expose the resolved result
+  through diagnostics or equivalent tooling"; 004 §Inference and 005 Phase 4 repeat it ("infer
+  before configure, **but make inference inspectable**"). menata-app infers materially in at least
+  four places -- `person` silently becomes a Relation to `mch_user` (`metadata.Parse` writes
+  `machine:` itself), `domain.FindChildCollections` derives every detail-page child section from
+  reverse references, `loadBoardColumns` resolves board columns from a relation target, and the
+  default `table` Layout applies to any Machine with no `view:` block -- and **none of it can be
+  inspected**: there is no diagnostics route, no `--explain` mode, no dump of the normalized
+  Application. Nothing in the repo tracked this until now. Forcing condition for closing it: the
+  first time an inferred result is wrong or surprising and cannot be explained without reading Go
+  source -- likely the first metadata author who is not the engineer who wrote the inference.
+- **Tracked: no metadata versioning or change classification.** 004 §Metadata Versioning and
+  Evolution and 005 §Safe Evolution / §Versioning and Plan Identity both require that metadata
+  changes be classified by impact and that "potentially destructive changes should always require
+  explicit migration decisions" (001 Principle #11, Data Preservation). No metadata file carries a
+  version key, and nothing classifies a change: deleting a Field from a `*.yaml` today silently
+  orphans that field's data inside every record's JSONB -- no warning, no migration decision, no
+  rollback path. Business data survives by accident (JSONB keeps what it was given), not by
+  design. Forcing condition: the first real destructive metadata change on data that matters.
+- **Tracked: Navigation is code, not metadata.** 004 §Navigation Metadata and 006 §Navigation both
+  name Navigation as an Experience-plane metadata concept. `rendering.pageShell` hardcodes a flat
+  ten-link topbar, so every new page needs a `machine.templ` edit -- the one place where adding an
+  application surface still requires a code change, against 001 Principle #3 (Metadata First).
+  Related and also untracked until now: `ui-sample/README.md`'s own "Menu Navigasi (ini belum
+  dibuat)" names a two-level navigation this app has never had -- a cross-application launcher and
+  a per-application menu (desktop top bar / mobile bottom bar). Forcing condition: a second
+  Application in the manifest, or the mobile bottom-bar layout Case 3's own mockups
+  (`document-approval.html`) already assume.
+- **Tracked: security scope is applied after retrieval, not inside the plan.** 005 §Security
+  Ordering and 007 §20 are explicit that the runtime must establish workspace, user, record scope
+  and action authorization *before* retrieval and optimization, and 007 §20 names the exact
+  anti-pattern: "query all data -> render -> trim unauthorized rows." That is literally today's
+  shape -- `showApprovalInbox` and `showMyTasks` both `ListRecords` a whole Machine and filter by
+  the current identity in Go. Harmless while one shared admin identity sees everything, and
+  correct to leave alone until Phase 16 makes visibility mean something. **This is also the
+  missing half of Phase 6's forcing condition**, which has been looking for "security-scoped data
+  that can't just be fetched whole and filtered in Go" -- Phase 16 is what creates it. Re-run
+  Phase 6's test after Phase 16 lands, not before.
+- **Tracked: Workspace never enters the data path.** 001 Principle #9 calls Workspace "the primary
+  execution boundary" and 004 calls its isolation "a runtime invariant." It is metadata-only here:
+  `domain.Workspace` is parsed from `app.yaml`, and then the `records` table has no workspace or
+  application column at all (`migrations/001_records.sql`) and `Store` keys everything on
+  `machine_id` alone. "Multi-workspace tenancy" is already listed as deliberately not phased --
+  what was *not* named is the consequence: because the boundary is absent from storage rather than
+  merely unused, adding a second Workspace later is a data migration on live records, not a
+  metadata change. Worth pricing in before the first real multi-tenant case, per Principle #11.
+- **Tracked: every read is a whole-Machine read.** 007 §21.1 (Projection Pushdown), §28 invariant
+  #2 (no unbounded fan-out) and #4 (no full-record-by-default) are all unmet: `Store` offers
+  `ListRecords`/`ListRecordsBy`/`GetRecord` only -- no projection, no filter pushdown, no
+  pagination, no limit. Every page fetches each Machine's entire record set and reduces it in Go.
+  This is a deliberate and so far correct trade (it is exactly why Phase 6 keeps testing negative),
+  but it is bounded by record count, and nothing in the repo said so. Forcing condition: the first
+  Machine whose record count makes a page slow -- at which point pagination lands before, not
+  after, the planner.
+- **Deferred, with trigger: no hot reload.** 005 §Hot Reload and 001 Principle #10 (Live
+  Evolution) describe metadata changes taking effect without regenerating the application.
+  `metadata.LoadApplication` runs once in `main()`, so a metadata change takes effect on restart.
+  Principle #10's actual requirement -- no *source regeneration* -- is met; 005's hot-reload is
+  explicitly conditioned on "where the runtime deployment model permits it," and a single-binary
+  restart is cheap. Named here so it is a decision rather than an omission. Trigger: metadata
+  authored by someone who cannot deploy, or a restart that stops being cheap.
 
 ---
 
@@ -716,9 +873,11 @@ of these have a forcing case yet. Adding any of them before one exists repeats t
 roadmap is written to avoid.
 
 Permission (the fifth Domain Plane primitive, alongside Machine/Field/Event/Constraint) is
-deliberately *not* in this list -- see Operational backlog's 2026-09-18 audit entry. Unlike the
-items above, it already has a forcing case (Case 3's per-step `fld_assignee`), so it is tracked
-as an open gap to close, not as correctly-deferred scope.
+deliberately *not* in this list -- it already has a forcing case (Case 3's per-step
+`fld_assignee`), which is why the 2026-09-18 audit promoted it into **Phase 16** rather than
+leaving it as backlog. Everything else that audit found is in "Concept conformance gaps" above,
+each with its own forcing condition or its own explicit trigger -- none of it is silently omitted
+any more, which was the actual finding.
 
 Phase 15's own research pass (2026-09-15) re-confirmed two more belong here, explicitly rather
 than by omission: a metadata-driven page-composition mechanism / UI IR (007 §15, still PROPOSED)

@@ -176,6 +176,55 @@ func TestValidate_slaFieldNotADate(t *testing.T) {
 	assertIssue(t, m, "must be a date field")
 }
 
+// permissionMachine is a Machine shaped like mch_approval_step: a person Field an Action can be
+// scoped to (ROADMAP.md Phase 16).
+func permissionMachine() *domain.Machine {
+	m := validMachine()
+	m.Fields = append(m.Fields, domain.Field{
+		ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID,
+	})
+	m.Permissions = []domain.Permission{
+		{ID: "prm_decide_own_step", Action: domain.ActionDecide, ActorField: "fld_assignee"},
+	}
+	return m
+}
+
+func TestValidate_permissionValid(t *testing.T) {
+	if err := Validate(permissionMachine()); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_permissionBadID(t *testing.T) {
+	m := permissionMachine()
+	m.Permissions[0].ID = "decide_own_step"
+	assertIssue(t, m, "permission id")
+}
+
+func TestValidate_permissionDuplicateID(t *testing.T) {
+	m := permissionMachine()
+	m.Permissions = append(m.Permissions, m.Permissions[0])
+	assertIssue(t, m, "declared more than once")
+}
+
+func TestValidate_permissionUnknownAction(t *testing.T) {
+	m := permissionMachine()
+	m.Permissions[0].Action = "publish"
+	assertIssue(t, m, "is not an action this runtime realizes")
+}
+
+func TestValidate_permissionUnknownActorField(t *testing.T) {
+	m := permissionMachine()
+	m.Permissions[0].ActorField = "fld_nobody"
+	assertIssue(t, m, "is not a field of machine")
+}
+
+func TestValidate_permissionActorFieldIsNotAReference(t *testing.T) {
+	m := permissionMachine()
+	m.Permissions[0].ActorField = "fld_title"
+	assertIssue(t, m, "must reference an identity")
+}
+
 func assertIssue(t *testing.T, m *domain.Machine, substr string) {
 	t.Helper()
 	err := Validate(m)

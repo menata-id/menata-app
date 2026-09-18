@@ -91,6 +91,39 @@ fields:
 	}
 }
 
+func TestParse_permissions(t *testing.T) {
+	yaml := []byte(`
+id: mch_approval_step
+name: Approval Step
+fields:
+  - id: fld_assignee
+    name: Assignee
+    type: person
+permissions:
+  - id: prm_decide_own_step
+    action: decide
+    actor_field: fld_assignee
+`)
+
+	m, err := Parse(yaml)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(m.Permissions) != 1 {
+		t.Fatalf("len(Permissions) = %d, want 1", len(m.Permissions))
+	}
+	p := m.Permissions[0]
+	if p.ID != "prm_decide_own_step" || p.Action != domain.ActionDecide || p.ActorField != "fld_assignee" {
+		t.Errorf("Permissions[0] = %+v, want prm_decide_own_step/decide/fld_assignee", p)
+	}
+	if got := m.PermissionsFor(domain.ActionDecide); len(got) != 1 {
+		t.Errorf("PermissionsFor(decide) returned %d permissions, want 1", len(got))
+	}
+	if got := m.PermissionsFor("submit"); len(got) != 0 {
+		t.Errorf("PermissionsFor(submit) returned %d permissions, want 0", len(got))
+	}
+}
+
 func TestParse_invalidYAML(t *testing.T) {
 	_, err := Parse([]byte("id: [this is not a machine"))
 	if err == nil {

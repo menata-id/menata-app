@@ -16,6 +16,7 @@ var (
 	machineIDPattern    = regexp.MustCompile(`^mch_[a-z][a-z0-9_]*$`)
 	fieldIDPattern      = regexp.MustCompile(`^fld_[a-z][a-z0-9_]*$`)
 	constraintIDPattern = regexp.MustCompile(`^cst_[a-z][a-z0-9_]*$`)
+	permissionIDPattern = regexp.MustCompile(`^prm_[a-z][a-z0-9_]*$`)
 )
 
 // ValidationError aggregates every problem found in one metadata document, per 005-runtime-
@@ -67,6 +68,11 @@ func Validate(m *domain.Machine) error {
 
 	for _, c := range m.Constraints {
 		issues = append(issues, validateConstraint(m, c, fieldsByID)...)
+	}
+
+	seenPermissions := make(map[string]bool, len(m.Permissions))
+	for _, p := range m.Permissions {
+		issues = append(issues, validatePermission(m, p, fieldsByID, seenPermissions)...)
 	}
 
 	if m.View.Layout != "" && !domain.KnownLayouts[m.View.Layout] {
@@ -127,6 +133,36 @@ func validateConstraint(m *domain.Machine, c domain.Constraint, fieldsByID map[s
 	}
 	if c.BlockIf.Condition.Value == "" {
 		issues = append(issues, fmt.Sprintf("constraint %q: block_if.condition.value is required", c.ID))
+	}
+
+	return issues
+}
+
+// validatePermission checks one Permission's own shape (ROADMAP.md Phase 16). Everything it
+// needs is on the Machine itself, so unlike a Constraint there is no second, cross-Machine pass:
+// the Action must be one the runtime actually realizes, and actor_field must be a reference Field
+// on this same Machine -- a Permission whose actor can never be resolved would silently protect
+// nothing, which is worse than no Permission at all.
+func validatePermission(m *domain.Machine, p domain.Permission, fieldsByID map[string]domain.Field, seen map[string]bool) []string {
+	var issues []string
+
+	if !permissionIDPattern.MatchString(p.ID) {
+		issues = append(issues, fmt.Sprintf("permission id %q must match %s", p.ID, permissionIDPattern.String()))
+	}
+	if seen[p.ID] {
+		issues = append(issues, fmt.Sprintf("permission id %q is declared more than once", p.ID))
+	}
+	seen[p.ID] = true
+
+	if !domain.KnownActions[p.Action] {
+		issues = append(issues, fmt.Sprintf("permission %q: action %q is not an action this runtime realizes", p.ID, p.Action))
+	}
+
+	actorField, ok := fieldsByID[p.ActorField]
+	if !ok {
+		issues = append(issues, fmt.Sprintf("permission %q: actor_field %q is not a field of machine %q", p.ID, p.ActorField, m.ID))
+	} else if !actorField.IsReference() {
+		issues = append(issues, fmt.Sprintf("permission %q: actor_field %q must reference an identity (a person or relation field), got %q", p.ID, p.ActorField, actorField.Type))
 	}
 
 	return issues

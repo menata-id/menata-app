@@ -32,5 +32,12 @@ fields:
     name: Signature Y
     type: number
 
+# Only the step's own assignee may decide it (ROADMAP.md Phase 16). Until this existed, sequencing
+# was the only thing /decide enforced -- any authenticated user could approve or reject any step.
+permissions:
+  - id: prm_decide_own_step
+    action: decide
+    actor_field: fld_assignee
+
 view:
   layout: table

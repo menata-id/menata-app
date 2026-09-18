@@ -32,7 +32,7 @@ mockups.
 
 ## Tech stack
 
-Go 1.25 + PostgreSQL + `templ` (server-rendered HTML) + `chi` + `pgx` + `goose` — a single
+Go 1.27 + PostgreSQL + `templ` (server-rendered HTML) + `chi` + `pgx` + `goose` — a single
 binary, matching 007-composable-runtime-architecture.md §4.10's "modest-server, server-rendered"
 constraint. No client-side framework.
 

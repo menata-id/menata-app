@@ -41,7 +41,8 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Many-to-many | A join Machine with two Relation fields — not a new field type or storage shape | Built | `mch_card_label` (`fld_task` + `fld_label`) |
 | Child Collection | Reverse-relation display: every record of another Machine whose field points at this one, shown on the detail page | Built | `internal/domain.FindChildCollections`; a Project's detail page shows its own Tasks |
 | Constraint | Blocks a field transition while a related Machine has a matching record | Built (one shape) | `mch_project`'s `cst_project_done_no_open_tasks` |
-| Action | A named business operation beyond a plain field write, with cross-record side effects | Built (one shape, hardcoded) | `POST .../decide` — Approve/Reject, `internal/action` |
+| Action | A named business operation beyond a plain field write, with cross-record side effects | Built (one shape, hardcoded) | `POST .../decide` — Approve/Reject, `internal/action`; the closed set is `domain.KnownActions` |
+| Permission | Record-scoped authorization on an Action: the acting identity must be the value of a declared `actor_field` | Built (one shape) | `mch_approval_step`'s `prm_decide_own_step`, `authorization.AllowsAction` |
 | Ordered Lists | A Machine's records used as a board's real, renameable, reorderable columns (replaces a fixed status enum) | Built | `mch_list`, grouping `mch_task`'s board |
 | Sort order | Explicit per-Machine ordering (`sort_order` column), assigned at create time | Built | Every Machine — `internal/data.Store.CreateRecord` |
 | SLA badge | A `view.sla_field` date Field rendered as OVERDUE / "N day(s) left" instead of a plain date | Built | `mch_document`'s `fld_due_date`, `internal/experience.EvaluateSLA` |
@@ -81,8 +82,10 @@ own forcing condition in `ROADMAP.md` Phase 14.
 | Session-cookie auth, gating every route except `/health` and `/login` | Built | `internal/authorization`, HMAC-signed cookie |
 | Real identity resolution (session names an actual `mch_user` record) | Built | `config.AdminUserID` |
 | Per-user login (distinct passwords per person) | Not built | Still one shared admin credential; no second real user has forced this yet |
-| Machine/Action/record permission | **Not built at all** | Corrected 2026-09-18 -- there is no permission check anywhere in the request path, only a global session-valid gate (`IsAuthenticated`). Harmless only while there is one shared admin identity. Tracked in `ROADMAP.md`'s Operational backlog (2026-09-18 audit), not deferred-as-unforced -- Case 3's `fld_assignee` already forces it |
-| `POST .../decide` assignee check | **Not built** | `decideStep` never checks the acting user against the Approval Step's `fld_assignee`; any authenticated user can decide any step. Tracked in `ROADMAP.md`'s Operational backlog, blocking for Phase 16 |
+| Record-scoped Action permission (declared) | Built (one shape) | `permissions:` on a Machine — `action:` + `actor_field:`, the acting identity must be that Field's value on the record being acted upon. `domain.Permission`, `authorization.AllowsAction`, enforced by `decideStep` (`403`) before any other work |
+| `POST .../decide` assignee check | Built | `mch_approval_step`'s `prm_decide_own_step`; independent of, and evaluated before, Phase 12's sequencing rule (`CanDecide`, `422`) |
+| Machine-level / CRUD permission | Not built | The generic create/update/delete routes are still ungoverned — any authenticated identity can edit or delete any record. Unforced while one shared credential means every session is the same person; per-user login is its forcing condition |
+| Record-scoped *visibility* applied in the data plan | Not built | `/approval-inbox` and `/my-tasks` fetch a whole Machine and filter by identity in Go — the shape 007 §20 names as the anti-pattern. Tracked in `ROADMAP.md`'s "Concept conformance gaps"; also the missing half of Phase 6's own forcing condition |
 | Login rate-limiting | Not built | Tracked in `ROADMAP.md`'s Operational backlog |
 
 ---
@@ -98,7 +101,7 @@ own forcing condition in `ROADMAP.md` Phase 14.
 | `mch_task` | Case 19 groundwork | title, status, assignee, due date, priority, project, list, attachment | Board layout |
 | `mch_card_label` | Task↔Label join | task, label | — |
 | `mch_document` | Case 3 core | title, file, mode, status, due date | Aggregate status driven by its steps; `view.sla_field` |
-| `mch_approval_step` | Case 3 core | document, sequence, assignee, decision | `/decide` Action, sequencing enforced |
+| `mch_approval_step` | Case 3 core | document, sequence, assignee, decision, signature page/x/y | `/decide` Action, sequencing enforced, `prm_decide_own_step` |
 | `mch_activity` | Cross-case event log | machine id, record id, summary, actor | Written by `logActivity`, never by a user form |
 
 ---
@@ -107,7 +110,8 @@ own forcing condition in `ROADMAP.md` Phase 14.
 
 | Rule | Scope | Enforced by |
 |---|---|---|
-| Stable-identity ID patterns (`mch_*`, `fld_*`, `cst_*`, `ws_*`, `app_*`) | Every declaration | `internal/metadata.Validate`/`validateConstraint` |
+| Stable-identity ID patterns (`mch_*`, `fld_*`, `cst_*`, `prm_*`, `ws_*`, `app_*`) | Every declaration | `internal/metadata.Validate`/`validateConstraint`/`validatePermission` |
+| Permission's `action` is one the runtime realizes, `actor_field` is a reference Field on the same Machine, no duplicate permission IDs | Per-Machine | `internal/metadata.validatePermission` |
 | Known field type, no duplicate field IDs | Per-Machine | `internal/metadata.Validate` |
 | `status` field requires at least one option | Per-Machine | `internal/metadata.Validate` |
 | Relation/Person target Machine must exist in the Application | Cross-Machine, once all loaded | `validateRelationTargets` |
@@ -142,3 +146,24 @@ own forcing condition in `ROADMAP.md` Phase 14.
 | `POST .../{id}/decide` | Approve/Reject an Approval Step |
 | `GET /uploads/*` | Download an uploaded file |
 | `GET /api/machines`, `GET /api/machines/{id}/records`, `POST /api/machines/{id}/records` | JSON API — create+list only, no update/delete yet (tracked in Operational backlog) |
+
+Navigation itself is **not** metadata: `rendering.pageShell` hardcodes the topbar link list, so a
+new page needs a code edit. See the architectural limits below.
+
+---
+
+## Known architectural limits
+
+Current-state facts, the same job as the rest of this file — not a plan. Each one is a place where
+a stated obligation in 001-007 is not met today; `ROADMAP.md`'s "Concept conformance gaps" carries
+the clause citation, the verdict, and the forcing condition for closing it (001-007 audit,
+2026-09-18).
+
+| Limit | What that means concretely |
+|---|---|
+| Inference is not inspectable (001 §6) | `person`→`mch_user`, child collections, board columns and the default table Layout are all inferred, and nothing can show the resolved result — no diagnostics route, no `--explain`, no normalized-Application dump |
+| No metadata versioning or change classification (004, 005) | No version key anywhere; deleting a Field from a `*.yaml` silently orphans that field's data inside every record's JSONB, with no migration decision |
+| Navigation is code, not metadata (004, 006) | `pageShell`'s topbar is a hardcoded link list; `ui-sample/README.md`'s two-level nav (cross-application launcher + mobile bottom bar) has never existed |
+| Workspace never reaches storage (001 §9, 004) | `records` has no workspace/application column; `Store` keys on `machine_id` alone. A second Workspace later is a data migration, not a metadata change |
+| Every read is a whole-Machine read (007 §21.1, §28) | `ListRecords`/`ListRecordsBy`/`GetRecord` only — no projection, filter pushdown, pagination or limit; pages reduce whole record sets in Go |
+| Metadata loads once, at startup (005 §Hot Reload) | A metadata change takes effect on restart. Principle #10 (no source regeneration) is met; hot reload is a deliberate, triggered deferral |

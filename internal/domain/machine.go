@@ -91,6 +91,7 @@ type Machine struct {
 	Name        string
 	Fields      []Field
 	Constraints []Constraint
+	Permissions []Permission
 	View        View
 }
 

@@ -91,7 +91,7 @@ func main() {
 		pr.Get("/approval-inbox", showApprovalInbox(store, app.Application.Name, cfg))
 		pr.Get("/machines/{machineID}", showMachinePage(machines, app.Application.Name, store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(machines, store, files, cfg))
-		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name))
+		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, app.Application.Name, cfg))
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(machines, store))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store, files, cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(machines, store))
@@ -923,7 +923,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 // an HTMX request targeting the detail page's own container gets just that container's view
 // fragment (used by the detail page's own Cancel-from-edit); any other HTMX request (a table row
 // or board card's Cancel) gets the original RecordRow fragment, unchanged from Phase 1.
-func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appName string) http.HandlerFunc {
+func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -939,6 +939,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 
 		if req.Header.Get("HX-Request") != "true" {
 			children, err := loadChildSections(req.Context(), store, machines, machine, record.ID)
@@ -946,7 +947,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			rendering.RecordDetailPage(machine, record, appName, relations, children).Render(req.Context(), w)
+			rendering.RecordDetailPage(machine, record, appName, relations, children, actor).Render(req.Context(), w)
 			return
 		}
 		if isDetailContext(req) {
@@ -955,7 +956,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			rendering.RecordDetailView(machine, record, relations, children).Render(req.Context(), w)
+			rendering.RecordDetailView(machine, record, relations, children, actor).Render(req.Context(), w)
 			return
 		}
 		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
@@ -1062,9 +1063,9 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			recordError(w, err)
 			return
 		}
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		if machine.ID == "mch_task" {
 			if newStatus := toDisplayString(record.Values["fld_status"]); newStatus != "" && newStatus != oldTaskStatus {
-				actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 				title := recordLabel(machine, record)
 				summary := fmt.Sprintf("%q moved from %s to %s", title, oldTaskStatus, newStatus)
 				if newStatus == "done" {
@@ -1084,7 +1085,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			rendering.RecordDetailView(machine, record, relations, children).Render(req.Context(), w)
+			rendering.RecordDetailView(machine, record, relations, children, actor).Render(req.Context(), w)
 			return
 		}
 		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
@@ -1142,6 +1143,16 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg conf
 			recordError(w, err)
 			return
 		}
+
+		// Authorization before any further work, per 005-runtime-lifecycle.md "Security Ordering"
+		// and 007 §20: mch_approval_step declares prm_decide_own_step, so only the step's own
+		// fld_assignee gets past here (ROADMAP.md Phase 16).
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		if !authorization.AllowsAction(machine, domain.ActionDecide, step.Values, actor) {
+			http.Error(w, "this approval step is assigned to someone else", http.StatusForbidden)
+			return
+		}
+
 		documentID, _ := step.Values[action.FieldStepDocument].(string)
 		document, err := store.GetRecord(ctx, action.DocumentMachineID, documentID)
 		if err != nil {
@@ -1177,7 +1188,6 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg conf
 			return
 		}
 
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		logActivity(ctx, store, action.DocumentMachineID, documentID, actor, fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
 
 		documentURL := "/machines/" + action.DocumentMachineID + "/records/" + documentID

@@ -17,6 +17,7 @@ type machineDoc struct {
 	Name        string          `yaml:"name"`
 	Fields      []fieldDoc      `yaml:"fields"`
 	Constraints []constraintDoc `yaml:"constraints"`
+	Permissions []permissionDoc `yaml:"permissions"`
 	View        *viewDoc        `yaml:"view"`
 }
 
@@ -49,6 +50,13 @@ type constraintDoc struct {
 			Value string `yaml:"value"`
 		} `yaml:"condition"`
 	} `yaml:"block_if"`
+}
+
+// permissionDoc is the YAML serialization of a Permission (ROADMAP.md Phase 16).
+type permissionDoc struct {
+	ID         string `yaml:"id"`
+	Action     string `yaml:"action"`
+	ActorField string `yaml:"actor_field"`
 }
 
 // Parse decodes Runtime Metadata YAML describing a single Machine. It performs structural
@@ -94,6 +102,13 @@ func Parse(data []byte) (*domain.Machine, error) {
 					Value: cd.BlockIf.Condition.Value,
 				},
 			},
+		})
+	}
+	for _, pd := range doc.Permissions {
+		m.Permissions = append(m.Permissions, domain.Permission{
+			ID:         pd.ID,
+			Action:     pd.Action,
+			ActorField: pd.ActorField,
 		})
 	}
 	if doc.View != nil {
