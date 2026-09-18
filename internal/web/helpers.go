@@ -6,18 +6,11 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"menata.app/internal/composition"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
-
-func sameDay(a, b time.Time) bool {
-	ay, am, ad := a.Date()
-	by, bm, bd := b.Date()
-	return ay == by && am == bm && ad == bd
-}
 
 // recordLabel is a Record's display label -- its Machine's first Field's value, the same
 // label-field convention used throughout (loadRelationOptions, rendering.recordTitle).
