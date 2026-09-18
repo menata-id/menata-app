@@ -81,7 +81,8 @@ own forcing condition in `ROADMAP.md` Phase 14.
 | Session-cookie auth, gating every route except `/health` and `/login` | Built | `internal/authorization`, HMAC-signed cookie |
 | Real identity resolution (session names an actual `mch_user` record) | Built | `config.AdminUserID` |
 | Per-user login (distinct passwords per person) | Not built | Still one shared admin credential; no second real user has forced this yet |
-| Per-Field or per-record permission | Not built | Current granularity is Machine+Action only; no case has forced finer scoping |
+| Machine/Action/record permission | **Not built at all** | Corrected 2026-09-18 -- there is no permission check anywhere in the request path, only a global session-valid gate (`IsAuthenticated`). Harmless only while there is one shared admin identity. Tracked in `ROADMAP.md`'s Operational backlog (2026-09-18 audit), not deferred-as-unforced -- Case 3's `fld_assignee` already forces it |
+| `POST .../decide` assignee check | **Not built** | `decideStep` never checks the acting user against the Approval Step's `fld_assignee`; any authenticated user can decide any step. Tracked in `ROADMAP.md`'s Operational backlog, blocking for Phase 16 |
 | Login rate-limiting | Not built | Tracked in `ROADMAP.md`'s Operational backlog |
 
 ---

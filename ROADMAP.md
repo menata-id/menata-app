@@ -634,6 +634,11 @@ as a second hardcoded function alongside `CanDecide` -- same posture (fires on o
 write, hardcoded to `mch_document`/`mch_approval_step`'s own field IDs, not a generic engine) --
 not a generic "PDF processing" service, since no second case needs one yet.
 
+**Blocking prerequisite (named by the 2026-09-18 audit, Operational backlog):** `decideStep`
+today lets any authenticated user decide any Approval Step, not only its own `fld_assignee`.
+Fix that first (or in the same change) -- otherwise this phase burns a real approver's signature
+image onto a PDF for a decision nobody verified that approver actually made.
+
 - [ ] Add a pure-Go PDF dependency; a `CompositeSignatures` function taking the Document's file +
       each approved step's signature image + coordinates, returning a new file
 - [ ] Wire it into the existing `/decide` handler: once `DocumentStatus` reaches `approved`,
@@ -664,6 +669,27 @@ phase they don't belong to:
 - [ ] JSON API parity -- `/api/machines/{id}/records` only supports create+list; update/delete
       exist only via the browser HTML routes, not the API
 
+Found during a 001-007 concept-vs-code gap audit (2026-09-18) -- unlike Event/Service (named
+below in "What's deliberately not phased yet"), the Domain Plane's **Permission** primitive
+(004/006/007, alongside Machine/Field/Event/Constraint) had fallen through this repo's own
+tracking discipline: not built, and not named as deliberately deferred anywhere until now.
+
+- [ ] No Machine- or Action-level authorization exists in code. `internal/authorization` only
+      answers "is this session valid" (`IsAuthenticated`/`CurrentUserID`); there is no per-
+      Machine, per-Action, or per-record permission check anywhere in `cmd/server/main.go`.
+      `capabilities.md`'s Authorization table previously overstated this as "Current granularity
+      is Machine+Action only" -- corrected alongside this entry (2026-09-18). Harmless today only
+      because there is exactly one shared admin identity (Phase 7); stops being harmless the
+      moment a second real user exists, which Phase 15/16 already assume (`fld_assignee` on
+      `mch_approval_step`).
+- [ ] `POST .../decide` (`decideStep`, `cmd/server/main.go`) never checks that the acting user is
+      the Approval Step's own `fld_assignee` -- `internal/action.CanDecide` only enforces
+      sequencing, not identity. Any authenticated user can already approve or reject any step
+      today, which contradicts Phase 12's own stated design ("each with its own assignee and
+      Approve/Reject decision"). Resolve this before or alongside Phase 16: a composited signed
+      PDF that burns in the wrong approver's signature image would be a correctness defect, not
+      merely an access-control one.
+
 ---
 
 ## What's deliberately not phased yet
@@ -674,6 +700,11 @@ more than that one shape), Group-sourced approvers (named in Phase 7), multi-wor
 beyond Phase 2's minimal structure, and the full semantic field type vocabulary from 006 -- none
 of these have a forcing case yet. Adding any of them before one exists repeats the mistake this
 roadmap is written to avoid.
+
+Permission (the fifth Domain Plane primitive, alongside Machine/Field/Event/Constraint) is
+deliberately *not* in this list -- see Operational backlog's 2026-09-18 audit entry. Unlike the
+items above, it already has a forcing case (Case 3's per-step `fld_assignee`), so it is tracked
+as an open gap to close, not as correctly-deferred scope.
 
 Phase 15's own research pass (2026-09-15) re-confirmed two more belong here, explicitly rather
 than by omission: a metadata-driven page-composition mechanism / UI IR (007 §15, still PROPOSED)
