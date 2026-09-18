@@ -1,0 +1,95 @@
+package web
+
+import (
+	"context"
+	"errors"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"menata.app/internal/composition"
+	"menata.app/internal/data"
+	"menata.app/internal/domain"
+)
+
+// initials is a person's display initials for a SummaryCard's avatar (Study 38's Avatar cluster)
+// -- the first letter of up to the first two words of name.
+func initials(name string) string {
+	fields := strings.Fields(name)
+	if len(fields) == 0 {
+		return "?"
+	}
+	out := strings.ToUpper(fields[0][:1])
+	if len(fields) > 1 {
+		out += strings.ToUpper(fields[1][:1])
+	}
+	return out
+}
+
+func sameDay(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
+}
+
+// recordLabel is a Record's display label -- its Machine's first Field's value, the same
+// label-field convention used throughout (loadRelationOptions, rendering.recordTitle).
+func recordLabel(m *domain.Machine, r *data.Record) string {
+	if len(m.Fields) == 0 {
+		return r.ID
+	}
+	return toDisplayString(r.Values[m.Fields[0].ID])
+}
+
+// pageFromQuery reads a 1-indexed ?page= query param, clamped to [1, totalPages], defaulting to
+// 1 for anything missing or unparseable.
+func pageFromQuery(req *http.Request, totalPages int) int {
+	page, err := strconv.Atoi(req.URL.Query().Get("page"))
+	if err != nil || page < 1 {
+		return 1
+	}
+	if page > totalPages {
+		return totalPages
+	}
+	return page
+}
+
+// isDetailContext reports whether an HTMX request targets the record-detail page's own
+// container, as opposed to a table row or board card -- the same fragments serve both contexts
+// (ROADMAP.md Phase 8).
+func isDetailContext(req *http.Request) bool {
+	return req.Header.Get("HX-Target") == "record-detail"
+}
+
+func toDisplayString(v any) string { return composition.DisplayString(v) }
+
+func recordError(w http.ResponseWriter, err error) {
+	if errors.Is(err, data.ErrRecordNotFound) {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
+// logActivity appends one mch_activity record (ROADMAP.md Phase 13) -- an ordinary Machine, not
+// a new system-data-source concept (007 SS4.1's admission question). Best-effort: a logging
+// failure is not allowed to fail the real operation it's describing, only get logged itself.
+func logActivity(ctx context.Context, store *data.Store, machineID, recordID, actorID, summary string) {
+	values := map[string]any{
+		"fld_machine_id": machineID,
+		"fld_record_id":  recordID,
+		"fld_summary":    summary,
+	}
+	if actorID != "" {
+		values["fld_actor"] = actorID
+	}
+	if _, err := store.CreateRecord(ctx, "mch_activity", values); err != nil {
+		log.Printf("failed to log activity (%s %s): %v", machineID, recordID, err)
+	}
+}
+
+// maxUploadBytes bounds one multipart request body (ROADMAP.md Phase 11) -- generous enough for
+// a real PDF or a handful of images, small enough that a malicious upload can't exhaust disk.
+const maxUploadBytes = 20 << 20 // 20MB

@@ -143,15 +143,19 @@ var rules = []rule{
 		because:   "these checks must not depend on the code they police",
 	},
 	{
+		pkg:       "web",
+		forbidden: []string{postgres, sqlPkg, internalPkg("db"), internalPkg("metadata")},
+		because:   "internal/web doc.go: the transport layer adapts HTTP to the planes; it holds no pool and loads no Runtime Metadata -- the composition root builds both once at startup (005 Phase 3-4)",
+	},
+	{
 		pkg: "server",
 		dir: "cmd/server",
 		// internal/db is deliberately absent: the composition root is the one place that must
-		// build the pool, so db.Connect is its job. What it may not do is speak the driver's
-		// own language. Phase 19 Step 2 tightens this to templ and internal/rendering as well,
-		// once the handlers have left main.go -- the ban is added there rather than here so
-		// this commit leaves the suite green.
-		forbidden: []string{postgres, sqlPkg},
-		because:   "002 §Runtime Boundary: the composition root wires dependencies and mounts the router; it holds the pool through internal/db but never speaks SQL itself",
+		// build the pool, so db.Connect is its job. What it may not do is speak the driver's own
+		// language, or render -- both became enforceable once Phase 19 Step 2 moved the handlers
+		// into internal/web.
+		forbidden: []string{postgres, sqlPkg, templ, internalPkg("rendering"), internalPkg("composition")},
+		because:   "002 §Runtime Boundary: the composition root wires dependencies and mounts the router; it holds the pool through internal/db but never speaks SQL, renders, or composes",
 	},
 }
 
