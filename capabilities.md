@@ -68,6 +68,7 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Calendar (week-grid Layout, Tasks grouped by due date) | Built | `GET /calendar` |
 | Sprint Dashboard (real status summary + workload + attention-needed, no fabricated points/burndown) | Built | `GET /sprint` |
 | Approve/Reject action bar | Built, hardcoded to one Machine | `mch_approval_step`'s own detail page only |
+| PDF page-to-image rendering | Built, package only — not yet wired to a route | `internal/pdf.PageCount`/`RenderPagePNG`, pure-Go (`richardwilkes/pdfview`); consumed by Phase 15 Step 4's signature-placement screen, not built yet |
 
 **Not yet built:** Timeline/Calendar/Sprint-Dashboard/Team-Capacity Layouts, colored label chips
 on a card face, drag-and-drop reordering, signature-coordinate placement — all named with their
