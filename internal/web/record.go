@@ -39,12 +39,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			values[k] = v
 		}
 
-		if err := data.ValidateRecord(machine, values); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-			return
-		}
-		if err := data.ValidateRelations(req.Context(), store, machine, values); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		if !validRecord(w, req, store, machine, values) {
 			return
 		}
 		record, err := store.CreateRecord(req.Context(), machine.ID, values)
@@ -136,76 +131,38 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store) http.
 	}
 }
 
+// updateRecordForm applies a form edit to one record: collect the submitted values, run every
+// guard the write has to pass, write, log, and re-render.
+//
+// The guards are named helpers below rather than inline blocks because each is a rule in its own
+// right -- one about file inputs, one about who may change a decision, one about Constraints --
+// and reading this handler should show the order they run in, which is itself the contract
+// (005-runtime-lifecycle.md "Security Ordering").
 func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
 			return
 		}
-		if err := parseRecordForm(req); err != nil {
-			http.Error(w, "invalid form body", http.StatusBadRequest)
-			return
-		}
-
 		id := chi.URLParam(req, "id")
-		values := data.ValuesFromForm(machine, req.Form)
-		uploaded, err := handleFileUploads(req, machine, files)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		for k, v := range uploaded {
-			values[k] = v
-		}
-		// A browser can't pre-fill <input type="file">, so "no new upload" must not be read as
-		// "clear the file" the way an empty text input would be -- carry the existing value
-		// forward for any file field a fresh upload didn't touch (ROADMAP.md Phase 11).
-		if err := carryForwardExistingFiles(req.Context(), store, machine, id, uploaded, values); err != nil {
-			recordError(w, err)
-			return
-		}
 
-		// An Approval Step's fld_decision only ever changes through POST .../decide, which
-		// enforces action.CanDecide's sequencing rule -- the generic edit route must not become
-		// a bypass for it (ROADMAP.md Phase 12).
-		if machine.ID == action.StepMachineID {
-			existing, err := store.GetRecord(req.Context(), machine.ID, id)
-			if err != nil {
-				recordError(w, err)
-				return
-			}
-			if newDecision, ok := values[action.FieldStepDecision]; ok && fmt.Sprint(newDecision) != fmt.Sprint(existing.Values[action.FieldStepDecision]) {
-				http.Error(w, "use Approve/Reject to change a decision, not a direct edit", http.StatusUnprocessableEntity)
-				return
-			}
-		}
-
-		if err := data.ValidateRecord(machine, values); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		values, uploaded, ok := submittedValues(w, req, machine, files)
+		if !ok {
 			return
 		}
-		if err := data.ValidateRelations(req.Context(), store, machine, values); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		if !carryForwardFiles(w, req, store, machine, id, uploaded, values) {
 			return
 		}
-		relatedRecords, err := composition.NewLoader(store, machines).ConstraintRelatedRecords(req.Context(), machine)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if !allowsDecisionChange(w, req, store, machine, id, values) {
 			return
 		}
-		if err := behavior.CheckConstraints(machine, id, values, relatedRecords); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
 			return
 		}
 
 		// Case 19's Project Activity feed wants Task status moves as their own event (ROADMAP.md
 		// Phase 14) -- the old status has to be read before the write replaces it.
-		var oldTaskStatus string
-		if machine.ID == "mch_task" {
-			if existing, err := store.GetRecord(req.Context(), machine.ID, id); err == nil {
-				oldTaskStatus = toDisplayString(existing.Values["fld_status"])
-			}
-		}
+		oldTaskStatus := currentTaskStatus(req, store, machine, id)
 
 		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
 		if err != nil {
@@ -213,33 +170,130 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			return
 		}
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		if machine.ID == "mch_task" {
-			if newStatus := toDisplayString(record.Values["fld_status"]); newStatus != "" && newStatus != oldTaskStatus {
-				title := recordLabel(machine, record)
-				summary := fmt.Sprintf("%q moved from %s to %s", title, oldTaskStatus, newStatus)
-				if newStatus == "done" {
-					summary = fmt.Sprintf("%q completed", title)
-				}
-				logActivity(req.Context(), store, machine.ID, record.ID, actor, summary)
-			}
-		}
-		ld := composition.NewLoader(store, machines)
-		relations, err := ld.RelationOptions(req.Context(), machine)
+		logTaskStatusMove(req, store, machine, record, actor, oldTaskStatus)
+
+		renderRecord(w, req, machines, store, machine, record, actor)
+	}
+}
+
+// submittedValues reads the form body and merges in any freshly uploaded files. It returns the
+// uploaded set separately as well, because "which file fields did this request actually set" is
+// what carryForwardFiles needs and cannot recover from values alone.
+func submittedValues(w http.ResponseWriter, req *http.Request, machine *domain.Machine, files *storage.Store) (values, uploaded map[string]any, ok bool) {
+	if err := parseRecordForm(req); err != nil {
+		http.Error(w, "invalid form body", http.StatusBadRequest)
+		return nil, nil, false
+	}
+	values = data.ValuesFromForm(machine, req.Form)
+	uploaded, err := handleFileUploads(req, machine, files)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return nil, nil, false
+	}
+	for k, v := range uploaded {
+		values[k] = v
+	}
+	return values, uploaded, true
+}
+
+// carryForwardFiles keeps a file field that this request did not re-upload. A browser can't
+// pre-fill <input type="file">, so "no new upload" must not be read as "clear the file" the way
+// an empty text input would be (ROADMAP.md Phase 11).
+func carryForwardFiles(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, uploaded, values map[string]any) bool {
+	if err := carryForwardExistingFiles(req.Context(), store, machine, id, uploaded, values); err != nil {
+		recordError(w, err)
+		return false
+	}
+	return true
+}
+
+// allowsDecisionChange refuses an attempt to move an Approval Step's fld_decision through the
+// generic edit route. That transition only ever happens through POST .../decide, which enforces
+// action.CanDecide's sequencing rule; the edit route must not become a bypass for it
+// (ROADMAP.md Phase 12).
+func allowsDecisionChange(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
+	if machine.ID != action.StepMachineID {
+		return true
+	}
+	existing, err := store.GetRecord(req.Context(), machine.ID, id)
+	if err != nil {
+		recordError(w, err)
+		return false
+	}
+	if newDecision, ok := values[action.FieldStepDecision]; ok && fmt.Sprint(newDecision) != fmt.Sprint(existing.Values[action.FieldStepDecision]) {
+		http.Error(w, "use Approve/Reject to change a decision, not a direct edit", http.StatusUnprocessableEntity)
+		return false
+	}
+	return true
+}
+
+// passesWriteGuards runs the three checks every write has to clear: the record's own shape, the
+// existence of anything it points at, and the Machine's declared Constraints.
+func passesWriteGuards(w http.ResponseWriter, req *http.Request, store *data.Store, machines map[string]*domain.Machine, machine *domain.Machine, id string, values map[string]any) bool {
+	if !validRecord(w, req, store, machine, values) {
+		return false
+	}
+	relatedRecords, err := composition.NewLoader(store, machines).ConstraintRelatedRecords(req.Context(), machine)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+	if err := behavior.CheckConstraints(machine, id, values, relatedRecords); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return false
+	}
+	return true
+}
+
+// currentTaskStatus reads a Task's status before the write. A read failure yields "", which
+// simply means the status-move event is not logged -- never a reason to fail the edit itself.
+func currentTaskStatus(req *http.Request, store *data.Store, machine *domain.Machine, id string) string {
+	if machine.ID != taskMachineID {
+		return ""
+	}
+	existing, err := store.GetRecord(req.Context(), machine.ID, id)
+	if err != nil {
+		return ""
+	}
+	return toDisplayString(existing.Values["fld_status"])
+}
+
+// logTaskStatusMove appends the Project Activity event for a Task that changed status.
+func logTaskStatusMove(req *http.Request, store *data.Store, machine *domain.Machine, record *data.Record, actor, oldStatus string) {
+	if machine.ID != taskMachineID {
+		return
+	}
+	newStatus := toDisplayString(record.Values["fld_status"])
+	if newStatus == "" || newStatus == oldStatus {
+		return
+	}
+	title := recordLabel(machine, record)
+	summary := fmt.Sprintf("%q moved from %s to %s", title, oldStatus, newStatus)
+	if newStatus == "done" {
+		summary = fmt.Sprintf("%q completed", title)
+	}
+	logActivity(req.Context(), store, machine.ID, record.ID, actor, summary)
+}
+
+// renderRecord re-renders one record after a write, as the detail view or as a table/board row
+// depending on what the HTMX request targeted.
+func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, store *data.Store, machine *domain.Machine, record *data.Record, actor string) {
+	ld := composition.NewLoader(store, machines)
+	relations, err := ld.RelationOptions(req.Context(), machine)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if isDetailContext(req) {
+		children, err := ld.ChildSections(req.Context(), machine, record.ID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if isDetailContext(req) {
-			children, err := ld.ChildSections(req.Context(), machine, record.ID)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			rendering.RecordDetailView(machine, record, relations, children, actor).Render(req.Context(), w)
-			return
-		}
-		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
+		rendering.RecordDetailView(machine, record, relations, children, actor).Render(req.Context(), w)
+		return
 	}
+	rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
 }
 
 func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {

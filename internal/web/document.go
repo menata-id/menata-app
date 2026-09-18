@@ -46,38 +46,19 @@ func newApproverRow(store *data.Store) http.HandlerFunc {
 }
 
 // submitDocumentWizard is the wizard's own single POST: creates one mch_document and its own
-// mch_approval_step records together. The submitted <select>s' own order (browser form submission
-// preserves DOM order for repeated field names, exactly the order the wizard's own Hyperscript
-// reordering leaves them in) becomes each step's fld_sequence -- no hidden sequence input needed.
-// Hardcoded to mch_document/mch_approval_step, same posture as internal/action and every other
-// Case 3-specific screen -- not a generic multi-Machine composite-create mechanism, since no
-// second case needs one yet.
+// mch_approval_step records together. Hardcoded to mch_document/mch_approval_step, same posture
+// as internal/action and every other Case 3-specific screen -- not a generic multi-Machine
+// composite-create mechanism, since no second case needs one yet.
 func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		if err := parseRecordForm(req); err != nil {
-			http.Error(w, "invalid form body", http.StatusBadRequest)
-			return
-		}
-
 		docMachine := machines[action.DocumentMachineID]
-		values := data.ValuesFromForm(docMachine, req.Form)
+
+		values, _, ok := submittedValues(w, req, docMachine, files)
+		if !ok {
+			return
+		}
 		values[action.FieldDocumentStatus] = action.DocumentStatusInReview
-
-		uploaded, err := handleFileUploads(req, docMachine, files)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		for k, v := range uploaded {
-			values[k] = v
-		}
-
-		if err := data.ValidateRecord(docMachine, values); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-			return
-		}
-		if err := data.ValidateRelations(req.Context(), store, docMachine, values); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		if !validRecord(w, req, store, docMachine, values) {
 			return
 		}
 
@@ -86,42 +67,48 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		stepMachine := machines[action.StepMachineID]
-		for i, assignee := range req.Form["fld_assignee"] {
-			if assignee == "" {
-				continue
-			}
-			stepValues := map[string]any{
-				action.FieldStepDocument: document.ID,
-				action.FieldStepSequence: float64(i + 1),
-				action.FieldStepAssignee: assignee,
-				action.FieldStepDecision: action.DecisionPending,
-			}
-			if err := data.ValidateRecord(stepMachine, stepValues); err != nil {
-				http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-				return
-			}
-			if err := data.ValidateRelations(req.Context(), store, stepMachine, stepValues); err != nil {
-				http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-				return
-			}
-			if _, err := store.CreateRecord(req.Context(), stepMachine.ID, stepValues); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, req.Form["fld_assignee"]) {
+			return
 		}
 
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		logActivity(req.Context(), store, docMachine.ID, document.ID, actor, fmt.Sprintf("%q submitted", toDisplayString(document.Values["fld_title"])))
+		logActivity(req.Context(), store, docMachine.ID, document.ID, actor,
+			fmt.Sprintf("%q submitted", toDisplayString(document.Values["fld_title"])))
 
-		redirectURL := fmt.Sprintf("/machines/%s/records/%s/signature-placement", docMachine.ID, document.ID)
-		if req.Header.Get("HX-Request") == "true" {
-			w.Header().Set("HX-Redirect", redirectURL)
-			return
-		}
-		http.Redirect(w, req, redirectURL, http.StatusSeeOther)
+		redirectTo(w, req, fmt.Sprintf("/machines/%s/records/%s/signature-placement", docMachine.ID, document.ID))
 	}
+}
+
+// createApprovalSteps writes one pending Approval Step per named approver.
+//
+// Sequence comes from the submitted order rather than a hidden input: a browser submits repeated
+// field names in DOM order, which is exactly the order the wizard's own reordering leaves the
+// <select>s in.
+//
+// It is the position in the submitted list, so an empty slot leaves a gap -- ["", "usr_a"] makes
+// usr_a step 2, not step 1. That is the existing behaviour and it is harmless, because
+// action.CanDecide compares sequences relatively rather than expecting 1..n. Left as it was:
+// Phase 19 moves code, it does not quietly renumber approvals.
+func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.Store, stepMachine *domain.Machine, documentID string, assignees []string) bool {
+	for i, assignee := range assignees {
+		if assignee == "" {
+			continue
+		}
+		values := map[string]any{
+			action.FieldStepDocument: documentID,
+			action.FieldStepSequence: float64(i + 1),
+			action.FieldStepAssignee: assignee,
+			action.FieldStepDecision: action.DecisionPending,
+		}
+		if !validRecord(w, req, store, stepMachine, values) {
+			return false
+		}
+		if _, err := store.CreateRecord(req.Context(), stepMachine.ID, values); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return false
+		}
+	}
+	return true
 }
 
 // showSignaturePlacement is Case 3's signature-coordinate placement screen (ROADMAP.md Phase 15

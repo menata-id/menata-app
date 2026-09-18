@@ -71,3 +71,34 @@ func logActivity(ctx context.Context, store *data.Store, machineID, recordID, ac
 // maxUploadBytes bounds one multipart request body (ROADMAP.md Phase 11) -- generous enough for
 // a real PDF or a handful of images, small enough that a malicious upload can't exhaust disk.
 const maxUploadBytes = 20 << 20 // 20MB
+
+// taskMachineID is the one Machine this package still names directly: the record-update route
+// logs a Task's status move as a Project Activity event (ROADMAP.md Phase 14), which is a rule
+// about that specific Machine and has no home in generic transport code. Case 3's own ids live
+// in internal/action for the same reason.
+const taskMachineID = "mch_task"
+
+// redirectTo sends the visitor to url, the way the caller asked to be sent. HTMX swaps a fragment
+// into the current page and would otherwise follow a 303 and swap a whole document into it, so it
+// gets an HX-Redirect header instead; anything else gets an ordinary redirect.
+func redirectTo(w http.ResponseWriter, req *http.Request, url string) {
+	if req.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Redirect", url)
+		return
+	}
+	http.Redirect(w, req, url, http.StatusSeeOther)
+}
+
+// validRecord runs the two checks every create has to clear: the record's own shape, and the
+// existence of whatever it points at.
+func validRecord(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, values map[string]any) bool {
+	if err := data.ValidateRecord(machine, values); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return false
+	}
+	if err := data.ValidateRelations(req.Context(), store, machine, values); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return false
+	}
+	return true
+}

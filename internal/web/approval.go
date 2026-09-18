@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -55,6 +56,10 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, a
 // enforcing action.CanDecide's sequencing rule, then recomputing and saving the parent
 // Document's own aggregate status. Hardcoded to mch_approval_step/mch_document, matching
 // internal/action's own scope -- not a generic action-dispatch route.
+//
+// The order below is the contract, not a convenience: identity is checked before the Document is
+// even fetched (005-runtime-lifecycle.md "Security Ordering", 007 §20), and sequencing is checked
+// before anything is written.
 func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
@@ -65,13 +70,8 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg conf
 			http.Error(w, "this machine has no decide action", http.StatusNotFound)
 			return
 		}
-		if err := req.ParseForm(); err != nil {
-			http.Error(w, "invalid form body", http.StatusBadRequest)
-			return
-		}
-		decision := req.FormValue("decision")
-		if decision != action.DecisionApproved && decision != action.DecisionRejected {
-			http.Error(w, "decision must be approved or rejected", http.StatusUnprocessableEntity)
+		decision, ok := submittedDecision(w, req)
+		if !ok {
 			return
 		}
 
@@ -83,9 +83,8 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg conf
 			return
 		}
 
-		// Authorization before any further work, per 005-runtime-lifecycle.md "Security Ordering"
-		// and 007 §20: mch_approval_step declares prm_decide_own_step, so only the step's own
-		// fld_assignee gets past here (ROADMAP.md Phase 16).
+		// mch_approval_step declares prm_decide_own_step, so only the step's own fld_assignee
+		// gets past here (ROADMAP.md Phase 16).
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		if !authorization.AllowsAction(machine, domain.ActionDecide, step.Values, actor) {
 			http.Error(w, "this approval step is assigned to someone else", http.StatusForbidden)
@@ -93,20 +92,8 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg conf
 		}
 
 		documentID, _ := step.Values[action.FieldStepDocument].(string)
-		document, err := store.GetRecord(ctx, action.DocumentMachineID, documentID)
-		if err != nil {
-			recordError(w, err)
-			return
-		}
-		siblings, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		mode, _ := document.Values[action.FieldDocumentMode].(string)
-		if !action.CanDecide(mode, step, siblings) {
-			http.Error(w, "an earlier step has not been decided yet", http.StatusUnprocessableEntity)
+		document, ok := decidableDocument(w, ctx, store, machine, step, documentID)
+		if !ok {
 			return
 		}
 
@@ -115,25 +102,66 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg conf
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		updatedSiblings, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		document.Values[action.FieldDocumentStatus] = action.DocumentStatus(updatedSiblings)
-		if _, err := store.UpdateRecord(ctx, action.DocumentMachineID, documentID, document.Values); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if !recomputeDocumentStatus(w, ctx, store, machine, document, documentID) {
 			return
 		}
 
-		logActivity(ctx, store, action.DocumentMachineID, documentID, actor, fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
+		logActivity(ctx, store, action.DocumentMachineID, documentID, actor,
+			fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
 
-		documentURL := "/machines/" + action.DocumentMachineID + "/records/" + documentID
-		if req.Header.Get("HX-Request") == "true" {
-			w.Header().Set("HX-Redirect", documentURL)
-			return
-		}
-		http.Redirect(w, req, documentURL, http.StatusSeeOther)
+		redirectTo(w, req, "/machines/"+action.DocumentMachineID+"/records/"+documentID)
 	}
+}
+
+// submittedDecision reads the decision field, accepting only the two values an Approval Step can
+// actually move to -- "pending" is where it starts, never somewhere it is sent.
+func submittedDecision(w http.ResponseWriter, req *http.Request) (string, bool) {
+	if err := req.ParseForm(); err != nil {
+		http.Error(w, "invalid form body", http.StatusBadRequest)
+		return "", false
+	}
+	decision := req.FormValue("decision")
+	if decision != action.DecisionApproved && decision != action.DecisionRejected {
+		http.Error(w, "decision must be approved or rejected", http.StatusUnprocessableEntity)
+		return "", false
+	}
+	return decision, true
+}
+
+// decidableDocument fetches the step's parent Document and refuses the decision if the Document's
+// mode says an earlier step has not been decided yet.
+func decidableDocument(w http.ResponseWriter, ctx context.Context, store *data.Store, machine *domain.Machine, step *data.Record, documentID string) (*data.Record, bool) {
+	document, err := store.GetRecord(ctx, action.DocumentMachineID, documentID)
+	if err != nil {
+		recordError(w, err)
+		return nil, false
+	}
+	siblings, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return nil, false
+	}
+	mode, _ := document.Values[action.FieldDocumentMode].(string)
+	if !action.CanDecide(mode, step, siblings) {
+		http.Error(w, "an earlier step has not been decided yet", http.StatusUnprocessableEntity)
+		return nil, false
+	}
+	return document, true
+}
+
+// recomputeDocumentStatus re-reads every step after the write and derives the Document's own
+// aggregate status from them. It re-reads rather than adjusting the slice it already has, so the
+// aggregate is always computed from what is actually stored.
+func recomputeDocumentStatus(w http.ResponseWriter, ctx context.Context, store *data.Store, machine *domain.Machine, document *data.Record, documentID string) bool {
+	updated, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+	document.Values[action.FieldDocumentStatus] = action.DocumentStatus(updated)
+	if _, err := store.UpdateRecord(ctx, action.DocumentMachineID, documentID, document.Values); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+	return true
 }

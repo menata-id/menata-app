@@ -42,12 +42,7 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 			return
 		}
 
-		if err := data.ValidateRecord(machine, values); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-			return
-		}
-		if err := data.ValidateRelations(req.Context(), store, machine, values); err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		if !validRecord(w, req, store, machine, values) {
 			return
 		}
 
