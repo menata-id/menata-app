@@ -25,15 +25,27 @@ func internalPkg(name string) string { return module + "/internal/" + name }
 // rule states one package's import obligation. forbidden holds import-path prefixes the package
 // must not depend on; because cites the clause the rule enforces, so a failure explains itself
 // without a trip to the concept docs.
+//
+// dir is the package's path relative to the repo root, needed only when the package does not live
+// under internal/ -- the composition root in cmd/ is the case that forced the field (ROADMAP.md
+// Phase 19 Step 1). Leaving it empty means internal/<pkg>, which is every other rule here.
 type rule struct {
 	pkg       string
+	dir       string
 	forbidden []string
 	because   string
 }
 
-// rules covers every package under internal/. A package with no entry fails TestEveryPackageHasARule
-// below -- adding a package therefore forces a decision about what it may depend on, which is the
-// point: an unnamed boundary is how drift starts.
+func (r rule) path() string {
+	if r.dir != "" {
+		return r.dir
+	}
+	return "internal/" + r.pkg
+}
+
+// rules covers every package under internal/ and every binary under cmd/. A package with no entry
+// fails TestEveryPackageHasARule below -- adding a package therefore forces a decision about what
+// it may depend on, which is the point: an unnamed boundary is how drift starts.
 var rules = []rule{
 	{
 		pkg:       "domain",
@@ -130,19 +142,30 @@ var rules = []rule{
 		forbidden: []string{postgres, sqlPkg, httpPkg, templ, module + "/internal"},
 		because:   "these checks must not depend on the code they police",
 	},
+	{
+		pkg: "server",
+		dir: "cmd/server",
+		// internal/db is deliberately absent: the composition root is the one place that must
+		// build the pool, so db.Connect is its job. What it may not do is speak the driver's
+		// own language. Phase 19 Step 2 tightens this to templ and internal/rendering as well,
+		// once the handlers have left main.go -- the ban is added there rather than here so
+		// this commit leaves the suite green.
+		forbidden: []string{postgres, sqlPkg},
+		because:   "002 §Runtime Boundary: the composition root wires dependencies and mounts the router; it holds the pool through internal/db but never speaks SQL itself",
+	},
 }
 
 func TestPlaneBoundaries(t *testing.T) {
 	for _, r := range rules {
 		t.Run(r.pkg, func(t *testing.T) {
-			imports, err := packageImports(r.pkg)
+			imports, err := packageImports(r.path())
 			if err != nil {
 				t.Fatalf("read imports: %v", err)
 			}
 			for _, imported := range imports {
 				for _, bad := range r.forbidden {
 					if strings.HasPrefix(imported, bad) {
-						t.Errorf("internal/%s must not import %q\n  rule: %s", r.pkg, imported, r.because)
+						t.Errorf("%s must not import %q\n  rule: %s", r.path(), imported, r.because)
 					}
 				}
 			}
@@ -150,28 +173,34 @@ func TestPlaneBoundaries(t *testing.T) {
 	}
 }
 
-// TestEveryPackageHasARule is the anti-drift half: a new package under internal/ has no declared
-// boundary until someone writes one, and an undeclared boundary is exactly what nobody notices
-// until it is too large to correct.
+// TestEveryPackageHasARule is the anti-drift half: a new package has no declared boundary until
+// someone writes one, and an undeclared boundary is exactly what nobody notices until it is too
+// large to correct.
+//
+// cmd/ is scanned alongside internal/ because until Phase 19 it was not: cmd/server was the
+// largest file in the repo and the only one no rule covered, which is precisely backwards.
 func TestEveryPackageHasARule(t *testing.T) {
 	covered := make(map[string]bool, len(rules))
 	for _, r := range rules {
-		covered[r.pkg] = true
+		covered[r.path()] = true
 	}
 
-	entries, err := os.ReadDir(internalDir())
-	if err != nil {
-		t.Fatalf("read internal/: %v", err)
-	}
-	for _, e := range entries {
-		if !e.IsDir() || covered[e.Name()] {
-			continue
+	for _, parent := range []string{"internal", "cmd"} {
+		entries, err := os.ReadDir(filepath.Join(repoRoot(), parent))
+		if err != nil {
+			t.Fatalf("read %s/: %v", parent, err)
 		}
-		t.Errorf("internal/%s has no boundary rule -- add one to rules in this file, stating what it may not depend on and why", e.Name())
+		for _, e := range entries {
+			path := parent + "/" + e.Name()
+			if !e.IsDir() || covered[path] {
+				continue
+			}
+			t.Errorf("%s has no boundary rule -- add one to rules in this file, stating what it may not depend on and why", path)
+		}
 	}
 }
 
-func internalDir() string { return filepath.Join("..", "..", "internal") }
+func repoRoot() string { return filepath.Join("..", "..") }
 
 // packageImports returns the package's non-test imports. Test files are excluded deliberately: a
 // test may reach for whatever it needs to exercise the package, and constraining that would
@@ -181,8 +210,9 @@ func internalDir() string { return filepath.Join("..", "..", "internal") }
 // which would let an unparseable file hide its own imports and turn this whole check into a
 // silent pass -- the exact failure this package exists to prevent, so it is an error here rather
 // than a shrug.
-func packageImports(name string) ([]string, error) {
-	dir := filepath.Join(internalDir(), name)
+// path is the package directory relative to the repo root, e.g. "internal/domain" or "cmd/server".
+func packageImports(path string) ([]string, error) {
+	dir := filepath.Join(repoRoot(), path)
 	pkg, err := build.ImportDir(dir, 0)
 	if err != nil {
 		return nil, err
@@ -203,11 +233,11 @@ func packageImports(name string) ([]string, error) {
 			continue
 		}
 		if !seen[e.Name()] {
-			return nil, fmt.Errorf("%s/%s was not parsed, so its imports were never checked", name, e.Name())
+			return nil, fmt.Errorf("%s/%s was not parsed, so its imports were never checked", path, e.Name())
 		}
 	}
 	if len(pkg.InvalidGoFiles) > 0 {
-		return nil, fmt.Errorf("%s has unparseable files: %v", name, pkg.InvalidGoFiles)
+		return nil, fmt.Errorf("%s has unparseable files: %v", path, pkg.InvalidGoFiles)
 	}
 	return pkg.Imports, nil
 }
