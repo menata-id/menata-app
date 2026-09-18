@@ -1125,6 +1125,19 @@ beyond Phase 2's minimal structure, and the full semantic field type vocabulary 
 of these have a forcing case yet. Adding any of them before one exists repeats the mistake this
 roadmap is written to avoid.
 
+`internal/execution` specifically is not the same gap Phase 18 closed. Phase 18 moved the
+*composition/data-fetch* functions (`loadChildSections`/`loadRelationOptions`/`loadBoardColumns`)
+into `internal/composition`, where their own `doc.go` contract already said they belonged -- it
+did not move the HTTP handlers themselves. `cmd/server/main.go` is 1512 lines as of Phase 18's own
+commit, all of it route registration and ~30 handler functions (`showDashboard`,
+`showApprovalInbox`, `decideStep`, `showSignaturePlacement`, ...), and every future phase that adds
+a screen or Action adds another handler there -- the file will grow again, just without Phase 18's
+specific duplicate-fetch failure mode repeating. No forcing case for splitting the handlers out
+exists yet (one hand-wired handler per route is not the dispatch-sprawl problem a registry or
+execution layer would fix, the same reasoning that keeps the Component Registry off this list) --
+named here so the next drift audit checks this file's size against a number instead of rediscovering
+the question from zero.
+
 Permission (the fifth Domain Plane primitive, alongside Machine/Field/Event/Constraint) is
 deliberately *not* in this list -- it already has a forcing case (Case 3's per-step
 `fld_assignee`), which is why the 2026-09-18 audit promoted it into **Phase 16** rather than
