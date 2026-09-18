@@ -22,6 +22,7 @@ import (
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
 	"menata.app/internal/behavior"
+	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/db"
@@ -75,6 +76,7 @@ func main() {
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(requireAuth(cfg))
+		pr.Use(queryDiagnostics)
 
 		pr.Post("/logout", logout(cfg))
 
@@ -134,6 +136,35 @@ func requireAuth(cfg config.Config) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, req)
 		})
 	}
+}
+
+// queryDiagnostics reports what each request actually read: how many queries it issued, how many
+// of those repeated a target it had already fetched, and the per-target breakdown (ROADMAP.md
+// Phase 18 Step 3). Phase 6 needed a throwaway probe inside internal/data to learn this; making
+// it permanent is what lets the next forcing condition show up as a number during development
+// rather than as a surprise in production -- see the Method's 2026-09-18 correction for why this
+// repo can no longer wait for real use to reveal its thresholds.
+//
+// It logs rather than setting a response header because the count is only final once the handler
+// has rendered, by which point the headers are already on the wire.
+func queryDiagnostics(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ctx, reads := data.WithReadLog(req.Context())
+		next.ServeHTTP(w, req.WithContext(ctx))
+
+		if reads.Total() == 0 {
+			return
+		}
+		parts := make([]string, 0, 4)
+		for _, tc := range reads.Breakdown() {
+			if tc.Reads > 1 {
+				parts = append(parts, fmt.Sprintf("%s x%d", tc.Target, tc.Reads))
+				continue
+			}
+			parts = append(parts, tc.Target)
+		}
+		log.Printf("reads=%d repeated=%d %s [%s]", reads.Total(), reads.Repeated(), req.URL.Path, strings.Join(parts, ", "))
+	})
 }
 
 func showLogin(w http.ResponseWriter, req *http.Request) {
@@ -857,17 +888,18 @@ func showMachinePage(machines map[string]*domain.Machine, appName string, store 
 			return
 		}
 
-		records, err := store.ListRecords(req.Context(), machine.ID)
+		ld := composition.NewLoader(store, machines)
+		records, err := ld.ListRecords(req.Context(), machine.ID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+		relations, err := ld.RelationOptions(req.Context(), machine)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		boardColumns, err := loadBoardColumns(req.Context(), store, machines, machine)
+		boardColumns, err := ld.BoardColumns(req.Context(), machine)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -939,7 +971,8 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 			recordError(w, err)
 			return
 		}
-		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+		ld := composition.NewLoader(store, machines)
+		relations, err := ld.RelationOptions(req.Context(), machine)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -947,7 +980,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 
 		if req.Header.Get("HX-Request") != "true" {
-			children, err := loadChildSections(req.Context(), store, machines, machine, record.ID)
+			children, err := ld.ChildSections(req.Context(), machine, record.ID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -956,7 +989,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 			return
 		}
 		if isDetailContext(req) {
-			children, err := loadChildSections(req.Context(), store, machines, machine, record.ID)
+			children, err := ld.ChildSections(req.Context(), machine, record.ID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -979,7 +1012,8 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store) http.
 			recordError(w, err)
 			return
 		}
-		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+		ld := composition.NewLoader(store, machines)
+		relations, err := ld.RelationOptions(req.Context(), machine)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1044,7 +1078,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
-		relatedRecords, err := loadConstraintRelatedRecords(req.Context(), store, machine)
+		relatedRecords, err := composition.NewLoader(store, machines).ConstraintRelatedRecords(req.Context(), machine)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1079,13 +1113,14 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 				logActivity(req.Context(), store, machine.ID, record.ID, actor, summary)
 			}
 		}
-		relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+		ld := composition.NewLoader(store, machines)
+		relations, err := ld.RelationOptions(req.Context(), machine)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		if isDetailContext(req) {
-			children, err := loadChildSections(req.Context(), store, machines, machine, record.ID)
+			children, err := ld.ChildSections(req.Context(), machine, record.ID)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -1273,7 +1308,8 @@ func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Sto
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		relations, err := loadRelationOptions(ctx, store, machines, machines[action.StepMachineID])
+		ld := composition.NewLoader(store, machines)
+		relations, err := ld.RelationOptions(ctx, machines[action.StepMachineID])
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -1326,17 +1362,18 @@ func isDetailContext(req *http.Request) bool {
 }
 
 func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store) {
-	records, err := store.ListRecords(req.Context(), machine.ID)
+	ld := composition.NewLoader(store, machines)
+	records, err := ld.ListRecords(req.Context(), machine.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	relations, err := loadRelationOptions(req.Context(), store, machines, machine)
+	relations, err := ld.RelationOptions(req.Context(), machine)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	boardColumns, err := loadBoardColumns(req.Context(), store, machines, machine)
+	boardColumns, err := ld.BoardColumns(req.Context(), machine)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1344,123 +1381,7 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 	rendering.MachineBody(machine, records, relations, boardColumns).Render(req.Context(), w)
 }
 
-// loadConstraintRelatedRecords fetches every record of each Constraint's related Machine, keyed
-// by that Machine's ID, for behavior.CheckConstraints to evaluate against.
-func loadConstraintRelatedRecords(ctx context.Context, store *data.Store, m *domain.Machine) (map[string][]*data.Record, error) {
-	related := map[string][]*data.Record{}
-	for _, c := range m.Constraints {
-		if _, loaded := related[c.BlockIf.RelatedMachine]; loaded {
-			continue
-		}
-		records, err := store.ListRecords(ctx, c.BlockIf.RelatedMachine)
-		if err != nil {
-			return nil, err
-		}
-		related[c.BlockIf.RelatedMachine] = records
-	}
-	return related, nil
-}
-
-// loadChildSections resolves every child collection pointing at (m, recordID) -- every record of
-// another Machine whose reference field names this one (ROADMAP.md Phase 9) -- fetching each
-// collection's records and the relation options its own rows need to render.
-func loadChildSections(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, m *domain.Machine, recordID string) ([]rendering.ChildSection, error) {
-	var sections []rendering.ChildSection
-	for _, cc := range domain.FindChildCollections(machineSlice(machines), m.ID) {
-		records, err := store.ListRecordsBy(ctx, cc.Machine.ID, cc.Field.ID, recordID)
-		if err != nil {
-			return nil, err
-		}
-		relations, err := loadRelationOptions(ctx, store, machines, cc.Machine)
-		if err != nil {
-			return nil, err
-		}
-		sections = append(sections, rendering.ChildSection{Machine: cc.Machine, Records: records, Relations: relations})
-	}
-	return sections, nil
-}
-
-func machineSlice(machines map[string]*domain.Machine) []*domain.Machine {
-	list := make([]*domain.Machine, 0, len(machines))
-	for _, m := range machines {
-		list = append(list, m)
-	}
-	return list
-}
-
-// loadBoardColumns resolves board columns for m when its board Layout groups by a reference
-// field (ROADMAP.md Phase 10's ordered Lists, e.g. mch_list) -- fetching those real records is
-// I/O experience.GroupRecords doesn't perform itself. Returns nil (not an error) when m isn't a
-// board, or groups by an ordinary status field instead: GroupRecords computes its own columns
-// from that Field's Options in that case, unchanged since Phase 5.
-func loadBoardColumns(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, m *domain.Machine) ([]experience.Column, error) {
-	if m.View.EffectiveLayout() != domain.LayoutBoard {
-		return nil, nil
-	}
-	groupField, ok := m.FieldByID(m.View.GroupBy)
-	if !ok || !groupField.IsReference() {
-		return nil, nil
-	}
-	listMachine, ok := machines[groupField.RelatedMachine]
-	if !ok || len(listMachine.Fields) == 0 {
-		return nil, nil
-	}
-
-	records, err := store.ListRecords(ctx, listMachine.ID)
-	if err != nil {
-		return nil, err
-	}
-	labelFieldID := listMachine.Fields[0].ID
-	columns := make([]experience.Column, 0, len(records))
-	for _, r := range records {
-		columns = append(columns, experience.Column{ID: r.ID, Label: toDisplayString(r.Values[labelFieldID])})
-	}
-	return columns, nil
-}
-
-// loadRelationOptions fetches every option a reference field on m could select (Relation or
-// Person, per domain.Field.IsReference), keyed by target Machine ID. The target's first Field is
-// used as the display label -- a minimal convention until a real Projection/semantic "title"
-// role exists (007 SS7.6), which isn't forced yet by a case that needs more than one reasonable
-// label field.
-func loadRelationOptions(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, m *domain.Machine) (rendering.RelationOptions, error) {
-	options := rendering.RelationOptions{}
-	for _, f := range m.Fields {
-		if !f.IsReference() {
-			continue
-		}
-		if _, loaded := options[f.RelatedMachine]; loaded {
-			continue
-		}
-		target, ok := machines[f.RelatedMachine]
-		if !ok || len(target.Fields) == 0 {
-			continue
-		}
-		labelFieldID := target.Fields[0].ID
-
-		records, err := store.ListRecords(ctx, target.ID)
-		if err != nil {
-			return nil, err
-		}
-		list := make([]rendering.RelationOption, 0, len(records))
-		for _, r := range records {
-			list = append(list, rendering.RelationOption{ID: r.ID, Label: toDisplayString(r.Values[labelFieldID])})
-		}
-		options[f.RelatedMachine] = list
-	}
-	return options, nil
-}
-
-func toDisplayString(v any) string {
-	if v == nil {
-		return ""
-	}
-	if s, ok := v.(string); ok {
-		return s
-	}
-	b, _ := json.Marshal(v)
-	return string(b)
-}
+func toDisplayString(v any) string { return composition.DisplayString(v) }
 
 // maxUploadBytes bounds one multipart request body (ROADMAP.md Phase 11) -- generous enough for
 // a real PDF or a handful of images, small enough that a malicious upload can't exhaust disk.

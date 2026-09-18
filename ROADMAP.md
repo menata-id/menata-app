@@ -20,6 +20,43 @@ primitive only on the second real case that needs it, per 007 §4.1's admission 
 existing primitive express it?") -- never on the first case, and never speculatively for a third
 case that doesn't exist yet.
 
+### Correction (2026-09-18, owner-prompted): forcing conditions must be constructed, not awaited
+
+The method above silently assumes a system that is *in use*. It is not. menata-app has no users,
+one shared credential and one Application -- and nearly every trigger this document defers behind
+is production-shaped:
+
+> "the first metadata author who is not the engineer who wrote the inference" · "the first real
+> destructive metadata change on data that matters" · "a second Application in the manifest" ·
+> "the first Machine whose record count makes a page slow" · "the first real multi-tenant case" ·
+> "metadata authored by someone who cannot deploy" · "a metadata author, not an engineer, needs
+> to compose a new dashboard-shaped page"
+
+None of those events can occur before deployment. So the method, applied literally, defers them
+forever and reports progress while the composable architecture stands still -- which is exactly
+what happened: Phase 6 was tested four times, each time concluding "not forced," while the
+deferred list only grew. **That is not evidence the architecture is sound. It is evidence that
+nothing has been exercised.** In a system nobody uses, the absence of a forcing condition carries
+no information at all.
+
+**The correction:** a forcing condition that cannot arise naturally before production must be
+*manufactured* during development, while manufacturing it is still cheap -- synthetic record
+volume, synthetic metadata breadth, a second Application, a second identity, a deliberately
+authored page. Then the architecture is measured against it.
+
+This does **not** relax "never build speculatively." The rule still is: build only what a
+measurement forces. What changes is where the measurement comes from -- produced on purpose
+instead of waited for. Writing the *test* that reveals whether a mechanism is needed is never
+speculative; writing the *mechanism* before that test is. Phase 6's fourth pass is the template:
+it measured, found real duplication, and forced exactly one small thing (dedup) while leaving
+IR and the dependency graph deferred on the same evidence.
+
+**Rule from here on:** a phase may stay deferred only when its trigger is either (a) constructible
+today, and has been constructed and measured negative -- with the numbers recorded, as Phase 6
+does -- or (b) genuinely impossible to construct before real use, in which case the entry must say
+so explicitly and name what deployment event would produce it. "No forcing case yet" is no longer
+an acceptable entry on its own.
+
 **Client-side interactivity, whenever a phase touches `internal/rendering`:** HTMX first,
 Hyperscript when HTMX's request/response model genuinely isn't enough, vanilla JS only as a
 named exception (owner instruction, 2026-09-15). See README.md's "Tech stack" section for the
@@ -236,16 +273,58 @@ Method's "build the minimum," and §4.1's admission question, a request-scoped m
 place when dedup alone stops being enough (batching, concurrency bounds, or a case where the
 right fetch depends on another fetch's result -- none exists today).
 
-- [ ] Request-scoped read memoization: one shared cache per request, keyed by the read's own
-      arguments, consulted by `loadRelationOptions`, `loadChildSections` and `loadBoardColumns`.
-      Smallest thing that fixes the measured problem; lives with `Store`'s callers, not in
-      `internal/planner`, until a second planner concern appears
+- [x] Request-scoped read memoization: one shared cache per request, keyed by the read's own
+      arguments (`composition.Loader`, Phase 18 Step 2). Smallest thing that fixes the measured
+      problem; lives with `Store`'s callers, not in `internal/planner`, until a second planner
+      concern appears
 - [ ] Deferred until a second concern exists: Domain/Data/UI IR (`internal/ir`),
       `internal/composition`'s dependency graph, `internal/planner` proper
 
-**Exit criterion:** re-run the probe above; `/machines/mch_task` drops 5 -> 4,
-`/machines/mch_project/records/{id}` 6 -> 5, `/machines/mch_user/records/{id}` 12 -> 9, with
-rendered HTML identical before and after (same check Phase 15 Step 0 used).
+**Exit criterion met, 2026-09-18.** Measured with the now-permanent query diagnostic (Phase 18
+Step 3), comparing the same binary built with the memo disabled:
+
+| Route | Before | After |
+|---|---|---|
+| `/machines/mch_task` | 5 reads, 1 repeated | **4 reads, 0 repeated** |
+| `/machines/mch_project/records/{id}` | 6 reads, 1 repeated | **5 reads, 0 repeated** |
+| `/machines/mch_user/records/{id}` | 12 reads, 3 repeated | **9 reads, 0 repeated** |
+
+The other 11 routes were unchanged, and all 14 routes' rendered HTML is byte-identical between
+the two builds.
+
+**Found by that HTML comparison, and fixed:** child sections rendered in a *different order on
+every request*. `machineSlice` iterated a Go map, whose iteration order is randomized, so a
+record's detail sections shuffled on reload. The defect predated this work (`main.go`'s own
+`machineSlice` had it), was invisible to every previous test because none compared rendered
+output, and is now sorted and locked by `TestMachineSliceIsStable`. Worth noting as evidence for
+the exit criterion's own shape: "identical HTML" earns its place precisely by catching things the
+query counts never would.
+
+**Volume threshold, measured 2026-09-18 (`make threshold`, Phase 18 Step 4).** Phase 6 has asked
+since 2026-09-15 what record count makes whole-Machine reads stop working, and until now answered
+"unknown, no case has hit it." Constructed deliberately rather than waited for:
+
+| Records in one Machine | Whole-Machine read (avg of 3) | |
+|---|---|---|
+| 100 | 0.7ms | fine |
+| 1,000 | 5ms | fine |
+| 10,000 | 44.8ms | fine, approaching the budget |
+| 50,000 | 217.2ms | **over the 100ms interactive budget** |
+| 100,000 | 545ms | over |
+
+So the threshold sits between **10,000 and 50,000 records in a single Machine**. Below it, this
+app's "fetch the whole Machine and reduce it in Go" shape is correct and the planner is genuinely
+unnecessary. Above it, projection/filter pushdown and pagination are forced (007 §21.1, §28
+invariants #2 and #4) -- and that, not more composed pages, is what finally gives the dependency
+graph something to order, since only then must a fetch's arguments come from another fetch's
+result. **Pagination lands before the planner, and neither lands before 10k rows.** "Not forced"
+is now a number rather than an assumption.
+
+**Breadth claim: confirmed, then closed.** Phase 6's fourth test predicted the duplication grows
+with the number of Machines referencing a target rather than with record count -- inferred from
+9 Machines. `TestBreadthThreshold` constructs 1, 4, 16 and 64 referring Machines: without the memo
+that is one read per referrer, with it exactly one read at every breadth. The prediction was
+right, and the growth is now closed and locked by a test rather than argued about.
 
 ---
 
@@ -803,6 +882,98 @@ every approver's signature image burned in at its declared position.
 
 ---
 
+## Phase 18 -- Drift detection: make conformance automatic, not audited (done, 2026-09-18)
+
+**Forcing condition:** this repo's protection against architectural drift is currently a manual,
+sporadic audit. The 2026-09-18 pass proved both that it works (it caught Permission) and that it
+is insufficient -- Permission "had fallen through this repo's own tracking discipline entirely"
+and was found only because someone went looking. That is the same failure mode that killed
+`menata-runtime`'s own composable rewrite, whose audit found the Behavior plane "was never
+designed, not merely unbuilt": the problem there was not a missing mechanism, it was that nobody
+learned they had drifted until the drift was too large to correct.
+
+**Measured state, 2026-09-18 (the evidence this phase answers):**
+
+*Clean, verified by the actual import graph, not by intent:* `internal/domain` imports no pgx, no
+`net/http`, no templ; `internal/rendering` imports neither `internal/db` nor pgx, so no SQL
+reaches the Experience Plane; `internal/db` imports pgx alone, holding its own doc.go claim of
+having "no knowledge of Runtime Metadata semantics." No plane boundary is violated today. This is
+a materially different state from the prior repo -- the contracts exist (001-007 plus each
+package's `doc.go`), so a deviation can at least be named.
+
+*Drifting, and the real finding:* **`cmd/server/main.go` has become the de facto composition
+layer** -- 1591 lines, holding `loadChildSections`, `loadRelationOptions` and `loadBoardColumns`
+(the exact three functions Phase 6's fourth test found duplicating fetches) while
+`internal/composition/` contains only its `doc.go`. Nobody bypassed a built mechanism; the
+mechanism's work simply accumulated somewhere unnamed, which is how the prior repo's drift would
+have started too. Concrete consequence: `showApprovalInbox` is 143 lines of join/derive/bucket
+logic and `go test` reports `cmd/server [no test files]` -- that logic is untested and not
+testable where it currently sits.
+
+*Also noted, smaller:* `internal/rendering/detail.templ` hardcodes `action.StepMachineID` and
+`action.DocumentMachineID` -- Case 3-specific Machine identity inside a generic plane. Phase 12
+deliberately accepted that hardcoded posture, but accepted it in `internal/action`, not in
+`rendering`. Tracked here, not fixed by this phase; no second case makes it wrong yet.
+
+**Why this phase is not "build IR/CEP early":** the prior repo did not fail for lack of
+mechanism. Its composable rewrite was abandoned for building composition machinery against
+*guessed* shapes. An IR written now, with no real composition to test it against, would be both
+wrong and load-bearing -- worse than absent, because everything built afterwards inherits the
+wrong shape and the correction cost is exactly the "already too big" outcome this phase exists to
+prevent. The remedy is to make drift cheap to detect, not to build the deferred mechanisms early.
+Nothing in this phase builds a 007 PROPOSED mechanism.
+
+- [x] **Step 1: import-boundary test.** Encode each package's `doc.go` contract as an executable
+      check that runs in `make test` -- the Domain Plane imports nothing physical, the Experience
+      Plane reaches no database, `internal/db` carries no metadata semantics. Catches a violation
+      the day it is written instead of at the next audit
+- [x] **Step 2: move the composition functions into `internal/composition`, then fix Phase 6's
+      measured duplication there.** Relocation first (`loadChildSections`/`loadRelationOptions`/
+      `loadBoardColumns`, pure move, identical behavior), then the request-scoped read memo Phase
+      6 already forced. Puts the code where its contract already is, makes it unit-testable, and
+      shrinks `main.go` -- the seam starts doing its job at minimum size, with no IR and no
+      dependency graph
+- [x] **Step 3: permanent query diagnostic.** Make Phase 6's throwaway probe a real diagnostic
+      surface: which Machines a request read, how many times each. Detects the next forcing
+      condition automatically instead of by guess, and closes half of the "inference is not
+      inspectable" gap below (001 Principle #6 requires inference results be exposable through
+      diagnostics)
+- [x] **Step 4: threshold harness -- construct the forcing conditions that cannot arrive on their
+      own.** Per the Method's 2026-09-18 correction: this app has no users, so waiting for
+      production-shaped triggers defers them forever. Build synthetic conditions instead and
+      measure the architecture against them, recording the numbers whichever way they come out:
+    - *Record volume* -- seed `mch_user`/`mch_task` at increasing scale and find where
+      whole-Machine reads stop being viable. This is the named trigger for projection/filter
+      pushdown and pagination (007 §21.1, §28 invariants #2 and #4), and the prerequisite for the
+      dependency graph: once a referenced Machine is too large to fetch whole, a fetch's arguments
+      start coming from another fetch's result, which is the first real dependency edge
+    - *Metadata breadth* -- generate Machines that reference `mch_user` and confirm (or refute)
+      Phase 6's claim that the duplication grows with schema size rather than record count
+    - Record the measured threshold in Phase 6, so "not forced" is always backed by a number
+
+**Exit criterion met, 2026-09-18** -- all four parts verified, not asserted:
+
+- A boundary violation fails the suite: adding `net/http` to `internal/domain` produced
+  `internal/domain must not import "net/http"` with the 004 clause it breaks; a file with a broken
+  package clause fails too, so an unparseable file cannot hide its imports. `TestEveryPackageHasARule`
+  additionally fails for any new package under `internal/` that has not declared what it may not
+  depend on -- an undeclared boundary is how drift starts
+- Phase 6's counts dropped to 4/5/9 with zero repeats, and all 14 routes' HTML is byte-identical
+  to the memo-disabled build (table in Phase 6). `cmd/server/main.go` fell from 1591 to ~1380
+  lines, and the moved logic now has unit tests where it previously had none
+- Every request logs `reads=N repeated=M <path> [per-target breakdown]`, from
+  `internal/data`'s own read paths, so it covers handlers that never touch the Loader
+- The volume threshold is measured and recorded in Phase 6: whole-Machine reads pass 100ms
+  between 10,000 and 50,000 records
+
+**What this phase did not fix, deliberately:** `internal/rendering` still hardcodes
+`action.StepMachineID`/`DocumentMachineID` (noted above). Left alone because no second case makes
+it wrong yet, and because moving the Experience-tree types (`ChildSection`, `RelationOptions`) out
+of `rendering` *is* the UI IR question -- designing their home now would be exactly the
+speculative build this phase argues against.
+
+---
+
 ## Operational backlog (tracked, not phase-numbered)
 
 Found during a security/hygiene review (2026-09-15) -- real gaps, but not part of the
@@ -928,6 +1099,13 @@ deferred with the rest.
   but it is bounded by record count, and nothing in the repo said so. Forcing condition: the first
   Machine whose record count makes a page slow -- at which point pagination lands before, not
   after, the planner.
+
+  *Quantified 2026-09-18 (`make threshold`, Phase 18 Step 4).* That bound is no longer unknown: a
+  whole-Machine read costs 0.7ms at 100 records, 5ms at 1,000, 44.8ms at 10,000, and **217ms at
+  50,000** -- past the 100ms interactive budget somewhere between 10k and 50k rows in one Machine.
+  The trade stays correct below that and fails above it. This entry previously waited for a real
+  Machine to get slow, which is a production event this app cannot have; constructing it instead
+  cost one test run, per the Method's 2026-09-18 correction.
 - **Deferred, with trigger: no hot reload.** 005 §Hot Reload and 001 Principle #10 (Live
   Evolution) describe metadata changes taking effect without regenerating the application.
   `metadata.LoadApplication` runs once in `main()`, so a metadata change takes effect on restart.

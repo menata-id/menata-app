@@ -51,6 +51,7 @@ func (s *Store) CreateRecord(ctx context.Context, machineID string, values map[s
 
 // ListRecords returns every Record for the given Machine, in sort_order.
 func (s *Store) ListRecords(ctx context.Context, machineID string) ([]*Record, error) {
+	readLogFrom(ctx).record(machineID)
 	return s.queryRecords(ctx, `
 		SELECT id, machine_id, data, sort_order, created_at, updated_at
 		FROM records
@@ -63,6 +64,7 @@ func (s *Store) ListRecords(ctx context.Context, machineID string) ([]*Record, e
 // sort_order -- the query behind a child collection (ROADMAP.md Phase 9): fieldID is a
 // reference field on machineID pointing back to another record (value = that record's id).
 func (s *Store) ListRecordsBy(ctx context.Context, machineID, fieldID, value string) ([]*Record, error) {
+	readLogFrom(ctx).record(machineID + " by " + fieldID)
 	return s.queryRecords(ctx, `
 		SELECT id, machine_id, data, sort_order, created_at, updated_at
 		FROM records
@@ -95,6 +97,7 @@ func (s *Store) queryRecords(ctx context.Context, query string, args ...any) ([]
 
 // GetRecord returns one Record by ID, scoped to the given Machine.
 func (s *Store) GetRecord(ctx context.Context, machineID, id string) (*Record, error) {
+	readLogFrom(ctx).record(machineID + " by id")
 	row := s.pool.QueryRow(ctx, `
 		SELECT id, machine_id, data, sort_order, created_at, updated_at
 		FROM records
