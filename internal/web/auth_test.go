@@ -29,10 +29,18 @@ func cleanupAuthTest(t *testing.T, pool *pgxpool.Pool, workspaceID, email string
 	t.Helper()
 	t.Cleanup(func() {
 		ctx := context.Background()
-		pool.Exec(ctx, `DELETE FROM workspace_members WHERE workspace_id = $1`, workspaceID)
-		pool.Exec(ctx, `DELETE FROM records WHERE workspace_id = $1`, workspaceID)
-		pool.Exec(ctx, `DELETE FROM credentials WHERE email = $1`, email)
-		pool.Exec(ctx, `DELETE FROM workspaces WHERE id = $1`, workspaceID)
+		if _, err := pool.Exec(ctx, `DELETE FROM workspace_members WHERE workspace_id = $1`, workspaceID); err != nil {
+			t.Errorf("cleanup workspace_members: %v", err)
+		}
+		if _, err := pool.Exec(ctx, `DELETE FROM records WHERE workspace_id = $1`, workspaceID); err != nil {
+			t.Errorf("cleanup records: %v", err)
+		}
+		if _, err := pool.Exec(ctx, `DELETE FROM credentials WHERE email = $1`, email); err != nil {
+			t.Errorf("cleanup credentials: %v", err)
+		}
+		if _, err := pool.Exec(ctx, `DELETE FROM workspaces WHERE id = $1`, workspaceID); err != nil {
+			t.Errorf("cleanup workspaces: %v", err)
+		}
 	})
 }
 

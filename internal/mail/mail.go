@@ -73,13 +73,13 @@ func (m SMTPMailer) sendImplicitTLS(addr string, auth smtp.Auth, to string, msg 
 	if err != nil {
 		return fmt.Errorf("tls dial: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	client, err := smtp.NewClient(conn, m.Host)
 	if err != nil {
 		return fmt.Errorf("smtp client: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	if err := client.Auth(auth); err != nil {
 		return fmt.Errorf("auth: %w", err)

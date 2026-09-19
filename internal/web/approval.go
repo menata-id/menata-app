@@ -68,7 +68,7 @@ func showPendingCount(machines map[string]*domain.Machine, store *data.Store, cf
 		if len(inbox.Pending) == 0 {
 			return
 		}
-		fmt.Fprintf(w, "%d", len(inbox.Pending))
+		_, _ = fmt.Fprintf(w, "%d", len(inbox.Pending))
 	}
 }
 

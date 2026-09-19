@@ -36,13 +36,21 @@ func TestStore_CreateWorkspace_slugCollisionRetries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateWorkspace(first): %v", err)
 	}
-	t.Cleanup(func() { pool.Exec(ctx, `DELETE FROM workspaces WHERE id = $1`, first.ID) })
+	t.Cleanup(func() {
+		if _, err := pool.Exec(ctx, `DELETE FROM workspaces WHERE id = $1`, first.ID); err != nil {
+			t.Errorf("cleanup workspaces (first): %v", err)
+		}
+	})
 
 	second, err := store.CreateWorkspace(ctx, "Acme Two", "acme-workspace-test")
 	if err != nil {
 		t.Fatalf("CreateWorkspace(second, colliding slug): %v", err)
 	}
-	t.Cleanup(func() { pool.Exec(ctx, `DELETE FROM workspaces WHERE id = $1`, second.ID) })
+	t.Cleanup(func() {
+		if _, err := pool.Exec(ctx, `DELETE FROM workspaces WHERE id = $1`, second.ID); err != nil {
+			t.Errorf("cleanup workspaces (second): %v", err)
+		}
+	})
 
 	if second.Slug == first.Slug {
 		t.Errorf("CreateWorkspace(second).Slug = %q, want it to differ from the first (%q)", second.Slug, first.Slug)
