@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>UI Sample — Approval Role Matrix</title>
 <script src="https://cdn.tailwindcss.com"></script>
-</head>
+<script src="nav-metadata.js"></script><script src="nav-chrome.js"></script></head>
 <body class="min-h-full text-slate-900">
-<div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">UI Sample — Approval Role Matrix mockup. Static, not wired to real data or the runtime. Rows follow CAP-W05's real <code>ProcessEdge</code> (Event, From, To, Actor) grouped by role instead of by transition.</div>
+
 <header class="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
   <div class="mx-auto flex max-w-6xl items-center justify-between gap-4">
     <div class="text-sm font-semibold">Menata Runtime <span class="font-normal text-slate-400">/ Workspace / Approval Role Matrix</span></div>
@@ -108,5 +108,5 @@
     Permission individually.
   </p>
 </main>
-</body>
+<script>MenataNav.mount();</script></body>
 </html>

@@ -7,23 +7,12 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 <script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
-</head>
+<script src="nav-metadata.js"></script><script src="nav-chrome.js"></script></head>
 <body class="h-full text-slate-900">
-<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
-  UI Sample — CAP-V10 Tier 2 exploration ("a page composing any Views, not only summary tiles").
-  Static mockup, not wired to real data. Every section below is what a real page View would resolve
-  to by referencing an existing View by id — see caption under each section.
-</div>
+
 <header class="border-b border-slate-200 bg-white px-6 py-4">
   <div class="mx-auto flex max-w-6xl items-center justify-between">
     <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
-    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
-      <a href="/ui-sample/approval-dashboard.html" class="rounded-md bg-white px-3 py-1.5 font-medium text-slate-900 shadow-sm">Dashboard</a>
-      <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
-      <a href="/ui-sample/document-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Doc Approval</a>
-      <a href="/ui-sample/process-map.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Process Map</a>
-      <a href="/ui-sample/groups.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Groups</a>
-    </nav>
     <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold">NS</span>
   </div>
 </header>
@@ -156,5 +145,5 @@
     </section>
   </div>
 </main>
-</body>
+<script>MenataNav.mount('case3', 'dashboard');</script></body>
 </html>

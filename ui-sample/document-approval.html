@@ -7,9 +7,9 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 <script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
-</head>
+<script src="nav-metadata.js"></script><script src="nav-chrome.js"></script></head>
 <body class="min-h-full text-slate-900">
-<div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">UI Sample — Document Approval redesign. Static mockup over Menata Runtime patterns.</div>
+
 <header class="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
   <div class="mx-auto flex max-w-6xl items-center justify-between gap-4">
     <div class="text-sm font-semibold">Menata Runtime <span class="font-normal text-slate-400">/ Approval</span></div>
@@ -83,5 +83,4 @@
     </div>
   </section>
 </main>
-<nav class="sticky bottom-0 border-t border-slate-200 bg-white px-2 py-2 sm:hidden"><div class="grid grid-cols-4 text-center text-[11px]"><a class="font-semibold text-blue-600" href="#inbox">Inbox</a><a class="text-slate-500" href="#documents">Documents</a><a class="text-slate-500" href="#groups">Groups</a><a class="text-slate-500" href="#admin">More</a></div></nav>
-</body></html>
+<script>MenataNav.mount('case3', 'inbox');</script></body></html>
