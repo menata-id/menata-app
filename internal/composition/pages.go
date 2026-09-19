@@ -80,8 +80,6 @@ func buildDashboard(projects, tasks, documents []*data.Record) Dashboard {
 
 	for _, doc := range documents {
 		switch DisplayString(doc.Values["fld_status"]) {
-		case "draft":
-			d.Documents.Draft++
 		case "in_review":
 			d.Documents.InReview++
 			d.Pending = append(d.Pending, doc)

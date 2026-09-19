@@ -20,7 +20,7 @@ type ProjectSummary struct {
 // DocumentSummary counts Case 3's Documents by status, for the Dashboard's Summary section
 // (ROADMAP.md Phase 13).
 type DocumentSummary struct {
-	Draft, InReview, Approved, Rejected int
+	InReview, Approved, Rejected int
 }
 
 // ActivityEntry is one already-resolved row of the Dashboard's Recent Activity feed: the actor's
@@ -66,7 +66,6 @@ templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []
 
 		@sectionHeader("Documents", "/machines/mch_document", "View all →")
 		@summaryCounts([]SummaryItem{
-			{Label: "Draft", Value: fmt.Sprint(docs.Draft)},
 			{Label: "In Review", Value: fmt.Sprint(docs.InReview)},
 			{Label: "Approved", Value: fmt.Sprint(docs.Approved)},
 			{Label: "Rejected", Value: fmt.Sprint(docs.Rejected)},

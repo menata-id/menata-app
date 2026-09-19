@@ -13,6 +13,8 @@
 package action
 
 import (
+	"fmt"
+
 	"menata.app/internal/data"
 )
 
@@ -105,4 +107,11 @@ func sequenceOf(r *data.Record) float64 {
 func decisionOf(r *data.Record) string {
 	v, _ := r.Values[FieldStepDecision].(string)
 	return v
+}
+
+// DocumentReference is Case 3's own human-readable Document identity (ROADMAP.md's UI mockup
+// conformance audit, 2026-09-19) -- reuses Phase 9's per-Machine sort_order rather than a new
+// Field, per this roadmap's own admission question ("can an existing primitive express it?").
+func DocumentReference(sortOrder int64) string {
+	return fmt.Sprintf("DOC-%04d", sortOrder)
 }

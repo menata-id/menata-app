@@ -1422,6 +1422,59 @@ backlog); Timeline (Phase 14, unchecked, with its missing Field named).
 
 ---
 
+## Phase 20 -- Case 3 completion: the audit's own small B1 findings (done, 2026-09-19)
+
+**Forcing condition:** the "UI mockup conformance gaps" audit above named several small,
+individually cheap Case 3 gaps under "B1" -- real deviations from `document-approval.html` and
+`document-submit.html`, each with an obvious minimal fix and no forcing-condition debate needed.
+Case 3's own mechanism (Phases 12/15/16/17) is otherwise complete; these are what was left between
+"the mechanism works" and "the screens actually match their mockups."
+
+Owner decision, 2026-09-19: close the small items now (this phase); leave the two structural
+Case 19 findings (Project Workspace screen, per-project scoping) for their own separate design
+pass, and leave the platform-level Group/Role/Workspace findings alone entirely -- the audit's own
+verdict on those is that they are not fully constructible today, and Phase 16 already chose not to
+build roles/groups speculatively.
+
+- [x] **Human-readable Document reference** (`DOC-0091` on the mockups). Reuses Phase 9's own
+      `sort_order` rather than a new Field, per this roadmap's own admission question --
+      `action.DocumentReference(sortOrder)` formats it, called from the Document's own detail page
+      header (replacing the raw record id there, not elsewhere) and from `SummaryCard`'s new
+      `Reference` field on both Approval Inbox lists
+- [x] **Mode + progress on worklist cards** (`parallel · 2/3 approved`). Already existed on
+      "Pending my approval" cards (Phase 19's own refactor); the audit's finding was that "My
+      Documents" cards had neither -- `approvedCount` factored out of the duplicate loop and
+      reused by both
+- [x] **PDF preview wired into the Document detail page.** The capability already existed
+      (`.../pdf-preview`, Phase 15 Step 3) but was reachable only from the signature-placement
+      screen; `pdfThumbnail` adds the same route as a small `<img>` next to the existing file
+      download link -- no new route
+- [x] **Signature placement echoed back before approving.** `signatureConfirmation` reuses the
+      step record already fetched for its own detail page and `signatureplacement.templ`'s own
+      field-reading helpers -- no new query. Deliberately does not confirm whether a real
+      signature image exists on file for the approver (that needs I/O the rendering plane doesn't
+      perform, 007 §20); Phase 17's own `CompositeSignatures` already skips a step with none
+      regardless of what this note says
+- [x] **`fld_status`'s `draft` option removed**, not built out. `submitDocumentWizard` has always
+      hardcoded `in_review`; nothing could ever reach `draft`. The audit itself corrected a wrong
+      reason recorded elsewhere for a related deferral (zero Document Types exist, not "only
+      one") -- this is the same discipline applied to a declared-but-unreachable option. The
+      Dashboard's own Document status summary lost its permanently-zero "Draft" tile for the same
+      reason. Add it back only alongside a real save-as-draft flow, never speculatively
+
+**Exit criterion met (2026-09-19):** verified end-to-end on a temporary second server instance
+against the real Postgres database (the live process on :4000 left untouched): a real Document's
+detail page shows `DOC-0002` and a working PDF thumbnail; both Approval Inbox lists show
+`parallel · 0/2 approved`; a step with no placement shows "place it now", and after placing one at
+30%/85%/25% shows the exact confirmation text; the create form no longer offers `draft`. All
+scratch records and the scratch upload deleted afterward, record counts verified unchanged.
+
+**What this phase did not touch, deliberately:** B1's remaining items (Document Type, one-screen
+worklist+detail layout, SLA-breach-as-event) and everything in B2/B3/B4 -- named by the audit,
+still open, each needing its own decision before code per this roadmap's own Method.
+
+---
+
 ## What's deliberately not phased yet
 
 `internal/registry` (static component registry), `internal/execution` as a distinct physical

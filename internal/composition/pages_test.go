@@ -58,10 +58,9 @@ func TestBuildDashboard_OrphanTaskCountsAgainstNoProject(t *testing.T) {
 	}
 }
 
-// Only in_review Documents are "pending"; the other three statuses are counted but not listed.
+// Only in_review Documents are "pending"; the other two statuses are counted but not listed.
 func TestBuildDashboard_DocumentStatusSplit(t *testing.T) {
 	documents := []*data.Record{
-		rec("doc_1", map[string]any{"fld_status": "draft"}),
 		rec("doc_2", map[string]any{"fld_status": "in_review"}),
 		rec("doc_3", map[string]any{"fld_status": "in_review"}),
 		rec("doc_4", map[string]any{"fld_status": "approved"}),
@@ -71,8 +70,8 @@ func TestBuildDashboard_DocumentStatusSplit(t *testing.T) {
 
 	got := buildDashboard(nil, nil, documents)
 	s := got.Documents
-	if s.Draft != 1 || s.InReview != 2 || s.Approved != 1 || s.Rejected != 1 {
-		t.Errorf("counts draft/review/approved/rejected = %d/%d/%d/%d, want 1/2/1/1", s.Draft, s.InReview, s.Approved, s.Rejected)
+	if s.InReview != 2 || s.Approved != 1 || s.Rejected != 1 {
+		t.Errorf("counts review/approved/rejected = %d/%d/%d, want 2/1/1", s.InReview, s.Approved, s.Rejected)
 	}
 	if len(got.Pending) != 2 {
 		t.Errorf("Pending lists the in_review Documents only, got %d", len(got.Pending))

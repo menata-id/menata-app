@@ -199,8 +199,8 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 	if got.Mine[0].Title != "Mine" {
 		t.Errorf("Title = %q, want %q", got.Mine[0].Title, "Mine")
 	}
-	if got.Mine[0].Subtitle != "Submitted by you" {
-		t.Errorf("Subtitle = %q", got.Mine[0].Subtitle)
+	if want := "parallel · 0/0 approved"; got.Mine[0].Subtitle != want {
+		t.Errorf("Subtitle = %q, want %q", got.Mine[0].Subtitle, want)
 	}
 }
 

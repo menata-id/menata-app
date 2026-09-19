@@ -1,3 +1,7 @@
+# `fld_status` has no `draft` option (removed 2026-09-19, ROADMAP.md's UI mockup conformance
+# audit): submitDocumentWizard has always hardcoded fld_status to in_review, so no code path could
+# ever reach it -- a declared option nothing produces. Add it back only alongside a real
+# save-as-draft flow, not speculatively.
 id: mch_document
 name: Document
 fields:
@@ -18,7 +22,7 @@ fields:
     name: Status
     type: status
     required: true
-    options: [draft, in_review, approved, rejected]
+    options: [in_review, approved, rejected]
   - id: fld_due_date
     name: Due Date
     type: date

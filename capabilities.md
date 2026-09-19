@@ -71,7 +71,7 @@ recorded in `ROADMAP.md`'s "UI mockup conformance gaps", not built.
 | Workflow Automation (read-only Trigger/Condition/Action view over real Constraint + Action) | Built | `GET /automation` |
 | Calendar (week-grid Layout, Tasks grouped by due date) | Built | `GET /calendar` |
 | Sprint Dashboard (real status summary + workload + attention-needed, no fabricated points/burndown) | Built | `GET /sprint` |
-| Approval Inbox (worklist of the steps awaiting the current identity, SLA filter chips, plus "My Documents") | Built, hardcoded to one Machine pair | `GET /approval-inbox` — `rendering.ApprovalInboxPage`, `composition/approval.go`; submitter resolved from `mch_activity`, not a Field |
+| Approval Inbox (worklist of the steps awaiting the current identity, SLA filter chips, plus "My Documents") | Built, hardcoded to one Machine pair | `GET /approval-inbox` — `rendering.ApprovalInboxPage`, `composition/approval.go`; submitter resolved from `mch_activity`, not a Field; every card carries a `DOC-0091`-style `Reference` (Phase 9's `sort_order`) and `mode · N/M approved` |
 | Approve/Reject action bar | Built, hardcoded to one Machine | `mch_approval_step`'s own detail page only |
 | Approval progress stepper (done / current / waiting, replacing the generic child-collection table on a Document's detail page) | Built, hardcoded to one Machine pair | `approvalStepper` (`internal/rendering/approvalstepper.templ`), states from `action.CanDecide`; no metadata change |
 | PDF page-to-image rendering | Built | `internal/pdf.PageCount`/`RenderPagePNG`, pure-Go (`richardwilkes/pdfview`); served by `GET .../pdf-preview` |
@@ -101,6 +101,8 @@ assume, which this table is the real counterpart to.
 | `filterChip` | A query-param filter chip with its own count (no JS) | `approvalinbox.templ` |
 | `approvalStepper` | A Document's own steps as done / current / waiting | `approvalstepper.templ` |
 | `pageShell` | The page frame and the hardcoded topbar (see the navigation limit below) | `machine.templ` |
+| `pdfThumbnail` | A Document's own PDF, page 1, as a small linked preview image | `detail.templ`; the Document detail page (reuses Phase 15 Step 3's `.../pdf-preview` route, no new route) |
+| `signatureConfirmation` | Echoes a pending Approval Step's own placement back to its assignee before they decide, or prompts them to place one | `detail.templ`; `decideButtons`, from the step record already fetched for that page -- no extra query |
 
 **Not yet built:** Timeline Layout; colored label chips and member avatars on a card face
 (`ROADMAP.md` Phase 10's own last bullet, deferred there "to Phase 14" — a deferral Phase 14 never
@@ -230,4 +232,4 @@ the clause citation, the verdict, and the forcing condition for closing it (001-
 | Workspace never reaches storage (001 §9, 004) | `records` has no workspace/application column; `Store` keys on `machine_id` alone. A second Workspace later is a data migration, not a metadata change |
 | Every read is a whole-Machine read (007 §21.1, §28) | `ListRecords`/`ListRecordsBy`/`GetRecord` only — no projection, filter pushdown, pagination or limit; pages reduce whole record sets in Go |
 | Metadata loads once, at startup (005 §Hot Reload) | A metadata change takes effect on restart. Principle #10 (no source regeneration) is met; hot reload is a deliberate, triggered deferral |
-| Both priority cases are partly designed and not fully built | The `ui-sample/` mockups describe screens, data and a platform shell this app does not have — Case 19's Project Workspace screen and per-project scoping, the Task Detail body (description/checklist/comments), board drag-and-drop, Case 3's document reference and document type, and the entire Workspace/Group/Role platform shell. Enumerated with verdicts in `ROADMAP.md`'s "UI mockup conformance gaps" (audit, 2026-09-19) |
+| Both priority cases are partly designed and not fully built | The `ui-sample/` mockups describe screens, data and a platform shell this app does not have — Case 19's Project Workspace screen and per-project scoping, the Task Detail body (description/checklist/comments), board drag-and-drop, Case 3's Document Type and one-screen worklist+detail layout, and the entire Workspace/Group/Role platform shell. Document reference (`DOC-0091`) closed by `ROADMAP.md` Phase 20. Enumerated with verdicts in `ROADMAP.md`'s "UI mockup conformance gaps" (audit, 2026-09-19) |

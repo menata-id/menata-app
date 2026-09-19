@@ -39,7 +39,11 @@ templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relati
 templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection, actorID string) {
 	<div id="record-detail">
 		<h1>{ recordTitle(m, r) }</h1>
-		<code>{ r.ID }</code>
+		if m.ID == action.DocumentMachineID {
+			<code>{ action.DocumentReference(r.SortOrder) }</code>
+		} else {
+			<code>{ r.ID }</code>
+		}
 		<dl class="detail-fields">
 			for _, f := range m.Fields {
 				<dt>{ f.Name }</dt>
@@ -48,6 +52,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 						@slaBadge(r.Values[f.ID])
 					} else if f.Type == domain.FieldTypeFile {
 						@fileLink(r.Values[f.ID])
+						if m.ID == action.DocumentMachineID && f.ID == action.FieldDocumentFile {
+							@pdfThumbnail(m.ID, r.ID)
+						}
 					} else if f.IsReference() {
 						{ relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
 					} else {
@@ -87,6 +94,17 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 	</div>
 }
 
+// pdfThumbnail is a small preview of a Document's own PDF (Step 3's internal/pdf, ROADMAP.md's UI
+// mockup conformance audit) -- the capability already existed, reachable only from the
+// signature-placement screen; this is the detail page's own use of the same route, not a new one.
+templ pdfThumbnail(machineID, recordID string) {
+	<div class="pdf-thumb">
+		<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/pdf-preview", machineID, recordID)) } target="_blank">
+			<img src={ fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=1", machineID, recordID) } alt="Document PDF preview, page 1"/>
+		</a>
+	</div>
+}
+
 // decideButtons is Case 3's Approve/Reject action bar (ROADMAP.md Phase 12), shown only on an
 // mch_approval_step's own detail page. A decided step shows its decision instead of buttons --
 // deciding again isn't offered, matching action.CanDecide's own one-way semantics. On success the
@@ -101,6 +119,7 @@ templ decideButtons(m *domain.Machine, r *data.Record, actorID string) {
 		if toString(r.Values[action.FieldStepDecision]) != action.DecisionPending {
 			<span class="badge">{ toString(r.Values[action.FieldStepDecision]) }</span>
 		} else if authorization.AllowsAction(m, domain.ActionDecide, r.Values, actorID) {
+			@signatureConfirmation(r)
 			<form hx-post={ fmt.Sprintf("/machines/%s/records/%s/decide", m.ID, r.ID) }>
 				<button type="submit" name="decision" value={ action.DecisionApproved } class="primary">Approve</button>
 				<button type="submit" name="decision" value={ action.DecisionRejected }>Reject</button>
@@ -109,6 +128,27 @@ templ decideButtons(m *domain.Machine, r *data.Record, actorID string) {
 			<span class="step-status">Awaiting its own assignee's decision</span>
 		}
 	</div>
+}
+
+// signatureConfirmation echoes a pending step's own signature placement back to its assignee
+// before they approve (ROADMAP.md's UI mockup conformance audit) -- reusing the step record
+// already fetched for this page and signatureplacement.templ's own field-reading helpers
+// (signaturePlaced/signaturePage/signatureCoord/signatureWidth), no extra query. It only confirms
+// where a placement will land, not whether a real signature image exists on file for this person
+// -- that check needs I/O the rendering plane doesn't perform (007 §20); Phase 17's own
+// compositing silently skips a step with no signature on file regardless of what this note says.
+templ signatureConfirmation(r *data.Record) {
+	if signaturePlaced(r) {
+		<p class="step-status">
+			{ fmt.Sprintf("Your signature will be stamped on page %d at %.0f%%, %.0f%% (%.0f%% wide) when you approve.",
+				signaturePage(r), signatureCoord(r, action.FieldStepSignatureX), signatureCoord(r, action.FieldStepSignatureY), signatureWidth(r)) }
+		</p>
+	} else {
+		<p class="step-status">
+			You haven't placed your signature for this document yet --
+			<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", action.DocumentMachineID, toString(r.Values[action.FieldStepDocument]))) }>place it now</a>.
+		</p>
+	}
 }
 
 // ChildSectionView renders one child collection: a compact table of the child Machine's records,

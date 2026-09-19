@@ -28,7 +28,7 @@ type ProjectSummary struct {
 // DocumentSummary counts Case 3's Documents by status, for the Dashboard's Summary section
 // (ROADMAP.md Phase 13).
 type DocumentSummary struct {
-	Draft, InReview, Approved, Rejected int
+	InReview, Approved, Rejected int
 }
 
 // ActivityEntry is one already-resolved row of the Dashboard's Recent Activity feed: the actor's
@@ -162,7 +162,6 @@ func DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []*
 				return templ_7745c5c3_Err
 			}
 			templ_7745c5c3_Err = summaryCounts([]SummaryItem{
-				{Label: "Draft", Value: fmt.Sprint(docs.Draft)},
 				{Label: "In Review", Value: fmt.Sprint(docs.InReview)},
 				{Label: "Approved", Value: fmt.Sprint(docs.Approved)},
 				{Label: "Rejected", Value: fmt.Sprint(docs.Rejected)},
@@ -192,7 +191,7 @@ func DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []*
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(toString(r.Values["fld_title"]))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 89, Col: 44}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 88, Col: 44}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {

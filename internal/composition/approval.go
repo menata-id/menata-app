@@ -105,12 +105,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			continue
 		}
 
-		approved := 0
-		for _, sib := range stepsByDoc[docID] {
-			if DisplayString(sib.Values[action.FieldStepDecision]) == action.DecisionApproved {
-				approved++
-			}
-		}
+		approved := approvedCount(stepsByDoc[docID])
 		submitter := names[submitterByDoc[docID]]
 		if submitter == "" {
 			submitter = "someone"
@@ -128,6 +123,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 		}
 		inbox.Pending = append(inbox.Pending, rendering.SummaryCard{
 			AvatarInitials: Initials(submitter),
+			Reference:      action.DocumentReference(doc.SortOrder),
 			Title:          DisplayString(doc.Values["fld_title"]),
 			Subtitle:       fmt.Sprintf("%s · %d/%d approved · Submitted by %s", mode, approved, len(stepsByDoc[docID]), submitter),
 			StatusLabel:    DisplayString(doc.Values["fld_status"]),
@@ -141,15 +137,31 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 		if submitterByDoc[d.ID] != userID {
 			continue
 		}
+		mode := DisplayString(d.Values[action.FieldDocumentMode])
+		approved := approvedCount(stepsByDoc[d.ID])
 		inbox.Mine = append(inbox.Mine, rendering.SummaryCard{
 			AvatarInitials: Initials(names[userID]),
+			Reference:      action.DocumentReference(d.SortOrder),
 			Title:          DisplayString(d.Values["fld_title"]),
-			Subtitle:       "Submitted by you",
+			Subtitle:       fmt.Sprintf("%s · %d/%d approved", mode, approved, len(stepsByDoc[d.ID])),
 			StatusLabel:    DisplayString(d.Values["fld_status"]),
 			Href:           fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, d.ID),
 		})
 	}
 	return inbox
+}
+
+// approvedCount is how many of a Document's own Approval Steps are already approved -- shared by
+// both the "pending my approval" and "my documents" cards, which both need it for the same
+// "N/M approved" progress text.
+func approvedCount(steps []*data.Record) int {
+	approved := 0
+	for _, s := range steps {
+		if DisplayString(s.Values[action.FieldStepDecision]) == action.DecisionApproved {
+			approved++
+		}
+	}
+	return approved
 }
 
 // submittersFromActivity maps a Document id to the actor of its earliest logged event, which is
