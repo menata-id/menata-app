@@ -2,6 +2,15 @@ package rendering
 
 // LoginPage is the sign-in form gating the application (internal/authorization,
 // ROADMAP.md Phase 2). errorMsg is shown when a prior attempt failed; empty renders no message.
+//
+// The identifier field is labeled "Email" (2026-09-19 fix) because that's what every real
+// person types: mch_user has no fld_username at all, only fld_name/fld_email. Its
+// name="username" attribute stays as-is on purpose -- submitLogin (internal/web/auth.go) still
+// tries it first against the one shared bootstrap admin credential (config.AdminUsername, a
+// legacy pre-per-user-login mechanism, not an email), before falling through to real per-user
+// email+password. Relabeling doesn't touch that: the input is plain text with no email-format
+// validation, so the admin value still works in a field that now honestly describes what
+// everyone else types there.
 templ LoginPage(errorMsg string) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -27,7 +36,7 @@ templ LoginPage(errorMsg string) {
 			<h1>Menata App</h1>
 			<form method="POST" action="/login">
 				<label>
-					Username
+					Email
 					<input type="text" name="username" autocomplete="username" autofocus/>
 				</label>
 				<label>
