@@ -97,3 +97,47 @@ func IsAuthenticated(r *http.Request, secret string) bool {
 	_, ok := CurrentUserID(r, secret)
 	return ok
 }
+
+// PendingWorkspaceCookieName carries a verified email between a real-credential login and Choose
+// Workspace (ROADMAP.md Phase 21 Step 4), for the one login whose password check succeeds but
+// names more than one Workspace membership -- the real session cookie isn't set yet at that
+// point, since which mch_user record to sign in as depends on which Workspace gets picked.
+const PendingWorkspaceCookieName = "menata_pending_email"
+
+// SetPendingEmailCookie names email as a password check that has already succeeded, short-lived
+// (5 minutes -- long enough to pick a Workspace, short enough that an abandoned attempt doesn't
+// linger) and signed the same way the real session cookie is.
+func SetPendingEmailCookie(w http.ResponseWriter, secret, email string, secure bool) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     PendingWorkspaceCookieName,
+		Value:    encodeCookie(secret, email),
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Now().Add(5 * time.Minute),
+	})
+}
+
+// ClearPendingEmailCookie removes the pending-choice cookie once Choose Workspace completes.
+func ClearPendingEmailCookie(w http.ResponseWriter, secure bool) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     PendingWorkspaceCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+}
+
+// PendingEmail returns the email a prior login verified, if a valid pending-choice cookie is
+// present.
+func PendingEmail(r *http.Request, secret string) (string, bool) {
+	cookie, err := r.Cookie(PendingWorkspaceCookieName)
+	if err != nil {
+		return "", false
+	}
+	return decodeCookie(cookie.Value, secret)
+}

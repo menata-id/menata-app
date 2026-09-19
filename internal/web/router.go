@@ -25,6 +25,11 @@ type Deps struct {
 	Files   *storage.Store
 	Cfg     config.Config
 	AppName string
+
+	// DefaultWorkspaceID is this manifest's own declared Workspace (metadata/app.yaml) --
+	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
+	// (ROADMAP.md Phase 21 Step 4).
+	DefaultWorkspaceID string
 }
 
 // Routes builds the application's complete route table.
@@ -38,10 +43,14 @@ func Routes(d Deps) http.Handler {
 		_, _ = w.Write([]byte("ok")) // liveness probe body; a failed write here isn't actionable
 	})
 	r.Get("/login", showLogin)
-	r.Post("/login", submitLogin(d.Cfg))
+	r.Post("/login", submitLogin(d.Store, d.Cfg))
+	r.Get("/register", showRegistration)
+	r.Post("/register", submitRegistration(d.Machines, d.Store, d.Cfg))
+	r.Get("/choose-workspace", showChooseWorkspace(d.Store, d.Cfg))
+	r.Post("/choose-workspace", submitChooseWorkspace(d.Store, d.Cfg))
 
 	r.Group(func(pr chi.Router) {
-		pr.Use(requireAuth(d.Cfg))
+		pr.Use(requireAuth(d.Store, d.DefaultWorkspaceID, d.Cfg))
 		pr.Use(queryDiagnostics)
 
 		pr.Post("/logout", logout(d.Cfg))

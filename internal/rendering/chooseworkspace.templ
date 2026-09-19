@@ -1,0 +1,49 @@
+package rendering
+
+// WorkspaceChoice is one row on the Choose Workspace screen: a Workspace this identity belongs to,
+// and the Workspace-level role it holds there.
+type WorkspaceChoice struct {
+	ID   string
+	Name string
+	Role string
+}
+
+// ChooseWorkspacePage is shown only when a signed-in identity belongs to more than one Workspace
+// (ROADMAP.md Phase 21 Step 4) -- a single-Workspace identity skips straight past this screen.
+templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Choose a workspace · Menata App</title>
+			<style>
+				body { font-family: system-ui, -apple-system, sans-serif; max-width: 360px; margin: 5rem auto; padding: 0 1rem; color: #1a1a1a; }
+				h1 { font-size: 1.25rem; }
+				.workspace-choice { display: block; width: 100%; text-align: left; padding: 0.75rem; margin-top: 0.75rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.95rem; }
+				.workspace-choice:hover { border-color: #3949ab; }
+				.workspace-choice .role { display: block; font-size: 0.8rem; color: #666; margin-top: 0.15rem; }
+				.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }
+				.sign-out { margin-top: 1.5rem; font-size: 0.85rem; text-align: center; }
+			</style>
+		</head>
+		<body>
+			<h1>Choose a workspace</h1>
+			if errorMsg != "" {
+				<p class="error">{ errorMsg }</p>
+			}
+			for _, c := range choices {
+				<form method="POST" action="/choose-workspace">
+					<input type="hidden" name="workspace_id" value={ c.ID }/>
+					<button type="submit" class="workspace-choice">
+						{ c.Name }
+						<span class="role">{ c.Role }</span>
+					</button>
+				</form>
+			}
+			<p class="sign-out">
+				<a href="/login">← Sign out</a>
+			</p>
+		</body>
+	</html>
+}

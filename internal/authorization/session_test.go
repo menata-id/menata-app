@@ -70,6 +70,38 @@ func TestIsAuthenticated_noCookie(t *testing.T) {
 	}
 }
 
+func TestPendingEmailCookie_roundTrip(t *testing.T) {
+	rec := httptest.NewRecorder()
+	SetPendingEmailCookie(rec, "s3cret", "person@example.com", false)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, c := range rec.Result().Cookies() {
+		req.AddCookie(c)
+	}
+
+	email, ok := PendingEmail(req, "s3cret")
+	if !ok || email != "person@example.com" {
+		t.Errorf("PendingEmail() = (%q, %v), want (person@example.com, true)", email, ok)
+	}
+}
+
+func TestPendingEmail_noCookie(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	if _, ok := PendingEmail(req, "s3cret"); ok {
+		t.Error("PendingEmail() ok = true with no cookie set, want false")
+	}
+}
+
+func TestClearPendingEmailCookie(t *testing.T) {
+	rec := httptest.NewRecorder()
+	ClearPendingEmailCookie(rec, false)
+
+	cookies := rec.Result().Cookies()
+	if len(cookies) != 1 || cookies[0].MaxAge >= 0 {
+		t.Fatalf("ClearPendingEmailCookie() cookies = %+v, want one cookie with MaxAge < 0", cookies)
+	}
+}
+
 func TestClearSessionCookie(t *testing.T) {
 	rec := httptest.NewRecorder()
 	ClearSessionCookie(rec, false)

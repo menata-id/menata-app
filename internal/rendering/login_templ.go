@@ -31,7 +31,7 @@ func LoginPage(errorMsg string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Sign in · Menata App</title><style>\n\t\t\t\tbody { font-family: system-ui, -apple-system, sans-serif; max-width: 320px; margin: 6rem auto; padding: 0 1rem; color: #1a1a1a; }\n\t\t\t\th1 { font-size: 1.25rem; }\n\t\t\t\tlabel { display: block; margin-top: 1rem; font-size: 0.85rem; color: #444; }\n\t\t\t\tinput { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; margin-top: 0.25rem; }\n\t\t\t\tbutton { margin-top: 1.5rem; width: 100%; padding: 0.6rem; border: none; border-radius: 4px; background: #3949ab; color: #fff; font-size: 0.95rem; cursor: pointer; }\n\t\t\t\t.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }\n\t\t\t</style></head><body><h1>Menata App</h1><form method=\"POST\" action=\"/login\"><label>Username <input type=\"text\" name=\"username\" autocomplete=\"username\" autofocus></label> <label>Password <input type=\"password\" name=\"password\" autocomplete=\"current-password\"></label> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Sign in · Menata App</title><style>\n\t\t\t\tbody { font-family: system-ui, -apple-system, sans-serif; max-width: 320px; margin: 6rem auto; padding: 0 1rem; color: #1a1a1a; }\n\t\t\t\th1 { font-size: 1.25rem; }\n\t\t\t\tlabel { display: block; margin-top: 1rem; font-size: 0.85rem; color: #444; }\n\t\t\t\tinput { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; margin-top: 0.25rem; }\n\t\t\t\tbutton { margin-top: 1.5rem; width: 100%; padding: 0.6rem; border: none; border-radius: 4px; background: #3949ab; color: #fff; font-size: 0.95rem; cursor: pointer; }\n\t\t\t\t.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }\n\t\t\t\t.create-workspace { margin-top: 1.25rem; font-size: 0.85rem; color: #444; text-align: center; }\n\t\t\t</style></head><body><h1>Menata App</h1><form method=\"POST\" action=\"/login\"><label>Username <input type=\"text\" name=\"username\" autocomplete=\"username\" autofocus></label> <label>Password <input type=\"password\" name=\"password\" autocomplete=\"current-password\"></label> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -43,7 +43,7 @@ func LoginPage(errorMsg string) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/login.templ`, Line: 33, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/login.templ`, Line: 34, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -54,7 +54,7 @@ func LoginPage(errorMsg string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<button type=\"submit\">Sign in</button></form></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<button type=\"submit\">Sign in</button></form><p class=\"create-workspace\">Don't have an account? <a href=\"/register\">Create a workspace</a></p></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

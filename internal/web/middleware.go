@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -14,10 +15,18 @@ import (
 // requireAuth gates every route in its group behind a valid session cookie
 // (internal/authorization, ROADMAP.md Phase 2). An HTMX/API request gets a plain 401 so the
 // client can react; a full-page navigation is redirected to /login.
-func requireAuth(cfg config.Config) func(http.Handler) http.Handler {
+//
+// Once a session names a real identity, this is also the one place a request's Workspace is
+// resolved and put on ctx (ROADMAP.md Phase 21 Step 4) -- 007 §20's own ordering: scope is
+// established before any retrieval, not trimmed after. defaultWorkspaceID is the fallback for a
+// session whose subject is not a real mch_user record id at all -- exactly the shared admin
+// credential's placeholder subject (config.AdminUserID) before it is bootstrapped to a real one
+// (Phase 7) -- so that path keeps working exactly as it did before this Step existed.
+func requireAuth(store *data.Store, defaultWorkspaceID string, cfg config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			if !authorization.IsAuthenticated(req, cfg.SessionSecret) {
+			userID, ok := authorization.CurrentUserID(req, cfg.SessionSecret)
+			if !ok {
 				if req.Header.Get("HX-Request") == "true" || strings.HasPrefix(req.URL.Path, "/api/") {
 					http.Error(w, "unauthorized", http.StatusUnauthorized)
 					return
@@ -25,7 +34,17 @@ func requireAuth(cfg config.Config) func(http.Handler) http.Handler {
 				http.Redirect(w, req, "/login", http.StatusSeeOther)
 				return
 			}
-			next.ServeHTTP(w, req)
+
+			workspaceID, err := store.ResolveUserWorkspace(req.Context(), userID)
+			if err != nil {
+				if !errors.Is(err, data.ErrRecordNotFound) {
+					serverError(w, err)
+					return
+				}
+				workspaceID = defaultWorkspaceID
+			}
+			ctx := data.WithWorkspaceScope(req.Context(), workspaceID)
+			next.ServeHTTP(w, req.WithContext(ctx))
 		})
 	}
 }

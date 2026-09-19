@@ -48,11 +48,7 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer pool.Close()
-	// Scoped to this manifest's own declared Workspace (ROADMAP.md Phase 21 Step 2 -- "Workspace
-	// never enters the data path" closed). Every record read/write goes through this scoped Store;
-	// a per-request Workspace (Phase 21 Step 4, once real login/membership exist) will replace this
-	// fixed scoping with one resolved from the signed-in identity.
-	store := data.NewStore(pool).WithWorkspace(app.Workspace.ID)
+	store := data.NewStore(pool)
 
 	files, err := storage.NewStore(cfg.UploadsDir)
 	if err != nil {
@@ -66,6 +62,12 @@ func main() {
 		Files:       files,
 		Cfg:         cfg,
 		AppName:     app.Application.Name,
+		// DefaultWorkspaceID is this manifest's own declared Workspace (ROADMAP.md Phase 21 Step
+		// 2 -- "Workspace never enters the data path" closed) -- requireAuth's fallback when a
+		// signed-in identity does not resolve to a real mch_user record, which is exactly the
+		// shared admin credential's placeholder subject (config.AdminUserID) until it is
+		// bootstrapped to a real one (Phase 7).
+		DefaultWorkspaceID: app.Workspace.ID,
 	})
 
 	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)

@@ -32,6 +32,12 @@ func storePool(t *testing.T) *pgxpool.Pool {
 
 const storeTestMachine = "mch_store_test"
 
+// storeTestContext scopes ctx to a dedicated test Workspace -- every record-scoped Store method
+// requires one (WithWorkspaceScope), the same as a real request's requireAuth-resolved Workspace.
+func storeTestContext() context.Context {
+	return WithWorkspaceScope(context.Background(), "ws_store_test")
+}
+
 func cleanupStoreTest(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	t.Cleanup(func() {
@@ -44,8 +50,8 @@ func cleanupStoreTest(t *testing.T, pool *pgxpool.Pool) {
 func TestStore_CreateAndGetRecord(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
-	ctx := context.Background()
+	store := NewStore(pool)
+	ctx := storeTestContext()
 
 	created, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": "Ada"})
 	if err != nil {
@@ -70,8 +76,8 @@ func TestStore_CreateAndGetRecord(t *testing.T) {
 func TestStore_CreateRecord_incrementsSortOrder(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
-	ctx := context.Background()
+	store := NewStore(pool)
+	ctx := storeTestContext()
 
 	first, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": "one"})
 	if err != nil {
@@ -89,19 +95,29 @@ func TestStore_CreateRecord_incrementsSortOrder(t *testing.T) {
 func TestStore_GetRecord_notFound(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
+	store := NewStore(pool)
 
-	_, err := store.GetRecord(context.Background(), storeTestMachine, "rec_does_not_exist")
+	_, err := store.GetRecord(storeTestContext(), storeTestMachine, "rec_does_not_exist")
 	if !errors.Is(err, ErrRecordNotFound) {
 		t.Errorf("GetRecord(missing) error = %v, want ErrRecordNotFound", err)
+	}
+}
+
+func TestStore_GetRecord_unscopedContext(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+
+	_, err := store.GetRecord(context.Background(), storeTestMachine, "rec_whatever")
+	if !errors.Is(err, errNotScoped) {
+		t.Errorf("GetRecord(unscoped ctx) error = %v, want errNotScoped", err)
 	}
 }
 
 func TestStore_UpdateRecord(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
-	ctx := context.Background()
+	store := NewStore(pool)
+	ctx := storeTestContext()
 
 	created, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": "before"})
 	if err != nil {
@@ -128,9 +144,9 @@ func TestStore_UpdateRecord(t *testing.T) {
 func TestStore_UpdateRecord_notFound(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
+	store := NewStore(pool)
 
-	_, err := store.UpdateRecord(context.Background(), storeTestMachine, "rec_does_not_exist", map[string]any{"fld_name": "x"})
+	_, err := store.UpdateRecord(storeTestContext(), storeTestMachine, "rec_does_not_exist", map[string]any{"fld_name": "x"})
 	if !errors.Is(err, ErrRecordNotFound) {
 		t.Errorf("UpdateRecord(missing) error = %v, want ErrRecordNotFound", err)
 	}
@@ -139,8 +155,8 @@ func TestStore_UpdateRecord_notFound(t *testing.T) {
 func TestStore_DeleteRecord(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
-	ctx := context.Background()
+	store := NewStore(pool)
+	ctx := storeTestContext()
 
 	created, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": "gone soon"})
 	if err != nil {
@@ -160,9 +176,9 @@ func TestStore_DeleteRecord(t *testing.T) {
 func TestStore_DeleteRecord_alreadyAbsentIsNotAnError(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
+	store := NewStore(pool)
 
-	if err := store.DeleteRecord(context.Background(), storeTestMachine, "rec_never_existed"); err != nil {
+	if err := store.DeleteRecord(storeTestContext(), storeTestMachine, "rec_never_existed"); err != nil {
 		t.Errorf("DeleteRecord(absent) = %v, want nil", err)
 	}
 }
@@ -170,8 +186,8 @@ func TestStore_DeleteRecord_alreadyAbsentIsNotAnError(t *testing.T) {
 func TestStore_ListRecords_orderedBySortOrder(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
-	ctx := context.Background()
+	store := NewStore(pool)
+	ctx := storeTestContext()
 
 	names := []string{"first", "second", "third"}
 	for _, name := range names {
@@ -197,8 +213,8 @@ func TestStore_ListRecords_orderedBySortOrder(t *testing.T) {
 func TestStore_ListRecordsBy_filtersOnFieldValue(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
-	ctx := context.Background()
+	store := NewStore(pool)
+	ctx := storeTestContext()
 
 	if _, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_owner": "usr_a", "fld_name": "mine"}); err != nil {
 		t.Fatalf("CreateRecord(usr_a): %v", err)
@@ -232,7 +248,9 @@ func TestStore_CreateAndGetCredential(t *testing.T) {
 	pool := storePool(t)
 	const email = "store_test@example.com"
 	cleanupCredentialTest(t, pool, email)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
+	store := NewStore(pool)
+	// Credentials are not Workspace-scoped (login identity is global, ROADMAP.md Phase 21 Step
+	// 3) -- an ordinary, unscoped context is correct here, unlike the record-scoped tests above.
 	ctx := context.Background()
 
 	if err := store.CreateCredential(ctx, email, "hashed-value"); err != nil {
@@ -250,7 +268,7 @@ func TestStore_CreateAndGetCredential(t *testing.T) {
 
 func TestStore_GetCredential_notFound(t *testing.T) {
 	pool := storePool(t)
-	store := NewStore(pool).WithWorkspace("ws_store_test")
+	store := NewStore(pool)
 
 	_, err := store.GetCredential(context.Background(), "no-such-user@example.com")
 	if !errors.Is(err, ErrCredentialNotFound) {
