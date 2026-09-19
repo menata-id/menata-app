@@ -162,6 +162,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   the label-side counterpart of the pair above: no `.templ`/handler may hardcode a `label:`
   metadata already declares (a page's own title, `<h1>`, or card text). Use
   `rendering.labelByID("nav_xxx")` instead.
+- `TestRenderingUsesProjectionNotRawValues` — the one *ratchet* in this suite: a `.templ` file may
+  not read a named field off a record (`Values["fld_..."]`, or the same laundered through a
+  `action.Field*` constant) — Composition resolves the shape, a Page renders it (007 §4.4, §7.6).
+  Ten files are grandfathered in `projectionRatchet` and **the list may only shrink**: adding an
+  entry is not the way to pass, and an entry left behind after a file is migrated fails too. Use
+  `composition.ProjectCardFields`/`view.card_fields`; generic access (`Values[f.ID]` from ranging
+  over `m.Fields`, as `machine.templ`/`detail.templ` do) is the target pattern, not a violation.
 - `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —
   `capabilities.md`'s own Machines and Shared rendering components tables match the real
   `metadata/*.yaml` and `internal/rendering/*.templ`.

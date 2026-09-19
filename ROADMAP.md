@@ -91,9 +91,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   runtime is designed to support (HR, inventory, point of sale, e-commerce, helpdesk, and more).
 - **Closing the composition-layer decomposition gap**, in this order (full audit, with the
   binding-time leveling and the evidence count behind each step, in `menata-app-document`'s
-  `audits/2026-09-19-decomposition-maturity-audit.md`): (1) a ratchet conformance gate stopping
-  any *new* `internal/rendering/*.templ` from reaching into `Values["fld_..."]` instead of using
-  Projection -- nine files are grandfathered and the list may only shrink; (2) Dataset +
+  `audits/2026-09-19-decomposition-maturity-audit.md`): (1) **done** -- a ratchet conformance gate
+  (`TestRenderingUsesProjectionNotRawValues`) stops any *new* `internal/rendering/*.templ` from
+  reading named fields off a record instead of using Projection; ten files are grandfathered and
+  the list may only shrink. It gates the Machine-specific-constant form (`Values[action.Field*]`)
+  as well as the literal one, since that bypass was already in use; (2) Dataset +
   Dimension + Measure (007 §7.2-§7.4), minimal shape only (`source.machine`, `dimensions[].field`,
   `measures[].aggregate` limited to `count`/`sum`), whose "count grouped by a dimension, with a
   filter" pattern is already hand-written five separate times in `internal/composition/pages.go`
