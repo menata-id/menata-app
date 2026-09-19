@@ -18,6 +18,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/db"
 	"menata.app/internal/domain"
+	"menata.app/internal/mail"
 	"menata.app/internal/metadata"
 	"menata.app/internal/storage"
 	"menata.app/internal/web"
@@ -60,6 +61,7 @@ func main() {
 		MachineList: app.Machines,
 		Store:       store,
 		Files:       files,
+		Mailer:      mail.NewMailerFromConfig(cfg),
 		Cfg:         cfg,
 		AppName:     app.Application.Name,
 		// DefaultWorkspaceID is this manifest's own declared Workspace (ROADMAP.md Phase 21 Step

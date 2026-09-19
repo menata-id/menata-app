@@ -138,6 +138,11 @@ var rules = []rule{
 		because:   "internal/config doc.go: carries no business or Runtime Metadata concerns",
 	},
 	{
+		pkg:       "mail",
+		forbidden: []string{postgres, sqlPkg, templ, internalPkg("data"), internalPkg("rendering")},
+		because:   "internal/mail doc.go: sends bytes over SMTP; it has no business touching the database or the renderer",
+	},
+	{
 		pkg:       "conformance",
 		forbidden: []string{postgres, sqlPkg, httpPkg, templ, module + "/internal"},
 		because:   "these checks must not depend on the code they police",

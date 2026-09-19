@@ -9,6 +9,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/mail"
 	"menata.app/internal/storage"
 )
 
@@ -24,6 +25,7 @@ type Deps struct {
 
 	Store   *data.Store
 	Files   *storage.Store
+	Mailer  mail.Mailer
 	Cfg     config.Config
 	AppName string
 
