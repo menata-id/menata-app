@@ -130,3 +130,59 @@ func TestParse_invalidYAML(t *testing.T) {
 		t.Fatal("Parse() error = nil, want error for malformed YAML")
 	}
 }
+
+func TestParse_defaultCoercion(t *testing.T) {
+	yaml := []byte(`
+id: mch_task
+name: Task
+fields:
+  - id: fld_status
+    name: Status
+    type: status
+    options: [todo, in_progress, done]
+    default: todo
+  - id: fld_priority
+    name: Priority
+    type: number
+    default: "3"
+  - id: fld_urgent
+    name: Urgent
+    type: boolean
+    default: "true"
+  - id: fld_title
+    name: Title
+    type: text
+`)
+
+	m, err := Parse(yaml)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if got := m.Fields[0].Default; got != "todo" {
+		t.Errorf("status Default = %#v, want \"todo\"", got)
+	}
+	if got, ok := m.Fields[1].Default.(float64); !ok || got != 3 {
+		t.Errorf("number Default = %#v, want float64(3)", m.Fields[1].Default)
+	}
+	if got, ok := m.Fields[2].Default.(bool); !ok || got != true {
+		t.Errorf("boolean Default = %#v, want true", m.Fields[2].Default)
+	}
+	if m.Fields[3].Default != nil {
+		t.Errorf("fld_title Default = %#v, want nil (none declared)", m.Fields[3].Default)
+	}
+}
+
+func TestParse_invalidNumberDefault(t *testing.T) {
+	yaml := []byte(`
+id: mch_task
+name: Task
+fields:
+  - id: fld_priority
+    name: Priority
+    type: number
+    default: "not a number"
+`)
+	if _, err := Parse(yaml); err == nil {
+		t.Fatal("Parse() error = nil, want error for a non-numeric default on a number field")
+	}
+}

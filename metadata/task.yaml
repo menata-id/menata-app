@@ -10,6 +10,7 @@ fields:
     type: status
     required: true
     options: [todo, in_progress, done]
+    default: todo
   - id: fld_assignee
     name: Assignee
     type: person

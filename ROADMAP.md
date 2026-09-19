@@ -1511,7 +1511,7 @@ block defaults to table Layout, Phase 5), which is the precedent for the hybrid 
 
 | Question | What it would solve | Proven shape / precedent | Effort + risk to build |
 |---|---|---|---|
-| **A. Creation-time default** -- what value does a new record get if the field is left blank | `fld_status: default: draft` would give every new Document a value without `submitDocumentWizard` or any other creator hardcoding one | Universal in schema languages (SQL `DEFAULT`, JSON Schema `default`, Rails/Django model defaults) -- barely a "guess," it's one of the most proven metadata primitives that exists | Small and low-risk: `domain.Field` gains a `Default`, `data.ValuesFromForm`/`CreateRecord` apply it when a field is absent. Does not need a second case to justify the *shape* the way B does -- only a real reason to spend the time |
+| **A. Creation-time default** -- what value does a new record get if the field is left blank | `fld_status: default: draft` would give every new Document a value without `submitDocumentWizard` or any other creator hardcoding one | Universal in schema languages (SQL `DEFAULT`, JSON Schema `default`, Rails/Django model defaults) -- barely a "guess," it's one of the most proven metadata primitives that exists | **Built, 2026-09-19** (owner decision -- see below) |
 | **B. Action-driven field effect** -- what value does a field become *when a specific Action fires* (Submit: draft→in_review; Approve: →approved) | The actual thing `internal/action` hardcodes today -- this is 006's own "Workflow" responsibility, composed from Action+Constraint+Field, not a new artifact | Not yet proven anywhere in this codebase. `mch_task.fld_status` looked like a second occurrence but isn't one: it's freely editable to any value via the generic PUT route, with no gate at all -- Document's is the only *gated* transition that exists. **Still only one real case.** | Large and genuinely risky to guess: this is exactly the shape `menata-runtime`'s own abandoned composable rewrite got wrong by building it before a second case existed to validate against |
 
 *Recommended posture when this is next touched:* A is cheap enough, and its shape proven enough
@@ -1523,6 +1523,38 @@ build is 006's own: Action metadata composes Field writes under a Constraint/Per
 a bespoke `on:`/`set:` workflow language invented for the occasion. The hybrid this points toward
 -- runtime capability owns the mechanism, metadata is an optional override, same posture as
 Layout's own `table` default -- is the one already load-bearing in this codebase, not a new idea.
+
+**Update (2026-09-19, same day): A built, owner decision.** Read the table above, the owner asked
+for it anyway -- the shape is proven enough elsewhere, and this codebase stays thin enough that a
+wrong guess is cheap to correct if a real case ever disagrees with it. Built exactly the minimal
+shape the table described, nothing more:
+
+- [x] `domain.Field.Default any` -- already coerced to the Field's own storage type (`float64`
+      for number, `bool` for boolean, `string` otherwise) so no caller re-parses it
+- [x] `metadata.Parse` reads a YAML `default:` (always written as a string, even for a number or
+      boolean Field -- quote it, `default: "5"`; a bad coercion fails metadata loading at startup,
+      matching 005 Phase 3-4's "invalid metadata must not enter execution"); `metadata.Validate`
+      checks a `status` Field's default is one of its own declared options
+- [x] `data.ApplyDefaults(machine, values)` fills a Field's Default wherever `values` leaves it
+      empty (absent, nil, or an explicit empty string -- the same "empty" `ValidateRecord` already
+      uses), never overwriting a real submitted value. Create-only by convention: called from
+      every create path (`createRecordForm`, the JSON API's `createRecord`,
+      `submitDocumentWizard`, `createApprovalSteps`), never from update, so clearing a field back
+      to empty is never silently re-filled -- SQL's own DEFAULT makes the identical distinction.
+      `submitDocumentWizard`'s own explicit `FieldDocumentStatus = DocumentStatusInReview` still
+      runs after `ApplyDefaults` and wins, the same way an `INSERT`'s explicit column value
+      outranks a table's `DEFAULT`
+- [x] `mch_task.fld_status` gets `default: todo` as the real demonstration -- chosen because Task
+      creation has no bespoke wizard hardcoding a value the way Document's does, so the default
+      actually has somewhere to matter. Verified live: `POST /api/machines/mch_task/records` with
+      no `fld_status` in the JSON body, previously a `422` ("field is required"), now succeeds
+      with `fld_status: "todo"`; an explicit `fld_status` in the same request is never overwritten;
+      the ordinary browser create form is unaffected. Scratch records deleted afterward
+
+Deliberately not touched: `mch_document.fld_status` gets no default. Its only real creator
+(`submitDocumentWizard`) always sets it explicitly, so a declared default there would be exactly
+as unreachable as `draft` was before Phase 20 removed it -- the same mistake in a new shape. B
+remains fully deferred, unchanged by this.
 
 `internal/execution` specifically is not the same gap Phase 18 closed. Phase 18 moved the
 *composition/data-fetch* functions (`loadChildSections`/`loadRelationOptions`/`loadBoardColumns`)

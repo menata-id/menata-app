@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 
@@ -35,6 +36,11 @@ type fieldDoc struct {
 	Options  []string `yaml:"options"`
 	// Machine is the target Machine ID, meaningful only when type is "relation".
 	Machine string `yaml:"machine"`
+	// Default is always written as a YAML string, even for a number or boolean Field (quote it:
+	// `default: "5"`, `default: "true"`) -- Parse coerces it to this Field's real storage type,
+	// the same convention constraintDoc's own Condition.Value already uses. Empty means no
+	// default was declared; there is no way to declare an empty-string default deliberately.
+	Default string `yaml:"default"`
 }
 
 type constraintDoc struct {
@@ -79,6 +85,14 @@ func Parse(data []byte) (*domain.Machine, error) {
 			// `machine: mch_user` by hand (ROADMAP.md Phase 7).
 			relatedMachine = domain.UserMachineID
 		}
+		var def any
+		if fd.Default != "" {
+			var err error
+			def, err = coerceDefault(fieldType, fd.Default)
+			if err != nil {
+				return nil, fmt.Errorf("field %s: default %q: %w", fd.ID, fd.Default, err)
+			}
+		}
 		m.Fields = append(m.Fields, domain.Field{
 			ID:             fd.ID,
 			Name:           fd.Name,
@@ -86,6 +100,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			Required:       fd.Required,
 			Options:        fd.Options,
 			RelatedMachine: relatedMachine,
+			Default:        def,
 		})
 	}
 	for _, cd := range doc.Constraints {
@@ -119,4 +134,27 @@ func Parse(data []byte) (*domain.Machine, error) {
 		}
 	}
 	return m, nil
+}
+
+// coerceDefault converts a Field's raw YAML default string into the same in-memory type
+// data.ValuesFromForm produces for that FieldType, so internal/data.ApplyDefaults never needs to
+// re-parse it. Errors here fail metadata loading at startup (005-runtime-lifecycle.md Phase 3-4:
+// invalid metadata must not enter execution) rather than silently producing a wrong default.
+func coerceDefault(fieldType domain.FieldType, raw string) (any, error) {
+	switch fieldType {
+	case domain.FieldTypeNumber:
+		n, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return nil, fmt.Errorf("not a number: %w", err)
+		}
+		return n, nil
+	case domain.FieldTypeBoolean:
+		b, err := strconv.ParseBool(raw)
+		if err != nil {
+			return nil, fmt.Errorf("not a boolean: %w", err)
+		}
+		return b, nil
+	default:
+		return raw, nil
+	}
 }

@@ -64,6 +64,9 @@ func Validate(m *domain.Machine) error {
 		if f.Type == domain.FieldTypeRelation && !machineIDPattern.MatchString(f.RelatedMachine) {
 			issues = append(issues, fmt.Sprintf("field %q: type relation requires a valid target machine id, got %q", f.ID, f.RelatedMachine))
 		}
+		if f.Type == domain.FieldTypeStatus && f.Default != nil && !contains(f.Options, f.Default.(string)) {
+			issues = append(issues, fmt.Sprintf("field %q: default %q is not one of its own options %v", f.ID, f.Default, f.Options))
+		}
 	}
 
 	for _, c := range m.Constraints {

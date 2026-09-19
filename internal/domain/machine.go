@@ -51,6 +51,15 @@ type Field struct {
 	// Machine/reference semantics) -- see Parse's own normalization step. Empty for every other
 	// type.
 	RelatedMachine string
+	// Default is the value a new record gets when this field is left unset at create time --
+	// 001 Principle #5 ("Convention over Configuration"), the same posture already load-bearing
+	// for Layout (a Machine with no view: block defaults to table, Phase 5). Already coerced to
+	// this Field's own storage type by Parse (float64 for FieldTypeNumber, bool for
+	// FieldTypeBoolean, string otherwise) -- callers never re-parse it. Nil means no default was
+	// declared. Applies only at creation (internal/data.ApplyDefaults); an update that clears a
+	// field back to empty is never silently re-filled, the same distinction SQL's own DEFAULT
+	// makes.
+	Default any
 }
 
 // IsReference reports whether f's value is a record id referencing another Machine -- true for

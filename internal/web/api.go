@@ -41,6 +41,7 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 			http.Error(w, "invalid JSON body", http.StatusBadRequest)
 			return
 		}
+		data.ApplyDefaults(machine, values)
 
 		if !validRecord(w, req, store, machine, values) {
 			return

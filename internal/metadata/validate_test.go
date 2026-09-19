@@ -61,6 +61,20 @@ func TestValidate_statusWithoutOptions(t *testing.T) {
 	assertIssue(t, m, "requires at least one option")
 }
 
+func TestValidate_statusDefaultNotAnOption(t *testing.T) {
+	m := validMachine()
+	m.Fields[1].Default = "archived"
+	assertIssue(t, m, "is not one of its own options")
+}
+
+func TestValidate_statusDefaultValid(t *testing.T) {
+	m := validMachine()
+	m.Fields[1].Default = "done"
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
 func TestValidate_relationWithoutTarget(t *testing.T) {
 	m := validMachine()
 	m.Fields = append(m.Fields, domain.Field{ID: "fld_project", Name: "Project", Type: domain.FieldTypeRelation})

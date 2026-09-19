@@ -58,6 +58,9 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 		if !ok {
 			return
 		}
+		data.ApplyDefaults(docMachine, values)
+		// The wizard's own explicit rule outranks any declared default here, the same way an
+		// INSERT's explicit column value outranks a SQL DEFAULT.
 		values[action.FieldDocumentStatus] = action.DocumentStatusInReview
 		if !validRecord(w, req, store, docMachine, values) {
 			return
@@ -101,6 +104,7 @@ func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.S
 			action.FieldStepAssignee: assignee,
 			action.FieldStepDecision: action.DecisionPending,
 		}
+		data.ApplyDefaults(stepMachine, values)
 		if !validRecord(w, req, store, stepMachine, values) {
 			return false
 		}

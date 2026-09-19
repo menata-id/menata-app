@@ -38,6 +38,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 		for k, v := range uploaded {
 			values[k] = v
 		}
+		data.ApplyDefaults(machine, values)
 
 		if !validRecord(w, req, store, machine, values) {
 			return

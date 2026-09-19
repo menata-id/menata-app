@@ -51,6 +51,7 @@ recorded in `ROADMAP.md`'s "UI mockup conformance gaps", not built.
 | Sort order | Explicit per-Machine ordering (`sort_order` column), assigned at create time | Built | Every Machine — `internal/data.Store.CreateRecord` |
 | SLA badge | A `view.sla_field` date Field rendered as OVERDUE / "N day(s) left" instead of a plain date | Built | `mch_document`'s `fld_due_date`, `internal/experience.EvaluateSLA` |
 | Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `internal/web`'s `logActivity` — Document submission/decision, Task/Project creation, Task status moves |
+| Field default value | A Field's declared `default:` fills in a value a create leaves empty (absent, nil, or `""`) — create-only, never re-applied on update | Built | `mch_task.fld_status: default: todo`; `domain.Field.Default`, `data.ApplyDefaults`, called from every create path |
 
 ---
 
@@ -154,6 +155,7 @@ to Phase 14. The full list of what the `ui-sample/` mockups show and this app do
 | Permission's `action` is one the runtime realizes, `actor_field` is a reference Field on the same Machine, no duplicate permission IDs | Per-Machine | `internal/metadata.validatePermission` |
 | Known field type, no duplicate field IDs | Per-Machine | `internal/metadata.Validate` |
 | `status` field requires at least one option | Per-Machine | `internal/metadata.Validate` |
+| `default:` coerces to the Field's storage type at load time (bad coercion fails startup); a `status` Field's default must be one of its own options | Per-Machine | `internal/metadata.Parse`/`Validate` |
 | Relation/Person target Machine must exist in the Application | Cross-Machine, once all loaded | `validateRelationTargets` |
 | Constraint's related Machine/field must exist, and the related field must actually be a relation pointing back | Cross-Machine | `validateConstraintTargets` |
 | `view.layout` known, `view.group_by` names a real field | Per-Machine | `internal/metadata.Validate` |
