@@ -14,6 +14,10 @@ templ WorkspaceMembersPage(members []data.Membership, appName string) {
 		<h1>Workspace Members</h1>
 		<form method="POST" action="/workspace-members/invite" class="invite-form">
 			<label>
+				Full name
+				<input type="text" name="fld_name" required/>
+			</label>
+			<label>
 				Email
 				<input type="email" name="email" required/>
 			</label>

@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -69,6 +70,13 @@ func submitEditMember(store *data.Store) http.HandlerFunc {
 // gated on the emailed, workspace-bound token this handler now sends (security audit 2026-09-19,
 // H1; ROADMAP.md Phase 21 Step 6's original design let the first successful login activate the
 // account instead, which let anyone who knew/guessed the invited email claim it first).
+//
+// fld_name comes from the inviting admin, not the email address -- it used to default to email,
+// which then surfaced everywhere a person's name is displayed (the approver picker's own
+// ApproverRow, approvalStepper's assignee label, SummaryCard/PendingApprovalCard's submitter),
+// showing an email address instead of a real name until the invitee later edited their own
+// record. Required here (mirrors RegistrationPage's own "Your name") so it's never blank at
+// creation instead.
 func submitInviteMember(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
@@ -83,9 +91,14 @@ func submitInviteMember(machines map[string]*domain.Machine, store *data.Store, 
 			http.Error(w, "email is required", http.StatusUnprocessableEntity)
 			return
 		}
+		name := strings.TrimSpace(req.FormValue("fld_name"))
+		if name == "" {
+			http.Error(w, "full name is required", http.StatusUnprocessableEntity)
+			return
+		}
 
 		userMachine := machines[domain.UserMachineID]
-		values := map[string]any{"fld_name": email, "fld_email": email}
+		values := map[string]any{"fld_name": name, "fld_email": email}
 		data.ApplyDefaults(userMachine, values)
 		if err := data.ValidateRecord(userMachine, values); err != nil {
 			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
