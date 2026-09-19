@@ -5,8 +5,8 @@ package rendering
 // (Phase 13), grouped by day instead of a flat top-10 list -- a different shape over the same
 // already-built data, not a new event mechanism.
 templ ActivityPage(today, yesterday, older []ActivityEntry, appName string) {
-	@pageShell("Activity", appName) {
-		<h1>Activity</h1>
+	@pageShell(labelByID("nav_activity"), appName) {
+		<h1>{ labelByID("nav_activity") }</h1>
 		<p>A cross-project feed of business events.</p>
 		@activityGroup("Today", today)
 		@activityGroup("Yesterday", yesterday)

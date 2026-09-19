@@ -9,8 +9,8 @@ import "menata.app/internal/data"
 // Phases 3-10 already built, not a new settings mechanism: mch_list and mch_label are ordinary
 // Machines, so their own table page already is board settings.
 templ BoardSettingsPage(lists []*data.Record, labels []*data.Record, appName string) {
-	@pageShell("Board Settings", appName) {
-		<h1>Board Settings</h1>
+	@pageShell(labelByID("nav_board_settings"), appName) {
+		<h1>{ labelByID("nav_board_settings") }</h1>
 		<p>Lists (statuses) and labels shared across every Project's board.</p>
 
 		<h2>Lists & Statuses</h2>

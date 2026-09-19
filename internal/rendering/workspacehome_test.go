@@ -5,12 +5,23 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"menata.app/internal/domain"
 )
 
 // renderWorkspaceHomeForRole renders WorkspaceHomePage with the given workspaceRole and every
 // other parameter fixed to a minimal valid fixture, returning the Members link's presence.
+// WorkspaceHomePage's pending-decision subtitle falls back to labelByID("nav_approval_inbox")
+// (machine.templ), so a nav fixture must be configured before rendering, same pattern
+// TestRouteByID_survivesHiddenNavGroup (navigation_test.go) already uses.
 func workspaceHomeHasMembersLink(t *testing.T, workspaceRole string) bool {
 	t.Helper()
+	all := []domain.NavigationItem{
+		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
+	}
+	t.Cleanup(func() { ConfigureNavigation(nil, "", nil) })
+	ConfigureNavigation(all, "", all)
+
 	var buf bytes.Buffer
 	c := WorkspaceHomePage("Acme", "Task Tracker", workspaceRole, "member", 0, "AN", "TT", "", "/home")
 	if err := c.Render(context.Background(), &buf); err != nil {

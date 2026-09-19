@@ -66,16 +66,59 @@ comes from), wire it through the four steps above, and only then reference it do
 
 **A page linking to one of its own sibling screens is the common case, and has a shortcut**: call
 `rendering.routeByID("nav_xxx")` (`internal/rendering/machine.templ`) instead of retyping the
-route. It looks the id up in `domain.Application.AllNavigation` -- the full declared navigation
-list, frozen before `hidden_nav_groups` filtering runs, the same "before filtering" reasoning
+route, and `rendering.labelByID("nav_xxx")` instead of retyping its `label:` text (a page's own
+title/`<h1>`/card text is exactly as much metadata as its link target -- see the next section).
+Both look the id up in `domain.Application.AllNavigation` -- the full declared navigation list,
+frozen before `hidden_nav_groups` filtering runs, the same "before filtering" reasoning
 `HomeRoute`/`PrimaryNavGroup` already follow, so a link to a hidden group's own item still
 resolves. This isn't limited to Workspace-level chrome: `approvalinbox.templ`'s "+ New Approval",
 `documentsubmit.templ`'s "← Approval Inbox" and `sprintdashboard.templ`'s "Full team capacity →"
 all use it -- an *Application's own* page linking to its *own* sibling screen still means the
-route comes from metadata, not from assuming "same Application, so hardcoding is fine." Checking
-the actual data proved that assumption wrong
-(`internal/conformance.TestRenderingHasNoHardcodedApplicationRoute` covers every `.templ` file for
-exactly this reason, not just Workspace-level ones).
+route/label comes from metadata, not from assuming "same Application, so hardcoding is fine."
+Checking the actual data proved that assumption wrong
+(`internal/conformance.TestRenderingHasNoHardcodedApplicationRoute` /
+`...ApplicationLabel` cover every `.templ` file for exactly this reason, not just Workspace-level
+ones -- the label gate alone found nine live violations the day it was added: every Page's own
+`pageShell(...)` title was retyping its nav item's `label:` on a line right next to an already-
+correct `routeByID` href).
+
+## Deciding whether a literal is a metadata-hardcoding violation
+
+Use this decision path any time you're about to write a string/number literal that looks like it
+describes application behavior (a route, a label, a Machine/Field id, an option value, a badge
+name) -- not just for routes and labels, which are the only two `internal/conformance` currently
+gates by name.
+
+1. **Is it declared in `metadata/*.yaml`?** If yes, it must be referenced through an id-keyed
+   lookup -- `rendering.routeByID`/`labelByID`, or a doc-commented `domain.Application`/
+   `domain.Workspace` field threaded through `web.Deps` (see "Where a metadata-derived value
+   belongs" above) -- never retyped as a second literal. This is true even when it's *your own*
+   Application's own screen doing the retyping; "I already know the value" is exactly the
+   assumption that produced the nine label violations found above.
+2. **If metadata genuinely can't express it yet**, hardcoding is allowed, but the site must:
+   (a) say so in a comment naming the missing capability (already required, above);
+   (b) cite a forward-checkable pointer -- a `007-composable-runtime-architecture.md` section
+   number or a `ROADMAP.md` phase -- so a later reader can check whether that capability has since
+   landed, rather than trusting the comment forever; and
+   (c) be listed in `writing-guide.md`'s "What comes free vs. what's hardcoded today" table.
+   `internal/composition`'s Case 19 Machine-id constants predate this convention -- treat any
+   *new* exception you add as needing all three, and flag an old one you touch that's missing
+   them.
+3. **If the same hardcoded shape is now needed a second time** (a second Machine, a second case),
+   that repetition is the trigger to run it through the `menata-app-document` companion repo's
+   decomposition criteria *before* adding a third: `workflow-behavior-decomposition-criteria.md`
+   (B1-B5) for business logic in `internal/action`/handlers, `ui-composition-decomposition-
+   criteria.md` (Q1-Q5) for rendering fragments in `internal/rendering`. Both were written for
+   exactly this repo and already have real worked examples (`ActionDecide` generalizing into
+   `ActionEdit`/`ActionDelete`; `logRecordCreated` generalizing into `Event.OnCreate`).
+4. **Capability keeps growing, so a standing exception isn't permanent.** At each `ROADMAP.md`
+   phase close, re-check exceptions already in the codebase (`internal/composition`'s Case 19
+   constants, `internal/conformance`'s `runtimeLevelRoutes`/label allowlist if one exists) against
+   *current* metadata capability, not the capability that existed when the exception was written --
+   `view.card_fields` (Projection) and `Event.OnCreate` both landed by generalizing something that
+   was excused as "metadata can't do this yet" not long before. An exception with no forward
+   pointer (step 2b) can't be checked this way, which is exactly why that pointer is mandatory
+   going forward.
 
 ## Design reference vs. current code
 
@@ -115,6 +158,10 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   hardcode a route metadata already declares, except the small set of runtime-level routes that
   exist regardless of which Application is configured (`/home`, `/login`, ...). Use
   `rendering.routeByID("nav_xxx")` to link to a sibling screen instead.
+- `TestRenderingHasNoHardcodedApplicationLabel` / `TestHandlersHaveNoHardcodedApplicationLabel` —
+  the label-side counterpart of the pair above: no `.templ`/handler may hardcode a `label:`
+  metadata already declares (a page's own title, `<h1>`, or card text). Use
+  `rendering.labelByID("nav_xxx")` instead.
 - `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —
   `capabilities.md`'s own Machines and Shared rendering components tables match the real
   `metadata/*.yaml` and `internal/rendering/*.templ`.

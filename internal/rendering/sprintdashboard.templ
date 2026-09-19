@@ -31,8 +31,8 @@ func (s SprintSummary) CompletionPercent() int {
 // composability audit found this list re-implementing taskRowList's markup by hand and silently
 // dropping its status badge).
 templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow, appName string) {
-	@pageShell("Sprint Dashboard", appName) {
-		<h1>Sprint Dashboard</h1>
+	@pageShell(labelByID("nav_sprint"), appName) {
+		<h1>{ labelByID("nav_sprint") }</h1>
 		<p>A composed analytics view over real Task data -- no fabricated points or burndown.</p>
 
 		@summaryCounts([]SummaryItem{

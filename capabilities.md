@@ -250,8 +250,14 @@ Sprint Dashboard's "Full team capacity →") looks its target up by navigation i
 every `.templ` and every `internal/web` handler (router.go's own registrations excepted) to that.
 `routeByID` reads `domain.Application.AllNavigation` (the full declared list, before
 `hidden_nav_groups` filtering) rather than the topbar's own filtered `Navigation`, so a link stays
-resolvable even for an item whose group is currently hidden from the topbar. See the architectural
-limits below for what this doesn't cover (the cross-Application launcher).
+resolvable even for an item whose group is currently hidden from the topbar. Its label-side
+counterpart, `rendering.labelByID`, holds the same discipline for a page's own title/`<h1>`/card
+text (`TestRenderingHasNoHardcodedApplicationLabel`/`TestHandlersHaveNoHardcodedApplicationLabel`)
+— the label gate alone found violations across nine `.templ` files the first time it ran (three
+more had already been found and fixed by hand while designing it), almost all a Page's own
+`pageShell(...)` title retyping its nav item's `label:` right next to an already-correct
+`routeByID` href. See the architectural limits below for what this doesn't cover (the
+cross-Application launcher).
 
 ---
 
@@ -268,6 +274,7 @@ like any other — and the two that prevent regression are the ones most easily 
 | Volume threshold harness | Built | `make threshold` (`internal/composition/threshold_test.go`) measures whole-Machine read cost at increasing record counts — the measured trigger for pagination/projection work |
 | Navigation route existence, cross-checked | Built (2026-09-19) | `internal/conformance.TestAppManifestLoads`/`TestNavigationRoutesAreRegistered`: `metadata/app.yaml` loads and validates (no database needed), and every declared `navigation:` route has a matching `internal/web/router.go` `GET` handler — a typo now fails `go test`/pre-commit, not silently at click time |
 | Every page's links stay metadata-driven, not hand-typed | Built (2026-09-19) | `internal/conformance.TestRenderingHasNoHardcodedApplicationRoute` / `TestHandlersHaveNoHardcodedApplicationRoute`: no `internal/rendering/*.templ` file and no `internal/web/*.go` handler (router.go's own registrations excepted) may hardcode a literal equal to a declared `navigation:` route, unless it's one of the small set of runtime-level routes (`/home`, `/login`, ...) that exist regardless of which Application is configured. An Application's own route must come from `rendering.routeByID(id)` (reads `domain.Application.AllNavigation`) or an equivalent `domain.Application` field (`HomeRoute`, `PrimaryNavGroup`) threaded through `web.Deps`, checked at both the rendering and handler layer so the obligation can't just move down one level. CLAUDE.md's "Where a metadata-derived value belongs" is the convention this enforces |
+| Every page's own title/text stays metadata-driven, not hand-typed | Built (2026-09-19) | `internal/conformance.TestRenderingHasNoHardcodedApplicationLabel` / `TestHandlersHaveNoHardcodedApplicationLabel`: the label-side counterpart of the route gate above — no `.templ` file or handler may hardcode a literal equal to a declared `navigation:` label. A page's own title/`<h1>`/card text must come from `rendering.labelByID(id)` instead. Found across nine `.templ` files the day it was added (writing-guide.md §2, capabilities.md's "Navigation / Routes" section above) |
 | `capabilities.md`'s own inventory tables stay honest | Built (2026-09-19) | `internal/conformance.TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl`: the "Machines currently defined" table is cross-checked against `metadata/*.yaml` (both directions — undocumented and stale entries both fail), and every "Shared rendering components" row names a real `templ` function in `internal/rendering/*.templ` |
 
 ---

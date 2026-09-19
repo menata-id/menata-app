@@ -96,6 +96,16 @@ validation, since a badge nothing renders would silently show nothing). A nav it
 not generated from a Machine, so a typo in `route` fails silently (a 404 at click time), not at
 load time.
 
+**`label` is exactly as much metadata as `route`.** A page rendering its own nav item's title (a
+`pageShell(...)` call, an `<h1>`, a card's link text) must read it via `rendering.labelByID(id)`
+(`internal/rendering/machine.templ`), never retype the label string, the same discipline
+`rendering.routeByID(id)` already holds `route` to (`menata-app/CLAUDE.md`'s "Where a
+metadata-derived value belongs"). `internal/conformance.TestRenderingHasNoHardcodedApplicationLabel`
+gates every `.templ` file for this — it found nine live violations the first time it ran (every
+Page's own title, retyped on a line right next to an already-correct `routeByID` href), which is
+the actual failure mode this convention exists to prevent: the two strings are the same
+`navigation:` entry, and only one of them was being kept in sync.
+
 **A generic Machine's own page is always reachable at `/machines/{id}`** even with no navigation
 entry at all — navigation is a convenience menu, not what makes a Machine's CRUD screens exist.
 
@@ -584,6 +594,15 @@ similar-looking metadata for a *different* Machine does not activate it.
 | Field defaults | SLA-breach detection (still read-triggered, not a real Event yet) |
 | SLA badges (`view.sla_field`) | — |
 | Workspace scoping, session-auth gating | Composed screens: Dashboard, Approval Inbox, My Tasks, Sprint Dashboard, Calendar, Team Capacity, Automation, Board Settings |
+
+**The right column is a capability snapshot, not a permanent exemption list.** Each entry existed
+because metadata couldn't express it *when it was written* — `view.card_fields` (Projection) and
+`Event.OnCreate` both started as a right-column entry and moved left once a real second case
+justified generalizing them (`menata-app-document`'s `workflow-behavior-decomposition-criteria.md`
+B1-B5, `ui-composition-decomposition-criteria.md` Q1-Q5). Don't read a row here as "this will
+always require code" — re-check it against those criteria before assuming it still does,
+especially at a `ROADMAP.md` phase close (CLAUDE.md's "Deciding whether a literal is a
+metadata-hardcoding violation").
 
 If what you're building is a new data model with CRUD, relations, a board or table view, a
 same-shape cross-record rule, a field-change side effect, and defaults — the left column is

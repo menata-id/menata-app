@@ -10,8 +10,8 @@ var appRoleOptions = []string{"", "approver", "submitter", "reviewer"}
 // WorkspaceMembersPage lists every member of the signed-in identity's Workspace
 // (workspace-members.html, reduced: no Group/"Source" column, since Groups stay deferred).
 templ WorkspaceMembersPage(members []data.Membership, appName string) {
-	@pageShell("Workspace Members", appName) {
-		<h1>Workspace Members</h1>
+	@pageShell(labelByID("nav_workspace_members"), appName) {
+		<h1>{ labelByID("nav_workspace_members") }</h1>
 		<form method="POST" action="/workspace-members/invite" class="invite-form">
 			@csrfHiddenInput()
 			<label>
@@ -79,6 +79,6 @@ templ EditMemberPage(m data.Membership, appName string) {
 			</label>
 			<button type="submit" class="primary">Save changes</button>
 		</form>
-		<p><a href="/workspace-members">← Back to Workspace Members</a></p>
+		<p><a href={ templ.SafeURL(routeByID("nav_workspace_members")) }>← Back to { labelByID("nav_workspace_members") }</a></p>
 	}
 }

@@ -43,7 +43,7 @@ templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, p
 						if pendingCount > 0 {
 							{ fmt.Sprintf("%d pending decision", pendingCount) }{ pluralS(pendingCount) }
 						} else {
-							Approval Inbox
+							{ labelByID("nav_approval_inbox") }
 						}
 					</span>
 				</span>

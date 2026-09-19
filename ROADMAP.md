@@ -51,6 +51,17 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   SLA-breach detection (which still fires on a page read, since there's no scheduler) remain
   hardcoded, on purpose -- named next candidates once a real second need reaches them, not
   converted speculatively.
+- **Metadata-hardcoding gate extended to `label:`, not just `route:`** -- a Page's own title
+  (`pageShell(...)`, `<h1>`, card/back-link text) must now come from `rendering.labelByID(id)`
+  (`internal/rendering/machine.templ`), the label-side counterpart of the existing `routeByID`,
+  gated by `internal/conformance.TestRenderingHasNoHardcodedApplicationLabel`/
+  `TestHandlersHaveNoHardcodedApplicationLabel`. Found real drift across twelve `.templ` files
+  before it existed -- nine caught by the test itself the first time it ran, three more (including
+  `documentsubmit.templ`, `workspacehome.templ`) found and fixed by hand while designing it -- every
+  case the same shape: a page's title retyped on the line right next to an already-correct
+  `routeByID` href. `CLAUDE.md`'s new "Deciding whether a literal is a metadata-hardcoding
+  violation" section generalizes the underlying question beyond routes/labels; full kajian in
+  `menata-app-document`'s `audits/2026-09-19-metadata-hardcoding-gate-mapping.md`.
 
 ## In progress
 
@@ -78,6 +89,12 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   the page).
 - Expanding beyond the first two applications into the wider portfolio of business cases this
   runtime is designed to support (HR, inventory, point of sale, e-commerce, helpdesk, and more).
+- Re-evaluating `internal/composition/pages.go`'s Case 19 Machine-id/status-option constants
+  (`taskMachineID`, the `todo`/`in_progress`/`done` switch) against the B1-B5 decomposition
+  criteria now that `view.card_fields` (Projection) has shipped -- flagged, not decided, in
+  `menata-app-document`'s `audits/2026-09-19-metadata-hardcoding-gate-mapping.md`; these predate
+  the "exception needs a forward-checkable pointer" convention (`CLAUDE.md`), so this is also the
+  first case of applying that convention retroactively. Owner decision, not assumed here.
 
 ---
 

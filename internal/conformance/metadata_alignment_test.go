@@ -203,6 +203,134 @@ func TestHandlersHaveNoHardcodedApplicationRoute(t *testing.T) {
 	}
 }
 
+// declaredNavLabels is declaredNavRoutes' label-side counterpart: every label: string declared in
+// metadata/app.yaml's own navigation list, including items hidden_nav_groups removes from the
+// runtime Navigation slice -- routeByID/labelByID both read allNavigation (pre-filtering), so a
+// label gate must check against the same unfiltered set the route gate already does.
+func declaredNavLabels(t *testing.T) []string {
+	t.Helper()
+	path := filepath.Join(repoRoot(), "metadata", "app.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var doc struct {
+		Application struct {
+			Navigation []struct {
+				Label string `yaml:"label"`
+			} `yaml:"navigation"`
+		} `yaml:"application"`
+	}
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("parse %s: %v", path, err)
+	}
+	labels := make([]string, 0, len(doc.Application.Navigation))
+	for _, n := range doc.Application.Navigation {
+		labels = append(labels, n.Label)
+	}
+	return labels
+}
+
+// templPageShellTitle matches a `pageShell("...", ...)` call's title argument -- the canonical
+// site a Page names its own title, and (with detailBackLink/workspacehome's card text) one of the
+// three real shapes TestRenderingHasNoHardcodedApplicationLabel found hardcoded before this gate
+// existed (documentsubmit.templ, approvalinbox.templ).
+var templPageShellTitle = regexp.MustCompile(`pageShell\(\s*"([^"]*)"`)
+
+// templTagText matches a run of Title-Case words between two tags -- `<h1>Approval Inbox</h1>`,
+// `← Approval Inbox` inside an `<a>`, a card's plain-text body -- covering the rendered-text shape
+// pageShell's title argument doesn't (workspacehome.templ's card subtitle, detail.templ's back
+// link). Every declared label in metadata/app.yaml today is itself a Title-Case phrase, so this is
+// scoped to that shape rather than matching arbitrary text -- exactly the same "match the specific
+// shape that's actually at risk" posture templHref already takes for hrefs, not a blanket
+// substring search (which false-positives on prose, per capabilities.md's own
+// TestWritingGuideMachinesMatchMetadata history in menata-app-document's development-history.md).
+var templTagText = regexp.MustCompile(`>[^<{]*?([A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]+)*)\s*<`)
+
+// TestRenderingHasNoHardcodedApplicationLabel is TestRenderingHasNoHardcodedApplicationRoute's
+// label-side counterpart: no internal/rendering/*.templ file may render a metadata-declared
+// navigation label as a literal -- it must come from rendering.labelByID(id) instead, so a label
+// edit in metadata/app.yaml can't go stale next to a page that still shows the old wording. Found
+// three real instances before this test existed (label text sitting on the very same line as an
+// already-correct routeByID href): approvalinbox.templ and documentsubmit.templ's own pageShell
+// title + <h1>, and workspacehome.templ's "Approval Inbox" card subtitle -- all three fixed via
+// labelByID as this gate's own first commit.
+func TestRenderingHasNoHardcodedApplicationLabel(t *testing.T) {
+	navLabels := make(map[string]bool)
+	for _, label := range declaredNavLabels(t) {
+		navLabels[label] = true
+	}
+
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		found := make(map[string]bool)
+		for _, m := range templPageShellTitle.FindAllStringSubmatch(string(src), -1) {
+			found[m[1]] = true
+		}
+		for _, m := range templTagText.FindAllStringSubmatch(string(src), -1) {
+			found[m[1]] = true
+		}
+		for literal := range found {
+			if navLabels[literal] {
+				t.Errorf("%s hardcodes %q, a label metadata/app.yaml already declares -- render it with labelByID(...) instead", path, literal)
+			}
+		}
+	}
+}
+
+// TestHandlersHaveNoHardcodedApplicationLabel is TestHandlersHaveNoHardcodedApplicationRoute's
+// label-side counterpart, over every internal/web/*.go file, parsed with go/ast for the same
+// comment-safety reason the route version already is.
+func TestHandlersHaveNoHardcodedApplicationLabel(t *testing.T) {
+	navLabels := make(map[string]bool)
+	for _, label := range declaredNavLabels(t) {
+		navLabels[label] = true
+	}
+
+	dir := filepath.Join(repoRoot(), "internal", "web")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	fset := token.NewFileSet()
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") || e.Name() == "router.go" {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			lit, ok := n.(*ast.BasicLit)
+			if !ok || lit.Kind != token.STRING {
+				return true
+			}
+			value, err := strconv.Unquote(lit.Value)
+			if err != nil {
+				return true
+			}
+			if navLabels[value] {
+				t.Errorf("%s hardcodes %q, a label metadata/app.yaml already declares -- it must come from a domain.Application field or rendering.labelByID, not be retyped here", fset.Position(lit.Pos()), value)
+			}
+			return true
+		})
+	}
+}
+
 // markdownSection returns capabilities.md's lines between a heading exactly matching heading and
 // the next line that starts a new section ("---" or another "#"-prefixed heading) -- scoping a
 // table-row regexp to the one table it's meant to check, not every backtick-first-column table in

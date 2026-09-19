@@ -39,8 +39,8 @@ type ActivityEntry struct {
 // whole-machine queries stay correct and cheap regardless of record counts, so this page does
 // not, on its own, force Phase 6 even with four sections composed.
 templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []*data.Record, activity []ActivityEntry, appName string) {
-	@pageShell("Dashboard", appName) {
-		<h1>Dashboard</h1>
+	@pageShell(labelByID("nav_dashboard"), appName) {
+		<h1>{ labelByID("nav_dashboard") }</h1>
 
 		@sectionHeader("Projects", "/machines/mch_project", "View all →")
 		<table>

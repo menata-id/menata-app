@@ -60,6 +60,20 @@ func routeByID(id string) string {
 	panic("rendering: no navigation item with id " + id)
 }
 
+// labelByID is routeByID's label-side counterpart: a page rendering the title of one of its own
+// nav siblings (a pageShell title, an <h1>, a card's link text) must read it from here, not retype
+// the label string -- internal/conformance's TestRenderingHasNoHardcodedApplicationLabel holds
+// every .templ file to this, the same way TestRenderingHasNoHardcodedApplicationRoute already
+// holds routeByID's href side. Same panic-on-unknown-id posture as routeByID, for the same reason.
+func labelByID(id string) string {
+	for _, item := range allNavigation {
+		if item.ID == id {
+			return item.Label
+		}
+	}
+	panic("rendering: no navigation item with id " + id)
+}
+
 // navLink renders one NavigationItem as a topbar link, including its live badge if it declares
 // one -- currently only the pending-approval count (the only entry in KnownNavigationBadges).
 templ navLink(item domain.NavigationItem) {

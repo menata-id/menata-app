@@ -54,12 +54,13 @@ templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relati
 // exist as part of Case 3's Document Approval flow, so their own generic Machine page
 // (/machines/mch_document, /machines/mch_approval_step) is POC scaffolding no real approver
 // should land on (owner request, 2026-09-19) -- send them back to Approval Inbox instead, via the
-// same routeByID idiom documentsubmit.templ's own "← Approval Inbox" already uses. Every other
+// same routeByID/labelByID idiom documentsubmit.templ's own "← Approval Inbox" link already uses.
+// Every other
 // Machine (Task, Project, ...) has no bespoke flow of its own, so its generic page remains the
 // real destination.
 templ detailBackLink(m *domain.Machine) {
 	if m.ID == action.DocumentMachineID || m.ID == action.StepMachineID {
-		<p><a href={ templ.SafeURL(routeByID("nav_approval_inbox")) }>← Approval Inbox</a></p>
+		<p><a href={ templ.SafeURL(routeByID("nav_approval_inbox")) }>← { labelByID("nav_approval_inbox") }</a></p>
 	} else {
 		<p><a href={ templ.URL("/machines/" + m.ID) }>← { m.Name }</a></p>
 	}

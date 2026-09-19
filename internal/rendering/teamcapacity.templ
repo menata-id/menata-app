@@ -19,8 +19,8 @@ type MemberCapacity struct {
 // TeamCapacityPage is Case 19's workload/ownership view: People, weekly capacity (declared on
 // mch_user), and active Task counts, composed from existing Machines.
 templ TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int, appName string) {
-	@pageShell("Team Capacity", appName) {
-		<h1>Team Capacity</h1>
+	@pageShell(labelByID("nav_team_capacity"), appName) {
+		<h1>{ labelByID("nav_team_capacity") }</h1>
 		<p>People, weekly capacity, and active work, composed from existing Member and Task data.</p>
 
 		@summaryCounts([]SummaryItem{
