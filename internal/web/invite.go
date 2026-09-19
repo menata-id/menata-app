@@ -29,18 +29,41 @@ func sendInviteEmail(ctx context.Context, mailer mail.Mailer, cfg config.Config,
 	}
 }
 
+// acceptInviteNewCredentialCopy/acceptInviteExistingCredentialCopy are showAcceptInvite/
+// submitAcceptInvite's two heading/button pairs -- which one applies depends on whether the
+// invited email already holds a credential elsewhere (security audit 2026-09-19, H1 follow-up:
+// CAP-O10's own reference shape distinguishes "set a new password" from "confirm the one you
+// already have", rather than treating an existing credential as an error).
+const (
+	acceptInviteNewCredentialHeading      = "Set your password to join the workspace"
+	acceptInviteExistingCredentialHeading = "Enter your existing password to join this workspace"
+	acceptInviteButtonLabel               = "Join workspace"
+)
+
 // showAcceptInvite renders the same token-carrying "set a password" form showResetPassword uses
-// (rendering.ResetPasswordPage), just with invite-specific copy and its own action -- an invited
-// member never had a password to reset, only one to set for the first time.
-func showAcceptInvite(w http.ResponseWriter, req *http.Request) {
-	render(req.Context(), w, rendering.ResetPasswordPage(req.URL.Query().Get("token"), "", "Set your password to join the workspace", "/accept-invite", "Join workspace"))
+// (rendering.ResetPasswordPage), just with invite-specific copy and its own action. It also
+// decides, before the form is even shown, which of the two headings above applies -- the email a
+// valid token names is safe to look up here (it isn't user input at this point, VerifyInviteToken
+// already produced it), so an already-registered invitee never sees the "set a new password"
+// copy that used to be the only option.
+func showAcceptInvite(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		token := req.URL.Query().Get("token")
+		heading := acceptInviteNewCredentialHeading
+		if email, _, ok := authorization.VerifyInviteToken(cfg.SessionSecret, token); ok {
+			if _, err := store.GetCredential(req.Context(), email); err == nil {
+				heading = acceptInviteExistingCredentialHeading
+			}
+		}
+		render(req.Context(), w, rendering.ResetPasswordPage(token, "", heading, "/accept-invite", acceptInviteButtonLabel))
+	}
 }
 
-// submitAcceptInvite is the one place an invited member's credential is actually created (security
-// audit 2026-09-19, H1) -- closing the gap authenticateMember used to leave open, where the first
-// successful login attempt for an invited email created a credential from whatever password was
-// POSTed, regardless of who sent it. A credential can only be created here, gated by a valid,
-// unexpired, not-yet-used invite token.
+// submitAcceptInvite is the one place an invited member's credential is created, or an existing
+// one confirmed (security audit 2026-09-19, H1 + its own CAP-O10 follow-up) -- closing the gap
+// authenticateMember used to leave open, where the first successful login attempt for an invited
+// email created a credential from whatever password was POSTed, regardless of who sent it. Gated
+// on a valid, unexpired, still-membership-backed invite token in both branches below.
 func submitAcceptInvite(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if err := req.ParseForm(); err != nil {
@@ -67,33 +90,40 @@ func submitAcceptInvite(store *data.Store, cfg config.Config) http.HandlerFunc {
 			http.Error(w, "invalid or expired invite link", http.StatusBadRequest)
 			return
 		}
-		if len(password) < 8 {
-			render(req.Context(), w, rendering.ResetPasswordPage(token, "Password must be at least 8 characters.", "Set your password to join the workspace", "/accept-invite", "Join workspace"))
-			return
-		}
 
-		// A credential already existing means this invite was already accepted (or the email
-		// separately registered/invited elsewhere first) -- the same generic rejection either way,
-		// so a token can't be used to probe which case it is.
-		if _, err := store.GetCredential(req.Context(), email); err == nil {
-			http.Error(w, "invalid or expired invite link", http.StatusBadRequest)
-			return
-		} else if !errors.Is(err, data.ErrCredentialNotFound) {
+		cred, err := store.GetCredential(req.Context(), email)
+		switch {
+		case errors.Is(err, data.ErrCredentialNotFound):
+			// No credential yet -- the original H1 fix's own path: set a brand new one. The
+			// invite's own admin already vouched for this email by typing it in when inviting,
+			// same trust rationale authenticateMember's replaced auto-activation used to rely on,
+			// now only reachable through a verified token instead of "whoever POSTs first".
+			if len(password) < 8 {
+				render(req.Context(), w, rendering.ResetPasswordPage(token, "Password must be at least 8 characters.", acceptInviteNewCredentialHeading, "/accept-invite", acceptInviteButtonLabel))
+				return
+			}
+			hash, hashErr := authorization.HashPassword(password)
+			if hashErr != nil {
+				serverError(w, hashErr)
+				return
+			}
+			if err := store.CreateCredential(req.Context(), email, hash, true); err != nil {
+				serverError(w, err)
+				return
+			}
+		case err != nil:
 			serverError(w, err)
 			return
-		}
-
-		hash, err := authorization.HashPassword(password)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		// The invite's own admin already vouched for this email by typing it in when inviting --
-		// same trust rationale authenticateMember's replaced auto-activation used to rely on, now
-		// only reachable through a verified token instead of "whoever POSTs first".
-		if err := store.CreateCredential(req.Context(), email, hash, true); err != nil {
-			serverError(w, err)
-			return
+		default:
+			// A credential already exists -- this email registered separately or was already
+			// invited elsewhere first. Confirming they own it (not creating a second one) is
+			// CAP-O10's own reference shape for this case; submitInviteMember already created this
+			// Workspace's membership row regardless of credential state, so nothing else needs
+			// writing once the password checks out.
+			if !authorization.VerifyPassword(password, cred.PasswordHash) {
+				render(req.Context(), w, rendering.ResetPasswordPage(token, "Incorrect password.", acceptInviteExistingCredentialHeading, "/accept-invite", acceptInviteButtonLabel))
+				return
+			}
 		}
 
 		if err := completeLogin(w, req, cfg, store, email); err != nil {

@@ -79,6 +79,14 @@ const (
 	// addresses have accounts via response timing.
 	forgotPasswordAttemptLimit  = 10
 	forgotPasswordAttemptWindow = 5 * time.Minute
+
+	// inviteAcceptAttemptLimit/Window bound POST /accept-invite (address-only key -- see
+	// rateLimitByAddress; unlike /login, a valid invite token is a prerequisite to reach the
+	// existing-credential password check at all, so the exposure this defends is smaller, but the
+	// check itself is still a password guess worth slowing down, security audit 2026-09-19's H1
+	// follow-up).
+	inviteAcceptAttemptLimit  = 10
+	inviteAcceptAttemptWindow = 5 * time.Minute
 )
 
 func Routes(d Deps) http.Handler {
@@ -90,6 +98,7 @@ func Routes(d Deps) http.Handler {
 	loginLimiter := newLoginRateLimiter(loginAttemptLimit, loginAttemptWindow)
 	registrationLimiter := newLoginRateLimiter(registrationAttemptLimit, registrationAttemptWindow)
 	forgotPasswordLimiter := newLoginRateLimiter(forgotPasswordAttemptLimit, forgotPasswordAttemptWindow)
+	inviteAcceptLimiter := newLoginRateLimiter(inviteAcceptAttemptLimit, inviteAcceptAttemptWindow)
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -109,8 +118,8 @@ func Routes(d Deps) http.Handler {
 	r.Post("/forgot-password", rateLimitByAddress(forgotPasswordLimiter, "too many attempts -- try again later", submitForgotPassword(d.Store, d.Mailer, d.Cfg)))
 	r.Get("/reset-password", showResetPassword)
 	r.Post("/reset-password", submitResetPassword(d.Store, d.Cfg))
-	r.Get("/accept-invite", showAcceptInvite)
-	r.Post("/accept-invite", submitAcceptInvite(d.Store, d.Cfg))
+	r.Get("/accept-invite", showAcceptInvite(d.Store, d.Cfg))
+	r.Post("/accept-invite", rateLimitByAddress(inviteAcceptLimiter, "too many attempts -- try again later", submitAcceptInvite(d.Store, d.Cfg)))
 	r.Get("/choose-workspace", showChooseWorkspace(d.Store, d.Cfg))
 	r.Post("/choose-workspace", submitChooseWorkspace(d.Store, d.Cfg))
 
