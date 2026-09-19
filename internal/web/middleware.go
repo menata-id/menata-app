@@ -16,6 +16,14 @@ import (
 // (internal/authorization, ROADMAP.md Phase 2). An HTMX/API request gets a plain 401 so the
 // client can react; a full-page navigation is redirected to /login.
 //
+// Beyond the cookie's own signature, this also checks its generation against
+// data.Store.CurrentSessionGeneration (security audit 2026-09-19, M2): logout and a successful
+// password reset each bump the affected subject's generation, so a cookie issued before that bump
+// is rejected here even though its HMAC still verifies -- this is the one enforcement point for
+// that revocation, the same way this is already the one place Workspace scope gets resolved. A
+// stale generation is treated identically to "not authenticated" (redirect/401), not a separate
+// error, so it can't be used to distinguish "this cookie used to be valid" from "never was".
+//
 // Once a session names a real identity, this is also the one place a request's Workspace is
 // resolved and put on ctx (ROADMAP.md Phase 21 Step 4) -- 007 §20's own ordering: scope is
 // established before any retrieval, not trimmed after. defaultWorkspaceID is the fallback for a
@@ -25,13 +33,26 @@ import (
 func requireAuth(store *data.Store, defaultWorkspaceID string, cfg config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			userID, ok := authorization.CurrentUserID(req, cfg.SessionSecret)
-			if !ok {
+			unauthorized := func() {
 				if req.Header.Get("HX-Request") == "true" || strings.HasPrefix(req.URL.Path, "/api/") {
 					http.Error(w, "unauthorized", http.StatusUnauthorized)
 					return
 				}
 				http.Redirect(w, req, "/login", http.StatusSeeOther)
+			}
+
+			userID, cookieGeneration, ok := authorization.CurrentSession(req, cfg.SessionSecret)
+			if !ok {
+				unauthorized()
+				return
+			}
+			currentGeneration, err := store.CurrentSessionGeneration(req.Context(), userID)
+			if err != nil {
+				serverError(w, err)
+				return
+			}
+			if cookieGeneration != currentGeneration {
+				unauthorized()
 				return
 			}
 

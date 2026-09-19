@@ -85,3 +85,71 @@ func TestHandleFileUploads_multipartWithFile(t *testing.T) {
 		t.Errorf("handleFileUploads(multipart with file) = %v, want a key for fld_file", uploaded)
 	}
 }
+
+// uploadOneFile is the shared multipart-request builder for the content-sniffing tests below --
+// TestHandleFileUploads_multipartWithFile already covers the non-rejection path with an arbitrary
+// filename/content pair, so this only varies content, matching handleFileUploads' own sniff-by-
+// bytes-not-extension behavior (security audit 2026-09-19, H2).
+func uploadOneFile(t *testing.T, filename string, content []byte) (*http.Request, *storage.Store) {
+	t.Helper()
+	var body strings.Builder
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("fld_file", filename)
+	if err != nil {
+		t.Fatalf("CreateFormFile: %v", err)
+	}
+	if _, err := part.Write(content); err != nil {
+		t.Fatalf("write file part: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body.String()))
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if err := req.ParseMultipartForm(maxUploadBytes); err != nil {
+		t.Fatalf("ParseMultipartForm: %v", err)
+	}
+
+	files, err := storage.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("storage.NewStore: %v", err)
+	}
+	return req, files
+}
+
+// TestHandleFileUploads_rejectsScriptCapableContent is the core regression test for H2: a payload
+// whose real bytes sniff as HTML/SVG/XML/JS must be rejected regardless of the filename/extension
+// the uploader chose -- an "evil.pdf" carrying an HTML payload is exactly the disguise the
+// pre-fix code let through.
+func TestHandleFileUploads_rejectsScriptCapableContent(t *testing.T) {
+	cases := []struct {
+		name, filename string
+		content        []byte
+	}{
+		{"html disguised as pdf", "evil.pdf", []byte("<html><body><script>alert(document.cookie)</script></body></html>")},
+		{"svg with script", "signature.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)},
+		{"plain xml", "data.pdf", []byte(`<?xml version="1.0"?><root/>`)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req, files := uploadOneFile(t, c.filename, c.content)
+			if _, err := handleFileUploads(req, fileFieldMachine(), files); err == nil {
+				t.Errorf("handleFileUploads(%s) error = nil, want a rejection", c.name)
+			}
+		})
+	}
+}
+
+// TestHandleFileUploads_allowsRealPDF confirms the fix doesn't reject the app's own legitimate
+// case (mch_document.fld_file) -- a real PDF-prefixed payload still saves.
+func TestHandleFileUploads_allowsRealPDF(t *testing.T) {
+	req, files := uploadOneFile(t, "contract.pdf", []byte("%PDF-1.4\n%real pdf content, not actually parseable but sniffs correctly\n"))
+	uploaded, err := handleFileUploads(req, fileFieldMachine(), files)
+	if err != nil {
+		t.Fatalf("handleFileUploads(real PDF) error = %v, want nil", err)
+	}
+	if _, ok := uploaded["fld_file"]; !ok {
+		t.Errorf("handleFileUploads(real PDF) = %v, want a key for fld_file", uploaded)
+	}
+}

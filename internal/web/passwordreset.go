@@ -96,6 +96,10 @@ func submitResetPassword(store *data.Store, cfg config.Config) http.HandlerFunc 
 			serverError(w, err)
 			return
 		}
+		if err := invalidateSessionsFor(req.Context(), store, email); err != nil {
+			serverError(w, err)
+			return
+		}
 
 		if err := completeLogin(w, req, cfg, store, email); err != nil {
 			serverError(w, err)

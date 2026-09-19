@@ -7,22 +7,22 @@ import (
 )
 
 func TestDecodeCookie(t *testing.T) {
-	valid := encodeCookie("s3cret", "rec_user1")
+	valid := encodeCookie("s3cret", "rec_user1", 3)
 
-	if subject, ok := decodeCookie(valid, "s3cret"); !ok || subject != "rec_user1" {
-		t.Errorf("decodeCookie() = (%q, %v), want (rec_user1, true)", subject, ok)
+	if subject, generation, ok := decodeCookie(valid, "s3cret"); !ok || subject != "rec_user1" || generation != 3 {
+		t.Errorf("decodeCookie() = (%q, %d, %v), want (rec_user1, 3, true)", subject, generation, ok)
 	}
-	if _, ok := decodeCookie(valid, "different-secret"); ok {
+	if _, _, ok := decodeCookie(valid, "different-secret"); ok {
 		t.Error("decodeCookie() ok = true for a value signed with a different secret, want false")
 	}
-	if _, ok := decodeCookie("", "s3cret"); ok {
+	if _, _, ok := decodeCookie("", "s3cret"); ok {
 		t.Error("decodeCookie() ok = true for an empty value, want false")
 	}
-	if _, ok := decodeCookie("garbage", "s3cret"); ok {
+	if _, _, ok := decodeCookie("garbage", "s3cret"); ok {
 		t.Error("decodeCookie() ok = true for an unsigned value, want false")
 	}
 	// A forged subject with no matching signature must not verify, even though it contains a ".".
-	if _, ok := decodeCookie("rec_attacker.deadbeef", "s3cret"); ok {
+	if _, _, ok := decodeCookie("rec_attacker|0.deadbeef", "s3cret"); ok {
 		t.Error("decodeCookie() ok = true for a forged subject/signature pair, want false")
 	}
 }
@@ -48,7 +48,7 @@ func TestCheckCredentials(t *testing.T) {
 
 func TestSetSessionCookie_roundTrip(t *testing.T) {
 	rec := httptest.NewRecorder()
-	SetSessionCookie(rec, "s3cret", "rec_user1", false)
+	SetSessionCookie(rec, "s3cret", "rec_user1", 0, false)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	for _, c := range rec.Result().Cookies() {
@@ -60,6 +60,21 @@ func TestSetSessionCookie_roundTrip(t *testing.T) {
 	}
 	if userID, ok := CurrentUserID(req, "s3cret"); !ok || userID != "rec_user1" {
 		t.Errorf("CurrentUserID() = (%q, %v), want (rec_user1, true)", userID, ok)
+	}
+}
+
+func TestCurrentSession_returnsGeneration(t *testing.T) {
+	rec := httptest.NewRecorder()
+	SetSessionCookie(rec, "s3cret", "rec_user1", 5, false)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, c := range rec.Result().Cookies() {
+		req.AddCookie(c)
+	}
+
+	subject, generation, ok := CurrentSession(req, "s3cret")
+	if !ok || subject != "rec_user1" || generation != 5 {
+		t.Errorf("CurrentSession() = (%q, %d, %v), want (rec_user1, 5, true)", subject, generation, ok)
 	}
 }
 

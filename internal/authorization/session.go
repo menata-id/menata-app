@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -20,30 +21,44 @@ func sign(secret, subject string) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// encodeCookie packs subject and its signature into one cookie value: "<subject>.<hex hmac>".
+// encodeCookie packs subject, the session generation it was issued under (security audit
+// 2026-09-19, M2), and their signature into one cookie value: "<subject>|<generation>.<hex hmac>".
 // Signing the subject itself (rather than a fixed literal, ROADMAP.md Phase 2's original design)
-// is what lets a session actually identify a real mch_user record (Phase 7) -- no server-side
-// session store is needed either way, since the signature alone proves the subject wasn't
-// tampered with.
-func encodeCookie(secret, subject string) string {
-	return subject + "." + sign(secret, subject)
+// is what lets a session actually identify a real mch_user record (Phase 7); signing generation
+// alongside it is what makes revocation possible without a server-side session store keyed by
+// cookie value -- the signature alone still proves the payload wasn't tampered with, but
+// requireAuth additionally checks the generation against data.Store.CurrentSessionGeneration to
+// decide whether this particular issuance is still trusted.
+func encodeCookie(secret, subject string, generation int) string {
+	payload := subject + "|" + strconv.Itoa(generation)
+	return payload + "." + sign(secret, payload)
 }
 
-// decodeCookie verifies value's signature and returns the subject it names.
-func decodeCookie(value, secret string) (subject string, ok bool) {
+// decodeCookie verifies value's signature and returns the subject and generation it names.
+func decodeCookie(value, secret string) (subject string, generation int, ok bool) {
 	idx := strings.LastIndex(value, ".")
 	if idx < 0 {
-		return "", false
+		return "", 0, false
 	}
-	subject, sig := value[:idx], value[idx+1:]
-	if subject == "" {
-		return "", false
-	}
-	expected := sign(secret, subject)
+	payload, sig := value[:idx], value[idx+1:]
+	expected := sign(secret, payload)
 	if subtle.ConstantTimeCompare([]byte(sig), []byte(expected)) != 1 {
-		return "", false
+		return "", 0, false
 	}
-	return subject, true
+
+	sepIdx := strings.LastIndex(payload, "|")
+	if sepIdx < 0 {
+		return "", 0, false
+	}
+	subject, genStr := payload[:sepIdx], payload[sepIdx+1:]
+	if subject == "" {
+		return "", 0, false
+	}
+	generation, err := strconv.Atoi(genStr)
+	if err != nil {
+		return "", 0, false
+	}
+	return subject, generation, true
 }
 
 // CheckCredentials compares username/password against the configured admin credential in
@@ -55,11 +70,14 @@ func CheckCredentials(username, password, wantUsername, wantPassword string) boo
 }
 
 // SetSessionCookie sets a signed session cookie naming subject -- the mch_user record ID this
-// login resolves to (ROADMAP.md Phase 7), or a placeholder identity if none is configured yet.
-func SetSessionCookie(w http.ResponseWriter, secret, subject string, secure bool) {
+// login resolves to (ROADMAP.md Phase 7), or a placeholder identity if none is configured yet --
+// and generation, the session-revocation counter it was issued under (security audit 2026-09-19,
+// M2). Callers fetch generation from data.Store.CurrentSessionGeneration(ctx, subject) at the
+// moment they sign someone in, so a session issued after a bump always carries the new number.
+func SetSessionCookie(w http.ResponseWriter, secret, subject string, generation int, secure bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     SessionCookieName,
-		Value:    encodeCookie(secret, subject),
+		Value:    encodeCookie(secret, subject, generation),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   secure,
@@ -81,18 +99,33 @@ func ClearSessionCookie(w http.ResponseWriter, secure bool) {
 	})
 }
 
-// CurrentUserID returns the subject named by a valid session cookie -- today, always the single
-// configured admin identity (config.AdminUserID); a real per-user login is a later, separate
-// step once a second real user forces it (ROADMAP.md Phase 2's original deferral, still true).
+// CurrentUserID returns the subject named by a valid session cookie, ignoring its generation --
+// safe for every caller except requireAuth itself, since by the time any handler runs, requireAuth
+// has already confirmed the cookie's generation is still current (CurrentSession below is what it
+// uses to do that). Everywhere else just wants "who is this" for attribution, not to re-decide
+// whether the session is still trusted.
 func CurrentUserID(r *http.Request, secret string) (string, bool) {
+	subject, _, ok := CurrentSession(r, secret)
+	return subject, ok
+}
+
+// CurrentSession returns the subject and generation a valid session cookie names -- the one place
+// both are needed together, requireAuth's own revocation check (security audit 2026-09-19, M2):
+// it compares generation against data.Store.CurrentSessionGeneration(ctx, subject) and treats a
+// mismatch as unauthenticated, even though the cookie's HMAC signature alone still verifies.
+func CurrentSession(r *http.Request, secret string) (subject string, generation int, ok bool) {
 	cookie, err := r.Cookie(SessionCookieName)
 	if err != nil {
-		return "", false
+		return "", 0, false
 	}
 	return decodeCookie(cookie.Value, secret)
 }
 
-// IsAuthenticated reports whether the request carries a valid session cookie.
+// IsAuthenticated reports whether the request carries a valid, signature-checked session cookie.
+// It does not check generation (see CurrentUserID's own doc comment) -- it has no production
+// caller today (internal/web's own gate is requireAuth, built on CurrentSession instead), so if a
+// future caller means to use this as an authentication gate rather than an informational check, it
+// should call CurrentSession and compare generation the same way requireAuth does, not this.
 func IsAuthenticated(r *http.Request, secret string) bool {
 	_, ok := CurrentUserID(r, secret)
 	return ok
@@ -106,11 +139,15 @@ const PendingWorkspaceCookieName = "menata_pending_email"
 
 // SetPendingEmailCookie names email as a password check that has already succeeded, short-lived
 // (5 minutes -- long enough to pick a Workspace, short enough that an abandoned attempt doesn't
-// linger) and signed the same way the real session cookie is.
+// linger) and signed the same way the real session cookie is. It reuses encodeCookie's
+// subject|generation shape with generation fixed at 0 -- this cookie isn't a session (nothing ever
+// bumps a generation for an email, only for a real session subject) and PendingEmail below simply
+// discards the field, but sharing one signed-payload primitive beats forking a second one for a
+// cookie that otherwise needs exactly the same tamper-proofing.
 func SetPendingEmailCookie(w http.ResponseWriter, secret, email string, secure bool) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     PendingWorkspaceCookieName,
-		Value:    encodeCookie(secret, email),
+		Value:    encodeCookie(secret, email, 0),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   secure,
@@ -139,5 +176,6 @@ func PendingEmail(r *http.Request, secret string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	return decodeCookie(cookie.Value, secret)
+	email, _, ok := decodeCookie(cookie.Value, secret)
+	return email, ok
 }

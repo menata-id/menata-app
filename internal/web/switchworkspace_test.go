@@ -14,11 +14,13 @@ import (
 
 // sessionCookieValueForTest returns the raw cookie value authorization.SetSessionCookie would
 // hand a real ResponseWriter, so a test can attach it to a *http.Request without going through a
-// real login round trip.
-func sessionCookieValueForTest(t *testing.T, cfg config.Config, subject string) string {
+// real login round trip. generation lets a test construct a cookie issued under a specific
+// session generation (security audit 2026-09-19, M2) -- middleware_test.go's own revocation tests
+// use a non-zero value for that; every other caller here just wants a working cookie and passes 0.
+func sessionCookieValueForTest(t *testing.T, cfg config.Config, subject string, generation int) string {
 	t.Helper()
 	rec := httptest.NewRecorder()
-	authorization.SetSessionCookie(rec, cfg.SessionSecret, subject, cfg.SecureCookies)
+	authorization.SetSessionCookie(rec, cfg.SessionSecret, subject, generation, cfg.SecureCookies)
 	cookies := rec.Result().Cookies()
 	if len(cookies) == 0 {
 		t.Fatal("SetSessionCookie produced no cookie")
@@ -68,7 +70,7 @@ func TestSwitchWorkspace(t *testing.T) {
 	// identity's own two memberships), not just the current one.
 	req := httptest.NewRequest(http.MethodGet, "/switch-workspace", nil)
 	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws1.ID))
-	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user1.ID)})
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user1.ID, 0)})
 	rec := httptest.NewRecorder()
 	showSwitchWorkspace(store, cfg)(rec, req)
 	if rec.Code != http.StatusOK {
@@ -86,7 +88,7 @@ func TestSwitchWorkspace(t *testing.T) {
 	req2 := httptest.NewRequest(http.MethodPost, "/switch-workspace", form)
 	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req2 = req2.WithContext(data.WithWorkspaceScope(req2.Context(), ws1.ID))
-	req2.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user1.ID)})
+	req2.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user1.ID, 0)})
 	rec2 := httptest.NewRecorder()
 	submitSwitchWorkspace(store, cfg)(rec2, req2)
 	if rec2.Code != http.StatusSeeOther {
@@ -143,7 +145,7 @@ func TestSwitchWorkspace_rejectsForeignWorkspace(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/switch-workspace", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws1.ID))
-	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user1.ID)})
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user1.ID, 0)})
 	rec := httptest.NewRecorder()
 	submitSwitchWorkspace(store, cfg)(rec, req)
 	if rec.Code != http.StatusForbidden {

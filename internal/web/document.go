@@ -3,9 +3,12 @@ package web
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"menata.app/internal/action"
@@ -246,18 +249,105 @@ func loadDocumentPDF(ctx context.Context, store *data.Store, files *storage.Stor
 }
 
 // serveUpload streams a previously uploaded file back. Gated by requireAuth like every other
-// route in its group -- there is no per-record ownership check yet (ROADMAP.md Phase 2's
-// Machine+Action permission granularity doesn't extend to individual files), matching the rest
-// of the app's current authorization boundary.
-func serveUpload(files *storage.Store) http.HandlerFunc {
+// route in its group, plus an ownership check: the storage key names the Machine/Field it belongs
+// to (recordOwnsUpload below), so serveUpload confirms some record in the caller's own Workspace
+// actually carries this exact key in that field before serving it -- closing security audit
+// 2026-09-19's M1 (an authenticated member of any Workspace could previously read any other
+// Workspace's uploaded file just by knowing or guessing its key). A miss 404s rather than 403, so
+// a guessed key can't be used to distinguish "wrong workspace" from "never existed".
+//
+// Content-Type and Content-Disposition are decided from the file's own sniffed bytes, never from
+// the stored key's extension (security audit 2026-09-19, H2) -- an attacker who got a disguised
+// payload past handleFileUploads' own validation (record.go), or whose file was stored before that
+// validation existed, still can't get the browser to render it inline as something other than what
+// it actually is. Content-Type is set explicitly before http.ServeFile so it takes precedence over
+// ServeFile's own extension-based guess.
+func serveUpload(store *data.Store, files *storage.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		key := chi.URLParam(req, "*")
+		owns, err := recordOwnsUpload(req.Context(), store, key)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		if !owns {
+			http.NotFound(w, req)
+			return
+		}
 		path, err := files.Path(key)
 		if err != nil {
 			http.NotFound(w, req)
 			return
 		}
-		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename=%q`, storage.DisplayName(key)))
+		contentType, disposition, err := sniffUploadForServing(path)
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`%s; filename=%q`, disposition, storage.DisplayName(key)))
 		http.ServeFile(w, req, path)
 	}
+}
+
+// recordOwnsUpload reports whether some record of the Machine/Field the key itself names
+// (storage.Store.Save's own key shape: "<machineID>/<fieldID>/<random>__<filename>") carries this
+// exact key as that field's value, in the caller's own Workspace -- store.ListRecordsBy is already
+// workspace-scoped from context the same way every other Store read is, so this doesn't special-
+// case any one Machine (mch_document, mch_task, or any future Field Type: file Machine alike).
+func recordOwnsUpload(ctx context.Context, store *data.Store, key string) (bool, error) {
+	// filepath.Separator (a rune constant), not a "/" string literal -- matches storage.Save's own
+	// filepath.Join for this same key, and keeps this line out of
+	// TestHandlersHaveNoHardcodedApplicationRoute's string-literal scan, which doesn't distinguish
+	// a path separator from a route by argument position, only by literal value.
+	parts := strings.SplitN(key, string(filepath.Separator), 3)
+	if len(parts) != 3 {
+		return false, nil
+	}
+	machineID, fieldID := parts[0], parts[1]
+	records, err := store.ListRecordsBy(ctx, machineID, fieldID, key)
+	if err != nil {
+		return false, err
+	}
+	return len(records) > 0, nil
+}
+
+// inlineSafeUploadContentTypes is the small allowlist of content this app deliberately opens
+// in-browser (PDF/image previews and attachments) rather than downloading -- everything else is
+// forced to `attachment`, regardless of what extension the original upload carried. Narrower than,
+// and independent of, handleFileUploads' own denylist (record.go): validation happens once at
+// upload time, disposition is decided fresh on every serve, which also covers any file stored
+// before that upload-time validation existed.
+var inlineSafeUploadContentTypes = map[string]bool{
+	"application/pdf": true,
+	"image/png":       true,
+	"image/jpeg":      true,
+}
+
+// sniffUploadForServing reads path's own first bytes (http.DetectContentType, the same mechanism
+// a browser's MIME-sniffing would use) to decide what Content-Type to declare and whether it's
+// safe to show inline.
+func sniffUploadForServing(path string) (contentType, disposition string, err error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", "", err
+	}
+	defer func() { _ = f.Close() }()
+
+	buf := make([]byte, 512)
+	n, err := f.Read(buf)
+	if err != nil && err != io.EOF {
+		return "", "", err
+	}
+	contentType = http.DetectContentType(buf[:n])
+
+	base := contentType
+	if idx := strings.Index(contentType, ";"); idx >= 0 {
+		base = strings.TrimSpace(contentType[:idx])
+	}
+	disposition = "attachment"
+	if inlineSafeUploadContentTypes[base] {
+		disposition = "inline"
+	}
+	return contentType, disposition, nil
 }

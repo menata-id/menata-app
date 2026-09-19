@@ -283,3 +283,34 @@ func (s *Store) MarkEmailVerified(ctx context.Context, email string) error {
 	}
 	return nil
 }
+
+// CurrentSessionGeneration returns subject's current session generation (security audit
+// 2026-09-19, M2) -- 0 for a subject that has never been bumped, which is not an error: every
+// subject implicitly starts at generation 0 whether or not a row exists for it yet.
+func (s *Store) CurrentSessionGeneration(ctx context.Context, subject string) (int, error) {
+	var gen int
+	err := s.pool.QueryRow(ctx, `SELECT generation FROM session_generations WHERE subject = $1`, subject).Scan(&gen)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("get session generation: %w", err)
+	}
+	return gen, nil
+}
+
+// BumpSessionGeneration invalidates every session cookie previously issued for subject: a cookie
+// signed under an older generation number is rejected by requireAuth even though its own HMAC
+// signature is still perfectly valid (security audit 2026-09-19, M2 -- logout and a successful
+// password reset each call this for the subject(s) they affect). Upserts, since a subject's
+// generation is implicitly 0 until its first bump ever creates a row for it.
+func (s *Store) BumpSessionGeneration(ctx context.Context, subject string) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO session_generations (subject, generation) VALUES ($1, 1)
+		ON CONFLICT (subject) DO UPDATE SET generation = session_generations.generation + 1
+	`, subject)
+	if err != nil {
+		return fmt.Errorf("bump session generation: %w", err)
+	}
+	return nil
+}

@@ -1,10 +1,14 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"menata.app/internal/action"
@@ -385,7 +389,12 @@ func handleFileUploads(req *http.Request, machine *domain.Machine, files *storag
 			}
 			return nil, fmt.Errorf("read upload for %s: %w", f.ID, err)
 		}
-		key, saveErr := files.Save(machine.ID, f.ID, header.Filename, file)
+		content, sniffErr := rejectDangerousUpload(file)
+		if sniffErr != nil {
+			_ = file.Close()
+			return nil, fmt.Errorf("upload for %s: %w", f.ID, sniffErr)
+		}
+		key, saveErr := files.Save(machine.ID, f.ID, header.Filename, content)
 		_ = file.Close() // read handle on the uploaded part; nothing to act on if this fails
 		if saveErr != nil {
 			return nil, saveErr
@@ -393,6 +402,58 @@ func handleFileUploads(req *http.Request, machine *domain.Machine, files *storag
 		uploaded[f.ID] = key
 	}
 	return uploaded, nil
+}
+
+// dangerousUploadContentTypes denylists content a browser will execute as active content if it's
+// ever served back, rather than allowlisting one "correct" type -- FieldTypeFile is a generic,
+// composable Field Type already used for genuinely different content (mch_document.fld_file's
+// PDFs, mch_task.fld_attachment's free-form attachments, capabilities.md's own Field Types table),
+// so an allowlist would need updating every time a new attachment use case appears; a denylist of
+// "things a browser executes" doesn't (security audit 2026-09-19, H2).
+var dangerousUploadContentTypes = []string{
+	"text/html",
+	"image/svg+xml",
+	"text/xml",
+	"application/xml",
+	"text/javascript",
+	"application/javascript",
+	"application/ecmascript",
+}
+
+// rejectDangerousUpload sniffs the real content of an upload (http.DetectContentType, the same
+// mechanism a browser's own MIME-sniffing would use) rather than trusting the client-declared
+// filename/extension, and returns an error for anything on the execute-as-active-content
+// denylist -- this is what actually stops an "evil.svg"/"evil.html" payload at upload time,
+// independent of the nosniff header (secureheaders.go) and serveUpload's own disposition fix,
+// which are this bug's other two layers. It returns a reader that still yields the upload's full
+// bytes (the sniffed prefix plus the rest of the stream), since the up-to-512-byte read this needs
+// would otherwise be lost before files.Save gets to see it.
+//
+// http.DetectContentType alone isn't enough: its signature table (WHATWG MIME sniffing, a fixed
+// list of HTML tag names plus "<?xml") has no entry for "<svg", so an SVG file that doesn't happen
+// to open with one of those exact HTML tags sniffs as plain text/xml rather than
+// "image/svg+xml" -- an SVG's own <script> would still be denylisted via the "<script" HTML
+// signature if it's near the very start, but a real-world SVG (xmlns declaration, etc. before the
+// payload) would sail past DetectContentType alone. A direct substring check for "<svg" in the
+// sniffed prefix closes that gap regardless of where DetectContentType lands.
+func rejectDangerousUpload(file multipart.File) (io.Reader, error) {
+	buf := make([]byte, 512)
+	n, err := io.ReadFull(file, buf)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return nil, fmt.Errorf("read upload: %w", err)
+	}
+	buf = buf[:n]
+
+	if bytes.Contains(bytes.ToLower(buf), []byte("<svg")) {
+		return nil, fmt.Errorf("SVG uploads are not allowed")
+	}
+	contentType := http.DetectContentType(buf)
+	for _, bad := range dangerousUploadContentTypes {
+		if strings.HasPrefix(contentType, bad) {
+			return nil, fmt.Errorf("uploads of type %q are not allowed", contentType)
+		}
+	}
+	return io.MultiReader(bytes.NewReader(buf), file), nil
 }
 
 // carryForwardExistingFiles fills values with each FieldTypeFile field's current stored value,

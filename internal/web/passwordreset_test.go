@@ -245,6 +245,63 @@ func TestSubmitResetPassword_shortPassword_rerendersFormWithoutChanging(t *testi
 	}
 }
 
+// TestSubmitResetPassword_invalidatesExistingSessions is the regression test for security audit
+// 2026-09-19's M2: a session cookie issued before a password reset must stop being trusted once
+// the reset completes, even though its own signature is still perfectly valid -- the whole point
+// of tracking a server-side generation instead of relying on the cookie alone.
+func TestSubmitResetPassword_invalidatesExistingSessions(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "reset_invalidate_test@example.com"
+	userID := newTestMember(t, pool, store, "Reset Invalidate Test", "reset-invalidate-test-workspace", email)
+
+	oldHash, err := authorization.HashPassword("the-old-password")
+	if err != nil {
+		t.Fatalf("HashPassword: %v", err)
+	}
+	if err := store.CreateCredential(ctx, email, oldHash, true); err != nil {
+		t.Fatalf("CreateCredential: %v", err)
+	}
+
+	cfg := passwordResetTestConfig()
+	genBefore, err := store.CurrentSessionGeneration(ctx, userID)
+	if err != nil {
+		t.Fatalf("CurrentSessionGeneration (before): %v", err)
+	}
+
+	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email)
+	form := url.Values{"token": {token}, "password": {"a-brand-new-password"}}
+	req := httptest.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	submitResetPassword(store, cfg)(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	genAfter, err := store.CurrentSessionGeneration(ctx, userID)
+	if err != nil {
+		t.Fatalf("CurrentSessionGeneration (after): %v", err)
+	}
+	if genAfter == genBefore {
+		t.Errorf("session generation unchanged (%d) after a completed password reset, want it bumped", genAfter)
+	}
+
+	// A cookie issued under the pre-reset generation must now be rejected by requireAuth, even
+	// with a perfectly valid signature.
+	staleCookie := sessionCookieValueForTest(t, cfg, userID, genBefore)
+	authedReq := httptest.NewRequest(http.MethodGet, "/home", nil)
+	authedReq.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: staleCookie})
+	authedRec := httptest.NewRecorder()
+	requireAuth(store, "", cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})).ServeHTTP(authedRec, authedReq)
+	if authedRec.Code == http.StatusOK {
+		t.Error("requireAuth let a pre-reset session cookie through, want it rejected")
+	}
+}
+
 func TestSubmitResetPassword_noCredentialRow_rejected(t *testing.T) {
 	pool := authTestPool(t)
 	store := data.NewStore(pool)

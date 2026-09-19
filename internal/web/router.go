@@ -85,6 +85,7 @@ func Routes(d Deps) http.Handler {
 	rendering.ConfigureNavigation(d.Navigation, d.PrimaryNavGroup, d.AllNavigation)
 
 	r := chi.NewRouter()
+	r.Use(secureHeaders)
 	loginLimiter := newLoginRateLimiter(loginAttemptLimit, loginAttemptWindow)
 	registrationLimiter := newLoginRateLimiter(registrationAttemptLimit, registrationAttemptWindow)
 	forgotPasswordLimiter := newLoginRateLimiter(forgotPasswordAttemptLimit, forgotPasswordAttemptWindow)
@@ -116,7 +117,7 @@ func Routes(d Deps) http.Handler {
 		pr.Use(requireAuth(d.Store, d.DefaultWorkspaceID, d.Cfg))
 		pr.Use(queryDiagnostics)
 
-		pr.Post("/logout", logout(d.Cfg))
+		pr.Post("/logout", logout(d.Store, d.Cfg))
 
 		pr.Get("/api/machines", listMachines(d.MachineList))
 		pr.Get("/api/machines/{machineID}/records", listRecords(d.Store))
@@ -159,7 +160,7 @@ func Routes(d Deps) http.Handler {
 			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
 		})
 
-		pr.Get("/uploads/*", serveUpload(d.Files))
+		pr.Get("/uploads/*", serveUpload(d.Store, d.Files))
 
 		// Static design references (ROADMAP.md's own case-portfolio.md mockups) -- ui-sample/ is
 		// a design reference, never current-code intent (per this repo's own convention), served

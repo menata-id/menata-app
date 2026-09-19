@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 
@@ -10,6 +11,39 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/rendering"
 )
+
+// setSessionCookieFor signs subject in, fetching its current session generation first (security
+// audit 2026-09-19, M2) so the cookie always carries whatever generation is current at the moment
+// of issue -- shared by every SetSessionCookie call site below instead of repeating the
+// fetch-then-set pair at each one.
+func setSessionCookieFor(ctx context.Context, store *data.Store, w http.ResponseWriter, cfg config.Config, subject string) error {
+	gen, err := store.CurrentSessionGeneration(ctx, subject)
+	if err != nil {
+		return err
+	}
+	authorization.SetSessionCookie(w, cfg.SessionSecret, subject, gen, cfg.SecureCookies)
+	return nil
+}
+
+// invalidateSessionsFor bumps the session generation of every mch_user record email holds
+// membership under (security audit 2026-09-19, M2's "password reset doesn't invalidate a session
+// already issued") -- a session cookie is scoped to one Workspace's mch_user record, and a real
+// per-user credential is shared identity across every Workspace that email belongs to
+// (migrations/003_credentials.sql's own reasoning), so a credential change has to reach every
+// subject that credential could have signed a cookie for, not just whichever one the current
+// request happens to be about.
+func invalidateSessionsFor(ctx context.Context, store *data.Store, email string) error {
+	memberships, err := store.ListMemberships(ctx, email)
+	if err != nil {
+		return err
+	}
+	for _, m := range memberships {
+		if err := store.BumpSessionGeneration(ctx, m.UserRecordID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func showLogin(w http.ResponseWriter, req *http.Request) {
 	render(req.Context(), w, rendering.LoginPage(""))
@@ -28,7 +62,10 @@ func submitLogin(store *data.Store, cfg config.Config) http.HandlerFunc {
 		password := req.FormValue("password")
 
 		if authorization.CheckCredentials(username, password, cfg.AdminUsername, cfg.AdminPassword) {
-			authorization.SetSessionCookie(w, cfg.SessionSecret, cfg.AdminUserID, cfg.SecureCookies)
+			if err := setSessionCookieFor(req.Context(), store, w, cfg, cfg.AdminUserID); err != nil {
+				serverError(w, err)
+				return
+			}
 			redirectTo(w, req, "/home")
 			return
 		}
@@ -102,7 +139,9 @@ func completeLogin(w http.ResponseWriter, req *http.Request, cfg config.Config, 
 	case 0:
 		http.Error(w, "no workspace membership found for this account", http.StatusForbidden)
 	case 1:
-		authorization.SetSessionCookie(w, cfg.SessionSecret, memberships[0].UserRecordID, cfg.SecureCookies)
+		if err := setSessionCookieFor(req.Context(), store, w, cfg, memberships[0].UserRecordID); err != nil {
+			return err
+		}
 		redirectTo(w, req, "/home")
 	default:
 		authorization.SetPendingEmailCookie(w, cfg.SessionSecret, email, cfg.SecureCookies)
@@ -158,7 +197,10 @@ func submitChooseWorkspace(store *data.Store, cfg config.Config) http.HandlerFun
 			return
 		}
 		authorization.ClearPendingEmailCookie(w, cfg.SecureCookies)
-		authorization.SetSessionCookie(w, cfg.SessionSecret, userRecordID, cfg.SecureCookies)
+		if err := setSessionCookieFor(req.Context(), store, w, cfg, userRecordID); err != nil {
+			serverError(w, err)
+			return
+		}
 		redirectTo(w, req, "/home")
 	}
 }
@@ -213,7 +255,10 @@ func submitSwitchWorkspace(store *data.Store, cfg config.Config) http.HandlerFun
 			http.Error(w, "not a member of that workspace", http.StatusForbidden)
 			return
 		}
-		authorization.SetSessionCookie(w, cfg.SessionSecret, userRecordID, cfg.SecureCookies)
+		if err := setSessionCookieFor(ctx, store, w, cfg, userRecordID); err != nil {
+			serverError(w, err)
+			return
+		}
 		redirectTo(w, req, "/home")
 	}
 }
@@ -272,8 +317,19 @@ func loadWorkspaceChoices(ctx context.Context, store *data.Store, email string) 
 	return choices, nil
 }
 
-func logout(cfg config.Config) http.HandlerFunc {
+// logout bumps the current session's generation before clearing its cookie (security audit
+// 2026-09-19, M2) -- a signed-out cookie that leaked or was copied before logout must not remain
+// usable just because its own HMAC signature is still valid; requireAuth rejects it on its next
+// use once the stored generation no longer matches. The bump is best-effort (logged, not fatal):
+// the cookie still gets cleared either way, the same posture sendVerificationEmail's own failure
+// handling already takes for a non-critical side effect of an otherwise-successful action.
+func logout(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		if subject, ok := authorization.CurrentUserID(req, cfg.SessionSecret); ok {
+			if err := store.BumpSessionGeneration(req.Context(), subject); err != nil {
+				log.Printf("bump session generation on logout for %s: %v", subject, err)
+			}
+		}
 		authorization.ClearSessionCookie(w, cfg.SecureCookies)
 		http.Redirect(w, req, "/login", http.StatusSeeOther)
 	}
