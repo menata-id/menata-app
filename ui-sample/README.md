@@ -62,6 +62,26 @@ demonstrated once in isolation. What changed:
   same data) and remains the fuller, annotated version of the same nav -- explaining `route`,
   `badge`, and the "planned" (no real route yet) treatment for `mockup`s.
 
+### `showNav` -- per-Application opt-out, tested against Case 3 (2026-09-19)
+
+Owner request: confirm the two levels of nav are independently controllable from metadata --
+the cross-Application launcher (9-dot icon) stays uniform with no metadata knob of its own, while
+an individual Application can turn off its *own* menu (desktop top-bar row and mobile bottom bar
+both, since the two are one on/off switch in the spec, not two). Tested by setting
+`showNav: false` on Case 3 (Document Approval) in `nav-metadata.js` and confirming, in
+`nav-chrome.js`'s `mount()`, both bars stop rendering on all four Case 3 screens
+(`document-approval.html`, `document-submit.html`, `document-signature-placement.html`,
+`approval-dashboard.html`) while the launcher itself is unaffected -- verified with a headless
+Playwright render of each page (`#menataAppNav`/`#menataBottomBar` absent, `.menata-launcher-btn`
+still present), and Case 19 (no `showNav` field, so it defaults to shown) still renders both bars
+unchanged as a regression check. `navigation.html`'s own demo was updated to match: switching it to
+Case 3 now shows an explicit "No application navigation (showNav: false)" note in place of the
+empty bars, so the config change is visible in the reference page too, not just absent.
+
+Confirms the config is possible from metadata alone -- no change to `nav-chrome.js`'s launcher code
+was needed, only a per-Application field it already had a natural place to read (`app.showNav`)
+and one guard around the two bar-building blocks in `mount()`.
+
 **Case 3 (Document Approval) — all 4 screens**, per `case-portfolio.md`'s own screen list:
 
 - `document-submit.html` — Submit document (Wizard/Form)

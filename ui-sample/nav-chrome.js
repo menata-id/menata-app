@@ -131,7 +131,11 @@
       row.insertBefore(document.createRange().createContextualFragment(launcherHTML(appId)), row.firstChild);
     }
 
-    if (app) {
+    // showNav: false (nav-metadata.js, per-Application) means this Application declares no menu
+    // of its own -- neither the desktop top-bar row nor the mobile bottom bar is rendered, only
+    // the (always-uniform, never metadata-driven) launcher inserted above. Default true when the
+    // field is absent, so every Application that doesn't opt out keeps both bars unchanged.
+    if (app && app.showNav !== false) {
       // Match this header's own max-w-* container so the new menu row lines up with the row
       // above it instead of spanning full width while the header's own content stays centered.
       var maxWMatch = row && row.className.match(/max-w-\[[^\]]+\]|max-w-\S+/);

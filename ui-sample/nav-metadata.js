@@ -22,6 +22,15 @@ window.MenataNav = {
       icon: "✓",
       summary: "Case 3 · submit, review, approve",
       home: "document-approval.html",
+      // showNav (owner request, 2026-09-19): this Application declares no menu of its own -- no
+      // desktop top-bar row, no mobile bottom bar. The `nav` list below still exists (it's what
+      // the 9-dot cross-Application launcher and this Application's own screens link between via
+      // plain in-page links), it's only the persistent *menu* chrome nav-chrome.js would otherwise
+      // render from it that's suppressed. Contrast case19, which has no such field and keeps both
+      // bars -- proving the launcher itself stays uniform/unconfigurable (nav-chrome.js's
+      // launcherHTML never reads this field) while the per-Application menu is what metadata
+      // controls, per the owner's distinction between the two.
+      showNav: false,
       nav: [
         { id: "dashboard", label: "Dashboard", route: "/dashboard", mockup: "approval-dashboard.html", priority: 1, icon: "◆" },
         { id: "inbox", label: "Approval Inbox", route: "/approval-inbox", mockup: "document-approval.html", priority: 1, badge: 2, icon: "✓" },

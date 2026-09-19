@@ -121,7 +121,21 @@
     document.getElementById("crumbRoute").textContent = active.route || "(not built yet)";
 
     var nav = document.getElementById("appNav");
+    var mnav = document.getElementById("appNavMobile");
     nav.innerHTML = "";
+    mnav.innerHTML = "";
+
+    // showNav: false (nav-metadata.js) -- this Application declares no menu of its own. Rendered
+    // here as an explicit note rather than just leaving both bars empty, so switching between
+    // Applications in this demo visibly proves the metadata flag took effect instead of looking
+    // like the nav simply failed to render.
+    if (app.showNav === false) {
+      nav.innerHTML = '<span class="px-1 py-1 text-xs italic text-slate-400">No application navigation (showNav: false)</span>';
+      mnav.className = "hidden";
+      return;
+    }
+    mnav.className = "grid border-t border-slate-200 text-[10px]";
+
     app.nav.forEach(function (item) {
       var a = document.createElement("a");
       a.href = item.mockup || "#";
@@ -136,9 +150,7 @@
       nav.appendChild(a);
     });
 
-    var mnav = document.getElementById("appNavMobile");
     var top4 = app.nav.slice().sort(function (a, b) { return a.priority - b.priority; }).slice(0, 4);
-    mnav.innerHTML = "";
     mnav.style.gridTemplateColumns = "repeat(" + top4.length + ", 1fr)";
     top4.forEach(function (item, i) {
       var b = document.createElement(item.mockup ? "a" : "div");
