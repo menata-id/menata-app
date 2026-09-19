@@ -148,7 +148,7 @@ func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.S
 // Step 4) -- a real rendered page of the Document's own PDF (Step 3's internal/pdf), one
 // draggable marker per Approval Step. Hardcoded to mch_document, same posture as decideStep: this
 // is Case 3's own screen, not a generic per-Machine feature.
-func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, appName string) http.HandlerFunc {
+func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, appName string, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -166,8 +166,9 @@ func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Sto
 			return
 		}
 		page := pageFromQuery(req, totalPages)
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 
-		render(ctx, w, rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, appName))
+		render(ctx, w, rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, appName, machines[action.StepMachineID], actor))
 	}
 }
 
@@ -216,10 +217,11 @@ func documentSignaturePlacementView(ctx context.Context, store *data.Store, file
 		return nil
 	}
 	return &rendering.DocumentSignaturePlacement{
-		Steps:      steps,
-		Relations:  relations,
-		Page:       1,
-		TotalPages: totalPages,
+		Steps:       steps,
+		Relations:   relations,
+		Page:        1,
+		TotalPages:  totalPages,
+		StepMachine: machines[action.StepMachineID],
 	}
 }
 

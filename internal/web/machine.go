@@ -4,7 +4,9 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
+	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
@@ -16,7 +18,7 @@ func showMachineList(machines []*domain.Machine, appName string) http.HandlerFun
 	}
 }
 
-func showMachinePage(machines map[string]*domain.Machine, appName string, store *data.Store) http.HandlerFunc {
+func showMachinePage(machines map[string]*domain.Machine, appName string, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -39,11 +41,12 @@ func showMachinePage(machines map[string]*domain.Machine, appName string, store 
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.MachinePage(machine, records, appName, relations, boardColumns))
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		render(req.Context(), w, rendering.MachinePage(machine, records, appName, relations, boardColumns, actor))
 	}
 }
 
-func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store) {
+func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store, actor string) {
 	ld := composition.NewLoader(store, machines)
 	records, err := ld.ListRecords(req.Context(), machine.ID)
 	if err != nil {
@@ -60,7 +63,7 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 		serverError(w, err)
 		return
 	}
-	render(req.Context(), w, rendering.MachineBody(machine, records, relations, boardColumns))
+	render(req.Context(), w, rendering.MachineBody(machine, records, relations, boardColumns, actor))
 }
 
 func resolveMachine(w http.ResponseWriter, machines map[string]*domain.Machine, req *http.Request) (*domain.Machine, bool) {

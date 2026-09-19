@@ -348,7 +348,13 @@ templ pageShell(title string, appName string) {
 // topbar pageShell renders everywhere else. Reduced to what's meaningful with one real
 // Application: no cross-Application launcher, since (per pageShell's WorkspaceHomePage caller)
 // there is nothing yet to switch between.
-templ workspaceHomeShell(userInitials string) {
+//
+// isAdmin hides the Members link for a non-admin viewer (ROADMAP.md Phase 16's own link-level
+// case, not just record actions): /workspace-members* is already requireWorkspaceAdmin-gated
+// server-side (internal/web/router.go), so a non-admin seeing this link only ever got a 403
+// after clicking -- this makes the UI honest about the same rule, the way decideButtons already
+// is for Approve/Reject.
+templ workspaceHomeShell(userInitials string, isAdmin bool) {
 	<!DOCTYPE html>
 	<html lang="en">
 		@pageHead("Home")
@@ -358,7 +364,9 @@ templ workspaceHomeShell(userInitials string) {
 					<a href="/home" class="topbar-brand">Menata</a>
 				</div>
 				<div class="workspace-topbar-right">
-					<a href="/workspace-members">Members</a>
+					if isAdmin {
+						<a href="/workspace-members">Members</a>
+					}
 					<span class="avatar">{ userInitials }</span>
 				</div>
 			</header>
@@ -389,10 +397,15 @@ templ MachineList(machines []*domain.Machine, appName string) {
 // and its persisted records with inline edit/delete. It exists to prove the metadata -> data ->
 // render pipeline end to end; it is not yet driven by UI IR or a View Model
 // (007-composable-runtime-architecture.md §10, §23).
-templ MachinePage(m *domain.Machine, records []*data.Record, appName string, relations RelationOptions, boardColumns []experience.Column) {
+// actorID is the viewing identity, threaded down to RecordRow the same reason detail.templ's
+// RecordDetailPage already takes it (ROADMAP.md Phase 16) -- so an Edit/Delete the viewer is not
+// permitted to perform isn't offered in the first place; the server enforces the same rule
+// regardless (allowsRecordEdit/deleteAllowed, internal/web/record.go), this only keeps the UI
+// honest about it.
+templ MachinePage(m *domain.Machine, records []*data.Record, appName string, relations RelationOptions, boardColumns []experience.Column, actorID string) {
 	@pageShell(m.Name, appName) {
 		<div id="machine-body">
-			@MachineBody(m, records, relations, boardColumns)
+			@MachineBody(m, records, relations, boardColumns, actorID)
 		</div>
 	}
 }
@@ -402,7 +415,7 @@ templ MachinePage(m *domain.Machine, records []*data.Record, appName string, rel
 // m's board Layout groups by a relation field (ROADMAP.md Phase 10's ordered Lists) -- fetching
 // those columns is I/O this package doesn't perform, so the caller supplies them; nil means "use
 // the status field's own Options instead" (Phase 5's original behavior, still supported).
-templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column) {
+templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, actorID string) {
 	<h1>{ m.Name }</h1>
 	<code>{ m.ID }</code>
 
@@ -435,15 +448,15 @@ templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationO
 	<h2>Records ({ fmt.Sprint(len(records)) })</h2>
 	switch m.View.EffectiveLayout() {
 		case domain.LayoutBoard:
-			@boardLayout(m, records, relations, boardColumns)
+			@boardLayout(m, records, relations, boardColumns, actorID)
 		default:
-			@tableLayout(m, records, relations)
+			@tableLayout(m, records, relations, actorID)
 	}
 }
 
 // tableLayout is the generic flat-list Layout: every Field as a column, every Record as a row,
 // plus a create-form row (007 §12.2 "Layout is a generic structural composition primitive").
-templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions) {
+templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, actorID string) {
 	<table>
 		<thead>
 			<tr>
@@ -455,7 +468,7 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 		</thead>
 		<tbody>
 			for _, r := range records {
-				@RecordRow(m, r, relations)
+				@RecordRow(m, r, relations, actorID)
 			}
 			@createFormRow(m, relations)
 		</tbody>
@@ -466,7 +479,7 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 // generic table primitive tableLayout already uses -- a board is not a new renderer, it is
 // Collection + Group Dimension + the existing Table renderer, reused per column
 // (006-runtime-model.md "View" lowering formula).
-templ boardLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column) {
+templ boardLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, actorID string) {
 	<div class="board">
 		for _, col := range experience.GroupRecords(m, records, boardColumns) {
 			<div class="board-column">
@@ -474,7 +487,7 @@ templ boardLayout(m *domain.Machine, records []*data.Record, relations RelationO
 				<table>
 					<tbody>
 						for _, r := range col.Records {
-							@RecordRow(m, r, relations)
+							@RecordRow(m, r, relations, actorID)
 						}
 					</tbody>
 				</table>
@@ -513,8 +526,12 @@ templ createFormRow(m *domain.Machine, relations RelationOptions) {
 }
 
 // RecordRow is one Record in display mode. A relation field shows its target's label, not the
-// raw record id; the first field links to the record's own detail page (Phase 8).
-templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
+// raw record id; the first field links to the record's own detail page (Phase 8). Edit/Delete are
+// offered only when authorization.AllowsAction says actorID may perform that Action on r --
+// MachinePage/MachineBody's own doc comment explains why (ROADMAP.md Phase 16, decideButtons'
+// pattern); a Machine with no declared Permission for edit/delete stays open to any actor, same
+// as before this existed.
+templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, actorID string) {
 	<tr id={ "record-" + r.ID }>
 		for i, f := range m.Fields {
 			<td>
@@ -532,22 +549,30 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
 			</td>
 		}
 		<td class="actions">
-			<button
-				hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
-				hx-target={ "#record-" + r.ID }
-				hx-swap="outerHTML"
-			>Edit</button>
-			<button
-				hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
-				hx-target={ "#record-" + r.ID }
-				hx-swap="outerHTML"
-				hx-confirm="Delete this record?"
-			>Delete</button>
+			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actorID) {
+				<button
+					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
+					hx-target={ "#record-" + r.ID }
+					hx-swap="outerHTML"
+				>Edit</button>
+			}
+			if authorization.AllowsAction(m, domain.ActionDelete, r.Values, actorID) {
+				<button
+					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
+					hx-target={ "#record-" + r.ID }
+					hx-swap="outerHTML"
+					hx-confirm="Delete this record?"
+				>Delete</button>
+			}
 		</td>
 	</tr>
 }
 
 // RecordEditRow is one Record in edit mode: an inline form pre-filled with its current values.
+// RecordRow already hid the Edit button that reaches this for anyone AllowsAction(ActionEdit)
+// refuses; Save needs no gate of its own here for the same reason decideButtons' Approve/Reject
+// doesn't re-check either -- allowsRecordEdit (internal/web/record.go's updateRecordForm) is what
+// actually enforces it, on the PUT this form submits, regardless of how the request got here.
 templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
 	<tr id={ "record-" + r.ID }>
 		<form

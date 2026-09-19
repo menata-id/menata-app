@@ -78,6 +78,10 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 			return
 		}
 		id := chi.URLParam(req, "id")
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		if !allowsRecordEdit(w, req, store, machine, id, actor) {
+			return
+		}
 
 		var values map[string]any
 		if err := json.NewDecoder(req.Body).Decode(&values); err != nil {
@@ -100,7 +104,6 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 			recordError(w, err)
 			return
 		}
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		logTaskStatusMove(req, store, machine, record, actor, oldTaskStatus)
 
 		w.Header().Set("Content-Type", "application/json")
@@ -108,18 +111,19 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 	}
 }
 
-func deleteRecordAPI(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+func deleteRecordAPI(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
 			return
 		}
 		id := chi.URLParam(req, "id")
-		if allowed, reason, err := deleteAllowed(req.Context(), store, machine.ID, id); err != nil {
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		if allowed, status, reason, err := deleteAllowed(req.Context(), store, machine, id, actor); err != nil {
 			serverError(w, err)
 			return
 		} else if !allowed {
-			http.Error(w, reason, http.StatusUnprocessableEntity)
+			http.Error(w, reason, status)
 			return
 		}
 		if err := store.DeleteRecord(req.Context(), machine.ID, id); err != nil {
@@ -129,4 +133,3 @@ func deleteRecordAPI(machines map[string]*domain.Machine, store *data.Store) htt
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
-

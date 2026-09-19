@@ -55,7 +55,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		logRecordCreated(req.Context(), store, machine, record, actor)
 
-		renderMachineBody(w, req, machines, machine, store)
+		renderMachineBody(w, req, machines, machine, store, actor)
 	}
 }
 
@@ -113,19 +113,25 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files
 			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor, hasSignature, sigPlacement))
 			return
 		}
-		render(req.Context(), w, rendering.RecordRow(machine, record, relations))
+		render(req.Context(), w, rendering.RecordRow(machine, record, relations, actor))
 	}
 }
 
-func editRecordRow(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+func editRecordRow(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
 			return
 		}
-		record, err := store.GetRecord(req.Context(), machine.ID, chi.URLParam(req, "id"))
+		id := chi.URLParam(req, "id")
+		record, err := store.GetRecord(req.Context(), machine.ID, id)
 		if err != nil {
 			recordError(w, err)
+			return
+		}
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		if !authorization.AllowsAction(machine, domain.ActionEdit, record.Values, actor) {
+			http.Error(w, "not allowed to edit this record", http.StatusForbidden)
 			return
 		}
 		ld := composition.NewLoader(store, machines)
@@ -156,6 +162,10 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			return
 		}
 		id := chi.URLParam(req, "id")
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		if !allowsRecordEdit(w, req, store, machine, id, actor) {
+			return
+		}
 
 		values, uploaded, ok := submittedValues(w, req, machine, files)
 		if !ok {
@@ -180,11 +190,32 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			recordError(w, err)
 			return
 		}
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		logTaskStatusMove(req, store, machine, record, actor, oldTaskStatus)
 
 		renderRecord(w, req, machines, store, files, machine, record, actor)
 	}
+}
+
+// allowsRecordEdit enforces any declared domain.ActionEdit Permission before the generic update
+// route writes anything, generalizing decideStep's own authorization.AllowsAction check
+// (internal/web/approval.go) from Approve/Reject to every Machine -- the same "generalize on a
+// second real case, never the first" discipline deleteAllowed below already follows. A Machine
+// declaring no edit Permission stays unrestricted (001-design-principles.md Principle #6:
+// metadata describes exceptions, not defaults) and skips the extra fetch entirely.
+func allowsRecordEdit(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id, actor string) bool {
+	if len(machine.PermissionsFor(domain.ActionEdit)) == 0 {
+		return true
+	}
+	existing, err := store.GetRecord(req.Context(), machine.ID, id)
+	if err != nil {
+		recordError(w, err)
+		return false
+	}
+	if !authorization.AllowsAction(machine, domain.ActionEdit, existing.Values, actor) {
+		http.Error(w, "not allowed to edit this record", http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 // submittedValues reads the form body and merges in any freshly uploaded files. It returns the
@@ -310,21 +341,22 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor, hasSignature, sigPlacement))
 		return
 	}
-	render(req.Context(), w, rendering.RecordRow(machine, record, relations))
+	render(req.Context(), w, rendering.RecordRow(machine, record, relations, actor))
 }
 
-func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+func deleteRecord(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
 			return
 		}
 		id := chi.URLParam(req, "id")
-		if allowed, reason, err := deleteAllowed(req.Context(), store, machine.ID, id); err != nil {
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		if allowed, status, reason, err := deleteAllowed(req.Context(), store, machine, id, actor); err != nil {
 			serverError(w, err)
 			return
 		} else if !allowed {
-			http.Error(w, reason, http.StatusUnprocessableEntity)
+			http.Error(w, reason, status)
 			return
 		}
 		if err := store.DeleteRecord(req.Context(), machine.ID, id); err != nil {
@@ -341,35 +373,55 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 	}
 }
 
-// deleteAllowed guards the generic delete route for the two Machines whose records are an audit
-// trail Phase 16/17 exist to protect (action.CanDeleteApprovalStep/CanDeleteDocument) -- every
-// other Machine is unrestricted, same as the generic route always was. This is the same narrow,
-// hardcoded-to-Case-3 posture as action.CanDecide/CompositeSignatures, not a generic Machine-level
-// permission engine (ROADMAP.md's own Method: generalize on a second real case, never the first).
-func deleteAllowed(ctx context.Context, store *data.Store, machineID, id string) (ok bool, reason string, err error) {
-	switch machineID {
+// deleteAllowed guards the generic delete route two ways, business-state and identity, evaluated
+// independently: a hardcoded, Case-3-scoped business-state check for the two Machines whose
+// records are an audit trail Phase 16/17 exist to protect
+// (action.CanDeleteApprovalStep/CanDeleteDocument, same narrow posture as
+// action.CanDecide/CompositeSignatures, not a generic Machine-level permission engine on its own),
+// ANDed with any declared domain.ActionDelete Permission (authorization.AllowsAction,
+// generalizing decideStep's identity check the same way allowsRecordEdit above does for edits).
+// A Machine with neither -- the common case -- stays fully unrestricted, same as the generic
+// route always was (ROADMAP.md's own Method: generalize on a second real case, never the first).
+func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machine, id, actor string) (ok bool, status int, reason string, err error) {
+	var existing *data.Record
+	switch machine.ID {
 	case action.StepMachineID:
-		step, err := store.GetRecord(ctx, machineID, id)
+		step, err := store.GetRecord(ctx, machine.ID, id)
 		if err != nil {
-			return false, "", err
+			return false, 0, "", err
 		}
-		ok, reason := action.CanDeleteApprovalStep(step.Values)
-		return ok, reason, nil
+		existing = step
+		if ok, reason := action.CanDeleteApprovalStep(step.Values); !ok {
+			return false, http.StatusUnprocessableEntity, reason, nil
+		}
 	case action.DocumentMachineID:
-		doc, err := store.GetRecord(ctx, machineID, id)
+		doc, err := store.GetRecord(ctx, machine.ID, id)
 		if err != nil {
-			return false, "", err
+			return false, 0, "", err
 		}
+		existing = doc
 		steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, id)
 		if err != nil {
-			return false, "", err
+			return false, 0, "", err
 		}
 		status, _ := doc.Values[action.FieldDocumentStatus].(string)
-		ok, reason := action.CanDeleteDocument(status, steps)
-		return ok, reason, nil
-	default:
-		return true, "", nil
+		if ok, reason := action.CanDeleteDocument(status, steps); !ok {
+			return false, http.StatusUnprocessableEntity, reason, nil
+		}
 	}
+	if len(machine.PermissionsFor(domain.ActionDelete)) == 0 {
+		return true, 0, "", nil
+	}
+	if existing == nil {
+		existing, err = store.GetRecord(ctx, machine.ID, id)
+		if err != nil {
+			return false, 0, "", err
+		}
+	}
+	if !authorization.AllowsAction(machine, domain.ActionDelete, existing.Values, actor) {
+		return false, http.StatusForbidden, "not allowed to delete this record", nil
+	}
+	return true, 0, "", nil
 }
 
 // parseRecordForm parses a create/update request body that may be multipart/form-data (needed

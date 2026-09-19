@@ -45,6 +45,8 @@ func approvalStepTestMachine() *domain.Machine {
 		},
 		Permissions: []domain.Permission{
 			{ID: "prm_decide_own_step", Action: domain.ActionDecide, ActorField: action.FieldStepAssignee},
+			{ID: "prm_edit_own_step", Action: domain.ActionEdit, ActorField: action.FieldStepAssignee},
+			{ID: "prm_delete_own_step", Action: domain.ActionDelete, ActorField: action.FieldStepAssignee},
 		},
 	}
 }

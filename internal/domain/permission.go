@@ -1,14 +1,28 @@
 package domain
 
-// ActionDecide is the one Action the runtime currently realizes beyond plain record writes:
+// ActionDecide is the cross-record Action the runtime realizes beyond plain record writes:
 // Approve/Reject on an Approval Step (ROADMAP.md Phase 12, `POST .../decide`).
 const ActionDecide = "decide"
+
+// ActionEdit and ActionDelete govern the generic record update/delete routes themselves (PUT/
+// DELETE .../records/{id} and their JSON twins), generalizing the same record-scoped shape
+// ActionDecide already used to a second and third real case (signature-marker drag/place/width
+// PUT-ing to the generic update route with no identity check at all) -- the discipline
+// deleteAllowed's own doc comment (internal/web/record.go) already names: "generalize on a
+// second real case, never the first". Record *creation* has no existing record to match an
+// actor field against yet, so it deliberately has no Action here.
+const (
+	ActionEdit   = "edit"
+	ActionDelete = "delete"
+)
 
 // KnownActions is the closed set of Action names a Permission may govern. Like KnownFieldTypes,
 // this is a deliberate static seam (007 §14), not a name inferred from metadata -- a Permission
 // naming an Action the runtime does not have would silently protect nothing.
 var KnownActions = map[string]bool{
 	ActionDecide: true,
+	ActionEdit:   true,
+	ActionDelete: true,
 }
 
 // Permission expresses an authorization requirement for performing an Action

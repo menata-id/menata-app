@@ -25,6 +25,16 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - **Authentication and file-handling hardening**, based on an internal security review --
   invite-acceptance and session handling, upload validation and access checks, security response
   headers, and CSRF protection.
+- **Permission-aware action visibility** -- Edit/Delete/Save buttons, and an Approval Step's own
+  signature-marker drag controls, follow the current user's authorization the same way
+  Approve/Reject already did: hidden (not just disabled) when the backend's own
+  `authorization.AllowsAction` would refuse the action, declared per Machine
+  (`mch_approval_step`'s `prm_edit_own_step`/`prm_delete_own_step`, its own assignee). A Machine
+  declaring no such Permission stays open to any authenticated Workspace member, unchanged. The
+  Workspace Home "Members" link is likewise hidden from non-admins now, matching the
+  `requireWorkspaceAdmin` gate the destination already enforced. Not yet covered: `application.navigation`
+  role-filtering (below) and declaring this Permission on any Machine besides Approval Step, which
+  is a business-rule decision, not assumed here.
 
 ## In progress
 
@@ -38,11 +48,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.
 - Group-based roles and a visual approval role matrix.
-- Permission-aware action visibility -- buttons and actions should follow the current user's
-  authorization, not just record/page state: an action the user isn't allowed to perform should be
-  hidden, not merely disabled, driven by the same permission decision the backend already
-  enforces (today some actions are conditioned on state, e.g. `detail.templ`'s
-  `action.CanDeleteApprovalStep`/`CanDeleteDocument`, but not on who the user is).
+- Per-user/role navigation filtering -- `application.navigation` (`app.yaml`) is resolved once at
+  process startup, identical for every viewer; no declared nav item needs role-gating yet, so this
+  isn't built speculatively (the one concrete case found, Workspace Home's "Members" link, was
+  workspace-level chrome, not a metadata nav item, and is already fixed). Build this once a real
+  `application.navigation` item needs to be hidden from some viewers, not before.
 - Composable workflow/process breakdown -- UI composition already has an answer (the Shared
   rendering components / composition primitives catalogued in `capabilities.md`); Behavior
   composition does not yet -- reusable events, actions, constraints, permissions, and process

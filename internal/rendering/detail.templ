@@ -28,6 +28,11 @@ type DocumentSignaturePlacement struct {
 	Relations  RelationOptions
 	Page       int
 	TotalPages int
+	// StepMachine is mch_approval_step, so signaturePlacementBlock can ask
+	// authorization.AllowsAction whether the viewing actorID (RecordDetailView's own parameter)
+	// may edit each step's own marker (ROADMAP.md Phase 16), the same reason it's threaded
+	// through the dedicated SignaturePlacementPage too.
+	StepMachine *domain.Machine
 }
 
 // RecordDetailPage is a dedicated per-record view (ROADMAP.md Phase 8), replacing inline-only
@@ -95,18 +100,20 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 		if m.ID == action.StepMachineID {
 			@decideButtons(m, r, actorID, hasSignature)
 		}
-		{{ deletable, blockedReason := canDeleteInView(m, r, children) }}
+		{{ deletable, blockedReason := canDeleteInView(m, r, children, actorID) }}
 		<div class="actions">
 			if m.ID == action.DocumentMachineID {
 				<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)) }>
 					<button type="button">Signature Positions</button>
 				</a>
 			}
-			<button
-				hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
-				hx-target="#record-detail"
-				hx-swap="outerHTML"
-			>Edit</button>
+			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actorID) {
+				<button
+					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
+					hx-target="#record-detail"
+					hx-swap="outerHTML"
+				>Edit</button>
+			}
 			if deletable {
 				<button
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
@@ -122,12 +129,12 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 				@sectionHeader("Approval Progress", "", "")
 				@approvalStepper(cc.Records, toString(r.Values[action.FieldDocumentMode]), cc.Relations)
 			} else {
-				@ChildSectionView(cc)
+				@ChildSectionView(cc, actorID)
 			}
 		}
 		if m.ID == action.DocumentMachineID && sigPlacement != nil {
 			@sectionHeader("Signature Positions", "", "")
-			@signaturePlacementBlock(r, sigPlacement.Steps, sigPlacement.Relations, sigPlacement.Page, sigPlacement.TotalPages)
+			@signaturePlacementBlock(r, sigPlacement.Steps, sigPlacement.Relations, sigPlacement.Page, sigPlacement.TotalPages, sigPlacement.StepMachine, actorID)
 		}
 	</div>
 }
@@ -299,7 +306,7 @@ templ signatureConfirmation(r *data.Record) {
 
 // ChildSectionView renders one child collection: a compact table of the child Machine's records,
 // each row the same generic RecordRow used everywhere else.
-templ ChildSectionView(cc ChildSection) {
+templ ChildSectionView(cc ChildSection, actorID string) {
 	<h2>{ cc.Machine.Name } ({ fmt.Sprint(len(cc.Records)) })</h2>
 	<table>
 		<thead>
@@ -312,7 +319,7 @@ templ ChildSectionView(cc ChildSection) {
 		</thead>
 		<tbody>
 			for _, rec := range cc.Records {
-				@RecordRow(cc.Machine, rec, cc.Relations)
+				@RecordRow(cc.Machine, rec, cc.Relations, actorID)
 			}
 		</tbody>
 	</table>
@@ -375,25 +382,31 @@ func hiddenDetailField(m *domain.Machine, f domain.Field) bool {
 	}
 }
 
-// canDeleteInView answers the same question internal/web's deleteAllowed enforces server-side
-// (action.CanDeleteApprovalStep/CanDeleteDocument), from data this page already has in hand (r's
-// own Values, and a Document's own Approval Steps -- already fetched as one of its child
-// collections, Phase 9) so no extra query is needed just to decide whether to show the Delete
-// button. Presentation only: the server is what actually protects the data either way, the same
-// posture decideButtons already established for Approve/Reject.
-func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection) (bool, string) {
+// canDeleteInView answers the same two questions internal/web's deleteAllowed enforces
+// server-side: business state (action.CanDeleteApprovalStep/CanDeleteDocument, from data this
+// page already has in hand -- r's own Values, and a Document's own Approval Steps, already
+// fetched as one of its child collections, Phase 9) and, since deleteAllowed now ANDs it in too,
+// any declared domain.ActionDelete Permission (authorization.AllowsAction) -- so no extra query
+// is needed just to decide whether to show the Delete button. Presentation only: the server is
+// what actually protects the data either way, the same posture decideButtons already established
+// for Approve/Reject.
+func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection, actorID string) (bool, string) {
+	ok, reason := true, ""
 	switch m.ID {
 	case action.StepMachineID:
-		return action.CanDeleteApprovalStep(r.Values)
+		ok, reason = action.CanDeleteApprovalStep(r.Values)
 	case action.DocumentMachineID:
 		status, _ := r.Values[action.FieldDocumentStatus].(string)
+		steps := []*data.Record(nil)
 		for _, cc := range children {
 			if cc.Machine.ID == action.StepMachineID {
-				return action.CanDeleteDocument(status, cc.Records)
+				steps = cc.Records
 			}
 		}
-		return action.CanDeleteDocument(status, nil)
-	default:
-		return true, ""
+		ok, reason = action.CanDeleteDocument(status, steps)
 	}
+	if ok && !authorization.AllowsAction(m, domain.ActionDelete, r.Values, actorID) {
+		return false, "not allowed"
+	}
+	return ok, reason
 }

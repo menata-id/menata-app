@@ -136,7 +136,7 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/api/machines/{machineID}/records", listRecords(d.Store))
 		pr.Post("/api/machines/{machineID}/records", createRecord(d.Machines, d.Store, d.Cfg))
 		pr.Put("/api/machines/{machineID}/records/{id}", updateRecord(d.Machines, d.Store, d.Cfg))
-		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Machines, d.Store))
+		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Machines, d.Store, d.Cfg))
 
 		pr.Get("/", showMachineList(d.MachineList, d.AppName))
 		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.AppName, d.HomeRoute, d.Cfg))
@@ -155,14 +155,14 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Machines["mch_document"], d.AppName))
 		pr.Get("/documents/new/approver-row", newApproverRow(d.Store))
 		pr.Post("/documents", submitDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Get("/machines/{machineID}", showMachinePage(d.Machines, d.AppName, d.Store))
+		pr.Get("/machines/{machineID}", showMachinePage(d.Machines, d.AppName, d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records", createRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Machines, d.Store, d.Files, d.AppName, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Machines, d.Store))
+		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Machines, d.Store, d.Cfg))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Machines, d.Store))
+		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Machines, d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Machines, d.Store, d.Files, d.AppName))
+		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Machines, d.Store, d.Files, d.AppName, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/pdf-preview", servePDFPreview(d.Machines, d.Store, d.Files))
 
 		pr.Group(func(ar chi.Router) {

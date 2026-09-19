@@ -45,9 +45,20 @@ fields:
 
 # Only the step's own assignee may decide it (ROADMAP.md Phase 16). Until this existed, sequencing
 # was the only thing /decide enforced -- any authenticated user could approve or reject any step.
+#
+# edit/delete extend that same rule to the generic update/delete route (2026-09-19): until this
+# existed, any authenticated user could drag/reposition/resize any step's own signature marker
+# (internal/rendering/signatureplacement.templ PUTs through the generic route, same as a direct
+# edit) or delete a step outright, not just its own assignee.
 permissions:
   - id: prm_decide_own_step
     action: decide
+    actor_field: fld_assignee
+  - id: prm_edit_own_step
+    action: edit
+    actor_field: fld_assignee
+  - id: prm_delete_own_step
+    action: delete
     actor_field: fld_assignee
 
 view:

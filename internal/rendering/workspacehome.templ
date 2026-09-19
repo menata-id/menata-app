@@ -13,7 +13,7 @@ import "fmt"
 // domain.HomeCardRoute's result (internal/web/workspacehome.go), never a literal here -- see
 // internal/conformance's TestWorkspaceHomeHasNoHardcodedApplicationRoute.
 templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, pendingCount int, userInitials, appInitials, switchHref, homeRoute string) {
-	@workspaceHomeShell(userInitials) {
+	@workspaceHomeShell(userInitials, workspaceRole == "admin") {
 		<div class="workspace-heading">
 			<div class="eyebrow-row">
 				<span class="eyebrow">Workspace</span>
