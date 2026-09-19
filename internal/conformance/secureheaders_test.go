@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
@@ -108,4 +109,88 @@ func TestRoutesRegistersCSRFProtect(t *testing.T) {
 	if !found {
 		t.Error("Routes() no longer calls r.Use(csrfProtect(...)) -- CSRF protection would stop applying to every route")
 	}
+}
+
+// knownPublicRoutes is every route Routes() registers directly on r (the root router, outside
+// r.Group's requireAuth gate) today -- deliberately public, not an oversight. A route registered
+// on r that isn't in this list is exactly the mistake TestUngatedRoutesAreOnlyTheKnownPublicSet
+// exists to catch: a route meant to sit behind requireAuth, accidentally added to r instead of pr.
+var knownPublicRoutes = map[string]bool{
+	"/health":              true,
+	"/manifest.json":       true,
+	"/sw.js":               true,
+	"/icons/*":             true,
+	"/login":               true,
+	"/register":            true,
+	"/verify-email":        true,
+	"/resend-verification": true,
+	"/forgot-password":     true,
+	"/reset-password":      true,
+	"/accept-invite":       true,
+	"/choose-workspace":    true,
+}
+
+// routeVerbs is every chi.Router method that registers a route (as opposed to r.Group, r.Use,
+// etc., which don't take a route path as their first argument).
+var routeVerbs = map[string]bool{
+	"Get": true, "Post": true, "Put": true, "Delete": true, "Patch": true, "Handle": true,
+}
+
+// TestUngatedRoutesAreOnlyTheKnownPublicSet is the security-audit-2026-09-19 methodology
+// recommendation (guides/primitive-security-audit.md, menata-app-document): every route inside
+// r.Group(func(pr chi.Router) {...}) is automatically gated by requireAuth (pr.Use(requireAuth...)
+// applies to the whole sub-router, structurally impossible to bypass from within), so the real
+// risk this app's own route registrations face isn't "a route inside pr forgets requireAuth" --
+// it's a route meant to be authenticated getting registered directly on r by mistake, silently
+// skipping pr entirely. ast.Inspect walks the whole Routes() body including inside r.Group's
+// closure, but a call there has a selector on pr/ar (not r), so it never matches the `r.` check
+// below regardless of nesting depth -- no manual scope-tracking needed.
+func TestUngatedRoutesAreOnlyTheKnownPublicSet(t *testing.T) {
+	path := filepath.Join(repoRoot(), "internal", "web", "router.go")
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		t.Fatalf("parse %s: %v", path, err)
+	}
+
+	var routesFunc *ast.FuncDecl
+	for _, decl := range file.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name.Name == "Routes" {
+			routesFunc = fn
+			break
+		}
+	}
+	if routesFunc == nil {
+		t.Fatal("router.go declares no Routes function")
+	}
+
+	ast.Inspect(routesFunc.Body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || !routeVerbs[sel.Sel.Name] {
+			return true
+		}
+		recv, ok := sel.X.(*ast.Ident)
+		if !ok || recv.Name != "r" {
+			return true
+		}
+		if len(call.Args) == 0 {
+			return true
+		}
+		lit, ok := call.Args[0].(*ast.BasicLit)
+		if !ok || lit.Kind != token.STRING {
+			return true
+		}
+		routePath, err := strconv.Unquote(lit.Value)
+		if err != nil {
+			return true
+		}
+		if !knownPublicRoutes[routePath] {
+			t.Errorf("%s registers %q directly on r (outside r.Group's requireAuth gate) -- add it to knownPublicRoutes if this is deliberate, or move it inside r.Group(func(pr chi.Router) {...}) if it needs auth", fset.Position(call.Pos()), routePath)
+		}
+		return true
+	})
 }

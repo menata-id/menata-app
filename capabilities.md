@@ -23,7 +23,7 @@ state, never a changelog of how it got there.
 | `person` | Implicit relation to `mch_user` — `machine:` is never written by hand, `internal/metadata.Parse` sets it automatically | Built | `mch_task.fld_assignee`, `mch_project.fld_owner` |
 | `money` | Currency value | Declared, not yet exercised | No current Machine declares one; no forcing case yet |
 | `relation` | Single-value reference to another Machine (`machine:` required) | Built | `mch_task.fld_project`, `fld_list` |
-| `file` | Local-disk upload; value is a storage key, original filename embedded in it | Built | `mch_document.fld_file`, `mch_task.fld_attachment` |
+| `file` | Local-disk upload; value is a storage key, original filename embedded in it; content sniffed and script-capable uploads rejected before `storage.Save` (security audit 2026-09-19, H2) | Built | `mch_document.fld_file`, `mch_task.fld_attachment`; `internal/web/record_test.go`'s `TestHandleFileUploads_rejectsScriptCapableContent`/`TestHandleFileUploads_allowsRealPDF` prove the content check |
 
 Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not inferred from data
 (007 §14's static-registry seam).
