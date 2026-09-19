@@ -53,6 +53,25 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, a
 	}
 }
 
+// showPendingCount serves pageShell's own nav badge (ROADMAP.md Phase 21 round 2, Step J) -- the
+// same Pending count showApprovalInbox already computes, reused rather than threading it through
+// every one of pageShell's ~20 callers as a new parameter. Renders nothing at all when there's
+// nothing pending, so the badge's own :empty CSS rule hides it instead of showing "(0)".
+func showPendingCount(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		inbox, err := composition.ApprovalInbox(req.Context(), composition.NewLoader(store, machines), userID, time.Now())
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		if len(inbox.Pending) == 0 {
+			return
+		}
+		fmt.Fprintf(w, "%d", len(inbox.Pending))
+	}
+}
+
 // decideStep is Case 3's core Action (ROADMAP.md Phase 12): Approve or Reject one Approval Step,
 // enforcing action.CanDecide's sequencing rule, then recomputing and saving the parent
 // Document's own aggregate status. Hardcoded to mch_approval_step/mch_document, matching

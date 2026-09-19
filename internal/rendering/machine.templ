@@ -28,6 +28,9 @@ templ pageShell(title string, appName string) {
 				header.topbar .left { display: flex; align-items: center; gap: 1rem; }
 				header.topbar span { color: #666; font-size: 0.85rem; }
 				header.topbar a { color: #3949ab; font-size: 0.85rem; text-decoration: none; }
+				header.topbar a[aria-current="page"] { font-weight: 600; text-decoration: underline; }
+				.nav-badge:empty { display: none; }
+				.nav-badge { display: inline-block; margin-left: 0.3rem; padding: 0 0.4rem; border-radius: 999px; background: #b00020; color: #fff; font-size: 0.7rem; line-height: 1.4; }
 				header.topbar button { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; }
 				h1 { margin-bottom: 0.25rem; }
 				code { color: #666; font-size: 0.9rem; }
@@ -112,7 +115,7 @@ templ pageShell(title string, appName string) {
 					<a href="/home">Home</a>
 					<a href="/">Machines</a>
 					<a href="/dashboard">Dashboard</a>
-					<a href="/approval-inbox">Approval Inbox</a>
+					<a href="/approval-inbox">Approval Inbox<span id="pending-badge" class="nav-badge" hx-get="/api/approval-inbox/pending-count" hx-trigger="load" hx-swap="innerHTML"></span></a>
 					<a href="/my-tasks">My Tasks</a>
 					<a href="/activity">Activity</a>
 					<a href="/team-capacity">Team Capacity</a>
@@ -128,6 +131,21 @@ templ pageShell(title string, appName string) {
 				</form>
 			</header>
 			{ children... }
+			<script>
+				// Marks the topbar link matching the current page aria-current="page" (ROADMAP.md
+				// Phase 21 round 2, Step J) -- purely client-side so pageShell needs no new parameter
+				// threaded through every one of its ~20 callers.
+				(function () {
+					var path = location.pathname;
+					var links = document.querySelectorAll("header.topbar .left a");
+					for (var i = 0; i < links.length; i++) {
+						var href = links[i].getAttribute("href");
+						if (href === path || (href !== "/" && path.indexOf(href) === 0)) {
+							links[i].setAttribute("aria-current", "page");
+						}
+					}
+				})();
+			</script>
 		</body>
 	</html>
 }
