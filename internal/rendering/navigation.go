@@ -19,10 +19,10 @@ import (
 // so it lives here rather than in internal/experience.
 func navSections(items []domain.NavigationItem, primaryLabel string) (ungrouped []domain.NavigationItem, primary experience.NavGroup, rest []experience.NavGroup) {
 	for _, g := range experience.GroupNavigation(items) {
-		switch {
-		case g.Label == "":
+		switch g.Label {
+		case "":
 			ungrouped = g.Items
-		case g.Label == primaryLabel:
+		case primaryLabel:
 			primary = g
 		default:
 			rest = append(rest, g)
