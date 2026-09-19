@@ -21,14 +21,19 @@ import (
 
 // showDocumentSubmit is Case 3's submission wizard (ROADMAP.md Phase 15 Step 6) -- Document
 // details + Approval mode + a dynamic, flat approver picker, all on one screen.
-func showDocumentSubmit(store *data.Store, appName string) http.HandlerFunc {
+//
+// documentMachine is mch_document itself, so fld_document_type's options come from
+// metadata/document.yaml rather than being hardcoded in the template (the mismatch closed
+// alongside this handler change -- see documentsubmit.templ's own doc comment).
+func showDocumentSubmit(store *data.Store, documentMachine *domain.Machine, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		users, err := store.ListRecords(req.Context(), "mch_user")
 		if err != nil {
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.DocumentSubmitPage(users, appName))
+		documentType, _ := documentMachine.FieldByID("fld_document_type")
+		render(req.Context(), w, rendering.DocumentSubmitPage(users, appName, documentType))
 	}
 }
 

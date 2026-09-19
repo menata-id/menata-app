@@ -118,7 +118,7 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/sprint", showSprintDashboard(d.Machines, d.Store, d.AppName))
 		pr.Get("/approval-inbox", showApprovalInbox(d.Machines, d.Store, d.AppName, d.Cfg))
 		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Machines, d.Store, d.Cfg))
-		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.AppName))
+		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Machines["mch_document"], d.AppName))
 		pr.Get("/documents/new/approver-row", newApproverRow(d.Store))
 		pr.Post("/documents", submitDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}", showMachinePage(d.Machines, d.AppName, d.Store))

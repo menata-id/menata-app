@@ -2,6 +2,7 @@ package rendering
 
 import (
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 // DocumentSubmitPage is Case 3's own submission wizard (ROADMAP.md Phase 15 Step 6,
@@ -11,7 +12,13 @@ import (
 // screen plus Step 4's already-built signature-placement screen (this screen's own Continue
 // button lands there) -- the mockup's own "Step 1 of 3" bundles Document+mode+approvers into one
 // screen, it does not paginate further within itself.
-templ DocumentSubmitPage(users []*data.Record, appName string) {
+//
+// documentType is mch_document's own fld_document_type Field, passed in instead of hardcoded --
+// closes the metadata/rendering mismatch this wizard used to have (guides/metadata-hot-reload-
+// safety.md §1 in menata-app-document, found by simulating a Document Type options change):
+// document-submit.html's five literal <option> labels were baked into this template and never
+// read metadata/document.yaml's own options, so a metadata-only change never reached this screen.
+templ DocumentSubmitPage(users []*data.Record, appName string, documentType domain.Field) {
 	@pageShell("New Approval", appName) {
 		<p><a href="/approval-inbox">← Approval Inbox</a></p>
 		<h1>New Approval</h1>
@@ -25,11 +32,9 @@ templ DocumentSubmitPage(users []*data.Record, appName string) {
 				<label>Document Type<br/>
 					<select name="fld_document_type" required>
 						<option value=""></option>
-						<option value="Contract">Contract</option>
-						<option value="SOP">SOP</option>
-						<option value="Policy">Policy</option>
-						<option value="Report">Report</option>
-						<option value="Other">Other</option>
+						for _, opt := range documentType.Options {
+							<option value={ opt }>{ opt }</option>
+						}
 					</select>
 				</label>
 				<br/><br/>
