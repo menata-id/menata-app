@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Local gate that runs before `git push`. Since this repo pushes straight to main with no
+# PR gate in between, this is what actually stops broken code from landing -- CI is the
+# safety net after the fact, not the primary gate. Enable with `make install-hooks`.
+set -euo pipefail
+
+echo "==> pre-push: build"
+make build
+
+echo "==> pre-push: vet"
+make vet
+
+echo "==> pre-push: test (-race)"
+make test
+
+echo "==> pre-push: generated code up to date"
+make check-generated
+
+if command -v golangci-lint >/dev/null 2>&1; then
+	echo "==> pre-push: golangci-lint"
+	golangci-lint run --timeout 5m
+else
+	echo "==> pre-push: golangci-lint not installed locally, skipping (CI still runs it)"
+fi
+
+echo "==> pre-push: all checks passed"

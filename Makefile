@@ -2,7 +2,7 @@ DB_URL ?= $(shell grep DATABASE_URL .env 2>/dev/null | cut -d= -f2-)
 GOOSE   = go run github.com/pressly/goose/v3/cmd/goose@v3.28.0
 TEMPL   = go run github.com/a-h/templ/cmd/templ@v0.3.1020
 
-.PHONY: generate build run test threshold vet tidy migrate-up migrate-down migrate-status
+.PHONY: generate build run test threshold vet tidy migrate-up migrate-down migrate-status check-generated install-hooks
 
 generate:
 	$(TEMPL) generate
@@ -14,7 +14,16 @@ run: build
 	./bin/server
 
 test:
-	go test ./...
+	go test -race ./...
+
+# Fails if a .templ file was edited without re-running `templ generate` before committing.
+check-generated: generate
+	git diff --exit-code -- '*_templ.go'
+
+# One-time setup: makes git use the tracked hooks in .githooks/ (pre-push gate) instead of
+# the untracked, per-clone .git/hooks/.
+install-hooks:
+	git config core.hooksPath .githooks
 
 # Deliberately constructs the forcing conditions this app cannot wait for, because it has no real
 # users (ROADMAP.md Phase 18 Step 4). Needs a real database and seeds tens of thousands of

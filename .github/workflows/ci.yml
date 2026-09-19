@@ -58,7 +58,7 @@ jobs:
         run: goose -dir migrations postgres "$DATABASE_URL" up
 
       - name: Test
-        run: go test ./...
+        run: go test -race ./...
 
   lint:
     runs-on: ubuntu-latest
@@ -72,6 +72,11 @@ jobs:
       - name: Generate templ
         run: go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
 
+      # Catches the case where a .templ file was edited but `templ generate` was never
+      # re-run before committing, so the checked-in *_templ.go drifts from its source.
+      - name: Check generated code is up to date
+        run: git diff --exit-code -- '*_templ.go'
+
       # golangci-lint's own prebuilt releases (what golangci-lint-action installs) are still built
       # with go1.26 as of this writing and refuse to lint a go1.27 module ("the Go language version
       # used to build golangci-lint is lower than the targeted Go version"). Building it ourselves
@@ -82,3 +87,17 @@ jobs:
 
       - name: golangci-lint
         run: golangci-lint run --timeout 5m
+
+  vulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+
+      # Always run @latest (not pinned) -- unlike templ/goose above, the point of a vuln
+      # scanner is to check against today's advisory database, not a fixed tool version.
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
