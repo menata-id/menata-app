@@ -89,6 +89,19 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   the page).
 - Expanding beyond the first two applications into the wider portfolio of business cases this
   runtime is designed to support (HR, inventory, point of sale, e-commerce, helpdesk, and more).
+- **Closing the composition-layer decomposition gap**, in this order (full audit, with the
+  binding-time leveling and the evidence count behind each step, in `menata-app-document`'s
+  `audits/2026-09-19-decomposition-maturity-audit.md`): (1) a ratchet conformance gate stopping
+  any *new* `internal/rendering/*.templ` from reaching into `Values["fld_..."]` instead of using
+  Projection -- nine files are grandfathered and the list may only shrink; (2) Dataset +
+  Dimension + Measure (007 §7.2-§7.4), minimal shape only (`source.machine`, `dimensions[].field`,
+  `measures[].aggregate` limited to `count`/`sum`), whose "count grouped by a dimension, with a
+  filter" pattern is already hand-written five separate times in `internal/composition/pages.go`
+  -- past B1, not speculative; (2b) reusing `internal/expression`'s existing, tested
+  `equals`/`not_equals` as that Dataset's filter predicate rather than a new expression language;
+  (3) migrating the nine grandfathered screens onto Projection one at a time. Explicitly *not*
+  included: generalizing `decide.go` (documented B4 failure) or building 007 §8's full Query Model
+  (no forcing condition yet).
 - Re-evaluating `internal/composition/pages.go`'s Case 19 Machine-id/status-option constants
   (`taskMachineID`, the `todo`/`in_progress`/`done` switch) against the B1-B5 decomposition
   criteria now that `view.card_fields` (Projection) has shipped -- flagged, not decided, in
