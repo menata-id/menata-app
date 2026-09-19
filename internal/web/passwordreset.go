@@ -51,7 +51,7 @@ func sendPasswordResetEmail(ctx context.Context, mailer mail.Mailer, cfg config.
 }
 
 func showResetPassword(w http.ResponseWriter, req *http.Request) {
-	render(req.Context(), w, rendering.ResetPasswordPage(req.URL.Query().Get("token"), ""))
+	render(req.Context(), w, rendering.ResetPasswordPage(req.URL.Query().Get("token"), "", "Choose a new password", "/reset-password", "Set new password"))
 }
 
 // submitResetPassword re-verifies the token rather than trusting the one already rendered into
@@ -72,7 +72,7 @@ func submitResetPassword(store *data.Store, cfg config.Config) http.HandlerFunc 
 			return
 		}
 		if len(password) < 8 {
-			render(req.Context(), w, rendering.ResetPasswordPage(token, "Password must be at least 8 characters."))
+			render(req.Context(), w, rendering.ResetPasswordPage(token, "Password must be at least 8 characters.", "Choose a new password", "/reset-password", "Set new password"))
 			return
 		}
 

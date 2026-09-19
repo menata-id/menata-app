@@ -107,6 +107,8 @@ func Routes(d Deps) http.Handler {
 	r.Post("/forgot-password", rateLimitByAddress(forgotPasswordLimiter, "too many attempts -- try again later", submitForgotPassword(d.Store, d.Mailer, d.Cfg)))
 	r.Get("/reset-password", showResetPassword)
 	r.Post("/reset-password", submitResetPassword(d.Store, d.Cfg))
+	r.Get("/accept-invite", showAcceptInvite)
+	r.Post("/accept-invite", submitAcceptInvite(d.Store, d.Cfg))
 	r.Get("/choose-workspace", showChooseWorkspace(d.Store, d.Cfg))
 	r.Post("/choose-workspace", submitChooseWorkspace(d.Store, d.Cfg))
 
@@ -152,7 +154,7 @@ func Routes(d Deps) http.Handler {
 		pr.Group(func(ar chi.Router) {
 			ar.Use(requireWorkspaceAdmin(d.Store, d.Cfg))
 			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.AppName))
-			ar.Post("/workspace-members/invite", submitInviteMember(d.Machines, d.Store))
+			ar.Post("/workspace-members/invite", submitInviteMember(d.Machines, d.Store, d.Mailer, d.Cfg))
 			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.AppName))
 			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
 		})

@@ -5,8 +5,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 )
 
@@ -63,9 +65,11 @@ func submitEditMember(store *data.Store) http.HandlerFunc {
 }
 
 // submitInviteMember pre-creates the invited email's mch_user record and membership with no
-// credential yet -- their own first successful login activates the account (authenticateMember,
-// ROADMAP.md Phase 21 Step 6's own design decision: no email-sending infrastructure exists here).
-func submitInviteMember(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+// credential yet -- the credential itself is only ever created by submitAcceptInvite (invite.go),
+// gated on the emailed, workspace-bound token this handler now sends (security audit 2026-09-19,
+// H1; ROADMAP.md Phase 21 Step 6's original design let the first successful login activate the
+// account instead, which let anyone who knew/guessed the invited email claim it first).
+func submitInviteMember(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -97,6 +101,7 @@ func submitInviteMember(machines map[string]*domain.Machine, store *data.Store) 
 			serverError(w, err)
 			return
 		}
+		sendInviteEmail(ctx, mailer, cfg, email, workspaceID)
 		redirectTo(w, req, "/workspace-members")
 	}
 }

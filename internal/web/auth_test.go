@@ -65,42 +65,26 @@ func newTestMember(t *testing.T, pool *pgxpool.Pool, store *data.Store, workspac
 	return user.ID
 }
 
-func TestAuthenticateMember_activatesAnInvitedEmailOnFirstLogin(t *testing.T) {
+// TestAuthenticateMember_invitedEmailWithNoCredentialIsRejected is the core regression test for
+// security audit 2026-09-19's H1: before this fix, a membership row with no credential yet let
+// *any* first successful "login" attempt activate the account under whatever password was
+// POSTed -- an unauthenticated account-takeover path for anyone who knew or guessed the invited
+// email. A credential may now only be created through submitAcceptInvite's verified, workspace-
+// bound token (invite_test.go) or self-registration -- never through authenticateMember, so an
+// invited-but-not-yet-accepted email must simply be rejected, the same as a wrong password would
+// be, and no credential must be created as a side effect of the attempt.
+func TestAuthenticateMember_invitedEmailWithNoCredentialIsRejected(t *testing.T) {
 	pool := authTestPool(t)
 	store := data.NewStore(pool)
 	ctx := context.Background()
 	const email = "invited_auth_test@example.com"
 	newTestMember(t, pool, store, "Auth Test", "auth-test-workspace", email)
 
-	// No credential exists yet -- the first login attempt should activate the account rather than
-	// being rejected as a wrong password, and the activated credential starts verified (an invite
-	// is a different trust model than self-registration).
-	if outcome := authenticateMember(ctx, store, email, "a-real-first-password"); outcome != loginOK {
-		t.Fatalf("authenticateMember(first attempt) = %v, want loginOK", outcome)
-	}
-
-	// The password just set must now be the real credential -- a wrong password fails, the same
-	// one succeeds again.
-	if outcome := authenticateMember(ctx, store, email, "wrong-password"); outcome != loginRejected {
-		t.Errorf("authenticateMember(wrong password after activation) = %v, want loginRejected", outcome)
-	}
-	if outcome := authenticateMember(ctx, store, email, "a-real-first-password"); outcome != loginOK {
-		t.Errorf("authenticateMember(same password again) = %v, want loginOK", outcome)
-	}
-}
-
-func TestAuthenticateMember_tooShortFirstPasswordDoesNotActivate(t *testing.T) {
-	pool := authTestPool(t)
-	store := data.NewStore(pool)
-	ctx := context.Background()
-	const email = "invited_short_test@example.com"
-	newTestMember(t, pool, store, "Auth Short Test", "auth-short-test-workspace", email)
-
-	if outcome := authenticateMember(ctx, store, email, "short"); outcome != loginRejected {
-		t.Errorf("authenticateMember(too-short first password) = %v, want loginRejected", outcome)
+	if outcome := authenticateMember(ctx, store, email, "an-attackers-password"); outcome != loginRejected {
+		t.Fatalf("authenticateMember(invited, no credential yet) = %v, want loginRejected", outcome)
 	}
 	if _, err := store.GetCredential(ctx, email); err == nil {
-		t.Error("GetCredential() succeeded after a rejected activation attempt, want ErrCredentialNotFound still")
+		t.Error("GetCredential() succeeded after a rejected login attempt -- a credential must not be created as a side effect of authenticateMember")
 	}
 }
 

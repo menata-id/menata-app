@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strings"
 
@@ -61,13 +60,13 @@ const (
 
 // authenticateMember verifies email/password against a real per-user credential.
 //
-// An invited email (ROADMAP.md Phase 21 Step 6) has a membership row but no credential yet -- this
-// app has no outbound-email infrastructure to drive a token-based invite flow, so the first
-// successful "login" attempt activates the account by setting the submitted password as its real
-// credential, rather than verifying one that was never issued. That activated credential starts
-// EmailVerified=true immediately (a Workspace Admin already vouched for this specific email by
-// typing it in themselves, a different trust model than self-registration) -- named as a
-// deliberate simplification, not an oversight.
+// An invited email (ROADMAP.md Phase 21 Step 6) has a membership row but no credential yet --
+// until security audit 2026-09-19's H1 fix, the first successful "login" attempt activated the
+// account by setting whatever password was POSTed as its real credential, which let anyone who
+// knew or guessed the invited email claim it before the real invitee ever logged in. A credential
+// can now only be created via a verified, workspace-bound invite token (submitAcceptInvite,
+// invite.go) or self-registration (submitRegistration) -- never here, so an email with a
+// membership but no credential yet is simply rejected, the same as a wrong password.
 //
 // A self-registered credential (round 2, Step D) starts EmailVerified=false and stays rejected
 // (loginNeedsVerification, a distinct outcome from a wrong password) until its own emailed link is
@@ -80,18 +79,6 @@ func authenticateMember(ctx context.Context, store *data.Store, email, password 
 
 	cred, err := store.GetCredential(ctx, email)
 	switch {
-	case errors.Is(err, data.ErrCredentialNotFound):
-		if len(password) < 8 {
-			return loginRejected
-		}
-		newHash, hashErr := authorization.HashPassword(password)
-		if hashErr != nil {
-			return loginRejected
-		}
-		if err := store.CreateCredential(ctx, email, newHash, true); err != nil {
-			return loginRejected
-		}
-		return loginOK
 	case err != nil:
 		return loginRejected
 	case !authorization.VerifyPassword(password, cred.PasswordHash):

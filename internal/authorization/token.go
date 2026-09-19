@@ -45,6 +45,7 @@ func verifySignedToken(secret, token string) (value string, ok bool) {
 const (
 	tokenTagVerify = "verify:"
 	tokenTagReset  = "reset:"
+	tokenTagInvite = "invite:"
 )
 
 // NewEmailVerificationToken builds a 24-hour link token for a newly-registered email (ROADMAP.md
@@ -74,4 +75,28 @@ func VerifyPasswordResetToken(secret, token string) (email string, ok bool) {
 		return "", false
 	}
 	return strings.TrimPrefix(value, tokenTagReset), true
+}
+
+// NewInviteToken builds a 7-day link token for a Workspace member invitation (security audit
+// 2026-09-19, H1) -- longer-lived than the other two tokens since an invite commonly sits unread
+// over a weekend. workspaceID is bound into the signed value alongside email, not just carried
+// separately, so a token minted for one Workspace's invite can't be replayed against a different
+// membership row of the same email (e.g. a second, unrelated Workspace inviting the same address
+// later).
+func NewInviteToken(secret, email, workspaceID string) string {
+	return newSignedToken(secret, tokenTagInvite+email+"|"+workspaceID, 7*24*time.Hour)
+}
+
+// VerifyInviteToken returns the email and Workspace an invite token names, if valid and unexpired.
+func VerifyInviteToken(secret, token string) (email, workspaceID string, ok bool) {
+	value, ok := verifySignedToken(secret, token)
+	if !ok || !strings.HasPrefix(value, tokenTagInvite) {
+		return "", "", false
+	}
+	rest := strings.TrimPrefix(value, tokenTagInvite)
+	idx := strings.LastIndex(rest, "|")
+	if idx < 0 {
+		return "", "", false
+	}
+	return rest[:idx], rest[idx+1:], true
 }
