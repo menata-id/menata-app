@@ -71,6 +71,7 @@ type eventDoc struct {
 	ID         string `yaml:"id"`
 	On         string `yaml:"on"`
 	WhenEquals string `yaml:"when_equals"`
+	OnCreate   bool   `yaml:"on_create"`
 	Then       struct {
 		Service             string `yaml:"service"`
 		Summary             string `yaml:"summary"`
@@ -145,6 +146,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			ID:         ed.ID,
 			On:         ed.On,
 			WhenEquals: ed.WhenEquals,
+			OnCreate:   ed.OnCreate,
 			Then: domain.Service{
 				Name:                ed.Then.Service,
 				Summary:             ed.Then.Summary,

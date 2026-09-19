@@ -53,7 +53,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			return
 		}
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		logRecordCreated(req.Context(), store, machine, record, actor)
+		runCreateEvents(req.Context(), store, machine, record, actor)
 
 		renderMachineBody(w, req, machines, machine, store, actor)
 	}

@@ -25,3 +25,13 @@ constraints:
         field: fld_status
         op: not_equals
         value: done
+
+# A Project logs its own creation (2026-09-19), generalized from internal/web's own hardcoded
+# logRecordCreated switch into a declared on_create Event, the same shape mch_document/mch_task
+# now declare. fld_name, not fld_title, is this Machine's own label field.
+events:
+  - id: evt_project_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_name}\" created"

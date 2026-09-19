@@ -37,15 +37,19 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   is a business-rule decision, not assumed here.
 - **Event primitive** -- the first real declaration of 006-runtime-model.md's Behavioral Model
   (`Event → Action → Permission/Constraint → Service/Data operation → State change`): a Field
-  changing (optionally to one target value) runs a closed, runtime-owned Service purely from
-  metadata (`domain.Event`/`domain.Service`, `behavior.MatchedEvents`, `internal/web`'s
-  `runEvents`; `capabilities.md`, `writing-guide.md` §10). Proven by replacing what used to be
-  hardcoded Go (Task status move logging) with a declared `mch_task.evt_task_status_changed`, and
-  verified live: editing only the YAML wording changes the Activity feed's own text, no code
-  touched. `/automation` now lists Events alongside Constraints. The other two known
-  "write happened, run a side effect" cases (record-created logging, the Document-approval decide
-  cascade) and SLA-breach detection (which still fires on a page read, since there's no scheduler)
-  remain hardcoded, on purpose -- named next candidates once a real need reaches them, not
+  changing (optionally to one target value), or a record being created, runs a closed,
+  runtime-owned Service purely from metadata (`domain.Event`/`domain.Service`,
+  `behavior.MatchedEvents`/`MatchedCreateEvents`, `internal/web`'s `runEvents`/`runCreateEvents`;
+  `capabilities.md`, `writing-guide.md` §10). Proven by replacing what used to be hardcoded Go
+  (Task status move logging) with a declared `mch_task.evt_task_status_changed`, and verified
+  live: editing only the YAML wording changes the Activity feed's own text, no code touched.
+  `/automation` now lists Events alongside Constraints. Extended 2026-09-19 to a second shape,
+  `on_create: true`, generalizing what was `internal/web`'s own hardcoded `logRecordCreated`
+  switch (`mch_document`/`mch_task`/`mch_project` record-creation logging) -- a real third case
+  proven before the shape was built, per `menata-app-document`'s
+  `workflow-behavior-decomposition-criteria.md`. The Document-approval decide cascade and
+  SLA-breach detection (which still fires on a page read, since there's no scheduler) remain
+  hardcoded, on purpose -- named next candidates once a real second need reaches them, not
   converted speculatively.
 
 ## In progress
@@ -65,11 +69,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   isn't built speculatively (the one concrete case found, Workspace Home's "Members" link, was
   workspace-level chrome, not a metadata nav item, and is already fixed). Build this once a real
   `application.navigation` item needs to be hidden from some viewers, not before.
-- Extending the Event primitive (shipped above) to its other real candidate cases: a
-  record-creation trigger (for record-created Activity logging, currently per-Machine hardcoded
-  Go) and a schedule/time trigger (for SLA-breach detection, currently read-triggered because
-  there's no scheduler) -- each is its own second-real-case generalization, not assumed ahead of
-  a concrete need, the same discipline that governed building the primitive itself.
+- Extending the Event primitive (shipped above) to its one remaining real candidate case: a
+  schedule/time trigger (for SLA-breach detection, currently read-triggered because there's no
+  scheduler) -- its own second-real-case generalization, not assumed ahead of a concrete need,
+  the same discipline that governed building the primitive itself (and its `on_create` shape).
 - Search, filtering and pagination on record lists.
 - Background/scheduled jobs (e.g. SLA-breach notifications that don't depend on someone opening
   the page).

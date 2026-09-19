@@ -369,10 +369,31 @@ if your wording needs more than "a default, and one exception," that's not expre
 `service: log_activity` is the one Service this runtime realizes today
 (`internal/domain.KnownServices`) — the same closed-set discipline `action:` uses for Permission.
 There is no way to declare a new Service purely in YAML, the same limit §8 already describes for
-Action. Two triggers this deliberately doesn't support yet, because no second real case has
-needed them: firing on record *creation*, and firing on a schedule/time threshold (the shape SLA-
-breach detection would actually want, still hardcoded and read-triggered — see
-`internal/composition/approval.go`).
+Action.
+
+**A second, mutually exclusive Event shape fires on record creation instead of a field change** —
+`on_create: true` in place of `on:`/`when_equals:`. Real shipped example, `metadata/task.yaml`:
+
+```yaml
+events:
+  - id: evt_task_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" created"
+```
+
+Fires once, unconditionally, the moment the record exists — there's no prior value to compare
+against, so `when_equals` is rejected on an `on_create` Event (and `on`/`on_create` are mutually
+exclusive: declaring both fails validation). `{old}`/`{new}` are meaningless here too; only
+`{field_id}` placeholders make sense in an `on_create` Event's own `summary`. This generalized
+what used to be `internal/web`'s own hardcoded `logRecordCreated` (a `switch machine.ID` over
+`mch_document`/`mch_task`/`mch_project`) — three real cases already living as one Go switch
+statement before this shape existed, not a speculative addition.
+
+One trigger this still deliberately doesn't support, because no second real case has needed it
+yet: firing on a schedule/time threshold (the shape SLA-breach detection would actually want,
+still hardcoded and read-triggered — see `internal/composition/approval.go`).
 
 ## 11. Field defaults
 
@@ -402,10 +423,10 @@ similar-looking metadata for a *different* Machine does not activate it.
 | CRUD screens + JSON API, table and board views | The `decide` Action, and everything hardcoded to `mch_document`/`mch_approval_step` behind it |
 | Relations, `person`, child collections, many-to-many | Document submission wizard |
 | Constraints (`equals`/`not_equals` shape) | Signature-coordinate placement screen |
-| Events (post-write field-change → one Service) | PDF signature compositing |
+| Events (post-write field-change or record-creation → one Service) | PDF signature compositing |
 | Record-scoped `edit`/`delete` Permission (any Machine) | Approval progress stepper UI |
 | Field defaults | SLA-breach detection (still read-triggered, not a real Event yet) |
-| SLA badges (`view.sla_field`) | Record-created Activity logging (per-Machine wording, `internal/web`'s `logRecordCreated`) |
+| SLA badges (`view.sla_field`) | — |
 | Workspace scoping, session-auth gating | Composed screens: Dashboard, Approval Inbox, My Tasks, Sprint Dashboard, Calendar, Team Capacity, Automation, Board Settings |
 
 If what you're building is a new data model with CRUD, relations, a board or table view, a
@@ -423,9 +444,8 @@ Honest current limits, not a roadmap — some of these may change over time:
   to matter for a new business process.
 - **No field-level permissions.** Access control today is per-Machine and per-Action at best; you
   cannot hide or lock one Field from one role while leaving the rest editable.
-- **Events fire on a field change only — not on create, and not on a schedule.** See §10. A new
-  record's own Activity-log wording, and SLA-breach detection, are still hardcoded Go for exactly
-  that reason.
+- **Events fire on a field change or a record creation — not on a schedule.** See §10.
+  SLA-breach detection is still hardcoded, read-triggered Go for exactly that reason.
 - **An Event's wording supports at most one override**, not arbitrary per-value branching (§10).
 - **Reads are whole-Machine.** There's no filtering, projection or pagination pushed to the
   database — a page fetches a Machine's full record set and reduces it in application code. This

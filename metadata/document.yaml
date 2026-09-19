@@ -48,6 +48,18 @@ fields:
     name: Signed File
     type: file
 
+# A Document logs its own submission to the Activity feed (ROADMAP.md Phase 21 round 2 Step I),
+# generalized here (2026-09-19) from internal/web's own hardcoded logRecordCreated switch into a
+# declared on_create Event -- workflow-behavior-decomposition-criteria.md's own B1-B5 worked
+# example (menata-app-document), a real third case alongside mch_task/mch_project below proving
+# the creation-trigger shape before it was built.
+events:
+  - id: evt_document_submitted
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" submitted"
+
 view:
   layout: table
   sla_field: fld_due_date

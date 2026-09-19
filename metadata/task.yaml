@@ -48,6 +48,14 @@ events:
       summary: "\"{fld_title}\" moved from {old} to {new}"
       summary_override_when: done
       summary_override: "\"{fld_title}\" completed"
+  # A Task logs its own creation (2026-09-19), generalized from internal/web's own hardcoded
+  # logRecordCreated switch into the same declared Event mechanism evt_task_status_changed above
+  # already proved -- the on_create shape's own worked example.
+  - id: evt_task_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" created"
 
 view:
   layout: board

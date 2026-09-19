@@ -12,21 +12,11 @@ import (
 
 	"github.com/a-h/templ"
 
-	"menata.app/internal/action"
 	"menata.app/internal/behavior"
 	"menata.app/internal/composition"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
-
-// recordLabel is a Record's display label -- its Machine's first Field's value, the same
-// label-field convention used throughout (loadRelationOptions, rendering.recordTitle).
-func recordLabel(m *domain.Machine, r *data.Record) string {
-	if len(m.Fields) == 0 {
-		return r.ID
-	}
-	return toDisplayString(r.Values[m.Fields[0].ID])
-}
 
 // pageFromQuery reads a 1-indexed ?page= query param, clamped to [1, totalPages], defaulting to
 // 1 for anything missing or unparseable.
@@ -100,16 +90,18 @@ func logActivity(ctx context.Context, store *data.Store, machineID, recordID, ac
 	}
 }
 
-// logRecordCreated logs the same per-Machine "submitted"/"created" Activity event a new record's
-// creation gets today, regardless of whether it arrived through the HTML form route or the JSON
-// API -- factored out (ROADMAP.md Phase 21 round 2, Step I) so both paths log identically instead
-// of the rule living in two places that could drift out of sync.
-func logRecordCreated(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, actorID string) {
-	switch machine.ID {
-	case action.DocumentMachineID:
-		logActivity(ctx, store, machine.ID, record.ID, actorID, fmt.Sprintf("%q submitted", toDisplayString(record.Values["fld_title"])))
-	case "mch_task", "mch_project":
-		logActivity(ctx, store, machine.ID, record.ID, actorID, fmt.Sprintf("%q created", recordLabel(machine, record)))
+// runCreateEvents is runEvents' own counterpart for the create path: every domain.Event a Machine
+// declares OnCreate (behavior.MatchedCreateEvents) fires once, unconditionally, for the record
+// just created -- generalizing what used to be a hardcoded per-Machine switch here
+// (logRecordCreated, ROADMAP.md Phase 21 round 2 Step I) into the same declarative mechanism
+// runEvents already established for field-change Events. renderEventSummary is reused as-is with
+// oldValues nil: a creation Event's own summary template only ever uses {field_id} placeholders,
+// never {old}/{new}, so nil resolves harmlessly.
+func runCreateEvents(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, actorID string) {
+	for _, e := range behavior.MatchedCreateEvents(machine) {
+		if e.Then.Name == domain.ServiceLogActivity {
+			logActivity(ctx, store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, nil, record.Values))
+		}
 	}
 }
 

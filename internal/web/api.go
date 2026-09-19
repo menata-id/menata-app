@@ -59,7 +59,7 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 		// below: the JSON path had silently never logged Activity for a Document/Task/Project
 		// created through it, unlike its form-based sibling.
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		logRecordCreated(req.Context(), store, machine, record, actor)
+		runCreateEvents(req.Context(), store, machine, record, actor)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)

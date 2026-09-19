@@ -232,6 +232,46 @@ func TestValidate_eventSummaryOverrideWhenWithoutOverride(t *testing.T) {
 	assertIssue(t, m, "must be set together")
 }
 
+func TestValidate_eventOnCreateValid(t *testing.T) {
+	m := validMachine()
+	m.Events = []domain.Event{{
+		ID:       "evt_task_created",
+		OnCreate: true,
+		Then:     domain.Service{Name: domain.ServiceLogActivity, Summary: "created"},
+	}}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_eventOnCreateWithOnFails(t *testing.T) {
+	m := validMachine()
+	e := validEvent() // On: "fld_status"
+	e.OnCreate = true
+	m.Events = []domain.Event{e}
+	assertIssue(t, m, "on_create and on must not both be set")
+}
+
+func TestValidate_eventOnCreateWithWhenEqualsFails(t *testing.T) {
+	m := validMachine()
+	m.Events = []domain.Event{{
+		ID:         "evt_task_created",
+		OnCreate:   true,
+		WhenEquals: "done",
+		Then:       domain.Service{Name: domain.ServiceLogActivity, Summary: "created"},
+	}}
+	assertIssue(t, m, "when_equals is not meaningful with on_create")
+}
+
+func TestValidate_eventNeitherOnNorOnCreateFails(t *testing.T) {
+	m := validMachine()
+	m.Events = []domain.Event{{
+		ID:   "evt_task_created",
+		Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "created"},
+	}}
+	assertIssue(t, m, "exactly one of on or on_create is required")
+}
+
 func TestValidate_viewDefaultsToTable(t *testing.T) {
 	m := validMachine() // no View set at all
 	if err := Validate(m); err != nil {

@@ -216,3 +216,35 @@ fields:
 		t.Fatal("Parse() error = nil, want error for a non-numeric default on a number field")
 	}
 }
+
+func TestParse_eventOnCreate(t *testing.T) {
+	yaml := []byte(`
+id: mch_task
+name: Task
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+events:
+  - id: evt_task_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" created"
+`)
+
+	m, err := Parse(yaml)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(m.Events) != 1 {
+		t.Fatalf("len(Events) = %d, want 1", len(m.Events))
+	}
+	e := m.Events[0]
+	if !e.OnCreate || e.On != "" || e.WhenEquals != "" {
+		t.Errorf("Events[0] = %+v, want OnCreate=true, On=\"\", WhenEquals=\"\"", e)
+	}
+	if e.Then.Summary != `"{fld_title}" created` {
+		t.Errorf("Events[0].Then.Summary = %q, want %q", e.Then.Summary, `"{fld_title}" created`)
+	}
+}

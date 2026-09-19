@@ -240,7 +240,9 @@ func validateConstraint(m *domain.Machine, c domain.Constraint, fieldsByID map[s
 // is on the Machine itself, so there is no cross-Machine pass the way Constraint's block_if
 // needs. Unlike Constraint's when_equals, Event's WhenEquals is optional -- empty means "any
 // change fires it," a deliberate difference (Constraint gates a specific transition; Event
-// merely observes one).
+// merely observes one). OnCreate is a second, mutually exclusive shape (domain.Event's own doc
+// comment): exactly one of On or OnCreate must be set, and WhenEquals is meaningless with
+// OnCreate (no prior value exists to compare against).
 func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field, seen map[string]bool) []string {
 	var issues []string
 
@@ -252,11 +254,20 @@ func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]doma
 	}
 	seen[e.ID] = true
 
-	onField, onExists := fieldsByID[e.On]
-	if !onExists {
-		issues = append(issues, fmt.Sprintf("event %q: on %q is not a field of machine %q", e.ID, e.On, m.ID))
-	} else if e.WhenEquals != "" && onField.Type == domain.FieldTypeStatus && !contains(onField.Options, e.WhenEquals) {
-		issues = append(issues, fmt.Sprintf("event %q: when_equals %q is not one of field %q's options %v", e.ID, e.WhenEquals, e.On, onField.Options))
+	switch {
+	case e.OnCreate && e.On != "":
+		issues = append(issues, fmt.Sprintf("event %q: on_create and on must not both be set", e.ID))
+	case e.OnCreate && e.WhenEquals != "":
+		issues = append(issues, fmt.Sprintf("event %q: when_equals is not meaningful with on_create (no prior value to compare)", e.ID))
+	case !e.OnCreate && e.On == "":
+		issues = append(issues, fmt.Sprintf("event %q: exactly one of on or on_create is required", e.ID))
+	case !e.OnCreate:
+		onField, onExists := fieldsByID[e.On]
+		if !onExists {
+			issues = append(issues, fmt.Sprintf("event %q: on %q is not a field of machine %q", e.ID, e.On, m.ID))
+		} else if e.WhenEquals != "" && onField.Type == domain.FieldTypeStatus && !contains(onField.Options, e.WhenEquals) {
+			issues = append(issues, fmt.Sprintf("event %q: when_equals %q is not one of field %q's options %v", e.ID, e.WhenEquals, e.On, onField.Options))
+		}
 	}
 
 	if !domain.KnownServices[e.Then.Name] {

@@ -152,6 +152,84 @@ func TestUpdateRecordForm_taskUnchangedStatusLogsNothing(t *testing.T) {
 	}
 }
 
+// TestCreateRecordForm_taskCreationLogsActivity proves evt_task_created (metadata/task.yaml) --
+// the OnCreate shape's own generalization of what used to be internal/web's hardcoded
+// logRecordCreated switch -- fires through the real HTML-form create path (createRecordForm).
+func TestCreateRecordForm_taskCreationLogsActivity(t *testing.T) {
+	s := newEventTestSetup(t, "event_task_created")
+
+	form := "fld_title=New+Task"
+	req := httptest.NewRequest(http.MethodPost, "/machines/mch_task/records", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(data.WithWorkspaceScope(req.Context(), s.workspaceID))
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
+
+	r := chi.NewRouter()
+	r.Post("/machines/{machineID}/records", createRecordForm(s.machines, s.store, nil, s.cfg))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("createRecordForm status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	rows, err := s.store.ListRecordsBy(s.ctx, "mch_task", "fld_title", "New Task")
+	if err != nil {
+		t.Fatalf("ListRecordsBy(mch_task): %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("ListRecordsBy(mch_task, New Task) = %d rows, want 1", len(rows))
+	}
+	newTaskID := rows[0].ID
+
+	activities, err := s.store.ListRecordsBy(s.ctx, "mch_activity", "fld_record_id", newTaskID)
+	if err != nil {
+		t.Fatalf("ListRecordsBy(mch_activity): %v", err)
+	}
+	want := `"New Task" created`
+	if len(activities) != 1 || toDisplayString(activities[0].Values["fld_summary"]) != want {
+		t.Errorf("Activity summaries for the new task = %v, want exactly [%q]", activities, want)
+	}
+}
+
+// TestCreateRecord_api_taskCreationLogsActivity is TestCreateRecordForm_taskCreationLogsActivity's
+// own JSON-API-path counterpart -- both createRecordForm and createRecord (api.go) call
+// runCreateEvents now, and both changed in the same commit, so both need their own proof.
+func TestCreateRecord_api_taskCreationLogsActivity(t *testing.T) {
+	s := newEventTestSetup(t, "event_task_created_api")
+
+	body := `{"fld_title":"API Task"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/machines/mch_task/records", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(data.WithWorkspaceScope(req.Context(), s.workspaceID))
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
+
+	r := chi.NewRouter()
+	r.Post("/api/machines/{machineID}/records", createRecord(s.machines, s.store, s.cfg))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("createRecord status = %d, want 201; body=%s", rec.Code, rec.Body.String())
+	}
+
+	rows, err := s.store.ListRecordsBy(s.ctx, "mch_task", "fld_title", "API Task")
+	if err != nil {
+		t.Fatalf("ListRecordsBy(mch_task): %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("ListRecordsBy(mch_task, API Task) = %d rows, want 1", len(rows))
+	}
+	newTaskID := rows[0].ID
+
+	activities, err := s.store.ListRecordsBy(s.ctx, "mch_activity", "fld_record_id", newTaskID)
+	if err != nil {
+		t.Fatalf("ListRecordsBy(mch_activity): %v", err)
+	}
+	want := `"API Task" created`
+	if len(activities) != 1 || toDisplayString(activities[0].Values["fld_summary"]) != want {
+		t.Errorf("Activity summaries for the new task = %v, want exactly [%q]", activities, want)
+	}
+}
+
 // TestEventOldValues_fetchFailureIsDistinctFromNoEventsDeclared is the regression test for a
 // code-review finding (2026-09-19): a GetRecord failure must make runEvents skip dispatch
 // entirely, not silently compare against a nil map -- fmt.Sprint on a nil map's missing key

@@ -97,17 +97,22 @@ type RelationBlock struct {
 // Service in response (006-runtime-model.md "Event"/"Service"; Behavioral Model:
 // Event -> Action -> Permission/Constraint -> Service/Data operation -> State change/Event).
 //
-// Supports exactly one shape, mirroring Constraint's own discipline: On names a Field on this
-// Machine; the Event fires after a successful update whose new value for that Field differs from
-// the old one, optionally narrowed to one target value (WhenEquals -- empty means "any change").
-// Record creation and schedule/time-based triggers (the shapes the other known hardcoded
-// "write happened, run a side effect" cases would actually need -- record-created Activity
-// logging, SLA-breach detection) are deliberately not built until a second real case needs them:
-// generalize on a second real case, never assumed ahead of it.
+// Supports two shapes, mutually exclusive (internal/metadata.validateEvent enforces exactly one):
+// field-change (On names a Field on this Machine; the Event fires after a successful update whose
+// new value for that Field differs from the old one, optionally narrowed to one target value --
+// WhenEquals empty means "any change") and creation (OnCreate true; the Event fires once, when
+// the record is first created -- On/WhenEquals are meaningless here, since there is no prior value
+// to compare against). The creation shape generalizes what was internal/web's own hardcoded
+// logRecordCreated switch (record-created Activity logging on mch_document/mch_task/mch_project --
+// workflow-behavior-decomposition-criteria.md's own B1-B5 worked example, a second/third real case
+// proven three times over before this was built, never assumed ahead of it). Schedule/time-based
+// triggers (the shape SLA-breach detection would still want) remain the one deferred shape,
+// waiting on their own second real case.
 type Event struct {
 	ID         string
 	On         string
 	WhenEquals string
+	OnCreate   bool
 	Then       Service
 }
 

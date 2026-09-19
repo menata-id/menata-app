@@ -70,3 +70,49 @@ func TestMatchedEvents_noEventsDeclaredYieldsEmpty(t *testing.T) {
 		t.Errorf("MatchedEvents() = %v, want none: this Machine declares no Events", got)
 	}
 }
+
+// TestMatchedEvents_ignoresOnCreateEvents is the field-change side of OnCreate's mutual
+// exclusion: an OnCreate Event must never fire from MatchedEvents (the update path), only from
+// MatchedCreateEvents -- even if its Machine also has an unrelated field genuinely changing.
+func TestMatchedEvents_ignoresOnCreateEvents(t *testing.T) {
+	m := &domain.Machine{
+		ID: "mch_task",
+		Events: []domain.Event{
+			{ID: "evt_task_created", OnCreate: true, Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "created"}},
+		},
+	}
+
+	got := MatchedEvents(m, map[string]any{"fld_status": "todo"}, map[string]any{"fld_status": "done"})
+	if len(got) != 0 {
+		t.Errorf("MatchedEvents() = %v, want none: evt_task_created is OnCreate, not a field-change Event", got)
+	}
+}
+
+func taskMachineWithCreateEvent() *domain.Machine {
+	return &domain.Machine{
+		ID:   "mch_task",
+		Name: "Task",
+		Events: []domain.Event{
+			{ID: "evt_task_status_changed", On: "fld_status", Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "moved"}},
+			{ID: "evt_task_created", OnCreate: true, Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "created"}},
+		},
+	}
+}
+
+func TestMatchedCreateEvents_firesUnconditionally(t *testing.T) {
+	got := MatchedCreateEvents(taskMachineWithCreateEvent())
+	if len(got) != 1 || got[0].ID != "evt_task_created" {
+		t.Fatalf("MatchedCreateEvents() = %v, want exactly evt_task_created", got)
+	}
+}
+
+func TestMatchedCreateEvents_noCreateEventsDeclaredYieldsEmpty(t *testing.T) {
+	m := &domain.Machine{
+		ID:     "mch_task",
+		Events: []domain.Event{{ID: "evt_task_status_changed", On: "fld_status", Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "moved"}}},
+	}
+
+	if got := MatchedCreateEvents(m); len(got) != 0 {
+		t.Errorf("MatchedCreateEvents() = %v, want none: this Machine declares no OnCreate Events", got)
+	}
+}
