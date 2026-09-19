@@ -9,6 +9,15 @@ fields:
     name: Title
     type: text
     required: true
+  - id: fld_document_type
+    name: Document Type
+    type: status
+    required: true
+    # Stored and displayed in exactly this casing -- a deliberate one-off departure from
+    # fld_status/fld_mode's lowercase convention below, because "SOP" has no reasonable lowercase
+    # form and these are exactly document-submit.html's own five labels (ROADMAP.md UI mockup
+    # conformance audit, B1).
+    options: [Contract, SOP, Policy, Report, Other]
   - id: fld_file
     name: File
     type: file

@@ -125,7 +125,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			AvatarInitials: Initials(submitter),
 			Reference:      action.DocumentReference(doc.SortOrder),
 			Title:          DisplayString(doc.Values["fld_title"]),
-			Subtitle:       fmt.Sprintf("%s · %d/%d approved · Submitted by %s", mode, approved, len(stepsByDoc[docID]), submitter),
+			Subtitle:       fmt.Sprintf("%s · %s · %d/%d approved · Submitted by %s", DisplayString(doc.Values["fld_document_type"]), mode, approved, len(stepsByDoc[docID]), submitter),
 			StatusLabel:    DisplayString(doc.Values["fld_status"]),
 			SLADue:         doc.Values["fld_due_date"],
 			Href:           fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID),
@@ -143,7 +143,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			AvatarInitials: Initials(names[userID]),
 			Reference:      action.DocumentReference(d.SortOrder),
 			Title:          DisplayString(d.Values["fld_title"]),
-			Subtitle:       fmt.Sprintf("%s · %d/%d approved", mode, approved, len(stepsByDoc[d.ID])),
+			Subtitle:       fmt.Sprintf("%s · %s · %d/%d approved", DisplayString(d.Values["fld_document_type"]), mode, approved, len(stepsByDoc[d.ID])),
 			StatusLabel:    DisplayString(d.Values["fld_status"]),
 			Href:           fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, d.ID),
 		})

@@ -38,6 +38,7 @@ func step(id, docID, assignee, decision string, seq float64) *data.Record {
 func doc(id, title, mode, due string) *data.Record {
 	return rec(id, map[string]any{
 		"fld_title":                title,
+		"fld_document_type":        "Contract",
 		action.FieldDocumentMode:   mode,
 		"fld_due_date":             due,
 		action.FieldDocumentStatus: "in_review",
@@ -88,7 +89,7 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 		t.Errorf("Href = %q, want %q", got.Pending[0].Href, want)
 	}
 	// One of three steps is approved, and the card says so.
-	if want := "parallel · 1/3 approved · Submitted by someone"; got.Pending[0].Subtitle != want {
+	if want := "Contract · parallel · 1/3 approved · Submitted by someone"; got.Pending[0].Subtitle != want {
 		t.Errorf("Subtitle = %q, want %q", got.Pending[0].Subtitle, want)
 	}
 }
@@ -159,7 +160,7 @@ func TestBuildInbox_SubmitterFromEarliestEvent(t *testing.T) {
 	if len(got.Pending) != 1 {
 		t.Fatalf("want one card, got %d", len(got.Pending))
 	}
-	if want := "parallel · 0/1 approved · Submitted by Budi"; got.Pending[0].Subtitle != want {
+	if want := "Contract · parallel · 0/1 approved · Submitted by Budi"; got.Pending[0].Subtitle != want {
 		t.Errorf("Subtitle = %q, want %q", got.Pending[0].Subtitle, want)
 	}
 	if got.Pending[0].AvatarInitials != "B" {
@@ -172,7 +173,7 @@ func TestBuildInbox_UnknownSubmitterFallsBack(t *testing.T) {
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
 	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
-	if want := "parallel · 0/1 approved · Submitted by someone"; got.Pending[0].Subtitle != want {
+	if want := "Contract · parallel · 0/1 approved · Submitted by someone"; got.Pending[0].Subtitle != want {
 		t.Errorf("Subtitle = %q, want %q", got.Pending[0].Subtitle, want)
 	}
 	if got.Pending[0].AvatarInitials != "S" {
@@ -199,7 +200,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 	if got.Mine[0].Title != "Mine" {
 		t.Errorf("Title = %q, want %q", got.Mine[0].Title, "Mine")
 	}
-	if want := "parallel · 0/0 approved"; got.Mine[0].Subtitle != want {
+	if want := "Contract · parallel · 0/0 approved"; got.Mine[0].Subtitle != want {
 		t.Errorf("Subtitle = %q, want %q", got.Mine[0].Subtitle, want)
 	}
 }

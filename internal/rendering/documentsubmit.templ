@@ -21,6 +21,17 @@ templ DocumentSubmitPage(users []*data.Record, appName string) {
 				<h2>Document</h2>
 				<label>Title<br/><input type="text" name="fld_title" required/></label>
 				<br/><br/>
+				<label>Document Type<br/>
+					<select name="fld_document_type" required>
+						<option value=""></option>
+						<option value="Contract">Contract</option>
+						<option value="SOP">SOP</option>
+						<option value="Policy">Policy</option>
+						<option value="Report">Report</option>
+						<option value="Other">Other</option>
+					</select>
+				</label>
+				<br/><br/>
 				<label>PDF file<br/><input type="file" name="fld_file" accept="application/pdf" required/></label>
 			</section>
 			<section>
