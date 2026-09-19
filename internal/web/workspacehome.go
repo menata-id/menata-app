@@ -19,7 +19,7 @@ import (
 // membership row is expected to be missing for the shared admin credential's placeholder identity
 // (it predates real Workspace membership entirely); that degrades to a blank role rather than an
 // error.
-func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
+func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, appName, homeRoute string, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
@@ -60,9 +60,18 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, a
 			}
 		}
 
+		// homeRoute is domain.Application.HomeRoute (Routes' own Deps.HomeRoute), resolved once at
+		// startup from metadata's home_card: true item -- never a literal here or in
+		// workspacehome.templ (internal/conformance's TestWorkspaceHomeHasNoHardcodedApplicationRoute
+		// holds this page to that). Empty when metadata declares no home_card item: "/home" is
+		// always a valid destination, never a guessed Application route.
+		if homeRoute == "" {
+			homeRoute = "/home"
+		}
+
 		render(ctx, w, rendering.WorkspaceHomePage(
 			ws.Name, appName, membership.WorkspaceRole, membership.AppRole, len(inbox.Pending),
-			composition.Initials(userName), composition.Initials(appName), switchHref,
+			composition.Initials(userName), composition.Initials(appName), switchHref, homeRoute,
 		))
 	}
 }

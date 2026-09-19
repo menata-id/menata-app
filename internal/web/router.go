@@ -39,6 +39,12 @@ type Deps struct {
 	// PrimaryNavGroup is domain.Application.PrimaryNavGroup -- see its own doc comment for why
 	// this travels alongside Navigation instead of being derived from it at render time.
 	PrimaryNavGroup string
+	// HomeRoute is domain.Application.HomeRoute, showWorkspaceHome's own source for its
+	// Application card's link -- decided from the full declared navigation before
+	// hidden_nav_groups runs, for the same reason PrimaryNavGroup is (see its own doc comment on
+	// domain.Application): deriving it from Navigation here instead would silently blank it out
+	// whenever the HomeCard item's own group is hidden.
+	HomeRoute string
 
 	// DefaultWorkspaceID is this manifest's own declared Workspace (metadata/app.yaml) --
 	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
@@ -113,7 +119,7 @@ func Routes(d Deps) http.Handler {
 		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Machines, d.Store))
 
 		pr.Get("/", showMachineList(d.MachineList, d.AppName))
-		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.AppName, d.Cfg))
+		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.AppName, d.HomeRoute, d.Cfg))
 		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
 		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))
 		pr.Get("/dashboard", showDashboard(d.Machines, d.Store, d.AppName))

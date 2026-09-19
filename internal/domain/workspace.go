@@ -27,4 +27,10 @@ type Application struct {
 	// ui-sample's own nav mockup shows hiding one Application's menu has zero effect on any
 	// other's). Empty when the declared navigation has no named group at all.
 	PrimaryNavGroup string
+	// HomeRoute is HomeCardRoute's result over the full declared navigation, decided at the same
+	// point and for the same reason as PrimaryNavGroup: before hidden_nav_groups filtering runs,
+	// so hiding the HomeCard item's own group can't silently blank it out. Empty when no
+	// navigation item declares home_card: true -- WorkspaceHomePage's own caller
+	// (internal/web/workspacehome.go) falls back to "/home" in that case.
+	HomeRoute string
 }

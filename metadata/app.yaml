@@ -38,6 +38,9 @@ application:
       group: Document Approval
       priority: 1
       badge: approval_inbox_pending
+      # home_card: this is the one item Workspace Home's own Application card links to
+      # (rendering.WorkspaceHomePage) -- at most one item may set it (validated at load time).
+      home_card: true
     - id: nav_new_approval
       label: New Approval
       route: /documents/new

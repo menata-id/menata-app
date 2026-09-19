@@ -52,6 +52,7 @@ type navItemDoc struct {
 	Group    string `yaml:"group"`
 	Priority int    `yaml:"priority"`
 	Badge    string `yaml:"badge"`
+	HomeCard bool   `yaml:"home_card"`
 }
 
 // LoadApplication reads an Application manifest and every Machine file it references (paths
@@ -91,15 +92,17 @@ func LoadApplication(path string) (*App, error) {
 			Group:    n.Group,
 			Priority: n.Priority,
 			Badge:    n.Badge,
+			HomeCard: n.HomeCard,
 		})
 	}
 	if navIssues := validateNavigation(navigation); len(navIssues) > 0 {
 		return nil, &ValidationError{Issues: navIssues}
 	}
 
-	// primaryNavGroup is decided from the full declared list, before hidden_nav_groups removes
-	// anything -- so hiding a group can never promote a different one into its "always open"
-	// role (see domain.Application.PrimaryNavGroup).
+	// primaryNavGroup and homeRoute are both decided from the full declared list, before
+	// hidden_nav_groups removes anything -- so hiding a group can never promote a different one
+	// into primaryNavGroup's "always open" role, nor silently blank out homeRoute because its
+	// item's own group got hidden (see domain.Application.PrimaryNavGroup/HomeRoute).
 	var primaryNavGroup string
 	for _, g := range experience.GroupNavigation(navigation) {
 		if g.Label != "" {
@@ -107,6 +110,7 @@ func LoadApplication(path string) (*App, error) {
 			break
 		}
 	}
+	homeRoute := domain.HomeCardRoute(navigation)
 
 	navigation, hiddenIssues := applyHiddenNavGroups(navigation, doc.Application.HiddenNavGroups)
 	if len(hiddenIssues) > 0 {
@@ -116,7 +120,7 @@ func LoadApplication(path string) (*App, error) {
 	dir := filepath.Dir(path)
 	app := &App{
 		Workspace:   domain.Workspace{ID: doc.Workspace.ID, Name: doc.Workspace.Name},
-		Application: domain.Application{ID: doc.Application.ID, Name: doc.Application.Name, WorkspaceID: doc.Workspace.ID, Navigation: navigation, PrimaryNavGroup: primaryNavGroup},
+		Application: domain.Application{ID: doc.Application.ID, Name: doc.Application.Name, WorkspaceID: doc.Workspace.ID, Navigation: navigation, PrimaryNavGroup: primaryNavGroup, HomeRoute: homeRoute},
 	}
 	for _, rel := range doc.Application.Machines {
 		m, err := Load(filepath.Join(dir, rel))

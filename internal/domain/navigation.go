@@ -40,4 +40,25 @@ type NavigationItem struct {
 	// Badge, if non-empty, must be one of KnownNavigationBadges -- the live count the runtime
 	// renders next to this item's label.
 	Badge string
+	// HomeCard marks the one navigation item Workspace Home's own Application card should link
+	// to (rendering.WorkspaceHomePage) -- at most one item across an Application's navigation may
+	// set this. It exists so that card's route comes from metadata (001 Principle #3 Metadata
+	// First, #8 Reference over Duplication) instead of being retyped as a literal in
+	// workspacehome.templ, which is exactly the drift internal/conformance's
+	// TestWorkspaceHomeHasNoHardcodedApplicationRoute now catches. No item marked: Workspace Home
+	// falls back to linking at itself ("/home"), never a guessed Application route.
+	HomeCard bool
+}
+
+// HomeCardRoute returns the route of items' one HomeCard item, or "" if none is marked --
+// internal/web/workspacehome.go's own caller decides the fallback ("/home"), since a sensible
+// default belongs with the handler that already knows "/home" always resolves, not duplicated
+// here.
+func HomeCardRoute(items []NavigationItem) string {
+	for _, item := range items {
+		if item.HomeCard {
+			return item.Route
+		}
+	}
+	return ""
 }

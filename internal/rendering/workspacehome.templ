@@ -9,8 +9,10 @@ import "fmt"
 // and appInitials are composition.Initials(...) computed by the caller (rendering can't import
 // composition -- it already imports rendering). switchHref is the mid-session Choose Workspace
 // link (showSwitchWorkspace) when the signed-in identity belongs to more than one Workspace, or
-// "" to hide the switcher -- there is nothing to switch to otherwise.
-templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, pendingCount int, userInitials, appInitials, switchHref string) {
+// "" to hide the switcher -- there is nothing to switch to otherwise. homeRoute is
+// domain.HomeCardRoute's result (internal/web/workspacehome.go), never a literal here -- see
+// internal/conformance's TestWorkspaceHomeHasNoHardcodedApplicationRoute.
+templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, pendingCount int, userInitials, appInitials, switchHref, homeRoute string) {
 	@workspaceHomeShell(userInitials) {
 		<div class="workspace-heading">
 			<div class="eyebrow-row">
@@ -23,7 +25,7 @@ templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, p
 			<p class="workspace-subtitle">Your applications, based on the roles assigned to you.</p>
 		</div>
 		<div class="summary-card-list">
-			<a href="/approval-inbox" class="summary-card">
+			<a href={ templ.SafeURL(homeRoute) } class="summary-card">
 				<span class="avatar">{ appInitials }</span>
 				<span class="summary-card-body">
 					<span class="summary-card-title">{ appName }</span>

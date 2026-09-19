@@ -363,6 +363,116 @@ application:
 	}
 }
 
+func TestLoadApplication_homeCardRoute(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+  navigation:
+    - id: nav_home
+      label: Home
+      route: /home
+    - id: nav_inbox
+      label: Approval Inbox
+      route: /approval-inbox
+      group: Document Approval
+      priority: 1
+      home_card: true
+`)
+
+	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	if app.Application.HomeRoute != "/approval-inbox" {
+		t.Errorf("HomeRoute = %q, want /approval-inbox", app.Application.HomeRoute)
+	}
+}
+
+func TestLoadApplication_homeCardRouteSurvivesHiddenNavGroup(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+  navigation:
+    - id: nav_home
+      label: Home
+      route: /home
+    - id: nav_inbox
+      label: Approval Inbox
+      route: /approval-inbox
+      group: Document Approval
+      priority: 1
+      home_card: true
+  hidden_nav_groups:
+    - Document Approval
+`)
+
+	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	// nav_inbox itself is gone from Navigation (Document Approval is hidden), but HomeRoute was
+	// frozen from the full declared order first -- rendering.WorkspaceHomePage's card must keep
+	// working even though this Application's own topbar no longer shows the item, the same
+	// contract PrimaryNavGroup already gives TestLoadApplication_hiddenNavGroupDropsItsItems.
+	if app.Application.HomeRoute != "/approval-inbox" {
+		t.Errorf("HomeRoute = %q, want /approval-inbox (frozen before hidden_nav_groups ran)", app.Application.HomeRoute)
+	}
+}
+
+func TestLoadApplication_duplicateHomeCardRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+  navigation:
+    - id: nav_inbox
+      label: Approval Inbox
+      route: /approval-inbox
+      home_card: true
+    - id: nav_board
+      label: Board
+      route: /board
+      home_card: true
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: at most one navigation item may set home_card")
+	}
+}
+
 func TestLoadApplication_navigationBadRouteRejected(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "task.yaml", `

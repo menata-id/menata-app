@@ -29,6 +29,7 @@ var (
 func validateNavigation(items []domain.NavigationItem) []string {
 	var issues []string
 	seen := make(map[string]bool, len(items))
+	homeCardID := ""
 	for _, n := range items {
 		if !navItemIDPattern.MatchString(n.ID) {
 			issues = append(issues, fmt.Sprintf("navigation item id %q must match %s", n.ID, navItemIDPattern.String()))
@@ -47,6 +48,12 @@ func validateNavigation(items []domain.NavigationItem) []string {
 		}
 		if n.Badge != "" && !domain.KnownNavigationBadges[n.Badge] {
 			issues = append(issues, fmt.Sprintf("navigation item %q: unknown badge %q", n.ID, n.Badge))
+		}
+		if n.HomeCard {
+			if homeCardID != "" {
+				issues = append(issues, fmt.Sprintf("navigation item %q: home_card is already set on %q -- at most one item may claim it", n.ID, homeCardID))
+			}
+			homeCardID = n.ID
 		}
 	}
 	return issues
