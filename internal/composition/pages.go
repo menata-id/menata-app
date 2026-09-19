@@ -389,9 +389,9 @@ func recentEvents(ctx context.Context, l *Loader, limit int) ([]*data.Record, ma
 	return events, names, nil
 }
 
-// AutomationRules describes this Application's real Constraint metadata and Action behavior as
-// Trigger/Condition/Action rows (ROADMAP.md Phase 14) -- a read-only description of what already
-// exists, not a generic automation engine and not fictional example workflows.
+// AutomationRules describes this Application's real Constraint, Event, and Action metadata/
+// behavior as Trigger/Condition/Action rows (ROADMAP.md Phase 14) -- a read-only description of
+// what already exists, not a generic automation engine and not fictional example workflows.
 //
 // It composes over metadata alone and touches no records, so it takes the Machines directly
 // rather than a Loader.
@@ -411,6 +411,22 @@ func AutomationRules(machines []*domain.Machine) []rendering.AutomationRule {
 				Trigger:   fmt.Sprintf("%s's %s becomes %q", m.Name, onField.Name, c.WhenEquals),
 				Condition: fmt.Sprintf("a related %s (via its %s field) has %s %s %q", c.BlockIf.RelatedMachine, c.BlockIf.RelatedField, relatedFieldName, c.BlockIf.Condition.Op, c.BlockIf.Condition.Value),
 				Action:    "Block the transition (422)",
+			})
+		}
+	}
+
+	for _, m := range machines {
+		for _, e := range m.Events {
+			onField, _ := m.FieldByID(e.On)
+			trigger := fmt.Sprintf("%s's %s changes", m.Name, onField.Name)
+			if e.WhenEquals != "" {
+				trigger = fmt.Sprintf("%s's %s becomes %q", m.Name, onField.Name, e.WhenEquals)
+			}
+			rules = append(rules, rendering.AutomationRule{
+				Name:      e.ID,
+				Trigger:   trigger,
+				Condition: "(none)",
+				Action:    fmt.Sprintf("Run %s: %q", e.Then.Name, e.Then.Summary),
 			})
 		}
 	}

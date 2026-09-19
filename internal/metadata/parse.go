@@ -18,6 +18,7 @@ type machineDoc struct {
 	Name        string          `yaml:"name"`
 	Fields      []fieldDoc      `yaml:"fields"`
 	Constraints []constraintDoc `yaml:"constraints"`
+	Events      []eventDoc      `yaml:"events"`
 	Permissions []permissionDoc `yaml:"permissions"`
 	View        *viewDoc        `yaml:"view"`
 }
@@ -56,6 +57,19 @@ type constraintDoc struct {
 			Value string `yaml:"value"`
 		} `yaml:"condition"`
 	} `yaml:"block_if"`
+}
+
+// eventDoc is the YAML serialization of an Event, mirroring constraintDoc's own shape.
+type eventDoc struct {
+	ID         string `yaml:"id"`
+	On         string `yaml:"on"`
+	WhenEquals string `yaml:"when_equals"`
+	Then       struct {
+		Service             string `yaml:"service"`
+		Summary             string `yaml:"summary"`
+		SummaryOverrideWhen string `yaml:"summary_override_when"`
+		SummaryOverride     string `yaml:"summary_override"`
+	} `yaml:"then"`
 }
 
 // permissionDoc is the YAML serialization of a Permission (ROADMAP.md Phase 16).
@@ -116,6 +130,19 @@ func Parse(data []byte) (*domain.Machine, error) {
 					Op:    expression.Op(cd.BlockIf.Condition.Op),
 					Value: cd.BlockIf.Condition.Value,
 				},
+			},
+		})
+	}
+	for _, ed := range doc.Events {
+		m.Events = append(m.Events, domain.Event{
+			ID:         ed.ID,
+			On:         ed.On,
+			WhenEquals: ed.WhenEquals,
+			Then: domain.Service{
+				Name:                ed.Then.Service,
+				Summary:             ed.Then.Summary,
+				SummaryOverrideWhen: ed.Then.SummaryOverrideWhen,
+				SummaryOverride:     ed.Then.SummaryOverride,
 			},
 		})
 	}

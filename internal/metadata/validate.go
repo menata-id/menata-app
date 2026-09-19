@@ -16,6 +16,7 @@ var (
 	machineIDPattern    = regexp.MustCompile(`^mch_[a-z][a-z0-9_]*$`)
 	fieldIDPattern      = regexp.MustCompile(`^fld_[a-z][a-z0-9_]*$`)
 	constraintIDPattern = regexp.MustCompile(`^cst_[a-z][a-z0-9_]*$`)
+	eventIDPattern      = regexp.MustCompile(`^evt_[a-z][a-z0-9_]*$`)
 	permissionIDPattern = regexp.MustCompile(`^prm_[a-z][a-z0-9_]*$`)
 	navItemIDPattern    = regexp.MustCompile(`^nav_[a-z][a-z0-9_]*$`)
 )
@@ -154,6 +155,11 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateConstraint(m, c, fieldsByID)...)
 	}
 
+	seenEvents := make(map[string]bool, len(m.Events))
+	for _, e := range m.Events {
+		issues = append(issues, validateEvent(m, e, fieldsByID, seenEvents)...)
+	}
+
 	seenPermissions := make(map[string]bool, len(m.Permissions))
 	for _, p := range m.Permissions {
 		issues = append(issues, validatePermission(m, p, fieldsByID, seenPermissions)...)
@@ -217,6 +223,42 @@ func validateConstraint(m *domain.Machine, c domain.Constraint, fieldsByID map[s
 	}
 	if c.BlockIf.Condition.Value == "" {
 		issues = append(issues, fmt.Sprintf("constraint %q: block_if.condition.value is required", c.ID))
+	}
+
+	return issues
+}
+
+// validateEvent checks one Event's own shape, mirroring validateConstraint: everything it needs
+// is on the Machine itself, so there is no cross-Machine pass the way Constraint's block_if
+// needs. Unlike Constraint's when_equals, Event's WhenEquals is optional -- empty means "any
+// change fires it," a deliberate difference (Constraint gates a specific transition; Event
+// merely observes one).
+func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field, seen map[string]bool) []string {
+	var issues []string
+
+	if !eventIDPattern.MatchString(e.ID) {
+		issues = append(issues, fmt.Sprintf("event id %q must match %s", e.ID, eventIDPattern.String()))
+	}
+	if seen[e.ID] {
+		issues = append(issues, fmt.Sprintf("event id %q is declared more than once", e.ID))
+	}
+	seen[e.ID] = true
+
+	onField, onExists := fieldsByID[e.On]
+	if !onExists {
+		issues = append(issues, fmt.Sprintf("event %q: on %q is not a field of machine %q", e.ID, e.On, m.ID))
+	} else if e.WhenEquals != "" && onField.Type == domain.FieldTypeStatus && !contains(onField.Options, e.WhenEquals) {
+		issues = append(issues, fmt.Sprintf("event %q: when_equals %q is not one of field %q's options %v", e.ID, e.WhenEquals, e.On, onField.Options))
+	}
+
+	if !domain.KnownServices[e.Then.Name] {
+		issues = append(issues, fmt.Sprintf("event %q: then.service %q is not a service this runtime realizes", e.ID, e.Then.Name))
+	}
+	if e.Then.Summary == "" {
+		issues = append(issues, fmt.Sprintf("event %q: then.summary is required", e.ID))
+	}
+	if (e.Then.SummaryOverrideWhen == "") != (e.Then.SummaryOverride == "") {
+		issues = append(issues, fmt.Sprintf("event %q: then.summary_override_when and then.summary_override must be set together or not at all", e.ID))
 	}
 
 	return issues

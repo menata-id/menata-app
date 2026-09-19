@@ -181,16 +181,16 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			return
 		}
 
-		// Case 19's Project Activity feed wants Task status moves as their own event (ROADMAP.md
-		// Phase 14) -- the old status has to be read before the write replaces it.
-		oldTaskStatus := currentTaskStatus(req, store, machine, id)
+		// oldValues has to be read before the write replaces it, so any declared Event
+		// (domain.Machine.Events) can compare what changed once the write succeeds.
+		oldValues := eventOldValues(req, store, machine, id)
 
 		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		logTaskStatusMove(req, store, machine, record, actor, oldTaskStatus)
+		runEvents(req.Context(), store, machine, record, actor, oldValues)
 
 		renderRecord(w, req, machines, store, files, machine, record, actor)
 	}
@@ -285,36 +285,6 @@ func passesWriteGuards(w http.ResponseWriter, req *http.Request, store *data.Sto
 		return false
 	}
 	return true
-}
-
-// currentTaskStatus reads a Task's status before the write. A read failure yields "", which
-// simply means the status-move event is not logged -- never a reason to fail the edit itself.
-func currentTaskStatus(req *http.Request, store *data.Store, machine *domain.Machine, id string) string {
-	if machine.ID != taskMachineID {
-		return ""
-	}
-	existing, err := store.GetRecord(req.Context(), machine.ID, id)
-	if err != nil {
-		return ""
-	}
-	return toDisplayString(existing.Values["fld_status"])
-}
-
-// logTaskStatusMove appends the Project Activity event for a Task that changed status.
-func logTaskStatusMove(req *http.Request, store *data.Store, machine *domain.Machine, record *data.Record, actor, oldStatus string) {
-	if machine.ID != taskMachineID {
-		return
-	}
-	newStatus := toDisplayString(record.Values["fld_status"])
-	if newStatus == "" || newStatus == oldStatus {
-		return
-	}
-	title := recordLabel(machine, record)
-	summary := fmt.Sprintf("%q moved from %s to %s", title, oldStatus, newStatus)
-	if newStatus == "done" {
-		summary = fmt.Sprintf("%q completed", title)
-	}
-	logActivity(req.Context(), store, machine.ID, record.ID, actor, summary)
 }
 
 // renderRecord re-renders one record after a write, as the detail view or as a table/board row

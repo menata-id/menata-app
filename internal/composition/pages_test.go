@@ -304,6 +304,38 @@ func TestAutomationRules_DescribesRealConstraints(t *testing.T) {
 	}
 }
 
+func TestAutomationRules_DescribesRealEvents(t *testing.T) {
+	machines := []*domain.Machine{
+		{
+			ID:   "mch_task",
+			Name: "Task",
+			Fields: []domain.Field{
+				{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus},
+			},
+			Events: []domain.Event{{
+				ID: "evt_task_status_changed",
+				On: "fld_status",
+				Then: domain.Service{
+					Name:    domain.ServiceLogActivity,
+					Summary: "moved from {old} to {new}",
+				},
+			}},
+		},
+	}
+
+	rules := AutomationRules(machines)
+
+	if len(rules) != 2 {
+		t.Fatalf("want one derived rule plus the appended sequencing rule, got %d", len(rules))
+	}
+	if rules[0].Name != "evt_task_status_changed" {
+		t.Errorf("Name = %q", rules[0].Name)
+	}
+	if want := "Task's Status changes"; rules[0].Trigger != want {
+		t.Errorf("Trigger = %q, want %q (no when_equals declared, so it's any change)", rules[0].Trigger, want)
+	}
+}
+
 // An Application with no Constraints still describes the sequencing rule, so the page is never
 // blank.
 func TestAutomationRules_AlwaysIncludesSequencing(t *testing.T) {

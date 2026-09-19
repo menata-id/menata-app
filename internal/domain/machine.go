@@ -93,6 +93,53 @@ type RelationBlock struct {
 	Condition      expression.Comparison
 }
 
+// Event identifies something that already happened on a write and may run one declared runtime
+// Service in response (006-runtime-model.md "Event"/"Service"; Behavioral Model:
+// Event -> Action -> Permission/Constraint -> Service/Data operation -> State change/Event).
+//
+// Supports exactly one shape, mirroring Constraint's own discipline: On names a Field on this
+// Machine; the Event fires after a successful update whose new value for that Field differs from
+// the old one, optionally narrowed to one target value (WhenEquals -- empty means "any change").
+// Record creation and schedule/time-based triggers (the shapes the other known hardcoded
+// "write happened, run a side effect" cases would actually need -- record-created Activity
+// logging, SLA-breach detection) are deliberately not built until a second real case needs them:
+// generalize on a second real case, never assumed ahead of it.
+type Event struct {
+	ID         string
+	On         string
+	WhenEquals string
+	Then       Service
+}
+
+// Service is one closed, runtime-owned side effect an Event may trigger (006-runtime-model.md:
+// "Service implementation belongs to the runtime") -- a static seam (007 §14), the same
+// discipline KnownActions/expression.KnownOps already established, not dynamic dispatch or a
+// scripting mechanism.
+//
+// Summary is svc_log_activity's own message template -- {old}, {new}, and any Field id in braces
+// are its only placeholders (deliberately not a general templating language, the same minimalism
+// expression.Comparison already established for Constraint's own condition vocabulary).
+// SummaryOverride/SummaryOverrideWhen express one real case (Task status moving to "done" reads
+// "completed", not "moved from X to Y") needing a second, value-specific wording without
+// generalizing to arbitrary conditional branching: at most one override, selected only when the
+// new value equals SummaryOverrideWhen.
+type Service struct {
+	Name                string
+	Summary             string
+	SummaryOverrideWhen string
+	SummaryOverride     string
+}
+
+// ServiceLogActivity is the one Service KnownServices realizes today: append an mch_activity
+// record (internal/web's logActivity).
+const ServiceLogActivity = "log_activity"
+
+// KnownServices is the closed set of Service names a Service.Name may name, the same static-seam
+// discipline KnownActions already established for Action.
+var KnownServices = map[string]bool{
+	ServiceLogActivity: true,
+}
+
 // Machine is the primary runtime realization unit for a business capability
 // (006-runtime-model.md "Machine").
 type Machine struct {
@@ -100,6 +147,7 @@ type Machine struct {
 	Name        string
 	Fields      []Field
 	Constraints []Constraint
+	Events      []Event
 	Permissions []Permission
 	View        View
 }

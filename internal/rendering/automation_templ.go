@@ -10,10 +10,10 @@ import templruntime "github.com/a-h/templ/runtime"
 
 // AutomationRule is one real, already-running rule shown on the Workflow Automation page
 // (ROADMAP.md Phase 14, project-automation.html), expressed as Trigger -> Condition -> Action to
-// match that mockup's own framing -- but populated from this app's actual Constraint metadata and
-// Action behavior, not fictional example workflows. There is no generic automation engine here
-// (006's Behavioral Model has more shapes than Phase 4's Constraint and Phase 12's Action alone);
-// this page is a read-only description of the two real mechanisms that exist, not a builder.
+// match that mockup's own framing -- but populated from this app's actual Constraint, Event, and
+// Action metadata/behavior, not fictional example workflows. There is no generic automation
+// engine here (006's Behavioral Model has more shapes than these three alone); this page is a
+// read-only description of the real mechanisms that exist, not a builder.
 type AutomationRule struct {
 	Name      string
 	Trigger   string

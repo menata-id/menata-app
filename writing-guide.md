@@ -270,25 +270,38 @@ the handler checks the Machine id and does nothing for any Machine other than
 give it an approval workflow — it declares a Permission the runtime cannot actually invoke for
 that Machine.
 
-**What a Permission *can* do today:** gate the one real Action, for the one real Machine pair,
-record-scoped to a `person`/`relation` field on that same record:
+**What a Permission *can* do today:** gate `decide` (still one real Machine pair only), or gate
+`edit`/`delete` on the generic update/delete routes — **for any Machine, not just
+`mch_approval_step`** (generalized 2026-09-19, once `edit`/`delete` proved they needed the exact
+same record-scoped shape `decide` already had) — record-scoped to a `person`/`relation` field on
+that same record:
 
 ```yaml
-# The real shipped shape, unchanged -- do not adapt this to a new Machine expecting it to work
 permissions:
-  - id: prm_decide_own_step
+  - id: prm_decide_own_step   # mch_approval_step only -- decide is still hardcoded to it, see above
     action: decide
+    actor_field: fld_assignee
+  - id: prm_edit_own_step     # any Machine: only the record's own fld_assignee may edit/delete it
+    action: edit
+    actor_field: fld_assignee
+  - id: prm_delete_own_step
+    action: delete
     actor_field: fld_assignee
 ```
 
 `actor_field` must name a field on the same Machine that is itself a reference (`person` or
 `relation`) — a Permission whose actor can never be resolved would silently protect nothing.
+`edit`/`delete` are enforced both server-side (`allowsRecordEdit`/`deleteAllowed`,
+`internal/web/record.go`, and the JSON `/api` twins) and client-side (Edit/Delete buttons hide
+themselves when `authorization.AllowsAction` would refuse them, the same way `decide`'s own
+Approve/Reject buttons already did) — declaring the Permission is enough; no handler code is
+needed for a new Machine the way `decide` still requires.
 
 **What every Machine gets for free regardless, with no Permission declared at all:** any
 authenticated member of the Workspace can create, edit, and delete its records through the
-generic routes. There is no per-Field or general per-Machine CRUD permission mechanism yet (see
-"What this can't do yet" below) — if your business process needs "only the owner can edit this,"
-that is not expressible in metadata today.
+generic routes — declaring no Permission means unrestricted, not "nobody can." There is still no
+per-Field permission (see "What this can't do yet" below), and record creation has no Permission
+of its own yet (there is no existing record to match an `actor_field` against at that point).
 
 ## 9. Constraints: simple cross-record rules
 
@@ -321,7 +334,47 @@ is loaded (`block_if.related_machine` must be a real Machine; `block_if.related_
 field on *that* Machine, and it must itself be a `relation` pointing back at *this* Machine — a
 condition can only identify related records through a real reverse link, never a guess).
 
-## 10. Field defaults
+## 10. Events: declarative post-write triggers
+
+An Event fires a runtime Service after a field's value changes on a successful update —
+`006-runtime-model.md`'s Behavioral Model chain, `Event → Action → Permission/Constraint →
+Service/Data operation → State change`, realized for the first time 2026-09-19 (until then this
+shape only existed as hand-written Go, repeated at every call site that needed it). Real shipped
+example, `metadata/task.yaml` — log an Activity row whenever a Task's own status changes:
+
+```yaml
+events:
+  - id: evt_task_status_changed
+    on: fld_status
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" moved from {old} to {new}"
+      summary_override_when: done
+      summary_override: "\"{fld_title}\" completed"
+```
+
+Read as: whenever `fld_status`'s new value differs from its old one, run `log_activity` with
+`summary` filled in — unless the new value equals `summary_override_when`, in which case
+`summary_override` is used instead. `{old}`/`{new}` are the triggering field's own before/after
+values; any other `{field_id}` in braces is that field's current (post-write) value. This
+placeholder substitution is deliberately not a general templating language — the same minimalism
+`internal/expression`'s `equals`/`not_equals` vocabulary already established for Constraint.
+
+Two things this is *not*: leaving `when_equals` off (the field above doesn't set one) means "any
+change fires it" — unlike Constraint, where `when_equals` is required, because a Constraint gates
+one specific transition while an Event merely observes one. And `summary_override`/
+`summary_override_when` support **at most one** override, not arbitrary per-value branching —
+if your wording needs more than "a default, and one exception," that's not expressible here yet.
+
+`service: log_activity` is the one Service this runtime realizes today
+(`internal/domain.KnownServices`) — the same closed-set discipline `action:` uses for Permission.
+There is no way to declare a new Service purely in YAML, the same limit §8 already describes for
+Action. Two triggers this deliberately doesn't support yet, because no second real case has
+needed them: firing on record *creation*, and firing on a schedule/time threshold (the shape SLA-
+breach detection would actually want, still hardcoded and read-triggered — see
+`internal/composition/approval.go`).
+
+## 11. Field defaults
 
 `default:` fills a field when a new record leaves it empty — create only, never re-applied on
 update, and never overrides a value actually submitted:
@@ -346,19 +399,21 @@ similar-looking metadata for a *different* Machine does not activate it.
 
 | Generic (any Machine, metadata only) | Hardcoded to specific Machines (real Go code required for a new one) |
 |---|---|
-| CRUD screens + JSON API, table and board views | The `decide` Action, and everything permission-gated behind it |
+| CRUD screens + JSON API, table and board views | The `decide` Action, and everything hardcoded to `mch_document`/`mch_approval_step` behind it |
 | Relations, `person`, child collections, many-to-many | Document submission wizard |
 | Constraints (`equals`/`not_equals` shape) | Signature-coordinate placement screen |
-| Field defaults | PDF signature compositing |
-| SLA badges (`view.sla_field`) | Approval progress stepper UI |
+| Events (post-write field-change → one Service) | PDF signature compositing |
+| Record-scoped `edit`/`delete` Permission (any Machine) | Approval progress stepper UI |
+| Field defaults | SLA-breach detection (still read-triggered, not a real Event yet) |
+| SLA badges (`view.sla_field`) | Record-created Activity logging (per-Machine wording, `internal/web`'s `logRecordCreated`) |
 | Workspace scoping, session-auth gating | Composed screens: Dashboard, Approval Inbox, My Tasks, Sprint Dashboard, Calendar, Team Capacity, Automation, Board Settings |
 
 If what you're building is a new data model with CRUD, relations, a board or table view, a
-same-shape cross-record rule, and defaults — the left column is genuinely enough, no engineer
-needed. If it needs a custom multi-step business action, a bespoke composed page, or per-Field/
-per-Machine permission beyond the one shape in §8, that is real feature work today, not a metadata
-exercise — say so plainly rather than guessing at YAML that will fail validation or silently do
-nothing.
+same-shape cross-record rule, a field-change side effect, and defaults — the left column is
+genuinely enough, no engineer needed. If it needs a custom multi-step business action, a bespoke
+composed page, or something Events/Permissions' one shape each can't express (§§8-10), that is
+real feature work today, not a metadata exercise — say so plainly rather than guessing at YAML
+that will fail validation or silently do nothing.
 
 ## What this can't do yet
 
@@ -368,9 +423,10 @@ Honest current limits, not a roadmap — some of these may change over time:
   to matter for a new business process.
 - **No field-level permissions.** Access control today is per-Machine and per-Action at best; you
   cannot hide or lock one Field from one role while leaving the rest editable.
-- **No general Machine-level CRUD permission.** Any authenticated member of a Workspace can edit
-  or delete most records in it; only one narrow hardcoded exception exists (blocking deletion of
-  a decided Approval Step or a Document with any decision on it).
+- **Events fire on a field change only — not on create, and not on a schedule.** See §10. A new
+  record's own Activity-log wording, and SLA-breach detection, are still hardcoded Go for exactly
+  that reason.
+- **An Event's wording supports at most one override**, not arbitrary per-value branching (§10).
 - **Reads are whole-Machine.** There's no filtering, projection or pagination pushed to the
   database — a page fetches a Machine's full record set and reduces it in application code. This
   is fine well past ten thousand records in one Machine, and becomes a real cost somewhere between

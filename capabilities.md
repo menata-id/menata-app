@@ -43,12 +43,13 @@ need one; not built.
 | Many-to-many | A join Machine with two Relation fields — not a new field type or storage shape | Built | `mch_card_label` (`fld_task` + `fld_label`) |
 | Child Collection | Reverse-relation display: every record of another Machine whose field points at this one, shown on the detail page | Built | `internal/domain.FindChildCollections`; a Project's detail page shows its own Tasks |
 | Constraint | Blocks a field transition while a related Machine has a matching record | Built (one shape) | `mch_project`'s `cst_project_done_no_open_tasks` |
+| Event | Declarative post-write trigger: a Field's value changing (optionally to one target value) runs a closed, runtime-owned Service | Built (one shape) | `mch_task`'s `evt_task_status_changed`, `domain.Event`/`domain.Service`, `behavior.MatchedEvents` (pure decision), `internal/web`'s `runEvents` (I/O dispatch) — replaces what was hardcoded Task-only Go (`currentTaskStatus`/`logTaskStatusMove`) as the first proof of 006's Behavioral Model chain (`Event → Action → Permission/Constraint → Service/Data operation`). The one Service realized today is `svc_log_activity` (`domain.KnownServices`) |
 | Action | A named business operation beyond a plain field write, with cross-record side effects | Built (one shape, hardcoded) | `POST .../decide` — Approve/Reject, `internal/action`; the closed set is `domain.KnownActions` |
 | Permission | Record-scoped authorization on an Action: the acting identity must be the value of a declared `actor_field` | Built (one shape, governs `decide`/`edit`/`delete`) | `mch_approval_step`'s `prm_decide_own_step`/`prm_edit_own_step`/`prm_delete_own_step`, `authorization.AllowsAction` |
 | Ordered Lists | A Machine's records used as a board's real, renameable, reorderable columns (replaces a fixed status enum) | Built | `mch_list`, grouping `mch_task`'s board |
 | Sort order | Explicit per-Machine ordering (`sort_order` column), assigned at create time | Built | Every Machine — `internal/data.Store.CreateRecord` |
 | SLA badge | A `view.sla_field` date Field rendered as OVERDUE / "N day(s) left" instead of a plain date | Built | `mch_document`'s `fld_due_date`, `internal/experience.EvaluateSLA` |
-| Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `internal/web`'s `logActivity` — Document submission/decision, Task/Project creation, Task status moves, SLA breach (`internal/composition`) |
+| Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `internal/web`'s `logActivity` — Document submission/decision, Task/Project creation, SLA breach (`internal/composition`), and (2026-09-19, no longer hardcoded) Task status moves via the declared `evt_task_status_changed` Event above |
 | Field default value | A Field's declared `default:` fills in a value a create leaves empty (absent, nil, or `""`) — create-only, never re-applied on update | Built | `mch_task.fld_status: default: todo`; `domain.Field.Default`, `data.ApplyDefaults`, called from every create path |
 | Workspace scoping | `records.workspace_id`, carried on `context.Context` (not a `Store` struct field, which was tried and reverted for leaking data across a per-request scope) and enforced on every read/write; a tampered `workspace_id` is rejected | Built | `data.WithWorkspaceScope`, `migrations/004_workspaces.sql`. Still single-Application per Workspace; Application plurality is not yet built |
 
@@ -177,7 +178,7 @@ mockups show and this app does not build yet is tracked internally.
 
 | Rule | Scope | Enforced by |
 |---|---|---|
-| Stable-identity ID patterns (`mch_*`, `fld_*`, `cst_*`, `prm_*`, `ws_*`, `app_*`) | Every declaration | `internal/metadata.Validate`/`validateConstraint`/`validatePermission` |
+| Stable-identity ID patterns (`mch_*`, `fld_*`, `cst_*`, `evt_*`, `prm_*`, `ws_*`, `app_*`) | Every declaration | `internal/metadata.Validate`/`validateConstraint`/`validateEvent`/`validatePermission` |
 | Permission's `action` is one the runtime realizes, `actor_field` is a reference Field on the same Machine, no duplicate permission IDs | Per-Machine | `internal/metadata.validatePermission` |
 | Known field type, no duplicate field IDs | Per-Machine | `internal/metadata.Validate` |
 | `status` field requires at least one option | Per-Machine | `internal/metadata.Validate` |

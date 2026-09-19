@@ -32,6 +32,23 @@ fields:
     name: Attachment
     type: file
 
+# A Task's own status move gets logged to the Project Activity feed (ROADMAP.md Phase 14),
+# generalized here (2026-09-19) from what used to be hardcoded Go (internal/web's
+# currentTaskStatus/logTaskStatusMove) into the first real declared Event -- the second known
+# "write happened, log it" case (alongside record-created logging and the Document-approval
+# decide cascade) that justified building the primitive at all (007 §4.1 Composition over
+# Specialization). summary_override_when/summary_override reproduce the old code's one wording
+# exception (moving to "done" reads "completed", not "moved from X to Y") without generalizing
+# Service.Summary into a full templating language.
+events:
+  - id: evt_task_status_changed
+    on: fld_status
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" moved from {old} to {new}"
+      summary_override_when: done
+      summary_override: "\"{fld_title}\" completed"
+
 view:
   layout: board
   group_by: fld_list

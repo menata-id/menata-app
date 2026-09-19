@@ -8,10 +8,12 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/a-h/templ"
 
 	"menata.app/internal/action"
+	"menata.app/internal/behavior"
 	"menata.app/internal/composition"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -115,11 +117,49 @@ func logRecordCreated(ctx context.Context, store *data.Store, machine *domain.Ma
 // a real PDF or a handful of images, small enough that a malicious upload can't exhaust disk.
 const maxUploadBytes = 20 << 20 // 20MB
 
-// taskMachineID is the one Machine this package still names directly: the record-update route
-// logs a Task's status move as a Project Activity event (ROADMAP.md Phase 14), which is a rule
-// about that specific Machine and has no home in generic transport code. Case 3's own ids live
-// in internal/action for the same reason.
-const taskMachineID = "mch_task"
+// eventOldValues fetches a record's pre-write values, but only when machine actually declares an
+// Event -- the same fast-path allowsRecordEdit already takes for edit Permission, avoiding the
+// extra query for the overwhelming majority of writes that declare none.
+func eventOldValues(req *http.Request, store *data.Store, machine *domain.Machine, id string) map[string]any {
+	if len(machine.Events) == 0 {
+		return nil
+	}
+	existing, err := store.GetRecord(req.Context(), machine.ID, id)
+	if err != nil {
+		// A read failure just means the Event isn't logged, never a reason to fail the edit --
+		// the same posture the Task-status-move rule this generalizes always took.
+		return nil
+	}
+	return existing.Values
+}
+
+// runEvents performs the I/O half of every domain.Event MatchedEvents returns for this write --
+// currently exactly one Service, ServiceLogActivity, with the same best-effort posture
+// logActivity already has (a failure is logged, never allowed to fail the write it's describing).
+func runEvents(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, actorID string, oldValues map[string]any) {
+	for _, e := range behavior.MatchedEvents(machine, oldValues, record.Values) {
+		if e.Then.Name == domain.ServiceLogActivity {
+			logActivity(ctx, store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, oldValues, record.Values))
+		}
+	}
+}
+
+// renderEventSummary fills a Service's own message template -- {old}, {new}, and any Field id in
+// braces are its only placeholders, deliberately not a general templating language (the same
+// minimalism expression.Comparison already established for Constraint's own condition
+// vocabulary). SummaryOverride is used instead of Summary when the Event's own Field just became
+// SummaryOverrideWhen.
+func renderEventSummary(e domain.Event, m *domain.Machine, oldValues, newValues map[string]any) string {
+	tmpl := e.Then.Summary
+	if e.Then.SummaryOverrideWhen != "" && fmt.Sprint(newValues[e.On]) == e.Then.SummaryOverrideWhen {
+		tmpl = e.Then.SummaryOverride
+	}
+	tmpl = strings.NewReplacer("{old}", toDisplayString(oldValues[e.On]), "{new}", toDisplayString(newValues[e.On])).Replace(tmpl)
+	for _, f := range m.Fields {
+		tmpl = strings.ReplaceAll(tmpl, "{"+f.ID+"}", toDisplayString(newValues[f.ID]))
+	}
+	return tmpl
+}
 
 // redirectTo sends the visitor to url, the way the caller asked to be sent. HTMX swaps a fragment
 // into the current page and would otherwise follow a 303 and swap a whole document into it, so it

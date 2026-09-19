@@ -142,6 +142,96 @@ func TestValidate_constraintUnknownOp(t *testing.T) {
 	assertIssue(t, m, "is not a known operator")
 }
 
+func validEvent() domain.Event {
+	return domain.Event{
+		ID: "evt_task_status_changed",
+		On: "fld_status",
+		Then: domain.Service{
+			Name:    domain.ServiceLogActivity,
+			Summary: "moved from {old} to {new}",
+		},
+	}
+}
+
+func TestValidate_eventValid(t *testing.T) {
+	m := validMachine()
+	m.Events = []domain.Event{validEvent()}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_eventBadID(t *testing.T) {
+	m := validMachine()
+	e := validEvent()
+	e.ID = "status_changed"
+	m.Events = []domain.Event{e}
+	assertIssue(t, m, "event id")
+}
+
+func TestValidate_eventDuplicateID(t *testing.T) {
+	m := validMachine()
+	m.Events = []domain.Event{validEvent(), validEvent()}
+	assertIssue(t, m, "declared more than once")
+}
+
+func TestValidate_eventOnUnknownField(t *testing.T) {
+	m := validMachine()
+	e := validEvent()
+	e.On = "fld_ghost"
+	m.Events = []domain.Event{e}
+	assertIssue(t, m, "is not a field of machine")
+}
+
+func TestValidate_eventWhenEqualsOptional(t *testing.T) {
+	m := validMachine()
+	e := validEvent() // WhenEquals left empty -- "any change fires it"
+	m.Events = []domain.Event{e}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil: when_equals is optional for an Event", err)
+	}
+}
+
+func TestValidate_eventWhenEqualsNotAnOption(t *testing.T) {
+	m := validMachine()
+	e := validEvent()
+	e.WhenEquals = "archived"
+	m.Events = []domain.Event{e}
+	assertIssue(t, m, "is not one of field")
+}
+
+func TestValidate_eventUnknownService(t *testing.T) {
+	m := validMachine()
+	e := validEvent()
+	e.Then.Name = "send_carrier_pigeon"
+	m.Events = []domain.Event{e}
+	assertIssue(t, m, "is not a service this runtime realizes")
+}
+
+func TestValidate_eventMissingSummary(t *testing.T) {
+	m := validMachine()
+	e := validEvent()
+	e.Then.Summary = ""
+	m.Events = []domain.Event{e}
+	assertIssue(t, m, "then.summary is required")
+}
+
+func TestValidate_eventSummaryOverrideWithoutWhen(t *testing.T) {
+	m := validMachine()
+	e := validEvent()
+	e.Then.SummaryOverride = "completed"
+	m.Events = []domain.Event{e}
+	assertIssue(t, m, "must be set together")
+}
+
+func TestValidate_eventSummaryOverrideWhenWithoutOverride(t *testing.T) {
+	m := validMachine()
+	e := validEvent()
+	e.Then.SummaryOverrideWhen = "done"
+	m.Events = []domain.Event{e}
+	assertIssue(t, m, "must be set together")
+}
+
 func TestValidate_viewDefaultsToTable(t *testing.T) {
 	m := validMachine() // no View set at all
 	if err := Validate(m); err != nil {
