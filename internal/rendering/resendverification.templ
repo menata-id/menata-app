@@ -1,0 +1,39 @@
+package rendering
+
+// ResendVerificationPage lets someone request a fresh verification link (ROADMAP.md Phase 21
+// round 2, Step D). message, when set, is the same generic confirmation regardless of whether the
+// email exists or needs verifying at all -- a different message per case would let this be used to
+// enumerate registered emails.
+templ ResendVerificationPage(message string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Resend verification · Menata App</title>
+			<style>
+				body { font-family: system-ui, -apple-system, sans-serif; max-width: 320px; margin: 6rem auto; padding: 0 1rem; color: #1a1a1a; }
+				h1 { font-size: 1.25rem; }
+				label { display: block; margin-top: 1rem; font-size: 0.85rem; color: #444; }
+				input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; margin-top: 0.25rem; }
+				button { margin-top: 1.5rem; width: 100%; padding: 0.6rem; border: none; border-radius: 4px; background: #3949ab; color: #fff; font-size: 0.95rem; cursor: pointer; }
+				.message { color: #1a1a1a; font-size: 0.85rem; margin-top: 1rem; }
+				.sign-in { margin-top: 1.25rem; font-size: 0.85rem; color: #444; text-align: center; }
+			</style>
+		</head>
+		<body>
+			<h1>Resend verification email</h1>
+			<form method="POST" action="/resend-verification">
+				<label>
+					Email
+					<input type="email" name="email" autofocus required/>
+				</label>
+				<button type="submit">Resend link</button>
+			</form>
+			if message != "" {
+				<p class="message">{ message }</p>
+			}
+			<p class="sign-in"><a href="/login">← Back to sign in</a></p>
+		</body>
+	</html>
+}

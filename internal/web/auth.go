@@ -18,8 +18,7 @@ func showLogin(w http.ResponseWriter, req *http.Request) {
 
 // submitLogin tries the shared admin credential first (unchanged since Phase 2, kept as a
 // bootstrap fallback per ROADMAP.md Phase 21's own design pass), then a real per-user credential
-// (Phase 21 Step 4). A real login naming more than one Workspace membership defers to Choose
-// Workspace rather than picking one; naming exactly one signs straight in.
+// (Phase 21 Step 4).
 func submitLogin(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if err := req.ParseForm(); err != nil {
@@ -35,61 +34,94 @@ func submitLogin(store *data.Store, cfg config.Config) http.HandlerFunc {
 			return
 		}
 
-		userID, chooseWorkspace, ok := authenticateMember(req.Context(), store, username, password)
-		if !ok {
+		email := normalizeEmail(username)
+		switch authenticateMember(req.Context(), store, email, password) {
+		case loginNeedsVerification:
+			w.WriteHeader(http.StatusUnauthorized)
+			render(req.Context(), w, rendering.LoginPage("Please verify your email before signing in -- check your inbox, or resend the link below."))
+			return
+		case loginRejected:
 			w.WriteHeader(http.StatusUnauthorized)
 			render(req.Context(), w, rendering.LoginPage("Invalid username or password"))
 			return
 		}
-		if chooseWorkspace {
-			authorization.SetPendingEmailCookie(w, cfg.SessionSecret, normalizeEmail(username), cfg.SecureCookies)
-			redirectTo(w, req, "/choose-workspace")
-			return
+		if err := completeLogin(w, req, cfg, store, email); err != nil {
+			serverError(w, err)
 		}
-		authorization.SetSessionCookie(w, cfg.SessionSecret, userID, cfg.SecureCookies)
-		redirectTo(w, req, "/home")
 	}
 }
 
-// authenticateMember verifies username/password against a real per-user credential. Exactly one
-// Workspace membership returns that membership's mch_user record id to sign in as directly; more
-// than one defers the choice to Choose Workspace (chooseWorkspace=true, userID="").
+type loginOutcome int
+
+const (
+	loginRejected loginOutcome = iota
+	loginOK
+	loginNeedsVerification
+)
+
+// authenticateMember verifies email/password against a real per-user credential.
 //
 // An invited email (ROADMAP.md Phase 21 Step 6) has a membership row but no credential yet -- this
 // app has no outbound-email infrastructure to drive a token-based invite flow, so the first
 // successful "login" attempt activates the account by setting the submitted password as its real
-// credential, rather than verifying one that was never issued. Named as a deliberate
-// simplification, not an oversight.
-func authenticateMember(ctx context.Context, store *data.Store, username, password string) (userID string, chooseWorkspace bool, ok bool) {
-	email := normalizeEmail(username)
+// credential, rather than verifying one that was never issued. That activated credential starts
+// EmailVerified=true immediately (a Workspace Admin already vouched for this specific email by
+// typing it in themselves, a different trust model than self-registration) -- named as a
+// deliberate simplification, not an oversight.
+//
+// A self-registered credential (round 2, Step D) starts EmailVerified=false and stays rejected
+// (loginNeedsVerification, a distinct outcome from a wrong password) until its own emailed link is
+// clicked.
+func authenticateMember(ctx context.Context, store *data.Store, email, password string) loginOutcome {
 	memberships, err := store.ListMemberships(ctx, email)
 	if err != nil || len(memberships) == 0 {
-		return "", false, false
+		return loginRejected
 	}
 
-	hash, err := store.GetCredential(ctx, email)
+	cred, err := store.GetCredential(ctx, email)
 	switch {
 	case errors.Is(err, data.ErrCredentialNotFound):
 		if len(password) < 8 {
-			return "", false, false
+			return loginRejected
 		}
 		newHash, hashErr := authorization.HashPassword(password)
 		if hashErr != nil {
-			return "", false, false
+			return loginRejected
 		}
-		if err := store.CreateCredential(ctx, email, newHash); err != nil {
-			return "", false, false
+		if err := store.CreateCredential(ctx, email, newHash, true); err != nil {
+			return loginRejected
 		}
+		return loginOK
 	case err != nil:
-		return "", false, false
-	case !authorization.VerifyPassword(password, hash):
-		return "", false, false
+		return loginRejected
+	case !authorization.VerifyPassword(password, cred.PasswordHash):
+		return loginRejected
+	case !cred.EmailVerified:
+		return loginNeedsVerification
 	}
+	return loginOK
+}
 
-	if len(memberships) > 1 {
-		return "", true, true
+// completeLogin signs an already-authenticated email into whichever Workspace(s) it belongs to --
+// exactly one signs in directly, more than one defers to Choose Workspace. Shared by submitLogin's
+// own per-user path, /verify-email, and Step E's /reset-password: each ends the same way once an
+// email is allowed in, so this is the one place that logic lives.
+func completeLogin(w http.ResponseWriter, req *http.Request, cfg config.Config, store *data.Store, email string) error {
+	memberships, err := store.ListMemberships(req.Context(), email)
+	if err != nil {
+		return err
 	}
-	return memberships[0].UserRecordID, false, true
+	switch len(memberships) {
+	case 0:
+		http.Error(w, "no workspace membership found for this account", http.StatusForbidden)
+	case 1:
+		authorization.SetSessionCookie(w, cfg.SessionSecret, memberships[0].UserRecordID, cfg.SecureCookies)
+		redirectTo(w, req, "/home")
+	default:
+		authorization.SetPendingEmailCookie(w, cfg.SessionSecret, email, cfg.SecureCookies)
+		redirectTo(w, req, "/choose-workspace")
+	}
+	return nil
 }
 
 func normalizeEmail(s string) string {

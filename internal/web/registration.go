@@ -11,6 +11,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 )
 
@@ -21,7 +22,13 @@ func showRegistration(w http.ResponseWriter, req *http.Request) {
 // submitRegistration is login.html's "Create a workspace" flow (ROADMAP.md Phase 21 Step 3):
 // registration *is* Workspace creation, not a separate signup into an existing one -- there is no
 // path here to a bare user account with nowhere to go.
-func submitRegistration(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+//
+// Blocking email verification (round 2, Step D): this does not sign the new admin in. Anyone could
+// otherwise register a workspace using an email they don't own and use the app immediately, which
+// is exactly the gap that made self-service password reset worth doing carefully -- proving email
+// ownership has to happen somewhere, and registration is the one place a brand-new, unverified
+// identity is created. `CheckYourEmailPage` is rendered instead of a redirect to /home.
+func submitRegistration(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if err := req.ParseForm(); err != nil {
 			http.Error(w, "invalid form body", http.StatusBadRequest)
@@ -52,14 +59,12 @@ func submitRegistration(machines map[string]*domain.Machine, store *data.Store, 
 			return
 		}
 
-		userID, err := registerWorkspace(req.Context(), store, workspaceName, email, password, values)
-		if err != nil {
+		if err := registerWorkspace(req.Context(), store, workspaceName, email, password, values); err != nil {
 			serverError(w, err)
 			return
 		}
-
-		authorization.SetSessionCookie(w, cfg.SessionSecret, userID, cfg.SecureCookies)
-		redirectTo(w, req, "/home")
+		sendVerificationEmail(req.Context(), mailer, cfg, email)
+		render(req.Context(), w, rendering.CheckYourEmailPage(email))
 	}
 }
 
@@ -80,31 +85,32 @@ func validateRegistration(workspaceName, email, password string) (string, bool) 
 	return "", true
 }
 
-// registerWorkspace creates the new Workspace, its first mch_user record, the login credential,
-// and the admin membership joining them -- one registration, four inserts (ROADMAP.md Phase 21
-// Step 3). Not wrapped in a transaction: a failure partway through is an operational anomaly to
-// clean up by hand (this app has no real users yet to affect), not a case an actual retry-safe
-// flow is forced by yet -- the same posture logActivity's own best-effort writes already take.
-func registerWorkspace(ctx context.Context, store *data.Store, workspaceName, email, password string, userValues map[string]any) (string, error) {
+// registerWorkspace creates the new Workspace, its first mch_user record, the login credential
+// (unverified -- see submitRegistration), and the admin membership joining them -- one
+// registration, four inserts (ROADMAP.md Phase 21 Step 3). Not wrapped in a transaction: a failure
+// partway through is an operational anomaly to clean up by hand (this app has no real users yet to
+// affect), not a case an actual retry-safe flow is forced by yet -- the same posture logActivity's
+// own best-effort writes already take.
+func registerWorkspace(ctx context.Context, store *data.Store, workspaceName, email, password string, userValues map[string]any) error {
 	hash, err := authorization.HashPassword(password)
 	if err != nil {
-		return "", fmt.Errorf("hash password: %w", err)
+		return fmt.Errorf("hash password: %w", err)
 	}
 	ws, err := store.CreateWorkspace(ctx, workspaceName, slugify(workspaceName))
 	if err != nil {
-		return "", err
+		return err
 	}
 	user, err := store.CreateRecord(data.WithWorkspaceScope(ctx, ws.ID), domain.UserMachineID, userValues)
 	if err != nil {
-		return "", err
+		return err
 	}
-	if err := store.CreateCredential(ctx, email, hash); err != nil {
-		return "", err
+	if err := store.CreateCredential(ctx, email, hash, false); err != nil {
+		return err
 	}
 	if err := store.AddMember(ctx, ws.ID, user.ID, email, "admin", ""); err != nil {
-		return "", err
+		return err
 	}
-	return user.ID, nil
+	return nil
 }
 
 // slugify turns a Workspace name into a URL/display-friendly slug: lowercase alphanumerics joined

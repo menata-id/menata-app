@@ -216,28 +216,53 @@ func (s *Store) DeleteRecord(ctx context.Context, machineID, id string) error {
 	return nil
 }
 
+// Credential is one login identity's stored password hash and verification state (ROADMAP.md
+// Phase 21 round 2, Step D) -- EmailVerified is false for a self-registered admin until they click
+// their emailed link, but true immediately for an invited member's own first-login activation
+// (Step 6), a deliberately different trust model since a Workspace Admin already vouches for that
+// specific email by typing it in themselves.
+type Credential struct {
+	Email         string
+	PasswordHash  string
+	EmailVerified bool
+}
+
 // CreateCredential stores a login credential's hashed password, keyed by email (ROADMAP.md
 // Phase 21 Step 1). Hashing is internal/authorization's job -- the store only persists whatever
-// hash it is given.
-func (s *Store) CreateCredential(ctx context.Context, email, passwordHash string) error {
+// hash it is given. emailVerified is set by the caller, not assumed: registration's own credential
+// starts unverified, an invite's activation starts verified.
+func (s *Store) CreateCredential(ctx context.Context, email, passwordHash string, emailVerified bool) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO credentials (email, password_hash) VALUES ($1, $2)
-	`, email, passwordHash)
+		INSERT INTO credentials (email, password_hash, email_verified) VALUES ($1, $2, $3)
+	`, email, passwordHash, emailVerified)
 	if err != nil {
 		return fmt.Errorf("create credential: %w", err)
 	}
 	return nil
 }
 
-// GetCredential returns the stored password hash for email, or ErrCredentialNotFound.
-func (s *Store) GetCredential(ctx context.Context, email string) (string, error) {
-	var hash string
-	err := s.pool.QueryRow(ctx, `SELECT password_hash FROM credentials WHERE email = $1`, email).Scan(&hash)
+// GetCredential returns the stored credential for email, or ErrCredentialNotFound.
+func (s *Store) GetCredential(ctx context.Context, email string) (*Credential, error) {
+	cred := &Credential{Email: email}
+	err := s.pool.QueryRow(ctx, `SELECT password_hash, email_verified FROM credentials WHERE email = $1`, email).Scan(&cred.PasswordHash, &cred.EmailVerified)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", ErrCredentialNotFound
+			return nil, ErrCredentialNotFound
 		}
-		return "", fmt.Errorf("get credential: %w", err)
+		return nil, fmt.Errorf("get credential: %w", err)
 	}
-	return hash, nil
+	return cred, nil
+}
+
+// MarkEmailVerified sets a credential's EmailVerified to true, once its owner has proven they
+// received the emailed link (ROADMAP.md Phase 21 round 2, Step D).
+func (s *Store) MarkEmailVerified(ctx context.Context, email string) error {
+	ct, err := s.pool.Exec(ctx, `UPDATE credentials SET email_verified = true WHERE email = $1`, email)
+	if err != nil {
+		return fmt.Errorf("mark email verified: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrCredentialNotFound
+	}
+	return nil
 }

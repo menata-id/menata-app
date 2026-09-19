@@ -253,7 +253,7 @@ func TestStore_CreateAndGetCredential(t *testing.T) {
 	// 3) -- an ordinary, unscoped context is correct here, unlike the record-scoped tests above.
 	ctx := context.Background()
 
-	if err := store.CreateCredential(ctx, email, "hashed-value"); err != nil {
+	if err := store.CreateCredential(ctx, email, "hashed-value", false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -261,8 +261,62 @@ func TestStore_CreateAndGetCredential(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetCredential: %v", err)
 	}
-	if got != "hashed-value" {
-		t.Errorf("GetCredential() = %q, want %q", got, "hashed-value")
+	if got.PasswordHash != "hashed-value" {
+		t.Errorf("GetCredential().PasswordHash = %q, want %q", got.PasswordHash, "hashed-value")
+	}
+	if got.EmailVerified {
+		t.Error("GetCredential().EmailVerified = true, want false (created unverified)")
+	}
+}
+
+func TestStore_CreateCredential_verified(t *testing.T) {
+	pool := storePool(t)
+	const email = "store_test_verified@example.com"
+	cleanupCredentialTest(t, pool, email)
+	store := NewStore(pool)
+	ctx := context.Background()
+
+	if err := store.CreateCredential(ctx, email, "hashed-value", true); err != nil {
+		t.Fatalf("CreateCredential: %v", err)
+	}
+	got, err := store.GetCredential(ctx, email)
+	if err != nil {
+		t.Fatalf("GetCredential: %v", err)
+	}
+	if !got.EmailVerified {
+		t.Error("GetCredential().EmailVerified = false, want true (created verified)")
+	}
+}
+
+func TestStore_MarkEmailVerified(t *testing.T) {
+	pool := storePool(t)
+	const email = "store_test_mark_verified@example.com"
+	cleanupCredentialTest(t, pool, email)
+	store := NewStore(pool)
+	ctx := context.Background()
+
+	if err := store.CreateCredential(ctx, email, "hashed-value", false); err != nil {
+		t.Fatalf("CreateCredential: %v", err)
+	}
+	if err := store.MarkEmailVerified(ctx, email); err != nil {
+		t.Fatalf("MarkEmailVerified: %v", err)
+	}
+	got, err := store.GetCredential(ctx, email)
+	if err != nil {
+		t.Fatalf("GetCredential: %v", err)
+	}
+	if !got.EmailVerified {
+		t.Error("GetCredential().EmailVerified = false after MarkEmailVerified, want true")
+	}
+}
+
+func TestStore_MarkEmailVerified_notFound(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+
+	err := store.MarkEmailVerified(context.Background(), "no-such-user@example.com")
+	if !errors.Is(err, ErrCredentialNotFound) {
+		t.Errorf("MarkEmailVerified(missing) error = %v, want ErrCredentialNotFound", err)
 	}
 }
 

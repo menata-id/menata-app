@@ -1,0 +1,30 @@
+package rendering
+
+// CheckYourEmailPage is shown right after registration instead of signing the new admin straight
+// in (ROADMAP.md Phase 21 round 2, Step D) -- the account exists but is unusable until its own
+// emailed verification link is clicked, which is what actually closes "anyone can register a
+// workspace with any email."
+templ CheckYourEmailPage(email string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Check your email · Menata App</title>
+			<style>
+				body { font-family: system-ui, -apple-system, sans-serif; max-width: 360px; margin: 5rem auto; padding: 0 1rem; color: #1a1a1a; text-align: center; }
+				h1 { font-size: 1.25rem; }
+				p { font-size: 0.9rem; color: #444; }
+				p.email { font-weight: 600; color: #1a1a1a; }
+				.resend { margin-top: 1.5rem; font-size: 0.85rem; }
+			</style>
+		</head>
+		<body>
+			<h1>Check your email</h1>
+			<p>We've sent a verification link to</p>
+			<p class="email">{ email }</p>
+			<p>Click it to finish setting up your workspace and sign in.</p>
+			<p class="resend">Didn't get it? <a href="/resend-verification">Resend the link</a></p>
+		</body>
+	</html>
+}

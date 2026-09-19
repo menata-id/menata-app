@@ -61,7 +61,7 @@ func TestStore_MembershipLifecycle(t *testing.T) {
 	}
 	cleanupWorkspaceTest(t, pool, ws.ID, email)
 
-	if err := store.CreateCredential(ctx, email, "hashed-value"); err != nil {
+	if err := store.CreateCredential(ctx, email, "hashed-value", false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 

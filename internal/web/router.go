@@ -66,7 +66,10 @@ func Routes(d Deps) http.Handler {
 	r.Get("/login", showLogin)
 	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))
 	r.Get("/register", showRegistration)
-	r.Post("/register", rateLimitRegistration(registrationLimiter, submitRegistration(d.Machines, d.Store, d.Cfg)))
+	r.Post("/register", rateLimitRegistration(registrationLimiter, submitRegistration(d.Machines, d.Store, d.Mailer, d.Cfg)))
+	r.Get("/verify-email", showVerifyEmail(d.Store, d.Cfg))
+	r.Get("/resend-verification", showResendVerification)
+	r.Post("/resend-verification", submitResendVerification(d.Store, d.Mailer, d.Cfg))
 	r.Get("/choose-workspace", showChooseWorkspace(d.Store, d.Cfg))
 	r.Post("/choose-workspace", submitChooseWorkspace(d.Store, d.Cfg))
 
