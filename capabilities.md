@@ -1,15 +1,13 @@
 # Capabilities
 
-What this runtime can actually do right now — one reference, kept current as each `ROADMAP.md`
-phase lands. This is a different job from the other two planning docs, on purpose:
+What this runtime can actually do right now — one reference, kept current as capability lands.
+This is a different job from the other planning doc, on purpose:
 
-- **`ROADMAP.md`** — why and when each phase was built (the forcing-condition history).
-- **`case-portfolio.md`** — what the two priority trial applications (Case 3, Case 19) still need.
-- **This document** — what exists, right now, regardless of which phase or case built it.
+- **`ROADMAP.md`** — what's shipped, in progress, and planned next, at a feature level.
+- **This document** — what exists, right now, in technical detail, regardless of when it landed.
 
-Update this alongside the phase that changes it; don't let it drift into a second history the
-way `ROADMAP.md` already is one — this file only ever describes the current state, never a
-changelog of how it got there.
+Update this alongside the change that affects it — this file only ever describes the current
+state, never a changelog of how it got there.
 
 ---
 
@@ -30,9 +28,9 @@ changelog of how it got there.
 Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not inferred from data
 (007 §14's static-registry seam).
 
-`text` is single-line: there is no multi-line, long-text or rich-text type. Case 19's Task Detail
-description block (`ui-sample/project-card.html`) is the first real thing that would need one —
-recorded in `ROADMAP.md`'s "UI mockup conformance gaps", not built.
+`text` is single-line: there is no multi-line, long-text or rich-text type yet — the Task Detail
+screen's description block (`ui-sample/project-card.html`) is the first real thing that would
+need one; not built.
 
 ---
 
@@ -50,9 +48,9 @@ recorded in `ROADMAP.md`'s "UI mockup conformance gaps", not built.
 | Ordered Lists | A Machine's records used as a board's real, renameable, reorderable columns (replaces a fixed status enum) | Built | `mch_list`, grouping `mch_task`'s board |
 | Sort order | Explicit per-Machine ordering (`sort_order` column), assigned at create time | Built | Every Machine — `internal/data.Store.CreateRecord` |
 | SLA badge | A `view.sla_field` date Field rendered as OVERDUE / "N day(s) left" instead of a plain date | Built | `mch_document`'s `fld_due_date`, `internal/experience.EvaluateSLA` |
-| Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `internal/web`'s `logActivity` — Document submission/decision, Task/Project creation, Task status moves, SLA breach (`internal/composition`, round 2 Step G) |
+| Activity log | Append-only event record, written as a plain Machine (not a new DataSource kind), on a triggering write | Built | `mch_activity`, `internal/web`'s `logActivity` — Document submission/decision, Task/Project creation, Task status moves, SLA breach (`internal/composition`) |
 | Field default value | A Field's declared `default:` fills in a value a create leaves empty (absent, nil, or `""`) — create-only, never re-applied on update | Built | `mch_task.fld_status: default: todo`; `domain.Field.Default`, `data.ApplyDefaults`, called from every create path |
-| Workspace scoping | `records.workspace_id`, carried on `context.Context` (not a `Store` struct field, which was tried and reverted for leaking data across a per-request scope) and enforced on every read/write; a tampered `workspace_id` is rejected | Built | `data.WithWorkspaceScope`, `migrations/004_workspaces.sql` — `ROADMAP.md` Phase 21 Step 2. Still single-Application per Workspace; Application plurality is explicitly deferred (Step 5) |
+| Workspace scoping | `records.workspace_id`, carried on `context.Context` (not a `Store` struct field, which was tried and reverted for leaking data across a per-request scope) and enforced on every read/write; a tampered `workspace_id` is rejected | Built | `data.WithWorkspaceScope`, `migrations/004_workspaces.sql`. Still single-Application per Workspace; Application plurality is not yet built |
 
 ---
 
@@ -73,7 +71,7 @@ recorded in `ROADMAP.md`'s "UI mockup conformance gaps", not built.
 | Workflow Automation (read-only Trigger/Condition/Action view over real Constraint + Action) | Built | `GET /automation` |
 | Calendar (week-grid Layout, Tasks grouped by due date) | Built | `GET /calendar` |
 | Sprint Dashboard (real status summary + workload + attention-needed, no fabricated points/burndown) | Built | `GET /sprint` |
-| Approval Inbox (one-screen worklist + detail, SLA filter chips, plus "My Documents") | Built, hardcoded to one Machine pair | `GET /approval-inbox` — `rendering.ApprovalInboxPage`, `composition/approval.go`; submitter resolved from `mch_activity`, not a Field; every card carries a `DOC-0091`-style `Reference` (Phase 9's `sort_order`) and `mode · N/M approved`; a worklist row opens its own record detail without leaving the page (round 2 Step H) |
+| Approval Inbox (one-screen worklist + detail, SLA filter chips, plus "My Documents") | Built, hardcoded to one Machine pair | `GET /approval-inbox` — `rendering.ApprovalInboxPage`, `composition/approval.go`; submitter resolved from `mch_activity`, not a Field; every card carries a `DOC-0091`-style `Reference` (derived from `sort_order`) and `mode · N/M approved`; a worklist row opens its own record detail without leaving the page |
 | Approve/Reject action bar | Built, hardcoded to one Machine | `mch_approval_step`'s own detail page only |
 | Approval progress stepper (done / current / waiting, replacing the generic child-collection table on a Document's detail page) | Built, hardcoded to one Machine pair | `approvalStepper` (`internal/rendering/approvalstepper.templ`), states from `action.CanDecide`; no metadata change |
 | PDF page-to-image rendering | Built | `internal/pdf.PageCount`/`RenderPagePNG`, pure-Go (`richardwilkes/pdfview`); served by `GET .../pdf-preview` |
@@ -84,7 +82,7 @@ recorded in `ROADMAP.md`'s "UI mockup conformance gaps", not built.
 Every screen above composes in `internal/composition` and renders from `internal/web`: a handler
 resolves what the request carries, asks composition for the page's content, and renders it. The
 joins, rollups and SLA bucketing behind these pages are ordinary unit-tested functions, not
-handler bodies (`ROADMAP.md` Phase 19).
+handler bodies.
 
 ### Shared rendering components
 
@@ -102,17 +100,13 @@ assume, which this table is the real counterpart to.
 | `recordSummaryCard` / `summaryCardList` | A record as a card face rather than a table row | `machine.templ`; Approval Inbox's worklist and My Documents |
 | `filterChip` | A query-param filter chip with its own count (no JS) | `approvalinbox.templ` |
 | `approvalStepper` | A Document's own steps as done / current / waiting | `approvalstepper.templ` |
-| `pageShell` | The page frame and the topbar — a projection of `app.yaml`'s own `navigation:` list (2026-09-19), grouped and collapsible, with a live pending-approval-count badge and `aria-current="page"` (round 2 Step J); see the navigation limit below for what's still out of scope | `machine.templ` |
-| `pdfThumbnail` | A Document's own PDF, page 1, as a small linked preview image | `detail.templ`; the Document detail page (reuses Phase 15 Step 3's `.../pdf-preview` route, no new route) |
+| `pageShell` | The page frame and the topbar — a projection of `app.yaml`'s own `navigation:` list (2026-09-19), grouped and collapsible, with a live pending-approval-count badge and `aria-current="page"`; see the navigation limit below for what's still out of scope | `machine.templ` |
+| `pdfThumbnail` | A Document's own PDF, page 1, as a small linked preview image | `detail.templ`; the Document detail page (reuses the `.../pdf-preview` route, no new route) |
 | `signatureConfirmation` | Echoes a pending Approval Step's own placement back to its assignee before they decide, or prompts them to place one | `detail.templ`; `decideButtons`, from the step record already fetched for that page -- no extra query |
 
-**Not yet built:** Timeline Layout; colored label chips and member avatars on a card face
-(`ROADMAP.md` Phase 10's own last bullet, deferred there "to Phase 14" — a deferral Phase 14 never
-actually received); drag-and-drop reordering of board columns and cards (named in no phase at all,
-despite being Case 19's own defining interaction). Only Timeline carries a real Phase 14 entry
-with its own missing Field named. Corrected 2026-09-19 — this line previously attributed all three
-to Phase 14. The full list of what the `ui-sample/` mockups show and this app does not is
-`ROADMAP.md`'s "UI mockup conformance gaps" section.
+**Not yet built:** Timeline Layout; colored label chips and member avatars on a card face;
+drag-and-drop reordering of board columns and cards. The full list of what the `ui-sample/`
+mockups show and this app does not build yet is tracked internally.
 
 ---
 
@@ -121,14 +115,14 @@ to Phase 14. The full list of what the `ui-sample/` mockups show and this app do
 | Capability | Status | Notes |
 |---|---|---|
 | Session-cookie auth, gating every route except `/health`, `/login`, `/register`, `/verify-email`, `/resend-verification`, `/forgot-password`, `/reset-password`, `/choose-workspace` | Built | `internal/authorization`, HMAC-signed cookie; `requireAuth` group in `internal/web.Routes` |
-| Real identity resolution (session names an actual `mch_user` record) | Built | Per-user, since Phase 21 — no longer `config.AdminUserID`; `requireAuth`'s Workspace fallback for a non-user subject is `DefaultWorkspaceID` |
-| Per-user login (distinct bcrypt-hashed passwords per person) | Built | `internal/auth`; registration (`POST /register`), blocking email verification, real per-user credential storage — `ROADMAP.md` Phase 21 Steps 1/3-4, round 2 Step D |
-| Self-service password reset | Built | `GET`/`POST /forgot-password`, `GET`/`POST /reset-password` — `internal/web/passwordreset.go`, round 2 Step E |
-| Workspace membership + invite, gated to Workspace admins | Built | `GET /workspace-members`, `POST /workspace-members/invite`, `GET`/`POST /workspace-members/{id}/edit` — `requireWorkspaceAdmin`, Phase 21 Step 6 |
+| Real identity resolution (session names an actual `mch_user` record) | Built | Per-user — no longer `config.AdminUserID`; `requireAuth`'s Workspace fallback for a non-user subject is `DefaultWorkspaceID` |
+| Per-user login (distinct bcrypt-hashed passwords per person) | Built | `internal/auth`; registration (`POST /register`), blocking email verification, real per-user credential storage |
+| Self-service password reset | Built | `GET`/`POST /forgot-password`, `GET`/`POST /reset-password` — `internal/web/passwordreset.go` |
+| Workspace membership + invite, gated to Workspace admins | Built | `GET /workspace-members`, `POST /workspace-members/invite`, `GET`/`POST /workspace-members/{id}/edit` — `requireWorkspaceAdmin` |
 | Record-scoped Action permission (declared) | Built (one shape) | `permissions:` on a Machine — `action:` + `actor_field:`, the acting identity must be that Field's value on the record being acted upon. `domain.Permission`, `authorization.AllowsAction`, enforced by `decideStep` (`403`) before any other work |
-| `POST .../decide` assignee check | Built | `mch_approval_step`'s `prm_decide_own_step`; independent of, and evaluated before, Phase 12's sequencing rule (`CanDecide`, `422`) |
+| `POST .../decide` assignee check | Built | `mch_approval_step`'s `prm_decide_own_step`; independent of, and evaluated before, the sequencing rule (`CanDecide`, `422`) |
 | Machine-level / CRUD permission | Not built (one narrow exception) | The generic create/update/delete routes are still ungoverned for every Machine except the one real case a 2026-09-19 UX review found: deleting `mch_document`/`mch_approval_step` records is blocked once a decision exists on them (`action.CanDeleteDocument`/`CanDeleteApprovalStep`, enforced in `deleteRecord`/`deleteRecordAPI`) — a hardcoded guard for this one Machine pair, same posture as `CanDecide`/`CompositeSignatures`, not a generic permission matrix. A general Machine-level CRUD permission (its forcing condition, per-user login, is now met) is still next in line |
-| Record-scoped *visibility* applied in the data plan | Not built | `/approval-inbox` and `/my-tasks` fetch a whole Machine and filter by identity in Go — the shape 007 §20 names as the anti-pattern. Tracked in `ROADMAP.md`'s "Concept conformance gaps"; also the missing half of Phase 6's own forcing condition |
+| Record-scoped *visibility* applied in the data plan | Not built | `/approval-inbox` and `/my-tasks` fetch a whole Machine and filter by identity in Go — the shape 007 §20 names as the anti-pattern |
 | Login rate-limiting | Built | `internal/web/ratelimit.go`, in-memory sliding window (10 attempts / 5 min), keyed by client address + attempted email; enforced on `POST /login`. Same shape also guards `POST /register` and `POST /forgot-password` (address-keyed) |
 
 ---
@@ -138,11 +132,8 @@ to Phase 14. The full list of what the `ui-sample/` mockups show and this app do
 | Capability | Status | Proven by |
 |---|---|---|
 | Pluggable Mailer (SMTP, with implicit-TLS/port-465 and STARTTLS support) | Built | `internal/mail.Mailer`; falls back to logging the message instead of sending when SMTP isn't configured, so registration/reset flows still work in dev without a real mail server |
-| Email verification on registration | Built, blocking | `POST /register` sends a verification email; the account cannot sign in until `GET /verify-email` is completed — round 2 Step D |
-| Self-service password reset email | Built | `POST /forgot-password` sends a reset link, consumed by `GET`/`POST /reset-password` — round 2 Step E |
-
-This closes what an earlier version of this document (Phase 21 planning) stated as a known gap:
-"no outbound-email infrastructure exists here."
+| Email verification on registration | Built, blocking | `POST /register` sends a verification email; the account cannot sign in until `GET /verify-email` is completed |
+| Self-service password reset email | Built | `POST /forgot-password` sends a reset link, consumed by `GET`/`POST /reset-password` |
 
 ---
 
@@ -151,15 +142,15 @@ This closes what an earlier version of this document (Phase 21 planning) stated 
 | Machine | Purpose | Fields | Constraints / Actions |
 |---|---|---|---|
 | `mch_user` | Real identity | name, email, weekly capacity | — |
-| `mch_project` | Case 19 groundwork | name, status, owner | `cst_project_done_no_open_tasks` |
+| `mch_project` | Project tracking | name, status, owner | `cst_project_done_no_open_tasks` |
 | `mch_list` | Board columns | name | — |
 | `mch_label` | Label catalog | name, color | — |
-| `mch_task` | Case 19 groundwork | title, status, assignee, due date, priority, project, list, attachment | Board layout |
+| `mch_task` | Task tracking, board layout | title, status, assignee, due date, priority, project, list, attachment | Board layout |
 | `mch_card_label` | Task↔Label join | task, label | — |
-| `mch_document` | Case 3 core | title, document type, file, mode, status, due date, signed file | Aggregate status driven by its steps; `view.sla_field`; `fld_signed_file` written by Phase 17's compositing Action; `fld_document_type` added round 2 Step F |
-| `mch_approval_step` | Case 3 core | document, sequence, assignee, decision, signature page/x/y/width | `/decide` Action, sequencing enforced, `prm_decide_own_step` |
-| `mch_activity` | Cross-case event log | machine id, record id, summary, actor | Written by `logActivity`, never by a user form |
-| `mch_signature` | Case 3 core | owner, image | Input to Phase 17's PDF-compositing Action |
+| `mch_document` | Document approval workflow | title, document type, file, mode, status, due date, signed file | Aggregate status driven by its steps; `view.sla_field`; `fld_signed_file` written by the signature-compositing Action; `fld_document_type` |
+| `mch_approval_step` | An approval step in a document workflow | document, sequence, assignee, decision, signature page/x/y/width | `/decide` Action, sequencing enforced, `prm_decide_own_step` |
+| `mch_activity` | Cross-machine event log | machine id, record id, summary, actor | Written by `logActivity`, never by a user form |
+| `mch_signature` | Approver's stored signature image | owner, image | Input to the PDF-compositing Action |
 
 ---
 
@@ -195,7 +186,7 @@ This closes what an earlier version of this document (Phase 21 planning) stated 
 | `GET /choose-workspace`, `POST /choose-workspace` | Pick which Workspace to enter, for an identity with more than one |
 | `POST /logout` | Sign out |
 | `GET /` | Machine list (landing page) |
-| `GET /home` | Workspace Home landing page (Phase 21 Step 6) |
+| `GET /home` | Workspace Home landing page |
 | `GET /dashboard` | Composed dashboard: Project+Task, Document status summary, Pending Approval, Recent Activity |
 | `GET /my-tasks` | Personal work queue: Tasks assigned to the current identity, Today/Upcoming/Completed |
 | `GET /activity` | Cross-Machine event feed, grouped by day |
@@ -204,8 +195,8 @@ This closes what an earlier version of this document (Phase 21 planning) stated 
 | `GET /automation` | Read-only Trigger/Condition/Action view over real Constraint + Action |
 | `GET /calendar` | Week-grid Layout, Tasks grouped by due date |
 | `GET /sprint` | Sprint Dashboard: status summary, workload preview, attention-needed |
-| `GET /approval-inbox` | Approval Inbox: one-screen worklist + detail, steps awaiting the current identity, SLA filter chips (`?filter=`), My Documents (round 2 Step H) |
-| `GET /api/approval-inbox/pending-count` | JSON count for the nav's pending-count badge (round 2 Step J) |
+| `GET /approval-inbox` | Approval Inbox: one-screen worklist + detail, steps awaiting the current identity, SLA filter chips (`?filter=`), My Documents |
+| `GET /api/approval-inbox/pending-count` | JSON count for the nav's pending-count badge |
 | `GET /machines/{id}` | A Machine's own page (table or board) |
 | `POST /machines/{id}/records` | Create a record |
 | `GET /machines/{id}/records/{id}` | Record detail page (or a fragment, for HTMX) |
@@ -215,9 +206,9 @@ This closes what an earlier version of this document (Phase 21 planning) stated 
 | `GET /documents/new/approver-row` | The wizard's "+ Add approver" HTMX fragment — one more approver row, populated with real `mch_user` options |
 | `GET /machines/mch_document/records/{id}/signature-placement` | Signature-coordinate placement screen |
 | `GET /machines/mch_document/records/{id}/pdf-preview` | One page of the Document's PDF, rasterized to PNG |
-| `GET /workspace-members`, `POST /workspace-members/invite`, `GET`/`POST /workspace-members/{id}/edit` | Workspace membership management, gated behind `requireWorkspaceAdmin` (Phase 21 Step 6) |
+| `GET /workspace-members`, `POST /workspace-members/invite`, `GET`/`POST /workspace-members/{id}/edit` | Workspace membership management, gated behind `requireWorkspaceAdmin` |
 | `GET /uploads/*` | Download an uploaded file |
-| `GET /api/machines`, `GET /api/machines/{id}/records`, `POST /api/machines/{id}/records`, `PUT /api/machines/{id}/records/{id}`, `DELETE /api/machines/{id}/records/{id}` | JSON API — full CRUD parity with the HTML routes (update+delete closed round 2 Step I) |
+| `GET /api/machines`, `GET /api/machines/{id}/records`, `POST /api/machines/{id}/records`, `PUT /api/machines/{id}/records/{id}`, `DELETE /api/machines/{id}/records/{id}` | JSON API — full CRUD parity with the HTML routes, including update and delete |
 | `GET /ui-sample/*` | The static design mockups, served as-is from `ui-sample/` so a built page can be compared against the design it was built toward. Reference material, never current-code intent |
 
 All routes except `/health` through `/choose-workspace` above sit inside the `requireAuth` group.
@@ -225,8 +216,7 @@ All routes except `/health` through `/choose-workspace` above sit inside the `re
 
 Every route above is registered in `internal/web.Routes` and served by a handler in that package;
 `cmd/server` builds the dependencies and mounts it. A per-handler size budget in
-`internal/conformance` keeps a handler from quietly becoming a screen's worth of logic again
-(`ROADMAP.md` Phase 19).
+`internal/conformance` keeps a handler from quietly becoming a screen's worth of logic again.
 
 Navigation itself **is** metadata, as of 2026-09-19: `app.yaml`'s own `navigation:` list drives
 `rendering.pageShell`'s topbar (`domain.NavigationItem`, `experience.GroupNavigation`,
@@ -245,23 +235,21 @@ like any other — and the two that prevent regression are the ones most easily 
 | Per-request read diagnostics | Built | Every request logs `reads=N repeated=M <path>` plus a per-target breakdown, from `internal/data`'s own read paths (`data.ReadLog`, `web.queryDiagnostics`) — so a page's cost is a number, and the next duplicate-fetch forcing condition announces itself. This is the *observable-reads* half of 001 §6; the *inference* half is still missing (see the limits below) |
 | Import-boundary conformance | Built | `internal/conformance` encodes each package's `doc.go` contract as a test: the Domain Plane imports nothing physical, the Experience Plane reaches no database, `internal/db` carries no metadata semantics. `TestEveryPackageHasARule` fails for any new package under `internal/` or `cmd/` that declares no boundary |
 | Handler size budget | Built | A measured per-handler line limit in `internal/conformance`, so a handler cannot quietly become a screen's worth of logic again |
-| Volume threshold harness | Built | `make threshold` (`internal/composition/threshold_test.go`) measures whole-Machine read cost at increasing record counts — the constructed forcing condition for pagination/projection, recorded in `ROADMAP.md` Phase 6 |
+| Volume threshold harness | Built | `make threshold` (`internal/composition/threshold_test.go`) measures whole-Machine read cost at increasing record counts — the measured trigger for pagination/projection work |
 
 ---
 
 ## Known architectural limits
 
 Current-state facts, the same job as the rest of this file — not a plan. Each one is a place where
-a stated obligation in 001-007 is not met today; `ROADMAP.md`'s "Concept conformance gaps" carries
-the clause citation, the verdict, and the forcing condition for closing it (001-007 audit,
-2026-09-18).
+a stated obligation in 001-007 is not met today.
 
 | Limit | What that means concretely |
 |---|---|
 | Inference is not inspectable (001 §6) | `person`→`mch_user`, child collections, board columns and the default table Layout are all inferred, and nothing can show the resolved result — no diagnostics route, no `--explain`, no normalized-Application dump |
 | No metadata versioning or change classification (004, 005) | No version key anywhere; deleting a Field from a `*.yaml` silently orphans that field's data inside every record's JSONB, with no migration decision |
-| Cross-Application launcher not built (004, 006) | The per-Application menu half of Navigation is now a declared metadata schema (`app.yaml`'s `navigation:`, closed 2026-09-19), but the cross-Application launcher and mobile bottom bar from `ui-sample/README.md`'s two-level nav are not — genuinely blocked on Phase 21 Step 5 (Application plurality), since there is nothing to launch *between* with only one real Application. Route existence in `navigation:` is also not cross-checked against anything (most routes are bespoke `internal/web` handlers, not generated from a Machine) — a typo there fails silently rather than at load time |
+| Cross-Application launcher not built (004, 006) | The per-Application menu half of Navigation is now a declared metadata schema (`app.yaml`'s `navigation:`, closed 2026-09-19), but the cross-Application launcher and mobile bottom bar from `ui-sample/README.md`'s two-level nav are not — there is nothing to launch *between* with only one real Application yet. Route existence in `navigation:` is also not cross-checked against anything (most routes are bespoke `internal/web` handlers, not generated from a Machine) — a typo there fails silently rather than at load time |
 | Every read is a whole-Machine read (007 §21.1, §28) | `ListRecords`/`ListRecordsBy`/`GetRecord` only — no projection, filter pushdown, pagination or limit; pages reduce whole record sets in Go |
 | Metadata loads once, at startup (005 §Hot Reload) | A metadata change takes effect on restart. Principle #10 (no source regeneration) is met; hot reload is a deliberate, triggered deferral |
 | Machine-level / CRUD permission not yet built (see Authorization above) | Any authenticated identity can edit or delete any record within their own Workspace, except deleting a decided Approval Step or a Document with any decision on it (closed 2026-09-19); only record-scoped Action permission (Approval Step decisions) is otherwise enforced |
-| Both priority cases are partly designed and not fully built | The `ui-sample/` mockups describe screens, data and a platform shell this app does not have — Case 19's Project Workspace screen and per-project scoping, the Task Detail body (description/checklist/comments), board drag-and-drop, and most of the Workspace/Group/Role platform shell (Application plurality, the cross-app launcher, Group-derived roles). Case 3's Document Type field and one-screen worklist+detail layout are closed (round 2 Steps F/H); Document reference (`DOC-0091`) closed by `ROADMAP.md` Phase 20; register/login/Workspace (single-Application) closed by Phase 21's Case-3-only pass. Enumerated with verdicts in `ROADMAP.md`'s "UI mockup conformance gaps" (audit, 2026-09-19) |
+| Design mockups ahead of the build | The `ui-sample/` mockups describe screens, data, and a platform shell this app does not fully have yet — a project workspace overview and per-project scoping, a richer task detail body (description/checklist/comments), board drag-and-drop, and most of the Workspace/Group/Role platform shell (Application plurality, the cross-app launcher, Group-derived roles). Registration/login/Workspace (single-Application), the document-type field, and the one-screen worklist+detail layout for approvals are already built |

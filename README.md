@@ -1,10 +1,22 @@
 # menata-app
 
-The runtime application that turns Menata Runtime Metadata into a running application.
+The runtime application that turns Menata Runtime Metadata into a running application. Define a
+data model in YAML — a "Machine" with Fields, Relations, Constraints, Actions and Permissions —
+and get a working, server-rendered application: CRUD, table and board views, workflows, and
+authorization, with no per-model code required.
 
 This repository starts from the design concepts below (carried over from the private
 `menata-runtime` design-history repository) and builds the real implementation from a clean
 slate — no code is ported in from prior prototypes.
+
+## Documentation
+
+- [getting-started.md](getting-started.md) — run it locally, define your first Machine.
+- [writing-guide.md](writing-guide.md) — how to author Machines, Fields, Relations, Constraints,
+  Actions and Permissions in metadata.
+- [capabilities.md](capabilities.md) — what the runtime can actually do right now: field types,
+  composition primitives, Layouts, and every Machine currently defined.
+- [ROADMAP.md](ROADMAP.md) — what's shipped, in progress, and planned next.
 
 ## Concepts (read in order)
 
@@ -16,19 +28,14 @@ slate — no code is ported in from prior prototypes.
 6. [006-runtime-model.md](006-runtime-model.md)
 7. [007-composable-runtime-architecture.md](007-composable-runtime-architecture.md)
 
-## Build order
+## What you can build
 
-See [ROADMAP.md](ROADMAP.md) for the phased build plan — what gets implemented when, and the
-forcing condition that justifies each phase. See [capabilities.md](capabilities.md) for what the
-runtime can actually do right now — field types, composition primitives, Layouts, and every
-Machine currently defined.
-
-## Trial applications
-
-Two priority target applications — Case 3 (Document Approval) and Case 19 (Project Management),
-out of a larger 21-case portfolio. See [case-portfolio.md](case-portfolio.md) for all 21 and
-both priority cases' full screen breakdowns, and [ui-sample/](ui-sample/) for their design
-mockups.
+This runtime has been used, during development, to build a multi-step document-approval
+workflow — sequential or parallel approvers, an approval inbox, SLA tracking, and drag-to-place
+PDF e-signatures composited onto the signed document — and a task/project management board with
+labels, ordered lists, a calendar, and a sprint dashboard. Both are real applications defined
+almost entirely in metadata, not bespoke code, and both remain a work in progress. See
+[ui-sample/](ui-sample/) for the original design references they were built against.
 
 ## Tech stack
 
@@ -42,16 +49,16 @@ constraint. No client-side framework.
 2. **Hyperscript** (0.9.93) when HTMX's request/response model genuinely isn't enough (e.g. drag
    handles, local UI toggles) — inline, declarative, still no build step.
 3. **Vanilla JS** only as a named exception, when neither of the above can express the
-   interaction (e.g. Phase 14's signature-coordinate drag editor may need this) — kept small,
-   inline or a single `<script>`, no bundler, no framework, and the exception's reason stated in
-   a comment next to the code.
+   interaction (e.g. the signature-coordinate drag editor) — kept small, inline or a single
+   `<script>`, no bundler, no framework, and the exception's reason stated in a comment next to
+   the code.
 
 Both `<script>` tags load from `pageShell` (`internal/rendering/machine.templ`) already.
 
 ## Naming
 
 `menata-app` is short for **Menata Runtime App** — the deployed application produced by running
-Menata Runtime, hosted at [menata.app](https://menata.app). Throughout the concept docs below,
+Menata Runtime, hosted at [menata.app](https://menata.app). Throughout the concept docs above,
 "Menata Runtime" names the engine/system itself (parsing, compiling, executing Runtime Metadata);
 "Menata App" names this repository — the product that ships that runtime as a running application.
 
@@ -61,3 +68,11 @@ Menata Runtime, hosted at [menata.app](https://menata.app). Throughout the conce
 seven parallel prototypes, benchmarks, and the capability registry that proved out what a Menata
 Runtime needs to support. That discovery phase is closed. This repository (`menata-app`) is where
 active development happens going forward.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) to report a vulnerability.
+
+## License
+
+[MIT](LICENSE)
