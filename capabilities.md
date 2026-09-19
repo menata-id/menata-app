@@ -91,13 +91,24 @@ The reusable pieces those screens are assembled from, all in `internal/rendering
 `ui-sample/case-19-component-breakdown.html` ships an inventory of the components the mockups
 assume, which this table is the real counterpart to.
 
+**When a row belongs here (and when it doesn't):** the `menata-app-document` companion repo's
+`guides/ui-composition-decomposition-criteria.md` (grounded in `references/ui-composition-
+decomposition-frameworks.md`'s survey of Atomic Design, Shopify Polaris, GitHub Primer, Atlassian
+Design System and Material Design 3) is the checklist. Short version: a shape is written inline in
+its one Page first; it earns a row here only once a second, genuinely different Page needs the
+identical shape and a markup-diff proves nothing is lost in generalizing it — premature promotion
+has its own cost, so staying page-internal is the correct default, not a gap, until that's proven.
+`pendingApprovalCard` below is a deliberate single-Page counter-example: real, cataloged (so
+"already exists?" stays answerable by this table), but honestly marked not-yet-reused.
+
 | Component | What it renders | Where |
 |---|---|---|
 | `slaBadge` | A `view.sla_field` date as OVERDUE / "Due today" / "N day(s) left" | `machine.templ`; used by `RecordRow` and `RecordDetailView` |
 | `summaryCounts` | A row of labelled count tiles | `machine.templ`; Dashboard, Sprint Dashboard, Team Capacity, Approval Inbox |
 | `activityFeedList` | `ActivityEntry` rows as one feed shape | `machine.templ`; Dashboard, Activity, Sprint Dashboard, My Tasks |
 | `sectionHeader` | A composed page's section title + optional "View all →" link | `machine.templ` |
-| `recordSummaryCard` / `summaryCardList` | A record as a card face rather than a table row | `machine.templ`; Approval Inbox's worklist and My Documents |
+| `recordSummaryCard` / `summaryCardList` | A record as a card face rather than a table row | `machine.templ`; Approval Inbox's My Documents |
+| `pendingApprovalCard` | Approval Inbox's own Pending-my-approval grid card (document-approval.html): SLA framing, Mode/approval-ratio badge, submitted-by/date line, per-step progress dots | `approvalinbox.templ`; Approval Inbox's worklist only — page-internal, not yet reused elsewhere |
 | `filterChip` | A query-param filter chip with its own count (no JS) | `approvalinbox.templ` |
 | `approvalStepper` | A Document's own steps as done / current / waiting | `approvalstepper.templ` |
 | `pageShell` | The page frame and the topbar — a projection of `app.yaml`'s own `navigation:` list (2026-09-19), grouped and collapsible, with a live pending-approval-count badge and `aria-current="page"`; see the navigation limit below for what's still out of scope | `machine.templ` |

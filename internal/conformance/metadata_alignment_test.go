@@ -346,3 +346,25 @@ func TestCapabilitiesComponentsTableMatchesTempl(t *testing.T) {
 		}
 	}
 }
+
+// TestCapabilitiesComponentsTableCitesPromotionGuide keeps the "Shared rendering components"
+// table's own admission criteria from silently rotting into an unwritten house opinion again --
+// the same failure mode 007 §40 already flags for the wider composable-runtime target (PROPOSED
+// claims need a citation, not just an assertion). The actual checklist lives in the
+// `menata-app-document` companion repo (`guides/ui-composition-decomposition-criteria.md`,
+// grounded in `references/ui-composition-decomposition-frameworks.md`'s world-class survey), a
+// separate repo this test cannot read -- so this only checks that capabilities.md still names it,
+// the same cross-repo citation-by-name posture CLAUDE.md already uses for `ui-sample/*.html`.
+func TestCapabilitiesComponentsTableCitesPromotionGuide(t *testing.T) {
+	doc, err := os.ReadFile(filepath.Join(repoRoot(), "capabilities.md"))
+	if err != nil {
+		t.Fatalf("read capabilities.md: %v", err)
+	}
+	section := markdownSection(t, doc, "### Shared rendering components")
+	for _, line := range section {
+		if strings.Contains(line, "ui-composition-decomposition-criteria.md") {
+			return
+		}
+	}
+	t.Error(`capabilities.md's "Shared rendering components" section no longer cites guides/ui-composition-decomposition-criteria.md (menata-app-document) -- the promotion criteria became an unwritten house opinion again; restore the citation or replace it with wherever the criteria moved to`)
+}

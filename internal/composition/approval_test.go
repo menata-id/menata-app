@@ -89,9 +89,29 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 		t.Errorf("Href = %q, want %q", got.Pending[0].Href, want)
 	}
 	// One of three steps is approved, and the card says so.
-	if want := "Contract · parallel · 1/3 approved · Submitted by someone"; got.Pending[0].Subtitle != want {
-		t.Errorf("Subtitle = %q, want %q", got.Pending[0].Subtitle, want)
+	if got.Pending[0].Approved != 1 || got.Pending[0].TotalSteps != 3 {
+		t.Errorf("Approved/TotalSteps = %d/%d, want 1/3", got.Pending[0].Approved, got.Pending[0].TotalSteps)
 	}
+	if got.Pending[0].Submitter != "someone" {
+		t.Errorf("Submitter = %q, want %q", got.Pending[0].Submitter, "someone")
+	}
+	// parallel mode: every pending step is actionable at once, so both undecided steps show
+	// "current", not "waiting" -- only sequential mode locks a later step behind an earlier one.
+	if want := []string{"done", "current", "current"}; !equalStrings(got.Pending[0].StepStates, want) {
+		t.Errorf("StepStates = %v, want %v", got.Pending[0].StepStates, want)
+	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // The SLA bucket is computed per day, not per instant: a Document due today is "today" even when
@@ -160,11 +180,11 @@ func TestBuildInbox_SubmitterFromEarliestEvent(t *testing.T) {
 	if len(got.Pending) != 1 {
 		t.Fatalf("want one card, got %d", len(got.Pending))
 	}
-	if want := "Contract · parallel · 0/1 approved · Submitted by Budi"; got.Pending[0].Subtitle != want {
-		t.Errorf("Subtitle = %q, want %q", got.Pending[0].Subtitle, want)
+	if got.Pending[0].Submitter != "Budi" {
+		t.Errorf("Submitter = %q, want %q", got.Pending[0].Submitter, "Budi")
 	}
-	if got.Pending[0].AvatarInitials != "B" {
-		t.Errorf("AvatarInitials = %q, want %q", got.Pending[0].AvatarInitials, "B")
+	if want := "8 Sep 2026"; got.Pending[0].SubmittedAt != want {
+		t.Errorf("SubmittedAt = %q, want %q", got.Pending[0].SubmittedAt, want)
 	}
 }
 
@@ -173,11 +193,11 @@ func TestBuildInbox_UnknownSubmitterFallsBack(t *testing.T) {
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
 	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
-	if want := "Contract · parallel · 0/1 approved · Submitted by someone"; got.Pending[0].Subtitle != want {
-		t.Errorf("Subtitle = %q, want %q", got.Pending[0].Subtitle, want)
+	if got.Pending[0].Submitter != "someone" {
+		t.Errorf("Submitter = %q, want %q", got.Pending[0].Submitter, "someone")
 	}
-	if got.Pending[0].AvatarInitials != "S" {
-		t.Errorf("AvatarInitials = %q, want %q", got.Pending[0].AvatarInitials, "S")
+	if got.Pending[0].SubmittedAt != "" {
+		t.Errorf("SubmittedAt = %q, want empty -- no activity event was found", got.Pending[0].SubmittedAt)
 	}
 }
 

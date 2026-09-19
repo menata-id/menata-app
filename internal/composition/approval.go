@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,7 +24,11 @@ import (
 // whichever tab is showing, and rendering.SummaryCard is shared with screens that have no SLA
 // filter at all.
 type Inbox struct {
-	Pending []rendering.SummaryCard
+	// Pending is every actionable Approval Step, rendered as rendering.PendingApprovalCard
+	// (document-approval.html's own Pending-my-approval grid) -- richer than rendering.SummaryCard
+	// below, which Mine still uses: SLA framing, a submitted-by/date line and a per-step progress
+	// bar that only this one worklist needs.
+	Pending []rendering.PendingApprovalCard
 	Buckets []string
 
 	OverdueCount int
@@ -130,7 +135,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 	for _, u := range users {
 		names[u.ID] = DisplayString(u.Values["fld_name"])
 	}
-	submitterByDoc := submittersFromActivity(activities)
+	submissions := submittersFromActivity(activities)
 
 	var inbox Inbox
 	for _, s := range steps {
@@ -151,9 +156,14 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 		}
 
 		approved := approvedCount(stepsByDoc[docID])
-		submitter := names[submitterByDoc[docID]]
+		sub := submissions[docID]
+		submitter := names[sub.actor]
 		if submitter == "" {
 			submitter = "someone"
+		}
+		submittedAt := ""
+		if !sub.at.IsZero() {
+			submittedAt = sub.at.Format("2 Jan 2006")
 		}
 
 		bucket := BucketUpcoming
@@ -166,20 +176,24 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 				inbox.TodayCount++
 			}
 		}
-		inbox.Pending = append(inbox.Pending, rendering.SummaryCard{
-			AvatarInitials: Initials(submitter),
-			Reference:      action.DocumentReference(doc.SortOrder),
-			Title:          DisplayString(doc.Values["fld_title"]),
-			Subtitle:       fmt.Sprintf("%s · %s · %d/%d approved · Submitted by %s", DisplayString(doc.Values["fld_document_type"]), mode, approved, len(stepsByDoc[docID]), submitter),
-			StatusLabel:    DisplayString(doc.Values["fld_status"]),
-			SLADue:         doc.Values["fld_due_date"],
-			Href:           fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID),
+		inbox.Pending = append(inbox.Pending, rendering.PendingApprovalCard{
+			Reference:    action.DocumentReference(doc.SortOrder),
+			Title:        DisplayString(doc.Values["fld_title"]),
+			DocumentType: DisplayString(doc.Values["fld_document_type"]),
+			Mode:         mode,
+			Approved:     approved,
+			TotalSteps:   len(stepsByDoc[docID]),
+			Submitter:    submitter,
+			SubmittedAt:  submittedAt,
+			SLADue:       doc.Values["fld_due_date"],
+			StepStates:   stepStates(stepsByDoc[docID], mode),
+			Href:         fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID),
 		})
 		inbox.Buckets = append(inbox.Buckets, bucket)
 	}
 
 	for _, d := range documents {
-		if submitterByDoc[d.ID] != userID {
+		if submissions[d.ID].actor != userID {
 			continue
 		}
 		mode := DisplayString(d.Values[action.FieldDocumentMode])
@@ -232,27 +246,67 @@ func approvedCount(steps []*data.Record) int {
 	return approved
 }
 
-// submittersFromActivity maps a Document id to the actor of its earliest logged event, which is
-// its submission (Phase 13 logs "submitted" at creation). Events are sorted oldest-first and the
-// first actor per Document wins, so a later decision event never overwrites the submitter.
-func submittersFromActivity(activities []*data.Record) map[string]string {
+// submission is what buildInbox learns about a Document's own submission from the activity log:
+// who, and when -- Mine only needs the actor, but PendingApprovalCard's own "Submitted by X · 6
+// Sep 2026" line (document-approval.html) needs the date too.
+type submission struct {
+	actor string
+	at    time.Time
+}
+
+// submittersFromActivity maps a Document id to its submission -- the actor and time of its
+// earliest logged event, which is its submission (Phase 13 logs "submitted" at creation). Events
+// are sorted oldest-first and the first actor per Document wins, so a later decision event never
+// overwrites the submitter.
+func submittersFromActivity(activities []*data.Record) map[string]submission {
 	sorted := make([]*data.Record, len(activities))
 	copy(sorted, activities)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].CreatedAt.Before(sorted[j].CreatedAt)
 	})
 
-	submitters := make(map[string]string, len(sorted))
+	submissions := make(map[string]submission, len(sorted))
 	for _, a := range sorted {
 		docID := DisplayString(a.Values["fld_record_id"])
-		if _, ok := submitters[docID]; ok {
+		if _, ok := submissions[docID]; ok {
 			continue
 		}
 		if actor := DisplayString(a.Values["fld_actor"]); actor != "" {
-			submitters[docID] = actor
+			submissions[docID] = submission{actor: actor, at: a.CreatedAt}
 		}
 	}
-	return submitters
+	return submissions
+}
+
+// stepStates derives each of a Document's own Approval Steps as done/current/rejected/waiting,
+// ordered by fld_sequence, for PendingApprovalCard's compact progress bar -- the same three live
+// states approvalStepRow (internal/rendering/approvalstepper.templ) already renders for the
+// Document detail page's vertical stepper, recomputed here rather than shared: that templ's own
+// sequence sort is unexported to its package.
+func stepStates(steps []*data.Record, mode string) []string {
+	ordered := make([]*data.Record, len(steps))
+	copy(ordered, steps)
+	sort.Slice(ordered, func(i, j int) bool {
+		a, _ := strconv.Atoi(DisplayString(ordered[i].Values[action.FieldStepSequence]))
+		b, _ := strconv.Atoi(DisplayString(ordered[j].Values[action.FieldStepSequence]))
+		return a < b
+	})
+	states := make([]string, len(ordered))
+	for i, s := range ordered {
+		switch DisplayString(s.Values[action.FieldStepDecision]) {
+		case action.DecisionApproved:
+			states[i] = "done"
+		case action.DecisionRejected:
+			states[i] = "rejected"
+		default:
+			if action.CanDecide(mode, s, ordered) {
+				states[i] = "current"
+			} else {
+				states[i] = "waiting"
+			}
+		}
+	}
+	return states
 }
 
 // Initials is a person's display initials for a SummaryCard's avatar (Study 38's Avatar cluster)
