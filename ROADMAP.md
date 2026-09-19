@@ -1535,6 +1535,77 @@ field defaults ahead of a second case in the research note above.
   use, is the honest minimum this phase needs -- generalizing it into metadata is a separate,
   still-unforced step, named in "What's deliberately not phased yet" below).
 
+**Research note (2026-09-19, owner-prompted): is navigation-as-metadata actually writable, what
+would break, and what does real prior art say -- answered before Step 7 writes a single line of
+Go, so the hand-written version Step 7 actually ships already knows what it's a placeholder for.**
+
+*Yes, it's writable, and it's a small, low-risk shape -- the same class as the field-defaults
+research note's own "Option A."* `navigation.html`'s own two levels decompose cleanly:
+
+| Level | What it declares | Shape |
+|---|---|---|
+| Cross-Application (the 9-dot launcher) | Which Applications exist in this Workspace, and which of them this identity has *any* role in (Phase 21 Step 8's own gate) | Nothing new to declare -- it's just "the Workspace's own Application list, filtered by role, in `app.yaml`'s own declaration order." No per-item metadata needed |
+| Per-Application menu | An ordered list of `{label, route, icon, priority}` per Application | New, small: `navigation: [{label: "Approval Inbox", route: "/approval-inbox", icon: "inbox", priority: 1}, ...]` on the Application manifest |
+
+*Real prior art, checked rather than assumed:* Sanity.io's own navigation-schema guide (a modern,
+structured-content system, closer in spirit to this one than a generic CMS) uses exactly this
+shape -- a menu document containing an ordered array of `{label, link}` items, order given by
+array position, no built-in nesting or conditional visibility in the base pattern. Role-gating a
+menu item by capability is WordPress's own `add_menu_page` convention (`{title, capability, icon,
+slug}`) and the `nav-menu-roles` plugin's addition of a role field per item -- both real,
+long-shipping systems, not hypothetical. This confirms the shape without needing to guess it,
+matching the same discipline the field-defaults note applied to `default:`.
+
+*Where this app's own shape genuinely differs from generic prior art, and why that's fine.* Most
+of this app's nav destinations (`/dashboard`, `/my-tasks`, `/calendar`, `/sprint`,
+`/approval-inbox`, `/activity`, `/automation`, `/board-settings`) are bespoke composed routes in
+`internal/web`, not generic Machine CRUD pages the way `/machines/{id}` is. A navigation schema
+here can only be a **list of pointers to already-existing routes** -- it cannot *generate* a route
+the way declaring a Machine already generates that Machine's own page. This is not a gap; it is
+exactly what 006 §Navigation requires ("Navigation... must remain separate from business execution
+and physical data access") -- the schema names *where to go*, the composed handler still decides
+*what's there*.
+
+*One real implementation problem `navigation.html` itself ran into, worth fixing before Step 7
+copies the mistake:* the mockup's first draft kept desktop and mobile as two separately hand-kept
+lists (`nav: [...]` and `mobile: [...]`), which is exactly the kind of duplication this roadmap's
+own Method warns against -- two lists drift the moment someone edits one and forgets the other.
+The corrected version (now in `navigation.html`) uses one ordered list with a `priority` field;
+mobile takes the top 4 by that same field. This is a named, common pattern in real responsive nav
+(GitHub's own top bar collapses lower-priority items into a "..." overflow at narrow widths rather
+than maintaining a second curated list) -- one source of truth, a derived subset, not two
+authored surfaces.
+
+*Priorities best practice would flag that neither the mockups nor this roadmap have named yet,*
+checked against what real product navigation systems treat as near-universal rather than
+optional:
+
+- **Badge/count indicators on nav items.** `workspace-home.html` already computes and shows "2
+  pending decisions" at the Application-card level; nothing repeats that same real number
+  (`composition.ApprovalInbox`'s own `Pending` count, already in memory) on the "Approval Inbox"
+  nav item itself, where a person actually looks while deciding whether to click. Near-universal
+  in real systems (Gmail's unread count, Slack's unread badge, GitHub's notification count,
+  Linear's assigned-to-me count) and the cheapest of these findings to build: the data already
+  exists, this is a rendering-only gap. `navigation.html` now demonstrates it illustratively.
+- **`aria-current="page"` and keyboard/skip-link semantics.** Connects to the audit's own B4
+  "Accessibility semantics" finding, but navigation is where it matters first and most, since it
+  repeats on every single page -- an accessibility gap here is not one screen's problem, it's
+  every screen's.
+- **A command palette / quick-jump (e.g. Cmd+K).** Standard in current SaaS navigation (Linear,
+  Notion, Vercel, GitHub) for reaching a specific record or page without walking the menu tree.
+  Named nowhere in any of this repo's own 23 mockups -- worth recording precisely because it is a
+  best-practice gap the mockups themselves don't surface, distinct from the mockup-conformance
+  audit's own method of only comparing against what the mockups already show.
+- **A fuller breadcrumb trail.** 006 §Navigation names breadcrumbs explicitly; today's detail
+  pages have only a one-hop "← Title" back-link, not a Workspace / Application / Machine / Record
+  trail. Small, and directly enabled once Phase 21's own Workspace/Application levels exist to
+  put in the trail.
+
+None of these four are built in this phase -- named here, with evidence, so a future audit finds
+them recorded rather than rediscovering them. The badge-count item is the one with a real forcing
+case already in hand (the data already exists and is already shown one level up); the other three
+still want their own real occurrence before committing to a shape, per this roadmap's own Method.
+
 **Steps:**
 
 - [ ] **Step 1: real per-user credentials.** `mch_user` gains a password (hashed, never stored or
