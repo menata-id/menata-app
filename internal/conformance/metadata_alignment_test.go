@@ -267,3 +267,147 @@ func TestWorkspaceLevelHandlersHaveNoHardcodedApplicationRoute(t *testing.T) {
 		})
 	}
 }
+
+// markdownSection returns capabilities.md's lines between a heading exactly matching heading and
+// the next line that starts a new section ("---" or another "#"-prefixed heading) -- scoping a
+// table-row regexp to the one table it's meant to check, not every backtick-first-column table in
+// the document (the Field Types table's `text`, `number`, ... would otherwise collide with the
+// Machines table's `mch_*` ids).
+func markdownSection(t *testing.T, doc []byte, heading string) []string {
+	t.Helper()
+	lines := strings.Split(string(doc), "\n")
+	start := -1
+	for i, line := range lines {
+		if strings.TrimSpace(line) == heading {
+			start = i + 1
+			break
+		}
+	}
+	if start == -1 {
+		t.Fatalf("capabilities.md: no section heading %q found -- renamed?", heading)
+	}
+	var section []string
+	for _, line := range lines[start:] {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "---" || strings.HasPrefix(trimmed, "#") {
+			break
+		}
+		section = append(section, line)
+	}
+	return section
+}
+
+var markdownFirstColumnCode = regexp.MustCompile("^\\| `([a-zA-Z0-9_]+)`")
+
+// markdownFirstColumnCodes returns the backtick-quoted code span opening each row of a markdown
+// table -- capabilities.md's own convention for the identifier a row documents (a Machine id, a
+// component name, a field type).
+func markdownFirstColumnCodes(section []string) []string {
+	var codes []string
+	for _, line := range section {
+		if m := markdownFirstColumnCode.FindStringSubmatch(line); m != nil {
+			codes = append(codes, m[1])
+		}
+	}
+	return codes
+}
+
+// TestCapabilitiesMachinesTableMatchesMetadata keeps capabilities.md's own "Machines currently
+// defined" table -- README.md's stated inventory of "what exists, right now, in technical detail"
+// -- honest against metadata/*.yaml: every declared Machine id must be documented, and every
+// documented id must still be a real Machine. This is the same "metadata drifting from the doc
+// that describes it" gap TestWritingGuideMachinesMatchMetadata tried to close and was dropped for
+// false-positiving on (see this file's git history) -- capabilities.md's table is structured, one
+// row per Machine with its id as the first column's code span, not prose with incidental
+// mentions, so the same idea is precise here where it wasn't there.
+func TestCapabilitiesMachinesTableMatchesMetadata(t *testing.T) {
+	metaDir := filepath.Join(repoRoot(), "metadata")
+	entries, err := os.ReadDir(metaDir)
+	if err != nil {
+		t.Fatalf("read metadata dir: %v", err)
+	}
+	declared := make(map[string]bool)
+	for _, e := range entries {
+		if e.IsDir() || e.Name() == "app.yaml" || !strings.HasSuffix(e.Name(), ".yaml") {
+			continue
+		}
+		m, err := metadata.Load(filepath.Join(metaDir, e.Name()))
+		if err != nil {
+			t.Fatalf("load %s: %v", e.Name(), err)
+		}
+		declared[m.ID] = true
+	}
+
+	doc, err := os.ReadFile(filepath.Join(repoRoot(), "capabilities.md"))
+	if err != nil {
+		t.Fatalf("read capabilities.md: %v", err)
+	}
+	documented := make(map[string]bool)
+	for _, id := range markdownFirstColumnCodes(markdownSection(t, doc, "## Machines currently defined")) {
+		if strings.HasPrefix(id, "mch_") {
+			documented[id] = true
+		}
+	}
+
+	for id := range declared {
+		if !documented[id] {
+			t.Errorf("metadata declares machine %q, but capabilities.md's \"Machines currently defined\" table doesn't list it", id)
+		}
+	}
+	for id := range documented {
+		if !declared[id] {
+			t.Errorf("capabilities.md's \"Machines currently defined\" table lists %q, but no metadata/*.yaml declares it -- renamed or removed?", id)
+		}
+	}
+}
+
+// templDeclAnyCase matches a top-level `templ name(` declaration regardless of exported/
+// unexported case -- capabilities.md's "Shared rendering components" table documents both
+// (pageShell is exported by convention only because it's called from this same package; the
+// component name itself carries no export contract).
+var templDeclAnyCase = regexp.MustCompile(`(?m)^templ ([a-zA-Z]\w*)\(`)
+
+func templDeclaredFuncs(t *testing.T) map[string]bool {
+	t.Helper()
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	funcs := make(map[string]bool)
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		for _, m := range templDeclAnyCase.FindAllStringSubmatch(string(src), -1) {
+			funcs[m[1]] = true
+		}
+	}
+	return funcs
+}
+
+// TestCapabilitiesComponentsTableMatchesTempl keeps capabilities.md's "Shared rendering
+// components" table -- its own stated purpose: "'does a component for this already exist?' was
+// previously answerable only by grep" -- honest against the real internal/rendering/*.templ
+// declarations: every documented component name must be a real `templ` function. Checked one
+// direction only (documented -> exists): a real templ function with no doc row is a documentation
+// gap worth someone's attention, but not the drift a stale/renamed entry is -- machine.templ
+// alone declares many templ functions never meant to be catalogued here (navLink, page bodies),
+// so the reverse direction would force every future helper to also get a doc row or fail the
+// build, which is a documentation-completeness policy nobody asked for, not a composability gate.
+func TestCapabilitiesComponentsTableMatchesTempl(t *testing.T) {
+	doc, err := os.ReadFile(filepath.Join(repoRoot(), "capabilities.md"))
+	if err != nil {
+		t.Fatalf("read capabilities.md: %v", err)
+	}
+	funcs := templDeclaredFuncs(t)
+	for _, name := range markdownFirstColumnCodes(markdownSection(t, doc, "### Shared rendering components")) {
+		if !funcs[name] {
+			t.Errorf("capabilities.md's \"Shared rendering components\" table lists %q, but no internal/rendering/*.templ declares `templ %s(...)` -- renamed or removed?", name, name)
+		}
+	}
+}

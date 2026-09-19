@@ -73,12 +73,41 @@ extra CTA button on a card) just because older code already had one. If porting 
 a pre-existing hardcoded value that should have come from metadata, fix it as part of the port
 rather than carrying it forward unreviewed.
 
+## The component inventory: `capabilities.md`
+
+`capabilities.md` is where every composable piece is already catalogued — README.md's own
+description: "what the runtime can actually do right now." Before adding a Machine concept, a
+Field type, a route, or a reusable rendering piece, check the matching table there first
+("Composition primitives", "Shared rendering components", "Machines currently defined", "Field
+Types") — "does something like this already exist?" is answerable by reading a table, not by
+grepping the whole tree. When you add something that belongs in one of these tables, add the row
+in the same change, not as a follow-up — `internal/conformance` (below) fails the build if the
+Machines and Shared rendering components tables drift from the code, so an unrecorded addition is
+a matter of when, not if, it gets caught.
+
 ## Enforcement, not just prose
 
-`internal/conformance` holds executable tests for architectural obligations 001-007 state in
-prose (plane boundaries, handler size). Prose in a doc gets skimmed; a failing `go test` doesn't.
-If you find yourself re-explaining the same architectural rule in a PR/commit twice, consider
-whether it can become a conformance test instead.
+`internal/conformance` holds executable tests for architectural obligations 001-007 and
+`capabilities.md` state in prose (plane boundaries, handler size, metadata/code/doc alignment).
+Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go test
+./internal/conformance/... -run <name>` to run just one):
+
+- `TestPlaneBoundaries` / `TestEveryPackageHasARule` — import-boundary obligations per package.
+- `TestHandlersStaySmall` — the `internal/web` handler-size budget.
+- `TestAppManifestLoads` — `metadata/app.yaml` parses and validates.
+- `TestNavigationRoutesAreRegistered` — every declared `navigation:` route has a real
+  `internal/web/router.go` handler.
+- `TestWorkspaceLevelPagesHaveNoHardcodedApplicationRoute` /
+  `...HandlersHaveNoHardcodedApplicationRoute` — Workspace-level `.templ` pages and the `internal/
+  web` handlers that call them (found structurally, by what composes `workspaceHomeShell` /
+  what calls those page functions — not by filename) use no hardcoded Application route.
+- `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —
+  `capabilities.md`'s own Machines and Shared rendering components tables match the real
+  `metadata/*.yaml` and `internal/rendering/*.templ`.
+
+If you find yourself re-explaining the same architectural rule in a PR/commit twice, or adding a
+row to a `capabilities.md` table by hand, consider whether it should be (or already is) a
+conformance test instead.
 
 ## Commands
 
