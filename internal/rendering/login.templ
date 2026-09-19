@@ -35,6 +35,7 @@ templ LoginPage(errorMsg string) {
 		<body>
 			<h1>Menata App</h1>
 			<form method="POST" action="/login">
+				@csrfHiddenInput()
 				<label>
 					Email
 					<input type="text" name="username" autocomplete="username" autofocus/>

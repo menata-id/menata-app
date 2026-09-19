@@ -86,6 +86,7 @@ func Routes(d Deps) http.Handler {
 
 	r := chi.NewRouter()
 	r.Use(secureHeaders)
+	r.Use(csrfProtect(d.Cfg))
 	loginLimiter := newLoginRateLimiter(loginAttemptLimit, loginAttemptWindow)
 	registrationLimiter := newLoginRateLimiter(registrationAttemptLimit, registrationAttemptWindow)
 	forgotPasswordLimiter := newLoginRateLimiter(forgotPasswordAttemptLimit, forgotPasswordAttemptWindow)

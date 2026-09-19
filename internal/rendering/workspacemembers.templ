@@ -13,6 +13,7 @@ templ WorkspaceMembersPage(members []data.Membership, appName string) {
 	@pageShell("Workspace Members", appName) {
 		<h1>Workspace Members</h1>
 		<form method="POST" action="/workspace-members/invite" class="invite-form">
+			@csrfHiddenInput()
 			<label>
 				Full name
 				<input type="text" name="fld_name" required/>
@@ -60,6 +61,7 @@ templ EditMemberPage(m data.Membership, appName string) {
 	@pageShell("Edit member", appName) {
 		<h1>{ m.Email }</h1>
 		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") }>
+			@csrfHiddenInput()
 			<label>
 				Workspace role
 				<select name="workspace_role">

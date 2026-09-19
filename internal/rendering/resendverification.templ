@@ -28,6 +28,7 @@ templ ResendVerificationPage(message string) {
 		<body>
 			<h1>Resend verification email</h1>
 			<form method="POST" action="/resend-verification">
+				@csrfHiddenInput()
 				<label>
 					Email
 					<input type="email" name="email" autofocus required/>

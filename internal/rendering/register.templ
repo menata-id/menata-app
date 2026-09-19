@@ -30,6 +30,7 @@ templ RegistrationPage(errorMsg string) {
 			<h1>Create a workspace</h1>
 			<p class="lead">This creates a new Workspace and makes you its Admin.</p>
 			<form method="POST" action="/register">
+				@csrfHiddenInput()
 				<label>
 					Workspace name
 					<input type="text" name="workspace_name" autofocus required/>

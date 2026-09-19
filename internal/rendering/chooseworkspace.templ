@@ -43,6 +43,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 			}
 			for _, c := range choices {
 				<form method="POST" action={ templ.SafeURL(action) }>
+					@csrfHiddenInput()
 					<input type="hidden" name="workspace_id" value={ c.ID }/>
 					<button type="submit" class="workspace-choice">
 						{ c.Name }

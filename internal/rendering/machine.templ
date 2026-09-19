@@ -1,9 +1,12 @@
 package rendering
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
+	"menata.app/internal/authorization"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
@@ -230,6 +233,32 @@ templ pageStyles() {
 			</style>
 }
 
+// csrfHeadersAttr returns pageShell's page-wide hx-headers value (security audit 2026-09-19, L1)
+// -- every HTMX request from anywhere inside pageShell, a <form> or a bare hx-* element alike
+// (e.g. this file's own hx-delete buttons with no enclosing <form>), inherits it, which is what
+// closes CSRF for every HTMX-driven POST/PUT/DELETE in one place instead of each individually. ctx
+// is the ambient context every generated templ component's Render(ctx, w) already carries in
+// scope -- ordinary Go code inside a templ block can read it without pageShell needing to declare
+// it as an explicit parameter, the same way data.WorkspaceScope is read deep in internal/data's
+// own call chains without being threaded through every function signature.
+func csrfHeadersAttr(ctx context.Context) string {
+	body, err := json.Marshal(map[string]string{"X-CSRF-Token": authorization.CSRFTokenFromContext(ctx)})
+	if err != nil {
+		// A map[string]string holding one plain token string cannot fail to marshal -- defensive,
+		// not a real path; an empty header object simply means no HTMX request from this page
+		// carries a token, which csrfProtect already rejects the same as a missing one.
+		return "{}"
+	}
+	return string(body)
+}
+
+// csrfHiddenInput is the plain-form counterpart to csrfHeadersAttr -- every native
+// <form method="POST"> in the app (login, register, the topbar logout form below, ...) includes
+// this once, rather than each one reading authorization.CSRFTokenFromContext(ctx) inline.
+templ csrfHiddenInput() {
+	<input type="hidden" name="csrf_token" value={ authorization.CSRFTokenFromContext(ctx) }/>
+}
+
 // pageShell is the shared HTML document, styles, and topbar every Application-level page uses.
 // It exists so generalizing from one Machine to several (ROADMAP.md Phase 3) doesn't duplicate
 // boilerplate per page. The topbar itself is a projection of the Application's own navigation:
@@ -241,7 +270,7 @@ templ pageShell(title string, appName string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		@pageHead(title)
-		<body>
+		<body hx-headers={ csrfHeadersAttr(ctx) }>
 			{{ ungrouped, primary, rest := navSections(navigation, primaryNavGroup) }}
 			<header class="topbar">
 				<nav class="left" aria-label="Primary">
@@ -269,6 +298,7 @@ templ pageShell(title string, appName string) {
 					<span>{ appName }</span>
 				</nav>
 				<form method="POST" action="/logout">
+					@csrfHiddenInput()
 					<button type="submit">Log out</button>
 				</form>
 			</header>
