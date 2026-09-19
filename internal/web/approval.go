@@ -1,9 +1,12 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -117,6 +120,10 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 			return
 		}
 
+		if !applyApprovalSignature(w, req, ctx, store, files, actor, step, decision) {
+			return
+		}
+
 		step.Values[action.FieldStepDecision] = decision
 		if _, err := store.UpdateRecord(ctx, machine.ID, id, step.Values); err != nil {
 			serverError(w, err)
@@ -125,7 +132,11 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 		if !recomputeDocumentStatus(w, ctx, store, machine, document, documentID) {
 			return
 		}
-		if toDisplayString(document.Values[action.FieldDocumentStatus]) == action.DocumentStatusApproved {
+		if decision == action.DecisionApproved {
+			// Owner request, 2026-09-19: every approval, not just the one that completes the
+			// whole Document, should land in the PDF immediately -- signDocument recomposites
+			// every currently-approved step's stamp plus the growing status banner from
+			// scratch each time, so this is safe to call on every approval, not just the last.
 			signDocument(ctx, store, files, document, documentID)
 		}
 
@@ -149,6 +160,73 @@ func submittedDecision(w http.ResponseWriter, req *http.Request) (string, bool) 
 		return "", false
 	}
 	return decision, true
+}
+
+// applyApprovalSignature is Approve's own signature-capture gate (owner request, 2026-09-19): an
+// approved decision needs a signature image on file for this actor -- either their own reusable
+// mch_signature, or a fresh one captured by decideButtons's canvas modal (rendering/detail.templ)
+// and carried in this same POST. Reject never reaches here -- no stamp is ever composited for a
+// rejection.
+//
+// This is the write-time half of the gate; hasSavedSignature threaded into decideButtons is the
+// render-time half deciding whether the modal shows up in the first place. Both check the same
+// thing so a client that bypasses the modal (or has JS disabled) still can't approve without one.
+func applyApprovalSignature(w http.ResponseWriter, req *http.Request, ctx context.Context, store *data.Store, files *storage.Store, actor string, step *data.Record, decision string) bool {
+	if decision != action.DecisionApproved {
+		return true
+	}
+	saved, err := hasSavedSignature(ctx, store, actor)
+	if err != nil {
+		serverError(w, err)
+		return false
+	}
+	if saved {
+		return true
+	}
+
+	image, err := decodeSignatureDataURL(req.PostFormValue("signature_image"))
+	if err != nil {
+		http.Error(w, "a signature is required to approve: "+err.Error(), http.StatusUnprocessableEntity)
+		return false
+	}
+	key, err := files.Save(action.StepMachineID, action.FieldStepSignatureImage, "signature.png", bytes.NewReader(image))
+	if err != nil {
+		serverError(w, err)
+		return false
+	}
+	step.Values[action.FieldStepSignatureImage] = key
+
+	if req.PostFormValue("save_signature") != "" {
+		values := map[string]any{
+			action.FieldSignatureOwner: actor,
+			action.FieldSignatureImage: key,
+		}
+		if _, err := store.CreateRecord(ctx, action.SignatureMachineID, values); err != nil {
+			serverError(w, err)
+			return false
+		}
+	}
+	return true
+}
+
+// decodeSignatureDataURL decodes the canvas's own `data:image/png;base64,...` payload and
+// verifies (http.DetectContentType, the same mechanism rejectDangerousUpload uses for generic
+// uploads) that the decoded bytes are really a PNG -- a strict allowlist rather than
+// rejectDangerousUpload's denylist, appropriate here because a canvas always emits real PNG
+// bytes; anything else means the client didn't actually send what the modal produces.
+func decodeSignatureDataURL(dataURL string) ([]byte, error) {
+	const prefix = "data:image/png;base64,"
+	if !strings.HasPrefix(dataURL, prefix) {
+		return nil, fmt.Errorf("no signature image was submitted")
+	}
+	image, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(dataURL, prefix))
+	if err != nil {
+		return nil, fmt.Errorf("signature image was not valid base64")
+	}
+	if len(image) == 0 || http.DetectContentType(image) != "image/png" {
+		return nil, fmt.Errorf("signature image was not a valid PNG")
+	}
+	return image, nil
 }
 
 // decidableDocument fetches the step's parent Document and refuses the decision if the Document's

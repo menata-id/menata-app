@@ -157,7 +157,7 @@ func Routes(d Deps) http.Handler {
 		pr.Post("/documents", submitDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}", showMachinePage(d.Machines, d.AppName, d.Store))
 		pr.Post("/machines/{machineID}/records", createRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Machines, d.Store, d.AppName, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Machines, d.Store, d.Files, d.AppName, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Machines, d.Store))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Machines, d.Store))

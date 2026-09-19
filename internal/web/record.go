@@ -64,7 +64,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 // an HTMX request targeting the detail page's own container gets just that container's view
 // fragment (used by the detail page's own Cancel-from-edit); any other HTMX request (a table row
 // or board card's Cancel) gets the original RecordRow fragment, unchanged from Phase 1.
-func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
+func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, appName string, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -89,7 +89,13 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 				serverError(w, err)
 				return
 			}
-			render(req.Context(), w, rendering.RecordDetailPage(machine, record, appName, relations, children, actor))
+			hasSignature, err := hasSignatureForGate(req.Context(), store, machine, actor)
+			if err != nil {
+				serverError(w, err)
+				return
+			}
+			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
+			render(req.Context(), w, rendering.RecordDetailPage(machine, record, appName, relations, children, actor, hasSignature, sigPlacement))
 			return
 		}
 		if isDetailContext(req) {
@@ -98,7 +104,13 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 				serverError(w, err)
 				return
 			}
-			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor))
+			hasSignature, err := hasSignatureForGate(req.Context(), store, machine, actor)
+			if err != nil {
+				serverError(w, err)
+				return
+			}
+			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
+			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor, hasSignature, sigPlacement))
 			return
 		}
 		render(req.Context(), w, rendering.RecordRow(machine, record, relations))
@@ -171,7 +183,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		logTaskStatusMove(req, store, machine, record, actor, oldTaskStatus)
 
-		renderRecord(w, req, machines, store, machine, record, actor)
+		renderRecord(w, req, machines, store, files, machine, record, actor)
 	}
 }
 
@@ -276,7 +288,7 @@ func logTaskStatusMove(req *http.Request, store *data.Store, machine *domain.Mac
 
 // renderRecord re-renders one record after a write, as the detail view or as a table/board row
 // depending on what the HTMX request targeted.
-func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, store *data.Store, machine *domain.Machine, record *data.Record, actor string) {
+func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, store *data.Store, files *storage.Store, machine *domain.Machine, record *data.Record, actor string) {
 	ld := composition.NewLoader(store, machines)
 	relations, err := ld.RelationOptions(req.Context(), machine)
 	if err != nil {
@@ -289,7 +301,13 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor))
+		hasSignature, err := hasSignatureForGate(req.Context(), store, machine, actor)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
+		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor, hasSignature, sigPlacement))
 		return
 	}
 	render(req.Context(), w, rendering.RecordRow(machine, record, relations))

@@ -39,6 +39,12 @@ const (
 	FieldStepSignatureY     = "fld_signature_y"
 	FieldStepSignatureWidth = "fld_signature_width"
 
+	// FieldStepSignatureImage is a one-time signature image captured at Approve time, used only
+	// when its assignee chose not to save it as their own reusable mch_signature (Phase 15 Step
+	// 5's SignatureMachineID below). See metadata/approval_step.yaml's own doc comment for why
+	// this is step-scoped rather than reusable.
+	FieldStepSignatureImage = "fld_signature_image"
+
 	// Phase 17: a person's own reusable signature image (Phase 15 Step 5's mch_signature, an
 	// ordinary Machine) and the Document's own composited output.
 	SignatureMachineID      = "mch_signature"

@@ -10,12 +10,16 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/color"
+	"image/draw"
 	_ "image/gif"
 	_ "image/jpeg"
-	_ "image/png"
+	"image/png"
+	"math"
 	"strconv"
 
 	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
 
 	"menata.app/internal/data"
@@ -61,6 +65,117 @@ func CompositeSignatures(docBytes []byte, stamps []Stamp) ([]byte, error) {
 		current = next
 	}
 	return current, nil
+}
+
+// Approval-status banner geometry constants (owner request, 2026-09-19): black Courier ("computer
+// font") text on a light-purple translucent band, full page width, top-aligned, page 1 only,
+// sized to fit exactly the wrapped status text -- no more, no less.
+const (
+	bannerFontSize   = 9
+	bannerMargin     = 10.0 // points, all four sides
+	bannerLineHeight = float64(bannerFontSize) * 1.4
+)
+
+var bannerBackgroundColor = color.RGBA{R: 230, G: 217, B: 250, A: 255}
+
+// CompositeStatusBanner stamps text at the top of the Document PDF's page 1 only, full page
+// width, sized to fit. A no-op (docBytes returned unchanged) when text is empty -- signDocument
+// calls this with action.ApprovalStatusBanner's own output, which is empty until the first step
+// is approved.
+//
+// Implemented as two separate watermark passes -- a background-color image band, then black text
+// laid on top -- rather than pdfcpu's own single-pass text watermark + backgroundcolor, because
+// that single-pass form shares one opacity between the background AND the text (there is no
+// independent alpha for each): the owner asked for solid black text on a *translucent* purple
+// band, which a single shared opacity cannot produce. The background image's pixel dimensions are
+// chosen 1:1 with the target size in points (matching compositeOne's own established "one image
+// pixel = one point at scale 1.0" convention), so no scale-factor math is needed to hit an exact
+// width/height -- unlike a Stamp's image, whose native aspect ratio is fixed by the uploaded file.
+func CompositeStatusBanner(docBytes []byte, text string) ([]byte, error) {
+	if text == "" {
+		return docBytes, nil
+	}
+
+	dims, err := api.PageDims(bytes.NewReader(docBytes), nil)
+	if err != nil {
+		return nil, fmt.Errorf("read page dimensions: %w", err)
+	}
+	if len(dims) == 0 {
+		return nil, fmt.Errorf("document has no pages")
+	}
+	pageW := dims[0].Width
+	pageH := dims[0].Height
+	maxTextWidth := pageW - 2*bannerMargin
+	if maxTextWidth <= 0 {
+		return nil, fmt.Errorf("page too narrow for a status banner: %.1fpt wide", pageW)
+	}
+
+	lines, err := model.WordWrap(text, "Courier", bannerFontSize, maxTextWidth)
+	if err != nil {
+		return nil, fmt.Errorf("wrap status banner text: %w", err)
+	}
+	if len(lines) == 0 {
+		return docBytes, nil
+	}
+	bannerHeight := float64(len(lines))*bannerLineHeight + 2*bannerMargin
+
+	withBackground, err := compositeStatusBackground(docBytes, pageW, pageH, bannerHeight)
+	if err != nil {
+		return nil, fmt.Errorf("composite status banner background: %w", err)
+	}
+	withText, err := compositeStatusText(withBackground, text, pageH, bannerHeight, maxTextWidth)
+	if err != nil {
+		return nil, fmt.Errorf("composite status banner text: %w", err)
+	}
+	return withText, nil
+}
+
+// compositeStatusBackground stamps a light-purple translucent band spanning the full page width,
+// top-aligned, bannerHeight tall, onto page 1 only.
+func compositeStatusBackground(docBytes []byte, pageW, pageH, bannerHeight float64) ([]byte, error) {
+	pxW := int(math.Round(pageW))
+	pxH := int(math.Round(bannerHeight))
+	if pxW < 1 || pxH < 1 {
+		return nil, fmt.Errorf("degenerate banner size: %dx%d px", pxW, pxH)
+	}
+	img := image.NewRGBA(image.Rect(0, 0, pxW, pxH))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: bannerBackgroundColor}, image.Point{}, draw.Src)
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil, fmt.Errorf("encode background band: %w", err)
+	}
+
+	bottomLeftY := pageH - bannerHeight
+	desc := fmt.Sprintf("position:bl, offset:0 %.4f, scalefactor:1.0 abs, opacity:0.35, rotation:0", bottomLeftY)
+	wm, err := api.ImageWatermarkForReader(bytes.NewReader(buf.Bytes()), desc, true, false, types.POINTS)
+	if err != nil {
+		return nil, fmt.Errorf("build background watermark: %w", err)
+	}
+	var out bytes.Buffer
+	if err := api.AddWatermarks(bytes.NewReader(docBytes), &out, []string{"1"}, wm, nil); err != nil {
+		return nil, fmt.Errorf("apply background watermark: %w", err)
+	}
+	return out.Bytes(), nil
+}
+
+// compositeStatusText lays black Courier text on top of the band compositeStatusBackground just
+// drew, inset by bannerMargin on every side so glyphs never touch the band's own edge.
+func compositeStatusText(docBytes []byte, text string, pageH, bannerHeight, maxTextWidth float64) ([]byte, error) {
+	bottomLeftX := bannerMargin
+	bottomLeftY := pageH - bannerHeight + bannerMargin
+	desc := fmt.Sprintf(
+		"fontname:Courier, points:%d, color:#000000, position:bl, offset:%.4f %.4f, aligntext:l, opacity:1, rotation:0, maxWidth:%.4f",
+		bannerFontSize, bottomLeftX, bottomLeftY, maxTextWidth,
+	)
+	wm, err := api.TextWatermark(text, desc, true, false, types.POINTS)
+	if err != nil {
+		return nil, fmt.Errorf("build text watermark: %w", err)
+	}
+	var out bytes.Buffer
+	if err := api.AddWatermarks(bytes.NewReader(docBytes), &out, []string{"1"}, wm, nil); err != nil {
+		return nil, fmt.Errorf("apply text watermark: %w", err)
+	}
+	return out.Bytes(), nil
 }
 
 // compositeOne places one Stamp using pdfcpu's anchor+offset+absolute-scale watermark scheme:

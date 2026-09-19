@@ -1,13 +1,24 @@
 package web
 
 import (
+	"bytes"
+	"context"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+	"menata.app/internal/action"
+	"menata.app/internal/config"
+	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/metadata"
+	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
 
@@ -151,5 +162,139 @@ func TestHandleFileUploads_allowsRealPDF(t *testing.T) {
 	}
 	if _, ok := uploaded["fld_file"]; !ok {
 		t.Errorf("handleFileUploads(real PDF) = %v, want a key for fld_file", uploaded)
+	}
+}
+
+// loadRealMachines loads the app's own real metadata/app.yaml -- the same manifest cmd/server
+// loads -- so a showRecordRow test exercises real Field/relation wiring (mch_approval_step's
+// fld_document relation back to mch_document, in particular) rather than a hand-rolled stand-in
+// that could silently drift from what ships. It also calls rendering.ConfigureNavigation, the
+// same call internal/web.Routes makes in production (router.go) -- detailBackLink's own
+// routeByID("nav_approval_inbox") panics without it -- and resets that package-level state via
+// t.Cleanup, the same pattern internal/rendering/navigation_test.go already uses, so this test
+// doesn't leak navigation state into any other test in this package.
+func loadRealMachines(t *testing.T) map[string]*domain.Machine {
+	t.Helper()
+	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication: %v", err)
+	}
+	rendering.ConfigureNavigation(app.Application.Navigation, app.Application.PrimaryNavGroup, app.Application.AllNavigation)
+	t.Cleanup(func() { rendering.ConfigureNavigation(nil, "", nil) })
+
+	machines := make(map[string]*domain.Machine, len(app.Machines))
+	for _, m := range app.Machines {
+		machines[m.ID] = m
+	}
+	return machines
+}
+
+// TestShowRecordRow_documentDetailIncludesInlineSignaturePlacement is the Fase 0 regression test
+// (composable-runtime kajian): signaturePlacementBlock must render inline on a Document's own
+// detail page, not just on the dedicated /signature-placement route -- proving the Component is
+// genuinely composable into a second Page, with zero metadata change.
+func TestShowRecordRow_documentDetailIncludesInlineSignaturePlacement(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "sig_placement_inline_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Signature Placement Inline Test", "signature-placement-inline-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+
+	files, err := storage.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("storage.NewStore: %v", err)
+	}
+	pdfBytes, err := os.ReadFile(filepath.Join("..", "pdf", "testdata", "blank.pdf"))
+	if err != nil {
+		t.Fatalf("read testdata/blank.pdf: %v", err)
+	}
+	key, err := files.Save(action.DocumentMachineID, action.FieldDocumentFile, "contract.pdf", bytes.NewReader(pdfBytes))
+	if err != nil {
+		t.Fatalf("files.Save: %v", err)
+	}
+
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	document, err := store.CreateRecord(wsCtx, action.DocumentMachineID, map[string]any{
+		"fld_title":              "Test Document",
+		action.FieldDocumentFile: key,
+	})
+	if err != nil {
+		t.Fatalf("CreateRecord(document): %v", err)
+	}
+	if _, err := store.CreateRecord(wsCtx, action.StepMachineID, map[string]any{
+		action.FieldStepDocument: document.ID,
+		action.FieldStepSequence: float64(1),
+		action.FieldStepAssignee: "usr_placeholder",
+		action.FieldStepDecision: action.DecisionPending,
+	}); err != nil {
+		t.Fatalf("CreateRecord(step): %v", err)
+	}
+
+	machines := loadRealMachines(t)
+	r := chi.NewRouter()
+	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, "Test App", config.Config{}))
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, document.ID), nil)
+	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("showRecordRow(document detail) status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `id="sig-body"`) {
+		t.Errorf("Document detail page missing inline signaturePlacementBlock (no #sig-body in response)")
+	}
+	if !strings.Contains(body, "Signature Positions") {
+		t.Errorf("Document detail page missing the inline block's own section header")
+	}
+}
+
+// TestShowRecordRow_nonDocumentDetailHasNoSignaturePlacement is the negative-side regression
+// guard for the same change: threading files into showRecordRow/documentSignaturePlacementView
+// must not affect any other Machine's own detail page.
+func TestShowRecordRow_nonDocumentDetailHasNoSignaturePlacement(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "sig_placement_inline_negative_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Signature Placement Inline Negative Test", "signature-placement-inline-negative-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+
+	files, err := storage.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("storage.NewStore: %v", err)
+	}
+
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	project, err := store.CreateRecord(wsCtx, "mch_project", map[string]any{"fld_name": "Test Project"})
+	if err != nil {
+		t.Fatalf("CreateRecord(project): %v", err)
+	}
+
+	machines := loadRealMachines(t)
+	r := chi.NewRouter()
+	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, "Test App", config.Config{}))
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/machines/mch_project/records/%s", project.ID), nil)
+	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("showRecordRow(project detail) status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if body := rec.Body.String(); strings.Contains(body, `id="sig-body"`) {
+		t.Errorf("mch_project's own detail page unexpectedly contains signaturePlacementBlock's #sig-body")
 	}
 }

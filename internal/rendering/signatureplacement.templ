@@ -19,95 +19,112 @@ import (
 // app. Still true after the 2026-09-19 UX review's own fix below: no new JS was added, only HTMX
 // attributes.
 //
-// #sig-body listens for its own descendants' successful requests (htmx:afterRequest bubbles from
-// whichever form just PUT, up through this div) and re-fetches itself, selecting the same #sig-body
-// back out of the full page response (hx-select, the declarative form of htmx.ajax's own select
-// option) -- replacing a full window.location.reload() per drag/place/width-change (jarring for
-// what should feel like direct manipulation) with a same-region refresh, entirely in HTMX, no new
-// vanilla JS. The three forms below (sigMarker/placeStepForm/widthControl) need no attribute of
-// their own for this -- one listener on the shared container is enough.
 templ SignaturePlacementPage(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, appName string) {
 	@pageShell("Signature Placement", appName) {
 		<p><a href={ templ.URL("/machines/" + action.DocumentMachineID + "/records/" + document.ID) }>← { toString(document.Values["fld_title"]) }</a></p>
 		<h1>Signature positions</h1>
 		<p class="step-status">Step 2 of 2 — Signature Positions</p>
 		<p class="step-status">Place one marker per approval step. Drag a placed marker to reposition it.</p>
-		<div
-			class="sig-layout"
-			id="sig-body"
-			hx-trigger="htmx:afterRequest[detail.successful]"
-			hx-get={ placementURL(document.ID, page) }
-			hx-select="#sig-body"
-			hx-swap="outerHTML"
-		>
-			<section>
-				<div class="sig-pager">
-					<strong>Page { fmt.Sprint(page) } of { fmt.Sprint(totalPages) }</strong>
-					<span>
-						if page > 1 {
-							<a href={ templ.URL(placementURL(document.ID, page-1)) }>← Prev</a>
-						}
-						if page < totalPages {
-							<a href={ templ.URL(placementURL(document.ID, page+1)) }>Next →</a>
-						}
-					</span>
-				</div>
-				<div class="sig-canvas">
-					<img src={ previewURL(document.ID, page) } alt="Document page preview"/>
-					for i, s := range steps {
-						if signaturePage(s) == page {
-							@sigMarker(s, i+1)
-						}
-					}
-				</div>
-			</section>
-			<aside>
-				<h2>Approval steps</h2>
-				for i, s := range steps {
-					<div class="sig-step-card">
-						<strong>{ fmt.Sprintf("%d. %s", i+1, relationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))) }</strong>
-						if signaturePlaced(s) {
-							<p class="step-status">{ fmt.Sprintf("Page %d · %.0f%% · %.0f%% · %.0f%% wide", signaturePage(s), signatureCoord(s, action.FieldStepSignatureX), signatureCoord(s, action.FieldStepSignatureY), signatureWidth(s)) }</p>
-						} else {
-							<p class="step-status">Not placed yet</p>
-						}
-						@widthControl(s, page)
-						@placeStepForm(s, page)
-					</div>
-				}
-			</aside>
-		</div>
-		<script>
-			// Event delegation (rather than a per-marker addEventListener, the pre-2026-09-19
-			// version of this script) so a marker inserted by the #sig-body refresh below still
-			// drags correctly without needing to re-run this setup after every swap.
-			(function () {
-				var dragging = null;
-				document.addEventListener("pointerdown", function (e) {
-					var marker = e.target.closest(".sig-marker");
-					if (!marker) return;
-					dragging = marker;
-					marker.setPointerCapture(e.pointerId);
-				});
-				document.addEventListener("pointermove", function (e) {
-					if (!dragging) return;
-					var rect = dragging.closest(".sig-canvas").getBoundingClientRect();
-					var x = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
-					var y = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
-					dragging.style.left = x + "%";
-					dragging.style.top = y + "%";
-					var form = dragging.closest("form");
-					form.querySelector(".sig-x-input").value = x.toFixed(1);
-					form.querySelector(".sig-y-input").value = y.toFixed(1);
-				});
-				document.addEventListener("pointerup", function () {
-					if (!dragging) return;
-					dragging.closest("form").requestSubmit();
-					dragging = null;
-				});
-			})();
-		</script>
+		@signaturePlacementBlock(document, steps, relations, page, totalPages)
 	}
+}
+
+// signaturePlacementBlock is the drag/place/width Component itself -- 007 §12.3's bounded contract
+// (document, steps, relations, page, totalPages, nothing else) factored out of SignaturePlacementPage
+// so a second Page can compose it too (detail.templ's RecordDetailView, Document's own detail page)
+// without duplicating this markup or its script. SignaturePlacementPage above is now just that
+// Page's own frame -- breadcrumb, heading, status text -- around this same Component.
+//
+// #sig-body listens for its own descendants' successful requests (htmx:afterRequest bubbles from
+// whichever form just PUT, up through this div) and re-fetches itself from the canonical
+// signature-placement route, selecting the same #sig-body back out of that full page response
+// (hx-select, the declarative form of htmx.ajax's own select option) -- replacing a full
+// window.location.reload() per drag/place/width-change (jarring for what should feel like direct
+// manipulation) with a same-region refresh, entirely in HTMX, no new vanilla JS. This refresh
+// works identically wherever this block is embedded, since it always re-fetches from
+// placementURL, not from "wherever the page currently is". The three forms below
+// (sigMarker/placeStepForm/widthControl) need no attribute of their own for this -- one listener
+// on the shared container is enough.
+//
+// The trailing <script> travels with the block, not with the Page, so any Page that embeds this
+// Component gets working drag behavior automatically -- a Component must not depend on its host
+// Page remembering to also include its behavior (007 §12.3 boundedness).
+templ signaturePlacementBlock(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int) {
+	<div
+		class="sig-layout"
+		id="sig-body"
+		hx-trigger="htmx:afterRequest[detail.successful]"
+		hx-get={ placementURL(document.ID, page) }
+		hx-select="#sig-body"
+		hx-swap="outerHTML"
+	>
+		<section>
+			<div class="sig-pager">
+				<strong>Page { fmt.Sprint(page) } of { fmt.Sprint(totalPages) }</strong>
+				<span>
+					if page > 1 {
+						<a href={ templ.URL(placementURL(document.ID, page-1)) }>← Prev</a>
+					}
+					if page < totalPages {
+						<a href={ templ.URL(placementURL(document.ID, page+1)) }>Next →</a>
+					}
+				</span>
+			</div>
+			<div class="sig-canvas">
+				<img src={ previewURL(document.ID, page) } alt="Document page preview"/>
+				for i, s := range steps {
+					if signaturePage(s) == page {
+						@sigMarker(s, i+1)
+					}
+				}
+			</div>
+		</section>
+		<aside>
+			<h2>Approval steps</h2>
+			for i, s := range steps {
+				<div class="sig-step-card">
+					<strong>{ fmt.Sprintf("%d. %s", i+1, relationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))) }</strong>
+					if signaturePlaced(s) {
+						<p class="step-status">{ fmt.Sprintf("Page %d · %.0f%% · %.0f%% · %.0f%% wide", signaturePage(s), signatureCoord(s, action.FieldStepSignatureX), signatureCoord(s, action.FieldStepSignatureY), signatureWidth(s)) }</p>
+					} else {
+						<p class="step-status">Not placed yet</p>
+					}
+					@widthControl(s, page)
+					@placeStepForm(s, page)
+				</div>
+			}
+		</aside>
+	</div>
+	<script>
+		// Event delegation (rather than a per-marker addEventListener, the pre-2026-09-19
+		// version of this script) so a marker inserted by the #sig-body refresh below still
+		// drags correctly without needing to re-run this setup after every swap.
+		(function () {
+			var dragging = null;
+			document.addEventListener("pointerdown", function (e) {
+				var marker = e.target.closest(".sig-marker");
+				if (!marker) return;
+				dragging = marker;
+				marker.setPointerCapture(e.pointerId);
+			});
+			document.addEventListener("pointermove", function (e) {
+				if (!dragging) return;
+				var rect = dragging.closest(".sig-canvas").getBoundingClientRect();
+				var x = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+				var y = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
+				dragging.style.left = x + "%";
+				dragging.style.top = y + "%";
+				var form = dragging.closest("form");
+				form.querySelector(".sig-x-input").value = x.toFixed(1);
+				form.querySelector(".sig-y-input").value = y.toFixed(1);
+			});
+			document.addEventListener("pointerup", function () {
+				if (!dragging) return;
+				dragging.closest("form").requestSubmit();
+				dragging = null;
+			});
+		})();
+	</script>
 }
 
 // sigMarker is one already-placed Approval Step's draggable marker, positioned by inline style

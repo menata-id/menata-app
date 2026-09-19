@@ -160,31 +160,66 @@ func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Sto
 		}
 		ctx := req.Context()
 		documentID := chi.URLParam(req, "id")
-		document, fileData, err := loadDocumentPDF(ctx, store, files, documentID)
+		document, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, store, files, machines, documentID)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		totalPages, err := pdf.PageCount(fileData)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("unable to read document PDF: %v", err), http.StatusUnprocessableEntity)
-			return
-		}
 		page := pageFromQuery(req, totalPages)
 
-		steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, documentID)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		ld := composition.NewLoader(store, machines)
-		relations, err := ld.RelationOptions(ctx, machines[action.StepMachineID])
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-
 		render(ctx, w, rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, appName))
+	}
+}
+
+// loadSignaturePlacementData centralizes what both the dedicated Signature Placement page and
+// Document's own detail page need: the Document record, its PDF's total page count, its own
+// Approval Steps, and their relation options -- the exact logic that used to live inline in
+// showSignaturePlacement, extracted so documentSignaturePlacementView below doesn't duplicate it.
+// It does not take a page number: totalPages is an output (the caller decides which page to show,
+// or -- for the inline embed -- always shows page 1), not an input this loading step needs.
+func loadSignaturePlacementData(ctx context.Context, store *data.Store, files *storage.Store, machines map[string]*domain.Machine, documentID string) (*data.Record, []*data.Record, rendering.RelationOptions, int, error) {
+	document, fileData, err := loadDocumentPDF(ctx, store, files, documentID)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	totalPages, err := pdf.PageCount(fileData)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, documentID)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	ld := composition.NewLoader(store, machines)
+	relations, err := ld.RelationOptions(ctx, machines[action.StepMachineID])
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	return document, steps, relations, totalPages, nil
+}
+
+// documentSignaturePlacementView is Fase 0 of the composable-runtime kajian: the same
+// signaturePlacementBlock Component the dedicated Signature Placement page renders, now also
+// available to Document's own generic detail view (record.go). Returns nil immediately for every
+// Machine other than mch_document (zero cost -- no PDF read, no extra query). Fails open, not
+// closed: Document's detail page has never depended on its PDF being readable, so a loading error
+// here is logged and treated as "nothing to show inline", not a reason to 500 the whole page --
+// the same "best-effort, logged, never blocks the primary flow" posture already established for
+// PDF signature compositing (capabilities.md).
+func documentSignaturePlacementView(ctx context.Context, store *data.Store, files *storage.Store, machines map[string]*domain.Machine, machine *domain.Machine, recordID string) *rendering.DocumentSignaturePlacement {
+	if machine.ID != action.DocumentMachineID {
+		return nil
+	}
+	_, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, store, files, machines, recordID)
+	if err != nil {
+		log.Printf("signature placement inline view for document %s: %v", recordID, err)
+		return nil
+	}
+	return &rendering.DocumentSignaturePlacement{
+		Steps:      steps,
+		Relations:  relations,
+		Page:       1,
+		TotalPages: totalPages,
 	}
 }
 

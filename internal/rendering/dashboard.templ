@@ -64,7 +64,10 @@ templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []
 			</tbody>
 		</table>
 
-		@sectionHeader("Documents", "/machines/mch_document", "View all →")
+		// No "View all" link -- same reasoning as approvalinbox.templ's "My Documents" section:
+		// /machines/mch_document is POC scaffolding, not a real destination (owner request,
+		// 2026-09-19).
+		@sectionHeader("Documents", "", "")
 		@summaryCounts([]SummaryItem{
 			{Label: "In Review", Value: fmt.Sprint(docs.InReview)},
 			{Label: "Approved", Value: fmt.Sprint(docs.Approved)},

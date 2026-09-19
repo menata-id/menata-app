@@ -18,25 +18,52 @@ type ChildSection struct {
 	Relations RelationOptions
 }
 
+// DocumentSignaturePlacement is what signaturePlacementBlock (signatureplacement.templ) needs to
+// render inline on a Document's own detail page -- nil for every Machine other than mch_document.
+// A second, genuinely different Page (RecordDetailView, alongside the dedicated
+// SignaturePlacementPage) now composes that same Component, proving 007 §12.1/§12.3's Page vs
+// Component split mechanically, with no metadata change.
+type DocumentSignaturePlacement struct {
+	Steps      []*data.Record
+	Relations  RelationOptions
+	Page       int
+	TotalPages int
+}
+
 // RecordDetailPage is a dedicated per-record view (ROADMAP.md Phase 8), replacing inline-only
 // editing (table row / board card) as the host for richer content later phases add (Phase 9's
 // child collections, Phase 13's activity feed).
 // actorID is the viewing identity, needed only so an Action the viewer is not permitted to
 // perform isn't offered in the first place (ROADMAP.md Phase 16) -- the server enforces the same
 // rule regardless, this only keeps the UI honest about it.
-templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relations RelationOptions, children []ChildSection, actorID string) {
+templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relations RelationOptions, children []ChildSection, actorID string, hasSignature bool, sigPlacement *DocumentSignaturePlacement) {
 	@pageShell(m.Name, appName) {
-		<p><a href={ templ.URL("/machines/" + m.ID) }>← { m.Name }</a></p>
+		@detailBackLink(m)
 		<div id="record-detail">
-			@RecordDetailView(m, r, relations, children, actorID)
+			@RecordDetailView(m, r, relations, children, actorID, hasSignature, sigPlacement)
 		</div>
+	}
+}
+
+// detailBackLink is Document/Approval Step's own back-link exception: those two Machines only
+// exist as part of Case 3's Document Approval flow, so their own generic Machine page
+// (/machines/mch_document, /machines/mch_approval_step) is POC scaffolding no real approver
+// should land on (owner request, 2026-09-19) -- send them back to Approval Inbox instead, via the
+// same routeByID idiom documentsubmit.templ's own "← Approval Inbox" already uses. Every other
+// Machine (Task, Project, ...) has no bespoke flow of its own, so its generic page remains the
+// real destination.
+templ detailBackLink(m *domain.Machine) {
+	if m.ID == action.DocumentMachineID || m.ID == action.StepMachineID {
+		<p><a href={ templ.SafeURL(routeByID("nav_approval_inbox")) }>← Approval Inbox</a></p>
+	} else {
+		<p><a href={ templ.URL("/machines/" + m.ID) }>← { m.Name }</a></p>
 	}
 }
 
 // RecordDetailView is one Record's read-only detail: every Field as a label/value pair, plus one
 // section per child collection -- every record of another Machine that references this one
 // (ROADMAP.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
-templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection, actorID string) {
+templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection, actorID string, hasSignature bool, sigPlacement *DocumentSignaturePlacement) {
 	<div id="record-detail">
 		<h1>{ recordTitle(m, r) }</h1>
 		if m.ID == action.DocumentMachineID {
@@ -66,7 +93,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			}
 		</dl>
 		if m.ID == action.StepMachineID {
-			@decideButtons(m, r, actorID)
+			@decideButtons(m, r, actorID, hasSignature)
 		}
 		{{ deletable, blockedReason := canDeleteInView(m, r, children) }}
 		<div class="actions">
@@ -98,6 +125,10 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 				@ChildSectionView(cc)
 			}
 		}
+		if m.ID == action.DocumentMachineID && sigPlacement != nil {
+			@sectionHeader("Signature Positions", "", "")
+			@signaturePlacementBlock(r, sigPlacement.Steps, sigPlacement.Relations, sigPlacement.Page, sigPlacement.TotalPages)
+		}
 	</div>
 }
 
@@ -121,15 +152,29 @@ templ pdfThumbnail(machineID, recordID string) {
 // A pending step assigned to someone else shows who it's waiting on instead of buttons, asking
 // authorization.AllowsAction the same question the handler asks (Phase 16). This is presentation,
 // not enforcement: the server denies the POST either way.
-templ decideButtons(m *domain.Machine, r *data.Record, actorID string) {
+//
+// hasSignature (internal/web's hasSignatureForGate, computed with I/O the rendering plane can't do
+// itself, 007 §20 -- the same reason signatureConfirmation below could never answer this) is the
+// render-time half of the signature-capture gate (owner request, 2026-09-19): when false, Approve
+// doesn't submit directly -- it opens signatureModal's own canvas dialog first, nested in the same
+// form, so its own Approve button is one more submit control on the same hx-post. decideStep's own
+// applyApprovalSignature is the write-time half of the same gate.
+templ decideButtons(m *domain.Machine, r *data.Record, actorID string, hasSignature bool) {
 	<div class="actions decide-actions">
 		if toString(r.Values[action.FieldStepDecision]) != action.DecisionPending {
 			<span class="badge">{ toString(r.Values[action.FieldStepDecision]) }</span>
 		} else if authorization.AllowsAction(m, domain.ActionDecide, r.Values, actorID) {
 			@signatureConfirmation(r)
 			<form hx-post={ fmt.Sprintf("/machines/%s/records/%s/decide", m.ID, r.ID) }>
-				<button type="submit" name="decision" value={ action.DecisionApproved } class="primary">Approve</button>
+				if hasSignature {
+					<button type="submit" name="decision" value={ action.DecisionApproved } class="primary">Approve</button>
+				} else {
+					<button type="button" class="primary sig-approve-trigger" data-modal={ "sig-modal-" + r.ID }>Approve</button>
+				}
 				<button type="submit" name="decision" value={ action.DecisionRejected }>Reject</button>
+				if !hasSignature {
+					@signatureModal(r.ID)
+				}
 			</form>
 		} else {
 			<span class="step-status">Awaiting its own assignee's decision</span>
@@ -137,13 +182,107 @@ templ decideButtons(m *domain.Machine, r *data.Record, actorID string) {
 	</div>
 }
 
+// signatureModal is the canvas dialog decideButtons opens when its assignee has no signature on
+// file yet (neither a saved mch_signature nor a one-time fld_signature_image already on this
+// step) -- owner request, 2026-09-19: "draw it the first time, ask to remember it, don't ask again
+// once it's saved." Nested inside decideButtons' own <form> so its own Approve button is just one
+// more submit control on the same hx-post -- no second route, no separate page.
+//
+// Freehand drawing has no non-JS equivalent, so this is a second named vanilla-JS exception
+// alongside signature-placement's own drag math (same file, same posture, README.md's "Tech
+// stack"). Event delegation on document, matching signature-placement's own reasoning for reusing
+// one listener rather than one per element -- this dialog is only ever rendered once per page
+// (decideButtons itself is), so delegation isn't strictly required for re-binding after a swap the
+// way it was there, but it keeps both scripts written the same way.
+//
+// The submit listener is registered with useCapture=true specifically so it runs before htmx's own
+// submit handling (a bubble-phase listener on the form itself fires during the "at target" phase,
+// before any bubble-phase document listener) -- without that, htmx would read the hidden
+// signature_image input before this had a chance to fill it from the canvas.
+templ signatureModal(stepID string) {
+	<dialog id={ "sig-modal-" + stepID } class="sig-modal">
+		<h3>Add your signature</h3>
+		<p class="step-status">Draw your signature below to approve. It's only used for this document unless you choose to save it.</p>
+		<canvas class="sig-modal-canvas" width="400" height="160"></canvas>
+		<div class="sig-modal-row">
+			<button type="button" class="sig-modal-clear">Clear</button>
+			<label><input type="checkbox" name="save_signature"/> Save my signature for next time</label>
+		</div>
+		<input type="hidden" name="signature_image" class="sig-modal-image"/>
+		<div class="sig-modal-row sig-modal-actions">
+			<button type="button" class="sig-modal-cancel">Cancel</button>
+			<button type="submit" name="decision" value={ action.DecisionApproved } class="primary sig-modal-approve">Approve</button>
+		</div>
+	</dialog>
+	<script>
+		(function () {
+			document.addEventListener("click", function (e) {
+				var trigger = e.target.closest(".sig-approve-trigger");
+				if (trigger) {
+					var modal = document.getElementById(trigger.dataset.modal);
+					if (modal) modal.showModal();
+					return;
+				}
+				var cancel = e.target.closest(".sig-modal-cancel");
+				if (cancel) {
+					cancel.closest("dialog").close();
+					return;
+				}
+				var clear = e.target.closest(".sig-modal-clear");
+				if (clear) {
+					var canvas = clear.closest("dialog").querySelector(".sig-modal-canvas");
+					canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+				}
+			});
+
+			document.addEventListener("submit", function (e) {
+				var submitter = e.submitter;
+				if (!submitter || !submitter.classList.contains("sig-modal-approve")) return;
+				var dialog = submitter.closest("dialog");
+				var canvas = dialog.querySelector(".sig-modal-canvas");
+				dialog.querySelector(".sig-modal-image").value = canvas.toDataURL("image/png");
+			}, true);
+
+			var drawing = false, lastX = 0, lastY = 0;
+			document.addEventListener("pointerdown", function (e) {
+				var canvas = e.target.closest(".sig-modal-canvas");
+				if (!canvas) return;
+				drawing = true;
+				var rect = canvas.getBoundingClientRect();
+				lastX = e.clientX - rect.left;
+				lastY = e.clientY - rect.top;
+				canvas.setPointerCapture(e.pointerId);
+			});
+			document.addEventListener("pointermove", function (e) {
+				if (!drawing) return;
+				var canvas = e.target.closest(".sig-modal-canvas");
+				if (!canvas) return;
+				var rect = canvas.getBoundingClientRect();
+				var x = e.clientX - rect.left;
+				var y = e.clientY - rect.top;
+				var ctx = canvas.getContext("2d");
+				ctx.strokeStyle = "#1a1a1a";
+				ctx.lineWidth = 2;
+				ctx.lineCap = "round";
+				ctx.beginPath();
+				ctx.moveTo(lastX, lastY);
+				ctx.lineTo(x, y);
+				ctx.stroke();
+				lastX = x;
+				lastY = y;
+			});
+			document.addEventListener("pointerup", function () { drawing = false; });
+		})();
+	</script>
+}
+
 // signatureConfirmation echoes a pending step's own signature placement back to its assignee
 // before they approve (ROADMAP.md's UI mockup conformance audit) -- reusing the step record
 // already fetched for this page and signatureplacement.templ's own field-reading helpers
 // (signaturePlaced/signaturePage/signatureCoord/signatureWidth), no extra query. It only confirms
 // where a placement will land, not whether a real signature image exists on file for this person
-// -- that check needs I/O the rendering plane doesn't perform (007 §20); Phase 17's own
-// compositing silently skips a step with no signature on file regardless of what this note says.
+// -- that check needs I/O the rendering plane doesn't perform (007 §20); decideButtons' own
+// hasSignature parameter is what actually gates Approve on that, computed in internal/web.
 templ signatureConfirmation(r *data.Record) {
 	if signaturePlaced(r) {
 		<p class="step-status">
@@ -229,7 +368,7 @@ func hiddenDetailField(m *domain.Machine, f domain.Field) bool {
 		return false
 	}
 	switch f.ID {
-	case action.FieldStepSignaturePage, action.FieldStepSignatureX, action.FieldStepSignatureY, action.FieldStepSignatureWidth:
+	case action.FieldStepSignaturePage, action.FieldStepSignatureX, action.FieldStepSignatureY, action.FieldStepSignatureWidth, action.FieldStepSignatureImage:
 		return true
 	default:
 		return false

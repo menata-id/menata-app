@@ -249,7 +249,7 @@ func pageStyles() templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<style>\n\t\t\t\tbody { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }\n\t\t\t\theader.topbar { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e5e5; }\n\t\t\t\theader.topbar .left { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }\n\t\t\t\theader.topbar span { color: #666; font-size: 0.85rem; }\n\t\t\t\theader.topbar a { color: #3949ab; font-size: 0.85rem; text-decoration: none; }\n\t\t\t\theader.topbar a[aria-current=\"page\"] { font-weight: 600; text-decoration: underline; }\n\t\t\t\t.nav-badge:empty { display: none; }\n\t\t\t\t.nav-badge { display: inline-block; margin-left: 0.3rem; padding: 0 0.4rem; border-radius: 999px; background: #b00020; color: #fff; font-size: 0.7rem; line-height: 1.4; }\n\t\t\t\theader.topbar button { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; }\n\t\t\t\t.nav-group { display: flex; align-items: center; gap: 0.85rem; }\n\t\t\t\t.nav-group-label { color: #999; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }\n\t\t\t\tdetails.nav-group { position: relative; display: block; }\n\t\t\t\tdetails.nav-group summary { list-style: none; cursor: pointer; color: #444; font-size: 0.85rem; }\n\t\t\t\tdetails.nav-group summary::-webkit-details-marker { display: none; }\n\t\t\t\tdetails.nav-group summary::after { content: \" \\25be\"; color: #999; font-size: 0.7rem; }\n\t\t\t\tdetails.nav-group[open] summary::after { content: \" \\25b4\"; }\n\t\t\t\tdetails.nav-group .nav-group-items { position: absolute; top: 100%; left: 0; margin-top: 0.5rem; background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 0.6rem 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 0.6rem; min-width: 11rem; z-index: 20; }\n\t\t\t\th1 { margin-bottom: 0.25rem; }\n\t\t\t\tcode { color: #666; font-size: 0.9rem; }\n\t\t\t\ttable { border-collapse: collapse; width: 100%; margin-top: 1rem; }\n\t\t\t\tth, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e5e5; vertical-align: middle; }\n\t\t\t\tth { color: #666; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }\n\t\t\t\t.badge { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px; background: #eef1fb; color: #3949ab; font-size: 0.8rem; }\n\t\t\t\t.yes { color: #b00020; }\n\t\t\t\t.no { color: #999; }\n\t\t\t\tinput, select { padding: 0.35rem 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; width: 100%; box-sizing: border-box; }\n\t\t\t\tbutton { padding: 0.35rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.85rem; }\n\t\t\t\tbutton.primary { background: #3949ab; color: #fff; border-color: #3949ab; }\n\t\t\t\t.actions { white-space: nowrap; }\n\t\t\t\t.actions button { margin-right: 0.25rem; }\n\t\t\t\t.record-detail-pane { margin-top: 2rem; border-top: 1px solid #e5e5e5; padding-top: 1.5rem; }\n\t\t\t\t.decide-actions { position: sticky; bottom: 0; background: #fff; padding: 0.75rem 0; border-top: 1px solid #e5e5e5; margin-top: 1rem; }\n\t\t\t\tform.create-form td { padding-top: 0.75rem; }\n\t\t\t\tdl.detail-fields { display: grid; grid-template-columns: 10rem 1fr; row-gap: 0.75rem; column-gap: 1rem; margin: 1.5rem 0; }\n\t\t\t\tdl.detail-fields dt { color: #666; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; align-self: center; }\n\t\t\t\tdl.detail-fields dd { margin: 0; }\n\t\t\t\tul.machine-list { list-style: none; padding: 0; }\n\t\t\t\tul.machine-list li { padding: 0.75rem; border-bottom: 1px solid #e5e5e5; }\n\t\t\t\tul.machine-list a { color: #1a1a1a; text-decoration: none; font-weight: 500; }\n\t\t\t\t.board { display: flex; gap: 1rem; margin-top: 1rem; overflow-x: auto; padding-bottom: 0.5rem; }\n\t\t\t\t.board-column { flex: 0 0 260px; background: #f7f8fc; border-radius: 6px; padding: 0.75rem; }\n\t\t\t\t.board-column h3 { margin: 0 0 0.5rem 0; font-size: 0.8rem; color: #444; text-transform: uppercase; }\n\t\t\t\t.board-column table { margin-top: 0; font-size: 0.85rem; }\n\t\t\t\t.board-column th { display: none; }\n\t\t\t\t.board-column td { padding: 0.35rem 0.4rem; }\n\t\t\t\th2 { margin-top: 2rem; }\n\t\t\t\th3 { margin-top: 1.5rem; font-size: 1rem; color: #444; }\n\t\t\t\tul.summary-counts { list-style: none; padding: 0; display: flex; gap: 1.5rem; }\n\t\t\t\tul.summary-counts li { color: #444; font-size: 0.9rem; }\n\t\t\t\tul.activity-feed { list-style: none; padding: 0; }\n\t\t\t\tul.activity-feed li { padding: 0.5rem 0; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0.6rem; align-items: baseline; }\n\t\t\t\t.muted { color: #999; font-size: 0.8rem; margin-left: auto; }\n\t\t\t\t.section-link { font-size: 0.8rem; font-weight: normal; margin-left: 0.75rem; }\n\t\t\t\t.summary-card-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }\n\t\t\t\t.summary-card { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #e5e5e5; border-radius: 6px; text-decoration: none; color: #1a1a1a; }\n\t\t\t\t.summary-card:hover { background: #f7f8fc; }\n\t\t\t\t.avatar { width: 2rem; height: 2rem; border-radius: 50%; background: #eef1fb; color: #3949ab; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; flex-shrink: 0; }\n\t\t\t\t.summary-card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }\n\t\t\t\t.summary-card-title { font-weight: 500; }\n\t\t\t\t.summary-card-ref { color: #999; font-weight: 400; font-size: 0.8rem; margin-right: 0.4rem; }\n\t\t\t\t.pdf-thumb { margin-top: 0.5rem; }\n\t\t\t\t.pdf-thumb img { max-width: 160px; border: 1px solid #ccc; border-radius: 4px; display: block; }\n\t\t\t\t.summary-card-subtitle { font-size: 0.8rem; color: #666; }\n\t\t\t\t.filter-chips { display: flex; gap: 0.5rem; margin-top: 1rem; }\n\t\t\t\t.filter-chips a { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 999px; font-size: 0.8rem; color: #444; text-decoration: none; }\n\t\t\t\t.filter-chips a.active { background: #3949ab; color: #fff; border-color: #3949ab; }\n\t\t\t\t.pending-card-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-top: 1rem; }\n\t\t\t\t@media (min-width: 640px) { .pending-card-grid { grid-template-columns: 1fr 1fr; } }\n\t\t\t\t.pending-card { display: block; border: 1px solid #e5e5e5; border-radius: 6px; padding: 1rem; text-decoration: none; color: #1a1a1a; }\n\t\t\t\t.pending-card:hover { border-color: #3949ab; }\n\t\t\t\t.pending-card-overdue { border-color: #f3c6c6; }\n\t\t\t\t.pending-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem; }\n\t\t\t\t.pending-card-head h2 { margin: 0.15rem 0 0; font-size: 1rem; }\n\t\t\t\t.pending-card-ref { margin: 0.15rem 0 0; color: #999; font-size: 0.8rem; }\n\t\t\t\t.pending-card-submitted { margin: 0 0 0.75rem; font-size: 0.85rem; color: #444; }\n\t\t\t\t.pending-card-progress { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }\n\t\t\t\t.progress-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #ccc; flex-shrink: 0; }\n\t\t\t\t.progress-dot.done { background: #2e7d32; }\n\t\t\t\t.progress-dot.current { background: #3949ab; box-shadow: 0 0 0 3px #eef1fb; }\n\t\t\t\t.progress-dot.rejected { background: #b00020; }\n\t\t\t\t.progress-line { flex: 1; height: 2px; background: #e5e5e5; }\n\t\t\t\t.progress-line-done { background: #a5d6a7; }\n\t\t\t\t.pending-card-foot { display: flex; justify-content: space-between; align-items: center; }\n\t\t\t\t.pending-card-sla-label { font-size: 0.75rem; font-weight: 600; }\n\t\t\t\t.pending-card-sla-label.yes { color: #b00020; }\n\t\t\t\t.pending-card-review { font-size: 0.85rem; font-weight: 500; color: #3949ab; }\n\t\t\t\tul.approval-stepper { list-style: none; padding: 0; margin: 1rem 0; }\n\t\t\t\tul.approval-stepper li { display: flex; gap: 0.75rem; padding: 0.5rem 0; align-items: center; }\n\t\t\t\t.step-marker { width: 1.75rem; height: 1.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; flex-shrink: 0; }\n\t\t\t\t.step-marker.done { background: #eef1fb; color: #3949ab; }\n\t\t\t\t.step-marker.rejected { background: #fdeaea; color: #b00020; }\n\t\t\t\t.step-marker.current { background: #3949ab; color: #fff; }\n\t\t\t\t.step-marker.waiting { background: #f0f0f0; color: #999; }\n\t\t\t\t.step-body { display: flex; flex-direction: column; }\n\t\t\t\t.step-title { font-weight: 500; }\n\t\t\t\t.step-status { font-size: 0.8rem; color: #666; }\n\t\t\t\t.sig-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-top: 1rem; align-items: start; }\n\t\t\t\t.sig-pager { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }\n\t\t\t\t.sig-canvas { position: relative; display: inline-block; max-width: 480px; }\n\t\t\t\t.sig-canvas img { display: block; width: 100%; border: 1px solid #ccc; border-radius: 4px; }\n\t\t\t\t.sig-marker { position: absolute; transform: translate(-50%, -50%); width: 1.75rem; height: 1.75rem; padding: 0; border-radius: 50%; background: #3949ab; color: #fff; border: 3px solid #fff; box-shadow: 0 0 0 1px #3949ab; font-size: 0.75rem; font-weight: 600; cursor: grab; touch-action: none; }\n\t\t\t\t.sig-step-card { border: 1px solid #e5e5e5; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; }\n\t\t\t\t.sig-step-card form { margin-top: 0.5rem; }\n\t\t\t\t.sig-width-label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #666; }\n\t\t\t\t.sig-width-label input { width: 4rem; }\n\t\t\t\t.approver-rows { counter-reset: approver-step; margin: 1rem 0; }\n\t\t\t\t.approver-row { counter-increment: approver-step; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 0.5rem; }\n\t\t\t\t.approver-row::before { content: counter(approver-step); flex-shrink: 0; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: #3949ab; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; }\n\t\t\t\t.approver-row select { flex: 1; width: auto; }\n\t\t\t\t.approver-move { padding: 0.2rem 0.5rem; }\n\t\t\t\t.approver-row:first-child .approver-move-up { visibility: hidden; }\n\t\t\t\t.approver-row:last-child .approver-move-down { visibility: hidden; }\n\t\t\t\t.approver-row:only-child .approver-move-remove { visibility: hidden; }\n\n\t\t\t\t/* Workspace-level chrome (workspaceHomeShell): a plain \"Menata\" brand plus\n\t\t\t\t   Members link and avatar, distinct from the Application-nav topbar above --\n\t\t\t\t   a Workspace Home screen has no Application menu of its own to project (mirrors\n\t\t\t\t   ui-sample/workspace-home.html's own launcher-only chrome). */\n\t\t\t\theader.topbar .left .topbar-brand { color: #1a1a1a; font-weight: 600; text-decoration: none; }\n\t\t\t\t.workspace-topbar-right { display: flex; align-items: center; gap: 1rem; }\n\t\t\t\t.workspace-heading { margin-bottom: 1.5rem; }\n\t\t\t\t.eyebrow-row { display: flex; align-items: center; gap: 0.35rem; }\n\t\t\t\t.eyebrow { color: #3949ab; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }\n\t\t\t\t.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.4rem; height: 1.4rem; border: none; border-radius: 4px; background: none; color: #999; text-decoration: none; cursor: pointer; padding: 0; font-size: 1rem; line-height: 1; }\n\t\t\t\t.icon-btn:hover { background: #f0f0f0; color: #3949ab; }\n\t\t\t\t.workspace-subtitle { color: #666; font-size: 0.9rem; margin: 0.25rem 0 0; }\n\t\t\t</style>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<style>\n\t\t\t\tbody { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }\n\t\t\t\theader.topbar { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e5e5; }\n\t\t\t\theader.topbar .left { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }\n\t\t\t\theader.topbar span { color: #666; font-size: 0.85rem; }\n\t\t\t\theader.topbar a { color: #3949ab; font-size: 0.85rem; text-decoration: none; }\n\t\t\t\theader.topbar a[aria-current=\"page\"] { font-weight: 600; text-decoration: underline; }\n\t\t\t\t.nav-badge:empty { display: none; }\n\t\t\t\t.nav-badge { display: inline-block; margin-left: 0.3rem; padding: 0 0.4rem; border-radius: 999px; background: #b00020; color: #fff; font-size: 0.7rem; line-height: 1.4; }\n\t\t\t\theader.topbar button { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; }\n\t\t\t\t.nav-group { display: flex; align-items: center; gap: 0.85rem; }\n\t\t\t\t.nav-group-label { color: #999; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }\n\t\t\t\tdetails.nav-group { position: relative; display: block; }\n\t\t\t\tdetails.nav-group summary { list-style: none; cursor: pointer; color: #444; font-size: 0.85rem; }\n\t\t\t\tdetails.nav-group summary::-webkit-details-marker { display: none; }\n\t\t\t\tdetails.nav-group summary::after { content: \" \\25be\"; color: #999; font-size: 0.7rem; }\n\t\t\t\tdetails.nav-group[open] summary::after { content: \" \\25b4\"; }\n\t\t\t\tdetails.nav-group .nav-group-items { position: absolute; top: 100%; left: 0; margin-top: 0.5rem; background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 0.6rem 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 0.6rem; min-width: 11rem; z-index: 20; }\n\t\t\t\th1 { margin-bottom: 0.25rem; }\n\t\t\t\tcode { color: #666; font-size: 0.9rem; }\n\t\t\t\ttable { border-collapse: collapse; width: 100%; margin-top: 1rem; }\n\t\t\t\tth, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e5e5; vertical-align: middle; }\n\t\t\t\tth { color: #666; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }\n\t\t\t\t.badge { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px; background: #eef1fb; color: #3949ab; font-size: 0.8rem; }\n\t\t\t\t.yes { color: #b00020; }\n\t\t\t\t.no { color: #999; }\n\t\t\t\tinput, select { padding: 0.35rem 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; width: 100%; box-sizing: border-box; }\n\t\t\t\tbutton { padding: 0.35rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.85rem; }\n\t\t\t\tbutton.primary { background: #3949ab; color: #fff; border-color: #3949ab; }\n\t\t\t\t.actions { white-space: nowrap; }\n\t\t\t\t.actions button { margin-right: 0.25rem; }\n\t\t\t\t.decide-actions { position: sticky; bottom: 0; background: #fff; padding: 0.75rem 0; border-top: 1px solid #e5e5e5; margin-top: 1rem; }\n\t\t\t\tform.create-form td { padding-top: 0.75rem; }\n\t\t\t\tdl.detail-fields { display: grid; grid-template-columns: 10rem 1fr; row-gap: 0.75rem; column-gap: 1rem; margin: 1.5rem 0; }\n\t\t\t\tdl.detail-fields dt { color: #666; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; align-self: center; }\n\t\t\t\tdl.detail-fields dd { margin: 0; }\n\t\t\t\tul.machine-list { list-style: none; padding: 0; }\n\t\t\t\tul.machine-list li { padding: 0.75rem; border-bottom: 1px solid #e5e5e5; }\n\t\t\t\tul.machine-list a { color: #1a1a1a; text-decoration: none; font-weight: 500; }\n\t\t\t\t.board { display: flex; gap: 1rem; margin-top: 1rem; overflow-x: auto; padding-bottom: 0.5rem; }\n\t\t\t\t.board-column { flex: 0 0 260px; background: #f7f8fc; border-radius: 6px; padding: 0.75rem; }\n\t\t\t\t.board-column h3 { margin: 0 0 0.5rem 0; font-size: 0.8rem; color: #444; text-transform: uppercase; }\n\t\t\t\t.board-column table { margin-top: 0; font-size: 0.85rem; }\n\t\t\t\t.board-column th { display: none; }\n\t\t\t\t.board-column td { padding: 0.35rem 0.4rem; }\n\t\t\t\th2 { margin-top: 2rem; }\n\t\t\t\th3 { margin-top: 1.5rem; font-size: 1rem; color: #444; }\n\t\t\t\tul.summary-counts { list-style: none; padding: 0; display: flex; gap: 1.5rem; }\n\t\t\t\tul.summary-counts li { color: #444; font-size: 0.9rem; }\n\t\t\t\tul.activity-feed { list-style: none; padding: 0; }\n\t\t\t\tul.activity-feed li { padding: 0.5rem 0; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0.6rem; align-items: baseline; }\n\t\t\t\t.muted { color: #999; font-size: 0.8rem; margin-left: auto; }\n\t\t\t\t.section-link { font-size: 0.8rem; font-weight: normal; margin-left: 0.75rem; }\n\t\t\t\t.summary-card-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }\n\t\t\t\t.summary-card { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #e5e5e5; border-radius: 6px; text-decoration: none; color: #1a1a1a; }\n\t\t\t\t.summary-card:hover { background: #f7f8fc; }\n\t\t\t\t.avatar { width: 2rem; height: 2rem; border-radius: 50%; background: #eef1fb; color: #3949ab; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; flex-shrink: 0; }\n\t\t\t\t.summary-card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }\n\t\t\t\t.summary-card-title { font-weight: 500; }\n\t\t\t\t.summary-card-ref { color: #999; font-weight: 400; font-size: 0.8rem; margin-right: 0.4rem; }\n\t\t\t\t.pdf-thumb { margin-top: 0.5rem; }\n\t\t\t\t.pdf-thumb img { max-width: 160px; border: 1px solid #ccc; border-radius: 4px; display: block; }\n\t\t\t\t.summary-card-subtitle { font-size: 0.8rem; color: #666; }\n\t\t\t\t.filter-chips { display: flex; gap: 0.5rem; margin-top: 1rem; }\n\t\t\t\t.filter-chips a { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 999px; font-size: 0.8rem; color: #444; text-decoration: none; }\n\t\t\t\t.filter-chips a.active { background: #3949ab; color: #fff; border-color: #3949ab; }\n\t\t\t\t.pending-card-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-top: 1rem; }\n\t\t\t\t@media (min-width: 640px) { .pending-card-grid { grid-template-columns: 1fr 1fr; } }\n\t\t\t\t.pending-card { display: block; border: 1px solid #e5e5e5; border-radius: 6px; padding: 1rem; text-decoration: none; color: #1a1a1a; }\n\t\t\t\t.pending-card:hover { border-color: #3949ab; }\n\t\t\t\t.pending-card-overdue { border-color: #f3c6c6; }\n\t\t\t\t.pending-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem; }\n\t\t\t\t.pending-card-head h2 { margin: 0.15rem 0 0; font-size: 1rem; }\n\t\t\t\t.pending-card-ref { margin: 0.15rem 0 0; color: #999; font-size: 0.8rem; }\n\t\t\t\t.pending-card-submitted { margin: 0 0 0.75rem; font-size: 0.85rem; color: #444; }\n\t\t\t\t.pending-card-progress { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }\n\t\t\t\t.progress-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #ccc; flex-shrink: 0; }\n\t\t\t\t.progress-dot.done { background: #2e7d32; }\n\t\t\t\t.progress-dot.current { background: #3949ab; box-shadow: 0 0 0 3px #eef1fb; }\n\t\t\t\t.progress-dot.rejected { background: #b00020; }\n\t\t\t\t.progress-line { flex: 1; height: 2px; background: #e5e5e5; }\n\t\t\t\t.progress-line-done { background: #a5d6a7; }\n\t\t\t\t.pending-card-foot { display: flex; justify-content: space-between; align-items: center; }\n\t\t\t\t.pending-card-sla-label { font-size: 0.75rem; font-weight: 600; }\n\t\t\t\t.pending-card-sla-label.yes { color: #b00020; }\n\t\t\t\t.pending-card-review { font-size: 0.85rem; font-weight: 500; color: #3949ab; }\n\t\t\t\tul.approval-stepper { list-style: none; padding: 0; margin: 1rem 0; }\n\t\t\t\tul.approval-stepper li { display: flex; gap: 0.75rem; padding: 0.5rem 0; align-items: center; }\n\t\t\t\t.step-marker { width: 1.75rem; height: 1.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; flex-shrink: 0; }\n\t\t\t\t.step-marker.done { background: #eef1fb; color: #3949ab; }\n\t\t\t\t.step-marker.rejected { background: #fdeaea; color: #b00020; }\n\t\t\t\t.step-marker.current { background: #3949ab; color: #fff; }\n\t\t\t\t.step-marker.waiting { background: #f0f0f0; color: #999; }\n\t\t\t\t.step-body { display: flex; flex-direction: column; }\n\t\t\t\t.step-title { font-weight: 500; }\n\t\t\t\t.step-status { font-size: 0.8rem; color: #666; }\n\t\t\t\t.sig-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-top: 1rem; align-items: start; }\n\t\t\t\t.sig-pager { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }\n\t\t\t\t.sig-canvas { position: relative; display: inline-block; max-width: 480px; }\n\t\t\t\t.sig-canvas img { display: block; width: 100%; border: 1px solid #ccc; border-radius: 4px; }\n\t\t\t\t.sig-marker { position: absolute; transform: translate(-50%, -50%); width: 1.75rem; height: 1.75rem; padding: 0; border-radius: 50%; background: #3949ab; color: #fff; border: 3px solid #fff; box-shadow: 0 0 0 1px #3949ab; font-size: 0.75rem; font-weight: 600; cursor: grab; touch-action: none; }\n\t\t\t\t.sig-step-card { border: 1px solid #e5e5e5; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; }\n\t\t\t\t.sig-step-card form { margin-top: 0.5rem; }\n\t\t\t\t.sig-width-label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #666; }\n\t\t\t\t.sig-width-label input { width: 4rem; }\n\t\t\t\t.sig-modal { border: 1px solid #e5e5e5; border-radius: 8px; padding: 1.25rem; max-width: 440px; box-shadow: 0 4px 24px rgba(0,0,0,0.15); }\n\t\t\t\t.sig-modal::backdrop { background: rgba(0,0,0,0.4); }\n\t\t\t\t.sig-modal h3 { margin-top: 0; }\n\t\t\t\t.sig-modal-canvas { display: block; width: 100%; height: 160px; border: 1px dashed #ccc; border-radius: 4px; background: #fff; touch-action: none; cursor: crosshair; }\n\t\t\t\t.sig-modal-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.75rem; }\n\t\t\t\t.sig-modal-row label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: #444; }\n\t\t\t\t.sig-modal-actions { justify-content: flex-end; }\n\t\t\t\t.approver-rows { counter-reset: approver-step; margin: 1rem 0; }\n\t\t\t\t.approver-row { counter-increment: approver-step; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 0.5rem; }\n\t\t\t\t.approver-row::before { content: counter(approver-step); flex-shrink: 0; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: #3949ab; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; }\n\t\t\t\t.approver-row select { flex: 1; width: auto; }\n\t\t\t\t.approver-move { padding: 0.2rem 0.5rem; }\n\t\t\t\t.approver-row:first-child .approver-move-up { visibility: hidden; }\n\t\t\t\t.approver-row:last-child .approver-move-down { visibility: hidden; }\n\t\t\t\t.approver-row:only-child .approver-move-remove { visibility: hidden; }\n\n\t\t\t\t/* Workspace-level chrome (workspaceHomeShell): a plain \"Menata\" brand plus\n\t\t\t\t   Members link and avatar, distinct from the Application-nav topbar above --\n\t\t\t\t   a Workspace Home screen has no Application menu of its own to project (mirrors\n\t\t\t\t   ui-sample/workspace-home.html's own launcher-only chrome). */\n\t\t\t\theader.topbar .left .topbar-brand { color: #1a1a1a; font-weight: 600; text-decoration: none; }\n\t\t\t\t.workspace-topbar-right { display: flex; align-items: center; gap: 1rem; }\n\t\t\t\t.workspace-heading { margin-bottom: 1.5rem; }\n\t\t\t\t.eyebrow-row { display: flex; align-items: center; gap: 0.35rem; }\n\t\t\t\t.eyebrow { color: #3949ab; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }\n\t\t\t\t.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.4rem; height: 1.4rem; border: none; border-radius: 4px; background: none; color: #999; text-decoration: none; cursor: pointer; padding: 0; font-size: 1rem; line-height: 1; }\n\t\t\t\t.icon-btn:hover { background: #f0f0f0; color: #3949ab; }\n\t\t\t\t.workspace-subtitle { color: #666; font-size: 0.9rem; margin: 0.25rem 0 0; }\n\t\t\t</style>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -307,7 +307,7 @@ func csrfHiddenInput() templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(authorization.CSRFTokenFromContext(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 267, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 273, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -364,7 +364,7 @@ func pageShell(title string, appName string) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfHeadersAttr(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 281, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 287, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
@@ -393,7 +393,7 @@ func pageShell(title string, appName string) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(primary.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 290, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 296, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
@@ -422,7 +422,7 @@ func pageShell(title string, appName string) templ.Component {
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(group.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 298, Col: 29}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 304, Col: 29}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -450,7 +450,7 @@ func pageShell(title string, appName string) templ.Component {
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(appName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 306, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 312, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -527,7 +527,7 @@ func workspaceHomeShell(userInitials string) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(userInitials)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 356, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 362, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -601,7 +601,7 @@ func MachineList(machines []*domain.Machine, appName string) templ.Component {
 				var templ_7745c5c3_Var19 templ.SafeURL
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/machines/" + m.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 374, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 380, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -614,7 +614,7 @@ func MachineList(machines []*domain.Machine, appName string) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(m.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 374, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 380, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -627,7 +627,7 @@ func MachineList(machines []*domain.Machine, appName string) templ.Component {
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(m.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 375, Col: 17}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 381, Col: 17}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 				if templ_7745c5c3_Err != nil {
@@ -744,7 +744,7 @@ func MachineBody(m *domain.Machine, records []*data.Record, relations RelationOp
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(m.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 400, Col: 13}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 406, Col: 13}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -757,7 +757,7 @@ func MachineBody(m *domain.Machine, records []*data.Record, relations RelationOp
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(m.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 401, Col: 13}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 407, Col: 13}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -775,7 +775,7 @@ func MachineBody(m *domain.Machine, records []*data.Record, relations RelationOp
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 415, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 421, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -788,7 +788,7 @@ func MachineBody(m *domain.Machine, records []*data.Record, relations RelationOp
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(string(f.Type))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 416, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 422, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -821,7 +821,7 @@ func MachineBody(m *domain.Machine, records []*data.Record, relations RelationOp
 		var templ_7745c5c3_Var29 string
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(len(records)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 429, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 435, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -882,7 +882,7 @@ func tableLayout(m *domain.Machine, records []*data.Record, relations RelationOp
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 445, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 451, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -952,7 +952,7 @@ func boardLayout(m *domain.Machine, records []*data.Record, relations RelationOp
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(col.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 467, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 473, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -965,7 +965,7 @@ func boardLayout(m *domain.Machine, records []*data.Record, relations RelationOp
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(len(col.Records)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 467, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 473, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -1032,7 +1032,7 @@ func createFormRow(m *domain.Machine, relations RelationOptions) templ.Component
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records", m.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 492, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 498, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 		if templ_7745c5c3_Err != nil {
@@ -1094,7 +1094,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) tem
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue("record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 512, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 518, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 		if templ_7745c5c3_Err != nil {
@@ -1117,7 +1117,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) tem
 				var templ_7745c5c3_Var39 templ.SafeURL
 				templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 516, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 522, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 				if templ_7745c5c3_Err != nil {
@@ -1130,7 +1130,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) tem
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(r.Values[f.ID]))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 516, Col: 107}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 522, Col: 107}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 				if templ_7745c5c3_Err != nil {
@@ -1154,7 +1154,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) tem
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 522, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 528, Col: 75}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -1164,7 +1164,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) tem
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(r.Values[f.ID]))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 524, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 530, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {
@@ -1183,7 +1183,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) tem
 		var templ_7745c5c3_Var43 string
 		templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 530, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 536, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 		if templ_7745c5c3_Err != nil {
@@ -1196,7 +1196,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) tem
 		var templ_7745c5c3_Var44 string
 		templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue("#record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 531, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 537, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 		if templ_7745c5c3_Err != nil {
@@ -1209,7 +1209,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) tem
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 535, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 541, Col: 66}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
 		if templ_7745c5c3_Err != nil {
@@ -1222,7 +1222,7 @@ func RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions) tem
 		var templ_7745c5c3_Var46 string
 		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue("#record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 536, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 542, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 		if templ_7745c5c3_Err != nil {
@@ -1265,7 +1265,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions)
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue("record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 546, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 552, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 		if templ_7745c5c3_Err != nil {
@@ -1278,7 +1278,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions)
 		var templ_7745c5c3_Var49 string
 		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 548, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 554, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 		if templ_7745c5c3_Err != nil {
@@ -1291,7 +1291,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions)
 		var templ_7745c5c3_Var50 string
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue("#record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 549, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 555, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var50)
 		if templ_7745c5c3_Err != nil {
@@ -1322,7 +1322,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions)
 		var templ_7745c5c3_Var51 string
 		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 562, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 568, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 		if templ_7745c5c3_Err != nil {
@@ -1335,7 +1335,7 @@ func RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions)
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue("#record-" + r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 563, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 569, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 		if templ_7745c5c3_Err != nil {
@@ -1383,7 +1383,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 			var templ_7745c5c3_Var54 string
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 578, Col: 22}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 584, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 			if templ_7745c5c3_Err != nil {
@@ -1401,7 +1401,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 				var templ_7745c5c3_Var55 string
 				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 581, Col: 24}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 587, Col: 24}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 				if templ_7745c5c3_Err != nil {
@@ -1424,7 +1424,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 				var templ_7745c5c3_Var56 string
 				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(opt)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 581, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 587, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 				if templ_7745c5c3_Err != nil {
@@ -1447,7 +1447,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 585, Col: 22}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 591, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 			if templ_7745c5c3_Err != nil {
@@ -1465,7 +1465,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 				var templ_7745c5c3_Var58 string
 				templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 588, Col: 27}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 594, Col: 27}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 				if templ_7745c5c3_Err != nil {
@@ -1488,7 +1488,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 				var templ_7745c5c3_Var59 string
 				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(opt.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 588, Col: 83}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 594, Col: 83}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 				if templ_7745c5c3_Err != nil {
@@ -1511,7 +1511,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 			var templ_7745c5c3_Var60 string
 			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 592, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 598, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
 			if templ_7745c5c3_Err != nil {
@@ -1539,7 +1539,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 			var templ_7745c5c3_Var61 string
 			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 594, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 600, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var61)
 			if templ_7745c5c3_Err != nil {
@@ -1552,7 +1552,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 			var templ_7745c5c3_Var62 string
 			templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(current))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 594, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 600, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var62)
 			if templ_7745c5c3_Err != nil {
@@ -1570,7 +1570,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 			var templ_7745c5c3_Var63 string
 			templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 596, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 602, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var63)
 			if templ_7745c5c3_Err != nil {
@@ -1583,7 +1583,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 			var templ_7745c5c3_Var64 string
 			templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(current))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 596, Col: 74}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 602, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
 			if templ_7745c5c3_Err != nil {
@@ -1602,7 +1602,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 				var templ_7745c5c3_Var65 templ.SafeURL
 				templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/uploads/" + key))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 600, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 606, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 				if templ_7745c5c3_Err != nil {
@@ -1615,7 +1615,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 				var templ_7745c5c3_Var66 string
 				templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(storage.DisplayName(key))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 600, Col: 88}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 606, Col: 88}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 				if templ_7745c5c3_Err != nil {
@@ -1628,7 +1628,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 				var templ_7745c5c3_Var67 string
 				templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 601, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 607, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var67)
 				if templ_7745c5c3_Err != nil {
@@ -1646,7 +1646,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 				var templ_7745c5c3_Var68 string
 				templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 604, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 610, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var68)
 				if templ_7745c5c3_Err != nil {
@@ -1665,7 +1665,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 			var templ_7745c5c3_Var69 string
 			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.ResolveAttributeValue(f.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 607, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 613, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var69)
 			if templ_7745c5c3_Err != nil {
@@ -1678,7 +1678,7 @@ func fieldInput(f domain.Field, current any, relations RelationOptions) templ.Co
 			var templ_7745c5c3_Var70 string
 			templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(current))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 607, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 613, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var70)
 			if templ_7745c5c3_Err != nil {
@@ -1749,7 +1749,7 @@ func fileLink(v any) templ.Component {
 			var templ_7745c5c3_Var72 templ.SafeURL
 			templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/uploads/" + key))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 640, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 646, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 			if templ_7745c5c3_Err != nil {
@@ -1762,7 +1762,7 @@ func fileLink(v any) templ.Component {
 			var templ_7745c5c3_Var73 string
 			templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(storage.DisplayName(key))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 640, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 646, Col: 85}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 			if templ_7745c5c3_Err != nil {
@@ -1811,7 +1811,7 @@ func slaBadge(v any) templ.Component {
 				var templ_7745c5c3_Var75 string
 				templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 651, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 657, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 				if templ_7745c5c3_Err != nil {
@@ -1829,7 +1829,7 @@ func slaBadge(v any) templ.Component {
 				var templ_7745c5c3_Var76 string
 				templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 653, Col: 30}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 659, Col: 30}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
 				if templ_7745c5c3_Err != nil {
@@ -1888,7 +1888,7 @@ func summaryCounts(items []SummaryItem) templ.Component {
 			var templ_7745c5c3_Var78 string
 			templ_7745c5c3_Var78, templ_7745c5c3_Err = templ.JoinStringErrs(it.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 671, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 677, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var78))
 			if templ_7745c5c3_Err != nil {
@@ -1901,7 +1901,7 @@ func summaryCounts(items []SummaryItem) templ.Component {
 			var templ_7745c5c3_Var79 string
 			templ_7745c5c3_Var79, templ_7745c5c3_Err = templ.JoinStringErrs(it.Value)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 671, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 677, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var79))
 			if templ_7745c5c3_Err != nil {
@@ -1956,7 +1956,7 @@ func activityFeedList(entries []ActivityEntry) templ.Component {
 			var templ_7745c5c3_Var81 string
 			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(a.Summary)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 683, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 689, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 			if templ_7745c5c3_Err != nil {
@@ -1974,7 +1974,7 @@ func activityFeedList(entries []ActivityEntry) templ.Component {
 				var templ_7745c5c3_Var82 string
 				templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinStringErrs(a.Actor)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 685, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 691, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 				if templ_7745c5c3_Err != nil {
@@ -1992,7 +1992,7 @@ func activityFeedList(entries []ActivityEntry) templ.Component {
 			var templ_7745c5c3_Var83 string
 			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(a.When)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 687, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 693, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 			if templ_7745c5c3_Err != nil {
@@ -2043,7 +2043,7 @@ func sectionHeader(title, linkHref, linkLabel string) templ.Component {
 		var templ_7745c5c3_Var85 string
 		templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 699, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 705, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
 		if templ_7745c5c3_Err != nil {
@@ -2061,7 +2061,7 @@ func sectionHeader(title, linkHref, linkLabel string) templ.Component {
 			var templ_7745c5c3_Var86 templ.SafeURL
 			templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(linkHref))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 701, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 707, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 			if templ_7745c5c3_Err != nil {
@@ -2074,7 +2074,7 @@ func sectionHeader(title, linkHref, linkLabel string) templ.Component {
 			var templ_7745c5c3_Var87 string
 			templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.JoinStringErrs(linkLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 701, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 707, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var87))
 			if templ_7745c5c3_Err != nil {
@@ -2110,11 +2110,10 @@ type SummaryCard struct {
 	Href        string
 }
 
-// recordSummaryCard's plain href still works with HTMX absent or #record-detail missing --
-// hx-get/hx-target are additive (ROADMAP.md Phase 21 round 2, Step H): a click is intercepted by
-// HTMX and swapped into the Approval Inbox's own detail pane instead of a full navigation, the
-// same bare RecordDetailView fragment showRecordRow already serves any other HX-Target=
-// "record-detail" request -- no new route, no handler change.
+// recordSummaryCard is a plain navigation to the record's own detail page (2026-09-19: dropped
+// the hx-get/hx-target inline swap this used to layer on top, same reasoning as
+// approvalinbox.templ's pendingApprovalCard -- a click should open the record's own page, not
+// load it into a pane below the list it was clicked from).
 func recordSummaryCard(c SummaryCard) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -2143,97 +2142,84 @@ func recordSummaryCard(c SummaryCard) templ.Component {
 		var templ_7745c5c3_Var89 templ.SafeURL
 		templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(c.Href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 729, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 734, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "\" hx-get=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 150, "\" class=\"summary-card\"><span class=\"avatar\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var90 string
-		templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.Href)
+		templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(c.AvatarInitials)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 729, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 735, Col: 41}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var90)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "\" hx-target=\"#record-detail\" class=\"summary-card\"><span class=\"avatar\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var91 string
-		templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinStringErrs(c.AvatarInitials)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 730, Col: 41}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "</span> <span class=\"summary-card-body\"><span class=\"summary-card-title\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 151, "</span> <span class=\"summary-card-body\"><span class=\"summary-card-title\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if c.Reference != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "<code class=\"summary-card-ref\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 152, "<code class=\"summary-card-ref\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var92 string
-			templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinStringErrs(c.Reference)
+			var templ_7745c5c3_Var91 string
+			templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinStringErrs(c.Reference)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 734, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 739, Col: 49}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "</code> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 153, "</code> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		var templ_7745c5c3_Var93 string
-		templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(c.Title)
+		var templ_7745c5c3_Var92 string
+		templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.JoinStringErrs(c.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 736, Col: 13}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 741, Col: 13}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var92))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 154, "</span> <span class=\"summary-card-subtitle\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var93 string
+		templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(c.Subtitle)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 743, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "</span> <span class=\"summary-card-subtitle\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 155, "</span></span> <span class=\"badge\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var94 string
-		templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(c.Subtitle)
+		templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(c.StatusLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 738, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 745, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "</span></span> <span class=\"badge\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var95 string
-		templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.JoinStringErrs(c.StatusLabel)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/machine.templ`, Line: 740, Col: 37}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var95))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 156, "</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2243,7 +2229,7 @@ func recordSummaryCard(c SummaryCard) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "</a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 157, "</a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2267,12 +2253,12 @@ func summaryCardList(cards []SummaryCard) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var96 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var96 == nil {
-			templ_7745c5c3_Var96 = templ.NopComponent
+		templ_7745c5c3_Var95 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var95 == nil {
+			templ_7745c5c3_Var95 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "<div class=\"summary-card-list\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 158, "<div class=\"summary-card-list\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -2282,7 +2268,7 @@ func summaryCardList(cards []SummaryCard) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 160, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 159, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

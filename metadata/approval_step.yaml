@@ -34,6 +34,14 @@ fields:
   - id: fld_signature_width
     name: Signature Width
     type: number
+  # A one-time signature image captured at the moment this step's assignee clicked Approve
+  # (owner request, 2026-09-19), used only when they chose not to save it as their own reusable
+  # mch_signature. Step-scoped on purpose: it must not survive past this one Document, or "don't
+  # save" would silently become "save anyway" the next time this same person approves something
+  # else. internal/web/signing.go prefers this over the assignee's mch_signature when compositing.
+  - id: fld_signature_image
+    name: Signature Image
+    type: file
 
 # Only the step's own assignee may decide it (ROADMAP.md Phase 16). Until this existed, sequencing
 # was the only thing /decide enforced -- any authenticated user could approve or reject any step.
