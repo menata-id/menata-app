@@ -38,6 +38,32 @@ should be read from the `Navigation` the handler already has, e.g. `internal/web
 `d.Navigation`), not typed again in the `.templ`. If you add it anyway because metadata can't
 express it yet, say so in a comment — don't leave it silently duplicated.
 
+## Where a metadata-derived value belongs
+
+When something a handler or a page needs should come from metadata rather than be a literal, it
+has exactly one home: a named, doc-commented field on `domain.Application` (or `domain.Workspace`)
+-- not a local variable computed ad hoc in a handler, not a string re-typed in a `.templ`. The
+full chain, worked example `HomeRoute`:
+
+1. `metadata/app.yaml` declares it (`home_card: true` on a navigation item).
+2. `internal/metadata.LoadApplication` resolves it once, at load time, into a field on
+   `domain.Application` (`HomeRoute`) -- doc-commented with where its value comes from and any
+   ordering subtlety (here: resolved *before* `hidden_nav_groups` filtering, the same reason
+   `PrimaryNavGroup` already is -- deriving it later from the filtered `Navigation` slice would
+   silently go blank whenever that item's own group is hidden).
+3. `cmd/server/main.go` copies it onto `web.Deps` (`Deps.HomeRoute`) -- Deps is the composition
+   root's own registry of what a handler may depend on, so a value skipping this step can't reach
+   a handler through anything but a literal.
+4. The handler (`internal/web/workspacehome.go`) takes it as an explicit parameter and passes it
+   straight through to the rendering function.
+5. The `.templ` (`internal/rendering/workspacehome.templ`) takes it as an explicit parameter and
+   renders it -- never `href="/approval-inbox"`.
+
+`domain.Application`'s own fields are therefore the inventory: before hardcoding something that
+looks like application behavior, check whether it's already a field there. If it should be
+metadata-driven but isn't yet, add the field there first (with a doc comment explaining where it
+comes from), wire it through the four steps above, and only then reference it downstream.
+
 ## Design reference vs. current code
 
 `ui-sample/*.html` is the design target (`internal/web/router.go`'s own comment: "a design

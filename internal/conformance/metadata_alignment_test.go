@@ -1,9 +1,14 @@
 package conformance
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -87,14 +92,14 @@ func TestNavigationRoutesAreRegistered(t *testing.T) {
 	}
 }
 
-// workspaceLevelHrefs are the only literal href="/..." values internal/rendering/
-// workspacehome.templ may contain: Workspace-level (or runtime-level) destinations that exist
-// regardless of which Application is configured, not this Application's own business routes. Any
-// other literal href in that file is exactly the class of drift this session found and fixed
+// workspaceLevelHrefs are the only literal href="/..." values a Workspace-level page (see
+// workspaceLevelTemplFiles) may contain: Workspace/runtime-level destinations that exist
+// regardless of which Application is configured, never one Application's own business route. Any
+// other literal href is exactly the class of drift this session found and fixed
 // (workspacehome.templ hand-typing /approval-inbox and /documents/new, both already declared in
-// metadata/app.yaml's navigation) -- see the previous commit's homeRoute plumbing
-// (domain.Application.HomeRoute, internal/web/workspacehome.go) for the metadata-driven
-// replacement every other Application-specific link on this page must use instead.
+// metadata/app.yaml's navigation) -- see domain.Application.HomeRoute / internal/web/
+// workspacehome.go for the metadata-driven replacement every Application-specific link on such a
+// page must use instead.
 var workspaceLevelHrefs = map[string]bool{
 	"/home":              true,
 	"/workspace-members": true,
@@ -104,21 +109,161 @@ var workspaceLevelHrefs = map[string]bool{
 
 var templHref = regexp.MustCompile(`href="(/[^"{]*)"`)
 
-// TestWorkspaceHomeHasNoHardcodedApplicationRoute is the gate: Workspace Home is Application-
-// agnostic chrome (workspaceHomeShell, internal/rendering/machine.templ), so any route it links
-// to that isn't Workspace/runtime-level must come from a Go value (metadata, ultimately), never a
-// literal string in the .templ itself -- that's the only way the route can follow metadata/
-// app.yaml's own navigation instead of silently going stale next to it.
-func TestWorkspaceHomeHasNoHardcodedApplicationRoute(t *testing.T) {
-	path := filepath.Join(repoRoot(), "internal", "rendering", "workspacehome.templ")
-	src, err := os.ReadFile(path)
+// workspaceHomeShellCall matches a .templ page composing workspaceHomeShell (internal/rendering/
+// machine.templ) -- the Workspace-level, Application-agnostic chrome, as opposed to pageShell
+// (every Application-level screen's own topbar, which legitimately links between that same
+// Application's own sibling routes -- approvalinbox.templ's "+ New Approval" linking to
+// /documents/new is normal same-Application navigation, not the drift this test looks for).
+var workspaceHomeShellCall = regexp.MustCompile(`@workspaceHomeShell\(`)
+
+// workspaceLevelTemplFiles finds every Workspace-level page by what it composes, not by name --
+// today that's only workspacehome.templ, but a second page built the same way (e.g. a future
+// Workspace Settings screen) is picked up automatically, no test edit required. Generalizing this
+// check to *every* .templ file instead (not just Workspace-level ones) was considered and
+// rejected: an Application-level page's own internal links are that Application's real
+// implementation, and flagging them would be exactly the false-positive failure mode
+// TestWritingGuideMachinesMatchMetadata was dropped for (see this file's git history) -- broader
+// isn't better if it stops being precise.
+func workspaceLevelTemplFiles(t *testing.T) []string {
+	t.Helper()
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
+		t.Fatalf("read %s: %v", dir, err)
 	}
-	for _, m := range templHref.FindAllStringSubmatch(string(src), -1) {
-		href := m[1]
-		if !workspaceLevelHrefs[href] {
-			t.Errorf("%s hardcodes href=%q -- Application routes must come from a Go value (e.g. domain.Application.HomeRoute), not a literal here", path, href)
+	var files []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
 		}
+		path := filepath.Join(dir, e.Name())
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		if workspaceHomeShellCall.Match(src) {
+			files = append(files, path)
+		}
+	}
+	if len(files) == 0 {
+		t.Fatal("no .templ file composes workspaceHomeShell -- expected at least workspacehome.templ; did it get renamed or restructured?")
+	}
+	return files
+}
+
+// TestWorkspaceLevelPagesHaveNoHardcodedApplicationRoute is the gate: every Workspace-level page
+// (workspaceLevelTemplFiles) is Application-agnostic chrome, so any route it links to that isn't
+// Workspace/runtime-level must come from a Go value (metadata, ultimately), never a literal
+// string in the .templ itself -- that's the only way the route can follow metadata/app.yaml's own
+// navigation instead of silently going stale next to it.
+func TestWorkspaceLevelPagesHaveNoHardcodedApplicationRoute(t *testing.T) {
+	for _, path := range workspaceLevelTemplFiles(t) {
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, m := range templHref.FindAllStringSubmatch(string(src), -1) {
+			href := m[1]
+			if !workspaceLevelHrefs[href] {
+				t.Errorf("%s hardcodes href=%q -- Application routes must come from a Go value (e.g. domain.Application.HomeRoute), not a literal here", path, href)
+			}
+		}
+	}
+}
+
+// templFuncDecl matches a top-level `templ SomeName(` declaration -- the exported rendering
+// function a Go handler calls to actually render that page.
+var templFuncDecl = regexp.MustCompile(`(?m)^templ ([A-Z]\w*)\(`)
+
+// workspaceLevelPageFuncs is the Go-callable identity of every Workspace-level page
+// (workspaceLevelTemplFiles), e.g. "WorkspaceHomePage" -- what a handler in internal/web actually
+// calls as rendering.WorkspaceHomePage(...).
+func workspaceLevelPageFuncs(t *testing.T) []string {
+	t.Helper()
+	var names []string
+	for _, path := range workspaceLevelTemplFiles(t) {
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, m := range templFuncDecl.FindAllStringSubmatch(string(src), -1) {
+			names = append(names, m[1])
+		}
+	}
+	return names
+}
+
+// workspaceLevelHandlerFiles is the Go-side counterpart to workspaceLevelTemplFiles: every
+// internal/web/*.go file that calls one of workspaceLevelPageFuncs, found by what it calls rather
+// than by name -- so the "no hardcoded Application route" obligation is checked at both ends of
+// the chain CLAUDE.md's "Where a metadata-derived value belongs" describes. A handler could
+// otherwise satisfy TestWorkspaceLevelPagesHaveNoHardcodedApplicationRoute by hardcoding the route
+// itself and merely passing a clean-looking variable into the page -- pushing the same violation
+// down one layer instead of removing it, which is exactly what this closes.
+func workspaceLevelHandlerFiles(t *testing.T) []string {
+	t.Helper()
+	funcs := workspaceLevelPageFuncs(t)
+	dir := filepath.Join(repoRoot(), "internal", "web")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	var files []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, fn := range funcs {
+			if strings.Contains(string(src), "rendering."+fn+"(") {
+				files = append(files, path)
+				break
+			}
+		}
+	}
+	return files
+}
+
+// TestWorkspaceLevelHandlersHaveNoHardcodedApplicationRoute is
+// TestWorkspaceLevelPagesHaveNoHardcodedApplicationRoute's Go-side counterpart: no string literal
+// in a Workspace-level handler (workspaceLevelHandlerFiles) may equal a route metadata/app.yaml
+// already declares, except "/home" -- the one documented, deliberate fallback for "no home_card
+// item declared" (Principle #5 Convention over Configuration: a safe default when config is
+// absent is not the same thing as a hardcoded Application assumption). Parsed with go/ast, not a
+// text regexp, so a route mentioned in a comment doesn't false-positive -- the same rigor
+// boundary_test.go/handlersize_test.go already use for their own Go-source checks.
+func TestWorkspaceLevelHandlersHaveNoHardcodedApplicationRoute(t *testing.T) {
+	navRoutes := make(map[string]bool)
+	for _, route := range declaredNavRoutes(t) {
+		if route == "/home" {
+			continue
+		}
+		navRoutes[route] = true
+	}
+
+	fset := token.NewFileSet()
+	for _, path := range workspaceLevelHandlerFiles(t) {
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			lit, ok := n.(*ast.BasicLit)
+			if !ok || lit.Kind != token.STRING {
+				return true
+			}
+			value, err := strconv.Unquote(lit.Value)
+			if err != nil {
+				return true
+			}
+			if navRoutes[value] {
+				t.Errorf("%s hardcodes %q, a route metadata/app.yaml already declares -- it must come from a domain.Application field (e.g. HomeRoute) threaded through web.Deps, not be retyped here", fset.Position(lit.Pos()), value)
+			}
+			return true
+		})
 	}
 }

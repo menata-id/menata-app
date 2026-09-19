@@ -62,9 +62,10 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, a
 
 		// homeRoute is domain.Application.HomeRoute (Routes' own Deps.HomeRoute), resolved once at
 		// startup from metadata's home_card: true item -- never a literal here or in
-		// workspacehome.templ (internal/conformance's TestWorkspaceHomeHasNoHardcodedApplicationRoute
-		// holds this page to that). Empty when metadata declares no home_card item: "/home" is
-		// always a valid destination, never a guessed Application route.
+		// workspacehome.templ (internal/conformance's TestWorkspaceLevelPagesHaveNoHardcodedApplicationRoute
+		// and TestWorkspaceLevelHandlersHaveNoHardcodedApplicationRoute hold this page and this
+		// handler to that). Empty when metadata declares no home_card item: "/home" is always a
+		// valid destination, never a guessed Application route.
 		if homeRoute == "" {
 			homeRoute = "/home"
 		}
