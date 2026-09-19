@@ -33,6 +33,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 ## Planned
 
+- Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
+  native app, no app-store install required.
 - Group-based roles and a visual approval role matrix.
 - Search, filtering and pagination on record lists.
 - Background/scheduled jobs (e.g. SLA-breach notifications that don't depend on someone opening
