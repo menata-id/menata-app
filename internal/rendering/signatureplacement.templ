@@ -16,13 +16,29 @@ import (
 // request/response model has no way to express continuous pointer movement. Everything else here
 // -- placing a marker on the current page, saving a drag's final position -- is an ordinary HTMX
 // form post to the ROADMAP.md Phase 3/11 generic PUT route, exactly like every other edit in this
-// app.
+// app. Still true after the 2026-09-19 UX review's own fix below: no new JS was added, only HTMX
+// attributes.
+//
+// #sig-body listens for its own descendants' successful requests (htmx:afterRequest bubbles from
+// whichever form just PUT, up through this div) and re-fetches itself, selecting the same #sig-body
+// back out of the full page response (hx-select, the declarative form of htmx.ajax's own select
+// option) -- replacing a full window.location.reload() per drag/place/width-change (jarring for
+// what should feel like direct manipulation) with a same-region refresh, entirely in HTMX, no new
+// vanilla JS. The three forms below (sigMarker/placeStepForm/widthControl) need no attribute of
+// their own for this -- one listener on the shared container is enough.
 templ SignaturePlacementPage(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, appName string) {
 	@pageShell("Signature Placement", appName) {
 		<p><a href={ templ.URL("/machines/" + action.DocumentMachineID + "/records/" + document.ID) }>← { toString(document.Values["fld_title"]) }</a></p>
 		<h1>Signature positions</h1>
 		<p class="step-status">Place one marker per approval step. Drag a placed marker to reposition it.</p>
-		<div class="sig-layout">
+		<div
+			class="sig-layout"
+			id="sig-body"
+			hx-trigger="htmx:afterRequest[detail.successful]"
+			hx-get={ placementURL(document.ID, page) }
+			hx-select="#sig-body"
+			hx-swap="outerHTML"
+		>
 			<section>
 				<div class="sig-pager">
 					<strong>Page { fmt.Sprint(page) } of { fmt.Sprint(totalPages) }</strong>
@@ -61,13 +77,16 @@ templ SignaturePlacementPage(document *data.Record, steps []*data.Record, relati
 			</aside>
 		</div>
 		<script>
+			// Event delegation (rather than a per-marker addEventListener, the pre-2026-09-19
+			// version of this script) so a marker inserted by the #sig-body refresh below still
+			// drags correctly without needing to re-run this setup after every swap.
 			(function () {
 				var dragging = null;
-				document.querySelectorAll(".sig-marker").forEach(function (marker) {
-					marker.addEventListener("pointerdown", function (e) {
-						dragging = marker;
-						marker.setPointerCapture(e.pointerId);
-					});
+				document.addEventListener("pointerdown", function (e) {
+					var marker = e.target.closest(".sig-marker");
+					if (!marker) return;
+					dragging = marker;
+					marker.setPointerCapture(e.pointerId);
 				});
 				document.addEventListener("pointermove", function (e) {
 					if (!dragging) return;
@@ -99,7 +118,6 @@ templ sigMarker(s *data.Record, index int) {
 	<form
 		hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID) }
 		hx-swap="none"
-		hx-on::after-request="if(event.detail.successful) window.location.reload()"
 	>
 		@stepHiddenFields(s)
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(signaturePage(s)) }/>
@@ -121,7 +139,6 @@ templ placeStepForm(s *data.Record, page int) {
 	<form
 		hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID) }
 		hx-swap="none"
-		hx-on::after-request="if(event.detail.successful) window.location.reload()"
 	>
 		@stepHiddenFields(s)
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(page) }/>
@@ -148,7 +165,6 @@ templ widthControl(s *data.Record, page int) {
 		hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID) }
 		hx-trigger="change"
 		hx-swap="none"
-		hx-on::after-request="if(event.detail.successful) window.location.reload()"
 	>
 		@stepHiddenFields(s)
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(signaturePageOrCurrent(s, page)) }/>

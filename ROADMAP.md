@@ -1181,6 +1181,24 @@ phase they don't belong to:
       human-readable form elsewhere on the same page; `RecordDetailView` now skips these four
       Fields for `mch_approval_step` specifically (`hiddenDetailField`), not a generic
       "hide this field" metadata mechanism -- no second case has asked for one yet.
+- [x] Full-page reload on every drag/place/width-change on the Signature Placement screen -- closed
+      2026-09-19, same review as above. `window.location.reload()` on all three of that screen's
+      forms was jarring for what should feel like direct manipulation. Fixed entirely in HTMX, no
+      new JavaScript: `#sig-body` (the canvas+sidebar region) declares
+      `hx-trigger="htmx:afterRequest[detail.successful]"` (the event bubbles up from whichever
+      descendant form just PUT) and re-fetches itself, `hx-select="#sig-body"` picking the same
+      element back out of the full page response -- the declarative equivalent of `htmx.ajax`'s own
+      `select` option, so no fragment-only route was needed. The one pre-existing named vanilla-JS
+      exception on this page (drag-pointer handling, README.md's Tech stack) is unchanged in scope,
+      only refactored internally to event delegation so a marker re-rendered by this same refresh
+      still drags correctly without re-running any setup code. Verified end-to-end on a temporary
+      second server instance against the real Postgres database, live process left untouched: a
+      scratch Document with a real PDF fixture (`internal/pdf/testdata/blank.pdf`) and a real
+      Approval Step render `#sig-body`'s attributes correctly and the underlying PUT still persists
+      exactly as before; no live browser is available in this environment to exercise the
+      `htmx:afterRequest` bubbling itself, so a real-browser smoke test is still worth doing before
+      this is treated as fully confirmed (the same residual-risk caveat this roadmap already
+      carries for this screen's own drag interaction and the wizard's Hyperscript).
 
 ---
 
