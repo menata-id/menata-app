@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -53,16 +54,38 @@ func submitLogin(store *data.Store, cfg config.Config) http.HandlerFunc {
 // authenticateMember verifies username/password against a real per-user credential. Exactly one
 // Workspace membership returns that membership's mch_user record id to sign in as directly; more
 // than one defers the choice to Choose Workspace (chooseWorkspace=true, userID="").
+//
+// An invited email (ROADMAP.md Phase 21 Step 6) has a membership row but no credential yet -- this
+// app has no outbound-email infrastructure to drive a token-based invite flow, so the first
+// successful "login" attempt activates the account by setting the submitted password as its real
+// credential, rather than verifying one that was never issued. Named as a deliberate
+// simplification, not an oversight.
 func authenticateMember(ctx context.Context, store *data.Store, username, password string) (userID string, chooseWorkspace bool, ok bool) {
 	email := normalizeEmail(username)
-	hash, err := store.GetCredential(ctx, email)
-	if err != nil || !authorization.VerifyPassword(password, hash) {
-		return "", false, false
-	}
 	memberships, err := store.ListMemberships(ctx, email)
 	if err != nil || len(memberships) == 0 {
 		return "", false, false
 	}
+
+	hash, err := store.GetCredential(ctx, email)
+	switch {
+	case errors.Is(err, data.ErrCredentialNotFound):
+		if len(password) < 8 {
+			return "", false, false
+		}
+		newHash, hashErr := authorization.HashPassword(password)
+		if hashErr != nil {
+			return "", false, false
+		}
+		if err := store.CreateCredential(ctx, email, newHash); err != nil {
+			return "", false, false
+		}
+	case err != nil:
+		return "", false, false
+	case !authorization.VerifyPassword(password, hash):
+		return "", false, false
+	}
+
 	if len(memberships) > 1 {
 		return "", true, true
 	}

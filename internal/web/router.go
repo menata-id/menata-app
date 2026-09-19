@@ -83,6 +83,14 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Machines, d.Store, d.Files, d.AppName))
 		pr.Get("/machines/{machineID}/records/{id}/pdf-preview", servePDFPreview(d.Machines, d.Store, d.Files))
 
+		pr.Group(func(ar chi.Router) {
+			ar.Use(requireWorkspaceAdmin(d.Store, d.Cfg))
+			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.AppName))
+			ar.Post("/workspace-members/invite", submitInviteMember(d.Machines, d.Store))
+			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.AppName))
+			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
+		})
+
 		pr.Get("/uploads/*", serveUpload(d.Files))
 
 		// Static design references (ROADMAP.md's own case-portfolio.md mockups) -- ui-sample/ is

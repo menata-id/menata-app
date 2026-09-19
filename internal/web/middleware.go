@@ -49,6 +49,36 @@ func requireAuth(store *data.Store, defaultWorkspaceID string, cfg config.Config
 	}
 }
 
+// requireWorkspaceAdmin gates Workspace Members (ROADMAP.md Phase 21 Step 6) behind a real
+// "admin" WorkspaceRole. The shared admin credential's placeholder identity has no membership row
+// at all (it predates real Workspace membership entirely) -- rather than locking it out of a
+// screen it could always reach before this phase existed, an absent membership is let through,
+// the same fallback posture requireAuth already takes for that same identity.
+func requireWorkspaceAdmin(store *data.Store, cfg config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			ctx := req.Context()
+			userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+			workspaceID, _ := data.WorkspaceScope(ctx)
+
+			membership, err := store.GetMembership(ctx, workspaceID, userID)
+			if err != nil {
+				if errors.Is(err, data.ErrRecordNotFound) {
+					next.ServeHTTP(w, req)
+					return
+				}
+				serverError(w, err)
+				return
+			}
+			if membership.WorkspaceRole != "admin" {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, req)
+		})
+	}
+}
+
 // queryDiagnostics reports what each request actually read: how many queries it issued, how many
 // of those repeated a target it had already fetched, and the per-target breakdown (ROADMAP.md
 // Phase 18 Step 3). Phase 6 needed a throwaway probe inside internal/data to learn this; making

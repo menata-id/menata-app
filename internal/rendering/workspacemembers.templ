@@ -1,0 +1,78 @@
+package rendering
+
+import "menata.app/internal/data"
+
+// appRoleOptions is this slice's single-Application role vocabulary (ROADMAP.md Phase 21 Step 6,
+// member-role-detail.html's own list, reduced to one Application): a flat column rather than a
+// per-Application table, since only one Application exists here.
+var appRoleOptions = []string{"", "approver", "submitter", "reviewer"}
+
+// WorkspaceMembersPage lists every member of the signed-in identity's Workspace
+// (workspace-members.html, reduced: no Group/"Source" column, since Groups stay deferred).
+templ WorkspaceMembersPage(members []data.Membership, appName string) {
+	@pageShell("Workspace Members", appName) {
+		<h1>Workspace Members</h1>
+		<form method="POST" action="/workspace-members/invite" class="invite-form">
+			<label>
+				Email
+				<input type="email" name="email" required/>
+			</label>
+			<label>
+				{ appName } role
+				<select name="app_role">
+					for _, r := range appRoleOptions {
+						<option value={ r }>{ displayRole(r) }</option>
+					}
+				</select>
+			</label>
+			<button type="submit" class="primary">+ Invite member</button>
+		</form>
+		<table>
+			<thead>
+				<tr>
+					<th>Email</th>
+					<th>Workspace role</th>
+					<th>{ appName } role</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, m := range members {
+					<tr>
+						<td>{ m.Email }</td>
+						<td><span class="badge">{ m.WorkspaceRole }</span></td>
+						<td>{ displayRole(m.AppRole) }</td>
+						<td><a href={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") }>Edit →</a></td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+}
+
+// EditMemberPage is one member's role editor (member-role-detail.html, reduced to one
+// Application): a Workspace role choice plus this Application's own role.
+templ EditMemberPage(m data.Membership, appName string) {
+	@pageShell("Edit member", appName) {
+		<h1>{ m.Email }</h1>
+		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") }>
+			<label>
+				Workspace role
+				<select name="workspace_role">
+					<option value="admin" selected?={ m.WorkspaceRole == "admin" }>admin</option>
+					<option value="member" selected?={ m.WorkspaceRole == "member" }>member</option>
+				</select>
+			</label>
+			<label>
+				{ appName } role
+				<select name="app_role">
+					for _, r := range appRoleOptions {
+						<option value={ r } selected?={ r == m.AppRole }>{ displayRole(r) }</option>
+					}
+				</select>
+			</label>
+			<button type="submit" class="primary">Save changes</button>
+		</form>
+		<p><a href="/workspace-members">← Back to Workspace Members</a></p>
+	}
+}
