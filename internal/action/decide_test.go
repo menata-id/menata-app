@@ -97,3 +97,20 @@ func TestDocumentStatus_noSteps(t *testing.T) {
 		t.Errorf("DocumentStatus(nil) = %q, want %q", got, DocumentStatusInReview)
 	}
 }
+
+func TestDocumentReference(t *testing.T) {
+	cases := []struct {
+		sortOrder int64
+		want      string
+	}{
+		{1, "DOC-0001"},
+		{91, "DOC-0091"},
+		{0, "DOC-0000"},
+		{10000, "DOC-10000"},
+	}
+	for _, c := range cases {
+		if got := DocumentReference(c.sortOrder); got != c.want {
+			t.Errorf("DocumentReference(%d) = %q, want %q", c.sortOrder, got, c.want)
+		}
+	}
+}
