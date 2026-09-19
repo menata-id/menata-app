@@ -1,9 +1,23 @@
 # Getting Started
 
-A quickstart for running menata-app locally. For "how do I define my own data model on top of
-this," see [writing-guide.md](writing-guide.md) once you're up and running.
+Two ways to start: use the hosted instance (no install), or run it yourself.
 
-## Prerequisites
+## Easiest: use the hosted instance
+
+[menata.app](https://menata.app) is a free-hosted instance of this same runtime, already running
+— nothing to install. Go there, register (this creates your own Workspace), and open the
+pre-built applications from the top navigation: Document Approval and Project Management. That's
+it — no server to configure.
+
+Today, every Workspace on the hosted instance runs the same set of applications; defining your own
+Machine (what [writing-guide.md](writing-guide.md) walks through) currently means running your own
+instance (below) and editing metadata files directly.
+
+## Run it yourself
+
+For defining your own Machines today, or contributing to the runtime itself.
+
+### Prerequisites
 
 - Go 1.27 or later
 - PostgreSQL (any recent version)
