@@ -1475,6 +1475,125 @@ still open, each needing its own decision before code per this roadmap's own Met
 
 ---
 
+## Phase 21 -- Platform onboarding: real identity, Workspace boundary, two-level navigation
+
+**Forcing condition, and an explicit exception to the Method above (owner decision, 2026-09-19):**
+Case 3's own mechanism (Phases 12/15/16/17/20) is complete, but it is still only usable by one
+shared admin identity impersonating whoever `ADMIN_USER_ID` happens to point at. A real approval
+workflow needs real, distinct people signing in as themselves -- register, log in, land in a
+workspace, reach the application. The audit's own B3 findings (register/login extras, Choose
+Workspace, Workspace Home, Group/Role/Membership/Invitation) were previously left untouched because
+they weren't judged fully "constructible today" as a batch. The owner overrode that for the
+platform-onboarding *path* specifically -- not for every B3 finding at once (Groups stay deferred,
+see below) -- because Case 3 cannot be genuinely used without it, and because this codebase stays
+thin enough that a wrong guess here is cheap to correct, the same reasoning that justified building
+field defaults ahead of a second case in the research note above.
+
+**Design pass (resolve before code, same discipline as every prior phase):**
+
+- *Registration is workspace creation, not a separate flow.* `login.html`'s own copy is explicit:
+  "Don't have an account? **Create a workspace**." There is no path to a bare user account with no
+  workspace -- signing up creates a Workspace and its first member (that Workspace's Admin) in one
+  step. This reduces two mockups (a hypothetical generic "register" screen, `choose-workspace.html`
+  for a brand-new user) to one real flow.
+- *Password storage is ordinary, not a new primitive.* `mch_user` gains a `password_hash`-shaped
+  concern. Per this roadmap's own admission question, this does not need a new Field type --
+  `internal/authorization` already owns credential-checking (`CheckCredentials`), and gains a
+  per-user variant over a hashed value, the same posture Phase 16 used for `AllowsAction`: a pure
+  function over an already-fetched record, not a new plane.
+- *Workspace/Application reaching storage is the one genuinely risky step.* "Workspace never
+  reaches storage" was already tracked as a conformance gap with the explicit warning that adding a
+  second Workspace later is "a data migration on live records, not a metadata change." This phase
+  is that migration. Design choice: `records` gains a `workspace_id` column, backfilled to the
+  existing single Workspace (`ws_default`) so no live data moves or changes meaning -- Principle
+  #11 (Data Preservation) applied literally, not just cited.
+- *Application plurality is the second genuinely new piece, and it's real.* Today
+  `metadata.LoadApplication` loads exactly one Application manifest with one flat Machine list --
+  there is no concept of more than one Application anywhere in the domain model, which is why
+  Case 3 and Case 19 have always lived inside one manifest despite being described as two separate
+  applications everywhere else in this roadmap and in `case-portfolio.md`. `navigation.html`
+  (`ui-sample/`, 2026-09-19) made this concrete rather than theoretical: a real per-Application menu
+  needs a real second Application to menu over. This is the second real occurrence this roadmap's
+  Method asks for before generalizing Machine grouping -- Phase 3 generalized *Machine* plurality
+  for exactly this reason; this step is the same move one level up, on *Application* plurality.
+- *Roles are per-Application and direct-only; Groups stay deferred.* `member-role-detail.html`
+  shows a Workspace role (Admin/Member) plus a per-Application role picked from that Application's
+  own list (e.g. Document Approval: Approver/Submitter/Reviewer/none). Built as declared metadata
+  on the Application, not a new permission engine: this is coarser than Phase 16's own
+  record-scoped `Permission` (which still gates `/decide` exactly as before) -- a Workspace role
+  answers "can this person open this Application at all and what does its own menu show them,"
+  Phase 16's `Permission` still answers "can this person decide this specific record." The two
+  compose, they don't replace each other. Group-derived access (`workspace-members.html`'s
+  "Group: Reviewers" rows, `approval-role-matrix.html`'s own role-matrix) is explicitly **not**
+  built here -- it has been deferred since Phase 7 for lack of a forcing case, and adding it now
+  would be exactly the untested-shape risk this roadmap exists to avoid. Direct per-member
+  assignment is the whole of this phase's own answer.
+- *Navigation is code, both before and after this phase -- and that's fine.* `navigation.html`
+  is a design reference, not a new metadata concept to build. 004/006 name Navigation as an
+  Experience-plane concept in principle, but no case has forced a *declared* navigation schema yet
+  (a hand-written nav list per Application, the same posture Phase 6's own composed pages already
+  use, is the honest minimum this phase needs -- generalizing it into metadata is a separate,
+  still-unforced step, named in "What's deliberately not phased yet" below).
+
+**Steps:**
+
+- [ ] **Step 1: real per-user credentials.** `mch_user` gains a password (hashed, never stored or
+      logged in the clear); `internal/authorization` gains a per-user credential check alongside
+      the existing shared-admin one during the transition. `SetSessionCookie` already signs a real
+      `mch_user` id (Phase 7) -- this step makes *reaching* that identity a real login instead of
+      one shared credential resolving to a configured id
+- [ ] **Step 2: Workspace reaches storage.** Migration adds `workspace_id` to `records`, backfilled
+      to `ws_default`; `Store`'s own methods take a workspace scope; every existing route continues
+      to work unchanged against the one backfilled Workspace. This is the step "Workspace never
+      reaches storage" named as the real forcing condition to close, and the one step in this phase
+      with real data-migration risk -- smoke-test on a scratch database copy before touching the
+      live one, per this repo's own established practice
+- [ ] **Step 3: registration = create a Workspace.** One flow: a new Workspace, its first `mch_user`
+      (that Workspace's Admin), and a real password, created together -- `login.html`'s own "Create
+      a workspace" link, not a bare account with nowhere to go
+- [ ] **Step 4: Choose Workspace.** Shown only when a session's identity belongs to more than one
+      Workspace (`choose-workspace.html`) -- a single-Workspace identity skips straight to Step 5,
+      no empty choice screen for the common case
+- [ ] **Step 5: Application plurality.** The domain/metadata model gains real support for more than
+      one Application per Workspace; Case 3's own Machines (`mch_document`, `mch_approval_step`,
+      `mch_signature`) and Case 19's (`mch_task`, `mch_project`, `mch_list`, `mch_label`,
+      `mch_card_label`) become two real Applications instead of one manifest's flat list
+- [ ] **Step 6: Workspace Home.** Landing page after login/Choose-Workspace: every Application the
+      signed-in identity has a role in (`workspace-home.html`), plus an "Your access" summary of
+      that identity's own Workspace role and per-Application roles
+- [ ] **Step 7: two-level navigation, applied not generalized.** `navigation.html`'s own two
+      levels, wired to real routes: the cross-Application launcher (9-dot icon, switches between
+      the two real Applications Step 5 created) and each Application's own menu (desktop top bar /
+      mobile bottom bar, 3-4 icons), replacing `pageShell`'s single hardcoded ten-link topbar.
+      Hand-written per Application in code, the same posture every composed page already uses
+      (Phase 6 tested and re-tested that this stays cheap) -- not a declared navigation schema,
+      which stays unforced
+- [ ] **Step 8: per-Application roles (direct only).** `mch_user`'s membership in a Workspace
+      carries a Workspace role (Admin/Member) and, per Application, a role from that Application's
+      own declared list -- gates whether the Application appears in Workspace Home and that
+      Application's own menu, composes with (does not replace) Phase 16's record-scoped Permission
+- [ ] **Step 9: Workspace Members + Invite.** Admin-only screen (`workspace-members.html`) to see
+      and assign direct roles; an invite flow so a real Workspace Admin can add a real approver
+      without an engineer creating their `mch_user` record by hand
+
+**Deliberately deferred, not part of this phase:** Group-sourced roles/approvers
+(`workspace-members.html`'s "Group: Reviewers", `approval-role-matrix.html`'s full role matrix) --
+still no forcing case beyond the mockups themselves, unchanged since Phase 7's own deferral;
+"Forgot password" and "Keep me signed in" (`login.html`'s own smaller extras, real but not
+blocking); a declared navigation metadata schema (Step 7 hand-writes two menus in code, which
+Phase 6's own repeated re-tests say stays cheap at this scale); per-workspace metadata (every
+Workspace still runs the same Application definitions -- a genuinely different Workspace needing
+*different* Machines is a distinct, larger question this phase does not answer).
+
+**Exit criterion:** a person can, with no engineer involved and no environment variable edited or
+server restarted -- create a workspace with a real password, log in as themselves, land on a
+Workspace Home listing Document Approval and Project Management as two real Applications, open
+Document Approval via the two-level navigation `navigation.html` specced, and be assigned (by a
+real Workspace Admin, through Workspace Members) as an Approver without touching `mch_user` through
+the generic Machine CRUD by hand.
+
+---
+
 ## What's deliberately not phased yet
 
 `internal/registry` (static component registry), `internal/execution` as a distinct physical
