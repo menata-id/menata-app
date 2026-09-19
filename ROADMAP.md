@@ -1139,11 +1139,13 @@ phase they don't belong to:
 
 - [x] `golang.org/x/text` CVE (GO-2026-5970, infinite loop on invalid input, reachable via
       `pgxpool`) -- bumped to v0.39.0, `govulncheck` confirmed clean
-- [ ] Rate-limit `POST /login` -- unlimited password guesses are possible today; the
-      constant-time comparison in `internal/authorization` stops timing attacks, not repeated
-      brute-force attempts
-- [ ] CI workflow (`.github/workflows/`) -- build+vet+test on push; none exists yet despite 60+
-      tests already in the repo
+- [x] Rate-limit `POST /login` -- closed 2026-09-19 alongside Phase 21's own login work, once real
+      per-user passwords made it genuinely worth defending (`internal/web/ratelimit.go`, an
+      in-memory sliding-window limiter keyed by client address + attempted email, 10 attempts / 5
+      minutes)
+- [x] CI workflow (`.github/workflows/`) -- this line was stale: `.github/workflows/ci.yml` already
+      runs build+vet+test+lint on push (see the "ci: fetch goose's prebuilt binary" commit history);
+      corrected 2026-09-19 rather than left to mislead the next reader
 - [ ] Sort/filter/search on record lists -- `Store.ListRecords` only orders by `sort_order`
       (Phase 9 replaced the original `created_at desc`; this line said otherwise until the
       2026-09-18 audit). See "Concept conformance gaps" below for the architectural half of this:
@@ -1606,46 +1608,76 @@ them recorded rather than rediscovering them. The badge-count item is the one wi
 case already in hand (the data already exists and is already shown one level up); the other three
 still want their own real occurrence before committing to a shape, per this roadmap's own Method.
 
+**Update (2026-09-19, later the same day, owner-requested): the two levels applied to every real
+Case 3/Case 19 mockup, not just `navigation.html`'s own hub.** `ui-sample/nav-metadata.js` now
+holds the one nav list per Application this research note above already specced as the target
+shape (`{label, route, mockup, priority, badge}`), and `ui-sample/nav-chrome.js` renders it into
+every Case 3, Case 19, and signed-in-Workspace-level mockup (`ui-sample/README.md` has the exact
+file list). This is still a mockup exercising the *shape*, not Step 7 itself -- no Go code changed,
+`internal/web` still serves the single hardcoded ten-link topbar this phase's Step 7 will replace.
+What it does buy: Step 7 now has 19 real screens' worth of evidence that one shared ordered list
+per Application, rendered by one small function, is enough chrome for every one of this app's own
+real destinations -- not just the two illustrative screens `navigation.html` originally covered.
+
+**Case-3-only implementation pass (2026-09-19, owner decision, this session):** built Steps 1-4, 6,
+8, 9 below for a single Application (Case 3's own manifest), explicitly **skipping** Step 5
+(Application plurality) and Step 7 (two-level navigation/cross-app launcher) -- those stay
+deferred until Case 19 becomes a second real Application, per this roadmap's own Method (a
+forcing condition constructed from one real case, not guessed for two). Concretely: `mch_user`'s
+per-Application role (Step 8) is a flat column rather than a per-Application table (only one
+Application exists to have a role in), Workspace Home (Step 6) shows one Application card with no
+launcher, and `pageShell` still serves its single hardcoded topbar (Step 7 untouched, including its
+own badge-count/aria-current findings above). Design decisions, exact verification evidence, and
+file-level detail live in the session's own plan file; the checkboxes below record what shipped.
+Also closed in the same pass: the Operational backlog's "rate-limit `POST /login`" item, newly
+relevant now that real per-user passwords exist to guess.
+
 **Steps:**
 
-- [ ] **Step 1: real per-user credentials.** `mch_user` gains a password (hashed, never stored or
-      logged in the clear); `internal/authorization` gains a per-user credential check alongside
-      the existing shared-admin one during the transition. `SetSessionCookie` already signs a real
-      `mch_user` id (Phase 7) -- this step makes *reaching* that identity a real login instead of
-      one shared credential resolving to a configured id
-- [ ] **Step 2: Workspace reaches storage.** Migration adds `workspace_id` to `records`, backfilled
-      to `ws_default`; `Store`'s own methods take a workspace scope; every existing route continues
-      to work unchanged against the one backfilled Workspace. This is the step "Workspace never
-      reaches storage" named as the real forcing condition to close, and the one step in this phase
-      with real data-migration risk -- smoke-test on a scratch database copy before touching the
-      live one, per this repo's own established practice
-- [ ] **Step 3: registration = create a Workspace.** One flow: a new Workspace, its first `mch_user`
-      (that Workspace's Admin), and a real password, created together -- `login.html`'s own "Create
-      a workspace" link, not a bare account with nowhere to go
-- [ ] **Step 4: Choose Workspace.** Shown only when a session's identity belongs to more than one
-      Workspace (`choose-workspace.html`) -- a single-Workspace identity skips straight to Step 5,
-      no empty choice screen for the common case
-- [ ] **Step 5: Application plurality.** The domain/metadata model gains real support for more than
-      one Application per Workspace; Case 3's own Machines (`mch_document`, `mch_approval_step`,
-      `mch_signature`) and Case 19's (`mch_task`, `mch_project`, `mch_list`, `mch_label`,
-      `mch_card_label`) become two real Applications instead of one manifest's flat list
-- [ ] **Step 6: Workspace Home.** Landing page after login/Choose-Workspace: every Application the
-      signed-in identity has a role in (`workspace-home.html`), plus an "Your access" summary of
-      that identity's own Workspace role and per-Application roles
-- [ ] **Step 7: two-level navigation, applied not generalized.** `navigation.html`'s own two
-      levels, wired to real routes: the cross-Application launcher (9-dot icon, switches between
-      the two real Applications Step 5 created) and each Application's own menu (desktop top bar /
-      mobile bottom bar, 3-4 icons), replacing `pageShell`'s single hardcoded ten-link topbar.
-      Hand-written per Application in code, the same posture every composed page already uses
-      (Phase 6 tested and re-tested that this stays cheap) -- not a declared navigation schema,
-      which stays unforced
-- [ ] **Step 8: per-Application roles (direct only).** `mch_user`'s membership in a Workspace
-      carries a Workspace role (Admin/Member) and, per Application, a role from that Application's
-      own declared list -- gates whether the Application appears in Workspace Home and that
-      Application's own menu, composes with (does not replace) Phase 16's record-scoped Permission
-- [ ] **Step 9: Workspace Members + Invite.** Admin-only screen (`workspace-members.html`) to see
-      and assign direct roles; an invite flow so a real Workspace Admin can add a real approver
-      without an engineer creating their `mch_user` record by hand
+- [x] **Step 1: real per-user credentials.** `internal/authorization` gains `HashPassword`/
+      `VerifyPassword` (bcrypt) alongside the existing shared-admin `CheckCredentials`, tried first
+      as a bootstrap fallback. Credentials live in a new dedicated `credentials` table (email ->
+      hash), not an `mch_user` Field -- a password Field would flow through the generic create/edit
+      form and record detail page, leaking the hash and letting any authenticated identity overwrite
+      any user's password via the existing generic `PUT` route. `SetSessionCookie` needed **zero**
+      changes -- it already signs an arbitrary subject string (Phase 7), anticipating exactly this
+- [x] **Step 2: Workspace reaches storage.** `records.workspace_id`, backfilled to `ws_default`
+      (18 existing rows, verified via query). Scoping is carried on `context.Context`
+      (`data.WithWorkspaceScope`), the same shape `WithReadLog` already established for the query
+      diagnostic, not a `Store` struct field as first tried and reverted -- a struct-field Store
+      scoped once at startup cannot vary per request without touching every one of ~20 handler
+      entry points, which a first pass built and then found failing its own isolation check (see
+      Step 4)
+- [x] **Step 3: registration = create a Workspace.** `GET/POST /register`, exactly as specced
+- [x] **Step 4: Choose Workspace.** Exactly as specced, plus per-request Workspace resolution
+      (`requireAuth` calls `Store.ResolveUserWorkspace` once per request, falling back to the
+      manifest's own declared Workspace for the shared admin credential's placeholder subject). A
+      real isolation bug was caught here, not before: the first Step 2 implementation (the
+      struct-field Store above) left every request reading `ws_default` regardless of who
+      registered or logged in -- a brand-new Workspace was created correctly but invisible to its
+      own owner. Found by the same end-to-end check this repo's own practice always runs (create a
+      real Workspace, check what it actually shows), fixed by the context-scoping rework, re-verified
+      with two real Workspaces and a tampered-`workspace_id` rejection test
+- [ ] **Step 5: Application plurality.** Explicitly **out of scope** for this Case-3-only pass
+      (2026-09-19) -- still deferred until Case 19 becomes a second real Application
+- [x] **Step 6: Workspace Home.** Reduced to one Application card (no launcher, no plurality) --
+      `GET /home`, real pending-approval count, "Your access" panel. Login/registration/Choose
+      Workspace all redirect here now instead of `/`, which stays the existing Machine list
+- [ ] **Step 7: two-level navigation, applied not generalized.** Still open, unrelated to
+      Application plurality's own deferral -- `pageShell` gained only a plain "Home"/"Workspace
+      Members" link apiece (Steps 5/9's own minimal wiring), not the cross-Application launcher
+      (nothing to launch between yet) or per-Application menu restructuring. The badge-count and
+      `aria-current` findings above are also both still open -- neither was built this pass
+- [x] **Step 8: per-Application roles (direct only).** Built flat rather than as a per-Application
+      table (only one Application exists in this slice): `workspace_members.app_role`
+      (approver/submitter/reviewer/none), edited via Workspace Members' own per-member screen.
+      Composes with Phase 16's record-scoped Permission exactly as specced, unchanged
+- [x] **Step 9: Workspace Members + Invite.** `GET /workspace-members` (Workspace-admin gated,
+      shared-admin identity let through the same fallback way `requireAuth` already treats it),
+      per-member role editing, and invite. Invite has no email-sending step, by design (no
+      outbound-email infrastructure exists here, 007 §4.10) -- an invited email's first successful
+      login activates its account (the submitted password becomes its real credential) rather than
+      verifying one that was never issued, named as a deliberate simplification
 
 **Deliberately deferred, not part of this phase:** Group-sourced roles/approvers
 (`workspace-members.html`'s "Group: Reviewers", `approval-role-matrix.html`'s full role matrix) --
@@ -1656,12 +1688,25 @@ Phase 6's own repeated re-tests say stays cheap at this scale); per-workspace me
 Workspace still runs the same Application definitions -- a genuinely different Workspace needing
 *different* Machines is a distinct, larger question this phase does not answer).
 
-**Exit criterion:** a person can, with no engineer involved and no environment variable edited or
-server restarted -- create a workspace with a real password, log in as themselves, land on a
-Workspace Home listing Document Approval and Project Management as two real Applications, open
-Document Approval via the two-level navigation `navigation.html` specced, and be assigned (by a
-real Workspace Admin, through Workspace Members) as an Approver without touching `mch_user` through
-the generic Machine CRUD by hand.
+**Exit criterion (full phase, still open):** a person can, with no engineer involved and no
+environment variable edited or server restarted -- create a workspace with a real password, log in
+as themselves, land on a Workspace Home listing Document Approval and Project Management as two
+real Applications, open Document Approval via the two-level navigation `navigation.html` specced,
+and be assigned (by a real Workspace Admin, through Workspace Members) as an Approver without
+touching `mch_user` through the generic Machine CRUD by hand. Blocked on Steps 5 and 7, both
+explicitly deferred above.
+
+**Exit criterion met, Case-3-only scope (2026-09-19):** verified end-to-end on a temporary second
+server instance against the real Postgres database, the live production process left untouched
+throughout -- a person registers a real workspace with a real password (no engineer involved, no
+environment variable edited, no restart), logs in as themselves, lands on Workspace Home showing
+Document Approval's real pending-approval count and their own real Workspace role, invites a second
+real email as Approver through Workspace Members, and that second person's own first login
+activates their account and lets them decide a step they are assigned to. The shared admin
+credential still works unchanged throughout (verified byte-identical HTML on all 14 pre-existing
+authenticated routes), and a tampered Workspace choice / another Workspace's data are both
+confirmed inaccessible. Full detail (design decisions, exact commands run, byte-identical-HTML
+diffs) is in this session's own plan file and its four commits' own messages.
 
 ---
 
