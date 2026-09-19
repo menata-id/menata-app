@@ -1245,6 +1245,34 @@ phase they don't belong to:
       out of the Document Approval group," "split the page into two visually labeled halves," or
       "leave as is" is an open question for whoever picks this up next
 
+**Security audit (2026-09-19)** -- full-codebase review (not diff-scoped), benchmarked against
+OWASP ASVS, OWASP Top 10 (2021), and CWE Top 25, commit `c60b8e6`. This repo is public and some
+findings below are not yet fixed, so exploit mechanics, exact call paths, and the standards
+benchmark table are deliberately **not** reproduced here -- they live in the private
+`menata-app-document` repo (`audits/2026-09-19-security-audit.md`), accessible to the maintainer.
+This entry tracks close-out status only; each line gets its technical detail filled in here once
+the fix for it has actually landed, not before:
+
+- [ ] **H1 (High) -- an authentication gap in the member-invitation flow** that could let an
+      invited account be claimed by someone other than the invitee before they first sign in.
+- [ ] **H2 (High) -- a file-upload validation gap** that could let an uploaded file be rendered by
+      the browser in a way the app doesn't intend.
+- [ ] **M1 (Medium) -- a missing per-record ownership check on one internal file-serving route.**
+- [ ] **M2 (Medium) -- sessions have no server-side revocation** (logout/password-change don't
+      invalidate a session already issued).
+- [ ] **M3 (Medium) -- no baseline security response headers** (`nosniff`, CSP, etc.) anywhere in
+      the app; this is also what turns H2 into a High rather than a contained issue.
+- [x] **M4 -- single shared admin credential** -- not a new finding, already named and accepted as
+      an interim state in Phase 21 above, superseded once per-user credentials (Step 1) fully
+      replace the shared-admin fallback path.
+- [ ] **L1 (Low) -- CSRF protection relies on `SameSite=Lax` alone**, no explicit token; not a
+      confirmed bypass in a compliant browser, defense-in-depth only.
+- [ ] **L2 (Low) -- CI third-party Actions pinned by tag, not commit SHA** -- supply-chain
+      hardening, not a live vulnerability.
+
+H1 and H2 have a real, exploitable path today and should be closed first, before this app carries
+production data for more than one workspace.
+
 ---
 
 ## Concept conformance gaps (001-007 audit)
