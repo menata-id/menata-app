@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: menata
+          POSTGRES_PASSWORD: menata
+          POSTGRES_DB: menata
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://menata:menata@localhost:5432/menata?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+
+      - name: Generate templ
+        run: go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Run migrations
+        run: go run github.com/pressly/goose/v3/cmd/goose@v3.28.0 -dir migrations postgres "$DATABASE_URL" up
+
+      - name: Test
+        run: go test ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+
+      - name: Generate templ
+        run: go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
+
+      # golangci-lint's own prebuilt releases (what golangci-lint-action installs) are still built
+      # with go1.26 as of this writing and refuse to lint a go1.27 module ("the Go language version
+      # used to build golangci-lint is lower than the targeted Go version"). Building it ourselves
+      # against the go1.27 toolchain setup-go just installed avoids that -- switch back to
+      # golangci-lint-action once it ships a go1.27 build.
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+
+      - name: golangci-lint
+        run: golangci-lint run --timeout 5m
