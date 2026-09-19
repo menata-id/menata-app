@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -36,14 +37,25 @@ type Deps struct {
 //
 // /health and /login sit outside the authenticated group deliberately: a liveness probe carries
 // no session, and requiring one to reach the login form would be a redirect loop.
+// loginAttemptLimit and loginAttemptWindow bound POST /login (ROADMAP.md Operational backlog:
+// "unlimited password guesses are possible today"), now genuinely worth enforcing since real
+// per-user passwords exist to guess (Phase 21). Generous enough that a person mistyping their own
+// password a few times in a row is never affected.
+const (
+	loginAttemptLimit  = 10
+	loginAttemptWindow = 5 * time.Minute
+)
+
 func Routes(d Deps) http.Handler {
 	r := chi.NewRouter()
+	loginLimiter := newLoginRateLimiter(loginAttemptLimit, loginAttemptWindow)
+
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok")) // liveness probe body; a failed write here isn't actionable
 	})
 	r.Get("/login", showLogin)
-	r.Post("/login", submitLogin(d.Store, d.Cfg))
+	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))
 	r.Get("/register", showRegistration)
 	r.Post("/register", submitRegistration(d.Machines, d.Store, d.Cfg))
 	r.Get("/choose-workspace", showChooseWorkspace(d.Store, d.Cfg))
