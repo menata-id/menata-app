@@ -33,14 +33,14 @@ func CheckYourEmailPage(email string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Check your email · Menata App</title><style>\n\t\t\t\tbody { font-family: system-ui, -apple-system, sans-serif; max-width: 360px; margin: 5rem auto; padding: 0 1rem; color: #1a1a1a; text-align: center; }\n\t\t\t\th1 { font-size: 1.25rem; }\n\t\t\t\tp { font-size: 0.9rem; color: #444; }\n\t\t\t\tp.email { font-weight: 600; color: #1a1a1a; }\n\t\t\t\t.resend { margin-top: 1.5rem; font-size: 0.85rem; }\n\t\t\t</style></head><body><h1>Check your email</h1><p>We've sent a verification link to</p><p class=\"email\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Check your email · Menata App</title><link rel=\"manifest\" href=\"/manifest.json\"><link rel=\"icon\" href=\"/icons/favicon-32.png\"><link rel=\"apple-touch-icon\" href=\"/icons/icon-180.png\"><meta name=\"theme-color\" content=\"#2563EB\"><style>\n\t\t\t\tbody { font-family: system-ui, -apple-system, sans-serif; max-width: 360px; margin: 5rem auto; padding: 0 1rem; color: #1a1a1a; text-align: center; }\n\t\t\t\th1 { font-size: 1.25rem; }\n\t\t\t\tp { font-size: 0.9rem; color: #444; }\n\t\t\t\tp.email { font-weight: 600; color: #1a1a1a; }\n\t\t\t\t.resend { margin-top: 1.5rem; font-size: 0.85rem; }\n\t\t\t</style></head><body><h1>Check your email</h1><p>We've sent a verification link to</p><p class=\"email\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(email)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/checkyouremail.templ`, Line: 25, Col: 27}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/checkyouremail.templ`, Line: 29, Col: 27}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {

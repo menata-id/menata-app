@@ -50,6 +50,10 @@ templ pageShell(title string, appName string) {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title } · Menata App</title>
+			<link rel="manifest" href="/manifest.json"/>
+			<link rel="icon" href="/icons/favicon-32.png"/>
+			<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
+			<meta name="theme-color" content="#2563EB"/>
 			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 			<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
 			<style>
@@ -180,6 +184,16 @@ templ pageShell(title string, appName string) {
 				</form>
 			</header>
 			{ children... }
+			<script>
+				// Installability (ROADMAP.md's "Installable as a PWA"): registration only, no cache
+				// population -- this app's data is live/session-scoped, so the service worker
+				// (served by serveServiceWorker, internal/web/pwa.go) deliberately caches nothing.
+				if ('serviceWorker' in navigator) {
+					window.addEventListener('load', function () {
+						navigator.serviceWorker.register('/sw.js')
+					})
+				}
+			</script>
 			<script>
 				// Marks the topbar link matching the current page aria-current="page" (ROADMAP.md
 				// Phase 21 round 2, Step J) -- purely client-side so pageShell needs no new parameter

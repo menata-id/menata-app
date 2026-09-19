@@ -80,6 +80,9 @@ func Routes(d Deps) http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok")) // liveness probe body; a failed write here isn't actionable
 	})
+	r.Get("/manifest.json", serveManifest)
+	r.Get("/sw.js", serveServiceWorker)
+	r.Handle("/icons/*", http.StripPrefix("/icons/", http.FileServer(http.Dir("static/icons"))))
 	r.Get("/login", showLogin)
 	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))
 	r.Get("/register", showRegistration)

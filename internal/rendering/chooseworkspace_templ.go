@@ -39,7 +39,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string) templ.Compo
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Choose a workspace · Menata App</title><style>\n\t\t\t\tbody { font-family: system-ui, -apple-system, sans-serif; max-width: 360px; margin: 5rem auto; padding: 0 1rem; color: #1a1a1a; }\n\t\t\t\th1 { font-size: 1.25rem; }\n\t\t\t\t.workspace-choice { display: block; width: 100%; text-align: left; padding: 0.75rem; margin-top: 0.75rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.95rem; }\n\t\t\t\t.workspace-choice:hover { border-color: #3949ab; }\n\t\t\t\t.workspace-choice .role { display: block; font-size: 0.8rem; color: #666; margin-top: 0.15rem; }\n\t\t\t\t.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }\n\t\t\t\t.sign-out { margin-top: 1.5rem; font-size: 0.85rem; text-align: center; }\n\t\t\t</style></head><body><h1>Choose a workspace</h1>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Choose a workspace · Menata App</title><link rel=\"manifest\" href=\"/manifest.json\"><link rel=\"icon\" href=\"/icons/favicon-32.png\"><link rel=\"apple-touch-icon\" href=\"/icons/icon-180.png\"><meta name=\"theme-color\" content=\"#2563EB\"><style>\n\t\t\t\tbody { font-family: system-ui, -apple-system, sans-serif; max-width: 360px; margin: 5rem auto; padding: 0 1rem; color: #1a1a1a; }\n\t\t\t\th1 { font-size: 1.25rem; }\n\t\t\t\t.workspace-choice { display: block; width: 100%; text-align: left; padding: 0.75rem; margin-top: 0.75rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.95rem; }\n\t\t\t\t.workspace-choice:hover { border-color: #3949ab; }\n\t\t\t\t.workspace-choice .role { display: block; font-size: 0.8rem; color: #666; margin-top: 0.15rem; }\n\t\t\t\t.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }\n\t\t\t\t.sign-out { margin-top: 1.5rem; font-size: 0.85rem; text-align: center; }\n\t\t\t</style></head><body><h1>Choose a workspace</h1>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -51,7 +51,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string) templ.Compo
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 33, Col: 31}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 37, Col: 31}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -70,7 +70,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string) templ.Compo
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(c.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 37, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 41, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -83,7 +83,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string) templ.Compo
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(c.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 39, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 43, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -96,7 +96,7 @@ func ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string) templ.Compo
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(c.Role)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 40, Col: 33}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/chooseworkspace.templ`, Line: 44, Col: 33}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
