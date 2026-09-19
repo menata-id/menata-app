@@ -1484,6 +1484,46 @@ beyond Phase 2's minimal structure, and the full semantic field type vocabulary 
 of these have a forcing case yet. Adding any of them before one exists repeats the mistake this
 roadmap is written to avoid.
 
+**Research note (2026-09-19, owner-prompted): declarative field defaults and Action-driven field
+effects, so the next real case doesn't start from zero.** Phase 20 removed `fld_status`'s
+unreachable `draft` option rather than building a real save-as-draft flow, and the owner asked the
+sharper question behind that choice: this app calls itself composable/metadata-based, so why did
+closing that gap need a Go code change (`submitDocumentWizard` hardcoding
+`FieldDocumentStatus = DocumentStatusInReview`) instead of a metadata edit? The honest answer is
+that it's the correct call *today*, not an oversight -- but it's worth recording the target shape
+now, the same way Phase 15's own research pass documented a target schema before any forcing case
+existed for it, so this doesn't have to be re-derived from scratch later.
+
+*What 006 already says the target looks like.* `006-runtime-model.md`'s own "Workflow" section is
+directly on point: "Behavior is composed from Domain primitives rather than requiring one
+monolithic Workflow artifact... Workflow is a **responsibility, not a mandatory stored runtime
+artifact and not a second execution engine**. A higher-level process/workflow declaration may
+exist as authoring syntax, but **it must lower into the same runtime behavioral primitives**"
+(Event → Action → Permission/Constraint → State change/Event). Whatever eventually replaces
+`internal/action`'s hardcoded `CanDecide`/`DocumentStatus`/status-assignment logic is *not*
+supposed to be a bespoke workflow DSL -- it is supposed to compose from Field/Action/Constraint,
+the same primitives Phase 4, 12 and 16 already built one hardcoded instance of each. 001
+Principle #5 ("Convention over Configuration": "the runtime should provide intelligent defaults")
+is the other half -- this repo already has one working instance of it (a Machine with no `view:`
+block defaults to table Layout, Phase 5), which is the precedent for the hybrid shape below.
+
+*Two different questions, easy to conflate:*
+
+| Question | What it would solve | Proven shape / precedent | Effort + risk to build |
+|---|---|---|---|
+| **A. Creation-time default** -- what value does a new record get if the field is left blank | `fld_status: default: draft` would give every new Document a value without `submitDocumentWizard` or any other creator hardcoding one | Universal in schema languages (SQL `DEFAULT`, JSON Schema `default`, Rails/Django model defaults) -- barely a "guess," it's one of the most proven metadata primitives that exists | Small and low-risk: `domain.Field` gains a `Default`, `data.ValuesFromForm`/`CreateRecord` apply it when a field is absent. Does not need a second case to justify the *shape* the way B does -- only a real reason to spend the time |
+| **B. Action-driven field effect** -- what value does a field become *when a specific Action fires* (Submit: draft→in_review; Approve: →approved) | The actual thing `internal/action` hardcodes today -- this is 006's own "Workflow" responsibility, composed from Action+Constraint+Field, not a new artifact | Not yet proven anywhere in this codebase. `mch_task.fld_status` looked like a second occurrence but isn't one: it's freely editable to any value via the generic PUT route, with no gate at all -- Document's is the only *gated* transition that exists. **Still only one real case.** | Large and genuinely risky to guess: this is exactly the shape `menata-runtime`'s own abandoned composable rewrite got wrong by building it before a second case existed to validate against |
+
+*Recommended posture when this is next touched:* A is cheap enough, and its shape proven enough
+elsewhere, that building it doesn't repeat the mistake this roadmap exists to avoid -- but it is
+still not built now, because no real case has asked for it yet (this roadmap's Method applies to
+low-risk primitives too, not only expensive ones). B stays fully deferred until a second Machine
+has an actual *gated* transition, not merely a status field -- and when it arrives, the shape to
+build is 006's own: Action metadata composes Field writes under a Constraint/Permission check, not
+a bespoke `on:`/`set:` workflow language invented for the occasion. The hybrid this points toward
+-- runtime capability owns the mechanism, metadata is an optional override, same posture as
+Layout's own `table` default -- is the one already load-bearing in this codebase, not a new idea.
+
 `internal/execution` specifically is not the same gap Phase 18 closed. Phase 18 moved the
 *composition/data-fetch* functions (`loadChildSections`/`loadRelationOptions`/`loadBoardColumns`)
 into `internal/composition`, where their own `doc.go` contract already said they belonged -- it
