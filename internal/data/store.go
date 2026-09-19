@@ -58,6 +58,13 @@ func workspaceScopeFrom(ctx context.Context) (string, bool) {
 	return id, ok && id != ""
 }
 
+// WorkspaceScope returns the Workspace id a context carries, for the rare caller that needs the
+// concrete value itself (e.g. looking up the Workspace's own name) rather than merely scoping a
+// Store call by it.
+func WorkspaceScope(ctx context.Context) (string, bool) {
+	return workspaceScopeFrom(ctx)
+}
+
 // CreateRecord inserts a new Record for the given Machine, at the next sort_order after every
 // existing record of that Machine in this Store's Workspace (ROADMAP.md Phase 9: child
 // collections need a meaningful order). Callers must validate values with ValidateRecord first --

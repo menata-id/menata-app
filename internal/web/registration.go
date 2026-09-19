@@ -59,7 +59,7 @@ func submitRegistration(machines map[string]*domain.Machine, store *data.Store, 
 		}
 
 		authorization.SetSessionCookie(w, cfg.SessionSecret, userID, cfg.SecureCookies)
-		redirectTo(w, req, "/")
+		redirectTo(w, req, "/home")
 	}
 }
 

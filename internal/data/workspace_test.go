@@ -93,6 +93,14 @@ func TestStore_MembershipLifecycle(t *testing.T) {
 		t.Fatalf("ListMembers = %+v, want one member with email %s", members, email)
 	}
 
+	membership, err := store.GetMembership(ctx, ws.ID, user.ID)
+	if err != nil {
+		t.Fatalf("GetMembership: %v", err)
+	}
+	if membership.WorkspaceRole != "admin" || membership.Email != email {
+		t.Errorf("GetMembership = %+v, want workspace_role=admin email=%s", membership, email)
+	}
+
 	resolved, err := store.ResolveUserWorkspace(ctx, user.ID)
 	if err != nil {
 		t.Fatalf("ResolveUserWorkspace: %v", err)
@@ -110,6 +118,16 @@ func TestStore_MembershipLifecycle(t *testing.T) {
 	}
 	if updated[0].WorkspaceRole != "member" || updated[0].AppRole != "approver" {
 		t.Errorf("ListMembers after update = %+v, want workspace_role=member app_role=approver", updated[0])
+	}
+}
+
+func TestStore_GetMembership_notFound(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+
+	_, err := store.GetMembership(context.Background(), "ws_does_not_exist", "rec_does_not_exist")
+	if !errors.Is(err, ErrRecordNotFound) {
+		t.Errorf("GetMembership(missing) error = %v, want ErrRecordNotFound", err)
 	}
 }
 

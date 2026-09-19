@@ -30,7 +30,7 @@ func submitLogin(store *data.Store, cfg config.Config) http.HandlerFunc {
 
 		if authorization.CheckCredentials(username, password, cfg.AdminUsername, cfg.AdminPassword) {
 			authorization.SetSessionCookie(w, cfg.SessionSecret, cfg.AdminUserID, cfg.SecureCookies)
-			redirectTo(w, req, "/")
+			redirectTo(w, req, "/home")
 			return
 		}
 
@@ -46,7 +46,7 @@ func submitLogin(store *data.Store, cfg config.Config) http.HandlerFunc {
 			return
 		}
 		authorization.SetSessionCookie(w, cfg.SessionSecret, userID, cfg.SecureCookies)
-		redirectTo(w, req, "/")
+		redirectTo(w, req, "/home")
 	}
 }
 
@@ -117,7 +117,7 @@ func submitChooseWorkspace(store *data.Store, cfg config.Config) http.HandlerFun
 			if m.WorkspaceID == workspaceID {
 				authorization.ClearPendingEmailCookie(w, cfg.SecureCookies)
 				authorization.SetSessionCookie(w, cfg.SessionSecret, m.UserRecordID, cfg.SecureCookies)
-				redirectTo(w, req, "/")
+				redirectTo(w, req, "/home")
 				return
 			}
 		}

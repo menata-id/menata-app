@@ -1,0 +1,44 @@
+package rendering
+
+import "fmt"
+
+// WorkspaceHomePage is the landing page after login (ROADMAP.md Phase 21 Step 5), reduced to a
+// single Application card since this slice deliberately has no Application plurality yet -- the
+// cross-Application launcher workspace-home.html also shows has nothing to switch between until a
+// second real Application exists (Phase 21 Step 5's own deferral).
+templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, pendingCount int) {
+	@pageShell("Home", appName) {
+		<h1>{ workspaceName }</h1>
+		<section class="app-card">
+			<h2>{ appName }</h2>
+			if pendingCount > 0 {
+				<p><a href="/approval-inbox">{ fmt.Sprintf("%d pending decision", pendingCount) }{ pluralS(pendingCount) } →</a></p>
+			} else {
+				<p><a href="/approval-inbox">Approval Inbox →</a></p>
+			}
+		</section>
+		<section class="access-panel">
+			<h2>Your access</h2>
+			<dl class="detail-fields">
+				<dt>Workspace</dt>
+				<dd>{ displayRole(workspaceRole) }</dd>
+				<dt>{ appName }</dt>
+				<dd>{ displayRole(appRole) }</dd>
+			</dl>
+		</section>
+	}
+}
+
+func pluralS(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
+func displayRole(role string) string {
+	if role == "" {
+		return "—"
+	}
+	return role
+}

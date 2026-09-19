@@ -60,6 +60,7 @@ func Routes(d Deps) http.Handler {
 		pr.Post("/api/machines/{machineID}/records", createRecord(d.Machines, d.Store))
 
 		pr.Get("/", showMachineList(d.MachineList, d.AppName))
+		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.AppName, d.Cfg))
 		pr.Get("/dashboard", showDashboard(d.Machines, d.Store, d.AppName))
 		pr.Get("/my-tasks", showMyTasks(d.Machines, d.Store, d.AppName, d.Cfg))
 		pr.Get("/board-settings", showBoardSettings(d.Store, d.AppName))

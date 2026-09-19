@@ -83,6 +83,26 @@ func (s *Store) AddMember(ctx context.Context, workspaceID, userRecordID, email,
 	return nil
 }
 
+// GetMembership returns one identity's membership in one Workspace, or ErrRecordNotFound -- the
+// Workspace Home / "Your access" panel's own lookup (ROADMAP.md Phase 21 Step 5), given a
+// userRecordID rather than an email (the caller usually only has the former, from an already-
+// resolved session).
+func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID string) (*Membership, error) {
+	m := &Membership{WorkspaceID: workspaceID, UserRecordID: userRecordID}
+	err := s.pool.QueryRow(ctx, `
+		SELECT email, workspace_role, COALESCE(app_role, '')
+		FROM workspace_members
+		WHERE workspace_id = $1 AND user_record_id = $2
+	`, workspaceID, userRecordID).Scan(&m.Email, &m.WorkspaceRole, &m.AppRole)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, fmt.Errorf("get membership: %w", err)
+	}
+	return m, nil
+}
+
 // ListMemberships returns every Workspace email belongs to -- login's own source of truth for
 // whether a signed-in identity has exactly one Workspace (skip straight in) or several (Choose
 // Workspace, ROADMAP.md Phase 21 Step 4).
