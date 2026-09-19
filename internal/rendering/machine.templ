@@ -19,11 +19,16 @@ import (
 // request-scoping risk in holding it here.
 var navigation []domain.NavigationItem
 
+// primaryNavGroup is domain.Application.PrimaryNavGroup, set alongside navigation by
+// ConfigureNavigation -- see navSections for why this travels separately from navigation itself.
+var primaryNavGroup string
+
 // ConfigureNavigation sets the Application's own menu. Called exactly once, in
 // cmd/server/main.go, immediately after metadata.LoadApplication and before the server starts
 // serving -- not safe to call concurrently with a request in flight.
-func ConfigureNavigation(items []domain.NavigationItem) {
+func ConfigureNavigation(items []domain.NavigationItem, primaryGroup string) {
 	navigation = items
+	primaryNavGroup = primaryGroup
 }
 
 // navLink renders one NavigationItem as a topbar link, including its live badge if it declares
@@ -153,7 +158,7 @@ templ pageShell(title string, appName string) {
 			</style>
 		</head>
 		<body>
-			{{ ungrouped, primary, rest := navSections(navigation) }}
+			{{ ungrouped, primary, rest := navSections(navigation, primaryNavGroup) }}
 			<header class="topbar">
 				<nav class="left" aria-label="Primary">
 					for _, item := range ungrouped {

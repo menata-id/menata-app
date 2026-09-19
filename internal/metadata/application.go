@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 )
 
 var (
@@ -95,6 +96,18 @@ func LoadApplication(path string) (*App, error) {
 	if navIssues := validateNavigation(navigation); len(navIssues) > 0 {
 		return nil, &ValidationError{Issues: navIssues}
 	}
+
+	// primaryNavGroup is decided from the full declared list, before hidden_nav_groups removes
+	// anything -- so hiding a group can never promote a different one into its "always open"
+	// role (see domain.Application.PrimaryNavGroup).
+	var primaryNavGroup string
+	for _, g := range experience.GroupNavigation(navigation) {
+		if g.Label != "" {
+			primaryNavGroup = g.Label
+			break
+		}
+	}
+
 	navigation, hiddenIssues := applyHiddenNavGroups(navigation, doc.Application.HiddenNavGroups)
 	if len(hiddenIssues) > 0 {
 		return nil, &ValidationError{Issues: hiddenIssues}
@@ -103,7 +116,7 @@ func LoadApplication(path string) (*App, error) {
 	dir := filepath.Dir(path)
 	app := &App{
 		Workspace:   domain.Workspace{ID: doc.Workspace.ID, Name: doc.Workspace.Name},
-		Application: domain.Application{ID: doc.Application.ID, Name: doc.Application.Name, WorkspaceID: doc.Workspace.ID, Navigation: navigation},
+		Application: domain.Application{ID: doc.Application.ID, Name: doc.Application.Name, WorkspaceID: doc.Workspace.ID, Navigation: navigation, PrimaryNavGroup: primaryNavGroup},
 	}
 	for _, rel := range doc.Application.Machines {
 		m, err := Load(filepath.Join(dir, rel))

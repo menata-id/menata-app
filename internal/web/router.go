@@ -36,6 +36,9 @@ type Deps struct {
 	// to be (ROADMAP.md Phase 21 round 2 Step J already chose the equivalent trade-off for the
 	// pending-approval badge).
 	Navigation []domain.NavigationItem
+	// PrimaryNavGroup is domain.Application.PrimaryNavGroup -- see its own doc comment for why
+	// this travels alongside Navigation instead of being derived from it at render time.
+	PrimaryNavGroup string
 
 	// DefaultWorkspaceID is this manifest's own declared Workspace (metadata/app.yaml) --
 	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
@@ -69,7 +72,7 @@ const (
 )
 
 func Routes(d Deps) http.Handler {
-	rendering.ConfigureNavigation(d.Navigation)
+	rendering.ConfigureNavigation(d.Navigation, d.PrimaryNavGroup)
 
 	r := chi.NewRouter()
 	loginLimiter := newLoginRateLimiter(loginAttemptLimit, loginAttemptWindow)

@@ -493,6 +493,13 @@ application:
 			t.Errorf("Navigation still contains a Document Approval item: %+v", n)
 		}
 	}
+	// PrimaryNavGroup stays "Document Approval" (the declared-first group) even though it's
+	// hidden -- proving Project Management, now first among what's left, isn't promoted into its
+	// place. rendering.navSections looks this label up in the (already-filtered) Navigation list;
+	// finding nothing named "Document Approval" there, no group renders as primary.
+	if app.Application.PrimaryNavGroup != "Document Approval" {
+		t.Errorf("PrimaryNavGroup = %q, want %q (frozen from the full declared order, not re-derived after hiding)", app.Application.PrimaryNavGroup, "Document Approval")
+	}
 }
 
 func TestLoadApplication_hiddenNavGroupUnknownRejected(t *testing.T) {

@@ -57,14 +57,15 @@ func main() {
 	}
 
 	handler := web.Routes(web.Deps{
-		Machines:    machines,
-		MachineList: app.Machines,
-		Store:       store,
-		Files:       files,
-		Mailer:      mail.NewMailerFromConfig(cfg),
-		Cfg:         cfg,
-		AppName:     app.Application.Name,
-		Navigation:  app.Application.Navigation,
+		Machines:        machines,
+		MachineList:     app.Machines,
+		Store:           store,
+		Files:           files,
+		Mailer:          mail.NewMailerFromConfig(cfg),
+		Cfg:             cfg,
+		AppName:         app.Application.Name,
+		Navigation:      app.Application.Navigation,
+		PrimaryNavGroup: app.Application.PrimaryNavGroup,
 		// DefaultWorkspaceID is this manifest's own declared Workspace (ROADMAP.md Phase 21 Step
 		// 2 -- "Workspace never enters the data path" closed) -- requireAuth's fallback when a
 		// signed-in identity does not resolve to a real mch_user record, which is exactly the
