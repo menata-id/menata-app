@@ -42,26 +42,40 @@ templ navLink(item domain.NavigationItem) {
 	</a>
 }
 
-// pageShell is the shared HTML document, styles, and topbar every page uses. It exists so
-// generalizing from one Machine to several (ROADMAP.md Phase 3) doesn't duplicate boilerplate
-// per page. The topbar itself is a projection of the Application's own navigation: metadata
-// (navSections/navLink above), not hand-written links -- closing ROADMAP.md's long-tracked
-// "Navigation is code, not metadata" conformance gap (004 §Navigation Metadata, 006 §Navigation,
-// 001 Principle #3 Metadata First).
-templ pageShell(title string, appName string) {
-	<!DOCTYPE html>
-	<html lang="en">
-		<head>
-			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ title } · Menata App</title>
-			<link rel="manifest" href="/manifest.json"/>
-			<link rel="icon" href="/icons/favicon-32.png"/>
-			<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
-			<meta name="theme-color" content="#2563EB"/>
-			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
-			<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
-			<style>
+// pageHead is the <head> every page shares -- title, PWA manifest/icons, htmx/hyperscript, and
+// the site's one stylesheet (pageStyles). Split out of pageShell so workspaceHomeShell (a
+// different <body>/topbar for Workspace-level screens) doesn't duplicate it.
+templ pageHead(title string) {
+	<head>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1"/>
+		<title>{ title } · Menata App</title>
+		<link rel="manifest" href="/manifest.json"/>
+		<link rel="icon" href="/icons/favicon-32.png"/>
+		<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
+		<meta name="theme-color" content="#2563EB"/>
+		<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+		<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+		@pageStyles()
+	</head>
+}
+
+// pwaRegistrationScript is the service-worker registration every page shares (ROADMAP.md's
+// "Installable as a PWA") -- registration only, no cache population, since this app's data is
+// live/session-scoped and the service worker (serveServiceWorker, internal/web/pwa.go)
+// deliberately caches nothing.
+templ pwaRegistrationScript() {
+	<script>
+		if ('serviceWorker' in navigator) {
+			window.addEventListener('load', function () {
+				navigator.serviceWorker.register('/sw.js')
+			})
+		}
+	</script>
+}
+
+templ pageStyles() {
+	<style>
 				body { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
 				header.topbar { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e5e5; }
 				header.topbar .left { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
@@ -155,8 +169,33 @@ templ pageShell(title string, appName string) {
 				.approver-row:first-child .approver-move-up { visibility: hidden; }
 				.approver-row:last-child .approver-move-down { visibility: hidden; }
 				.approver-row:only-child .approver-move-remove { visibility: hidden; }
+
+				/* Workspace-level chrome (workspaceHomeShell): a plain "Menata" brand plus
+				   Members link and avatar, distinct from the Application-nav topbar above --
+				   a Workspace Home screen has no Application menu of its own to project (mirrors
+				   ui-sample/workspace-home.html's own launcher-only chrome). */
+				header.topbar .left .topbar-brand { color: #1a1a1a; font-weight: 600; text-decoration: none; }
+				.workspace-topbar-right { display: flex; align-items: center; gap: 1rem; }
+				.workspace-heading { margin-bottom: 1.5rem; }
+				.eyebrow-row { display: flex; align-items: center; gap: 0.35rem; }
+				.eyebrow { color: #3949ab; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+				.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.4rem; height: 1.4rem; border: none; border-radius: 4px; background: none; color: #999; text-decoration: none; cursor: pointer; padding: 0; font-size: 1rem; line-height: 1; }
+				.icon-btn:hover { background: #f0f0f0; color: #3949ab; }
+				.workspace-subtitle { color: #666; font-size: 0.9rem; margin: 0.25rem 0 0; }
 			</style>
-		</head>
+}
+
+// pageShell is the shared HTML document, styles, and topbar every Application-level page uses.
+// It exists so generalizing from one Machine to several (ROADMAP.md Phase 3) doesn't duplicate
+// boilerplate per page. The topbar itself is a projection of the Application's own navigation:
+// metadata (navSections/navLink above), not hand-written links -- closing ROADMAP.md's
+// long-tracked "Navigation is code, not metadata" conformance gap (004 §Navigation Metadata, 006
+// §Navigation, 001 Principle #3 Metadata First). Workspace-level screens (Workspace Home) use
+// workspaceHomeShell instead, which has no Application menu to project.
+templ pageShell(title string, appName string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		@pageHead(title)
 		<body>
 			{{ ungrouped, primary, rest := navSections(navigation, primaryNavGroup) }}
 			<header class="topbar">
@@ -189,16 +228,7 @@ templ pageShell(title string, appName string) {
 				</form>
 			</header>
 			{ children... }
-			<script>
-				// Installability (ROADMAP.md's "Installable as a PWA"): registration only, no cache
-				// population -- this app's data is live/session-scoped, so the service worker
-				// (served by serveServiceWorker, internal/web/pwa.go) deliberately caches nothing.
-				if ('serviceWorker' in navigator) {
-					window.addEventListener('load', function () {
-						navigator.serviceWorker.register('/sw.js')
-					})
-				}
-			</script>
+			@pwaRegistrationScript()
 			<script>
 				// Marks the topbar link matching the current page aria-current="page" (ROADMAP.md
 				// Phase 21 round 2, Step J) -- purely client-side so pageShell needs no new parameter
@@ -218,6 +248,33 @@ templ pageShell(title string, appName string) {
 					}
 				})();
 			</script>
+		</body>
+	</html>
+}
+
+// workspaceHomeShell is the Workspace-level chrome for the Workspace Home screen: a plain
+// "Menata" brand (not the Application's own nav) plus a Members link and the signed-in
+// identity's avatar, matching ui-sample/workspace-home.html's own distinction between
+// Workspace-level chrome (no Application menu, since none is open yet) and the Application-level
+// topbar pageShell renders everywhere else. Reduced to what's meaningful with one real
+// Application: no cross-Application launcher, since (per pageShell's WorkspaceHomePage caller)
+// there is nothing yet to switch between.
+templ workspaceHomeShell(userInitials string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		@pageHead("Home")
+		<body>
+			<header class="topbar">
+				<div class="left">
+					<a href="/home" class="topbar-brand">Menata</a>
+				</div>
+				<div class="workspace-topbar-right">
+					<a href="/workspace-members">Members</a>
+					<span class="avatar">{ userInitials }</span>
+				</div>
+			</header>
+			{ children... }
+			@pwaRegistrationScript()
 		</body>
 	</html>
 }

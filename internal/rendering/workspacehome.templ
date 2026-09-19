@@ -4,20 +4,40 @@ import "fmt"
 
 // WorkspaceHomePage is the landing page after login (ROADMAP.md Phase 21 Step 5), reduced to a
 // single Application card since this slice deliberately has no Application plurality yet -- the
-// cross-Application launcher workspace-home.html also shows has nothing to switch between until a
-// second real Application exists (Phase 21 Step 5's own deferral).
-templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, pendingCount int) {
-	@pageShell("Home", appName) {
-		<h1>{ workspaceName }</h1>
-		<section class="app-card">
-			<h2>{ appName }</h2>
-			if pendingCount > 0 {
-				<p><a href="/approval-inbox">{ fmt.Sprintf("%d pending decision", pendingCount) }{ pluralS(pendingCount) } →</a></p>
-			} else {
-				<p><a href="/approval-inbox">Approval Inbox →</a></p>
-			}
-			<p><a href="/documents/new"><button type="button" class="primary">+ New Approval</button></a></p>
-		</section>
+// cross-Application launcher ui-sample/workspace-home.html also shows has nothing to switch
+// between until a second real Application exists (Phase 21 Step 5's own deferral). userInitials
+// and appInitials are composition.Initials(...) computed by the caller (rendering can't import
+// composition -- it already imports rendering). switchHref is the mid-session Choose Workspace
+// link (showSwitchWorkspace) when the signed-in identity belongs to more than one Workspace, or
+// "" to hide the switcher -- there is nothing to switch to otherwise.
+templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, pendingCount int, userInitials, appInitials, switchHref string) {
+	@workspaceHomeShell(userInitials) {
+		<div class="workspace-heading">
+			<div class="eyebrow-row">
+				<span class="eyebrow">Workspace</span>
+				if switchHref != "" {
+					<a href={ templ.SafeURL(switchHref) } class="icon-btn" aria-label="Switch workspace" title="Switch workspace">⋯</a>
+				}
+			</div>
+			<h1>{ workspaceName }</h1>
+			<p class="workspace-subtitle">Your applications, based on the roles assigned to you.</p>
+		</div>
+		<div class="summary-card-list">
+			<a href="/approval-inbox" class="summary-card">
+				<span class="avatar">{ appInitials }</span>
+				<span class="summary-card-body">
+					<span class="summary-card-title">{ appName }</span>
+					<span class="summary-card-subtitle">
+						if pendingCount > 0 {
+							{ fmt.Sprintf("%d pending decision", pendingCount) }{ pluralS(pendingCount) }
+						} else {
+							Approval Inbox
+						}
+					</span>
+				</span>
+			</a>
+		</div>
+		<p><a href="/documents/new"><button type="button" class="primary">+ New Approval</button></a></p>
 		<section class="access-panel">
 			<h2>Your access</h2>
 			<dl class="detail-fields">

@@ -8,9 +8,14 @@ type WorkspaceChoice struct {
 	Role string
 }
 
-// ChooseWorkspacePage is shown only when a signed-in identity belongs to more than one Workspace
-// (ROADMAP.md Phase 21 Step 4) -- a single-Workspace identity skips straight past this screen.
-templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string) {
+// ChooseWorkspacePage lists the Workspaces a signed-in identity belongs to, posting the pick to
+// action. Two callers share it: the login-time flow (ROADMAP.md Phase 21 Step 4, shown only when
+// an identity belongs to more than one Workspace -- a single-Workspace identity skips straight
+// past it) at action="/choose-workspace", and the mid-session switcher at
+// action="/switch-workspace" (the Workspace Home eyebrow's switch icon, matching
+// ui-sample/workspace-home.html's own three-dot affordance). backHref/backLabel differ the same
+// way: "back to signing in" pre-session, "back to the Workspace" mid-session.
+templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, backHref, backLabel string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -37,7 +42,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string) {
 				<p class="error">{ errorMsg }</p>
 			}
 			for _, c := range choices {
-				<form method="POST" action="/choose-workspace">
+				<form method="POST" action={ templ.SafeURL(action) }>
 					<input type="hidden" name="workspace_id" value={ c.ID }/>
 					<button type="submit" class="workspace-choice">
 						{ c.Name }
@@ -46,7 +51,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string) {
 				</form>
 			}
 			<p class="sign-out">
-				<a href="/login">← Sign out</a>
+				<a href={ templ.SafeURL(backHref) }>← { backLabel }</a>
 			</p>
 		</body>
 	</html>

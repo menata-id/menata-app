@@ -45,6 +45,24 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, a
 			return
 		}
 
-		render(ctx, w, rendering.WorkspaceHomePage(ws.Name, appName, membership.WorkspaceRole, membership.AppRole, len(inbox.Pending)))
+		// userName is best-effort: missing for the shared admin credential's placeholder identity
+		// the same way membership itself is (see this function's own doc comment) -- Initials("")
+		// degrades to "?" rather than erroring.
+		userName := ""
+		if userRecord, err := store.GetRecord(ctx, "mch_user", userID); err == nil {
+			userName = composition.DisplayString(userRecord.Values["fld_name"])
+		}
+
+		switchHref := ""
+		if membership.Email != "" {
+			if choices, err := loadWorkspaceChoices(ctx, store, membership.Email); err == nil && len(choices) > 1 {
+				switchHref = "/switch-workspace"
+			}
+		}
+
+		render(ctx, w, rendering.WorkspaceHomePage(
+			ws.Name, appName, membership.WorkspaceRole, membership.AppRole, len(inbox.Pending),
+			composition.Initials(userName), composition.Initials(appName), switchHref,
+		))
 	}
 }

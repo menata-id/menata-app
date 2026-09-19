@@ -114,6 +114,8 @@ func Routes(d Deps) http.Handler {
 
 		pr.Get("/", showMachineList(d.MachineList, d.AppName))
 		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.AppName, d.Cfg))
+		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
+		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))
 		pr.Get("/dashboard", showDashboard(d.Machines, d.Store, d.AppName))
 		pr.Get("/my-tasks", showMyTasks(d.Machines, d.Store, d.AppName, d.Cfg))
 		pr.Get("/board-settings", showBoardSettings(d.Store, d.AppName))

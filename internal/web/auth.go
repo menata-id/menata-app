@@ -143,7 +143,7 @@ func showChooseWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc 
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.ChooseWorkspacePage(choices, ""))
+		render(req.Context(), w, rendering.ChooseWorkspacePage(choices, "", "/choose-workspace", "/login", "Sign out"))
 	}
 }
 
@@ -161,23 +161,112 @@ func submitChooseWorkspace(store *data.Store, cfg config.Config) http.HandlerFun
 			http.Error(w, "invalid form body", http.StatusBadRequest)
 			return
 		}
-		workspaceID := req.FormValue("workspace_id")
-
-		memberships, err := store.ListMemberships(req.Context(), email)
+		userRecordID, ok, err := resolveWorkspaceMembership(req.Context(), store, email, req.FormValue("workspace_id"))
 		if err != nil {
 			serverError(w, err)
 			return
 		}
-		for _, m := range memberships {
-			if m.WorkspaceID == workspaceID {
-				authorization.ClearPendingEmailCookie(w, cfg.SecureCookies)
-				authorization.SetSessionCookie(w, cfg.SessionSecret, m.UserRecordID, cfg.SecureCookies)
-				redirectTo(w, req, "/home")
-				return
-			}
+		if !ok {
+			http.Error(w, "not a member of that workspace", http.StatusForbidden)
+			return
 		}
-		http.Error(w, "not a member of that workspace", http.StatusForbidden)
+		authorization.ClearPendingEmailCookie(w, cfg.SecureCookies)
+		authorization.SetSessionCookie(w, cfg.SessionSecret, userRecordID, cfg.SecureCookies)
+		redirectTo(w, req, "/home")
 	}
+}
+
+// showSwitchWorkspace is the mid-session counterpart to showChooseWorkspace -- reached from the
+// Workspace Home eyebrow's switch icon (WorkspaceHomePage's switchHref) once a session already
+// exists, rather than from the pending-email cookie a fresh login leaves. Redirects home rather
+// than erroring when there's nothing to switch to (no membership row, or only this one Workspace)
+// since that's this handler being reached by a stale link, not a real failure.
+func showSwitchWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		email, ok := currentUserEmail(ctx, store, req, cfg)
+		if !ok {
+			redirectTo(w, req, "/home")
+			return
+		}
+		choices, err := loadWorkspaceChoices(ctx, store, email)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		if len(choices) < 2 {
+			redirectTo(w, req, "/home")
+			return
+		}
+		render(ctx, w, rendering.ChooseWorkspacePage(choices, "", "/switch-workspace", "/home", "Back to Menata"))
+	}
+}
+
+// submitSwitchWorkspace re-checks the posted choice against the signed-in identity's own
+// memberships the same way submitChooseWorkspace does, and simply re-points the session cookie
+// at the chosen Workspace's mch_user record -- no pending-email cookie is involved mid-session.
+func submitSwitchWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		email, ok := currentUserEmail(ctx, store, req, cfg)
+		if !ok {
+			redirectTo(w, req, "/home")
+			return
+		}
+		if err := req.ParseForm(); err != nil {
+			http.Error(w, "invalid form body", http.StatusBadRequest)
+			return
+		}
+		userRecordID, ok, err := resolveWorkspaceMembership(ctx, store, email, req.FormValue("workspace_id"))
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		if !ok {
+			http.Error(w, "not a member of that workspace", http.StatusForbidden)
+			return
+		}
+		authorization.SetSessionCookie(w, cfg.SessionSecret, userRecordID, cfg.SecureCookies)
+		redirectTo(w, req, "/home")
+	}
+}
+
+// currentUserEmail resolves the signed-in session to the email loadWorkspaceChoices needs to
+// switch by -- read off the current Workspace's own membership row, since that's the one place
+// session identity and email already meet (showWorkspaceHome does the same lookup). Missing for
+// the shared admin credential's placeholder identity (predates real Workspace membership), which
+// this treats as "nothing to switch between" rather than an error.
+func currentUserEmail(ctx context.Context, store *data.Store, req *http.Request, cfg config.Config) (string, bool) {
+	userID, ok := authorization.CurrentUserID(req, cfg.SessionSecret)
+	if !ok {
+		return "", false
+	}
+	workspaceID, ok := data.WorkspaceScope(ctx)
+	if !ok {
+		return "", false
+	}
+	membership, err := store.GetMembership(ctx, workspaceID, userID)
+	if err != nil || membership == nil || membership.Email == "" {
+		return "", false
+	}
+	return membership.Email, true
+}
+
+// resolveWorkspaceMembership finds which of email's memberships names workspaceID, returning the
+// mch_user record id to sign in as -- shared by submitChooseWorkspace (pre-session) and
+// submitSwitchWorkspace (mid-session), which otherwise differ only in where email and the session
+// cookie come from.
+func resolveWorkspaceMembership(ctx context.Context, store *data.Store, email, workspaceID string) (userRecordID string, ok bool, err error) {
+	memberships, err := store.ListMemberships(ctx, email)
+	if err != nil {
+		return "", false, err
+	}
+	for _, m := range memberships {
+		if m.WorkspaceID == workspaceID {
+			return m.UserRecordID, true, nil
+		}
+	}
+	return "", false, nil
 }
 
 func loadWorkspaceChoices(ctx context.Context, store *data.Store, email string) ([]rendering.WorkspaceChoice, error) {
