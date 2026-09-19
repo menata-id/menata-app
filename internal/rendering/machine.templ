@@ -42,6 +42,8 @@ templ pageShell(title string, appName string) {
 				button.primary { background: #3949ab; color: #fff; border-color: #3949ab; }
 				.actions { white-space: nowrap; }
 				.actions button { margin-right: 0.25rem; }
+				.record-detail-pane { margin-top: 2rem; border-top: 1px solid #e5e5e5; padding-top: 1.5rem; }
+				.decide-actions { position: sticky; bottom: 0; background: #fff; padding: 0.75rem 0; border-top: 1px solid #e5e5e5; margin-top: 1rem; }
 				form.create-form td { padding-top: 0.75rem; }
 				dl.detail-fields { display: grid; grid-template-columns: 10rem 1fr; row-gap: 0.75rem; column-gap: 1rem; margin: 1.5rem 0; }
 				dl.detail-fields dt { color: #666; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; align-self: center; }
@@ -488,8 +490,13 @@ type SummaryCard struct {
 	Href        string
 }
 
+// recordSummaryCard's plain href still works with HTMX absent or #record-detail missing --
+// hx-get/hx-target are additive (ROADMAP.md Phase 21 round 2, Step H): a click is intercepted by
+// HTMX and swapped into the Approval Inbox's own detail pane instead of a full navigation, the
+// same bare RecordDetailView fragment showRecordRow already serves any other HX-Target=
+// "record-detail" request -- no new route, no handler change.
 templ recordSummaryCard(c SummaryCard) {
-	<a href={ templ.URL(c.Href) } class="summary-card">
+	<a href={ templ.URL(c.Href) } hx-get={ c.Href } hx-target="#record-detail" class="summary-card">
 		<span class="avatar">{ c.AvatarInitials }</span>
 		<span class="summary-card-body">
 			<span class="summary-card-title">

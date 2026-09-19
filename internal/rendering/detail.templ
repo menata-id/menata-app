@@ -115,7 +115,7 @@ templ pdfThumbnail(machineID, recordID string) {
 // authorization.AllowsAction the same question the handler asks (Phase 16). This is presentation,
 // not enforcement: the server denies the POST either way.
 templ decideButtons(m *domain.Machine, r *data.Record, actorID string) {
-	<div class="actions">
+	<div class="actions decide-actions">
 		if toString(r.Values[action.FieldStepDecision]) != action.DecisionPending {
 			<span class="badge">{ toString(r.Values[action.FieldStepDecision]) }</span>
 		} else if authorization.AllowsAction(m, domain.ActionDecide, r.Values, actorID) {
