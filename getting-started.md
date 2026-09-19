@@ -5,13 +5,14 @@ Two ways to start: use the hosted instance (no install), or run it yourself.
 ## Easiest: use the hosted instance
 
 [menata.app](https://menata.app) is a free-hosted instance of this same runtime, already running
-— nothing to install. Go there, register (this creates your own Workspace), and open the
-pre-built applications from the top navigation: Document Approval and Project Management. That's
-it — no server to configure.
+— nothing to install. Go there, register (this creates your own Workspace), and you'll land on a
+Workspace Home with a couple of example applications from the top navigation, built during
+development to prove the runtime out on real, different kinds of business processes — not the
+limit of what it can do. Open one to see a real metadata-driven application in action.
 
-Today, every Workspace on the hosted instance runs the same set of applications; defining your own
-Machine (what [writing-guide.md](writing-guide.md) walks through) currently means running your own
-instance (below) and editing metadata files directly.
+Today, every Workspace on the hosted instance runs the same example applications; defining your
+own Machine (what [writing-guide.md](writing-guide.md) walks through) currently means running your
+own instance (below) and editing metadata files directly.
 
 ## Run it yourself
 
