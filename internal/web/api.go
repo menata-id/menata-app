@@ -98,13 +98,13 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 			return
 		}
 
-		oldValues := eventOldValues(req, store, machine, id)
+		oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
 		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		runEvents(req.Context(), store, machine, record, actor, oldValues)
+		runEvents(req.Context(), store, machine, record, actor, oldValues, oldValuesOK)
 
 		w.Header().Set("Content-Type", "application/json")
 		writeJSON(w, record)

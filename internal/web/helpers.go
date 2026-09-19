@@ -119,24 +119,32 @@ const maxUploadBytes = 20 << 20 // 20MB
 
 // eventOldValues fetches a record's pre-write values, but only when machine actually declares an
 // Event -- the same fast-path allowsRecordEdit already takes for edit Permission, avoiding the
-// extra query for the overwhelming majority of writes that declare none.
-func eventOldValues(req *http.Request, store *data.Store, machine *domain.Machine, id string) map[string]any {
+// extra query for the overwhelming majority of writes that declare none. ok is false only when a
+// declared Event exists but the fetch itself failed -- the caller must skip Event dispatch
+// entirely then (runEvents), not pass a nil map through: MatchedEvents can't tell "no Events
+// declared" apart from "old value unknown," and comparing against a nil map would make almost any
+// new value look like a change, firing a bogus Event off a transient read error (code-review
+// finding, 2026-09-19) instead of the intended "isn't logged, never a reason to fail the edit."
+func eventOldValues(req *http.Request, store *data.Store, machine *domain.Machine, id string) (values map[string]any, ok bool) {
 	if len(machine.Events) == 0 {
-		return nil
+		return nil, true
 	}
 	existing, err := store.GetRecord(req.Context(), machine.ID, id)
 	if err != nil {
-		// A read failure just means the Event isn't logged, never a reason to fail the edit --
-		// the same posture the Task-status-move rule this generalizes always took.
-		return nil
+		return nil, false
 	}
-	return existing.Values
+	return existing.Values, true
 }
 
 // runEvents performs the I/O half of every domain.Event MatchedEvents returns for this write --
 // currently exactly one Service, ServiceLogActivity, with the same best-effort posture
 // logActivity already has (a failure is logged, never allowed to fail the write it's describing).
-func runEvents(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, actorID string, oldValues map[string]any) {
+// oldValuesOK is eventOldValues' own second return -- false means its fetch failed, so no Event
+// can be evaluated correctly and none should fire.
+func runEvents(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, actorID string, oldValues map[string]any, oldValuesOK bool) {
+	if !oldValuesOK {
+		return
+	}
 	for _, e := range behavior.MatchedEvents(machine, oldValues, record.Values) {
 		if e.Then.Name == domain.ServiceLogActivity {
 			logActivity(ctx, store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, oldValues, record.Values))

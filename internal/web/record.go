@@ -130,7 +130,7 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store, cfg c
 			return
 		}
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		if !authorization.AllowsAction(machine, domain.ActionEdit, record.Values, actor) {
+		if !recordEditAllowed(machine, record.Values, actor) {
 			http.Error(w, "not allowed to edit this record", http.StatusForbidden)
 			return
 		}
@@ -183,25 +183,35 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 
 		// oldValues has to be read before the write replaces it, so any declared Event
 		// (domain.Machine.Events) can compare what changed once the write succeeds.
-		oldValues := eventOldValues(req, store, machine, id)
+		oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
 
 		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		runEvents(req.Context(), store, machine, record, actor, oldValues)
+		runEvents(req.Context(), store, machine, record, actor, oldValues, oldValuesOK)
 
 		renderRecord(w, req, machines, store, files, machine, record, actor)
 	}
 }
 
+// recordEditAllowed is the one place that decides whether actor may edit a record given its
+// current values -- an unrestricted "yes" the instant no edit Permission is declared
+// (001-design-principles.md Principle #6: metadata describes exceptions, not defaults), otherwise
+// authorization.AllowsAction's own answer. Both allowsRecordEdit (below, which doesn't have the
+// record yet and must fetch it) and editRecordRow (which already fetched it to render the edit
+// form) call this instead of each re-stating the same check with its own copy of the error
+// string, code-review finding 2026-09-19.
+func recordEditAllowed(machine *domain.Machine, values map[string]any, actor string) bool {
+	return len(machine.PermissionsFor(domain.ActionEdit)) == 0 || authorization.AllowsAction(machine, domain.ActionEdit, values, actor)
+}
+
 // allowsRecordEdit enforces any declared domain.ActionEdit Permission before the generic update
 // route writes anything, generalizing decideStep's own authorization.AllowsAction check
 // (internal/web/approval.go) from Approve/Reject to every Machine -- the same "generalize on a
-// second real case, never the first" discipline deleteAllowed below already follows. A Machine
-// declaring no edit Permission stays unrestricted (001-design-principles.md Principle #6:
-// metadata describes exceptions, not defaults) and skips the extra fetch entirely.
+// second real case, never the first" discipline deleteAllowed below already follows. Skips the
+// fetch entirely when no edit Permission is declared (recordEditAllowed's own fast path).
 func allowsRecordEdit(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id, actor string) bool {
 	if len(machine.PermissionsFor(domain.ActionEdit)) == 0 {
 		return true
@@ -211,7 +221,7 @@ func allowsRecordEdit(w http.ResponseWriter, req *http.Request, store *data.Stor
 		recordError(w, err)
 		return false
 	}
-	if !authorization.AllowsAction(machine, domain.ActionEdit, existing.Values, actor) {
+	if !recordEditAllowed(machine, existing.Values, actor) {
 		http.Error(w, "not allowed to edit this record", http.StatusForbidden)
 		return false
 	}
@@ -353,42 +363,39 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 // A Machine with neither -- the common case -- stays fully unrestricted, same as the generic
 // route always was (ROADMAP.md's own Method: generalize on a second real case, never the first).
 func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machine, id, actor string) (ok bool, status int, reason string, err error) {
-	var existing *data.Record
-	switch machine.ID {
-	case action.StepMachineID:
-		step, err := store.GetRecord(ctx, machine.ID, id)
-		if err != nil {
-			return false, 0, "", err
-		}
-		existing = step
-		if ok, reason := action.CanDeleteApprovalStep(step.Values); !ok {
-			return false, http.StatusUnprocessableEntity, reason, nil
-		}
-	case action.DocumentMachineID:
-		doc, err := store.GetRecord(ctx, machine.ID, id)
-		if err != nil {
-			return false, 0, "", err
-		}
-		existing = doc
-		steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, id)
-		if err != nil {
-			return false, 0, "", err
-		}
-		status, _ := doc.Values[action.FieldDocumentStatus].(string)
-		if ok, reason := action.CanDeleteDocument(status, steps); !ok {
-			return false, http.StatusUnprocessableEntity, reason, nil
-		}
-	}
-	if len(machine.PermissionsFor(domain.ActionDelete)) == 0 {
+	// stateGoverned/permissionGoverned decide, before any fetch, whether this Machine needs one
+	// at all -- the common case (neither) stays a zero-query no-op, same as the generic route
+	// always was.
+	stateGoverned := machine.ID == action.StepMachineID || machine.ID == action.DocumentMachineID
+	permissionGoverned := len(machine.PermissionsFor(domain.ActionDelete)) > 0
+	if !stateGoverned && !permissionGoverned {
 		return true, 0, "", nil
 	}
-	if existing == nil {
-		existing, err = store.GetRecord(ctx, machine.ID, id)
-		if err != nil {
-			return false, 0, "", err
+
+	existing, err := store.GetRecord(ctx, machine.ID, id)
+	if err != nil {
+		return false, 0, "", err
+	}
+
+	if stateGoverned {
+		var steps []*data.Record
+		if machine.ID == action.DocumentMachineID {
+			steps, err = store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, id)
+			if err != nil {
+				return false, 0, "", err
+			}
+		}
+		// action.CanDelete is the single source of truth for this business-state check --
+		// internal/rendering's canDeleteInView (detail.templ) and RecordRow (machine.templ) call
+		// the exact same function to decide whether to offer the Delete button in the first
+		// place, so all three can't drift out of sync with each other (code-review finding,
+		// 2026-09-19).
+		if ok, reason := action.CanDelete(machine.ID, existing.Values, steps); !ok {
+			return false, http.StatusUnprocessableEntity, reason, nil
 		}
 	}
-	if !authorization.AllowsAction(machine, domain.ActionDelete, existing.Values, actor) {
+
+	if permissionGoverned && !authorization.AllowsAction(machine, domain.ActionDelete, existing.Values, actor) {
 		return false, http.StatusForbidden, "not allowed to delete this record", nil
 	}
 	return true, 0, "", nil

@@ -151,3 +151,23 @@ func TestUpdateRecordForm_taskUnchangedStatusLogsNothing(t *testing.T) {
 		t.Errorf("Activity summaries = %v, want none: fld_status did not change", got)
 	}
 }
+
+// TestEventOldValues_fetchFailureIsDistinctFromNoEventsDeclared is the regression test for a
+// code-review finding (2026-09-19): a GetRecord failure must make runEvents skip dispatch
+// entirely, not silently compare against a nil map -- fmt.Sprint on a nil map's missing key
+// yields "<nil>", which would look like a change for almost any real new value and fire a bogus
+// Event off a transient read error. ok must be false here, not just values == nil, so the caller
+// can tell "no Events declared" (also nil, but safe to dispatch -- MatchedEvents finds nothing)
+// apart from "the fetch itself failed" (unsafe to dispatch at all).
+func TestEventOldValues_fetchFailureIsDistinctFromNoEventsDeclared(t *testing.T) {
+	s := newEventTestSetup(t, "event_old_values_fetch_failure")
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	values, ok := eventOldValues(req, s.store, s.machines["mch_task"], "rec_does_not_exist")
+	if ok {
+		t.Fatalf("eventOldValues(nonexistent record) ok = true, want false: the fetch failed")
+	}
+	if values != nil {
+		t.Errorf("eventOldValues(nonexistent record) values = %v, want nil", values)
+	}
+}

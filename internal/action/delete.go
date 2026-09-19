@@ -30,3 +30,27 @@ func CanDeleteDocument(status string, steps []*data.Record) (ok bool, reason str
 	}
 	return true, ""
 }
+
+// CanDelete is the one place that answers "does this record's own business state allow deleting
+// it through the generic route" for the two Machines that guard it (CanDeleteApprovalStep/
+// CanDeleteDocument above) -- every other Machine is unrestricted here, same as the generic
+// route's own default. internal/web/record.go's deleteAllowed (server-side enforcement),
+// internal/rendering/detail.templ's canDeleteInView, and internal/rendering/machine.templ's
+// RecordRow (both presentation, deciding whether to show a Delete button at all) all call this
+// instead of each keeping their own copy of the switch on machineID -- three independently
+// maintained copies is exactly the drift risk a single source of truth exists to remove
+// (code-review finding, 2026-09-19: RecordRow had no copy at all, offering Delete for a record
+// the server would then reject). steps may be nil -- CanDeleteDocument degrades to a
+// status-only check, the same fallback detail.templ's canDeleteInView already used when no child
+// collection carried the steps.
+func CanDelete(machineID string, values map[string]any, steps []*data.Record) (ok bool, reason string) {
+	switch machineID {
+	case StepMachineID:
+		return CanDeleteApprovalStep(values)
+	case DocumentMachineID:
+		status, _ := values[FieldDocumentStatus].(string)
+		return CanDeleteDocument(status, steps)
+	default:
+		return true, ""
+	}
+}

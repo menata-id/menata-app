@@ -1,9 +1,9 @@
 # menata-app
 
 The runtime application that turns Menata Runtime Metadata into a running application. Define a
-data model in YAML — a "Machine" with Fields, Relations, Constraints, Actions and Permissions —
-and get a working, server-rendered application: CRUD, table and board views, workflows, and
-authorization, with no per-model code required.
+data model in YAML — a "Machine" with Fields, Relations, Constraints, Events, Actions and
+Permissions — and get a working, server-rendered application: CRUD, table and board views,
+workflows, and authorization, with no per-model code required.
 
 This repository starts from the design concepts below (carried over from the private
 `menata-runtime` design-history repository) and builds the real implementation from a clean
@@ -13,7 +13,7 @@ slate — no code is ported in from prior prototypes.
 
 - [getting-started.md](getting-started.md) — run it locally, define your first Machine.
 - [writing-guide.md](writing-guide.md) — how to author Machines, Fields, Relations, Constraints,
-  Actions and Permissions in metadata.
+  Events, Actions and Permissions in metadata.
 - [capabilities.md](capabilities.md) — what the runtime can actually do right now: field types,
   composition primitives, Layouts, and every Machine currently defined.
 - [ROADMAP.md](ROADMAP.md) — what's shipped, in progress, and planned next.

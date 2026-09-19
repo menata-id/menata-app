@@ -350,12 +350,15 @@ templ pageShell(title string, appName string) {
 // Application: no cross-Application launcher, since (per pageShell's WorkspaceHomePage caller)
 // there is nothing yet to switch between.
 //
-// isAdmin hides the Members link for a non-admin viewer (ROADMAP.md Phase 16's own link-level
-// case, not just record actions): /workspace-members* is already requireWorkspaceAdmin-gated
-// server-side (internal/web/router.go), so a non-admin seeing this link only ever got a 403
-// after clicking -- this makes the UI honest about the same rule, the way decideButtons already
-// is for Approve/Reject.
-templ workspaceHomeShell(userInitials string, isAdmin bool) {
+// showMembersLink hides the Members link for a viewer requireWorkspaceAdmin would actually
+// reject (ROADMAP.md Phase 16's own link-level case, not just record actions): /workspace-members*
+// is already requireWorkspaceAdmin-gated server-side (internal/web/router.go), so seeing this
+// link only ever got a 403 after clicking -- this makes the UI honest about the same rule, the
+// way decideButtons already is for Approve/Reject. Named for what it decides, not "isAdmin": its
+// caller (WorkspaceHomePage) passes true for a real admin *and* for a missing-membership viewer,
+// matching requireWorkspaceAdmin's own fail-open posture for that identity -- see its own doc
+// comment for why "isAdmin" would be the wrong name here.
+templ workspaceHomeShell(userInitials string, showMembersLink bool) {
 	<!DOCTYPE html>
 	<html lang="en">
 		@pageHead("Home")
@@ -365,7 +368,7 @@ templ workspaceHomeShell(userInitials string, isAdmin bool) {
 					<a href="/home" class="topbar-brand">Menata</a>
 				</div>
 				<div class="workspace-topbar-right">
-					if isAdmin {
+					if showMembersLink {
 						<a href="/workspace-members">Members</a>
 					}
 					<span class="avatar">{ userInitials }</span>

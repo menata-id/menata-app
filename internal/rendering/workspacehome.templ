@@ -12,8 +12,18 @@ import "fmt"
 // "" to hide the switcher -- there is nothing to switch to otherwise. homeRoute is
 // domain.HomeCardRoute's result (internal/web/workspacehome.go), never a literal here -- see
 // internal/conformance's TestWorkspaceHomeHasNoHardcodedApplicationRoute.
+//
+// workspaceRole != "member" (not workspaceRole == "admin") decides whether workspaceHomeShell
+// shows its own Members link -- requireWorkspaceAdmin (internal/web/middleware.go) fails *open*
+// for an identity with no real membership row at all (the shared admin credential predating
+// per-user accounts, this page's own doc comment), letting it reach /workspace-members
+// regardless of role; showWorkspaceHome degrades that same missing-membership case to
+// workspaceRole == "" (data.Membership{}), so gating on == "admin" would hide a link that
+// identity can still open directly (code-review finding, 2026-09-19). != "member" shows the link
+// for both a real admin and a missing membership row, hiding it only for a real member -- the
+// same three-way split requireWorkspaceAdmin already makes.
 templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, pendingCount int, userInitials, appInitials, switchHref, homeRoute string) {
-	@workspaceHomeShell(userInitials, workspaceRole == "admin") {
+	@workspaceHomeShell(userInitials, workspaceRole != "member") {
 		<div class="workspace-heading">
 			<div class="eyebrow-row">
 				<span class="eyebrow">Workspace</span>
