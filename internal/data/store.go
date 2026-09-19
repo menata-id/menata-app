@@ -254,6 +254,23 @@ func (s *Store) GetCredential(ctx context.Context, email string) (*Credential, e
 	return cred, nil
 }
 
+// SetCredential replaces an *existing* credential's password hash -- a real UPDATE, not an upsert:
+// a reset token is only ever issued for an email GetCredential already found (forgot-password's own
+// gate), so this must fail loudly (ErrCredentialNotFound) rather than silently create a brand-new,
+// never-registered-or-invited account if it were ever called for one that doesn't exist. Distinct
+// from CreateCredential (a plain insert, which must fail on conflict for the registration
+// duplicate-email check). Resetting does not change EmailVerified, only the hash.
+func (s *Store) SetCredential(ctx context.Context, email, passwordHash string) error {
+	ct, err := s.pool.Exec(ctx, `UPDATE credentials SET password_hash = $2 WHERE email = $1`, email, passwordHash)
+	if err != nil {
+		return fmt.Errorf("set credential: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrCredentialNotFound
+	}
+	return nil
+}
+
 // MarkEmailVerified sets a credential's EmailVerified to true, once its owner has proven they
 // received the emailed link (ROADMAP.md Phase 21 round 2, Step D).
 func (s *Store) MarkEmailVerified(ctx context.Context, email string) error {

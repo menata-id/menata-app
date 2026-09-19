@@ -288,6 +288,41 @@ func TestStore_CreateCredential_verified(t *testing.T) {
 	}
 }
 
+func TestStore_SetCredential_updatesExisting(t *testing.T) {
+	pool := storePool(t)
+	const email = "store_test_set_credential@example.com"
+	cleanupCredentialTest(t, pool, email)
+	store := NewStore(pool)
+	ctx := context.Background()
+
+	if err := store.CreateCredential(ctx, email, "old-hash", true); err != nil {
+		t.Fatalf("CreateCredential: %v", err)
+	}
+	if err := store.SetCredential(ctx, email, "new-hash"); err != nil {
+		t.Fatalf("SetCredential: %v", err)
+	}
+	got, err := store.GetCredential(ctx, email)
+	if err != nil {
+		t.Fatalf("GetCredential: %v", err)
+	}
+	if got.PasswordHash != "new-hash" {
+		t.Errorf("GetCredential().PasswordHash = %q, want %q", got.PasswordHash, "new-hash")
+	}
+	if !got.EmailVerified {
+		t.Error("GetCredential().EmailVerified = false after SetCredential, want unchanged (true)")
+	}
+}
+
+func TestStore_SetCredential_notFound(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+
+	err := store.SetCredential(context.Background(), "no-such-user@example.com", "new-hash")
+	if !errors.Is(err, ErrCredentialNotFound) {
+		t.Errorf("SetCredential(missing) error = %v, want ErrCredentialNotFound -- must not silently create a never-registered account", err)
+	}
+}
+
 func TestStore_MarkEmailVerified(t *testing.T) {
 	pool := storePool(t)
 	const email = "store_test_mark_verified@example.com"

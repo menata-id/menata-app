@@ -48,16 +48,23 @@ const (
 	loginAttemptWindow = 5 * time.Minute
 
 	// registrationAttemptLimit/Window bound POST /register (address-only key -- see
-	// rateLimitRegistration) -- a real Workspace-creation flow is now worth defending against
+	// rateLimitByAddress) -- a real Workspace-creation flow is now worth defending against
 	// scripted spam the same way login already is.
 	registrationAttemptLimit  = 10
 	registrationAttemptWindow = 5 * time.Minute
+
+	// forgotPasswordAttemptLimit/Window bound POST /forgot-password (address-only key, same
+	// reasoning as registration) -- prevents both spamming reset emails and probing which
+	// addresses have accounts via response timing.
+	forgotPasswordAttemptLimit  = 10
+	forgotPasswordAttemptWindow = 5 * time.Minute
 )
 
 func Routes(d Deps) http.Handler {
 	r := chi.NewRouter()
 	loginLimiter := newLoginRateLimiter(loginAttemptLimit, loginAttemptWindow)
 	registrationLimiter := newLoginRateLimiter(registrationAttemptLimit, registrationAttemptWindow)
+	forgotPasswordLimiter := newLoginRateLimiter(forgotPasswordAttemptLimit, forgotPasswordAttemptWindow)
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -66,10 +73,14 @@ func Routes(d Deps) http.Handler {
 	r.Get("/login", showLogin)
 	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))
 	r.Get("/register", showRegistration)
-	r.Post("/register", rateLimitRegistration(registrationLimiter, submitRegistration(d.Machines, d.Store, d.Mailer, d.Cfg)))
+	r.Post("/register", rateLimitByAddress(registrationLimiter, "too many registration attempts -- try again later", submitRegistration(d.Machines, d.Store, d.Mailer, d.Cfg)))
 	r.Get("/verify-email", showVerifyEmail(d.Store, d.Cfg))
 	r.Get("/resend-verification", showResendVerification)
 	r.Post("/resend-verification", submitResendVerification(d.Store, d.Mailer, d.Cfg))
+	r.Get("/forgot-password", showForgotPassword)
+	r.Post("/forgot-password", rateLimitByAddress(forgotPasswordLimiter, "too many attempts -- try again later", submitForgotPassword(d.Store, d.Mailer, d.Cfg)))
+	r.Get("/reset-password", showResetPassword)
+	r.Post("/reset-password", submitResetPassword(d.Store, d.Cfg))
 	r.Get("/choose-workspace", showChooseWorkspace(d.Store, d.Cfg))
 	r.Post("/choose-workspace", submitChooseWorkspace(d.Store, d.Cfg))
 

@@ -54,7 +54,7 @@ func LoginPage(errorMsg string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<button type=\"submit\">Sign in</button></form><p class=\"links\">Don't have an account? <a href=\"/register\">Create a workspace</a><br>Didn't get your verification email? <a href=\"/resend-verification\">Resend it</a></p></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<button type=\"submit\">Sign in</button></form><p class=\"links\">Don't have an account? <a href=\"/register\">Create a workspace</a><br>Forgot your password? <a href=\"/forgot-password\">Reset it</a><br>Didn't get your verification email? <a href=\"/resend-verification\">Resend it</a></p></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

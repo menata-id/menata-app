@@ -79,16 +79,16 @@ func TestRateLimitLogin_blocksAfterLimit(t *testing.T) {
 	}
 }
 
-func TestRateLimitRegistration_blocksByAddressAlone(t *testing.T) {
+func TestRateLimitByAddress_blocksByAddressAlone(t *testing.T) {
 	limiter := newLoginRateLimiter(1, time.Minute)
 	called := 0
-	handler := rateLimitRegistration(limiter, func(w http.ResponseWriter, _ *http.Request) {
+	handler := rateLimitByAddress(limiter, "too many attempts", func(w http.ResponseWriter, _ *http.Request) {
 		called++
 		w.WriteHeader(http.StatusOK)
 	})
 
 	// Two different attempted emails from the same address -- still only one attempt's worth of
-	// budget, since registration abuse is "many workspaces from one address," not "one email
+	// budget, since this kind of abuse is "many attempts from one address," not "one email
 	// guessed repeatedly."
 	first := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader("fld_email=a@example.com"))
 	first.RemoteAddr = "9.9.9.9:1111"
