@@ -41,8 +41,21 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      # `go run .../goose/v3/cmd/goose@v3.28.0` compiles goose's CLI from source on every run --
+      # its go.mod pulls in a driver for every database it supports (ClickHouse, MySQL, MSSQL,
+      # libsql, Vertica, YDB, ...), so that one step alone cost 35-40s per push regardless of Go's
+      # module/build cache. The prebuilt release binary needs none of that, so this fetches it and
+      # checks its official checksum instead of compiling it.
+      - name: Install goose
+        run: |
+          curl -sSfL -o goose_linux_x86_64 https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_x86_64
+          curl -sSfL -o checksums.txt https://github.com/pressly/goose/releases/download/v3.28.0/checksums.txt
+          grep goose_linux_x86_64 checksums.txt | sha256sum -c -
+          chmod +x goose_linux_x86_64
+          sudo mv goose_linux_x86_64 /usr/local/bin/goose
+
       - name: Run migrations
-        run: go run github.com/pressly/goose/v3/cmd/goose@v3.28.0 -dir migrations postgres "$DATABASE_URL" up
+        run: goose -dir migrations postgres "$DATABASE_URL" up
 
       - name: Test
         run: go test ./...
