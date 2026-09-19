@@ -2,7 +2,7 @@ DB_URL ?= $(shell grep DATABASE_URL .env 2>/dev/null | cut -d= -f2-)
 GOOSE   = go run github.com/pressly/goose/v3/cmd/goose@v3.28.0
 TEMPL   = go run github.com/a-h/templ/cmd/templ@v0.3.1020
 
-.PHONY: generate build run test threshold vet tidy migrate-up migrate-down migrate-status check-generated install-hooks
+.PHONY: generate build run test conformance threshold vet tidy migrate-up migrate-down migrate-status check-generated install-hooks
 
 generate:
 	$(TEMPL) generate
@@ -15,6 +15,13 @@ run: build
 
 test:
 	go test -race ./...
+
+# internal/conformance's own executable checks for architectural obligations 001-007 and
+# CLAUDE.md state in prose (plane boundaries, handler size, and -- since this session -- that
+# Workspace Home stays metadata-driven rather than hand-typing an Application route). No database,
+# no race flag: fast enough for the pre-commit hook, not just pre-push.
+conformance:
+	go test ./internal/conformance/...
 
 # Fails if a .templ file was edited without re-running `templ generate` before committing.
 check-generated: generate

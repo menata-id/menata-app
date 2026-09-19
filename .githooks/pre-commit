@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Local gate that runs on every `git commit`, not just before `git push` -- pre-push (this repo's
+# own primary gate, since it pushes straight to main with no PR in between) already runs the full
+# build/vet/race-test suite, so this one stays deliberately fast and narrow: gofmt, vet, and
+# internal/conformance -- which is where CLAUDE.md's "What this project is" (a composable runtime,
+# not an ordinary application) gets enforced as code, not just prose. It exists specifically to
+# catch a regression like the one this hook was added over: a hand-typed route in
+# internal/rendering/workspacehome.templ duplicating one metadata/app.yaml already declared,
+# caught before it's even committed. Enable with `make install-hooks` (same hookspath as
+# pre-push).
+set -euo pipefail
+
+staged_go=$(git diff --cached --name-only --diff-filter=ACM -- '*.go')
+if [ -n "$staged_go" ]; then
+	echo "==> pre-commit: gofmt"
+	# shellcheck disable=SC2086 # word-splitting is the point: one path per file
+	unformatted=$(gofmt -l $staged_go)
+	if [ -n "$unformatted" ]; then
+		echo "gofmt needs to run on:"
+		echo "$unformatted"
+		exit 1
+	fi
+fi
+
+echo "==> pre-commit: vet"
+go vet ./...
+
+echo "==> pre-commit: composable-runtime conformance"
+make conformance
+
+echo "==> pre-commit: all checks passed"
