@@ -92,7 +92,7 @@ func TestCompositeStatusBanner_rendersFullWidthTopBand(t *testing.T) {
 		// Not white/near-white, and red+blue both visibly above green -- bannerBackgroundColor
 		// {230,217,250} blended at opacity 0.35 over white stays light, but g stays the lowest
 		// channel throughout that blend range.
-		return !(r8 > 245 && g8 > 245 && b8 > 245) && r8 > g8+3 && b8 > g8+3
+		return (r8 <= 245 || g8 <= 245 || b8 <= 245) && r8 > g8+3 && b8 > g8+3
 	}
 	isNearBlack := func(x, y int) bool {
 		r, g, b, _ := img.At(x, y).RGBA()
