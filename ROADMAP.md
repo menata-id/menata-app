@@ -1221,6 +1221,29 @@ phase they don't belong to:
       always-visible `+ New Approval` button next to the existing link, same markup the Approval
       Inbox page already uses for this action. Verified on the scratch server: renders regardless
       of pending count, including the zero-pending case.
+- [ ] **Dashboard's content doesn't match its own new nav grouping** -- found 2026-09-19, completing
+      the same review's own page-by-page pass over Case 3 (the one screen of the 4 named in
+      `case-portfolio.md` this review hadn't reached yet). Not fixed, recorded only, per the
+      owner's own instruction:
+    - The navigation work earlier the same day (`app.yaml`'s `navigation:` list) placed `nav_dashboard`
+      in the "Document Approval" group -- but `DashboardPage` (`dashboard.templ`) opens with a
+      Projects table (Case 19 data) before reaching Documents/Pending Approval/Recent Activity
+      (Case 3). A person opening "Dashboard" from that group sees project data first, not approval
+      data. Not a new defect -- `/dashboard` has composed both cases' data since Phase 6/13, by
+      design (ROADMAP.md's own repeated Phase 6 re-tests use exactly this page) -- but grouping the
+      nav by case, done this same day, makes a pre-existing cross-case mix visibly inconsistent for
+      the first time, where before it sat under one undifferentiated flat link
+    - "Pending Approval" rows on the Dashboard are plain text + an SLA badge, not linked to the
+      record the way Approval Inbox's own `recordSummaryCard` is -- a real shortcut missing
+      (Nielsen #7), though Dashboard's own stated role (a glance, not a worklist) may make this a
+      deliberate scope difference rather than an oversight
+    - Recent Activity has the same cross-case mixing as the Projects table, same root cause
+    - The Projects table has no empty-state fallback, unlike Pending Approval and Recent Activity
+      on the same page, which both already do (`if len(...) == 0 { ... }`) -- inconsistent
+      handling of the same condition within one page
+    - No trigger/owner decision recorded yet for any of these; whether the fix is "move Dashboard
+      out of the Document Approval group," "split the page into two visually labeled halves," or
+      "leave as is" is an open question for whoever picks this up next
 
 ---
 
