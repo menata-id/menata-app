@@ -5,6 +5,9 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+
+	"menata.app/internal/authorization"
+	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
@@ -29,7 +32,7 @@ func listRecords(store *data.Store) http.HandlerFunc {
 	}
 }
 
-func createRecord(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+func createRecord(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -52,9 +55,70 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 			serverError(w, err)
 			return
 		}
+		// Parity with createRecordForm's own logging -- found while adding update/delete parity
+		// below: the JSON path had silently never logged Activity for a Document/Task/Project
+		// created through it, unlike its form-based sibling.
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		logRecordCreated(req.Context(), store, machine, record, actor)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		writeJSON(w, record)
 	}
 }
+
+// updateRecord is /api's PUT counterpart to updateRecordForm -- same guards (write order matters:
+// carry-forward files, then decision-change guard, then shape/relation/constraint checks), a JSON
+// body decoded straight into map[string]any needing no ValuesFromForm equivalent (createRecord
+// above already established this), and a JSON response instead of an HTML fragment.
+func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+		id := chi.URLParam(req, "id")
+
+		var values map[string]any
+		if err := json.NewDecoder(req.Body).Decode(&values); err != nil {
+			http.Error(w, "invalid JSON body", http.StatusBadRequest)
+			return
+		}
+		if !carryForwardFiles(w, req, store, machine, id, nil, values) {
+			return
+		}
+		if !allowsDecisionChange(w, req, store, machine, id, values) {
+			return
+		}
+		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
+			return
+		}
+
+		oldTaskStatus := currentTaskStatus(req, store, machine, id)
+		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		logTaskStatusMove(req, store, machine, record, actor, oldTaskStatus)
+
+		w.Header().Set("Content-Type", "application/json")
+		writeJSON(w, record)
+	}
+}
+
+func deleteRecordAPI(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+		if err := store.DeleteRecord(req.Context(), machine.ID, chi.URLParam(req, "id")); err != nil {
+			serverError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+

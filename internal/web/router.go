@@ -92,7 +92,9 @@ func Routes(d Deps) http.Handler {
 
 		pr.Get("/api/machines", listMachines(d.MachineList))
 		pr.Get("/api/machines/{machineID}/records", listRecords(d.Store))
-		pr.Post("/api/machines/{machineID}/records", createRecord(d.Machines, d.Store))
+		pr.Post("/api/machines/{machineID}/records", createRecord(d.Machines, d.Store, d.Cfg))
+		pr.Put("/api/machines/{machineID}/records/{id}", updateRecord(d.Machines, d.Store, d.Cfg))
+		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Machines, d.Store))
 
 		pr.Get("/", showMachineList(d.MachineList, d.AppName))
 		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.AppName, d.Cfg))

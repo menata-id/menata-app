@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/a-h/templ"
 
+	"menata.app/internal/action"
 	"menata.app/internal/composition"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -93,6 +95,19 @@ func logActivity(ctx context.Context, store *data.Store, machineID, recordID, ac
 	}
 	if _, err := store.CreateRecord(ctx, "mch_activity", values); err != nil {
 		log.Printf("failed to log activity (%s %s): %v", machineID, recordID, err)
+	}
+}
+
+// logRecordCreated logs the same per-Machine "submitted"/"created" Activity event a new record's
+// creation gets today, regardless of whether it arrived through the HTML form route or the JSON
+// API -- factored out (ROADMAP.md Phase 21 round 2, Step I) so both paths log identically instead
+// of the rule living in two places that could drift out of sync.
+func logRecordCreated(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, actorID string) {
+	switch machine.ID {
+	case action.DocumentMachineID:
+		logActivity(ctx, store, machine.ID, record.ID, actorID, fmt.Sprintf("%q submitted", toDisplayString(record.Values["fld_title"])))
+	case "mch_task", "mch_project":
+		logActivity(ctx, store, machine.ID, record.ID, actorID, fmt.Sprintf("%q created", recordLabel(machine, record)))
 	}
 }
 

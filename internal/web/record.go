@@ -48,14 +48,8 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			serverError(w, err)
 			return
 		}
-		switch machine.ID {
-		case action.DocumentMachineID:
-			actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-			logActivity(req.Context(), store, machine.ID, record.ID, actor, fmt.Sprintf("%q submitted", toDisplayString(record.Values["fld_title"])))
-		case "mch_task", "mch_project":
-			actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-			logActivity(req.Context(), store, machine.ID, record.ID, actor, fmt.Sprintf("%q created", recordLabel(machine, record)))
-		}
+		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		logRecordCreated(req.Context(), store, machine, record, actor)
 
 		renderMachineBody(w, req, machines, machine, store)
 	}
