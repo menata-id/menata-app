@@ -58,6 +58,14 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 		if !ok {
 			return
 		}
+		if !hasAnyApprover(req.Form["fld_assignee"]) {
+			// Without this, createApprovalSteps below silently skips every empty slot and
+			// returns success -- a Document would be created with zero Approval Steps, and
+			// nothing could ever decide it. Checked before CreateRecord so a rejected submission
+			// never creates an orphaned Document that would then need cleaning up.
+			http.Error(w, "at least one approver is required", http.StatusUnprocessableEntity)
+			return
+		}
 		data.ApplyDefaults(docMachine, values)
 		// The wizard's own explicit rule outranks any declared default here, the same way an
 		// INSERT's explicit column value outranks a SQL DEFAULT.
@@ -81,6 +89,18 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 
 		redirectTo(w, req, fmt.Sprintf("/machines/%s/records/%s/signature-placement", docMachine.ID, document.ID))
 	}
+}
+
+// hasAnyApprover reports whether at least one non-empty fld_assignee was submitted -- the wizard's
+// own approver rows always submit a value (possibly ""), never omit the field entirely, so a
+// simple non-blank check is enough.
+func hasAnyApprover(assignees []string) bool {
+	for _, a := range assignees {
+		if a != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // createApprovalSteps writes one pending Approval Step per named approver.

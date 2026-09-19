@@ -1199,6 +1199,28 @@ phase they don't belong to:
       `htmx:afterRequest` bubbling itself, so a real-browser smoke test is still worth doing before
       this is treated as fully confirmed (the same residual-risk caveat this roadmap already
       carries for this screen's own drag interaction and the wizard's Hyperscript).
+- [x] No guard on removing the wizard's last approver row, and no visible step indicator -- closed
+      2026-09-19, same review as above. Removing every approver row left a submission with nothing
+      to reject it until the server; a two-screen flow (this wizard, then Signature Placement) had
+      no "Step 1 of 2" / "Step 2 of 2" anywhere, only a "Continue ->" button implying it. Fixed:
+      `.approver-row:only-child .approver-move-remove { visibility: hidden }` (`machine.templ`,
+      same CSS-only posture already used for `.approver-move-up`/`-down`'s own first/last-child
+      rules) hides the "Remove" affordance entirely when it's the only row -- no Hyperscript
+      needed, self-updating on add/remove since it is a live CSS selector, and error prevention
+      beats error recovery (Nielsen #5) by construction. A server-side backstop
+      (`hasAnyApprover`, `submitDocumentWizard`) independently rejects a zero-approver submission
+      with `422` *before* creating the Document, so no orphaned undecideable Document can result
+      even from a non-browser client. Both submission and placement screens gained a plain "Step 1
+      of 2"/"Step 2 of 2" line. Verified end-to-end on a temporary second server instance against
+      the real Postgres database, live process left untouched: the CSS rule renders correctly, a
+      crafted zero-approver POST to `/documents` returns `422` with no Document created, both step
+      labels render.
+- [x] No "New Approval" call-to-action on Home for a submitter -- closed 2026-09-19, same review as
+      above. `WorkspaceHomePage` only ever linked to the Approval Inbox; a submitter with nothing
+      pending had no direct path to `/documents/new` short of the topbar. Added a second,
+      always-visible `+ New Approval` button next to the existing link, same markup the Approval
+      Inbox page already uses for this action. Verified on the scratch server: renders regardless
+      of pending count, including the zero-pending case.
 
 ---
 

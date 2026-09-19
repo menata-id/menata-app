@@ -52,7 +52,7 @@ func DocumentSubmitPage(users []*data.Record, appName string) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<p><a href=\"/approval-inbox\">← Approval Inbox</a></p><h1>New Approval</h1><p class=\"step-status\">Submit a document for approval.</p><form hx-post=\"/documents\" hx-encoding=\"multipart/form-data\"><section><h2>Document</h2><label>Title<br><input type=\"text\" name=\"fld_title\" required></label><br><br><label>Document Type<br><select name=\"fld_document_type\" required><option value=\"\"></option> <option value=\"Contract\">Contract</option> <option value=\"SOP\">SOP</option> <option value=\"Policy\">Policy</option> <option value=\"Report\">Report</option> <option value=\"Other\">Other</option></select></label><br><br><label>PDF file<br><input type=\"file\" name=\"fld_file\" accept=\"application/pdf\" required></label></section><section><h2>Approval mode</h2><p class=\"step-status\">Sequential activates each step in order. Parallel allows all assigned approvers to decide independently.</p><label><input type=\"radio\" name=\"fld_mode\" value=\"sequential\" checked> Sequential</label><br><label><input type=\"radio\" name=\"fld_mode\" value=\"parallel\"> Parallel</label></section><section><h2>Approval steps</h2><p class=\"step-status\">Each step is a specific person. Order matters only when Approval mode is Sequential -- use ▲/▼ to reorder.</p><div id=\"approver-rows\" class=\"approver-rows\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<p><a href=\"/approval-inbox\">← Approval Inbox</a></p><h1>New Approval</h1><p class=\"step-status\">Step 1 of 2 — Document &amp; Approvers</p><p class=\"step-status\">Submit a document for approval.</p><form hx-post=\"/documents\" hx-encoding=\"multipart/form-data\"><section><h2>Document</h2><label>Title<br><input type=\"text\" name=\"fld_title\" required></label><br><br><label>Document Type<br><select name=\"fld_document_type\" required><option value=\"\"></option> <option value=\"Contract\">Contract</option> <option value=\"SOP\">SOP</option> <option value=\"Policy\">Policy</option> <option value=\"Report\">Report</option> <option value=\"Other\">Other</option></select></label><br><br><label>PDF file<br><input type=\"file\" name=\"fld_file\" accept=\"application/pdf\" required></label></section><section><h2>Approval mode</h2><p class=\"step-status\">Sequential activates each step in order. Parallel allows all assigned approvers to decide independently.</p><label><input type=\"radio\" name=\"fld_mode\" value=\"sequential\" checked> Sequential</label><br><label><input type=\"radio\" name=\"fld_mode\" value=\"parallel\"> Parallel</label></section><section><h2>Approval steps</h2><p class=\"step-status\">Each step is a specific person. Order matters only when Approval mode is Sequential -- use ▲/▼ to reorder.</p><div id=\"approver-rows\" class=\"approver-rows\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -115,7 +115,7 @@ func ApproverRow(users []*data.Record) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(u.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 79, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 80, Col: 24}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -128,7 +128,7 @@ func ApproverRow(users []*data.Record) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(toString(u.Values["fld_name"]))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 79, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 80, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -139,7 +139,7 @@ func ApproverRow(users []*data.Record) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</select> <button type=\"button\" class=\"approver-move approver-move-up\" title=\"Move up\" _=\"on click if the previous <.approver-row/> exists put closest <.approver-row/> before the previous <.approver-row/> end\">▲</button> <button type=\"button\" class=\"approver-move approver-move-down\" title=\"Move down\" _=\"on click if the next <.approver-row/> exists put closest <.approver-row/> after the next <.approver-row/> end\">▼</button> <button type=\"button\" class=\"approver-move\" title=\"Remove\" _=\"on click remove closest <.approver-row/>\">✕</button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</select> <button type=\"button\" class=\"approver-move approver-move-up\" title=\"Move up\" _=\"on click if the previous <.approver-row/> exists put closest <.approver-row/> before the previous <.approver-row/> end\">▲</button> <button type=\"button\" class=\"approver-move approver-move-down\" title=\"Move down\" _=\"on click if the next <.approver-row/> exists put closest <.approver-row/> after the next <.approver-row/> end\">▼</button> <button type=\"button\" class=\"approver-move approver-move-remove\" title=\"Remove\" _=\"on click remove closest <.approver-row/>\">✕</button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

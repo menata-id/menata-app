@@ -15,6 +15,7 @@ templ DocumentSubmitPage(users []*data.Record, appName string) {
 	@pageShell("New Approval", appName) {
 		<p><a href="/approval-inbox">← Approval Inbox</a></p>
 		<h1>New Approval</h1>
+		<p class="step-status">Step 1 of 2 — Document &amp; Approvers</p>
 		<p class="step-status">Submit a document for approval.</p>
 		<form hx-post="/documents" hx-encoding="multipart/form-data">
 			<section>
@@ -81,6 +82,6 @@ templ ApproverRow(users []*data.Record) {
 		</select>
 		<button type="button" class="approver-move approver-move-up" title="Move up" _="on click if the previous <.approver-row/> exists put closest <.approver-row/> before the previous <.approver-row/> end">▲</button>
 		<button type="button" class="approver-move approver-move-down" title="Move down" _="on click if the next <.approver-row/> exists put closest <.approver-row/> after the next <.approver-row/> end">▼</button>
-		<button type="button" class="approver-move" title="Remove" _="on click remove closest <.approver-row/>">✕</button>
+		<button type="button" class="approver-move approver-move-remove" title="Remove" _="on click remove closest <.approver-row/>">✕</button>
 	</div>
 }

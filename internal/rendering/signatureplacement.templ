@@ -30,6 +30,7 @@ templ SignaturePlacementPage(document *data.Record, steps []*data.Record, relati
 	@pageShell("Signature Placement", appName) {
 		<p><a href={ templ.URL("/machines/" + action.DocumentMachineID + "/records/" + document.ID) }>← { toString(document.Values["fld_title"]) }</a></p>
 		<h1>Signature positions</h1>
+		<p class="step-status">Step 2 of 2 — Signature Positions</p>
 		<p class="step-status">Place one marker per approval step. Drag a placed marker to reposition it.</p>
 		<div
 			class="sig-layout"
