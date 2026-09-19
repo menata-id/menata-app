@@ -22,13 +22,15 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   and ordered lists, my-tasks view, calendar, sprint dashboard, team capacity view, activity feed.
 - **Grouped navigation**, declared as metadata rather than hardcoded per page.
 - **Continuous architecture and code-quality checks** running in CI on every change.
+- **Authentication and file-handling hardening**, based on an internal security review --
+  invite-acceptance and session handling, upload validation and access checks, security response
+  headers, and CSRF protection.
 
 ## In progress
 
 - Rounding out Project Management: a project-level workspace overview, richer task detail
   (checklist, comments, attachments), and scoping views to one project at a time.
 - Two-level navigation for switching between applications inside a workspace.
-- Authentication and file-handling hardening, based on an internal security review.
 - Accessibility and mobile/responsive polish across existing screens.
 
 ## Planned
