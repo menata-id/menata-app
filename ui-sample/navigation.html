@@ -1,0 +1,160 @@
+<!doctype html><html lang="en" class="h-full bg-slate-50"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>UI Sample — Navigation</title><script src="https://cdn.tailwindcss.com"></script></head><body class="min-h-full text-slate-900">
+
+<!--
+  UI Sample -- Two-level navigation (ui-sample/README.md's own "Menu Navigasi (ini belum dibuat)"),
+  applied to this app's own two real cases rather than a generic example:
+
+    1. Menu Lintas Aplikasi -- top-left, 9-dot icon, opens a panel to switch which Application
+       is open (Case 3 "Document Approval" <-> Case 19 "Project Management").
+    2. Menu Aplikasi yang sedang berjalan -- the *current* Application's own menu: a desktop top
+       bar, or a mobile bottom bar with 3-4 icons.
+
+  Every nav item below is a real route from internal/web/router.go (see the data-route attributes)
+  -- nothing here is invented. This is a design reference only, per this directory's own
+  convention: no code here is shared with the real app, and this file's own JS exists only to
+  demonstrate the switching behavior for review, not as an implementation to copy line-for-line.
+-->
+
+<div class="mx-auto max-w-5xl px-4 py-8">
+  <p class="mb-6 text-sm text-slate-500"><a href="README.md" class="underline">← ui-sample</a> · Navigation reference for the platform-onboarding plan (ROADMAP.md)</p>
+
+  <!-- ============================== DESKTOP ============================== -->
+  <section class="rounded-lg border border-slate-200 bg-white shadow-sm">
+    <header class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <button id="launcherBtn" class="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100" aria-label="Switch application">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="15" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="15" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/><circle cx="15" cy="15" r="1.6"/></svg>
+          </button>
+          <!-- Menu Lintas Aplikasi -->
+          <div id="launcherPanel" class="absolute left-0 top-11 z-10 hidden w-72 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+            <p class="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wide text-slate-400">Menata · Acme Procurement</p>
+            <button class="app-switch flex w-full items-start gap-3 rounded-md p-2 text-left hover:bg-slate-50" data-app="case3">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">✓</span>
+              <span><span class="block text-sm font-medium">Document Approval</span><span class="block text-xs text-slate-500">Case 3 · submit, review, approve</span></span>
+            </button>
+            <button class="app-switch flex w-full items-start gap-3 rounded-md p-2 text-left hover:bg-slate-50" data-app="case19">
+              <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">▤</span>
+              <span><span class="block text-sm font-medium">Project Management</span><span class="block text-xs text-slate-500">Case 19 · boards, sprints, team</span></span>
+            </button>
+            <a href="workspace-home.html" class="mt-1 block rounded-md p-2 text-xs font-medium text-blue-600 hover:bg-slate-50">All applications →</a>
+          </div>
+        </div>
+        <span class="text-slate-300">/</span>
+        <span id="appName" class="text-sm font-semibold">Document Approval</span>
+      </div>
+      <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold">DR</span>
+    </header>
+
+    <!-- Menu Aplikasi yang sedang berjalan (desktop) -->
+    <nav id="appNav" class="flex flex-wrap gap-1 border-b border-slate-200 px-3 py-2 text-sm"></nav>
+
+    <div class="p-6 text-sm text-slate-500">
+      Viewing: <span id="crumb" class="font-medium text-slate-800">Document Approval → Approval Inbox</span>
+      <p class="mt-1 text-xs">Route: <code id="crumbRoute" class="rounded bg-slate-100 px-1.5 py-0.5">/approval-inbox</code></p>
+    </div>
+  </section>
+
+  <!-- ============================== MOBILE ============================== -->
+  <p class="mb-2 mt-8 text-xs font-medium uppercase tracking-wide text-slate-400">Same application, mobile width</p>
+  <div class="mx-auto w-[300px] overflow-hidden rounded-[2rem] border-8 border-slate-800 bg-white shadow-lg">
+    <div class="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+      <button class="launcherBtnMobile flex h-8 w-8 items-center justify-center rounded-md text-slate-500">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="currentColor"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="15" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="15" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/><circle cx="15" cy="15" r="1.6"/></svg>
+      </button>
+      <span id="appNameMobile" class="text-xs font-semibold">Document Approval</span>
+      <span class="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold">DR</span>
+    </div>
+    <div class="flex h-56 items-center justify-center px-4 text-center text-xs text-slate-400">
+      Page content for whichever bottom-bar icon is active goes here.
+    </div>
+    <!-- Menu Aplikasi yang sedang berjalan (mobile bottom bar, 3-4 icons) -->
+    <nav id="appNavMobile" class="grid border-t border-slate-200 text-[10px]"></nav>
+  </div>
+
+  <section class="mx-auto mt-8 max-w-md rounded-lg border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-500">
+    <p class="font-medium text-slate-700">Why these items, not others</p>
+    <p class="mt-1">Desktop shows every real route from <code>internal/web/router.go</code> for that
+    Application. Mobile keeps only the 3-4 an approver or a Task-board user reaches for most
+    often (ui-sample/README.md's own "3-4 icon" bottom bar) — the rest stay one tap away behind the
+    launcher's own "All applications" link, not duplicated in a cramped bar.</p>
+  </section>
+</div>
+
+<script>
+  var apps = {
+    case3: {
+      name: "Document Approval",
+      color: "blue",
+      nav: [
+        { label: "Dashboard", route: "/dashboard" },
+        { label: "Approval Inbox", route: "/approval-inbox", active: true },
+        { label: "New Approval", route: "/documents/new" },
+        { label: "Documents", route: "/machines/mch_document" },
+        { label: "Signatures", route: "/machines/mch_signature" }
+      ],
+      mobile: ["Dashboard", "Approval Inbox", "New Approval", "Documents"]
+    },
+    case19: {
+      name: "Project Management",
+      color: "emerald",
+      nav: [
+        { label: "Board", route: "/machines/mch_task", active: true },
+        { label: "My Tasks", route: "/my-tasks" },
+        { label: "Calendar", route: "/calendar" },
+        { label: "Sprint", route: "/sprint" },
+        { label: "Team Capacity", route: "/team-capacity" },
+        { label: "Activity", route: "/activity" },
+        { label: "Automation", route: "/automation" },
+        { label: "Board Settings", route: "/board-settings" }
+      ],
+      mobile: ["Board", "My Tasks", "Calendar", "Sprint"]
+    }
+  };
+
+  function render(appKey) {
+    var app = apps[appKey];
+    document.getElementById("appName").textContent = app.name;
+    document.getElementById("appNameMobile").textContent = app.name;
+
+    var active = app.nav.find(function (n) { return n.active; }) || app.nav[0];
+    document.getElementById("crumb").textContent = app.name + " → " + active.label;
+    document.getElementById("crumbRoute").textContent = active.route;
+
+    var nav = document.getElementById("appNav");
+    nav.innerHTML = "";
+    app.nav.forEach(function (item) {
+      var a = document.createElement("a");
+      a.href = "#";
+      a.textContent = item.label;
+      a.className = "rounded-md px-3 py-1.5 " + (item.active
+        ? "bg-" + app.color + "-50 font-medium text-" + app.color + "-700"
+        : "text-slate-600 hover:bg-slate-50");
+      a.onclick = function (e) { e.preventDefault(); };
+      nav.appendChild(a);
+    });
+
+    var mnav = document.getElementById("appNavMobile");
+    mnav.innerHTML = "";
+    mnav.style.gridTemplateColumns = "repeat(" + app.mobile.length + ", 1fr)";
+    app.mobile.forEach(function (label, i) {
+      var b = document.createElement("button");
+      b.className = "flex flex-col items-center gap-1 py-2 " + (i === 0 ? "text-" + app.color + "-700" : "text-slate-400");
+      b.innerHTML = "<span>" + ["◆","☰","＋","◷","☺"][i % 5] + "</span><span>" + label + "</span>";
+      mnav.appendChild(b);
+    });
+  }
+
+  document.getElementById("launcherBtn").addEventListener("click", function () {
+    document.getElementById("launcherPanel").classList.toggle("hidden");
+  });
+  document.querySelectorAll(".app-switch").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      render(btn.dataset.app);
+      document.getElementById("launcherPanel").classList.add("hidden");
+    });
+  });
+
+  render("case3");
+</script>
+</body></html>
