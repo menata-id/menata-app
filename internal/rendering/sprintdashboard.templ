@@ -26,7 +26,10 @@ func (s SprintSummary) CompletionPercent() int {
 // SprintDashboardPage composes the same Task/Activity data as the Dashboard and My Tasks, shaped
 // as Case 19's own analytics view: a status summary, a compact workload preview (linking to the
 // full Team Capacity page rather than duplicating it), and an Attention Needed list of
-// overdue/due-today Tasks (reusing My Tasks' own bucketing, not a new SLA mechanism).
+// overdue/due-today Tasks (reusing My Tasks' own bucketing and its taskRowList rendering, not a
+// new SLA mechanism or a re-typed markup -- menata-app-document's 2026-09-19 rendering
+// composability audit found this list re-implementing taskRowList's markup by hand and silently
+// dropping its status badge).
 templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow, appName string) {
 	@pageShell("Sprint Dashboard", appName) {
 		<h1>Sprint Dashboard</h1>
@@ -58,15 +61,7 @@ templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, atte
 		if len(attention) == 0 {
 			<p>Nothing overdue or due today.</p>
 		} else {
-			<ul class="activity-feed">
-				for _, t := range attention {
-					<li>
-						<span>{ toString(t.Task.Values["fld_title"]) }</span>
-						<span class="muted">{ t.ProjectName }</span>
-						@slaBadge(t.Task.Values["fld_due_date"])
-					</li>
-				}
-			</ul>
+			@taskRowList(attention, true)
 		}
 	}
 }

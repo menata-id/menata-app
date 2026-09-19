@@ -105,7 +105,7 @@ has its own cost, so staying page-internal is the correct default, not a gap, un
 |---|---|---|
 | `slaBadge` | A `view.sla_field` date as OVERDUE / "Due today" / "N day(s) left" | `machine.templ`; used by `RecordRow` and `RecordDetailView` |
 | `summaryCounts` | A row of labelled count tiles | `machine.templ`; Dashboard, Sprint Dashboard, Team Capacity, Approval Inbox |
-| `activityFeedList` | `ActivityEntry` rows as one feed shape | `machine.templ`; Dashboard, Activity, Sprint Dashboard, My Tasks |
+| `activityFeedList` | `ActivityEntry` rows as one feed shape | `machine.templ`; Dashboard, Activity |
 | `sectionHeader` | A composed page's section title + optional "View all →" link | `machine.templ` |
 | `recordSummaryCard` / `summaryCardList` | A record as a card face rather than a table row | `machine.templ`; Approval Inbox's My Documents |
 | `pendingApprovalCard` | Approval Inbox's own Pending-my-approval grid card (document-approval.html): SLA framing, Mode/approval-ratio badge, submitted-by/date line, per-step progress dots | `approvalinbox.templ`; Approval Inbox's worklist only — page-internal, not yet reused elsewhere |
@@ -114,6 +114,9 @@ has its own cost, so staying page-internal is the correct default, not a gap, un
 | `pageShell` | The page frame and the topbar — a projection of `app.yaml`'s own `navigation:` list (2026-09-19), grouped and collapsible, with a live pending-approval-count badge and `aria-current="page"`; see the navigation limit below for what's still out of scope | `machine.templ` |
 | `pdfThumbnail` | A Document's own PDF, page 1, as a small linked preview image | `detail.templ`; the Document detail page (reuses the `.../pdf-preview` route, no new route) |
 | `signatureConfirmation` | Echoes a pending Approval Step's own placement back to its assignee before they decide, or prompts them to place one | `detail.templ`; `decideButtons`, from the step record already fetched for that page -- no extra query |
+| `fieldInput` | One Field's own input control, chosen by `domain.FieldType` (text/number/date/status/relation/file/...) | `machine.templ`; `RecordEditRow`, `createFormRow`, and `detail.templ`'s `RecordDetailEdit` |
+| `fileLink` | A `file` Field's stored value rendered as a download link | `machine.templ`; `RecordRow`, and `detail.templ`'s `RecordDetailView` |
+| `csrfHiddenInput` | The CSRF double-submit hidden `<input>` every state-changing form carries | `machine.templ`; every pre-auth form (`login.templ`, `register.templ`, `forgotpassword.templ`, `resetpassword.templ`, `resendverification.templ`, `chooseworkspace.templ`), `workspacemembers.templ`, and `machine.templ`'s own generic create/edit rows |
 
 **Not yet built:** Timeline Layout; colored label chips and member avatars on a card face;
 drag-and-drop reordering of board columns and cards. The full list of what the `ui-sample/`
