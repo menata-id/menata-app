@@ -1280,6 +1280,148 @@ deferred with the rest.
 
 ---
 
+## UI mockup conformance gaps (`ui-sample/` audit, 2026-09-19)
+
+A third audit job, distinct from the two lists above. Those compare the code against 001-007
+(stated concept obligations) and against hygiene. This one compares the code *and this roadmap*
+against the 23 design mockups in `ui-sample/` -- the artifact both priority cases' own screen
+lists in `case-portfolio.md` point at, and the only written description of what these two
+applications are supposed to look like when finished.
+
+Scope: all 23 files, read as text (every heading, label, column, badge and caption), against
+`internal/web.Routes`, `internal/rendering`, `metadata/*.yaml`, `capabilities.md` and this
+document. Same verdict vocabulary as the audit above, and the same rule from the Method's
+2026-09-18 correction: a deferral must say whether its trigger is *constructible today* or
+genuinely needs a deployment event. **This section records findings only** -- nothing here is
+scheduled, and no code was changed to produce it. Each entry still needs its own phase decision.
+
+### A. Built, but recorded nowhere
+
+Found by reading `internal/web/router.go` and `internal/rendering/*.templ` against
+`capabilities.md`. Each of these is real, working, verified code whose only description is a
+checkbox in a completed phase -- which is exactly the tracking failure Phase 18 exists to prevent,
+arriving from the opposite direction (capability drift, not architecture drift).
+
+| Built capability | Where it lives | What the docs said |
+|---|---|---|
+| **Approval Inbox** -- Case 3's worklist screen: SLA filter chips, pending cards, "My Documents" | `GET /approval-inbox`, `rendering.ApprovalInboxPage`, `composition/approval.go` (Phase 15 Step 1) | Absent from `capabilities.md`'s Experience *and* Routes tables. Its one mention is in the *limits* table, as an example of the 007 §20 anti-pattern -- the doc names the screen only to say what is wrong with it |
+| **Record Summary Card** (`recordSummaryCard`/`summaryCardList`) and **filter chips** (`filterChip`) | `internal/rendering/machine.templ`, `approvalinbox.templ` | Not recorded. Phase 15's matrix called the card "a real new presentation shape"; nothing lists it as existing |
+| **Approval progress stepper** (`approvalStepper`, done/current/waiting from `action.CanDecide`) | `internal/rendering/approvalstepper.templ` (Phase 15 Step 2) | Not recorded anywhere outside Phase 15's own checkbox |
+| **The shared component set** -- `slaBadge`, `summaryCounts`, `activityFeedList`, `sectionHeader` | `internal/rendering/machine.templ` (Phase 13, Phase 15 Step 0) | No inventory of this repo's own components exists. The mockups ship one (`case-19-component-breakdown.html`); menata-app has no equivalent list, so "does a component for this already exist?" is answered by grep |
+| **Per-request read diagnostics** (`reads=N repeated=M` per route, per-target breakdown) | `internal/data.ReadLog`, `web.queryDiagnostics` (Phase 18 Step 3) | No row in `capabilities.md`; its "inference is not inspectable" limit says "no diagnostics route", which reads as though nothing is observable. Both statements are true and they are about different things -- what a page *read* is observable, what the runtime *inferred* is not |
+| **Conformance gates** -- import boundaries per package, "every package declares a rule", 70-line handler budget | `internal/conformance` (Phase 18 Step 1, Phase 19 Step 4) | Mentioned once in passing under the Routes table; not listed as a capability, though it is one of the few mechanisms here that actively prevents regression |
+| `GET /documents/new/approver-row` (the wizard's HTMX row fragment) | `web.newApproverRow` (Phase 15 Step 6) | Missing from the Routes table |
+| `GET /ui-sample/*` (the app serves the mockups) | `router.go` | Missing from the Routes table, and `ui-sample/README.md` still claimed "none of this HTML is executed or served by `menata-app`" -- true when written, false since the route landed |
+
+**Two inaccurate claims found in the same pass** (both corrected in place, 2026-09-19):
+
+1. `capabilities.md`'s "Not yet built" line attributed colored label chips and board drag-and-drop
+   to "their own forcing condition in Phase 14". Only Timeline is in Phase 14. Chips/avatars are
+   Phase 10's own last bullet, "deliberately deferred to Phase 14" -- a deferral Phase 14 never
+   received. Drag-and-drop appears nowhere in any phase; its only mention in this document is the
+   Method's HTMX/Hyperscript note. See B2.
+2. Phase 15's deferral reads "only one Document Type exists in metadata today". No
+   `fld_document_type` exists at all -- zero, not one. The conclusion (don't build the saved
+   default flow) stands; the reason given for it was wrong.
+
+### B. In the mockups, absent from this roadmap
+
+#### B1. Case 3 -- Document Approval
+
+| Mockup shows | Today | Verdict |
+|---|---|---|
+| A human-readable document reference (`DOC-0091`), on every worklist card, dashboard row and detail header | Records carry a UUID and nothing else; no Machine declares a reference/sequence Field | **Untracked.** Not a screen concern -- a per-Machine display identity (Field- or Store-level). Trigger is constructible today: two people discussing one document without a way to name it |
+| Document Type (Contract / SOP / Policy / Report / Other), shown on cards and driving the saved default flow | No `fld_document_type` | **Half-tracked** -- named only inside Phase 15 Step 6's deferral (with the wrong reason, see A). Nothing lists it as a missing Field |
+| Mode + progress on the worklist card: `ALL · 2/3`, `ANY · 1/2` | `fld_mode` exists and is set by the wizard; the card shows neither mode nor decided/total | **Untracked**, and small -- `composition/approval.go` already counts approved siblings for the stepper |
+| Document viewing from the inbox/detail: "View PDF · Download · 6 pages · 2.4 MB" | `internal/pdf.PageCount`/`RenderPagePNG` and `.../pdf-preview` exist, but are reachable only from the signature-placement screen; the detail page offers a raw download | **Untracked.** The capability is built and the screen that needs it doesn't use it |
+| One screen: worklist on the left, selected document's detail + sticky Approve/Reject bar on the right | Worklist (`/approval-inbox`) and detail (`/machines/mch_document/records/{id}`) are two pages | **Untracked deviation.** Possibly the right call for this stack; it has simply never been written down as a decision |
+| "Draft · not yet submitted" documents in My Documents | `fld_status` declares `draft`, but `submitDocumentWizard` hardcodes `in_review` and no other path writes a Document status | **Untracked.** A declared status option no flow can reach -- either a missing save-as-draft flow or a metadata option to remove |
+| SLA breach as a real event: "Legal Review SLA breached ... escalated to Manager" in the activity feed | `experience.EvaluateSLA` is display-only, computed per render; nothing writes a breach event, notifies anyone, or escalates | **Untracked.** Trigger is constructible today -- the demo data already contains a past-due Document |
+| On the approval detail: "Your saved signature image will be stamped at this position automatically when you approve", with the step's own page/position echoed back | Phase 17 composites at decide time; the approver is shown no confirmation of where their signature will land before they approve | **Untracked**, and adjacent to Phase 17 rather than inside it |
+
+#### B2. Case 19 -- Project Management
+
+| Mockup shows | Today | Verdict |
+|---|---|---|
+| **Project Workspace** (`project-workspace.html`, screen 1 of 11): project cards with % complete, card/member counts, on-track/at-risk/planning state, cross-project stat tiles (open tasks, due this week, blockers), workspace activity | No route. Phase 14 covers 8 of the 11 screens; Board is Phase 5 and Task Detail is Phase 8's generic page -- **screen 1 is in no phase at all** | **Untracked.** The largest single omission this audit found: a priority case's own entry screen, missing from the phase that exists to enumerate that case's screens |
+| Every Case 19 screen scoped to one project -- breadcrumb "Projects / Website Redesign", tabs Board / Timeline / Calendar / Dashboard within it | Every built screen is application-global: one board, one calendar, one sprint dashboard, all Machine-wide | **Untracked**, and the most architectural of these findings: it is 007 §11's Context/Scope question (PROPOSED) arriving as a concrete UI requirement rather than a theory |
+| Task Detail body: description block, checklist with progress, comment thread, several members, several attachments, Move/Copy/Archive | Generic detail page with `dl.detail-fields` + child collections. No multi-line text Field type exists (`KnownFieldTypes` has `text` only); no checklist, comment, or membership Machine; `fld_attachment` is one file | **Untracked as roadmap entries.** `case-portfolio.md` calls them "still unbuilt here -- real future scope, not yet attempted", which records the fact but assigns it nowhere. Note Phase 9's own forcing condition was *Case 19's Checklist*; the mechanism landed, the Machine that motivated it never did |
+| Card face: colored label chips, member avatars, checklist progress `☑ 3/6`, due-date badge, blocked flag | Board cards are generic `RecordRow`s | **Tracking chain broken** -- Phase 10 deferred chips/avatars "to Phase 14"; Phase 14 has no such item. Checklist progress and the blocked flag depend on data that doesn't exist |
+| Drag a card between lists; reorder lists manually | `sort_order` and ordered `mch_list` exist (Phase 9/10), with no interaction to drive them | **Untracked**, despite being Case 19's own one-line definition in `case-portfolio.md` ("Users reorder Lists and Cards freely and move Cards between Lists"). Only mention anywhere: the Method's HTMX note |
+| Board affordances: inline "+ Add a card" per column, "+ Add list", per-list ••• menu, per-column counts, Filter | Creation is the Machine page's own shared form; no per-column count, no menu, no filter | **Untracked** (the per-column count and inline add are small; the filter overlaps the backlog item below) |
+| Per-screen filters: My Tasks "All projects", Activity "Filter projects" | Neither screen filters | **Half-tracked** -- the Operational backlog's "Sort/filter/search on record lists" is about `Store.ListRecords` on Machine pages, not these composed screens |
+| Timeline: workstream rows, milestone markers, Month/Quarter zoom | Not built | **Half-tracked.** Phase 14's Timeline bullet names date-range bars and the missing start-date Field, but not milestones, and does not say what a "workstream" would be in metadata (a Label? a Project? a new Machine?) |
+| Calendar: "+ Add event", entries that are not Tasks (e.g. "Team sync · 15:00") | Week grid populated purely from `mch_task.fld_due_date` | **Untracked**, small -- either a Machine of its own or an explicit "calendar shows Tasks only" note |
+
+#### B3. Platform-level -- six mockups, no phase owns any of them
+
+`login.html` is the only one of the six with a built counterpart. The rest describe the
+multi-tenant, multi-application, role-based shell every one of the 21 cases would sit inside, and
+this roadmap names none of them as screens.
+
+- **Group, Role, Membership and Invitation as domain concepts.** `workspace-members.html`,
+  `member-role-detail.html` and `approval-role-matrix.html` all assume a Group primitive, a
+  per-Application Role, an effective-access rule (direct assignment ∪ Group-derived, with
+  Group-derived access read-only on the member screen), and an invite flow. This repo names
+  exactly one narrow consumer of one of them -- "Group-sourced approvers", deferred since Phase 7
+  -- and Phase 16 explicitly built Permission *without* roles or groups. **Untracked as a whole.**
+  Trigger is partly constructible (a second identity + a second Application), partly not (real
+  multi-person administration).
+- **Workspace Home** (`workspace-home.html`): the application launcher -- each Application the
+  signed-in identity can reach, with its own pending count and the identity's role in it -- plus
+  an "Your access" summary. **Untracked.** Related to the tracked "Navigation is code" gap, whose
+  trigger (a second Application in the manifest) is constructible today, but that entry names the
+  *menu*, not this screen.
+- **Choose Workspace** (`choose-workspace.html`): workspace picker with per-workspace role.
+  **Half-tracked** -- multi-workspace tenancy is in "not phased yet" and its storage consequence
+  is in the conformance gaps, but the screen is named nowhere.
+- **Approval Role Matrix** (`approval-role-matrix.html`): role × transition grid, explicitly
+  derived from Machines' own Permissions rather than a second permission model. It also
+  references a per-Machine **process map** (`/{machineID}/process-map`) as something that already
+  exists in `menata-runtime` and renders the same ProcessEdge data transition-first. Neither the
+  matrix nor the process map appears in any list here. **Untracked.** Worth noting the matrix is
+  a *projection of already-declared metadata*, which makes it the cheapest of these and a real
+  test of whether `domain.Permission` carries enough to project.
+- **Login extras**: forgot-password, "keep me signed in", self-service "create a workspace".
+  Per-user login is tracked (Phase 7's deferral); these three are not, and the third is a
+  provisioning flow rather than an auth detail.
+
+#### B4. Cross-cutting
+
+- **Responsive / mobile posture.** Every mockup is responsive; `pageShell` ships one hand-written
+  desktop stylesheet. Only the mobile bottom bar is named (in the Navigation conformance gap);
+  whether screens are expected to work on a phone at all is unstated. **Untracked.**
+- **Visual language.** The mockups are a coherent Tailwind design system (spacing, type scale,
+  status colors, card shapes). Every built screen approximates it ad hoc in inline CSS, and no
+  decision is recorded on whether that system is adopted, approximated deliberately, or ignored.
+  **Untracked** -- and cheap to decide once, expensive to decide per screen, which is what is
+  happening now.
+- **Empty, loading and error states, and write feedback.** The mockups show populated states only;
+  the app has a few hand-written "Nothing pending your approval" lines and no convention.
+  **Untracked**, minor, but it is a component-level concern the shared component set should own.
+- **Accessibility semantics.** The component-contract mockup lists accessibility among a
+  Component's declared inputs (`accessibility: { role: article }`). No component here declares
+  any, and no conformance rule checks. **Untracked.**
+- **Component contract and versioning** (007 §13) -- bounded inputs, declared child slots,
+  actions/events, renderer, versioned contracts. The deferral list names UI IR and the Component
+  Registry; the *contract* idea, which is what would discipline the shared components that already
+  exist, is named nowhere. **Untracked, and the nearest of the three to being useful today.**
+
+### C. Verified present or correctly tracked -- no action
+
+Recorded so the audit is complete rather than only a complaint list: the mobile bottom bar and
+cross-application launcher (Navigation conformance gap, with trigger); sequential/parallel mode
+(Phase 12); Group-sourced approvers and "save as default flow" (Phase 15 deferrals); burndown,
+story points and the blocked status (Phase 14's Sprint Dashboard entry, with the reason);
+per-task assigned hours (Phase 14's Team Capacity entry); a generic automation engine (Phase 14's
+Automation entry); Board Settings' tab structure (Phase 14, "no new settings mechanism");
+UI IR / Component Registry / Dataset-Projection-ViewModel binding, which is what
+`case-19-component-breakdown.html` documents end to end (deferred, 007 §34/§40); multi-workspace
+storage consequences (conformance gaps); sort/filter/search on Machine lists (Operational
+backlog); Timeline (Phase 14, unchecked, with its missing Field named).
+
+---
+
 ## What's deliberately not phased yet
 
 `internal/registry` (static component registry), `internal/execution` as a distinct physical

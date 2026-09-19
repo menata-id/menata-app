@@ -1,8 +1,11 @@
 # UI Sample
 
 Static HTML design mockups, copied from `menata-runtime`'s (private) `app/web/static/ui-sample/`
-on 2026-09-15. These are design **references** to build toward — none of this HTML is executed
-or served by `menata-app`; open a file directly in a browser to view it.
+on 2026-09-15. These are design **references** to build toward, never current-code intent — none
+of this HTML is executed, and no page here shares any code with the real app. The running app does
+serve this directory as-is at `/ui-sample/*` (a plain file server, no rendering logic), so a built
+page can be compared against the design it was built toward; opening a file directly in a browser
+works just as well.
 
 Each file is self-contained (Tailwind via CDN, no relative asset dependencies), so it renders
 standalone even outside its original directory.

@@ -30,6 +30,10 @@ changelog of how it got there.
 Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not inferred from data
 (007 §14's static-registry seam).
 
+`text` is single-line: there is no multi-line, long-text or rich-text type. Case 19's Task Detail
+description block (`ui-sample/project-card.html`) is the first real thing that would need one —
+recorded in `ROADMAP.md`'s "UI mockup conformance gaps", not built.
+
 ---
 
 ## Composition primitives
@@ -67,7 +71,9 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | Workflow Automation (read-only Trigger/Condition/Action view over real Constraint + Action) | Built | `GET /automation` |
 | Calendar (week-grid Layout, Tasks grouped by due date) | Built | `GET /calendar` |
 | Sprint Dashboard (real status summary + workload + attention-needed, no fabricated points/burndown) | Built | `GET /sprint` |
+| Approval Inbox (worklist of the steps awaiting the current identity, SLA filter chips, plus "My Documents") | Built, hardcoded to one Machine pair | `GET /approval-inbox` — `rendering.ApprovalInboxPage`, `composition/approval.go`; submitter resolved from `mch_activity`, not a Field |
 | Approve/Reject action bar | Built, hardcoded to one Machine | `mch_approval_step`'s own detail page only |
+| Approval progress stepper (done / current / waiting, replacing the generic child-collection table on a Document's detail page) | Built, hardcoded to one Machine pair | `approvalStepper` (`internal/rendering/approvalstepper.templ`), states from `action.CanDecide`; no metadata change |
 | PDF page-to-image rendering | Built | `internal/pdf.PageCount`/`RenderPagePNG`, pure-Go (`richardwilkes/pdfview`); served by `GET .../pdf-preview` |
 | Signature-coordinate placement (drag a marker over a rendered PDF page) | Built, hardcoded to one Machine | `GET .../signature-placement`, `rendering.SignaturePlacementPage` — the one named vanilla-JS exception (drag math only; placing/saving a position is ordinary HTMX to the generic PUT route) |
 | Document submission wizard (Document + its own Approval Steps created together, dynamic flat approver picker) | Built, hardcoded to one Machine pair | `GET /documents/new`, `POST /documents`; add/reorder/remove approver rows are Hyperscript (no server-meaningful state until the whole form submits) |
@@ -78,8 +84,31 @@ resolves what the request carries, asks composition for the page's content, and 
 joins, rollups and SLA bucketing behind these pages are ordinary unit-tested functions, not
 handler bodies (`ROADMAP.md` Phase 19).
 
-**Not yet built:** Timeline Layout, colored label chips on a card face, drag-and-drop reordering
-of board columns/list items — all named with their own forcing condition in `ROADMAP.md` Phase 14.
+### Shared rendering components
+
+The reusable pieces those screens are assembled from, all in `internal/rendering`. Listed because
+"does a component for this already exist?" was previously answerable only by grep — and because
+`ui-sample/case-19-component-breakdown.html` ships an inventory of the components the mockups
+assume, which this table is the real counterpart to.
+
+| Component | What it renders | Where |
+|---|---|---|
+| `slaBadge` | A `view.sla_field` date as OVERDUE / "Due today" / "N day(s) left" | `machine.templ`; used by `RecordRow` and `RecordDetailView` |
+| `summaryCounts` | A row of labelled count tiles | `machine.templ`; Dashboard, Sprint Dashboard, Team Capacity, Approval Inbox |
+| `activityFeedList` | `ActivityEntry` rows as one feed shape | `machine.templ`; Dashboard, Activity, Sprint Dashboard, My Tasks |
+| `sectionHeader` | A composed page's section title + optional "View all →" link | `machine.templ` |
+| `recordSummaryCard` / `summaryCardList` | A record as a card face rather than a table row | `machine.templ`; Approval Inbox's worklist and My Documents |
+| `filterChip` | A query-param filter chip with its own count (no JS) | `approvalinbox.templ` |
+| `approvalStepper` | A Document's own steps as done / current / waiting | `approvalstepper.templ` |
+| `pageShell` | The page frame and the hardcoded topbar (see the navigation limit below) | `machine.templ` |
+
+**Not yet built:** Timeline Layout; colored label chips and member avatars on a card face
+(`ROADMAP.md` Phase 10's own last bullet, deferred there "to Phase 14" — a deferral Phase 14 never
+actually received); drag-and-drop reordering of board columns and cards (named in no phase at all,
+despite being Case 19's own defining interaction). Only Timeline carries a real Phase 14 entry
+with its own missing Field named. Corrected 2026-09-19 — this line previously attributed all three
+to Phase 14. The full list of what the `ui-sample/` mockups show and this app does not is
+`ROADMAP.md`'s "UI mockup conformance gaps" section.
 
 ---
 
@@ -148,16 +177,19 @@ of board columns/list items — all named with their own forcing condition in `R
 | `GET /automation` | Read-only Trigger/Condition/Action view over real Constraint + Action |
 | `GET /calendar` | Week-grid Layout, Tasks grouped by due date |
 | `GET /sprint` | Sprint Dashboard: status summary, workload preview, attention-needed |
+| `GET /approval-inbox` | Approval Inbox: steps awaiting the current identity, SLA filter chips (`?filter=`), My Documents |
 | `GET /machines/{id}` | A Machine's own page (table or board) |
 | `POST /machines/{id}/records` | Create a record |
 | `GET /machines/{id}/records/{id}` | Record detail page (or a fragment, for HTMX) |
 | `GET .../edit`, `PUT .../{id}`, `DELETE .../{id}` | Edit / update / delete a record |
 | `POST .../{id}/decide` | Approve/Reject an Approval Step |
 | `GET /documents/new`, `POST /documents` | Document submission wizard: create a Document and its own Approval Steps together |
+| `GET /documents/new/approver-row` | The wizard's "+ Add approver" HTMX fragment — one more approver row, populated with real `mch_user` options |
 | `GET /machines/mch_document/records/{id}/signature-placement` | Signature-coordinate placement screen |
 | `GET /machines/mch_document/records/{id}/pdf-preview` | One page of the Document's PDF, rasterized to PNG |
 | `GET /uploads/*` | Download an uploaded file |
 | `GET /api/machines`, `GET /api/machines/{id}/records`, `POST /api/machines/{id}/records` | JSON API — create+list only, no update/delete yet (tracked in Operational backlog) |
+| `GET /ui-sample/*` | The static design mockups, served as-is from `ui-sample/` so a built page can be compared against the design it was built toward. Reference material, never current-code intent |
 
 Every route above is registered in `internal/web.Routes` and served by a handler in that package;
 `cmd/server` builds the dependencies and mounts it. A per-handler size budget in
@@ -166,6 +198,20 @@ Every route above is registered in `internal/web.Routes` and served by a handler
 
 Navigation itself is **not** metadata: `rendering.pageShell` hardcodes the topbar link list, so a
 new page needs a code edit. See the architectural limits below.
+
+---
+
+## Diagnostics and self-enforcement
+
+Mechanisms that observe or constrain the runtime rather than serve a screen. They are capabilities
+like any other — and the two that prevent regression are the ones most easily forgotten.
+
+| Capability | Status | Proven by |
+|---|---|---|
+| Per-request read diagnostics | Built | Every request logs `reads=N repeated=M <path>` plus a per-target breakdown, from `internal/data`'s own read paths (`data.ReadLog`, `web.queryDiagnostics`) — so a page's cost is a number, and the next duplicate-fetch forcing condition announces itself. This is the *observable-reads* half of 001 §6; the *inference* half is still missing (see the limits below) |
+| Import-boundary conformance | Built | `internal/conformance` encodes each package's `doc.go` contract as a test: the Domain Plane imports nothing physical, the Experience Plane reaches no database, `internal/db` carries no metadata semantics. `TestEveryPackageHasARule` fails for any new package under `internal/` or `cmd/` that declares no boundary |
+| Handler size budget | Built | A measured per-handler line limit in `internal/conformance`, so a handler cannot quietly become a screen's worth of logic again |
+| Volume threshold harness | Built | `make threshold` (`internal/composition/threshold_test.go`) measures whole-Machine read cost at increasing record counts — the constructed forcing condition for pagination/projection, recorded in `ROADMAP.md` Phase 6 |
 
 ---
 
@@ -184,3 +230,4 @@ the clause citation, the verdict, and the forcing condition for closing it (001-
 | Workspace never reaches storage (001 §9, 004) | `records` has no workspace/application column; `Store` keys on `machine_id` alone. A second Workspace later is a data migration, not a metadata change |
 | Every read is a whole-Machine read (007 §21.1, §28) | `ListRecords`/`ListRecordsBy`/`GetRecord` only — no projection, filter pushdown, pagination or limit; pages reduce whole record sets in Go |
 | Metadata loads once, at startup (005 §Hot Reload) | A metadata change takes effect on restart. Principle #10 (no source regeneration) is met; hot reload is a deliberate, triggered deferral |
+| Both priority cases are partly designed and not fully built | The `ui-sample/` mockups describe screens, data and a platform shell this app does not have — Case 19's Project Workspace screen and per-project scoping, the Task Detail body (description/checklist/comments), board drag-and-drop, Case 3's document reference and document type, and the entire Workspace/Group/Role platform shell. Enumerated with verdicts in `ROADMAP.md`'s "UI mockup conformance gaps" (audit, 2026-09-19) |
