@@ -137,3 +137,14 @@ conformance test instead.
 Other Claude Code sessions may use this same checkout concurrently (see `ROADMAP.md`/git log for
 what's in flight). Check `git status`/`git log` before a long refactor, and be careful restarting
 the local dev server (`bin/server` on port 4000) — another session may be using it.
+
+The dev server is managed by systemd, not a bare process: `menata-app.service`
+(`/etc/systemd/system/menata-app.service`, `ExecStart=/root/projects/menata-app/bin/server`,
+`Restart=on-failure`). After `make build` changes `bin/server`, restart it with `systemctl restart
+menata-app` — never `kill`/`pkill` the PID and relaunch it by hand (e.g. `nohup ./bin/server &`):
+that orphans an untracked process holding port 4000 while systemd reports the unit as inactive, and
+the manual process loses `Restart=on-failure` and the unit's log redirection
+(`/var/log/menata-app/app.log`). Check state first with `systemctl status menata-app`. This is a
+host-wide convention, not specific to this repo — every app on this box (this checkout included)
+runs under its own systemd unit (e.g. `portal-ga3-dev.service`, `amaliah-web.service`), each with a
+`*-crash-alert` companion unit, fronted by `caddy.service`.
