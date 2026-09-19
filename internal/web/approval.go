@@ -14,6 +14,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
+	"menata.app/internal/storage"
 )
 
 // showApprovalInbox serves Case 3's Approval Inbox (ROADMAP.md Phase 15 Step 1,
@@ -60,7 +61,7 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, a
 // The order below is the contract, not a convenience: identity is checked before the Document is
 // even fetched (005-runtime-lifecycle.md "Security Ordering", 007 §20), and sequencing is checked
 // before anything is written.
-func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func decideStep(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -104,6 +105,9 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, cfg conf
 		}
 		if !recomputeDocumentStatus(w, ctx, store, machine, document, documentID) {
 			return
+		}
+		if toDisplayString(document.Values[action.FieldDocumentStatus]) == action.DocumentStatusApproved {
+			signDocument(ctx, store, files, document, documentID)
 		}
 
 		logActivity(ctx, store, action.DocumentMachineID, documentID, actor,

@@ -31,6 +31,9 @@ fields:
   - id: fld_signature_y
     name: Signature Y
     type: number
+  - id: fld_signature_width
+    name: Signature Width
+    type: number
 
 # Only the step's own assignee may decide it (ROADMAP.md Phase 16). Until this existed, sequencing
 # was the only thing /decide enforced -- any authenticated user could approve or reject any step.

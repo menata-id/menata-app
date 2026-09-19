@@ -69,7 +69,7 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Machines, d.Store))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Machines, d.Store))
-		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Machines, d.Store, d.Cfg))
+		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Machines, d.Store, d.Files, d.AppName))
 		pr.Get("/machines/{machineID}/records/{id}/pdf-preview", servePDFPreview(d.Machines, d.Store, d.Files))
 

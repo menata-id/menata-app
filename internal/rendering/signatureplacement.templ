@@ -50,10 +50,11 @@ templ SignaturePlacementPage(document *data.Record, steps []*data.Record, relati
 					<div class="sig-step-card">
 						<strong>{ fmt.Sprintf("%d. %s", i+1, relationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))) }</strong>
 						if signaturePlaced(s) {
-							<p class="step-status">{ fmt.Sprintf("Page %d · %.0f%% · %.0f%%", signaturePage(s), signatureCoord(s, action.FieldStepSignatureX), signatureCoord(s, action.FieldStepSignatureY)) }</p>
+							<p class="step-status">{ fmt.Sprintf("Page %d · %.0f%% · %.0f%% · %.0f%% wide", signaturePage(s), signatureCoord(s, action.FieldStepSignatureX), signatureCoord(s, action.FieldStepSignatureY), signatureWidth(s)) }</p>
 						} else {
 							<p class="step-status">Not placed yet</p>
 						}
+						@widthControl(s, page)
 						@placeStepForm(s, page)
 					</div>
 				}
@@ -104,6 +105,7 @@ templ sigMarker(s *data.Record, index int) {
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(signaturePage(s)) }/>
 		<input type="hidden" class="sig-x-input" name={ action.FieldStepSignatureX } value={ fmt.Sprint(signatureCoord(s, action.FieldStepSignatureX)) }/>
 		<input type="hidden" class="sig-y-input" name={ action.FieldStepSignatureY } value={ fmt.Sprint(signatureCoord(s, action.FieldStepSignatureY)) }/>
+		<input type="hidden" name={ action.FieldStepSignatureWidth } value={ fmt.Sprint(signatureWidth(s)) }/>
 		<button
 			type="submit"
 			class="sig-marker"
@@ -125,6 +127,7 @@ templ placeStepForm(s *data.Record, page int) {
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(page) }/>
 		<input type="hidden" name={ action.FieldStepSignatureX } value="50"/>
 		<input type="hidden" name={ action.FieldStepSignatureY } value="50"/>
+		<input type="hidden" name={ action.FieldStepSignatureWidth } value={ fmt.Sprint(signatureWidth(s)) }/>
 		<button type="submit">
 			if signaturePage(s) == page {
 				Re-center on this page
@@ -132,6 +135,30 @@ templ placeStepForm(s *data.Record, page int) {
 				Place on this page
 			}
 		</button>
+	</form>
+}
+
+// widthControl is the sidebar's own size control (ROADMAP.md Phase 17): how wide the composited
+// signature stamp will render, as a percentage of the page's own width -- height is derived from
+// the image's own aspect ratio at composite time (internal/action.compositeOne), not set here.
+// Submits on change to the same generic PUT route, carrying the step's current (or sensibly
+// defaulted) page/x/y forward unchanged so adjusting width alone never moves the marker.
+templ widthControl(s *data.Record, page int) {
+	<form
+		hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID) }
+		hx-trigger="change"
+		hx-swap="none"
+		hx-on::after-request="if(event.detail.successful) window.location.reload()"
+	>
+		@stepHiddenFields(s)
+		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(signaturePageOrCurrent(s, page)) }/>
+		<input type="hidden" name={ action.FieldStepSignatureX } value={ fmt.Sprint(signatureCoordOrDefault(s, action.FieldStepSignatureX)) }/>
+		<input type="hidden" name={ action.FieldStepSignatureY } value={ fmt.Sprint(signatureCoordOrDefault(s, action.FieldStepSignatureY)) }/>
+		<label class="sig-width-label">
+			Width
+			<input type="number" name={ action.FieldStepSignatureWidth } value={ fmt.Sprint(signatureWidth(s)) } min="5" max="100" step="1"/>
+			%
+		</label>
 	</form>
 }
 
@@ -158,6 +185,34 @@ func signaturePage(s *data.Record) int {
 func signatureCoord(s *data.Record, fieldID string) float64 {
 	v, _ := s.Values[fieldID].(float64)
 	return v
+}
+
+// signatureCoordOrDefault is signatureCoord with a sensible starting value (page center) for a
+// step that has never been placed -- widthControl must submit a real x/y even before any drag or
+// "Place on this page" click has set one.
+func signatureCoordOrDefault(s *data.Record, fieldID string) float64 {
+	if v, ok := s.Values[fieldID].(float64); ok {
+		return v
+	}
+	return 50
+}
+
+// signaturePageOrCurrent is signaturePage with a sensible default (the page currently being
+// viewed) for a step that has never been placed.
+func signaturePageOrCurrent(s *data.Record, currentPage int) int {
+	if signaturePlaced(s) {
+		return signaturePage(s)
+	}
+	return currentPage
+}
+
+// signatureWidth defaults to 20% of the page's own width -- a reasonable starting size for a
+// signature stamp, adjustable via widthControl.
+func signatureWidth(s *data.Record) float64 {
+	if v, ok := s.Values[action.FieldStepSignatureWidth].(float64); ok && v > 0 {
+		return v
+	}
+	return 20
 }
 
 func placementURL(documentID string, page int) string {

@@ -32,9 +32,17 @@ const (
 	// Fields, not a new Field type. Origin is the top-left of the rendered page image: X grows
 	// right, Y grows down, matching (clientX-rect.left)/rect.width the placement screen's own drag
 	// handler computes.
-	FieldStepSignaturePage = "fld_signature_page"
-	FieldStepSignatureX    = "fld_signature_x"
-	FieldStepSignatureY    = "fld_signature_y"
+	FieldStepSignaturePage  = "fld_signature_page"
+	FieldStepSignatureX     = "fld_signature_x"
+	FieldStepSignatureY     = "fld_signature_y"
+	FieldStepSignatureWidth = "fld_signature_width"
+
+	// Phase 17: a person's own reusable signature image (Phase 15 Step 5's mch_signature, an
+	// ordinary Machine) and the Document's own composited output.
+	SignatureMachineID      = "mch_signature"
+	FieldSignatureOwner     = "fld_owner"
+	FieldSignatureImage     = "fld_image"
+	FieldDocumentSignedFile = "fld_signed_file"
 
 	ModeSequential = "sequential"
 

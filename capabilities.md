@@ -71,6 +71,7 @@ Closed set, extended deliberately — `internal/domain.KnownFieldTypes` — not 
 | PDF page-to-image rendering | Built | `internal/pdf.PageCount`/`RenderPagePNG`, pure-Go (`richardwilkes/pdfview`); served by `GET .../pdf-preview` |
 | Signature-coordinate placement (drag a marker over a rendered PDF page) | Built, hardcoded to one Machine | `GET .../signature-placement`, `rendering.SignaturePlacementPage` — the one named vanilla-JS exception (drag math only; placing/saving a position is ordinary HTMX to the generic PUT route) |
 | Document submission wizard (Document + its own Approval Steps created together, dynamic flat approver picker) | Built, hardcoded to one Machine pair | `GET /documents/new`, `POST /documents`; add/reorder/remove approver rows are Hyperscript (no server-meaningful state until the whole form submits) |
+| PDF signature compositing (burn each approved step's signature image onto the Document at its declared page/x/y/width) | Built, hardcoded to one Machine triple | `action.CompositeSignatures`/`StampFor`, pure-Go (`pdfcpu`); triggered by `decideStep` once a Document reaches `approved`, writes `fld_signed_file`. Best-effort -- a compositing failure is logged, never undoes the decision |
 
 Every screen above composes in `internal/composition` and renders from `internal/web`: a handler
 resolves what the request carries, asks composition for the page's content, and renders it. The
@@ -107,10 +108,10 @@ of board columns/list items — all named with their own forcing condition in `R
 | `mch_label` | Label catalog | name, color | — |
 | `mch_task` | Case 19 groundwork | title, status, assignee, due date, priority, project, list, attachment | Board layout |
 | `mch_card_label` | Task↔Label join | task, label | — |
-| `mch_document` | Case 3 core | title, file, mode, status, due date | Aggregate status driven by its steps; `view.sla_field` |
-| `mch_approval_step` | Case 3 core | document, sequence, assignee, decision, signature page/x/y | `/decide` Action, sequencing enforced, `prm_decide_own_step` |
+| `mch_document` | Case 3 core | title, file, mode, status, due date, signed file | Aggregate status driven by its steps; `view.sla_field`; `fld_signed_file` written by Phase 17's compositing Action |
+| `mch_approval_step` | Case 3 core | document, sequence, assignee, decision, signature page/x/y/width | `/decide` Action, sequencing enforced, `prm_decide_own_step` |
 | `mch_activity` | Cross-case event log | machine id, record id, summary, actor | Written by `logActivity`, never by a user form |
-| `mch_signature` | Case 3 core | owner, image | Input to Phase 17's PDF-compositing Action, not yet built |
+| `mch_signature` | Case 3 core | owner, image | Input to Phase 17's PDF-compositing Action |
 
 ---
 

@@ -882,7 +882,7 @@ dropped afterward; no production data touched.
 
 ---
 
-## Phase 17 -- Case 3 signing: PDF signature compositing Action
+## Phase 17 -- Case 3 signing: PDF signature compositing Action (done, 2026-09-19)
 
 **Forcing condition:** Case 3's Approve step should produce a real signed PDF (CAP-F22 in
 `menata-runtime/benchmarks/024`) -- burning each approver's signature image onto the document at
@@ -924,20 +924,49 @@ resize handle; giving it one is this phase's own small follow-up, not a reason t
 decision nobody verified that approver actually made. `prm_decide_own_step` closes that; this
 phase is no longer blocked.
 
-- [ ] `fld_signature_width` (percentage, `number` Field) added to `approval_step.yaml`; Step 4's
-      placement screen gains a resize control so a person can set it, not only reposition the
-      marker
-- [ ] Add a pure-Go PDF dependency; a `CompositeSignatures` function taking the Document's file +
-      each approved step's signature image + page/x/y/width, returning a new file
-- [ ] Wire it into the existing `/decide` handler: once `DocumentStatus` reaches `approved`,
-      write the composited result to a new `fld_signed_file` Field, mirroring `logActivity`'s own
-      "one triggering write, one side effect" shape from Phase 13
-- [ ] Smoke-test against a real PDF + real coordinates on a scratch server before touching
-      production data, per this repo's own established practice
+- [x] `fld_signature_width` (percentage, `number` Field) added to `approval_step.yaml`; Step 4's
+      placement screen (`widthControl`, `internal/rendering/signatureplacement.templ`) gains a
+      number-input resize control, defaulting to 20% for a never-placed step, submitted on
+      `change` to the same generic PUT route
+- [x] `github.com/pdfcpu/pdfcpu` added; `action.CompositeSignatures` (`internal/action/composite.go`)
+      takes the Document's PDF bytes + a `[]Stamp` (page/x/y/width/image) and returns the
+      composited PDF. Pure over bytes, no I/O -- same posture as `CanDecide`/`DocumentStatus`.
+      `action.StampFor` builds one approved step's `Stamp` from its own already-fetched Values, or
+      `ok=false` if the step has no placement or the person has no signature on file -- both
+      silently skippable, not an error, since this composites whatever is ready rather than
+      blocking a real Approve on a placement someone forgot to make
+- [x] The exact `pdfcpu` watermark parameters (`position:bl`, `offset:<pt> <pt>`,
+      `scalefactor:<f> abs`, `rotation:0`) were **verified empirically, not from documentation
+      alone** -- pdfcpu's own docs don't spell out the image-pixel-to-point convention its
+      absolute scale mode uses. Method: composite a known image at a known percentage onto a real
+      PDF, render the result back with Step 3's `internal/pdf`, and measure the rendered stamp's
+      actual bounding box. First attempt rendered at the correct position and size but on a
+      diagonal (`rotation:0` isn't the implicit default); the corrected formula measured within
+      0.1 percentage points of every target across width, height, and both center coordinates.
+      That exact check is now `TestCompositeSignatures_placesStampAtExpectedPositionAndSize`
+      (`internal/action/composite_test.go`) -- a real regression test, not a one-off
+- [x] Wired into `internal/web/approval.go`'s `decideStep`, via a new `signDocument`
+      (`internal/web/signing.go`): once `recomputeDocumentStatus` drives the Document to
+      `DocumentStatusApproved`, it gathers every approved step's `Stamp` (resolving each step's
+      own signature by `fld_assignee` against Phase 15 Step 5's `mch_signature.fld_owner`),
+      composites, and saves the result to `document.yaml`'s new `fld_signed_file` Field --
+      mirroring `logActivity`'s own "one triggering write, one side effect" shape from Phase 13,
+      and best-effort for the same reason: a compositing failure must not undo a decision that
+      already succeeded, only get logged. `decideStep` itself gained one `if` and one call,
+      staying at 53 of Phase 19's 70-line handler budget
+- [x] Verified end-to-end on a temporary second server instance against the real Postgres
+      database (the live process on :4000 left untouched, `ADMIN_USER_ID` overridden to a real
+      `mch_user` so the scratch session's identity could actually pass Phase 16's own assignee
+      check): a real signature-scribble PNG uploaded as a Signature, placed at 25%/80%/35% width
+      on a real PDF, approved via `/decide` -- `fld_status` became `approved` and
+      `fld_signed_file` was populated with a real composited PDF, downloaded and rendered back to
+      confirm the signature actually appears bottom-left, correctly sized, transparency intact.
+      Scratch records (Signature, Document, Approval Step, 2 Activity entries) and every scratch
+      upload deleted afterward; record counts verified unchanged
 
-**Exit criterion:** approving a fully-decided Document produces a real downloadable PDF with
-every approver's signature image -- whether originally uploaded or manually signed -- burned in
-at its declared position and size.
+**Exit criterion met (2026-09-19):** approving a fully-decided Document produces a real
+downloadable PDF with every approver's signature image -- whether originally uploaded or manually
+signed -- burned in at its declared position and size.
 
 ---
 
