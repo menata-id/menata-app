@@ -17,7 +17,40 @@ var (
 	fieldIDPattern      = regexp.MustCompile(`^fld_[a-z][a-z0-9_]*$`)
 	constraintIDPattern = regexp.MustCompile(`^cst_[a-z][a-z0-9_]*$`)
 	permissionIDPattern = regexp.MustCompile(`^prm_[a-z][a-z0-9_]*$`)
+	navItemIDPattern    = regexp.MustCompile(`^nav_[a-z][a-z0-9_]*$`)
 )
+
+// validateNavigation checks the Application's own navigation: list (ROADMAP.md's "Navigation is
+// code, not metadata" gap, closed by making the topbar a projection of this list). Unlike a
+// Machine's own declarations, a nav item's Route can't be cross-checked against anything else in
+// metadata -- most real routes are bespoke internal/web handlers, not generated from a Machine --
+// so this validates shape only: identity, that a route is named, and that Badge (if present) is
+// one the runtime actually realizes.
+func validateNavigation(items []domain.NavigationItem) []string {
+	var issues []string
+	seen := make(map[string]bool, len(items))
+	for _, n := range items {
+		if !navItemIDPattern.MatchString(n.ID) {
+			issues = append(issues, fmt.Sprintf("navigation item id %q must match %s", n.ID, navItemIDPattern.String()))
+			continue
+		}
+		if seen[n.ID] {
+			issues = append(issues, fmt.Sprintf("navigation item id %q is declared more than once", n.ID))
+		}
+		seen[n.ID] = true
+
+		if n.Label == "" {
+			issues = append(issues, fmt.Sprintf("navigation item %q: label is required", n.ID))
+		}
+		if !strings.HasPrefix(n.Route, "/") {
+			issues = append(issues, fmt.Sprintf("navigation item %q: route %q must start with \"/\"", n.ID, n.Route))
+		}
+		if n.Badge != "" && !domain.KnownNavigationBadges[n.Badge] {
+			issues = append(issues, fmt.Sprintf("navigation item %q: unknown badge %q", n.ID, n.Badge))
+		}
+	}
+	return issues
+}
 
 // ValidationError aggregates every problem found in one metadata document, per 005-runtime-
 // lifecycle.md Phase 3: invalid metadata must not enter executable planning, and a metadata

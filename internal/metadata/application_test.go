@@ -322,3 +322,128 @@ application:
 		t.Fatal("LoadApplication() error = nil, want error: fld_status on mch_task is not a relation field pointing back to mch_project")
 	}
 }
+
+func TestLoadApplication_navigation(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+  navigation:
+    - id: nav_home
+      label: Home
+      route: /home
+    - id: nav_inbox
+      label: Approval Inbox
+      route: /approval-inbox
+      group: Document Approval
+      priority: 1
+      badge: approval_inbox_pending
+`)
+
+	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	if len(app.Application.Navigation) != 2 {
+		t.Fatalf("Navigation = %+v, want 2 items", app.Application.Navigation)
+	}
+	inbox := app.Application.Navigation[1]
+	if inbox.Group != "Document Approval" || inbox.Badge != "approval_inbox_pending" {
+		t.Errorf("Navigation[1] = %+v, want Group=Document Approval Badge=approval_inbox_pending", inbox)
+	}
+}
+
+func TestLoadApplication_navigationBadRouteRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+  navigation:
+    - id: nav_home
+      label: Home
+      route: home
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: route must start with \"/\"")
+	}
+}
+
+func TestLoadApplication_navigationUnknownBadgeRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+  navigation:
+    - id: nav_home
+      label: Home
+      route: /home
+      badge: made_up_badge
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: unknown badge")
+	}
+}
+
+func TestLoadApplication_navigationDuplicateIDRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+  navigation:
+    - id: nav_home
+      label: Home
+      route: /home
+    - id: nav_home
+      label: Home Again
+      route: /home2
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: duplicate navigation item id")
+	}
+}

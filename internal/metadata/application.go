@@ -29,10 +29,20 @@ type appDoc struct {
 		Name string `yaml:"name"`
 	} `yaml:"workspace"`
 	Application struct {
-		ID       string   `yaml:"id"`
-		Name     string   `yaml:"name"`
-		Machines []string `yaml:"machines"`
+		ID         string       `yaml:"id"`
+		Name       string       `yaml:"name"`
+		Machines   []string     `yaml:"machines"`
+		Navigation []navItemDoc `yaml:"navigation"`
 	} `yaml:"application"`
+}
+
+type navItemDoc struct {
+	ID       string `yaml:"id"`
+	Label    string `yaml:"label"`
+	Route    string `yaml:"route"`
+	Group    string `yaml:"group"`
+	Priority int    `yaml:"priority"`
+	Badge    string `yaml:"badge"`
 }
 
 // LoadApplication reads an Application manifest and every Machine file it references (paths
@@ -63,10 +73,25 @@ func LoadApplication(path string) (*App, error) {
 		return nil, &ValidationError{Issues: issues}
 	}
 
+	var navigation []domain.NavigationItem
+	for _, n := range doc.Application.Navigation {
+		navigation = append(navigation, domain.NavigationItem{
+			ID:       n.ID,
+			Label:    n.Label,
+			Route:    n.Route,
+			Group:    n.Group,
+			Priority: n.Priority,
+			Badge:    n.Badge,
+		})
+	}
+	if navIssues := validateNavigation(navigation); len(navIssues) > 0 {
+		return nil, &ValidationError{Issues: navIssues}
+	}
+
 	dir := filepath.Dir(path)
 	app := &App{
 		Workspace:   domain.Workspace{ID: doc.Workspace.ID, Name: doc.Workspace.Name},
-		Application: domain.Application{ID: doc.Application.ID, Name: doc.Application.Name, WorkspaceID: doc.Workspace.ID},
+		Application: domain.Application{ID: doc.Application.ID, Name: doc.Application.Name, WorkspaceID: doc.Workspace.ID, Navigation: navigation},
 	}
 	for _, rel := range doc.Application.Machines {
 		m, err := Load(filepath.Join(dir, rel))

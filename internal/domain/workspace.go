@@ -14,4 +14,8 @@ type Application struct {
 	ID          string
 	Name        string
 	WorkspaceID string
+	// Navigation is this Application's own declared menu (004 §Navigation Metadata, 006
+	// §Navigation), replacing a hand-written topbar with a projection of metadata -- ROADMAP.md's
+	// long-tracked "Navigation is code, not metadata" conformance gap.
+	Navigation []NavigationItem
 }

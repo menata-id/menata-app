@@ -10,9 +10,39 @@ import (
 	"menata.app/internal/storage"
 )
 
+// navigation is the Application's own declared menu (004 §Navigation Metadata, 006 §Navigation),
+// set once at startup by ConfigureNavigation. It is boot-time-static -- identical on every
+// request for the process's whole lifetime -- so it is package state rather than a parameter
+// threaded through pageShell's ~20 callers, the same posture ROADMAP.md Phase 21 round 2 Step J
+// already chose for the pending-approval badge (a client-side mechanism instead of a new
+// parameter everywhere). Unlike that badge this never varies per request, so there is no
+// request-scoping risk in holding it here.
+var navigation []domain.NavigationItem
+
+// ConfigureNavigation sets the Application's own menu. Called exactly once, in
+// cmd/server/main.go, immediately after metadata.LoadApplication and before the server starts
+// serving -- not safe to call concurrently with a request in flight.
+func ConfigureNavigation(items []domain.NavigationItem) {
+	navigation = items
+}
+
+// navLink renders one NavigationItem as a topbar link, including its live badge if it declares
+// one -- currently only the pending-approval count (the only entry in KnownNavigationBadges).
+templ navLink(item domain.NavigationItem) {
+	<a href={ templ.SafeURL(item.Route) }>
+		{ item.Label }
+		if item.Badge == domain.NavBadgeApprovalInboxPending {
+			<span id="pending-badge" class="nav-badge" hx-get="/api/approval-inbox/pending-count" hx-trigger="load" hx-swap="innerHTML"></span>
+		}
+	</a>
+}
+
 // pageShell is the shared HTML document, styles, and topbar every page uses. It exists so
 // generalizing from one Machine to several (ROADMAP.md Phase 3) doesn't duplicate boilerplate
-// per page.
+// per page. The topbar itself is a projection of the Application's own navigation: metadata
+// (navSections/navLink above), not hand-written links -- closing ROADMAP.md's long-tracked
+// "Navigation is code, not metadata" conformance gap (004 §Navigation Metadata, 006 §Navigation,
+// 001 Principle #3 Metadata First).
 templ pageShell(title string, appName string) {
 	<!DOCTYPE html>
 	<html lang="en">
@@ -24,14 +54,22 @@ templ pageShell(title string, appName string) {
 			<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
 			<style>
 				body { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
-				header.topbar { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e5e5; }
-				header.topbar .left { display: flex; align-items: center; gap: 1rem; }
+				header.topbar { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e5e5; }
+				header.topbar .left { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
 				header.topbar span { color: #666; font-size: 0.85rem; }
 				header.topbar a { color: #3949ab; font-size: 0.85rem; text-decoration: none; }
 				header.topbar a[aria-current="page"] { font-weight: 600; text-decoration: underline; }
 				.nav-badge:empty { display: none; }
 				.nav-badge { display: inline-block; margin-left: 0.3rem; padding: 0 0.4rem; border-radius: 999px; background: #b00020; color: #fff; font-size: 0.7rem; line-height: 1.4; }
 				header.topbar button { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; }
+				.nav-group { display: flex; align-items: center; gap: 0.85rem; }
+				.nav-group-label { color: #999; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+				details.nav-group { position: relative; display: block; }
+				details.nav-group summary { list-style: none; cursor: pointer; color: #444; font-size: 0.85rem; }
+				details.nav-group summary::-webkit-details-marker { display: none; }
+				details.nav-group summary::after { content: " \25be"; color: #999; font-size: 0.7rem; }
+				details.nav-group[open] summary::after { content: " \25b4"; }
+				details.nav-group .nav-group-items { position: absolute; top: 100%; left: 0; margin-top: 0.5rem; background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 0.6rem 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 0.6rem; min-width: 11rem; z-index: 20; }
 				h1 { margin-bottom: 0.25rem; }
 				code { color: #666; font-size: 0.9rem; }
 				table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
@@ -110,22 +148,32 @@ templ pageShell(title string, appName string) {
 			</style>
 		</head>
 		<body>
+			{{ ungrouped, primary, rest := navSections(navigation) }}
 			<header class="topbar">
-				<span class="left">
-					<a href="/home">Home</a>
-					<a href="/">Machines</a>
-					<a href="/dashboard">Dashboard</a>
-					<a href="/approval-inbox">Approval Inbox<span id="pending-badge" class="nav-badge" hx-get="/api/approval-inbox/pending-count" hx-trigger="load" hx-swap="innerHTML"></span></a>
-					<a href="/my-tasks">My Tasks</a>
-					<a href="/activity">Activity</a>
-					<a href="/team-capacity">Team Capacity</a>
-					<a href="/automation">Automation</a>
-					<a href="/calendar">Calendar</a>
-					<a href="/sprint">Sprint Dashboard</a>
-					<a href="/board-settings">Board Settings</a>
-					<a href="/workspace-members">Workspace Members</a>
+				<nav class="left" aria-label="Primary">
+					for _, item := range ungrouped {
+						@navLink(item)
+					}
+					if primary.Label != "" {
+						<span class="nav-group">
+							<span class="nav-group-label">{ primary.Label }</span>
+							for _, item := range primary.Items {
+								@navLink(item)
+							}
+						</span>
+					}
+					for _, group := range rest {
+						<details class="nav-group">
+							<summary>{ group.Label }</summary>
+							<span class="nav-group-items">
+								for _, item := range group.Items {
+									@navLink(item)
+								}
+							</span>
+						</details>
+					}
 					<span>{ appName }</span>
-				</span>
+				</nav>
 				<form method="POST" action="/logout">
 					<button type="submit">Log out</button>
 				</form>
@@ -134,7 +182,9 @@ templ pageShell(title string, appName string) {
 			<script>
 				// Marks the topbar link matching the current page aria-current="page" (ROADMAP.md
 				// Phase 21 round 2, Step J) -- purely client-side so pageShell needs no new parameter
-				// threaded through every one of its ~20 callers.
+				// threaded through every one of its ~20 callers. Extended (Phase 21 nav grouping) to
+				// also open the <details> group containing the active link, so a page inside a
+				// collapsed group (Project Management, Workspace) doesn't look like it belongs nowhere.
 				(function () {
 					var path = location.pathname;
 					var links = document.querySelectorAll("header.topbar .left a");
@@ -142,6 +192,8 @@ templ pageShell(title string, appName string) {
 						var href = links[i].getAttribute("href");
 						if (href === path || (href !== "/" && path.indexOf(href) === 0)) {
 							links[i].setAttribute("aria-current", "page");
+							var details = links[i].closest("details.nav-group");
+							if (details) { details.setAttribute("open", ""); }
 						}
 					}
 				})();

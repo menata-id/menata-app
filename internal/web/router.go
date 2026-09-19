@@ -10,6 +10,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/mail"
+	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
 
@@ -28,6 +29,13 @@ type Deps struct {
 	Mailer  mail.Mailer
 	Cfg     config.Config
 	AppName string
+
+	// Navigation is the Application's own declared menu (004 §Navigation Metadata, 006
+	// §Navigation) -- Routes hands it to internal/rendering once, at startup, rather than
+	// threading it through every handler and Page function the way AppName would otherwise need
+	// to be (ROADMAP.md Phase 21 round 2 Step J already chose the equivalent trade-off for the
+	// pending-approval badge).
+	Navigation []domain.NavigationItem
 
 	// DefaultWorkspaceID is this manifest's own declared Workspace (metadata/app.yaml) --
 	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
@@ -61,6 +69,8 @@ const (
 )
 
 func Routes(d Deps) http.Handler {
+	rendering.ConfigureNavigation(d.Navigation)
+
 	r := chi.NewRouter()
 	loginLimiter := newLoginRateLimiter(loginAttemptLimit, loginAttemptWindow)
 	registrationLimiter := newLoginRateLimiter(registrationAttemptLimit, registrationAttemptWindow)
