@@ -23,12 +23,37 @@ var navigation []domain.NavigationItem
 // ConfigureNavigation -- see navSections for why this travels separately from navigation itself.
 var primaryNavGroup string
 
+// allNavigation is domain.Application.AllNavigation -- the full declared list, unaffected by
+// hidden_nav_groups -- set alongside navigation by ConfigureNavigation. routeByID reads this, not
+// navigation, so a contextual link to a hidden group's own item still resolves (see
+// domain.Application.AllNavigation's own doc comment for why).
+var allNavigation []domain.NavigationItem
+
 // ConfigureNavigation sets the Application's own menu. Called exactly once, in
 // cmd/server/main.go, immediately after metadata.LoadApplication and before the server starts
 // serving -- not safe to call concurrently with a request in flight.
-func ConfigureNavigation(items []domain.NavigationItem, primaryGroup string) {
+func ConfigureNavigation(items []domain.NavigationItem, primaryGroup string, allItems []domain.NavigationItem) {
 	navigation = items
 	primaryNavGroup = primaryGroup
+	allNavigation = allItems
+}
+
+// routeByID looks up allNavigation for the item named id, returning its declared route -- how a
+// page links to one of this Application's own sibling screens (CLAUDE.md "Where a metadata-
+// derived value belongs"), instead of retyping the route as a literal (internal/conformance's
+// TestRenderingHasNoHardcodedApplicationRoute holds every .templ to this). Panics on an unknown
+// id: a typo here is a programmer error, and failing loudly the moment the page is first
+// rendered is far cheaper to find than a silently broken link -- the same posture
+// domain.KnownActions/KnownFieldTypes already take for an unrecognized declared value, just
+// caught at first render instead of at metadata load (id isn't validated at load time since it
+// names a *caller's own* expectation, not a shape metadata itself declares).
+func routeByID(id string) string {
+	for _, item := range allNavigation {
+		if item.ID == id {
+			return item.Route
+		}
+	}
+	panic("rendering: no navigation item with id " + id)
 }
 
 // navLink renders one NavigationItem as a topbar link, including its live badge if it declares

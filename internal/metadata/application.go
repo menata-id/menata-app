@@ -99,10 +99,11 @@ func LoadApplication(path string) (*App, error) {
 		return nil, &ValidationError{Issues: navIssues}
 	}
 
-	// primaryNavGroup and homeRoute are both decided from the full declared list, before
-	// hidden_nav_groups removes anything -- so hiding a group can never promote a different one
-	// into primaryNavGroup's "always open" role, nor silently blank out homeRoute because its
-	// item's own group got hidden (see domain.Application.PrimaryNavGroup/HomeRoute).
+	// primaryNavGroup, homeRoute and allNavigation are all decided from the full declared list,
+	// before hidden_nav_groups removes anything -- so hiding a group can never promote a
+	// different one into primaryNavGroup's "always open" role, silently blank out homeRoute, or
+	// (allNavigation) make a hidden item's own route unreachable by id for a contextual in-page
+	// link (see domain.Application.PrimaryNavGroup/HomeRoute/AllNavigation).
 	var primaryNavGroup string
 	for _, g := range experience.GroupNavigation(navigation) {
 		if g.Label != "" {
@@ -111,6 +112,7 @@ func LoadApplication(path string) (*App, error) {
 		}
 	}
 	homeRoute := domain.HomeCardRoute(navigation)
+	allNavigation := navigation
 
 	navigation, hiddenIssues := applyHiddenNavGroups(navigation, doc.Application.HiddenNavGroups)
 	if len(hiddenIssues) > 0 {
@@ -119,8 +121,11 @@ func LoadApplication(path string) (*App, error) {
 
 	dir := filepath.Dir(path)
 	app := &App{
-		Workspace:   domain.Workspace{ID: doc.Workspace.ID, Name: doc.Workspace.Name},
-		Application: domain.Application{ID: doc.Application.ID, Name: doc.Application.Name, WorkspaceID: doc.Workspace.ID, Navigation: navigation, PrimaryNavGroup: primaryNavGroup, HomeRoute: homeRoute},
+		Workspace: domain.Workspace{ID: doc.Workspace.ID, Name: doc.Workspace.Name},
+		Application: domain.Application{
+			ID: doc.Application.ID, Name: doc.Application.Name, WorkspaceID: doc.Workspace.ID,
+			Navigation: navigation, PrimaryNavGroup: primaryNavGroup, HomeRoute: homeRoute, AllNavigation: allNavigation,
+		},
 	}
 	for _, rel := range doc.Application.Machines {
 		m, err := Load(filepath.Join(dir, rel))

@@ -439,6 +439,22 @@ application:
 	if app.Application.HomeRoute != "/approval-inbox" {
 		t.Errorf("HomeRoute = %q, want /approval-inbox (frozen before hidden_nav_groups ran)", app.Application.HomeRoute)
 	}
+	// AllNavigation still has nav_inbox even though Navigation doesn't -- internal/rendering's
+	// routeByID needs the full list to resolve a contextual link to a hidden group's own item
+	// (approvalinbox.templ's own "+ New Approval" -> nav_new_approval is the real case this
+	// protects).
+	found := false
+	for _, n := range app.Application.AllNavigation {
+		if n.ID == "nav_inbox" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("AllNavigation = %+v, want it to still contain nav_inbox despite hidden_nav_groups", app.Application.AllNavigation)
+	}
+	if len(app.Application.AllNavigation) != 2 {
+		t.Errorf("AllNavigation = %+v, want 2 items (unfiltered)", app.Application.AllNavigation)
+	}
 }
 
 func TestLoadApplication_duplicateHomeCardRejected(t *testing.T) {

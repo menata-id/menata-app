@@ -45,6 +45,10 @@ type Deps struct {
 	// domain.Application): deriving it from Navigation here instead would silently blank it out
 	// whenever the HomeCard item's own group is hidden.
 	HomeRoute string
+	// AllNavigation is domain.Application.AllNavigation -- routeByID's own source
+	// (internal/rendering), for the same reason HomeRoute needs the pre-filter list: a
+	// contextual link to a hidden group's item must still resolve.
+	AllNavigation []domain.NavigationItem
 
 	// DefaultWorkspaceID is this manifest's own declared Workspace (metadata/app.yaml) --
 	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
@@ -78,7 +82,7 @@ const (
 )
 
 func Routes(d Deps) http.Handler {
-	rendering.ConfigureNavigation(d.Navigation, d.PrimaryNavGroup)
+	rendering.ConfigureNavigation(d.Navigation, d.PrimaryNavGroup, d.AllNavigation)
 
 	r := chi.NewRouter()
 	loginLimiter := newLoginRateLimiter(loginAttemptLimit, loginAttemptWindow)

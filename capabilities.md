@@ -220,8 +220,17 @@ Every route above is registered in `internal/web.Routes` and served by a handler
 
 Navigation itself **is** metadata, as of 2026-09-19: `app.yaml`'s own `navigation:` list drives
 `rendering.pageShell`'s topbar (`domain.NavigationItem`, `experience.GroupNavigation`,
-`rendering.navSections`) — adding or moving a link is a metadata edit, not a code edit. See the
-architectural limits below for what this doesn't cover (the cross-Application launcher).
+`rendering.navSections`) — adding or moving a link is a metadata edit, not a code edit. This
+extends to a page's own in-content links to its sibling screens, not just the topbar: any Machine-
+independent screen (Approval Inbox's "+ New Approval", the Document wizard's "← Approval Inbox",
+Sprint Dashboard's "Full team capacity →") looks its target up by navigation item id via
+`rendering.routeByID`, never a literal route string — `internal/conformance`'s
+`TestRenderingHasNoHardcodedApplicationRoute`/`TestHandlersHaveNoHardcodedApplicationRoute` hold
+every `.templ` and every `internal/web` handler (router.go's own registrations excepted) to that.
+`routeByID` reads `domain.Application.AllNavigation` (the full declared list, before
+`hidden_nav_groups` filtering) rather than the topbar's own filtered `Navigation`, so a link stays
+resolvable even for an item whose group is currently hidden from the topbar. See the architectural
+limits below for what this doesn't cover (the cross-Application launcher).
 
 ---
 
@@ -237,7 +246,7 @@ like any other — and the two that prevent regression are the ones most easily 
 | Handler size budget | Built | A measured per-handler line limit in `internal/conformance`, so a handler cannot quietly become a screen's worth of logic again |
 | Volume threshold harness | Built | `make threshold` (`internal/composition/threshold_test.go`) measures whole-Machine read cost at increasing record counts — the measured trigger for pagination/projection work |
 | Navigation route existence, cross-checked | Built (2026-09-19) | `internal/conformance.TestAppManifestLoads`/`TestNavigationRoutesAreRegistered`: `metadata/app.yaml` loads and validates (no database needed), and every declared `navigation:` route has a matching `internal/web/router.go` `GET` handler — a typo now fails `go test`/pre-commit, not silently at click time |
-| Workspace-level pages stay metadata-driven, not hand-typed | Built (2026-09-19) | `internal/conformance.TestWorkspaceLevelPagesHaveNoHardcodedApplicationRoute` / `...HandlersHaveNoHardcodedApplicationRoute`: any `.templ` composing `workspaceHomeShell` (found structurally, not by filename) and any `internal/web` handler calling it may only use Workspace/runtime-level literal routes — an Application-specific route must come from a `domain.Application` field (`HomeRoute`, `PrimaryNavGroup`, ...) threaded through `web.Deps`, checked at both the rendering and handler layer so the obligation can't just move down one level. CLAUDE.md's "Where a metadata-derived value belongs" is the convention this enforces |
+| Every page's links stay metadata-driven, not hand-typed | Built (2026-09-19) | `internal/conformance.TestRenderingHasNoHardcodedApplicationRoute` / `TestHandlersHaveNoHardcodedApplicationRoute`: no `internal/rendering/*.templ` file and no `internal/web/*.go` handler (router.go's own registrations excepted) may hardcode a literal equal to a declared `navigation:` route, unless it's one of the small set of runtime-level routes (`/home`, `/login`, ...) that exist regardless of which Application is configured. An Application's own route must come from `rendering.routeByID(id)` (reads `domain.Application.AllNavigation`) or an equivalent `domain.Application` field (`HomeRoute`, `PrimaryNavGroup`) threaded through `web.Deps`, checked at both the rendering and handler layer so the obligation can't just move down one level. CLAUDE.md's "Where a metadata-derived value belongs" is the convention this enforces |
 | `capabilities.md`'s own inventory tables stay honest | Built (2026-09-19) | `internal/conformance.TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl`: the "Machines currently defined" table is cross-checked against `metadata/*.yaml` (both directions — undocumented and stale entries both fail), and every "Shared rendering components" row names a real `templ` function in `internal/rendering/*.templ` |
 
 ---

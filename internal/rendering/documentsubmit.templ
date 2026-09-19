@@ -20,7 +20,7 @@ import (
 // read metadata/document.yaml's own options, so a metadata-only change never reached this screen.
 templ DocumentSubmitPage(users []*data.Record, appName string, documentType domain.Field) {
 	@pageShell("New Approval", appName) {
-		<p><a href="/approval-inbox">← Approval Inbox</a></p>
+		<p><a href={ templ.SafeURL(routeByID("nav_approval_inbox")) }>← Approval Inbox</a></p>
 		<h1>New Approval</h1>
 		<p class="step-status">Step 1 of 2 — Document &amp; Approvers</p>
 		<p class="step-status">Submit a document for approval.</p>

@@ -67,3 +67,35 @@ func TestNavSections_hiddenPrimaryGroupPromotesNothing(t *testing.T) {
 		t.Errorf("rest = %+v, want [Project Management] (collapsed, not primary)", rest)
 	}
 }
+
+// TestRouteByID_survivesHiddenNavGroup is routeByID's own version of
+// TestNavSections_hiddenPrimaryGroupPromotesNothing's regression: allNavigation must keep
+// resolving an item's route even after hidden_nav_groups has already dropped it from the
+// (filtered) navigation ConfigureNavigation's first argument carries -- the whole reason
+// AllNavigation exists as a field distinct from Navigation (domain.Application's own doc
+// comment).
+func TestRouteByID_survivesHiddenNavGroup(t *testing.T) {
+	all := []domain.NavigationItem{
+		{ID: "nav_home", Label: "Home", Route: "/home"},
+		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox", Group: "Document Approval"},
+	}
+	filtered := []domain.NavigationItem{all[0]} // Document Approval hidden from the topbar
+	t.Cleanup(func() { ConfigureNavigation(nil, "", nil) })
+	ConfigureNavigation(filtered, "", all)
+
+	if got := routeByID("nav_approval_inbox"); got != "/approval-inbox" {
+		t.Errorf("routeByID(nav_approval_inbox) after its group is hidden = %q, want /approval-inbox still resolvable", got)
+	}
+}
+
+func TestRouteByID_unknownIDPanics(t *testing.T) {
+	t.Cleanup(func() { ConfigureNavigation(nil, "", nil) })
+	ConfigureNavigation(nil, "", nil)
+
+	defer func() {
+		if recover() == nil {
+			t.Error("routeByID(unknown id) did not panic, want a loud failure on a programmer error, not a silently broken link")
+		}
+	}()
+	routeByID("nav_does_not_exist")
+}

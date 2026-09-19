@@ -64,6 +64,19 @@ looks like application behavior, check whether it's already a field there. If it
 metadata-driven but isn't yet, add the field there first (with a doc comment explaining where it
 comes from), wire it through the four steps above, and only then reference it downstream.
 
+**A page linking to one of its own sibling screens is the common case, and has a shortcut**: call
+`rendering.routeByID("nav_xxx")` (`internal/rendering/machine.templ`) instead of retyping the
+route. It looks the id up in `domain.Application.AllNavigation` -- the full declared navigation
+list, frozen before `hidden_nav_groups` filtering runs, the same "before filtering" reasoning
+`HomeRoute`/`PrimaryNavGroup` already follow, so a link to a hidden group's own item still
+resolves. This isn't limited to Workspace-level chrome: `approvalinbox.templ`'s "+ New Approval",
+`documentsubmit.templ`'s "← Approval Inbox" and `sprintdashboard.templ`'s "Full team capacity →"
+all use it -- an *Application's own* page linking to its *own* sibling screen still means the
+route comes from metadata, not from assuming "same Application, so hardcoding is fine." Checking
+the actual data proved that assumption wrong
+(`internal/conformance.TestRenderingHasNoHardcodedApplicationRoute` covers every `.templ` file for
+exactly this reason, not just Workspace-level ones).
+
 ## Design reference vs. current code
 
 `ui-sample/*.html` is the design target (`internal/web/router.go`'s own comment: "a design
@@ -97,10 +110,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 - `TestAppManifestLoads` — `metadata/app.yaml` parses and validates.
 - `TestNavigationRoutesAreRegistered` — every declared `navigation:` route has a real
   `internal/web/router.go` handler.
-- `TestWorkspaceLevelPagesHaveNoHardcodedApplicationRoute` /
-  `...HandlersHaveNoHardcodedApplicationRoute` — Workspace-level `.templ` pages and the `internal/
-  web` handlers that call them (found structurally, by what composes `workspaceHomeShell` /
-  what calls those page functions — not by filename) use no hardcoded Application route.
+- `TestRenderingHasNoHardcodedApplicationRoute` / `TestHandlersHaveNoHardcodedApplicationRoute` —
+  no `internal/rendering/*.templ` file and no `internal/web` handler (router.go excepted) may
+  hardcode a route metadata already declares, except the small set of runtime-level routes that
+  exist regardless of which Application is configured (`/home`, `/login`, ...). Use
+  `rendering.routeByID("nav_xxx")` to link to a sibling screen instead.
 - `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —
   `capabilities.md`'s own Machines and Shared rendering components tables match the real
   `metadata/*.yaml` and `internal/rendering/*.templ`.

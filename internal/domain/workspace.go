@@ -33,4 +33,12 @@ type Application struct {
 	// navigation item declares home_card: true -- WorkspaceHomePage's own caller
 	// (internal/web/workspacehome.go) falls back to "/home" in that case.
 	HomeRoute string
+	// AllNavigation is the full declared navigation list, before hidden_nav_groups filtering --
+	// unlike Navigation, hiding an item's group does not remove it here. It exists so a page can
+	// look up *any* declared item's route by id (internal/rendering's routeByID) when linking to
+	// one of this Application's own sibling screens, rather than hand-typing the route -- exactly
+	// the contextual-link case hidden_nav_groups' own doc comment names (a hidden group's routes
+	// "stay valid destinations, reachable by contextual in-page links"): those links must still
+	// resolve the real route even though the item itself no longer appears in Navigation.
+	AllNavigation []NavigationItem
 }

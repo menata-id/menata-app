@@ -52,7 +52,7 @@ templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, atte
 				}
 			</ul>
 		}
-		<p><a href="/team-capacity">Full team capacity →</a></p>
+		<p><a href={ templ.SafeURL(routeByID("nav_team_capacity")) }>Full team capacity →</a></p>
 
 		<h2>Attention Needed</h2>
 		if len(attention) == 0 {
