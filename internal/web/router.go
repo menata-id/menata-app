@@ -107,6 +107,9 @@ func Routes(d Deps) http.Handler {
 	r.Get("/manifest.json", serveManifest)
 	r.Get("/sw.js", serveServiceWorker)
 	r.Handle("/icons/*", http.StripPrefix("/icons/", http.FileServer(http.Dir("static/icons"))))
+	// Vendored htmx/hyperscript (pageHead's own doc comment) -- self-hosted rather than loaded
+	// from unpkg.com so a CDN outage or block can't silently take down every hx-* interaction.
+	r.Handle("/vendor/*", http.StripPrefix("/vendor/", http.FileServer(http.Dir("static/vendor"))))
 	r.Get("/login", showLogin)
 	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))
 	r.Get("/register", showRegistration)

@@ -73,6 +73,14 @@ templ navLink(item domain.NavigationItem) {
 // pageHead is the <head> every page shares -- title, PWA manifest/icons, htmx/hyperscript, and
 // the site's one stylesheet (pageStyles). Split out of pageShell so workspaceHomeShell (a
 // different <body>/topbar for Workspace-level screens) doesn't duplicate it.
+//
+// htmx/hyperscript are vendored into static/vendor (router.go's own "/vendor/*" FileServer,
+// pinned at the same htmx.org@2.0.4/hyperscript.org@0.9.93 this app has always run) rather than
+// loaded from unpkg.com -- found 2026-09-19 while debugging a live report of a signature-placement
+// form silently falling back to a native (non-HTMX) GET submit: every hx-* interaction on a page
+// depends on this script actually loading, and a CDN outage/block (an ad-blocker, a restrictive
+// network) took all of it down at once with no visible error. Self-hosting removes that failure
+// mode entirely; secureHeaders' CSP script-src no longer needs https://unpkg.com either.
 templ pageHead(title string) {
 	<head>
 		<meta charset="UTF-8"/>
@@ -82,8 +90,8 @@ templ pageHead(title string) {
 		<link rel="icon" href="/icons/favicon-32.png"/>
 		<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
 		<meta name="theme-color" content="#2563EB"/>
-		<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
-		<script src="https://unpkg.com/hyperscript.org@0.9.93" defer></script>
+		<script src="/vendor/htmx.min.js" defer></script>
+		<script src="/vendor/hyperscript.min.js" defer></script>
 		@pageStyles()
 	</head>
 }

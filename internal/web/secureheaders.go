@@ -9,13 +9,17 @@ import "net/http"
 // including to /uploads/*.
 //
 // script-src/style-src need 'unsafe-inline' (machine.templ's own inline <script>/<style> blocks,
-// used across most pages) and https://unpkg.com (htmx/hyperscript, machine.templ's own CDN
-// includes) -- this means CSP's script-src is not the thing that stops an uploaded HTML/SVG
-// payload's own inline script from running if it were ever served as text/html; that protection
-// comes from record.go's upload-time content validation and serveUpload's forced attachment
-// disposition (H2's other two layers), not from this header. CSP still earns its place here for
-// frame-ancestors (clickjacking, alongside X-Frame-Options for older browsers) and object-src
-// (blocks plugin-based content embedding) regardless.
+// used across most pages) -- this means CSP's script-src is not the thing that stops an uploaded
+// HTML/SVG payload's own inline script from running if it were ever served as text/html; that
+// protection comes from record.go's upload-time content validation and serveUpload's forced
+// attachment disposition (H2's other two layers), not from this header. CSP still earns its place
+// here for frame-ancestors (clickjacking, alongside X-Frame-Options for older browsers) and
+// object-src (blocks plugin-based content embedding) regardless.
+//
+// script-src no longer needs https://unpkg.com (2026-09-19): htmx/hyperscript are vendored under
+// static/vendor and served same-origin (pageHead's own doc comment) rather than loaded from that
+// CDN, closing the failure mode where a CDN outage or client-side block silently took down every
+// hx-* interaction on every page at once.
 func secureHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -24,7 +28,7 @@ func secureHeaders(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Content-Security-Policy",
 			"default-src 'self'; "+
-				"script-src 'self' 'unsafe-inline' https://unpkg.com; "+
+				"script-src 'self' 'unsafe-inline'; "+
 				"style-src 'self' 'unsafe-inline'; "+
 				"img-src 'self'; "+
 				"object-src 'none'; "+
