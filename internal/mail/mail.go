@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"net/smtp"
+	"strings"
 
 	"menata.app/internal/config"
 )
@@ -47,7 +48,34 @@ type SMTPMailer struct {
 	Host, Port, Username, Password, From string
 }
 
+// validateNoCRLF rejects a value that could inject an extra header line into the raw RFC 5322
+// message this package builds by hand (CWE-93, email/header injection -- a CodeQL go/email-
+// injection finding caught this after the 2026-09-19 security audit's own "mail header injection
+// diblokir oleh validasi net/smtp stdlib" claim turned out to only be true for the SendMail path
+// below, not sendImplicitTLS, which calls client.Mail/client.Rcpt directly with no validation of
+// its own). Checked here, once, for to/subject/from before msg is built or either path is chosen,
+// rather than in each path separately or upstream at the form-input boundary (email/subject can
+// originate from user-submitted registration/invite forms, which normalizeEmail's own
+// TrimSpace+ToLower does not reject CR/LF in the middle of) -- this is the one place every send
+// actually reaches the wire, so it's the correct enforcement point regardless of transport.
+func validateNoCRLF(value, field string) error {
+	if strings.ContainsAny(value, "\r\n") {
+		return fmt.Errorf("mail %s must not contain a line break", field)
+	}
+	return nil
+}
+
 func (m SMTPMailer) Send(_ context.Context, to, subject, body string) error {
+	if err := validateNoCRLF(to, "to"); err != nil {
+		return err
+	}
+	if err := validateNoCRLF(subject, "subject"); err != nil {
+		return err
+	}
+	if err := validateNoCRLF(m.From, "from"); err != nil {
+		return err
+	}
+
 	addr := m.Host + ":" + m.Port
 	auth := smtp.PlainAuth("", m.Username, m.Password, m.Host)
 	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s",

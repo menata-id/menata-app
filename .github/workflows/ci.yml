@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# None of these jobs write to the repo, a PR, or a status check beyond what actions/checkout
+# itself needs -- least-privilege default the GITHUB_TOKEN gets otherwise (CodeQL
+# actions/missing-workflow-permissions, security audit follow-up, 2026-09-19).
+permissions:
+  contents: read
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
