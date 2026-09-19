@@ -1158,6 +1158,29 @@ phase they don't belong to:
       round 2, Step A). `handleFileUploads` now tolerates `http.ErrNotMultipart` the same as
       `http.ErrMissingFile`: a non-multipart body has no file for any field, not just the one
       `FormFile` call happened to hit first.
+- [x] Delete guard on a decided Approval Step / an in-flight Document -- closed 2026-09-19, found by
+      a component-level UX review of Case 3's real screens (Nielsen's heuristics, grounded in the
+      actual `.templ` markup): the generic delete route let any authenticated identity delete an
+      already-decided Approval Step or an approved Document, erasing the exact audit trail Phase
+      16/17 exist to protect. `action.CanDeleteApprovalStep`/`CanDeleteDocument` (pure, unit-tested,
+      same posture as `CanDecide`/`CompositeSignatures` -- hardcoded to this one Machine pair, not a
+      generic Machine-level permission engine, per this roadmap's own Method) block a decided
+      step's own delete and a Document's delete once it is `approved` or any of its own steps is
+      decided; `deleteRecord`/`deleteRecordAPI` enforce it (`422`), `detail.templ`'s generic Delete
+      button reflects the same answer using data the page already has (a Document's own Approval
+      Steps are already a fetched child collection, Phase 9 -- no new query). Verified end-to-end
+      on a temporary second server instance against the real Postgres database, live process left
+      untouched: deleting the real "Vendor Contract 2026" demo's own decided step and its parent
+      Document both correctly `422` and survive; a fresh in_review Document with no decisions
+      deletes normally, matching prior behavior. The broader "any Machine, any CRUD action"
+      permission gap stays open, named in `capabilities.md`'s Authorization table, not overstated as
+      closed by this one narrow fix.
+- [x] Raw signature-placement fields (`fld_signature_page/x/y/width`) shown as bare numbers in an
+      Approval Step's generic detail view -- closed 2026-09-19, same review as above.
+      `approvalStepper` and `signatureConfirmation` already present this information in
+      human-readable form elsewhere on the same page; `RecordDetailView` now skips these four
+      Fields for `mch_approval_step` specifically (`hiddenDetailField`), not a generic
+      "hide this field" metadata mechanism -- no second case has asked for one yet.
 
 ---
 
@@ -1222,15 +1245,34 @@ deferred with the rest.
   orphans that field's data inside every record's JSONB -- no warning, no migration decision, no
   rollback path. Business data survives by accident (JSONB keeps what it was given), not by
   design. Forcing condition: the first real destructive metadata change on data that matters.
-- **Tracked: Navigation is code, not metadata.** 004 §Navigation Metadata and 006 §Navigation both
-  name Navigation as an Experience-plane metadata concept. `rendering.pageShell` hardcodes a flat
-  ten-link topbar, so every new page needs a `machine.templ` edit -- the one place where adding an
-  application surface still requires a code change, against 001 Principle #3 (Metadata First).
-  Related and also untracked until now: `ui-sample/README.md`'s own "Menu Navigasi (ini belum
-  dibuat)" names a two-level navigation this app has never had -- a cross-application launcher and
-  a per-application menu (desktop top bar / mobile bottom bar). Forcing condition: a second
-  Application in the manifest, or the mobile bottom-bar layout Case 3's own mockups
-  (`document-approval.html`) already assume.
+- **The per-Application menu half closed 2026-09-19, owner-prompted.** This entry originally
+  argued the trigger (a second Application in the manifest) wasn't constructible yet, so hardcoding
+  a bigger, better-organized topbar (grouped by case, collapsible) was the honest minimum. The
+  owner pushed back on that same day: 001 Principle #3 ("application evolution should primarily
+  occur by changing Runtime Metadata rather than application source code") doesn't wait for a
+  second Application to apply to a *single* Application's own menu, and Phase 21's own research
+  note had already proven the shape low-risk. Real usage friction (a flat 11-link topbar mixing
+  Case 3 and Case 19) was treated as the forcing signal instead of waiting for the originally-named
+  trigger, per the Method's own 2026-09-18 correction ("manufacture the condition while it's cheap,
+  don't wait for one that can't arrive on its own"). Built: `application.yaml`'s own `navigation:`
+  list (`domain.NavigationItem`, `metadata.validateNavigation` -- shape-only, since most routes
+  are bespoke `internal/web` handlers with nothing in metadata to cross-check a route against);
+  `experience.GroupNavigation` (pure ordering/bucketing, unit-tested, mirrors `GroupRecords`'
+  own shape) and `rendering.navSections` (the presentation split: ungrouped items flat, the first
+  named group inline-labeled, every later group collapsed -- unit-tested, `internal/rendering`'s
+  first test file). `pageShell` now projects this list instead of hand-written `<a>` tags.
+  Threading `Navigation` into `internal/rendering` runs through `web.Deps`/`web.Routes`, not
+  `cmd/server` directly -- `cmd/server` is forbidden from importing `internal/rendering` (Phase 19's
+  own boundary rule), caught by `go build` on the first attempt. Verified end-to-end on a temporary
+  second server instance against the real Postgres database (the live process on :4000 left
+  untouched): metadata loads and validates at startup, all 12 authenticated routes render `200`,
+  and the topbar's rendered HTML matches the grouped structure declared in `app.yaml`.
+  **Still open, deliberately:** the cross-Application launcher half (`ui-sample/README.md`'s "Menu
+  Navigasi (ini belum dibuat)", `navigation.html`'s 9-dot switcher) genuinely does need a second
+  Application to launch between -- that trigger is still not constructible today without Case 19
+  becoming a real second Application (Phase 21 Step 5), so it stays deferred, not built
+  speculatively for one Application. Route existence is not validated against anything (named
+  above as a real limit, not an oversight); the mobile bottom-bar layout is untouched.
 - **Tracked: security scope is applied after retrieval, not inside the plan.** 005 §Security
   Ordering and 007 §20 are explicit that the runtime must establish workspace, user, record scope
   and action authorization *before* retrieval and optimization, and 007 §20 names the exact

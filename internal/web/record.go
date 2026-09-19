@@ -297,7 +297,15 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 		if !ok {
 			return
 		}
-		if err := store.DeleteRecord(req.Context(), machine.ID, chi.URLParam(req, "id")); err != nil {
+		id := chi.URLParam(req, "id")
+		if allowed, reason, err := deleteAllowed(req.Context(), store, machine.ID, id); err != nil {
+			serverError(w, err)
+			return
+		} else if !allowed {
+			http.Error(w, reason, http.StatusUnprocessableEntity)
+			return
+		}
+		if err := store.DeleteRecord(req.Context(), machine.ID, id); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -308,6 +316,37 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 			return
 		}
 		// Empty response: HTMX swaps the row's outerHTML with nothing, removing it.
+	}
+}
+
+// deleteAllowed guards the generic delete route for the two Machines whose records are an audit
+// trail Phase 16/17 exist to protect (action.CanDeleteApprovalStep/CanDeleteDocument) -- every
+// other Machine is unrestricted, same as the generic route always was. This is the same narrow,
+// hardcoded-to-Case-3 posture as action.CanDecide/CompositeSignatures, not a generic Machine-level
+// permission engine (ROADMAP.md's own Method: generalize on a second real case, never the first).
+func deleteAllowed(ctx context.Context, store *data.Store, machineID, id string) (ok bool, reason string, err error) {
+	switch machineID {
+	case action.StepMachineID:
+		step, err := store.GetRecord(ctx, machineID, id)
+		if err != nil {
+			return false, "", err
+		}
+		ok, reason := action.CanDeleteApprovalStep(step.Values)
+		return ok, reason, nil
+	case action.DocumentMachineID:
+		doc, err := store.GetRecord(ctx, machineID, id)
+		if err != nil {
+			return false, "", err
+		}
+		steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, id)
+		if err != nil {
+			return false, "", err
+		}
+		status, _ := doc.Values[action.FieldDocumentStatus].(string)
+		ok, reason := action.CanDeleteDocument(status, steps)
+		return ok, reason, nil
+	default:
+		return true, "", nil
 	}
 }
 

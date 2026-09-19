@@ -102,7 +102,7 @@ assume, which this table is the real counterpart to.
 | `recordSummaryCard` / `summaryCardList` | A record as a card face rather than a table row | `machine.templ`; Approval Inbox's worklist and My Documents |
 | `filterChip` | A query-param filter chip with its own count (no JS) | `approvalinbox.templ` |
 | `approvalStepper` | A Document's own steps as done / current / waiting | `approvalstepper.templ` |
-| `pageShell` | The page frame and the hardcoded topbar — now with a live pending-approval-count badge and `aria-current="page"` (round 2 Step J); see the navigation limit below for what's still hardcoded | `machine.templ` |
+| `pageShell` | The page frame and the topbar — a projection of `app.yaml`'s own `navigation:` list (2026-09-19), grouped and collapsible, with a live pending-approval-count badge and `aria-current="page"` (round 2 Step J); see the navigation limit below for what's still out of scope | `machine.templ` |
 | `pdfThumbnail` | A Document's own PDF, page 1, as a small linked preview image | `detail.templ`; the Document detail page (reuses Phase 15 Step 3's `.../pdf-preview` route, no new route) |
 | `signatureConfirmation` | Echoes a pending Approval Step's own placement back to its assignee before they decide, or prompts them to place one | `detail.templ`; `decideButtons`, from the step record already fetched for that page -- no extra query |
 
@@ -127,7 +127,7 @@ to Phase 14. The full list of what the `ui-sample/` mockups show and this app do
 | Workspace membership + invite, gated to Workspace admins | Built | `GET /workspace-members`, `POST /workspace-members/invite`, `GET`/`POST /workspace-members/{id}/edit` — `requireWorkspaceAdmin`, Phase 21 Step 6 |
 | Record-scoped Action permission (declared) | Built (one shape) | `permissions:` on a Machine — `action:` + `actor_field:`, the acting identity must be that Field's value on the record being acted upon. `domain.Permission`, `authorization.AllowsAction`, enforced by `decideStep` (`403`) before any other work |
 | `POST .../decide` assignee check | Built | `mch_approval_step`'s `prm_decide_own_step`; independent of, and evaluated before, Phase 12's sequencing rule (`CanDecide`, `422`) |
-| Machine-level / CRUD permission | Not built | The generic create/update/delete routes are still ungoverned — any authenticated identity can edit or delete any record within their own Workspace. Its forcing condition (per-user login) is now met, so this is next in line rather than merely unforced |
+| Machine-level / CRUD permission | Not built (one narrow exception) | The generic create/update/delete routes are still ungoverned for every Machine except the one real case a 2026-09-19 UX review found: deleting `mch_document`/`mch_approval_step` records is blocked once a decision exists on them (`action.CanDeleteDocument`/`CanDeleteApprovalStep`, enforced in `deleteRecord`/`deleteRecordAPI`) — a hardcoded guard for this one Machine pair, same posture as `CanDecide`/`CompositeSignatures`, not a generic permission matrix. A general Machine-level CRUD permission (its forcing condition, per-user login, is now met) is still next in line |
 | Record-scoped *visibility* applied in the data plan | Not built | `/approval-inbox` and `/my-tasks` fetch a whole Machine and filter by identity in Go — the shape 007 §20 names as the anti-pattern. Tracked in `ROADMAP.md`'s "Concept conformance gaps"; also the missing half of Phase 6's own forcing condition |
 | Login rate-limiting | Built | `internal/web/ratelimit.go`, in-memory sliding window (10 attempts / 5 min), keyed by client address + attempted email; enforced on `POST /login`. Same shape also guards `POST /register` and `POST /forgot-password` (address-keyed) |
 
@@ -228,8 +228,10 @@ Every route above is registered in `internal/web.Routes` and served by a handler
 `internal/conformance` keeps a handler from quietly becoming a screen's worth of logic again
 (`ROADMAP.md` Phase 19).
 
-Navigation itself is **not** metadata: `rendering.pageShell` hardcodes the topbar link list, so a
-new page needs a code edit. See the architectural limits below.
+Navigation itself **is** metadata, as of 2026-09-19: `app.yaml`'s own `navigation:` list drives
+`rendering.pageShell`'s topbar (`domain.NavigationItem`, `experience.GroupNavigation`,
+`rendering.navSections`) — adding or moving a link is a metadata edit, not a code edit. See the
+architectural limits below for what this doesn't cover (the cross-Application launcher).
 
 ---
 
@@ -258,8 +260,8 @@ the clause citation, the verdict, and the forcing condition for closing it (001-
 |---|---|
 | Inference is not inspectable (001 §6) | `person`→`mch_user`, child collections, board columns and the default table Layout are all inferred, and nothing can show the resolved result — no diagnostics route, no `--explain`, no normalized-Application dump |
 | No metadata versioning or change classification (004, 005) | No version key anywhere; deleting a Field from a `*.yaml` silently orphans that field's data inside every record's JSONB, with no migration decision |
-| Navigation is code, not a declared metadata schema (004, 006) | `pageShell`'s topbar is still a hardcoded link list (now with a live pending-count badge and `aria-current`, round 2 Step J), not `ui-sample/README.md`'s two-level nav (cross-application launcher + mobile bottom bar). Deferred deliberately: Phase 21 Step 5 (Application plurality) and Step 7 (two-level nav / declared schema) are both explicitly out of scope until Case 19 becomes a second real Application — see `ROADMAP.md`'s navigation-as-metadata research note |
+| Cross-Application launcher not built (004, 006) | The per-Application menu half of Navigation is now a declared metadata schema (`app.yaml`'s `navigation:`, closed 2026-09-19), but the cross-Application launcher and mobile bottom bar from `ui-sample/README.md`'s two-level nav are not — genuinely blocked on Phase 21 Step 5 (Application plurality), since there is nothing to launch *between* with only one real Application. Route existence in `navigation:` is also not cross-checked against anything (most routes are bespoke `internal/web` handlers, not generated from a Machine) — a typo there fails silently rather than at load time |
 | Every read is a whole-Machine read (007 §21.1, §28) | `ListRecords`/`ListRecordsBy`/`GetRecord` only — no projection, filter pushdown, pagination or limit; pages reduce whole record sets in Go |
 | Metadata loads once, at startup (005 §Hot Reload) | A metadata change takes effect on restart. Principle #10 (no source regeneration) is met; hot reload is a deliberate, triggered deferral |
-| Machine-level / CRUD permission not yet built (see Authorization above) | Any authenticated identity can edit or delete any record within their own Workspace; only record-scoped Action permission (Approval Step decisions) is enforced |
+| Machine-level / CRUD permission not yet built (see Authorization above) | Any authenticated identity can edit or delete any record within their own Workspace, except deleting a decided Approval Step or a Document with any decision on it (closed 2026-09-19); only record-scoped Action permission (Approval Step decisions) is otherwise enforced |
 | Both priority cases are partly designed and not fully built | The `ui-sample/` mockups describe screens, data and a platform shell this app does not have — Case 19's Project Workspace screen and per-project scoping, the Task Detail body (description/checklist/comments), board drag-and-drop, and most of the Workspace/Group/Role platform shell (Application plurality, the cross-app launcher, Group-derived roles). Case 3's Document Type field and one-screen worklist+detail layout are closed (round 2 Steps F/H); Document reference (`DOC-0091`) closed by `ROADMAP.md` Phase 20; register/login/Workspace (single-Application) closed by Phase 21's Case-3-only pass. Enumerated with verdicts in `ROADMAP.md`'s "UI mockup conformance gaps" (audit, 2026-09-19) |

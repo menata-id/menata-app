@@ -114,7 +114,15 @@ func deleteRecordAPI(machines map[string]*domain.Machine, store *data.Store) htt
 		if !ok {
 			return
 		}
-		if err := store.DeleteRecord(req.Context(), machine.ID, chi.URLParam(req, "id")); err != nil {
+		id := chi.URLParam(req, "id")
+		if allowed, reason, err := deleteAllowed(req.Context(), store, machine.ID, id); err != nil {
+			serverError(w, err)
+			return
+		} else if !allowed {
+			http.Error(w, reason, http.StatusUnprocessableEntity)
+			return
+		}
+		if err := store.DeleteRecord(req.Context(), machine.ID, id); err != nil {
 			serverError(w, err)
 			return
 		}
