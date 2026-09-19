@@ -1150,15 +1150,14 @@ phase they don't belong to:
       (Phase 9 replaced the original `created_at desc`; this line said otherwise until the
       2026-09-18 audit). See "Concept conformance gaps" below for the architectural half of this:
       there is no projection, filter pushdown, or pagination either
-- [ ] JSON API parity -- `/api/machines/{id}/records` only supports create+list; update/delete
-      exist only via the browser HTML routes, not the API
-- [ ] Non-multipart form bodies fail on any Machine with a file field -- `handleFileUploads`
-      (`internal/web/record.go`) reads `req.FormFile`'s "request Content-Type isn't
-      multipart/form-data" as a failure instead of as "no file submitted", so a url-encoded
-      `POST`/`PUT` to `mch_task` or `mch_document` returns 400. Every form in the app sets
-      `hx-encoding`, so only a non-browser client hits it -- but `parseRecordForm`'s own comment
-      promises exactly that client works. Found during Phase 19, pre-existing (reproduced against
-      `543bcda`), left alone there because fixing it changes behaviour
+- [x] JSON API parity -- closed 2026-09-19 (Phase 21 round 2, Step I): `PUT`/`DELETE
+      /api/machines/{id}/records/{id}` now exist, reusing the exact guards the browser HTML routes
+      already factored out. Found in the same pass, not a new scope item: the JSON `POST` had never
+      called `logActivity` at all, unlike its form-based sibling -- fixed for genuine parity.
+- [x] Non-multipart form bodies fail on any Machine with a file field -- closed 2026-09-19 (Phase 21
+      round 2, Step A). `handleFileUploads` now tolerates `http.ErrNotMultipart` the same as
+      `http.ErrMissingFile`: a non-multipart body has no file for any field, not just the one
+      `FormFile` call happened to hit first.
 
 ---
 
@@ -1356,6 +1355,21 @@ arriving from the opposite direction (capability drift, not architecture drift).
 | "Draft · not yet submitted" documents in My Documents | `fld_status` declares `draft`, but `submitDocumentWizard` hardcodes `in_review` and no other path writes a Document status | **Untracked.** A declared status option no flow can reach -- either a missing save-as-draft flow or a metadata option to remove |
 | SLA breach as a real event: "Legal Review SLA breached ... escalated to Manager" in the activity feed | `experience.EvaluateSLA` is display-only, computed per render; nothing writes a breach event, notifies anyone, or escalates | **Untracked.** Trigger is constructible today -- the demo data already contains a past-due Document |
 | On the approval detail: "Your saved signature image will be stamped at this position automatically when you approve", with the step's own page/position echoed back | Phase 17 composites at decide time; the approver is shown no confirmation of where their signature will land before they approve | **Untracked**, and adjacent to Phase 17 rather than inside it |
+
+**Three rows closed 2026-09-19 (Phase 21 round 2):** Document Type -- `fld_document_type`, Step F,
+built as declared metadata exactly as this table's own admission question would ask, folded into
+the worklist card's existing Subtitle rather than a new SummaryCard field; the "save as default
+flow" half stays deferred, unchanged (still the Action-driven field-effect question, not this
+step's own scope). SLA breach as a real event -- Step G, a lazy idempotent check on the existing
+Dashboard/Approval Inbox read paths rather than a scheduler this app has never had; its own real
+limitation (a breach nobody happens to render is never logged, not logged late) and the criteria
+for when a real scheduler becomes forced are both recorded in "Concept conformance gaps" above, not
+silently accepted. One screen (worklist + detail) -- Step H, though not a literal copy of the
+mockup: reading it closely found the mockup's own cards are a static anchor-scroll illustration,
+not a real interaction, so this step built the first genuinely working version, reusing
+`showRecordRow`'s existing HTMX dispatch rather than a new mechanism. The other four rows in this
+table (document reference, mode+progress on cards, PDF viewer reachability, signature-placement
+confirmation) remain open -- not part of round 2's own scope.
 
 #### B2. Case 19 -- Project Management
 
@@ -1723,6 +1737,21 @@ credential still works unchanged throughout (verified byte-identical HTML on all
 authenticated routes), and a tampered Workspace choice / another Workspace's data are both
 confirmed inaccessible. Full detail (design decisions, exact commands run, byte-identical-HTML
 diffs) is in this session's own plan file and its four commits' own messages.
+
+**Round 2 (2026-09-19, same day, owner-picked all nine remaining gaps), closed:** blocking email
+verification on registration (`credentials.email_verified`, a self-registered admin cannot use the
+app until they click their emailed link -- this is what actually closes "anyone can register with
+any email," a gap the Case-3-only pass above left open); self-service forgot/reset password, per
+the owner's own explicit requirement that recovery stay each person's own responsibility, not
+admin-triggered; a real pluggable `internal/mail.Mailer` (SMTP, verified against the owner's actual
+Hostinger credentials -- including a real bug found and fixed the same session, implicit-TLS
+support for port 465, which plain `net/smtp.SendMail` cannot speak at all); the Document Type
+field, SLA-breach-as-event, and the one-screen worklist+detail layout (all three closed in B1's own
+table above); JSON API parity and the pre-existing non-multipart-body bug (Operational backlog,
+both closed above); and nav polish (pending-count badge, `aria-current`). Ten commits, each
+verified end-to-end on a scratch server against the real Postgres database before landing, the
+live process restarted only once at the very end with the owner's explicit go-ahead. Full detail is
+in this session's own plan file and each commit's own message.
 
 ---
 
