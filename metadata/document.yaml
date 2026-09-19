@@ -14,10 +14,19 @@ fields:
     type: status
     required: true
     # Stored and displayed in exactly this casing -- a deliberate one-off departure from
-    # fld_status/fld_mode's lowercase convention below, because "SOP" has no reasonable lowercase
-    # form and these are exactly document-submit.html's own five labels (ROADMAP.md UI mockup
-    # conformance audit, B1).
-    options: [Contract, SOP, Policy, Report, Other]
+    # fld_status/fld_mode's lowercase convention below.
+    #
+    # Changed 2026-09-19 from [Contract, SOP, Policy, Report, Other] (document-submit.html's own
+    # five mockup labels, ROADMAP.md UI mockup conformance audit B1) to a local taxonomy, as a
+    # real test of the add-only/disable-not-delete discipline in menata-app-document's
+    # guides/metadata-hot-reload-safety.md §5/§7 -- hot-reload itself isn't built yet, so this was
+    # done by hand: edit here, migrate the one existing record's stored value (see git log for
+    # this line), then restart. The five old labels are dropped outright (not kept as
+    # inactive_options) because that mechanism doesn't exist in code yet either -- this is exactly
+    # the "no code path could ever produce a draft fld_status" posture two comments above, applied
+    # to this field: nothing in the running app could still reference the old English labels once
+    # the one real record referencing "Contract" is migrated below.
+    options: [Kontrak, Tagihan, Lain-lain]
   - id: fld_file
     name: File
     type: file
