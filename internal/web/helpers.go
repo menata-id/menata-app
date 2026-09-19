@@ -2,10 +2,13 @@ package web
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/a-h/templ"
 
 	"menata.app/internal/composition"
 	"menata.app/internal/data"
@@ -48,7 +51,32 @@ func recordError(w http.ResponseWriter, err error) {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	http.Error(w, err.Error(), http.StatusInternalServerError)
+	serverError(w, err)
+}
+
+// serverError logs err server-side and returns a generic 500 body -- the caller's error may carry
+// internal detail (a DB error, a file path) that has no business reaching an HTTP client.
+func serverError(w http.ResponseWriter, err error) {
+	log.Printf("internal error: %v", err)
+	http.Error(w, "internal error", http.StatusInternalServerError)
+}
+
+// render writes c to w, logging any failure. By the time a templ Component starts rendering, the
+// response has already started (headers may be sent), so there is no error response left to give
+// -- a failure here is almost always the client disconnecting mid-response, worth a log line and
+// nothing more.
+func render(ctx context.Context, w http.ResponseWriter, c templ.Component) {
+	if err := c.Render(ctx, w); err != nil {
+		log.Printf("render failed: %v", err)
+	}
+}
+
+// writeJSON encodes v to w as JSON, logging any write failure -- same reasoning as render: the
+// response has already started, so there's nothing left to do but note it happened.
+func writeJSON(w http.ResponseWriter, v any) {
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("write JSON response failed: %v", err)
+	}
 }
 
 // logActivity appends one mch_activity record (ROADMAP.md Phase 13) -- an ordinary Machine, not

@@ -12,7 +12,7 @@ import (
 func listMachines(machines []*domain.Machine) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(machines)
+		writeJSON(w, machines)
 	}
 }
 
@@ -21,11 +21,11 @@ func listRecords(store *data.Store) http.HandlerFunc {
 		machineID := chi.URLParam(req, "machineID")
 		records, err := store.ListRecords(req.Context(), machineID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(records)
+		writeJSON(w, records)
 	}
 }
 
@@ -48,12 +48,12 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 
 		record, err := store.CreateRecord(req.Context(), machine.ID, values)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(record)
+		writeJSON(w, record)
 	}
 }

@@ -12,7 +12,7 @@ import (
 
 func showMachineList(machines []*domain.Machine, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		rendering.MachineList(machines, appName).Render(req.Context(), w)
+		render(req.Context(), w, rendering.MachineList(machines, appName))
 	}
 }
 
@@ -26,20 +26,20 @@ func showMachinePage(machines map[string]*domain.Machine, appName string, store 
 		ld := composition.NewLoader(store, machines)
 		records, err := ld.ListRecords(req.Context(), machine.ID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		relations, err := ld.RelationOptions(req.Context(), machine)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		boardColumns, err := ld.BoardColumns(req.Context(), machine)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.MachinePage(machine, records, appName, relations, boardColumns).Render(req.Context(), w)
+		render(req.Context(), w, rendering.MachinePage(machine, records, appName, relations, boardColumns))
 	}
 }
 
@@ -47,20 +47,20 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 	ld := composition.NewLoader(store, machines)
 	records, err := ld.ListRecords(req.Context(), machine.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 	relations, err := ld.RelationOptions(req.Context(), machine)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 	boardColumns, err := ld.BoardColumns(req.Context(), machine)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
-	rendering.MachineBody(machine, records, relations, boardColumns).Render(req.Context(), w)
+	render(req.Context(), w, rendering.MachineBody(machine, records, relations, boardColumns))
 }
 
 func resolveMachine(w http.ResponseWriter, machines map[string]*domain.Machine, req *http.Request) (*domain.Machine, bool) {

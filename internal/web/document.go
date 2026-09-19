@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
@@ -24,10 +25,10 @@ func showDocumentSubmit(store *data.Store, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		users, err := store.ListRecords(req.Context(), "mch_user")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.DocumentSubmitPage(users, appName).Render(req.Context(), w)
+		render(req.Context(), w, rendering.DocumentSubmitPage(users, appName))
 	}
 }
 
@@ -38,10 +39,10 @@ func newApproverRow(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		users, err := store.ListRecords(req.Context(), "mch_user")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.ApproverRow(users).Render(req.Context(), w)
+		render(req.Context(), w, rendering.ApproverRow(users))
 	}
 }
 
@@ -64,7 +65,7 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 
 		document, err := store.CreateRecord(req.Context(), docMachine.ID, values)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, req.Form["fld_assignee"]) {
@@ -104,7 +105,7 @@ func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.S
 			return false
 		}
 		if _, err := store.CreateRecord(req.Context(), stepMachine.ID, values); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return false
 		}
 	}
@@ -141,17 +142,17 @@ func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Sto
 
 		steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, documentID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		ld := composition.NewLoader(store, machines)
 		relations, err := ld.RelationOptions(ctx, machines[action.StepMachineID])
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 
-		rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, appName).Render(ctx, w)
+		render(ctx, w, rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, appName))
 	}
 }
 
@@ -186,7 +187,9 @@ func servePDFPreview(machines map[string]*domain.Machine, store *data.Store, fil
 			return
 		}
 		w.Header().Set("Content-Type", "image/png")
-		w.Write(png)
+		if _, err := w.Write(png); err != nil {
+			log.Printf("write PNG preview failed: %v", err)
+		}
 	}
 }
 

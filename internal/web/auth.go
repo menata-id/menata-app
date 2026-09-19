@@ -9,7 +9,7 @@ import (
 )
 
 func showLogin(w http.ResponseWriter, req *http.Request) {
-	rendering.LoginPage("").Render(req.Context(), w)
+	render(req.Context(), w, rendering.LoginPage(""))
 }
 
 func submitLogin(cfg config.Config) http.HandlerFunc {
@@ -20,7 +20,7 @@ func submitLogin(cfg config.Config) http.HandlerFunc {
 		}
 		if !authorization.CheckCredentials(req.FormValue("username"), req.FormValue("password"), cfg.AdminUsername, cfg.AdminPassword) {
 			w.WriteHeader(http.StatusUnauthorized)
-			rendering.LoginPage("Invalid username or password").Render(req.Context(), w)
+			render(req.Context(), w, rendering.LoginPage("Invalid username or password"))
 			return
 		}
 		authorization.SetSessionCookie(w, cfg.SessionSecret, cfg.AdminUserID, cfg.SecureCookies)

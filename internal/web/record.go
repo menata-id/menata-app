@@ -44,7 +44,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 		}
 		record, err := store.CreateRecord(req.Context(), machine.ID, values)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		switch machine.ID {
@@ -79,7 +79,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 		ld := composition.NewLoader(store, machines)
 		relations, err := ld.RelationOptions(req.Context(), machine)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
@@ -87,22 +87,22 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, appNa
 		if req.Header.Get("HX-Request") != "true" {
 			children, err := ld.ChildSections(req.Context(), machine, record.ID)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				serverError(w, err)
 				return
 			}
-			rendering.RecordDetailPage(machine, record, appName, relations, children, actor).Render(req.Context(), w)
+			render(req.Context(), w, rendering.RecordDetailPage(machine, record, appName, relations, children, actor))
 			return
 		}
 		if isDetailContext(req) {
 			children, err := ld.ChildSections(req.Context(), machine, record.ID)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				serverError(w, err)
 				return
 			}
-			rendering.RecordDetailView(machine, record, relations, children, actor).Render(req.Context(), w)
+			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor))
 			return
 		}
-		rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
+		render(req.Context(), w, rendering.RecordRow(machine, record, relations))
 	}
 }
 
@@ -120,14 +120,14 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store) http.
 		ld := composition.NewLoader(store, machines)
 		relations, err := ld.RelationOptions(req.Context(), machine)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		if isDetailContext(req) {
-			rendering.RecordDetailEdit(machine, record, relations).Render(req.Context(), w)
+			render(req.Context(), w, rendering.RecordDetailEdit(machine, record, relations))
 			return
 		}
-		rendering.RecordEditRow(machine, record, relations).Render(req.Context(), w)
+		render(req.Context(), w, rendering.RecordEditRow(machine, record, relations))
 	}
 }
 
@@ -235,7 +235,7 @@ func passesWriteGuards(w http.ResponseWriter, req *http.Request, store *data.Sto
 	}
 	relatedRecords, err := composition.NewLoader(store, machines).ConstraintRelatedRecords(req.Context(), machine)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return false
 	}
 	if err := behavior.CheckConstraints(machine, id, values, relatedRecords); err != nil {
@@ -281,19 +281,19 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 	ld := composition.NewLoader(store, machines)
 	relations, err := ld.RelationOptions(req.Context(), machine)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return
 	}
 	if isDetailContext(req) {
 		children, err := ld.ChildSections(req.Context(), machine, record.ID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.RecordDetailView(machine, record, relations, children, actor).Render(req.Context(), w)
+		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor))
 		return
 	}
-	rendering.RecordRow(machine, record, relations).Render(req.Context(), w)
+	render(req.Context(), w, rendering.RecordRow(machine, record, relations))
 }
 
 func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
@@ -303,7 +303,7 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store) http.H
 			return
 		}
 		if err := store.DeleteRecord(req.Context(), machine.ID, chi.URLParam(req, "id")); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		if isDetailContext(req) {
@@ -347,7 +347,7 @@ func handleFileUploads(req *http.Request, machine *domain.Machine, files *storag
 			return nil, fmt.Errorf("read upload for %s: %w", f.ID, err)
 		}
 		key, saveErr := files.Save(machine.ID, f.ID, header.Filename, file)
-		file.Close()
+		_ = file.Close() // read handle on the uploaded part; nothing to act on if this fails
 		if saveErr != nil {
 			return nil, saveErr
 		}

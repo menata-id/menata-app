@@ -31,10 +31,10 @@ func showDashboard(machines map[string]*domain.Machine, store *data.Store, appNa
 
 		d, err := composition.DashboardData(ctx, composition.NewLoader(store, machines), dashboardActivityLimit)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.DashboardPage(d.Projects, d.Documents, d.Pending, d.Activity, appName).Render(ctx, w)
+		render(ctx, w, rendering.DashboardPage(d.Projects, d.Documents, d.Pending, d.Activity, appName))
 	}
 }
 
@@ -48,10 +48,10 @@ func showMyTasks(machines map[string]*domain.Machine, store *data.Store, appName
 
 		t, err := composition.PersonalTasks(ctx, composition.NewLoader(store, machines), userID, time.Now())
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.MyTasksPage(t.Summary, t.Today, t.Upcoming, t.Completed, appName).Render(ctx, w)
+		render(ctx, w, rendering.MyTasksPage(t.Summary, t.Today, t.Upcoming, t.Completed, appName))
 	}
 }
 
@@ -64,10 +64,10 @@ func showActivity(machines map[string]*domain.Machine, store *data.Store, appNam
 
 		feed, err := composition.GroupedActivity(ctx, composition.NewLoader(store, machines), activityFeedLimit, time.Now())
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.ActivityPage(feed.Today, feed.Yesterday, feed.Earlier, appName).Render(ctx, w)
+		render(ctx, w, rendering.ActivityPage(feed.Today, feed.Yesterday, feed.Earlier, appName))
 	}
 }
 
@@ -80,10 +80,10 @@ func showSprintDashboard(machines map[string]*domain.Machine, store *data.Store,
 
 		s, err := composition.SprintDashboard(ctx, composition.NewLoader(store, machines), time.Now())
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.SprintDashboardPage(s.Summary, s.Workload, s.Attention, appName).Render(ctx, w)
+		render(ctx, w, rendering.SprintDashboardPage(s.Summary, s.Workload, s.Attention, appName))
 	}
 }
 
@@ -95,10 +95,10 @@ func showCalendar(machines map[string]*domain.Machine, store *data.Store, appNam
 
 		days, err := composition.CalendarWeek(ctx, composition.NewLoader(store, machines), time.Now())
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.CalendarPage(days, appName).Render(ctx, w)
+		render(ctx, w, rendering.CalendarPage(days, appName))
 	}
 }
 
@@ -111,10 +111,10 @@ func showTeamCapacity(machines map[string]*domain.Machine, store *data.Store, ap
 
 		c, err := composition.TeamCapacity(ctx, composition.NewLoader(store, machines))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
-		rendering.TeamCapacityPage(c.Members, c.TotalCapacity, c.TotalActive, appName).Render(ctx, w)
+		render(ctx, w, rendering.TeamCapacityPage(c.Members, c.TotalCapacity, c.TotalActive, appName))
 	}
 }
 
@@ -126,16 +126,16 @@ func showBoardSettings(store *data.Store, appName string) http.HandlerFunc {
 
 		lists, err := store.ListRecords(ctx, "mch_list")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		labels, err := store.ListRecords(ctx, "mch_label")
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 
-		rendering.BoardSettingsPage(lists, labels, appName).Render(ctx, w)
+		render(ctx, w, rendering.BoardSettingsPage(lists, labels, appName))
 	}
 }
 
@@ -144,6 +144,6 @@ func showBoardSettings(store *data.Store, appName string) http.HandlerFunc {
 // Application's real Constraint metadata and Action behavior.
 func showAutomation(machines []*domain.Machine, appName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		rendering.AutomationPage(composition.AutomationRules(machines), appName).Render(req.Context(), w)
+		render(req.Context(), w, rendering.AutomationPage(composition.AutomationRules(machines), appName))
 	}
 }

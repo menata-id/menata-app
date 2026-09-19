@@ -35,7 +35,7 @@ func Routes(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok")) // liveness probe body; a failed write here isn't actionable
 	})
 	r.Get("/login", showLogin)
 	r.Post("/login", submitLogin(d.Cfg))

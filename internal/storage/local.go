@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -48,7 +49,11 @@ func (s *Store) Save(machineID, fieldID, filename string, r io.Reader) (string, 
 	if err != nil {
 		return "", fmt.Errorf("create file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if cerr := f.Close(); cerr != nil {
+			log.Printf("close uploaded file %s: %v", dest, cerr)
+		}
+	}()
 	if _, err := io.Copy(f, r); err != nil {
 		return "", fmt.Errorf("write file: %w", err)
 	}

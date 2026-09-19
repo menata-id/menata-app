@@ -28,7 +28,7 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, a
 
 		inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now())
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 
@@ -49,7 +49,7 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, a
 			}
 		}
 
-		rendering.ApprovalInboxPage(filters, pending, inbox.Mine, appName).Render(ctx, w)
+		render(ctx, w, rendering.ApprovalInboxPage(filters, pending, inbox.Mine, appName))
 	}
 }
 
@@ -100,7 +100,7 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 
 		step.Values[action.FieldStepDecision] = decision
 		if _, err := store.UpdateRecord(ctx, machine.ID, id, step.Values); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverError(w, err)
 			return
 		}
 		if !recomputeDocumentStatus(w, ctx, store, machine, document, documentID) {
@@ -142,7 +142,7 @@ func decidableDocument(w http.ResponseWriter, ctx context.Context, store *data.S
 	}
 	siblings, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return nil, false
 	}
 	mode, _ := document.Values[action.FieldDocumentMode].(string)
@@ -159,12 +159,12 @@ func decidableDocument(w http.ResponseWriter, ctx context.Context, store *data.S
 func recomputeDocumentStatus(w http.ResponseWriter, ctx context.Context, store *data.Store, machine *domain.Machine, document *data.Record, documentID string) bool {
 	updated, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return false
 	}
 	document.Values[action.FieldDocumentStatus] = action.DocumentStatus(updated)
 	if _, err := store.UpdateRecord(ctx, action.DocumentMachineID, documentID, document.Values); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		serverError(w, err)
 		return false
 	}
 	return true
