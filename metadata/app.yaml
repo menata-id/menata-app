@@ -88,3 +88,11 @@ application:
       route: /workspace-members
       group: Workspace
       priority: 2
+  # hidden_nav_groups (owner request, 2026-09-19, matching ui-sample/nav-metadata.js's `showNav:
+  # false` on Case 3): Document Approval's own screens don't need a persistent topbar entry --
+  # every real destination above stays a valid route (unaffected by this), still reachable from
+  # its own contextual links (workspacehome.templ's "Approval Inbox" / "+ New Approval", the
+  # approval flow's own in-page steps) instead of a standing menu item. Project Management and
+  # Workspace keep theirs.
+  hidden_nav_groups:
+    - Document Approval

@@ -447,3 +447,79 @@ application:
 		t.Fatal("LoadApplication() error = nil, want error: duplicate navigation item id")
 	}
 }
+
+func TestLoadApplication_hiddenNavGroupDropsItsItems(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+  navigation:
+    - id: nav_home
+      label: Home
+      route: /home
+    - id: nav_inbox
+      label: Approval Inbox
+      route: /approval-inbox
+      group: Document Approval
+      priority: 1
+    - id: nav_board
+      label: Board
+      route: /board
+      group: Project Management
+      priority: 1
+  hidden_nav_groups:
+    - Document Approval
+`)
+
+	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	if len(app.Application.Navigation) != 2 {
+		t.Fatalf("Navigation = %+v, want 2 items (Document Approval's item dropped)", app.Application.Navigation)
+	}
+	for _, n := range app.Application.Navigation {
+		if n.Group == "Document Approval" {
+			t.Errorf("Navigation still contains a Document Approval item: %+v", n)
+		}
+	}
+}
+
+func TestLoadApplication_hiddenNavGroupUnknownRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+application:
+  id: app_task_tracker
+  name: Task Tracker
+  machines:
+    - task.yaml
+  navigation:
+    - id: nav_home
+      label: Home
+      route: /home
+  hidden_nav_groups:
+    - Typo Group
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: hidden_nav_groups entry does not match any navigation item's group")
+	}
+}

@@ -33,6 +33,14 @@ type appDoc struct {
 		Name       string       `yaml:"name"`
 		Machines   []string     `yaml:"machines"`
 		Navigation []navItemDoc `yaml:"navigation"`
+		// HiddenNavGroups names navigation: groups (by their group: label) whose items are
+		// declared -- so they remain valid destinations, reachable by route and by contextual
+		// in-page links -- but must not render in the topbar. Owner request, 2026-09-19: an
+		// Application's own screens don't always need a persistent menu entry; this is the
+		// metadata-only way to say so, with no runtime change beyond a shorter list handed to the
+		// existing topbar renderer (internal/rendering.pageShell already renders whatever list
+		// it's given, nothing about it changes here).
+		HiddenNavGroups []string `yaml:"hidden_nav_groups"`
 	} `yaml:"application"`
 }
 
@@ -86,6 +94,10 @@ func LoadApplication(path string) (*App, error) {
 	}
 	if navIssues := validateNavigation(navigation); len(navIssues) > 0 {
 		return nil, &ValidationError{Issues: navIssues}
+	}
+	navigation, hiddenIssues := applyHiddenNavGroups(navigation, doc.Application.HiddenNavGroups)
+	if len(hiddenIssues) > 0 {
+		return nil, &ValidationError{Issues: hiddenIssues}
 	}
 
 	dir := filepath.Dir(path)

@@ -52,6 +52,47 @@ func validateNavigation(items []domain.NavigationItem) []string {
 	return issues
 }
 
+// applyHiddenNavGroups drops every item whose group: is named in hidden -- the metadata-only way
+// to keep a group's destinations declared (still valid routes, still reachable by a contextual
+// in-page link, e.g. workspacehome.templ's own "Approval Inbox" / "+ New Approval" links) while
+// removing them from the topbar itself. Each hidden name is cross-checked against the groups that
+// actually exist in items, the same posture validateNavigation already applies to Badge -- a
+// typo here would otherwise silently hide nothing rather than fail loudly.
+func applyHiddenNavGroups(items []domain.NavigationItem, hidden []string) ([]domain.NavigationItem, []string) {
+	if len(hidden) == 0 {
+		return items, nil
+	}
+
+	knownGroups := make(map[string]bool)
+	for _, n := range items {
+		if n.Group != "" {
+			knownGroups[n.Group] = true
+		}
+	}
+
+	var issues []string
+	hiddenSet := make(map[string]bool, len(hidden))
+	for _, g := range hidden {
+		if !knownGroups[g] {
+			issues = append(issues, fmt.Sprintf("hidden_nav_groups entry %q does not match any navigation item's group", g))
+			continue
+		}
+		hiddenSet[g] = true
+	}
+	if len(issues) > 0 {
+		return nil, issues
+	}
+
+	visible := make([]domain.NavigationItem, 0, len(items))
+	for _, n := range items {
+		if n.Group != "" && hiddenSet[n.Group] {
+			continue
+		}
+		visible = append(visible, n)
+	}
+	return visible, nil
+}
+
 // ValidationError aggregates every problem found in one metadata document, per 005-runtime-
 // lifecycle.md Phase 3: invalid metadata must not enter executable planning, and a metadata
 // author should see every problem at once rather than one failure per fix-and-rerun cycle.
