@@ -100,7 +100,7 @@ func TestVolumeThreshold(t *testing.T) {
 	defer pool.Close()
 	defer cleanupBench(t, pool)
 
-	store := data.NewStore(pool)
+	store := data.NewStore(pool).WithWorkspace("ws_default")
 	ctx := context.Background()
 
 	var firstOverBudget int
@@ -157,7 +157,7 @@ func TestBreadthThreshold(t *testing.T) {
 	defer pool.Close()
 	defer cleanupBench(t, pool)
 
-	store := data.NewStore(pool)
+	store := data.NewStore(pool).WithWorkspace("ws_default")
 	ctx := context.Background()
 	seed(t, pool, benchUserMachine, 100)
 

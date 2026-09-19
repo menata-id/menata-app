@@ -44,7 +44,7 @@ func cleanupStoreTest(t *testing.T, pool *pgxpool.Pool) {
 func TestStore_CreateAndGetRecord(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 	ctx := context.Background()
 
 	created, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": "Ada"})
@@ -70,7 +70,7 @@ func TestStore_CreateAndGetRecord(t *testing.T) {
 func TestStore_CreateRecord_incrementsSortOrder(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 	ctx := context.Background()
 
 	first, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": "one"})
@@ -89,7 +89,7 @@ func TestStore_CreateRecord_incrementsSortOrder(t *testing.T) {
 func TestStore_GetRecord_notFound(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 
 	_, err := store.GetRecord(context.Background(), storeTestMachine, "rec_does_not_exist")
 	if !errors.Is(err, ErrRecordNotFound) {
@@ -100,7 +100,7 @@ func TestStore_GetRecord_notFound(t *testing.T) {
 func TestStore_UpdateRecord(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 	ctx := context.Background()
 
 	created, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": "before"})
@@ -128,7 +128,7 @@ func TestStore_UpdateRecord(t *testing.T) {
 func TestStore_UpdateRecord_notFound(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 
 	_, err := store.UpdateRecord(context.Background(), storeTestMachine, "rec_does_not_exist", map[string]any{"fld_name": "x"})
 	if !errors.Is(err, ErrRecordNotFound) {
@@ -139,7 +139,7 @@ func TestStore_UpdateRecord_notFound(t *testing.T) {
 func TestStore_DeleteRecord(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 	ctx := context.Background()
 
 	created, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": "gone soon"})
@@ -160,7 +160,7 @@ func TestStore_DeleteRecord(t *testing.T) {
 func TestStore_DeleteRecord_alreadyAbsentIsNotAnError(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 
 	if err := store.DeleteRecord(context.Background(), storeTestMachine, "rec_never_existed"); err != nil {
 		t.Errorf("DeleteRecord(absent) = %v, want nil", err)
@@ -170,7 +170,7 @@ func TestStore_DeleteRecord_alreadyAbsentIsNotAnError(t *testing.T) {
 func TestStore_ListRecords_orderedBySortOrder(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 	ctx := context.Background()
 
 	names := []string{"first", "second", "third"}
@@ -197,7 +197,7 @@ func TestStore_ListRecords_orderedBySortOrder(t *testing.T) {
 func TestStore_ListRecordsBy_filtersOnFieldValue(t *testing.T) {
 	pool := storePool(t)
 	cleanupStoreTest(t, pool)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 	ctx := context.Background()
 
 	if _, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_owner": "usr_a", "fld_name": "mine"}); err != nil {
@@ -232,7 +232,7 @@ func TestStore_CreateAndGetCredential(t *testing.T) {
 	pool := storePool(t)
 	const email = "store_test@example.com"
 	cleanupCredentialTest(t, pool, email)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 	ctx := context.Background()
 
 	if err := store.CreateCredential(ctx, email, "hashed-value"); err != nil {
@@ -250,7 +250,7 @@ func TestStore_CreateAndGetCredential(t *testing.T) {
 
 func TestStore_GetCredential_notFound(t *testing.T) {
 	pool := storePool(t)
-	store := NewStore(pool)
+	store := NewStore(pool).WithWorkspace("ws_store_test")
 
 	_, err := store.GetCredential(context.Background(), "no-such-user@example.com")
 	if !errors.Is(err, ErrCredentialNotFound) {

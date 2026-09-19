@@ -10,12 +10,13 @@ import (
 // (006-runtime-model.md "Dataset": a Dataset describes available data and its meaning; Record is
 // the underlying data it exposes).
 type Record struct {
-	ID        string
-	MachineID string
-	Values    map[string]any
-	SortOrder int64
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID          string
+	MachineID   string
+	WorkspaceID string
+	Values      map[string]any
+	SortOrder   int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // newRecordID generates a stable-identity record ID, following the mch_/fld_ prefix convention

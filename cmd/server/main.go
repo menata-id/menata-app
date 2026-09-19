@@ -48,7 +48,11 @@ func main() {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer pool.Close()
-	store := data.NewStore(pool)
+	// Scoped to this manifest's own declared Workspace (ROADMAP.md Phase 21 Step 2 -- "Workspace
+	// never enters the data path" closed). Every record read/write goes through this scoped Store;
+	// a per-request Workspace (Phase 21 Step 4, once real login/membership exist) will replace this
+	// fixed scoping with one resolved from the signed-in identity.
+	store := data.NewStore(pool).WithWorkspace(app.Workspace.ID)
 
 	files, err := storage.NewStore(cfg.UploadsDir)
 	if err != nil {
