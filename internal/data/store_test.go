@@ -218,3 +218,42 @@ func TestStore_ListRecordsBy_filtersOnFieldValue(t *testing.T) {
 		t.Errorf("ListRecordsBy: fld_name = %v, want %q", records[0].Values["fld_name"], "mine")
 	}
 }
+
+func cleanupCredentialTest(t *testing.T, pool *pgxpool.Pool, email string) {
+	t.Helper()
+	t.Cleanup(func() {
+		if _, err := pool.Exec(context.Background(), `DELETE FROM credentials WHERE email = $1`, email); err != nil {
+			t.Errorf("cleanup credential %s: %v", email, err)
+		}
+	})
+}
+
+func TestStore_CreateAndGetCredential(t *testing.T) {
+	pool := storePool(t)
+	const email = "store_test@example.com"
+	cleanupCredentialTest(t, pool, email)
+	store := NewStore(pool)
+	ctx := context.Background()
+
+	if err := store.CreateCredential(ctx, email, "hashed-value"); err != nil {
+		t.Fatalf("CreateCredential: %v", err)
+	}
+
+	got, err := store.GetCredential(ctx, email)
+	if err != nil {
+		t.Fatalf("GetCredential: %v", err)
+	}
+	if got != "hashed-value" {
+		t.Errorf("GetCredential() = %q, want %q", got, "hashed-value")
+	}
+}
+
+func TestStore_GetCredential_notFound(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+
+	_, err := store.GetCredential(context.Background(), "no-such-user@example.com")
+	if !errors.Is(err, ErrCredentialNotFound) {
+		t.Errorf("GetCredential(missing) error = %v, want ErrCredentialNotFound", err)
+	}
+}

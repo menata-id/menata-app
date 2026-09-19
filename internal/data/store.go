@@ -13,6 +13,9 @@ import (
 // ErrRecordNotFound is returned when a record ID doesn't exist for the given Machine.
 var ErrRecordNotFound = errors.New("record not found")
 
+// ErrCredentialNotFound is returned when no credential row exists for an email.
+var ErrCredentialNotFound = errors.New("credential not found")
+
 // Store is the Data Plane's physical execution against PostgreSQL for the generic `records`
 // table. It is intentionally narrow: create and list by Machine, no Query/Projection/Filter
 // composition yet (007-composable-runtime-architecture.md SS7-8 -- those land once more than one
@@ -150,4 +153,30 @@ func (s *Store) DeleteRecord(ctx context.Context, machineID, id string) error {
 		return fmt.Errorf("delete record: %w", err)
 	}
 	return nil
+}
+
+// CreateCredential stores a login credential's hashed password, keyed by email (ROADMAP.md
+// Phase 21 Step 1). Hashing is internal/authorization's job -- the store only persists whatever
+// hash it is given.
+func (s *Store) CreateCredential(ctx context.Context, email, passwordHash string) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO credentials (email, password_hash) VALUES ($1, $2)
+	`, email, passwordHash)
+	if err != nil {
+		return fmt.Errorf("create credential: %w", err)
+	}
+	return nil
+}
+
+// GetCredential returns the stored password hash for email, or ErrCredentialNotFound.
+func (s *Store) GetCredential(ctx context.Context, email string) (string, error) {
+	var hash string
+	err := s.pool.QueryRow(ctx, `SELECT password_hash FROM credentials WHERE email = $1`, email).Scan(&hash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrCredentialNotFound
+		}
+		return "", fmt.Errorf("get credential: %w", err)
+	}
+	return hash, nil
 }
