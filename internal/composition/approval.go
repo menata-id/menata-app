@@ -3,6 +3,7 @@ package composition
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -31,7 +32,29 @@ type Inbox struct {
 	// Mine is every Document this identity submitted, which is a different question from
 	// Pending's "waiting on me" and deliberately unfiltered by SLA.
 	Mine []rendering.SummaryCard
+
+	// NewBreaches names every Document found newly overdue this render, not yet logged
+	// (ROADMAP.md Phase 21 round 2, Step G) -- a decision, not a write: buildInbox stays pure and
+	// testable without a database; ApprovalInbox (below) is what actually performs the logging,
+	// using this list.
+	NewBreaches []SLABreach
 }
+
+// SLABreach names one Document whose SLA has just been found overdue for the first time.
+type SLABreach struct {
+	DocumentID string
+	Summary    string
+}
+
+// slaBreachMarker prefixes every SLA-breach Activity entry's own summary -- both the real,
+// human-readable message (Legal Review SLA breached-style copy, document-approval.html) and the
+// idempotency check that stops it being logged twice. Checking the activity log itself rather
+// than adding a new Document Field sidesteps a real hazard: a boolean Field not present in the
+// generic edit form's own HTML would be silently reset to false by ValuesFromForm on the next
+// ordinary edit (ValuesFromForm always sets every boolean Field it knows about, present or not),
+// re-logging the same breach on every subsequent edit. The activity log is untouched by editing a
+// Document, so it is the one place this is genuinely stable.
+const slaBreachMarker = "SLA breached: "
 
 // Bucket values for Inbox.Buckets, matching the filter keys the inbox's own tabs submit.
 const (
@@ -65,7 +88,29 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time)
 	if err != nil {
 		return Inbox{}, err
 	}
-	return buildInbox(steps, documents, activities, users, userID, now), nil
+	inbox := buildInbox(steps, documents, activities, users, userID, now)
+	logSLABreaches(ctx, l.store, inbox.NewBreaches)
+	return inbox, nil
+}
+
+// logSLABreaches writes one Activity record per newly-detected breach (ROADMAP.md Phase 21 round
+// 2, Step G) -- best-effort, the same posture internal/web's own logActivity already takes
+// elsewhere: a logging failure must not fail the page render it happened alongside, only get
+// logged itself. A deliberate, narrow exception to "reads don't write" (007 §20's own anti-pattern
+// is about *security scope* established before retrieval, not about *any* side effect from a GET);
+// this app has no scheduler to do it any other way yet (ROADMAP.md tracks the real criteria for
+// when one becomes forced).
+func logSLABreaches(ctx context.Context, store *data.Store, breaches []SLABreach) {
+	for _, b := range breaches {
+		values := map[string]any{
+			"fld_machine_id": action.DocumentMachineID,
+			"fld_record_id":  b.DocumentID,
+			"fld_summary":    b.Summary,
+		}
+		if _, err := store.CreateRecord(ctx, "mch_activity", values); err != nil {
+			log.Printf("failed to log SLA breach for document %s: %v", b.DocumentID, err)
+		}
+	}
 }
 
 // buildInbox is the whole of the inbox's derivation, over records someone else already fetched.
@@ -146,6 +191,29 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			Subtitle:       fmt.Sprintf("%s · %s · %d/%d approved", DisplayString(d.Values["fld_document_type"]), mode, approved, len(stepsByDoc[d.ID])),
 			StatusLabel:    DisplayString(d.Values["fld_status"]),
 			Href:           fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, d.ID),
+		})
+	}
+
+	alreadyLogged := make(map[string]bool, len(activities))
+	for _, a := range activities {
+		if strings.HasPrefix(DisplayString(a.Values["fld_summary"]), slaBreachMarker) {
+			alreadyLogged[DisplayString(a.Values["fld_record_id"])] = true
+		}
+	}
+	for _, d := range documents {
+		if alreadyLogged[d.ID] || DisplayString(d.Values[action.FieldDocumentStatus]) != action.DocumentStatusInReview {
+			continue
+		}
+		due, err := time.Parse("2006-01-02", DisplayString(d.Values["fld_due_date"]))
+		if err != nil {
+			continue
+		}
+		if status, _ := experience.EvaluateSLA(due, now); status != experience.SLAOverdue {
+			continue
+		}
+		inbox.NewBreaches = append(inbox.NewBreaches, SLABreach{
+			DocumentID: d.ID,
+			Summary:    fmt.Sprintf("%s%q (due %s)", slaBreachMarker, DisplayString(d.Values["fld_title"]), due.Format("2 Jan 2006")),
 		})
 	}
 	return inbox

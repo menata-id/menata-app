@@ -215,6 +215,52 @@ func TestBuildInbox_OrphanStepIsSkipped(t *testing.T) {
 	}
 }
 
+// A newly-overdue Document not yet logged must show up in NewBreaches exactly once, and never
+// again once an Activity entry for it already exists -- the idempotency check buildInbox relies on
+// instead of a Document Field (see slaBreachMarker's own comment for why).
+func TestBuildInbox_NewBreaches_detectsOverdueUnloggedDocument(t *testing.T) {
+	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-01")} // due well before "now"
+	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
+
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+	if len(got.NewBreaches) != 1 || got.NewBreaches[0].DocumentID != "doc_1" {
+		t.Fatalf("NewBreaches = %+v, want one breach for doc_1", got.NewBreaches)
+	}
+}
+
+func TestBuildInbox_NewBreaches_skipsAlreadyLogged(t *testing.T) {
+	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-01")}
+	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
+	activities := []*data.Record{
+		{ID: "act_1", Values: map[string]any{"fld_record_id": "doc_1", "fld_summary": slaBreachMarker + `"Contract" (due 1 Sep 2026)`}},
+	}
+
+	got := buildInbox(steps, docs, activities, users, "usr_ana", at(10))
+	if len(got.NewBreaches) != 0 {
+		t.Errorf("NewBreaches = %+v, want none -- this Document's breach was already logged", got.NewBreaches)
+	}
+}
+
+func TestBuildInbox_NewBreaches_skipsNotOverdue(t *testing.T) {
+	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-20")} // due well after "now"
+	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
+
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+	if len(got.NewBreaches) != 0 {
+		t.Errorf("NewBreaches = %+v, want none -- not overdue yet", got.NewBreaches)
+	}
+}
+
+func TestBuildInbox_NewBreaches_skipsDecidedDocuments(t *testing.T) {
+	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-01")}
+	docs[0].Values[action.FieldDocumentStatus] = action.DocumentStatusApproved
+
+	got := buildInbox(nil, docs, nil, users, "usr_ana", at(10))
+	if len(got.NewBreaches) != 0 {
+		t.Errorf("NewBreaches = %+v, want none -- an already-decided Document has no active SLA to breach", got.NewBreaches)
+	}
+}
+
 // submittersFromActivity must not reorder its input: with a request-scoped Loader the slice it
 // receives is the cache's own, and sorting it in place would leave every later reader of
 // mch_activity in this request with silently reordered records.

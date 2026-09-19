@@ -1279,6 +1279,22 @@ deferred with the rest.
   explicitly conditioned on "where the runtime deployment model permits it," and a single-binary
   restart is cheap. Named here so it is a decision rather than an omission. Trigger: metadata
   authored by someone who cannot deploy, or a restart that stops being cheap.
+- **Deferred, with trigger: no scheduler/background job mechanism (owner-prompted, 2026-09-19).**
+  This codebase has never had one -- every time-based effect happens either at request time or not
+  at all. Phase 21 round 2's own SLA-breach-as-event step (Step G) is the first real case this
+  actually bites: it logs a breach lazily, the first time an existing read path (Dashboard/Approval
+  Inbox) happens to render an overdue Document, which means a real breach that nobody happens to
+  render is, in that design, indistinguishable from one that never happened -- not "logged late,"
+  never logged at all. That is a named, accepted limitation of Step G's own mechanism, not a
+  hypothetical edge case. Criteria for when an in-process `time.Ticker` goroutine (started once in
+  `cmd/server/main.go`, no external cron, matching 007 §4.10's single-process posture) stops being
+  speculative and becomes forced: (1) any requirement that a time-based event fire whether or not a
+  page is ever loaded -- an escalation notification, a digest, a breach that must be visible even if
+  nobody opens the app that day, which Step G's own mockup source (document-approval.html's
+  "escalated to Manager" copy) already implies but does not yet require; (2) a second independent
+  time-based need appearing -- a reminder digest, a "Document overdue N days" recurring nudge, an
+  expiring-token sweep -- two real needs converging on the same missing mechanism being this
+  roadmap's own stated trigger for generalizing rather than special-casing each one.
 
 ---
 
