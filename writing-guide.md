@@ -412,6 +412,162 @@ Always written as a YAML string, even for a `number` or `boolean` field (e.g. `d
 (not parseable as that type, or not one of a `status` field's own `options:`) fails at metadata
 load time, not silently at runtime.
 
+## 12. The complete grammar surface
+
+Sections 1–11 teach by example. This section is the index: **every key the parser accepts, and
+every value a closed vocabulary allows.** Anything not listed here either fails validation at
+startup or is silently ignored — there is no third outcome, and nothing is inferred from a key the
+parser doesn't know.
+
+Three properties are worth stating once, because they hold everywhere below: ids are regex-gated
+by prefix; closed vocabularies are extended by Go code and a recompile, never by writing a new
+value in YAML; and every cross-reference (`fld_*` naming a field, `mch_*` naming a Machine) is
+resolved and checked at load time, not at first use.
+
+### 12.1 `app.yaml` — the application manifest
+
+| Key | Value | Notes |
+|---|---|---|
+| `workspace.id` / `workspace.name` | string | One Workspace per process today |
+| `application.id` / `application.name` | string | |
+| `application.machines[]` | file names | Load order; each file is one Machine |
+| `application.navigation[]` | list of items | The topbar is rendered from this list, never hand-written |
+| `application.hidden_nav_groups[]` | group labels | Filtered out after `home_card`/primary-group resolution |
+
+Navigation item keys:
+
+| Key | Value | Notes |
+|---|---|---|
+| `id` | `nav_*` | Referenced from `.templ` via `routeByID("nav_xxx")` — that's how a page links to a sibling screen without retyping the route |
+| `label` | string | |
+| `route` | path | Must have a real handler in `internal/web/router.go` (gated by `TestNavigationRoutesAreRegistered`) |
+| `group` | string | Presentational label. First group declared stays inline; later ones collapse into a dropdown |
+| `priority` | int | |
+| `badge` | closed set | Only `approval_inbox_pending` today |
+| `home_card` | bool | Marks the Workspace Home card's destination (`Application.HomeRoute`) |
+
+### 12.2 A Machine file
+
+| Key | Value | Notes |
+|---|---|---|
+| `id` | `mch_*` | Required, regex-gated |
+| `name` | string | Required |
+| `fields[]` | list | See 12.3 |
+| `constraints[]` | list | See 12.4 |
+| `events[]` | list | See 12.5 |
+| `permissions[]` | list | See 12.6 |
+| `view` | block | See 12.7. Omit it entirely and you get a table |
+
+### 12.3 `fields[]`
+
+| Key | Value | Notes |
+|---|---|---|
+| `id` | `fld_*` | Required, unique within the Machine |
+| `name` | string | The label |
+| `type` | one of 9 (12.8) | Unknown type fails the load |
+| `required` | bool | |
+| `options[]` | strings | **Required when `type: status`** |
+| `machine` | `mch_*` | **Required when `type: relation`** |
+| `default` | string | Always quoted, even for numbers/booleans. Create-only. For a `status` field it must be one of its own `options` |
+
+### 12.4 `constraints[]` — one shape
+
+```yaml
+constraints:
+  - id: cst_*
+    on: fld_*              # the field whose transition is gated
+    when_equals: <value>   # gate only the transition to this value
+    block_if:
+      related_machine: mch_*
+      related_field: fld_*     # the field on THAT machine pointing back here
+      condition: { field: fld_*, op: equals|not_equals, value: <string> }
+```
+
+Reads as: *block setting `on` to `when_equals` while any related record matches `condition`.*
+
+### 12.5 `events[]` — two mutually exclusive shapes
+
+```yaml
+events:
+  - id: evt_*
+    on: fld_*              # shape A: field-change
+    when_equals: <value>   #   optional; omit = any change to that field
+    then: { service: log_activity, summary: "...", summary_override_when: <value>, summary_override: "..." }
+
+  - id: evt_*
+    on_create: true        # shape B: record creation. Never combined with `on`
+    then: { service: log_activity, summary: "..." }
+```
+
+`summary` placeholders: `{old}`, `{new}`, and any `fld_*` id in braces. Not a templating language —
+that is the whole list. At most one override.
+
+### 12.6 `permissions[]` — one shape
+
+```yaml
+permissions:
+  - id: prm_*
+    action: decide|edit|delete   # closed set
+    actor_field: fld_*           # must be a person field on this Machine
+```
+
+Reads as: *only the person named in `actor_field` on this record may perform `action` on it.* A
+Machine declaring no permission for an action leaves it open to any authenticated member.
+
+### 12.7 `view`
+
+| Key | Value | Notes |
+|---|---|---|
+| `layout` | `table` \| `board` | Default `table` |
+| `group_by` | `fld_*` | **Required when `layout: board`** — the field whose values become columns |
+| `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
+| `card_fields[]` | `{field: fld_*, role: ...}` | Projected onto a composed card. Only the Approval Inbox card consumes this today |
+
+### 12.8 Closed vocabularies — the complete list of values you may write
+
+| Vocabulary | Values | Extended by |
+|---|---|---|
+| Field types | `text` `number` `boolean` `date` `status` `person` `money` `relation` `file` | `domain.KnownFieldTypes` |
+| Layouts | `table` `board` | `domain.KnownLayouts` |
+| Card field roles | `title` `person` `money` `status` `date` | `domain.KnownCardFieldRoles` |
+| Actions | `decide` `edit` `delete` | `domain.KnownActions` |
+| Services | `log_activity` | `domain.KnownServices` |
+| Comparison operators | `equals` `not_equals` | `expression.KnownOps` |
+| Navigation badges | `approval_inbox_pending` | `domain.KnownNavigationBadges` |
+
+Every one of these is a deliberate static seam (007 §14). Writing a value outside the set fails the
+load with a named error — it never degrades to "do nothing quietly".
+
+### 12.9 Concept → metadata → code index
+
+The same constructs, mapped to the concept doc that defines them and the code that realizes them.
+Useful when you need to know whether something is *specified but unbuilt* (common) or *built but
+undocumented* (rare).
+
+| Construct | Concept | Realized by |
+|---|---|---|
+| Machine | 006 §Machine | `domain.Machine`, `metadata.Parse`/`Validate`, `data.Store`, `rendering/machine.templ` |
+| Field + types | 006 §Field | `domain.KnownFieldTypes`, `data.ValidateRecord`, `rendering.fieldInput` |
+| Field default | 001 #5 (Convention over Configuration) | `domain.Field.Default`, `data.ApplyDefaults` |
+| Relation | 006 §Relation, 007 §7.5 | `domain.Field.RelatedMachine`, `data.ValidateRelations` |
+| Child collection | 006 §Relation (reverse) | `domain.FindChildCollections` — derived, not declared |
+| Constraint | 006 §Constraint | `domain.Constraint`, `behavior.CheckConstraints` |
+| Expression (`op`) | 007 §9 | `internal/expression` — two operators so far |
+| Event | 006 §Event, Behavioral Model | `domain.Event`, `behavior.MatchedEvents`/`MatchedCreateEvents`, `web.runEvents`/`runCreateEvents` |
+| Service | 006 §Service | `domain.KnownServices`, `web.logActivity` |
+| Permission | 006 §Permission, 005 §Security Ordering | `domain.Permission`, `authorization.AllowsAction` |
+| Action | 006 §Action | `domain.KnownActions` + `internal/action` — **Go code, not declarable** (§8) |
+| View / Layout | 006 §Layout/§View, 007 §12.2 | `domain.View`, `internal/experience`, `composition.loadBoardColumns` |
+| SLA badge | 006 §Field + Experience | `experience.EvaluateSLA` |
+| Projection (`card_fields`) | 007 §7.6 | `domain.CardField`, `composition.ProjectCardFields`, `rendering.projectedFieldValue` |
+| Navigation | 006 §Navigation, 004 | `domain.Navigation`, `experience/navigation.go`, `rendering.pageShell` |
+| Workspace / Application | 006 §Organizational Model | `domain.Workspace`, `domain.Application`, `metadata.LoadApplication` |
+
+If a concept from 006/007 isn't in this table — Dataset, Query, Dimension, Measure, Binding, Slot,
+Component contract, Theme, API, Workflow/Process — it has **no metadata expression today**. That's
+the accurate answer to "can I declare this?", and the next section explains which of those gaps are
+deliberate.
+
 ## What comes free vs. what's hardcoded today — the honest map
 
 Every item on the left, any new Machine gets automatically, purely from YAML. Every item on the
