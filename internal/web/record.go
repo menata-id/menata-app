@@ -333,7 +333,12 @@ func parseRecordForm(req *http.Request) error {
 // handleFileUploads saves any file actually submitted for one of machine's FieldTypeFile fields,
 // returning fieldID -> storage key for just those fields. A field with no file in this request
 // (http.ErrMissingFile) is simply absent from the result -- not an error, since a file input left
-// untouched on an edit form submits nothing.
+// untouched on an edit form submits nothing. Same for http.ErrNotMultipart: a genuinely
+// non-multipart body (a direct API caller posting url-encoded, per parseRecordForm's own promise
+// above) by definition submitted no file for *any* field, not just the one FormFile call happened
+// to hit first -- previously only ErrMissingFile was tolerated here, so this exact case still 400'd
+// despite parseRecordForm's comment claiming it worked (ROADMAP.md Operational backlog, pre-existing
+// since Phase 19).
 func handleFileUploads(req *http.Request, machine *domain.Machine, files *storage.Store) (map[string]any, error) {
 	uploaded := map[string]any{}
 	for _, f := range machine.Fields {
@@ -342,7 +347,7 @@ func handleFileUploads(req *http.Request, machine *domain.Machine, files *storag
 		}
 		file, header, err := req.FormFile(f.ID)
 		if err != nil {
-			if errors.Is(err, http.ErrMissingFile) {
+			if errors.Is(err, http.ErrMissingFile) || errors.Is(err, http.ErrNotMultipart) {
 				continue
 			}
 			return nil, fmt.Errorf("read upload for %s: %w", f.ID, err)
