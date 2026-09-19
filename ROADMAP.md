@@ -38,6 +38,19 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.
 - Group-based roles and a visual approval role matrix.
+- Permission-aware action visibility -- buttons and actions should follow the current user's
+  authorization, not just record/page state: an action the user isn't allowed to perform should be
+  hidden, not merely disabled, driven by the same permission decision the backend already
+  enforces (today some actions are conditioned on state, e.g. `detail.templ`'s
+  `action.CanDeleteApprovalStep`/`CanDeleteDocument`, but not on who the user is).
+- Composable workflow/process breakdown -- UI composition already has an answer (the Shared
+  rendering components / composition primitives catalogued in `capabilities.md`); Behavior
+  composition does not yet -- reusable events, actions, constraints, permissions, and process
+  primitives, the third composition dimension in `007-composable-runtime-architecture.md` §1.
+  Before designing this, read `001-design-principles.md` through
+  `007-composable-runtime-architecture.md` so workflow/process breakdown ends up composable and
+  metadata-driven the same way visual composition already is, without regressing runtime
+  performance.
 - Search, filtering and pagination on record lists.
 - Background/scheduled jobs (e.g. SLA-breach notifications that don't depend on someone opening
   the page).
