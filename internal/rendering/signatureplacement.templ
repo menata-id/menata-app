@@ -91,7 +91,7 @@ templ signaturePlacementBlock(document *data.Record, steps []*data.Record, relat
 			for i, s := range steps {
 				{{ editable := authorization.AllowsAction(stepMachine, domain.ActionEdit, s.Values, actorID) }}
 				<div class="sig-step-card">
-					<strong>{ fmt.Sprintf("%d. %s", i+1, relationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))) }</strong>
+					<strong>{ fmt.Sprintf("%d. %s", i+1, RelationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))) }</strong>
 					if signaturePlaced(s) {
 						<p class="step-status">{ fmt.Sprintf("Page %d · %.0f%% · %.0f%% · %.0f%% wide", signaturePage(s), signatureCoord(s, action.FieldStepSignatureX), signatureCoord(s, action.FieldStepSignatureY), signatureWidth(s)) }</p>
 					} else {

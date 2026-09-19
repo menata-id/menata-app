@@ -313,7 +313,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 					}
 				} else if f.IsReference() {
 					var templ_7745c5c3_Var12 string
-					templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])))
+					templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(RelationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])))
 					if templ_7745c5c3_Err != nil {
 						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 92, Col: 77}
 					}
@@ -1076,28 +1076,21 @@ func hiddenDetailField(m *domain.Machine, f domain.Field) bool {
 }
 
 // canDeleteInView answers the same two questions internal/web's deleteAllowed enforces
-// server-side: business state (action.CanDeleteApprovalStep/CanDeleteDocument, from data this
-// page already has in hand -- r's own Values, and a Document's own Approval Steps, already
-// fetched as one of its child collections, Phase 9) and, since deleteAllowed now ANDs it in too,
+// server-side: business state (action.CanDelete, the single source of truth RecordRow below and
+// deleteAllowed both call too -- from data this page already has in hand: r's own Values, and a
+// Document's own Approval Steps, already fetched as one of its child collections, Phase 9) and
 // any declared domain.ActionDelete Permission (authorization.AllowsAction) -- so no extra query
 // is needed just to decide whether to show the Delete button. Presentation only: the server is
 // what actually protects the data either way, the same posture decideButtons already established
 // for Approve/Reject.
 func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection, actorID string) (bool, string) {
-	ok, reason := true, ""
-	switch m.ID {
-	case action.StepMachineID:
-		ok, reason = action.CanDeleteApprovalStep(r.Values)
-	case action.DocumentMachineID:
-		status, _ := r.Values[action.FieldDocumentStatus].(string)
-		steps := []*data.Record(nil)
-		for _, cc := range children {
-			if cc.Machine.ID == action.StepMachineID {
-				steps = cc.Records
-			}
+	var steps []*data.Record
+	for _, cc := range children {
+		if cc.Machine.ID == action.StepMachineID {
+			steps = cc.Records
 		}
-		ok, reason = action.CanDeleteDocument(status, steps)
 	}
+	ok, reason := action.CanDelete(m.ID, r.Values, steps)
 	if ok && !authorization.AllowsAction(m, domain.ActionDelete, r.Values, actorID) {
 		return false, "not allowed"
 	}

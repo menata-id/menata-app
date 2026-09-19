@@ -29,7 +29,7 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, a
 		ctx := req.Context()
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 
-		inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now())
+		inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
 		if err != nil {
 			serverError(w, err)
 			return
@@ -63,7 +63,7 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, a
 func showPendingCount(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		inbox, err := composition.ApprovalInbox(req.Context(), composition.NewLoader(store, machines), userID, time.Now())
+		inbox, err := composition.ApprovalInbox(req.Context(), composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
 		if err != nil {
 			serverError(w, err)
 			return

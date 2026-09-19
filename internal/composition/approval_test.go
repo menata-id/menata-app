@@ -1,11 +1,14 @@
 package composition
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
 	"menata.app/internal/action"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
+	"menata.app/internal/rendering"
 )
 
 // These are the first tests this logic has ever had. It lived in cmd/server/main.go until Phase
@@ -60,14 +63,14 @@ func TestBuildInbox_SequentialLocksLaterSteps(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 	}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("step 2 is locked behind step 1, so it must not appear as pending; got %d card(s)", len(got.Pending))
 	}
 
 	// Same records, parallel mode: nothing is waiting on anything.
 	docs[0].Values[action.FieldDocumentMode] = "parallel"
-	got = buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+	got = buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("parallel mode makes every pending step actionable; got %d card(s)", len(got.Pending))
 	}
@@ -81,7 +84,7 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 		step("stp_mine", "doc_1", "usr_ana", action.DecisionPending, 3),
 	}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want only my own still-pending step, got %d", len(got.Pending))
 	}
@@ -133,7 +136,7 @@ func TestBuildInbox_BucketsByDay(t *testing.T) {
 			docs := []*data.Record{doc("doc_1", "Contract", "parallel", tc.due)}
 			steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-			got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+			got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
 			if len(got.Buckets) != 1 {
 				t.Fatalf("want one card, got %d", len(got.Buckets))
 			}
@@ -156,7 +159,7 @@ func TestBuildInbox_CountsMatchBuckets(t *testing.T) {
 		step("stp_3", "doc_later", "usr_ana", action.DecisionPending, 1),
 	}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
 	if got.OverdueCount != 1 || got.TodayCount != 1 {
 		t.Errorf("OverdueCount/TodayCount = %d/%d, want 1/1", got.OverdueCount, got.TodayCount)
 	}
@@ -176,7 +179,7 @@ func TestBuildInbox_SubmitterFromEarliestEvent(t *testing.T) {
 		event("doc_1", "usr_budi", at(8)), // the actual submission, logged first
 	}
 
-	got := buildInbox(steps, docs, activities, users, "usr_ana", at(10))
+	got := buildInbox(steps, docs, activities, users, "usr_ana", at(10), nil, nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want one card, got %d", len(got.Pending))
 	}
@@ -192,7 +195,7 @@ func TestBuildInbox_UnknownSubmitterFallsBack(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
 	if got.Pending[0].Submitter != "someone" {
 		t.Errorf("Submitter = %q, want %q", got.Pending[0].Submitter, "someone")
 	}
@@ -213,7 +216,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 		event("doc_theirs", "usr_budi", at(8)),
 	}
 
-	got := buildInbox(nil, docs, activities, users, "usr_ana", at(10))
+	got := buildInbox(nil, docs, activities, users, "usr_ana", at(10), nil, nil)
 	if len(got.Mine) != 1 {
 		t.Fatalf("want one submitted Document, got %d", len(got.Mine))
 	}
@@ -229,7 +232,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 func TestBuildInbox_OrphanStepIsSkipped(t *testing.T) {
 	steps := []*data.Record{step("stp_1", "doc_gone", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, nil, nil, users, "usr_ana", at(10))
+	got := buildInbox(steps, nil, nil, users, "usr_ana", at(10), nil, nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("a step pointing at a missing Document must be skipped, got %d card(s)", len(got.Pending))
 	}
@@ -242,7 +245,7 @@ func TestBuildInbox_NewBreaches_detectsOverdueUnloggedDocument(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-01")} // due well before "now"
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
 	if len(got.NewBreaches) != 1 || got.NewBreaches[0].DocumentID != "doc_1" {
 		t.Fatalf("NewBreaches = %+v, want one breach for doc_1", got.NewBreaches)
 	}
@@ -255,7 +258,7 @@ func TestBuildInbox_NewBreaches_skipsAlreadyLogged(t *testing.T) {
 		{ID: "act_1", Values: map[string]any{"fld_record_id": "doc_1", "fld_summary": slaBreachMarker + `"Contract" (due 1 Sep 2026)`}},
 	}
 
-	got := buildInbox(steps, docs, activities, users, "usr_ana", at(10))
+	got := buildInbox(steps, docs, activities, users, "usr_ana", at(10), nil, nil)
 	if len(got.NewBreaches) != 0 {
 		t.Errorf("NewBreaches = %+v, want none -- this Document's breach was already logged", got.NewBreaches)
 	}
@@ -265,7 +268,7 @@ func TestBuildInbox_NewBreaches_skipsNotOverdue(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-20")} // due well after "now"
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10))
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
 	if len(got.NewBreaches) != 0 {
 		t.Errorf("NewBreaches = %+v, want none -- not overdue yet", got.NewBreaches)
 	}
@@ -275,7 +278,7 @@ func TestBuildInbox_NewBreaches_skipsDecidedDocuments(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-01")}
 	docs[0].Values[action.FieldDocumentStatus] = action.DocumentStatusApproved
 
-	got := buildInbox(nil, docs, nil, users, "usr_ana", at(10))
+	got := buildInbox(nil, docs, nil, users, "usr_ana", at(10), nil, nil)
 	if len(got.NewBreaches) != 0 {
 		t.Errorf("NewBreaches = %+v, want none -- an already-decided Document has no active SLA to breach", got.NewBreaches)
 	}
@@ -295,6 +298,52 @@ func TestSubmittersFromActivity_DoesNotReorderCallersSlice(t *testing.T) {
 
 	if activities[0] != first {
 		t.Error("input slice was reordered; the Loader's cached records must be left alone")
+	}
+}
+
+// TestBuildInbox_ProjectsCardFields is the Fase 1 pilot's end-to-end proof: a stepMachine
+// declaring view.card_fields (the same shape metadata/approval_step.yaml would carry, had it
+// opted in) flows all the way through buildInbox into PendingApprovalCard.CardFields, resolved
+// via composition.ProjectCardFields -- no metadata/approval_step.yaml change, no .templ change.
+func TestBuildInbox_ProjectsCardFields(t *testing.T) {
+	docs := []*data.Record{doc("doc_1", "Contract", "sequential", "")}
+	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
+	stepMachine := &domain.Machine{
+		ID: action.StepMachineID,
+		Fields: []domain.Field{
+			{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
+		},
+		View: domain.View{CardFields: []domain.CardField{
+			{Field: "fld_assignee", Role: domain.CardFieldRolePerson},
+		}},
+	}
+	relations := rendering.RelationOptions{
+		"mch_user": {{ID: "usr_ana", Label: "Ana Putri"}, {ID: "usr_budi", Label: "Budi"}},
+	}
+
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachine, relations)
+	if len(got.Pending) != 1 {
+		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
+	}
+	want := []rendering.ProjectedField{{Label: "Assignee", Role: "person", Display: "Ana Putri"}}
+	if !reflect.DeepEqual(got.Pending[0].CardFields, want) {
+		t.Errorf("Pending[0].CardFields = %+v, want %+v", got.Pending[0].CardFields, want)
+	}
+}
+
+// TestBuildInbox_NilStepMachineProjectsNothing is the regression guard: every Machine today
+// (nil stepMachine, the caller's own zero value when card_fields isn't declared) must render
+// exactly as before Fase 1 -- an empty CardFields, not a nil-pointer panic.
+func TestBuildInbox_NilStepMachineProjectsNothing(t *testing.T) {
+	docs := []*data.Record{doc("doc_1", "Contract", "sequential", "")}
+	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
+
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+	if len(got.Pending) != 1 {
+		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
+	}
+	if len(got.Pending[0].CardFields) != 0 {
+		t.Errorf("Pending[0].CardFields = %+v, want empty", got.Pending[0].CardFields)
 	}
 }
 

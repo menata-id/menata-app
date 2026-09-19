@@ -24,9 +24,16 @@ type machineDoc struct {
 }
 
 type viewDoc struct {
-	Layout   string `yaml:"layout"`
-	GroupBy  string `yaml:"group_by"`
-	SLAField string `yaml:"sla_field"`
+	Layout     string         `yaml:"layout"`
+	GroupBy    string         `yaml:"group_by"`
+	SLAField   string         `yaml:"sla_field"`
+	CardFields []cardFieldDoc `yaml:"card_fields"`
+}
+
+// cardFieldDoc is the YAML serialization of a domain.CardField (007 §7.6 Projection pilot).
+type cardFieldDoc struct {
+	Field string `yaml:"field"`
+	Role  string `yaml:"role"`
 }
 
 type fieldDoc struct {
@@ -154,10 +161,18 @@ func Parse(data []byte) (*domain.Machine, error) {
 		})
 	}
 	if doc.View != nil {
+		var cardFields []domain.CardField
+		for _, cf := range doc.View.CardFields {
+			cardFields = append(cardFields, domain.CardField{
+				Field: cf.Field,
+				Role:  domain.CardFieldRole(cf.Role),
+			})
+		}
 		m.View = domain.View{
-			Layout:   domain.LayoutKind(doc.View.Layout),
-			GroupBy:  doc.View.GroupBy,
-			SLAField: doc.View.SLAField,
+			Layout:     domain.LayoutKind(doc.View.Layout),
+			GroupBy:    doc.View.GroupBy,
+			SLAField:   doc.View.SLAField,
+			CardFields: cardFields,
 		}
 	}
 	return m, nil

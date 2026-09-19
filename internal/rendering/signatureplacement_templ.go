@@ -269,7 +269,7 @@ func signaturePlacementBlock(document *data.Record, steps []*data.Record, relati
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var12 string
-			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d. %s", i+1, relationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))))
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d. %s", i+1, RelationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 94, Col: 125}
 			}

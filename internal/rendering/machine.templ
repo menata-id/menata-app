@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"menata.app/internal/action"
 	"menata.app/internal/authorization"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -526,11 +527,17 @@ templ createFormRow(m *domain.Machine, relations RelationOptions) {
 }
 
 // RecordRow is one Record in display mode. A relation field shows its target's label, not the
-// raw record id; the first field links to the record's own detail page (Phase 8). Edit/Delete are
-// offered only when authorization.AllowsAction says actorID may perform that Action on r --
-// MachinePage/MachineBody's own doc comment explains why (ROADMAP.md Phase 16, decideButtons'
-// pattern); a Machine with no declared Permission for edit/delete stays open to any actor, same
-// as before this existed.
+// raw record id; the first field links to the record's own detail page (Phase 8). Edit is offered
+// only when authorization.AllowsAction says actorID may perform ActionEdit on r
+// (MachinePage/MachineBody's own doc comment explains why, ROADMAP.md Phase 16, decideButtons'
+// pattern); a Machine with no declared Permission for edit stays open to any actor, same as
+// before this existed. Delete additionally requires action.CanDelete's own business-state check
+// (Approval Step already decided, Document already approved) -- the same AND detail.templ's
+// canDeleteInView already applies, added here 2026-09-19 (code-review finding: this generic list/
+// board row had no business-state check at all, offering Delete for a record deleteAllowed would
+// then reject server-side). Called with nil steps -- unlike canDeleteInView, this generic row has
+// no Document's own child-collection steps in hand, so a Document row's own check degrades to
+// status-only, the same fallback canDeleteInView already uses when it can't find them either.
 templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, actorID string) {
 	<tr id={ "record-" + r.ID }>
 		for i, f := range m.Fields {
@@ -542,7 +549,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, ac
 				} else if f.Type == domain.FieldTypeFile {
 					@fileLink(r.Values[f.ID])
 				} else if f.IsReference() {
-					{ relationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
+					{ RelationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
 				} else {
 					{ fmt.Sprint(r.Values[f.ID]) }
 				}
@@ -556,7 +563,8 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, ac
 					hx-swap="outerHTML"
 				>Edit</button>
 			}
-			if authorization.AllowsAction(m, domain.ActionDelete, r.Values, actorID) {
+			{{ deletable, _ := action.CanDelete(m.ID, r.Values, nil) }}
+			if deletable && authorization.AllowsAction(m, domain.ActionDelete, r.Values, actorID) {
 				<button
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
@@ -651,9 +659,13 @@ func toBool(v any) bool {
 	return b
 }
 
-// relationLabel resolves a relation field's stored record id to its target's display label, or
+// RelationLabel resolves a relation field's stored record id to its target's display label, or
 // the raw id if the target isn't in relations (e.g. deleted after the reference was made).
-func relationLabel(relations RelationOptions, machineID, id string) string {
+// Exported so internal/composition can resolve a person/relation CardField's display string
+// itself (007 §7.6 Projection pilot) rather than re-implementing this lookup a second time --
+// composition resolves values, rendering only picks markup by role (CLAUDE.md "Reference over
+// Duplication").
+func RelationLabel(relations RelationOptions, machineID, id string) string {
 	if id == "" {
 		return ""
 	}
@@ -683,6 +695,33 @@ templ slaBadge(v any) {
 		} else {
 			<span class="badge">{ label }</span>
 		}
+	}
+}
+
+// ProjectedField is one Field a Machine's view.card_fields (domain.CardField, 007 §7.6
+// Projection) projected onto a composed card, already resolved to a display string by
+// internal/composition -- this package never re-resolves a relation or re-reads a record for it,
+// the same "composition resolves, rendering only decides markup" split PendingApprovalCard's other
+// fields already follow.
+type ProjectedField struct {
+	Label   string
+	Role    string
+	Display string
+}
+
+// projectedFieldValue picks markup by ProjectedField.Role, the generic role-registry seam (007
+// §14) this repo's composed cards can grow into instead of each hardcoding its own field list --
+// Fase 1 of the composable-runtime kajian. Closed set, mirrors domain.KnownCardFieldRoles: `status`
+// reuses the `badge` class every composed card already uses (Approval Inbox's own Mode/ratio
+// badge), so no new CSS is introduced for the pilot. Every other role renders as plain text today
+// -- no currency/date-reformatting logic invented beyond what internal/composition already does
+// for values like SubmittedAt.
+templ projectedFieldValue(p ProjectedField) {
+	<span class="card-field-label">{ p.Label }</span>
+	if p.Role == string(domain.CardFieldRoleStatus) {
+		<span class="badge">{ p.Display }</span>
+	} else {
+		<span class="card-field-value">{ p.Display }</span>
 	}
 }
 

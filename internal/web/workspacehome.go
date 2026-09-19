@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"menata.app/internal/action"
 	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
@@ -39,7 +40,7 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, a
 			membership = &data.Membership{}
 		}
 
-		inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now())
+		inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
 		if err != nil {
 			serverError(w, err)
 			return

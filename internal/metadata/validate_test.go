@@ -280,6 +280,29 @@ func TestValidate_slaFieldNotADate(t *testing.T) {
 	assertIssue(t, m, "must be a date field")
 }
 
+func TestValidate_cardFieldsValid(t *testing.T) {
+	m := validMachine()
+	m.View = domain.View{CardFields: []domain.CardField{
+		{Field: "fld_title", Role: domain.CardFieldRoleTitle},
+		{Field: "fld_status", Role: domain.CardFieldRoleStatus},
+	}}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_cardFieldsUnknownField(t *testing.T) {
+	m := validMachine()
+	m.View = domain.View{CardFields: []domain.CardField{{Field: "fld_ghost", Role: domain.CardFieldRoleTitle}}}
+	assertIssue(t, m, "is not a field of this machine")
+}
+
+func TestValidate_cardFieldsUnknownRole(t *testing.T) {
+	m := validMachine()
+	m.View = domain.View{CardFields: []domain.CardField{{Field: "fld_title", Role: "carousel"}}}
+	assertIssue(t, m, "has unknown role")
+}
+
 // permissionMachine is a Machine shaped like mch_approval_step: a person Field an Action can be
 // scoped to (ROADMAP.md Phase 16).
 func permissionMachine() *domain.Machine {

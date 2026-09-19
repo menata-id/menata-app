@@ -181,6 +181,14 @@ func Validate(m *domain.Machine) error {
 			issues = append(issues, fmt.Sprintf("machine %q: view.sla_field %q must be a date field, got %q", m.ID, m.View.SLAField, f.Type))
 		}
 	}
+	for _, cf := range m.View.CardFields {
+		if _, ok := fieldsByID[cf.Field]; !ok {
+			issues = append(issues, fmt.Sprintf("machine %q: view.card_fields entry %q is not a field of this machine", m.ID, cf.Field))
+		}
+		if !domain.KnownCardFieldRoles[cf.Role] {
+			issues = append(issues, fmt.Sprintf("machine %q: view.card_fields entry %q has unknown role %q", m.ID, cf.Field, cf.Role))
+		}
+	}
 
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}

@@ -11,6 +11,7 @@ import (
 
 	"menata.app/internal/action"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 	"menata.app/internal/experience"
 	"menata.app/internal/rendering"
 )
@@ -76,7 +77,12 @@ const (
 // "Submitted by" is derived from the existing mch_activity log (Phase 13's own "submitted" event)
 // rather than a new Document Field -- Document has no user-editable slot for this, and the data
 // already exists.
-func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time) (Inbox, error) {
+// stepMachine is mch_approval_step, threaded through so buildInbox can project its own
+// view.card_fields (007 §7.6, the composable-runtime kajian's Fase 1 pilot) onto each pending
+// card. relations is only computed when stepMachine actually declares card_fields -- zero added
+// cost while no metadata opts in, the same "pay only for what you declare" posture SLAField/
+// GroupBy already established.
+func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time, stepMachine *domain.Machine) (Inbox, error) {
 	steps, err := l.ListRecords(ctx, action.StepMachineID)
 	if err != nil {
 		return Inbox{}, err
@@ -93,7 +99,14 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time)
 	if err != nil {
 		return Inbox{}, err
 	}
-	inbox := buildInbox(steps, documents, activities, users, userID, now)
+	var relations rendering.RelationOptions
+	if stepMachine != nil && len(stepMachine.View.CardFields) > 0 {
+		relations, err = l.RelationOptions(ctx, stepMachine)
+		if err != nil {
+			return Inbox{}, err
+		}
+	}
+	inbox := buildInbox(steps, documents, activities, users, userID, now, stepMachine, relations)
 	logSLABreaches(ctx, l.store, inbox.NewBreaches)
 	return inbox, nil
 }
@@ -121,7 +134,7 @@ func logSLABreaches(ctx context.Context, store *data.Store, breaches []SLABreach
 // buildInbox is the whole of the inbox's derivation, over records someone else already fetched.
 // Keeping it free of I/O is what makes the sequencing, bucketing and submitter-resolution rules
 // testable at all: they need four related record sets and a fixed clock, not a database.
-func buildInbox(steps, documents, activities, users []*data.Record, userID string, now time.Time) Inbox {
+func buildInbox(steps, documents, activities, users []*data.Record, userID string, now time.Time, stepMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
 	docByID := make(map[string]*data.Record, len(documents))
 	for _, d := range documents {
 		docByID[d.ID] = d
@@ -176,6 +189,10 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 				inbox.TodayCount++
 			}
 		}
+		var cardFields []rendering.ProjectedField
+		if stepMachine != nil && len(stepMachine.View.CardFields) > 0 {
+			cardFields = ProjectCardFields(stepMachine, s, relations)
+		}
 		inbox.Pending = append(inbox.Pending, rendering.PendingApprovalCard{
 			Reference:    action.DocumentReference(doc.SortOrder),
 			Title:        DisplayString(doc.Values["fld_title"]),
@@ -188,6 +205,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			SLADue:       doc.Values["fld_due_date"],
 			StepStates:   stepStates(stepsByDoc[docID], mode),
 			Href:         fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID),
+			CardFields:   cardFields,
 		})
 		inbox.Buckets = append(inbox.Buckets, bucket)
 	}

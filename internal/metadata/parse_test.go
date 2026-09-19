@@ -58,6 +58,36 @@ view:
 	}
 }
 
+func TestParse_viewCardFields(t *testing.T) {
+	yaml := []byte(`
+id: mch_task
+name: Task
+view:
+  card_fields:
+    - field: fld_title
+      role: title
+    - field: fld_status
+      role: status
+`)
+
+	m, err := Parse(yaml)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	want := []domain.CardField{
+		{Field: "fld_title", Role: domain.CardFieldRoleTitle},
+		{Field: "fld_status", Role: domain.CardFieldRoleStatus},
+	}
+	if len(m.View.CardFields) != len(want) {
+		t.Fatalf("View.CardFields = %+v, want %+v", m.View.CardFields, want)
+	}
+	for i, cf := range m.View.CardFields {
+		if cf != want[i] {
+			t.Errorf("View.CardFields[%d] = %+v, want %+v", i, cf, want[i])
+		}
+	}
+}
+
 func TestParse_noView(t *testing.T) {
 	m, err := Parse([]byte("id: mch_task\nname: Task\n"))
 	if err != nil {
