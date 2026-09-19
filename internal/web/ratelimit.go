@@ -83,3 +83,17 @@ func rateLimitLogin(limiter *loginRateLimiter, next http.HandlerFunc) http.Handl
 		next(w, req)
 	}
 }
+
+// rateLimitRegistration wraps submitRegistration, keyed by client address alone -- unlike login,
+// registration abuse looks like "many workspaces created from one address" (each with its own,
+// different email) rather than "one email guessed repeatedly," so there is no attempted-email
+// worth keying on.
+func rateLimitRegistration(limiter *loginRateLimiter, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if !limiter.Allow(clientAddr(req)) {
+			http.Error(w, "too many registration attempts -- try again later", http.StatusTooManyRequests)
+			return
+		}
+		next(w, req)
+	}
+}

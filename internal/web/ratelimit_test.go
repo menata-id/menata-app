@@ -78,3 +78,34 @@ func TestRateLimitLogin_blocksAfterLimit(t *testing.T) {
 		t.Errorf("wrapped handler called %d times, want 2 (the 3rd should have been blocked before reaching it)", called)
 	}
 }
+
+func TestRateLimitRegistration_blocksByAddressAlone(t *testing.T) {
+	limiter := newLoginRateLimiter(1, time.Minute)
+	called := 0
+	handler := rateLimitRegistration(limiter, func(w http.ResponseWriter, _ *http.Request) {
+		called++
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Two different attempted emails from the same address -- still only one attempt's worth of
+	// budget, since registration abuse is "many workspaces from one address," not "one email
+	// guessed repeatedly."
+	first := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader("fld_email=a@example.com"))
+	first.RemoteAddr = "9.9.9.9:1111"
+	rec := httptest.NewRecorder()
+	handler(rec, first)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("1st attempt: status = %d, want 200", rec.Code)
+	}
+
+	second := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader("fld_email=b@example.com"))
+	second.RemoteAddr = "9.9.9.9:2222"
+	rec = httptest.NewRecorder()
+	handler(rec, second)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Errorf("2nd attempt (different email, same address): status = %d, want 429", rec.Code)
+	}
+	if called != 1 {
+		t.Errorf("wrapped handler called %d times, want 1", called)
+	}
+}
