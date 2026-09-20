@@ -4,31 +4,19 @@ package rendering
 // in (ROADMAP.md Phase 21 round 2, Step D) -- the account exists but is unusable until its own
 // emailed verification link is clicked, which is what actually closes "anyone can register a
 // workspace with any email."
+//
+// The only pre-auth screen with no form: its card holds the address the link went to, so someone
+// who mistyped it can see that immediately rather than waiting for an email that will never come.
 templ CheckYourEmailPage(email string) {
-	<!DOCTYPE html>
-	<html lang="en">
-		<head>
-			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Check your email · Menata App</title>
-			<link rel="manifest" href="/manifest.json"/>
-			<link rel="icon" href="/icons/favicon-32.png"/>
-			<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
-			<meta name="theme-color" content="#2563EB"/>
-			<style>
-				body { font-family: system-ui, -apple-system, sans-serif; max-width: 360px; margin: 5rem auto; padding: 0 1rem; color: #1a1a1a; text-align: center; }
-				h1 { font-size: 1.25rem; }
-				p { font-size: 0.9rem; color: #444; }
-				p.email { font-weight: 600; color: #1a1a1a; }
-				.resend { margin-top: 1.5rem; font-size: 0.85rem; }
-			</style>
-		</head>
-		<body>
-			<h1>Check your email</h1>
-			<p>We've sent a verification link to</p>
-			<p class="email">{ email }</p>
-			<p>Click it to finish setting up your workspace and sign in.</p>
-			<p class="resend">Didn't get it? <a href="/resend-verification">Resend the link</a></p>
-		</body>
-	</html>
+	@authShell("Check your email", "Check your email", "We've sent a verification link to") {
+		@authCard("max-w-96") {
+			<div class="flex flex-col items-center gap-3 px-4 py-5 text-center sm:p-6">
+				<p class="text-[15px] font-medium break-all text-slate-900">{ email }</p>
+				<p class="text-sm text-slate-500">Click it to finish setting up your workspace and sign in.</p>
+			</div>
+		}
+		@authFooterNote() {
+			Didn't get it? <a href="/resend-verification" class="text-blue-600 hover:text-blue-700">Resend the link</a>
+		}
+	}
 }

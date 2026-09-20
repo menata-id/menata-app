@@ -11,49 +11,56 @@ package rendering
 // email+password. Relabeling doesn't touch that: the input is plain text with no email-format
 // validation, so the admin value still works in a field that now honestly describes what
 // everyone else types there.
+//
+// Ported to ui-sample/case-03-flow1/01-signin.html (Fase 1, 2026-09-20), with two deliberate
+// differences from that board:
+//
+//   - The board's "Keep me signed in" checkbox is not rendered. It is a behavior change (session
+//     lifetime), not styling, and internal/authorization has no remember-me concept -- a checkbox
+//     that silently does nothing is worse than no checkbox. Tracked as its own item rather than
+//     smuggled in with a visual port.
+//   - The "Resend verification" link is kept although the board omits it. CLAUDE.md's rule is not
+//     to *add* elements a mockup lacks; this is an existing account-recovery path, and dropping it
+//     would strand anyone whose verification email never arrived. "Forgot password?" does move up
+//     beside the Password label, as the board has it.
 templ LoginPage(errorMsg string) {
-	<!DOCTYPE html>
-	<html lang="en">
-		<head>
-			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Sign in · Menata App</title>
-			<link rel="manifest" href="/manifest.json"/>
-			<link rel="icon" href="/icons/favicon-32.png"/>
-			<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
-			<meta name="theme-color" content="#2563EB"/>
-			<style>
-				body { font-family: system-ui, -apple-system, sans-serif; max-width: 320px; margin: 6rem auto; padding: 0 1rem; color: #1a1a1a; }
-				h1 { font-size: 1.25rem; }
-				label { display: block; margin-top: 1rem; font-size: 0.85rem; color: #444; }
-				input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; margin-top: 0.25rem; }
-				button { margin-top: 1.5rem; width: 100%; padding: 0.6rem; border: none; border-radius: 4px; background: #3949ab; color: #fff; font-size: 0.95rem; cursor: pointer; }
-				.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }
-				.links { margin-top: 1.25rem; font-size: 0.85rem; color: #444; text-align: center; line-height: 1.6; }
-			</style>
-		</head>
-		<body>
-			<h1>Menata App</h1>
-			<form method="POST" action="/login">
+	@authShell("Sign in", "Menata", "Sign in to your account") {
+		@authCard("max-w-96") {
+			<form method="POST" action="/login" class="flex flex-col gap-4.5 px-4 py-5 sm:p-6">
 				@csrfHiddenInput()
-				<label>
-					Email
-					<input type="text" name="username" autocomplete="username" autofocus/>
-				</label>
-				<label>
-					Password
-					<input type="password" name="password" autocomplete="current-password"/>
-				</label>
-				if errorMsg != "" {
-					<p class="error">{ errorMsg }</p>
-				}
-				<button type="submit">Sign in</button>
+				<div class="flex flex-col gap-2">
+					<label for="username" class="text-sm font-medium">Email</label>
+					<input
+						id="username"
+						type="text"
+						name="username"
+						autocomplete="username"
+						autofocus
+						class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
+					/>
+				</div>
+				<div class="flex flex-col gap-2">
+					<div class="flex items-end justify-between">
+						<label for="password" class="text-sm font-medium">Password</label>
+						<a href="/forgot-password" class="text-xs text-blue-600 hover:text-blue-700 sm:text-2xs">Forgot password?</a>
+					</div>
+					<input
+						id="password"
+						type="password"
+						name="password"
+						autocomplete="current-password"
+						class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
+					/>
+				</div>
+				@authError(errorMsg)
+				@authSubmit("Sign in")
 			</form>
-			<p class="links">
-				Don't have an account? <a href="/register">Create a workspace</a><br/>
-				Forgot your password? <a href="/forgot-password">Reset it</a><br/>
-				Didn't get your verification email? <a href="/resend-verification">Resend it</a>
-			</p>
-		</body>
-	</html>
+		}
+		@authFooterNote() {
+			Don't have an account? <a href="/register" class="text-blue-600 hover:text-blue-700">Create a workspace</a>
+		}
+		@authFooterNote() {
+			Didn't get your verification email? <a href="/resend-verification" class="text-blue-600 hover:text-blue-700">Resend it</a>
+		}
+	}
 }

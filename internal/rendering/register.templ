@@ -4,55 +4,25 @@ package rendering
 // registration creates a new Workspace and its first member (that Workspace's Admin) in one step
 // -- there is no path to a bare user account with nowhere to go. errorMsg is shown when a prior
 // attempt failed; empty renders no message.
+//
+// Ported onto the shared authShell kit (Fase 1, 2026-09-20). ui-sample/case-03-flow1 has no
+// registration board of its own, so this follows board 01's own control sizing and card shape
+// rather than inventing a second visual language for the one screen the design skipped.
 templ RegistrationPage(errorMsg string) {
-	<!DOCTYPE html>
-	<html lang="en">
-		<head>
-			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Create a workspace · Menata App</title>
-			<link rel="manifest" href="/manifest.json"/>
-			<link rel="icon" href="/icons/favicon-32.png"/>
-			<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
-			<meta name="theme-color" content="#2563EB"/>
-			<style>
-				body { font-family: system-ui, -apple-system, sans-serif; max-width: 360px; margin: 4rem auto; padding: 0 1rem; color: #1a1a1a; }
-				h1 { font-size: 1.25rem; }
-				p.lead { font-size: 0.85rem; color: #666; margin-top: -0.5rem; }
-				label { display: block; margin-top: 1rem; font-size: 0.85rem; color: #444; }
-				input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; margin-top: 0.25rem; }
-				button { margin-top: 1.5rem; width: 100%; padding: 0.6rem; border: none; border-radius: 4px; background: #3949ab; color: #fff; font-size: 0.95rem; cursor: pointer; }
-				.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }
-				.sign-in { margin-top: 1.25rem; font-size: 0.85rem; color: #444; text-align: center; }
-			</style>
-		</head>
-		<body>
-			<h1>Create a workspace</h1>
-			<p class="lead">This creates a new Workspace and makes you its Admin.</p>
-			<form method="POST" action="/register">
+	@authShell("Create a workspace", "Create a workspace", "This creates a new Workspace and makes you its Admin.") {
+		@authCard("max-w-96") {
+			<form method="POST" action="/register" class="flex flex-col gap-4.5 px-4 py-5 sm:p-6">
 				@csrfHiddenInput()
-				<label>
-					Workspace name
-					<input type="text" name="workspace_name" autofocus required/>
-				</label>
-				<label>
-					Your name
-					<input type="text" name="fld_name" required/>
-				</label>
-				<label>
-					Email
-					<input type="email" name="fld_email" autocomplete="username" required/>
-				</label>
-				<label>
-					Password
-					<input type="password" name="password" autocomplete="new-password" minlength="8" required/>
-				</label>
-				if errorMsg != "" {
-					<p class="error">{ errorMsg }</p>
-				}
-				<button type="submit">Create workspace</button>
+				@authField("workspace_name", "workspace_name", "Workspace name", "text", "organization", true)
+				@authField("fld_name", "fld_name", "Your name", "text", "name", false)
+				@authField("fld_email", "fld_email", "Email", "email", "username", false)
+				@authPasswordField("password", "password", "Password", "new-password", false)
+				@authError(errorMsg)
+				@authSubmit("Create workspace")
 			</form>
-			<p class="sign-in">Already have a workspace? <a href="/login">Sign in</a></p>
-		</body>
-	</html>
+		}
+		@authFooterNote() {
+			Already have a workspace? <a href="/login" class="text-blue-600 hover:text-blue-700">Sign in</a>
+		}
+	}
 }

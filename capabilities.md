@@ -126,6 +126,35 @@ has its own cost, so staying page-internal is the correct default, not a gap, un
 | `fieldInput` | One Field's own input control, chosen by `domain.FieldType` (text/number/date/status/relation/file/...) | `machine.templ`; `RecordEditRow`, `createFormRow`, and `detail.templ`'s `RecordDetailEdit` |
 | `fileLink` | A `file` Field's stored value rendered as a download link | `machine.templ`; `RecordRow`, and `detail.templ`'s `RecordDetailView` |
 | `csrfHiddenInput` | The CSRF double-submit hidden `<input>` every state-changing form carries | `machine.templ`; every pre-auth form (`login.templ`, `register.templ`, `forgotpassword.templ`, `resetpassword.templ`, `resendverification.templ`, `chooseworkspace.templ`), `workspacemembers.templ`, and `machine.templ`'s own generic create/edit rows |
+| `authShell` / `authCard` / `authError` / `authFooterNote` / `authField` / `authPasswordField` / `authSubmit` | The pre-auth page kit: `pageShell`'s counterpart for screens with no Workspace or Application chosen yet, so nothing to project a navigation from — a centered brand lockup over one white card, plus the labelled control, primary button and footer-note shapes those forms repeat | `authshell.templ`; all seven pre-auth screens (`login`, `register`, `chooseworkspace`, `forgotpassword`, `resetpassword`, `resendverification`, `checkyouremail`). Promoted on arrival rather than after a second caller: those seven each carried their own near-identical `<style>` block before this, all repeating one `body` rule verbatim, so the duplication this table exists to prevent was already seven deep. The first components styled with Tailwind (`static/css/app.css`) rather than `pageStyles` — see the layout note below |
+
+### Styling: two systems, on purpose (Fase 1, 2026-09-20)
+
+Pages are styled two different ways right now, and which one a page uses says where it is in the
+`ui-sample/case-03-flow1` port:
+
+| | Stylesheet | Pages |
+|---|---|---|
+| **Tailwind** | `static/css/app.css`, built from `static/css/input.css` by `make css` | The seven pre-auth screens, via the `authShell` kit above |
+| **Hand-written** | `pageStyles`, an inline `<style>` block in `machine.templ` | Every authenticated screen, via `pageShell` / `workspaceHomeShell` |
+
+This split is a planned transition, not drift. The authenticated screens change chrome in Fase 2
+(breadcrumb + app launcher replacing the projected topbar), so restyling them ahead of their own
+port would leave fourteen pages carrying new paint over old structure. `pageStyles` shrinks as
+each one migrates.
+
+Tailwind is the **standalone CLI binary**, pinned and checksum-verified in the `Makefile` the same
+way CI pins `goose` — it bundles its own runtime, so this stays a Node-free build. `app.css` is
+generated *and committed*, exactly like the `*_templ.go` files, so `go build ./cmd/server` needs
+neither Node nor the binary; `make check-generated` fails if either artifact is stale. The Ubuntu
+faces `app.css` names are self-hosted under `static/vendor/fonts/ubuntu` (six files: 400/500/700 ×
+latin and latin-ext), because `secureheaders.go`'s CSP is `default-src 'self'` and `font-src`
+falls back to it.
+
+One scanner rule this depends on: Tailwind finds class names by reading the `.templ` sources named
+by `input.css`'s own `@source`. A class assembled at runtime (`"text-" + size`) is invisible to it
+and silently never reaches `app.css` — the failure shows up as missing styling in the browser, not
+as a build error.
 
 **Not yet built:** Timeline Layout; colored label chips and member avatars on a card face;
 drag-and-drop reordering of board columns and cards. The full list of what the `ui-sample/`

@@ -15,45 +15,49 @@ type WorkspaceChoice struct {
 // action="/switch-workspace" (the Workspace Home eyebrow's switch icon, matching
 // ui-sample/workspace-home.html's own three-dot affordance). backHref/backLabel differ the same
 // way: "back to signing in" pre-session, "back to the Workspace" mid-session.
+//
+// Ported to ui-sample/case-03-flow1/02-choose-workspace.html (Fase 1, 2026-09-20). The board's
+// own rows carry a second line ("dokter-kecil · 24 members") that this app cannot fill yet: a
+// Workspace has no slug and no member count on domain.Workspace, and inventing either here would
+// be exactly the hardcoding CLAUDE.md's decision path rules out. The row therefore renders name +
+// role only, and the slug/count line arrives when those become real fields (ROADMAP.md, Fase 3 --
+// multi-application, which is when Workspace metadata grows anyway).
+//
+// The "admin" comparison below is the board's own two-tone badge (blue for an Admin membership,
+// slate otherwise). It is a literal role value, but not a metadata-hardcoding violation under
+// CLAUDE.md's decision path: a Workspace role is a `workspace_members.workspace_role` column
+// value ("admin"/"member", written by registration.go and validated in workspacemembers.go), and
+// no metadata/*.yaml declares roles at all -- "role" does not appear in 006 or 007 either. The
+// forward pointer step 2b asks for is ROADMAP.md's Case 03 phase 7, which makes roles a declared
+// runtime concept; when that lands, this branch should read the declaration instead of the column.
 templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, backHref, backLabel string) {
-	<!DOCTYPE html>
-	<html lang="en">
-		<head>
-			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>Choose a workspace · Menata App</title>
-			<link rel="manifest" href="/manifest.json"/>
-			<link rel="icon" href="/icons/favicon-32.png"/>
-			<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
-			<meta name="theme-color" content="#2563EB"/>
-			<style>
-				body { font-family: system-ui, -apple-system, sans-serif; max-width: 360px; margin: 5rem auto; padding: 0 1rem; color: #1a1a1a; }
-				h1 { font-size: 1.25rem; }
-				.workspace-choice { display: block; width: 100%; text-align: left; padding: 0.75rem; margin-top: 0.75rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.95rem; }
-				.workspace-choice:hover { border-color: #3949ab; }
-				.workspace-choice .role { display: block; font-size: 0.8rem; color: #666; margin-top: 0.15rem; }
-				.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }
-				.sign-out { margin-top: 1.5rem; font-size: 0.85rem; text-align: center; }
-			</style>
-		</head>
-		<body>
-			<h1>Choose a workspace</h1>
-			if errorMsg != "" {
-				<p class="error">{ errorMsg }</p>
-			}
-			for _, c := range choices {
-				<form method="POST" action={ templ.SafeURL(action) }>
-					@csrfHiddenInput()
-					<input type="hidden" name="workspace_id" value={ c.ID }/>
-					<button type="submit" class="workspace-choice">
-						{ c.Name }
-						<span class="role">{ c.Role }</span>
-					</button>
-				</form>
-			}
-			<p class="sign-out">
-				<a href={ templ.SafeURL(backHref) }>← { backLabel }</a>
-			</p>
-		</body>
-	</html>
+	@authShell("Choose a workspace", "Choose a workspace", "You have access to more than one workspace.") {
+		@authCard("max-w-112") {
+			<div class="flex flex-col gap-2 p-3">
+				@authError(errorMsg)
+				for _, c := range choices {
+					<form method="POST" action={ templ.SafeURL(action) }>
+						@csrfHiddenInput()
+						<input type="hidden" name="workspace_id" value={ c.ID }/>
+						<button
+							type="submit"
+							class="flex w-full cursor-pointer items-center gap-3 rounded-md border border-slate-200 bg-white p-4 text-left hover:border-blue-300"
+						>
+							<span class="flex grow flex-col gap-2">
+								<span class="text-[15px] font-medium text-slate-900">{ c.Name }</span>
+							</span>
+							if c.Role == "admin" {
+								<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">{ c.Role }</span>
+							} else {
+								<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{ c.Role }</span>
+							}
+						</button>
+					</form>
+				}
+			</div>
+		}
+		@authFooterNote() {
+			<a href={ templ.SafeURL(backHref) } class="text-slate-500 hover:text-slate-700">← { backLabel }</a>
+		}
+	}
 }

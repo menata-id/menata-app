@@ -74,10 +74,47 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   the upstream capability registry already carries them as admitted, built, conformance-tested
   rows, so the work is to implement those capabilities rather than to re-decide them. Breakdown
   and running order: `menata-app-document`'s `case-03-composability-checklist.md`.
+- **Porting the Case 03 Flow 1 design** (owner mockup, 2026-09-20, unpacked into
+  `ui-sample/case-03-flow1/` — twelve desktop boards at 1280px, ten mobile at 390px, two of them
+  marked TIDAK DIPAKAI). The gap study behind the sequence below found three things worth
+  recording, because each one contradicts an assumption that looked safe: the app was **not**
+  actually using Tailwind (`static/vendor/tailwind.play.js` was loaded only by the `ui-sample`
+  mockups); the boards' palette **is** Tailwind's own default slate/blue scale, so the color
+  tokens came free; and board 06's explanatory copy cites a `ProcessEdge` primitive and a
+  `/{machineID}/process-map` route that **exist nowhere in this repo**, while the word "role"
+  appears nowhere in `006`/`007` either — the Permission shape that does exist is record-scoped
+  (`actor_field`), which cannot express "Finance Reviewer may approve the Finance transition".
+  Owner decisions, 2026-09-20: Tailwind enters via a **CLI build step** (not the dev-only Play
+  build), the declared-View gate below is **decided before** the composed screens are ported, and
+  board 06 is built **in full**, role-based Permission and transition model included. Seven
+  phases, in dependency order:
+  1. **Design system + Tailwind pipeline** — *shipped 2026-09-20*. See `capabilities.md`'s
+     "Styling: two systems, on purpose". Boards 01 and 02 are ported, and the `authShell` kit
+     replaced the seven near-identical `<style>` blocks the pre-auth screens each carried.
+  2. Chrome: breadcrumb + app launcher + section tabs, replacing the projected topbar. Needs
+     `navigation:` to grow a second level (today's `group:` renders a dropdown, not a tab strip).
+  3. Multi-application — `app.yaml` declares one `application:`, and `workspace_members` has one
+     `app_role` column; `capabilities.md` already states Application plurality is not built.
+  4. Groups — absent entirely, and present in five of the ten boards. A Group and its membership
+     can be ordinary Machines (many-to-many is already proven by `mch_card_label`); the parts that
+     cannot be, and need a decision: effective access as the union of direct and group-inherited
+     roles, and an Approval Step assignable to a User *or* a Group (`relation` targets exactly one
+     `machine:`).
+  5. **A View as a declared object** — the gate already named below, taken before the screens that
+     would otherwise hardcode around it.
+  6. The approval-flow screens (boards 07-10).
+  7. Role-based Permission + a declared transition model, then board 06 itself.
 - Rounding out Project Management: a project-level workspace overview, richer task detail
   (checklist, comments, attachments), and scoping views to one project at a time.
-- Two-level navigation for switching between applications inside a workspace.
-- Accessibility and mobile/responsive polish across existing screens.
+- Two-level navigation for switching between applications inside a workspace (phase 2-3 above).
+- Accessibility and mobile/responsive polish across existing screens. The Case 03 port carries its
+  own responsive rules per component as each screen lands, rather than deferring them to a later
+  sweep — but one thing needs reconciling first: `ui-sample/navigation.html` specifies a mobile
+  bottom bar of 3-4 icons, while the new boards' own mobile artboards (M01-M10) have no bottom bar
+  at all and reuse the desktop header.
+- "Keep me signed in" on the sign-in board — deliberately *not* rendered during phase 1, because it
+  is a session-lifetime change rather than styling and `internal/authorization` has no remember-me
+  concept; a checkbox that does nothing would be worse than none.
 
 ## Planned
 

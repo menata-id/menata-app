@@ -1,0 +1,100 @@
+/* The app's one Tailwind entry point. `make css` compiles this to app.css, which is committed
+   (check-generated verifies it isn't stale) so `go build ./cmd/server` needs neither Node nor the
+   Tailwind binary -- the same posture the generated *_templ.go files already have.
+
+   Scope note (Fase 1, 2026-09-20): only the pre-auth pages render from this stylesheet so far.
+   Every authenticated screen still renders from machine.templ's own hand-written pageStyles
+   block, deliberately -- those screens change chrome in Fase 2 (breadcrumb + app launcher), and
+   restyling them before their own port would leave fourteen pages half-migrated. The two systems
+   coexisting is a planned transition, not drift. */
+
+@import "tailwindcss";
+
+/* The .templ files are the real source of class names -- the generated *_templ.go duplicates
+   them, so scanning the .templ side alone is enough and keeps the scan honest about where a
+   class was actually written. Class names must stay literal in those files: Tailwind finds them
+   by reading source text, so a name assembled at runtime ("text-" + size) silently never makes
+   it into this output. */
+@source "../../internal/rendering/*.templ";
+
+@theme {
+	/* Ubuntu, self-hosted under /vendor/fonts (never loaded from Google Fonts: secureheaders.go's
+	   CSP is default-src 'self', and font-src falls back to it). Only the latin and latin-ext
+	   ranges are vendored -- the design's own six-range set includes cyrillic and greek, which
+	   nothing in this app renders. */
+	--font-sans: Ubuntu, system-ui, -apple-system, sans-serif;
+
+	/* The brand mark's own blue (the rounded "M" lockup). Deliberately not a Tailwind scale
+	   value -- ui-sample/case-03-flow1's boards use #2f80ff here and blue-600 for links, and
+	   they are genuinely different colors. */
+	--color-brand: #2f80ff;
+
+	/* The design leans on two text sizes below Tailwind's smallest default (text-xs = 12px):
+	   11px for metadata lines (a workspace slug, a member count, a card's reference) and 10px
+	   for the uppercase eyebrow labels above a section heading. */
+	--text-2xs: 0.6875rem; /* 11px */
+	--text-3xs: 0.625rem; /* 10px */
+}
+
+/* Ubuntu 400/500/700, latin-ext then latin. Weight 500 carries most of the UI (labels, buttons,
+   card titles); 700 is the brand mark only. */
+@font-face {
+	font-family: "Ubuntu";
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url("/vendor/fonts/ubuntu/ubuntu-400-latin-ext.woff2") format("woff2");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+		U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+		U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+	font-family: "Ubuntu";
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url("/vendor/fonts/ubuntu/ubuntu-400-latin.woff2") format("woff2");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+		U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF,
+		U+FFFD;
+}
+@font-face {
+	font-family: "Ubuntu";
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url("/vendor/fonts/ubuntu/ubuntu-500-latin-ext.woff2") format("woff2");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+		U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+		U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+	font-family: "Ubuntu";
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url("/vendor/fonts/ubuntu/ubuntu-500-latin.woff2") format("woff2");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+		U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF,
+		U+FFFD;
+}
+@font-face {
+	font-family: "Ubuntu";
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url("/vendor/fonts/ubuntu/ubuntu-700-latin-ext.woff2") format("woff2");
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+		U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+		U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+	font-family: "Ubuntu";
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url("/vendor/fonts/ubuntu/ubuntu-700-latin.woff2") format("woff2");
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+		U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF,
+		U+FFFD;
+}

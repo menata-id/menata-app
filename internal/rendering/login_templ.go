@@ -19,6 +19,18 @@ import templruntime "github.com/a-h/templ/runtime"
 // email+password. Relabeling doesn't touch that: the input is plain text with no email-format
 // validation, so the admin value still works in a field that now honestly describes what
 // everyone else types there.
+//
+// Ported to ui-sample/case-03-flow1/01-signin.html (Fase 1, 2026-09-20), with two deliberate
+// differences from that board:
+//
+//   - The board's "Keep me signed in" checkbox is not rendered. It is a behavior change (session
+//     lifetime), not styling, and internal/authorization has no remember-me concept -- a checkbox
+//     that silently does nothing is worse than no checkbox. Tracked as its own item rather than
+//     smuggled in with a visual port.
+//   - The "Resend verification" link is kept although the board omits it. CLAUDE.md's rule is not
+//     to *add* elements a mockup lacks; this is an existing account-recovery path, and dropping it
+//     would strand anyone whose verification email never arrived. "Forgot password?" does move up
+//     beside the Password label, as the board has it.
 func LoginPage(errorMsg string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -40,38 +52,115 @@ func LoginPage(errorMsg string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Sign in · Menata App</title><link rel=\"manifest\" href=\"/manifest.json\"><link rel=\"icon\" href=\"/icons/favicon-32.png\"><link rel=\"apple-touch-icon\" href=\"/icons/icon-180.png\"><meta name=\"theme-color\" content=\"#2563EB\"><style>\n\t\t\t\tbody { font-family: system-ui, -apple-system, sans-serif; max-width: 320px; margin: 6rem auto; padding: 0 1rem; color: #1a1a1a; }\n\t\t\t\th1 { font-size: 1.25rem; }\n\t\t\t\tlabel { display: block; margin-top: 1rem; font-size: 0.85rem; color: #444; }\n\t\t\t\tinput { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; margin-top: 0.25rem; }\n\t\t\t\tbutton { margin-top: 1.5rem; width: 100%; padding: 0.6rem; border: none; border-radius: 4px; background: #3949ab; color: #fff; font-size: 0.95rem; cursor: pointer; }\n\t\t\t\t.error { color: #b00020; font-size: 0.85rem; margin-top: 1rem; }\n\t\t\t\t.links { margin-top: 1.25rem; font-size: 0.85rem; color: #444; text-align: center; line-height: 1.6; }\n\t\t\t</style></head><body><h1>Menata App</h1><form method=\"POST\" action=\"/login\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = csrfHiddenInput().Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<label>Email <input type=\"text\" name=\"username\" autocomplete=\"username\" autofocus></label> <label>Password <input type=\"password\" name=\"password\" autocomplete=\"current-password\"></label> ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if errorMsg != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p class=\"error\">")
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Var3 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form method=\"POST\" action=\"/login\" class=\"flex flex-col gap-4.5 px-4 py-5 sm:p-6\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = csrfHiddenInput().Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"flex flex-col gap-2\"><label for=\"username\" class=\"text-sm font-medium\">Email</label> <input id=\"username\" type=\"text\" name=\"username\" autocomplete=\"username\" autofocus class=\"h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm\"></div><div class=\"flex flex-col gap-2\"><div class=\"flex items-end justify-between\"><label for=\"password\" class=\"text-sm font-medium\">Password</label> <a href=\"/forgot-password\" class=\"text-xs text-blue-600 hover:text-blue-700 sm:text-2xs\">Forgot password?</a></div><input id=\"password\" type=\"password\" name=\"password\" autocomplete=\"current-password\" class=\"h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm\"></div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = authError(errorMsg).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = authSubmit("Sign in").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</form>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				return nil
+			})
+			templ_7745c5c3_Err = authCard("max-w-96").Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var2 string
-			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/login.templ`, Line: 48, Col: 32}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</p>")
+			templ_7745c5c3_Var4 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "Don't have an account? <a href=\"/register\" class=\"text-blue-600 hover:text-blue-700\">Create a workspace</a>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				return nil
+			})
+			templ_7745c5c3_Err = authFooterNote().Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<button type=\"submit\">Sign in</button></form><p class=\"links\">Don't have an account? <a href=\"/register\">Create a workspace</a><br>Forgot your password? <a href=\"/forgot-password\">Reset it</a><br>Didn't get your verification email? <a href=\"/resend-verification\">Resend it</a></p></body></html>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Var5 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "Didn't get your verification email? <a href=\"/resend-verification\" class=\"text-blue-600 hover:text-blue-700\">Resend it</a>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				return nil
+			})
+			templ_7745c5c3_Err = authFooterNote().Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = authShell("Sign in", "Menata", "Sign in to your account").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

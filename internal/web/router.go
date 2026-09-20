@@ -107,8 +107,15 @@ func Routes(d Deps) http.Handler {
 	r.Get("/manifest.json", serveManifest)
 	r.Get("/sw.js", serveServiceWorker)
 	r.Handle("/icons/*", http.StripPrefix("/icons/", http.FileServer(http.Dir("static/icons"))))
+	// The Tailwind build (static/css/app.css, `make css`). Public rather than inside requireAuth
+	// because the pre-auth pages -- sign in, register, password reset -- render from it too, and a
+	// stylesheet behind an auth gate would leave the sign-in page unstyled for exactly the people
+	// who cannot be authenticated yet.
+	r.Handle("/css/*", http.StripPrefix("/css/", http.FileServer(http.Dir("static/css"))))
 	// Vendored htmx/hyperscript (pageHead's own doc comment) -- self-hosted rather than loaded
 	// from unpkg.com so a CDN outage or block can't silently take down every hx-* interaction.
+	// Also serves the Ubuntu woff2 faces app.css names (static/vendor/fonts/ubuntu), which is why
+	// they live under vendor/ rather than needing a public route of their own.
 	r.Handle("/vendor/*", http.StripPrefix("/vendor/", http.FileServer(http.Dir("static/vendor"))))
 	r.Get("/login", showLogin)
 	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))

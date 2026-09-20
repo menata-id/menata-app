@@ -78,10 +78,24 @@ jobs:
       - name: Generate templ
         run: go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
 
-      # Catches the case where a .templ file was edited but `templ generate` was never
-      # re-run before committing, so the checked-in *_templ.go drifts from its source.
+      # Tailwind's standalone CLI bundles its own runtime, so this needs no Node setup -- the
+      # same reason the Makefile fetches it rather than adding an npm dependency. Pinned and
+      # checksum-verified like goose above; keep the version in step with the Makefile's own
+      # TAILWIND_VERSION. Only the lint job needs it: app.css is committed, so build-test above
+      # compiles fine without it, and what this job adds is the staleness check below.
+      - name: Install Tailwind CLI
+        run: |
+          curl -sSfL -o tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-x64
+          echo "dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a  tailwindcss" | sha256sum -c -
+          chmod +x tailwindcss
+          ./tailwindcss -i static/css/input.css -o static/css/app.css --minify
+
+      # Catches the case where a .templ file was edited but `templ generate` was never re-run
+      # before committing, so the checked-in *_templ.go drifts from its source -- or where a class
+      # was added to a .templ without rebuilding static/css/app.css, which fails the same way:
+      # silently, as missing styling in the browser rather than a build error.
       - name: Check generated code is up to date
-        run: git diff --exit-code -- '*_templ.go'
+        run: git diff --exit-code -- '*_templ.go' static/css/app.css
 
       # golangci-lint's own prebuilt releases (what golangci-lint-action installs) are still built
       # with go1.26 as of this writing and refuse to lint a go1.27 module ("the Go language version

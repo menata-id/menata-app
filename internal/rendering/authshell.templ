@@ -1,0 +1,135 @@
+package rendering
+
+// authShell is the page frame every pre-auth screen shares -- sign in, register, choose a
+// workspace, the three password/verification screens. It is the pageShell counterpart for pages
+// that have no Workspace or Application chosen yet, and therefore no navigation to project: what
+// they share instead is a centered brand lockup over a single card.
+//
+// It exists because the seven screens listed above each carried their own near-identical <style>
+// block before this (all eight stylesheets in internal/rendering repeated the same `body`
+// rule verbatim), so a change to the sign-in frame reached exactly one of them. That is well past
+// capabilities.md's own promotion bar for this table -- seven Pages needing the identical shape,
+// not the two it asks for.
+//
+// heading/subtitle are the lockup's own text, which differs per screen ("Menata" / "Sign in to
+// your account" on the sign-in board, "Choose a workspace" / "You have access to more than one
+// workspace." on the next one). They are this screen's own copy, not metadata: no Workspace is
+// resolved yet at this point in the flow, so there is no app.yaml label to read them from.
+//
+// Styling is Tailwind (static/css/app.css, built by `make css`), matching
+// ui-sample/case-03-flow1's boards 01 and 02. One deliberate deviation: board 02 centers its card
+// vertically while board 01 sits 110px from the top, and this frame top-aligns both. Centering
+// would move the card up and down as the workspace list grows, which the fixed-height board
+// cannot show.
+templ authShell(title, heading, subtitle string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title } · Menata App</title>
+			<link rel="manifest" href="/manifest.json"/>
+			<link rel="icon" href="/icons/favicon-32.png"/>
+			<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
+			<meta name="theme-color" content="#2563EB"/>
+			<link rel="stylesheet" href="/css/app.css"/>
+		</head>
+		<body class="m-0 bg-slate-50 font-sans text-slate-900">
+			<div class="flex min-h-screen flex-col items-center gap-6 px-4 pt-18 pb-8 sm:gap-7 sm:pt-28">
+				<div class="flex flex-col items-center gap-2">
+					<div
+						role="img"
+						aria-label="Menata App"
+						class="flex size-11 items-center justify-center rounded-[10px] bg-brand text-[26px] leading-none font-bold text-white"
+					>
+						M
+					</div>
+					<div class="mt-1.5 text-[21px] font-medium">{ heading }</div>
+					<div class="text-[15px] text-slate-500">{ subtitle }</div>
+				</div>
+				{ children... }
+			</div>
+		</body>
+	</html>
+}
+
+// authCard is the white panel the pre-auth screens put their form or list inside. Its width is
+// the one thing that varies between boards (384px for the sign-in form, 448px for the workspace
+// list), so it is a parameter rather than a second component; on a phone both go full-width
+// inside authShell's own gutter.
+templ authCard(widthClass string) {
+	<div class={ "w-full rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]", widthClass }>
+		{ children... }
+	</div>
+}
+
+// authError is the shared "that attempt failed" line -- same wording placement on every pre-auth
+// screen that can fail (bad credentials, an expired reset token, a workspace that is no longer
+// yours).
+templ authError(msg string) {
+	if msg != "" {
+		<p role="alert" class="text-2xs text-red-600">{ msg }</p>
+	}
+}
+
+// authFooterNote is the small slate line under the card ("Don't have an account? ..."), which
+// every pre-auth screen ends with in some form.
+templ authFooterNote() {
+	<div class="text-2xs text-slate-400">
+		{ children... }
+	</div>
+}
+
+// authField is one labelled control on a pre-auth form. Four screens repeat this exact shape
+// (registration's four fields, forgot-password's and resend-verification's single email box), and
+// the control's own sizing is the part that must not drift between them: the boards step every
+// input up on a phone (42px tall / 15px text) and back down on a wider viewport (38px / 14px),
+// which is a touch-target rule, not decoration.
+//
+// LoginPage deliberately does not use this: its password row carries a "Forgot password?" link
+// beside the label, so its markup genuinely differs rather than being this shape plus a flag.
+templ authField(id, name, label, kind, autocomplete string, autofocus bool) {
+	<div class="flex flex-col gap-2">
+		<label for={ id } class="text-sm font-medium">{ label }</label>
+		<input
+			id={ id }
+			type={ kind }
+			name={ name }
+			autocomplete={ autocomplete }
+			required
+			autofocus?={ autofocus }
+			class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
+		/>
+	</div>
+}
+
+// authPasswordField is authField's counterpart for a *new* password, carrying the minlength the
+// server also enforces. Separate rather than a `kind` value so the length rule can't be forgotten
+// at a call site -- registration and both reset-password callers all need it.
+templ authPasswordField(id, name, label, autocomplete string, autofocus bool) {
+	<div class="flex flex-col gap-2">
+		<label for={ id } class="text-sm font-medium">{ label }</label>
+		<input
+			id={ id }
+			type="password"
+			name={ name }
+			autocomplete={ autocomplete }
+			minlength="8"
+			required
+			autofocus?={ autofocus }
+			class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
+		/>
+	</div>
+}
+
+// authSubmit is the pre-auth primary button. Slate-900, not blue: on these boards blue is the
+// link color and the filled action is near-black, so using the brand blue here would read as a
+// link-shaped button.
+templ authSubmit(label string) {
+	<button
+		type="submit"
+		class="flex h-11 cursor-pointer items-center justify-center rounded-md bg-slate-900 text-[15px] font-medium text-white hover:bg-slate-800 sm:h-9 sm:text-sm"
+	>
+		{ label }
+	</button>
+}

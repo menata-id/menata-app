@@ -120,6 +120,7 @@ var knownPublicRoutes = map[string]bool{
 	"/manifest.json":       true,
 	"/sw.js":               true,
 	"/icons/*":             true,
+	"/css/*":               true,
 	"/vendor/*":            true,
 	"/login":               true,
 	"/register":            true,
