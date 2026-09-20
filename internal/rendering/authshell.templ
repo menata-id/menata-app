@@ -25,14 +25,9 @@ templ authShell(title, heading, subtitle string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
-			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ title } · Menata App</title>
-			<link rel="manifest" href="/manifest.json"/>
-			<link rel="icon" href="/icons/favicon-32.png"/>
-			<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
-			<meta name="theme-color" content="#2563EB"/>
-			<link rel="stylesheet" href="/css/app.css"/>
+			// Shared with appShell (appshell.templ). No htmx here: every pre-auth screen posts a
+			// plain <form>, so nothing on them is hx-driven.
+			@headMeta(title)
 		</head>
 		<body class="m-0 bg-slate-50 font-sans text-slate-900">
 			<div class="flex min-h-screen flex-col items-center gap-6 px-4 pt-18 pb-8 sm:gap-7 sm:pt-28">

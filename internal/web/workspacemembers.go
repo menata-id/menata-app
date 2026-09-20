@@ -15,7 +15,7 @@ import (
 
 // showWorkspaceMembers lists every member of the signed-in identity's Workspace (ROADMAP.md
 // Phase 21 Step 6). Gated by requireWorkspaceAdmin.
-func showWorkspaceMembers(store *data.Store, appName string) http.HandlerFunc {
+func showWorkspaceMembers(store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -24,11 +24,16 @@ func showWorkspaceMembers(store *data.Store, appName string) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.WorkspaceMembersPage(members, appName))
+		chrome, err := resolveChrome(ctx, req, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		render(ctx, w, rendering.WorkspaceMembersPage(members, appName, chrome.WorkspaceName, chrome.UserInitials))
 	}
 }
 
-func showEditMember(store *data.Store, appName string) http.HandlerFunc {
+func showEditMember(store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -37,7 +42,12 @@ func showEditMember(store *data.Store, appName string) http.HandlerFunc {
 			recordError(w, err)
 			return
 		}
-		render(ctx, w, rendering.EditMemberPage(*m, appName))
+		chrome, err := resolveChrome(ctx, req, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		render(ctx, w, rendering.EditMemberPage(*m, appName, chrome.WorkspaceName, chrome.UserInitials))
 	}
 }
 

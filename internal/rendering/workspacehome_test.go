@@ -11,12 +11,17 @@ import (
 
 // renderWorkspaceHomeForRole renders WorkspaceHomePage with the given workspaceRole and every
 // other parameter fixed to a minimal valid fixture, returning the Members link's presence.
-// WorkspaceHomePage's pending-decision subtitle falls back to labelByID("nav_approval_inbox")
+// WorkspaceHomePage resolves every route and label it renders through routeByID/labelByID
 // (machine.templ), so a nav fixture must be configured before rendering, same pattern
-// TestRouteByID_survivesHiddenNavGroup (navigation_test.go) already uses.
+// TestRouteByID_survivesHiddenNavGroup (navigation_test.go) already uses. Three items are needed
+// since Fase 2: the page's own title and breadcrumb (nav_home), its "Manage members" link
+// (nav_workspace_members -- the very link this test asserts on) and the Application card's
+// subtitle (nav_approval_inbox).
 func workspaceHomeHasMembersLink(t *testing.T, workspaceRole string) bool {
 	t.Helper()
 	all := []domain.NavigationItem{
+		{ID: "nav_home", Label: "Home", Route: "/home"},
+		{ID: "nav_workspace_members", Label: "Workspace Members", Route: "/workspace-members"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
 	}
 	t.Cleanup(func() { ConfigureNavigation(nil, "", nil) })
@@ -39,6 +44,12 @@ func workspaceHomeHasMembersLink(t *testing.T, workspaceRole string) bool {
 // != "member" (what workspacehome.templ actually does) shows it for both a real admin and a
 // missing membership row, hiding it only for a real member -- the same three-way split
 // requireWorkspaceAdmin already makes.
+//
+// Since Fase 2 it guards two places at once, because it asserts on the whole rendered page rather
+// than on one element: the page's own "Manage members" link, and appShell's launcher panel, which
+// lists declared navigation and would otherwise offer every viewer nav_workspace_members. It
+// caught exactly that regression the first time the launcher shipped -- see membersHiddenFor
+// (workspacehome.templ), whose result feeds both.
 func TestWorkspaceHomePage_membersLinkVisibility(t *testing.T) {
 	tests := []struct {
 		role string

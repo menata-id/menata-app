@@ -26,7 +26,7 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, a
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 
-		ws, err := store.GetWorkspace(ctx, workspaceID)
+		chrome, err := resolveChrome(ctx, req, store, cfg)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -44,14 +44,6 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, a
 		if err != nil {
 			serverError(w, err)
 			return
-		}
-
-		// userName is best-effort: missing for the shared admin credential's placeholder identity
-		// the same way membership itself is (see this function's own doc comment) -- Initials("")
-		// degrades to "?" rather than erroring.
-		userName := ""
-		if userRecord, err := store.GetRecord(ctx, "mch_user", userID); err == nil {
-			userName = composition.DisplayString(userRecord.Values["fld_name"])
 		}
 
 		switchHref := ""
@@ -72,8 +64,8 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, a
 		}
 
 		render(ctx, w, rendering.WorkspaceHomePage(
-			ws.Name, appName, membership.WorkspaceRole, membership.AppRole, len(inbox.Pending),
-			composition.Initials(userName), composition.Initials(appName), switchHref, homeRoute,
+			chrome.WorkspaceName, appName, membership.WorkspaceRole, membership.AppRole, len(inbox.Pending),
+			chrome.UserInitials, composition.Initials(appName), switchHref, homeRoute,
 		))
 	}
 }

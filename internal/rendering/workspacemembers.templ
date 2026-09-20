@@ -1,5 +1,7 @@
 package rendering
 
+import "fmt"
+import "strings"
 import "menata.app/internal/data"
 
 // appRoleOptions is this slice's single-Application role vocabulary (ROADMAP.md Phase 21 Step 6,
@@ -7,78 +9,163 @@ import "menata.app/internal/data"
 // per-Application table, since only one Application exists here.
 var appRoleOptions = []string{"", "approver", "submitter", "reviewer"}
 
-// WorkspaceMembersPage lists every member of the signed-in identity's Workspace
-// (workspace-members.html, reduced: no Group/"Source" column, since Groups stay deferred).
-templ WorkspaceMembersPage(members []data.Membership, appName string) {
-	@pageShell(labelByID("nav_workspace_members"), appName) {
-		<h1>{ labelByID("nav_workspace_members") }</h1>
-		<form method="POST" action="/workspace-members/invite" class="invite-form">
-			@csrfHiddenInput()
-			<label>
-				Full name
-				<input type="text" name="fld_name" required/>
-			</label>
-			<label>
-				Email
-				<input type="email" name="email" required/>
-			</label>
-			<label>
-				{ appName } role
-				<select name="app_role">
-					for _, r := range appRoleOptions {
-						<option value={ r }>{ displayRole(r) }</option>
-					}
-				</select>
-			</label>
-			<button type="submit" class="primary">+ Invite member</button>
-		</form>
-		<table>
-			<thead>
-				<tr>
-					<th>Email</th>
-					<th>Workspace role</th>
-					<th>{ appName } role</th>
-					<th></th>
-				</tr>
-			</thead>
-			<tbody>
-				for _, m := range members {
-					<tr>
-						<td>{ m.Email }</td>
-						<td><span class="badge">{ m.WorkspaceRole }</span></td>
-						<td>{ displayRole(m.AppRole) }</td>
-						<td><a href={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") }>Edit →</a></td>
-					</tr>
-				}
-			</tbody>
-		</table>
+// memberInitials is the avatar glyph for a member row. data.Membership carries an Email but no
+// display name, so this derives from the local part rather than showing a blank circle.
+//
+// It duplicates what composition.Initials does for a *name*, on purpose: internal/rendering
+// cannot import internal/composition (composition already imports rendering), and threading a
+// per-member initials slice through the handler for one avatar would be a worse trade than eight
+// lines here. When Fase 3 gives a member a real display name, both callers should take it from
+// there instead.
+func memberInitials(email string) string {
+	local, _, _ := strings.Cut(email, "@")
+	parts := strings.FieldsFunc(local, func(r rune) bool { return r == '.' || r == '_' || r == '-' || r == '+' })
+	switch {
+	case len(parts) == 0:
+		return "?"
+	case len(parts) == 1:
+		return strings.ToUpper(parts[0][:1])
+	default:
+		return strings.ToUpper(parts[0][:1] + parts[1][:1])
 	}
 }
 
-// EditMemberPage is one member's role editor (member-role-detail.html, reduced to one
-// Application): a Workspace role choice plus this Application's own role.
-templ EditMemberPage(m data.Membership, appName string) {
-	@pageShell("Edit member", appName) {
-		<h1>{ m.Email }</h1>
-		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") }>
-			@csrfHiddenInput()
-			<label>
-				Workspace role
-				<select name="workspace_role">
-					<option value="admin" selected?={ m.WorkspaceRole == "admin" }>admin</option>
-					<option value="member" selected?={ m.WorkspaceRole == "member" }>member</option>
-				</select>
-			</label>
-			<label>
-				{ appName } role
-				<select name="app_role">
-					for _, r := range appRoleOptions {
-						<option value={ r } selected?={ r == m.AppRole }>{ displayRole(r) }</option>
-					}
-				</select>
-			</label>
-			<button type="submit" class="primary">Save changes</button>
-		</form>
-		<p><a href={ templ.SafeURL(routeByID("nav_workspace_members")) }>← Back to { labelByID("nav_workspace_members") }</a></p>
+// WorkspaceMembersPage lists every member of the signed-in identity's Workspace, ported to
+// ui-sample/case-03-flow1/04-workspace-members.html (Fase 2, 2026-09-20).
+//
+// Three elements of that board are deliberately absent, each because the capability behind it does
+// not exist rather than because the port was partial. ROADMAP.md's Case 03 deferral table carries
+// the same list with the phase that closes each one:
+//
+//   - The search box. Search, filtering and pagination are unbuilt everywhere in this app
+//     (ROADMAP.md, "Planned") -- a box that filters nothing would be worse than none, the same
+//     call made for "Keep me signed in" in Fase 1.
+//   - The per-Application role *columns*. app.yaml declares one `application:`, so there is one
+//     role to show; Fase 3 turns this column into one per Application.
+//   - The "Source" column (Direct / "Group: Reviewers"). Groups do not exist until Fase 4, and
+//     with no Groups every row would read "Direct" -- a column with one possible value states
+//     nothing.
+//
+// The board also shows each member's full name above their email; data.Membership carries only
+// Email (see memberInitials above), so the row shows the address alone.
+templ WorkspaceMembersPage(members []data.Membership, appName, workspaceName, userInitials string) {
+	@appShell(labelByID("nav_workspace_members"), workspaceName, userInitials, "nav_workspace_members", nil) {
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+			<div class="flex flex-col gap-2">
+				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
+				<h1 class="m-0 text-xl font-medium">{ labelByID("nav_workspace_members") }</h1>
+				<div class="text-sm text-slate-500">Manage workspace membership and application access.</div>
+			</div>
+			<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", len(members)) }{ pluralS(len(members)) }</span>
+		</div>
+		<details class="rounded-lg border border-slate-200 bg-white">
+			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ Invite member</summary>
+			<form method="POST" action="/workspace-members/invite" class="flex flex-col gap-4 border-t border-slate-200 px-5 py-4">
+				@csrfHiddenInput()
+				@authField("invite_name", "fld_name", "Full name", "text", "name", false)
+				@authField("invite_email", "email", "Email", "email", "email", false)
+				<div class="flex flex-col gap-2">
+					<label for="invite_role" class="text-sm font-medium">{ appName } role</label>
+					<select id="invite_role" name="app_role" class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] sm:h-9.5 sm:text-sm">
+						for _, r := range appRoleOptions {
+							<option value={ r }>{ displayRole(r) }</option>
+						}
+					</select>
+				</div>
+				@authSubmit("Send invitation")
+			</form>
+		</details>
+		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+			<div class="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600 sm:flex">
+				<span class="grow">Member</span>
+				<span class="w-32">Workspace role</span>
+				// "Application roles", plural and app-agnostic, is the board's own header: each cell
+				// names its Application, so repeating the name here would say it twice, and Fase 3
+				// turns each cell into several.
+				<span class="w-44">Application roles</span>
+				<span class="w-16"></span>
+			</div>
+			for _, m := range members {
+				<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
+					<div class="flex grow items-center gap-3">
+						<span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-2xs font-medium text-slate-700">{ memberInitials(m.Email) }</span>
+						<span class="truncate text-sm">{ m.Email }</span>
+					</div>
+					<div class="sm:w-32">
+						if m.WorkspaceRole == "admin" {
+							<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">{ m.WorkspaceRole }</span>
+						} else {
+							<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{ displayRole(m.WorkspaceRole) }</span>
+						}
+					</div>
+					<div class="text-sm text-slate-600 sm:w-44">{ appName } · { displayRole(m.AppRole) }</div>
+					<div class="sm:w-16">
+						<a href={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class="text-sm text-blue-600 hover:text-blue-700">Edit →</a>
+					</div>
+				</div>
+			}
+		</div>
 	}
+}
+
+// EditMemberPage is one member's role editor, ported to
+// ui-sample/case-03-flow1/05-edit-member.html (Fase 2, 2026-09-20).
+//
+// The board's third section, "Effective access" (direct roles unioned with roles inherited from
+// Groups, and the note that group-derived access cannot be removed from this screen), is absent
+// for the same reason the Source column is on the list page: Groups arrive in Fase 4, and the
+// union itself has no primitive behind it yet. Its Application-access section lists three
+// Applications where this lists one, which is Fase 3.
+templ EditMemberPage(m data.Membership, appName, workspaceName, userInitials string) {
+	@appShell("Edit member", workspaceName, userInitials, "", nil) {
+		<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
+			← { labelByID("nav_workspace_members") }
+		</a>
+		<div class="flex items-center gap-3">
+			<span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-medium text-slate-700">{ memberInitials(m.Email) }</span>
+			<span class="truncate text-[15px] font-medium">{ m.Email }</span>
+		</div>
+		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class="flex flex-col gap-4">
+			@csrfHiddenInput()
+			<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+				<div class="flex flex-col gap-1">
+					<h2 class="m-0 text-sm font-medium">Workspace role</h2>
+					<p class="m-0 text-2xs text-slate-500">Controls workspace administration, independent of application permissions.</p>
+				</div>
+				@workspaceRoleChoice("admin", "Can manage members, groups and workspace settings.", m.WorkspaceRole == "admin")
+				@workspaceRoleChoice("member", "No workspace administration.", m.WorkspaceRole == "member")
+			</section>
+			<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+				<div class="flex flex-col gap-1">
+					<h2 class="m-0 text-sm font-medium">Application access</h2>
+					<p class="m-0 text-2xs text-slate-500">Assign the role this user receives directly in each application.</p>
+				</div>
+				<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+					<label for="app_role" class="text-sm">{ appName }</label>
+					<select id="app_role" name="app_role" class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] sm:h-9.5 sm:w-56 sm:text-sm">
+						for _, r := range appRoleOptions {
+							<option value={ r } selected?={ r == m.AppRole }>{ displayRole(r) }</option>
+						}
+					</select>
+				</div>
+			</section>
+			<div class="flex items-center justify-end gap-3">
+				<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-sm text-slate-500 hover:text-slate-700">Cancel</a>
+				@authSubmit("Save changes")
+			</div>
+		</form>
+	}
+}
+
+// workspaceRoleChoice is one radio card in the Workspace role fieldset: the value plus the
+// sentence explaining what holding it means, which the board puts under every option rather than
+// leaving "admin" and "member" to speak for themselves.
+templ workspaceRoleChoice(role, description string, selected bool) {
+	<label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 p-3 hover:border-blue-300">
+		<input type="radio" name="workspace_role" value={ role } checked?={ selected } class="mt-0.5 size-4 accent-blue-500"/>
+		<span class="flex flex-col gap-1">
+			<span class="text-sm font-medium">{ displayRole(role) }</span>
+			<span class="text-2xs text-slate-500">{ description }</span>
+		</span>
+	</label>
 }

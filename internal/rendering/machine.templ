@@ -247,18 +247,6 @@ templ pageStyles() {
 				.approver-row:last-child .approver-move-down { visibility: hidden; }
 				.approver-row:only-child .approver-move-remove { visibility: hidden; }
 
-				/* Workspace-level chrome (workspaceHomeShell): a plain "Menata" brand plus
-				   Members link and avatar, distinct from the Application-nav topbar above --
-				   a Workspace Home screen has no Application menu of its own to project (mirrors
-				   ui-sample/workspace-home.html's own launcher-only chrome). */
-				header.topbar .left .topbar-brand { color: #1a1a1a; font-weight: 600; text-decoration: none; }
-				.workspace-topbar-right { display: flex; align-items: center; gap: 1rem; }
-				.workspace-heading { margin-bottom: 1.5rem; }
-				.eyebrow-row { display: flex; align-items: center; gap: 0.35rem; }
-				.eyebrow { color: #3949ab; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-				.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 1.4rem; height: 1.4rem; border: none; border-radius: 4px; background: none; color: #999; text-decoration: none; cursor: pointer; padding: 0; font-size: 1rem; line-height: 1; }
-				.icon-btn:hover { background: #f0f0f0; color: #3949ab; }
-				.workspace-subtitle { color: #666; font-size: 0.9rem; margin: 0.25rem 0 0; }
 			</style>
 }
 
@@ -356,43 +344,14 @@ templ pageShell(title string, appName string) {
 	</html>
 }
 
-// workspaceHomeShell is the Workspace-level chrome for the Workspace Home screen: a plain
-// "Menata" brand (not the Application's own nav) plus a Members link and the signed-in
-// identity's avatar, matching ui-sample/workspace-home.html's own distinction between
-// Workspace-level chrome (no Application menu, since none is open yet) and the Application-level
-// topbar pageShell renders everywhere else. Reduced to what's meaningful with one real
-// Application: no cross-Application launcher, since (per pageShell's WorkspaceHomePage caller)
-// there is nothing yet to switch between.
-//
-// showMembersLink hides the Members link for a viewer requireWorkspaceAdmin would actually
-// reject (ROADMAP.md Phase 16's own link-level case, not just record actions): /workspace-members*
-// is already requireWorkspaceAdmin-gated server-side (internal/web/router.go), so seeing this
-// link only ever got a 403 after clicking -- this makes the UI honest about the same rule, the
-// way decideButtons already is for Approve/Reject. Named for what it decides, not "isAdmin": its
-// caller (WorkspaceHomePage) passes true for a real admin *and* for a missing-membership viewer,
-// matching requireWorkspaceAdmin's own fail-open posture for that identity -- see its own doc
-// comment for why "isAdmin" would be the wrong name here.
-templ workspaceHomeShell(userInitials string, showMembersLink bool) {
-	<!DOCTYPE html>
-	<html lang="en">
-		@pageHead("Home")
-		<body>
-			<header class="topbar">
-				<div class="left">
-					<a href="/home" class="topbar-brand">Menata</a>
-				</div>
-				<div class="workspace-topbar-right">
-					if showMembersLink {
-						<a href="/workspace-members">Members</a>
-					}
-					<span class="avatar">{ userInitials }</span>
-				</div>
-			</header>
-			{ children... }
-			@pwaRegistrationScript()
-		</body>
-	</html>
-}
+// workspaceHomeShell was the Workspace-level chrome here until Fase 2 (2026-09-20), when the
+// three Workspace-level screens moved to appShell (appshell.templ) and its launcher: a plain
+// "Menata" brand plus a Members link is exactly what ui-sample/case-03-flow1's boards replace
+// with a 9-dot launcher, a breadcrumb and an avatar. Its Members-link visibility rule did not
+// disappear with it -- WorkspaceHomePage still applies the same workspaceRole != "member" test,
+// and that test's reasoning (requireWorkspaceAdmin fails *open* for an identity with no
+// membership row at all, so == "admin" would hide a link that identity can still open) now lives
+// in WorkspaceHomePage's own doc comment.
 
 // MachineList is the landing page: every Machine in the Application, linking to its own page.
 // Adding a third Machine requires no code change here -- it appears because it's in the

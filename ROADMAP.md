@@ -91,8 +91,15 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   1. **Design system + Tailwind pipeline** — *shipped 2026-09-20*. See `capabilities.md`'s
      "Styling: two systems, on purpose". Boards 01 and 02 are ported, and the `authShell` kit
      replaced the seven near-identical `<style>` blocks the pre-auth screens each carried.
-  2. Chrome: breadcrumb + app launcher + section tabs, replacing the projected topbar. Needs
-     `navigation:` to grow a second level (today's `group:` renders a dropdown, not a tab strip).
+  2. **Chrome: launcher + breadcrumb** — *shipped 2026-09-20*. `appShell` (9-dot launcher,
+     `Workspace / Page` breadcrumb, avatar) plus boards 03/04/05, replacing `workspaceHomeShell`.
+     Scoped to those three screens rather than all fourteen because Preflight ties chrome to
+     content (above). The section tab strip was the only piece needing `navigation:` to grow a
+     second level, and it is deferred — so this phase changed **no metadata** and left
+     `domain.NavigationItem` untouched. Two things it did surface: putting navigation in the
+     launcher created the first real case for **per-viewer navigation filtering** (see
+     `capabilities.md`, "Navigation: two filters"), and it confirmed the launcher must read
+     `AllNavigation`, since a hidden group's routes stay reachable there.
   3. Multi-application — `app.yaml` declares one `application:`, and `workspace_members` has one
      `app_role` column; `capabilities.md` already states Application plurality is not built.
   4. Groups — absent entirely, and present in five of the ten boards. A Group and its membership
@@ -104,6 +111,28 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      would otherwise hardcode around it.
   6. The approval-flow screens (boards 07-10).
   7. Role-based Permission + a declared transition model, then board 06 itself.
+
+  **Penyempurnaan — what each shipped phase left undone, and when it lands.** Kept as one table
+  on purpose: a comment at a call site answers *why* something is missing, this answers *when* it
+  stops being. The three "no phase yet" rows are the point of having it — an unscheduled gap that
+  looks scheduled is worse than one that admits it, and those are the rows to re-check at each
+  phase close (the same discipline `CLAUDE.md` asks for standing metadata exceptions).
+
+  | Left undone | Finished in | Blocked on |
+  |---|---|---|
+  | Workspace Home shows one Application card, not three (board 03) | Fase 3 | `applications:` as a list; `app.yaml` declares one `application:` |
+  | Per-Application role *columns* on Members (board 04) | Fase 3 | same, plus `workspace_members`' single `app_role` column |
+  | Source / "Group: Reviewers" column (board 04) | Fase 4 | Groups do not exist; with none, every row would read "Direct" |
+  | Effective-access panel, direct ∪ group-inherited (board 05) | Fase 4 | Groups; the union itself has no primitive |
+  | Member full name beside the email (board 04/05) | Fase 3 | `data.Membership` carries only `Email`; `memberInitials` derives from the local part meanwhile |
+  | Section tab strip (board 07) | Fase 4 (Groups tab) + Fase 6 (My Documents tab) | 2 of its 4 destinations do not exist; the only part needing a `navigation:` second level |
+  | Review document as its own screen (board 10) | Fase 6 | today it rides the generic record-detail page shared by every Machine |
+  | New chrome on the Document Approval screens (inbox, submit, signature) | Fase 6 | Preflight ties chrome to content; their content ports there |
+  | Approval Role Matrix (board 06) | Fase 7 | role-based Permission + a declared transition model, neither in 006/007 |
+  | Declared `requires_role:` on a navigation item | Fase 7, with role-based Permission | `appShell`'s `hiddenNavIDs` is the one-case stand-in today |
+  | Application menu row + mobile bottom bar | **no phase yet** — lands with the Project Management screens' own boards | nothing in Fase 2–7 displays it: Workspace-level screens have no Application open, Document Approval declares `hidden_nav_groups`. The owner's bottom-bar decision (`navigation.html`, 3–4 icons, top-4 by priority) is already made; it is the *screens* that are missing, not the decision |
+  | Member search box (board 04) | **no phase yet** — "Planned: search, filtering and pagination" below | search does not exist anywhere in the app |
+  | "Keep me signed in" (board 01) | **no phase yet** | a session-lifetime change; `internal/authorization` has no remember-me concept |
 - Rounding out Project Management: a project-level workspace overview, richer task detail
   (checklist, comments, attachments), and scoping views to one project at a time.
 - Two-level navigation for switching between applications inside a workspace (phase 2-3 above).

@@ -126,6 +126,7 @@ has its own cost, so staying page-internal is the correct default, not a gap, un
 | `fieldInput` | One Field's own input control, chosen by `domain.FieldType` (text/number/date/status/relation/file/...) | `machine.templ`; `RecordEditRow`, `createFormRow`, and `detail.templ`'s `RecordDetailEdit` |
 | `fileLink` | A `file` Field's stored value rendered as a download link | `machine.templ`; `RecordRow`, and `detail.templ`'s `RecordDetailView` |
 | `csrfHiddenInput` | The CSRF double-submit hidden `<input>` every state-changing form carries | `machine.templ`; every pre-auth form (`login.templ`, `register.templ`, `forgotpassword.templ`, `resetpassword.templ`, `resendverification.templ`, `chooseworkspace.templ`), `workspacemembers.templ`, and `machine.templ`'s own generic create/edit rows |
+| `appShell` / `appLauncher` / `launcherLink` / `headMeta` | The Workspace-level page frame (`ui-sample/case-03-flow1` boards 03–05): a 9-dot launcher, a `Workspace / Page` breadcrumb and the viewer's avatar. The launcher reads `Application.AllNavigation` — the list *before* `hidden_nav_groups` filtering — because hiding a group suppresses its menu chrome, never its launcher entry (`nav-metadata.js` states this outright), which is also what keeps every declared route reachable on a screen that no longer has a topbar. `headMeta` is the `<head>` shared with `authShell`. Its `hiddenNavIDs` parameter is per-*viewer* filtering, a different question from the metadata-level `hidden_nav_groups` — see the navigation note below | `appshell.templ`; Workspace Home, Workspace Members, Edit member |
 | `authShell` / `authCard` / `authError` / `authFooterNote` / `authField` / `authPasswordField` / `authSubmit` | The pre-auth page kit: `pageShell`'s counterpart for screens with no Workspace or Application chosen yet, so nothing to project a navigation from — a centered brand lockup over one white card, plus the labelled control, primary button and footer-note shapes those forms repeat | `authshell.templ`; all seven pre-auth screens (`login`, `register`, `chooseworkspace`, `forgotpassword`, `resetpassword`, `resendverification`, `checkyouremail`). Promoted on arrival rather than after a second caller: those seven each carried their own near-identical `<style>` block before this, all repeating one `body` rule verbatim, so the duplication this table exists to prevent was already seven deep. The first components styled with Tailwind (`static/css/app.css`) rather than `pageStyles` — see the layout note below |
 
 ### Styling: two systems, on purpose (Fase 1, 2026-09-20)
@@ -135,13 +136,32 @@ Pages are styled two different ways right now, and which one a page uses says wh
 
 | | Stylesheet | Pages |
 |---|---|---|
-| **Tailwind** | `static/css/app.css`, built from `static/css/input.css` by `make css` | The seven pre-auth screens, via the `authShell` kit above |
-| **Hand-written** | `pageStyles`, an inline `<style>` block in `machine.templ` | Every authenticated screen, via `pageShell` / `workspaceHomeShell` |
+| **Tailwind** | `static/css/app.css`, built from `static/css/input.css` by `make css` | The seven pre-auth screens (`authShell`) and the three Workspace-level screens (`appShell`) |
+| **Hand-written** | `pageStyles`, an inline `<style>` block in `machine.templ` | The remaining Application screens, via `pageShell` |
 
-This split is a planned transition, not drift. The authenticated screens change chrome in Fase 2
-(breadcrumb + app launcher replacing the projected topbar), so restyling them ahead of their own
-port would leave fourteen pages carrying new paint over old structure. `pageStyles` shrinks as
-each one migrates.
+This split is a planned transition, not drift, and the boundary is **per screen rather than per
+layer** for a specific reason: Tailwind's Preflight resets heading sizes, list markers and button
+defaults that `pageStyles` leaves to the browser (it sets `h1 { margin-bottom }` and no font
+size). A page linking `app.css` must therefore have its *content* ported in the same change, or it
+visibly breaks. That is what stops the chrome from being migrated on its own, and why each phase
+of the `ui-sample/case-03-flow1` port moves whole screens. `pageStyles` shrinks as each one goes.
+
+### Navigation: two filters, asking different questions
+
+`hidden_nav_groups` (`app.yaml`) is **metadata-level**: it suppresses an Application's own menu
+chrome and is identical for every viewer — `ui-sample/nav-metadata.js`'s `showNav: false`. It
+deliberately does *not* reach the launcher, which is why `appLauncher` reads `AllNavigation`.
+
+`appShell`'s `hiddenNavIDs` is **viewer-level**: destinations this particular person must not be
+offered. It exists because moving navigation into the launcher created the forcing condition
+`ROADMAP.md`'s "Per-user/role navigation filtering" was waiting for — that entry reasoned the
+feature wasn't needed since "the one concrete case found, Workspace Home's Members link, was
+workspace-level chrome, not a metadata nav item". The launcher makes `nav_workspace_members`
+exactly that nav item, and `/workspace-members*` is `requireWorkspaceAdmin`-gated, so without this
+a plain member would be offered a link that only ever 403s.
+`TestWorkspaceHomePage_membersLinkVisibility` holds both halves shut. The declared form
+(`requires_role:` on a navigation item) is still the real feature and still unbuilt — this is one
+handler naming the item it already gates, not a shape.
 
 Tailwind is the **standalone CLI binary**, pinned and checksum-verified in the `Makefile` the same
 way CI pins `goose` — it bundles its own runtime, so this stays a Node-free build. `app.css` is

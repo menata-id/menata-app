@@ -2,63 +2,104 @@ package rendering
 
 import "fmt"
 
-// WorkspaceHomePage is the landing page after login (ROADMAP.md Phase 21 Step 5), reduced to a
-// single Application card since this slice deliberately has no Application plurality yet -- the
-// cross-Application launcher ui-sample/workspace-home.html also shows has nothing to switch
-// between until a second real Application exists (Phase 21 Step 5's own deferral). userInitials
-// and appInitials are composition.Initials(...) computed by the caller (rendering can't import
-// composition -- it already imports rendering). switchHref is the mid-session Choose Workspace
-// link (showSwitchWorkspace) when the signed-in identity belongs to more than one Workspace, or
-// "" to hide the switcher -- there is nothing to switch to otherwise. homeRoute is
-// domain.HomeCardRoute's result (internal/web/workspacehome.go), never a literal here -- see
-// internal/conformance's TestWorkspaceHomeHasNoHardcodedApplicationRoute.
+// WorkspaceHomePage is the landing page after login (ROADMAP.md Phase 21 Step 5). switchHref is
+// the mid-session Choose Workspace link (showSwitchWorkspace) when the signed-in identity belongs
+// to more than one Workspace, or "" to hide the switcher -- there is nothing to switch to
+// otherwise. homeRoute is domain.HomeCardRoute's result (internal/web/workspacehome.go), never a
+// literal here -- see internal/conformance's TestWorkspaceHomeHasNoHardcodedApplicationRoute.
 //
-// workspaceRole != "member" (not workspaceRole == "admin") decides whether workspaceHomeShell
-// shows its own Members link -- requireWorkspaceAdmin (internal/web/middleware.go) fails *open*
-// for an identity with no real membership row at all (the shared admin credential predating
-// per-user accounts, this page's own doc comment), letting it reach /workspace-members
-// regardless of role; showWorkspaceHome degrades that same missing-membership case to
-// workspaceRole == "" (data.Membership{}), so gating on == "admin" would hide a link that
-// identity can still open directly (code-review finding, 2026-09-19). != "member" shows the link
-// for both a real admin and a missing membership row, hiding it only for a real member -- the
-// same three-way split requireWorkspaceAdmin already makes.
+// Ported to ui-sample/case-03-flow1/03-workspace-home.html (Fase 2, 2026-09-20), which is also
+// where the launcher moved to: workspaceHomeShell's own Members link and avatar are now
+// appShell's, so this page renders content only.
+//
+// The board shows a three-card Application grid; this renders one, because app.yaml declares one
+// `application:` and `capabilities.md` still records Application plurality as unbuilt. The other
+// two cards, and the per-Application rows in "Your access" below, arrive in Fase 3 -- see
+// ROADMAP.md's Case 03 deferral table, which lists every board element this port leaves out and
+// the phase that fills it. Inventing a second card here would be exactly the hardcoding
+// CLAUDE.md's decision path rules out.
+//
+// showMembersLink (workspaceRole != "member", not == "admin") decides whether the "Manage members"
+// link renders -- requireWorkspaceAdmin (internal/web/middleware.go) fails *open* for an identity
+// with no real membership row at all (the shared admin credential predating per-user accounts),
+// letting it reach /workspace-members regardless of role; showWorkspaceHome degrades that same
+// missing-membership case to workspaceRole == "" (data.Membership{}), so gating on == "admin"
+// would hide a link that identity can still open directly (code-review finding, 2026-09-19).
+// != "member" shows it for both a real admin and a missing membership row, hiding it only for a
+// real member -- the same three-way split requireWorkspaceAdmin already makes.
 templ WorkspaceHomePage(workspaceName, appName, workspaceRole, appRole string, pendingCount int, userInitials, appInitials, switchHref, homeRoute string) {
-	@workspaceHomeShell(userInitials, workspaceRole != "member") {
-		<div class="workspace-heading">
-			<div class="eyebrow-row">
-				<span class="eyebrow">Workspace</span>
+	@appShell(labelByID("nav_home"), workspaceName, userInitials, "nav_home", membersHiddenFor(workspaceRole)) {
+		<div class="mb-3 flex flex-col gap-2">
+			<div class="flex items-center gap-2.5">
+				<span class="text-xs tracking-wide text-blue-600">WORKSPACE</span>
 				if switchHref != "" {
-					<a href={ templ.SafeURL(switchHref) } class="icon-btn" aria-label="Switch workspace" title="Switch workspace">⋯</a>
+					<a href={ templ.SafeURL(switchHref) } class="px-1 text-sm leading-none text-slate-400 hover:text-blue-600" aria-label="Switch workspace" title="Switch workspace">⋯</a>
 				}
 			</div>
-			<h1>{ workspaceName }</h1>
-			<p class="workspace-subtitle">Your applications, based on the roles assigned to you.</p>
+			<h1 class="m-0 text-2xl font-medium">{ workspaceName }</h1>
+			<div class="text-sm text-slate-500">Your applications, based on the roles assigned to you.</div>
 		</div>
-		<div class="summary-card-list">
-			<a href={ templ.SafeURL(homeRoute) } class="summary-card">
-				<span class="avatar">{ appInitials }</span>
-				<span class="summary-card-body">
-					<span class="summary-card-title">{ appName }</span>
-					<span class="summary-card-subtitle">
-						if pendingCount > 0 {
-							{ fmt.Sprintf("%d pending decision", pendingCount) }{ pluralS(pendingCount) }
-						} else {
-							{ labelByID("nav_approval_inbox") }
-						}
-					</span>
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+			<a href={ templ.SafeURL(homeRoute) } class="flex flex-col gap-2.5 rounded-lg border border-slate-200 bg-white p-5 text-slate-900 hover:border-blue-300">
+				<span class="mb-5 flex size-10 items-center justify-center rounded-md bg-blue-50 text-base font-medium text-slate-500">{ appInitials }</span>
+				<span class="text-[17px] font-medium">{ appName }</span>
+				<span class="text-xs text-slate-500">{ labelByID("nav_approval_inbox") }</span>
+				<span class="mt-3 text-xs text-blue-600">
+					if pendingCount > 0 {
+						{ fmt.Sprintf("%d pending decision", pendingCount) }{ pluralS(pendingCount) } →
+					} else {
+						Open →
+					}
 				</span>
 			</a>
 		</div>
-		<section class="access-panel">
-			<h2>Your access</h2>
-			<dl class="detail-fields">
-				<dt>Workspace</dt>
-				<dd>{ displayRole(workspaceRole) }</dd>
-				<dt>{ appName }</dt>
-				<dd>{ displayRole(appRole) }</dd>
-			</dl>
+		<section class="mt-4 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			<div class="flex items-center justify-between">
+				<div class="flex flex-col gap-2">
+					<h2 class="m-0 text-sm font-medium">Your access</h2>
+					<span class="text-2xs text-slate-500">Effective roles in this workspace.</span>
+				</div>
+				if workspaceRole != "member" {
+					<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
+						{ labelByID("nav_workspace_members") } →
+					</a>
+				}
+			</div>
+			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+				@accessTile("Workspace", displayRole(workspaceRole))
+				@accessTile(appName, displayRole(appRole))
+			</div>
 		</section>
 	}
+}
+
+// membersHiddenFor decides whether this viewer is offered the Workspace Members destination at
+// all -- in the launcher (appShell's hiddenNavIDs) and, by the same test, in this page's own
+// "Manage members" link.
+//
+// workspaceRole != "member" rather than == "admin", which is the whole point:
+// requireWorkspaceAdmin (internal/web/middleware.go) fails *open* for an identity with no real
+// membership row at all (the shared admin credential predating per-user accounts), letting it
+// reach /workspace-members regardless of role; showWorkspaceHome degrades that same
+// missing-membership case to workspaceRole == "" (data.Membership{}). Gating on == "admin" would
+// therefore hide a link that identity can still open directly -- the code-review finding of
+// 2026-09-19 that TestWorkspaceHomePage_membersLinkVisibility now holds shut for both the link
+// and the launcher.
+func membersHiddenFor(workspaceRole string) []string {
+	if workspaceRole == "member" {
+		return []string{"nav_workspace_members"}
+	}
+	return nil
+}
+
+// accessTile is one "Your access" cell: which scope, and the role held in it. A separate
+// component because Fase 3 turns this from two tiles into one per Application, and the shape is
+// then rendered from a loop rather than written twice.
+templ accessTile(scope, role string) {
+	<div class="flex flex-col gap-1.5 rounded-md bg-slate-50 p-3">
+		<span class="text-2xs text-slate-400">{ scope }</span>
+		<span class="text-sm">{ role }</span>
+	</div>
 }
 
 func pluralS(n int) string {
