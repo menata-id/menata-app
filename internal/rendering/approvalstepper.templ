@@ -26,7 +26,7 @@ templ approvalStepper(steps []*data.Record, mode string, relations RelationOptio
 
 templ approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relations RelationOptions) {
 	{{ decision := toString(s.Values[action.FieldStepDecision]) }}
-	{{ assignee := RelationLabel(relations, "mch_user", toString(s.Values["fld_assignee"])) }}
+	{{ assignee := RelationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee])) }}
 	{{ seq := toString(s.Values[action.FieldStepSequence]) }}
 	<li>
 		switch decision {

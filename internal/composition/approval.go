@@ -152,7 +152,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 
 	var inbox Inbox
 	for _, s := range steps {
-		if DisplayString(s.Values["fld_assignee"]) != userID {
+		if DisplayString(s.Values[action.FieldStepAssignee]) != userID {
 			continue
 		}
 		if DisplayString(s.Values[action.FieldStepDecision]) != action.DecisionPending {
@@ -221,7 +221,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			Reference:      action.DocumentReference(d.SortOrder),
 			Title:          DisplayString(d.Values["fld_title"]),
 			Subtitle:       fmt.Sprintf("%s · %s · %d/%d approved", DisplayString(d.Values["fld_document_type"]), mode, approved, len(stepsByDoc[d.ID])),
-			StatusLabel:    DisplayString(d.Values["fld_status"]),
+			StatusLabel:    DisplayString(d.Values[action.FieldDocumentStatus]),
 			Href:           fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, d.ID),
 		})
 	}

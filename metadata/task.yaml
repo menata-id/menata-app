@@ -62,7 +62,7 @@ events:
 # the decomposition audit's P1, with the same "count records, grouped by a field, optionally
 # filtered" shape found hand-written five separate times before the primitive was built (menata-
 # app-document's audits/2026-09-19-decomposition-maturity-audit.md §3.2, well past B1's second
-# real case). msr_active's own filter is an ordinary expression.Comparison, the same shape
+# real case). msr_total_open's own filter is an ordinary expression.Comparison, the same shape
 # cst_project_done_no_open_tasks's block_if.condition already uses -- no second filter syntax.
 datasets:
   - id: ds_task_workload
@@ -70,7 +70,7 @@ datasets:
     measures:
       - id: msr_total
         aggregate: count
-      - id: msr_active
+      - id: msr_total_open
         aggregate: count
         where:
           field: fld_status
@@ -87,7 +87,7 @@ datasets:
     measures:
       - id: msr_total
         aggregate: count
-      - id: msr_active
+      - id: msr_total_open
         aggregate: count
         where:
           field: fld_status

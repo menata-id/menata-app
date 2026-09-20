@@ -66,7 +66,7 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 		if !ok {
 			return
 		}
-		if !hasAnyApprover(req.Form["fld_assignee"]) {
+		if !hasAnyApprover(req.Form[action.FieldStepAssignee]) {
 			// Without this, createApprovalSteps below silently skips every empty slot and
 			// returns success -- a Document would be created with zero Approval Steps, and
 			// nothing could ever decide it. Checked before CreateRecord so a rejected submission
@@ -87,7 +87,7 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 			serverError(w, err)
 			return
 		}
-		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, req.Form["fld_assignee"]) {
+		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, req.Form[action.FieldStepAssignee]) {
 			return
 		}
 

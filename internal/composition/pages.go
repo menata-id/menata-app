@@ -35,15 +35,22 @@ const (
 	userCapacityDataset   = "ds_user_capacity"
 	documentStatusDataset = "ds_document_by_status"
 
-	// msr_total/msr_active are deliberately record-agnostic: the same two ids are declared by
-	// ds_task_workload, ds_task_by_project, ds_task_by_status and ds_document_by_status, so the
-	// same constant reads a count of Tasks on one screen and a count of Documents on another. A
-	// name like measureTotalCards would be wrong the moment the second Machine used it -- which
-	// is exactly what happened when the Dashboard's document tiles started reading this id.
-	measureTotal  = "msr_total"
-	measureActive = "msr_active"
-	// msr_total_capacity stays specific because its declaration is: it sums one particular
-	// number Field (fld_weekly_capacity), so the name and the measure are equally narrow.
+	// Measure ids follow one shape: msr_total is the aggregate, and anything after it is the
+	// qualifier narrowing what got aggregated. So the family reads as variations of one thing
+	// rather than as unrelated words -- msr_total (every record), msr_total_open (only those not
+	// finished), msr_total_capacity (summing one number Field instead of counting).
+	//
+	// msr_total alone is genuinely record-agnostic: counting records means the same thing on every
+	// Machine, which is why one constant correctly reads Tasks on one screen and Documents on
+	// another (measureTotalCards was wrong the moment the Dashboard's document tiles used it).
+	//
+	// The qualifiers are not agnostic, and the naming is what keeps that honest. msr_total_open
+	// counts records whose status is not `done`, a meaning that exists only against one Machine's
+	// own option list. It was briefly msr_active, until mch_project turned out to declare `active`
+	// as a literal status option -- the same word would then have meant "not done" in one dataset
+	// and "status == active" in another. A qualifier must not collide with a real option value.
+	measureTotal         = "msr_total"
+	measureTotalOpen     = "msr_total_open"
 	measureTotalCapacity = "msr_total_capacity"
 )
 
@@ -112,7 +119,7 @@ func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Ag
 		mine := taskCounts.ByDimension[p.ID]
 		d.Projects = append(d.Projects, rendering.ProjectSummary{
 			Project:    p,
-			OpenTasks:  int(mine[measureActive]),
+			OpenTasks:  int(mine[measureTotalOpen]),
 			TotalTasks: int(mine[measureTotal]),
 		})
 	}
@@ -268,7 +275,7 @@ func buildSprint(tasks, users []*data.Record, projects map[string]string, now ti
 	for _, u := range users {
 		out.Workload = append(out.Workload, rendering.MemberCapacity{
 			User:        u,
-			ActiveCards: int(active[u.ID][measureActive]),
+			ActiveCards: int(active[u.ID][measureTotalOpen]),
 		})
 	}
 	return out
@@ -317,10 +324,10 @@ func buildCapacity(users []*data.Record, workload, capacity Aggregation) Capacit
 	}
 	for _, u := range users {
 		mine := workload.ByDimension[u.ID]
-		out.TotalActive += int(mine[measureActive])
+		out.TotalActive += int(mine[measureTotalOpen])
 		out.Members = append(out.Members, rendering.MemberCapacity{
 			User:        u,
-			ActiveCards: int(mine[measureActive]),
+			ActiveCards: int(mine[measureTotalOpen]),
 			TotalCards:  int(mine[measureTotal]),
 		})
 	}

@@ -18,7 +18,7 @@ func taskWorkload() domain.Dataset {
 		Dimension: "fld_assignee",
 		Measures: []domain.Measure{
 			{ID: "msr_total", Aggregate: domain.AggregateCount},
-			{ID: "msr_active", Aggregate: domain.AggregateCount, Where: &expression.Comparison{
+			{ID: "msr_total_open", Aggregate: domain.AggregateCount, Where: &expression.Comparison{
 				Field: "fld_status", Op: expression.OpNotEquals, Value: "done",
 			}},
 		},
@@ -34,7 +34,7 @@ func taskByProject() domain.Dataset {
 		Dimension: "fld_project",
 		Measures: []domain.Measure{
 			{ID: "msr_total", Aggregate: domain.AggregateCount},
-			{ID: "msr_active", Aggregate: domain.AggregateCount, Where: &expression.Comparison{
+			{ID: "msr_total_open", Aggregate: domain.AggregateCount, Where: &expression.Comparison{
 				Field: "fld_status", Op: expression.OpNotEquals, Value: "done",
 			}},
 		},
@@ -77,14 +77,14 @@ func workloadRecords() []*data.Record {
 func TestAggregate_countGroupedByDimensionWithFilter(t *testing.T) {
 	got := Aggregate(taskWorkload(), workloadRecords())
 
-	wantTotal := map[string]float64{"msr_total": 4, "msr_active": 2}
+	wantTotal := map[string]float64{"msr_total": 4, "msr_total_open": 2}
 	if !reflect.DeepEqual(got.Total, wantTotal) {
 		t.Errorf("Total = %v, want %v", got.Total, wantTotal)
 	}
 
 	wantByDimension := map[string]map[string]float64{
-		"usr_ana":  {"msr_total": 3, "msr_active": 2},
-		"usr_budi": {"msr_total": 1, "msr_active": 0},
+		"usr_ana":  {"msr_total": 3, "msr_total_open": 2},
+		"usr_budi": {"msr_total": 1, "msr_total_open": 0},
 	}
 	if !reflect.DeepEqual(got.ByDimension, wantByDimension) {
 		t.Errorf("ByDimension = %v, want %v", got.ByDimension, wantByDimension)
@@ -103,8 +103,8 @@ func TestAggregate_groupSurvivesEveryMeasureFiltering(t *testing.T) {
 	if !ok {
 		t.Fatal("ByDimension has no usr_budi group -- a group whose records are all filtered out of a measure must still appear, reading zero")
 	}
-	if budi["msr_active"] != 0 {
-		t.Errorf("usr_budi msr_active = %v, want 0", budi["msr_active"])
+	if budi["msr_total_open"] != 0 {
+		t.Errorf("usr_budi msr_total_open = %v, want 0", budi["msr_total_open"])
 	}
 }
 
@@ -137,7 +137,7 @@ func TestAggregate_sumWithoutDimension(t *testing.T) {
 func TestAggregate_declaredMeasureIsAlwaysPresent(t *testing.T) {
 	got := Aggregate(taskWorkload(), nil)
 
-	for _, id := range []string{"msr_total", "msr_active"} {
+	for _, id := range []string{"msr_total", "msr_total_open"} {
 		if _, ok := got.Total[id]; !ok {
 			t.Errorf("Total has no entry for declared measure %q over an empty record set -- want an explicit zero", id)
 		}

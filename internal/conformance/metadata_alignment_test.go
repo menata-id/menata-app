@@ -343,9 +343,9 @@ func TestHandlersHaveNoHardcodedApplicationLabel(t *testing.T) {
 // TestNavigationRoutesAreRegistered already closes for routes.
 var composedScreenDatasets = map[string]map[string][]string{
 	"task.yaml": {
-		"ds_task_workload":   {"msr_total", "msr_active"}, // Team Capacity, and Sprint Dashboard's workload column
-		"ds_task_by_project": {"msr_total", "msr_active"}, // Dashboard's Project rollup
-		"ds_task_by_status":  {"msr_total"},               // Sprint Dashboard's headline counts
+		"ds_task_workload":   {"msr_total", "msr_total_open"}, // Team Capacity, and Sprint Dashboard's workload column
+		"ds_task_by_project": {"msr_total", "msr_total_open"}, // Dashboard's Project rollup
+		"ds_task_by_status":  {"msr_total"},                   // Sprint Dashboard's headline counts
 	},
 	"user.yaml":     {"ds_user_capacity": {"msr_total_capacity"}},
 	"document.yaml": {"ds_document_by_status": {"msr_total"}},

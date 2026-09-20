@@ -85,7 +85,7 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 		}
 		ctx = templ.ClearChildren(ctx)
 		decision := toString(s.Values[action.FieldStepDecision])
-		assignee := RelationLabel(relations, "mch_user", toString(s.Values["fld_assignee"]))
+		assignee := RelationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))
 		seq := toString(s.Values[action.FieldStepSequence])
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<li>")
 		if templ_7745c5c3_Err != nil {
