@@ -68,29 +68,45 @@ func TestNavSections_hiddenPrimaryGroupPromotesNothing(t *testing.T) {
 	}
 }
 
-// TestRouteByID_survivesHiddenNavGroup is routeByID's own version of
-// TestNavSections_hiddenPrimaryGroupPromotesNothing's regression: allNavigation must keep
-// resolving an item's route even after hidden_nav_groups has already dropped it from the
-// (filtered) navigation ConfigureNavigation's first argument carries -- the whole reason
-// AllNavigation exists as a field distinct from Navigation (domain.Application's own doc
-// comment).
+// TestRouteByID_survivesHiddenNavGroup guards the property this whole area is built around:
+// routeByID must keep resolving an item even when its Application renders no menu at all.
+//
+// Before Fase 3 the suppression was `hidden_nav_groups` naming a group label; now it is an
+// Application's own `show_nav: false`, which leaves Navigation empty while AllNavigation keeps
+// every declared item. The mechanism changed, the invariant did not -- a hidden Application's
+// routes "stay valid destinations, reachable by contextual in-page links", so those links must
+// still resolve, and both metadata-hardcoding conformance gates depend on it.
 func TestRouteByID_survivesHiddenNavGroup(t *testing.T) {
 	all := []domain.NavigationItem{
-		{ID: "nav_home", Label: "Home", Route: "/home"},
-		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox", Group: "Document Approval"},
+		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
 	}
-	filtered := []domain.NavigationItem{all[0]} // Document Approval hidden from the topbar
-	t.Cleanup(func() { ConfigureNavigation(nil, "", nil) })
-	ConfigureNavigation(filtered, "", all)
+	t.Cleanup(func() { ConfigureWorkspace(domain.Workspace{}) })
+	ConfigureWorkspace(domain.Workspace{
+		Navigation: []domain.NavigationItem{{ID: "nav_home", Label: "Home", Route: "/home"}},
+		Applications: []domain.Application{{
+			ID: "app_document_approval", Name: "Document Approval",
+			ShowNav:    false,
+			Navigation: nil, // show_nav: false -- no menu chrome anywhere
+			// ...but every declared item is still resolvable by id:
+			AllNavigation: all,
+		}},
+	})
 
 	if got := routeByID("nav_approval_inbox"); got != "/approval-inbox" {
-		t.Errorf("routeByID(nav_approval_inbox) after its group is hidden = %q, want /approval-inbox still resolvable", got)
+		t.Errorf("routeByID(nav_approval_inbox) with show_nav: false = %q, want /approval-inbox still resolvable", got)
+	}
+	if got := labelByID("nav_approval_inbox"); got != "Approval Inbox" {
+		t.Errorf("labelByID(nav_approval_inbox) with show_nav: false = %q, want the declared label", got)
+	}
+	// The Workspace's own navigation resolves through the same lookup.
+	if got := routeByID("nav_home"); got != "/home" {
+		t.Errorf("routeByID(nav_home) = %q, want /home", got)
 	}
 }
 
 func TestRouteByID_unknownIDPanics(t *testing.T) {
-	t.Cleanup(func() { ConfigureNavigation(nil, "", nil) })
-	ConfigureNavigation(nil, "", nil)
+	t.Cleanup(func() { ConfigureWorkspace(domain.Workspace{}) })
+	ConfigureWorkspace(domain.Workspace{})
 
 	defer func() {
 		if recover() == nil {

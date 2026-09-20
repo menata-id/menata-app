@@ -12,13 +12,13 @@ import (
 	"menata.app/internal/rendering"
 )
 
-func showMachineList(machines []*domain.Machine, appName string) http.HandlerFunc {
+func showMachineList(machines []*domain.Machine) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		render(req.Context(), w, rendering.MachineList(machines, appName))
+		render(req.Context(), w, rendering.MachineList(machines))
 	}
 }
 
-func showMachinePage(machines map[string]*domain.Machine, appName string, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showMachinePage(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -42,7 +42,7 @@ func showMachinePage(machines map[string]*domain.Machine, appName string, store 
 			return
 		}
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		render(req.Context(), w, rendering.MachinePage(machine, records, appName, relations, boardColumns, actor))
+		render(req.Context(), w, rendering.MachinePage(machine, records, relations, boardColumns, actor))
 	}
 }
 

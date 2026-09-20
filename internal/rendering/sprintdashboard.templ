@@ -30,8 +30,8 @@ func (s SprintSummary) CompletionPercent() int {
 // new SLA mechanism or a re-typed markup -- menata-app-document's 2026-09-19 rendering
 // composability audit found this list re-implementing taskRowList's markup by hand and silently
 // dropping its status badge).
-templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow, appName string) {
-	@pageShell(labelByID("nav_sprint"), appName) {
+templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow) {
+	@pageShell(labelByID("nav_sprint")) {
 		<h1>{ labelByID("nav_sprint") }</h1>
 		<p>A composed analytics view over real Task data -- no fabricated points or burndown.</p>
 

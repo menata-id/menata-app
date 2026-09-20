@@ -13,8 +13,8 @@ type CalendarDay struct {
 // current week, one column per day -- composed from the same Task/Project data as My Tasks and
 // the Dashboard, reusing the board-column CSS shape already built for the Task board Layout
 // rather than inventing new grid CSS.
-templ CalendarPage(days []CalendarDay, appName string) {
-	@pageShell(labelByID("nav_calendar"), appName) {
+templ CalendarPage(days []CalendarDay) {
+	@pageShell(labelByID("nav_calendar")) {
 		<h1>{ labelByID("nav_calendar") }</h1>
 		<p>Tasks due this week, across all Projects.</p>
 		<div class="board">

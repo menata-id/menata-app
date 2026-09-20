@@ -26,7 +26,7 @@ import (
 // safety.md §1 in menata-app-document, found by simulating a Document Type options change):
 // document-submit.html's five literal <option> labels were baked into this template and never
 // read metadata/document.yaml's own options, so a metadata-only change never reached this screen.
-func DocumentSubmitPage(users []*data.Record, appName string, documentType domain.Field) templ.Component {
+func DocumentSubmitPage(users []*data.Record, documentType domain.Field) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -148,7 +148,7 @@ func DocumentSubmitPage(users []*data.Record, appName string, documentType domai
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = pageShell(labelByID("nav_new_approval"), appName).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = pageShell(labelByID("nav_new_approval")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

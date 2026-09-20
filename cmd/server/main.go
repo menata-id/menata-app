@@ -57,17 +57,16 @@ func main() {
 	}
 
 	handler := web.Routes(web.Deps{
-		Machines:        machines,
-		MachineList:     app.Machines,
-		Store:           store,
-		Files:           files,
-		Mailer:          mail.NewMailerFromConfig(cfg),
-		Cfg:             cfg,
-		AppName:         app.Application.Name,
-		Navigation:      app.Application.Navigation,
-		PrimaryNavGroup: app.Application.PrimaryNavGroup,
-		HomeRoute:       app.Application.HomeRoute,
-		AllNavigation:   app.Application.AllNavigation,
+		Machines:    machines,
+		MachineList: app.Machines,
+		Store:       store,
+		Files:       files,
+		Mailer:      mail.NewMailerFromConfig(cfg),
+		Cfg:         cfg,
+		// The whole Workspace, not one Application: `applications:` is a list now, so which
+		// Application a request is in is a per-request fact (web's currentApplication middleware)
+		// rather than a process-wide constant.
+		Workspace: app.Workspace,
 		// DefaultWorkspaceID is this manifest's own declared Workspace (ROADMAP.md Phase 21 Step
 		// 2 -- "Workspace never enters the data path" closed) -- requireAuth's fallback when a
 		// signed-in identity does not resolve to a real mch_user record, which is exactly the

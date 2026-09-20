@@ -24,11 +24,13 @@ func workspaceHomeHasMembersLink(t *testing.T, workspaceRole string) bool {
 		{ID: "nav_workspace_members", Label: "Workspace Members", Route: "/workspace-members"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
 	}
-	t.Cleanup(func() { ConfigureNavigation(nil, "", nil) })
-	ConfigureNavigation(all, "", all)
+	t.Cleanup(func() { ConfigureWorkspace(domain.Workspace{}) })
+	ConfigureWorkspace(domain.Workspace{Navigation: all})
 
 	var buf bytes.Buffer
-	c := WorkspaceHomePage("Acme", "Task Tracker", workspaceRole, "member", 0, "AN", "TT", "", "/home")
+	c := WorkspaceHomePage("Acme", workspaceRole, "AN", "", []ApplicationCard{
+		{Name: "Task Tracker", Initials: "TT", Role: "member", HomeRoute: "/approval-inbox"},
+	})
 	if err := c.Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}

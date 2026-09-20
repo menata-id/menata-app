@@ -1,0 +1,54 @@
+# Document Approval -- the current proof-of-concept scope (ROADMAP.md). Formerly the
+# "Document Approval" navigation *group* inside the single app_task_tracker Application; Fase 3
+# (2026-09-20) promoted it to a real Application, which is what ui-sample/nav-metadata.js has
+# always called `case3`.
+id: app_document_approval
+name: Document Approval
+
+# show_nav: false replaces what app.yaml expressed as `hidden_nav_groups: [Document Approval]`
+# (owner request, 2026-09-19). It is now sayable where it belongs -- on the Application itself,
+# exactly as ui-sample/nav-metadata.js declares it -- rather than as a group label filtered out of
+# a larger list.
+#
+# It suppresses this Application's persistent *menu* chrome only. Every route below stays a valid
+# destination, still reachable from its own contextual in-page links and from the launcher, which
+# is deliberately uniform and never reads this field (nav-metadata.js states that outright). That
+# is also why internal/rendering's routeByID/labelByID resolve against the *unfiltered*
+# navigation: a link into a screen whose menu is hidden must still resolve.
+show_nav: false
+
+# machines: ids selected from the Workspace's own set (app.yaml), not file paths -- the Machines
+# are loaded once at Workspace level.
+#
+# This is not decoration: it is the map that answers "which Application am I in" for the routes no
+# navigation item names -- /machines/{id}/records/{id}, /decide, /signature-placement,
+# /pdf-preview, which is most of this Application's real surface. Navigation is only the fallback,
+# for routes that name no Machine. A Machine may be claimed by at most one Application, or that
+# answer would be ambiguous; shared ones (mch_user, mch_activity) are claimed by none and stay
+# Workspace-level.
+#
+# Exposure is presentational and derivational only. It is *not* an access gate: Permission
+# (006 §Behavioral Model) remains the single authority on who may do what, and an exposure list
+# that quietly became a second authorization mechanism would look like security without being it.
+machines:
+  - mch_document
+  - mch_approval_step
+  - mch_signature
+
+navigation:
+  - id: nav_dashboard
+    label: Dashboard
+    route: /dashboard
+    priority: 1
+  - id: nav_approval_inbox
+    label: Approval Inbox
+    route: /approval-inbox
+    priority: 1
+    badge: approval_inbox_pending
+    # home_card: the one item this Application's own card on Workspace Home links to -- at most
+    # one per Application (validated at load time).
+    home_card: true
+  - id: nav_new_approval
+    label: New Approval
+    route: /documents/new
+    priority: 2

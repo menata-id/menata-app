@@ -38,7 +38,7 @@ func (s SprintSummary) CompletionPercent() int {
 // new SLA mechanism or a re-typed markup -- menata-app-document's 2026-09-19 rendering
 // composability audit found this list re-implementing taskRowList's markup by hand and silently
 // dropping its status badge).
-func SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow, appName string) templ.Component {
+func SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -178,7 +178,7 @@ func SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, atten
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = pageShell(labelByID("nav_sprint"), appName).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = pageShell(labelByID("nav_sprint")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

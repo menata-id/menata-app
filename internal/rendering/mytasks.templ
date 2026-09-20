@@ -27,8 +27,8 @@ type TaskRow struct {
 // due date -- Today (due today or overdue, SLA-badged), Upcoming (due later or undated),
 // Completed (status done). This is a filtered/bucketed view over one whole-machine Task query,
 // not a new query mechanism.
-templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, appName string) {
-	@pageShell(labelByID("nav_my_tasks"), appName) {
+templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow) {
+	@pageShell(labelByID("nav_my_tasks")) {
 		<h1>{ labelByID("nav_my_tasks") }</h1>
 		<p>Tasks assigned to you, projected across all projects.</p>
 

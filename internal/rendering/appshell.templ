@@ -5,29 +5,36 @@ import "slices"
 import "menata.app/internal/domain"
 import "menata.app/internal/experience"
 
-// launcherGroups is the launcher panel's own content: every declared navigation group, minus the
-// items this viewer must not be offered (see appShell's hiddenNavIDs). A group left with no
-// visible items is dropped entirely rather than rendering a heading over nothing.
+// launcherGroups is the launcher panel's own content: the Workspace's own destinations first,
+// then one section per Application, minus the items this viewer must not be offered (see
+// appShell's hiddenNavIDs). A section left with no visible items is dropped entirely rather than
+// rendering a heading over nothing.
 //
-// It reads allNavigation -- the full declared list, before hidden_nav_groups filtering -- because
-// hiding a group suppresses its menu chrome, never its launcher entry (appLauncher's own comment).
-// Viewer-level hiding is a different question from that metadata-level one, which is why both
-// filters exist and only this one is per-request.
+// Since Fase 3 the sections are real Applications rather than `group:` labels inside one -- which
+// is what the launcher was always drawing (ui-sample/nav-metadata.js lists Applications here),
+// only now the metadata says so directly.
+//
+// Each Application contributes its *unfiltered* navigation. An Application with show_nav: false
+// has no menu chrome anywhere else, and the launcher is deliberately the one place its screens
+// stay reachable: nav-metadata.js states outright that the launcher never reads that field.
+// Viewer-level hiding (hiddenNavIDs) is a different question from that metadata-level one, which
+// is why both filters exist and only this one is per-request.
 func launcherGroups(hiddenNavIDs []string) []experience.NavGroup {
-	groups := experience.GroupNavigation(allNavigation)
-	if len(hiddenNavIDs) == 0 {
-		return groups
+	sections := []experience.NavGroup{{Items: workspace.Navigation}}
+	for _, app := range workspace.Applications {
+		sections = append(sections, experience.NavGroup{Label: app.Name, Items: app.AllNavigation})
 	}
-	visible := make([]experience.NavGroup, 0, len(groups))
-	for _, g := range groups {
-		items := make([]domain.NavigationItem, 0, len(g.Items))
-		for _, item := range g.Items {
+
+	visible := make([]experience.NavGroup, 0, len(sections))
+	for _, s := range sections {
+		items := make([]domain.NavigationItem, 0, len(s.Items))
+		for _, item := range s.Items {
 			if !slices.Contains(hiddenNavIDs, item.ID) {
 				items = append(items, item)
 			}
 		}
 		if len(items) > 0 {
-			visible = append(visible, experience.NavGroup{Label: g.Label, Items: items})
+			visible = append(visible, experience.NavGroup{Label: s.Label, Items: items})
 		}
 	}
 	return visible

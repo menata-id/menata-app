@@ -8,6 +8,7 @@ import (
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 // shellChrome is what rendering.appShell needs beyond the page's own content: the Workspace name
@@ -39,16 +40,14 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 		return shellChrome{}, err
 	}
 
-	// "mch_user"/"fld_name" are the identity Machine and its name Field. Hardcoded here the same
-	// way showWorkspaceHome hardcoded them before this helper existed -- and now in one place
-	// rather than two, since that handler calls this instead. They are the same Case 19-style
-	// Machine-id constants internal/composition holds unexported (its own userMachineID), and
-	// they fall under CLAUDE.md's step-2 exception: the runtime has no declared "which Machine is
-	// the identity" pointer yet. Forward-checkable pointer: ROADMAP.md's Case 03 Fase 3
-	// (multi-application), where workspace membership and identity metadata are reworked anyway.
+	// domain.UserMachineID is the runtime's own declared identity Machine -- the same constant
+	// FieldTypePerson resolves against -- so this is a reference, not a hardcoded Machine id.
+	// "fld_name" still is one: there is no declared "which Field is a record's display name"
+	// pointer yet, which is why composition.DisplayString callers all name it. Forward-checkable
+	// pointer: ROADMAP.md's Case 03 Fase 3b, where membership and identity metadata are reworked.
 	userName := ""
 	userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-	if userRecord, err := store.GetRecord(ctx, "mch_user", userID); err == nil {
+	if userRecord, err := store.GetRecord(ctx, domain.UserMachineID, userID); err == nil {
 		userName = composition.DisplayString(userRecord.Values["fld_name"])
 	}
 

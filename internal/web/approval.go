@@ -25,7 +25,7 @@ import (
 // document-approval.html). Composing the inbox is composition.ApprovalInbox's job; what stays
 // here is the part that is genuinely about HTTP -- reading the ?filter= tab and reducing the
 // composed list to it.
-func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
+func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
@@ -53,7 +53,7 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, a
 			}
 		}
 
-		render(ctx, w, rendering.ApprovalInboxPage(filters, pending, inbox.Mine, appName))
+		render(ctx, w, rendering.ApprovalInboxPage(filters, pending, inbox.Mine))
 	}
 }
 

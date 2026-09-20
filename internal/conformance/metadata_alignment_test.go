@@ -11,8 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/yaml.v3"
-
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
 )
@@ -35,30 +33,39 @@ func TestAppManifestLoads(t *testing.T) {
 	}
 }
 
-// declaredNavRoutes reads every route: straight out of metadata/app.yaml's own navigation list --
-// including items hidden_nav_groups removes from the runtime Navigation slice, since app.yaml's
-// own comment on hidden_nav_groups documents those routes as staying valid destinations, just not
-// topbar entries. A minimal struct on purpose: this only needs route, not the full navItemDoc
-// shape internal/metadata already owns privately.
-func declaredNavRoutes(t *testing.T) []string {
+// declaredNavItems is every navigation item declared anywhere in the real manifest: the
+// Workspace's own list plus each Application's, unfiltered.
+//
+// It goes through metadata.LoadApplication rather than re-parsing the YAML with a local struct,
+// which is the lesson of how this broke. It used to unmarshal `application.navigation` straight
+// out of app.yaml; when Fase 3 moved navigation into per-Application files, that struct silently
+// matched nothing and BOTH hardcoding gates started checking an empty list -- passing on every
+// hardcoded route and label there is. A gate that reads the manifest through a private copy of
+// its shape cannot notice the shape changing, so this reads it through the loader that defines it.
+//
+// Unfiltered matters for the same reason routeByID/labelByID read AllNavigation: an Application
+// with show_nav: false still owns its routes and labels, so both gates must still cover them.
+func declaredNavItems(t *testing.T) []domain.NavigationItem {
 	t.Helper()
 	path := filepath.Join(repoRoot(), "metadata", "app.yaml")
-	data, err := os.ReadFile(path)
+	app, err := metadata.LoadApplication(path)
 	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
+		t.Fatalf("LoadApplication(%s): %v", path, err)
 	}
-	var doc struct {
-		Application struct {
-			Navigation []struct {
-				Route string `yaml:"route"`
-			} `yaml:"navigation"`
-		} `yaml:"application"`
+	items := append([]domain.NavigationItem(nil), app.Workspace.Navigation...)
+	for _, a := range app.Workspace.Applications {
+		items = append(items, a.AllNavigation...)
 	}
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		t.Fatalf("parse %s: %v", path, err)
+	if len(items) == 0 {
+		t.Fatal("manifest declares no navigation items -- these gates would check nothing, which is how they silently stopped working once before")
 	}
-	routes := make([]string, 0, len(doc.Application.Navigation))
-	for _, n := range doc.Application.Navigation {
+	return items
+}
+
+func declaredNavRoutes(t *testing.T) []string {
+	t.Helper()
+	var routes []string
+	for _, n := range declaredNavItems(t) {
 		routes = append(routes, n.Route)
 	}
 	return routes
@@ -204,29 +211,10 @@ func TestHandlersHaveNoHardcodedApplicationRoute(t *testing.T) {
 	}
 }
 
-// declaredNavLabels is declaredNavRoutes' label-side counterpart: every label: string declared in
-// metadata/app.yaml's own navigation list, including items hidden_nav_groups removes from the
-// runtime Navigation slice -- routeByID/labelByID both read allNavigation (pre-filtering), so a
-// label gate must check against the same unfiltered set the route gate already does.
 func declaredNavLabels(t *testing.T) []string {
 	t.Helper()
-	path := filepath.Join(repoRoot(), "metadata", "app.yaml")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
-	}
-	var doc struct {
-		Application struct {
-			Navigation []struct {
-				Label string `yaml:"label"`
-			} `yaml:"navigation"`
-		} `yaml:"application"`
-	}
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		t.Fatalf("parse %s: %v", path, err)
-	}
-	labels := make([]string, 0, len(doc.Application.Navigation))
-	for _, n := range doc.Application.Navigation {
+	var labels []string
+	for _, n := range declaredNavItems(t) {
 		labels = append(labels, n.Label)
 	}
 	return labels

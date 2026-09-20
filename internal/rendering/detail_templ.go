@@ -49,7 +49,7 @@ type DocumentSignaturePlacement struct {
 // actorID is the viewing identity, needed only so an Action the viewer is not permitted to
 // perform isn't offered in the first place (ROADMAP.md Phase 16) -- the server enforces the same
 // rule regardless, this only keeps the UI honest about it.
-func RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relations RelationOptions, children []ChildSection, actorID string, hasSignature bool, sigPlacement *DocumentSignaturePlacement) templ.Component {
+func RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection, actorID string, hasSignature bool, sigPlacement *DocumentSignaturePlacement) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -100,7 +100,7 @@ func RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relatio
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = pageShell(m.Name, appName).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = pageShell(m.Name).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

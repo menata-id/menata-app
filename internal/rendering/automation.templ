@@ -13,8 +13,8 @@ type AutomationRule struct {
 	Action    string
 }
 
-templ AutomationPage(rules []AutomationRule, appName string) {
-	@pageShell("Workflow Automation", appName) {
+templ AutomationPage(rules []AutomationRule) {
+	@pageShell("Workflow Automation") {
 		<h1>Workflow Automation</h1>
 		<p>Trigger → Condition → Action, read from this Application's own Constraint metadata and
 		Action behavior -- not a generic automation builder.</p>

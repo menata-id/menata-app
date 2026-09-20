@@ -34,7 +34,7 @@ import (
 // viewer isn't its own assignee for, instead of letting anyone reposition anyone's marker --
 // updateRecordForm's allowsRecordEdit enforces the same rule regardless, on the PUT these
 // controls submit.
-func SignaturePlacementPage(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, appName string, stepMachine *domain.Machine, actorID string) templ.Component {
+func SignaturePlacementPage(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, stepMachine *domain.Machine, actorID string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -103,7 +103,7 @@ func SignaturePlacementPage(document *data.Record, steps []*data.Record, relatio
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = pageShell("Signature Placement", appName).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = pageShell("Signature Placement").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

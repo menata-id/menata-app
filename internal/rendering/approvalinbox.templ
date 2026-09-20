@@ -53,8 +53,8 @@ type PendingApprovalCard struct {
 // has submitted ("My Documents"), rendered as recordSummaryCard, the shared component (Phase 15
 // Step 1) -- two different card shapes because the mockup's own two sections are structurally
 // different, not a table either way.
-templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []SummaryCard, appName string) {
-	@pageShell(labelByID("nav_approval_inbox"), appName) {
+templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []SummaryCard) {
+	@pageShell(labelByID("nav_approval_inbox")) {
 		<h1>{ labelByID("nav_approval_inbox") }</h1>
 		<p>Documents where your decision is currently required.</p>
 		<p><a href={ templ.SafeURL(routeByID("nav_new_approval")) }><button type="button" class="primary">+ { labelByID("nav_new_approval") }</button></a></p>

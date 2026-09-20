@@ -61,7 +61,7 @@ type PendingApprovalCard struct {
 // has submitted ("My Documents"), rendered as recordSummaryCard, the shared component (Phase 15
 // Step 1) -- two different card shapes because the mockup's own two sections are structurally
 // different, not a table either way.
-func ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []SummaryCard, appName string) templ.Component {
+func ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []SummaryCard) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -193,7 +193,7 @@ func ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine 
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = pageShell(labelByID("nav_approval_inbox"), appName).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = pageShell(labelByID("nav_approval_inbox")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -28,7 +28,7 @@ import (
 // documentMachine is mch_document itself, so fld_document_type's options come from
 // metadata/document.yaml rather than being hardcoded in the template (the mismatch closed
 // alongside this handler change -- see documentsubmit.templ's own doc comment).
-func showDocumentSubmit(store *data.Store, documentMachine *domain.Machine, appName string) http.HandlerFunc {
+func showDocumentSubmit(store *data.Store, documentMachine *domain.Machine) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		users, err := store.ListRecords(req.Context(), "mch_user")
 		if err != nil {
@@ -36,7 +36,7 @@ func showDocumentSubmit(store *data.Store, documentMachine *domain.Machine, appN
 			return
 		}
 		documentType, _ := documentMachine.FieldByID("fld_document_type")
-		render(req.Context(), w, rendering.DocumentSubmitPage(users, appName, documentType))
+		render(req.Context(), w, rendering.DocumentSubmitPage(users, documentType))
 	}
 }
 
@@ -148,7 +148,7 @@ func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.S
 // Step 4) -- a real rendered page of the Document's own PDF (Step 3's internal/pdf), one
 // draggable marker per Approval Step. Hardcoded to mch_document, same posture as decideStep: this
 // is Case 3's own screen, not a generic per-Machine feature.
-func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, appName string, cfg config.Config) http.HandlerFunc {
+func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -168,7 +168,7 @@ func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Sto
 		page := pageFromQuery(req, totalPages)
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 
-		render(ctx, w, rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, appName, machines[action.StepMachineID], actor))
+		render(ctx, w, rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, machines[action.StepMachineID], actor))
 	}
 }
 

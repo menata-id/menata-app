@@ -15,7 +15,7 @@ import (
 
 // showWorkspaceMembers lists every member of the signed-in identity's Workspace (ROADMAP.md
 // Phase 21 Step 6). Gated by requireWorkspaceAdmin.
-func showWorkspaceMembers(store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
+func showWorkspaceMembers(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -29,11 +29,11 @@ func showWorkspaceMembers(store *data.Store, appName string, cfg config.Config) 
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.WorkspaceMembersPage(members, appName, chrome.WorkspaceName, chrome.UserInitials))
+		render(ctx, w, rendering.WorkspaceMembersPage(members, chrome.WorkspaceName, chrome.UserInitials))
 	}
 }
 
-func showEditMember(store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
+func showEditMember(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -47,7 +47,7 @@ func showEditMember(store *data.Store, appName string, cfg config.Config) http.H
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.EditMemberPage(*m, appName, chrome.WorkspaceName, chrome.UserInitials))
+		render(ctx, w, rendering.EditMemberPage(*m, chrome.WorkspaceName, chrome.UserInitials))
 	}
 }
 

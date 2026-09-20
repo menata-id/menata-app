@@ -13,29 +13,36 @@ import "slices"
 import "menata.app/internal/domain"
 import "menata.app/internal/experience"
 
-// launcherGroups is the launcher panel's own content: every declared navigation group, minus the
-// items this viewer must not be offered (see appShell's hiddenNavIDs). A group left with no
-// visible items is dropped entirely rather than rendering a heading over nothing.
+// launcherGroups is the launcher panel's own content: the Workspace's own destinations first,
+// then one section per Application, minus the items this viewer must not be offered (see
+// appShell's hiddenNavIDs). A section left with no visible items is dropped entirely rather than
+// rendering a heading over nothing.
 //
-// It reads allNavigation -- the full declared list, before hidden_nav_groups filtering -- because
-// hiding a group suppresses its menu chrome, never its launcher entry (appLauncher's own comment).
-// Viewer-level hiding is a different question from that metadata-level one, which is why both
-// filters exist and only this one is per-request.
+// Since Fase 3 the sections are real Applications rather than `group:` labels inside one -- which
+// is what the launcher was always drawing (ui-sample/nav-metadata.js lists Applications here),
+// only now the metadata says so directly.
+//
+// Each Application contributes its *unfiltered* navigation. An Application with show_nav: false
+// has no menu chrome anywhere else, and the launcher is deliberately the one place its screens
+// stay reachable: nav-metadata.js states outright that the launcher never reads that field.
+// Viewer-level hiding (hiddenNavIDs) is a different question from that metadata-level one, which
+// is why both filters exist and only this one is per-request.
 func launcherGroups(hiddenNavIDs []string) []experience.NavGroup {
-	groups := experience.GroupNavigation(allNavigation)
-	if len(hiddenNavIDs) == 0 {
-		return groups
+	sections := []experience.NavGroup{{Items: workspace.Navigation}}
+	for _, app := range workspace.Applications {
+		sections = append(sections, experience.NavGroup{Label: app.Name, Items: app.AllNavigation})
 	}
-	visible := make([]experience.NavGroup, 0, len(groups))
-	for _, g := range groups {
-		items := make([]domain.NavigationItem, 0, len(g.Items))
-		for _, item := range g.Items {
+
+	visible := make([]experience.NavGroup, 0, len(sections))
+	for _, s := range sections {
+		items := make([]domain.NavigationItem, 0, len(s.Items))
+		for _, item := range s.Items {
 			if !slices.Contains(hiddenNavIDs, item.ID) {
 				items = append(items, item)
 			}
 		}
 		if len(items) > 0 {
-			visible = append(visible, experience.NavGroup{Label: g.Label, Items: items})
+			visible = append(visible, experience.NavGroup{Label: s.Label, Items: items})
 		}
 	}
 	return visible
@@ -74,7 +81,7 @@ func headMeta(title string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 44, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 51, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -159,7 +166,7 @@ func appShell(title, workspaceName, userInitials, activeNavID string, hiddenNavI
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfHeadersAttr(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 95, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 102, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -180,7 +187,7 @@ func appShell(title, workspaceName, userInitials, activeNavID string, hiddenNavI
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 103, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 110, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -193,7 +200,7 @@ func appShell(title, workspaceName, userInitials, activeNavID string, hiddenNavI
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(" / ")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 104, Col: 12}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 111, Col: 12}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -206,7 +213,7 @@ func appShell(title, workspaceName, userInitials, activeNavID string, hiddenNavI
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 105, Col: 12}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 112, Col: 12}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -219,7 +226,7 @@ func appShell(title, workspaceName, userInitials, activeNavID string, hiddenNavI
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(userInitials)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 108, Col: 19}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 115, Col: 19}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -298,7 +305,7 @@ func appLauncher(activeNavID string, hiddenNavIDs []string) templ.Component {
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(group.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 152, Col: 104}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 159, Col: 104}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -369,7 +376,7 @@ func launcherLink(item domain.NavigationItem, current bool) templ.Component {
 		var templ_7745c5c3_Var13 templ.SafeURL
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(item.Route))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 174, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 181, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -405,7 +412,7 @@ func launcherLink(item domain.NavigationItem, current bool) templ.Component {
 		var templ_7745c5c3_Var15 string
 		templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 182, Col: 14}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 189, Col: 14}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 		if templ_7745c5c3_Err != nil {

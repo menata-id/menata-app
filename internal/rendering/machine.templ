@@ -14,37 +14,40 @@ import (
 	"menata.app/internal/storage"
 )
 
-// navigation is the Application's own declared menu (004 §Navigation Metadata, 006 §Navigation),
-// set once at startup by ConfigureNavigation. It is boot-time-static -- identical on every
-// request for the process's whole lifetime -- so it is package state rather than a parameter
+// workspace is the loaded Workspace -- its own navigation plus every Application declared inside
+// it -- set once at startup by ConfigureWorkspace. It is boot-time-static, identical on every
+// request for the process's whole lifetime, so it is package state rather than a parameter
 // threaded through pageShell's ~20 callers, the same posture ROADMAP.md Phase 21 round 2 Step J
-// already chose for the pending-approval badge (a client-side mechanism instead of a new
-// parameter everywhere). Unlike that badge this never varies per request, so there is no
-// request-scoping risk in holding it here.
-var navigation []domain.NavigationItem
+// already chose for the pending-approval badge. Nothing here varies per request; *which*
+// Application a given request is in does, and that travels on ctx instead (CurrentApplication).
+var workspace domain.Workspace
 
-// primaryNavGroup is domain.Application.PrimaryNavGroup, set alongside navigation by
-// ConfigureNavigation -- see navSections for why this travels separately from navigation itself.
-var primaryNavGroup string
-
-// allNavigation is domain.Application.AllNavigation -- the full declared list, unaffected by
-// hidden_nav_groups -- set alongside navigation by ConfigureNavigation. routeByID reads this, not
-// navigation, so a contextual link to a hidden group's own item still resolves (see
-// domain.Application.AllNavigation's own doc comment for why).
-var allNavigation []domain.NavigationItem
-
-// ConfigureNavigation sets the Application's own menu. Called exactly once, in
-// cmd/server/main.go, immediately after metadata.LoadApplication and before the server starts
-// serving -- not safe to call concurrently with a request in flight.
-func ConfigureNavigation(items []domain.NavigationItem, primaryGroup string, allItems []domain.NavigationItem) {
-	navigation = items
-	primaryNavGroup = primaryGroup
-	allNavigation = allItems
+// ConfigureWorkspace sets the loaded Workspace. Called exactly once, in cmd/server/main.go,
+// immediately after metadata.LoadApplication and before the server starts serving -- not safe to
+// call concurrently with a request in flight.
+func ConfigureWorkspace(ws domain.Workspace) {
+	workspace = ws
 }
 
-// routeByID looks up allNavigation for the item named id, returning its declared route -- how a
-// page links to one of this Application's own sibling screens (CLAUDE.md "Where a metadata-
-// derived value belongs"), instead of retyping the route as a literal (internal/conformance's
+// declaredNavigation is every navigation item declared anywhere in the Workspace: its own list
+// plus each Application's *unfiltered* list.
+//
+// Unfiltered is the load-bearing part. An Application whose menu is suppressed (show_nav: false)
+// keeps every route as a valid destination, reachable from contextual in-page links -- so those
+// links must still resolve by id. domain.Application.AllNavigation exists for exactly this, and
+// both metadata-hardcoding conformance gates depend on the property.
+// metadata.validateNavigationIDsAreUnique guarantees an id resolves to one item workspace-wide.
+func declaredNavigation() []domain.NavigationItem {
+	items := append([]domain.NavigationItem(nil), workspace.Navigation...)
+	for _, app := range workspace.Applications {
+		items = append(items, app.AllNavigation...)
+	}
+	return items
+}
+
+// routeByID looks up the declared navigation for the item named id, returning its route -- how a
+// page links to a sibling screen (CLAUDE.md "Where a metadata-derived value belongs") instead of
+// retyping the route as a literal (internal/conformance's
 // TestRenderingHasNoHardcodedApplicationRoute holds every .templ to this). Panics on an unknown
 // id: a typo here is a programmer error, and failing loudly the moment the page is first
 // rendered is far cheaper to find than a silently broken link -- the same posture
@@ -52,7 +55,7 @@ func ConfigureNavigation(items []domain.NavigationItem, primaryGroup string, all
 // caught at first render instead of at metadata load (id isn't validated at load time since it
 // names a *caller's own* expectation, not a shape metadata itself declares).
 func routeByID(id string) string {
-	for _, item := range allNavigation {
+	for _, item := range declaredNavigation() {
 		if item.ID == id {
 			return item.Route
 		}
@@ -66,7 +69,7 @@ func routeByID(id string) string {
 // every .templ file to this, the same way TestRenderingHasNoHardcodedApplicationRoute already
 // holds routeByID's href side. Same panic-on-unknown-id posture as routeByID, for the same reason.
 func labelByID(id string) string {
-	for _, item := range allNavigation {
+	for _, item := range declaredNavigation() {
 		if item.ID == id {
 			return item.Label
 		}
@@ -283,14 +286,30 @@ templ csrfHiddenInput() {
 // long-tracked "Navigation is code, not metadata" conformance gap (004 §Navigation Metadata, 006
 // §Navigation, 001 Principle #3 Metadata First). Workspace-level screens (Workspace Home) use
 // workspaceHomeShell instead, which has no Application menu to project.
-templ pageShell(title string, appName string) {
+templ pageShell(title string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		@pageHead(title)
 		<body hx-headers={ csrfHeadersAttr(ctx) }>
-			{{ ungrouped, primary, rest := navSections(navigation, primaryNavGroup) }}
+			// The topbar projects the *current* Application's menu (Fase 3, 2026-09-20). It used to
+			// project the process's one Application; with several, which one a request is in is a
+			// per-request fact, resolved by internal/web's currentApplication middleware. An
+			// Application with show_nav: false contributes an empty Navigation, so its screens render
+			// no menu -- which is exactly what that declaration asks for.
+			{{ currentApp, _ := CurrentApplication(ctx) }}
+			{{ ungrouped, primary, rest := navSections(currentApp.Navigation, currentApp.PrimaryNavGroup) }}
 			<header class="topbar">
 				<nav class="left" aria-label="Primary">
+					// The Workspace's own destinations (Home, All Machines, Workspace Members) come
+					// first, always, whichever Application this is. They used to reach these screens
+					// as an ungrouped item plus a "Workspace" group *inside* the single Application's
+					// navigation; Fase 3 moved them to where they belong, which would otherwise have
+					// left them unreachable from every pageShell screen -- appShell has the launcher,
+					// this shell does not. Rendering them here is what keeps the split from being a
+					// navigation regression.
+					for _, item := range workspace.Navigation {
+						@navLink(item)
+					}
 					for _, item := range ungrouped {
 						@navLink(item)
 					}
@@ -312,7 +331,7 @@ templ pageShell(title string, appName string) {
 							</span>
 						</details>
 					}
-					<span>{ appName }</span>
+					<span>{ CurrentApplicationName(ctx) }</span>
 				</nav>
 				<form method="POST" action="/logout">
 					@csrfHiddenInput()
@@ -356,8 +375,8 @@ templ pageShell(title string, appName string) {
 // MachineList is the landing page: every Machine in the Application, linking to its own page.
 // Adding a third Machine requires no code change here -- it appears because it's in the
 // Application manifest, per ROADMAP.md Phase 3's exit criterion.
-templ MachineList(machines []*domain.Machine, appName string) {
-	@pageShell("Machines", appName) {
+templ MachineList(machines []*domain.Machine) {
+	@pageShell("Machines") {
 		<h1>Machines</h1>
 		<ul class="machine-list">
 			for _, m := range machines {
@@ -379,8 +398,8 @@ templ MachineList(machines []*domain.Machine, appName string) {
 // permitted to perform isn't offered in the first place; the server enforces the same rule
 // regardless (allowsRecordEdit/deleteAllowed, internal/web/record.go), this only keeps the UI
 // honest about it.
-templ MachinePage(m *domain.Machine, records []*data.Record, appName string, relations RelationOptions, boardColumns []experience.Column, actorID string) {
-	@pageShell(m.Name, appName) {
+templ MachinePage(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, actorID string) {
+	@pageShell(m.Name) {
 		<div id="machine-body">
 			@MachineBody(m, records, relations, boardColumns, actorID)
 		</div>

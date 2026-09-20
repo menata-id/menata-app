@@ -62,47 +62,6 @@ func validateNavigation(items []domain.NavigationItem) []string {
 	return issues
 }
 
-// applyHiddenNavGroups drops every item whose group: is named in hidden -- the metadata-only way
-// to keep a group's destinations declared (still valid routes, still reachable by a contextual
-// in-page link, e.g. workspacehome.templ's own "Approval Inbox" / "+ New Approval" links) while
-// removing them from the topbar itself. Each hidden name is cross-checked against the groups that
-// actually exist in items, the same posture validateNavigation already applies to Badge -- a
-// typo here would otherwise silently hide nothing rather than fail loudly.
-func applyHiddenNavGroups(items []domain.NavigationItem, hidden []string) ([]domain.NavigationItem, []string) {
-	if len(hidden) == 0 {
-		return items, nil
-	}
-
-	knownGroups := make(map[string]bool)
-	for _, n := range items {
-		if n.Group != "" {
-			knownGroups[n.Group] = true
-		}
-	}
-
-	var issues []string
-	hiddenSet := make(map[string]bool, len(hidden))
-	for _, g := range hidden {
-		if !knownGroups[g] {
-			issues = append(issues, fmt.Sprintf("hidden_nav_groups entry %q does not match any navigation item's group", g))
-			continue
-		}
-		hiddenSet[g] = true
-	}
-	if len(issues) > 0 {
-		return nil, issues
-	}
-
-	visible := make([]domain.NavigationItem, 0, len(items))
-	for _, n := range items {
-		if n.Group != "" && hiddenSet[n.Group] {
-			continue
-		}
-		visible = append(visible, n)
-	}
-	return visible, nil
-}
-
 // ValidationError aggregates every problem found in one metadata document, per 005-runtime-
 // lifecycle.md Phase 3: invalid metadata must not enter executable planning, and a metadata
 // author should see every problem at once rather than one failure per fix-and-rerun cycle.
@@ -508,4 +467,98 @@ func contains(options []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// validateMachineIDsAreUnique guards the invariant that makes Workspace-level Machine loading
+// safe: one id, one Machine object (Fase 3, 2026-09-20). Before this, Machines were loaded per
+// Application and a duplicate could not arise; now app.yaml lists files once and every Application
+// selects from the result, so listing the same file twice -- or two files declaring the same id --
+// would silently give half the runtime one object and half the other.
+func validateMachineIDsAreUnique(machines []*domain.Machine) error {
+	seen := make(map[string]bool, len(machines))
+	var issues []string
+	for _, m := range machines {
+		if seen[m.ID] {
+			issues = append(issues, fmt.Sprintf("machine id %q is declared more than once -- machine ids are unique across the workspace, since every application selects from one loaded set", m.ID))
+			continue
+		}
+		seen[m.ID] = true
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
+// validateApplicationClaims checks every Application's `machines:` selection against the
+// Workspace's own set, and enforces that no Machine is claimed by two Applications.
+//
+// The second half is what keeps domain.Workspace.ApplicationForMachine unambiguous, which is how
+// the runtime answers "which Application is this request in" for the many routes no navigation
+// item names (/machines/{id}/records/{id}, /decide, /signature-placement, ...). Two claimants
+// would make that answer depend on declaration order. A Machine genuinely shared between
+// Applications (mch_user, mch_activity) is therefore claimed by *none* and stays Workspace-level;
+// routes concerning it fall back to navigation, which is the designed path, not a gap.
+func validateApplicationClaims(applications []domain.Application, machines []*domain.Machine) error {
+	known := make(map[string]bool, len(machines))
+	for _, m := range machines {
+		known[m.ID] = true
+	}
+
+	var issues []string
+	claimedBy := make(map[string]string)
+	seenApp := make(map[string]bool, len(applications))
+	for _, app := range applications {
+		if seenApp[app.ID] {
+			issues = append(issues, fmt.Sprintf("application id %q is declared more than once", app.ID))
+		}
+		seenApp[app.ID] = true
+
+		for _, id := range app.Machines {
+			if !known[id] {
+				issues = append(issues, fmt.Sprintf("application %q: machines entry %q is not a machine this workspace declares", app.ID, id))
+				continue
+			}
+			if prev, ok := claimedBy[id]; ok {
+				issues = append(issues, fmt.Sprintf("machine %q is claimed by both application %q and application %q -- a machine belongs to at most one application, or which application a /machines/%s/... route is in would depend on declaration order; a genuinely shared machine should be claimed by neither", id, prev, app.ID, id))
+				continue
+			}
+			claimedBy[id] = app.ID
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
+// validateNavigationIDsAreUnique checks navigation ids across the whole Workspace -- its own list
+// plus every Application's.
+//
+// validateNavigation already enforces uniqueness *within* one list. Workspace-wide is the scope
+// that matters now: internal/rendering's routeByID/labelByID resolve an id against the union of
+// every declared list, so a duplicate id in two Applications would make those lookups return
+// whichever was loaded first, silently pointing a page at another Application's screen.
+func validateNavigationIDsAreUnique(ws domain.Workspace) error {
+	declaredIn := make(map[string]string)
+	var issues []string
+
+	record := func(items []domain.NavigationItem, where string) {
+		for _, item := range items {
+			if prev, ok := declaredIn[item.ID]; ok {
+				issues = append(issues, fmt.Sprintf("navigation id %q is declared by both %s and %s -- ids are resolved workspace-wide by routeByID/labelByID, so a duplicate would silently resolve to whichever loaded first", item.ID, prev, where))
+				continue
+			}
+			declaredIn[item.ID] = where
+		}
+	}
+
+	record(ws.Navigation, fmt.Sprintf("workspace %q", ws.ID))
+	for _, app := range ws.Applications {
+		record(app.AllNavigation, fmt.Sprintf("application %q", app.ID))
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
 }

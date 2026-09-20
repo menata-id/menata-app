@@ -64,7 +64,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 // an HTMX request targeting the detail page's own container gets just that container's view
 // fragment (used by the detail page's own Cancel-from-edit); any other HTMX request (a table row
 // or board card's Cancel) gets the original RecordRow fragment, unchanged from Phase 1.
-func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, appName string, cfg config.Config) http.HandlerFunc {
+func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -95,7 +95,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files
 				return
 			}
 			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
-			render(req.Context(), w, rendering.RecordDetailPage(machine, record, appName, relations, children, actor, hasSignature, sigPlacement))
+			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, children, actor, hasSignature, sigPlacement))
 			return
 		}
 		if isDetailContext(req) {

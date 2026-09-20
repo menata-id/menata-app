@@ -40,15 +40,19 @@ func memberInitials(email string) string {
 //   - The search box. Search, filtering and pagination are unbuilt everywhere in this app
 //     (ROADMAP.md, "Planned") -- a box that filters nothing would be worse than none, the same
 //     call made for "Keep me signed in" in Fase 1.
-//   - The per-Application role *columns*. app.yaml declares one `application:`, so there is one
-//     role to show; Fase 3 turns this column into one per Application.
+//   - The per-Application role *columns*. Fase 3a made `applications:` a real list, but
+//     workspace_members still has a single `app_role` column, so there is exactly one stored role
+//     and nothing that says which Application it belongs to. The cell therefore shows the role
+//     alone rather than captioning it with an Application name that would be a guess -- Fase 3b's
+//     migration gives each member one role row per Application, and the column becomes one chip
+//     each.
 //   - The "Source" column (Direct / "Group: Reviewers"). Groups do not exist until Fase 4, and
 //     with no Groups every row would read "Direct" -- a column with one possible value states
 //     nothing.
 //
 // The board also shows each member's full name above their email; data.Membership carries only
 // Email (see memberInitials above), so the row shows the address alone.
-templ WorkspaceMembersPage(members []data.Membership, appName, workspaceName, userInitials string) {
+templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitials string) {
 	@appShell(labelByID("nav_workspace_members"), workspaceName, userInitials, "nav_workspace_members", nil) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
@@ -65,7 +69,7 @@ templ WorkspaceMembersPage(members []data.Membership, appName, workspaceName, us
 				@authField("invite_name", "fld_name", "Full name", "text", "name", false)
 				@authField("invite_email", "email", "Email", "email", "email", false)
 				<div class="flex flex-col gap-2">
-					<label for="invite_role" class="text-sm font-medium">{ appName } role</label>
+					<label for="invite_role" class="text-sm font-medium">Application role</label>
 					<select id="invite_role" name="app_role" class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] sm:h-9.5 sm:text-sm">
 						for _, r := range appRoleOptions {
 							<option value={ r }>{ displayRole(r) }</option>
@@ -98,7 +102,7 @@ templ WorkspaceMembersPage(members []data.Membership, appName, workspaceName, us
 							<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{ displayRole(m.WorkspaceRole) }</span>
 						}
 					</div>
-					<div class="text-sm text-slate-600 sm:w-44">{ appName } · { displayRole(m.AppRole) }</div>
+					<div class="text-sm text-slate-600 sm:w-44">{ displayRole(m.AppRole) }</div>
 					<div class="sm:w-16">
 						<a href={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class="text-sm text-blue-600 hover:text-blue-700">Edit →</a>
 					</div>
@@ -116,7 +120,7 @@ templ WorkspaceMembersPage(members []data.Membership, appName, workspaceName, us
 // for the same reason the Source column is on the list page: Groups arrive in Fase 4, and the
 // union itself has no primitive behind it yet. Its Application-access section lists three
 // Applications where this lists one, which is Fase 3.
-templ EditMemberPage(m data.Membership, appName, workspaceName, userInitials string) {
+templ EditMemberPage(m data.Membership, workspaceName, userInitials string) {
 	@appShell("Edit member", workspaceName, userInitials, "", nil) {
 		<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { labelByID("nav_workspace_members") }
@@ -141,7 +145,7 @@ templ EditMemberPage(m data.Membership, appName, workspaceName, userInitials str
 					<p class="m-0 text-2xs text-slate-500">Assign the role this user receives directly in each application.</p>
 				</div>
 				<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-					<label for="app_role" class="text-sm">{ appName }</label>
+					<label for="app_role" class="text-sm">Application role</label>
 					<select id="app_role" name="app_role" class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] sm:h-9.5 sm:w-56 sm:text-sm">
 						for _, r := range appRoleOptions {
 							<option value={ r } selected?={ r == m.AppRole }>{ displayRole(r) }</option>

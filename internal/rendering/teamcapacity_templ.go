@@ -26,7 +26,7 @@ type MemberCapacity struct {
 
 // TeamCapacityPage is Case 19's workload/ownership view: People, weekly capacity (declared on
 // mch_user), and active Task counts, composed from existing Machines.
-func TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int, appName string) templ.Component {
+func TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -162,7 +162,7 @@ func TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int, 
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = pageShell(labelByID("nav_team_capacity"), appName).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = pageShell(labelByID("nav_team_capacity")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

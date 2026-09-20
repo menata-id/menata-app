@@ -1,0 +1,49 @@
+# Project Management -- task boards, sprints and team views. Formerly the "Project Management"
+# navigation *group* inside the single app_task_tracker Application; Fase 3 (2026-09-20) promoted
+# it to a real Application, which is what ui-sample/nav-metadata.js has always called `case19`.
+#
+# Unlike Document Approval this declares no show_nav, so it keeps its own menu chrome -- the same
+# distinction nav-metadata.js draws by giving case19 no showNav field at all.
+id: app_project_management
+name: Project Management
+
+# See document-approval.yaml's own machines: comment for what this list is and is not. mch_user
+# and mch_activity are shared across Applications and therefore claimed by neither, staying
+# Workspace-level.
+machines:
+  - mch_project
+  - mch_list
+  - mch_label
+  - mch_task
+  - mch_card_label
+
+navigation:
+  - id: nav_my_tasks
+    label: My Tasks
+    route: /my-tasks
+    priority: 1
+    home_card: true
+  - id: nav_calendar
+    label: Calendar
+    route: /calendar
+    priority: 2
+  - id: nav_sprint
+    label: Sprint Dashboard
+    route: /sprint
+    priority: 2
+  - id: nav_team_capacity
+    label: Team Capacity
+    route: /team-capacity
+    priority: 3
+  - id: nav_activity
+    label: Activity
+    route: /activity
+    priority: 3
+  - id: nav_automation
+    label: Automation
+    route: /automation
+    priority: 4
+  - id: nav_board_settings
+    label: Board Settings
+    route: /board-settings
+    priority: 4

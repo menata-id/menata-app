@@ -4,8 +4,8 @@ package rendering
 // project-activity.html): the same mch_activity data as the Dashboard's Recent Activity section
 // (Phase 13), grouped by day instead of a flat top-10 list -- a different shape over the same
 // already-built data, not a new event mechanism.
-templ ActivityPage(today, yesterday, older []ActivityEntry, appName string) {
-	@pageShell(labelByID("nav_activity"), appName) {
+templ ActivityPage(today, yesterday, older []ActivityEntry) {
+	@pageShell(labelByID("nav_activity")) {
 		<h1>{ labelByID("nav_activity") }</h1>
 		<p>A cross-project feed of business events.</p>
 		@activityGroup("Today", today)

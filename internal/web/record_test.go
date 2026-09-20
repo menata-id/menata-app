@@ -168,7 +168,7 @@ func TestHandleFileUploads_allowsRealPDF(t *testing.T) {
 // loadRealMachines loads the app's own real metadata/app.yaml -- the same manifest cmd/server
 // loads -- so a showRecordRow test exercises real Field/relation wiring (mch_approval_step's
 // fld_document relation back to mch_document, in particular) rather than a hand-rolled stand-in
-// that could silently drift from what ships. It also calls rendering.ConfigureNavigation, the
+// that could silently drift from what ships. It also calls rendering.ConfigureWorkspace, the
 // same call internal/web.Routes makes in production (router.go) -- detailBackLink's own
 // routeByID("nav_approval_inbox") panics without it -- and resets that package-level state via
 // t.Cleanup, the same pattern internal/rendering/navigation_test.go already uses, so this test
@@ -179,8 +179,8 @@ func loadRealMachines(t *testing.T) map[string]*domain.Machine {
 	if err != nil {
 		t.Fatalf("LoadApplication: %v", err)
 	}
-	rendering.ConfigureNavigation(app.Application.Navigation, app.Application.PrimaryNavGroup, app.Application.AllNavigation)
-	t.Cleanup(func() { rendering.ConfigureNavigation(nil, "", nil) })
+	rendering.ConfigureWorkspace(app.Workspace)
+	t.Cleanup(func() { rendering.ConfigureWorkspace(domain.Workspace{}) })
 
 	machines := make(map[string]*domain.Machine, len(app.Machines))
 	for _, m := range app.Machines {
@@ -237,7 +237,7 @@ func TestShowRecordRow_documentDetailIncludesInlineSignaturePlacement(t *testing
 
 	machines := loadRealMachines(t)
 	r := chi.NewRouter()
-	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, "Test App", config.Config{}))
+	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, config.Config{}))
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, document.ID), nil)
 	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))
@@ -284,7 +284,7 @@ func TestShowRecordRow_nonDocumentDetailHasNoSignaturePlacement(t *testing.T) {
 
 	machines := loadRealMachines(t)
 	r := chi.NewRouter()
-	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, "Test App", config.Config{}))
+	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, config.Config{}))
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/machines/mch_project/records/%s", project.ID), nil)
 	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))

@@ -1,10 +1,18 @@
+# workspace: the highest organizational boundary (001 Principle #9, 004 "Workspace"). It owns the
+# Machines and declares which Applications exist inside it; an Application selects from that set
+# rather than owning files of its own.
 workspace:
   id: ws_default
   name: Default Workspace
 
-application:
-  id: app_task_tracker
-  name: Task Tracker
+  # Machines are declared once, here, and are unique by id across the whole Workspace -- not per
+  # Application (Fase 3, 2026-09-20). Several Applications genuinely share Machines: mch_user is
+  # every Application's identity, and mch_activity is written by all of them. Per-Application
+  # ownership would mean loading the same file twice and producing two Machine objects with one id,
+  # and it would make dataset-id uniqueness incoherent the moment a shared Machine declared a
+  # Dataset -- the same declaration living in two scopes at once. The four cross-Machine validators
+  # (relation targets, dataset id uniqueness, rollup targets, sequencing modes) are therefore
+  # workspace-scoped; see internal/metadata.validateDatasetIDsAreUnique's own doc comment.
   machines:
     - user.yaml
     - project.yaml
@@ -16,86 +24,32 @@ application:
     - approval_step.yaml
     - activity.yaml
     - signature.yaml
-  # Navigation (004 §Navigation Metadata, 006 §Navigation): the topbar is a projection of this
-  # list (internal/rendering.pageShell), not hand-written HTML -- ROADMAP.md's long-tracked
-  # "Navigation is code, not metadata" conformance gap. Group values are presentational labels,
-  # not machine ids; items with no group render flat at the top level. Declaration order matters:
-  # the first named group encountered stays open inline (this Application's own current-priority
-  # menu), every later named group collapses into a dropdown (internal/rendering.navSections).
+
+  # Workspace-level navigation: destinations that belong to no single Application. They stay
+  # reachable however many Applications exist, and they are what the launcher shows above the
+  # Application list (ui-sample/nav-metadata.js's own "Menata · <workspace>" header).
   navigation:
     - id: nav_home
       label: Home
       route: /home
       priority: 0
-    - id: nav_dashboard
-      label: Dashboard
-      route: /dashboard
-      group: Document Approval
-      priority: 1
-    - id: nav_approval_inbox
-      label: Approval Inbox
-      route: /approval-inbox
-      group: Document Approval
-      priority: 1
-      badge: approval_inbox_pending
-      # home_card: this is the one item Workspace Home's own Application card links to
-      # (rendering.WorkspaceHomePage) -- at most one item may set it (validated at load time).
-      home_card: true
-    - id: nav_new_approval
-      label: New Approval
-      route: /documents/new
-      group: Document Approval
-      priority: 2
-    - id: nav_my_tasks
-      label: My Tasks
-      route: /my-tasks
-      group: Project Management
-      priority: 1
-    - id: nav_calendar
-      label: Calendar
-      route: /calendar
-      group: Project Management
-      priority: 2
-    - id: nav_sprint
-      label: Sprint Dashboard
-      route: /sprint
-      group: Project Management
-      priority: 2
-    - id: nav_team_capacity
-      label: Team Capacity
-      route: /team-capacity
-      group: Project Management
-      priority: 3
-    - id: nav_activity
-      label: Activity
-      route: /activity
-      group: Project Management
-      priority: 3
-    - id: nav_automation
-      label: Automation
-      route: /automation
-      group: Project Management
-      priority: 4
-    - id: nav_board_settings
-      label: Board Settings
-      route: /board-settings
-      group: Project Management
-      priority: 4
     - id: nav_machines
       label: All Machines
       route: /
-      group: Workspace
       priority: 1
     - id: nav_workspace_members
       label: Workspace Members
       route: /workspace-members
-      group: Workspace
       priority: 2
-  # hidden_nav_groups (owner request, 2026-09-19, matching ui-sample/nav-metadata.js's `showNav:
-  # false` on Case 3): Document Approval's own screens don't need a persistent topbar entry --
-  # every real destination above stays a valid route (unaffected by this), still reachable from
-  # its own contextual links (workspacehome.templ's "Approval Inbox" / "+ New Approval", the
-  # approval flow's own in-page steps) instead of a standing menu item. Project Management and
-  # Workspace keep theirs.
-  hidden_nav_groups:
-    - Document Approval
+
+# applications: file paths, resolved relative to this manifest. One file per Application, matching
+# how machines: has always worked -- app.yaml names files, files hold the declaration. An
+# Application's navigation block alone is ~40 lines, so inlining two of them would bury the
+# Workspace identity above in a wall of nav; and keeping them separate means a change to one
+# Application's menu never touches the other's lines.
+#
+# The Application *id* (app_xxx) is the stable key -- role rows and any other reference point at
+# it, never at the file path (004 Stable Identity), so renaming a file cannot orphan them.
+applications:
+  - applications/document-approval.yaml
+  - applications/project-management.yaml

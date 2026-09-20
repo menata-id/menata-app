@@ -24,31 +24,23 @@ type Deps struct {
 	Machines    map[string]*domain.Machine
 	MachineList []*domain.Machine
 
-	Store   *data.Store
-	Files   *storage.Store
-	Mailer  mail.Mailer
-	Cfg     config.Config
-	AppName string
+	Store  *data.Store
+	Files  *storage.Store
+	Mailer mail.Mailer
+	Cfg    config.Config
 
-	// Navigation is the Application's own declared menu (004 §Navigation Metadata, 006
-	// §Navigation) -- Routes hands it to internal/rendering once, at startup, rather than
-	// threading it through every handler and Page function the way AppName would otherwise need
-	// to be (ROADMAP.md Phase 21 round 2 Step J already chose the equivalent trade-off for the
-	// pending-approval badge).
-	Navigation []domain.NavigationItem
-	// PrimaryNavGroup is domain.Application.PrimaryNavGroup -- see its own doc comment for why
-	// this travels alongside Navigation instead of being derived from it at render time.
-	PrimaryNavGroup string
-	// HomeRoute is domain.Application.HomeRoute, showWorkspaceHome's own source for its
-	// Application card's link -- decided from the full declared navigation before
-	// hidden_nav_groups runs, for the same reason PrimaryNavGroup is (see its own doc comment on
-	// domain.Application): deriving it from Navigation here instead would silently blank it out
-	// whenever the HomeCard item's own group is hidden.
-	HomeRoute string
-	// AllNavigation is domain.Application.AllNavigation -- routeByID's own source
-	// (internal/rendering), for the same reason HomeRoute needs the pre-filter list: a
-	// contextual link to a hidden group's item must still resolve.
-	AllNavigation []domain.NavigationItem
+	// Workspace is the whole loaded Workspace -- its own navigation and every Application
+	// declared inside it (004 §Navigation Metadata, 006 §Navigation). Routes hands it to
+	// internal/rendering once, at startup, rather than threading it through every handler and
+	// Page function (ROADMAP.md Phase 21 round 2 Step J already chose the equivalent trade-off
+	// for the pending-approval badge).
+	//
+	// It replaces the four single-Application fields that used to live here (AppName, Navigation,
+	// PrimaryNavGroup, HomeRoute, AllNavigation): with several Applications none of them has one
+	// value for the process any more. Which Application a given *request* is in is resolved per
+	// request by the currentApplication middleware and read back through
+	// rendering.CurrentApplication.
+	Workspace domain.Workspace
 
 	// DefaultWorkspaceID is this manifest's own declared Workspace (metadata/app.yaml) --
 	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
@@ -90,7 +82,7 @@ const (
 )
 
 func Routes(d Deps) http.Handler {
-	rendering.ConfigureNavigation(d.Navigation, d.PrimaryNavGroup, d.AllNavigation)
+	rendering.ConfigureWorkspace(d.Workspace)
 
 	r := chi.NewRouter()
 	r.Use(secureHeaders)
@@ -135,6 +127,7 @@ func Routes(d Deps) http.Handler {
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(requireAuth(d.Store, d.DefaultWorkspaceID, d.Cfg))
+		pr.Use(currentApplication(d.Workspace))
 		pr.Use(queryDiagnostics)
 
 		pr.Post("/logout", logout(d.Store, d.Cfg))
@@ -145,38 +138,38 @@ func Routes(d Deps) http.Handler {
 		pr.Put("/api/machines/{machineID}/records/{id}", updateRecord(d.Machines, d.Store, d.Cfg))
 		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Machines, d.Store, d.Cfg))
 
-		pr.Get("/", showMachineList(d.MachineList, d.AppName))
-		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.AppName, d.HomeRoute, d.Cfg))
+		pr.Get("/", showMachineList(d.MachineList))
+		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.Workspace, d.Cfg))
 		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
 		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))
-		pr.Get("/dashboard", showDashboard(d.Machines, d.Store, d.AppName))
-		pr.Get("/my-tasks", showMyTasks(d.Machines, d.Store, d.AppName, d.Cfg))
-		pr.Get("/board-settings", showBoardSettings(d.Store, d.AppName))
-		pr.Get("/activity", showActivity(d.Machines, d.Store, d.AppName))
-		pr.Get("/team-capacity", showTeamCapacity(d.Machines, d.Store, d.AppName))
-		pr.Get("/automation", showAutomation(d.MachineList, d.AppName))
-		pr.Get("/calendar", showCalendar(d.Machines, d.Store, d.AppName))
-		pr.Get("/sprint", showSprintDashboard(d.Machines, d.Store, d.AppName))
-		pr.Get("/approval-inbox", showApprovalInbox(d.Machines, d.Store, d.AppName, d.Cfg))
+		pr.Get("/dashboard", showDashboard(d.Machines, d.Store))
+		pr.Get("/my-tasks", showMyTasks(d.Machines, d.Store, d.Cfg))
+		pr.Get("/board-settings", showBoardSettings(d.Store))
+		pr.Get("/activity", showActivity(d.Machines, d.Store))
+		pr.Get("/team-capacity", showTeamCapacity(d.Machines, d.Store))
+		pr.Get("/automation", showAutomation(d.MachineList))
+		pr.Get("/calendar", showCalendar(d.Machines, d.Store))
+		pr.Get("/sprint", showSprintDashboard(d.Machines, d.Store))
+		pr.Get("/approval-inbox", showApprovalInbox(d.Machines, d.Store, d.Cfg))
 		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Machines, d.Store, d.Cfg))
-		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Machines["mch_document"], d.AppName))
+		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Machines["mch_document"]))
 		pr.Get("/documents/new/approver-row", newApproverRow(d.Store))
 		pr.Post("/documents", submitDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Get("/machines/{machineID}", showMachinePage(d.Machines, d.AppName, d.Store, d.Cfg))
+		pr.Get("/machines/{machineID}", showMachinePage(d.Machines, d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records", createRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Machines, d.Store, d.Files, d.AppName, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Machines, d.Store, d.Cfg))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Machines, d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Machines, d.Store, d.Files, d.AppName, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/pdf-preview", servePDFPreview(d.Machines, d.Store, d.Files))
 
 		pr.Group(func(ar chi.Router) {
 			ar.Use(requireWorkspaceAdmin(d.Store, d.Cfg))
-			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.AppName, d.Cfg))
+			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.Cfg))
 			ar.Post("/workspace-members/invite", submitInviteMember(d.Machines, d.Store, d.Mailer, d.Cfg))
-			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.AppName, d.Cfg))
+			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg))
 			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
 		})
 

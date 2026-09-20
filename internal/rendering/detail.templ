@@ -41,8 +41,8 @@ type DocumentSignaturePlacement struct {
 // actorID is the viewing identity, needed only so an Action the viewer is not permitted to
 // perform isn't offered in the first place (ROADMAP.md Phase 16) -- the server enforces the same
 // rule regardless, this only keeps the UI honest about it.
-templ RecordDetailPage(m *domain.Machine, r *data.Record, appName string, relations RelationOptions, children []ChildSection, actorID string, hasSignature bool, sigPlacement *DocumentSignaturePlacement) {
-	@pageShell(m.Name, appName) {
+templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection, actorID string, hasSignature bool, sigPlacement *DocumentSignaturePlacement) {
+	@pageShell(m.Name) {
 		@detailBackLink(m)
 		<div id="record-detail">
 			@RecordDetailView(m, r, relations, children, actorID, hasSignature, sigPlacement)

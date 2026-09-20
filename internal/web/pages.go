@@ -25,7 +25,7 @@ const (
 
 // showDashboard combines Project and Task data on one page -- ROADMAP.md Phase 6's own forcing
 // case, exercised here for real.
-func showDashboard(machines map[string]*domain.Machine, store *data.Store, appName string) http.HandlerFunc {
+func showDashboard(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 
@@ -34,14 +34,14 @@ func showDashboard(machines map[string]*domain.Machine, store *data.Store, appNa
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.DashboardPage(d.Projects, d.Documents, d.Pending, d.Activity, appName))
+		render(ctx, w, rendering.DashboardPage(d.Projects, d.Documents, d.Pending, d.Activity))
 	}
 }
 
 // showMyTasks is Case 19's personal work queue (ROADMAP.md Phase 14). "Assigned to me" resolves
 // to authorization.CurrentUserID -- the same shared-admin-credential-to-real-mch_user resolution
 // Phase 8 already built, not a new per-user login mechanism.
-func showMyTasks(machines map[string]*domain.Machine, store *data.Store, appName string, cfg config.Config) http.HandlerFunc {
+func showMyTasks(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
@@ -51,14 +51,14 @@ func showMyTasks(machines map[string]*domain.Machine, store *data.Store, appName
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.MyTasksPage(t.Summary, t.Today, t.Upcoming, t.Completed, appName))
+		render(ctx, w, rendering.MyTasksPage(t.Summary, t.Today, t.Upcoming, t.Completed))
 	}
 }
 
 // showActivity is Case 19's cross-project event feed (ROADMAP.md Phase 14,
 // project-activity.html): the same mch_activity data as the Dashboard's Recent Activity section,
 // grouped by day (Today/Yesterday/Earlier) instead of a flat top-10 list.
-func showActivity(machines map[string]*domain.Machine, store *data.Store, appName string) http.HandlerFunc {
+func showActivity(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 
@@ -67,14 +67,14 @@ func showActivity(machines map[string]*domain.Machine, store *data.Store, appNam
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.ActivityPage(feed.Today, feed.Yesterday, feed.Earlier, appName))
+		render(ctx, w, rendering.ActivityPage(feed.Today, feed.Yesterday, feed.Earlier))
 	}
 }
 
 // showSprintDashboard is Case 19's analytics view (ROADMAP.md Phase 14, project-dashboard.html):
 // a real Task-status summary, a workload preview (reusing MemberCapacity from Team Capacity), and
 // an Attention Needed list of overdue/due-today Tasks (reusing My Tasks' own SLA bucketing).
-func showSprintDashboard(machines map[string]*domain.Machine, store *data.Store, appName string) http.HandlerFunc {
+func showSprintDashboard(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 
@@ -83,13 +83,13 @@ func showSprintDashboard(machines map[string]*domain.Machine, store *data.Store,
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.SprintDashboardPage(s.Summary, s.Workload, s.Attention, appName))
+		render(ctx, w, rendering.SprintDashboardPage(s.Summary, s.Workload, s.Attention))
 	}
 }
 
 // showCalendar is Case 19's week-grid Layout (ROADMAP.md Phase 14, project-calendar.html): every
 // mch_task whose fld_due_date falls in the current Monday-Sunday week, one column per day.
-func showCalendar(machines map[string]*domain.Machine, store *data.Store, appName string) http.HandlerFunc {
+func showCalendar(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 
@@ -98,14 +98,14 @@ func showCalendar(machines map[string]*domain.Machine, store *data.Store, appNam
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.CalendarPage(days, appName))
+		render(ctx, w, rendering.CalendarPage(days))
 	}
 }
 
 // showTeamCapacity is Case 19's Team Capacity screen (ROADMAP.md Phase 14, project-team.html):
 // every mch_user with their declared weekly capacity (a new Number field on an existing Machine,
 // not a new mechanism) and how many mch_task are currently assigned to them, still open.
-func showTeamCapacity(machines map[string]*domain.Machine, store *data.Store, appName string) http.HandlerFunc {
+func showTeamCapacity(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 
@@ -114,13 +114,13 @@ func showTeamCapacity(machines map[string]*domain.Machine, store *data.Store, ap
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.TeamCapacityPage(c.Members, c.TotalCapacity, c.TotalActive, appName))
+		render(ctx, w, rendering.TeamCapacityPage(c.Members, c.TotalCapacity, c.TotalActive))
 	}
 }
 
 // showBoardSettings is the Lists/Labels catalog hub. It renders two Machines' records as-is, with
 // nothing to derive, which is why it reads them directly rather than through a composition step.
-func showBoardSettings(store *data.Store, appName string) http.HandlerFunc {
+func showBoardSettings(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 
@@ -135,15 +135,15 @@ func showBoardSettings(store *data.Store, appName string) http.HandlerFunc {
 			return
 		}
 
-		render(ctx, w, rendering.BoardSettingsPage(lists, labels, appName))
+		render(ctx, w, rendering.BoardSettingsPage(lists, labels))
 	}
 }
 
 // showAutomation is Case 19's Workflow Automation screen (ROADMAP.md Phase 14,
 // project-automation.html): a read-only Trigger/Condition/Action description of this
 // Application's real Constraint metadata and Action behavior.
-func showAutomation(machines []*domain.Machine, appName string) http.HandlerFunc {
+func showAutomation(machines []*domain.Machine) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		render(req.Context(), w, rendering.AutomationPage(composition.AutomationRules(machines), appName))
+		render(req.Context(), w, rendering.AutomationPage(composition.AutomationRules(machines)))
 	}
 }

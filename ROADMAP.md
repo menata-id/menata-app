@@ -100,8 +100,13 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      launcher created the first real case for **per-viewer navigation filtering** (see
      `capabilities.md`, "Navigation: two filters"), and it confirmed the launcher must read
      `AllNavigation`, since a hidden group's routes stay reachable there.
-  3. Multi-application — `app.yaml` declares one `application:`, and `workspace_members` has one
-     `app_role` column; `capabilities.md` already states Application plurality is not built.
+  3. **Multi-application** — 3a *shipped 2026-09-20*: `applications:` is a list of per-Application
+     files, Machines are workspace-level (loaded once, unique by id), and Task Tracker is now
+     `app_document_approval` + `app_project_management`. Which Application a request is in is
+     resolved Machine-first with navigation as fallback, because most of Document Approval's
+     routes are named by no navigation item. `hidden_nav_groups` became per-Application
+     `show_nav`. Still to come: **3b** per-Application role rows (`workspace_members` still has one
+     `app_role` column) and **3c** the board's own card face and per-Application role columns.
   4. Groups — absent entirely, and present in five of the ten boards. A Group and its membership
      can be ordinary Machines (many-to-many is already proven by `mch_card_label`); the parts that
      cannot be, and need a decision: effective access as the union of direct and group-inherited
@@ -120,11 +125,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
   | Left undone | Finished in | Blocked on |
   |---|---|---|
-  | Workspace Home shows one Application card, not three (board 03) | Fase 3 | `applications:` as a list; `app.yaml` declares one `application:` |
+  | ~~Workspace Home shows one Application card~~ — done in 3a | — | — |
   | Per-Application role *columns* on Members (board 04) | Fase 3 | same, plus `workspace_members`' single `app_role` column |
   | Source / "Group: Reviewers" column (board 04) | Fase 4 | Groups do not exist; with none, every row would read "Direct" |
   | Effective-access panel, direct ∪ group-inherited (board 05) | Fase 4 | Groups; the union itself has no primitive |
-  | Member full name beside the email (board 04/05) | Fase 3 | `data.Membership` carries only `Email`; `memberInitials` derives from the local part meanwhile |
+  | Member full name beside the email (board 04/05) | Fase 3b | `data.Membership` carries only `Email`; `memberInitials` derives from the local part meanwhile |
   | Section tab strip (board 07) | Fase 4 (Groups tab) + Fase 6 (My Documents tab) | 2 of its 4 destinations do not exist; the only part needing a `navigation:` second level |
   | Review document as its own screen (board 10) | Fase 6 | today it rides the generic record-detail page shared by every Machine |
   | New chrome on the Document Approval screens (inbox, submit, signature) | Fase 6 | Preflight ties chrome to content; their content ports there |

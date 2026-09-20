@@ -17,32 +17,41 @@ var (
 	applicationIDPattern = regexp.MustCompile(`^app_[a-z][a-z0-9_]*$`)
 )
 
-// App is a loaded Application manifest: its Workspace, itself, and every Machine it references.
+// App is a loaded Workspace manifest: the Workspace itself (including every Application declared
+// inside it) and every Machine it owns.
+//
+// Machines are workspace-level and unique by id across the whole Workspace (Fase 3, 2026-09-20),
+// which is why they live here rather than under one Application -- see domain.Workspace.
 type App struct {
-	Workspace   domain.Workspace
-	Application domain.Application
-	Machines    []*domain.Machine
+	Workspace domain.Workspace
+	Machines  []*domain.Machine
 }
 
 type appDoc struct {
 	Workspace struct {
-		ID   string `yaml:"id"`
-		Name string `yaml:"name"`
-	} `yaml:"workspace"`
-	Application struct {
 		ID         string       `yaml:"id"`
 		Name       string       `yaml:"name"`
 		Machines   []string     `yaml:"machines"`
 		Navigation []navItemDoc `yaml:"navigation"`
-		// HiddenNavGroups names navigation: groups (by their group: label) whose items are
-		// declared -- so they remain valid destinations, reachable by route and by contextual
-		// in-page links -- but must not render in the topbar. Owner request, 2026-09-19: an
-		// Application's own screens don't always need a persistent menu entry; this is the
-		// metadata-only way to say so, with no runtime change beyond a shorter list handed to the
-		// existing topbar renderer (internal/rendering.pageShell already renders whatever list
-		// it's given, nothing about it changes here).
-		HiddenNavGroups []string `yaml:"hidden_nav_groups"`
-	} `yaml:"application"`
+	} `yaml:"workspace"`
+	// Applications are file paths, resolved relative to this manifest -- the same shape machines:
+	// has always had. One file per Application: a navigation block alone runs to ~40 lines, so
+	// inlining several would bury the Workspace identity, and it keeps one Application's menu
+	// changes off another's lines.
+	Applications []string `yaml:"applications"`
+}
+
+// applicationDoc is one Application's own file.
+type applicationDoc struct {
+	ID       string   `yaml:"id"`
+	Name     string   `yaml:"name"`
+	Machines []string `yaml:"machines"`
+	// ShowNav defaults to *true* when the key is absent, which is why it is a *bool here: an
+	// Application that says nothing about its menu keeps it (ui-sample/nav-metadata.js's own
+	// convention -- case19 has no showNav field and keeps both bars). A plain bool would default
+	// to false and silently suppress every Application's menu.
+	ShowNav    *bool        `yaml:"show_nav"`
+	Navigation []navItemDoc `yaml:"navigation"`
 }
 
 type navItemDoc struct {
@@ -55,9 +64,13 @@ type navItemDoc struct {
 	HomeCard bool   `yaml:"home_card"`
 }
 
-// LoadApplication reads an Application manifest and every Machine file it references (paths
-// resolved relative to the manifest's own directory), validating each in turn
-// (005-runtime-lifecycle.md Phase 3-4: invalid metadata must not enter execution).
+// LoadApplication reads a Workspace manifest: its own Machine files and navigation, then every
+// Application file it references (all paths resolved relative to the manifest's own directory),
+// validating each in turn (005-runtime-lifecycle.md Phase 3-4: invalid metadata must not enter
+// execution).
+//
+// The name is kept for its callers' sake; what it loads is a Workspace, of which an Application is
+// now one part (Fase 3, 2026-09-20).
 func LoadApplication(path string) (*App, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -73,68 +86,62 @@ func LoadApplication(path string) (*App, error) {
 	if !workspaceIDPattern.MatchString(doc.Workspace.ID) {
 		issues = append(issues, fmt.Sprintf("workspace id %q must match %s", doc.Workspace.ID, workspaceIDPattern.String()))
 	}
-	if !applicationIDPattern.MatchString(doc.Application.ID) {
-		issues = append(issues, fmt.Sprintf("application id %q must match %s", doc.Application.ID, applicationIDPattern.String()))
+	if len(doc.Workspace.Machines) == 0 {
+		issues = append(issues, fmt.Sprintf("workspace %q: at least one machine is required", doc.Workspace.ID))
 	}
-	if len(doc.Application.Machines) == 0 {
-		issues = append(issues, fmt.Sprintf("application %q: at least one machine is required", doc.Application.ID))
+	if len(doc.Applications) == 0 {
+		issues = append(issues, fmt.Sprintf("workspace %q: at least one application is required", doc.Workspace.ID))
 	}
 	if len(issues) > 0 {
 		return nil, &ValidationError{Issues: issues}
 	}
 
-	var navigation []domain.NavigationItem
-	for _, n := range doc.Application.Navigation {
-		navigation = append(navigation, domain.NavigationItem{
-			ID:       n.ID,
-			Label:    n.Label,
-			Route:    n.Route,
-			Group:    n.Group,
-			Priority: n.Priority,
-			Badge:    n.Badge,
-			HomeCard: n.HomeCard,
-		})
-	}
-	if navIssues := validateNavigation(navigation); len(navIssues) > 0 {
+	workspaceNav := toNavigationItems(doc.Workspace.Navigation)
+	if navIssues := validateNavigation(workspaceNav); len(navIssues) > 0 {
 		return nil, &ValidationError{Issues: navIssues}
-	}
-
-	// primaryNavGroup, homeRoute and allNavigation are all decided from the full declared list,
-	// before hidden_nav_groups removes anything -- so hiding a group can never promote a
-	// different one into primaryNavGroup's "always open" role, silently blank out homeRoute, or
-	// (allNavigation) make a hidden item's own route unreachable by id for a contextual in-page
-	// link (see domain.Application.PrimaryNavGroup/HomeRoute/AllNavigation).
-	var primaryNavGroup string
-	for _, g := range experience.GroupNavigation(navigation) {
-		if g.Label != "" {
-			primaryNavGroup = g.Label
-			break
-		}
-	}
-	homeRoute := domain.HomeCardRoute(navigation)
-	allNavigation := navigation
-
-	navigation, hiddenIssues := applyHiddenNavGroups(navigation, doc.Application.HiddenNavGroups)
-	if len(hiddenIssues) > 0 {
-		return nil, &ValidationError{Issues: hiddenIssues}
 	}
 
 	dir := filepath.Dir(path)
 	app := &App{
-		Workspace: domain.Workspace{ID: doc.Workspace.ID, Name: doc.Workspace.Name},
-		Application: domain.Application{
-			ID: doc.Application.ID, Name: doc.Application.Name, WorkspaceID: doc.Workspace.ID,
-			Navigation: navigation, PrimaryNavGroup: primaryNavGroup, HomeRoute: homeRoute, AllNavigation: allNavigation,
+		Workspace: domain.Workspace{
+			ID:         doc.Workspace.ID,
+			Name:       doc.Workspace.Name,
+			Navigation: workspaceNav,
 		},
 	}
-	for _, rel := range doc.Application.Machines {
+
+	// Machines first, and once: every Application selects from this one set by id, so they must
+	// exist before any Application is resolved against them.
+	for _, rel := range doc.Workspace.Machines {
 		m, err := Load(filepath.Join(dir, rel))
 		if err != nil {
-			return nil, fmt.Errorf("application %q: machine %s: %w", doc.Application.ID, rel, err)
+			return nil, fmt.Errorf("workspace %q: machine %s: %w", doc.Workspace.ID, rel, err)
 		}
 		app.Machines = append(app.Machines, m)
 	}
+	if err := validateMachineIDsAreUnique(app.Machines); err != nil {
+		return nil, err
+	}
 
+	for _, rel := range doc.Applications {
+		application, err := loadApplicationFile(filepath.Join(dir, rel), doc.Workspace.ID)
+		if err != nil {
+			return nil, err
+		}
+		app.Workspace.Applications = append(app.Workspace.Applications, *application)
+	}
+	if err := validateApplicationClaims(app.Workspace.Applications, app.Machines); err != nil {
+		return nil, err
+	}
+	if err := validateNavigationIDsAreUnique(app.Workspace); err != nil {
+		return nil, err
+	}
+
+	// The four cross-Machine validators below run over the Workspace's whole Machine set, not one
+	// Application's. That is not a widening for convenience: a Machine shared by two Applications
+	// (mch_user, mch_activity) has exactly one declaration, so a per-Application scope would ask
+	// the same question twice and make dataset-id uniqueness incoherent -- the same declaration
+	// living in two scopes at once. See validateDatasetIDsAreUnique's own doc comment.
 	if err := validateRelationTargets(app.Machines); err != nil {
 		return nil, err
 	}
@@ -151,6 +158,85 @@ func LoadApplication(path string) (*App, error) {
 		return nil, err
 	}
 	return app, nil
+}
+
+// loadApplicationFile reads and validates one Application's own file.
+func loadApplicationFile(path, workspaceID string) (*domain.Application, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read application %s: %w", path, err)
+	}
+	var doc applicationDoc
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("parse application %s: %w", path, err)
+	}
+
+	var issues []string
+	if !applicationIDPattern.MatchString(doc.ID) {
+		issues = append(issues, fmt.Sprintf("application id %q must match %s", doc.ID, applicationIDPattern.String()))
+	}
+	if len(doc.Machines) == 0 {
+		issues = append(issues, fmt.Sprintf("application %q: at least one machine is required", doc.ID))
+	}
+	if len(issues) > 0 {
+		return nil, &ValidationError{Issues: issues}
+	}
+
+	navigation := toNavigationItems(doc.Navigation)
+	if navIssues := validateNavigation(navigation); len(navIssues) > 0 {
+		return nil, &ValidationError{Issues: navIssues}
+	}
+
+	// PrimaryNavGroup, HomeRoute and AllNavigation are all decided from the full declared list,
+	// *before* show_nav suppresses anything -- the same freeze-then-filter ordering
+	// hidden_nav_groups needed, and load-bearing for the same three reasons: suppressing a menu
+	// must never promote a different group into PrimaryNavGroup's "always open" role, never
+	// silently blank out HomeRoute, and never (AllNavigation) make a route unreachable by id for
+	// a contextual in-page link. internal/rendering's routeByID/labelByID resolve against
+	// AllNavigation, and both metadata-hardcoding conformance gates depend on that.
+	var primaryNavGroup string
+	for _, g := range experience.GroupNavigation(navigation) {
+		if g.Label != "" {
+			primaryNavGroup = g.Label
+			break
+		}
+	}
+	homeRoute := domain.HomeCardRoute(navigation)
+	allNavigation := navigation
+
+	// show_nav absent means true -- an Application that says nothing about its menu keeps it.
+	showNav := doc.ShowNav == nil || *doc.ShowNav
+	if !showNav {
+		navigation = nil
+	}
+
+	return &domain.Application{
+		ID:              doc.ID,
+		Name:            doc.Name,
+		WorkspaceID:     workspaceID,
+		Machines:        doc.Machines,
+		ShowNav:         showNav,
+		Navigation:      navigation,
+		PrimaryNavGroup: primaryNavGroup,
+		HomeRoute:       homeRoute,
+		AllNavigation:   allNavigation,
+	}, nil
+}
+
+func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
+	var items []domain.NavigationItem
+	for _, n := range docs {
+		items = append(items, domain.NavigationItem{
+			ID:       n.ID,
+			Label:    n.Label,
+			Route:    n.Route,
+			Group:    n.Group,
+			Priority: n.Priority,
+			Badge:    n.Badge,
+			HomeCard: n.HomeCard,
+		})
+	}
+	return items
 }
 
 // validateSequencingModes closes the cross-Machine half of a sequencing declaration: mode_field
@@ -175,7 +261,7 @@ func validateSequencingModes(machines []*domain.Machine) error {
 		}
 		parent, ok := byID[parentField.RelatedMachine]
 		if !ok {
-			issues = append(issues, fmt.Sprintf("machine %q: sequencing.parent_field %q points at machine %q, which this application does not declare", m.ID, s.ParentField, parentField.RelatedMachine))
+			issues = append(issues, fmt.Sprintf("machine %q: sequencing.parent_field %q points at machine %q, which this workspace does not declare", m.ID, s.ParentField, parentField.RelatedMachine))
 			continue
 		}
 		modeField, ok := parent.FieldByID(s.ModeField)
@@ -221,7 +307,7 @@ func validateRollupTargets(machines []*domain.Machine) error {
 			}
 			parent, ok := byID[parentField.RelatedMachine]
 			if !ok {
-				issues = append(issues, fmt.Sprintf("machine %q: event %q: then.parent_field %q points at machine %q, which this application does not declare", m.ID, e.ID, r.ParentField, parentField.RelatedMachine))
+				issues = append(issues, fmt.Sprintf("machine %q: event %q: then.parent_field %q points at machine %q, which this workspace does not declare", m.ID, e.ID, r.ParentField, parentField.RelatedMachine))
 				continue
 			}
 			target, ok := parent.FieldByID(r.TargetField)
@@ -254,11 +340,11 @@ func validateRollupTargets(machines []*domain.Machine) error {
 // would have to keep naming a Machine id alongside it -- which is precisely the hardcoding this
 // resolution exists to remove.
 //
-// Scope, decided 2026-09-20 while planning multi-Application support, and written here because
-// this is where the next person meets the question: that uniqueness is **workspace-wide, not
-// per-Application**. It reads as per-Application today only because app.yaml declares exactly one
-// -- the two are the same set of Machines, so nothing needs changing until `application:` becomes
-// a list.
+// Scope, decided 2026-09-20 while planning multi-Application support and **realized the same day**
+// when Fase 3 made `applications:` a list: that uniqueness is **workspace-wide, not
+// per-Application**. This validator and the three named below now genuinely receive the
+// Workspace's whole Machine set (LoadApplication), where before the distinction was invisible
+// because exactly one Application existed.
 //
 // The reasoning, so it isn't re-derived: Machines are shared between Applications (mch_user
 // certainly, mch_activity likely), which makes per-Application scoping incoherent -- a shared

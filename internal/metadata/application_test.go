@@ -28,11 +28,16 @@ fields:
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
 `)
 
 	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -42,8 +47,8 @@ application:
 	if app.Workspace.ID != "ws_default" {
 		t.Errorf("Workspace.ID = %q, want ws_default", app.Workspace.ID)
 	}
-	if app.Application.WorkspaceID != "ws_default" {
-		t.Errorf("Application.WorkspaceID = %q, want ws_default", app.Application.WorkspaceID)
+	if app.Workspace.Applications[0].WorkspaceID != "ws_default" {
+		t.Errorf("Application.WorkspaceID = %q, want ws_default", app.Workspace.Applications[0].WorkspaceID)
 	}
 	if len(app.Machines) != 1 || app.Machines[0].ID != "mch_task" {
 		t.Fatalf("Machines = %+v, want one machine mch_task", app.Machines)
@@ -60,11 +65,16 @@ name: Task
 workspace:
   id: default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -97,12 +107,18 @@ fields:
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - project.yaml
     - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_project
+  - mch_task
 `)
 
 	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -129,11 +145,16 @@ fields:
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -156,11 +177,16 @@ fields:
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -191,12 +217,18 @@ fields:
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - user.yaml
     - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_user
+  - mch_task
 `)
 
 	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err != nil {
@@ -210,10 +242,14 @@ func TestLoadApplication_noMachines(t *testing.T) {
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines: []
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines: []
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -261,12 +297,18 @@ constraints:
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - project.yaml
     - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_project
+  - mch_task
 `)
 
 	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err != nil {
@@ -309,12 +351,18 @@ constraints:
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - project.yaml
     - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_project
+  - mch_task
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -333,31 +381,36 @@ name: Task
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
-  navigation:
-    - id: nav_home
-      label: Home
-      route: /home
-    - id: nav_inbox
-      label: Approval Inbox
-      route: /approval-inbox
-      group: Document Approval
-      priority: 1
-      badge: approval_inbox_pending
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
+navigation:
+  - id: nav_home
+    label: Home
+    route: /home
+  - id: nav_inbox
+    label: Approval Inbox
+    route: /approval-inbox
+    group: Document Approval
+    priority: 1
+    badge: approval_inbox_pending
 `)
 
 	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication() error = %v", err)
 	}
-	if len(app.Application.Navigation) != 2 {
-		t.Fatalf("Navigation = %+v, want 2 items", app.Application.Navigation)
+	if len(app.Workspace.Applications[0].Navigation) != 2 {
+		t.Fatalf("Navigation = %+v, want 2 items", app.Workspace.Applications[0].Navigation)
 	}
-	inbox := app.Application.Navigation[1]
+	inbox := app.Workspace.Applications[0].Navigation[1]
 	if inbox.Group != "Document Approval" || inbox.Badge != "approval_inbox_pending" {
 		t.Errorf("Navigation[1] = %+v, want Group=Document Approval Badge=approval_inbox_pending", inbox)
 	}
@@ -373,33 +426,38 @@ name: Task
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
-  navigation:
-    - id: nav_home
-      label: Home
-      route: /home
-    - id: nav_inbox
-      label: Approval Inbox
-      route: /approval-inbox
-      group: Document Approval
-      priority: 1
-      home_card: true
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
+navigation:
+  - id: nav_home
+    label: Home
+    route: /home
+  - id: nav_inbox
+    label: Approval Inbox
+    route: /approval-inbox
+    group: Document Approval
+    priority: 1
+    home_card: true
 `)
 
 	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication() error = %v", err)
 	}
-	if app.Application.HomeRoute != "/approval-inbox" {
-		t.Errorf("HomeRoute = %q, want /approval-inbox", app.Application.HomeRoute)
+	if app.Workspace.Applications[0].HomeRoute != "/approval-inbox" {
+		t.Errorf("HomeRoute = %q, want /approval-inbox", app.Workspace.Applications[0].HomeRoute)
 	}
 }
 
-func TestLoadApplication_homeCardRouteSurvivesHiddenNavGroup(t *testing.T) {
+func TestLoadApplication_homeCardRouteSurvivesShowNavFalse(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "task.yaml", `
 id: mch_task
@@ -409,51 +467,57 @@ name: Task
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
-  navigation:
-    - id: nav_home
-      label: Home
-      route: /home
-    - id: nav_inbox
-      label: Approval Inbox
-      route: /approval-inbox
-      group: Document Approval
-      priority: 1
-      home_card: true
-  hidden_nav_groups:
-    - Document Approval
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
+navigation:
+  - id: nav_home
+    label: Home
+    route: /home
+  - id: nav_inbox
+    label: Approval Inbox
+    route: /approval-inbox
+    group: Document Approval
+    priority: 1
+    home_card: true
+show_nav: false
 `)
 
 	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication() error = %v", err)
 	}
-	// nav_inbox itself is gone from Navigation (Document Approval is hidden), but HomeRoute was
-	// frozen from the full declared order first -- rendering.WorkspaceHomePage's card must keep
-	// working even though this Application's own topbar no longer shows the item, the same
-	// contract PrimaryNavGroup already gives TestLoadApplication_hiddenNavGroupDropsItsItems.
-	if app.Application.HomeRoute != "/approval-inbox" {
-		t.Errorf("HomeRoute = %q, want /approval-inbox (frozen before hidden_nav_groups ran)", app.Application.HomeRoute)
+	// Navigation is empty (show_nav: false), but HomeRoute was frozen from the full declared list
+	// first -- rendering.WorkspaceHomePage's card for this Application must keep working even
+	// though the Application renders no menu at all.
+	if len(app.Workspace.Applications[0].Navigation) != 0 {
+		t.Errorf("Navigation = %+v, want empty under show_nav: false", app.Workspace.Applications[0].Navigation)
+	}
+	if app.Workspace.Applications[0].HomeRoute != "/approval-inbox" {
+		t.Errorf("HomeRoute = %q, want /approval-inbox (frozen before show_nav emptied Navigation)", app.Workspace.Applications[0].HomeRoute)
 	}
 	// AllNavigation still has nav_inbox even though Navigation doesn't -- internal/rendering's
-	// routeByID needs the full list to resolve a contextual link to a hidden group's own item
+	// routeByID needs the full list to resolve a contextual link into a menu-less Application
 	// (approvalinbox.templ's own "+ New Approval" -> nav_new_approval is the real case this
 	// protects).
 	found := false
-	for _, n := range app.Application.AllNavigation {
+	for _, n := range app.Workspace.Applications[0].AllNavigation {
 		if n.ID == "nav_inbox" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("AllNavigation = %+v, want it to still contain nav_inbox despite hidden_nav_groups", app.Application.AllNavigation)
+		t.Errorf("AllNavigation = %+v, want it to still contain nav_inbox despite show_nav: false", app.Workspace.Applications[0].AllNavigation)
 	}
-	if len(app.Application.AllNavigation) != 2 {
-		t.Errorf("AllNavigation = %+v, want 2 items (unfiltered)", app.Application.AllNavigation)
+	if len(app.Workspace.Applications[0].AllNavigation) != 2 {
+		t.Errorf("AllNavigation = %+v, want 2 items (unfiltered)", app.Workspace.Applications[0].AllNavigation)
 	}
 }
 
@@ -467,20 +531,25 @@ name: Task
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
-  navigation:
-    - id: nav_inbox
-      label: Approval Inbox
-      route: /approval-inbox
-      home_card: true
-    - id: nav_board
-      label: Board
-      route: /board
-      home_card: true
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
+navigation:
+  - id: nav_inbox
+    label: Approval Inbox
+    route: /approval-inbox
+    home_card: true
+  - id: nav_board
+    label: Board
+    route: /board
+    home_card: true
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -499,15 +568,20 @@ name: Task
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
-  navigation:
-    - id: nav_home
-      label: Home
-      route: home
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
+navigation:
+  - id: nav_home
+    label: Home
+    route: home
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -526,16 +600,21 @@ name: Task
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
-  navigation:
-    - id: nav_home
-      label: Home
-      route: /home
-      badge: made_up_badge
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
+navigation:
+  - id: nav_home
+    label: Home
+    route: /home
+    badge: made_up_badge
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -554,18 +633,23 @@ name: Task
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
-  navigation:
-    - id: nav_home
-      label: Home
-      route: /home
-    - id: nav_home
-      label: Home Again
-      route: /home2
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_task_tracker
+name: Task Tracker
+machines:
+  - mch_task
+navigation:
+  - id: nav_home
+    label: Home
+    route: /home
+  - id: nav_home
+    label: Home Again
+    route: /home2
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
@@ -574,7 +658,7 @@ application:
 	}
 }
 
-func TestLoadApplication_hiddenNavGroupDropsItsItems(t *testing.T) {
+func TestLoadApplication_showNavFalseHidesMenuButKeepsEverythingResolvable(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "task.yaml", `
 id: mch_task
@@ -584,51 +668,57 @@ name: Task
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
-  navigation:
-    - id: nav_home
-      label: Home
-      route: /home
-    - id: nav_inbox
-      label: Approval Inbox
-      route: /approval-inbox
-      group: Document Approval
-      priority: 1
-    - id: nav_board
-      label: Board
-      route: /board
-      group: Project Management
-      priority: 1
-  hidden_nav_groups:
-    - Document Approval
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_document_approval
+name: Document Approval
+show_nav: false
+machines:
+  - mch_task
+navigation:
+  - id: nav_inbox
+    label: Approval Inbox
+    route: /approval-inbox
+    home_card: true
+  - id: nav_new
+    label: New Approval
+    route: /documents/new
+    priority: 1
 `)
 
 	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication() error = %v", err)
 	}
-	if len(app.Application.Navigation) != 2 {
-		t.Fatalf("Navigation = %+v, want 2 items (Document Approval's item dropped)", app.Application.Navigation)
+	got := app.Workspace.Applications[0]
+
+	if got.ShowNav {
+		t.Error("ShowNav = true, want false")
 	}
-	for _, n := range app.Application.Navigation {
-		if n.Group == "Document Approval" {
-			t.Errorf("Navigation still contains a Document Approval item: %+v", n)
-		}
+	if len(got.Navigation) != 0 {
+		t.Errorf("Navigation = %+v, want empty -- show_nav: false renders no menu chrome at all", got.Navigation)
 	}
-	// PrimaryNavGroup stays "Document Approval" (the declared-first group) even though it's
-	// hidden -- proving Project Management, now first among what's left, isn't promoted into its
-	// place. rendering.navSections looks this label up in the (already-filtered) Navigation list;
-	// finding nothing named "Document Approval" there, no group renders as primary.
-	if app.Application.PrimaryNavGroup != "Document Approval" {
-		t.Errorf("PrimaryNavGroup = %q, want %q (frozen from the full declared order, not re-derived after hiding)", app.Application.PrimaryNavGroup, "Document Approval")
+
+	// Everything below is the freeze-then-filter property: suppressing the menu must not make the
+	// Application's own screens unreachable or unresolvable. routeByID/labelByID resolve against
+	// AllNavigation, and both metadata-hardcoding conformance gates depend on it.
+	if len(got.AllNavigation) != 2 {
+		t.Errorf("AllNavigation = %+v, want both declared items (unfiltered)", got.AllNavigation)
+	}
+	if got.HomeRoute != "/approval-inbox" {
+		t.Errorf("HomeRoute = %q, want /approval-inbox -- decided before show_nav emptied Navigation", got.HomeRoute)
 	}
 }
 
-func TestLoadApplication_hiddenNavGroupUnknownRejected(t *testing.T) {
+// TestLoadApplication_showNavDefaultsToTrue guards the one place a bool default would silently do
+// the wrong thing: an Application that says nothing about its menu keeps it. That is why
+// applicationDoc.ShowNav is a *bool -- a plain bool defaults to false and would suppress every
+// Application's menu the moment the key was omitted.
+func TestLoadApplication_showNavDefaultsToTrue(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "task.yaml", `
 id: mch_task
@@ -638,21 +728,152 @@ name: Task
 workspace:
   id: ws_default
   name: Default Workspace
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - task.yaml
-  navigation:
-    - id: nav_home
-      label: Home
-      route: /home
-  hidden_nav_groups:
-    - Typo Group
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_project_management
+name: Project Management
+machines:
+  - mch_task
+navigation:
+  - id: nav_board
+    label: Board
+    route: /board
+`)
+
+	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	got := app.Workspace.Applications[0]
+	if !got.ShowNav {
+		t.Error("ShowNav = false with no show_nav declared, want true -- an Application that says nothing keeps its menu")
+	}
+	if len(got.Navigation) != 1 {
+		t.Errorf("Navigation = %+v, want the declared item", got.Navigation)
+	}
+}
+
+// TestLoadApplication_machineClaimedByTwoApplicationsRejected guards what makes
+// domain.Workspace.ApplicationForMachine unambiguous -- the primary half of resolving which
+// Application a request is in, for the many routes no navigation item names. Two claimants would
+// make that answer depend on declaration order.
+func TestLoadApplication_machineClaimedByTwoApplicationsRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - task.yaml
+applications:
+  - app-one.yaml
+  - app-two.yaml
+`)
+	writeFile(t, dir, "app-one.yaml", `
+id: app_one
+name: One
+machines:
+  - mch_task
+`)
+	writeFile(t, dir, "app-two.yaml", `
+id: app_two
+name: Two
+machines:
+  - mch_task
 `)
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
 	if err == nil {
-		t.Fatal("LoadApplication() error = nil, want error: hidden_nav_groups entry does not match any navigation item's group")
+		t.Fatal("LoadApplication() error = nil, want error: mch_task claimed by two applications")
+	}
+}
+
+// TestLoadApplication_unknownMachineClaimRejected: an Application selects Machines by id from the
+// Workspace's own set, so naming one the Workspace never declares is a typo worth failing on
+// rather than an empty selection.
+func TestLoadApplication_unknownMachineClaimRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_main
+name: Main
+machines:
+  - mch_nope
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: mch_nope is not a machine this workspace declares")
+	}
+}
+
+// TestLoadApplication_duplicateNavigationIDAcrossApplicationsRejected: routeByID/labelByID resolve
+// an id against every declared list workspace-wide, so a duplicate across two Applications would
+// silently resolve to whichever loaded first -- pointing a page at another Application's screen.
+func TestLoadApplication_duplicateNavigationIDAcrossApplicationsRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "project.yaml", `
+id: mch_project
+name: Project
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - task.yaml
+    - project.yaml
+applications:
+  - app-one.yaml
+  - app-two.yaml
+`)
+	writeFile(t, dir, "app-one.yaml", `
+id: app_one
+name: One
+machines:
+  - mch_task
+navigation:
+  - id: nav_shared
+    label: One
+    route: /one
+`)
+	writeFile(t, dir, "app-two.yaml", `
+id: app_two
+name: Two
+machines:
+  - mch_project
+navigation:
+  - id: nav_shared
+    label: Two
+    route: /two
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: nav_shared declared by two applications")
 	}
 }

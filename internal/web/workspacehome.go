@@ -15,12 +15,16 @@ import (
 )
 
 // showWorkspaceHome is the landing page after login (ROADMAP.md Phase 21 Step 5): the signed-in
-// identity's Workspace, a single Application card (this slice's own scope -- no Application
-// plurality yet) showing its real pending-approval count, and a "Your access" summary. A
+// identity's Workspace, one card per Application declared in it, and a "Your access" summary. A
 // membership row is expected to be missing for the shared admin credential's placeholder identity
 // (it predates real Workspace membership entirely); that degrades to a blank role rather than an
 // error.
-func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, appName, homeRoute string, cfg config.Config) http.HandlerFunc {
+//
+// One card per Application since Fase 3 (2026-09-20), where it used to be exactly one: with
+// `applications:` a real list, rendering a single card would be showing stale data, not a
+// deferred port. What is still deferred to Fase 3c is the *board's* card face (icon, description,
+// record count) and the per-Application role rows -- see ROADMAP.md's deferral table.
+func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, ws domain.Workspace, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
@@ -53,19 +57,48 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, a
 			}
 		}
 
-		// homeRoute is domain.Application.HomeRoute (Routes' own Deps.HomeRoute), resolved once at
-		// startup from metadata's home_card: true item -- never a literal here or in
-		// workspacehome.templ (internal/conformance's TestWorkspaceLevelPagesHaveNoHardcodedApplicationRoute
-		// and TestWorkspaceLevelHandlersHaveNoHardcodedApplicationRoute hold this page and this
-		// handler to that). Empty when metadata declares no home_card item: "/home" is always a
-		// valid destination, never a guessed Application route.
-		if homeRoute == "" {
-			homeRoute = "/home"
-		}
-
 		render(ctx, w, rendering.WorkspaceHomePage(
-			chrome.WorkspaceName, appName, membership.WorkspaceRole, membership.AppRole, len(inbox.Pending),
-			chrome.UserInitials, composition.Initials(appName), switchHref, homeRoute,
+			chrome.WorkspaceName, membership.WorkspaceRole, chrome.UserInitials, switchHref,
+			applicationCards(ws, membership, len(inbox.Pending)),
 		))
 	}
+}
+
+// applicationCards builds one card per Application in the Workspace.
+//
+// Each card's link is that Application's own declared HomeRoute (its `home_card: true` navigation
+// item), never a literal here or in workspacehome.templ -- the route/label conformance gates hold
+// both to that. An Application declaring no home_card falls back to "/home", which is always a
+// valid destination, rather than to a guessed Application route.
+//
+// PendingCount is shown only on the Application that actually declares the pending-approval badge
+// (domain.NavBadgeApprovalInboxPending). That is what keeps the count honest with several
+// Applications: it is Document Approval's number, and putting it on a Project Management card
+// would be inventing a meaning for it. An Application declaring no badge simply shows no count.
+//
+// AppRole is still the single membership.AppRole for every card -- workspace_members has one
+// app_role column until Fase 3b's migration gives it one row per Application.
+func applicationCards(ws domain.Workspace, membership *data.Membership, pending int) []rendering.ApplicationCard {
+	cards := make([]rendering.ApplicationCard, 0, len(ws.Applications))
+	for _, app := range ws.Applications {
+		route := app.HomeRoute
+		if route == "" {
+			route = "/home"
+		}
+		card := rendering.ApplicationCard{
+			Name:      app.Name,
+			Initials:  composition.Initials(app.Name),
+			Role:      membership.AppRole,
+			HomeRoute: route,
+		}
+		for _, item := range app.AllNavigation {
+			if item.Badge == domain.NavBadgeApprovalInboxPending {
+				card.PendingCount = pending
+				card.ShowPending = true
+				break
+			}
+		}
+		cards = append(cards, card)
+	}
+	return cards
 }

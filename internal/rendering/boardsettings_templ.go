@@ -16,7 +16,7 @@ import "menata.app/internal/data"
 // Machine page for the actual create/rename/reorder/delete. This is pure composition of what
 // Phases 3-10 already built, not a new settings mechanism: mch_list and mch_label are ordinary
 // Machines, so their own table page already is board settings.
-func BoardSettingsPage(lists []*data.Record, labels []*data.Record, appName string) templ.Component {
+func BoardSettingsPage(lists []*data.Record, labels []*data.Record) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -166,7 +166,7 @@ func BoardSettingsPage(lists []*data.Record, labels []*data.Record, appName stri
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = pageShell(labelByID("nav_board_settings"), appName).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = pageShell(labelByID("nav_board_settings")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

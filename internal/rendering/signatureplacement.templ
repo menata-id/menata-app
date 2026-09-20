@@ -26,8 +26,8 @@ import (
 // viewer isn't its own assignee for, instead of letting anyone reposition anyone's marker --
 // updateRecordForm's allowsRecordEdit enforces the same rule regardless, on the PUT these
 // controls submit.
-templ SignaturePlacementPage(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, appName string, stepMachine *domain.Machine, actorID string) {
-	@pageShell("Signature Placement", appName) {
+templ SignaturePlacementPage(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, stepMachine *domain.Machine, actorID string) {
+	@pageShell("Signature Placement") {
 		<p><a href={ templ.URL("/machines/" + action.DocumentMachineID + "/records/" + document.ID) }>← { toString(document.Values["fld_title"]) }</a></p>
 		<h1>Signature positions</h1>
 		<p class="step-status">Step 2 of 2 — Signature Positions</p>
