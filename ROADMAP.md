@@ -128,8 +128,26 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      otherwise have hardcoded around it, exactly as this ordering intended. `mch_document` declares
      two arrangements; `type: cards` gave Projection the first consumer whose output varies per
      record, so a primitive that had run zero times since it shipped now actually runs.
-  6. The approval-flow screens (boards 07-10).
-  7. Role-based Permission + a declared transition model, then board 06 itself.
+  6. **The approval-flow screens (boards 07-10)** — next, split three ways because it is larger
+     than Fase 3 was. These port as **bespoke**: Fase 5's increment carries three view types
+     (`table`/`board`/`cards`), and these screens compose *across* Machines with layouts no type
+     covers, so what improves is the projection ratchet rather than the screens becoming
+     declarative.
+     - **6a Approval Inbox (board 07)** — declares `nav_workspace_groups` (hardcoded in Fase 4 and
+       already sitting on the new undeclared-route gate's allowlist pointing here), the four-tab
+       strip, and the board's card face: approver list, `role="progressbar"`, hour-scale SLA
+       wording. `approvalinbox.templ` is absent from `projectionRatchet` **only because its
+       projected branch is dead code**, so any raw field read the port needs must be composed in
+       `internal/composition` rather than added to a list that may only shrink.
+     - **6b Review (board 10) + Signature positions (09)** — board 10 today rides the *generic*
+       record-detail page every Machine shares; giving it its own screen is what lets
+       `detail.templ` shed its Case 3 special-casing, a ratchet entry that can actually leave.
+     - **6c Submit wizard (board 08)** — including group-as-assignee via **CAP-F24**
+       (`approver_type` + `approver_user`/`approver_group`). It lands in the Field layer, so it is
+       a question to put to whoever owns that layer at the time, not an assumption to build on.
+  7. Role-based Permission + a declared transition model, then board 06 itself. Fase 4 supplied
+     roles, so the foundation is closer than when this list was written — but both primitives are
+     still absent from 006 and 007, which is why this stays last.
 
   **Penyempurnaan — what each shipped phase left undone, and when it lands.** Kept as one table
   on purpose: a comment at a call site answers *why* something is missing, this answers *when* it
@@ -161,12 +179,14 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | "Keep me signed in" (board 01) | **no phase yet** | a session-lifetime change; `internal/authorization` has no remember-me concept |
 - Rounding out Project Management: a project-level workspace overview, richer task detail
   (checklist, comments, attachments), and scoping views to one project at a time.
-- Two-level navigation for switching between applications inside a workspace (phase 2-3 above).
+- ~~Two-level navigation for switching between applications inside a workspace~~ — *shipped*: the
+  9-dot launcher (Fase 2) over real Applications (Fase 3a).
 - Accessibility and mobile/responsive polish across existing screens. The Case 03 port carries its
   own responsive rules per component as each screen lands, rather than deferring them to a later
-  sweep — but one thing needs reconciling first: `ui-sample/navigation.html` specifies a mobile
-  bottom bar of 3-4 icons, while the new boards' own mobile artboards (M01-M10) have no bottom bar
-  at all and reuse the desktop header.
+  sweep. The `navigation.html` / M01-M10 disagreement over a mobile bottom bar is **resolved and
+  not a conflict**: M01-M10 are all Document Approval or Workspace screens, which have no
+  Application menu to put in a bottom bar, so neither source is wrong. The bottom bar belongs to
+  the Project Management screens, and waits on their own boards — see the deferral table.
 - "Keep me signed in" on the sign-in board — deliberately *not* rendered during phase 1, because it
   is a session-lifetime change rather than styling and `internal/authorization` has no remember-me
   concept; a checkbox that does nothing would be worse than none.
