@@ -65,6 +65,15 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 ## In progress
 
+- **Document Approval is the current proof-of-concept scope** (owner decision, 2026-09-20), with
+  an explicit constraint attached: narrowing the scope must not become a licence to hardcode for
+  it. Its work is broken into four screens plus three behaviours, each tracked on two independent
+  axes -- does the feature exist at all, and is it composable -- so a screen can never be reported
+  finished on the strength of the first axis alone. Three of those behaviours (approval-step
+  sequencing, document status rollup, PDF signature compositing) are hand-written Go here while
+  the upstream capability registry already carries them as admitted, built, conformance-tested
+  rows, so the work is to implement those capabilities rather than to re-decide them. Breakdown
+  and running order: `menata-app-document`'s `case-03-composability-checklist.md`.
 - Rounding out Project Management: a project-level workspace overview, richer task detail
   (checklist, comments, attachments), and scoping views to one project at a time.
 - Two-level navigation for switching between applications inside a workspace.
