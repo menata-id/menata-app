@@ -93,6 +93,14 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   schedule/time trigger (for SLA-breach detection, currently read-triggered because there's no
   scheduler) -- its own second-real-case generalization, not assumed ahead of a concrete need,
   the same discipline that governed building the primitive itself (and its `on_create` shape).
+- **A View as a declared object** -- today a Machine carries exactly one anonymous view
+  configuration (layout, grouping, SLA field, card fields). Every composed screen that isn't a
+  plain table or board therefore has to be written in Go, because there is no way to declare a
+  second view of the same Machine, give it a type, or have one view compose others. This is the
+  single gate standing between the Document Approval screens and being metadata-driven, and it is
+  a real architecture decision rather than something to slip into one screen's work -- named here
+  so it gets decided deliberately. The two steps that need no such decision (a current-user filter
+  sentinel, and moving approval sequencing and status rollup out of Go) are sequenced ahead of it.
 - Search, filtering and pagination on record lists.
 - Background/scheduled jobs (e.g. SLA-breach notifications that don't depend on someone opening
   the page).
