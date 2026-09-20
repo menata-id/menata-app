@@ -113,6 +113,14 @@ func TestNavigationRoutesAreRegistered(t *testing.T) {
 // gate covered every .templ/.go file instead of only Workspace-level ones.
 var runtimeLevelRoutes = map[string]bool{
 	"/home": true,
+	// Pre-auth screens, registered as fixed literals in router.go (r.Get("/login", ...) and
+	// friends) and reachable before any Application context exists at all -- the purest form of
+	// this map's own criterion. They are declared by no navigation list because there is nothing
+	// to declare them in: a signed-out visitor has no Workspace yet.
+	"/login":               true,
+	"/register":            true,
+	"/forgot-password":     true,
+	"/resend-verification": true,
 	// "/" is All Machines (nav_machines), Workspace-level navigation since Fase 3 and registered
 	// as a fixed literal in router.go exactly like /home -- so it meets this map's own criterion
 	// and belongs here. It was missed when All Machines moved up a level, and the cost showed up
@@ -125,7 +133,6 @@ var runtimeLevelRoutes = map[string]bool{
 	"/workspace-members": true,
 	"/switch-workspace":  true,
 	"/choose-workspace":  true,
-	"/login":             true,
 }
 
 var templHref = regexp.MustCompile(`href="(/[^"{]*)"`)
@@ -166,6 +173,96 @@ func TestRenderingHasNoHardcodedApplicationRoute(t *testing.T) {
 			if navRoutes[m[1]] {
 				t.Errorf("%s hardcodes href=%q, a route metadata/app.yaml already declares -- link to it with routeByID(...) instead", path, m[1])
 			}
+		}
+	}
+}
+
+// staticAssetHref matches an href ending in a file extension -- /css/app.css, /manifest.json,
+// /icons/icon-180.png. Those are files the browser fetches, not destinations a person navigates
+// to, so they are outside every question this file asks about routes.
+var staticAssetHref = regexp.MustCompile(`\.[a-z0-9]{2,5}$`)
+
+// TestRenderingLinksOnlyToDeclaredRoutes points the opposite way to the two hardcoding gates
+// above, and closes the blind spot they share. Those ask "is this literal equal to a route
+// metadata declares?" -- so a route that *should* be declared and simply isn't passes both in
+// silence. Fase 4 shipped /workspace-groups hardcoded in four places in groups.templ and declared
+// in no navigation list, and neither gate said a word (found by the session that wrote it, not by
+// this suite).
+//
+// The rule here is narrow on purpose: a literal href in a .templ is, by definition, a destination
+// someone navigates to, so it must be a destination metadata knows about. Combined with the gate
+// above, the two say something simpler than either does alone -- a literal app-path href is always
+// wrong. It either names a declared route, and then routeByID should have been used, or it names
+// an undeclared screen, and then the screen should be declared.
+//
+// Three exemptions, each with a reason rather than a convenience:
+//
+//   - Static assets (staticAssetHref): files, not routes.
+//   - /machines/... : writing-guide.md's own rule, "a generic Machine's own page is always
+//     reachable at /machines/{id} even with no navigation entry at all". Demanding a nav item for
+//     Lists and Labels would contradict documented behaviour, not enforce it.
+//   - runtimeLevelRoutes: destinations that exist regardless of which Application is configured,
+//     including the pre-auth screens, which no navigation list can declare because a signed-out
+//     visitor has no Workspace yet.
+//
+// A declared route is skipped rather than reported, so a violation is named once by whichever
+// gate actually applies to it instead of twice by both.
+//
+// undeclaredScreenRatchet is the frozen violation set, the same shape projectionRatchet uses and
+// for the same reason: this gate states an invariant that does not hold yet, so it freezes what
+// is broken rather than failing the build. The list may only shrink.
+var undeclaredScreenRatchet = map[string]string{
+	// Fase 4's Groups admin. Declaring it is not a one-line fix and is already planned elsewhere:
+	// /workspace-groups sits behind requireWorkspaceAdmin, so a navigation entry alone would offer
+	// every plain member a link that 403s -- exactly the bug Fase 2 fixed for Workspace Members
+	// with appShell's hiddenNavIDs. The full change is a nav item plus viewer-level hiding plus
+	// converting this link to routeByID, and the session that built Groups has it scheduled for
+	// Fase 6a. Recorded here so it stays visible instead of passing silently, which is the whole
+	// point of this gate.
+	"/workspace-groups": "Fase 4 Groups admin; needs nav item + viewer-level hiding together (Fase 6a)",
+}
+
+func TestRenderingLinksOnlyToDeclaredRoutes(t *testing.T) {
+	declared := make(map[string]bool)
+	for _, route := range declaredNavRoutes(t) {
+		declared[route] = true
+	}
+
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	seen := make(map[string]bool)
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		for _, m := range templHref.FindAllStringSubmatch(string(src), -1) {
+			href := m[1]
+			switch {
+			case staticAssetHref.MatchString(href),
+				strings.HasPrefix(href, "/machines/"),
+				runtimeLevelRoutes[href],
+				declared[href]:
+				continue
+			}
+			seen[href] = true
+			if _, allowed := undeclaredScreenRatchet[href]; allowed {
+				continue
+			}
+			t.Errorf("%s links to %q, which no navigation list declares -- a screen someone can reach should be a destination metadata knows about, or the link should point somewhere that is", path, href)
+		}
+	}
+
+	for href := range undeclaredScreenRatchet {
+		if !seen[href] {
+			t.Errorf("undeclaredScreenRatchet still lists %q, but nothing links to it undeclared any more -- delete the entry so the list keeps measuring real remaining debt", href)
 		}
 	}
 }
