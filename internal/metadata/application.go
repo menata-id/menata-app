@@ -245,21 +245,36 @@ func validateRollupTargets(machines []*domain.Machine) error {
 	return nil
 }
 
-// validateDatasetIDsAreUnique makes a Dataset id unique across the whole Application, not just
-// within its own Machine file -- which a single file cannot check for itself.
+// validateDatasetIDsAreUnique makes a Dataset id unique across every Machine loaded here, not
+// just within its own Machine file -- which a single file cannot check for itself.
 //
 // This is what makes a Dataset addressable by id alone (composition.Loader.Dataset): a screen
 // names ds_task_by_project and the runtime knows which Machine's records that means, because
 // exactly one Machine can declare it. Without this the id would be ambiguous and every caller
 // would have to keep naming a Machine id alongside it -- which is precisely the hardcoding this
 // resolution exists to remove.
+//
+// Scope, decided 2026-09-20 while planning multi-Application support, and written here because
+// this is where the next person meets the question: that uniqueness is **workspace-wide, not
+// per-Application**. It reads as per-Application today only because app.yaml declares exactly one
+// -- the two are the same set of Machines, so nothing needs changing until `application:` becomes
+// a list.
+//
+// The reasoning, so it isn't re-derived: Machines are shared between Applications (mch_user
+// certainly, mch_activity likely), which makes per-Application scoping incoherent -- a shared
+// Machine's own Dataset would live in two scopes at once, and per-Application ownership would
+// force loading the same file twice and leave cross-Application relations either illegal or
+// unchecked. So Machines stay workspace-level, loaded once and unique by id across the workspace,
+// and an Application selects which of them it exposes plus its own navigation. The same scope
+// applies to validateRelationTargets, validateRollupTargets and validateSequencingModes, all of
+// which take the same flat Machine set for the same reason.
 func validateDatasetIDsAreUnique(machines []*domain.Machine) error {
 	owner := make(map[string]string)
 	var issues []string
 	for _, m := range machines {
 		for _, ds := range m.Datasets {
 			if prev, taken := owner[ds.ID]; taken {
-				issues = append(issues, fmt.Sprintf("dataset id %q is declared by both machine %q and machine %q -- a dataset id must be unique across the application, since screens resolve it by id alone", ds.ID, prev, m.ID))
+				issues = append(issues, fmt.Sprintf("dataset id %q is declared by both machine %q and machine %q -- a dataset id must be unique across the workspace, since screens resolve it by id alone", ds.ID, prev, m.ID))
 				continue
 			}
 			owner[ds.ID] = m.ID
