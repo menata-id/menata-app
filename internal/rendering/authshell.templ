@@ -113,7 +113,7 @@ templ authPasswordField(id, name, label, autocomplete string, autofocus bool) {
 				minlength="8"
 				required
 				autofocus?={ autofocus }
-				class="h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
+				class="h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm [&::-ms-reveal]:hidden"
 			/>
 			@authPasswordToggle(id)
 		</div>
@@ -130,7 +130,11 @@ templ authPasswordField(id, name, label, autocomplete string, autofocus bool) {
 // autocomplete="new-password"; sign-in's carries neither and current-password, and its label row
 // also holds a "Forgot password?" link), which is the same reason authPasswordField already exists
 // separately from authField. A caller wraps its own input in a `relative flex` box, leaves pr-11
-// of room for this button, and passes the input's id.
+// of room for this button, and passes the input's id. The input also carries
+// `[&::-ms-reveal]:hidden`, which suppresses Edge's *own* built-in reveal button: Edge renders one
+// on every input[type=password], so without it that browser alone shows two eye icons side by
+// side. (A comment can't live inside a templ attribute list, which is why this note is here rather
+// than at the two class strings.)
 //
 // The behavior is an inline onclick rather than hyperscript (`_="on click ..."`, the idiom
 // documentsubmit.templ's approver-row buttons use) for one reason: authShell deliberately loads no

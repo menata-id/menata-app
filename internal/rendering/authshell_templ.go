@@ -469,7 +469,7 @@ func authPasswordField(id, name, label, autocomplete string, autofocus bool) tem
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, " class=\"h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, " class=\"h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm [&::-ms-reveal]:hidden\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -495,7 +495,11 @@ func authPasswordField(id, name, label, autocomplete string, autofocus bool) tem
 // autocomplete="new-password"; sign-in's carries neither and current-password, and its label row
 // also holds a "Forgot password?" link), which is the same reason authPasswordField already exists
 // separately from authField. A caller wraps its own input in a `relative flex` box, leaves pr-11
-// of room for this button, and passes the input's id.
+// of room for this button, and passes the input's id. The input also carries
+// `[&::-ms-reveal]:hidden`, which suppresses Edge's *own* built-in reveal button: Edge renders one
+// on every input[type=password], so without it that browser alone shows two eye icons side by
+// side. (A comment can't live inside a templ attribute list, which is why this note is here rather
+// than at the two class strings.)
 //
 // The behavior is an inline onclick rather than hyperscript (`_="on click ..."`, the idiom
 // documentsubmit.templ's approver-row buttons use) for one reason: authShell deliberately loads no
@@ -552,7 +556,7 @@ func authPasswordToggle(inputID string) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(inputID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/authshell.templ`, Line: 165, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/authshell.templ`, Line: 169, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
@@ -597,7 +601,7 @@ func authSubmit(label string) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/authshell.templ`, Line: 190, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/authshell.templ`, Line: 194, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
