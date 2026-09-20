@@ -55,6 +55,23 @@ func doc(id, title, mode, due string) *data.Record {
 func stepMachineForTest() *domain.Machine {
 	return &domain.Machine{
 		ID: action.StepMachineID,
+		// prm_decide_own_step, as metadata/approval_step.yaml really declares it. It was missing
+		// here until Fase 6c-1, and nothing noticed: buildReview used to AND an explicit
+		// `assignee == viewer` check in front of authorization.AllowsAction, so the screen's gate
+		// held even against a Machine that declared no Permission at all. That Go-side check was a
+		// duplicate of the declaration -- removing it (a Group-held step has no assignee to match)
+		// is what exposed the gap. The fixture now carries the rule the metadata carries, so these
+		// tests exercise the real gate rather than a copy of it.
+		Permissions: []domain.Permission{{
+			ID:         "prm_decide_own_step",
+			Action:     domain.ActionDecide,
+			ActorField: action.FieldStepAssignee,
+			DynamicActor: &domain.DynamicActorGate{
+				ActorTypeField:  action.FieldStepApproverType,
+				ActorUserField:  action.FieldStepAssignee,
+				ActorGroupField: action.FieldStepApproverGroup,
+			},
+		}},
 		Sequencing: &domain.Sequencing{
 			ParentField:     action.FieldStepDocument,
 			ModeField:       action.FieldDocumentMode,

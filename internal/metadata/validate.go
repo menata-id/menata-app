@@ -3,6 +3,7 @@ package metadata
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -107,6 +108,13 @@ func Validate(m *domain.Machine) error {
 		}
 		if f.Type == domain.FieldTypeRelation && !machineIDPattern.MatchString(f.RelatedMachine) {
 			issues = append(issues, fmt.Sprintf("field %q: type relation requires a valid target machine id, got %q", f.ID, f.RelatedMachine))
+		}
+		// A group Field names no Machine and must not pretend to: a Group is a platform row, so a
+		// machine: here could never resolve. Rejected rather than ignored, the same rule a View's
+		// own group_by follows -- a declaration the runtime silently drops reads as though it were
+		// working (see domain.FieldTypeGroup's doc comment for why there is no mch_group).
+		if f.Type == domain.FieldTypeGroup && f.RelatedMachine != "" {
+			issues = append(issues, fmt.Sprintf("field %q: type group takes no machine: -- a Group is a Workspace platform record, not a Machine (got %q)", f.ID, f.RelatedMachine))
 		}
 		if f.Default != nil && violatesOptions(f, fmt.Sprint(f.Default)) {
 			issues = append(issues, fmt.Sprintf("field %q: default %q is not one of its own options %v", f.ID, f.Default, f.Options))
@@ -366,6 +374,65 @@ func validatePermission(m *domain.Machine, p domain.Permission, fieldsByID map[s
 		issues = append(issues, fmt.Sprintf("permission %q: actor_field %q is not a field of machine %q", p.ID, p.ActorField, m.ID))
 	} else if !actorField.IsReference() {
 		issues = append(issues, fmt.Sprintf("permission %q: actor_field %q must reference an identity (a person or relation field), got %q", p.ID, p.ActorField, actorField.Type))
+	}
+
+	issues = append(issues, validateDynamicActor(m, p, fieldsByID)...)
+
+	return issues
+}
+
+// validateDynamicActor checks the three Fields a dynamic actor gate names (CAP-F24, Fase 6c-1).
+//
+// Each one is checked for existence *and* type, because the gate reads them positionally at
+// request time and a wrong type fails in a way nobody sees: authorization.allowsOne would compare
+// an identity against, say, a date and simply return false, so a mis-declared gate would present
+// as "this person may never approve anything" rather than as a metadata error. That is exactly
+// the class of silent failure this package exists to turn into a load-time refusal.
+//
+// The type field must also declare the two values the resolver switches on. Declaring a status
+// Field whose options are, say, [person, team] would parse, validate and then never match either
+// arm -- falling back to actor_field forever while looking configured.
+func validateDynamicActor(m *domain.Machine, p domain.Permission, fieldsByID map[string]domain.Field) []string {
+	da := p.DynamicActor
+	if da == nil {
+		return nil
+	}
+	var issues []string
+
+	typeField, ok := fieldsByID[da.ActorTypeField]
+	switch {
+	case da.ActorTypeField == "":
+		issues = append(issues, fmt.Sprintf("permission %q: actor_type_field is required when any actor_*_field is declared", p.ID))
+	case !ok:
+		issues = append(issues, fmt.Sprintf("permission %q: actor_type_field %q is not a field of machine %q", p.ID, da.ActorTypeField, m.ID))
+	case typeField.Type != domain.FieldTypeStatus:
+		issues = append(issues, fmt.Sprintf("permission %q: actor_type_field %q must be a status field, got %q", p.ID, da.ActorTypeField, typeField.Type))
+	default:
+		for _, want := range []string{domain.ActorKindUser, domain.ActorKindGroup} {
+			if !slices.Contains(typeField.Options, want) {
+				issues = append(issues, fmt.Sprintf("permission %q: actor_type_field %q must declare option %q, which is a value the gate resolves; got %v", p.ID, da.ActorTypeField, want, typeField.Options))
+			}
+		}
+	}
+
+	userField, ok := fieldsByID[da.ActorUserField]
+	switch {
+	case da.ActorUserField == "":
+		issues = append(issues, fmt.Sprintf("permission %q: actor_user_field is required when a dynamic actor gate is declared", p.ID))
+	case !ok:
+		issues = append(issues, fmt.Sprintf("permission %q: actor_user_field %q is not a field of machine %q", p.ID, da.ActorUserField, m.ID))
+	case !userField.IsReference():
+		issues = append(issues, fmt.Sprintf("permission %q: actor_user_field %q must reference an identity (a person or relation field), got %q", p.ID, da.ActorUserField, userField.Type))
+	}
+
+	groupField, ok := fieldsByID[da.ActorGroupField]
+	switch {
+	case da.ActorGroupField == "":
+		issues = append(issues, fmt.Sprintf("permission %q: actor_group_field is required when a dynamic actor gate is declared", p.ID))
+	case !ok:
+		issues = append(issues, fmt.Sprintf("permission %q: actor_group_field %q is not a field of machine %q", p.ID, da.ActorGroupField, m.ID))
+	case groupField.Type != domain.FieldTypeGroup:
+		issues = append(issues, fmt.Sprintf("permission %q: actor_group_field %q must be a group field, got %q", p.ID, da.ActorGroupField, groupField.Type))
 	}
 
 	return issues

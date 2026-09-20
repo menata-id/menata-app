@@ -173,6 +173,44 @@ func (s *Store) GroupMemberIDs(ctx context.Context, groupID string) ([]string, e
 	return ids, rows.Err()
 }
 
+// GroupIDsForMember returns the ids of the Groups userRecordID belongs to in one Workspace, as a
+// set ready for domain.Actor.
+//
+// One narrow query rather than GroupsByMember below, because the caller is every authenticated
+// request: this runs on the indexed member column (idx_workspace_group_members_user) and returns
+// ids only -- no names, no member counts, no grants. GroupsByMember answers a different question
+// (who is in what, for the whole Members list) and would read every Group in the Workspace to
+// answer this one.
+//
+// Workspace-scoped through the join, not filtered afterwards: a Group id from another Workspace
+// must not resolve here even if the membership row somehow named it, since a Permission gate reads
+// the result.
+func (s *Store) GroupIDsForMember(ctx context.Context, workspaceID, userRecordID string) (map[string]bool, error) {
+	if userRecordID == "" {
+		return nil, nil
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT m.group_id
+		FROM workspace_group_members m
+		JOIN workspace_groups g ON g.id = m.group_id
+		WHERE m.user_record_id = $1 AND g.workspace_id = $2
+	`, userRecordID, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list groups for member: %w", err)
+	}
+	defer rows.Close()
+
+	ids := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan group id: %w", err)
+		}
+		ids[id] = true
+	}
+	return ids, rows.Err()
+}
+
 // GroupsByMember returns every member's Groups for one Workspace, keyed by user record id.
 //
 // One query, stitched in Go: the Members list needs a Source per row, and asking per member would

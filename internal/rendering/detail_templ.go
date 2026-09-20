@@ -37,7 +37,7 @@ type DocumentSignaturePlacement struct {
 	Page       int
 	TotalPages int
 	// StepMachine is mch_approval_step, so signaturePlacementBlock can ask
-	// authorization.AllowsAction whether the viewing actorID (RecordDetailView's own parameter)
+	// authorization.AllowsAction whether the viewing actor (RecordDetailView's own parameter)
 	// may edit each step's own marker (ROADMAP.md Phase 16), the same reason it's threaded
 	// through the dedicated SignaturePlacementPage too.
 	StepMachine *domain.Machine
@@ -46,10 +46,10 @@ type DocumentSignaturePlacement struct {
 // RecordDetailPage is a dedicated per-record view (ROADMAP.md Phase 8), replacing inline-only
 // editing (table row / board card) as the host for richer content later phases add (Phase 9's
 // child collections, Phase 13's activity feed).
-// actorID is the viewing identity, needed only so an Action the viewer is not permitted to
+// actor is the viewing identity, needed only so an Action the viewer is not permitted to
 // perform isn't offered in the first place (ROADMAP.md Phase 16) -- the server enforces the same
 // rule regardless, this only keeps the UI honest about it.
-func RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection, actorID string, sigPlacement *DocumentSignaturePlacement) templ.Component {
+func RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -90,7 +90,7 @@ func RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = RecordDetailView(m, r, relations, children, actorID, sigPlacement).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = RecordDetailView(m, r, relations, groups, children, actor, sigPlacement).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -207,7 +207,7 @@ func detailBackLink(m *domain.Machine) templ.Component {
 // RecordDetailView is one Record's read-only detail: every Field as a label/value pair, plus one
 // section per child collection -- every record of another Machine that references this one
 // (ROADMAP.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
-func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, children []ChildSection, actorID string, sigPlacement *DocumentSignaturePlacement) templ.Component {
+func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -335,13 +335,23 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-				} else {
+				} else if f.Type == domain.FieldTypeGroup {
 					var templ_7745c5c3_Var14 string
-					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(r.Values[f.ID]))
+					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(GroupLabel(groups, toString(r.Values[f.ID])))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 95, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 95, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					var templ_7745c5c3_Var15 string
+					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(r.Values[f.ID]))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 97, Col: 35}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -361,12 +371,12 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var15 templ.SafeURL
-			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)))
+			var templ_7745c5c3_Var16 templ.SafeURL
+			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 109, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 111, Col: 84}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -375,7 +385,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 				return templ_7745c5c3_Err
 			}
 		}
-		deletable, blockedReason := canDeleteInView(m, r, children, actorID)
+		deletable, blockedReason := canDeleteInView(m, r, children, actor)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<div class=\"actions\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -385,12 +395,12 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var16 templ.SafeURL
-			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)))
+			var templ_7745c5c3_Var17 templ.SafeURL
+			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 114, Col: 95}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 116, Col: 95}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -399,17 +409,17 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 				return templ_7745c5c3_Err
 			}
 		}
-		if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actorID) {
+		if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<button hx-get=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var17 string
-			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID))
+			var templ_7745c5c3_Var18 string
+			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 120, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 122, Col: 69}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -423,12 +433,12 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var18 string
-			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
+			var templ_7745c5c3_Var19 string
+			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 127, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 129, Col: 67}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -441,12 +451,12 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var19 string
-			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(blockedReason)
+			var templ_7745c5c3_Var20 string
+			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(blockedReason)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 132, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 134, Col: 51}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -454,12 +464,12 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var20 string
-			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(blockedReason)
+			var templ_7745c5c3_Var21 string
+			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(blockedReason)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 132, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 134, Col: 84}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -487,7 +497,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = ChildSectionView(cc, actorID).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = ChildSectionView(cc, groups, actor).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -502,7 +512,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = signaturePlacementBlock(r, sigPlacement.Steps, sigPlacement.Relations, sigPlacement.Page, sigPlacement.TotalPages, sigPlacement.StepMachine, actorID).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = signaturePlacementBlock(r, sigPlacement.Steps, sigPlacement.Relations, sigPlacement.Page, sigPlacement.TotalPages, sigPlacement.StepMachine, actor).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -534,21 +544,21 @@ func pdfThumbnail(machineID, recordID string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var21 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var21 == nil {
-			templ_7745c5c3_Var21 = templ.NopComponent
+		templ_7745c5c3_Var22 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var22 == nil {
+			templ_7745c5c3_Var22 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<div class=\"pdf-thumb\"><a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var22 templ.SafeURL
-		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s/pdf-preview", machineID, recordID)))
+		var templ_7745c5c3_Var23 templ.SafeURL
+		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s/pdf-preview", machineID, recordID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 155, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 157, Col: 94}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -556,12 +566,12 @@ func pdfThumbnail(machineID, recordID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var23 string
-		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=1", machineID, recordID))
+		var templ_7745c5c3_Var24 string
+		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=1", machineID, recordID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 156, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 158, Col: 92}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -575,7 +585,7 @@ func pdfThumbnail(machineID, recordID string) templ.Component {
 
 // ChildSectionView renders one child collection: a compact table of the child Machine's records,
 // each row the same generic RecordRow used everywhere else.
-func ChildSectionView(cc ChildSection, actorID string) templ.Component {
+func ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -591,21 +601,21 @@ func ChildSectionView(cc ChildSection, actorID string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var24 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var24 == nil {
-			templ_7745c5c3_Var24 = templ.NopComponent
+		templ_7745c5c3_Var25 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var25 == nil {
+			templ_7745c5c3_Var25 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var25 string
-		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(cc.Machine.Name)
+		var templ_7745c5c3_Var26 string
+		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(cc.Machine.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 164, Col: 22}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 166, Col: 22}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -613,12 +623,12 @@ func ChildSectionView(cc ChildSection, actorID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var26 string
-		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(len(cc.Records)))
+		var templ_7745c5c3_Var27 string
+		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(len(cc.Records)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 164, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 166, Col: 55}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -631,12 +641,12 @@ func ChildSectionView(cc ChildSection, actorID string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var27 string
-			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
+			var templ_7745c5c3_Var28 string
+			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 169, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 171, Col: 17}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -650,7 +660,7 @@ func ChildSectionView(cc ChildSection, actorID string) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, rec := range cc.Records {
-			templ_7745c5c3_Err = RecordRow(cc.Machine, rec, cc.Relations, actorID).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = RecordRow(cc.Machine, rec, cc.Relations, groups, actor).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -664,7 +674,7 @@ func ChildSectionView(cc ChildSection, actorID string) templ.Component {
 }
 
 // RecordDetailEdit is one Record's detail in edit mode: the same Field set as an inline form.
-func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptions) templ.Component {
+func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -680,21 +690,21 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var28 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var28 == nil {
-			templ_7745c5c3_Var28 = templ.NopComponent
+		templ_7745c5c3_Var29 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var29 == nil {
+			templ_7745c5c3_Var29 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div id=\"record-detail\"><form hx-put=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var29 string
-		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
+		var templ_7745c5c3_Var30 string
+		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 186, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 188, Col: 62}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -702,12 +712,12 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var30 string
-		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(recordTitle(m, r))
+		var templ_7745c5c3_Var31 string
+		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(recordTitle(m, r))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 191, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 193, Col: 26}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -715,12 +725,12 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var31 string
-		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(r.ID)
+		var templ_7745c5c3_Var32 string
+		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 192, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 194, Col: 15}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -733,12 +743,12 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var32 string
-			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
+			var templ_7745c5c3_Var33 string
+			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 195, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 197, Col: 17}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -746,7 +756,7 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = fieldInput(f, r.Values[f.ID], relations).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = fieldInput(f, r.Values[f.ID], relations, groups).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -759,12 +769,12 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var33 string
-		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
+		var templ_7745c5c3_Var34 string
+		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 205, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 207, Col: 64}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -819,7 +829,7 @@ func hiddenDetailField(m *domain.Machine, f domain.Field) bool {
 // is needed just to decide whether to show the Delete button. Presentation only: the server is
 // what actually protects the data either way, the same posture the Approve/Reject bar already
 // established (now reviewdocument.templ's reviewDecisionBar).
-func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection, actorID string) (bool, string) {
+func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection, actor domain.Actor) (bool, string) {
 	var steps []*data.Record
 	for _, cc := range children {
 		if cc.Machine.ID == action.StepMachineID {
@@ -827,7 +837,7 @@ func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection,
 		}
 	}
 	ok, reason := action.CanDelete(m.ID, r.Values, steps)
-	if ok && !authorization.AllowsAction(m, domain.ActionDelete, r.Values, actorID) {
+	if ok && !authorization.AllowsAction(m, domain.ActionDelete, r.Values, actor) {
 		return false, "not allowed"
 	}
 	return ok, reason

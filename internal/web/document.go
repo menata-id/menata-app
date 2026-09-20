@@ -166,7 +166,7 @@ func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Sto
 			return
 		}
 		page := pageFromQuery(req, totalPages)
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		actor := currentActor(req, store, cfg)
 
 		render(ctx, w, rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, machines[action.StepMachineID], actor))
 	}

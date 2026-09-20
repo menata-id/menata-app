@@ -119,6 +119,40 @@ func (l *Loader) RelationOptions(ctx context.Context, m *domain.Machine) (render
 	return options, nil
 }
 
+// GroupOptions fetches the Workspace Groups a `group` field on m could select (CAP-F24, Fase
+// 6c-1) -- the group-side counterpart of RelationOptions above.
+//
+// It reads nothing at all for a Machine declaring no group field, which is every Machine but
+// mch_approval_step today: the picker is the only consumer, so a Machine that cannot render one
+// should not pay a query for it. That check is the whole reason this is a method on Loader rather
+// than a bare store call in each handler.
+//
+// Unlike RelationOptions there is no per-target keying and no label-field convention to apply: a
+// Group is not a Machine, so every group field in the Workspace draws from one list and the label
+// is the Group's own name column. See domain.FieldTypeGroup for why no mch_group exists.
+func (l *Loader) GroupOptions(ctx context.Context, m *domain.Machine) (rendering.GroupOptions, error) {
+	needed := false
+	for _, f := range m.Fields {
+		if f.Type == domain.FieldTypeGroup {
+			needed = true
+			break
+		}
+	}
+	if !needed {
+		return nil, nil
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	groups, err := l.store.ListGroups(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	options := make(rendering.GroupOptions, 0, len(groups))
+	for _, g := range groups {
+		options = append(options, rendering.RelationOption{ID: g.ID, Label: g.Name})
+	}
+	return options, nil
+}
+
 // ChildSections resolves every child collection pointing at (m, recordID) -- every record of
 // another Machine whose reference field names this one (ROADMAP.md Phase 9) -- fetching each
 // collection's records and the relation options its own rows need to render.

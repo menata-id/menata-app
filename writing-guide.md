@@ -706,7 +706,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 | Relations, `person`, child collections, many-to-many | Document submission wizard |
 | Constraints (`equals`/`not_equals` shape) | Signature-coordinate placement screen |
 | Events (post-write field-change or record-creation → one Service) | PDF signature compositing |
-| Record-scoped `edit`/`delete` Permission (any Machine) | Approval progress stepper UI, and the Review Document screen it sits on (Fase 6b) — its Approve/Reject bar, signature canvas and placement panel are all `mch_approval_step`-shaped. What moved *left* with it: the generic record-detail page no longer special-cases deciding, and no longer runs a signature lookup for every Machine |
+| Record-scoped `edit`/`delete` Permission (any Machine), and a **per-record User-or-Group actor gate** on any of them (CAP-F24) | Approval progress stepper UI, and the Review Document screen it sits on (Fase 6b) — its Approve/Reject bar, signature canvas and placement panel are all `mch_approval_step`-shaped. What moved *left* with it: the generic record-detail page no longer special-cases deciding, and no longer runs a signature lookup for every Machine |
 | Field defaults | SLA-breach detection (still read-triggered, not a real Event yet) |
 | SLA badges (`sla_field`) | — |
 | Declared Views (`views:` — `table`/`board`/`cards`, selected by `?view=`) | A View composing *other* Views, rather than one Machine's own records — still what the remaining approval screens would need |

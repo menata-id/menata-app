@@ -165,9 +165,30 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        included; only the review screen asks it now. **What is not claimed:** `detail.templ` still
        carries five `m.ID ==` branches. The ratchet measures raw field reads, not Machine-id
        branches, and saying otherwise would be this repo's own recorded failure shape.
-     - **6c Submit wizard (board 08)** — including group-as-assignee via **CAP-F24**
-       (`approver_type` + `approver_user`/`approver_group`). It lands in the Field layer, so it is
-       a question to put to whoever owns that layer at the time, not an assumption to build on.
+     - **6c-1 CAP-F24, the actor gate** — *shipped 2026-09-20*. Split out from the boards because
+       it lands in the Domain Plane and can be proven through the existing `/decide` gate with no
+       new screen at all. **This line used to describe CAP-F24 as "a Field pair … each an ordinary
+       relation targeting one `machine:`", and that was wrong.** Upstream's *shipped* artifacts
+       say otherwise, and the shipped artifact is what runs: `approver_group` is a new Field
+       **type** with no target machine, and the capability also adds three columns to the
+       *permissions* table — it is a Permission-gate feature, not only a Field feature. The
+       registry row never said so. A relation was impossible here regardless: this repo has no
+       `mch_group`, and `capabilities.md` had already named "whether a Group needs a thin
+       `mch_group`" as the question `approver_group` would force. **Answered: no.** A `group` Field
+       type over the platform `workspace_groups` table, the same posture `person` takes over
+       `mch_user`.
+
+       One deliberate divergence from upstream, and it removes a bug they recorded: `fld_assignee`
+       *is* the User half (`actor_user_field` points at it), so there is no second person picker —
+       upstream added one beside its legacy Field and found "two independent Approver pickers on
+       one screen". Two new Fields, not three. `actor_field` stays as the fallback, so every
+       Approval Step already in the database kept working with no migration and no rewritten test;
+       the existing permission tests needed only a type wrapper, which is the evidence rather than
+       the claim.
+     - **6c-2 Submit wizard (board 08) + Signature positions (09)** — next: the chrome port, the
+       User/Group toggle per step row, and the first writer of `fld_step_name` and the CAP-F24
+       pair. Both boards are steps of one wizard (`STEP 1 OF 3` / `STEP 2 OF 3`), which is why 09
+       moved here from 6b.
   7. Role-based Permission + a declared transition model, then board 06 itself. Fase 4 supplied
      roles, so the foundation is closer than when this list was written — but both primitives are
      still absent from 006 and 007, which is why this stays last.
@@ -201,6 +222,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | Approval Role Matrix (board 06) | Fase 7 | role-based Permission + a declared transition model, neither in 006/007 |
   | Declared `requires_role:` on a navigation item | **a second real case, not a phase** — likeliest around Fase 7, when an Application role could gate an item (a handler naming an id cannot express that) | one case exists today and has code: `appShell`'s `hiddenNavIDs`. See "Per-user/role navigation filtering" below for why the second case, not the calendar, is the trigger |
   | Mobile bottom bar for an Application's own menu | **no phase yet** — lands when the Project Management screens get boards | Those screens are still `pageStyles`, so a bottom bar there would be hand-written CSS thrown away when they port — that is the real blocker. **This row previously said "nothing in Fase 2–7 displays it", which stopped being true at Fase 3a**: Project Management declares no `show_nav`, keeps its menu, and `/my-tasks` renders ten nav links today. It stayed wrong through four phase closes because nobody re-read the table, which is the one thing this table needs. The owner's decision (`navigation.html`, 3–4 icons, top-4 by priority) was never the missing part |
+  | Saved default approval flow (board 08: "Save this as the default approval flow for **Contract** documents", checked by default) | **no phase yet** | Upstream built it (CAP-V28) as two companion Machines — one template per Document Type, plus its own ordered steps — with a write direction that find-or-creates the template on submit. That is the real blocker: a template entity and a write path, not the screen. **This row exists because the deferral did not.** It has been live since Phase 15, recorded only inside `menata-app-document`'s development history, in no table anyone re-reads at a phase close — and with a reason that was wrong when written ("only one Document Type exists in metadata today"; there were zero) and is wrong now in the other direction (there are three: `Kontrak`, `Tagihan`, `Lain-lain`). Same shape as the bottom-bar row that sat wrong through four closes |
+  | One signature box for a Group-held step (boards 08/09) | **no phase yet** — **named, not solved** | Board 09 places exactly one signature box for `Legal Group · 4 members`, and nothing on either board says whose signature image lands in it, or what happens when two of the four act. Upstream has the identical gap on its own compositing capability, recorded there in the same words. Worth holding here rather than discovering it during 6c-2's port |
   | Member search box (board 04) | **no phase yet** — "Planned: search, filtering and pagination" below | search does not exist anywhere in the app |
   | "Keep me signed in" (board 01) | **no phase yet** | a session-lifetime change; `internal/authorization` has no remember-me concept |
 - Rounding out Project Management: a project-level workspace overview, richer task detail

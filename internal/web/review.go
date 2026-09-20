@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"menata.app/internal/action"
-	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -49,11 +48,11 @@ func showReviewDocument(machines map[string]*domain.Machine, store *data.Store, 
 			recordError(w, err)
 			return
 		}
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		actor := currentActor(req, store, cfg)
 
 		// hasSignatureForGate is storage I/O the Composition plane must not perform (007 §20), so
 		// it is answered here and passed in -- the same reason pdfPages below is.
-		hasSignature, err := hasSignatureForGate(ctx, store, machine, actor)
+		hasSignature, err := hasSignatureForGate(ctx, store, machine, actor.ID)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -71,7 +70,7 @@ func showReviewDocument(machines map[string]*domain.Machine, store *data.Store, 
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.ReviewDocumentPage(view, chrome.WorkspaceName, chrome.UserInitials, workspaceRoleOf(ctx, store, actor)))
+		render(ctx, w, rendering.ReviewDocumentPage(view, chrome.WorkspaceName, chrome.UserInitials, workspaceRoleOf(ctx, store, actor.ID)))
 	}
 }
 

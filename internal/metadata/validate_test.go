@@ -448,3 +448,80 @@ func assertIssue(t *testing.T, m *domain.Machine, substr string) {
 		t.Errorf("Validate() error = %q, want it to contain %q", err.Error(), substr)
 	}
 }
+
+// dynamicActorMachine is permissionMachine plus a declared actor gate (CAP-F24, Fase 6c-1),
+// shaped exactly like metadata/approval_step.yaml: fld_assignee serves as both actor_field and
+// actor_user_field.
+func dynamicActorMachine() *domain.Machine {
+	m := permissionMachine()
+	m.Fields = append(m.Fields,
+		domain.Field{ID: "fld_approver_type", Name: "Approver Type", Type: domain.FieldTypeStatus,
+			Options: []string{domain.ActorKindUser, domain.ActorKindGroup}},
+		domain.Field{ID: "fld_approver_group", Name: "Approver Group", Type: domain.FieldTypeGroup},
+	)
+	m.Permissions[0].DynamicActor = &domain.DynamicActorGate{
+		ActorTypeField:  "fld_approver_type",
+		ActorUserField:  "fld_assignee",
+		ActorGroupField: "fld_approver_group",
+	}
+	return m
+}
+
+func TestValidate_dynamicActorValid(t *testing.T) {
+	if err := Validate(dynamicActorMachine()); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+// Each of the three Fields is checked for type, not just existence, because a mis-typed one fails
+// where nobody looks: authorization would compare an identity against whatever that Field holds,
+// return false, and present as "this person may never approve anything" rather than as a metadata
+// error. These cases are the load-time refusal that turns a silent denial into a startup failure.
+func TestValidate_dynamicActorRejectsWrongShapes(t *testing.T) {
+	for name, mutate := range map[string]func(*domain.Machine){
+		"type field is not a status": func(m *domain.Machine) {
+			m.Permissions[0].DynamicActor.ActorTypeField = "fld_assignee"
+		},
+		"type field does not declare the values the gate resolves": func(m *domain.Machine) {
+			for i, f := range m.Fields {
+				if f.ID == "fld_approver_type" {
+					m.Fields[i].Options = []string{"person", "team"}
+				}
+			}
+		},
+		"group field is not a group": func(m *domain.Machine) {
+			m.Permissions[0].DynamicActor.ActorGroupField = "fld_assignee"
+		},
+		"user field is not an identity": func(m *domain.Machine) {
+			m.Permissions[0].DynamicActor.ActorUserField = "fld_approver_type"
+		},
+		"a named field does not exist": func(m *domain.Machine) {
+			m.Permissions[0].DynamicActor.ActorGroupField = "fld_nope"
+		},
+		"partially declared gate": func(m *domain.Machine) {
+			m.Permissions[0].DynamicActor.ActorGroupField = ""
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := dynamicActorMachine()
+			mutate(m)
+			if err := Validate(m); err == nil {
+				t.Error("Validate() = nil, want an error -- a gate the runtime cannot resolve protects nothing while looking configured")
+			}
+		})
+	}
+}
+
+// A group Field names no Machine, and saying otherwise is refused rather than ignored: a
+// declaration the runtime silently drops reads as though it were working.
+func TestValidate_groupFieldRejectsAMachineTarget(t *testing.T) {
+	m := dynamicActorMachine()
+	for i, f := range m.Fields {
+		if f.ID == "fld_approver_group" {
+			m.Fields[i].RelatedMachine = "mch_user"
+		}
+	}
+	if err := Validate(m); err == nil {
+		t.Error("Validate() = nil, want an error -- a Group is a Workspace platform record, so machine: could never resolve")
+	}
+}

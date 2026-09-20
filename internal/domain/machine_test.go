@@ -32,3 +32,24 @@ func TestMachine_FieldByID(t *testing.T) {
 		t.Error("FieldByID(fld_ghost) ok = true, want false")
 	}
 }
+
+// TestFieldTypeGroup_isNotAReference pins the invariant the whole group Field type rests on.
+//
+// IsReference() means exactly one thing to its callers: "relations[f.RelatedMachine] holds this
+// field's options" (internal/composition.Loader.RelationOptions, rendering's fieldInput and
+// RelationLabel). A Group has no Machine, so if this ever returned true the picker would look up a
+// Machine that does not exist, find nothing, and render an empty <select> -- working markup,
+// silently offering no choices. That is a failure nobody would see, which is why it is pinned here
+// rather than left to the type's doc comment.
+func TestFieldTypeGroup_isNotAReference(t *testing.T) {
+	f := Field{ID: "fld_approver_group", Name: "Approver Group", Type: FieldTypeGroup}
+	if f.IsReference() {
+		t.Error("a group Field must not be a reference: it has no target Machine, so relation option lookup would silently find nothing")
+	}
+	if f.RelatedMachine != "" {
+		t.Errorf("RelatedMachine = %q, want empty -- a Group is a platform record, not a Machine", f.RelatedMachine)
+	}
+	if !KnownFieldTypes[FieldTypeGroup] {
+		t.Error("group must be in KnownFieldTypes, or metadata declaring one is rejected at load time")
+	}
+}

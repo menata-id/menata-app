@@ -52,8 +52,8 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			serverError(w, err)
 			return
 		}
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		runCreateEvents(req.Context(), store, machine, record, actor)
+		actor := currentActor(req, store, cfg)
+		runCreateEvents(req.Context(), store, machine, record, actor.ID)
 
 		renderMachineBody(w, req, machines, machine, store, actor)
 	}
@@ -81,7 +81,12 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files
 			serverError(w, err)
 			return
 		}
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		groups, err := ld.GroupOptions(req.Context(), machine)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		actor := currentActor(req, store, cfg)
 
 		if req.Header.Get("HX-Request") != "true" {
 			children, err := ld.ChildSections(req.Context(), machine, record.ID)
@@ -90,7 +95,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files
 				return
 			}
 			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
-			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, children, actor, sigPlacement))
+			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, groups, children, actor, sigPlacement))
 			return
 		}
 		if isDetailContext(req) {
@@ -100,10 +105,10 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files
 				return
 			}
 			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
-			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor, sigPlacement))
+			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement))
 			return
 		}
-		render(req.Context(), w, rendering.RecordRow(machine, record, relations, actor))
+		render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor))
 	}
 }
 
@@ -119,7 +124,7 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store, cfg c
 			recordError(w, err)
 			return
 		}
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		actor := currentActor(req, store, cfg)
 		if !recordEditAllowed(machine, record.Values, actor) {
 			http.Error(w, "not allowed to edit this record", http.StatusForbidden)
 			return
@@ -130,11 +135,16 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store, cfg c
 			serverError(w, err)
 			return
 		}
-		if isDetailContext(req) {
-			render(req.Context(), w, rendering.RecordDetailEdit(machine, record, relations))
+		groups, err := ld.GroupOptions(req.Context(), machine)
+		if err != nil {
+			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.RecordEditRow(machine, record, relations))
+		if isDetailContext(req) {
+			render(req.Context(), w, rendering.RecordDetailEdit(machine, record, relations, groups))
+			return
+		}
+		render(req.Context(), w, rendering.RecordEditRow(machine, record, relations, groups))
 	}
 }
 
@@ -152,7 +162,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			return
 		}
 		id := chi.URLParam(req, "id")
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		actor := currentActor(req, store, cfg)
 		if !allowsRecordEdit(w, req, store, machine, id, actor) {
 			return
 		}
@@ -180,7 +190,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			recordError(w, err)
 			return
 		}
-		runEvents(req.Context(), store, machine, record, actor, oldValues, oldValuesOK)
+		runEvents(req.Context(), store, machine, record, actor.ID, oldValues, oldValuesOK)
 
 		renderRecord(w, req, machines, store, files, machine, record, actor)
 	}
@@ -193,7 +203,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 // record yet and must fetch it) and editRecordRow (which already fetched it to render the edit
 // form) call this instead of each re-stating the same check with its own copy of the error
 // string, code-review finding 2026-09-19.
-func recordEditAllowed(machine *domain.Machine, values map[string]any, actor string) bool {
+func recordEditAllowed(machine *domain.Machine, values map[string]any, actor domain.Actor) bool {
 	return len(machine.PermissionsFor(domain.ActionEdit)) == 0 || authorization.AllowsAction(machine, domain.ActionEdit, values, actor)
 }
 
@@ -202,7 +212,7 @@ func recordEditAllowed(machine *domain.Machine, values map[string]any, actor str
 // (internal/web/approval.go) from Approve/Reject to every Machine -- the same "generalize on a
 // second real case, never the first" discipline deleteAllowed below already follows. Skips the
 // fetch entirely when no edit Permission is declared (recordEditAllowed's own fast path).
-func allowsRecordEdit(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id, actor string) bool {
+func allowsRecordEdit(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, actor domain.Actor) bool {
 	if len(machine.PermissionsFor(domain.ActionEdit)) == 0 {
 		return true
 	}
@@ -289,9 +299,14 @@ func passesWriteGuards(w http.ResponseWriter, req *http.Request, store *data.Sto
 
 // renderRecord re-renders one record after a write, as the detail view or as a table/board row
 // depending on what the HTMX request targeted.
-func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, store *data.Store, files *storage.Store, machine *domain.Machine, record *data.Record, actor string) {
+func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, store *data.Store, files *storage.Store, machine *domain.Machine, record *data.Record, actor domain.Actor) {
 	ld := composition.NewLoader(store, machines)
 	relations, err := ld.RelationOptions(req.Context(), machine)
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	groups, err := ld.GroupOptions(req.Context(), machine)
 	if err != nil {
 		serverError(w, err)
 		return
@@ -303,10 +318,10 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 			return
 		}
 		sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
-		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, children, actor, sigPlacement))
+		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement))
 		return
 	}
-	render(req.Context(), w, rendering.RecordRow(machine, record, relations, actor))
+	render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor))
 }
 
 func deleteRecord(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
@@ -316,7 +331,7 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 			return
 		}
 		id := chi.URLParam(req, "id")
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		actor := currentActor(req, store, cfg)
 		if allowed, status, reason, err := deleteAllowed(req.Context(), store, machine, id, actor); err != nil {
 			serverError(w, err)
 			return
@@ -347,7 +362,7 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 // generalizing decideStep's identity check the same way allowsRecordEdit above does for edits).
 // A Machine with neither -- the common case -- stays fully unrestricted, same as the generic
 // route always was (ROADMAP.md's own Method: generalize on a second real case, never the first).
-func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machine, id, actor string) (ok bool, status int, reason string, err error) {
+func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machine, id string, actor domain.Actor) (ok bool, status int, reason string, err error) {
 	// stateGoverned/permissionGoverned decide, before any fetch, whether this Machine needs one
 	// at all -- the common case (neither) stays a zero-query no-op, same as the generic route
 	// always was.

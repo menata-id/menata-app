@@ -29,6 +29,11 @@ const (
 	FieldStepSequence   = "fld_sequence"
 	FieldStepAssignee   = "fld_assignee"
 	FieldStepDecision   = "fld_decision"
+	// FieldStepApproverType selects which kind of actor gates this step, and FieldStepApproverGroup
+	// names the Group when it is a Group (CAP-F24, Fase 6c-1). The User half is FieldStepAssignee
+	// above -- deliberately not a second person Field, see metadata/approval_step.yaml.
+	FieldStepApproverType  = "fld_approver_type"
+	FieldStepApproverGroup = "fld_approver_group"
 	// FieldStepName is what a step is *for* ("Finance Review"), independent of who holds it --
 	// board 10's own step titles, Fase 6b. Optional and unwritten until board 08's wizard collects
 	// it (6c); composition.stepLabel falls back to the assignee's name meanwhile.

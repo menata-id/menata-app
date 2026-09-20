@@ -81,7 +81,7 @@ func TestRecordDetailView_noLongerCarriesTheDecisionBar(t *testing.T) {
 	r := &data.Record{ID: "stp_1", Values: map[string]any{"fld_sequence": float64(1)}}
 
 	var buf bytes.Buffer
-	if err := RecordDetailView(m, r, nil, nil, "usr_ana", nil).Render(context.Background(), &buf); err != nil {
+	if err := RecordDetailView(m, r, nil, nil, nil, domain.Actor{ID: "usr_ana"}, nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := buf.String()

@@ -141,7 +141,7 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 
 		// mch_approval_step declares prm_decide_own_step, so only the step's own fld_assignee
 		// gets past here (ROADMAP.md Phase 16).
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		actor := currentActor(req, store, cfg)
 		if !authorization.AllowsAction(machine, domain.ActionDecide, step.Values, actor) {
 			http.Error(w, "this approval step is assigned to someone else", http.StatusForbidden)
 			return
@@ -153,7 +153,7 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 			return
 		}
 
-		if !applyApprovalSignature(w, req, ctx, store, files, actor, step, decision) {
+		if !applyApprovalSignature(w, req, ctx, store, files, actor.ID, step, decision) {
 			return
 		}
 
@@ -176,9 +176,9 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 			signDocument(ctx, store, files, document, documentID)
 		}
 
-		runEvents(ctx, store, machine, step, actor, oldValues, oldValuesOK)
+		runEvents(ctx, store, machine, step, actor.ID, oldValues, oldValuesOK)
 
-		logActivity(ctx, store, action.DocumentMachineID, documentID, actor,
+		logActivity(ctx, store, action.DocumentMachineID, documentID, actor.ID,
 			fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
 
 		redirectTo(w, req, "/machines/"+action.DocumentMachineID+"/records/"+documentID)

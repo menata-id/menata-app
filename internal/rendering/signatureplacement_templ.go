@@ -29,12 +29,12 @@ import (
 // app. Still true after the 2026-09-19 UX review's own fix below: no new JS was added, only HTMX
 // attributes.
 //
-// stepMachine and actorID exist for the same reason RecordDetailPage's own actorID does (ROADMAP.md
+// stepMachine and actor exist for the same reason RecordDetailPage's own actor does (ROADMAP.md
 // Phase 16): so signaturePlacementBlock can hide drag/place/width controls for an Approval Step the
 // viewer isn't its own assignee for, instead of letting anyone reposition anyone's marker --
 // updateRecordForm's allowsRecordEdit enforces the same rule regardless, on the PUT these
 // controls submit.
-func SignaturePlacementPage(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, stepMachine *domain.Machine, actorID string) templ.Component {
+func SignaturePlacementPage(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, stepMachine *domain.Machine, actor domain.Actor) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -97,7 +97,7 @@ func SignaturePlacementPage(document *data.Record, steps []*data.Record, relatio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = signaturePlacementBlock(document, steps, relations, page, totalPages, stepMachine, actorID).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = signaturePlacementBlock(document, steps, relations, page, totalPages, stepMachine, actor).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -131,7 +131,7 @@ func SignaturePlacementPage(document *data.Record, steps []*data.Record, relatio
 // The trailing <script> travels with the block, not with the Page, so any Page that embeds this
 // Component gets working drag behavior automatically -- a Component must not depend on its host
 // Page remembering to also include its behavior (007 §12.3 boundedness).
-func signaturePlacementBlock(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, stepMachine *domain.Machine, actorID string) templ.Component {
+func signaturePlacementBlock(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, stepMachine *domain.Machine, actor domain.Actor) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -252,7 +252,7 @@ func signaturePlacementBlock(document *data.Record, steps []*data.Record, relati
 		}
 		for i, s := range steps {
 			if signaturePage(s) == page {
-				templ_7745c5c3_Err = sigMarker(s, i+1, authorization.AllowsAction(stepMachine, domain.ActionEdit, s.Values, actorID)).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = sigMarker(s, i+1, authorization.AllowsAction(stepMachine, domain.ActionEdit, s.Values, actor)).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -263,7 +263,7 @@ func signaturePlacementBlock(document *data.Record, steps []*data.Record, relati
 			return templ_7745c5c3_Err
 		}
 		for i, s := range steps {
-			editable := authorization.AllowsAction(stepMachine, domain.ActionEdit, s.Values, actorID)
+			editable := authorization.AllowsAction(stepMachine, domain.ActionEdit, s.Values, actor)
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"sig-step-card\"><strong>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

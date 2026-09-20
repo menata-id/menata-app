@@ -136,10 +136,18 @@ type rollupRuleDoc struct {
 }
 
 // permissionDoc is the YAML serialization of a Permission (ROADMAP.md Phase 16).
+//
+// The three actor_*_field keys are the dynamic actor gate (CAP-F24, Fase 6c-1). They are flat
+// siblings of actor_field rather than a nested block, matching how the struct they build models
+// them -- see domain.DynamicActorGate. All three together or none: a partially declared gate is
+// rejected by validatePermission rather than silently half-applied.
 type permissionDoc struct {
-	ID         string `yaml:"id"`
-	Action     string `yaml:"action"`
-	ActorField string `yaml:"actor_field"`
+	ID              string `yaml:"id"`
+	Action          string `yaml:"action"`
+	ActorField      string `yaml:"actor_field"`
+	ActorTypeField  string `yaml:"actor_type_field"`
+	ActorUserField  string `yaml:"actor_user_field"`
+	ActorGroupField string `yaml:"actor_group_field"`
 }
 
 // Parse decodes Runtime Metadata YAML describing a single Machine. It performs structural
@@ -226,11 +234,22 @@ func Parse(data []byte) (*domain.Machine, error) {
 		})
 	}
 	for _, pd := range doc.Permissions {
-		m.Permissions = append(m.Permissions, domain.Permission{
+		perm := domain.Permission{
 			ID:         pd.ID,
 			Action:     pd.Action,
 			ActorField: pd.ActorField,
-		})
+		}
+		// Any one of the three keys builds the gate, so a partial declaration reaches
+		// validatePermission as a real gate with an empty field name and is reported -- rather
+		// than being dropped here and reading as though no gate were ever written.
+		if pd.ActorTypeField != "" || pd.ActorUserField != "" || pd.ActorGroupField != "" {
+			perm.DynamicActor = &domain.DynamicActorGate{
+				ActorTypeField:  pd.ActorTypeField,
+				ActorUserField:  pd.ActorUserField,
+				ActorGroupField: pd.ActorGroupField,
+			}
+		}
+		m.Permissions = append(m.Permissions, perm)
 	}
 	for _, dd := range doc.Datasets {
 		ds := domain.Dataset{ID: dd.ID, Source: doc.ID, Dimension: dd.Dimension}

@@ -78,7 +78,7 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 			return
 		}
 		id := chi.URLParam(req, "id")
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		actor := currentActor(req, store, cfg)
 		if !allowsRecordEdit(w, req, store, machine, id, actor) {
 			return
 		}
@@ -104,7 +104,7 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 			recordError(w, err)
 			return
 		}
-		runEvents(req.Context(), store, machine, record, actor, oldValues, oldValuesOK)
+		runEvents(req.Context(), store, machine, record, actor.ID, oldValues, oldValuesOK)
 
 		w.Header().Set("Content-Type", "application/json")
 		writeJSON(w, record)
@@ -118,7 +118,7 @@ func deleteRecordAPI(machines map[string]*domain.Machine, store *data.Store, cfg
 			return
 		}
 		id := chi.URLParam(req, "id")
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		actor := currentActor(req, store, cfg)
 		if allowed, status, reason, err := deleteAllowed(req.Context(), store, machine, id, actor); err != nil {
 			serverError(w, err)
 			return

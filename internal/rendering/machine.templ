@@ -399,15 +399,15 @@ templ MachineList(machines []*domain.Machine) {
 // and its persisted records with inline edit/delete. It exists to prove the metadata -> data ->
 // render pipeline end to end; it is not yet driven by UI IR or a View Model
 // (007-composable-runtime-architecture.md §10, §23).
-// actorID is the viewing identity, threaded down to RecordRow the same reason detail.templ's
+// actor is the viewing identity, threaded down to RecordRow the same reason detail.templ's
 // RecordDetailPage already takes it (ROADMAP.md Phase 16) -- so an Edit/Delete the viewer is not
 // permitted to perform isn't offered in the first place; the server enforces the same rule
 // regardless (allowsRecordEdit/deleteAllowed, internal/web/record.go), this only keeps the UI
 // honest about it.
-templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, cards []RecordCard, actorID string) {
+templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
 	@pageShell(m.Name) {
 		<div id="machine-body">
-			@MachineBody(m, v, records, relations, boardColumns, cards, actorID)
+			@MachineBody(m, v, records, relations, groups, boardColumns, cards, actor)
 		</div>
 	}
 }
@@ -423,7 +423,7 @@ templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, rela
 // one that was (the ?view= it resolved). cards is non-nil only for a cards View, for the same
 // caller-supplies-I/O reason as boardColumns -- the projection is resolved in
 // internal/composition, which this package cannot import.
-templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, cards []RecordCard, actorID string) {
+templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
 	<h1>{ m.Name }</h1>
 	<code>{ m.ID }</code>
 
@@ -457,17 +457,17 @@ templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, rela
 	@viewSwitcher(m, v)
 	switch v.EffectiveType() {
 		case domain.ViewBoard:
-			@boardLayout(m, v, records, relations, boardColumns, actorID)
+			@boardLayout(m, v, records, relations, groups, boardColumns, actor)
 		case domain.ViewCards:
 			@cardsLayout(m, cards)
 		default:
-			@tableLayout(m, records, relations, actorID)
+			@tableLayout(m, records, relations, groups, actor)
 	}
 }
 
 // tableLayout is the generic flat-list Layout: every Field as a column, every Record as a row,
 // plus a create-form row (007 §12.2 "Layout is a generic structural composition primitive").
-templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, actorID string) {
+templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) {
 	<table>
 		<thead>
 			<tr>
@@ -479,9 +479,9 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 		</thead>
 		<tbody>
 			for _, r := range records {
-				@RecordRow(m, r, relations, actorID)
+				@RecordRow(m, r, relations, groups, actor)
 			}
-			@createFormRow(m, relations)
+			@createFormRow(m, relations, groups)
 		</tbody>
 	</table>
 }
@@ -545,7 +545,7 @@ type RecordCard struct {
 // column as the same generic table primitive tableLayout already uses -- a board is not a new
 // renderer, it is Collection + Group Dimension + the existing Table renderer, reused per column
 // (006-runtime-model.md "View" lowering formula).
-templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, actorID string) {
+templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, actor domain.Actor) {
 	<div class="board">
 		for _, col := range experience.GroupRecords(m, v, records, boardColumns) {
 			<div class="board-column">
@@ -553,7 +553,7 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, rela
 				<table>
 					<tbody>
 						for _, r := range col.Records {
-							@RecordRow(m, r, relations, actorID)
+							@RecordRow(m, r, relations, groups, actor)
 						}
 					</tbody>
 				</table>
@@ -563,14 +563,14 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, rela
 	<h3>Add Record</h3>
 	<table>
 		<tbody>
-			@createFormRow(m, relations)
+			@createFormRow(m, relations, groups)
 		</tbody>
 	</table>
 }
 
 // createFormRow is the record-creation form, shared by every Layout so a create form isn't
 // duplicated per Layout kind.
-templ createFormRow(m *domain.Machine, relations RelationOptions) {
+templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOptions) {
 	<tr>
 		<form
 			class="create-form"
@@ -581,7 +581,7 @@ templ createFormRow(m *domain.Machine, relations RelationOptions) {
 		>
 			for _, f := range m.Fields {
 				<td>
-					@fieldInput(f, nil, relations)
+					@fieldInput(f, nil, relations, groups)
 				</td>
 			}
 			<td>
@@ -593,7 +593,7 @@ templ createFormRow(m *domain.Machine, relations RelationOptions) {
 
 // RecordRow is one Record in display mode. A relation field shows its target's label, not the
 // raw record id; the first field links to the record's own detail page (Phase 8). Edit is offered
-// only when authorization.AllowsAction says actorID may perform ActionEdit on r
+// only when authorization.AllowsAction says actor may perform ActionEdit on r
 // (MachinePage/MachineBody's own doc comment explains why, ROADMAP.md Phase 16, decideButtons'
 // pattern); a Machine with no declared Permission for edit stays open to any actor, same as
 // before this existed. Delete additionally requires action.CanDelete's own business-state check
@@ -603,7 +603,7 @@ templ createFormRow(m *domain.Machine, relations RelationOptions) {
 // then reject server-side). Called with nil steps -- unlike canDeleteInView, this generic row has
 // no Document's own child-collection steps in hand, so a Document row's own check degrades to
 // status-only, the same fallback canDeleteInView already uses when it can't find them either.
-templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, actorID string) {
+templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) {
 	<tr id={ "record-" + r.ID }>
 		for i, f := range m.Fields {
 			<td>
@@ -615,13 +615,15 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, ac
 					@fileLink(r.Values[f.ID])
 				} else if f.IsReference() {
 					{ RelationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
+				} else if f.Type == domain.FieldTypeGroup {
+					{ GroupLabel(groups, toString(r.Values[f.ID])) }
 				} else {
 					{ fmt.Sprint(r.Values[f.ID]) }
 				}
 			</td>
 		}
 		<td class="actions">
-			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actorID) {
+			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
@@ -629,7 +631,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, ac
 				>Edit</button>
 			}
 			{{ deletable, _ := action.CanDelete(m.ID, r.Values, nil) }}
-			if deletable && authorization.AllowsAction(m, domain.ActionDelete, r.Values, actorID) {
+			if deletable && authorization.AllowsAction(m, domain.ActionDelete, r.Values, actor) {
 				<button
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
@@ -646,7 +648,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, ac
 // refuses; Save needs no gate of its own here for the same reason decideButtons' Approve/Reject
 // doesn't re-check either -- allowsRecordEdit (internal/web/record.go's updateRecordForm) is what
 // actually enforces it, on the PUT this form submits, regardless of how the request got here.
-templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions) {
+templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions) {
 	<tr id={ "record-" + r.ID }>
 		<form
 			hx-put={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
@@ -656,7 +658,7 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 		>
 			for _, f := range m.Fields {
 				<td>
-					@fieldInput(f, r.Values[f.ID], relations)
+					@fieldInput(f, r.Values[f.ID], relations, groups)
 				</td>
 			}
 			<td class="actions">
@@ -676,7 +678,7 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 // current (nil for a blank create-form field). relations supplies <select> options for any
 // reference field (Relation or Person, per domain.Field.IsReference); unused for every other
 // type.
-templ fieldInput(f domain.Field, current any, relations RelationOptions) {
+templ fieldInput(f domain.Field, current any, relations RelationOptions, groups GroupOptions) {
 	switch {
 		case f.Type == domain.FieldTypeStatus:
 			<select name={ f.ID }>
@@ -689,6 +691,16 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions) {
 			<select name={ f.ID }>
 				<option value=""></option>
 				for _, opt := range relations[f.RelatedMachine] {
+					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
+				}
+			</select>
+		// A group Field picks from the Workspace's own Groups (CAP-F24). Its own case rather than
+		// the IsReference() one above precisely because IsReference() is false for it: a Group has
+		// no target Machine to key relations by, so the options arrive in their own list.
+		case f.Type == domain.FieldTypeGroup:
+			<select name={ f.ID }>
+				<option value=""></option>
+				for _, opt := range groups {
 					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
 				}
 			</select>

@@ -16,6 +16,23 @@ const (
 	FieldTypeMoney    FieldType = "money"
 	FieldTypeRelation FieldType = "relation"
 	FieldTypeFile     FieldType = "file"
+	// FieldTypeGroup holds a Workspace Group's id (CAP-F24, Fase 6c-1) -- reference *sugar* over
+	// the platform workspace_groups table, the same posture FieldTypePerson takes over mch_user,
+	// except that a Group is not a Machine and so this has no RelatedMachine at all.
+	//
+	// That absence is the whole point and it is load-bearing: IsReference() must stay FALSE for
+	// this type. Its contract is "relations[f.RelatedMachine] is that Machine's record list"
+	// (internal/composition.Loader.RelationOptions, fieldInput), and a Group has no Machine, no
+	// Fields, and a label that lives in a platform column rather than in a record. A group Field's
+	// options come from the parallel rendering.GroupOptions instead.
+	//
+	// Declaring a thin mch_group was the alternative, and capabilities.md named this exact
+	// question as the one "CAP-F24's approver_group is what will force". It is answered no: a
+	// Machine mirroring workspace_groups would be a second source of truth for Group identity that
+	// the Fase 4 admin screens do not write to. Upstream reached the same answer and shipped the
+	// same shape (menata-runtime's model.FieldTypeGroup: "Unlike reference, never needs
+	// Options.TargetMachine -- a Group isn't a Machine").
+	FieldTypeGroup FieldType = "group"
 )
 
 // KnownFieldTypes is the closed set of field types the runtime currently understands. New types
@@ -30,6 +47,7 @@ var KnownFieldTypes = map[FieldType]bool{
 	FieldTypeMoney:    true,
 	FieldTypeRelation: true,
 	FieldTypeFile:     true,
+	FieldTypeGroup:    true,
 }
 
 // UserMachineID is the implicit relation target for every FieldTypePerson field

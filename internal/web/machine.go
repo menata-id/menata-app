@@ -5,7 +5,6 @@ import (
 	"net/url"
 
 	"github.com/go-chi/chi/v5"
-	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -36,12 +35,12 @@ func showMachinePage(machines map[string]*domain.Machine, store *data.Store, cfg
 			serverError(w, err)
 			return
 		}
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		render(req.Context(), w, rendering.MachinePage(machine, v, p.records, p.relations, p.boardColumns, p.cards, actor))
+		actor := currentActor(req, store, cfg)
+		render(req.Context(), w, rendering.MachinePage(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor))
 	}
 }
 
-func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store, actor string) {
+func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, machine *domain.Machine, store *data.Store, actor domain.Actor) {
 	v, ok := resolveView(w, machine, req)
 	if !ok {
 		return
@@ -51,7 +50,7 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 		serverError(w, err)
 		return
 	}
-	render(req.Context(), w, rendering.MachineBody(machine, v, p.records, p.relations, p.boardColumns, p.cards, actor))
+	render(req.Context(), w, rendering.MachineBody(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor))
 }
 
 // machineViewReads is everything one arrangement of a Machine's records needs to render. Both the
@@ -61,6 +60,7 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 type machineViewReads struct {
 	records      []*data.Record
 	relations    rendering.RelationOptions
+	groups       rendering.GroupOptions
 	boardColumns []experience.Column
 	cards        []rendering.RecordCard
 }
@@ -75,6 +75,10 @@ func readMachineView(req *http.Request, machines map[string]*domain.Machine, mac
 	if err != nil {
 		return machineViewReads{}, err
 	}
+	groups, err := ld.GroupOptions(req.Context(), machine)
+	if err != nil {
+		return machineViewReads{}, err
+	}
 	boardColumns, err := ld.BoardColumns(req.Context(), machine, v)
 	if err != nil {
 		return machineViewReads{}, err
@@ -82,6 +86,7 @@ func readMachineView(req *http.Request, machines map[string]*domain.Machine, mac
 	return machineViewReads{
 		records:      records,
 		relations:    relations,
+		groups:       groups,
 		boardColumns: boardColumns,
 		cards:        composition.RecordCards(machine, v, records, relations),
 	}, nil

@@ -34,7 +34,7 @@ import (
 // (internal/web's loadSignaturePlacementData), and pushing a storage read down here would give the
 // Composition plane a second, parallel way to reach the filesystem. Pass 0 when it is unknown; the
 // page renders without the page count rather than failing.
-func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *domain.Machine, step *data.Record, viewer string, pdfPages int, hasSignature bool, now time.Time) (rendering.ReviewView, error) {
+func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *domain.Machine, step *data.Record, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) (rendering.ReviewView, error) {
 	documentID := DisplayString(step.Values[action.FieldStepDocument])
 	document, err := l.store.GetRecord(ctx, action.DocumentMachineID, documentID)
 	if err != nil {
@@ -59,7 +59,7 @@ func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *dom
 // split buildInbox uses, and for the same reason: the rules worth testing (whose step is
 // actionable, which approver is you, whether a signature placement exists) need related record
 // sets and a fixed clock, not a database.
-func buildReview(step, document *data.Record, siblings, activities, users []*data.Record, stepMachine, docMachine *domain.Machine, viewer string, pdfPages int, hasSignature bool, now time.Time) rendering.ReviewView {
+func buildReview(step, document *data.Record, siblings, activities, users []*data.Record, stepMachine, docMachine *domain.Machine, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) rendering.ReviewView {
 	names := make(map[string]string, len(users))
 	for _, u := range users {
 		names[u.ID] = DisplayString(u.Values["fld_name"])
@@ -78,7 +78,7 @@ func buildReview(step, document *data.Record, siblings, activities, users []*dat
 		Title:        DisplayString(document.Values["fld_title"]),
 		DocumentType: DisplayString(document.Values["fld_document_type"]),
 		Status:       DisplayString(document.Values[action.FieldDocumentStatus]),
-		Steps:        stepStates(seq, document, siblings, names, viewer),
+		Steps:        stepStates(seq, document, siblings, names, viewer.ID),
 		StepLabel:    stepLabel(step, names[DisplayString(step.Values[action.FieldStepAssignee])]),
 		Decision:     decision,
 		PDFPages:     pdfPages,
@@ -89,16 +89,16 @@ func buildReview(step, document *data.Record, siblings, activities, users []*dat
 	// the viewer may be the wrong person (nothing to offer), the right person on a step still
 	// locked behind an earlier one (offer it, but disabled would lie -- the server refuses), or the
 	// right person on a step already decided (show what was decided).
-	if decision == action.DecisionPending &&
-		DisplayString(step.Values[action.FieldStepAssignee]) == viewer &&
-		behavior.CanAct(seq, document, step, siblings) {
-		v.CanDecide = true
-	}
-	if stepMachine != nil {
+	// Who may decide is no longer "is the viewer this step's fld_assignee": since Fase 6c-1 a step
+	// may be held by a Group instead, and authorization.AllowsAction is the one function that
+	// knows which (CAP-F24). Asking it directly -- rather than pre-filtering on fld_assignee and
+	// then asking -- is what keeps a Group-held step decidable here; an assignee check ANDed in
+	// front would have silently cancelled the whole capability on this screen.
+	if decision == action.DecisionPending && behavior.CanAct(seq, document, step, siblings) {
 		// The same declared Permission internal/web enforces on POST .../decide, asked here only
 		// to decide whether to draw the bar. Presentation, never protection -- the server is what
-		// actually refuses, the posture decideButtons already established.
-		v.CanDecide = v.CanDecide && authorization.AllowsAction(stepMachine, domain.ActionDecide, step.Values, viewer)
+		// actually refuses, the posture the decide bar already established.
+		v.CanDecide = stepMachine != nil && authorization.AllowsAction(stepMachine, domain.ActionDecide, step.Values, viewer)
 	}
 
 	if key := DisplayString(document.Values[action.FieldDocumentFile]); key != "" {

@@ -686,3 +686,77 @@ func TestCapabilitiesComponentsTableCitesPromotionGuide(t *testing.T) {
 	}
 	t.Error(`capabilities.md's "Shared rendering components" section no longer cites guides/ui-composition-decomposition-criteria.md (menata-app-document) -- the promotion criteria became an unwritten house opinion again; restore the citation or replace it with wherever the criteria moved to`)
 }
+
+// TestDynamicActorGateIsDeclaredAndResolvable checks the real metadata, not a fixture: CAP-F24's
+// gate is declared on the Permission that governs deciding, and every Field it names exists on
+// that Machine with the type the resolver needs.
+//
+// Load-time validation (internal/metadata.validateDynamicActor) already refuses a malformed gate,
+// so this is not a second copy of that. It answers the *other* question, the one that has burned
+// this repo three times in a day: **is the thing declared at all?** A gate that is simply absent
+// passes every validator ever written, because there is nothing to validate — exactly how two
+// route conformance gates ran against an empty list while reporting `ok`, and how Projection sat
+// wired end to end with zero declarations. The capability is only real if the metadata says so.
+func TestDynamicActorGateIsDeclaredAndResolvable(t *testing.T) {
+	app, err := metadata.LoadApplication(filepath.Join(repoRoot(), "metadata", "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication: %v", err)
+	}
+	const stepMachineID = "mch_approval_step"
+	var step *domain.Machine
+	for _, m := range app.Machines {
+		if m.ID == stepMachineID {
+			step = m
+			break
+		}
+	}
+	if step == nil {
+		t.Fatalf("%s is not declared in the real manifest", stepMachineID)
+	}
+
+	perms := step.PermissionsFor(domain.ActionDecide)
+	if len(perms) == 0 {
+		t.Fatalf("%s declares no Permission governing %q -- deciding would be unrestricted", step.ID, domain.ActionDecide)
+	}
+	gated := 0
+	for _, p := range perms {
+		if p.DynamicActor == nil {
+			continue
+		}
+		gated++
+		fields := map[string]domain.FieldType{
+			p.DynamicActor.ActorTypeField:  domain.FieldTypeStatus,
+			p.DynamicActor.ActorGroupField: domain.FieldTypeGroup,
+		}
+		for id, want := range fields {
+			f, ok := fieldByID(step, id)
+			if !ok {
+				t.Errorf("permission %q names %q, which %s does not declare", p.ID, id, step.ID)
+				continue
+			}
+			if f.Type != want {
+				t.Errorf("permission %q: %q is %q, want %q", p.ID, id, f.Type, want)
+			}
+		}
+		if f, ok := fieldByID(step, p.DynamicActor.ActorUserField); !ok || !f.IsReference() {
+			t.Errorf("permission %q: actor_user_field %q must be a declared identity field", p.ID, p.DynamicActor.ActorUserField)
+		}
+		// The fallback is the property that made adoption safe; a gate declared without one would
+		// leave every pre-CAP-F24 record ungoverned.
+		if p.ActorField == "" {
+			t.Errorf("permission %q declares a dynamic gate but no actor_field fallback -- every record written before the gate existed would stop being governed", p.ID)
+		}
+	}
+	if gated == 0 {
+		t.Errorf("no Permission on %s declares a dynamic actor gate -- CAP-F24 is built in code and unreachable from metadata, which is the state this suite exists to catch", step.ID)
+	}
+}
+
+func fieldByID(m *domain.Machine, id string) (domain.Field, bool) {
+	for _, f := range m.Fields {
+		if f.ID == id {
+			return f, true
+		}
+	}
+	return domain.Field{}, false
+}

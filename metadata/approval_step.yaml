@@ -29,6 +29,31 @@ fields:
     name: Assignee
     type: person
     required: true
+  # CAP-F24 (Fase 6c-1): a step chooses, at submission, whether its approver gate is one named
+  # person or a whole Workspace Group -- board 08's own User/Group toggle, and the requirement
+  # board 09 states outright: "Approvers are supplied by Groups."
+  #
+  # Only two Fields, not the three upstream seeds. fld_assignee above IS the User half
+  # (actor_user_field below points at it), so there is no second person picker -- upstream added
+  # one alongside its legacy field and recorded the result in its own seed comment: "the new form
+  # originally showed BOTH ... two independent Approver pickers on one screen". Reusing the
+  # existing Field also makes the legacy fallback read the same column the User arm reads, so the
+  # two cannot disagree about who a step belongs to.
+  #
+  # Nothing writes either Field yet: the wizard that offers the toggle is board 08, Fase 6c-2.
+  # An existing step leaves fld_approver_type empty and is gated exactly as before -- see
+  # internal/authorization.allowsOne for the fallback that makes that true.
+  - id: fld_approver_type
+    name: Approver Type
+    type: status
+    options: [User, Group]
+  # No `machine:` here, and that is not an omission: a Group is a Workspace platform record
+  # (workspace_groups, Fase 4), not a Machine, so there is nothing to target. internal/metadata
+  # rejects a machine: on a group Field rather than ignoring one. See domain.FieldTypeGroup for
+  # why declaring a thin mch_group was considered and refused.
+  - id: fld_approver_group
+    name: Approver Group
+    type: group
   - id: fld_decision
     name: Decision
     type: status
@@ -94,9 +119,17 @@ sequencing:
   open_value: pending
 
 permissions:
+  # prm_decide_own_step carries both shapes at once, which is the adoption path rather than a
+  # redundancy: actor_field is the fallback, used whenever a record's own fld_approver_type is
+  # empty or holds something the runtime does not recognize. Every Approval Step written before
+  # Fase 6c-1 is exactly that case, so this gained the dynamic gate with no migration, no backfill
+  # and no rewritten test.
   - id: prm_decide_own_step
     action: decide
     actor_field: fld_assignee
+    actor_type_field: fld_approver_type
+    actor_user_field: fld_assignee
+    actor_group_field: fld_approver_group
   - id: prm_edit_own_step
     action: edit
     actor_field: fld_assignee
