@@ -23,12 +23,28 @@ type SLAFilter struct {
 // `StepStates []string` could not express -- it carried the states and nothing to attach them to.
 // Composed in internal/composition.stepStates from the names map buildInbox already assembles, so
 // this costs no extra query.
+//
+// Fase 6b made it the *shared* step view model rather than the inbox card's own: board 10's
+// Approval Progress list (reviewdocument.templ) renders the same slice. Sharing the data and not
+// the markup is deliberate -- approvalstepper.templ still draws this concept for the Document
+// detail page in pageStyles, and Tailwind's Preflight ties chrome to content, so one rendering
+// cannot serve both until that page ports too.
 type StepApprover struct {
 	Name     string
 	Initials string
 	// State is done / current / rejected / waiting -- the same four
 	// approvalStepRow renders on the Document detail page's vertical stepper.
 	State string
+	// Label is what this step is for -- mch_approval_step's own fld_step_name, falling back to
+	// Name while that Field is empty (nothing writes it until board 08's wizard, Fase 6c). Board 07
+	// does not show it; board 10 titles each step with it.
+	Label string
+	// Decided is when this step was approved or rejected, formatted "15:04" -- empty for a step
+	// that has not been decided. Board 10 draws it beside the approver's name.
+	Decided string
+	// IsYou marks the step belonging to the viewer, which board 10 badges with a "You" pill. The
+	// inbox card has no use for it: every card there is already the viewer's own.
+	IsYou bool
 }
 
 // PendingApprovalCard is one "pending my approval" card (board 07's own grid). Richer than the

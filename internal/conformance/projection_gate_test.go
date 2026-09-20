@@ -81,8 +81,17 @@ var projectionRatchet = map[string]string{
 	// already assessed as failing B4 (internal/action/decide.go's doc comment), not a generic
 	// record shape. Listed here so the ratchet covers them rather than leaving a silent hole --
 	// not as a promise that they migrate on the same schedule.
+	//
+	// "detail.templ" left this list in Fase 6b, the first entry ever to do so. It was here for two
+	// reads -- fld_decision in decideButtons and fld_document in signatureConfirmation -- both of
+	// which existed only because an Approval Step had no screen of its own and the generic detail
+	// page was standing in for one. Board 10 is that screen now (reviewdocument.templ), its values
+	// are resolved by composition.ReviewDocument, and the new file contains no raw read at all,
+	// because a new file may not be added here. What is *not* claimed: detail.templ still carries
+	// five `m.ID == action.DocumentMachineID` branches. This gate measures raw field reads, not
+	// Machine-id branches, and saying otherwise would be the same written-claim-for-the-thing
+	// failure this package exists to catch.
 	"approvalstepper.templ":    "Case 3 bespoke approval UI (writing-guide.md honest map)",
-	"detail.templ":             "Case 3 special-casing inside the otherwise-generic detail renderer",
 	"documentsubmit.templ":     "Case 3 submission wizard (writing-guide.md honest map)",
 	"signatureplacement.templ": "Case 3 signature-coordinate canvas (writing-guide.md honest map)",
 }

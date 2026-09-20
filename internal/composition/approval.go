@@ -210,7 +210,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			Submitter:    submitter,
 			SubmittedAt:  submittedAt,
 			SLADue:       doc.Values["fld_due_date"],
-			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names),
+			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names, ""),
 			Href:         fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID),
 			CardFields:   cardFields,
 		})
@@ -308,7 +308,15 @@ func submittersFromActivity(activities []*data.Record) map[string]submission {
 // states approvalStepRow (internal/rendering/approvalstepper.templ) already renders for the
 // Document detail page's vertical stepper, recomputed here rather than shared: that templ's own
 // sequence sort is unexported to its package.
-func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, names map[string]string) []rendering.StepApprover {
+//
+// Fase 6b gave it a second caller, ReviewDocument (review.go), for board 10's Approval Progress
+// list -- which is why the raw reads below stayed here instead of moving into that screen. A new
+// .templ may contain no Values[...] at all (internal/conformance's projection ratchet), so the
+// review screen renders this slice and reads nothing itself.
+//
+// viewer is the actor whose own step gets StepApprover.IsYou; pass "" when nobody is viewing in
+// particular, as the inbox does -- every card there is already the viewer's own.
+func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, names map[string]string, viewer string) []rendering.StepApprover {
 	ordered := make([]*data.Record, len(steps))
 	copy(ordered, steps)
 	sort.Slice(ordered, func(i, j int) bool {
@@ -333,10 +341,38 @@ func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Recor
 		// avatar, so board 07's approver list costs no extra query -- it was in hand and simply
 		// not carried onto the card. An assignee with no resolvable record degrades to an empty
 		// name, which the card renders as initials-only rather than as a blank row.
-		name := names[DisplayString(s.Values[action.FieldStepAssignee])]
-		approvers[i] = rendering.StepApprover{Name: name, Initials: Initials(name), State: state}
+		assignee := DisplayString(s.Values[action.FieldStepAssignee])
+		name := names[assignee]
+		// Only a decided step has a time worth showing; a pending one's UpdatedAt is whenever its
+		// signature marker was last dragged, which would read as a decision that never happened.
+		decided := ""
+		if state == "done" || state == "rejected" {
+			decided = s.UpdatedAt.Format("15:04")
+		}
+		approvers[i] = rendering.StepApprover{
+			Name:     name,
+			Initials: Initials(name),
+			State:    state,
+			Label:    stepLabel(s, name),
+			Decided:  decided,
+			IsYou:    viewer != "" && assignee == viewer,
+		}
 	}
 	return approvers
+}
+
+// stepLabel is what a step is for: its declared fld_step_name, or the assignee's own name while
+// that Field is empty.
+//
+// The fallback is not a placeholder, it is the behaviour every screen had before fld_step_name
+// existed (approvalStepRow still titles each row with the assignee). Nothing writes the Field until
+// board 08's wizard collects it in Fase 6c, so a Document submitted today reads exactly as it did
+// yesterday, and one submitted after 6c gains the process-level title board 10 draws.
+func stepLabel(s *data.Record, assigneeName string) string {
+	if declared := strings.TrimSpace(DisplayString(s.Values[action.FieldStepName])); declared != "" {
+		return declared
+	}
+	return assigneeName
 }
 
 // Initials is a person's display initials for a SummaryCard's avatar (Study 38's Avatar cluster)

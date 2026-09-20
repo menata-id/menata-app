@@ -144,9 +144,27 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        off records in the `.templ`. **Hour-scale SLA wording is the one board element not
        rendered** — `fld_due_date` is `type: date` and no datetime Field type exists; see the
        deferral table.
-     - **6b Review (board 10) + Signature positions (09)** — board 10 today rides the *generic*
-       record-detail page every Machine shares; giving it its own screen is what lets
-       `detail.templ` shed its Case 3 special-casing, a ratchet entry that can actually leave.
+     - **6b Review (board 10)** — *shipped 2026-09-20*, and **board 09 moved to 6c** rather than
+       shipping here as this line first paired it. Three pieces of evidence, all from the mockup
+       and the companion repo rather than from convenience: board 09's own eyebrow reads `STEP 2
+       OF 3`, so it is a step of the submit wizard 6c owns, not a standalone screen; its approver
+       list shows `Legal Group · Group · 4 members` under the explicit note *"Approvers are
+       supplied by Groups"*, which is CAP-F24, also 6c; and it replaces per-interaction saves with
+       a batch `Save positions →`, a rework of the interaction model rather than a port. The
+       companion repo's own staged plan already placed it last (`case-03-composability-
+       checklist.md` Stage 4, *"boleh tidak sampai"*), because Q3 names signature coordinates as
+       the canonical shape that stays page-internal.
+
+       What board 10 bought: **`detail.templ` left `projectionRatchet` — the first entry ever to
+       do so.** The Approve/Reject bar, the signature canvas and the placement confirmation lived
+       on the *generic* record-detail page only because an Approval Step had no screen of its own,
+       and the bar read `fld_decision` straight off the record. They now live on
+       `reviewdocument.templ`, whose values `composition.ReviewDocument` resolves, and which
+       contains no raw read at all — a new file may not be added to that list. A second thing fell
+       out: `hasSignatureForGate` was being run on *every* Machine's detail page, `mch_task`
+       included; only the review screen asks it now. **What is not claimed:** `detail.templ` still
+       carries five `m.ID ==` branches. The ratchet measures raw field reads, not Machine-id
+       branches, and saying otherwise would be this repo's own recorded failure shape.
      - **6c Submit wizard (board 08)** — including group-as-assignee via **CAP-F24**
        (`approver_type` + `approver_user`/`approver_group`). It lands in the Field layer, so it is
        a question to put to whoever owns that layer at the time, not an assumption to build on.
@@ -175,9 +193,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | ~~Effective-access panel, direct ∪ group-inherited~~ — *done in Fase 4*: `data.EffectiveRoles`, computed not stored | — | — |
   | Member full name beside the email (board 04/05) | **no phase yet** | `data.Membership` carries only `Email`; `memberInitials` derives from the local part meanwhile. 3b moved roles but not identity, so this outlived the phase it was pinned to |
   | ~~Section tab strip (board 07)~~ — *done in 6a*: `rendering.inboxTabs`, page chrome rather than a second `navigation:` level. Fase 2 had recorded this as "the only part needing" one; with two tabs being `?tab=` views of a single route and the other two being real declared items, the case never materialized | — | — |
-  | Hour-scale SLA wording (board 07: "SLA breached · 4h", "8h remaining") | **no phase yet** | `fld_due_date` is `type: date` — a bare calendar date, no time component — and `domain.KnownFieldTypes` has no datetime type at all. `experience.EvaluateSLA` truncates to day *deliberately*, which is what makes "Due today" mean anything. Adding a Field type to satisfy one label is shape-before-need; the trigger is a second, independent caller that genuinely needs sub-day precision. Noted at the site in `ApprovalInboxPage`'s own doc comment |
-  | Review document as its own screen (board 10) | Fase 6b | today it rides the generic record-detail page shared by every Machine |
-  | New chrome on the Document Approval screens (~~inbox~~, submit, signature) | **inbox done in 6a**; submit 6c, signature 6b | Preflight ties chrome to content; their content ports there |
+  | Hour-scale SLA wording (board 07: "SLA breached · 4h"; board 10: "Breached · 4 hours ago") | **no phase yet** | `fld_due_date` is `type: date` — a bare calendar date, no time component — and `domain.KnownFieldTypes` has no datetime type at all. `experience.EvaluateSLA` truncates to day *deliberately*, which is what makes "Due today" mean anything. Adding a Field type to satisfy one label is shape-before-need; the trigger is a second, independent caller that genuinely needs sub-day precision. Noted at the site in `ApprovalInboxPage`'s and `ReviewDocumentPage`'s own doc comments. **Two screens now want it and it is still not built** — that is the row working, not a row going stale: both are the same board's day-vs-hour mismatch, not two independent callers |
+  | ~~Review document as its own screen (board 10)~~ — *done in 6b*: `reviewdocument.templ` + `composition.ReviewDocument`, which is what let `detail.templ` out of `projectionRatchet` | — | — |
+  | Uploaded file size (board 10: "6 pages · 2.4 MB") | **no phase yet** | the page count is real (`internal/pdf.PageCount`) and is rendered; **the byte size is stored nowhere** — not on the record, not in `internal/storage`'s key, which embeds only the original filename. It needs a write-path change (capture size at upload) plus a Field to hold it, for one label. The trigger is a second caller that needs file metadata, not this line |
+  | Step names with real values (board 10: "Finance Review") | **Fase 6c** | `fld_step_name` is declared as of 6b and `composition.stepLabel` reads it; nothing *writes* it until board 08's wizard collects it. Until then every step is titled with its assignee, which is exactly what the app did before the Field existed — the fallback is the honest state, not a placeholder |
+  | New chrome on the Document Approval screens (~~inbox~~, ~~review~~, submit, signature) | **inbox done in 6a, review in 6b**; submit and signature both 6c | Preflight ties chrome to content; their content ports there. Signature moved out of 6b — board 09 is `STEP 2 OF 3` of the submit wizard and shows Group approvers (CAP-F24), so it belongs with board 08, not before it |
   | Approval Role Matrix (board 06) | Fase 7 | role-based Permission + a declared transition model, neither in 006/007 |
   | Declared `requires_role:` on a navigation item | **a second real case, not a phase** — likeliest around Fase 7, when an Application role could gate an item (a handler naming an id cannot express that) | one case exists today and has code: `appShell`'s `hiddenNavIDs`. See "Per-user/role navigation filtering" below for why the second case, not the calendar, is the trigger |
   | Mobile bottom bar for an Application's own menu | **no phase yet** — lands when the Project Management screens get boards | Those screens are still `pageStyles`, so a bottom bar there would be hand-written CSS thrown away when they port — that is the real blocker. **This row previously said "nothing in Fase 2–7 displays it", which stopped being true at Fase 3a**: Project Management declares no `show_nav`, keeps its menu, and `/my-tasks` renders ten nav links today. It stayed wrong through four phase closes because nobody re-read the table, which is the one thing this table needs. The owner's decision (`navigation.html`, 3–4 icons, top-4 by priority) was never the missing part |

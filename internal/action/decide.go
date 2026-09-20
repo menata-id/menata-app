@@ -29,6 +29,10 @@ const (
 	FieldStepSequence   = "fld_sequence"
 	FieldStepAssignee   = "fld_assignee"
 	FieldStepDecision   = "fld_decision"
+	// FieldStepName is what a step is *for* ("Finance Review"), independent of who holds it --
+	// board 10's own step titles, Fase 6b. Optional and unwritten until board 08's wizard collects
+	// it (6c); composition.stepLabel falls back to the assignee's name meanwhile.
+	FieldStepName = "fld_step_name"
 
 	// Signature placement fields (ROADMAP.md Phase 15 Step 3/4) -- plain, percentage-based number
 	// Fields, not a new Field type. Origin is the top-left of the rendered page image: X grows

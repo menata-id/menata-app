@@ -31,12 +31,28 @@ type SLAFilter struct {
 // `StepStates []string` could not express -- it carried the states and nothing to attach them to.
 // Composed in internal/composition.stepStates from the names map buildInbox already assembles, so
 // this costs no extra query.
+//
+// Fase 6b made it the *shared* step view model rather than the inbox card's own: board 10's
+// Approval Progress list (reviewdocument.templ) renders the same slice. Sharing the data and not
+// the markup is deliberate -- approvalstepper.templ still draws this concept for the Document
+// detail page in pageStyles, and Tailwind's Preflight ties chrome to content, so one rendering
+// cannot serve both until that page ports too.
 type StepApprover struct {
 	Name     string
 	Initials string
 	// State is done / current / rejected / waiting -- the same four
 	// approvalStepRow renders on the Document detail page's vertical stepper.
 	State string
+	// Label is what this step is for -- mch_approval_step's own fld_step_name, falling back to
+	// Name while that Field is empty (nothing writes it until board 08's wizard, Fase 6c). Board 07
+	// does not show it; board 10 titles each step with it.
+	Label string
+	// Decided is when this step was approved or rejected, formatted "15:04" -- empty for a step
+	// that has not been decided. Board 10 draws it beside the approver's name.
+	Decided string
+	// IsYou marks the step belonging to the viewer, which board 10 badges with a "You" pill. The
+	// inbox card has no use for it: every card there is already the viewer's own.
+	IsYou bool
 }
 
 // PendingApprovalCard is one "pending my approval" card (board 07's own grid). Richer than the
@@ -180,7 +196,7 @@ func ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine 
 				var templ_7745c5c3_Var4 templ.SafeURL
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(t.Href))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 128, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 144, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -216,7 +232,7 @@ func ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine 
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(t.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 136, Col: 14}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 152, Col: 14}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -240,7 +256,7 @@ func ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine 
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(labelByID("nav_approval_inbox"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 147, Col: 39}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 163, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -269,7 +285,7 @@ func ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine 
 			var templ_7745c5c3_Var8 templ.SafeURL
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID("nav_new_approval")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 159, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 175, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -282,7 +298,7 @@ func ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine 
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(labelByID("nav_new_approval"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 162, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 178, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -379,7 +395,7 @@ func inboxEmpty(message string) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 192, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 208, Col: 11}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -430,7 +446,7 @@ func filterChip(f SLAFilter) templ.Component {
 		var templ_7745c5c3_Var14 templ.SafeURL
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID("nav_approval_inbox") + "?filter=" + url.QueryEscape(f.Key)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 200, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 216, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -456,7 +472,7 @@ func filterChip(f SLAFilter) templ.Component {
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(f.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 205, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 221, Col: 11}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
@@ -469,7 +485,7 @@ func filterChip(f SLAFilter) templ.Component {
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(f.Count))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 205, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 221, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
@@ -525,7 +541,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 		var templ_7745c5c3_Var20 templ.SafeURL
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(c.Href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 218, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 234, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {
@@ -576,7 +592,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 			var templ_7745c5c3_Var24 string
 			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 229, Col: 11}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 245, Col: 11}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 			if templ_7745c5c3_Err != nil {
@@ -594,7 +610,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(c.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 233, Col: 52}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 249, Col: 52}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -607,7 +623,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(c.Reference)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 234, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 250, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
@@ -620,7 +636,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(c.DocumentType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 234, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 250, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
@@ -633,7 +649,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(c.Submitter)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 237, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 253, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -647,7 +663,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(" · " + c.SubmittedAt)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 239, Col: 28}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 255, Col: 28}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -741,7 +757,7 @@ func approverChip(a StepApprover) templ.Component {
 		var templ_7745c5c3_Var32 string
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(a.Name + ", " + approverStateLabel(a.State))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 264, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 280, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 		if templ_7745c5c3_Err != nil {
@@ -768,7 +784,7 @@ func approverChip(a StepApprover) templ.Component {
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(a.Initials)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 273, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 289, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -788,7 +804,7 @@ func approverChip(a StepApprover) templ.Component {
 			var templ_7745c5c3_Var35 string
 			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(a.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 279, Col: 11}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 295, Col: 11}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 			if templ_7745c5c3_Err != nil {
@@ -854,7 +870,7 @@ func approvalProgress(approved, total int) templ.Component {
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprint(progressPercent(approved, total)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 309, Col: 63}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 325, Col: 63}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 		if templ_7745c5c3_Err != nil {
@@ -867,7 +883,7 @@ func approvalProgress(approved, total int) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("%d of %d approved", approved, total))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 312, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 328, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 		if templ_7745c5c3_Err != nil {
@@ -880,7 +896,7 @@ func approvalProgress(approved, total int) templ.Component {
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(progressWidth(approved, total))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 315, Col: 89}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 331, Col: 89}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
@@ -893,7 +909,7 @@ func approvalProgress(approved, total int) templ.Component {
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d of %d approved", approved, total))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 317, Col: 109}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 333, Col: 109}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {

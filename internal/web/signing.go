@@ -145,8 +145,8 @@ func signatureImageFor(ctx context.Context, store *data.Store, files *storage.St
 
 // hasSavedSignature reports whether ownerID already has a reusable mch_signature on file --
 // signDocument doesn't need the bytes, so this skips the file read signatureImageFor does.
-// Threaded into decideButtons (rendering/detail.templ) as the render-time half of the
-// signature-capture gate; decideStep is the write-time half.
+// Threaded into the review screen's decision bar (rendering/reviewdocument.templ) as the
+// render-time half of the signature-capture gate; decideStep is the write-time half.
 func hasSavedSignature(ctx context.Context, store *data.Store, ownerID string) (bool, error) {
 	sigs, err := store.ListRecordsBy(ctx, action.SignatureMachineID, action.FieldSignatureOwner, ownerID)
 	if err != nil {
@@ -155,10 +155,16 @@ func hasSavedSignature(ctx context.Context, store *data.Store, ownerID string) (
 	return len(sigs) > 0, nil
 }
 
-// hasSignatureForGate is decideButtons' own render-time gate input (rendering/detail.templ):
-// whether actorID may Approve without the canvas modal appearing first. True for every Machine
-// other than mch_approval_step, where the gate is meaningless -- letting showRecordRow/
-// renderRecord compute this unconditionally rather than branching on machine.ID themselves.
+// hasSignatureForGate is the review screen's own render-time gate input
+// (rendering/reviewdocument.templ): whether actorID may Approve without the canvas modal appearing
+// first.
+//
+// It keeps its "true for every Machine other than mch_approval_step" arm although Fase 6b left it
+// exactly one caller, which already checks that itself. The arm is what makes the function safe to
+// call without knowing the Machine, and removing it would make a future third caller's omission
+// silent -- it would read as "this person has a signature" rather than "this question does not
+// apply here". Until Fase 6b it was called on *every* Machine's detail page, mch_task included;
+// that is the call the review screen took away.
 func hasSignatureForGate(ctx context.Context, store *data.Store, machine *domain.Machine, actorID string) (bool, error) {
 	if machine.ID != action.StepMachineID {
 		return true, nil

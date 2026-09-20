@@ -13,6 +13,18 @@ fields:
     name: Sequence
     type: number
     required: true
+  # What this step is *for*, independent of who happens to hold it -- "Finance Review", "Legal
+  # Review", "Director" (ui-sample/case-03-flow1/10-review-document.html, Fase 6b). Until this
+  # existed, every step's title on screen was its assignee's name, so a process could not say that
+  # step 2 is the legal check regardless of which lawyer is on it.
+  #
+  # Deliberately not required, and nothing writes it yet: the submission wizard that collects it is
+  # board 08, Fase 6c. composition.stepLabel falls back to the assignee's name while it is empty,
+  # which is exactly the old behaviour -- so declaring it early costs a reader nothing and means 6c
+  # fills a Field rather than changing a shape. See ROADMAP.md's deferral table.
+  - id: fld_step_name
+    name: Step Name
+    type: text
   - id: fld_assignee
     name: Assignee
     type: person
