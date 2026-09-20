@@ -4,191 +4,235 @@ import (
 	"fmt"
 
 	"menata.app/internal/action"
-	"menata.app/internal/authorization"
-	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
 
-// SignaturePlacementPage is Case 3's signature-coordinate placement screen (ROADMAP.md Phase 15
-// Step 4): one draggable marker per Approval Step, over a real rendered page of the Document's
-// own PDF (Step 3's internal/pdf). Hardcoded to mch_document/mch_approval_step, same posture as
-// internal/action -- Case 3's own screen, not a generic per-Machine mechanism.
+// PlacementView is board 09's whole content, resolved by composition.SignaturePlacement before
+// this file is reached.
 //
-// Dragging a marker is the one named vanilla-JS exception (README.md's "Tech stack"): HTMX's
-// request/response model has no way to express continuous pointer movement. Everything else here
-// -- placing a marker on the current page, saving a drag's final position -- is an ordinary HTMX
-// form post to the ROADMAP.md Phase 3/11 generic PUT route, exactly like every other edit in this
-// app. Still true after the 2026-09-19 UX review's own fix below: no new JS was added, only HTMX
-// attributes.
+// No *data.Record and no Values[...] anywhere in this file -- the same hard constraint
+// rendering.ReviewView states, and the reason this file could leave internal/conformance's
+// projection ratchet in Fase 6c-3.
+type PlacementView struct {
+	DocumentID    string
+	DocumentTitle string
+	Page          int
+	TotalPages    int
+	Steps         []PlacementStep
+}
+
+// PlacementStep is one Approval Step's marker and sidebar card.
+type PlacementStep struct {
+	StepID string
+	Index  int
+	// StepName is what the step is *for* (fld_step_name, "Legal Review"). Board 09 puts it under
+	// the approver's name; empty until board 08's wizard collected one.
+	StepName string
+	// Approver is whoever holds the step, and ApproverKind says which sort they are --
+	// domain.ActorKindUser or ActorKindGroup. The kind is carried rather than inferred from which
+	// name is non-empty, because board 09 badges them differently and a person whose record has
+	// gone missing must not silently read as a Group.
+	Approver     string
+	ApproverKind string
+	// Placed distinguishes "no marker yet" from "a marker at 50/50": X, Y and Width always hold
+	// renderable numbers, defaulted by Composition, so the page never decides one itself.
+	Placed bool
+	Page   int
+	X      float64
+	Y      float64
+	Width  float64
+	// Editable is authorization.AllowsAction(ActionEdit) for this step, resolved once per step by
+	// Composition. Since Fase 6c-3 a Group-held step resolves it through its Group -- before that
+	// it resolved against an empty fld_assignee and came back false for everyone, which made this
+	// screen's own marker undraggable by anybody.
+	Editable bool
+	// CarryFields is every Field this step holds that the forms below do not submit themselves.
+	// See composition.carryForward: it is derived from the Machine's declared Fields, so a Field
+	// added later is carried without anyone editing this file.
+	CarryFields []CarryField
+}
+
+// SignaturePlacementPage is board 09 (ui-sample/case-03-flow1/09-signature-positions.html,
+// Fase 6c-3): place one signature box per approval step on the Document's own rendered page.
 //
-// stepMachine and actor exist for the same reason RecordDetailPage's own actor does (ROADMAP.md
-// Phase 16): so signaturePlacementBlock can hide drag/place/width controls for an Approval Step the
-// viewer isn't its own assignee for, instead of letting anyone reposition anyone's marker --
-// updateRecordForm's allowsRecordEdit enforces the same rule regardless, on the PUT these
-// controls submit.
-templ SignaturePlacementPage(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, stepMachine *domain.Machine, actor domain.Actor) {
-	@pageShell("Signature Placement") {
-		<p><a href={ templ.URL("/machines/" + action.DocumentMachineID + "/records/" + document.ID) }>← { toString(document.Values["fld_title"]) }</a></p>
-		<h1>Signature positions</h1>
-		<p class="step-status">Step 2 of 2 — Signature Positions</p>
-		<p class="step-status">Place one marker per approval step. Drag a placed marker to reposition it.</p>
-		@signaturePlacementBlock(document, steps, relations, page, totalPages, stepMachine, actor)
+// FOUR BOARD ELEMENTS ARE DELIBERATELY NOT RENDERED, each for a reason in ROADMAP.md's deferral
+// table rather than an oversight: the zoom controls (nothing stores or needs a zoom level -- the
+// app serves one rendered size), the selected-step highlight (no selection model exists, and the
+// screen works without one), the approver's department sub-line ("Finance" -- mch_user has no such
+// Field; fld_step_name is the honest substitute and is what this renders), and the footer's
+// "Save positions →". That last one is not a missing button: every drag, place and width change is
+// already persisted by its own request, so a Save button would claim a staging step that does not
+// exist. The board's own "STEP 2 OF 3" is likewise "Step 2 of 2" here, because two screens exist.
+//
+// What this has that the board does not: page navigation (the board shows only "Page 6 of 6"), a
+// width control, and an honest "Not placed yet" state -- every step on the board is pre-placed.
+templ SignaturePlacementPage(v PlacementView, workspaceName, userInitials, workspaceRole string) {
+	@appShell("Signature positions", workspaceName, userInitials, "nav_approval_inbox", membersHiddenFor(workspaceRole)) {
+		<a href={ templ.URL("/machines/" + action.DocumentMachineID + "/records/" + v.DocumentID) } class="text-xs text-blue-600 hover:text-blue-700">
+			← { v.DocumentTitle }
+		</a>
+		<div class="flex flex-col gap-2">
+			<span class="text-3xs tracking-wide text-blue-600 uppercase">Step 2 of 2</span>
+			<h1 class="m-0 text-xl font-medium">Signature positions</h1>
+			<div class="text-sm text-slate-500">
+				Place one signature box for each approval step. Positions are saved per step, as you
+				make them.
+			</div>
+		</div>
+		<div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_316px]">
+			<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+				<div class="flex flex-wrap items-center justify-between gap-3">
+					<h2 class="m-0 text-sm font-medium">{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</h2>
+					<span class="flex items-center gap-3 text-xs">
+						if v.Page > 1 {
+							<a href={ templ.URL(placementPageHref(v.DocumentID, v.Page-1)) } class="text-blue-600 hover:text-blue-700">← Prev</a>
+						}
+						if v.Page < v.TotalPages {
+							<a href={ templ.URL(placementPageHref(v.DocumentID, v.Page+1)) } class="text-blue-600 hover:text-blue-700">Next →</a>
+						}
+					</span>
+				</div>
+				<p class="m-0 text-2xs text-slate-500">Drag each box to its signature block.</p>
+				@placementCanvas(v, true)
+			</section>
+			<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+				<h2 class="m-0 text-sm font-medium">Approval steps</h2>
+				for _, s := range v.Steps {
+					@placementStepCard(s, v.Page)
+				}
+				<p class="m-0 rounded-md bg-slate-50 p-3 text-2xs leading-5 text-slate-500">
+					Approvers are supplied by Groups. Changing group membership is managed separately.
+				</p>
+			</aside>
+		</div>
+		@placementDragScript()
 	}
 }
 
-// signaturePlacementBlock is the drag/place/width Component itself -- 007 §12.3's bounded contract
-// (document, steps, relations, page, totalPages, nothing else) factored out of SignaturePlacementPage
-// so a second Page can compose it too (detail.templ's RecordDetailView, Document's own detail page)
-// without duplicating this markup or its script. SignaturePlacementPage above is now just that
-// Page's own frame -- breadcrumb, heading, status text -- around this same Component.
+// placementCanvas is the rendered page with one marker per step placed on it.
 //
-// #sig-body listens for its own descendants' successful requests (htmx:afterRequest bubbles from
-// whichever form just PUT, up through this div) and re-fetches itself from the canonical
-// signature-placement route, selecting the same #sig-body back out of that full page response
-// (hx-select, the declarative form of htmx.ajax's own select option) -- replacing a full
-// window.location.reload() per drag/place/width-change (jarring for what should feel like direct
-// manipulation) with a same-region refresh, entirely in HTMX, no new vanilla JS. This refresh
-// works identically wherever this block is embedded, since it always re-fetches from
-// placementURL, not from "wherever the page currently is". The three forms below
-// (sigMarker/placeStepForm/widthControl) need no attribute of their own for this -- one listener
-// on the shared container is enough.
-//
-// The trailing <script> travels with the block, not with the Page, so any Page that embeds this
-// Component gets working drag behavior automatically -- a Component must not depend on its host
-// Page remembering to also include its behavior (007 §12.3 boundedness).
-templ signaturePlacementBlock(document *data.Record, steps []*data.Record, relations RelationOptions, page, totalPages int, stepMachine *domain.Machine, actor domain.Actor) {
-	<div
-		class="sig-layout"
-		id="sig-body"
-		hx-trigger="htmx:afterRequest[detail.successful]"
-		hx-get={ placementURL(document.ID, page) }
-		hx-select="#sig-body"
-		hx-swap="outerHTML"
-	>
-		<section>
-			<div class="sig-pager">
-				<strong>Page { fmt.Sprint(page) } of { fmt.Sprint(totalPages) }</strong>
-				<span>
-					if page > 1 {
-						<a href={ templ.URL(placementURL(document.ID, page-1)) }>← Prev</a>
-					}
-					if page < totalPages {
-						<a href={ templ.URL(placementURL(document.ID, page+1)) }>Next →</a>
-					}
-				</span>
-			</div>
-			<div class="sig-canvas">
-				<img src={ previewURL(document.ID, page) } alt="Document page preview"/>
-				for i, s := range steps {
-					if signaturePage(s) == page {
-						@sigMarker(s, i+1, authorization.AllowsAction(stepMachine, domain.ActionEdit, s.Values, actor))
-					}
-				}
-			</div>
-		</section>
-		<aside>
-			<h2>Approval steps</h2>
-			for i, s := range steps {
-				{{ editable := authorization.AllowsAction(stepMachine, domain.ActionEdit, s.Values, actor) }}
-				<div class="sig-step-card">
-					<strong>{ fmt.Sprintf("%d. %s", i+1, RelationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))) }</strong>
-					if signaturePlaced(s) {
-						<p class="step-status">{ fmt.Sprintf("Page %d · %.0f%% · %.0f%% · %.0f%% wide", signaturePage(s), signatureCoord(s, action.FieldStepSignatureX), signatureCoord(s, action.FieldStepSignatureY), signatureWidth(s)) }</p>
-					} else {
-						<p class="step-status">Not placed yet</p>
-					}
-					if editable {
-						@widthControl(s, page)
-						@placeStepForm(s, page)
-					}
-				</div>
+// tailwind picks which styling the markers carry, because this Component is rendered under two
+// different shells -- appShell (this page) and pageShell (the Document detail page's embed) --
+// and Tailwind's Preflight and pageStyles deliberately do not meet on a page. The *positional*
+// rules are identical either way and are what the drag maths depends on; see placementMarker.
+templ placementCanvas(v PlacementView, tailwind bool) {
+	<div class={ "sig-canvas", templ.KV("relative inline-block w-full max-w-[480px]", tailwind) }>
+		<img
+			src={ placementPreviewHref(v.DocumentID, v.Page) }
+			alt={ fmt.Sprintf("Page %d of the document", v.Page) }
+			class={ templ.KV("block w-full rounded-md border border-slate-200", tailwind) }
+		/>
+		for _, s := range v.Steps {
+			if s.Placed && s.Page == v.Page {
+				@placementMarker(s, tailwind)
 			}
-		</aside>
+		}
 	</div>
-	<script>
-		// Event delegation (rather than a per-marker addEventListener, the pre-2026-09-19
-		// version of this script) so a marker inserted by the #sig-body refresh below still
-		// drags correctly without needing to re-run this setup after every swap.
-		(function () {
-			var dragging = null;
-			document.addEventListener("pointerdown", function (e) {
-				var marker = e.target.closest(".sig-marker");
-				if (!marker) return;
-				dragging = marker;
-				marker.setPointerCapture(e.pointerId);
-			});
-			document.addEventListener("pointermove", function (e) {
-				if (!dragging) return;
-				var rect = dragging.closest(".sig-canvas").getBoundingClientRect();
-				var x = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
-				var y = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
-				dragging.style.left = x + "%";
-				dragging.style.top = y + "%";
-				var form = dragging.closest("form");
-				form.querySelector(".sig-x-input").value = x.toFixed(1);
-				form.querySelector(".sig-y-input").value = y.toFixed(1);
-			});
-			document.addEventListener("pointerup", function () {
-				if (!dragging) return;
-				dragging.closest("form").requestSubmit();
-				dragging = null;
-			});
-		})();
-	</script>
 }
 
-// sigMarker is one already-placed Approval Step's draggable marker, positioned by inline style
-// from its own stored percentage coordinates. Its form carries every field the generic PUT route
-// requires (ROADMAP.md Phase 3/11) so a drag-triggered submit is a normal record update, not a
-// partial one -- fld_decision is included unchanged, never edited here, so updateRecordForm's own
-// Phase 12 guard never fires.
+// placementMarker is one placed step's draggable marker.
 //
-// editable is authorization.AllowsAction(ActionEdit) for this step, computed once by
-// signaturePlacementBlock -- when false the marker still shows where the step is placed (a
-// viewer who isn't its assignee can still see every step's own progress) but as a plain,
-// non-draggable span with no form to submit; allowsRecordEdit (internal/web/record.go) enforces
-// the same rule server-side regardless.
-templ sigMarker(s *data.Record, index int, editable bool) {
-	if editable {
-		<form
-			hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID) }
-			hx-swap="none"
-		>
-			@stepHiddenFields(s)
-			<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(signaturePage(s)) }/>
-			<input type="hidden" class="sig-x-input" name={ action.FieldStepSignatureX } value={ fmt.Sprint(signatureCoord(s, action.FieldStepSignatureX)) }/>
-			<input type="hidden" class="sig-y-input" name={ action.FieldStepSignatureY } value={ fmt.Sprint(signatureCoord(s, action.FieldStepSignatureY)) }/>
-			<input type="hidden" name={ action.FieldStepSignatureWidth } value={ fmt.Sprint(signatureWidth(s)) }/>
+// THE POSITIONAL CSS IS NOT DECORATION. The drag script writes the pointer's percentage straight
+// into left/top and relies on `transform: translate(-50%,-50%)` to centre the marker under the
+// cursor; `position:absolute` against the canvas's `position:relative` is what makes those
+// percentages mean anything; and `touch-action:none` is what stops a touch drag from being taken
+// as a page scroll. Those four are spelled out as utilities here rather than left to the
+// `.sig-marker` class, because that class only exists in pageStyles -- and a class carrying
+// behaviour across a shell boundary is exactly how board 10 ended up with a signature canvas that
+// silently lost `touch-action:none` when it moved to appShell in Fase 6b.
+//
+// Changing the anchor would silently move every stored placement: internal/action's compositing
+// reads the same percentages at stamp time. Board 09 draws a 112x56 labelled box instead of this
+// circle, which is a change of anchor unless the translate stays -- so the box may grow, but
+// around this centre.
+templ placementMarker(s PlacementStep, tailwind bool) {
+	if s.Editable {
+		<form hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.StepID) } hx-swap="none">
+			@csrfHiddenInput()
+			@stepCarryFields(s)
+			<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(s.Page) }/>
+			<input type="hidden" class="sig-x-input" name={ action.FieldStepSignatureX } value={ fmt.Sprintf("%.1f", s.X) }/>
+			<input type="hidden" class="sig-y-input" name={ action.FieldStepSignatureY } value={ fmt.Sprintf("%.1f", s.Y) }/>
+			<input type="hidden" name={ action.FieldStepSignatureWidth } value={ fmt.Sprintf("%.0f", s.Width) }/>
 			<button
-				type="submit"
-				class="sig-marker"
-				style={ fmt.Sprintf("left:%.1f%%;top:%.1f%%", signatureCoord(s, action.FieldStepSignatureX), signatureCoord(s, action.FieldStepSignatureY)) }
-			>{ fmt.Sprint(index) }</button>
+				type="button"
+				class={ "sig-marker", templ.KV("absolute flex size-7 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-full border-2 border-white bg-blue-600 text-3xs font-medium text-white shadow", tailwind) }
+				style={ fmt.Sprintf("left:%.1f%%;top:%.1f%%", s.X, s.Y) }
+				aria-label={ fmt.Sprintf("Signature box step %d, %s, drag to move", s.Index, s.Approver) }
+			>{ fmt.Sprint(s.Index) }</button>
 		</form>
 	} else {
 		<span
-			class="sig-marker"
-			style={ fmt.Sprintf("left:%.1f%%;top:%.1f%%", signatureCoord(s, action.FieldStepSignatureX), signatureCoord(s, action.FieldStepSignatureY)) }
-		>{ fmt.Sprint(index) }</span>
+			class={ "sig-marker", templ.KV("absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-slate-400 text-3xs font-medium text-white", tailwind) }
+			style={ fmt.Sprintf("left:%.1f%%;top:%.1f%%", s.X, s.Y) }
+			aria-label={ fmt.Sprintf("Signature box step %d, %s", s.Index, s.Approver) }
+		>{ fmt.Sprint(s.Index) }</span>
 	}
 }
 
-// placeStepForm is the sidebar's own no-JS control: place (or move) a step's marker onto the
-// currently viewed page, centered, as a starting point a drag can then adjust. Ordinary HTMX,
-// same generic PUT route as sigMarker's own form.
-templ placeStepForm(s *data.Record, page int) {
-	<form
-		hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID) }
-		hx-swap="none"
-	>
-		@stepHiddenFields(s)
+// placementStepCard is one step in the sidebar: who holds it, of which kind, and where its marker
+// currently sits.
+templ placementStepCard(s PlacementStep, page int) {
+	<div class="flex flex-col gap-2 rounded-md border border-slate-200 p-3">
+		<div class="flex flex-wrap items-center gap-2">
+			<span aria-hidden="true" class="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-3xs font-medium text-slate-700">{ fmt.Sprint(s.Index) }</span>
+			<span class="truncate text-sm">
+				if s.Approver != "" {
+					{ s.Approver }
+				} else {
+					Unassigned
+				}
+			</span>
+			@approverKindBadge(s.ApproverKind)
+		</div>
+		<span class="text-2xs text-slate-400">{ placementSubline(s) }</span>
+		if s.Editable {
+			@widthControl(s, page)
+			@placeStepForm(s, page)
+		}
+	</div>
+}
+
+// approverKindBadge is board 09's own User/Group pill. An empty kind renders nothing rather than
+// guessing: the wizard deliberately stores no approver type on a User row, and Composition already
+// resolves that absence to ActorKindUser, so an empty value here means something genuinely unknown.
+templ approverKindBadge(kind string) {
+	if kind != "" {
+		<span
+			class={ "rounded-full px-2 py-0.5 text-3xs",
+				templ.KV("bg-blue-50 text-blue-700", kind == domain.ActorKindUser),
+				templ.KV("bg-slate-100 text-slate-600", kind != domain.ActorKindUser) }
+		>{ kind }</span>
+	}
+}
+
+// placementSubline is the card's second line: what the step is for, and where its marker is.
+// Board 09 puts a department here ("Finance · Page 6"); no Field holds one, so this uses the step's
+// own declared name instead and falls back to the placement alone.
+func placementSubline(s PlacementStep) string {
+	where := "Not placed yet"
+	if s.Placed {
+		where = fmt.Sprintf("Page %d · %.0f%% · %.0f%% · %.0f%% wide", s.Page, s.X, s.Y, s.Width)
+	}
+	if s.StepName != "" {
+		return s.StepName + " · " + where
+	}
+	return where
+}
+
+// placeStepForm puts an unplaced step's marker on the page being viewed, or re-centres a placed
+// one -- the no-JavaScript path to the same result the drag gives.
+templ placeStepForm(s PlacementStep, page int) {
+	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.StepID) } hx-swap="none">
+		@csrfHiddenInput()
+		@stepCarryFields(s)
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(page) }/>
 		<input type="hidden" name={ action.FieldStepSignatureX } value="50"/>
 		<input type="hidden" name={ action.FieldStepSignatureY } value="50"/>
-		<input type="hidden" name={ action.FieldStepSignatureWidth } value={ fmt.Sprint(signatureWidth(s)) }/>
-		<button type="submit">
-			if signaturePage(s) == page {
-				Re-center on this page
+		<input type="hidden" name={ action.FieldStepSignatureWidth } value={ fmt.Sprintf("%.0f", s.Width) }/>
+		<button type="submit" class="cursor-pointer text-xs text-blue-600 hover:text-blue-700">
+			if s.Placed && s.Page == page {
+				Re-centre on this page
 			} else {
 				Place on this page
 			}
@@ -196,101 +240,145 @@ templ placeStepForm(s *data.Record, page int) {
 	</form>
 }
 
-// widthControl is the sidebar's own size control (ROADMAP.md Phase 17): how wide the composited
-// signature stamp will render, as a percentage of the page's own width -- height is derived from
-// the image's own aspect ratio at composite time (internal/action.compositeOne), not set here.
-// Submits on change to the same generic PUT route, carrying the step's current (or sensibly
-// defaulted) page/x/y forward unchanged so adjusting width alone never moves the marker.
-templ widthControl(s *data.Record, page int) {
-	<form
-		hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID) }
-		hx-trigger="change"
-		hx-swap="none"
-	>
-		@stepHiddenFields(s)
-		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(signaturePageOrCurrent(s, page)) }/>
-		<input type="hidden" name={ action.FieldStepSignatureX } value={ fmt.Sprint(signatureCoordOrDefault(s, action.FieldStepSignatureX)) }/>
-		<input type="hidden" name={ action.FieldStepSignatureY } value={ fmt.Sprint(signatureCoordOrDefault(s, action.FieldStepSignatureY)) }/>
-		<label class="sig-width-label">
+// widthControl resizes a marker without moving it: the placement's own page and coordinates are
+// carried forward unchanged, so a width-only edit never relocates the signature.
+templ widthControl(s PlacementStep, page int) {
+	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.StepID) } hx-trigger="change" hx-swap="none">
+		@csrfHiddenInput()
+		@stepCarryFields(s)
+		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(placementPageOrCurrent(s, page)) }/>
+		<input type="hidden" name={ action.FieldStepSignatureX } value={ fmt.Sprintf("%.1f", s.X) }/>
+		<input type="hidden" name={ action.FieldStepSignatureY } value={ fmt.Sprintf("%.1f", s.Y) }/>
+		<label class="sig-width-label flex items-center gap-1.5 text-2xs text-slate-500">
 			Width
-			<input type="number" name={ action.FieldStepSignatureWidth } value={ fmt.Sprint(signatureWidth(s)) } min="5" max="100" step="1"/>
+			<input type="number" name={ action.FieldStepSignatureWidth } value={ fmt.Sprintf("%.0f", s.Width) } min="5" max="100" step="1" class="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-2xs"/>
 			%
 		</label>
 	</form>
 }
 
-// stepHiddenFields carries every field the generic PUT route requires (ROADMAP.md Phase 3/11's
-// data.ValidateRecord enforces every required Field is present) forward unchanged, the same
-// "carry forward what isn't being edited" posture Phase 11's file-upload fix already established.
+// stepCarryFields echoes back every Field the surrounding form does not submit itself.
 //
-// IT MUST LIST EVERY FIELD A STEP CAN HOLD, not only the required ones, and that is a data-loss
-// trap rather than tidiness. These forms PUT to the *generic* update route, which rewrites the
-// record from what it is given, and data.ValuesFromForm (internal/data/form.go) drops a field that
-// is absent from the submission. Anything missing here is therefore erased by the next drag, place
-// or width change -- with no error, because nothing was invalid; the field simply stopped existing.
-//
-// The three CAP-F24/step-name Fields were added in Fase 6c-2, the same change that first wrote
-// them. Before that they were always empty, so their absence cost nothing and was invisible; the
-// moment the wizard filled them, every marker drag would have quietly reset a Group-held step back
-// to an ungated one. TestSignaturePlacementPut_preservesApproverFields (internal/web) is what
-// holds this shut, because no test covered this file at all when the trap was found.
-templ stepHiddenFields(s *data.Record) {
-	<input type="hidden" name={ action.FieldStepDocument } value={ toString(s.Values[action.FieldStepDocument]) }/>
-	<input type="hidden" name={ action.FieldStepSequence } value={ toString(s.Values[action.FieldStepSequence]) }/>
-	<input type="hidden" name={ action.FieldStepName } value={ toString(s.Values[action.FieldStepName]) }/>
-	<input type="hidden" name={ action.FieldStepAssignee } value={ toString(s.Values[action.FieldStepAssignee]) }/>
-	<input type="hidden" name={ action.FieldStepApproverType } value={ toString(s.Values[action.FieldStepApproverType]) }/>
-	<input type="hidden" name={ action.FieldStepApproverGroup } value={ toString(s.Values[action.FieldStepApproverGroup]) }/>
-	<input type="hidden" name={ action.FieldStepDecision } value={ toString(s.Values[action.FieldStepDecision]) }/>
-}
-
-func signaturePlaced(s *data.Record) bool {
-	_, ok := s.Values[action.FieldStepSignaturePage]
-	return ok
-}
-
-func signaturePage(s *data.Record) int {
-	v, _ := s.Values[action.FieldStepSignaturePage].(float64)
-	return int(v)
-}
-
-func signatureCoord(s *data.Record, fieldID string) float64 {
-	v, _ := s.Values[fieldID].(float64)
-	return v
-}
-
-// signatureCoordOrDefault is signatureCoord with a sensible starting value (page center) for a
-// step that has never been placed -- widthControl must submit a real x/y even before any drag or
-// "Place on this page" click has set one.
-func signatureCoordOrDefault(s *data.Record, fieldID string) float64 {
-	if v, ok := s.Values[fieldID].(float64); ok {
-		return v
+// It is a loop over a list Composition derived from the Machine's own declared Fields, not a
+// hand-written set of hidden inputs. That distinction is the whole fix: the hand-written version
+// silently erased whatever it forgot, and it forgot three Fields for two phases and then a fourth
+// (fld_signature_image) even after being corrected. See composition.carryForward.
+templ stepCarryFields(s PlacementStep) {
+	for _, f := range s.CarryFields {
+		<input type="hidden" name={ f.Name } value={ f.Value }/>
 	}
-	return 50
 }
 
-// signaturePageOrCurrent is signaturePage with a sensible default (the page currently being
-// viewed) for a step that has never been placed.
-func signaturePageOrCurrent(s *data.Record, currentPage int) int {
-	if signaturePlaced(s) {
-		return signaturePage(s)
+// placementDragScript is the drag behaviour, and it travels with whichever page renders a canvas.
+//
+// Event delegation rather than per-marker listeners, so a marker replaced by an HTMX swap still
+// drags without re-running any setup.
+//
+// The `if (!form) return` guard is new in Fase 6c-3 and fixes a real latent crash: a marker the
+// viewer may not edit renders as a bare <span> with no surrounding form, yet pointerdown matched
+// it by class, so the first pointermove threw a TypeError on form.querySelector and left the page
+// half-broken with nothing in the UI to say why.
+templ placementDragScript() {
+	<script>
+		(function () {
+			var dragging = null;
+			document.addEventListener("pointerdown", function (e) {
+				var marker = e.target.closest(".sig-marker");
+				if (!marker || !marker.closest("form")) return;
+				dragging = marker;
+				marker.setPointerCapture(e.pointerId);
+			});
+			document.addEventListener("pointermove", function (e) {
+				if (!dragging) return;
+				var canvas = dragging.closest(".sig-canvas");
+				var form = dragging.closest("form");
+				if (!canvas || !form) return;
+				var rect = canvas.getBoundingClientRect();
+				var x = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+				var y = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
+				dragging.style.left = x + "%";
+				dragging.style.top = y + "%";
+				form.querySelector(".sig-x-input").value = x.toFixed(1);
+				form.querySelector(".sig-y-input").value = y.toFixed(1);
+			});
+			document.addEventListener("pointerup", function () {
+				if (!dragging) return;
+				var form = dragging.closest("form");
+				if (form) form.requestSubmit();
+				dragging = null;
+			});
+		})();
+	</script>
+}
+
+// signaturePlacementBlock is the same placement UI embedded in the Document's own generic detail
+// page (detail.templ), which is still pageStyles.
+//
+// It is the pageStyles twin of SignaturePlacementPage's own body, sharing the composed
+// PlacementView and not the markup -- the split Fase 6b established for reviewProgress vs
+// approvalStepper, for the same reason: Preflight ties chrome to content, so one markup cannot
+// serve both until detail.templ ports. That page is the *generic* record view every Machine
+// shares, so porting it reaches far beyond Case 3 and belongs to whatever phase ports Project
+// Management.
+//
+// The #sig-body wrapper re-fetches itself after any successful descendant request, which is what
+// keeps every marker and card current after a drag without a full page reload.
+templ signaturePlacementBlock(v PlacementView) {
+	<div
+		class="sig-layout"
+		id="sig-body"
+		hx-trigger="htmx:afterRequest[detail.successful]"
+		hx-get={ placementPageHref(v.DocumentID, v.Page) }
+		hx-select="#sig-body"
+		hx-swap="outerHTML"
+	>
+		<section>
+			<div class="sig-pager">
+				<strong>{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</strong>
+				<span>
+					if v.Page > 1 {
+						<a href={ templ.URL(placementPageHref(v.DocumentID, v.Page-1)) }>← Prev</a>
+					}
+					if v.Page < v.TotalPages {
+						<a href={ templ.URL(placementPageHref(v.DocumentID, v.Page+1)) }>Next →</a>
+					}
+				</span>
+			</div>
+			@placementCanvas(v, false)
+		</section>
+		<aside>
+			<h2>Approval steps</h2>
+			for _, s := range v.Steps {
+				<div class="sig-step-card">
+					<strong>{ fmt.Sprintf("%d. %s", s.Index, s.Approver) }</strong>
+					<p class="step-status">{ placementSubline(s) }</p>
+					if s.Editable {
+						@widthControl(s, v.Page)
+						@placeStepForm(s, v.Page)
+					}
+				</div>
+			}
+		</aside>
+		@placementDragScript()
+	</div>
+}
+
+// placementPageOrCurrent keeps a width-only edit from relocating an unplaced marker: it lands on
+// the page being viewed, exactly where placeStepForm would have put it.
+func placementPageOrCurrent(s PlacementStep, currentPage int) int {
+	if s.Placed {
+		return s.Page
 	}
 	return currentPage
 }
 
-// signatureWidth defaults to 20% of the page's own width -- a reasonable starting size for a
-// signature stamp, adjustable via widthControl.
-func signatureWidth(s *data.Record) float64 {
-	if v, ok := s.Values[action.FieldStepSignatureWidth].(float64); ok && v > 0 {
-		return v
-	}
-	return 20
-}
-
-func placementURL(documentID string, page int) string {
+// placementPageHref and placementPreviewHref mirror composition's own helpers of the same name.
+// They are duplicated rather than imported because internal/rendering must not import
+// internal/composition -- the dependency runs the other way (007 §5).
+func placementPageHref(documentID string, page int) string {
 	return fmt.Sprintf("/machines/%s/records/%s/signature-placement?page=%d", action.DocumentMachineID, documentID, page)
 }
 
-func previewURL(documentID string, page int) string {
+func placementPreviewHref(documentID string, page int) string {
 	return fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=%d", action.DocumentMachineID, documentID, page)
 }

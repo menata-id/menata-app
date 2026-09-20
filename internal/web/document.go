@@ -295,8 +295,18 @@ func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Sto
 		}
 		page := pageFromQuery(req, totalPages)
 		actor := currentActor(req, store, cfg)
-
-		render(ctx, w, rendering.SignaturePlacementPage(document, steps, relations, page, totalPages, machines[action.StepMachineID], actor))
+		view, err := composition.SignaturePlacement(ctx, composition.NewLoader(store, machines),
+			machines[action.StepMachineID], document, steps, relations, page, totalPages, actor)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		chrome, err := resolveChrome(ctx, req, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		render(ctx, w, rendering.SignaturePlacementPage(view, chrome.WorkspaceName, chrome.UserInitials, workspaceRoleOf(ctx, store, actor.ID)))
 	}
 }
 
@@ -335,22 +345,26 @@ func loadSignaturePlacementData(ctx context.Context, store *data.Store, files *s
 // here is logged and treated as "nothing to show inline", not a reason to 500 the whole page --
 // the same "best-effort, logged, never blocks the primary flow" posture already established for
 // PDF signature compositing (capabilities.md).
-func documentSignaturePlacementView(ctx context.Context, store *data.Store, files *storage.Store, machines map[string]*domain.Machine, machine *domain.Machine, recordID string) *rendering.DocumentSignaturePlacement {
+func documentSignaturePlacementView(ctx context.Context, store *data.Store, files *storage.Store, machines map[string]*domain.Machine, machine *domain.Machine, recordID string, actor domain.Actor) *rendering.DocumentSignaturePlacement {
 	if machine.ID != action.DocumentMachineID {
 		return nil
 	}
-	_, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, store, files, machines, recordID)
+	document, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, store, files, machines, recordID)
 	if err != nil {
 		log.Printf("signature placement inline view for document %s: %v", recordID, err)
 		return nil
 	}
-	return &rendering.DocumentSignaturePlacement{
-		Steps:       steps,
-		Relations:   relations,
-		Page:        1,
-		TotalPages:  totalPages,
-		StepMachine: machines[action.StepMachineID],
+	// Page 1, because this embed has no pager of its own -- a step placed on page 6 has its card
+	// rendered here but not its marker. Named rather than fixed: the dedicated screen is where
+	// placement happens, and giving the embed a pager would duplicate that screen inside a page
+	// that is already the generic record view.
+	view, err := composition.SignaturePlacement(ctx, composition.NewLoader(store, machines),
+		machines[action.StepMachineID], document, steps, relations, 1, totalPages, actor)
+	if err != nil {
+		log.Printf("signature placement inline view for document %s: %v", recordID, err)
+		return nil
 	}
+	return &rendering.DocumentSignaturePlacement{View: view}
 }
 
 // servePDFPreview rasterizes one page of a Document's own PDF to PNG (Step 3's internal/pdf),

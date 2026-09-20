@@ -202,12 +202,31 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        them with no error at all, turning a Group-held step back into an ungated one. It was
        invisible for two phases because the Fields were always empty. Board 09's own port is
        6c-3; this fix could not wait for it.
-     - **6c-3 Signature positions (board 09)** — next. 281 lines with drag JS, eight raw field
-       reads, a Component shared with the still-`pageStyles` `detail.templ`, and an interaction
-       model the board *changes* rather than dresses (a single `Save positions →` where the app
-       saves per interaction). Carries one known issue: `prm_edit_own_step` has no dynamic actor
-       arm, so a Group-held step's marker resolves edit against an empty `fld_assignee` and is
-       draggable by nobody.
+     - **6c-3 Signature positions (board 09)** — *shipped 2026-09-20*. **Case 3 is fully ported.**
+       Three things landed, and the port was the smallest of them.
+
+       **A live bug 6c-2 created, closed.** `prm_edit_own_step`/`prm_delete_own_step` gated only on
+       `actor_field`, which a Group-held step leaves empty — so the signature marker on the one
+       screen built for dragging it was draggable by *nobody*, and the step deletable by nobody.
+       Both Permissions now carry the same dynamic arm `decide` got in 6c-1; the fix is three lines
+       of metadata each, and the test that proves it runs against the **real manifest**, because
+       the failure was a missing declaration and a hand-built fixture would simply have declared it.
+
+       **`signatureplacement.templ` left `projectionRatchet` — seven entries left — and its exit is
+       the most interesting of the three.** A third of its raw reads were not a projection at all:
+       seven echoed the record back verbatim as hidden inputs, forced by the generic update route
+       rewriting a whole record from whatever the form submits. Composition now derives that list
+       from the Machine's own declared Fields, which turned a hand-maintained list **that had
+       already forgotten four Fields** into one that cannot forget. 6c-2's fix added three names
+       and missed `fld_signature_image`, so a one-time signature was still being erased by the next
+       drag after the "fix" shipped.
+
+       **Three defects in shipped code, found while planning and fixed here.** A doc comment named
+       a test that did not exist (`TestSignaturePlacementPut_preservesApproverFields`) — written
+       inside the 6c-2 change whose own argument is that claims must match artifacts; that test now
+       exists. Board 10's signature dialog had been rendering with its `pageStyles` rules unloaded
+       since 6b, including `touch-action: none`, which is behaviour: signing on a phone did not
+       work. And the drag script threw a TypeError on any marker the viewer could not edit.
   7. Role-based Permission + a declared transition model, then board 06 itself. Fase 4 supplied
      roles, so the foundation is closer than when this list was written — but both primitives are
      still absent from 006 and 007, which is why this stays last.
@@ -237,6 +256,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | ~~Review document as its own screen (board 10)~~ — *done in 6b*: `reviewdocument.templ` + `composition.ReviewDocument`, which is what let `detail.templ` out of `projectionRatchet` | — | — |
   | The wizard's third step (boards 08/09 both say "OF 3") | **no phase yet** — and it is a *flow* question, not a screen | No step-3 board exists anywhere in the set, so what it would contain is inference. Behind the label sits the real finding: `submitDocumentWizard` sets `fld_status = in_review` at creation, **before** any signature is placed — so an approver can decide a Document while the submitter is still on the placement screen, and abandoning the wizard leaves a live in-review Document with no placements. A third step would be where sending actually happens, which is also what would earn `draft` back as a `fld_status` option (`metadata/document.yaml` already says: "add it back only alongside a real save-as-draft flow, not speculatively"). The wizard says "Step 1 of 2" meanwhile, because two screens exist |
   | Conditional required (a Field required only when a sibling Field holds a given value) | **no phase yet** | `domain.Constraint` has one shape — block a field transition while a *related Machine* has a matching record — which cannot condition on a sibling Field of the same record. The one real case is live as of 6c-2: `fld_assignee` is required for a User-held Approval Step and meaningless for a Group-held one, so it is declared optional and `internal/web`'s `parseStepInputs` enforces the pairing in Go. Upstream declares the same rule as two conditional Constraints, so the shape is known. Trigger is a second real case, as always |
+  | Board 09's zoom controls, selected-step highlight, and approver department sub-line | **no phase yet** | Zoom and selection are ephemeral view state nothing stores or needs — the app serves one rendered size and the screen works without a selection model. The department ("Finance", "Director") has no Field anywhere: `mch_user` holds none, and 3b's Application role is per-Application, not per-person-per-step. `fld_step_name` is rendered in its place, which is what the step is actually *for* |
   | Uploaded file size (board 10: "6 pages · 2.4 MB") | **no phase yet** | the page count is real (`internal/pdf.PageCount`) and is rendered; **the byte size is stored nowhere** — not on the record, not in `internal/storage`'s key, which embeds only the original filename. It needs a write-path change (capture size at upload) plus a Field to hold it, for one label. The trigger is a second caller that needs file metadata, not this line |
   | Step names with real values (board 10: "Finance Review") | **Fase 6c** | `fld_step_name` is declared as of 6b and `composition.stepLabel` reads it; nothing *writes* it until board 08's wizard collects it. Until then every step is titled with its assignee, which is exactly what the app did before the Field existed — the fallback is the honest state, not a placeholder |
   | New chrome on the Document Approval screens (~~inbox~~, ~~review~~, submit, signature) | **inbox done in 6a, review in 6b**; submit and signature both 6c | Preflight ties chrome to content; their content ports there. Signature moved out of 6b — board 09 is `STEP 2 OF 3` of the submit wizard and shows Group approvers (CAP-F24), so it belongs with board 08, not before it |

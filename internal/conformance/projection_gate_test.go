@@ -99,8 +99,16 @@ var projectionRatchet = map[string]string{
 	// Field, which for mch_user *is* fld_name. So this entry was never really debt about
 	// Projection's shape; it was one screen not asking for what it already had. Worth
 	// distinguishing from detail.templ's exit in 6b, which needed a whole new screen first.
-	"approvalstepper.templ":    "Case 3 bespoke approval UI (writing-guide.md honest map)",
-	"signatureplacement.templ": "Case 3 signature-coordinate canvas (writing-guide.md honest map)",
+	//
+	// "signatureplacement.templ" left in Fase 6c-3, the third. Its exit is worth reading next to
+	// the other two, because a third of its raw reads were not a projection at all: seven of them
+	// echoed a record back verbatim as hidden inputs, forced by the generic update route rewriting
+	// a whole record from whatever the form submits. Giving those a "shape" would have claimed a
+	// meaning they do not have. Composition derives them from the Machine's own declared Fields
+	// instead (composition.carryForward), which is generic access -- explicitly fine here -- and
+	// which turned a hand-maintained list that had already forgotten four Fields into one that
+	// cannot forget. The rest composed normally.
+	"approvalstepper.templ": "Case 3 bespoke approval UI (writing-guide.md honest map)",
 }
 
 func TestRenderingUsesProjectionNotRawValues(t *testing.T) {

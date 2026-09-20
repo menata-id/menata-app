@@ -94,7 +94,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files
 				serverError(w, err)
 				return
 			}
-			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
+			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID, actor)
 			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, groups, children, actor, sigPlacement))
 			return
 		}
@@ -104,7 +104,7 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files
 				serverError(w, err)
 				return
 			}
-			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
+			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID, actor)
 			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement))
 			return
 		}
@@ -317,7 +317,7 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 			serverError(w, err)
 			return
 		}
-		sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID)
+		sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID, actor)
 		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement))
 		return
 	}

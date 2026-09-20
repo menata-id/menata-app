@@ -18,21 +18,15 @@ type ChildSection struct {
 	Relations RelationOptions
 }
 
-// DocumentSignaturePlacement is what signaturePlacementBlock (signatureplacement.templ) needs to
-// render inline on a Document's own detail page -- nil for every Machine other than mch_document.
-// A second, genuinely different Page (RecordDetailView, alongside the dedicated
-// SignaturePlacementPage) now composes that same Component, proving 007 §12.1/§12.3's Page vs
-// Component split mechanically, with no metadata change.
+// DocumentSignaturePlacement is the composed placement view the Document's own detail page embeds
+// -- nil for every Machine other than mch_document.
+//
+// Since Fase 6c-3 it carries a resolved PlacementView rather than raw records, relation options
+// and a Machine for the page to resolve itself. The embed and the dedicated screen now share one
+// composed shape and differ only in markup, which is what let this file's neighbour leave the
+// projection ratchet: a Page renders what Composition decided.
 type DocumentSignaturePlacement struct {
-	Steps      []*data.Record
-	Relations  RelationOptions
-	Page       int
-	TotalPages int
-	// StepMachine is mch_approval_step, so signaturePlacementBlock can ask
-	// authorization.AllowsAction whether the viewing actor (RecordDetailView's own parameter)
-	// may edit each step's own marker (ROADMAP.md Phase 16), the same reason it's threaded
-	// through the dedicated SignaturePlacementPage too.
-	StepMachine *domain.Machine
+	View PlacementView
 }
 
 // RecordDetailPage is a dedicated per-record view (ROADMAP.md Phase 8), replacing inline-only
@@ -144,7 +138,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 		}
 		if m.ID == action.DocumentMachineID && sigPlacement != nil {
 			@sectionHeader("Signature Positions", "", "")
-			@signaturePlacementBlock(r, sigPlacement.Steps, sigPlacement.Relations, sigPlacement.Page, sigPlacement.TotalPages, sigPlacement.StepMachine, actor)
+			@signaturePlacementBlock(sigPlacement.View)
 		}
 	</div>
 }

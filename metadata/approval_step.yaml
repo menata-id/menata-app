@@ -142,12 +142,33 @@ permissions:
     actor_type_field: fld_approver_type
     actor_user_field: fld_assignee
     actor_group_field: fld_approver_group
+  # edit and delete carry the same gate as decide, added in Fase 6c-3 to close a bug Fase 6c-2
+  # created the moment its wizard could write a Group-held step: fld_assignee is empty on such a
+  # step, so a gate reading only actor_field returned false for *everyone*, and the signature
+  # marker on the one screen built for dragging it was draggable by nobody -- not the Group's own
+  # members, not the submitter, not an admin. Delete was impossible for the same reason.
+  #
+  # The rule these now state is the symmetric one, and it is worth being able to say out loud: if
+  # the Legal Group decides this step, a member of Legal Group may place its signature and remove
+  # it. Both move together on purpose -- one Permission with a dynamic arm and one without reads
+  # as a deliberate distinction that nobody intended.
+  #
+  # This is a real broadening of who may change a record, not a bug fix that restores a previous
+  # state: any member of the owning Group can now move that marker and delete that step. It is the
+  # intended rule (a Group holds the step, so the Group acts on it), and both directions are
+  # asserted in internal/authorization's tests rather than assumed.
   - id: prm_edit_own_step
     action: edit
     actor_field: fld_assignee
+    actor_type_field: fld_approver_type
+    actor_user_field: fld_assignee
+    actor_group_field: fld_approver_group
   - id: prm_delete_own_step
     action: delete
     actor_field: fld_assignee
+    actor_type_field: fld_approver_type
+    actor_user_field: fld_assignee
+    actor_group_field: fld_approver_group
 
 views:
   - id: vw_approval_step_table

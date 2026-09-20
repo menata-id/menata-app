@@ -1,9 +1,11 @@
 package authorization
 
 import (
+	"path/filepath"
 	"testing"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/metadata"
 )
 
 func stepMachine(perms ...domain.Permission) *domain.Machine {
@@ -183,5 +185,82 @@ func TestActor_zeroValueIsInNoGroup(t *testing.T) {
 	}
 	if (domain.Actor{ID: "rec_rina"}).InGroup("grp_legal") {
 		t.Error("an Actor with a nil Groups map belongs to nothing")
+	}
+}
+
+// realStepMachine is mch_approval_step exactly as metadata/approval_step.yaml declares it.
+//
+// It exists because every other fixture in this package hand-builds a Machine, and a hand-built
+// Machine states the rule the test author believed rather than the rule the runtime will apply.
+// That gap is not hypothetical here: the two render tests added in Fase 6c-2 built a step Machine
+// with NO Permissions at all, and AllowsAction leaves an action unrestricted when a Machine
+// declares none -- so both tests only ever exercised the allowed branch, and the bug below was
+// invisible to the whole suite until someone read the metadata.
+func realStepMachine(t *testing.T) *domain.Machine {
+	t.Helper()
+	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication: %v", err)
+	}
+	for _, m := range app.Machines {
+		if m.ID == "mch_approval_step" {
+			return m
+		}
+	}
+	t.Fatal("mch_approval_step is not declared in the real manifest")
+	return nil
+}
+
+// TestAllowsAction_groupHeldStepIsActionableByItsGroup is the regression test for a bug Fase 6c-2
+// created and Fase 6c-3 closed.
+//
+// 6c-1 gave `decide` a dynamic actor gate; `edit` and `delete` kept `actor_field: fld_assignee`
+// alone. That cost nothing while nothing could write a Group-held step. 6c-2's wizard could -- and
+// such a step leaves fld_assignee empty, so a gate reading only actor_field returned false for
+// EVERYONE. The signature marker on the one screen built for dragging it was draggable by nobody,
+// and the step could not be deleted by anybody either.
+//
+// It runs against the real manifest deliberately: the failure was a missing declaration, and a
+// hand-built fixture would simply have declared it.
+func TestAllowsAction_groupHeldStepIsActionableByItsGroup(t *testing.T) {
+	step := realStepMachine(t)
+	groupStep := map[string]any{
+		"fld_approver_type":  domain.ActorKindGroup,
+		"fld_approver_group": "grp_legal",
+	}
+	member := domain.Actor{ID: "usr_budi", Groups: map[string]bool{"grp_legal": true}}
+	outsider := domain.Actor{ID: "usr_ana", Groups: map[string]bool{"grp_finance": true}}
+
+	for _, act := range []string{domain.ActionDecide, domain.ActionEdit, domain.ActionDelete} {
+		t.Run(act, func(t *testing.T) {
+			if !AllowsAction(step, act, groupStep, member) {
+				t.Errorf("a member of the owning Group must be allowed to %s a Group-held step", act)
+			}
+			if AllowsAction(step, act, groupStep, outsider) {
+				t.Errorf("someone outside the owning Group must not be allowed to %s it", act)
+			}
+		})
+	}
+}
+
+// The other direction, also against real metadata: widening edit/delete to Groups must not have
+// widened anything for a step held by a person. Every Approval Step written before CAP-F24 is this
+// case, and it is the one that would break silently.
+func TestAllowsAction_personHeldStepUnchangedByTheGroupArm(t *testing.T) {
+	step := realStepMachine(t)
+	legacyStep := map[string]any{"fld_assignee": "usr_rina"}
+	rina := domain.Actor{ID: "usr_rina"}
+	// In every Group, and still not this step's approver.
+	joiner := domain.Actor{ID: "usr_budi", Groups: map[string]bool{"grp_legal": true, "grp_finance": true}}
+
+	for _, act := range []string{domain.ActionDecide, domain.ActionEdit, domain.ActionDelete} {
+		t.Run(act, func(t *testing.T) {
+			if !AllowsAction(step, act, legacyStep, rina) {
+				t.Errorf("the named person must still be allowed to %s their own step", act)
+			}
+			if AllowsAction(step, act, legacyStep, joiner) {
+				t.Errorf("group membership must grant nothing on a person-held step (%s)", act)
+			}
+		})
 	}
 }
