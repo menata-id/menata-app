@@ -41,6 +41,15 @@ workspace:
       label: Workspace Members
       route: /workspace-members
       priority: 2
+    # Declared in Fase 6a, after Fase 4 shipped /workspace-groups as a hardcoded literal in
+    # groups.templ and workspacemembers.templ. Neither route gate caught it: both ask "is this
+    # literal equal to a route metadata declares?", so a route that *should* be declared and
+    # simply is not passes in silence. TestLinksOnlyToDeclaredScreens (added after that gap) had
+    # it on an allowlist pointing here; declaring it is what removes the exemption.
+    - id: nav_workspace_groups
+      label: Groups
+      route: /workspace-groups
+      priority: 3
 
 # applications: file paths, resolved relative to this manifest. One file per Application, matching
 # how machines: has always worked -- app.yaml names files, files hold the declaration. An

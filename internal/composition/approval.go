@@ -210,7 +210,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			Submitter:    submitter,
 			SubmittedAt:  submittedAt,
 			SLADue:       doc.Values["fld_due_date"],
-			StepStates:   stepStates(seq, doc, stepsByDoc[docID]),
+			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names),
 			Href:         fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID),
 			CardFields:   cardFields,
 		})
@@ -308,7 +308,7 @@ func submittersFromActivity(activities []*data.Record) map[string]submission {
 // states approvalStepRow (internal/rendering/approvalstepper.templ) already renders for the
 // Document detail page's vertical stepper, recomputed here rather than shared: that templ's own
 // sequence sort is unexported to its package.
-func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Record) []string {
+func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, names map[string]string) []rendering.StepApprover {
 	ordered := make([]*data.Record, len(steps))
 	copy(ordered, steps)
 	sort.Slice(ordered, func(i, j int) bool {
@@ -316,22 +316,27 @@ func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Recor
 		b, _ := strconv.Atoi(DisplayString(ordered[j].Values[action.FieldStepSequence]))
 		return a < b
 	})
-	states := make([]string, len(ordered))
+	approvers := make([]rendering.StepApprover, len(ordered))
 	for i, s := range ordered {
+		state := "waiting"
 		switch DisplayString(s.Values[action.FieldStepDecision]) {
 		case action.DecisionApproved:
-			states[i] = "done"
+			state = "done"
 		case action.DecisionRejected:
-			states[i] = "rejected"
+			state = "rejected"
 		default:
 			if behavior.CanAct(seq, parent, s, ordered) {
-				states[i] = "current"
-			} else {
-				states[i] = "waiting"
+				state = "current"
 			}
 		}
+		// The name comes from the names map buildInbox already assembled for My Documents'
+		// avatar, so board 07's approver list costs no extra query -- it was in hand and simply
+		// not carried onto the card. An assignee with no resolvable record degrades to an empty
+		// name, which the card renders as initials-only rather than as a blank row.
+		name := names[DisplayString(s.Values[action.FieldStepAssignee])]
+		approvers[i] = rendering.StepApprover{Name: name, Initials: Initials(name), State: state}
 	}
-	return states
+	return approvers
 }
 
 // Initials is a person's display initials for a SummaryCard's avatar (Study 38's Avatar cluster)

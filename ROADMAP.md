@@ -133,12 +133,17 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      (`table`/`board`/`cards`), and these screens compose *across* Machines with layouts no type
      covers, so what improves is the projection ratchet rather than the screens becoming
      declarative.
-     - **6a Approval Inbox (board 07)** — declares `nav_workspace_groups` (hardcoded in Fase 4 and
-       already sitting on the new undeclared-route gate's allowlist pointing here), the four-tab
-       strip, and the board's card face: approver list, `role="progressbar"`, hour-scale SLA
-       wording. `approvalinbox.templ` is absent from `projectionRatchet` **only because its
-       projected branch is dead code**, so any raw field read the port needs must be composed in
-       `internal/composition` rather than added to a list that may only shrink.
+     - **6a Approval Inbox (board 07)** — *shipped 2026-09-20*. `nav_workspace_groups` is
+       declared, which emptied the undeclared-route gate's allowlist rather than adding to it; the
+       four-tab strip is page chrome, not a second `navigation:` level (two tabs are `?tab=` views
+       of one route, so the case Fase 2 predicted would force one never materialized); and the
+       card face gained an approver list and `role="progressbar"`. The constraint held:
+       `approvalinbox.templ` stayed out of `projectionRatchet`, so the per-approver state the
+       board draws is composed in `internal/composition.stepStates` (`[]rendering.StepApprover`,
+       replacing a `[]string` that carried states with nothing to attach them to) rather than read
+       off records in the `.templ`. **Hour-scale SLA wording is the one board element not
+       rendered** — `fld_due_date` is `type: date` and no datetime Field type exists; see the
+       deferral table.
      - **6b Review (board 10) + Signature positions (09)** — board 10 today rides the *generic*
        record-detail page every Machine shares; giving it its own screen is what lets
        `detail.templ` shed its Case 3 special-casing, a ratchet entry that can actually leave.
@@ -169,9 +174,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | ~~Source / "Group: Reviewers" column~~ — *done in Fase 4* | — | — |
   | ~~Effective-access panel, direct ∪ group-inherited~~ — *done in Fase 4*: `data.EffectiveRoles`, computed not stored | — | — |
   | Member full name beside the email (board 04/05) | **no phase yet** | `data.Membership` carries only `Email`; `memberInitials` derives from the local part meanwhile. 3b moved roles but not identity, so this outlived the phase it was pinned to |
-  | Section tab strip (board 07) | **Fase 6a** | All four destinations now exist: Inbox and My Documents are `?tab=` views of one route, Groups arrived in Fase 4, Admin is Workspace Members. Fase 2 recorded this as "the only part needing a `navigation:` second level" — with two tabs being query-param views of the same route, that turned out not to be so, and building a second level for one case would be the shape-before-second-need this repo refuses |
-  | Review document as its own screen (board 10) | Fase 6 | today it rides the generic record-detail page shared by every Machine |
-  | New chrome on the Document Approval screens (inbox, submit, signature) | Fase 6 | Preflight ties chrome to content; their content ports there |
+  | ~~Section tab strip (board 07)~~ — *done in 6a*: `rendering.inboxTabs`, page chrome rather than a second `navigation:` level. Fase 2 had recorded this as "the only part needing" one; with two tabs being `?tab=` views of a single route and the other two being real declared items, the case never materialized | — | — |
+  | Hour-scale SLA wording (board 07: "SLA breached · 4h", "8h remaining") | **no phase yet** | `fld_due_date` is `type: date` — a bare calendar date, no time component — and `domain.KnownFieldTypes` has no datetime type at all. `experience.EvaluateSLA` truncates to day *deliberately*, which is what makes "Due today" mean anything. Adding a Field type to satisfy one label is shape-before-need; the trigger is a second, independent caller that genuinely needs sub-day precision. Noted at the site in `ApprovalInboxPage`'s own doc comment |
+  | Review document as its own screen (board 10) | Fase 6b | today it rides the generic record-detail page shared by every Machine |
+  | New chrome on the Document Approval screens (~~inbox~~, submit, signature) | **inbox done in 6a**; submit 6c, signature 6b | Preflight ties chrome to content; their content ports there |
   | Approval Role Matrix (board 06) | Fase 7 | role-based Permission + a declared transition model, neither in 006/007 |
   | Declared `requires_role:` on a navigation item | **a second real case, not a phase** — likeliest around Fase 7, when an Application role could gate an item (a handler naming an id cannot express that) | one case exists today and has code: `appShell`'s `hiddenNavIDs`. See "Per-user/role navigation filtering" below for why the second case, not the calendar, is the trigger |
   | Mobile bottom bar for an Application's own menu | **no phase yet** — lands when the Project Management screens get boards | Those screens are still `pageStyles`, so a bottom bar there would be hand-written CSS thrown away when they port — that is the real blocker. **This row previously said "nothing in Fase 2–7 displays it", which stopped being true at Fase 3a**: Project Management declares no `show_nav`, keeps its menu, and `/my-tasks` renders ten nav links today. It stayed wrong through four phase closes because nobody re-read the table, which is the one thing this table needs. The owner's decision (`navigation.html`, 3–4 icons, top-4 by priority) was never the missing part |

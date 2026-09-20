@@ -390,9 +390,17 @@ func WorkspaceHomePage(workspaceName, workspaceRole, userInitials, switchHref st
 	})
 }
 
-// membersHiddenFor decides whether this viewer is offered the Workspace Members destination at
-// all -- in the launcher (appShell's hiddenNavIDs) and, by the same test, in this page's own
-// "Manage members" link.
+// membersHiddenFor decides whether this viewer is offered the Workspace *administration*
+// destinations at all -- in the launcher (appShell's hiddenNavIDs), in this page's own "Manage
+// members" link, and in the Approval Inbox's tab strip, all by the same test.
+//
+// Both ids sit behind one requireWorkspaceAdmin group in router.go, so they are one question, not
+// two. nav_workspace_groups joined the list in Fase 6a for a reason worth keeping: Fase 4 shipped
+// /workspace-groups admin-gated but *undeclared*, so it appeared in no navigation list and this
+// function had nothing to hide. Declaring it (6a) put it in AllNavigation -- which appLauncher
+// reads by design, before any filtering -- and that is what would have started offering a plain
+// member a link that only ever 403s. The declaration created the exposure; leaving this function
+// naming one id would have reintroduced exactly the bug hiddenNavIDs exists to prevent.
 //
 // workspaceRole != "member" rather than == "admin", which is the whole point:
 // requireWorkspaceAdmin (internal/web/middleware.go) fails *open* for an identity with no real
@@ -404,7 +412,7 @@ func WorkspaceHomePage(workspaceName, workspaceRole, userInitials, switchHref st
 // and the launcher.
 func membersHiddenFor(workspaceRole string) []string {
 	if workspaceRole == "member" {
-		return []string{"nav_workspace_members"}
+		return []string{"nav_workspace_members", "nav_workspace_groups"}
 	}
 	return nil
 }
@@ -440,7 +448,7 @@ func accessTile(scope, role string) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(scope)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 170, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 178, Col: 47}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -453,7 +461,7 @@ func accessTile(scope, role string) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(role)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 171, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 179, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {

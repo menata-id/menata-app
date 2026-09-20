@@ -131,8 +131,12 @@ var runtimeLevelRoutes = map[string]bool{
 	// the same wire and get contorted the same way, until someone weakened the gate instead.
 	"/":                  true,
 	"/workspace-members": true,
-	"/switch-workspace":  true,
-	"/choose-workspace":  true,
+	// Same criterion as /workspace-members directly above: a Workspace-level destination that
+	// exists regardless of which Application is configured, registered as a fixed literal in
+	// router.go. Its handlers redirect to it by that literal for the same reason theirs do.
+	"/workspace-groups": true,
+	"/switch-workspace": true,
+	"/choose-workspace": true,
 }
 
 var templHref = regexp.MustCompile(`href="(/[^"{]*)"`)
@@ -212,14 +216,12 @@ var staticAssetHref = regexp.MustCompile(`\.[a-z0-9]{2,5}$`)
 // for the same reason: this gate states an invariant that does not hold yet, so it freezes what
 // is broken rather than failing the build. The list may only shrink.
 var undeclaredScreenRatchet = map[string]string{
-	// Fase 4's Groups admin. Declaring it is not a one-line fix and is already planned elsewhere:
-	// /workspace-groups sits behind requireWorkspaceAdmin, so a navigation entry alone would offer
-	// every plain member a link that 403s -- exactly the bug Fase 2 fixed for Workspace Members
-	// with appShell's hiddenNavIDs. The full change is a nav item plus viewer-level hiding plus
-	// converting this link to routeByID, and the session that built Groups has it scheduled for
-	// Fase 6a. Recorded here so it stays visible instead of passing silently, which is the whole
-	// point of this gate.
-	"/workspace-groups": "Fase 4 Groups admin; needs nav item + viewer-level hiding together (Fase 6a)",
+	// Empty since Fase 6a, and that is the intended end state rather than a gap: /workspace-groups
+	// was this list's only entry, and declaring nav_workspace_groups (metadata/app.yaml) closed it
+	// along with the viewer-level hiding that made declaring it safe. The map stays so the gate
+	// keeps its shape -- a future undeclared screen gets frozen here rather than failing a build
+	// mid-port -- but per the ratchet rule it may only shrink, so nothing should ever be added
+	// without the same kind of note explaining when it leaves.
 }
 
 func TestRenderingLinksOnlyToDeclaredRoutes(t *testing.T) {

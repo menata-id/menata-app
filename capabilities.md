@@ -121,7 +121,7 @@ has its own cost, so staying page-internal is the correct default, not a gap, un
 | `activityFeedList` | `ActivityEntry` rows as one feed shape | `machine.templ`; Dashboard, Activity |
 | `sectionHeader` | A composed page's section title + optional "View all →" link | `machine.templ` |
 | `recordSummaryCard` / `summaryCardList` | A record as a card face rather than a table row | `machine.templ`; Approval Inbox's My Documents |
-| `pendingApprovalCard` | Approval Inbox's own Pending-my-approval grid card (document-approval.html): SLA framing, Mode/approval-ratio badge, submitted-by/date line, per-step progress dots | `approvalinbox.templ`; Approval Inbox's worklist only — page-internal, not yet reused elsewhere |
+| `pendingApprovalCard` | Approval Inbox's own Pending-my-approval grid card (`case-03-flow1/07-approval-inbox.html`, Fase 6a): SLA framing, Mode/approval-ratio badge, submitted-by/date line, the approver list and a labelled `role="progressbar"`. Its two sub-shapes (`approverChip`, `approvalProgress`) are deliberately *not* rows of their own: board 10 will plausibly want both in Fase 6b, but a predicted second caller is not a second caller, and this table's default is page-internal until one exists | `approvalinbox.templ`; Approval Inbox's worklist only — page-internal, not yet reused elsewhere |
 | `filterChip` | A query-param filter chip with its own count (no JS) | `approvalinbox.templ` |
 | `approvalStepper` | A Document's own steps as done / current / waiting | `approvalstepper.templ` |
 | `pageShell` | The page frame and the topbar — a projection of `app.yaml`'s own `navigation:` list (2026-09-19), grouped and collapsible, with a live pending-approval-count badge and `aria-current="page"`; see the navigation limit below for what's still out of scope | `machine.templ` |
@@ -143,7 +143,7 @@ Pages are styled two different ways right now, and which one a page uses says wh
 
 | | Stylesheet | Pages |
 |---|---|---|
-| **Tailwind** | `static/css/app.css`, built from `static/css/input.css` by `make css` | The seven pre-auth screens (`authShell`) and the three Workspace-level screens (`appShell`) |
+| **Tailwind** | `static/css/app.css`, built from `static/css/input.css` by `make css` | The seven pre-auth screens (`authShell`); the Workspace-level screens (`appShell`): Workspace Home, Workspace Members, Edit member, Groups, Group detail; and, from Fase 6a, the first *Application* screen — Approval Inbox |
 | **Hand-written** | `pageStyles`, an inline `<style>` block in `machine.templ` | The remaining Application screens, via `pageShell` |
 
 This split is a planned transition, not drift, and the boundary is **per screen rather than per

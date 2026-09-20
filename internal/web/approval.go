@@ -25,6 +25,13 @@ import (
 // document-approval.html). Composing the inbox is composition.ApprovalInbox's job; what stays
 // here is the part that is genuinely about HTTP -- reading the ?filter= tab and reducing the
 // composed list to it.
+// inboxTabMine is the query value selecting board 07's "My Documents" tab.
+//
+// A tab rather than a route, because board 11 -- the dedicated My Documents screen -- is one of
+// the two boards the owner marked TIDAK DIPAKAI. Both lists already rendered on this one route
+// before Fase 6a, stacked; the tabs split them rather than moving one elsewhere.
+const inboxTabMine = "mine"
+
 func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
@@ -53,7 +60,30 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 			}
 		}
 
-		render(ctx, w, rendering.ApprovalInboxPage(filters, pending, inbox.Mine))
+		// tab and filter compose rather than replace each other: the SLA chips carry ?filter= and
+		// must survive a tab switch, which is why each tab link preserves the other's value
+		// (rendering.inboxTabs) instead of being a bare href.
+		chrome, err := resolveChrome(ctx, req, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		// The viewer's Workspace role decides whether the Admin and Groups tabs are offered at
+		// all, through rendering's own membersHiddenFor -- the same rule that already hides those
+		// destinations on Workspace Home, rather than a second one invented here. A missing
+		// membership row degrades to "" and is treated as it is everywhere else.
+		workspaceRole := ""
+		if userID != "" {
+			workspaceID, _ := data.WorkspaceScope(ctx)
+			if m, err := store.GetMembership(ctx, workspaceID, userID); err == nil {
+				workspaceRole = m.WorkspaceRole
+			}
+		}
+		render(ctx, w, rendering.ApprovalInboxPage(
+			filters, pending, inbox.Mine,
+			req.URL.Query().Get("tab") == inboxTabMine, filterKey,
+			chrome.WorkspaceName, chrome.UserInitials, workspaceRole,
+		))
 	}
 }
 

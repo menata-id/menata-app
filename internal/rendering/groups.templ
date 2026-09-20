@@ -15,11 +15,11 @@ import "menata.app/internal/data"
 // is -- search does not exist anywhere in this app (ROADMAP.md, "Planned"), and a box that
 // filters nothing is worse than none.
 templ GroupsPage(groups []data.Group, workspaceName, userInitials string, roleApps []RoleApplication) {
-	@appShell("Groups", workspaceName, userInitials, "", nil) {
+	@appShell(labelByID("nav_workspace_groups"), workspaceName, userInitials, "", nil) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
-				<h1 class="m-0 text-xl font-medium">Groups</h1>
+				<h1 class="m-0 text-xl font-medium">{ labelByID("nav_workspace_groups") }</h1>
 				<div class="max-w-prose text-sm text-slate-500">
 					Assign a role to a Group once, then add or remove members — instead of editing every
 					person's own row. A member's effective role in an Application is their direct
@@ -32,7 +32,7 @@ templ GroupsPage(groups []data.Group, workspaceName, userInitials string, roleAp
 		</div>
 		<details class="rounded-lg border border-slate-200 bg-white">
 			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ New group</summary>
-			<form method="POST" action="/workspace-groups" class="flex flex-col gap-4 border-t border-slate-200 px-5 py-4">
+			<form method="POST" action={ templ.SafeURL(routeByID("nav_workspace_groups")) } class="flex flex-col gap-4 border-t border-slate-200 px-5 py-4">
 				@csrfHiddenInput()
 				@authField("group_name", "name", "Group name", "text", "off", false)
 				@authSubmit("Create group")
@@ -87,7 +87,7 @@ type GroupMemberChoice struct {
 // assignment".
 templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceName, userInitials string, roleApps []RoleApplication) {
 	@appShell(group.Name, workspaceName, userInitials, "", nil) {
-		<a href="/workspace-groups" class="text-xs text-blue-600 hover:text-blue-700">← Groups</a>
+		<a href={ templ.SafeURL(routeByID("nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID("nav_workspace_groups") }</a>
 		<div class="flex items-center justify-between gap-3">
 			<h1 class="m-0 text-xl font-medium">{ group.Name }</h1>
 			<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", group.MemberCount) }{ pluralS(group.MemberCount) }</span>

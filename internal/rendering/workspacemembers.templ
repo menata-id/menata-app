@@ -53,9 +53,6 @@ func memberInitials(email string) string {
 //   - The search box. Search, filtering and pagination are unbuilt everywhere in this app
 //     (ROADMAP.md, "Planned") -- a box that filters nothing would be worse than none, the same
 //     call made for "Keep me signed in" in Fase 1.
-//   - The "Source" column (Direct / "Group: Reviewers"). Groups do not exist until Fase 4, and
-//     with no Groups every row would read "Direct" -- a column with one possible value states
-//     nothing.
 //
 // The board also shows each member's full name above their email; data.Membership carries only
 // Email (see memberInitials above), so the row shows the address alone.
@@ -67,7 +64,10 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitial
 				<h1 class="m-0 text-xl font-medium">{ labelByID("nav_workspace_members") }</h1>
 				<div class="text-sm text-slate-500">Manage workspace membership and application access.</div>
 			</div>
-			<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", len(members)) }{ pluralS(len(members)) }</span>
+			<div class="flex items-center gap-4">
+				<a href={ templ.SafeURL(routeByID("nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">{ labelByID("nav_workspace_groups") } →</a>
+				<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", len(members)) }{ pluralS(len(members)) }</span>
+			</div>
 		</div>
 		<details class="rounded-lg border border-slate-200 bg-white">
 			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ Invite member</summary>

@@ -9,19 +9,21 @@ import (
 	"menata.app/internal/domain"
 )
 
-// renderWorkspaceHomeForRole renders WorkspaceHomePage with the given workspaceRole and every
-// other parameter fixed to a minimal valid fixture, returning the Members link's presence.
+// workspaceHomeLinksTo renders WorkspaceHomePage with the given workspaceRole and every other
+// parameter fixed to a minimal valid fixture, reporting whether the rendered page links to route.
 // WorkspaceHomePage resolves every route and label it renders through routeByID/labelByID
 // (machine.templ), so a nav fixture must be configured before rendering, same pattern
-// TestRouteByID_survivesHiddenNavGroup (navigation_test.go) already uses. Three items are needed
-// since Fase 2: the page's own title and breadcrumb (nav_home), its "Manage members" link
-// (nav_workspace_members -- the very link this test asserts on) and the Application card's
-// subtitle (nav_approval_inbox).
-func workspaceHomeHasMembersLink(t *testing.T, workspaceRole string) bool {
+// TestRouteByID_survivesHiddenNavGroup (navigation_test.go) already uses. Four items are needed:
+// the page's own title and breadcrumb (nav_home), its "Manage members" link
+// (nav_workspace_members), the Application card's subtitle (nav_approval_inbox), and -- since
+// Fase 6a declared it -- nav_workspace_groups, which the launcher now offers and membersHiddenFor
+// must therefore filter for the same reason.
+func workspaceHomeLinksTo(t *testing.T, workspaceRole, route string) bool {
 	t.Helper()
 	all := []domain.NavigationItem{
 		{ID: "nav_home", Label: "Home", Route: "/home"},
 		{ID: "nav_workspace_members", Label: "Workspace Members", Route: "/workspace-members"},
+		{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
 	}
 	t.Cleanup(func() { ConfigureWorkspace(domain.Workspace{}) })
@@ -34,7 +36,7 @@ func workspaceHomeHasMembersLink(t *testing.T, workspaceRole string) bool {
 	if err := c.Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	return strings.Contains(buf.String(), `href="/workspace-members"`)
+	return strings.Contains(buf.String(), `href="`+route+`"`)
 }
 
 // TestWorkspaceHomePage_membersLinkVisibility is the regression test for a code-review finding
@@ -61,9 +63,17 @@ func TestWorkspaceHomePage_membersLinkVisibility(t *testing.T) {
 		{role: "", want: true}, // no real membership row -- requireWorkspaceAdmin's fail-open case
 		{role: "member", want: false},
 	}
-	for _, tt := range tests {
-		if got := workspaceHomeHasMembersLink(t, tt.role); got != tt.want {
-			t.Errorf("workspaceRole = %q: Members link present = %v, want %v", tt.role, got, tt.want)
+	// Both routes sit behind the same requireWorkspaceAdmin group in router.go, so the visibility
+	// question is one question and the table answers it once for both. /workspace-groups is here
+	// from Fase 6a: Fase 4 shipped it gated but undeclared, so it reached no launcher and nothing
+	// could leak it; declaring it put it in AllNavigation, which appLauncher reads before any
+	// filtering. Without membersHiddenFor naming it too, a plain member would be offered a link
+	// that only ever 403s -- the exact regression this test caught when the launcher first shipped.
+	for _, route := range []string{"/workspace-members", "/workspace-groups"} {
+		for _, tt := range tests {
+			if got := workspaceHomeLinksTo(t, tt.role, route); got != tt.want {
+				t.Errorf("workspaceRole = %q: link to %s present = %v, want %v", tt.role, route, got, tt.want)
+			}
 		}
 	}
 }

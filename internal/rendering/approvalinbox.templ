@@ -2,14 +2,14 @@ package rendering
 
 import (
 	"fmt"
-	"strings"
+	"net/url"
 	"time"
 
 	"menata.app/internal/experience"
 )
 
-// SLAFilter is one of the Approval Worklist's SLA filter chips (ROADMAP.md Phase 15 Step 1,
-// document-approval.html's own "All / Overdue / Due today" chips).
+// SLAFilter is one of the Approval Inbox's SLA filter chips (ROADMAP.md Phase 15 Step 1, board
+// 07's own "All / Overdue / Due today" chips).
 type SLAFilter struct {
 	Key    string
 	Label  string
@@ -17,165 +17,332 @@ type SLAFilter struct {
 	Active bool
 }
 
-// PendingApprovalCard is one "pending my approval" card (document-approval.html's own top grid).
-// Richer than the shared recordSummaryCard/SummaryCard: SLA framing, a "Submitted by / date"
-// line and a compact per-step progress bar, none of which any other screen needs, so this stays
-// an Approval Inbox-specific shape rather than a field added to SummaryCard.
+// StepApprover is one approver on a pending card: who they are and where their step stands.
+//
+// Board 07 draws the approvers by name with each one's own state, which the previous
+// `StepStates []string` could not express -- it carried the states and nothing to attach them to.
+// Composed in internal/composition.stepStates from the names map buildInbox already assembles, so
+// this costs no extra query.
+type StepApprover struct {
+	Name     string
+	Initials string
+	// State is done / current / rejected / waiting -- the same four
+	// approvalStepRow renders on the Document detail page's vertical stepper.
+	State string
+}
+
+// PendingApprovalCard is one "pending my approval" card (board 07's own grid). Richer than the
+// shared recordSummaryCard/SummaryCard: SLA framing, a "Submitted by / date" line, the approver
+// list and a progress bar, none of which any other screen needs -- so this stays an Approval
+// Inbox-specific shape rather than a field added to SummaryCard.
 type PendingApprovalCard struct {
 	Reference    string
 	Title        string
 	DocumentType string
-	// Mode is the Document's own fld_mode value (sequential/parallel) -- document-approval.html's
-	// mockup shows a fabricated "ALL"/"ANY" quorum label here that no Field in metadata/document.yaml
-	// actually models (no quorum concept exists yet), so this renders the real Mode instead of
-	// inventing one (CLAUDE.md "Reference over Duplication").
+	// Mode is the Document's own fld_mode value (sequential/parallel) -- the older
+	// document-approval.html mockup showed a fabricated "ALL"/"ANY" quorum label that no Field in
+	// metadata/document.yaml models, so this renders the real Mode instead of inventing one.
 	Mode        string
 	Approved    int
 	TotalSteps  int
 	Submitter   string
 	SubmittedAt string // formatted "2 Jan 2006"; empty if no submission event was found
 	SLADue      any
-	// StepStates is each Approval Step's done/current/rejected/waiting state, ordered by
-	// fld_sequence (composition.stepStates) -- the progress bar's own dots.
-	StepStates []string
-	Href       string
-	// CardFields is mch_approval_step's own card_fields (domain.CardField, 007 §7.6
-	// Projection), already resolved by internal/composition.ProjectCardFields -- empty for every
-	// Machine that hasn't declared any (every Machine today), rendering nothing new. The
-	// composable-runtime kajian's Fase 1 pilot: an engineer adds a field to this card by editing
-	// metadata/approval_step.yaml alone, never this file.
+	// Approvers is every step's approver and state, ordered by fld_sequence.
+	Approvers []StepApprover
+	Href      string
+	// CardFields is mch_approval_step's own card_fields (007 §7.6 Projection), resolved by
+	// composition.ProjectCardFields. Still empty: mch_approval_step declares none, so this branch
+	// has never been taken. Fase 5 gave Projection its first real consumer on mch_document's
+	// `cards` View, not here -- see menata-app-document's own correction of the "one-screen pilot"
+	// claim. Kept because the wiring is real and the declaration is a metadata edit away.
 	CardFields []ProjectedField
 }
 
-// ApprovalInboxPage is Case 3's Approval Inbox (document-approval.html): every Approval Step
-// currently assigned to and actionable by the current identity ("Pending my approval"), filtered
-// by an SLA bucket and rendered as pendingApprovalCard, plus every Document the current identity
-// has submitted ("My Documents"), rendered as recordSummaryCard, the shared component (Phase 15
-// Step 1) -- two different card shapes because the mockup's own two sections are structurally
-// different, not a table either way.
-templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []SummaryCard) {
-	@pageShell(labelByID("nav_approval_inbox")) {
-		<h1>{ labelByID("nav_approval_inbox") }</h1>
-		<p>Documents where your decision is currently required.</p>
-		<p><a href={ templ.SafeURL(routeByID("nav_new_approval")) }><button type="button" class="primary">+ { labelByID("nav_new_approval") }</button></a></p>
+// inboxTab is one entry in board 07's section strip.
+type inboxTab struct {
+	Label  string
+	Href   string
+	Active bool
+}
 
-		<div class="filter-chips">
-			for _, f := range filters {
-				@filterChip(f)
+// inboxTabs builds board 07's four-tab strip.
+//
+// It is this page's own chrome rather than a second level of `navigation:` metadata: two of the
+// four tabs are ?tab= views of *one* route, and a navigation item points at a route. Fase 2 had
+// recorded the strip as "the only part needing a navigation: second level"; with Groups real and
+// My Documents a query parameter, that turned out not to be so, and building a second level for
+// one case would be the shape-before-second-need this repo refuses.
+//
+// tab and filter compose rather than replace: each tab link carries the active ?filter= forward,
+// so switching tabs does not silently drop an SLA chip the viewer chose.
+//
+// The Admin and Groups tabs are hidden from a viewer who cannot reach them, by membersHiddenFor --
+// the same rule Workspace Home already uses, not a second one. Both destinations sit behind
+// requireWorkspaceAdmin, so offering them to a plain member would only ever produce a 403.
+func inboxTabs(mine bool, filterKey, workspaceRole string) []inboxTab {
+	q := ""
+	if filterKey != "" && filterKey != "all" {
+		q = "&filter=" + url.QueryEscape(filterKey)
+	}
+	inbox := routeByID("nav_approval_inbox")
+	tabs := []inboxTab{
+		{Label: labelByID("nav_approval_inbox"), Href: inbox + "?tab=inbox" + q, Active: !mine},
+		{Label: "My Documents", Href: inbox + "?tab=mine" + q, Active: mine},
+	}
+	hidden := membersHiddenFor(workspaceRole)
+	if !containsID(hidden, "nav_workspace_groups") {
+		tabs = append(tabs, inboxTab{Label: labelByID("nav_workspace_groups"), Href: routeByID("nav_workspace_groups")})
+	}
+	if !containsID(hidden, "nav_workspace_members") {
+		tabs = append(tabs, inboxTab{Label: "Admin", Href: routeByID("nav_workspace_members")})
+	}
+	return tabs
+}
+
+func containsID(ids []string, id string) bool {
+	for _, s := range ids {
+		if s == id {
+			return true
+		}
+	}
+	return false
+}
+
+// ApprovalInboxPage is Case 3's worklist, ported to ui-sample/case-03-flow1/07-approval-inbox.html
+// (Fase 6a, 2026-09-20).
+//
+// ONE BOARD ELEMENT IS DELIBERATELY NOT RENDERED. Board 07 shows "SLA breached · 4h" and "8h
+// remaining"; this renders day-scale wording. That is not a formatting choice: mch_document's
+// fld_due_date is `type: date`, stored as a bare calendar date with no time component, and
+// domain.KnownFieldTypes has no datetime type at all. experience.EvaluateSLA truncates to day
+// deliberately -- that is what makes "Due today" meaningful. Hour precision would need a new Field
+// type built to satisfy one label, which is the shape-before-need this repo refuses. Same class as
+// board 03's Procurement/HR cards and board 06's ProcessEdge: the board draws something the app
+// has no data for. Recorded in ROADMAP.md's deferral table with that as its real blocker.
+templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []SummaryCard, showMine bool, filterKey, workspaceName, userInitials, workspaceRole string) {
+	@appShell(labelByID("nav_approval_inbox"), workspaceName, userInitials, "nav_approval_inbox", membersHiddenFor(workspaceRole)) {
+		<nav aria-label="Approval sections" class="flex gap-0.5 self-start rounded-lg bg-slate-100 p-1">
+			for _, t := range inboxTabs(showMine, filterKey, workspaceRole) {
+				<a
+					href={ templ.SafeURL(t.Href) }
+					class={ "rounded-md px-3 py-1.5 text-sm",
+						templ.KV("bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.08)]", t.Active),
+						templ.KV("text-slate-600 hover:text-slate-900", !t.Active) }
+					if t.Active {
+						aria-current="page"
+					}
+				>
+					{ t.Label }
+				</a>
 			}
+		</nav>
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+			<div class="flex flex-col gap-2">
+				<span class="text-3xs tracking-wide text-blue-600 uppercase">Approval</span>
+				<h1 class="m-0 text-xl font-medium">
+					if showMine {
+						My Documents
+					} else {
+						{ labelByID("nav_approval_inbox") }
+					}
+				</h1>
+				<div class="text-sm text-slate-500">
+					if showMine {
+						Documents you submitted, and where each one stands.
+					} else {
+						Documents where your decision is currently required.
+					}
+				</div>
+			</div>
+			<a
+				href={ templ.SafeURL(routeByID("nav_new_approval")) }
+				class="flex h-9 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+			>
+				+ { labelByID("nav_new_approval") }
+			</a>
 		</div>
-
-		if len(pending) == 0 {
-			<p>Nothing pending your approval.</p>
+		if showMine {
+			if len(mine) == 0 {
+				@inboxEmpty("You haven't submitted any documents yet.")
+			} else {
+				@summaryCardList(mine)
+			}
 		} else {
-			<div class="pending-card-grid">
-				for _, c := range pending {
-					@pendingApprovalCard(c)
+			<div role="group" aria-label="Filter" class="flex flex-wrap gap-2">
+				for _, f := range filters {
+					@filterChip(f)
+				}
+			</div>
+			if len(pending) == 0 {
+				@inboxEmpty("Nothing pending your approval.")
+			} else {
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					for _, c := range pending {
+						@pendingApprovalCard(c)
+					}
+				</div>
+			}
+		}
+	}
+}
+
+templ inboxEmpty(message string) {
+	<div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+		{ message }
+	</div>
+}
+
+// filterChip is one SLA filter chip. It preserves the active tab for the same reason the tabs
+// preserve the active filter -- neither may silently discard the other.
+templ filterChip(f SLAFilter) {
+	<a
+		href={ templ.SafeURL(routeByID("nav_approval_inbox") + "?filter=" + url.QueryEscape(f.Key)) }
+		class={ "rounded-full border px-3 py-1 text-xs",
+			templ.KV("border-slate-900 bg-slate-900 text-white", f.Active),
+			templ.KV("border-slate-300 text-slate-600 hover:border-slate-400", !f.Active) }
+	>
+		{ f.Label } ({ fmt.Sprint(f.Count) })
+	</a>
+}
+
+// pendingApprovalCard renders one PendingApprovalCard -- board 07's own grid card. A plain
+// navigation to the step's own detail page (2026-09-19: dropped the hx-get/hx-target inline swap
+// this used to layer on top -- a worklist click opens the record's page, not a pane below).
+//
+// Page-internal on purpose: capabilities.md records it as cataloged-but-not-yet-reused, which is
+// the honest state until a second, genuinely different screen needs the identical shape.
+templ pendingApprovalCard(c PendingApprovalCard) {
+	{{ status, label := parseSLA(c.SLADue) }}
+	<a
+		href={ templ.SafeURL(c.Href) }
+		class={ "flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-300",
+			templ.KV("border-red-200", status == experience.SLAOverdue),
+			templ.KV("border-slate-200", status != experience.SLAOverdue) }
+	>
+		if label != "" {
+			<span
+				class={ "self-start rounded-full px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase",
+					templ.KV("bg-red-50 text-red-700", status == experience.SLAOverdue),
+					templ.KV("bg-amber-50 text-amber-700", status != experience.SLAOverdue) }
+			>
+				{ label }
+			</span>
+		}
+		<div class="flex flex-col gap-1">
+			<h2 class="m-0 text-[15px] font-medium">{ c.Title }</h2>
+			<p class="m-0 text-2xs text-slate-400">{ c.Reference } · { c.DocumentType }</p>
+		</div>
+		<p class="m-0 text-xs text-slate-500">
+			Submitted by <span class="text-slate-700">{ c.Submitter }</span>
+			if c.SubmittedAt != "" {
+				{ " · " + c.SubmittedAt }
+			}
+		</p>
+		if len(c.Approvers) > 0 {
+			<ul aria-label="Approvers" class="m-0 flex list-none flex-wrap gap-2 p-0">
+				for _, a := range c.Approvers {
+					@approverChip(a)
+				}
+			</ul>
+		}
+		@approvalProgress(c.Approved, c.TotalSteps)
+		if len(c.CardFields) > 0 {
+			<div class="flex flex-wrap gap-1.5">
+				for _, f := range c.CardFields {
+					@projectedFieldValue(f)
 				}
 			</div>
 		}
+	</a>
+}
 
-		// No "View all" link: there is no real all-documents screen to send it to (the generic
-		// Machine CRUD page, /machines/mch_document, is POC scaffolding, not a destination a real
-		// approver should land on -- owner request, 2026-09-19). "My Documents" below is already
-		// this identity's own full submitted-documents list.
-		@sectionHeader("My Documents", "", "")
-		if len(mine) == 0 {
-			<p>You haven't submitted any documents yet.</p>
+// approverChip is one approver on the card, labelled for a screen reader with their own state --
+// board 07 gives each list item an aria-label saying exactly that.
+templ approverChip(a StepApprover) {
+	<li
+		aria-label={ a.Name + ", " + approverStateLabel(a.State) }
+		class={ "flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5 text-2xs",
+			templ.KV("bg-emerald-50 text-emerald-700", a.State == "done"),
+			templ.KV("bg-blue-50 text-blue-700", a.State == "current"),
+			templ.KV("bg-red-50 text-red-700", a.State == "rejected"),
+			templ.KV("bg-slate-100 text-slate-500", a.State == "waiting") }
+	>
+		<span class="flex size-5 items-center justify-center rounded-full bg-white/70 text-3xs font-medium">
+			if a.Initials != "" {
+				{ a.Initials }
+			} else {
+				?
+			}
+		</span>
+		if a.Name != "" {
+			{ a.Name }
 		} else {
-			@summaryCardList(mine)
+			Unassigned
 		}
+	</li>
+}
+
+// approverStateLabel is the screen-reader wording for a step's state. Separate from the visual
+// styling above so the two cannot drift.
+func approverStateLabel(state string) string {
+	switch state {
+	case "done":
+		return "approved"
+	case "current":
+		return "waiting for decision"
+	case "rejected":
+		return "rejected"
+	default:
+		return "not yet"
 	}
 }
 
-templ filterChip(f SLAFilter) {
-	if f.Active {
-		<a href={ templ.URL("/approval-inbox?filter=" + f.Key) } class="active">{ f.Label } ({ fmt.Sprint(f.Count) })</a>
-	} else {
-		<a href={ templ.URL("/approval-inbox?filter=" + f.Key) }>{ f.Label } ({ fmt.Sprint(f.Count) })</a>
-	}
-}
-
-// pendingApprovalCard renders one PendingApprovalCard -- document-approval.html's own top-grid
-// card: an SLA label (shown top and bottom, matching the mockup), the Mode/approval-ratio badge,
-// a "Submitted by / date" line and a compact per-step progress bar -- a plain navigation to the
-// step's own detail page (2026-09-19: dropped the hx-get/hx-target inline swap this used to layer
-// on top -- the owner wants a worklist click to open the record's own page, not load it into a
-// pane below the list).
-templ pendingApprovalCard(c PendingApprovalCard) {
-	{{ status, label := parseSLA(c.SLADue) }}
-	if status == experience.SLAOverdue {
-		<a href={ templ.URL(c.Href) } class="pending-card pending-card-overdue">
-			@pendingApprovalCardBody(c, status, label)
-		</a>
-	} else {
-		<a href={ templ.URL(c.Href) } class="pending-card">
-			@pendingApprovalCardBody(c, status, label)
-		</a>
-	}
-}
-
-templ pendingApprovalCardBody(c PendingApprovalCard, status experience.SLAStatus, label string) {
-	<div class="pending-card-head">
-		<div>
-			if label != "" {
-				@pendingApprovalCardSLALabel(status, label)
-			}
-			<h2>{ c.Title }</h2>
-			<p class="pending-card-ref">{ c.Reference } · { c.DocumentType }</p>
+// approvalProgress is board 07's progress bar. role="progressbar" with an aria-valuetext saying
+// "N of M approved" -- the count in words, because a percentage alone tells a screen-reader user
+// nothing about how many approvals remain.
+templ approvalProgress(approved, total int) {
+	<div class="flex items-center gap-2">
+		<div
+			role="progressbar"
+			aria-label="Approval progress"
+			aria-valuenow={ fmt.Sprint(progressPercent(approved, total)) }
+			aria-valuemin="0"
+			aria-valuemax="100"
+			aria-valuetext={ fmt.Sprintf("%d of %d approved", approved, total) }
+			class="h-1.5 grow overflow-hidden rounded-full bg-slate-100"
+		>
+			<div class="h-full rounded-full bg-emerald-500" style={ progressWidth(approved, total) }></div>
 		</div>
-		<span class="badge">{ strings.ToUpper(c.Mode) } · { fmt.Sprint(c.Approved) }/{ fmt.Sprint(c.TotalSteps) }</span>
-	</div>
-	<p class="pending-card-submitted">
-		Submitted by <strong>{ c.Submitter }</strong>
-		if c.SubmittedAt != "" {
-			{ " · " + c.SubmittedAt }
-		}
-	</p>
-	if len(c.CardFields) > 0 {
-		<div class="pending-card-meta">
-			for _, f := range c.CardFields {
-				@projectedFieldValue(f)
-			}
-		</div>
-	}
-	<div class="pending-card-progress">
-		for i, st := range c.StepStates {
-			<span class={ "progress-dot " + st }></span>
-			if i < len(c.StepStates)-1 {
-				if st == "done" {
-					<span class="progress-line progress-line-done"></span>
-				} else {
-					<span class="progress-line"></span>
-				}
-			}
-		}
-	</div>
-	<div class="pending-card-foot">
-		if label != "" {
-			@pendingApprovalCardSLALabel(status, label)
-		} else {
-			<span></span>
-		}
-		<span class="pending-card-review">Review →</span>
+		<span class="text-2xs whitespace-nowrap text-slate-400">{ fmt.Sprintf("%d of %d approved", approved, total) }</span>
 	</div>
 }
 
-templ pendingApprovalCardSLALabel(status experience.SLAStatus, label string) {
-	if status == experience.SLAOverdue {
-		<span class="pending-card-sla-label yes">{ strings.ToUpper(label) }</span>
-	} else {
-		<span class="pending-card-sla-label">{ strings.ToUpper(label) }</span>
+func progressPercent(approved, total int) int {
+	if total <= 0 {
+		return 0
 	}
+	return approved * 100 / total
 }
 
-// parseSLA mirrors slaBadge's own date parsing (machine.templ) -- pendingApprovalCard needs both
-// the status (for the card's overdue framing) and the label text (shown twice, top and bottom),
-// which slaBadge itself renders directly rather than returning.
-func parseSLA(v any) (experience.SLAStatus, string) {
-	due, err := time.Parse("2006-01-02", toString(v))
+// progressWidth is an inline style rather than a Tailwind class because the value is computed per
+// record: a class name built at runtime is invisible to Tailwind's scanner and would silently
+// never reach app.css (capabilities.md, "two scanner rules").
+func progressWidth(approved, total int) string {
+	return fmt.Sprintf("width:%d%%", progressPercent(approved, total))
+}
+
+// parseSLA turns a Document's own fld_due_date into a status and label, tolerating an unset or
+// unparseable value (the card simply shows no SLA line). Day-scale by construction -- see
+// ApprovalInboxPage's own note on why board 07's hour wording is not implementable.
+func parseSLA(due any) (experience.SLAStatus, string) {
+	s := fmt.Sprint(due)
+	if s == "" || s == "<nil>" {
+		return experience.SLAOK, ""
+	}
+	t, err := time.Parse("2006-01-02", s)
 	if err != nil {
-		return "", ""
+		return experience.SLAOK, ""
 	}
-	return experience.EvaluateSLA(due, time.Now())
+	return experience.EvaluateSLA(t, time.Now())
 }

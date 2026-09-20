@@ -118,8 +118,18 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 	}
 	// parallel mode: every pending step is actionable at once, so both undecided steps show
 	// "current", not "waiting" -- only sequential mode locks a later step behind an earlier one.
-	if want := []string{"done", "current", "current"}; !equalStrings(got.Pending[0].StepStates, want) {
-		t.Errorf("StepStates = %v, want %v", got.Pending[0].StepStates, want)
+	states := make([]string, 0, len(got.Pending[0].Approvers))
+	for _, a := range got.Pending[0].Approvers {
+		states = append(states, a.State)
+	}
+	if want := []string{"done", "current", "current"}; !equalStrings(states, want) {
+		t.Errorf("Approvers states = %v, want %v", states, want)
+	}
+	// Fase 6a carries each approver's name alongside its state, for board 07's approver list.
+	// Composed from the names map buildInbox already had, so this asserts the wiring rather than
+	// a new lookup: an assignee with no resolvable mch_user record degrades to an empty name.
+	if len(got.Pending[0].Approvers) != 3 {
+		t.Errorf("Approvers = %d, want one per step", len(got.Pending[0].Approvers))
 	}
 }
 
