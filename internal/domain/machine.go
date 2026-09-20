@@ -190,7 +190,10 @@ type Machine struct {
 	Events      []Event
 	Permissions []Permission
 	Datasets    []Dataset
-	View        View
+	// Sequencing is set only by a Machine whose records are acted on in order; nil means every
+	// record is always actionable.
+	Sequencing *Sequencing
+	View       View
 }
 
 // DatasetByID returns the Dataset with the given id, if m declares one. Composed screens look

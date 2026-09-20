@@ -14,7 +14,7 @@
 // placeholders standing in for a real SVG icon set -- swapping to one is a separate, not-yet-scoped
 // piece of work, not done here.
 window.MenataNav = {
-  workspace: "Acme Procurement",
+  workspace: "Dokter Kecil",
   apps: {
     case3: {
       name: "Document Approval",

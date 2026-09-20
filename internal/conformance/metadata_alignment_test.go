@@ -405,6 +405,26 @@ func TestApprovalStepDeclaresStatusRollup(t *testing.T) {
 	t.Errorf("metadata/approval_step.yaml declares no %s event -- a Document's status would stop following its own Approval Steps, silently, while every decision still succeeds", domain.ServiceRollupParentStatus)
 }
 
+// TestApprovalStepDeclaresSequencing is TestApprovalStepDeclaresStatusRollup's counterpart for the
+// other rule the approval flow's correctness rests on, and it guards a failure that is worse than
+// the rollup's: sequencing is now opt-in per Machine (behavior.CanAct returns true when a Machine
+// declares none), so dropping this block does not break a build or fail a request -- it silently
+// unlocks every approval step at once, letting a later approver decide before an earlier one.
+// internal/composition's own tests supply a fixture mirroring this rather than reading it, so
+// nothing else would notice.
+func TestApprovalStepDeclaresSequencing(t *testing.T) {
+	m, err := metadata.Load(filepath.Join(repoRoot(), "metadata", "approval_step.yaml"))
+	if err != nil {
+		t.Fatalf("load approval_step.yaml: %v", err)
+	}
+	if m.Sequencing == nil {
+		t.Fatal("metadata/approval_step.yaml declares no sequencing: block -- every approval step would become actionable at once, with no error anywhere")
+	}
+	if m.Sequencing.OpenValue == "" || m.Sequencing.SequentialValue == "" {
+		t.Errorf("sequencing declares open_value=%q sequential_value=%q -- both are what make ordering apply at all", m.Sequencing.OpenValue, m.Sequencing.SequentialValue)
+	}
+}
+
 // markdownSection returns capabilities.md's lines between a heading exactly matching heading and
 // the next line that starts a new section ("---" or another "#"-prefixed heading) -- scoping a
 // table-row regexp to the one table it's meant to check, not every backtick-first-column table in

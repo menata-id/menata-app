@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
+	"menata.app/internal/behavior"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -249,8 +250,7 @@ func decidableDocument(w http.ResponseWriter, ctx context.Context, store *data.S
 		serverError(w, err)
 		return nil, false
 	}
-	mode, _ := document.Values[action.FieldDocumentMode].(string)
-	if !action.CanDecide(mode, step, siblings) {
+	if !behavior.CanAct(machine.Sequencing, document, step, siblings) {
 		http.Error(w, "an earlier step has not been decided yet", http.StatusUnprocessableEntity)
 		return nil, false
 	}

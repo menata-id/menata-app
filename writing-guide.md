@@ -554,6 +554,25 @@ Machine declaring no permission for an action leaves it open to any authenticate
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
 | `card_fields[]` | `{field: fld_*, role: ...}` | Projected onto a composed card. Only the Approval Inbox card consumes this today |
 
+### 12.6a `sequencing` — records acted on in order
+
+One optional block per Machine. Declaring it means a record is locked while a sibling earlier in
+the order is still open — but only when the parent record's mode says so:
+
+```yaml
+sequencing:
+  parent_field: fld_document      # a relation/person field on THIS machine; siblings share it
+  mode_field: fld_mode            # on the PARENT machine
+  sequential_value: sequential    # the one mode value that turns ordering on
+  order_field: fld_sequence       # a number field; lower acts first
+  state_field: fld_decision       # where a sibling's progress is read
+  open_value: pending             # a sibling holding this, earlier in order, is what locks
+```
+
+Ordering is opt-in: a Machine with no `sequencing:` block never locks anything. A record whose
+parent's `mode_field` holds any other value isn't locked either, which is how the same two Machines
+serve both a sequential and a parallel process without a second declaration.
+
 ### 12.7a `datasets[]` — named numbers over this Machine's records
 
 | Key | Value | Notes |
@@ -626,6 +645,7 @@ undocumented* (rare).
 | Service | 006 §Service | `domain.KnownServices`, `web.logActivity` |
 | Permission | 006 §Permission, 005 §Security Ordering | `domain.Permission`, `authorization.AllowsAction` |
 | Action | 006 §Action | `domain.KnownActions` + `internal/action` — **Go code, not declarable** (§8) |
+| Sequencing (ordered activation) | 006 §Constraint (adjacent), CAP-A07 | `domain.Sequencing`, `behavior.CanAct`, `metadata.validateSequencing` |
 | View / Layout | 006 §Layout/§View, 007 §12.2 | `domain.View`, `internal/experience`, `composition.loadBoardColumns` |
 | SLA badge | 006 §Field + Experience | `experience.EvaluateSLA` |
 | Projection (`card_fields`) | 007 §7.6 | `domain.CardField`, `composition.ProjectCardFields`, `rendering.projectedFieldValue` |
@@ -646,7 +666,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 
 | Generic (any Machine, metadata only) | Hardcoded to specific Machines (real Go code required for a new one) |
 |---|---|
-| CRUD screens + JSON API, table and board views | The `decide` Action, and everything hardcoded to `mch_document`/`mch_approval_step` behind it |
+| CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded |
 | Relations, `person`, child collections, many-to-many | Document submission wizard |
 | Constraints (`equals`/`not_equals` shape) | Signature-coordinate placement screen |
 | Events (post-write field-change or record-creation → one Service) | PDF signature compositing |

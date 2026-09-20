@@ -15,6 +15,22 @@ which, per the section below, is every file in the Case 3 and Case 19 lists plus
 platform-level screens. Only `login.html` and `choose-workspace.html` (no Workspace or Application
 chosen yet) and `index.html` (this directory's own index, never had a nav concept) stay dependency-free.
 
+## Assets are vendored, not loaded from a CDN (2026-09-20)
+
+Every mockup now loads Tailwind from `/vendor/tailwind.play.js` (the Tailwind Play build 3.4.17,
+vendored at `static/vendor/`), and the two htmx mockups load `/vendor/htmx.min.js` +
+`/vendor/hyperscript.min.js`, instead of `cdn.tailwindcss.com` / `unpkg.com`. This is the same
+move `internal/web/secureheaders.go` already documents for the app's own pages: the security audit
+of 2026-09-19 added a `default-src 'self'` Content-Security-Policy to **every** response, which
+includes this file-served directory -- so from that commit until this one, every mockup rendered
+completely unstyled when viewed at `/ui-sample/*`, because the browser refused the cross-origin
+Tailwind script. Vendoring, rather than allow-listing the CDN host in the CSP, keeps the header
+as narrow for the mockups as it is for the real pages.
+
+Consequence for the "opening a file directly in a browser works just as well" note above: it no
+longer does for styling, because `/vendor/...` is an absolute path. View mockups through a server
+that exposes `/vendor` -- the running app at `/ui-sample/*.html` is the intended way.
+
 ## Menu Navigasi — two-level navigation, applied across every mockup
 
 `navigation.html` (added 2026-09-19) specced two levels, owner-requested reference for the
@@ -174,6 +190,38 @@ rather than re-deriving it:
 The dark column follows Tailwind's own documented pattern for its palette (light mode: `-50` background
 with `-700` text; dark mode: `-950` background with `-300` text, chosen for WCAG-contrast reasons, not
 just inverted lightness) -- not a new convention invented for this file.
+
+## Case 3 flow refresh, desktop + mobile reference (2026-09-20)
+
+Owner supplied a full Case 3 flow reference (desktop screens, then a second pass adding matching
+mobile (390px) screens for the same flow) covering sign-in through document review. Applied across
+the platform-level screens and all of Case 3:
+
+- **`document-approval.html` split in two**: it previously combined the Pending-my-approval grid
+  and a single document's own review/decide panel as one page with in-page anchors (`#document`).
+  The new flow treats these as separate screens (Approval Inbox list, and its own Review Document
+  page), so `document-approval.html` is now list-only and a new `document-review.html` carries the
+  detail/decide panel (Document, Approval Progress, Your Signature Position, Approve/Reject). Its
+  cards also gained the new flow's richer per-approver status list (name + approved/waiting/pending
+  pills, an `aria-valuenow` progress bar) in place of the old plain dot track.
+- **`approval-dashboard.html` intentionally left untouched** -- the flow's own board marks its
+  "Approval Dashboard" and "My Documents" screens "TIDAK DIPAKAI" (not used); no `my-documents.html`
+  was added either.
+- **Demo workspace renamed** `nav-metadata.js`'s `workspace` field, "Acme Procurement" → "Dokter
+  Kecil", matching every screen's breadcrumb in the new flow. The signed-in demo user's avatar is
+  now "NS" everywhere (was a mix of "DR"/"NS" across files); `login.html`'s sample email is now
+  `silvia@menata.id`.
+- **Mobile layouts are responsive Tailwind on the same file**, not separate `m-*.html` mockups --
+  base (unprefixed) classes follow the new flow's 390px screens, `sm:`/`lg:` follow its 1280px
+  screens. Notable mobile-specific shape changes, not just reflow: `workspace-home.html`'s app
+  cards go from icon-on-top (desktop) to icon-left-text-right (mobile); `workspace-members.html`'s
+  table rows become per-member cards with an internal divider on mobile; `document-submit.html`'s
+  per-step assignee `<select>` drops to its own full-width row below the step's controls on mobile.
+- `document-submit.html`'s Document Type options were **not** shrunk to the new mockup's
+  Contract/Invoice/Memo list -- `internal/rendering/documentsubmit.templ`'s own doc comment
+  confirms the real app bakes in this file's existing five-option list (Contract/SOP/Policy/
+  Report/Other), and "SOP" is already used by other sample data in this same flow (`document-
+  approval.html`'s "Procurement SOP" card), so shrinking it here would newly disagree with both.
 
 ## What's deliberately not copied
 

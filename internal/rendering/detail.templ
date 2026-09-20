@@ -128,7 +128,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 		for _, cc := range children {
 			if m.ID == action.DocumentMachineID && cc.Machine.ID == action.StepMachineID {
 				@sectionHeader("Approval Progress", "", "")
-				@approvalStepper(cc.Records, toString(r.Values[action.FieldDocumentMode]), cc.Relations)
+				@approvalStepper(cc.Machine.Sequencing, r, cc.Records, cc.Relations)
 			} else {
 				@ChildSectionView(cc, actorID)
 			}

@@ -6,28 +6,31 @@ import (
 	"strconv"
 
 	"menata.app/internal/action"
+	"menata.app/internal/behavior"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 // approvalStepper is Case 3's Approval Progress visual (ROADMAP.md Phase 15 Step 2,
 // document-approval.html's own "Approval Progress" section): a vertical done/current/waiting
 // stepper over a Document's own Approval Steps, replacing the generic child-collection table
 // (ChildSectionView) only for this one Machine pair. Purely presentational -- reuses
-// action.CanDecide (Phase 12) to tell an actionable "current" step from one still locked behind
-// an earlier step in sequential mode; no new Field, no new metadata.
-templ approvalStepper(steps []*data.Record, mode string, relations RelationOptions) {
+// behavior.CanAct to tell an actionable "current" step from one still locked behind an earlier
+// step, reading the ordering rule the child Machine itself declares (sequencing:) rather than
+// knowing which Fields hold it.
+templ approvalStepper(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, relations RelationOptions) {
 	{{ ordered := sortedBySequence(steps) }}
 	<ul class="approval-stepper">
 		for _, s := range ordered {
-			@approvalStepRow(s, mode, ordered, relations)
+			@approvalStepRow(seq, parent, s, ordered, relations)
 		}
 	</ul>
 }
 
-templ approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relations RelationOptions) {
+templ approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record, siblings []*data.Record, relations RelationOptions) {
 	{{ decision := toString(s.Values[action.FieldStepDecision]) }}
 	{{ assignee := RelationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee])) }}
-	{{ seq := toString(s.Values[action.FieldStepSequence]) }}
+	{{ seqLabel := toString(s.Values[action.FieldStepSequence]) }}
 	<li>
 		switch decision {
 			case action.DecisionApproved:
@@ -43,14 +46,14 @@ templ approvalStepRow(s *data.Record, mode string, siblings []*data.Record, rela
 					<span class="step-status">Rejected · { s.UpdatedAt.Format("15:04") }</span>
 				</span>
 			default:
-				if action.CanDecide(mode, s, siblings) {
-					<span class="step-marker current">{ seq }</span>
+				if behavior.CanAct(seq, parent, s, siblings) {
+					<span class="step-marker current">{ seqLabel }</span>
 					<span class="step-body">
 						<span class="step-title">{ assignee }</span>
 						<span class="step-status">Pending decision</span>
 					</span>
 				} else {
-					<span class="step-marker waiting">{ seq }</span>
+					<span class="step-marker waiting">{ seqLabel }</span>
 					<span class="step-body">
 						<span class="step-title">{ assignee }</span>
 						<span class="step-status">Waiting</span>

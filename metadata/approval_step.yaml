@@ -67,6 +67,20 @@ events:
       all: { value: approved, set: approved }
       default: in_review
 
+# Approval Steps are acted on in order when their Document says so (menata-runtime's
+# capability-registry.md CAP-A07 `activate_next`, admitted on Case 3 + WCP-1 Sequence, conformance
+# T22-23/T25 there). Replaces internal/action's own CanDecide, whose rule was already generic --
+# "a sibling earlier in the order is still open" -- but whose field bindings were hardcoded to this
+# one Machine pair. mode_field is read from the parent Document, because whether ordering applies
+# is a property of the whole process: one Document runs sequential, the next parallel.
+sequencing:
+  parent_field: fld_document
+  mode_field: fld_mode
+  sequential_value: sequential
+  order_field: fld_sequence
+  state_field: fld_decision
+  open_value: pending
+
 permissions:
   - id: prm_decide_own_step
     action: decide

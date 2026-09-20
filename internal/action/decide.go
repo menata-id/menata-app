@@ -52,8 +52,6 @@ const (
 	FieldSignatureImage     = "fld_image"
 	FieldDocumentSignedFile = "fld_signed_file"
 
-	ModeSequential = "sequential"
-
 	DecisionPending  = "pending"
 	DecisionApproved = "approved"
 	DecisionRejected = "rejected"
@@ -63,30 +61,9 @@ const (
 	DocumentStatusRejected = "rejected"
 )
 
-// CanDecide reports whether step is unlocked for a decision yet. In any mode other than
-// ModeSequential, every step is always unlocked. In sequential mode, step is locked while any
-// sibling step (same FieldStepDocument, lower FieldStepSequence) is still pending.
-func CanDecide(mode string, step *data.Record, siblings []*data.Record) bool {
-	if mode != ModeSequential {
-		return true
-	}
-	mySeq := sequenceOf(step)
-	for _, s := range siblings {
-		if s.ID == step.ID {
-			continue
-		}
-		if sequenceOf(s) < mySeq && decisionOf(s) == DecisionPending {
-			return false
-		}
-	}
-	return true
-}
-
-func sequenceOf(r *data.Record) float64 {
-	v, _ := r.Values[FieldStepSequence].(float64)
-	return v
-}
-
+// decisionOf reads a step's own decision value. Kept after CanDecide moved to
+// behavior.CanAct (sequencing is declared metadata now) because delete.go still asks the same
+// question for its own, unrelated rule.
 func decisionOf(r *data.Record) string {
 	v, _ := r.Values[FieldStepDecision].(string)
 	return v

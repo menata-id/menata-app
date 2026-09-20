@@ -14,16 +14,19 @@ import (
 	"strconv"
 
 	"menata.app/internal/action"
+	"menata.app/internal/behavior"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 // approvalStepper is Case 3's Approval Progress visual (ROADMAP.md Phase 15 Step 2,
 // document-approval.html's own "Approval Progress" section): a vertical done/current/waiting
 // stepper over a Document's own Approval Steps, replacing the generic child-collection table
 // (ChildSectionView) only for this one Machine pair. Purely presentational -- reuses
-// action.CanDecide (Phase 12) to tell an actionable "current" step from one still locked behind
-// an earlier step in sequential mode; no new Field, no new metadata.
-func approvalStepper(steps []*data.Record, mode string, relations RelationOptions) templ.Component {
+// behavior.CanAct to tell an actionable "current" step from one still locked behind an earlier
+// step, reading the ordering rule the child Machine itself declares (sequencing:) rather than
+// knowing which Fields hold it.
+func approvalStepper(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, relations RelationOptions) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -50,7 +53,7 @@ func approvalStepper(steps []*data.Record, mode string, relations RelationOption
 			return templ_7745c5c3_Err
 		}
 		for _, s := range ordered {
-			templ_7745c5c3_Err = approvalStepRow(s, mode, ordered, relations).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = approvalStepRow(seq, parent, s, ordered, relations).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -63,7 +66,7 @@ func approvalStepper(steps []*data.Record, mode string, relations RelationOption
 	})
 }
 
-func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relations RelationOptions) templ.Component {
+func approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record, siblings []*data.Record, relations RelationOptions) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -86,7 +89,7 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 		ctx = templ.ClearChildren(ctx)
 		decision := toString(s.Values[action.FieldStepDecision])
 		assignee := RelationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee]))
-		seq := toString(s.Values[action.FieldStepSequence])
+		seqLabel := toString(s.Values[action.FieldStepSequence])
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<li>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -100,7 +103,7 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(assignee)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 36, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 39, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -113,7 +116,7 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(s.UpdatedAt.Format("15:04"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 37, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 40, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -131,7 +134,7 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(assignee)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 42, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 45, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -144,7 +147,7 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(s.UpdatedAt.Format("15:04"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 43, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 46, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -155,15 +158,15 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 				return templ_7745c5c3_Err
 			}
 		default:
-			if action.CanDecide(mode, s, siblings) {
+			if behavior.CanAct(seq, parent, s, siblings) {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<span class=\"step-marker current\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var7 string
-				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(seq)
+				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(seqLabel)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 47, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 50, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -176,7 +179,7 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(assignee)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 49, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 52, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -192,9 +195,9 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var9 string
-				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(seq)
+				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(seqLabel)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 53, Col: 44}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 56, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -207,7 +210,7 @@ func approvalStepRow(s *data.Record, mode string, siblings []*data.Record, relat
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(assignee)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 55, Col: 41}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalstepper.templ`, Line: 58, Col: 41}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {

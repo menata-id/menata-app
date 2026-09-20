@@ -48,6 +48,24 @@ func doc(id, title, mode, due string) *data.Record {
 	})
 }
 
+// stepMachineForTest is mch_approval_step as metadata/approval_step.yaml declares it, reduced to
+// what buildInbox reads: the ordering rule. Every test below passes it, because the real inbox
+// always has it -- ordering only takes effect when a Document's own mode says sequential, so
+// supplying it costs the parallel cases nothing.
+func stepMachineForTest() *domain.Machine {
+	return &domain.Machine{
+		ID: action.StepMachineID,
+		Sequencing: &domain.Sequencing{
+			ParentField:     action.FieldStepDocument,
+			ModeField:       action.FieldDocumentMode,
+			SequentialValue: "sequential",
+			OrderField:      action.FieldStepSequence,
+			StateField:      action.FieldStepDecision,
+			OpenValue:       action.DecisionPending,
+		},
+	}
+}
+
 var users = []*data.Record{
 	rec("usr_ana", map[string]any{"fld_name": "Ana Putri"}),
 	rec("usr_budi", map[string]any{"fld_name": "Budi"}),
@@ -63,14 +81,14 @@ func TestBuildInbox_SequentialLocksLaterSteps(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 	}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("step 2 is locked behind step 1, so it must not appear as pending; got %d card(s)", len(got.Pending))
 	}
 
 	// Same records, parallel mode: nothing is waiting on anything.
 	docs[0].Values[action.FieldDocumentMode] = "parallel"
-	got = buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+	got = buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("parallel mode makes every pending step actionable; got %d card(s)", len(got.Pending))
 	}
@@ -84,7 +102,7 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 		step("stp_mine", "doc_1", "usr_ana", action.DecisionPending, 3),
 	}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want only my own still-pending step, got %d", len(got.Pending))
 	}
@@ -136,7 +154,7 @@ func TestBuildInbox_BucketsByDay(t *testing.T) {
 			docs := []*data.Record{doc("doc_1", "Contract", "parallel", tc.due)}
 			steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-			got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+			got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 			if len(got.Buckets) != 1 {
 				t.Fatalf("want one card, got %d", len(got.Buckets))
 			}
@@ -159,7 +177,7 @@ func TestBuildInbox_CountsMatchBuckets(t *testing.T) {
 		step("stp_3", "doc_later", "usr_ana", action.DecisionPending, 1),
 	}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if got.OverdueCount != 1 || got.TodayCount != 1 {
 		t.Errorf("OverdueCount/TodayCount = %d/%d, want 1/1", got.OverdueCount, got.TodayCount)
 	}
@@ -179,7 +197,7 @@ func TestBuildInbox_SubmitterFromEarliestEvent(t *testing.T) {
 		event("doc_1", "usr_budi", at(8)), // the actual submission, logged first
 	}
 
-	got := buildInbox(steps, docs, activities, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, docs, activities, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want one card, got %d", len(got.Pending))
 	}
@@ -195,7 +213,7 @@ func TestBuildInbox_UnknownSubmitterFallsBack(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if got.Pending[0].Submitter != "someone" {
 		t.Errorf("Submitter = %q, want %q", got.Pending[0].Submitter, "someone")
 	}
@@ -216,7 +234,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 		event("doc_theirs", "usr_budi", at(8)),
 	}
 
-	got := buildInbox(nil, docs, activities, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(nil, docs, activities, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.Mine) != 1 {
 		t.Fatalf("want one submitted Document, got %d", len(got.Mine))
 	}
@@ -232,7 +250,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 func TestBuildInbox_OrphanStepIsSkipped(t *testing.T) {
 	steps := []*data.Record{step("stp_1", "doc_gone", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, nil, nil, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, nil, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("a step pointing at a missing Document must be skipped, got %d card(s)", len(got.Pending))
 	}
@@ -245,7 +263,7 @@ func TestBuildInbox_NewBreaches_detectsOverdueUnloggedDocument(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-01")} // due well before "now"
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.NewBreaches) != 1 || got.NewBreaches[0].DocumentID != "doc_1" {
 		t.Fatalf("NewBreaches = %+v, want one breach for doc_1", got.NewBreaches)
 	}
@@ -258,7 +276,7 @@ func TestBuildInbox_NewBreaches_skipsAlreadyLogged(t *testing.T) {
 		{ID: "act_1", Values: map[string]any{"fld_record_id": "doc_1", "fld_summary": slaBreachMarker + `"Contract" (due 1 Sep 2026)`}},
 	}
 
-	got := buildInbox(steps, docs, activities, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, docs, activities, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.NewBreaches) != 0 {
 		t.Errorf("NewBreaches = %+v, want none -- this Document's breach was already logged", got.NewBreaches)
 	}
@@ -268,7 +286,7 @@ func TestBuildInbox_NewBreaches_skipsNotOverdue(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-20")} // due well after "now"
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.NewBreaches) != 0 {
 		t.Errorf("NewBreaches = %+v, want none -- not overdue yet", got.NewBreaches)
 	}
@@ -278,7 +296,7 @@ func TestBuildInbox_NewBreaches_skipsDecidedDocuments(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "2026-09-01")}
 	docs[0].Values[action.FieldDocumentStatus] = action.DocumentStatusApproved
 
-	got := buildInbox(nil, docs, nil, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(nil, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.NewBreaches) != 0 {
 		t.Errorf("NewBreaches = %+v, want none -- an already-decided Document has no active SLA to breach", got.NewBreaches)
 	}
@@ -338,7 +356,7 @@ func TestBuildInbox_NilStepMachineProjectsNothing(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "sequential", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), nil, nil)
+	got := buildInbox(steps, docs, nil, users, "usr_ana", at(10), stepMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
 	}

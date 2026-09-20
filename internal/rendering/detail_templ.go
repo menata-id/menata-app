@@ -469,7 +469,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = approvalStepper(cc.Records, toString(r.Values[action.FieldDocumentMode]), cc.Relations).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = approvalStepper(cc.Machine.Sequencing, r, cc.Records, cc.Relations).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

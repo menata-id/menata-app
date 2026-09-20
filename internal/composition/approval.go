@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"menata.app/internal/action"
+	"menata.app/internal/behavior"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
@@ -150,6 +151,13 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 	}
 	submissions := submittersFromActivity(activities)
 
+	// stepMachine is optional for this builder's other callers, so the ordering rule it declares
+	// is resolved once here rather than nil-checked at each use.
+	var seq *domain.Sequencing
+	if stepMachine != nil {
+		seq = stepMachine.Sequencing
+	}
+
 	var inbox Inbox
 	for _, s := range steps {
 		if DisplayString(s.Values[action.FieldStepAssignee]) != userID {
@@ -163,8 +171,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 		if doc == nil {
 			continue
 		}
-		mode := DisplayString(doc.Values[action.FieldDocumentMode])
-		if !action.CanDecide(mode, s, stepsByDoc[docID]) {
+		if !behavior.CanAct(seq, doc, s, stepsByDoc[docID]) {
 			continue
 		}
 
@@ -197,13 +204,13 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			Reference:    action.DocumentReference(doc.SortOrder),
 			Title:        DisplayString(doc.Values["fld_title"]),
 			DocumentType: DisplayString(doc.Values["fld_document_type"]),
-			Mode:         mode,
+			Mode:         behavior.SequencingMode(seq, doc),
 			Approved:     approved,
 			TotalSteps:   len(stepsByDoc[docID]),
 			Submitter:    submitter,
 			SubmittedAt:  submittedAt,
 			SLADue:       doc.Values["fld_due_date"],
-			StepStates:   stepStates(stepsByDoc[docID], mode),
+			StepStates:   stepStates(seq, doc, stepsByDoc[docID]),
 			Href:         fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID),
 			CardFields:   cardFields,
 		})
@@ -301,7 +308,7 @@ func submittersFromActivity(activities []*data.Record) map[string]submission {
 // states approvalStepRow (internal/rendering/approvalstepper.templ) already renders for the
 // Document detail page's vertical stepper, recomputed here rather than shared: that templ's own
 // sequence sort is unexported to its package.
-func stepStates(steps []*data.Record, mode string) []string {
+func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Record) []string {
 	ordered := make([]*data.Record, len(steps))
 	copy(ordered, steps)
 	sort.Slice(ordered, func(i, j int) bool {
@@ -317,7 +324,7 @@ func stepStates(steps []*data.Record, mode string) []string {
 		case action.DecisionRejected:
 			states[i] = "rejected"
 		default:
-			if action.CanDecide(mode, s, ordered) {
+			if behavior.CanAct(seq, parent, s, ordered) {
 				states[i] = "current"
 			} else {
 				states[i] = "waiting"

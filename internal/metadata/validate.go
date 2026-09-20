@@ -172,6 +172,10 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateDataset(m, ds, fieldsByID, seenDatasets)...)
 	}
 
+	if m.Sequencing != nil {
+		issues = append(issues, validateSequencing(m, *m.Sequencing, fieldsByID)...)
+	}
+
 	if m.View.Layout != "" && !domain.KnownLayouts[m.View.Layout] {
 		issues = append(issues, fmt.Sprintf("machine %q: view.layout %q is not a known layout", m.ID, m.View.Layout))
 	}
@@ -437,6 +441,45 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.op %q is not a known operator", ds.ID, ms.ID, ms.Where.Op))
 			}
 		}
+	}
+
+	return issues
+}
+
+// validateSequencing checks the half of a sequencing declaration this Machine can verify alone:
+// the Fields it orders and reads state from are its own, the value that means "still open" is one
+// that Field can actually hold, and the parent reference exists. mode_field and sequential_value
+// live on the *parent* Machine, so they are checked in application.go once every Machine is
+// loaded -- the same split validateRollup/validateRollupTargets already uses.
+func validateSequencing(m *domain.Machine, s domain.Sequencing, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+
+	orderField, ok := fieldsByID[s.OrderField]
+	if !ok {
+		issues = append(issues, fmt.Sprintf("machine %q: sequencing.order_field %q is not a field of this machine", m.ID, s.OrderField))
+	} else if orderField.Type != domain.FieldTypeNumber {
+		issues = append(issues, fmt.Sprintf("machine %q: sequencing.order_field %q must be a number field to order siblings by, got %q", m.ID, s.OrderField, orderField.Type))
+	}
+
+	stateField, ok := fieldsByID[s.StateField]
+	if !ok {
+		issues = append(issues, fmt.Sprintf("machine %q: sequencing.state_field %q is not a field of this machine", m.ID, s.StateField))
+	} else if violatesOptions(stateField, s.OpenValue) {
+		issues = append(issues, fmt.Sprintf("machine %q: sequencing.open_value %q is not one of field %q's options %v", m.ID, s.OpenValue, s.StateField, stateField.Options))
+	}
+	if s.OpenValue == "" {
+		issues = append(issues, fmt.Sprintf("machine %q: sequencing.open_value is required -- without it nothing would ever count as still open, and ordering would never lock anything", m.ID))
+	}
+
+	parentField, ok := fieldsByID[s.ParentField]
+	if !ok {
+		issues = append(issues, fmt.Sprintf("machine %q: sequencing.parent_field %q is not a field of this machine", m.ID, s.ParentField))
+	} else if !parentField.IsReference() {
+		issues = append(issues, fmt.Sprintf("machine %q: sequencing.parent_field %q must reference the machine whose children are ordered together, got %q", m.ID, s.ParentField, parentField.Type))
+	}
+
+	if s.SequentialValue == "" {
+		issues = append(issues, fmt.Sprintf("machine %q: sequencing.sequential_value is required -- it is the one mode value that turns ordering on", m.ID))
 	}
 
 	return issues

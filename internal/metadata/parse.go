@@ -21,7 +21,18 @@ type machineDoc struct {
 	Events      []eventDoc      `yaml:"events"`
 	Permissions []permissionDoc `yaml:"permissions"`
 	Datasets    []datasetDoc    `yaml:"datasets"`
+	Sequencing  *sequencingDoc  `yaml:"sequencing"`
 	View        *viewDoc        `yaml:"view"`
+}
+
+// sequencingDoc is the YAML serialization of a domain.Sequencing.
+type sequencingDoc struct {
+	ParentField     string `yaml:"parent_field"`
+	ModeField       string `yaml:"mode_field"`
+	SequentialValue string `yaml:"sequential_value"`
+	OrderField      string `yaml:"order_field"`
+	StateField      string `yaml:"state_field"`
+	OpenValue       string `yaml:"open_value"`
 }
 
 // datasetDoc is the YAML serialization of a domain.Dataset (007 §7.2-§7.4). measures[].where
@@ -233,6 +244,17 @@ func Parse(data []byte) (*domain.Machine, error) {
 			ds.Measures = append(ds.Measures, ms)
 		}
 		m.Datasets = append(m.Datasets, ds)
+	}
+
+	if doc.Sequencing != nil {
+		m.Sequencing = &domain.Sequencing{
+			ParentField:     doc.Sequencing.ParentField,
+			ModeField:       doc.Sequencing.ModeField,
+			SequentialValue: doc.Sequencing.SequentialValue,
+			OrderField:      doc.Sequencing.OrderField,
+			StateField:      doc.Sequencing.StateField,
+			OpenValue:       doc.Sequencing.OpenValue,
+		}
 	}
 
 	if doc.View != nil {

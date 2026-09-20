@@ -147,7 +147,50 @@ func LoadApplication(path string) (*App, error) {
 	if err := validateRollupTargets(app.Machines); err != nil {
 		return nil, err
 	}
+	if err := validateSequencingModes(app.Machines); err != nil {
+		return nil, err
+	}
 	return app, nil
+}
+
+// validateSequencingModes closes the cross-Machine half of a sequencing declaration: mode_field
+// lives on the parent Machine, and sequential_value must be a value that Field can actually hold.
+// A typo in either would mean ordering silently never applies -- every step permanently unlocked,
+// with no error anywhere, which is the failure this runtime least wants to be quiet about.
+func validateSequencingModes(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+
+	var issues []string
+	for _, m := range machines {
+		s := m.Sequencing
+		if s == nil {
+			continue
+		}
+		parentField, ok := m.FieldByID(s.ParentField)
+		if !ok {
+			continue // already reported by validateSequencing
+		}
+		parent, ok := byID[parentField.RelatedMachine]
+		if !ok {
+			issues = append(issues, fmt.Sprintf("machine %q: sequencing.parent_field %q points at machine %q, which this application does not declare", m.ID, s.ParentField, parentField.RelatedMachine))
+			continue
+		}
+		modeField, ok := parent.FieldByID(s.ModeField)
+		if !ok {
+			issues = append(issues, fmt.Sprintf("machine %q: sequencing.mode_field %q is not a field of parent machine %q", m.ID, s.ModeField, parent.ID))
+			continue
+		}
+		if len(modeField.Options) > 0 && !contains(modeField.Options, s.SequentialValue) {
+			issues = append(issues, fmt.Sprintf("machine %q: sequencing.sequential_value %q is not one of parent field %q's options %v", m.ID, s.SequentialValue, s.ModeField, modeField.Options))
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
 }
 
 // validateRollupTargets closes the half of a rollup declaration a single Machine file cannot check
