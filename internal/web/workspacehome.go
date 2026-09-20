@@ -76,8 +76,9 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, w
 // Applications: it is Document Approval's number, and putting it on a Project Management card
 // would be inventing a meaning for it. An Application declaring no badge simply shows no count.
 //
-// AppRole is still the single membership.AppRole for every card -- workspace_members has one
-// app_role column until Fase 3b's migration gives it one row per Application.
+// Role comes from that Application's own entry in membership.AppRoles (Fase 3b), so each card
+// shows the role held *there* rather than repeating one workspace-wide value. An Application the
+// member holds no role in shows "—".
 func applicationCards(ws domain.Workspace, membership *data.Membership, pending int) []rendering.ApplicationCard {
 	cards := make([]rendering.ApplicationCard, 0, len(ws.Applications))
 	for _, app := range ws.Applications {
@@ -88,7 +89,7 @@ func applicationCards(ws domain.Workspace, membership *data.Membership, pending 
 		card := rendering.ApplicationCard{
 			Name:      app.Name,
 			Initials:  composition.Initials(app.Name),
-			Role:      membership.AppRole,
+			Role:      membership.AppRoles[app.ID],
 			HomeRoute: route,
 		}
 		for _, item := range app.AllNavigation {

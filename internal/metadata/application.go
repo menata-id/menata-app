@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -46,6 +47,9 @@ type applicationDoc struct {
 	ID       string   `yaml:"id"`
 	Name     string   `yaml:"name"`
 	Machines []string `yaml:"machines"`
+	// Roles is this Application's own role vocabulary -- see domain.Application.Roles. Optional:
+	// an Application that declares none offers no role, rather than falling back to another's.
+	Roles []string `yaml:"roles"`
 	// ShowNav defaults to *true* when the key is absent, which is why it is a *bool here: an
 	// Application that says nothing about its menu keeps it (ui-sample/nav-metadata.js's own
 	// convention -- case19 has no showNav field and keeps both bars). A plain bool would default
@@ -178,6 +182,20 @@ func loadApplicationFile(path, workspaceID string) (*domain.Application, error) 
 	if len(doc.Machines) == 0 {
 		issues = append(issues, fmt.Sprintf("application %q: at least one machine is required", doc.ID))
 	}
+	// Roles are a plain vocabulary, so the only things worth checking are that each word is
+	// usable and said once. A blank entry would render an unlabelled option indistinguishable
+	// from "no role"; a duplicate would render the same option twice.
+	seenRole := make(map[string]bool, len(doc.Roles))
+	for _, r := range doc.Roles {
+		switch {
+		case strings.TrimSpace(r) == "":
+			issues = append(issues, fmt.Sprintf("application %q: roles entry is empty -- omit the role rather than declaring a blank one, which is how \"no role\" is already said", doc.ID))
+		case seenRole[r]:
+			issues = append(issues, fmt.Sprintf("application %q: role %q is declared more than once", doc.ID, r))
+		default:
+			seenRole[r] = true
+		}
+	}
 	if len(issues) > 0 {
 		return nil, &ValidationError{Issues: issues}
 	}
@@ -215,6 +233,7 @@ func loadApplicationFile(path, workspaceID string) (*domain.Application, error) 
 		Name:            doc.Name,
 		WorkspaceID:     workspaceID,
 		Machines:        doc.Machines,
+		Roles:           doc.Roles,
 		ShowNav:         showNav,
 		Navigation:      navigation,
 		PrimaryNavGroup: primaryNavGroup,

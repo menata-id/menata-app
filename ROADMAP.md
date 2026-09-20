@@ -105,8 +105,12 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      `app_document_approval` + `app_project_management`. Which Application a request is in is
      resolved Machine-first with navigation as fallback, because most of Document Approval's
      routes are named by no navigation item. `hidden_nav_groups` became per-Application
-     `show_nav`. Still to come: **3b** per-Application role rows (`workspace_members` still has one
-     `app_role` column) and **3c** the board's own card face and per-Application role columns.
+     `show_nav`. **3b** *shipped 2026-09-20*: an Application declares its own `roles:` vocabulary
+     and a member holds one role per Application (`workspace_member_app_roles`, migration 008,
+     which keeps the old `app_role` column so a rollback loses nothing). It also closed a
+     pre-existing gap — the write paths accepted any `app_role` string, since until roles were
+     declared there was nothing to validate against. Still to come: **3c**, the board's own card
+     face (icon, description, record count).
   4. Groups — absent entirely, and present in five of the ten boards. A Group and its membership
      can be ordinary Machines (many-to-many is already proven by `mch_card_label`); the parts that
      cannot be, and need a decision: effective access as the union of direct and group-inherited
@@ -126,10 +130,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | Left undone | Finished in | Blocked on |
   |---|---|---|
   | ~~Workspace Home shows one Application card~~ — done in 3a | — | — |
-  | Per-Application role *columns* on Members (board 04) | Fase 3 | same, plus `workspace_members`' single `app_role` column |
+  | ~~Per-Application role columns on Members~~ — *done in 3b*: one line per Application that declares a `roles:` vocabulary, captioned with its name | — | — |
   | Source / "Group: Reviewers" column (board 04) | Fase 4 | Groups do not exist; with none, every row would read "Direct" |
   | Effective-access panel, direct ∪ group-inherited (board 05) | Fase 4 | Groups; the union itself has no primitive |
-  | Member full name beside the email (board 04/05) | Fase 3b | `data.Membership` carries only `Email`; `memberInitials` derives from the local part meanwhile |
+  | Member full name beside the email (board 04/05) | **no phase yet** | `data.Membership` carries only `Email`; `memberInitials` derives from the local part meanwhile. 3b moved roles but not identity, so this outlived the phase it was pinned to |
   | Section tab strip (board 07) | Fase 4 (Groups tab) + Fase 6 (My Documents tab) | 2 of its 4 destinations do not exist; the only part needing a `navigation:` second level |
   | Review document as its own screen (board 10) | Fase 6 | today it rides the generic record-detail page shared by every Machine |
   | New chrome on the Document Approval screens (inbox, submit, signature) | Fase 6 | Preflight ties chrome to content; their content ports there |

@@ -13,9 +13,37 @@ import (
 	"menata.app/internal/rendering"
 )
 
+// legacyAppRoleApplicationID names the Application whose role still mirrors into
+// workspace_members.app_role, the pre-Fase-3b single-Application column migration 008
+// deliberately keeps so a rollback loses nothing. Document Approval, because that column's stored
+// values (approver/submitter/reviewer) are exactly its declared vocabulary and it was the only
+// Application in existence when they were written.
+//
+// This constant disappears with the column, in the migration that drops it.
+const legacyAppRoleApplicationID = "app_document_approval"
+
+// roleApplications is the Applications a member can actually be given a role in: those that
+// declare a vocabulary. An Application declaring none (project-management.yaml today) offers no
+// select and no access row, rather than an empty dropdown or a borrowed vocabulary.
+func roleApplications(ws domain.Workspace) []rendering.RoleApplication {
+	out := make([]rendering.RoleApplication, 0, len(ws.Applications))
+	for _, app := range ws.Applications {
+		if len(app.Roles) == 0 {
+			continue
+		}
+		out = append(out, rendering.RoleApplication{
+			ID:    app.ID,
+			Name:  app.Name,
+			Field: appRoleField(app.ID),
+			Roles: app.Roles,
+		})
+	}
+	return out
+}
+
 // showWorkspaceMembers lists every member of the signed-in identity's Workspace (ROADMAP.md
 // Phase 21 Step 6). Gated by requireWorkspaceAdmin.
-func showWorkspaceMembers(store *data.Store, cfg config.Config) http.HandlerFunc {
+func showWorkspaceMembers(store *data.Store, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -29,11 +57,11 @@ func showWorkspaceMembers(store *data.Store, cfg config.Config) http.HandlerFunc
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.WorkspaceMembersPage(members, chrome.WorkspaceName, chrome.UserInitials))
+		render(ctx, w, rendering.WorkspaceMembersPage(members, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws)))
 	}
 }
 
-func showEditMember(store *data.Store, cfg config.Config) http.HandlerFunc {
+func showEditMember(store *data.Store, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -47,11 +75,11 @@ func showEditMember(store *data.Store, cfg config.Config) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.EditMemberPage(*m, chrome.WorkspaceName, chrome.UserInitials))
+		render(ctx, w, rendering.EditMemberPage(*m, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws)))
 	}
 }
 
-func submitEditMember(store *data.Store) http.HandlerFunc {
+func submitEditMember(store *data.Store, ws domain.Workspace) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -67,9 +95,24 @@ func submitEditMember(store *data.Store) http.HandlerFunc {
 			return
 		}
 
-		if err := store.UpdateMemberRole(ctx, workspaceID, userRecordID, workspaceRole, req.FormValue("app_role")); err != nil {
+		appRoles, err := submittedAppRoles(req, ws.Applications)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+
+		// UpdateMemberRole still writes the legacy single app_role column alongside the new rows
+		// (migration 008 keeps it so a rollback loses nothing). It is fed Document Approval's
+		// role, which is what that column has always held.
+		if err := store.UpdateMemberRole(ctx, workspaceID, userRecordID, workspaceRole, appRoles[legacyAppRoleApplicationID]); err != nil {
 			recordError(w, err)
 			return
+		}
+		for appID, role := range appRoles {
+			if err := store.SetMemberAppRole(ctx, workspaceID, userRecordID, appID, role); err != nil {
+				serverError(w, err)
+				return
+			}
 		}
 		redirectTo(w, req, "/workspace-members")
 	}
@@ -87,7 +130,7 @@ func submitEditMember(store *data.Store) http.HandlerFunc {
 // showing an email address instead of a real name until the invitee later edited their own
 // record. Required here (mirrors RegistrationPage's own "Your name") so it's never blank at
 // creation instead.
-func submitInviteMember(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+func submitInviteMember(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -120,9 +163,20 @@ func submitInviteMember(machines map[string]*domain.Machine, store *data.Store, 
 			serverError(w, err)
 			return
 		}
-		if err := store.AddMember(ctx, workspaceID, user.ID, email, "member", req.FormValue("app_role")); err != nil {
+		appRoles, err := submittedAppRoles(req, ws.Applications)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		if err := store.AddMember(ctx, workspaceID, user.ID, email, "member", appRoles[legacyAppRoleApplicationID]); err != nil {
 			serverError(w, err)
 			return
+		}
+		for appID, role := range appRoles {
+			if err := store.SetMemberAppRole(ctx, workspaceID, user.ID, appID, role); err != nil {
+				serverError(w, err)
+				return
+			}
 		}
 		sendInviteEmail(ctx, mailer, cfg, email, workspaceID)
 		redirectTo(w, req, "/workspace-members")

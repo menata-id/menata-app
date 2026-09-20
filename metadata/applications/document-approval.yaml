@@ -35,6 +35,27 @@ machines:
   - mch_approval_step
   - mch_signature
 
+# roles: this Application's own role vocabulary -- what a member may be assigned *in this
+# Application*, which is a different question from their Workspace role (admin/member).
+#
+# Declared per Application because the vocabularies genuinely differ: board 05 shows Approver /
+# Submitter here, Buyer / Reviewer for Procurement, Viewer for HR. Until Fase 3b this was one
+# hardcoded list in workspacemembers.templ whose own comment already conceded it was "this slice's
+# single-Application role vocabulary" -- true while one Application existed, wrong the moment a
+# second did, since Project Management has no "approver".
+#
+# What a role does today: it fills the selects on Edit member and Invite, and captions the Members
+# list. It is *not* yet an authorization input -- nothing gates on it (authorization.AllowsAction
+# never sees it; requireWorkspaceAdmin reads the Workspace role). Roles become grantable in
+# ROADMAP.md's Case 03 Fase 7, alongside role-based Permission.
+#
+# An Application may declare none (project-management.yaml does), in which case it offers no role
+# select and shows no access row at all -- rather than inventing a vocabulary nobody has decided.
+roles:
+  - approver
+  - submitter
+  - reviewer
+
 navigation:
   - id: nav_dashboard
     label: Dashboard

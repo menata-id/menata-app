@@ -4,10 +4,23 @@ import "fmt"
 import "strings"
 import "menata.app/internal/data"
 
-// appRoleOptions is this slice's single-Application role vocabulary (ROADMAP.md Phase 21 Step 6,
-// member-role-detail.html's own list, reduced to one Application): a flat column rather than a
-// per-Application table, since only one Application exists here.
-var appRoleOptions = []string{"", "approver", "submitter", "reviewer"}
+// RoleApplication is one Application a member can hold a role in, as the Members screens need it:
+// its declared vocabulary plus the form field that carries it.
+//
+// It replaces appRoleOptions, a hardcoded []string{"", "approver", "submitter", "reviewer"} whose
+// own comment already conceded it was "this slice's single-Application role vocabulary" -- true
+// while one Application existed, wrong the moment a second did, since Project Management has no
+// "approver". The vocabulary now comes from each Application's own roles: declaration
+// (domain.Application.Roles), built by internal/web.roleApplications.
+//
+// Applications declaring no roles never appear here at all, so these screens never render an
+// empty dropdown or borrow another Application's words.
+type RoleApplication struct {
+	ID    string
+	Name  string
+	Field string
+	Roles []string
+}
 
 // memberInitials is the avatar glyph for a member row. data.Membership carries an Email but no
 // display name, so this derives from the local part rather than showing a blank circle.
@@ -40,19 +53,13 @@ func memberInitials(email string) string {
 //   - The search box. Search, filtering and pagination are unbuilt everywhere in this app
 //     (ROADMAP.md, "Planned") -- a box that filters nothing would be worse than none, the same
 //     call made for "Keep me signed in" in Fase 1.
-//   - The per-Application role *columns*. Fase 3a made `applications:` a real list, but
-//     workspace_members still has a single `app_role` column, so there is exactly one stored role
-//     and nothing that says which Application it belongs to. The cell therefore shows the role
-//     alone rather than captioning it with an Application name that would be a guess -- Fase 3b's
-//     migration gives each member one role row per Application, and the column becomes one chip
-//     each.
 //   - The "Source" column (Direct / "Group: Reviewers"). Groups do not exist until Fase 4, and
 //     with no Groups every row would read "Direct" -- a column with one possible value states
 //     nothing.
 //
 // The board also shows each member's full name above their email; data.Membership carries only
 // Email (see memberInitials above), so the row shows the address alone.
-templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitials string) {
+templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitials string, roleApps []RoleApplication) {
 	@appShell(labelByID("nav_workspace_members"), workspaceName, userInitials, "nav_workspace_members", nil) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
@@ -68,14 +75,12 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitial
 				@csrfHiddenInput()
 				@authField("invite_name", "fld_name", "Full name", "text", "name", false)
 				@authField("invite_email", "email", "Email", "email", "email", false)
-				<div class="flex flex-col gap-2">
-					<label for="invite_role" class="text-sm font-medium">Application role</label>
-					<select id="invite_role" name="app_role" class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] sm:h-9.5 sm:text-sm">
-						for _, r := range appRoleOptions {
-							<option value={ r }>{ displayRole(r) }</option>
-						}
-					</select>
-				</div>
+				for _, app := range roleApps {
+					<div class="flex flex-col gap-2">
+						<label for={ "invite_" + app.ID } class="text-sm font-medium">{ app.Name } role</label>
+						@roleSelect("invite_"+app.ID, app, "")
+					</div>
+				}
 				@authSubmit("Send invitation")
 			</form>
 		</details>
@@ -84,8 +89,7 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitial
 				<span class="grow">Member</span>
 				<span class="w-32">Workspace role</span>
 				// "Application roles", plural and app-agnostic, is the board's own header: each cell
-				// names its Application, so repeating the name here would say it twice, and Fase 3
-				// turns each cell into several.
+				// names its own Application, one line per Application that declares a vocabulary.
 				<span class="w-44">Application roles</span>
 				<span class="w-16"></span>
 			</div>
@@ -102,7 +106,14 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitial
 							<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{ displayRole(m.WorkspaceRole) }</span>
 						}
 					</div>
-					<div class="text-sm text-slate-600 sm:w-44">{ displayRole(m.AppRole) }</div>
+					<div class="flex flex-col gap-1 sm:w-44">
+						if len(roleApps) == 0 {
+							<span class="text-sm text-slate-400">—</span>
+						}
+						for _, app := range roleApps {
+							<span class="text-2xs text-slate-600">{ app.Name } · { displayRole(m.AppRoles[app.ID]) }</span>
+						}
+					</div>
 					<div class="sm:w-16">
 						<a href={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class="text-sm text-blue-600 hover:text-blue-700">Edit →</a>
 					</div>
@@ -119,8 +130,9 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitial
 // Groups, and the note that group-derived access cannot be removed from this screen), is absent
 // for the same reason the Source column is on the list page: Groups arrive in Fase 4, and the
 // union itself has no primitive behind it yet. Its Application-access section lists three
-// Applications where this lists one, which is Fase 3.
-templ EditMemberPage(m data.Membership, workspaceName, userInitials string) {
+// Applications because the board assumes Procurement and HR; this lists every Application that
+// declares a roles: vocabulary, which today is Document Approval alone.
+templ EditMemberPage(m data.Membership, workspaceName, userInitials string, roleApps []RoleApplication) {
 	@appShell("Edit member", workspaceName, userInitials, "", nil) {
 		<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { labelByID("nav_workspace_members") }
@@ -144,14 +156,12 @@ templ EditMemberPage(m data.Membership, workspaceName, userInitials string) {
 					<h2 class="m-0 text-sm font-medium">Application access</h2>
 					<p class="m-0 text-2xs text-slate-500">Assign the role this user receives directly in each application.</p>
 				</div>
-				<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-					<label for="app_role" class="text-sm">Application role</label>
-					<select id="app_role" name="app_role" class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] sm:h-9.5 sm:w-56 sm:text-sm">
-						for _, r := range appRoleOptions {
-							<option value={ r } selected?={ r == m.AppRole }>{ displayRole(r) }</option>
-						}
-					</select>
-				</div>
+				for _, app := range roleApps {
+					<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+						<label for={ "role_" + app.ID } class="text-sm">{ app.Name }</label>
+						@roleSelect("role_"+app.ID, app, m.AppRoles[app.ID])
+					</div>
+				}
 			</section>
 			<div class="flex items-center justify-end gap-3">
 				<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-sm text-slate-500 hover:text-slate-700">Cancel</a>
@@ -172,4 +182,20 @@ templ workspaceRoleChoice(role, description string, selected bool) {
 			<span class="text-2xs text-slate-500">{ description }</span>
 		</span>
 	</label>
+}
+
+// roleSelect is one Application's role dropdown, shared by Invite and Edit member. "" is offered
+// first and means no role in this Application -- stored as the absence of a row, not as a blank
+// value (internal/data.SetMemberAppRole).
+templ roleSelect(id string, app RoleApplication, selected string) {
+	<select
+		id={ id }
+		name={ app.Field }
+		class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] sm:h-9.5 sm:w-56 sm:text-sm"
+	>
+		<option value="" selected?={ selected == "" }>{ displayRole("") }</option>
+		for _, r := range app.Roles {
+			<option value={ r } selected?={ r == selected }>{ r }</option>
+		}
+	</select>
 }

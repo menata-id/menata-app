@@ -84,6 +84,16 @@ type Application struct {
 	// single authority on who may do what (006 §Behavioral Model). Its load-bearing job is
 	// Workspace.ApplicationForMachine above.
 	Machines []string
+	// Roles is this Application's own role vocabulary -- what a member may hold *here*, which is a
+	// different question from their Workspace role (admin/member). Declared per Application
+	// because the vocabularies genuinely differ between them; an Application may declare none,
+	// and then offers no role at all rather than borrowing another's words.
+	//
+	// Plain strings, not id-keyed objects: a role is a vocabulary word today, with no identity of
+	// its own to reference. It fills the member-role selects and captions the Members list, and
+	// nothing gates on it -- authorization.AllowsAction never sees it. Roles become grantable,
+	// and therefore worth giving ids, in ROADMAP.md's Case 03 Fase 7.
+	Roles []string
 	// ShowNav reports whether this Application renders persistent menu chrome. False is
 	// ui-sample/nav-metadata.js's own `showNav: false` (owner request, 2026-09-19, for Document
 	// Approval), and replaces what app.yaml used to express as a `hidden_nav_groups` entry naming

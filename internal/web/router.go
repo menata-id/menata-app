@@ -167,10 +167,10 @@ func Routes(d Deps) http.Handler {
 
 		pr.Group(func(ar chi.Router) {
 			ar.Use(requireWorkspaceAdmin(d.Store, d.Cfg))
-			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.Cfg))
-			ar.Post("/workspace-members/invite", submitInviteMember(d.Machines, d.Store, d.Mailer, d.Cfg))
-			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg))
-			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
+			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.Cfg, d.Workspace))
+			ar.Post("/workspace-members/invite", submitInviteMember(d.Machines, d.Store, d.Mailer, d.Cfg, d.Workspace))
+			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg, d.Workspace))
+			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store, d.Workspace))
 		})
 
 		pr.Get("/uploads/*", serveUpload(d.Store, d.Files))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -44,9 +45,16 @@ func TestSubmitInviteMember_usesSuppliedFullName(t *testing.T) {
 	cleanupAuthTest(t, pool, ws.ID, email)
 
 	machines := map[string]*domain.Machine{domain.UserMachineID: inviteTestUserMachine()}
-	handler := submitInviteMember(machines, store, mail.LogMailer{}, cfg)
+	// A Workspace with one Application declaring the role this invite assigns -- submittedAppRoles
+	// validates against the Application's own roles: vocabulary since Fase 3b, so an invite naming
+	// a role no Application declares is rejected rather than stored.
+	inviteWS := domain.Workspace{Applications: []domain.Application{{
+		ID: "app_document_approval", Name: "Document Approval", Roles: []string{"approver", "submitter"},
+	}}}
+	handler := submitInviteMember(machines, store, mail.LogMailer{}, cfg, inviteWS)
 
-	form := strings.NewReader("email=" + email + "&fld_name=Budi+Santoso&app_role=approver")
+	form := strings.NewReader("email=" + email + "&fld_name=Budi+Santoso&" +
+		url.QueryEscape("app_role[app_document_approval]") + "=approver")
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(data.WithWorkspaceScope(ctx, ws.ID))
@@ -91,7 +99,7 @@ func TestSubmitInviteMember_missingNameIsRejected(t *testing.T) {
 	cleanupAuthTest(t, pool, ws.ID, email)
 
 	machines := map[string]*domain.Machine{domain.UserMachineID: inviteTestUserMachine()}
-	handler := submitInviteMember(machines, store, mail.LogMailer{}, cfg)
+	handler := submitInviteMember(machines, store, mail.LogMailer{}, cfg, domain.Workspace{})
 
 	form := strings.NewReader("email=" + email)
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", form)

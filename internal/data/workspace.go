@@ -59,15 +59,97 @@ func (s *Store) GetWorkspace(ctx context.Context, id string) (*Workspace, error)
 }
 
 // Membership is one identity's role within one Workspace (ROADMAP.md Phase 21 Step 3/8):
-// WorkspaceRole gates the Workspace itself (admin/member); AppRole is this slice's single-
-// Application role vocabulary (approver/submitter/reviewer/none), consulted only for a member --
-// an admin's access does not depend on it.
+// WorkspaceRole gates the Workspace itself (admin/member), while AppRoles says what they may be
+// *within each Application*, keyed by Application id.
+//
+// An Application absent from the map means no role there -- "none" is the absence of a row, not a
+// stored empty string, so "has no role here" and "has a blank role" cannot become two states
+// meaning the same thing.
+//
+// AppRole is the pre-Fase-3b single-Application column, kept and still written alongside AppRoles
+// until migration 008's own note says the column may be dropped. Read AppRoles; AppRole exists so
+// a rollback loses nothing.
 type Membership struct {
 	WorkspaceID   string
 	UserRecordID  string
 	Email         string
 	WorkspaceRole string
 	AppRole       string
+	AppRoles      map[string]string
+}
+
+// appRolesFor reads the per-Application roles of one member.
+func (s *Store) appRolesFor(ctx context.Context, workspaceID, userRecordID string) (map[string]string, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT application_id, role FROM workspace_member_app_roles
+		WHERE workspace_id = $1 AND user_record_id = $2
+	`, workspaceID, userRecordID)
+	if err != nil {
+		return nil, fmt.Errorf("list member app roles: %w", err)
+	}
+	defer rows.Close()
+
+	roles := map[string]string{}
+	for rows.Next() {
+		var appID, role string
+		if err := rows.Scan(&appID, &role); err != nil {
+			return nil, fmt.Errorf("scan member app role: %w", err)
+		}
+		roles[appID] = role
+	}
+	return roles, rows.Err()
+}
+
+// appRolesByMember reads every member's roles for one Workspace in a single query, keyed by
+// user record id. ListMembers already returns every member, so asking per member would be a
+// self-inflicted N+1 -- this is read once and stitched in Go instead.
+func (s *Store) appRolesByMember(ctx context.Context, workspaceID string) (map[string]map[string]string, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT user_record_id, application_id, role FROM workspace_member_app_roles
+		WHERE workspace_id = $1
+	`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list workspace app roles: %w", err)
+	}
+	defer rows.Close()
+
+	byMember := map[string]map[string]string{}
+	for rows.Next() {
+		var userRecordID, appID, role string
+		if err := rows.Scan(&userRecordID, &appID, &role); err != nil {
+			return nil, fmt.Errorf("scan workspace app role: %w", err)
+		}
+		if byMember[userRecordID] == nil {
+			byMember[userRecordID] = map[string]string{}
+		}
+		byMember[userRecordID][appID] = role
+	}
+	return byMember, rows.Err()
+}
+
+// SetMemberAppRole assigns (or clears) one member's role in one Application. An empty role
+// DELETEs the row rather than storing "": absence is how "no role here" is said, so the two can
+// never drift into separate states meaning the same thing.
+func (s *Store) SetMemberAppRole(ctx context.Context, workspaceID, userRecordID, applicationID, role string) error {
+	if role == "" {
+		_, err := s.pool.Exec(ctx, `
+			DELETE FROM workspace_member_app_roles
+			WHERE workspace_id = $1 AND user_record_id = $2 AND application_id = $3
+		`, workspaceID, userRecordID, applicationID)
+		if err != nil {
+			return fmt.Errorf("clear member app role: %w", err)
+		}
+		return nil
+	}
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO workspace_member_app_roles (workspace_id, user_record_id, application_id, role)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (workspace_id, user_record_id, application_id) DO UPDATE SET role = EXCLUDED.role
+	`, workspaceID, userRecordID, applicationID, role)
+	if err != nil {
+		return fmt.Errorf("set member app role: %w", err)
+	}
+	return nil
 }
 
 // AddMember records email's membership in workspaceID, naming the mch_user record (created in
@@ -100,12 +182,21 @@ func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID str
 		}
 		return nil, fmt.Errorf("get membership: %w", err)
 	}
+	roles, err := s.appRolesFor(ctx, workspaceID, userRecordID)
+	if err != nil {
+		return nil, err
+	}
+	m.AppRoles = roles
 	return m, nil
 }
 
 // ListMemberships returns every Workspace email belongs to -- login's own source of truth for
 // whether a signed-in identity has exactly one Workspace (skip straight in) or several (Choose
 // Workspace, ROADMAP.md Phase 21 Step 4).
+//
+// AppRoles is deliberately left nil here, unlike GetMembership/ListMembers: its two callers show
+// a Workspace name and Workspace role only, and filling it would mean querying per-Application
+// roles across every Workspace an identity belongs to for data no screen reads.
 func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT workspace_id, user_record_id, email, workspace_role, COALESCE(app_role, '')
@@ -151,7 +242,22 @@ func (s *Store) ListMembers(ctx context.Context, workspaceID string) ([]Membersh
 		}
 		memberships = append(memberships, m)
 	}
-	return memberships, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	byMember, err := s.appRolesByMember(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range memberships {
+		if roles := byMember[memberships[i].UserRecordID]; roles != nil {
+			memberships[i].AppRoles = roles
+		} else {
+			memberships[i].AppRoles = map[string]string{}
+		}
+	}
+	return memberships, nil
 }
 
 // UpdateMemberRole changes a member's WorkspaceRole/AppRole (ROADMAP.md Phase 21 Step 6).

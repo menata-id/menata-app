@@ -877,3 +877,119 @@ navigation:
 		t.Fatal("LoadApplication() error = nil, want error: nav_shared declared by two applications")
 	}
 }
+
+// TestLoadApplication_rolesOptional covers Project Management's real case: an Application that
+// declares no role vocabulary loads fine and yields an empty list, so the Members screens simply
+// offer it no role rather than borrowing another Application's words or rendering an empty
+// dropdown. Asserted rather than assumed, since "declares none" is the default state and a
+// default that silently broke would be easy to miss.
+func TestLoadApplication_rolesOptional(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "project.yaml", `
+id: mch_project
+name: Project
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - task.yaml
+    - project.yaml
+applications:
+  - with-roles.yaml
+  - without-roles.yaml
+`)
+	writeFile(t, dir, "with-roles.yaml", `
+id: app_with_roles
+name: With Roles
+machines:
+  - mch_task
+roles:
+  - approver
+  - submitter
+`)
+	writeFile(t, dir, "without-roles.yaml", `
+id: app_without_roles
+name: Without Roles
+machines:
+  - mch_project
+`)
+
+	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	with, _ := app.Workspace.ApplicationByID("app_with_roles")
+	if len(with.Roles) != 2 || with.Roles[0] != "approver" {
+		t.Errorf("Roles = %+v, want [approver submitter]", with.Roles)
+	}
+	without, _ := app.Workspace.ApplicationByID("app_without_roles")
+	if len(without.Roles) != 0 {
+		t.Errorf("Roles = %+v, want none declared", without.Roles)
+	}
+}
+
+func TestLoadApplication_duplicateRoleRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_main
+name: Main
+machines:
+  - mch_task
+roles:
+  - approver
+  - approver
+`)
+
+	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: role declared twice")
+	}
+}
+
+func TestLoadApplication_blankRoleRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_main
+name: Main
+machines:
+  - mch_task
+roles:
+  - approver
+  - ""
+`)
+
+	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: blank role -- 'no role' is already the absence of one")
+	}
+}
