@@ -864,6 +864,18 @@ func widthControl(s *data.Record, page int) templ.Component {
 // stepHiddenFields carries every field the generic PUT route requires (ROADMAP.md Phase 3/11's
 // data.ValidateRecord enforces every required Field is present) forward unchanged, the same
 // "carry forward what isn't being edited" posture Phase 11's file-upload fix already established.
+//
+// IT MUST LIST EVERY FIELD A STEP CAN HOLD, not only the required ones, and that is a data-loss
+// trap rather than tidiness. These forms PUT to the *generic* update route, which rewrites the
+// record from what it is given, and data.ValuesFromForm (internal/data/form.go) drops a field that
+// is absent from the submission. Anything missing here is therefore erased by the next drag, place
+// or width change -- with no error, because nothing was invalid; the field simply stopped existing.
+//
+// The three CAP-F24/step-name Fields were added in Fase 6c-2, the same change that first wrote
+// them. Before that they were always empty, so their absence cost nothing and was invisible; the
+// moment the wizard filled them, every marker drag would have quietly reset a Group-held step back
+// to an ungated one. TestSignaturePlacementPut_preservesApproverFields (internal/web) is what
+// holds this shut, because no test covered this file at all when the trap was found.
 func stepHiddenFields(s *data.Record) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -892,7 +904,7 @@ func stepHiddenFields(s *data.Record) templ.Component {
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepDocument)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 226, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 238, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 		if templ_7745c5c3_Err != nil {
@@ -905,7 +917,7 @@ func stepHiddenFields(s *data.Record) templ.Component {
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(s.Values[action.FieldStepDocument]))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 226, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 238, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
 		if templ_7745c5c3_Err != nil {
@@ -918,7 +930,7 @@ func stepHiddenFields(s *data.Record) templ.Component {
 		var templ_7745c5c3_Var49 string
 		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepSequence)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 227, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 239, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 		if templ_7745c5c3_Err != nil {
@@ -931,7 +943,7 @@ func stepHiddenFields(s *data.Record) templ.Component {
 		var templ_7745c5c3_Var50 string
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(s.Values[action.FieldStepSequence]))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 227, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 239, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var50)
 		if templ_7745c5c3_Err != nil {
@@ -942,9 +954,9 @@ func stepHiddenFields(s *data.Record) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var51 string
-		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepAssignee)
+		templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 228, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 240, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var51)
 		if templ_7745c5c3_Err != nil {
@@ -955,9 +967,9 @@ func stepHiddenFields(s *data.Record) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var52 string
-		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(s.Values[action.FieldStepAssignee]))
+		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(s.Values[action.FieldStepName]))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 228, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 240, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 		if templ_7745c5c3_Err != nil {
@@ -968,9 +980,9 @@ func stepHiddenFields(s *data.Record) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var53 string
-		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepDecision)
+		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepAssignee)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 229, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 241, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 		if templ_7745c5c3_Err != nil {
@@ -981,15 +993,93 @@ func stepHiddenFields(s *data.Record) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var54 string
-		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(s.Values[action.FieldStepDecision]))
+		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(s.Values[action.FieldStepAssignee]))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 229, Col: 108}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 241, Col: 108}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "\"> <input type=\"hidden\" name=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var55 string
+		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepApproverType)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 242, Col: 57}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var56 string
+		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(s.Values[action.FieldStepApproverType]))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 242, Col: 116}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\"> <input type=\"hidden\" name=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var57 string
+		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepApproverGroup)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 243, Col: 58}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var58 string
+		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(s.Values[action.FieldStepApproverGroup]))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 243, Col: 118}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\"> <input type=\"hidden\" name=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var59 string
+		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepDecision)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 244, Col: 53}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var60 string
+		templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue(toString(s.Values[action.FieldStepDecision]))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 244, Col: 108}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

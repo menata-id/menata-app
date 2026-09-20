@@ -151,7 +151,7 @@ Pages are styled two different ways right now, and which one a page uses says wh
 
 | | Stylesheet | Pages |
 |---|---|---|
-| **Tailwind** | `static/css/app.css`, built from `static/css/input.css` by `make css` | The seven pre-auth screens (`authShell`); the Workspace-level screens (`appShell`): Workspace Home, Workspace Members, Edit member, Groups, Group detail; and the Application screens ported so far — Approval Inbox (Fase 6a) and Review Document (6b) |
+| **Tailwind** | `static/css/app.css`, built from `static/css/input.css` by `make css` | The seven pre-auth screens (`authShell`); the Workspace-level screens (`appShell`): Workspace Home, Workspace Members, Edit member, Groups, Group detail; and the Application screens ported so far — Approval Inbox (Fase 6a), Review Document (6b) and the submission wizard (6c-2) |
 | **Hand-written** | `pageStyles`, an inline `<style>` block in `machine.templ` | The remaining Application screens, via `pageShell` |
 
 This split is a planned transition, not drift, and the boundary is **per screen rather than per

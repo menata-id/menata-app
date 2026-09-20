@@ -222,10 +222,25 @@ templ widthControl(s *data.Record, page int) {
 // stepHiddenFields carries every field the generic PUT route requires (ROADMAP.md Phase 3/11's
 // data.ValidateRecord enforces every required Field is present) forward unchanged, the same
 // "carry forward what isn't being edited" posture Phase 11's file-upload fix already established.
+//
+// IT MUST LIST EVERY FIELD A STEP CAN HOLD, not only the required ones, and that is a data-loss
+// trap rather than tidiness. These forms PUT to the *generic* update route, which rewrites the
+// record from what it is given, and data.ValuesFromForm (internal/data/form.go) drops a field that
+// is absent from the submission. Anything missing here is therefore erased by the next drag, place
+// or width change -- with no error, because nothing was invalid; the field simply stopped existing.
+//
+// The three CAP-F24/step-name Fields were added in Fase 6c-2, the same change that first wrote
+// them. Before that they were always empty, so their absence cost nothing and was invisible; the
+// moment the wizard filled them, every marker drag would have quietly reset a Group-held step back
+// to an ungated one. TestSignaturePlacementPut_preservesApproverFields (internal/web) is what
+// holds this shut, because no test covered this file at all when the trap was found.
 templ stepHiddenFields(s *data.Record) {
 	<input type="hidden" name={ action.FieldStepDocument } value={ toString(s.Values[action.FieldStepDocument]) }/>
 	<input type="hidden" name={ action.FieldStepSequence } value={ toString(s.Values[action.FieldStepSequence]) }/>
+	<input type="hidden" name={ action.FieldStepName } value={ toString(s.Values[action.FieldStepName]) }/>
 	<input type="hidden" name={ action.FieldStepAssignee } value={ toString(s.Values[action.FieldStepAssignee]) }/>
+	<input type="hidden" name={ action.FieldStepApproverType } value={ toString(s.Values[action.FieldStepApproverType]) }/>
+	<input type="hidden" name={ action.FieldStepApproverGroup } value={ toString(s.Values[action.FieldStepApproverGroup]) }/>
 	<input type="hidden" name={ action.FieldStepDecision } value={ toString(s.Values[action.FieldStepDecision]) }/>
 }
 

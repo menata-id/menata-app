@@ -25,32 +25,80 @@ import (
 // showDocumentSubmit is Case 3's submission wizard (ROADMAP.md Phase 15 Step 6) -- Document
 // details + Approval mode + a dynamic, flat approver picker, all on one screen.
 //
-// documentMachine is mch_document itself, so fld_document_type's options come from
-// metadata/document.yaml rather than being hardcoded in the template (the mismatch closed
-// alongside this handler change -- see documentsubmit.templ's own doc comment).
-func showDocumentSubmit(store *data.Store, documentMachine *domain.Machine) http.HandlerFunc {
+// wizardOptions is everything both wizard renderings need beyond chrome: the two Fields whose
+// declared options the form must offer (never hardcoded lists), and the pickers' own choices.
+//
+// It exists because the full page and the "+ Add approver" fragment must offer the *identical*
+// approver row -- the drift that would otherwise appear as a new row silently missing a Group the
+// first row had.
+type wizardOptions struct {
+	documentType domain.Field
+	mode         domain.Field
+	approvers    rendering.RelationOptions
+	groups       rendering.GroupOptions
+}
+
+// readWizardOptions resolves them once.
+//
+// The approver list comes from composition.Loader.RelationOptions rather than a hand-built option
+// list off mch_user records, which is what let documentsubmit.templ leave the projection ratchet:
+// the Loader already resolves a reference Field's target records to {ID, Label} using the target's
+// first Field, and for mch_user that first Field is fld_name -- exactly what the template used to
+// read itself. The group list is keyed on mch_approval_step, not mch_document: GroupOptions
+// short-circuits on a Machine declaring no group Field, and only the step Machine declares one.
+func readWizardOptions(req *http.Request, machines map[string]*domain.Machine, store *data.Store) (wizardOptions, error) {
+	stepMachine := machines[action.StepMachineID]
+	ld := composition.NewLoader(store, machines)
+	approvers, err := ld.RelationOptions(req.Context(), stepMachine)
+	if err != nil {
+		return wizardOptions{}, err
+	}
+	groups, err := ld.GroupOptions(req.Context(), stepMachine)
+	if err != nil {
+		return wizardOptions{}, err
+	}
+	docMachine := machines[action.DocumentMachineID]
+	documentType, _ := docMachine.FieldByID("fld_document_type")
+	mode, _ := docMachine.FieldByID(action.FieldDocumentMode)
+	return wizardOptions{documentType: documentType, mode: mode, approvers: approvers, groups: groups}, nil
+}
+
+// showDocumentSubmit serves board 08 (ui-sample/case-03-flow1/08-submit-document.html).
+//
+// Every option list on this screen comes from metadata: fld_document_type's since the Field was
+// added, and fld_mode's since Fase 6c-2 -- it was the last hardcoded pair in the wizard, two
+// <input type="radio" value="sequential|parallel"> literals sitting two sections below a select
+// that already did it correctly.
+func showDocumentSubmit(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		users, err := store.ListRecords(req.Context(), "mch_user")
+		ctx := req.Context()
+		opts, err := readWizardOptions(req, machines, store)
 		if err != nil {
 			serverError(w, err)
 			return
 		}
-		documentType, _ := documentMachine.FieldByID("fld_document_type")
-		render(req.Context(), w, rendering.DocumentSubmitPage(users, documentType))
+		chrome, err := resolveChrome(ctx, req, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		actor := currentActor(req, store, cfg)
+		render(ctx, w, rendering.DocumentSubmitPage(opts.documentType, opts.mode, opts.approvers, opts.groups,
+			chrome.WorkspaceName, chrome.UserInitials, workspaceRoleOf(ctx, store, actor.ID)))
 	}
 }
 
 // newApproverRow serves the wizard's own "+ Add approver" HTMX fragment -- a fresh
-// rendering.ApproverRow, populated with the same real mch_user options as the wizard's initial
-// row, never fabricated data.
-func newApproverRow(store *data.Store) http.HandlerFunc {
+// rendering.ApproverRow with the same real options as the wizard's initial row, never fabricated
+// data and never a different set.
+func newApproverRow(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		users, err := store.ListRecords(req.Context(), "mch_user")
+		opts, err := readWizardOptions(req, machines, store)
 		if err != nil {
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.ApproverRow(users))
+		render(req.Context(), w, rendering.ApproverRow(opts.approvers, opts.groups))
 	}
 }
 
@@ -66,7 +114,12 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 		if !ok {
 			return
 		}
-		if !hasAnyApprover(req.Form[action.FieldStepAssignee]) {
+		rows, problem := parseStepInputs(req)
+		if problem != "" {
+			http.Error(w, problem, http.StatusUnprocessableEntity)
+			return
+		}
+		if !hasApprover(rows) {
 			// Without this, createApprovalSteps below silently skips every empty slot and
 			// returns success -- a Document would be created with zero Approval Steps, and
 			// nothing could ever decide it. Checked before CreateRecord so a rejected submission
@@ -87,7 +140,7 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 			serverError(w, err)
 			return
 		}
-		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, req.Form[action.FieldStepAssignee]) {
+		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, rows) {
 			return
 		}
 
@@ -99,38 +152,113 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 	}
 }
 
-// hasAnyApprover reports whether at least one non-empty fld_assignee was submitted -- the wizard's
-// own approver rows always submit a value (possibly ""), never omit the field entirely, so a
-// simple non-blank check is enough.
-func hasAnyApprover(assignees []string) bool {
-	for _, a := range assignees {
-		if a != "" {
+// stepInput is one approver row as the wizard submitted it, already paired up.
+//
+// One struct rather than four parallel []string arguments, because the pairing is the fragile
+// part: row order *is* fld_sequence (there is no hidden sequence input -- see below), so four
+// slices that drift out of alignment by one would silently attach every approver to the wrong
+// step. parseStepInputs is the single place that alignment is established, and the reason the
+// wizard's type picker is a <select> rather than the board's segmented buttons: an unchecked radio
+// submits nothing at all, which is exactly how a slice loses an element.
+type stepInput struct {
+	name          string
+	assignee      string
+	approverType  string
+	approverGroup string
+}
+
+// parseStepInputs reads the approver rows out of the submitted form and rejects a row that names
+// no approver of the kind it claims.
+//
+// That pairing check lives here rather than in metadata because metadata cannot state it: what it
+// wants to say is "fld_assignee is required when fld_approver_type is User", and this runtime's
+// Constraint has one shape only -- block a field transition while a *related Machine* has a
+// matching record -- which cannot condition on a sibling Field of the same record. So fld_assignee
+// is declared optional (see metadata/approval_step.yaml's own comment) and this is the enforcement.
+// Forward pointer: ROADMAP.md's "Conditional required" deferral row; when that lands, this check
+// becomes two declarations and this function loses its reason to validate anything.
+//
+// An entirely blank row is skipped rather than rejected: the wizard renders one empty row to start
+// with, and "+ Add approver" can leave a spare.
+func parseStepInputs(req *http.Request) ([]stepInput, string) {
+	names := req.Form[action.FieldStepName]
+	assignees := req.Form[action.FieldStepAssignee]
+	types := req.Form[action.FieldStepApproverType]
+	groups := req.Form[action.FieldStepApproverGroup]
+
+	rows := make([]stepInput, 0, len(assignees))
+	for i := range assignees {
+		row := stepInput{
+			name:          at(names, i),
+			assignee:      assignees[i],
+			approverType:  at(types, i),
+			approverGroup: at(groups, i),
+		}
+		switch {
+		case row.approverType == domain.ActorKindGroup && row.approverGroup == "":
+			return nil, "a step set to Group must name a group"
+		case row.approverType != domain.ActorKindGroup && row.assignee == "" && row.approverGroup == "":
+			row = stepInput{} // an untouched spare row
+		case row.approverType != domain.ActorKindGroup && row.assignee == "":
+			return nil, "a step set to User must name a person"
+		}
+		rows = append(rows, row)
+	}
+	return rows, ""
+}
+
+// at is a bounds-safe index into a parallel form slice. A row whose control was never rendered --
+// an older cached page, a hand-built POST -- reads as empty rather than panicking the handler.
+func at(values []string, i int) string {
+	if i < len(values) {
+		return values[i]
+	}
+	return ""
+}
+
+func hasApprover(rows []stepInput) bool {
+	for _, r := range rows {
+		if r.assignee != "" || r.approverGroup != "" {
 			return true
 		}
 	}
 	return false
 }
 
-// createApprovalSteps writes one pending Approval Step per named approver.
+// createApprovalSteps writes one pending Approval Step per approver row.
 //
 // Sequence comes from the submitted order rather than a hidden input: a browser submits repeated
 // field names in DOM order, which is exactly the order the wizard's own reordering leaves the
 // <select>s in.
 //
-// It is the position in the submitted list, so an empty slot leaves a gap -- ["", "usr_a"] makes
-// usr_a step 2, not step 1. That is the existing behaviour and it is harmless, because
-// action.CanDecide compares sequences relatively rather than expecting 1..n. Left as it was:
-// Phase 19 moves code, it does not quietly renumber approvals.
-func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.Store, stepMachine *domain.Machine, documentID string, assignees []string) bool {
-	for i, assignee := range assignees {
-		if assignee == "" {
+// It is the position in the submitted list, so an empty slot leaves a gap -- an untouched row
+// before a filled one makes the filled one step 2, not step 1. That is the existing behaviour and
+// it is harmless, because action.CanDecide compares sequences relatively rather than expecting
+// 1..n. Left as it was: Phase 19 moved this code, it did not quietly renumber approvals, and
+// neither does Fase 6c-2.
+//
+// fld_approver_type is written only when the row actually chose one. A row left on the default
+// stores nothing there, which is deliberate: an empty type is what makes authorization's own
+// fallback take over, so a wizard that stamped "User" on every row would opt every step into the
+// dynamic gate for no reason and make the fallback path untested in practice.
+func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.Store, stepMachine *domain.Machine, documentID string, rows []stepInput) bool {
+	for i, row := range rows {
+		if row.assignee == "" && row.approverGroup == "" {
 			continue
 		}
 		values := map[string]any{
 			action.FieldStepDocument: documentID,
 			action.FieldStepSequence: float64(i + 1),
-			action.FieldStepAssignee: assignee,
 			action.FieldStepDecision: action.DecisionPending,
+		}
+		if row.name != "" {
+			values[action.FieldStepName] = row.name
+		}
+		if row.approverType == domain.ActorKindGroup {
+			values[action.FieldStepApproverType] = domain.ActorKindGroup
+			values[action.FieldStepApproverGroup] = row.approverGroup
+		} else {
+			values[action.FieldStepAssignee] = row.assignee
 		}
 		data.ApplyDefaults(stepMachine, values)
 		if !validRecord(w, req, store, stepMachine, values) {

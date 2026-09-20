@@ -25,10 +25,22 @@ fields:
   - id: fld_step_name
     name: Step Name
     type: text
+  # Not required since Fase 6c-2, and the reason is a metadata capability that does not exist yet.
+  # A step held by a Group has no person to name here, so requiring it would make CAP-F24's own
+  # Group arm unwritable. What this really wants to say is "required when fld_approver_type is
+  # User", and this runtime's Constraint has exactly one shape -- block a field transition while a
+  # related Machine has a matching record (domain.Constraint) -- which cannot express a condition
+  # on a sibling Field of the same record.
+  #
+  # So the pairing is enforced in internal/web's own wizard instead (parseStepInputs), which is a
+  # hardcoding exception and carries the three things CLAUDE.md requires of one: this comment, a
+  # forward-checkable pointer, and a row in writing-guide.md's "what's hardcoded today" table.
+  # Forward pointer: ROADMAP.md's deferral row "Conditional required (a Field required only when a
+  # sibling Field holds a given value)". Upstream declares the same pairing as two conditional
+  # Constraints, so the shape is known -- it is this runtime's Constraint that has to grow.
   - id: fld_assignee
     name: Assignee
     type: person
-    required: true
   # CAP-F24 (Fase 6c-1): a step chooses, at submission, whether its approver gate is one named
   # person or a whole Workspace Group -- board 08's own User/Group toggle, and the requirement
   # board 09 states outright: "Approvers are supplied by Groups."

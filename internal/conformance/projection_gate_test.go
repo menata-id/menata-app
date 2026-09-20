@@ -91,8 +91,15 @@ var projectionRatchet = map[string]string{
 	// five `m.ID == action.DocumentMachineID` branches. This gate measures raw field reads, not
 	// Machine-id branches, and saying otherwise would be the same written-claim-for-the-thing
 	// failure this package exists to catch.
+	//
+	// "documentsubmit.templ" left in Fase 6c-2, the second entry to go. It was here for a single
+	// line -- an <option> list built by hand from mch_user records, reading fld_name itself -- and
+	// that line was a copy of something the Composition layer already did: Loader.RelationOptions
+	// resolves a reference Field's targets to {ID, Label} using the target Machine's own first
+	// Field, which for mch_user *is* fld_name. So this entry was never really debt about
+	// Projection's shape; it was one screen not asking for what it already had. Worth
+	// distinguishing from detail.templ's exit in 6b, which needed a whole new screen first.
 	"approvalstepper.templ":    "Case 3 bespoke approval UI (writing-guide.md honest map)",
-	"documentsubmit.templ":     "Case 3 submission wizard (writing-guide.md honest map)",
 	"signatureplacement.templ": "Case 3 signature-coordinate canvas (writing-guide.md honest map)",
 }
 

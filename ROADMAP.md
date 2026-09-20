@@ -185,10 +185,29 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        Approval Step already in the database kept working with no migration and no rewritten test;
        the existing permission tests needed only a type wrapper, which is the evidence rather than
        the claim.
-     - **6c-2 Submit wizard (board 08) + Signature positions (09)** — next: the chrome port, the
-       User/Group toggle per step row, and the first writer of `fld_step_name` and the CAP-F24
-       pair. Both boards are steps of one wizard (`STEP 1 OF 3` / `STEP 2 OF 3`), which is why 09
-       moved here from 6b.
+     - **6c-2 Submit wizard (board 08)** — *shipped 2026-09-20*. The chrome port, the User/Group
+       toggle per approver row, and **the first writer of `fld_step_name` and the CAP-F24 pair** —
+       until this, the gate 6c-1 built was reachable only by hand-editing a record through the
+       generic form. `documentsubmit.templ` left `projectionRatchet` (eight entries now): it sat
+       there for one hand-built `<option>` list reading `fld_name`, which
+       `composition.Loader.RelationOptions` already resolves — so unlike `detail.templ`'s exit in
+       6b, which needed a whole new screen, this entry was one screen not asking for what it
+       already had. `fld_mode` now reads its options from metadata too; it was the last hardcoded
+       option list in the wizard, sitting two sections below a select that already did it right.
+
+       **A silent data-loss trap was found while planning this and fixed before it could fire.**
+       `signatureplacement.templ`'s hidden-field block carried four of a step's Fields through its
+       generic PUT, and the generic route rewrites a record from what it is given — so the moment
+       the wizard started writing the three new Fields, the next marker drag would have erased
+       them with no error at all, turning a Group-held step back into an ungated one. It was
+       invisible for two phases because the Fields were always empty. Board 09's own port is
+       6c-3; this fix could not wait for it.
+     - **6c-3 Signature positions (board 09)** — next. 281 lines with drag JS, eight raw field
+       reads, a Component shared with the still-`pageStyles` `detail.templ`, and an interaction
+       model the board *changes* rather than dresses (a single `Save positions →` where the app
+       saves per interaction). Carries one known issue: `prm_edit_own_step` has no dynamic actor
+       arm, so a Group-held step's marker resolves edit against an empty `fld_assignee` and is
+       draggable by nobody.
   7. Role-based Permission + a declared transition model, then board 06 itself. Fase 4 supplied
      roles, so the foundation is closer than when this list was written — but both primitives are
      still absent from 006 and 007, which is why this stays last.
@@ -216,6 +235,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | ~~Section tab strip (board 07)~~ — *done in 6a*: `rendering.inboxTabs`, page chrome rather than a second `navigation:` level. Fase 2 had recorded this as "the only part needing" one; with two tabs being `?tab=` views of a single route and the other two being real declared items, the case never materialized | — | — |
   | Hour-scale SLA wording (board 07: "SLA breached · 4h"; board 10: "Breached · 4 hours ago") | **no phase yet** | `fld_due_date` is `type: date` — a bare calendar date, no time component — and `domain.KnownFieldTypes` has no datetime type at all. `experience.EvaluateSLA` truncates to day *deliberately*, which is what makes "Due today" mean anything. Adding a Field type to satisfy one label is shape-before-need; the trigger is a second, independent caller that genuinely needs sub-day precision. Noted at the site in `ApprovalInboxPage`'s and `ReviewDocumentPage`'s own doc comments. **Two screens now want it and it is still not built** — that is the row working, not a row going stale: both are the same board's day-vs-hour mismatch, not two independent callers |
   | ~~Review document as its own screen (board 10)~~ — *done in 6b*: `reviewdocument.templ` + `composition.ReviewDocument`, which is what let `detail.templ` out of `projectionRatchet` | — | — |
+  | The wizard's third step (boards 08/09 both say "OF 3") | **no phase yet** — and it is a *flow* question, not a screen | No step-3 board exists anywhere in the set, so what it would contain is inference. Behind the label sits the real finding: `submitDocumentWizard` sets `fld_status = in_review` at creation, **before** any signature is placed — so an approver can decide a Document while the submitter is still on the placement screen, and abandoning the wizard leaves a live in-review Document with no placements. A third step would be where sending actually happens, which is also what would earn `draft` back as a `fld_status` option (`metadata/document.yaml` already says: "add it back only alongside a real save-as-draft flow, not speculatively"). The wizard says "Step 1 of 2" meanwhile, because two screens exist |
+  | Conditional required (a Field required only when a sibling Field holds a given value) | **no phase yet** | `domain.Constraint` has one shape — block a field transition while a *related Machine* has a matching record — which cannot condition on a sibling Field of the same record. The one real case is live as of 6c-2: `fld_assignee` is required for a User-held Approval Step and meaningless for a Group-held one, so it is declared optional and `internal/web`'s `parseStepInputs` enforces the pairing in Go. Upstream declares the same rule as two conditional Constraints, so the shape is known. Trigger is a second real case, as always |
   | Uploaded file size (board 10: "6 pages · 2.4 MB") | **no phase yet** | the page count is real (`internal/pdf.PageCount`) and is rendered; **the byte size is stored nowhere** — not on the record, not in `internal/storage`'s key, which embeds only the original filename. It needs a write-path change (capture size at upload) plus a Field to hold it, for one label. The trigger is a second caller that needs file metadata, not this line |
   | Step names with real values (board 10: "Finance Review") | **Fase 6c** | `fld_step_name` is declared as of 6b and `composition.stepLabel` reads it; nothing *writes* it until board 08's wizard collects it. Until then every step is titled with its assignee, which is exactly what the app did before the Field existed — the fallback is the honest state, not a placeholder |
   | New chrome on the Document Approval screens (~~inbox~~, ~~review~~, submit, signature) | **inbox done in 6a, review in 6b**; submit and signature both 6c | Preflight ties chrome to content; their content ports there. Signature moved out of 6b — board 09 is `STEP 2 OF 3` of the submit wizard and shows Group approvers (CAP-F24), so it belongs with board 08, not before it |
