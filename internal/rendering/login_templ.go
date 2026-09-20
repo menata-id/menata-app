@@ -84,7 +84,15 @@ func LoginPage(errorMsg string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"flex flex-col gap-2\"><label for=\"username\" class=\"text-sm font-medium\">Email</label> <input id=\"username\" type=\"text\" name=\"username\" autocomplete=\"username\" autofocus class=\"h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm\"></div><div class=\"flex flex-col gap-2\"><div class=\"flex items-end justify-between\"><label for=\"password\" class=\"text-sm font-medium\">Password</label> <a href=\"/forgot-password\" class=\"text-xs text-blue-600 hover:text-blue-700 sm:text-2xs\">Forgot password?</a></div><input id=\"password\" type=\"password\" name=\"password\" autocomplete=\"current-password\" class=\"h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm\"></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"flex flex-col gap-2\"><label for=\"username\" class=\"text-sm font-medium\">Email</label> <input id=\"username\" type=\"text\" name=\"username\" autocomplete=\"username\" autofocus class=\"h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm\"></div><div class=\"flex flex-col gap-2\"><div class=\"flex items-end justify-between\"><label for=\"password\" class=\"text-sm font-medium\">Password</label> <a href=\"/forgot-password\" class=\"text-xs text-blue-600 hover:text-blue-700 sm:text-2xs\">Forgot password?</a></div><div class=\"relative flex\"><input id=\"password\" type=\"password\" name=\"password\" autocomplete=\"current-password\" class=\"h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = authPasswordToggle("password").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -96,7 +104,7 @@ func LoginPage(errorMsg string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</form>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</form>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -106,7 +114,7 @@ func LoginPage(errorMsg string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -122,7 +130,7 @@ func LoginPage(errorMsg string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "Don't have an account? <a href=\"/register\" class=\"text-blue-600 hover:text-blue-700\">Create a workspace</a>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "Don't have an account? <a href=\"/register\" class=\"text-blue-600 hover:text-blue-700\">Create a workspace</a>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -132,7 +140,7 @@ func LoginPage(errorMsg string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -148,7 +156,7 @@ func LoginPage(errorMsg string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "Didn't get your verification email? <a href=\"/resend-verification\" class=\"text-blue-600 hover:text-blue-700\">Resend it</a>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "Didn't get your verification email? <a href=\"/resend-verification\" class=\"text-blue-600 hover:text-blue-700\">Resend it</a>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

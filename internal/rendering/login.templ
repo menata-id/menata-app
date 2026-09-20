@@ -44,13 +44,16 @@ templ LoginPage(errorMsg string) {
 						<label for="password" class="text-sm font-medium">Password</label>
 						<a href="/forgot-password" class="text-xs text-blue-600 hover:text-blue-700 sm:text-2xs">Forgot password?</a>
 					</div>
-					<input
-						id="password"
-						type="password"
-						name="password"
-						autocomplete="current-password"
-						class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
-					/>
+					<div class="relative flex">
+						<input
+							id="password"
+							type="password"
+							name="password"
+							autocomplete="current-password"
+							class="h-10.5 w-full rounded-md border border-slate-300 bg-white pr-11 pl-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
+						/>
+						@authPasswordToggle("password")
+					</div>
 				</div>
 				@authError(errorMsg)
 				@authSubmit("Sign in")
