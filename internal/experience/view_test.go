@@ -14,8 +14,11 @@ func taskMachine() *domain.Machine {
 			{ID: "fld_title", Type: domain.FieldTypeText},
 			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"todo", "in_progress", "done"}},
 		},
-		View: domain.View{Layout: domain.LayoutBoard, GroupBy: "fld_status"},
 	}
+}
+
+func taskBoard() domain.View {
+	return domain.View{ID: "vw_task_board", Type: domain.ViewBoard, GroupBy: "fld_status"}
 }
 
 func TestGroupRecords_ordersColumnsByFieldOptions(t *testing.T) {
@@ -26,7 +29,7 @@ func TestGroupRecords_ordersColumnsByFieldOptions(t *testing.T) {
 		{ID: "rec_3", Values: map[string]any{"fld_status": "todo"}},
 	}
 
-	columns := GroupRecords(m, records, nil)
+	columns := GroupRecords(m, taskBoard(), records, nil)
 
 	if len(columns) != 3 {
 		t.Fatalf("len(columns) = %d, want 3 (todo, in_progress, done)", len(columns))
@@ -48,7 +51,7 @@ func TestGroupRecords_unknownValueGoesToOther(t *testing.T) {
 		{ID: "rec_1", Values: map[string]any{"fld_status": "archived"}},
 	}
 
-	columns := GroupRecords(m, records, nil)
+	columns := GroupRecords(m, taskBoard(), records, nil)
 
 	last := columns[len(columns)-1]
 	if last.Label != "Other" || len(last.Records) != 1 {
@@ -58,18 +61,17 @@ func TestGroupRecords_unknownValueGoesToOther(t *testing.T) {
 
 func TestGroupRecords_unknownGroupByField(t *testing.T) {
 	m := taskMachine()
-	m.View.GroupBy = "fld_ghost"
+	v := taskBoard()
+	v.GroupBy = "fld_ghost"
 
-	if columns := GroupRecords(m, nil, nil); columns != nil {
+	if columns := GroupRecords(m, v, nil, nil); columns != nil {
 		t.Errorf("GroupRecords() = %+v, want nil for an unknown group-by field", columns)
 	}
 }
 
 func TestGroupRecords_relationBasedColumns(t *testing.T) {
-	m := &domain.Machine{
-		ID:   "mch_task",
-		View: domain.View{Layout: domain.LayoutBoard, GroupBy: "fld_list"},
-	}
+	m := &domain.Machine{ID: "mch_task"}
+	v := domain.View{ID: "vw_task_board", Type: domain.ViewBoard, GroupBy: "fld_list"}
 	columns := []Column{
 		{ID: "rec_list_todo", Label: "To Do"},
 		{ID: "rec_list_done", Label: "Done"},
@@ -79,7 +81,7 @@ func TestGroupRecords_relationBasedColumns(t *testing.T) {
 		{ID: "rec_2", Values: map[string]any{"fld_list": "rec_list_todo"}},
 	}
 
-	got := GroupRecords(m, records, columns)
+	got := GroupRecords(m, v, records, columns)
 
 	if len(got) != 2 {
 		t.Fatalf("len(columns) = %d, want 2 (no GroupBy Field lookup needed for the relation case)", len(got))

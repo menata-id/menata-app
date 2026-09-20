@@ -16,18 +16,19 @@ type Column struct {
 	Records []*data.Record
 }
 
-// GroupRecords partitions records into ordered Columns keyed by the value of m.View.GroupBy.
+// GroupRecords partitions records into ordered Columns keyed by the value of v.GroupBy -- the
+// grouping field the selected View declares, rather than a single per-Machine one.
 //
 // If columns is nil, column order/labels come from GroupBy's own status Options (Phase 5's
 // original behavior) and a record whose value isn't among them falls into a trailing "Other"
 // column. If columns is provided, it is used directly instead -- the relation-based case (Phase
 // 10), where columns are real records of another Machine (e.g. mch_list) the caller already
 // fetched and labeled, since this package performs no I/O itself.
-func GroupRecords(m *domain.Machine, records []*data.Record, columns []Column) []Column {
+func GroupRecords(m *domain.Machine, v domain.View, records []*data.Record, columns []Column) []Column {
 	var index map[string]int
 
 	if columns == nil {
-		groupField, ok := m.FieldByID(m.View.GroupBy)
+		groupField, ok := m.FieldByID(v.GroupBy)
 		if !ok {
 			return nil
 		}
@@ -46,7 +47,7 @@ func GroupRecords(m *domain.Machine, records []*data.Record, columns []Column) [
 
 	otherIndex := -1
 	for _, r := range records {
-		value := fmt.Sprint(r.Values[m.View.GroupBy])
+		value := fmt.Sprint(r.Values[v.GroupBy])
 		idx, known := index[value]
 		if !known {
 			if otherIndex == -1 {

@@ -192,6 +192,12 @@ templ pageStyles() {
 				.pdf-thumb { margin-top: 0.5rem; }
 				.pdf-thumb img { max-width: 160px; border: 1px solid #ccc; border-radius: 4px; display: block; }
 				.summary-card-subtitle { font-size: 0.8rem; color: #666; }
+				.card-field-label { color: #999; }
+				.card-field-value { color: #444; }
+				.summary-card-fields { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.5rem; margin-top: 0.25rem; font-size: 0.8rem; }
+				.view-switcher { display: flex; gap: 0.5rem; margin: 0.75rem 0; }
+				.view-switcher-option { padding: 0.25rem 0.7rem; border: 1px solid #ccc; border-radius: 999px; font-size: 0.8rem; color: #444; text-decoration: none; }
+				.view-switcher-option.is-selected { background: #3949ab; color: #fff; border-color: #3949ab; }
 				.filter-chips { display: flex; gap: 0.5rem; margin-top: 1rem; }
 				.filter-chips a { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 999px; font-size: 0.8rem; color: #444; text-decoration: none; }
 				.filter-chips a.active { background: #3949ab; color: #fff; border-color: #3949ab; }
@@ -398,10 +404,10 @@ templ MachineList(machines []*domain.Machine) {
 // permitted to perform isn't offered in the first place; the server enforces the same rule
 // regardless (allowsRecordEdit/deleteAllowed, internal/web/record.go), this only keeps the UI
 // honest about it.
-templ MachinePage(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, actorID string) {
+templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, cards []RecordCard, actorID string) {
 	@pageShell(m.Name) {
 		<div id="machine-body">
-			@MachineBody(m, records, relations, boardColumns, actorID)
+			@MachineBody(m, v, records, relations, boardColumns, cards, actorID)
 		</div>
 	}
 }
@@ -411,7 +417,13 @@ templ MachinePage(m *domain.Machine, records []*data.Record, relations RelationO
 // m's board Layout groups by a relation field (ROADMAP.md Phase 10's ordered Lists) -- fetching
 // those columns is I/O this package doesn't perform, so the caller supplies them; nil means "use
 // the status field's own Options instead" (Phase 5's original behavior, still supported).
-templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, actorID string) {
+//
+// v is the View being rendered, carried into the fragment rather than re-derived from m: a swap
+// must return to the same arrangement the viewer was looking at, and only the caller knows which
+// one that was (the ?view= it resolved). cards is non-nil only for a cards View, for the same
+// caller-supplies-I/O reason as boardColumns -- the projection is resolved in
+// internal/composition, which this package cannot import.
+templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, cards []RecordCard, actorID string) {
 	<h1>{ m.Name }</h1>
 	<code>{ m.ID }</code>
 
@@ -442,9 +454,12 @@ templ MachineBody(m *domain.Machine, records []*data.Record, relations RelationO
 	</table>
 
 	<h2>Records ({ fmt.Sprint(len(records)) })</h2>
-	switch m.View.EffectiveLayout() {
-		case domain.LayoutBoard:
-			@boardLayout(m, records, relations, boardColumns, actorID)
+	@viewSwitcher(m, v)
+	switch v.EffectiveType() {
+		case domain.ViewBoard:
+			@boardLayout(m, v, records, relations, boardColumns, actorID)
+		case domain.ViewCards:
+			@cardsLayout(m, cards)
 		default:
 			@tableLayout(m, records, relations, actorID)
 	}
@@ -471,13 +486,68 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 	</table>
 }
 
-// boardLayout groups records into columns by m.View.GroupBy and renders each column as the same
-// generic table primitive tableLayout already uses -- a board is not a new renderer, it is
-// Collection + Group Dimension + the existing Table renderer, reused per column
+// viewSwitcher offers the Machine's other declared arrangements, labelled by each View's own
+// name: -- never by its type, which is the runtime engine's vocabulary and not a string a viewer
+// should be shown. Renders nothing at all below two views, so a Machine declaring one (or none)
+// looks exactly as it did before views: existed.
+//
+// The link is a query parameter on the page's own route, not a route of its own: a View decides
+// what renders inside the page, never which shell -- so no path appears here that no navigation
+// item declares.
+templ viewSwitcher(m *domain.Machine, selected domain.View) {
+	if len(m.Views) > 1 {
+		<nav class="view-switcher">
+			for _, o := range m.Views {
+				if o.ID == selected.ID {
+					<span class="view-switcher-option is-selected" aria-current="true">{ o.Name }</span>
+				} else {
+					<a class="view-switcher-option" href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)) }>{ o.Name }</a>
+				}
+			}
+		</nav>
+	}
+}
+
+// cardsLayout renders each record through its Machine's own card_fields (Projection, 007 §7.6),
+// reusing projectedFieldValue -- the same renderer approvalinbox.templ's pending card already
+// uses, so a projected Field looks identical wherever it appears.
+//
+// This is Projection's first consumer whose output varies per record. Its only previous one
+// resolved an empty list for every record because no Machine declared card_fields at all, which
+// is why internal/metadata refuses a cards View on a Machine that declares none.
+templ cardsLayout(m *domain.Machine, cards []RecordCard) {
+	<div class="summary-card-list">
+		for _, c := range cards {
+			<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class="summary-card">
+				<span class="summary-card-body">
+					<span class="summary-card-title">{ recordTitle(m, c.Record) }</span>
+					<span class="summary-card-fields">
+						for _, f := range c.Fields {
+							@projectedFieldValue(f)
+						}
+					</span>
+				</span>
+			</a>
+		}
+	</div>
+}
+
+// RecordCard is one record already projected for a cards View: internal/composition resolves the
+// Fields (ProjectCardFields), this package only renders them. The same "composition resolves,
+// rendering displays" split PendingApprovalCard already follows -- and the one this package has
+// no choice about, since composition imports rendering and the reverse would be circular.
+type RecordCard struct {
+	Record *data.Record
+	Fields []ProjectedField
+}
+
+// boardLayout groups records into columns by the selected View's own group_by and renders each
+// column as the same generic table primitive tableLayout already uses -- a board is not a new
+// renderer, it is Collection + Group Dimension + the existing Table renderer, reused per column
 // (006-runtime-model.md "View" lowering formula).
-templ boardLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, actorID string) {
+templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, boardColumns []experience.Column, actorID string) {
 	<div class="board">
-		for _, col := range experience.GroupRecords(m, records, boardColumns) {
+		for _, col := range experience.GroupRecords(m, v, records, boardColumns) {
 			<div class="board-column">
 				<h3>{ col.Label } ({ fmt.Sprint(len(col.Records)) })</h3>
 				<table>
@@ -539,7 +609,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, ac
 			<td>
 				if i == 0 {
 					<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
-				} else if f.ID == m.View.SLAField {
+				} else if f.ID == m.SLAField {
 					@slaBadge(r.Values[f.ID])
 				} else if f.Type == domain.FieldTypeFile {
 					@fileLink(r.Values[f.ID])
@@ -693,7 +763,7 @@ templ slaBadge(v any) {
 	}
 }
 
-// ProjectedField is one Field a Machine's view.card_fields (domain.CardField, 007 §7.6
+// ProjectedField is one Field a Machine's card_fields (domain.CardField, 007 §7.6
 // Projection) projected onto a composed card, already resolved to a display string by
 // internal/composition -- this package never re-resolves a relation or re-reads a record for it,
 // the same "composition resolves, rendering only decides markup" split PendingApprovalCard's other

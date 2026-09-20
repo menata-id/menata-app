@@ -147,11 +147,11 @@ func (l *Loader) ChildSections(ctx context.Context, m *domain.Machine, recordID 
 // experience.GroupRecords doesn't perform itself. Returns nil (not an error) when m isn't a
 // board, or groups by an ordinary status field instead: GroupRecords computes its own columns
 // from that Field's Options in that case, unchanged since Phase 5.
-func (l *Loader) BoardColumns(ctx context.Context, m *domain.Machine) ([]experience.Column, error) {
-	if m.View.EffectiveLayout() != domain.LayoutBoard {
+func (l *Loader) BoardColumns(ctx context.Context, m *domain.Machine, v domain.View) ([]experience.Column, error) {
+	if v.EffectiveType() != domain.ViewBoard {
 		return nil, nil
 	}
-	groupField, ok := m.FieldByID(m.View.GroupBy)
+	groupField, ok := m.FieldByID(v.GroupBy)
 	if !ok || !groupField.IsReference() {
 		return nil, nil
 	}

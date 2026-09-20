@@ -115,7 +115,7 @@ gates by name.
    phase close, re-check exceptions already in the codebase (`internal/composition`'s Case 19
    constants, `internal/conformance`'s `runtimeLevelRoutes`/label allowlist if one exists) against
    *current* metadata capability, not the capability that existed when the exception was written --
-   `view.card_fields` (Projection) and `Event.OnCreate` both landed by generalizing something that
+   `card_fields` (Projection) and `Event.OnCreate` both landed by generalizing something that
    was excused as "metadata can't do this yet" not long before. An exception with no forward
    pointer (step 2b) can't be checked this way, which is exactly why that pointer is mandatory
    going forward.
@@ -167,7 +167,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `action.Field*` constant) — Composition resolves the shape, a Page renders it (007 §4.4, §7.6).
   Ten files are grandfathered in `projectionRatchet` and **the list may only shrink**: adding an
   entry is not the way to pass, and an entry left behind after a file is migrated fails too. Use
-  `composition.ProjectCardFields`/`view.card_fields`; generic access (`Values[f.ID]` from ranging
+  `composition.ProjectCardFields`/`card_fields`; generic access (`Values[f.ID]` from ranging
   over `m.Fields`, as `machine.templ`/`detail.templ` do) is the target pattern, not a violation.
 - `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —
   `capabilities.md`'s own Machines and Shared rendering components tables match the real

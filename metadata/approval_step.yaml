@@ -92,5 +92,7 @@ permissions:
     action: delete
     actor_field: fld_assignee
 
-view:
-  layout: table
+views:
+  - id: vw_approval_step_table
+    name: All Steps
+    type: table

@@ -82,7 +82,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 				if !hiddenDetailField(m, f) {
 					<dt>{ f.Name }</dt>
 					<dd>
-						if f.ID == m.View.SLAField {
+						if f.ID == m.SLAField {
 							@slaBadge(r.Values[f.ID])
 						} else if f.Type == domain.FieldTypeFile {
 							@fileLink(r.Values[f.ID])

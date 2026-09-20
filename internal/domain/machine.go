@@ -193,7 +193,38 @@ type Machine struct {
 	// Sequencing is set only by a Machine whose records are acted on in order; nil means every
 	// record is always actionable.
 	Sequencing *Sequencing
-	View       View
+	// SLAField is a date Field ID on this Machine; when set, that Field renders as an OVERDUE /
+	// "N day(s) left" badge instead of a plain date (ROADMAP.md Phase 13). Machine-level rather
+	// than per-View because the record detail page renders it too, and a detail page selects no
+	// View.
+	SLAField string
+	// CardFields is the ordered list of this Machine's own Fields a card projects, each with its
+	// semantic role (Projection, 007 §7.6). Machine-level for the same reason as SLAField, and
+	// because internal/composition reads it for a bespoke card outside any View.
+	CardFields []CardField
+	// Views are this Machine's declared arrangements of its own records. Empty means one implicit
+	// table, which is how every Machine behaved before views: existed.
+	Views []View
+}
+
+// ViewByID returns the View with the given id, if m declares one -- the lookup a screen uses to
+// honour ?view=, so an unknown id can be refused rather than silently rendering something else.
+func (m *Machine) ViewByID(id string) (View, bool) {
+	for _, v := range m.Views {
+		if v.ID == id {
+			return v, true
+		}
+	}
+	return View{}, false
+}
+
+// DefaultView is the arrangement a screen renders when none is asked for: the first declared, or
+// a plain table for a Machine that declares none.
+func (m *Machine) DefaultView() View {
+	if len(m.Views) == 0 {
+		return View{Type: ViewTable}
+	}
+	return m.Views[0]
 }
 
 // DatasetByID returns the Dataset with the given id, if m declares one. Composed screens look

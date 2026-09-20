@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"reflect"
 	"testing"
 
 	"menata.app/internal/domain"
@@ -40,61 +41,73 @@ fields:
 	}
 }
 
-func TestParse_view(t *testing.T) {
+func TestParse_views(t *testing.T) {
 	yaml := []byte(`
 id: mch_task
 name: Task
-view:
-  layout: board
-  group_by: fld_status
+views:
+  - id: vw_task_board
+    name: Board
+    type: board
+    group_by: fld_status
+  - id: vw_task_table
+    name: Table
+    type: table
 `)
 
 	m, err := Parse(yaml)
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if m.View.Layout != domain.LayoutBoard || m.View.GroupBy != "fld_status" {
-		t.Errorf("View = %+v, want {board fld_status}", m.View)
+	want := []domain.View{
+		{ID: "vw_task_board", Name: "Board", Type: domain.ViewBoard, GroupBy: "fld_status"},
+		{ID: "vw_task_table", Name: "Table", Type: domain.ViewTable},
+	}
+	if !reflect.DeepEqual(m.Views, want) {
+		t.Errorf("Views = %+v, want %+v", m.Views, want)
 	}
 }
 
-func TestParse_viewCardFields(t *testing.T) {
+func TestParse_cardFields(t *testing.T) {
 	yaml := []byte(`
 id: mch_task
 name: Task
-view:
-  card_fields:
-    - field: fld_title
-      role: title
-    - field: fld_status
-      role: status
+sla_field: fld_due_date
+card_fields:
+  - field: fld_title
+    role: title
+  - field: fld_status
+    role: status
 `)
 
 	m, err := Parse(yaml)
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
+	}
+	if m.SLAField != "fld_due_date" {
+		t.Errorf("SLAField = %q, want fld_due_date", m.SLAField)
 	}
 	want := []domain.CardField{
 		{Field: "fld_title", Role: domain.CardFieldRoleTitle},
 		{Field: "fld_status", Role: domain.CardFieldRoleStatus},
 	}
-	if len(m.View.CardFields) != len(want) {
-		t.Fatalf("View.CardFields = %+v, want %+v", m.View.CardFields, want)
-	}
-	for i, cf := range m.View.CardFields {
-		if cf != want[i] {
-			t.Errorf("View.CardFields[%d] = %+v, want %+v", i, cf, want[i])
-		}
+	if !reflect.DeepEqual(m.CardFields, want) {
+		t.Errorf("CardFields = %+v, want %+v", m.CardFields, want)
 	}
 }
 
-func TestParse_noView(t *testing.T) {
+// A Machine declaring no views: at all keeps rendering as one implicit table, which is how every
+// Machine behaved before views: existed -- the compatibility claim DefaultView's zero value makes.
+func TestParse_noViews(t *testing.T) {
 	m, err := Parse([]byte("id: mch_task\nname: Task\n"))
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if m.View.Layout != "" {
-		t.Errorf("View.Layout = %q, want empty when no view: block is present", m.View.Layout)
+	if len(m.Views) != 0 {
+		t.Errorf("Views = %+v, want none when no views: block is present", m.Views)
+	}
+	if got := m.DefaultView().EffectiveType(); got != domain.ViewTable {
+		t.Errorf("DefaultView() = %q, want an implicit table", got)
 	}
 }
 

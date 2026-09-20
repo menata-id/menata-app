@@ -272,22 +272,43 @@ func TestValidate_eventNeitherOnNorOnCreateFails(t *testing.T) {
 	assertIssue(t, m, "exactly one of on or on_create is required")
 }
 
-func TestValidate_viewDefaultsToTable(t *testing.T) {
-	m := validMachine() // no View set at all
+func TestValidate_noViewsIsValid(t *testing.T) {
+	m := validMachine() // no views: at all -- one implicit table, as before views existed
 	if err := Validate(m); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
 	}
 }
 
-func TestValidate_viewUnknownLayout(t *testing.T) {
+func TestValidate_viewRequiresAName(t *testing.T) {
 	m := validMachine()
-	m.View = domain.View{Layout: "carousel"}
-	assertIssue(t, m, "is not a known layout")
+	m.Views = []domain.View{{ID: "vw_task_table", Type: domain.ViewTable}}
+	assertIssue(t, m, "must declare a name")
+}
+
+func TestValidate_viewIDPattern(t *testing.T) {
+	m := validMachine()
+	m.Views = []domain.View{{ID: "board", Type: domain.ViewTable}}
+	assertIssue(t, m, "must match ^vw_")
+}
+
+func TestValidate_viewIDsAreUniqueWithinAMachine(t *testing.T) {
+	m := validMachine()
+	m.Views = []domain.View{
+		{ID: "vw_task_table", Type: domain.ViewTable},
+		{ID: "vw_task_table", Type: domain.ViewBoard, GroupBy: "fld_status"},
+	}
+	assertIssue(t, m, "is declared more than once")
+}
+
+func TestValidate_viewUnknownType(t *testing.T) {
+	m := validMachine()
+	m.Views = []domain.View{{ID: "vw_task_carousel", Type: "carousel"}}
+	assertIssue(t, m, "has unknown type")
 }
 
 func TestValidate_viewBoardValidGroupBy(t *testing.T) {
 	m := validMachine()
-	m.View = domain.View{Layout: domain.LayoutBoard, GroupBy: "fld_status"}
+	m.Views = []domain.View{{ID: "vw_task_board", Name: "Board", Type: domain.ViewBoard, GroupBy: "fld_status"}}
 	if err := Validate(m); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
 	}
@@ -295,14 +316,39 @@ func TestValidate_viewBoardValidGroupBy(t *testing.T) {
 
 func TestValidate_viewBoardUnknownGroupBy(t *testing.T) {
 	m := validMachine()
-	m.View = domain.View{Layout: domain.LayoutBoard, GroupBy: "fld_ghost"}
-	assertIssue(t, m, "is not a field of this machine")
+	m.Views = []domain.View{{ID: "vw_task_board", Type: domain.ViewBoard, GroupBy: "fld_ghost"}}
+	assertIssue(t, m, "must be a field of this machine")
+}
+
+// group_by on a type that does not group is rejected rather than ignored: a declaration the
+// runtime silently drops reads as if it were working, which is the failure mode this whole step
+// exists to stop.
+func TestValidate_viewGroupByOnANonBoard(t *testing.T) {
+	m := validMachine()
+	m.Views = []domain.View{{ID: "vw_task_table", Type: domain.ViewTable, GroupBy: "fld_status"}}
+	assertIssue(t, m, "means nothing here")
+}
+
+// The cross-check that makes the two halves connect: a cards View needs something to project.
+func TestValidate_viewCardsRequiresCardFields(t *testing.T) {
+	m := validMachine()
+	m.Views = []domain.View{{ID: "vw_task_cards", Type: domain.ViewCards}}
+	assertIssue(t, m, "must declare card_fields")
+}
+
+func TestValidate_viewCardsWithCardFields(t *testing.T) {
+	m := validMachine()
+	m.CardFields = []domain.CardField{{Field: "fld_status", Role: domain.CardFieldRoleStatus}}
+	m.Views = []domain.View{{ID: "vw_task_cards", Name: "Cards", Type: domain.ViewCards}}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
 }
 
 func TestValidate_slaFieldValid(t *testing.T) {
 	m := validMachine()
 	m.Fields = append(m.Fields, domain.Field{ID: "fld_due_date", Name: "Due Date", Type: domain.FieldTypeDate})
-	m.View = domain.View{SLAField: "fld_due_date"}
+	m.SLAField = "fld_due_date"
 	if err := Validate(m); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
 	}
@@ -310,22 +356,22 @@ func TestValidate_slaFieldValid(t *testing.T) {
 
 func TestValidate_slaFieldUnknown(t *testing.T) {
 	m := validMachine()
-	m.View = domain.View{SLAField: "fld_ghost"}
+	m.SLAField = "fld_ghost"
 	assertIssue(t, m, "is not a field of this machine")
 }
 
 func TestValidate_slaFieldNotADate(t *testing.T) {
 	m := validMachine()
-	m.View = domain.View{SLAField: "fld_title"}
+	m.SLAField = "fld_title"
 	assertIssue(t, m, "must be a date field")
 }
 
 func TestValidate_cardFieldsValid(t *testing.T) {
 	m := validMachine()
-	m.View = domain.View{CardFields: []domain.CardField{
+	m.CardFields = []domain.CardField{
 		{Field: "fld_title", Role: domain.CardFieldRoleTitle},
 		{Field: "fld_status", Role: domain.CardFieldRoleStatus},
-	}}
+	}
 	if err := Validate(m); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
 	}
@@ -333,13 +379,13 @@ func TestValidate_cardFieldsValid(t *testing.T) {
 
 func TestValidate_cardFieldsUnknownField(t *testing.T) {
 	m := validMachine()
-	m.View = domain.View{CardFields: []domain.CardField{{Field: "fld_ghost", Role: domain.CardFieldRoleTitle}}}
+	m.CardFields = []domain.CardField{{Field: "fld_ghost", Role: domain.CardFieldRoleTitle}}
 	assertIssue(t, m, "is not a field of this machine")
 }
 
 func TestValidate_cardFieldsUnknownRole(t *testing.T) {
 	m := validMachine()
-	m.View = domain.View{CardFields: []domain.CardField{{Field: "fld_title", Role: "carousel"}}}
+	m.CardFields = []domain.CardField{{Field: "fld_title", Role: "carousel"}}
 	assertIssue(t, m, "has unknown role")
 }
 

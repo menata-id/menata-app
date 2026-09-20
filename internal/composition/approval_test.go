@@ -320,7 +320,7 @@ func TestSubmittersFromActivity_DoesNotReorderCallersSlice(t *testing.T) {
 }
 
 // TestBuildInbox_ProjectsCardFields is the Fase 1 pilot's end-to-end proof: a stepMachine
-// declaring view.card_fields (the same shape metadata/approval_step.yaml would carry, had it
+// declaring card_fields (the same shape metadata/approval_step.yaml would carry, had it
 // opted in) flows all the way through buildInbox into PendingApprovalCard.CardFields, resolved
 // via composition.ProjectCardFields -- no metadata/approval_step.yaml change, no .templ change.
 func TestBuildInbox_ProjectsCardFields(t *testing.T) {
@@ -331,9 +331,9 @@ func TestBuildInbox_ProjectsCardFields(t *testing.T) {
 		Fields: []domain.Field{
 			{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
 		},
-		View: domain.View{CardFields: []domain.CardField{
+		CardFields: []domain.CardField{
 			{Field: "fld_assignee", Role: domain.CardFieldRolePerson},
-		}},
+		},
 	}
 	relations := rendering.RelationOptions{
 		"mch_user": {{ID: "usr_ana", Label: "Ana Putri"}, {ID: "usr_budi", Label: "Budi"}},

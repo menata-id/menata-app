@@ -102,6 +102,8 @@ datasets:
       - id: msr_total
         aggregate: count
 
-view:
-  layout: board
-  group_by: fld_list
+views:
+  - id: vw_task_board
+    name: Board
+    type: board
+    group_by: fld_list

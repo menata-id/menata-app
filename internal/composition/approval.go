@@ -79,7 +79,7 @@ const (
 // rather than a new Document Field -- Document has no user-editable slot for this, and the data
 // already exists.
 // stepMachine is mch_approval_step, threaded through so buildInbox can project its own
-// view.card_fields (007 §7.6, the composable-runtime kajian's Fase 1 pilot) onto each pending
+// card_fields (007 §7.6, the composable-runtime kajian's Fase 1 pilot) onto each pending
 // card. relations is only computed when stepMachine actually declares card_fields -- zero added
 // cost while no metadata opts in, the same "pay only for what you declare" posture SLAField/
 // GroupBy already established.
@@ -101,7 +101,7 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 		return Inbox{}, err
 	}
 	var relations rendering.RelationOptions
-	if stepMachine != nil && len(stepMachine.View.CardFields) > 0 {
+	if stepMachine != nil && len(stepMachine.CardFields) > 0 {
 		relations, err = l.RelationOptions(ctx, stepMachine)
 		if err != nil {
 			return Inbox{}, err
@@ -197,7 +197,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			}
 		}
 		var cardFields []rendering.ProjectedField
-		if stepMachine != nil && len(stepMachine.View.CardFields) > 0 {
+		if stepMachine != nil && len(stepMachine.CardFields) > 0 {
 			cardFields = ProjectCardFields(stepMachine, s, relations)
 		}
 		inbox.Pending = append(inbox.Pending, rendering.PendingApprovalCard{

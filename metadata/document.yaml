@@ -72,6 +72,18 @@ datasets:
       - id: msr_total
         aggregate: count
 
-view:
-  layout: table
-  sla_field: fld_due_date
+# How a Document's records look wherever they appear -- the detail page selects no View, so
+# these are Machine-level rather than per-arrangement.
+sla_field: fld_due_date
+card_fields:
+  - { field: fld_document_type, role: status }
+  - { field: fld_status, role: status }
+  - { field: fld_due_date, role: date }
+
+views:
+  - id: vw_document_table
+    name: Table
+    type: table
+  - id: vw_document_cards
+    name: Cards
+    type: cards

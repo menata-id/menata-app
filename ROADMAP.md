@@ -124,8 +124,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      **CAP-F24** (✅ admitted, not yet built) solves it *without* a polymorphic relation — a Field
      pair, `approver_type: value_list [User, Group]` plus `approver_user`/`approver_group`, each an
      ordinary relation targeting one `machine:`. Read that row before designing Fase 6.
-  5. **A View as a declared object** — the gate already named below, taken before the screens that
-     would otherwise hardcode around it.
+  5. ~~**A View as a declared object**~~ — *shipped 2026-09-20*, ahead of the screens that would
+     otherwise have hardcoded around it, exactly as this ordering intended. `mch_document` declares
+     two arrangements; `type: cards` gave Projection the first consumer whose output varies per
+     record, so a primitive that had run zero times since it shipped now actually runs.
   6. The approval-flow screens (boards 07-10).
   7. Role-based Permission + a declared transition model, then board 06 itself.
 
@@ -189,14 +191,16 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   schedule/time trigger (for SLA-breach detection, currently read-triggered because there's no
   scheduler) -- its own second-real-case generalization, not assumed ahead of a concrete need,
   the same discipline that governed building the primitive itself (and its `on_create` shape).
-- **A View as a declared object** -- today a Machine carries exactly one anonymous view
-  configuration (layout, grouping, SLA field, card fields). Every composed screen that isn't a
-  plain table or board therefore has to be written in Go, because there is no way to declare a
-  second view of the same Machine, give it a type, or have one view compose others. This is the
-  single gate standing between the Document Approval screens and being metadata-driven, and it is
-  a real architecture decision rather than something to slip into one screen's work -- named here
-  so it gets decided deliberately. The two steps that need no such decision (a current-user filter
-  sentinel, and moving approval sequencing and status rollup out of Go) are sequenced ahead of it.
+- **A View composing other Views** -- the declared-View gate itself shipped 2026-09-20 (`views:`
+  with ids, names and types; `?view=` selects one; `table`/`board`/`cards`). What it deliberately
+  did *not* build is composition: a View that arranges other Views rather than a Machine's own
+  records, which is what the remaining Document Approval screens would need to stop being Go. The
+  three types that shipped are the three that already existed in code; upstream's registry carries
+  ten, and a fourth arrives when a screen earns it on its own evidence rather than by import.
+  Splitting the old anonymous `view:` block was part of the same decision: `sla_field` and
+  `card_fields` describe how a Machine's records look *wherever* they appear (the detail page
+  selects no View at all), so they became Machine-level and a View now carries only the
+  arrangement.
 - Search, filtering and pagination on record lists.
 - Background/scheduled jobs (e.g. SLA-breach notifications that don't depend on someone opening
   the page).
@@ -230,7 +234,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   second case yet (`PersonalTasks`' own doc comment states this).
 - Re-evaluating `internal/composition/pages.go`'s Case 19 Machine-id/status-option constants
   (`taskMachineID`, the `todo`/`in_progress`/`done` switch) against the B1-B5 decomposition
-  criteria now that `view.card_fields` (Projection) has shipped -- flagged, not decided, in
+  criteria now that `card_fields` (Projection) has shipped -- flagged, not decided, in
   `menata-app-document`'s `audits/2026-09-19-metadata-hardcoding-gate-mapping.md`; these predate
   the "exception needs a forward-checkable pointer" convention (`CLAUDE.md`), so this is also the
   first case of applying that convention retroactively. Owner decision, not assumed here.

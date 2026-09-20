@@ -233,13 +233,28 @@ fields:
 
 ```yaml
 # mch_bug -- boards by relation, not by status
-view:
-  layout: board
-  group_by: fld_list   # a `relation` field on this Machine, pointing at mch_list
+views:
+  - id: vw_bug_board
+    name: Board
+    type: board
+    group_by: fld_list   # a `relation` field on this Machine, pointing at mch_list
 ```
 
-`view.layout` must be `table` or `board` (the only two `internal/domain.KnownLayouts`);
-`view.group_by` must name a real field on the same Machine, checked at load time.
+A Machine declares its arrangements under `views:`, each with an `id` (`vw_...`, unique within the
+Machine), a `name` (what a viewer reads when choosing between them) and a `type`. A screen selects
+one with `?view=vw_bug_board`; leaving it off renders the first declared; an id the Machine does
+not declare is a 404, not a silent fallback. A Machine declaring no `views:` at all renders one
+plain table, exactly as before `views:` existed.
+
+`type` must be one of `table`, `board` or `cards` (`internal/domain.KnownViewKinds`). `group_by` is
+meaningful only on a `board`, must name a real field on the same Machine, and is *rejected* on any
+other type rather than ignored — a declaration the runtime silently drops reads as though it were
+working. `cards` requires its Machine to declare `card_fields` (§7.1), since a cards view over no
+projection would render empty cards forever.
+
+Write the `name` yourself; don't expect the type to supply it. `table`/`cards` is the runtime
+engine's own vocabulary, and a string the user reads is the Application author's to write — the
+same separation `name:` already has on a Machine and on a Field.
 
 ## 7. SLA badges
 
@@ -247,14 +262,35 @@ A `date` field can be flagged for SLA rendering — it then shows as `OVERDUE` o
 instead of a plain date, anywhere that field is displayed:
 
 ```yaml
-view:
-  layout: table
-  sla_field: fld_due_date
+sla_field: fld_due_date
 ```
 
 `sla_field` must name a real field on the same Machine, and that field must be `type: date` —
 validated the same way as `group_by`. This is fully generic: any Machine can declare it, not just
 the one that happens to ship with it today.
+
+Note where it sits: at the top level of the Machine, **not** inside a View. It describes how this
+Machine's records look *wherever* they appear, and the record detail page selects no View at all —
+putting it on one arrangement would have forced an arbitrary pick. The same reasoning applies to
+`card_fields` below.
+
+## 7.1. Card fields — what a record shows when it renders as a card
+
+```yaml
+card_fields:
+  - { field: fld_document_type, role: status }
+  - { field: fld_status, role: status }
+  - { field: fld_due_date, role: date }
+```
+
+Each entry names one of this Machine's own Fields plus the semantic **role** it renders as —
+`title`, `person`, `money`, `status` or `date` (`internal/domain.KnownCardFieldRoles`). The
+renderer picks markup by role, not by the Field's storage type, so the same declaration works
+whether the underlying Field is plain text or a relation.
+
+This is what a `type: cards` View renders, and what `internal/composition.ProjectCardFields`
+resolves for a composed card. Changing a row here changes what every card shows with no Go touched
+— which is the whole point, and the reason a cards View is refused on a Machine that declares none.
 
 ## 8. Actions and Permissions — read this before you assume something works
 
@@ -672,11 +708,12 @@ similar-looking metadata for a *different* Machine does not activate it.
 | Events (post-write field-change or record-creation → one Service) | PDF signature compositing |
 | Record-scoped `edit`/`delete` Permission (any Machine) | Approval progress stepper UI |
 | Field defaults | SLA-breach detection (still read-triggered, not a real Event yet) |
-| SLA badges (`view.sla_field`) | — |
+| SLA badges (`sla_field`) | — |
+| Declared Views (`views:` — `table`/`board`/`cards`, selected by `?view=`) | A View composing *other* Views, rather than one Machine's own records — still what the remaining approval screens would need |
 | Counting/summing a Machine's own records (`datasets:`) | Composed screens: Approval Inbox, My Tasks, Calendar, Automation, Board Settings. Dashboard, Sprint Dashboard and Team Capacity now get their *numbers* from declared `datasets:`, but their layout, which measure lands in which column, and any list of records they show (Pending, Attention) are still Go |
 
 **The right column is a capability snapshot, not a permanent exemption list.** Each entry existed
-because metadata couldn't express it *when it was written* — `view.card_fields` (Projection) and
+because metadata couldn't express it *when it was written* — `card_fields` (Projection) and
 `Event.OnCreate` both started as a right-column entry and moved left once a real second case
 justified generalizing them (`menata-app-document`'s `workflow-behavior-decomposition-criteria.md`
 B1-B5, `ui-composition-decomposition-criteria.md` Q1-Q5). Don't read a row here as "this will

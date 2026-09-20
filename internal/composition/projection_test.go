@@ -15,10 +15,10 @@ func TestProjectCardFields(t *testing.T) {
 			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
 			{ID: "fld_owner", Name: "Owner", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
 		},
-		View: domain.View{CardFields: []domain.CardField{
+		CardFields: []domain.CardField{
 			{Field: "fld_title", Role: domain.CardFieldRoleTitle},
 			{Field: "fld_owner", Role: domain.CardFieldRolePerson},
-		}},
+		},
 	}
 	r := rec("wdg_1", map[string]any{
 		"fld_title": "Widget One",
@@ -38,16 +38,16 @@ func TestProjectCardFields(t *testing.T) {
 	}
 }
 
-// TestProjectCardFields_skipsMissingField is the defensive case: view.card_fields naming a Field
+// TestProjectCardFields_skipsMissingField is the defensive case: card_fields: naming a Field
 // id that no longer exists on m (stale metadata after a rename/removal that internal/metadata.
 // Validate would already reject at load time) must not panic a live render -- it's skipped.
 func TestProjectCardFields_skipsMissingField(t *testing.T) {
 	m := &domain.Machine{
 		ID:     "mch_widget",
 		Fields: []domain.Field{{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText}},
-		View: domain.View{CardFields: []domain.CardField{
+		CardFields: []domain.CardField{
 			{Field: "fld_ghost", Role: domain.CardFieldRoleTitle},
-		}},
+		},
 	}
 	r := rec("wdg_1", map[string]any{"fld_title": "Widget One"})
 
@@ -61,9 +61,9 @@ func TestProjectCardFields_dateRole(t *testing.T) {
 	m := &domain.Machine{
 		ID:     "mch_widget",
 		Fields: []domain.Field{{ID: "fld_due", Name: "Due", Type: domain.FieldTypeDate}},
-		View: domain.View{CardFields: []domain.CardField{
+		CardFields: []domain.CardField{
 			{Field: "fld_due", Role: domain.CardFieldRoleDate},
-		}},
+		},
 	}
 	r := rec("wdg_1", map[string]any{"fld_due": "2026-09-19"})
 

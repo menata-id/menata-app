@@ -39,7 +39,7 @@ type PendingApprovalCard struct {
 	// fld_sequence (composition.stepStates) -- the progress bar's own dots.
 	StepStates []string
 	Href       string
-	// CardFields is mch_approval_step's own view.card_fields (domain.CardField, 007 §7.6
+	// CardFields is mch_approval_step's own card_fields (domain.CardField, 007 §7.6
 	// Projection), already resolved by internal/composition.ProjectCardFields -- empty for every
 	// Machine that hasn't declared any (every Machine today), rendering nothing new. The
 	// composable-runtime kajian's Fase 1 pilot: an engineer adds a field to this card by editing

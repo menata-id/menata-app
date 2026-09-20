@@ -305,7 +305,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				if f.ID == m.View.SLAField {
+				if f.ID == m.SLAField {
 					templ_7745c5c3_Err = slaBadge(r.Values[f.ID]).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

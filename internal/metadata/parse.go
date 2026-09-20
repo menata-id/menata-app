@@ -22,7 +22,13 @@ type machineDoc struct {
 	Permissions []permissionDoc `yaml:"permissions"`
 	Datasets    []datasetDoc    `yaml:"datasets"`
 	Sequencing  *sequencingDoc  `yaml:"sequencing"`
-	View        *viewDoc        `yaml:"view"`
+
+	// Machine-level display: how these records look wherever they appear, read on screens that
+	// select no View at all (the detail page, composition's bespoke cards).
+	SLAField   string         `yaml:"sla_field"`
+	CardFields []cardFieldDoc `yaml:"card_fields"`
+	// Views are the declared arrangements of those records.
+	Views []viewDoc `yaml:"views"`
 }
 
 // sequencingDoc is the YAML serialization of a domain.Sequencing.
@@ -59,10 +65,10 @@ type comparisonDoc struct {
 }
 
 type viewDoc struct {
-	Layout     string         `yaml:"layout"`
-	GroupBy    string         `yaml:"group_by"`
-	SLAField   string         `yaml:"sla_field"`
-	CardFields []cardFieldDoc `yaml:"card_fields"`
+	ID      string `yaml:"id"`
+	Name    string `yaml:"name"`
+	Type    string `yaml:"type"`
+	GroupBy string `yaml:"group_by"`
 }
 
 // cardFieldDoc is the YAML serialization of a domain.CardField (007 §7.6 Projection pilot).
@@ -257,21 +263,22 @@ func Parse(data []byte) (*domain.Machine, error) {
 		}
 	}
 
-	if doc.View != nil {
-		var cardFields []domain.CardField
-		for _, cf := range doc.View.CardFields {
-			cardFields = append(cardFields, domain.CardField{
-				Field: cf.Field,
-				Role:  domain.CardFieldRole(cf.Role),
-			})
-		}
-		m.View = domain.View{
-			Layout:     domain.LayoutKind(doc.View.Layout),
-			GroupBy:    doc.View.GroupBy,
-			SLAField:   doc.View.SLAField,
-			CardFields: cardFields,
-		}
+	m.SLAField = doc.SLAField
+	for _, cf := range doc.CardFields {
+		m.CardFields = append(m.CardFields, domain.CardField{
+			Field: cf.Field,
+			Role:  domain.CardFieldRole(cf.Role),
+		})
 	}
+	for _, vd := range doc.Views {
+		m.Views = append(m.Views, domain.View{
+			ID:      vd.ID,
+			Name:    vd.Name,
+			Type:    domain.ViewKind(vd.Type),
+			GroupBy: vd.GroupBy,
+		})
+	}
+
 	return m, nil
 }
 

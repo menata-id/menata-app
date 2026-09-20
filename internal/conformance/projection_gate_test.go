@@ -20,7 +20,7 @@ import (
 // A new file reaching into raw values fails; a listed file that has been migrated and no longer
 // needs its entry also fails, so the list can't silently keep claiming debt that's already paid.
 //
-// Why a ratchet at all: the Projection primitive (composition.ProjectCardFields, view.card_fields)
+// Why a ratchet at all: the Projection primitive (composition.ProjectCardFields, card_fields)
 // shipped its mechanism and then stopped, with every test green, because nothing anywhere measured
 // *adoption* -- the one dimension the conformance suite didn't cover (menata-app-document's
 // audits/2026-09-19-decomposition-maturity-audit.md §5).
@@ -110,7 +110,7 @@ func TestRenderingUsesProjectionNotRawValues(t *testing.T) {
 
 	for name := range violating {
 		if _, allowed := projectionRatchet[name]; !allowed {
-			t.Errorf("internal/rendering/%s reads raw record field values (Values[\"fld_...\"] or Values[<pkg>.Field...]) -- a Page renders a shape Composition already resolved (composition.ProjectCardFields / view.card_fields, 007 §4.4, §7.6), it does not pick fields off a record itself. This list is a ratchet and may only shrink: migrate the page rather than adding an entry", name)
+			t.Errorf("internal/rendering/%s reads raw record field values (Values[\"fld_...\"] or Values[<pkg>.Field...]) -- a Page renders a shape Composition already resolved (composition.ProjectCardFields / card_fields, 007 §4.4, §7.6), it does not pick fields off a record itself. This list is a ratchet and may only shrink: migrate the page rather than adding an entry", name)
 		}
 	}
 

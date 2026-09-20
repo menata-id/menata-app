@@ -21,6 +21,7 @@ var (
 	navItemIDPattern    = regexp.MustCompile(`^nav_[a-z][a-z0-9_]*$`)
 	datasetIDPattern    = regexp.MustCompile(`^ds_[a-z][a-z0-9_]*$`)
 	measureIDPattern    = regexp.MustCompile(`^msr_[a-z][a-z0-9_]*$`)
+	viewIDPattern       = regexp.MustCompile(`^vw_[a-z][a-z0-9_]*$`)
 )
 
 // validateNavigation checks the Application's own navigation: list (ROADMAP.md's "Navigation is
@@ -135,35 +136,74 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateSequencing(m, *m.Sequencing, fieldsByID)...)
 	}
 
-	if m.View.Layout != "" && !domain.KnownLayouts[m.View.Layout] {
-		issues = append(issues, fmt.Sprintf("machine %q: view.layout %q is not a known layout", m.ID, m.View.Layout))
-	}
-	if m.View.EffectiveLayout() == domain.LayoutBoard {
-		if _, ok := fieldsByID[m.View.GroupBy]; !ok {
-			issues = append(issues, fmt.Sprintf("machine %q: view.group_by %q is not a field of this machine", m.ID, m.View.GroupBy))
-		}
-	}
-	if m.View.SLAField != "" {
-		f, ok := fieldsByID[m.View.SLAField]
+	if m.SLAField != "" {
+		f, ok := fieldsByID[m.SLAField]
 		if !ok {
-			issues = append(issues, fmt.Sprintf("machine %q: view.sla_field %q is not a field of this machine", m.ID, m.View.SLAField))
+			issues = append(issues, fmt.Sprintf("machine %q: sla_field %q is not a field of this machine", m.ID, m.SLAField))
 		} else if f.Type != domain.FieldTypeDate {
-			issues = append(issues, fmt.Sprintf("machine %q: view.sla_field %q must be a date field, got %q", m.ID, m.View.SLAField, f.Type))
+			issues = append(issues, fmt.Sprintf("machine %q: sla_field %q must be a date field, got %q", m.ID, m.SLAField, f.Type))
 		}
 	}
-	for _, cf := range m.View.CardFields {
+	for _, cf := range m.CardFields {
 		if _, ok := fieldsByID[cf.Field]; !ok {
-			issues = append(issues, fmt.Sprintf("machine %q: view.card_fields entry %q is not a field of this machine", m.ID, cf.Field))
+			issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q is not a field of this machine", m.ID, cf.Field))
 		}
 		if !domain.KnownCardFieldRoles[cf.Role] {
-			issues = append(issues, fmt.Sprintf("machine %q: view.card_fields entry %q has unknown role %q", m.ID, cf.Field, cf.Role))
+			issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q has unknown role %q", m.ID, cf.Field, cf.Role))
 		}
+	}
+
+	seenViews := make(map[string]bool, len(m.Views))
+	for _, v := range m.Views {
+		issues = append(issues, validateView(m, v, fieldsByID, seenViews)...)
 	}
 
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+// validateView checks one declared arrangement. Each type states its own requirement, and the
+// cards one is the point of this whole step: a cards View whose Machine declares no card_fields
+// would render empty cards forever -- exactly the silent state Projection sat in from the day it
+// shipped until 2026-09-20, wired end to end with nothing declared for it to project. Requiring
+// the declaration is what stops that recurring one View at a time.
+func validateView(m *domain.Machine, v domain.View, fieldsByID map[string]domain.Field, seen map[string]bool) []string {
+	var issues []string
+
+	if !viewIDPattern.MatchString(v.ID) {
+		issues = append(issues, fmt.Sprintf("machine %q: view id %q must match %s", m.ID, v.ID, viewIDPattern.String()))
+	}
+	if strings.TrimSpace(v.Name) == "" {
+		issues = append(issues, fmt.Sprintf("machine %q: view %q must declare a name -- it is what a viewer reads when choosing an arrangement", m.ID, v.ID))
+	}
+	if seen[v.ID] {
+		issues = append(issues, fmt.Sprintf("machine %q: view id %q is declared more than once", m.ID, v.ID))
+	}
+	seen[v.ID] = true
+
+	if !domain.KnownViewKinds[v.EffectiveType()] {
+		issues = append(issues, fmt.Sprintf("machine %q: view %q has unknown type %q", m.ID, v.ID, v.Type))
+		return issues
+	}
+
+	switch v.EffectiveType() {
+	case domain.ViewBoard:
+		if _, ok := fieldsByID[v.GroupBy]; !ok {
+			issues = append(issues, fmt.Sprintf("machine %q: view %q is a board, so group_by %q must be a field of this machine", m.ID, v.ID, v.GroupBy))
+		}
+	case domain.ViewCards:
+		if len(m.CardFields) == 0 {
+			issues = append(issues, fmt.Sprintf("machine %q: view %q renders cards, so this machine must declare card_fields -- a cards view over no projection renders empty cards", m.ID, v.ID))
+		}
+	default:
+		if v.GroupBy != "" {
+			issues = append(issues, fmt.Sprintf("machine %q: view %q is a %s, so group_by %q means nothing here", m.ID, v.ID, v.EffectiveType(), v.GroupBy))
+		}
+	}
+
+	return issues
 }
 
 // validateConstraint checks one Constraint's own shape: everything a single Machine file can

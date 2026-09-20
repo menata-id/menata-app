@@ -43,7 +43,7 @@ func TestPendingApprovalCard_rendersCardFields(t *testing.T) {
 }
 
 // TestPendingApprovalCard_noCardFieldsRendersNoMetaRow is the regression guard: every Machine
-// today declares no view.card_fields, so this must render exactly as it did before Fase 1 -- no
+// today declares no card_fields, so this must render exactly as it did before Fase 1 -- no
 // new markup for a card that projects nothing.
 func TestPendingApprovalCard_noCardFieldsRendersNoMetaRow(t *testing.T) {
 	c := pendingCardFixture(nil)
