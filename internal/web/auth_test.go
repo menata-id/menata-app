@@ -29,6 +29,12 @@ func cleanupAuthTest(t *testing.T, pool *pgxpool.Pool, workspaceID, email string
 	t.Helper()
 	t.Cleanup(func() {
 		ctx := context.Background()
+		// Before workspace_members, and before workspaces: workspace_member_app_roles references
+		// workspaces, so leaving its rows behind makes the final DELETE fail on a foreign key
+		// rather than leaving harmless residue (Fase 3b, migration 008).
+		if _, err := pool.Exec(ctx, `DELETE FROM workspace_member_app_roles WHERE workspace_id = $1`, workspaceID); err != nil {
+			t.Errorf("cleanup workspace_member_app_roles: %v", err)
+		}
 		if _, err := pool.Exec(ctx, `DELETE FROM workspace_members WHERE workspace_id = $1`, workspaceID); err != nil {
 			t.Errorf("cleanup workspace_members: %v", err)
 		}

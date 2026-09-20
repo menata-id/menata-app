@@ -12,6 +12,11 @@ func cleanupWorkspaceTest(t *testing.T, pool *pgxpool.Pool, workspaceID, email s
 	t.Helper()
 	t.Cleanup(func() {
 		ctx := context.Background()
+		// Before the workspaces row itself: workspace_member_app_roles references workspaces, so
+		// leaving its rows behind turns cleanup into a foreign-key error (Fase 3b, migration 008).
+		if _, err := pool.Exec(ctx, `DELETE FROM workspace_member_app_roles WHERE workspace_id = $1`, workspaceID); err != nil {
+			t.Errorf("cleanup workspace_member_app_roles: %v", err)
+		}
 		if _, err := pool.Exec(ctx, `DELETE FROM workspace_members WHERE workspace_id = $1`, workspaceID); err != nil {
 			t.Errorf("cleanup workspace_members: %v", err)
 		}
