@@ -112,7 +112,16 @@ func TestNavigationRoutesAreRegistered(t *testing.T) {
 // documentsubmit.templ's /approval-inbox, sprintdashboard.templ's /team-capacity) before this
 // gate covered every .templ/.go file instead of only Workspace-level ones.
 var runtimeLevelRoutes = map[string]bool{
-	"/home":              true,
+	"/home": true,
+	// "/" is All Machines (nav_machines), Workspace-level navigation since Fase 3 and registered
+	// as a fixed literal in router.go exactly like /home -- so it meets this map's own criterion
+	// and belongs here. It was missed when All Machines moved up a level, and the cost showed up
+	// immediately: internal/web/currentapp.go had to rewrite a plain strings.Cut(rest, "/") as
+	// IndexByte with a rune to get past this gate, because a path *separator* is the same string
+	// as this route. That is a false positive, not the gate working -- "/" carries no Application
+	// meaning, and every future http.Redirect(w, r, "/", ...) or strings.Split(p, "/") would trip
+	// the same wire and get contorted the same way, until someone weakened the gate instead.
+	"/":                  true,
 	"/workspace-members": true,
 	"/switch-workspace":  true,
 	"/choose-workspace":  true,
