@@ -133,9 +133,16 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
   **Penyempurnaan — what each shipped phase left undone, and when it lands.** Kept as one table
   on purpose: a comment at a call site answers *why* something is missing, this answers *when* it
-  stops being. The three "no phase yet" rows are the point of having it — an unscheduled gap that
-  looks scheduled is worse than one that admits it, and those are the rows to re-check at each
-  phase close (the same discipline `CLAUDE.md` asks for standing metadata exceptions).
+  stops being. The "no phase yet" rows are the point of having it — an unscheduled gap that looks
+  scheduled is worse than one that admits it, and those are the rows to re-check at each phase
+  close (the same discipline `CLAUDE.md` asks for standing metadata exceptions).
+
+  **Re-reading this table is part of closing a phase, not a tidy-up.** That is written here
+  because it was not done: the bottom-bar row below sat wrong through the 3a, 3b, 3c and 4 closes,
+  still naming a blocker that had dissolved at 3a. A row whose blocker quietly stops being true
+  reads exactly like a row that is still blocked — which is the same failure shape as a
+  conformance gate that passes while checking nothing, and it happened twice in one day. Check
+  each row against the code, not against memory of having written it.
 
   | Left undone | Finished in | Blocked on |
   |---|---|---|
@@ -144,12 +151,12 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | ~~Source / "Group: Reviewers" column~~ — *done in Fase 4* | — | — |
   | ~~Effective-access panel, direct ∪ group-inherited~~ — *done in Fase 4*: `data.EffectiveRoles`, computed not stored | — | — |
   | Member full name beside the email (board 04/05) | **no phase yet** | `data.Membership` carries only `Email`; `memberInitials` derives from the local part meanwhile. 3b moved roles but not identity, so this outlived the phase it was pinned to |
-  | Section tab strip (board 07) | Fase 4 (Groups tab) + Fase 6 (My Documents tab) | 2 of its 4 destinations do not exist; the only part needing a `navigation:` second level |
+  | Section tab strip (board 07) | **Fase 6a** | All four destinations now exist: Inbox and My Documents are `?tab=` views of one route, Groups arrived in Fase 4, Admin is Workspace Members. Fase 2 recorded this as "the only part needing a `navigation:` second level" — with two tabs being query-param views of the same route, that turned out not to be so, and building a second level for one case would be the shape-before-second-need this repo refuses |
   | Review document as its own screen (board 10) | Fase 6 | today it rides the generic record-detail page shared by every Machine |
   | New chrome on the Document Approval screens (inbox, submit, signature) | Fase 6 | Preflight ties chrome to content; their content ports there |
   | Approval Role Matrix (board 06) | Fase 7 | role-based Permission + a declared transition model, neither in 006/007 |
   | Declared `requires_role:` on a navigation item | **a second real case, not a phase** — likeliest around Fase 7, when an Application role could gate an item (a handler naming an id cannot express that) | one case exists today and has code: `appShell`'s `hiddenNavIDs`. See "Per-user/role navigation filtering" below for why the second case, not the calendar, is the trigger |
-  | Application menu row + mobile bottom bar | **no phase yet** — lands with the Project Management screens' own boards | nothing in Fase 2–7 displays it: Workspace-level screens have no Application open, Document Approval declares `hidden_nav_groups`. The owner's bottom-bar decision (`navigation.html`, 3–4 icons, top-4 by priority) is already made; it is the *screens* that are missing, not the decision |
+  | Mobile bottom bar for an Application's own menu | **no phase yet** — lands when the Project Management screens get boards | Those screens are still `pageStyles`, so a bottom bar there would be hand-written CSS thrown away when they port — that is the real blocker. **This row previously said "nothing in Fase 2–7 displays it", which stopped being true at Fase 3a**: Project Management declares no `show_nav`, keeps its menu, and `/my-tasks` renders ten nav links today. It stayed wrong through four phase closes because nobody re-read the table, which is the one thing this table needs. The owner's decision (`navigation.html`, 3–4 icons, top-4 by priority) was never the missing part |
   | Member search box (board 04) | **no phase yet** — "Planned: search, filtering and pagination" below | search does not exist anywhere in the app |
   | "Keep me signed in" (board 01) | **no phase yet** | a session-lifetime change; `internal/authorization` has no remember-me concept |
 - Rounding out Project Management: a project-level workspace overview, richer task detail
