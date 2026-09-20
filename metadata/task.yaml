@@ -57,6 +57,26 @@ events:
       service: log_activity
       summary: "\"{fld_title}\" created"
 
+# Team Capacity's own workload numbers (007 §7.2 Dataset, §7.3 Dimension, §7.4 Measure),
+# generalized here from what internal/composition's buildCapacity used to count by hand in Go --
+# the decomposition audit's P1, with the same "count records, grouped by a field, optionally
+# filtered" shape found hand-written five separate times before the primitive was built (menata-
+# app-document's audits/2026-09-19-decomposition-maturity-audit.md §3.2, well past B1's second
+# real case). msr_active's own filter is an ordinary expression.Comparison, the same shape
+# cst_project_done_no_open_tasks's block_if.condition already uses -- no second filter syntax.
+datasets:
+  - id: ds_task_workload
+    dimension: fld_assignee
+    measures:
+      - id: msr_total
+        aggregate: count
+      - id: msr_active
+        aggregate: count
+        where:
+          field: fld_status
+          op: not_equals
+          value: done
+
 view:
   layout: board
   group_by: fld_list

@@ -155,7 +155,7 @@ func TestBuildCapacity(t *testing.T) {
 		task("tsk_3", "prj_1", "usr_budi", "todo", ""),
 	}
 
-	got := buildCapacity(users, tasks)
+	got := buildCapacity(users, tasks, taskWorkload(), userCapacity())
 
 	if got.TotalCapacity != 40 {
 		t.Errorf("TotalCapacity = %d, want 40 (a user with no declared capacity adds nothing)", got.TotalCapacity)

@@ -103,7 +103,13 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `equals`/`not_equals` as that Dataset's filter predicate rather than a new expression language;
   (3) migrating the nine grandfathered screens onto Projection one at a time. Explicitly *not*
   included: generalizing `decide.go` (documented B4 failure) or building 007 §8's full Query Model
-  (no forcing condition yet).
+  (no forcing condition yet). **(2) and (2b) are now done for the first screen:** `datasets:` is a
+  real metadata block (`domain.Dataset`, `composition.Aggregate`, `count`/`sum` only), Team
+  Capacity composes from `mch_task`'s `ds_task_workload` and `mch_user`'s `ds_user_capacity`, and
+  its filter is an ordinary `expression.Comparison` rather than a new syntax. Verified live:
+  changing only `where.value` in YAML moved that page's own "Active cards" from 3 to 2, no code
+  touched. The four remaining hand-written aggregations (`buildDashboard` twice, `buildSprint`,
+  `PersonalTasks`) migrate next.
 - Re-evaluating `internal/composition/pages.go`'s Case 19 Machine-id/status-option constants
   (`taskMachineID`, the `todo`/`in_progress`/`done` switch) against the B1-B5 decomposition
   criteria now that `view.card_fields` (Projection) has shipped -- flagged, not decided, in

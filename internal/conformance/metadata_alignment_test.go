@@ -331,6 +331,46 @@ func TestHandlersHaveNoHardcodedApplicationLabel(t *testing.T) {
 	}
 }
 
+// composedScreenDatasets names every Dataset (and the Measures within it) that a composed screen
+// in internal/composition looks up by id, mapped to the Machine file expected to declare it.
+// Stated explicitly here, the same posture behavior_gate_test.go's mutatingWriteGuards takes,
+// rather than parsed out of the Go source: this table *is* the contract, and writing it down is
+// what makes a silent break impossible.
+//
+// Without this, a Dataset renamed or removed in YAML compiles fine, passes every unit test (whose
+// fixtures mirror metadata rather than reading it), and only surfaces as a runtime error the first
+// time someone opens the page -- exactly the class of metadata/code drift
+// TestNavigationRoutesAreRegistered already closes for routes.
+var composedScreenDatasets = map[string]map[string][]string{
+	"task.yaml": {"ds_task_workload": {"msr_total", "msr_active"}},
+	"user.yaml": {"ds_user_capacity": {"msr_total_capacity"}},
+}
+
+func TestComposedScreenDatasetsAreDeclared(t *testing.T) {
+	for file, datasets := range composedScreenDatasets {
+		m, err := metadata.Load(filepath.Join(repoRoot(), "metadata", file))
+		if err != nil {
+			t.Fatalf("load %s: %v", file, err)
+		}
+		for datasetID, measureIDs := range datasets {
+			ds, ok := m.DatasetByID(datasetID)
+			if !ok {
+				t.Errorf("internal/composition reads dataset %q, but metadata/%s declares no such dataset -- a composed screen naming a dataset metadata dropped renders nothing but zeroes", datasetID, file)
+				continue
+			}
+			declared := make(map[string]bool, len(ds.Measures))
+			for _, ms := range ds.Measures {
+				declared[ms.ID] = true
+			}
+			for _, measureID := range measureIDs {
+				if !declared[measureID] {
+					t.Errorf("internal/composition reads measure %q of dataset %q, but metadata/%s declares no such measure", measureID, datasetID, file)
+				}
+			}
+		}
+	}
+}
+
 // markdownSection returns capabilities.md's lines between a heading exactly matching heading and
 // the next line that starts a new section ("---" or another "#"-prefixed heading) -- scoping a
 // table-row regexp to the one table it's meant to check, not every backtick-first-column table in

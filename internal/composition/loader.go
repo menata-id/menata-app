@@ -208,6 +208,19 @@ func (l *Loader) machineSlice() []*domain.Machine {
 	return list
 }
 
+// Dataset resolves one Dataset (007 §7.2) by the Machine that declares it. Reported missing
+// rather than returning a zero Dataset, because a composed screen naming a Dataset that metadata
+// no longer declares would otherwise render a page of silent zeroes -- the same "fail where it's
+// cheap to find" reasoning rendering.routeByID states for an unknown navigation id, routed
+// through the error return this layer already has instead of a panic.
+func (l *Loader) Dataset(machineID, datasetID string) (domain.Dataset, bool) {
+	m, ok := l.machines[machineID]
+	if !ok {
+		return domain.Dataset{}, false
+	}
+	return m.DatasetByID(datasetID)
+}
+
 // DisplayString renders a stored field value as text. Records hold JSONB-decoded values, so a
 // value is a string for most Field types and a decoded number/bool/slice for the rest.
 func DisplayString(v any) string {

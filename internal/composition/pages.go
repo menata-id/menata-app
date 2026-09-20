@@ -23,6 +23,19 @@ const (
 	activityMachineID = "mch_activity"
 )
 
+// Declared Datasets and Measures these screens read (007 §7.2-§7.4), named here for the same
+// reason the Machine ids above are. Naming an id to look a declaration up is the target pattern,
+// not the hardcoding the conformance gates exist to stop -- the same distinction
+// rendering.routeByID("nav_xxx") already draws: the *value* lives in metadata, the code only says
+// which one it wants.
+const (
+	taskWorkloadDataset  = "ds_task_workload"
+	userCapacityDataset  = "ds_user_capacity"
+	measureTotalCards    = "msr_total"
+	measureActiveCards   = "msr_active"
+	measureTotalCapacity = "msr_total_capacity"
+)
+
 // Dashboard is the landing dashboard's composed content (ROADMAP.md Phase 6's own forcing case):
 // Project rollups, Document status counts, the Documents still in review, and a recent-events tail.
 type Dashboard struct {
@@ -218,6 +231,15 @@ type Capacity struct {
 }
 
 func TeamCapacity(ctx context.Context, l *Loader) (Capacity, error) {
+	workload, ok := l.Dataset(taskMachineID, taskWorkloadDataset)
+	if !ok {
+		return Capacity{}, fmt.Errorf("composition: machine %s declares no dataset %s", taskMachineID, taskWorkloadDataset)
+	}
+	capacity, ok := l.Dataset(userMachineID, userCapacityDataset)
+	if !ok {
+		return Capacity{}, fmt.Errorf("composition: machine %s declares no dataset %s", userMachineID, userCapacityDataset)
+	}
+
 	users, err := l.ListRecords(ctx, userMachineID)
 	if err != nil {
 		return Capacity{}, err
@@ -226,30 +248,33 @@ func TeamCapacity(ctx context.Context, l *Loader) (Capacity, error) {
 	if err != nil {
 		return Capacity{}, err
 	}
-	return buildCapacity(users, tasks), nil
+	return buildCapacity(users, tasks, workload, capacity), nil
 }
 
-func buildCapacity(users, tasks []*data.Record) Capacity {
-	active := make(map[string]int, len(users))
-	total := make(map[string]int, len(users))
-	for _, t := range tasks {
-		assignee := DisplayString(t.Values["fld_assignee"])
-		total[assignee]++
-		if DisplayString(t.Values["fld_status"]) != "done" {
-			active[assignee]++
-		}
-	}
+// buildCapacity is the first screen composed from declared Datasets rather than a hand-written
+// count loop (007 §7.2-§7.4; the decomposition audit's P1). What used to be three literal field
+// ids and a `!= "done"` comparison in Go is now metadata/task.yaml's ds_task_workload and
+// metadata/user.yaml's ds_user_capacity; this function's remaining job is binding -- deciding
+// which Measure lands in which view-model field, which stays code by design (007 §11.3).
+//
+// TotalActive deliberately sums the per-member numbers instead of reading the Dataset's own
+// Total: those two differ, and the difference is visible. Total counts every open Task including
+// ones assigned to nobody (or to a since-deleted identity), while the table below it lists only
+// real Users -- so using Total would print a header number the rows underneath can't add up to.
+func buildCapacity(users, tasks []*data.Record, workload, capacity domain.Dataset) Capacity {
+	byAssignee := Aggregate(workload, tasks).ByDimension
 
-	out := Capacity{Members: make([]rendering.MemberCapacity, 0, len(users))}
+	out := Capacity{
+		Members:       make([]rendering.MemberCapacity, 0, len(users)),
+		TotalCapacity: int(Aggregate(capacity, users).Total[measureTotalCapacity]),
+	}
 	for _, u := range users {
-		if capacity, ok := u.Values["fld_weekly_capacity"].(float64); ok {
-			out.TotalCapacity += int(capacity)
-		}
-		out.TotalActive += active[u.ID]
+		mine := byAssignee[u.ID]
+		out.TotalActive += int(mine[measureActiveCards])
 		out.Members = append(out.Members, rendering.MemberCapacity{
 			User:        u,
-			ActiveCards: active[u.ID],
-			TotalCards:  total[u.ID],
+			ActiveCards: int(mine[measureActiveCards]),
+			TotalCards:  int(mine[measureTotalCards]),
 		})
 	}
 	return out

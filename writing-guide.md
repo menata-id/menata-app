@@ -533,6 +533,37 @@ Machine declaring no permission for an action leaves it open to any authenticate
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
 | `card_fields[]` | `{field: fld_*, role: ...}` | Projected onto a composed card. Only the Approval Inbox card consumes this today |
 
+### 12.7a `datasets[]` — named numbers over this Machine's records
+
+| Key | Value | Notes |
+|---|---|---|
+| `id` | `ds_*` | Required, unique within the Machine |
+| `dimension` | `fld_*` | Optional grouping axis. Omit it for a grand total with no breakdown |
+| `measures[].id` | `msr_*` | Required, unique within the dataset |
+| `measures[].aggregate` | `count` \| `sum` | `count` counts records; `sum` adds up a number field |
+| `measures[].field` | `fld_*` | **Required for `sum`** (which number field), and **must be absent for `count`** |
+| `measures[].where` | `{field, op, value}` | Optional filter, the same comparison shape `constraints[].block_if.condition` uses |
+
+A Dataset says what numbers exist, not how a screen draws them. Everything it names must be a
+field of its own Machine — a Dataset spanning two Machines isn't expressible today.
+
+```yaml
+# in task.yaml -- "how many Tasks does each assignee have, and how many are still open?"
+datasets:
+  - id: ds_task_workload
+    dimension: fld_assignee
+    measures:
+      - id: msr_total
+        aggregate: count
+      - id: msr_active
+        aggregate: count
+        where: {field: fld_status, op: not_equals, value: done}
+```
+
+A screen still decides which measure it displays where (that binding is Go), but the counting,
+grouping and filtering are metadata: changing `where.value` above changes Team Capacity's own
+numbers with no code edit.
+
 ### 12.8 Closed vocabularies — the complete list of values you may write
 
 | Vocabulary | Values | Extended by |
@@ -540,6 +571,7 @@ Machine declaring no permission for an action leaves it open to any authenticate
 | Field types | `text` `number` `boolean` `date` `status` `person` `money` `relation` `file` | `domain.KnownFieldTypes` |
 | Layouts | `table` `board` | `domain.KnownLayouts` |
 | Card field roles | `title` `person` `money` `status` `date` | `domain.KnownCardFieldRoles` |
+| Aggregates | `count` `sum` | `domain.KnownAggregates` |
 | Actions | `decide` `edit` `delete` | `domain.KnownActions` |
 | Services | `log_activity` | `domain.KnownServices` |
 | Comparison operators | `equals` `not_equals` | `expression.KnownOps` |
@@ -570,11 +602,12 @@ undocumented* (rare).
 | View / Layout | 006 §Layout/§View, 007 §12.2 | `domain.View`, `internal/experience`, `composition.loadBoardColumns` |
 | SLA badge | 006 §Field + Experience | `experience.EvaluateSLA` |
 | Projection (`card_fields`) | 007 §7.6 | `domain.CardField`, `composition.ProjectCardFields`, `rendering.projectedFieldValue` |
+| Dataset / Dimension / Measure | 007 §7.2-§7.4 | `domain.Dataset`, `domain.Measure`, `domain.KnownAggregates`, `composition.Aggregate` — `count`/`sum` only |
 | Navigation | 006 §Navigation, 004 | `domain.Navigation`, `experience/navigation.go`, `rendering.pageShell` |
 | Workspace / Application | 006 §Organizational Model | `domain.Workspace`, `domain.Application`, `metadata.LoadApplication` |
 
-If a concept from 006/007 isn't in this table — Dataset, Query, Dimension, Measure, Binding, Slot,
-Component contract, Theme, API, Workflow/Process — it has **no metadata expression today**. That's
+If a concept from 006/007 isn't in this table — Query, Binding, Slot, Component contract, Theme,
+API, Workflow/Process — it has **no metadata expression today**. That's
 the accurate answer to "can I declare this?", and the next section explains which of those gaps are
 deliberate.
 
@@ -593,7 +626,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 | Record-scoped `edit`/`delete` Permission (any Machine) | Approval progress stepper UI |
 | Field defaults | SLA-breach detection (still read-triggered, not a real Event yet) |
 | SLA badges (`view.sla_field`) | — |
-| Workspace scoping, session-auth gating | Composed screens: Dashboard, Approval Inbox, My Tasks, Sprint Dashboard, Calendar, Team Capacity, Automation, Board Settings |
+| Counting/summing a Machine's own records (`datasets:`) | Composed screens: Dashboard, Approval Inbox, My Tasks, Sprint Dashboard, Calendar, Automation, Board Settings (Team Capacity is the first one whose *numbers* are now declared — its layout and which measure goes in which column are still Go) |
 
 **The right column is a capability snapshot, not a permanent exemption list.** Each entry existed
 because metadata couldn't express it *when it was written* — `view.card_fields` (Projection) and

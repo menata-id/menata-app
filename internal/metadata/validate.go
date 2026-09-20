@@ -19,6 +19,8 @@ var (
 	eventIDPattern      = regexp.MustCompile(`^evt_[a-z][a-z0-9_]*$`)
 	permissionIDPattern = regexp.MustCompile(`^prm_[a-z][a-z0-9_]*$`)
 	navItemIDPattern    = regexp.MustCompile(`^nav_[a-z][a-z0-9_]*$`)
+	datasetIDPattern    = regexp.MustCompile(`^ds_[a-z][a-z0-9_]*$`)
+	measureIDPattern    = regexp.MustCompile(`^msr_[a-z][a-z0-9_]*$`)
 )
 
 // validateNavigation checks the Application's own navigation: list (ROADMAP.md's "Navigation is
@@ -165,6 +167,11 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validatePermission(m, p, fieldsByID, seenPermissions)...)
 	}
 
+	seenDatasets := make(map[string]bool, len(m.Datasets))
+	for _, ds := range m.Datasets {
+		issues = append(issues, validateDataset(m, ds, fieldsByID, seenDatasets)...)
+	}
+
 	if m.View.Layout != "" && !domain.KnownLayouts[m.View.Layout] {
 		issues = append(issues, fmt.Sprintf("machine %q: view.layout %q is not a known layout", m.ID, m.View.Layout))
 	}
@@ -308,6 +315,80 @@ func validatePermission(m *domain.Machine, p domain.Permission, fieldsByID map[s
 		issues = append(issues, fmt.Sprintf("permission %q: actor_field %q is not a field of machine %q", p.ID, p.ActorField, m.ID))
 	} else if !actorField.IsReference() {
 		issues = append(issues, fmt.Sprintf("permission %q: actor_field %q must reference an identity (a person or relation field), got %q", p.ID, p.ActorField, actorField.Type))
+	}
+
+	return issues
+}
+
+// validateDataset checks one Dataset's own shape, mirroring validateConstraint/validateEvent:
+// everything it names lives on this same Machine, so there is no cross-Machine pass (a Dataset
+// spanning sources is not expressible today -- domain.Dataset's own doc comment says why).
+//
+// The two aggregate-specific rules are enforced in both directions on purpose: sum without a
+// field has nothing to add up, and count *with* a field reads as though the field changed what is
+// counted when it does not. Both would be silent nonsense at render time -- an empty number on a
+// page -- rather than an error, which is exactly the class of metadata typo Validate exists to
+// turn into a startup failure (005 Phase 3-4).
+func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string]domain.Field, seen map[string]bool) []string {
+	var issues []string
+
+	if !datasetIDPattern.MatchString(ds.ID) {
+		issues = append(issues, fmt.Sprintf("dataset id %q must match %s", ds.ID, datasetIDPattern.String()))
+	}
+	if seen[ds.ID] {
+		issues = append(issues, fmt.Sprintf("dataset id %q is declared more than once", ds.ID))
+	}
+	seen[ds.ID] = true
+
+	if ds.Dimension != "" {
+		if _, ok := fieldsByID[ds.Dimension]; !ok {
+			issues = append(issues, fmt.Sprintf("dataset %q: dimension %q is not a field of machine %q", ds.ID, ds.Dimension, m.ID))
+		}
+	}
+
+	if len(ds.Measures) == 0 {
+		issues = append(issues, fmt.Sprintf("dataset %q: at least one measure is required", ds.ID))
+	}
+
+	seenMeasures := make(map[string]bool, len(ds.Measures))
+	for _, ms := range ds.Measures {
+		if !measureIDPattern.MatchString(ms.ID) {
+			issues = append(issues, fmt.Sprintf("dataset %q: measure id %q must match %s", ds.ID, ms.ID, measureIDPattern.String()))
+		}
+		if seenMeasures[ms.ID] {
+			issues = append(issues, fmt.Sprintf("dataset %q: measure id %q is declared more than once", ds.ID, ms.ID))
+		}
+		seenMeasures[ms.ID] = true
+
+		if !domain.KnownAggregates[ms.Aggregate] {
+			issues = append(issues, fmt.Sprintf("dataset %q: measure %q has unknown aggregate %q", ds.ID, ms.ID, ms.Aggregate))
+		}
+
+		switch ms.Aggregate {
+		case domain.AggregateSum:
+			f, ok := fieldsByID[ms.Field]
+			if !ok {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q is a sum, so field %q must be a field of machine %q", ds.ID, ms.ID, ms.Field, m.ID))
+			} else if f.Type != domain.FieldTypeNumber {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q sums field %q, which must be a number field, got %q", ds.ID, ms.ID, ms.Field, f.Type))
+			}
+		case domain.AggregateCount:
+			if ms.Field != "" {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q is a count, which counts records, so field %q must not be set", ds.ID, ms.ID, ms.Field))
+			}
+		}
+
+		if ms.Where != nil {
+			whereField, ok := fieldsByID[ms.Where.Field]
+			if !ok {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.field %q is not a field of machine %q", ds.ID, ms.ID, ms.Where.Field, m.ID))
+			} else if whereField.Type == domain.FieldTypeStatus && !contains(whereField.Options, ms.Where.Value) {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q is not one of field %q's options %v", ds.ID, ms.ID, ms.Where.Value, ms.Where.Field, whereField.Options))
+			}
+			if !expression.KnownOps[ms.Where.Op] {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.op %q is not a known operator", ds.ID, ms.ID, ms.Where.Op))
+			}
+		}
 	}
 
 	return issues

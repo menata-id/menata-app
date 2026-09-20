@@ -154,7 +154,20 @@ type Machine struct {
 	Constraints []Constraint
 	Events      []Event
 	Permissions []Permission
+	Datasets    []Dataset
 	View        View
+}
+
+// DatasetByID returns the Dataset with the given id, if m declares one. Composed screens look
+// their Dataset up by id rather than by position, so reordering the datasets: block in YAML is
+// never a behavioral change.
+func (m *Machine) DatasetByID(id string) (Dataset, bool) {
+	for _, ds := range m.Datasets {
+		if ds.ID == id {
+			return ds, true
+		}
+	}
+	return Dataset{}, false
 }
 
 // FieldByID returns the Field with the given id, if m declares one.

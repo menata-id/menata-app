@@ -20,7 +20,31 @@ type machineDoc struct {
 	Constraints []constraintDoc `yaml:"constraints"`
 	Events      []eventDoc      `yaml:"events"`
 	Permissions []permissionDoc `yaml:"permissions"`
+	Datasets    []datasetDoc    `yaml:"datasets"`
 	View        *viewDoc        `yaml:"view"`
+}
+
+// datasetDoc is the YAML serialization of a domain.Dataset (007 §7.2-§7.4). measures[].where
+// reuses comparisonDoc, the same shape constraintDoc's block_if.condition already declares, so a
+// filter reads identically wherever it appears in metadata.
+type datasetDoc struct {
+	ID        string       `yaml:"id"`
+	Dimension string       `yaml:"dimension"`
+	Measures  []measureDoc `yaml:"measures"`
+}
+
+type measureDoc struct {
+	ID        string         `yaml:"id"`
+	Aggregate string         `yaml:"aggregate"`
+	Field     string         `yaml:"field"`
+	Where     *comparisonDoc `yaml:"where"`
+}
+
+// comparisonDoc is the YAML serialization of an expression.Comparison.
+type comparisonDoc struct {
+	Field string `yaml:"field"`
+	Op    string `yaml:"op"`
+	Value string `yaml:"value"`
 }
 
 type viewDoc struct {
@@ -162,6 +186,26 @@ func Parse(data []byte) (*domain.Machine, error) {
 			ActorField: pd.ActorField,
 		})
 	}
+	for _, dd := range doc.Datasets {
+		ds := domain.Dataset{ID: dd.ID, Dimension: dd.Dimension}
+		for _, md := range dd.Measures {
+			ms := domain.Measure{
+				ID:        md.ID,
+				Aggregate: domain.AggregateKind(md.Aggregate),
+				Field:     md.Field,
+			}
+			if md.Where != nil {
+				ms.Where = &expression.Comparison{
+					Field: md.Where.Field,
+					Op:    expression.Op(md.Where.Op),
+					Value: md.Where.Value,
+				}
+			}
+			ds.Measures = append(ds.Measures, ms)
+		}
+		m.Datasets = append(m.Datasets, ds)
+	}
+
 	if doc.View != nil {
 		var cardFields []domain.CardField
 		for _, cf := range doc.View.CardFields {
