@@ -70,15 +70,9 @@ func machineIDFromPath(path string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	// IndexByte with a rune rather than strings.Cut(rest, "/"): the separator here is a path
-	// delimiter, but as a *string* literal "/" is also a route metadata declares (nav_machines),
-	// so TestHandlersHaveNoHardcodedApplicationRoute flags it -- correctly, since it cannot tell
-	// the two apart. A rune says "byte in a path" unambiguously.
-	if i := strings.IndexByte(rest, '/'); i >= 0 {
-		rest = rest[:i]
-	}
-	if rest == "" {
+	id, _, _ := strings.Cut(rest, "/")
+	if id == "" {
 		return "", false
 	}
-	return rest, true
+	return id, true
 }
