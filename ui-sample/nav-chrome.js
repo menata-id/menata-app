@@ -34,7 +34,7 @@
     return (
       '<p class="px-2 pb-2 pt-1 text-xs font-medium uppercase tracking-wide text-slate-400">Menata · ' + data.workspace + '</p>' +
       rows +
-      '<a href="workspace-home.html" class="mt-1 block rounded-md p-2 text-xs font-medium text-blue-600 hover:bg-slate-50">All applications →</a>'
+      '<a href="choose-workspace.html" class="mt-1 block rounded-md p-2 text-xs font-medium text-blue-600 hover:bg-slate-50">All applications →</a>'
     );
   }
 
@@ -126,9 +126,18 @@
     injectFocusVisibleStyle();
     renameWorkspaceBrand(header, data.workspace);
 
+    // The launcher sits directly beside the breadcrumb/title text, not spread across the row by
+    // the row's own justify-between -- both are wrapped in one flex item with a small gap, so
+    // justify-between still only splits two things apart: this left-hand brand group, and
+    // whatever the page's own header already has after it (tabs, avatar, ...).
     var row = header.firstElementChild;
-    if (row) {
-      row.insertBefore(document.createRange().createContextualFragment(launcherHTML(appId)), row.firstChild);
+    if (row && row.firstElementChild) {
+      var crumb = row.firstElementChild;
+      var brandGroup = document.createElement("div");
+      brandGroup.className = "flex items-center gap-2";
+      row.insertBefore(brandGroup, crumb);
+      brandGroup.appendChild(document.createRange().createContextualFragment(launcherHTML(appId)));
+      brandGroup.appendChild(crumb);
     }
 
     // showNav: false (nav-metadata.js, per-Application) means this Application declares no menu
