@@ -512,6 +512,27 @@ events:
 `summary` placeholders: `{old}`, `{new}`, and any `fld_*` id in braces. Not a templating language —
 that is the whole list. At most one override.
 
+**The other Service, `rollup_parent_status`** — a child's own field change decides its parent's
+status. Declared on the child, because that is where the relation to the parent already is:
+
+```yaml
+events:
+  - id: evt_*
+    on: fld_decision                  # the field whose change triggers it, read on every sibling
+    then:
+      service: rollup_parent_status
+      parent_field: fld_document      # a relation/person field on THIS machine
+      target_field: fld_status        # a field on the PARENT machine
+      any: { value: rejected, set: rejected }   # one child holding it decides immediately
+      all: { value: approved, set: approved }   # only when every child holds it
+      default: in_review              # everything else, including no children yet
+```
+
+Priority is part of the rule: `any` is checked first, so a single rejection decides the parent
+without waiting for the remaining children. Declaring only one of `any`/`all` is fine; declaring
+neither leaves the parent permanently at `default`, which fails validation. `set` and `default`
+must be options of the *parent's* `target_field`, and `any.value`/`all.value` options of `on`.
+
 ### 12.6 `permissions[]` — one shape
 
 ```yaml
@@ -579,7 +600,7 @@ numbers with no code edit.
 | Card field roles | `title` `person` `money` `status` `date` | `domain.KnownCardFieldRoles` |
 | Aggregates | `count` `sum` | `domain.KnownAggregates` |
 | Actions | `decide` `edit` `delete` | `domain.KnownActions` |
-| Services | `log_activity` | `domain.KnownServices` |
+| Services | `log_activity` `rollup_parent_status` | `domain.KnownServices` |
 | Comparison operators | `equals` `not_equals` | `expression.KnownOps` |
 | Navigation badges | `approval_inbox_pending` | `domain.KnownNavigationBadges` |
 

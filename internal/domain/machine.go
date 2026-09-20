@@ -133,16 +133,51 @@ type Service struct {
 	Summary             string
 	SummaryOverrideWhen string
 	SummaryOverride     string
+	// Rollup is ServiceRollupParentStatus's own configuration, nil for every other Service.
+	Rollup *Rollup
 }
 
-// ServiceLogActivity is the one Service KnownServices realizes today: append an mch_activity
-// record (internal/web's logActivity).
-const ServiceLogActivity = "log_activity"
+// Rollup derives a parent record's own status from the values its children currently hold: the
+// declarative form of a parent-rollup cascade. Declared on the *child* Machine, because that is
+// where the relation to the parent already lives, so every field it names is checkable against
+// one Machine file plus the Machine that relation already points at.
+//
+// Three outcomes, in priority order: AnyValue wins the moment one child holds it (a single
+// rejection decides the parent immediately, without waiting for the rest), AllValue applies only
+// once every child holds it, and Default covers everything else including having no children yet.
+//
+// That ordering is the capability's substance, not an implementation detail -- it is what
+// distinguishes a rollup from a plain count, and it matches the shape this replaces
+// (internal/action's own DocumentStatus, deleted with this change) exactly.
+type Rollup struct {
+	// ParentField is the reference Field on this Machine pointing at the parent record.
+	ParentField string
+	// TargetField is the Field on the *parent* Machine this rollup writes.
+	TargetField string
+	// AnyValue, held by at least one child, sets the parent to AnySet.
+	AnyValue string
+	AnySet   string
+	// AllValue, held by every child, sets the parent to AllSet.
+	AllValue string
+	AllSet   string
+	// Default is what the parent becomes when neither rule fires, including when the parent has
+	// no children at all.
+	Default string
+}
+
+const (
+	// ServiceLogActivity appends an mch_activity record (internal/web's logActivity).
+	ServiceLogActivity = "log_activity"
+	// ServiceRollupParentStatus writes a parent record's status from its children's own values
+	// (behavior.RollupValue decides, internal/web performs the read and write).
+	ServiceRollupParentStatus = "rollup_parent_status"
+)
 
 // KnownServices is the closed set of Service names a Service.Name may name, the same static-seam
 // discipline KnownActions already established for Action.
 var KnownServices = map[string]bool{
-	ServiceLogActivity: true,
+	ServiceLogActivity:        true,
+	ServiceRollupParentStatus: true,
 }
 
 // Machine is the primary runtime realization unit for a business capability

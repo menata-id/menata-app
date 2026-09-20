@@ -61,43 +61,6 @@ func TestCanDecide_firstStepNeverLocked(t *testing.T) {
 	}
 }
 
-func TestDocumentStatus_anyRejectedWins(t *testing.T) {
-	steps := []*data.Record{
-		step("rec_1", 1, DecisionApproved),
-		step("rec_2", 2, DecisionRejected),
-		step("rec_3", 3, DecisionPending),
-	}
-	if got := DocumentStatus(steps); got != DocumentStatusRejected {
-		t.Errorf("DocumentStatus() = %q, want %q", got, DocumentStatusRejected)
-	}
-}
-
-func TestDocumentStatus_allApproved(t *testing.T) {
-	steps := []*data.Record{
-		step("rec_1", 1, DecisionApproved),
-		step("rec_2", 2, DecisionApproved),
-	}
-	if got := DocumentStatus(steps); got != DocumentStatusApproved {
-		t.Errorf("DocumentStatus() = %q, want %q", got, DocumentStatusApproved)
-	}
-}
-
-func TestDocumentStatus_stillPending(t *testing.T) {
-	steps := []*data.Record{
-		step("rec_1", 1, DecisionApproved),
-		step("rec_2", 2, DecisionPending),
-	}
-	if got := DocumentStatus(steps); got != DocumentStatusInReview {
-		t.Errorf("DocumentStatus() = %q, want %q", got, DocumentStatusInReview)
-	}
-}
-
-func TestDocumentStatus_noSteps(t *testing.T) {
-	if got := DocumentStatus(nil); got != DocumentStatusInReview {
-		t.Errorf("DocumentStatus(nil) = %q, want %q", got, DocumentStatusInReview)
-	}
-}
-
 func TestDocumentReference(t *testing.T) {
 	cases := []struct {
 		sortOrder int64

@@ -48,6 +48,21 @@ func approvalStepTestMachine() *domain.Machine {
 			{ID: "prm_edit_own_step", Action: domain.ActionEdit, ActorField: action.FieldStepAssignee},
 			{ID: "prm_delete_own_step", Action: domain.ActionDelete, ActorField: action.FieldStepAssignee},
 		},
+		// Mirrors metadata/approval_step.yaml's own evt_step_decision_rollup -- the Document's
+		// status follows its steps by declaration now, not by a hardcoded recompute in the
+		// handler, so these tests only exercise the real behaviour if the fixture declares it.
+		// internal/conformance.TestApprovalStepDeclaresStatusRollup is what keeps the two in step.
+		Events: []domain.Event{{
+			ID: "evt_step_decision_rollup",
+			On: action.FieldStepDecision,
+			Then: domain.Service{Name: domain.ServiceRollupParentStatus, Rollup: &domain.Rollup{
+				ParentField: action.FieldStepDocument,
+				TargetField: action.FieldDocumentStatus,
+				AnyValue:    action.DecisionRejected, AnySet: action.DocumentStatusRejected,
+				AllValue: action.DecisionApproved, AllSet: action.DocumentStatusApproved,
+				Default: action.DocumentStatusInReview,
+			}},
+		}},
 	}
 }
 

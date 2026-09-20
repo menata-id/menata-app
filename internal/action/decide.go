@@ -82,29 +82,6 @@ func CanDecide(mode string, step *data.Record, siblings []*data.Record) bool {
 	return true
 }
 
-// DocumentStatus derives a Document's aggregate status from all its Approval Steps: rejected if
-// any step is rejected, approved once every step is approved, in_review otherwise (including
-// when there are no steps at all yet).
-func DocumentStatus(steps []*data.Record) string {
-	if len(steps) == 0 {
-		return DocumentStatusInReview
-	}
-	allApproved := true
-	for _, s := range steps {
-		switch decisionOf(s) {
-		case DecisionRejected:
-			return DocumentStatusRejected
-		case DecisionApproved:
-		default:
-			allApproved = false
-		}
-	}
-	if allApproved {
-		return DocumentStatusApproved
-	}
-	return DocumentStatusInReview
-}
-
 func sequenceOf(r *data.Record) float64 {
 	v, _ := r.Values[FieldStepSequence].(float64)
 	return v

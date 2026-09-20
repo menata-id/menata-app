@@ -101,7 +101,21 @@ type eventDoc struct {
 		Summary             string `yaml:"summary"`
 		SummaryOverrideWhen string `yaml:"summary_override_when"`
 		SummaryOverride     string `yaml:"summary_override"`
+
+		// rollup_parent_status's own keys (domain.Rollup).
+		ParentField string         `yaml:"parent_field"`
+		TargetField string         `yaml:"target_field"`
+		Any         *rollupRuleDoc `yaml:"any"`
+		All         *rollupRuleDoc `yaml:"all"`
+		Default     string         `yaml:"default"`
 	} `yaml:"then"`
+}
+
+// rollupRuleDoc is one arm of a rollup: the child value to look for, and what the parent becomes
+// when it is found.
+type rollupRuleDoc struct {
+	Value string `yaml:"value"`
+	Set   string `yaml:"set"`
 }
 
 // permissionDoc is the YAML serialization of a Permission (ROADMAP.md Phase 16).
@@ -166,17 +180,32 @@ func Parse(data []byte) (*domain.Machine, error) {
 		})
 	}
 	for _, ed := range doc.Events {
+		then := domain.Service{
+			Name:                ed.Then.Service,
+			Summary:             ed.Then.Summary,
+			SummaryOverrideWhen: ed.Then.SummaryOverrideWhen,
+			SummaryOverride:     ed.Then.SummaryOverride,
+		}
+		if ed.Then.Service == domain.ServiceRollupParentStatus {
+			r := domain.Rollup{
+				ParentField: ed.Then.ParentField,
+				TargetField: ed.Then.TargetField,
+				Default:     ed.Then.Default,
+			}
+			if ed.Then.Any != nil {
+				r.AnyValue, r.AnySet = ed.Then.Any.Value, ed.Then.Any.Set
+			}
+			if ed.Then.All != nil {
+				r.AllValue, r.AllSet = ed.Then.All.Value, ed.Then.All.Set
+			}
+			then.Rollup = &r
+		}
 		m.Events = append(m.Events, domain.Event{
 			ID:         ed.ID,
 			On:         ed.On,
 			WhenEquals: ed.WhenEquals,
 			OnCreate:   ed.OnCreate,
-			Then: domain.Service{
-				Name:                ed.Then.Service,
-				Summary:             ed.Then.Summary,
-				SummaryOverrideWhen: ed.Then.SummaryOverrideWhen,
-				SummaryOverride:     ed.Then.SummaryOverride,
-			},
+			Then:       then,
 		})
 	}
 	for _, pd := range doc.Permissions {

@@ -128,19 +128,67 @@ func eventOldValues(req *http.Request, store *data.Store, machine *domain.Machin
 	return existing.Values, true
 }
 
-// runEvents performs the I/O half of every domain.Event MatchedEvents returns for this write --
-// currently exactly one Service, ServiceLogActivity, with the same best-effort posture
-// logActivity already has (a failure is logged, never allowed to fail the write it's describing).
-// oldValuesOK is eventOldValues' own second return -- false means its fetch failed, so no Event
-// can be evaluated correctly and none should fire.
+// runEvents performs the I/O half of every domain.Event MatchedEvents returns for this write,
+// with the same best-effort posture logActivity already has (a failure is logged, never allowed
+// to fail the write it's describing). oldValuesOK is eventOldValues' own second return -- false
+// means its fetch failed, so no Event can be evaluated correctly and none should fire.
 func runEvents(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, actorID string, oldValues map[string]any, oldValuesOK bool) {
 	if !oldValuesOK {
 		return
 	}
 	for _, e := range behavior.MatchedEvents(machine, oldValues, record.Values) {
-		if e.Then.Name == domain.ServiceLogActivity {
+		switch e.Then.Name {
+		case domain.ServiceLogActivity:
 			logActivity(ctx, store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, oldValues, record.Values))
+		case domain.ServiceRollupParentStatus:
+			rollUpParentStatus(ctx, store, machine, record, e.On, *e.Then.Rollup)
 		}
+	}
+}
+
+// rollUpParentStatus is ServiceRollupParentStatus's own I/O half: read every sibling of the record
+// just written, let behavior.RollupValue decide from their values, and write the result onto the
+// parent. The decision is pure and lives in internal/behavior; only the read and the write are
+// here, the same split svc_log_activity already follows. watchField is the Event's own on: --
+// the Field whose change triggered this, and whose value every sibling is then read for.
+//
+// Siblings are re-read rather than derived from the record in hand, so the rollup is always
+// computed from what is actually stored -- the same reasoning the hardcoded recomputeDocumentStatus
+// this replaces already used.
+//
+// Known limitation, stated rather than assumed away: this write does not itself run Events on the
+// parent, because this runtime dispatches Events from handlers rather than from
+// data.Store.UpdateRecord. Upstream's own equivalent (capability-registry.md's CAP-A08) routes the
+// parent transition through the same path an HTTP request uses, so guards still apply to a
+// system-triggered change. No Machine declares an Event that would need that here today.
+func rollUpParentStatus(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, watchField string, r domain.Rollup) {
+	parentID := fmt.Sprint(record.Values[r.ParentField])
+	if parentID == "" {
+		return
+	}
+	parentField, ok := machine.FieldByID(r.ParentField)
+	if !ok {
+		return
+	}
+
+	siblings, err := store.ListRecordsBy(ctx, machine.ID, r.ParentField, parentID)
+	if err != nil {
+		log.Printf("rollup %s: listing children of %s: %v", r.TargetField, parentID, err)
+		return
+	}
+	watched := make([]string, 0, len(siblings))
+	for _, s := range siblings {
+		watched = append(watched, fmt.Sprint(s.Values[watchField]))
+	}
+
+	parent, err := store.GetRecord(ctx, parentField.RelatedMachine, parentID)
+	if err != nil {
+		log.Printf("rollup %s: reading parent %s: %v", r.TargetField, parentID, err)
+		return
+	}
+	parent.Values[r.TargetField] = behavior.RollupValue(r, watched)
+	if _, err := store.UpdateRecord(ctx, parentField.RelatedMachine, parentID, parent.Values); err != nil {
+		log.Printf("rollup %s: writing parent %s: %v", r.TargetField, parentID, err)
 	}
 }
 

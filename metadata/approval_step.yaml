@@ -50,6 +50,23 @@ fields:
 # existed, any authenticated user could drag/reposition/resize any step's own signature marker
 # (internal/rendering/signatureplacement.templ PUTs through the generic route, same as a direct
 # edit) or delete a step outright, not just its own assignee.
+# A Document's own status follows its Approval Steps, declared rather than derived in Go
+# (menata-runtime's capability-registry.md CAP-A08 `aggregate_status`, admitted on Case 3 +
+# WCP-3/9/19/20, conformance T24/T26 there). Replaces internal/web's own recomputeDocumentStatus
+# and internal/action.DocumentStatus, which computed exactly this by hand for this one Machine
+# pair. Priority matters: one rejection decides the Document immediately, without waiting for the
+# remaining approvers, while approved needs every step -- see domain.Rollup's own doc comment.
+events:
+  - id: evt_step_decision_rollup
+    on: fld_decision
+    then:
+      service: rollup_parent_status
+      parent_field: fld_document
+      target_field: fld_status
+      any: { value: rejected, set: rejected }
+      all: { value: approved, set: approved }
+      default: in_review
+
 permissions:
   - id: prm_decide_own_step
     action: decide

@@ -76,8 +76,10 @@ func showPendingCount(machines map[string]*domain.Machine, store *data.Store, cf
 }
 
 // decideStep is Case 3's core Action (ROADMAP.md Phase 12): Approve or Reject one Approval Step,
-// enforcing action.CanDecide's sequencing rule, then recomputing and saving the parent
-// Document's own aggregate status. Hardcoded to mch_approval_step/mch_document, matching
+// enforcing action.CanDecide's sequencing rule, then dispatching whatever Events the Machine
+// declares -- which is how the parent Document's own status now follows its steps
+// (mch_approval_step's evt_step_decision_rollup), instead of a hardcoded recompute here.
+// Still hardcoded to mch_approval_step/mch_document in every other respect, matching
 // internal/action's own scope -- not a generic action-dispatch route.
 //
 // The order below is the contract, not a convenience: identity is checked before the Document is
@@ -124,14 +126,17 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 			return
 		}
 
+		// Read the stored values before the write, so the declared Events below see a real
+		// before/after pair. applyApprovalSignature only mutates step.Values in memory, so
+		// nothing has been persisted for this step yet.
+		oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
+
 		step.Values[action.FieldStepDecision] = decision
 		if _, err := store.UpdateRecord(ctx, machine.ID, id, step.Values); err != nil {
 			serverError(w, err)
 			return
 		}
-		if !recomputeDocumentStatus(w, ctx, store, machine, document, documentID) {
-			return
-		}
+
 		if decision == action.DecisionApproved {
 			// Owner request, 2026-09-19: every approval, not just the one that completes the
 			// whole Document, should land in the PDF immediately -- signDocument recomposites
@@ -139,6 +144,8 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 			// scratch each time, so this is safe to call on every approval, not just the last.
 			signDocument(ctx, store, files, document, documentID)
 		}
+
+		runEvents(ctx, store, machine, step, actor, oldValues, oldValuesOK)
 
 		logActivity(ctx, store, action.DocumentMachineID, documentID, actor,
 			fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
@@ -248,21 +255,4 @@ func decidableDocument(w http.ResponseWriter, ctx context.Context, store *data.S
 		return nil, false
 	}
 	return document, true
-}
-
-// recomputeDocumentStatus re-reads every step after the write and derives the Document's own
-// aggregate status from them. It re-reads rather than adjusting the slice it already has, so the
-// aggregate is always computed from what is actually stored.
-func recomputeDocumentStatus(w http.ResponseWriter, ctx context.Context, store *data.Store, machine *domain.Machine, document *data.Record, documentID string) bool {
-	updated, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
-	if err != nil {
-		serverError(w, err)
-		return false
-	}
-	document.Values[action.FieldDocumentStatus] = action.DocumentStatus(updated)
-	if _, err := store.UpdateRecord(ctx, action.DocumentMachineID, documentID, document.Values); err != nil {
-		serverError(w, err)
-		return false
-	}
-	return true
 }

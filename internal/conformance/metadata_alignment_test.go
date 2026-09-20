@@ -13,6 +13,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
 )
 
@@ -374,6 +375,34 @@ func TestComposedScreenDatasetsAreDeclared(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestApprovalStepDeclaresStatusRollup guards the one declaration the Document-approval flow's own
+// correctness now rests on. A Document's status follows its Approval Steps by metadata
+// (evt_step_decision_rollup) rather than by the hardcoded recompute that used to live in
+// internal/web -- so if that Event is renamed or dropped, decisions still succeed and the
+// Document's status silently stops moving, which no other test would notice: internal/web's
+// approval tests build a synthetic Machine fixture that mirrors this declaration rather than
+// reading it (the same fixture-drift gap TestComposedScreenDatasetsAreDeclared closes for
+// Datasets).
+func TestApprovalStepDeclaresStatusRollup(t *testing.T) {
+	m, err := metadata.Load(filepath.Join(repoRoot(), "metadata", "approval_step.yaml"))
+	if err != nil {
+		t.Fatalf("load approval_step.yaml: %v", err)
+	}
+	for _, e := range m.Events {
+		if e.Then.Name != domain.ServiceRollupParentStatus {
+			continue
+		}
+		if e.Then.Rollup == nil {
+			t.Fatalf("event %q declares %s with no rollup configuration", e.ID, domain.ServiceRollupParentStatus)
+		}
+		if e.On != "fld_decision" {
+			t.Errorf("rollup event %q watches %q, want fld_decision -- the Document's status follows a step's decision", e.ID, e.On)
+		}
+		return
+	}
+	t.Errorf("metadata/approval_step.yaml declares no %s event -- a Document's status would stop following its own Approval Steps, silently, while every decision still succeeds", domain.ServiceRollupParentStatus)
 }
 
 // markdownSection returns capabilities.md's lines between a heading exactly matching heading and

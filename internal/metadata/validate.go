@@ -277,14 +277,62 @@ func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]doma
 		}
 	}
 
-	if !domain.KnownServices[e.Then.Name] {
+	// Each Service owns its own required keys: summary is log_activity's message, and means
+	// nothing to a rollup, which writes a field rather than a sentence.
+	switch e.Then.Name {
+	case domain.ServiceLogActivity:
+		if e.Then.Summary == "" {
+			issues = append(issues, fmt.Sprintf("event %q: then.summary is required", e.ID))
+		}
+		if (e.Then.SummaryOverrideWhen == "") != (e.Then.SummaryOverride == "") {
+			issues = append(issues, fmt.Sprintf("event %q: then.summary_override_when and then.summary_override must be set together or not at all", e.ID))
+		}
+	case domain.ServiceRollupParentStatus:
+		issues = append(issues, validateRollup(m, e, fieldsByID)...)
+	default:
 		issues = append(issues, fmt.Sprintf("event %q: then.service %q is not a service this runtime realizes", e.ID, e.Then.Name))
 	}
-	if e.Then.Summary == "" {
-		issues = append(issues, fmt.Sprintf("event %q: then.summary is required", e.ID))
+
+	return issues
+}
+
+// validateRollup checks everything a rollup declaration can be checked against from inside its own
+// Machine file: the parent reference it writes through, and that the child values it watches for
+// are really values the watched Field can hold. The other half -- that target_field exists on the
+// *parent* Machine and that set/default are among its options -- needs both Machines loaded, so it
+// lives in application.go beside validateRelationTargets.
+func validateRollup(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+
+	if e.Then.Rollup == nil {
+		return append(issues, fmt.Sprintf("event %q: then.service %q requires parent_field/target_field", e.ID, e.Then.Name))
 	}
-	if (e.Then.SummaryOverrideWhen == "") != (e.Then.SummaryOverride == "") {
-		issues = append(issues, fmt.Sprintf("event %q: then.summary_override_when and then.summary_override must be set together or not at all", e.ID))
+	r := *e.Then.Rollup
+
+	parentField, ok := fieldsByID[r.ParentField]
+	if !ok {
+		issues = append(issues, fmt.Sprintf("event %q: then.parent_field %q is not a field of machine %q", e.ID, r.ParentField, m.ID))
+	} else if !parentField.IsReference() {
+		issues = append(issues, fmt.Sprintf("event %q: then.parent_field %q must reference the parent machine (a relation or person field), got %q", e.ID, r.ParentField, parentField.Type))
+	}
+	if !fieldIDPattern.MatchString(r.TargetField) {
+		issues = append(issues, fmt.Sprintf("event %q: then.target_field %q must match %s", e.ID, r.TargetField, fieldIDPattern.String()))
+	}
+	if r.Default == "" {
+		issues = append(issues, fmt.Sprintf("event %q: then.default is required -- it is what the parent becomes when neither rule fires, including when it has no children yet", e.ID))
+	}
+	if r.AnyValue == "" && r.AllValue == "" {
+		issues = append(issues, fmt.Sprintf("event %q: a rollup declaring neither any nor all can only ever write then.default", e.ID))
+	}
+
+	// The values watched for are values of the Event's own on: field -- that is the field whose
+	// change triggers this rollup, and whose value every sibling is then read for.
+	if onField, onExists := fieldsByID[e.On]; onExists {
+		for _, v := range []struct{ key, value string }{{"any.value", r.AnyValue}, {"all.value", r.AllValue}} {
+			if v.value != "" && violatesOptions(onField, v.value) {
+				issues = append(issues, fmt.Sprintf("event %q: then.%s %q is not one of field %q's options %v", e.ID, v.key, v.value, e.On, onField.Options))
+			}
+		}
 	}
 
 	return issues

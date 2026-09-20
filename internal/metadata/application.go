@@ -144,7 +144,62 @@ func LoadApplication(path string) (*App, error) {
 	if err := validateDatasetIDsAreUnique(app.Machines); err != nil {
 		return nil, err
 	}
+	if err := validateRollupTargets(app.Machines); err != nil {
+		return nil, err
+	}
 	return app, nil
+}
+
+// validateRollupTargets closes the half of a rollup declaration a single Machine file cannot check
+// for itself: the Field it writes lives on the *parent* Machine, so its existence, and whether the
+// values the rollup sets are among that Field's own options, can only be verified once every
+// Machine is loaded -- the same reason validateRelationTargets exists.
+//
+// Without this, a rollup naming a field the parent doesn't have would write a value nothing reads,
+// and a rollup setting a value outside the parent field's options would store a status no screen
+// can render -- both silent at load time, both visible only as a page that quietly shows the wrong
+// thing.
+func validateRollupTargets(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+
+	var issues []string
+	for _, m := range machines {
+		for _, e := range m.Events {
+			r := e.Then.Rollup
+			if r == nil {
+				continue
+			}
+			parentField, ok := m.FieldByID(r.ParentField)
+			if !ok {
+				continue // already reported by validateRollup
+			}
+			parent, ok := byID[parentField.RelatedMachine]
+			if !ok {
+				issues = append(issues, fmt.Sprintf("machine %q: event %q: then.parent_field %q points at machine %q, which this application does not declare", m.ID, e.ID, r.ParentField, parentField.RelatedMachine))
+				continue
+			}
+			target, ok := parent.FieldByID(r.TargetField)
+			if !ok {
+				issues = append(issues, fmt.Sprintf("machine %q: event %q: then.target_field %q is not a field of parent machine %q", m.ID, e.ID, r.TargetField, parent.ID))
+				continue
+			}
+			for _, w := range []struct{ key, value string }{{"any.set", r.AnySet}, {"all.set", r.AllSet}, {"default", r.Default}} {
+				if w.value == "" {
+					continue
+				}
+				if len(target.Options) > 0 && !contains(target.Options, w.value) {
+					issues = append(issues, fmt.Sprintf("machine %q: event %q: then.%s %q is not one of parent field %q's options %v", m.ID, e.ID, w.key, w.value, r.TargetField, target.Options))
+				}
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
 }
 
 // validateDatasetIDsAreUnique makes a Dataset id unique across the whole Application, not just
