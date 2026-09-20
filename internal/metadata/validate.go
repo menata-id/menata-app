@@ -148,7 +148,7 @@ func Validate(m *domain.Machine) error {
 		if f.Type == domain.FieldTypeRelation && !machineIDPattern.MatchString(f.RelatedMachine) {
 			issues = append(issues, fmt.Sprintf("field %q: type relation requires a valid target machine id, got %q", f.ID, f.RelatedMachine))
 		}
-		if f.Type == domain.FieldTypeStatus && f.Default != nil && !contains(f.Options, f.Default.(string)) {
+		if f.Default != nil && violatesOptions(f, fmt.Sprint(f.Default)) {
 			issues = append(issues, fmt.Sprintf("field %q: default %q is not one of its own options %v", f.ID, f.Default, f.Options))
 		}
 	}
@@ -217,7 +217,7 @@ func validateConstraint(m *domain.Machine, c domain.Constraint, fieldsByID map[s
 	onField, onExists := fieldsByID[c.On]
 	if !onExists {
 		issues = append(issues, fmt.Sprintf("constraint %q: on %q is not a field of machine %q", c.ID, c.On, m.ID))
-	} else if onField.Type == domain.FieldTypeStatus && !contains(onField.Options, c.WhenEquals) {
+	} else if violatesOptions(onField, c.WhenEquals) {
 		issues = append(issues, fmt.Sprintf("constraint %q: when_equals %q is not one of field %q's options %v", c.ID, c.WhenEquals, c.On, onField.Options))
 	}
 	if c.WhenEquals == "" {
@@ -272,7 +272,7 @@ func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]doma
 		onField, onExists := fieldsByID[e.On]
 		if !onExists {
 			issues = append(issues, fmt.Sprintf("event %q: on %q is not a field of machine %q", e.ID, e.On, m.ID))
-		} else if e.WhenEquals != "" && onField.Type == domain.FieldTypeStatus && !contains(onField.Options, e.WhenEquals) {
+		} else if e.WhenEquals != "" && violatesOptions(onField, e.WhenEquals) {
 			issues = append(issues, fmt.Sprintf("event %q: when_equals %q is not one of field %q's options %v", e.ID, e.WhenEquals, e.On, onField.Options))
 		}
 	}
@@ -382,7 +382,7 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			whereField, ok := fieldsByID[ms.Where.Field]
 			if !ok {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.field %q is not a field of machine %q", ds.ID, ms.ID, ms.Where.Field, m.ID))
-			} else if whereField.Type == domain.FieldTypeStatus && !contains(whereField.Options, ms.Where.Value) {
+			} else if violatesOptions(whereField, ms.Where.Value) {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q is not one of field %q's options %v", ds.ID, ms.ID, ms.Where.Value, ms.Where.Field, whereField.Options))
 			}
 			if !expression.KnownOps[ms.Where.Op] {
@@ -392,6 +392,22 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 	}
 
 	return issues
+}
+
+// violatesOptions reports whether f constrains its values to a declared option list and value is
+// not one of them.
+//
+// The question is deliberately asked of the *property* (does this Field declare options?) rather
+// than of the type (is this Field a status?). Those happen to be the same set today only because
+// validateField below requires a status to declare options and nothing else declares any -- a
+// coincidence held up by one rule, not a property of the model. Branching on the type would make
+// `status` a fused name meaning "text that has options", the way a `string_cap_header` type would
+// fuse a string with its capitalisation instead of letting capitalisation be a property of
+// string. domain.Field.IsReference() already draws this line correctly for relation/person, and
+// its own doc comment says why: so a future reference-shaped type doesn't need adding in five
+// places at once. This is the same fix for options.
+func violatesOptions(f domain.Field, value string) bool {
+	return len(f.Options) > 0 && !contains(f.Options, value)
 }
 
 func contains(options []string, v string) bool {
