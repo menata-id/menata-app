@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signature positions</title>
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-0b6ec52db0.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-ecc2b13a79.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-0f32fb24e2.woff2") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-9e7abc3a33.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-4baf9df475.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-6b5600d84c.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-6f3e8634d3.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-e3bc0f7ad9.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-a36a5d6156.woff2") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-49aaf1a26f.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-c9a29d1e48.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-1ed27190e5.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-4ec2d1b9a5.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-ca30ddad82.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-5504a8361f.woff2") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-0723c0990d.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-b675be1072.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-c82ce6b645.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>
+body{margin:0;font-family:Ubuntu,system-ui,sans-serif;background:#f8fafc;color:#0f172a}
+a{color:#2563eb;text-decoration:none}a:hover{color:#1d4ed8}
+button:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
+</style>
+</head>
+<body>
+<div style="width: 1280px; height: 1020px; box-sizing: border-box; background: #f8fafc; display: flex; flex-direction: column;">
+<header style="height: 60px; flex-shrink: 0; box-sizing: border-box; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px; padding: 0 28px 0 36px;">
+<button type="button" aria-label="Open app launcher" style="width: 28px; height: 28px; border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<svg width="16" height="16" viewBox="0 0 18 18" fill="#64748b" aria-hidden="true"><circle cx="3" cy="3" r="1.5"></circle><circle cx="9" cy="3" r="1.5"></circle><circle cx="15" cy="3" r="1.5"></circle><circle cx="3" cy="9" r="1.5"></circle><circle cx="9" cy="9" r="1.5"></circle><circle cx="15" cy="9" r="1.5"></circle><circle cx="3" cy="15" r="1.5"></circle><circle cx="9" cy="15" r="1.5"></circle><circle cx="15" cy="15" r="1.5"></circle></svg>
+</button>
+<nav aria-label="Breadcrumb" style="font-size: 14px; color: #94a3b8;"><a href="WorkspaceHome.dc.html" style="color: #0f172a; font-weight: 500;">Dokter Kecil</a> / Signature Placement</nav>
+<div style="margin-left: auto; width: 32px; height: 32px; border-radius: 999px; background: #e2e8f0; color: #334155; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500;">NS</div>
+</header>
+<main style="width: 1180px; margin: 0 auto; padding-top: 38px; display: flex; flex-direction: column; gap: 16px;">
+<a href="SubmitDetails.dc.html" style="font-size: 11px; color: #64748b;">← Document details</a>
+<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px; margin-bottom: 8px;">
+<div style="font-size: 12px; color: #2563eb; letter-spacing: 0.02em;">STEP 2 OF 3</div>
+<h1 style="margin: 0; font-size: 24px; font-weight: 500;">Signature positions</h1>
+<div style="font-size: 14px; color: #64748b;">Place one signature box for each approval step. Positions are saved per step.</div>
+</div>
+<div style="display: flex; gap: 20px; align-items: stretch;">
+<section style="flex-grow: 1; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px 20px 20px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; justify-content: space-between; align-items: flex-start;">
+<div style="display: flex; flex-direction: column; gap: 5px;"><h2 style="margin: 0; font-size: 14px; font-weight: 500;">Page 6 of 6</h2><span style="font-size: 11px; color: #94a3b8;">Drag each box to its signature block. Box size matches the signature image.</span></div>
+<div style="display: flex; align-items: center; gap: 8px;">
+<button type="button" aria-label="Zoom out" style="width: 26px; height: 26px; border: 1px solid #e2e8f0; border-radius: 4px; background: #ffffff; color: #334155; font: inherit; font-size: 12px; cursor: pointer;">−</button>
+<span style="background: #f8fafc; border-radius: 4px; padding: 6px 12px; font-size: 11px; color: #334155;">100%</span>
+<button type="button" aria-label="Zoom in" style="width: 26px; height: 26px; border: 1px solid #e2e8f0; border-radius: 4px; background: #ffffff; color: #334155; font: inherit; font-size: 12px; cursor: pointer;">+</button>
+</div>
+</div>
+<div style="align-self: center; position: relative; width: 448px; height: 596px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 2px; background: #ffffff; box-shadow: 0 1px 2px rgba(15,23,42,0.06); padding: 32px; display: flex; flex-direction: column; gap: 12px;">
+<div style="text-align: center; font-size: 11px; letter-spacing: 0.4em; color: #cbd5e1; margin-bottom: 44px;">VENDOR CONTRACT</div>
+<div style="height: 8px; border-radius: 999px; background: #f1f5f9;"></div>
+<div style="height: 8px; border-radius: 999px; background: #f1f5f9;"></div>
+<div style="height: 8px; width: 75%; border-radius: 999px; background: #f1f5f9;"></div>
+<div style="height: 80px; border: 1px solid #f1f5f9; border-radius: 2px;"></div>
+<button type="button" aria-label="Signature box step 1, Rina Nur, drag to move" style="position: absolute; left: calc(20% - 56px); top: calc(84% - 28px); width: 112px; height: 56px; box-sizing: border-box; border: 1.5px dashed #2563eb; border-radius: 4px; background: #eff6ff; box-shadow: 0 0 0 3px #dbeafe; padding: 6px 8px; display: flex; align-items: center; gap: 7px; text-align: left; font: inherit; cursor: grab;">
+<span style="width: 18px; height: 18px; flex-shrink: 0; border-radius: 999px; background: #2563eb; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">1</span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 11px; font-weight: 500; color: #1d4ed8; white-space: nowrap;">Rina Nur</span><span style="font-size: 9px; color: #64748b; white-space: nowrap;">User · Finance</span></span>
+</button>
+<button type="button" aria-label="Signature box step 2, Legal Group, drag to move" style="position: absolute; left: calc(50% - 56px); top: calc(84% - 28px); width: 112px; height: 56px; box-sizing: border-box; border: 1.5px dashed #334155; border-radius: 4px; background: #f8fafc; padding: 6px 8px; display: flex; align-items: center; gap: 7px; text-align: left; font: inherit; cursor: grab;">
+<span style="width: 18px; height: 18px; flex-shrink: 0; border-radius: 999px; background: #334155; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">2</span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 11px; font-weight: 500; color: #0f172a; white-space: nowrap;">Legal Group</span><span style="font-size: 9px; color: #64748b; white-space: nowrap;">Group · 4 members</span></span>
+</button>
+<button type="button" aria-label="Signature box step 3, Maya Puspita, drag to move" style="position: absolute; left: calc(80% - 56px); top: calc(84% - 28px); width: 112px; height: 56px; box-sizing: border-box; border: 1.5px dashed #94a3b8; border-radius: 4px; background: #f8fafc; padding: 6px 8px; display: flex; align-items: center; gap: 7px; text-align: left; font: inherit; cursor: grab;">
+<span style="width: 18px; height: 18px; flex-shrink: 0; border-radius: 999px; background: #94a3b8; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">3</span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 11px; font-weight: 500; color: #475569; white-space: nowrap;">Maya Puspita</span><span style="font-size: 9px; color: #64748b; white-space: nowrap;">User · Director</span></span>
+</button>
+</div>
+</section>
+<aside style="width: 316px; flex-shrink: 0; box-sizing: border-box; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<h2 style="margin: 0 0 6px; font-size: 14px; font-weight: 500;">Approval steps</h2>
+<button type="button" aria-pressed="true" style="border: 1px solid #93c5fd; background: #eff6ff; border-radius: 6px; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; text-align: left; font: inherit; cursor: pointer;">
+<span style="width: 100%; display: flex; justify-content: space-between; align-items: center;"><span style="display: flex; align-items: center; gap: 8px;"><span style="width: 18px; height: 18px; border-radius: 999px; background: #2563eb; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">1</span><span style="font-size: 13px; font-weight: 500; color: #1d4ed8;">Rina Nur</span></span><span style="background: #dbeafe; color: #1d4ed8; border-radius: 4px; padding: 2px 6px; font-size: 10px;">User</span></span>
+<span style="font-size: 11px; color: #64748b; padding-left: 26px;">Finance · Page 6</span>
+</button>
+<button type="button" aria-pressed="false" style="border: 1px solid #e2e8f0; background: #ffffff; border-radius: 6px; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; text-align: left; font: inherit; cursor: pointer;">
+<span style="width: 100%; display: flex; justify-content: space-between; align-items: center;"><span style="display: flex; align-items: center; gap: 8px;"><span style="width: 18px; height: 18px; border-radius: 999px; background: #334155; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">2</span><span style="font-size: 13px; font-weight: 500; color: #0f172a;">Legal Group</span></span><span style="background: #f1f5f9; color: #334155; border-radius: 4px; padding: 2px 6px; font-size: 10px;">Group</span></span>
+<span style="font-size: 11px; color: #64748b; padding-left: 26px;">4 members · Page 6</span>
+</button>
+<button type="button" aria-pressed="false" style="border: 1px solid #e2e8f0; background: #ffffff; border-radius: 6px; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; text-align: left; font: inherit; cursor: pointer;">
+<span style="width: 100%; display: flex; justify-content: space-between; align-items: center;"><span style="display: flex; align-items: center; gap: 8px;"><span style="width: 18px; height: 18px; border-radius: 999px; background: #94a3b8; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;">3</span><span style="font-size: 13px; font-weight: 500; color: #0f172a;">Maya Puspita</span></span><span style="background: #dbeafe; color: #1d4ed8; border-radius: 4px; padding: 2px 6px; font-size: 10px;">User</span></span>
+<span style="font-size: 11px; color: #64748b; padding-left: 26px;">Director · Page 6</span>
+</button>
+<div style="margin-top: 8px; background: #f8fafc; border-radius: 6px; padding: 14px 12px; font-size: 11px; line-height: 20px; color: #64748b;">Approvers are supplied by Groups. Changing group membership is managed separately.</div>
+</aside>
+</div>
+<div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+<a href="SubmitDetails.dc.html" style="height: 38px; padding: 0 16px; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; color: #0f172a; display: flex; align-items: center; font-size: 14px;">Cancel</a>
+<a href="#" style="height: 38px; padding: 0 20px; border-radius: 6px; background: #0f172a; color: #ffffff; display: flex; align-items: center; font-size: 14px;">Save positions →</a>
+</div>
+</main>
+</div>
+</body></html>

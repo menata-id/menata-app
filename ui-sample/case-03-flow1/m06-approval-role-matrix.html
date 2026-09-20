@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Approval Role Matrix</title>
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-0b6ec52db0.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-ecc2b13a79.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-0f32fb24e2.woff2") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-9e7abc3a33.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-4baf9df475.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/ubuntu-6b5600d84c.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-6f3e8634d3.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-e3bc0f7ad9.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-a36a5d6156.woff2") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-49aaf1a26f.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-c9a29d1e48.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fonts/ubuntu-1ed27190e5.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-4ec2d1b9a5.woff2") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-ca30ddad82.woff2") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-5504a8361f.woff2") format('woff2');
+  unicode-range: U+1F00-1FFF;
+}
+/* greek */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-0723c0990d.woff2") format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-b675be1072.woff2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Ubuntu';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/ubuntu-c82ce6b645.woff2") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>
+body{margin:0;font-family:Ubuntu,system-ui,sans-serif;background:#f8fafc;color:#0f172a}
+a{color:#2563eb;text-decoration:none}a:hover{color:#1d4ed8}
+input:focus,select:focus,button:focus-visible{outline:2px solid #93c5fd;outline-offset:1px}
+</style>
+</head>
+<body>
+<div style="width: 390px; height: 1300px; box-sizing: border-box; background: #f8fafc; display: flex; flex-direction: column;">
+<header style="height: 56px; flex-shrink: 0; box-sizing: border-box; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; gap: 8px; padding: 0 16px 0 10px;">
+<button type="button" aria-label="Open app launcher" style="width: 32px; height: 32px; flex-shrink: 0; border: 0; background: transparent; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;"><svg width="16" height="16" viewBox="0 0 18 18" fill="#64748b" aria-hidden="true"><circle cx="3" cy="3" r="1.5"></circle><circle cx="9" cy="3" r="1.5"></circle><circle cx="15" cy="3" r="1.5"></circle><circle cx="3" cy="9" r="1.5"></circle><circle cx="9" cy="9" r="1.5"></circle><circle cx="15" cy="9" r="1.5"></circle><circle cx="3" cy="15" r="1.5"></circle><circle cx="9" cy="15" r="1.5"></circle><circle cx="15" cy="15" r="1.5"></circle></svg></button>
+<nav aria-label="Breadcrumb" style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><a href="M03-WorkspaceHome.dc.html" style="font-size: 11px; color: #64748b;">Dokter Kecil</a><span style="font-size: 14px; font-weight: 500; color: #0f172a; white-space: nowrap;">Approval Role Matrix</span></nav>
+<div style="margin-left: auto; width: 32px; height: 32px; flex-shrink: 0; border-radius: 999px; background: #e2e8f0; color: #334155; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500;">NS</div>
+</header>
+<main style="padding: 16px 16px 32px; display: flex; flex-direction: column; gap: 16px;">
+<a href="M01-SignIn.dc.html" style="font-size: 12px;">← Back to ui-sample index</a>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<h1 style="margin: 0; font-size: 21px; font-weight: 500;">Approval Role Matrix</h1>
+<p style="margin: 0; font-size: 13px; line-height: 20px; color: #64748b;">Which role may perform which approval transition, for one Application. Derived from that Application's own Machines' Permissions — this page doesn't invent a new permission model, it just re-projects <code style="font-family: ui-monospace, Menlo, monospace; font-size: 11px; background: #f1f5f9; color: #334155; border-radius: 4px; padding: 1px 4px;">ProcessEdge</code> (already rendered per-transition on <code style="font-family: ui-monospace, Menlo, monospace; font-size: 11px; background: #f1f5f9; color: #334155; border-radius: 4px; padding: 1px 4px;">/{machineID}/process-map</code>) role-first instead of transition-first.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px;"><label for="m-app" style="font-size: 12px; color: #475569;">Application</label><select id="m-app" style="width: 100%; height: 42px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 12px; font: inherit; font-size: 15px; color: #0f172a; background: #ffffff;"><option>Document Approval</option><option>Procurement</option><option>HR</option></select></div>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px;">
+<li style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 15px; font-weight: 500;">Submit</span><span style="font-size: 12px; color: #94a3b8;">Draft → In Review</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Admin</span><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Member</span></div></li>
+<li style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 15px; font-weight: 500;">Approve — Finance</span><span style="font-size: 12px; color: #94a3b8;">In Review → Finance OK</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Admin</span><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Finance Reviewer</span></div></li>
+<li style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 15px; font-weight: 500;">Approve — Legal</span><span style="font-size: 12px; color: #94a3b8;">Finance OK → Legal OK</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Admin</span><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Legal Reviewer</span></div></li>
+<li style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 15px; font-weight: 500;">Approve — Director</span><span style="font-size: 12px; color: #94a3b8;">Legal OK → Approved</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Admin</span><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Director</span></div></li>
+<li style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 15px; font-weight: 500;">Reject</span><span style="font-size: 12px; color: #94a3b8;">any pending state → Rejected</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Admin</span><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Finance Reviewer</span><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Legal Reviewer</span><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Director</span></div></li>
+<li style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; flex-direction: column; gap: 4px;"><span style="font-size: 15px; font-weight: 500;">Reopen</span><span style="font-size: 12px; color: #94a3b8;">Rejected → Draft</span></div><div style="display: flex; flex-wrap: wrap; gap: 6px;"><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Admin</span><span style="background: #f0fdf4; color: #166534; border-radius: 999px; padding: 4px 8px; font-size: 12px; white-space: nowrap;">✓ Member</span></div></li>
+</ul>
+<p style="margin: 0; font-size: 12px; line-height: 18px; color: #64748b;">Chips list the roles holding a Permission for that transition's Event. A role that holds none of a transition's grants never sees the action on that record's Detail page.</p>
+</main>
+</div>
+</body></html>
