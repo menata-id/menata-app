@@ -129,7 +129,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | Review document as its own screen (board 10) | Fase 6 | today it rides the generic record-detail page shared by every Machine |
   | New chrome on the Document Approval screens (inbox, submit, signature) | Fase 6 | Preflight ties chrome to content; their content ports there |
   | Approval Role Matrix (board 06) | Fase 7 | role-based Permission + a declared transition model, neither in 006/007 |
-  | Declared `requires_role:` on a navigation item | Fase 7, with role-based Permission | `appShell`'s `hiddenNavIDs` is the one-case stand-in today |
+  | Declared `requires_role:` on a navigation item | **a second real case, not a phase** — likeliest around Fase 7, when an Application role could gate an item (a handler naming an id cannot express that) | one case exists today and has code: `appShell`'s `hiddenNavIDs`. See "Per-user/role navigation filtering" below for why the second case, not the calendar, is the trigger |
   | Application menu row + mobile bottom bar | **no phase yet** — lands with the Project Management screens' own boards | nothing in Fase 2–7 displays it: Workspace-level screens have no Application open, Document Approval declares `hidden_nav_groups`. The owner's bottom-bar decision (`navigation.html`, 3–4 icons, top-4 by priority) is already made; it is the *screens* that are missing, not the decision |
   | Member search box (board 04) | **no phase yet** — "Planned: search, filtering and pagination" below | search does not exist anywhere in the app |
   | "Keep me signed in" (board 01) | **no phase yet** | a session-lifetime change; `internal/authorization` has no remember-me concept |
@@ -150,11 +150,24 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.
 - Group-based roles and a visual approval role matrix.
-- Per-user/role navigation filtering -- `application.navigation` (`app.yaml`) is resolved once at
-  process startup, identical for every viewer; no declared nav item needs role-gating yet, so this
-  isn't built speculatively (the one concrete case found, Workspace Home's "Members" link, was
-  workspace-level chrome, not a metadata nav item, and is already fixed). Build this once a real
-  `application.navigation` item needs to be hidden from some viewers, not before.
+- **Per-user/role navigation filtering -- the first real case has now arrived** (Fase 2 of the
+  Case 03 port, 2026-09-20). This entry used to read "no declared nav item needs role-gating yet",
+  and noted that the one concrete case found -- Workspace Home's "Members" link -- was
+  workspace-level chrome rather than a metadata nav item. `appShell`'s launcher changed that: it
+  renders `application.navigation` itself, so `nav_workspace_members` *is* now a declared nav item
+  pointing at a `requireWorkspaceAdmin`-gated route, and every plain member was being offered a
+  link that only ever 403s.
+
+  What shipped is a deliberate one-case stand-in, not the declared form: `appShell` takes a
+  `hiddenNavIDs` list and the handler names the item it already gates (`membersHiddenFor`,
+  `workspacehome.templ`), feeding both the launcher and the page's own link from one test.
+  `application.navigation` is still resolved once at process startup, identical for every viewer.
+
+  **The trigger for building the declared form (`requires_role:` on a navigation item) is a
+  *second* real case** -- the obvious candidate being an item gated on an Application role rather
+  than on workspace admin, since that one cannot be expressed by a handler naming an id. That is
+  the same way `Event` and `Permission` were both grown here: one real case earns code, the second
+  earns the declaration. Not before.
 - Extending the Event primitive (shipped above) to its one remaining real candidate case: a
   schedule/time trigger (for SLA-breach detection, currently read-triggered because there's no
   scheduler) -- its own second-real-case generalization, not assumed ahead of a concrete need,
