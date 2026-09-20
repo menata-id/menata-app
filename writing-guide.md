@@ -547,6 +547,12 @@ Machine declaring no permission for an action leaves it open to any authenticate
 A Dataset says what numbers exist, not how a screen draws them. Everything it names must be a
 field of its own Machine — a Dataset spanning two Machines isn't expressible today.
 
+You don't write a `source:`: a Dataset lives inside the Machine file whose records it counts, so
+the runtime fills that in (007 §7.2's `source.machine`, derived rather than declared, since
+repeating the id here would be duplicated metadata). That's also why a dataset `id` must be
+unique across the whole application, not just within its file — screens name a Dataset and
+nothing else, and the runtime knows which Machine's records that means.
+
 ```yaml
 # in task.yaml -- "how many Tasks does each assignee have, and how many are still open?"
 datasets:

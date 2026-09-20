@@ -35,8 +35,15 @@ const (
 	userCapacityDataset   = "ds_user_capacity"
 	documentStatusDataset = "ds_document_by_status"
 
-	measureTotalCards    = "msr_total"
-	measureActiveCards   = "msr_active"
+	// msr_total/msr_active are deliberately record-agnostic: the same two ids are declared by
+	// ds_task_workload, ds_task_by_project, ds_task_by_status and ds_document_by_status, so the
+	// same constant reads a count of Tasks on one screen and a count of Documents on another. A
+	// name like measureTotalCards would be wrong the moment the second Machine used it -- which
+	// is exactly what happened when the Dashboard's document tiles started reading this id.
+	measureTotal  = "msr_total"
+	measureActive = "msr_active"
+	// msr_total_capacity stays specific because its declaration is: it sums one particular
+	// number Field (fld_weekly_capacity), so the name and the measure are equally narrow.
 	measureTotalCapacity = "msr_total_capacity"
 )
 
@@ -70,10 +77,6 @@ func DashboardData(ctx context.Context, l *Loader, activityLimit int) (Dashboard
 	if err != nil {
 		return Dashboard{}, err
 	}
-	tasks, err := l.ListRecords(ctx, taskMachineID)
-	if err != nil {
-		return Dashboard{}, err
-	}
 	documents, err := l.ListRecords(ctx, action.DocumentMachineID)
 	if err != nil {
 		return Dashboard{}, err
@@ -83,16 +86,16 @@ func DashboardData(ctx context.Context, l *Loader, activityLimit int) (Dashboard
 		return Dashboard{}, err
 	}
 
-	byProject, ok := l.Dataset(taskMachineID, taskByProjectDataset)
-	if !ok {
-		return Dashboard{}, fmt.Errorf("composition: machine %s declares no dataset %s", taskMachineID, taskByProjectDataset)
+	taskCounts, err := l.AggregateDataset(ctx, taskByProjectDataset)
+	if err != nil {
+		return Dashboard{}, err
 	}
-	docsByStatus, ok := l.Dataset(action.DocumentMachineID, documentStatusDataset)
-	if !ok {
-		return Dashboard{}, fmt.Errorf("composition: machine %s declares no dataset %s", action.DocumentMachineID, documentStatusDataset)
+	docCounts, err := l.AggregateDataset(ctx, documentStatusDataset)
+	if err != nil {
+		return Dashboard{}, err
 	}
 
-	d := buildDashboard(projects, tasks, documents, byProject, docsByStatus)
+	d := buildDashboard(projects, documents, taskCounts, docCounts)
 	d.Activity = activity
 	return d, nil
 }
@@ -102,25 +105,22 @@ func DashboardData(ctx context.Context, l *Loader, activityLimit int) (Dashboard
 // ds_document_by_status). Collecting the in_review Documents themselves is not counting but
 // selection, and stays here: picking records by a predicate is 007 §8's Query Model, which the
 // decomposition audit explicitly recommends against building until something forces it.
-func buildDashboard(projects, tasks, documents []*data.Record, byProject, docsByStatus domain.Dataset) Dashboard {
-	taskCounts := Aggregate(byProject, tasks).ByDimension
-
+func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Aggregation) Dashboard {
 	var d Dashboard
 	d.Projects = make([]rendering.ProjectSummary, 0, len(projects))
 	for _, p := range projects {
-		mine := taskCounts[p.ID]
+		mine := taskCounts.ByDimension[p.ID]
 		d.Projects = append(d.Projects, rendering.ProjectSummary{
 			Project:    p,
-			OpenTasks:  int(mine[measureActiveCards]),
-			TotalTasks: int(mine[measureTotalCards]),
+			OpenTasks:  int(mine[measureActive]),
+			TotalTasks: int(mine[measureTotal]),
 		})
 	}
 
-	docCounts := Aggregate(docsByStatus, documents).ByDimension
 	d.Documents = rendering.DocumentSummary{
-		InReview: int(docCounts[action.DocumentStatusInReview][measureTotalCards]),
-		Approved: int(docCounts[action.DocumentStatusApproved][measureTotalCards]),
-		Rejected: int(docCounts[action.DocumentStatusRejected][measureTotalCards]),
+		InReview: int(docCounts.ByDimension[action.DocumentStatusInReview][measureTotal]),
+		Approved: int(docCounts.ByDimension[action.DocumentStatusApproved][measureTotal]),
+		Rejected: int(docCounts.ByDimension[action.DocumentStatusRejected][measureTotal]),
 	}
 	for _, doc := range documents {
 		if DisplayString(doc.Values[action.FieldDocumentStatus]) == action.DocumentStatusInReview {
@@ -219,13 +219,13 @@ func SprintDashboard(ctx context.Context, l *Loader, now time.Time) (Sprint, err
 	if err != nil {
 		return Sprint{}, err
 	}
-	byStatus, ok := l.Dataset(taskMachineID, taskByStatusDataset)
-	if !ok {
-		return Sprint{}, fmt.Errorf("composition: machine %s declares no dataset %s", taskMachineID, taskByStatusDataset)
+	byStatus, err := l.AggregateDataset(ctx, taskByStatusDataset)
+	if err != nil {
+		return Sprint{}, err
 	}
-	workload, ok := l.Dataset(taskMachineID, taskWorkloadDataset)
-	if !ok {
-		return Sprint{}, fmt.Errorf("composition: machine %s declares no dataset %s", taskMachineID, taskWorkloadDataset)
+	workload, err := l.AggregateDataset(ctx, taskWorkloadDataset)
+	if err != nil {
+		return Sprint{}, err
 	}
 
 	return buildSprint(tasks, users, names, now, byStatus, workload), nil
@@ -240,16 +240,15 @@ func SprintDashboard(ctx context.Context, l *Loader, now time.Time) (Sprint, err
 // The Attention list stays a loop for the same reason buildDashboard's Pending does: it selects
 // records rather than counting them, and its predicate is temporal (overdue or due today against
 // now), which the declared where: shape cannot express at all.
-func buildSprint(tasks, users []*data.Record, projects map[string]string, now time.Time, byStatus, workload domain.Dataset) Sprint {
+func buildSprint(tasks, users []*data.Record, projects map[string]string, now time.Time, byStatus, workload Aggregation) Sprint {
 	var out Sprint
 
-	statusCounts := Aggregate(byStatus, tasks)
-	out.Summary.Total = int(statusCounts.Total[measureTotalCards])
-	out.Summary.Open = int(statusCounts.ByDimension[taskStatusTodo][measureTotalCards])
-	out.Summary.InProgress = int(statusCounts.ByDimension[taskStatusInProgress][measureTotalCards])
-	out.Summary.Done = int(statusCounts.ByDimension[taskStatusDone][measureTotalCards])
+	out.Summary.Total = int(byStatus.Total[measureTotal])
+	out.Summary.Open = int(byStatus.ByDimension[taskStatusTodo][measureTotal])
+	out.Summary.InProgress = int(byStatus.ByDimension[taskStatusInProgress][measureTotal])
+	out.Summary.Done = int(byStatus.ByDimension[taskStatusDone][measureTotal])
 
-	active := Aggregate(workload, tasks).ByDimension
+	active := workload.ByDimension
 
 	for _, t := range tasks {
 		if DisplayString(t.Values["fld_status"]) == taskStatusDone {
@@ -269,7 +268,7 @@ func buildSprint(tasks, users []*data.Record, projects map[string]string, now ti
 	for _, u := range users {
 		out.Workload = append(out.Workload, rendering.MemberCapacity{
 			User:        u,
-			ActiveCards: int(active[u.ID][measureActiveCards]),
+			ActiveCards: int(active[u.ID][measureActive]),
 		})
 	}
 	return out
@@ -283,24 +282,22 @@ type Capacity struct {
 }
 
 func TeamCapacity(ctx context.Context, l *Loader) (Capacity, error) {
-	workload, ok := l.Dataset(taskMachineID, taskWorkloadDataset)
-	if !ok {
-		return Capacity{}, fmt.Errorf("composition: machine %s declares no dataset %s", taskMachineID, taskWorkloadDataset)
+	workload, err := l.AggregateDataset(ctx, taskWorkloadDataset)
+	if err != nil {
+		return Capacity{}, err
 	}
-	capacity, ok := l.Dataset(userMachineID, userCapacityDataset)
-	if !ok {
-		return Capacity{}, fmt.Errorf("composition: machine %s declares no dataset %s", userMachineID, userCapacityDataset)
+	capacity, err := l.AggregateDataset(ctx, userCapacityDataset)
+	if err != nil {
+		return Capacity{}, err
 	}
 
+	// Users are still read directly: the table lists one row per member, and a Dataset returns
+	// numbers, not records.
 	users, err := l.ListRecords(ctx, userMachineID)
 	if err != nil {
 		return Capacity{}, err
 	}
-	tasks, err := l.ListRecords(ctx, taskMachineID)
-	if err != nil {
-		return Capacity{}, err
-	}
-	return buildCapacity(users, tasks, workload, capacity), nil
+	return buildCapacity(users, workload, capacity), nil
 }
 
 // buildCapacity is the first screen composed from declared Datasets rather than a hand-written
@@ -313,20 +310,18 @@ func TeamCapacity(ctx context.Context, l *Loader) (Capacity, error) {
 // Total: those two differ, and the difference is visible. Total counts every open Task including
 // ones assigned to nobody (or to a since-deleted identity), while the table below it lists only
 // real Users -- so using Total would print a header number the rows underneath can't add up to.
-func buildCapacity(users, tasks []*data.Record, workload, capacity domain.Dataset) Capacity {
-	byAssignee := Aggregate(workload, tasks).ByDimension
-
+func buildCapacity(users []*data.Record, workload, capacity Aggregation) Capacity {
 	out := Capacity{
 		Members:       make([]rendering.MemberCapacity, 0, len(users)),
-		TotalCapacity: int(Aggregate(capacity, users).Total[measureTotalCapacity]),
+		TotalCapacity: int(capacity.Total[measureTotalCapacity]),
 	}
 	for _, u := range users {
-		mine := byAssignee[u.ID]
-		out.TotalActive += int(mine[measureActiveCards])
+		mine := workload.ByDimension[u.ID]
+		out.TotalActive += int(mine[measureActive])
 		out.Members = append(out.Members, rendering.MemberCapacity{
 			User:        u,
-			ActiveCards: int(mine[measureActiveCards]),
-			TotalCards:  int(mine[measureTotalCards]),
+			ActiveCards: int(mine[measureActive]),
+			TotalCards:  int(mine[measureTotal]),
 		})
 	}
 	return out

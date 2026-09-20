@@ -35,7 +35,7 @@ func TestBuildDashboard_ProjectRollups(t *testing.T) {
 		task("tsk_4", "prj_2", "usr_ana", "todo", ""),
 	}
 
-	got := buildDashboard(projects, tasks, nil, taskByProject(), documentByStatus())
+	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil))
 	if len(got.Projects) != 2 {
 		t.Fatalf("want a summary per Project, got %d", len(got.Projects))
 	}
@@ -52,7 +52,7 @@ func TestBuildDashboard_OrphanTaskCountsAgainstNoProject(t *testing.T) {
 	projects := []*data.Record{rec("prj_1", map[string]any{"fld_name": "Apollo"})}
 	tasks := []*data.Record{task("tsk_orphan", "", "usr_ana", "todo", "")}
 
-	got := buildDashboard(projects, tasks, nil, taskByProject(), documentByStatus())
+	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil))
 	if got.Projects[0].TotalTasks != 0 {
 		t.Errorf("orphan Task must not be counted against Apollo, got total %d", got.Projects[0].TotalTasks)
 	}
@@ -68,7 +68,7 @@ func TestBuildDashboard_DocumentStatusSplit(t *testing.T) {
 		rec("doc_6", map[string]any{"fld_status": "something_else"}),
 	}
 
-	got := buildDashboard(nil, nil, documents, taskByProject(), documentByStatus())
+	got := buildDashboard(nil, documents, Aggregate(taskByProject(), nil), Aggregate(documentByStatus(), documents))
 	s := got.Documents
 	if s.InReview != 2 || s.Approved != 1 || s.Rejected != 1 {
 		t.Errorf("counts review/approved/rejected = %d/%d/%d, want 2/1/1", s.InReview, s.Approved, s.Rejected)
@@ -124,7 +124,7 @@ func TestBuildSprint_CountsAndAttention(t *testing.T) {
 		task("tsk_4", "prj_2", "usr_budi", "done", "2026-09-01"),       // done -> no workload
 	}
 
-	got := buildSprint(tasks, users, projectLabels, at(10), taskByStatus(), taskWorkload())
+	got := buildSprint(tasks, users, projectLabels, at(10), Aggregate(taskByStatus(), tasks), Aggregate(taskWorkload(), tasks))
 
 	s := got.Summary
 	if s.Total != 4 || s.Open != 2 || s.InProgress != 1 || s.Done != 1 {
@@ -155,7 +155,7 @@ func TestBuildCapacity(t *testing.T) {
 		task("tsk_3", "prj_1", "usr_budi", "todo", ""),
 	}
 
-	got := buildCapacity(users, tasks, taskWorkload(), userCapacity())
+	got := buildCapacity(users, Aggregate(taskWorkload(), tasks), Aggregate(userCapacity(), users))
 
 	if got.TotalCapacity != 40 {
 		t.Errorf("TotalCapacity = %d, want 40 (a user with no declared capacity adds nothing)", got.TotalCapacity)

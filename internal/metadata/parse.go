@@ -187,7 +187,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 		})
 	}
 	for _, dd := range doc.Datasets {
-		ds := domain.Dataset{ID: dd.ID, Dimension: dd.Dimension}
+		ds := domain.Dataset{ID: dd.ID, Source: doc.ID, Dimension: dd.Dimension}
 		for _, md := range dd.Measures {
 			ms := domain.Measure{
 				ID:        md.ID,

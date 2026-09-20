@@ -55,7 +55,16 @@ type Measure struct {
 // composition.Aggregate returns both, since a screen showing per-group numbers almost always
 // shows the overall number beside them.
 type Dataset struct {
-	ID        string
+	ID string
+	// Source is the Machine id whose records this Dataset counts -- 007 §7.2's `source.machine`,
+	// but *derived* rather than declared: a Dataset lives inside the Machine file that owns its
+	// records, so writing the id again in YAML would be the duplicated metadata 001 Principle #8
+	// rejects. internal/metadata.Parse fills it in from the enclosing Machine.
+	//
+	// Carrying it here is what lets a screen name a Dataset and nothing else: the Dataset knows
+	// where its own records come from, so a composed screen no longer has to also know which
+	// Machine to read (composition.Loader.AggregateDataset).
+	Source    string
 	Dimension string
 	Measures  []Measure
 }

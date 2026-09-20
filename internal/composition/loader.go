@@ -3,6 +3,7 @@ package composition
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 
 	"menata.app/internal/data"
@@ -208,17 +209,41 @@ func (l *Loader) machineSlice() []*domain.Machine {
 	return list
 }
 
-// Dataset resolves one Dataset (007 §7.2) by the Machine that declares it. Reported missing
-// rather than returning a zero Dataset, because a composed screen naming a Dataset that metadata
-// no longer declares would otherwise render a page of silent zeroes -- the same "fail where it's
-// cheap to find" reasoning rendering.routeByID states for an unknown navigation id, routed
-// through the error return this layer already has instead of a panic.
-func (l *Loader) Dataset(machineID, datasetID string) (domain.Dataset, bool) {
-	m, ok := l.machines[machineID]
-	if !ok {
-		return domain.Dataset{}, false
+// Dataset resolves one Dataset (007 §7.2) by its id alone -- no Machine id, because the Dataset
+// already carries its own Source and internal/metadata guarantees the id is unique across the
+// Application (validateDatasetIDsAreUnique). A screen that only needs numbers therefore names one
+// thing, not two.
+//
+// Reported missing rather than returning a zero Dataset, because a composed screen naming a
+// Dataset metadata no longer declares would otherwise render a page of silent zeroes -- the same
+// "fail where it's cheap to find" reasoning rendering.routeByID states for an unknown navigation
+// id, routed through the error return this layer already has instead of a panic.
+func (l *Loader) Dataset(datasetID string) (domain.Dataset, bool) {
+	for _, m := range l.machineSlice() {
+		if ds, ok := m.DatasetByID(datasetID); ok {
+			return ds, true
+		}
 	}
-	return m.DatasetByID(datasetID)
+	return domain.Dataset{}, false
+}
+
+// AggregateDataset is the whole read: resolve the Dataset, read its own Source Machine's records,
+// and evaluate it. A screen composing numbers calls this and never names a Machine at all -- the
+// Dataset knows where its records live, which is the point of Source existing.
+//
+// Records come through ListRecords, so a screen that also needs the same Machine's records for
+// something a Dataset can't express (a list of rows, not a count) pays for one read, not two:
+// the Loader's own per-request memo serves the second caller.
+func (l *Loader) AggregateDataset(ctx context.Context, datasetID string) (Aggregation, error) {
+	ds, ok := l.Dataset(datasetID)
+	if !ok {
+		return Aggregation{}, fmt.Errorf("composition: no machine declares dataset %s", datasetID)
+	}
+	records, err := l.ListRecords(ctx, ds.Source)
+	if err != nil {
+		return Aggregation{}, err
+	}
+	return Aggregate(ds, records), nil
 }
 
 // DisplayString renders a stored field value as text. Records hold JSONB-decoded values, so a
