@@ -342,8 +342,13 @@ func TestHandlersHaveNoHardcodedApplicationLabel(t *testing.T) {
 // time someone opens the page -- exactly the class of metadata/code drift
 // TestNavigationRoutesAreRegistered already closes for routes.
 var composedScreenDatasets = map[string]map[string][]string{
-	"task.yaml": {"ds_task_workload": {"msr_total", "msr_active"}},
-	"user.yaml": {"ds_user_capacity": {"msr_total_capacity"}},
+	"task.yaml": {
+		"ds_task_workload":   {"msr_total", "msr_active"}, // Team Capacity, and Sprint Dashboard's workload column
+		"ds_task_by_project": {"msr_total", "msr_active"}, // Dashboard's Project rollup
+		"ds_task_by_status":  {"msr_total"},               // Sprint Dashboard's headline counts
+	},
+	"user.yaml":     {"ds_user_capacity": {"msr_total_capacity"}},
+	"document.yaml": {"ds_document_by_status": {"msr_total"}},
 }
 
 func TestComposedScreenDatasetsAreDeclared(t *testing.T) {

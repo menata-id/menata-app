@@ -60,6 +60,18 @@ events:
       service: log_activity
       summary: "\"{fld_title}\" submitted"
 
+# The Dashboard's Document status tiles (007 §7.2-§7.4), generalized from what buildDashboard
+# used to count with a hardcoded `switch` over three literal status values. The switch's other
+# job -- collecting the in_review Documents themselves into a list -- is record *selection*, not
+# aggregation, so it stays code: selecting records by a predicate is 007 §8's Query Model, which
+# has no real forcing condition yet (menata-app-document's decomposition audit §7).
+datasets:
+  - id: ds_document_by_status
+    dimension: fld_status
+    measures:
+      - id: msr_total
+        aggregate: count
+
 view:
   layout: table
   sla_field: fld_due_date

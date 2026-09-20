@@ -29,11 +29,29 @@ const (
 // rendering.routeByID("nav_xxx") already draws: the *value* lives in metadata, the code only says
 // which one it wants.
 const (
-	taskWorkloadDataset  = "ds_task_workload"
-	userCapacityDataset  = "ds_user_capacity"
+	taskWorkloadDataset   = "ds_task_workload"
+	taskByProjectDataset  = "ds_task_by_project"
+	taskByStatusDataset   = "ds_task_by_status"
+	userCapacityDataset   = "ds_user_capacity"
+	documentStatusDataset = "ds_document_by_status"
+
 	measureTotalCards    = "msr_total"
 	measureActiveCards   = "msr_active"
 	measureTotalCapacity = "msr_total_capacity"
+)
+
+// mch_task's own fld_status option values, named rather than repeated as inline literals.
+//
+// This is an improvement in kind but not in level: the values still live in Go as well as in
+// metadata/task.yaml's options:, so they remain compile-time-bound. What would actually remove
+// them is a semantic marker on the option itself (something like `terminal: true` for "done"), so
+// a screen could ask metadata which status means finished instead of knowing the word. That is
+// the decomposition audit's P3, deliberately not built yet -- it is the least mature of the six
+// variation points the audit mapped, and no second shape has forced it.
+const (
+	taskStatusTodo       = "todo"
+	taskStatusInProgress = "in_progress"
+	taskStatusDone       = "done"
 )
 
 // Dashboard is the landing dashboard's composed content (ROADMAP.md Phase 6's own forcing case):
@@ -65,41 +83,48 @@ func DashboardData(ctx context.Context, l *Loader, activityLimit int) (Dashboard
 		return Dashboard{}, err
 	}
 
-	d := buildDashboard(projects, tasks, documents)
+	byProject, ok := l.Dataset(taskMachineID, taskByProjectDataset)
+	if !ok {
+		return Dashboard{}, fmt.Errorf("composition: machine %s declares no dataset %s", taskMachineID, taskByProjectDataset)
+	}
+	docsByStatus, ok := l.Dataset(action.DocumentMachineID, documentStatusDataset)
+	if !ok {
+		return Dashboard{}, fmt.Errorf("composition: machine %s declares no dataset %s", action.DocumentMachineID, documentStatusDataset)
+	}
+
+	d := buildDashboard(projects, tasks, documents, byProject, docsByStatus)
 	d.Activity = activity
 	return d, nil
 }
 
-func buildDashboard(projects, tasks, documents []*data.Record) Dashboard {
-	open := make(map[string]int, len(projects))
-	total := make(map[string]int, len(projects))
-	for _, t := range tasks {
-		projectID, _ := t.Values["fld_project"].(string)
-		total[projectID]++
-		if DisplayString(t.Values["fld_status"]) != "done" {
-			open[projectID]++
-		}
-	}
+// buildDashboard splits what used to be one loop into its two genuinely different halves. Counting
+// -- Tasks per Project, Documents per status -- is now declared (ds_task_by_project,
+// ds_document_by_status). Collecting the in_review Documents themselves is not counting but
+// selection, and stays here: picking records by a predicate is 007 §8's Query Model, which the
+// decomposition audit explicitly recommends against building until something forces it.
+func buildDashboard(projects, tasks, documents []*data.Record, byProject, docsByStatus domain.Dataset) Dashboard {
+	taskCounts := Aggregate(byProject, tasks).ByDimension
 
 	var d Dashboard
 	d.Projects = make([]rendering.ProjectSummary, 0, len(projects))
 	for _, p := range projects {
+		mine := taskCounts[p.ID]
 		d.Projects = append(d.Projects, rendering.ProjectSummary{
 			Project:    p,
-			OpenTasks:  open[p.ID],
-			TotalTasks: total[p.ID],
+			OpenTasks:  int(mine[measureActiveCards]),
+			TotalTasks: int(mine[measureTotalCards]),
 		})
 	}
 
+	docCounts := Aggregate(docsByStatus, documents).ByDimension
+	d.Documents = rendering.DocumentSummary{
+		InReview: int(docCounts[action.DocumentStatusInReview][measureTotalCards]),
+		Approved: int(docCounts[action.DocumentStatusApproved][measureTotalCards]),
+		Rejected: int(docCounts[action.DocumentStatusRejected][measureTotalCards]),
+	}
 	for _, doc := range documents {
-		switch DisplayString(doc.Values["fld_status"]) {
-		case "in_review":
-			d.Documents.InReview++
+		if DisplayString(doc.Values[action.FieldDocumentStatus]) == action.DocumentStatusInReview {
 			d.Pending = append(d.Pending, doc)
-		case "approved":
-			d.Documents.Approved++
-		case "rejected":
-			d.Documents.Rejected++
 		}
 	}
 	return d
@@ -115,6 +140,15 @@ type MyTasks struct {
 
 // PersonalTasks composes My Tasks for one identity. Bucketing reuses experience.EvaluateSLA
 // (Phase 13) rather than re-deriving day-truncation logic.
+//
+// This is the one screen of the five the decomposition audit counted that a declared Dataset
+// cannot express, and the reason is worth stating rather than leaving as an apparent oversight.
+// Its counts are filtered by the viewing identity (assignee == userID), and a declared where: is
+// a comparison against a literal, not against a value supplied per request -- so a Dataset would
+// need parameterized filters. Its other two counts (Overdue, DueToday) compare a due date against
+// now, which the equals/not_equals vocabulary cannot express at any level. Both are real gaps,
+// neither has a second case yet, and inventing either one for this single screen is the premature
+// declaration B5 exists to refuse.
 func PersonalTasks(ctx context.Context, l *Loader, userID string, now time.Time) (MyTasks, error) {
 	tasks, err := l.ListRecords(ctx, taskMachineID)
 	if err != nil {
@@ -185,27 +219,42 @@ func SprintDashboard(ctx context.Context, l *Loader, now time.Time) (Sprint, err
 	if err != nil {
 		return Sprint{}, err
 	}
-	return buildSprint(tasks, users, names, now), nil
+	byStatus, ok := l.Dataset(taskMachineID, taskByStatusDataset)
+	if !ok {
+		return Sprint{}, fmt.Errorf("composition: machine %s declares no dataset %s", taskMachineID, taskByStatusDataset)
+	}
+	workload, ok := l.Dataset(taskMachineID, taskWorkloadDataset)
+	if !ok {
+		return Sprint{}, fmt.Errorf("composition: machine %s declares no dataset %s", taskMachineID, taskWorkloadDataset)
+	}
+
+	return buildSprint(tasks, users, names, now, byStatus, workload), nil
 }
 
-func buildSprint(tasks, users []*data.Record, projects map[string]string, now time.Time) Sprint {
+// buildSprint reads two Datasets, and the second one is the point: ds_task_workload is the same
+// declaration Team Capacity composes from, reused here unchanged. That reuse is what makes a
+// Dataset a "named, reusable semantic data definition" (007 §7.2) rather than a per-screen config
+// block -- two screens now agree on what "active cards per assignee" means because they read one
+// declaration, not because two Go loops happen to be written the same way.
+//
+// The Attention list stays a loop for the same reason buildDashboard's Pending does: it selects
+// records rather than counting them, and its predicate is temporal (overdue or due today against
+// now), which the declared where: shape cannot express at all.
+func buildSprint(tasks, users []*data.Record, projects map[string]string, now time.Time, byStatus, workload domain.Dataset) Sprint {
 	var out Sprint
-	active := make(map[string]int, len(users))
+
+	statusCounts := Aggregate(byStatus, tasks)
+	out.Summary.Total = int(statusCounts.Total[measureTotalCards])
+	out.Summary.Open = int(statusCounts.ByDimension[taskStatusTodo][measureTotalCards])
+	out.Summary.InProgress = int(statusCounts.ByDimension[taskStatusInProgress][measureTotalCards])
+	out.Summary.Done = int(statusCounts.ByDimension[taskStatusDone][measureTotalCards])
+
+	active := Aggregate(workload, tasks).ByDimension
+
 	for _, t := range tasks {
-		out.Summary.Total++
-		status := DisplayString(t.Values["fld_status"])
-		switch status {
-		case "todo":
-			out.Summary.Open++
-		case "in_progress":
-			out.Summary.InProgress++
-		case "done":
-			out.Summary.Done++
-		}
-		if status == "done" {
+		if DisplayString(t.Values["fld_status"]) == taskStatusDone {
 			continue
 		}
-		active[DisplayString(t.Values["fld_assignee"])]++
 		if due, err := time.Parse("2006-01-02", DisplayString(t.Values["fld_due_date"])); err == nil {
 			if slaStatus, label := experience.EvaluateSLA(due, now); slaStatus == experience.SLAOverdue || label == "Due today" {
 				out.Attention = append(out.Attention, rendering.TaskRow{
@@ -218,7 +267,10 @@ func buildSprint(tasks, users []*data.Record, projects map[string]string, now ti
 
 	out.Workload = make([]rendering.MemberCapacity, 0, len(users))
 	for _, u := range users {
-		out.Workload = append(out.Workload, rendering.MemberCapacity{User: u, ActiveCards: active[u.ID]})
+		out.Workload = append(out.Workload, rendering.MemberCapacity{
+			User:        u,
+			ActiveCards: int(active[u.ID][measureActiveCards]),
+		})
 	}
 	return out
 }

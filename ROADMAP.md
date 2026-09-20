@@ -108,8 +108,13 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Capacity composes from `mch_task`'s `ds_task_workload` and `mch_user`'s `ds_user_capacity`, and
   its filter is an ordinary `expression.Comparison` rather than a new syntax. Verified live:
   changing only `where.value` in YAML moved that page's own "Active cards" from 3 to 2, no code
-  touched. The four remaining hand-written aggregations (`buildDashboard` twice, `buildSprint`,
-  `PersonalTasks`) migrate next.
+  touched. **Dashboard and Sprint Dashboard followed**, so four of the five hand-written
+  aggregations are now declared across five Datasets -- and Sprint reuses Team Capacity's own
+  `ds_task_workload` unchanged, which is the first time two screens agree on what a number means
+  by reading one declaration instead of two matching Go loops. My Tasks is deliberately *not*
+  migrated: its counts filter on the viewing identity (a per-request value, not a literal) and on
+  a due date against now, neither of which `where:` can express -- both real gaps, neither with a
+  second case yet (`PersonalTasks`' own doc comment states this).
 - Re-evaluating `internal/composition/pages.go`'s Case 19 Machine-id/status-option constants
   (`taskMachineID`, the `todo`/`in_progress`/`done` switch) against the B1-B5 decomposition
   criteria now that `view.card_fields` (Projection) has shipped -- flagged, not decided, in

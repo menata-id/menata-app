@@ -626,7 +626,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 | Record-scoped `edit`/`delete` Permission (any Machine) | Approval progress stepper UI |
 | Field defaults | SLA-breach detection (still read-triggered, not a real Event yet) |
 | SLA badges (`view.sla_field`) | — |
-| Counting/summing a Machine's own records (`datasets:`) | Composed screens: Dashboard, Approval Inbox, My Tasks, Sprint Dashboard, Calendar, Automation, Board Settings (Team Capacity is the first one whose *numbers* are now declared — its layout and which measure goes in which column are still Go) |
+| Counting/summing a Machine's own records (`datasets:`) | Composed screens: Approval Inbox, My Tasks, Calendar, Automation, Board Settings. Dashboard, Sprint Dashboard and Team Capacity now get their *numbers* from declared `datasets:`, but their layout, which measure lands in which column, and any list of records they show (Pending, Attention) are still Go |
 
 **The right column is a capability snapshot, not a permanent exemption list.** Each entry existed
 because metadata couldn't express it *when it was written* — `view.card_fields` (Projection) and

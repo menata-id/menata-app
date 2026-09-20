@@ -77,6 +77,31 @@ datasets:
           op: not_equals
           value: done
 
+  # The Dashboard's Project rollup: the same two measures as ds_task_workload above, grouped by a
+  # different axis. Two Datasets rather than one Dataset with two dimensions on purpose -- 007
+  # §7.2's own example shows dimensions as a list, but a list means the cross-product (per
+  # assignee *and* project), and what these two screens each want is a separate breakdown. The
+  # singular `dimension` is the shape the real cases asked for.
+  - id: ds_task_by_project
+    dimension: fld_project
+    measures:
+      - id: msr_total
+        aggregate: count
+      - id: msr_active
+        aggregate: count
+        where:
+          field: fld_status
+          op: not_equals
+          value: done
+
+  # Sprint Dashboard's headline counts. No filtered measure: the breakdown *is* by status, so the
+  # per-status numbers come from the dimension rather than from a where clause.
+  - id: ds_task_by_status
+    dimension: fld_status
+    measures:
+      - id: msr_total
+        aggregate: count
+
 view:
   layout: board
   group_by: fld_list

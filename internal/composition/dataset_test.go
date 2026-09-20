@@ -25,6 +25,38 @@ func taskWorkload() domain.Dataset {
 	}
 }
 
+// taskByProject and taskByStatus mirror metadata/task.yaml's other two declarations, and
+// documentByStatus metadata/document.yaml's. internal/conformance.TestComposedScreenDatasetsAreDeclared
+// is what keeps these fixtures honest against the real files.
+func taskByProject() domain.Dataset {
+	return domain.Dataset{
+		ID:        "ds_task_by_project",
+		Dimension: "fld_project",
+		Measures: []domain.Measure{
+			{ID: "msr_total", Aggregate: domain.AggregateCount},
+			{ID: "msr_active", Aggregate: domain.AggregateCount, Where: &expression.Comparison{
+				Field: "fld_status", Op: expression.OpNotEquals, Value: "done",
+			}},
+		},
+	}
+}
+
+func taskByStatus() domain.Dataset {
+	return domain.Dataset{
+		ID:        "ds_task_by_status",
+		Dimension: "fld_status",
+		Measures:  []domain.Measure{{ID: "msr_total", Aggregate: domain.AggregateCount}},
+	}
+}
+
+func documentByStatus() domain.Dataset {
+	return domain.Dataset{
+		ID:        "ds_document_by_status",
+		Dimension: "fld_status",
+		Measures:  []domain.Measure{{ID: "msr_total", Aggregate: domain.AggregateCount}},
+	}
+}
+
 // userCapacity mirrors metadata/user.yaml's own declaration: a grand total, no dimension.
 func userCapacity() domain.Dataset {
 	return domain.Dataset{
