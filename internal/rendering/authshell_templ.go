@@ -508,7 +508,22 @@ func authPasswordField(id, name, label, autocomplete string, autofocus bool) tem
 //
 // aria-pressed is what a screen reader announces (the button is a two-state control, not a
 // navigation), and the label flips with it; the icons are aria-hidden because they say the same
-// thing. Not a `hidden` <input type=checkbox> + CSS: nothing in CSS can change an input's type.
+// thing. Not a `hidden` <input type=checkbox> + CSS: nothing in CSS can change an input's type --
+// the CSS-only route masks a `type="text"` input with -webkit-text-security instead, which fails
+// *open* (a stylesheet that doesn't load shows the password in the clear) and stops password
+// managers recognizing the field at all.
+//
+// Forward-checkable pointer for this exception (CLAUDE.md step 2b), both greppable:
+//
+//   - The moment authShell loads any <script> of its own, the reason above expires and this
+//     should move to hyperscript for consistency with documentsubmit.templ.
+//   - The moment script-src 'unsafe-inline' is tightened. secureheaders.go ties that header to
+//     machine.templ's inline blocks, and pageStyles shrinks with every ui-sample/case-03-flow1
+//     port phase (capabilities.md, "Styling: two systems, on purpose") -- when those blocks are
+//     gone, this onclick is the one thing left holding 'unsafe-inline' open.
+//
+// Full write-up, including the three alternatives and why each lost: menata-app-document's
+// development-history.md, "Ikon mata di field password" (2026-09-20).
 func authPasswordToggle(inputID string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -537,7 +552,7 @@ func authPasswordToggle(inputID string) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(inputID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/authshell.templ`, Line: 150, Col: 25}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/authshell.templ`, Line: 165, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
@@ -582,7 +597,7 @@ func authSubmit(label string) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/authshell.templ`, Line: 175, Col: 9}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/authshell.templ`, Line: 190, Col: 9}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 		if templ_7745c5c3_Err != nil {
