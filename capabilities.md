@@ -151,10 +151,19 @@ faces `app.css` names are self-hosted under `static/vendor/fonts/ubuntu` (six fi
 latin and latin-ext), because `secureheaders.go`'s CSP is `default-src 'self'` and `font-src`
 falls back to it.
 
-One scanner rule this depends on: Tailwind finds class names by reading the `.templ` sources named
-by `input.css`'s own `@source`. A class assembled at runtime (`"text-" + size`) is invisible to it
-and silently never reaches `app.css` — the failure shows up as missing styling in the browser, not
-as a build error.
+Two scanner rules this depends on, both of which fail *silently* — as missing styling in a
+browser, never as a build error:
+
+- **Class names must be literal in the `.templ` source.** Tailwind finds them by reading text, so
+  a name assembled at runtime (`"text-" + size`) never reaches `app.css`.
+- **`input.css` imports Tailwind with `source(none)`**, disabling automatic content detection, so
+  the only inputs are its own explicit `@source` lines. Without it Tailwind walks the whole repo
+  and also reads every `ui-sample/*.html` mockup — design references that are explicitly "never
+  current-code intent". That inflated `app.css` roughly fivefold (1029 rules to 206; 12.4KB to
+  3.8KB gzipped once fixed) and, worse, made the build **non-deterministic in a shared checkout**:
+  this pipeline's first CI run failed because the local build had scanned another session's
+  uncommitted edits to four of those mockups and produced a different stylesheet than CI built
+  from the committed ones.
 
 **Not yet built:** Timeline Layout; colored label chips and member avatars on a card face;
 drag-and-drop reordering of board columns and cards. The full list of what the `ui-sample/`

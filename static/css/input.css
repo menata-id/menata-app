@@ -8,7 +8,14 @@
    restyling them before their own port would leave fourteen pages half-migrated. The two systems
    coexisting is a planned transition, not drift. */
 
-@import "tailwindcss";
+/* source(none) turns OFF Tailwind's automatic content detection, so the only inputs are the
+   @source lines below. This is load-bearing, not tidiness: auto-detection walks the whole repo,
+   which here means it also read every ui-sample/*.html mockup -- thousands of Tailwind utility
+   classes belonging to design references that are explicitly "never current-code intent"
+   (router.go). That made app.css both bloated and *non-deterministic*: the first CI run of this
+   pipeline failed because a local build had scanned another session's uncommitted edits to four
+   of those mockups, producing a different stylesheet than CI built from the committed ones. */
+@import "tailwindcss" source(none);
 
 /* The .templ files are the real source of class names -- the generated *_templ.go duplicates
    them, so scanning the .templ side alone is enough and keeps the scan honest about where a
