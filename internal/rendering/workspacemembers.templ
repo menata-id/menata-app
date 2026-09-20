@@ -91,6 +91,7 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitial
 				// "Application roles", plural and app-agnostic, is the board's own header: each cell
 				// names its own Application, one line per Application that declares a vocabulary.
 				<span class="w-44">Application roles</span>
+				<span class="w-36">Source</span>
 				<span class="w-16"></span>
 			</div>
 			for _, m := range members {
@@ -114,6 +115,14 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitial
 							<span class="text-2xs text-slate-600">{ app.Name } · { displayRole(m.AppRoles[app.ID]) }</span>
 						}
 					</div>
+					<div class="flex flex-wrap gap-1 sm:w-36">
+						if len(m.Groups) == 0 {
+							<span class="text-2xs text-slate-400">Direct</span>
+						}
+						for _, g := range m.Groups {
+							<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">Group: { g.Name }</span>
+						}
+					</div>
 					<div class="sm:w-16">
 						<a href={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class="text-sm text-blue-600 hover:text-blue-700">Edit →</a>
 					</div>
@@ -126,12 +135,15 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName, userInitial
 // EditMemberPage is one member's role editor, ported to
 // ui-sample/case-03-flow1/05-edit-member.html (Fase 2, 2026-09-20).
 //
-// The board's third section, "Effective access" (direct roles unioned with roles inherited from
-// Groups, and the note that group-derived access cannot be removed from this screen), is absent
-// for the same reason the Source column is on the list page: Groups arrive in Fase 4, and the
-// union itself has no primitive behind it yet. Its Application-access section lists three
-// Applications because the board assumes Procurement and HR; this lists every Application that
-// declares a roles: vocabulary, which today is Document Approval alone.
+// The board's Application-access section lists three Applications because it assumes Procurement
+// and HR; this lists every Application that declares a roles: vocabulary, which today is Document
+// Approval alone.
+//
+// "Effective access" (Fase 4) renders data.EffectiveRoles -- the union of the direct assignment
+// above and every role this member's Groups hold. Per CAP-O07 the two paths grant identically, so
+// the panel shows the merged set rather than picking a winner, and it says plainly that
+// group-derived access is changed by editing the Group, not here: this screen writes only the
+// direct half.
 templ EditMemberPage(m data.Membership, workspaceName, userInitials string, roleApps []RoleApplication) {
 	@appShell("Edit member", workspaceName, userInitials, "", nil) {
 		<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
@@ -168,6 +180,7 @@ templ EditMemberPage(m data.Membership, workspaceName, userInitials string, role
 				@authSubmit("Save changes")
 			</div>
 		</form>
+		@effectiveAccessPanel(m, roleApps)
 	}
 }
 
@@ -198,4 +211,37 @@ templ roleSelect(id string, app RoleApplication, selected string) {
 			<option value={ r } selected?={ r == selected }>{ r }</option>
 		}
 	</select>
+}
+
+// effectiveAccessPanel is board 05's own third section: what this member can actually do, once
+// their Groups are taken into account.
+//
+// It is outside the form deliberately. The form writes the direct assignment; a group-granted role
+// is changed by editing that Group, which is what the board's own sentence says and what this
+// panel repeats. Rendering it inside the form would suggest the whole picture is editable here.
+templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
+	<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+		<div class="flex flex-col gap-1">
+			<h2 class="m-0 text-sm font-medium">Effective access</h2>
+			<p class="m-0 text-2xs text-slate-500">Direct roles combined with roles inherited from Groups.</p>
+		</div>
+		if len(m.Groups) == 0 {
+			<p class="m-0 text-2xs text-slate-500">This member belongs to no Group, so their effective access is exactly the direct assignment above.</p>
+		} else {
+			<p class="m-0 text-2xs text-slate-500">
+				Group-derived access cannot be removed from this screen; change the Group's own membership or roles instead.
+			</p>
+		}
+		{{ effective := data.EffectiveRoles(m.AppRoles, m.Groups) }}
+		<div class="flex flex-wrap gap-1.5">
+			for _, app := range roleApps {
+				for _, role := range effective[app.ID] {
+					<span class="rounded-full bg-blue-50 px-2.5 py-1 text-2xs text-blue-700">{ app.Name } · { role }</span>
+				}
+			}
+			for _, g := range m.Groups {
+				<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs text-slate-600">+ { g.Name } group</span>
+			}
+		</div>
+	</section>
 }

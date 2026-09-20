@@ -171,6 +171,15 @@ func Routes(d Deps) http.Handler {
 			ar.Post("/workspace-members/invite", submitInviteMember(d.Machines, d.Store, d.Mailer, d.Cfg, d.Workspace))
 			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg, d.Workspace))
 			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store, d.Workspace))
+
+			// Groups (Case 03 Fase 4) -- membership administration, so the same requireWorkspaceAdmin
+			// gate as the member routes above.
+			ar.Get("/workspace-groups", showGroups(d.Store, d.Cfg, d.Workspace))
+			ar.Post("/workspace-groups", submitCreateGroup(d.Store))
+			ar.Get("/workspace-groups/{groupID}", showGroupDetail(d.Store, d.Cfg, d.Workspace))
+			ar.Post("/workspace-groups/{groupID}/members", submitGroupMembers(d.Store))
+			ar.Post("/workspace-groups/{groupID}/roles", submitGroupRoles(d.Store, d.Workspace))
+			ar.Post("/workspace-groups/{groupID}/delete", submitDeleteGroup(d.Store))
 		})
 
 		pr.Get("/uploads/*", serveUpload(d.Store, d.Files))

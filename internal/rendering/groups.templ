@@ -1,0 +1,143 @@
+package rendering
+
+import "fmt"
+import "menata.app/internal/data"
+
+// GroupsPage lists a Workspace's Groups, ported from menata-runtime's own `groups.html`
+// (CAP-O07's shipped design, copied into this repo's ui-sample/ alongside this port).
+//
+// A Group exists so a role can be assigned once and membership managed instead of editing every
+// person's row. The cards therefore lead with what each Group *grants*, not just who is in it.
+//
+// Two deliberate differences from that mockup, both because it was drawn for a different shell:
+// it carries menata-runtime's own ui-sample chrome and a client-side search box. The chrome is
+// replaced by this app's appShell, and the search box is omitted for the same reason board 04's
+// is -- search does not exist anywhere in this app (ROADMAP.md, "Planned"), and a box that
+// filters nothing is worse than none.
+templ GroupsPage(groups []data.Group, workspaceName, userInitials string, roleApps []RoleApplication) {
+	@appShell("Groups", workspaceName, userInitials, "", nil) {
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+			<div class="flex flex-col gap-2">
+				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
+				<h1 class="m-0 text-xl font-medium">Groups</h1>
+				<div class="max-w-prose text-sm text-slate-500">
+					Assign a role to a Group once, then add or remove members — instead of editing every
+					person's own row. A member's effective role in an Application is their direct
+					assignment plus every role their Groups hold there.
+				</div>
+			</div>
+			<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
+				{ labelByID("nav_workspace_members") } →
+			</a>
+		</div>
+		<details class="rounded-lg border border-slate-200 bg-white">
+			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ New group</summary>
+			<form method="POST" action="/workspace-groups" class="flex flex-col gap-4 border-t border-slate-200 px-5 py-4">
+				@csrfHiddenInput()
+				@authField("group_name", "name", "Group name", "text", "off", false)
+				@authSubmit("Create group")
+			</form>
+		</details>
+		if len(groups) == 0 {
+			<div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+				No groups yet. Create one to grant a role to several people at once.
+			</div>
+		}
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+			for _, g := range groups {
+				<a href={ templ.SafeURL("/workspace-groups/" + g.ID) } class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5 text-slate-900 hover:border-blue-300">
+					<div class="flex items-center justify-between gap-3">
+						<span class="text-[15px] font-medium">{ g.Name }</span>
+						<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", g.MemberCount) }{ pluralS(g.MemberCount) }</span>
+					</div>
+					<div class="flex flex-wrap gap-1.5">
+						if len(g.Grants) == 0 {
+							<span class="text-2xs text-slate-400">Grants no role yet</span>
+						}
+						for _, app := range roleApps {
+							if role, ok := g.Grants[app.ID]; ok {
+								<span class="rounded-full bg-blue-50 px-2.5 py-1 text-2xs text-blue-700">{ app.Name } · { role }</span>
+							}
+						}
+					</div>
+				</a>
+			}
+		</div>
+	}
+}
+
+// GroupMemberChoice is one Workspace member offered on the Group detail screen, and whether they
+// are currently in the Group.
+type GroupMemberChoice struct {
+	UserRecordID string
+	Email        string
+	InGroup      bool
+}
+
+// GroupDetailPage is one Group: its membership and the role it holds in each Application, ported
+// from menata-runtime's `group-detail.html`.
+//
+// That mockup renders membership as removable chips plus a separate add-member checkbox list,
+// which needs client-side state to assemble the result. This renders one checkbox list, pre-ticked
+// for current members — the same thing the form actually submits, since data.SetGroupMembers takes
+// the intended final set rather than a sequence of adds and removes. Same outcome, no JS.
+//
+// The role selects reuse roleSelect and the same RoleApplication vocabulary the member screens
+// use, which is what the mockup's own note asks for: "same role vocabulary as a per-user
+// assignment".
+templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceName, userInitials string, roleApps []RoleApplication) {
+	@appShell(group.Name, workspaceName, userInitials, "", nil) {
+		<a href="/workspace-groups" class="text-xs text-blue-600 hover:text-blue-700">← Groups</a>
+		<div class="flex items-center justify-between gap-3">
+			<h1 class="m-0 text-xl font-medium">{ group.Name }</h1>
+			<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", group.MemberCount) }{ pluralS(group.MemberCount) }</span>
+		</div>
+		<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			<div class="flex flex-col gap-1">
+				<h2 class="m-0 text-sm font-medium">Members</h2>
+				<p class="m-0 text-2xs text-slate-500">Everyone ticked here holds this Group's roles.</p>
+			</div>
+			<form method="POST" action={ templ.SafeURL("/workspace-groups/" + group.ID + "/members") } class="flex flex-col gap-3">
+				@csrfHiddenInput()
+				if len(members) == 0 {
+					<p class="m-0 text-sm text-slate-400">This Workspace has no members to add.</p>
+				}
+				for _, m := range members {
+					<label class="flex cursor-pointer items-center gap-3 rounded-md border border-slate-200 p-3 hover:border-blue-300">
+						<input type="checkbox" name="member" value={ m.UserRecordID } checked?={ m.InGroup } class="size-4 accent-blue-500"/>
+						<span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-2xs font-medium text-slate-700">{ memberInitials(m.Email) }</span>
+						<span class="truncate text-sm">{ m.Email }</span>
+					</label>
+				}
+				<div class="flex justify-end">
+					@authSubmit("Save members")
+				</div>
+			</form>
+		</section>
+		<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			<div class="flex flex-col gap-1">
+				<h2 class="m-0 text-sm font-medium">Application roles</h2>
+				<p class="m-0 text-2xs text-slate-500">The same role vocabulary each Application declares for a direct assignment.</p>
+			</div>
+			<form method="POST" action={ templ.SafeURL("/workspace-groups/" + group.ID + "/roles") } class="flex flex-col gap-4">
+				@csrfHiddenInput()
+				if len(roleApps) == 0 {
+					<p class="m-0 text-sm text-slate-400">No Application declares a role vocabulary yet.</p>
+				}
+				for _, app := range roleApps {
+					<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+						<label for={ "grp_role_" + app.ID } class="text-sm">{ app.Name }</label>
+						@roleSelect("grp_role_"+app.ID, app, group.Grants[app.ID])
+					</div>
+				}
+				<div class="flex justify-end">
+					@authSubmit("Save roles")
+				</div>
+			</form>
+		</section>
+		<form method="POST" action={ templ.SafeURL("/workspace-groups/" + group.ID + "/delete") } class="flex justify-end">
+			@csrfHiddenInput()
+			<button type="submit" class="cursor-pointer text-xs text-red-600 hover:text-red-700">Delete this group</button>
+		</form>
+	}
+}

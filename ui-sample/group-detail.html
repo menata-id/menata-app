@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Group Detail</title>
+<script src="/vendor/tailwind.play.js"></script>
+<script src="/vendor/htmx.min.js" defer></script>
+<script src="/vendor/hyperscript.min.js" defer></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — Group management (CAP-O07) redesign exercise. Static mockup over a real, already-shipped feature — not wired to real data.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
+    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <a href="/ui-sample/process-map.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Process Map</a>
+      <a href="/ui-sample/requirement-checklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Requirements</a>
+      <a href="/ui-sample/quorum-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Quorum Approval</a>
+      <a href="/ui-sample/sla-badge.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">SLA</a>
+      <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
+      <a href="/ui-sample/groups.html" class="rounded-md bg-white px-3 py-1.5 font-medium text-slate-900 shadow-sm">Groups</a>
+    </nav>
+  </div>
+</header>
+<main class="mx-auto max-w-3xl px-6 py-8">
+  <a href="/ui-sample/groups.html" class="mb-4 inline-block text-xs text-slate-500 hover:text-slate-700">&larr; Groups</a>
+  <div class="mb-6 flex items-center gap-3">
+    <h1 class="text-xl font-semibold text-slate-900">Reviewers</h1>
+    <span id="member-count" data-count="3" class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">3 members</span>
+  </div>
+
+  <h2 class="mb-2 text-sm font-semibold text-slate-900">Members</h2>
+  <div class="mb-8 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div id="member-chips" class="flex flex-wrap gap-2">
+      <span class="member-chip flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-1 pr-2 text-sm text-slate-700">
+        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">DR</span>
+        Dian Ramadhan
+        <button type="button" class="text-slate-400 hover:text-rose-600" _="on click remove closest .member-chip then set #member-count's @data-count to (#member-count's @data-count as Number) - 1 then set #member-count.innerText to (#member-count's @data-count) + ' members'" aria-label="Remove">×</button>
+      </span>
+      <span class="member-chip flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-1 pr-2 text-sm text-slate-700">
+        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">RN</span>
+        Rina Nur
+        <button type="button" class="text-slate-400 hover:text-rose-600" _="on click remove closest .member-chip then set #member-count's @data-count to (#member-count's @data-count as Number) - 1 then set #member-count.innerText to (#member-count's @data-count) + ' members'" aria-label="Remove">×</button>
+      </span>
+      <span class="member-chip flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 py-1 pl-1 pr-2 text-sm text-slate-700">
+        <span class="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">MP</span>
+        Maya Puspita
+        <button type="button" class="text-slate-400 hover:text-rose-600" _="on click remove closest .member-chip then set #member-count's @data-count to (#member-count's @data-count as Number) - 1 then set #member-count.innerText to (#member-count's @data-count) + ' members'" aria-label="Remove">×</button>
+      </span>
+    </div>
+
+    <div class="mt-4 border-t border-slate-100 pt-4">
+      <label class="mb-1 block text-xs font-medium text-slate-500">Add a member</label>
+      <div class="flex flex-wrap gap-2">
+        <label class="flex items-center gap-2 rounded-full border border-dashed border-slate-300 px-2 py-1 text-xs text-slate-500 hover:border-blue-300 hover:text-blue-600">
+          <input type="checkbox" class="accent-blue-600" /> Siti Wulandari
+        </label>
+        <label class="flex items-center gap-2 rounded-full border border-dashed border-slate-300 px-2 py-1 text-xs text-slate-500 hover:border-blue-300 hover:text-blue-600">
+          <input type="checkbox" class="accent-blue-600" /> Agus Yulianto
+        </label>
+        <label class="flex items-center gap-2 rounded-full border border-dashed border-slate-300 px-2 py-1 text-xs text-slate-500 hover:border-blue-300 hover:text-blue-600">
+          <input type="checkbox" class="accent-blue-600" /> Budi Santoso
+        </label>
+      </div>
+    </div>
+
+    <button type="button" class="mt-4 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-slate-700">Save members</button>
+  </div>
+
+  <h2 class="mb-2 text-sm font-semibold text-slate-900">Application roles</h2>
+  <p class="mb-3 text-xs text-slate-500">Same role vocabulary as a per-user assignment on <code class="rounded bg-slate-100 px-1 py-0.5">/admin/users</code> (<code>RoleGroup</code> — derived from each Application's own Machines' Permissions, not separately maintained).</p>
+  <div class="grid gap-3 sm:grid-cols-2">
+    <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="mb-2 text-sm font-medium text-slate-900">Approval</div>
+      <select class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+        <option>— none —</option>
+        <option selected>Approver</option>
+        <option>Submitter</option>
+      </select>
+    </div>
+    <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="mb-2 text-sm font-medium text-slate-900">Process Overlay Lab</div>
+      <select class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+        <option>— none —</option>
+        <option selected>Reviewer</option>
+        <option>Supervisor</option>
+      </select>
+    </div>
+    <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div class="mb-2 text-sm font-medium text-slate-900">HR</div>
+      <select class="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+        <option selected>— none —</option>
+        <option>Admin</option>
+      </select>
+    </div>
+  </div>
+  <button type="button" class="mt-4 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-slate-700">Save roles</button>
+</main>
+</body>
+</html>

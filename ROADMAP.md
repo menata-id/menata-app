@@ -114,11 +114,16 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      Declared rather than summed, because summing an Application's Machines counts its
      configuration as work (Project Management totals 13, of which 4 are tasks). **Fase 3 is
      complete.**
-  4. Groups — absent entirely, and present in five of the ten boards. A Group and its membership
-     can be ordinary Machines (many-to-many is already proven by `mch_card_label`); the parts that
-     cannot be, and need a decision: effective access as the union of direct and group-inherited
-     roles, and an Approval Step assignable to a User *or* a Group (`relation` targets exactly one
-     `machine:`).
+  4. **Groups** — *shipped 2026-09-20*. Three platform tables mirroring `menata-runtime`'s own
+     shipped CAP-O07 schema, plus a Groups admin screen ported from its `groups.html` /
+     `group-detail.html` (copied into `ui-sample/`). Effective access is the **union** of direct
+     and group-granted roles, computed at read time by the pure `data.EffectiveRoles` — CAP-O07's
+     rule, not an invented one, and deliberately without a precedence rule where the two differ.
+     Board 04's Source column and board 05's Effective-access panel are closed.
+     **Group-as-Approval-Step-assignee moved to Fase 6**, with the screens that show it: upstream's
+     **CAP-F24** (✅ admitted, not yet built) solves it *without* a polymorphic relation — a Field
+     pair, `approver_type: value_list [User, Group]` plus `approver_user`/`approver_group`, each an
+     ordinary relation targeting one `machine:`. Read that row before designing Fase 6.
   5. **A View as a declared object** — the gate already named below, taken before the screens that
      would otherwise hardcode around it.
   6. The approval-flow screens (boards 07-10).
@@ -134,8 +139,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   |---|---|---|
   | ~~Workspace Home's Application cards~~ — *done in 3a/3c*: one card per declared Application, with its own icon, description and declared count. Board 03's three cards assume Procurement and HR, which this app has no Machines, routes or roles for | — | — |
   | ~~Per-Application role columns on Members~~ — *done in 3b*: one line per Application that declares a `roles:` vocabulary, captioned with its name | — | — |
-  | Source / "Group: Reviewers" column (board 04) | Fase 4 | Groups do not exist; with none, every row would read "Direct" |
-  | Effective-access panel, direct ∪ group-inherited (board 05) | Fase 4 | Groups; the union itself has no primitive |
+  | ~~Source / "Group: Reviewers" column~~ — *done in Fase 4* | — | — |
+  | ~~Effective-access panel, direct ∪ group-inherited~~ — *done in Fase 4*: `data.EffectiveRoles`, computed not stored | — | — |
   | Member full name beside the email (board 04/05) | **no phase yet** | `data.Membership` carries only `Email`; `memberInitials` derives from the local part meanwhile. 3b moved roles but not identity, so this outlived the phase it was pinned to |
   | Section tab strip (board 07) | Fase 4 (Groups tab) + Fase 6 (My Documents tab) | 2 of its 4 destinations do not exist; the only part needing a `navigation:` second level |
   | Review document as its own screen (board 10) | Fase 6 | today it rides the generic record-detail page shared by every Machine |

@@ -76,6 +76,14 @@ type Membership struct {
 	WorkspaceRole string
 	AppRole       string
 	AppRoles      map[string]string
+	// Groups are the Groups this member belongs to, each carrying its own per-Application grants
+	// (Fase 4). Filled by GetMembership and ListMembers; ListMemberships leaves it nil for the
+	// same reason it leaves AppRoles nil.
+	//
+	// AppRoles stays single-valued per Application. A member holding several roles in one
+	// Application -- via two Groups, or direct plus a Group -- is produced by EffectiveRoles at
+	// read time, never stored; see its doc comment and migration 009's own note.
+	Groups []Group
 }
 
 // appRolesFor reads the per-Application roles of one member.
@@ -187,6 +195,11 @@ func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID str
 		return nil, err
 	}
 	m.AppRoles = roles
+	groups, err := s.GroupsByMember(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	m.Groups = groups[userRecordID]
 	return m, nil
 }
 
@@ -250,12 +263,17 @@ func (s *Store) ListMembers(ctx context.Context, workspaceID string) ([]Membersh
 	if err != nil {
 		return nil, err
 	}
+	groupsByMember, err := s.GroupsByMember(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
 	for i := range memberships {
 		if roles := byMember[memberships[i].UserRecordID]; roles != nil {
 			memberships[i].AppRoles = roles
 		} else {
 			memberships[i].AppRoles = map[string]string{}
 		}
+		memberships[i].Groups = groupsByMember[memberships[i].UserRecordID]
 	}
 	return memberships, nil
 }

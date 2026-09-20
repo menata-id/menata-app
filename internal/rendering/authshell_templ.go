@@ -501,7 +501,7 @@ func authSubmit(label string) templ.Component {
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<button type=\"submit\" class=\"flex h-11 cursor-pointer items-center justify-center rounded-md bg-slate-900 text-[15px] font-medium text-white hover:bg-slate-800 sm:h-9 sm:text-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<button type=\"submit\" class=\"flex h-11 cursor-pointer items-center justify-center rounded-md bg-slate-900 px-4 text-[15px] font-medium text-white hover:bg-slate-800 sm:h-9 sm:text-sm\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

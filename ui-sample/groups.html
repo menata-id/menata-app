@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI Sample — Groups</title>
+<script src="/vendor/tailwind.play.js"></script>
+<script src="/vendor/htmx.min.js" defer></script>
+<script src="/vendor/hyperscript.min.js" defer></script>
+</head>
+<body class="h-full text-slate-900">
+<div class="border-b border-amber-200 bg-amber-50 px-6 py-2 text-center text-xs font-medium text-amber-800">
+  UI Sample — Group management (CAP-O07) redesign exercise. Static mockup over a real, already-shipped feature — not wired to real data.
+</div>
+<header class="border-b border-slate-200 bg-white px-6 py-4">
+  <div class="mx-auto flex max-w-6xl items-center justify-between">
+    <div class="text-sm font-semibold text-slate-900">Menata Runtime <span class="font-normal text-slate-400">/ ui-sample</span></div>
+    <nav hx-boost="true" class="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <a href="/ui-sample/process-map.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Process Map</a>
+      <a href="/ui-sample/requirement-checklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Requirements</a>
+      <a href="/ui-sample/quorum-approval.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Quorum Approval</a>
+      <a href="/ui-sample/sla-badge.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">SLA</a>
+      <a href="/ui-sample/worklist.html" class="rounded-md px-3 py-1.5 font-medium text-slate-600 transition hover:bg-white hover:shadow-sm">Worklist</a>
+      <a href="/ui-sample/groups.html" class="rounded-md bg-white px-3 py-1.5 font-medium text-slate-900 shadow-sm">Groups</a>
+    </nav>
+  </div>
+</header>
+<main class="mx-auto max-w-4xl px-6 py-8">
+  <div class="mb-1 flex items-center justify-between">
+    <h1 class="text-xl font-semibold text-slate-900">Groups</h1>
+    <a href="/ui-sample/group-detail.html" class="text-sm text-slate-400 transition hover:text-slate-600">Open a group's detail page →</a>
+  </div>
+  <p class="mb-6 text-sm text-slate-500">
+    CAP-O07 — assign a role to a Group once, then add or remove members, instead of touching every
+    person's own row in <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">/admin/users</code>.
+    A person's effective role in an Application is the union of their direct assignment and every
+    Group they belong to.
+  </p>
+
+  <div class="mb-4 flex items-center gap-3">
+    <input
+      id="group-search"
+      type="text"
+      placeholder="Search groups…"
+      class="w-64 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      _="on keyup
+           set query to my value.toLowerCase()
+           for c in .group-card
+             if c.dataset.name.toLowerCase() contains query
+               remove .hidden from c
+             else
+               add .hidden to c
+             end
+           end
+      "
+    />
+    <button
+      type="button"
+      class="ml-auto rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+      _="on click toggle .hidden on #new-group-form"
+    >+ New group</button>
+  </div>
+
+  <form id="new-group-form" class="hidden mb-4 flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+    <input type="text" placeholder="New group name" class="flex-1 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+    <button type="button" class="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-slate-700">Create</button>
+  </form>
+
+  <div class="space-y-3">
+    <a href="/ui-sample/group-detail.html" data-name="reviewers" class="group-card block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="flex -space-x-2">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-[10px] font-semibold text-slate-600">DR</span>
+            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-blue-100 text-[10px] font-semibold text-blue-700">RN</span>
+            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-[10px] font-semibold text-slate-600">MP</span>
+          </div>
+          <div>
+            <div class="text-sm font-semibold text-slate-900">Reviewers</div>
+            <div class="text-xs text-slate-400">3 members</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">Approval: <span class="font-medium text-slate-800">Approver</span></span>
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">Process Overlay Lab: <span class="font-medium text-slate-800">Reviewer</span></span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/ui-sample/group-detail.html" data-name="hr admins" class="group-card block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="flex -space-x-2">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-[10px] font-semibold text-slate-600">SW</span>
+            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-200 text-[10px] font-semibold text-slate-600">AY</span>
+          </div>
+          <div>
+            <div class="text-sm font-semibold text-slate-900">HR Admins</div>
+            <div class="text-xs text-slate-400">2 members</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs">
+          <span class="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">HR: <span class="font-medium text-slate-800">Admin</span></span>
+        </div>
+      </div>
+    </a>
+
+    <a href="/ui-sample/group-detail.html" data-name="finance team" class="group-card block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="flex -space-x-2">
+            <span class="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-semibold text-slate-400">0</span>
+          </div>
+          <div>
+            <div class="text-sm font-semibold text-slate-900">Finance Team</div>
+            <div class="text-xs text-slate-400">no members</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs text-slate-300">no roles assigned</div>
+      </div>
+    </a>
+  </div>
+</main>
+</body>
+</html>

@@ -229,3 +229,19 @@ The other ~19 cases' own mockups, and the navigational chrome (`index.html`, `ca
 per-case redirect stubs) that ties everything back into `menata-runtime`'s own case-browsing UI.
 See `case-portfolio.md` (root of this repo) for all 21 cases' descriptions -- only Case 3 and
 Case 19 are the current priority (owner decision, 2026-09-15), so only their mockups are here.
+
+## Group management (copied from `menata-runtime`, 2026-09-20)
+
+`groups.html` and `group-detail.html` are **not** part of the Case 3 / Case 19 sets above. They
+were copied from `menata-runtime`'s own `app/web/static/ui-sample/`, which is where CAP-O07's
+group-management design lives, when `menata-app` built Groups (ROADMAP.md's Case 03 Fase 4).
+
+They were copied because `menata-app` had no group-management mockup of its own and one was very
+nearly invented instead — worth recording, because "no mockup exists" was concluded after
+searching only this repo. `menata-runtime` holds screens, decided semantics and admitted
+capability rows that this repo does not; it is worth searching before designing anything.
+
+Their three CDN `<script>` tags were rewritten to `/vendor/...` on copy, exactly as the section
+above describes for every other mockup here — `default-src 'self'` would otherwise render them
+unstyled. Nothing else in them was changed, so their own navigation links still point at
+`menata-runtime`'s screens and are dead here, the same way `case-03-flow1`'s cross-links are.
