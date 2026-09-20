@@ -21,10 +21,29 @@ import (
 // needs its entry also fails, so the list can't silently keep claiming debt that's already paid.
 //
 // Why a ratchet at all: the Projection primitive (composition.ProjectCardFields, view.card_fields)
-// shipped as a pilot on exactly one screen (Approval Inbox) and then stopped there for weeks with
-// every test green, because nothing anywhere measured *adoption*. Adoption was the one dimension
-// the conformance suite didn't cover -- see menata-app-document's
-// audits/2026-09-19-decomposition-maturity-audit.md §5.
+// shipped its mechanism and then stopped, with every test green, because nothing anywhere measured
+// *adoption* -- the one dimension the conformance suite didn't cover (menata-app-document's
+// audits/2026-09-19-decomposition-maturity-audit.md §5).
+//
+// How complete that stall was is worse than this comment first claimed, and the correction is the
+// point. It said Projection was "a pilot on exactly one screen (Approval Inbox)". It is on zero:
+// `grep -rn card_fields metadata/` returns nothing, so ProjectCardFields resolves an empty list
+// for every record and approvalinbox.templ's own `if len(c.CardFields) > 0` branch has never
+// executed. The mechanism is wired end to end and has never once run.
+//
+// The mistake that produced the wrong number is the same one that produced the nav gate's empty
+// list an hour later: reading the *consuming code*, seeing it handle card_fields, and inferring a
+// declaration must exist -- a private view of the shape standing in for the source of truth. The
+// metadata is the source of truth for what is declared, and it was never read.
+//
+// Nor is the fix simply to declare some: Projection's only wired consumer is the pending-approval
+// card, fed from mch_approval_step, whose only projectable Fields under the five known roles are
+// fld_assignee (person) and fld_decision (status) -- both constant across that list, since it is
+// by definition the steps assigned to the viewer and still pending. fld_sequence would say
+// something real and has no role to carry it. Declaring card_fields there would render two
+// identical values on every card: metadata written to make a claim true rather than to serve a
+// screen. Projection gets a consumer that can say something when a Machine's records render as
+// cards generically (CAP-V02 Tier 2 upstream, admitted on Case 3's own inbox), not before.
 
 // rawFieldRead matches a Page picking one named field off a record: `Values["fld_title"]`, or the
 // same thing laundered through a Machine-specific Go constant, `Values[action.FieldStepDecision]`.
