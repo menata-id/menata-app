@@ -22,7 +22,7 @@ import "menata.app/internal/data"
 // replaced by this app's appShell, and the search box is omitted for the same reason board 04's
 // is -- search does not exist anywhere in this app (ROADMAP.md, "Planned"), and a box that
 // filters nothing is worse than none.
-func GroupsPage(groups []data.Group, workspaceName, userInitials string, roleApps []RoleApplication) templ.Component {
+func GroupsPage(groups []data.Group, workspaceName, userInitials string, roleApps []RoleApplication, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -241,7 +241,7 @@ func GroupsPage(groups []data.Group, workspaceName, userInitials string, roleApp
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell(labelByID("nav_workspace_groups"), workspaceName, userInitials, "", nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell(labelByID("nav_workspace_groups"), workspaceName, userInitials, "", switchWorkspaceHref, nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -268,7 +268,7 @@ type GroupMemberChoice struct {
 // The role selects reuse roleSelect and the same RoleApplication vocabulary the member screens
 // use, which is what the mockup's own note asks for: "same role vocabulary as a per-user
 // assignment".
-func GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceName, userInitials string, roleApps []RoleApplication) templ.Component {
+func GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceName, userInitials string, roleApps []RoleApplication, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -554,7 +554,7 @@ func GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNam
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell(group.Name, workspaceName, userInitials, "", nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell(group.Name, workspaceName, userInitials, "", switchWorkspaceHref, nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

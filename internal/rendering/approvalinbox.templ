@@ -136,8 +136,8 @@ func containsID(ids []string, id string) bool {
 // type built to satisfy one label, which is the shape-before-need this repo refuses. Same class as
 // board 03's Procurement/HR cards and board 06's ProcessEdge: the board draws something the app
 // has no data for. Recorded in ROADMAP.md's deferral table with that as its real blocker.
-templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []SummaryCard, showMine bool, filterKey, workspaceName, userInitials, workspaceRole string) {
-	@appShell(labelByID("nav_approval_inbox"), workspaceName, userInitials, "nav_approval_inbox", membersHiddenFor(workspaceRole)) {
+templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []SummaryCard, showMine bool, filterKey, workspaceName, userInitials, workspaceRole, switchWorkspaceHref string) {
+	@appShell(labelByID("nav_approval_inbox"), workspaceName, userInitials, "nav_approval_inbox", switchWorkspaceHref, membersHiddenFor(workspaceRole)) {
 		<nav aria-label="Approval sections" class="flex gap-0.5 self-start rounded-lg bg-slate-100 p-1">
 			for _, t := range inboxTabs(showMine, filterKey, workspaceRole) {
 				<a

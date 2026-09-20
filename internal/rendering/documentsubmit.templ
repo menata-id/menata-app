@@ -26,8 +26,8 @@ import (
 //   - "Save this as the default approval flow for <Type>". It needs a per-Document-Type template
 //     entity and a write direction, not a checkbox; ROADMAP.md's deferral table has it with that
 //     as the blocker.
-templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName, userInitials, workspaceRole string) {
-	@appShell(labelByID("nav_new_approval"), workspaceName, userInitials, "nav_new_approval", membersHiddenFor(workspaceRole)) {
+templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName, userInitials, workspaceRole, switchWorkspaceHref string) {
+	@appShell(labelByID("nav_new_approval"), workspaceName, userInitials, "nav_new_approval", switchWorkspaceHref, membersHiddenFor(workspaceRole)) {
 		<a href={ templ.SafeURL(routeByID("nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { labelByID("nav_approval_inbox") }
 		</a>

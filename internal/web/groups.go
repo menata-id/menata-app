@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -29,7 +30,9 @@ func showGroups(store *data.Store, cfg config.Config, ws domain.Workspace) http.
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.GroupsPage(groups, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws)))
+		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
+		render(ctx, w, rendering.GroupsPage(groups, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws), switchHref))
 	}
 }
 
@@ -54,7 +57,9 @@ func showGroupDetail(store *data.Store, cfg config.Config, ws domain.Workspace) 
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.GroupDetailPage(*group, choices, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws)))
+		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
+		render(ctx, w, rendering.GroupDetailPage(*group, choices, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws), switchHref))
 	}
 }
 

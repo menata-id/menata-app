@@ -3,41 +3,61 @@ package rendering
 import "slices"
 
 import "menata.app/internal/domain"
-import "menata.app/internal/experience"
 
-// launcherGroups is the launcher panel's own content: the Workspace's own destinations first,
-// then one section per Application, minus the items this viewer must not be offered (see
-// appShell's hiddenNavIDs). A section left with no visible items is dropped entirely rather than
-// rendering a heading over nothing.
+// workspaceLauncherItems is the launcher panel's "Workspace" section: workspace.Navigation minus
+// the items this viewer must not be offered (appShell's hiddenNavIDs), minus nav_home and
+// nav_machines specifically.
 //
-// Since Fase 3 the sections are real Applications rather than `group:` labels inside one -- which
-// is what the launcher was always drawing (ui-sample/nav-metadata.js lists Applications here),
-// only now the metadata says so directly.
+// nav_home is excluded because it is rendered separately, as the panel's own header row (see
+// appLauncher) rather than as a flat item alongside Workspace Members/Groups -- the owner's own
+// redesign (2026-09-20), matching what the panel's title already is everywhere else (Workspace
+// Home's own "WORKSPACE" eyebrow + name).
 //
-// Each Application contributes its *unfiltered* navigation. An Application with show_nav: false
-// has no menu chrome anywhere else, and the launcher is deliberately the one place its screens
-// stay reachable: nav-metadata.js states outright that the launcher never reads that field.
-// Viewer-level hiding (hiddenNavIDs) is a different question from that metadata-level one, which
-// is why both filters exist and only this one is per-request.
-func launcherGroups(hiddenNavIDs []string) []experience.NavGroup {
-	sections := []experience.NavGroup{{Items: workspace.Navigation}}
-	for _, app := range workspace.Applications {
-		sections = append(sections, experience.NavGroup{Label: app.Name, Items: app.AllNavigation})
-	}
-
-	visible := make([]experience.NavGroup, 0, len(sections))
-	for _, s := range sections {
-		items := make([]domain.NavigationItem, 0, len(s.Items))
-		for _, item := range s.Items {
-			if !slices.Contains(hiddenNavIDs, item.ID) {
-				items = append(items, item)
-			}
+// nav_machines ("All Machines") is dropped outright, by owner request (2026-09-20): it is
+// `internal/rendering.MachineList`, the generic reference renderer machine.templ's own doc
+// comment already calls out as existing "to prove the metadata -> data -> render pipeline end to
+// end", not a polished destination any ui-sample board links to. It stays declared in
+// metadata/app.yaml (still a valid, reachable route -- domain.Application.AllNavigation still
+// resolves it for anything that looks it up by id) and still renders in pageShell's own topbar
+// (workspace.Navigation there is untouched); only this one entry point loses it.
+func workspaceLauncherItems(hiddenNavIDs []string) []domain.NavigationItem {
+	items := make([]domain.NavigationItem, 0, len(workspace.Navigation))
+	for _, item := range workspace.Navigation {
+		if item.ID == "nav_home" || item.ID == "nav_machines" {
+			continue
 		}
-		if len(items) > 0 {
-			visible = append(visible, experience.NavGroup{Label: s.Label, Items: items})
+		if !slices.Contains(hiddenNavIDs, item.ID) {
+			items = append(items, item)
 		}
 	}
-	return visible
+	return items
+}
+
+// launcherAppItems is one Application's flat item list inside the launcher (the pre-redesign
+// shape, still used for an Application with ShowNav false -- see appLauncher), filtered the same
+// viewer-level way workspaceLauncherItems is. Unfiltered until then: an Application with
+// show_nav: false has no menu chrome anywhere else, and the launcher is deliberately the one
+// place its screens stay reachable (nav-metadata.js states this outright), so this reads
+// AllNavigation, not the (possibly empty) filtered Navigation.
+func launcherAppItems(hiddenNavIDs []string, app domain.Application) []domain.NavigationItem {
+	items := make([]domain.NavigationItem, 0, len(app.AllNavigation))
+	for _, item := range app.AllNavigation {
+		if !slices.Contains(hiddenNavIDs, item.ID) {
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+// launcherAppHomeRoute is an Application card's link target: its own declared HomeRoute, falling
+// back to Workspace Home exactly the way internal/web.applicationCards does for the Workspace
+// Home grid -- the two card faces should never disagree about where an Application with no
+// home_card item goes.
+func launcherAppHomeRoute(app domain.Application) string {
+	if app.HomeRoute != "" {
+		return app.HomeRoute
+	}
+	return routeByID("nav_home")
 }
 
 // headMeta is the <head> content shared by every Tailwind-styled page -- the pre-auth screens
@@ -91,7 +111,14 @@ templ headMeta(title string) {
 // because the declared form is the real feature, and this is one case, not a shape: the handler
 // naming the item it already gates is honest and small. Forward-checkable pointer: ROADMAP.md's
 // "Per-user/role navigation filtering", which this is now the first real case for.
-templ appShell(title, workspaceName, userInitials, activeNavID string, hiddenNavIDs []string) {
+//
+// switchWorkspaceHref is the launcher's own "All Workspaces" link target, or "" to omit it --
+// internal/web.viewerWorkspaceContext's second return value. "" exactly for the shared admin
+// credential's placeholder identity (no membership row, so no email a Workspace list could be
+// keyed on); every real identity gets the link regardless of how many Workspaces they actually
+// belong to, by owner request (2026-09-20) -- /switch-workspace is where an "add workspace" entry
+// point is meant to land next, so it stays offered even to a single-Workspace identity.
+templ appShell(title, workspaceName, userInitials, activeNavID, switchWorkspaceHref string, hiddenNavIDs []string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -101,7 +128,7 @@ templ appShell(title, workspaceName, userInitials, activeNavID string, hiddenNav
 		</head>
 		<body hx-headers={ csrfHeadersAttr(ctx) } class="m-0 bg-slate-50 font-sans text-slate-900">
 			<header class="flex h-15 shrink-0 items-center gap-2.5 border-b border-slate-200 bg-white px-4 sm:pr-7 sm:pl-9">
-				@appLauncher(activeNavID, hiddenNavIDs)
+				@appLauncher(activeNavID, switchWorkspaceHref, hiddenNavIDs)
 				<nav aria-label="Breadcrumb" class="min-w-0 truncate text-sm text-slate-400">
 					// "/home" is a runtime-level route -- it exists regardless of which Application is
 					// configured (internal/conformance's runtimeLevelRoutes), the same literal
@@ -123,22 +150,34 @@ templ appShell(title, workspaceName, userInitials, activeNavID string, hiddenNav
 	</html>
 }
 
-// appLauncher is the 9-dot menu at the head of the bar. It reads allNavigation -- the full
-// declared list, *before* hidden_nav_groups filtering -- not the filtered navigation, which is
-// the distinction ui-sample/nav-metadata.js states outright: hiding an Application suppresses its
-// own menu chrome, never its launcher entry ("the launcher itself stays uniform/unconfigurable
-// ... while the per-Application menu is what metadata controls"). domain.Application.AllNavigation
-// already exists for exactly this pre-filter case.
+// appLauncher is the 9-dot menu at the head of the bar (redesigned 2026-09-20, by owner request,
+// from a flat list of every declared item to ui-sample/nav-chrome.js's own card shape). Three
+// parts, top to bottom:
 //
-// It is also what keeps every declared route reachable on a screen that has no topbar. Today's
-// metadata declares one Application whose nav groups ("Document Approval", "Project Management",
-// "Workspace") are what the boards draw as separate Applications, so the panel lists groups --
-// which is the same list it will show once Fase 3 makes those real Applications, only sourced
-// from `applications:` instead.
+//  1. A header row -- "WORKSPACE" eyebrow + the Workspace's own name, linking to Workspace Home
+//     (routeByID("nav_home"), not the literal appShell's breadcrumb uses, since a missing
+//     nav_home item should panic here exactly as it would for any other lookup) -- what nav_home
+//     used to be as a flat item, promoted to the panel's own title, the same role it already
+//     plays on Workspace Home itself (workspacehome.templ's "WORKSPACE" eyebrow + <h1>).
+//  2. workspaceLauncherItems: the rest of the Workspace's own destinations (Workspace Members,
+//     Groups -- All Machines is dropped, see workspaceLauncherItems), filtered for this viewer.
+//  3. One entry per Application, in Workspace.Applications' own declaration order. An Application
+//     with ShowNav true renders as a single card (launcherAppCard) -- icon, name, description,
+//     linking straight to its HomeRoute -- because it keeps its own menu chrome once you're
+//     inside it (pageShell's topbar; Project Management is the current example), so the launcher
+//     only has to get you there. An Application with ShowNav false (Document Approval: appShell
+//     screens, no topbar of their own) still lists every one of its own items flat
+//     (launcherAppItems), because the launcher is deliberately the only place those screens stay
+//     reachable -- collapsing it to a card would orphan them.
+//
+// "All Workspaces" at the very bottom is shown only when switchWorkspaceHref is non-empty (see
+// appShell's own doc comment for who that excludes) -- routeByID would panic looking it up, since
+// it names no declared navigation item at all, so the caller-supplied href stays a plain string
+// exactly like ChooseWorkspacePage's own pre-auth links.
 //
 // <details> rather than JavaScript, matching the details.nav-group dropdown pageShell already
 // uses.
-templ appLauncher(activeNavID string, hiddenNavIDs []string) {
+templ appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string) {
 	<details class="relative shrink-0">
 		<summary class="flex size-7 cursor-pointer list-none items-center justify-center text-slate-500 [&::-webkit-details-marker]:hidden" aria-label="Open app launcher">
 			<svg width="16" height="16" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
@@ -154,16 +193,57 @@ templ appLauncher(activeNavID string, hiddenNavIDs []string) {
 			</svg>
 		</summary>
 		<div class="absolute top-9 left-0 z-40 w-72 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-			for _, group := range launcherGroups(hiddenNavIDs) {
-				if group.Label != "" {
-					<p class="px-2 pt-2 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">{ group.Label }</p>
+			<a href={ templ.SafeURL(routeByID("nav_home")) } class="mb-1 flex flex-col gap-0.5 rounded-md p-2 hover:bg-slate-50">
+				<span class="text-3xs font-medium tracking-wide text-blue-600 uppercase">Workspace</span>
+				<span class="text-sm font-medium text-slate-900">{ workspace.Name }</span>
+			</a>
+			for _, item := range workspaceLauncherItems(hiddenNavIDs) {
+				@launcherLink(item, item.ID == activeNavID)
+			}
+			for _, app := range workspace.Applications {
+				if app.ShowNav {
+					@launcherAppCard(app)
+				} else {
+					@launcherAppGroup(app, launcherAppItems(hiddenNavIDs, app), activeNavID)
 				}
-				for _, item := range group.Items {
-					@launcherLink(item, item.ID == activeNavID)
-				}
+			}
+			if switchWorkspaceHref != "" {
+				<a href={ templ.SafeURL(switchWorkspaceHref) } class="mt-1 block rounded-md p-2 text-xs font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
 			}
 		</div>
 	</details>
+}
+
+// launcherAppGroup is one Application's flat item list inside the launcher, for an Application
+// with ShowNav false (see appLauncher) -- the pre-redesign shape, kept because the launcher is
+// its screens' only reachable menu. items is computed by the caller (launcherAppItems) rather
+// than recomputed here so the "drop a section left with nothing visible" check and the render
+// share one filtered slice.
+templ launcherAppGroup(app domain.Application, items []domain.NavigationItem, activeNavID string) {
+	if len(items) > 0 {
+		<p class="px-2 pt-2 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">{ app.Name }</p>
+		for _, item := range items {
+			@launcherLink(item, item.ID == activeNavID)
+		}
+	}
+}
+
+// launcherAppCard is one Application's face in the launcher when it keeps its own menu chrome
+// elsewhere (ShowNav true) -- ui-sample/nav-chrome.js's launcherPanelHTML row shape, reusing
+// appIconClasses (workspacehome.templ) so an Application's icon tile matches its own Workspace
+// Home card exactly.
+templ launcherAppCard(app domain.Application) {
+	<a href={ templ.SafeURL(launcherAppHomeRoute(app)) } class="flex items-start gap-3 rounded-md p-2 hover:bg-slate-50">
+		<span class={ "flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-medium", appIconClasses(app.Color) }>
+			{ app.Icon }
+		</span>
+		<span class="flex min-w-0 flex-col">
+			<span class="text-sm font-medium text-slate-900">{ app.Name }</span>
+			if app.Description != "" {
+				<span class="text-xs text-slate-500">{ app.Description }</span>
+			}
+		</span>
+	</a>
 }
 
 // launcherLink is one destination inside the launcher panel.

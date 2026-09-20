@@ -53,3 +53,34 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 
 	return shellChrome{WorkspaceName: ws.Name, UserInitials: composition.Initials(userName)}, nil
 }
+
+// viewerWorkspaceContext resolves the two per-viewer facts every appShell screen threads down to
+// rendering: the Workspace role held here (feeds rendering.membersHiddenFor, so a plain member
+// isn't offered the two admin-gated launcher destinations) and the launcher's own "All
+// Workspaces" link target (rendering.appShell's switchWorkspaceHref parameter).
+//
+// Both come from one GetMembership call rather than two separate ones (workspaceRoleOf used to be
+// its own function; approval.go's own handler duplicated the same query inline) -- every
+// appShell-based handler needs both values now that the launcher carries the switch-workspace
+// link, so the query is worth sharing.
+//
+// switchHref is "" exactly when this identity has no membership row with a real email -- the
+// shared admin credential's placeholder identity (predates per-user accounts, ROADMAP.md), which
+// has nothing a Workspace list could be keyed on. Every other identity gets "/switch-workspace"
+// unconditionally (owner request, 2026-09-20): that screen is where an "add workspace" entry
+// point is meant to land next, so it stays offered even to someone who belongs to only this one
+// Workspace today.
+func viewerWorkspaceContext(ctx context.Context, store *data.Store, userID string) (workspaceRole, switchHref string) {
+	if userID == "" {
+		return "", ""
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	m, err := store.GetMembership(ctx, workspaceID, userID)
+	if err != nil {
+		return "", ""
+	}
+	if m.Email != "" {
+		switchHref = "/switch-workspace"
+	}
+	return m.WorkspaceRole, switchHref
+}

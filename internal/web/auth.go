@@ -206,10 +206,18 @@ func submitChooseWorkspace(store *data.Store, cfg config.Config) http.HandlerFun
 }
 
 // showSwitchWorkspace is the mid-session counterpart to showChooseWorkspace -- reached from the
-// Workspace Home eyebrow's switch icon (WorkspaceHomePage's switchHref) once a session already
-// exists, rather than from the pending-email cookie a fresh login leaves. Redirects home rather
-// than erroring when there's nothing to switch to (no membership row, or only this one Workspace)
-// since that's this handler being reached by a stale link, not a real failure.
+// Workspace Home eyebrow's switch icon and appShell's own launcher "All Workspaces" link (both
+// fed by viewerWorkspaceContext/WorkspaceHomePage's switchHref), once a session already exists,
+// rather than from the pending-email cookie a fresh login leaves. Redirects home rather than
+// erroring when there's nothing to switch to at all (no membership row -- the shared admin
+// credential's placeholder identity) since that's this handler being reached by a stale link, not
+// a real failure.
+//
+// Renders ChooseWorkspacePage even for a single-choice list (owner request, 2026-09-20): this
+// screen used to redirect straight home whenever there was only one Workspace to switch to,
+// reasoning the link was pointless otherwise -- but the launcher now offers "All Workspaces"
+// unconditionally to any real identity precisely because this is where an "add workspace" entry
+// point is meant to land next, so a single-Workspace identity must still be able to reach it.
 func showSwitchWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
@@ -223,7 +231,7 @@ func showSwitchWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc 
 			serverError(w, err)
 			return
 		}
-		if len(choices) < 2 {
+		if len(choices) == 0 {
 			redirectTo(w, req, "/home")
 			return
 		}

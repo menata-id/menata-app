@@ -72,17 +72,11 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 		// all, through rendering's own membersHiddenFor -- the same rule that already hides those
 		// destinations on Workspace Home, rather than a second one invented here. A missing
 		// membership row degrades to "" and is treated as it is everywhere else.
-		workspaceRole := ""
-		if userID != "" {
-			workspaceID, _ := data.WorkspaceScope(ctx)
-			if m, err := store.GetMembership(ctx, workspaceID, userID); err == nil {
-				workspaceRole = m.WorkspaceRole
-			}
-		}
+		workspaceRole, switchHref := viewerWorkspaceContext(ctx, store, userID)
 		render(ctx, w, rendering.ApprovalInboxPage(
 			filters, pending, inbox.Mine,
 			req.URL.Query().Get("tab") == inboxTabMine, filterKey,
-			chrome.WorkspaceName, chrome.UserInitials, workspaceRole,
+			chrome.WorkspaceName, chrome.UserInitials, workspaceRole, switchHref,
 		))
 	}
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -57,7 +58,9 @@ func showWorkspaceMembers(store *data.Store, cfg config.Config, ws domain.Worksp
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.WorkspaceMembersPage(members, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws)))
+		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
+		render(ctx, w, rendering.WorkspaceMembersPage(members, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws), switchHref))
 	}
 }
 
@@ -75,7 +78,9 @@ func showEditMember(store *data.Store, cfg config.Config, ws domain.Workspace) h
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.EditMemberPage(*m, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws)))
+		viewerID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		_, switchHref := viewerWorkspaceContext(ctx, store, viewerID)
+		render(ctx, w, rendering.EditMemberPage(*m, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws), switchHref))
 	}
 }
 

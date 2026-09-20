@@ -121,7 +121,7 @@ func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := ReviewDocumentPage(v, "Dokter Kecil", "AP", "admin").Render(context.Background(), &buf); err != nil {
+	if err := ReviewDocumentPage(v, "Dokter Kecil", "AP", "admin", "").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := buf.String()
@@ -143,7 +143,7 @@ func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
 	// A step with no placement renders the prompt instead of an <img> with an empty src.
 	v.Placement = nil
 	buf.Reset()
-	if err := ReviewDocumentPage(v, "Dokter Kecil", "AP", "admin").Render(context.Background(), &buf); err != nil {
+	if err := ReviewDocumentPage(v, "Dokter Kecil", "AP", "admin", "").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() without a placement error = %v", err)
 	}
 	if !strings.Contains(buf.String(), "haven't placed your signature") {

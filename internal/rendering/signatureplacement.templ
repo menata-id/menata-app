@@ -66,8 +66,8 @@ type PlacementStep struct {
 //
 // What this has that the board does not: page navigation (the board shows only "Page 6 of 6"), a
 // width control, and an honest "Not placed yet" state -- every step on the board is pre-placed.
-templ SignaturePlacementPage(v PlacementView, workspaceName, userInitials, workspaceRole string) {
-	@appShell("Signature positions", workspaceName, userInitials, "nav_approval_inbox", membersHiddenFor(workspaceRole)) {
+templ SignaturePlacementPage(v PlacementView, workspaceName, userInitials, workspaceRole, switchWorkspaceHref string) {
+	@appShell("Signature positions", workspaceName, userInitials, "nav_approval_inbox", switchWorkspaceHref, membersHiddenFor(workspaceRole)) {
 		<a href={ templ.URL("/machines/" + action.DocumentMachineID + "/records/" + v.DocumentID) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { v.DocumentTitle }
 		</a>

@@ -83,8 +83,9 @@ func showDocumentSubmit(machines map[string]*domain.Machine, store *data.Store, 
 			return
 		}
 		actor := currentActor(req, store, cfg)
+		workspaceRole, switchHref := viewerWorkspaceContext(ctx, store, actor.ID)
 		render(ctx, w, rendering.DocumentSubmitPage(opts.documentType, opts.mode, opts.approvers, opts.groups,
-			chrome.WorkspaceName, chrome.UserInitials, workspaceRoleOf(ctx, store, actor.ID)))
+			chrome.WorkspaceName, chrome.UserInitials, workspaceRole, switchHref))
 	}
 }
 
@@ -306,7 +307,8 @@ func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Sto
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.SignaturePlacementPage(view, chrome.WorkspaceName, chrome.UserInitials, workspaceRoleOf(ctx, store, actor.ID)))
+		workspaceRole, switchHref := viewerWorkspaceContext(ctx, store, actor.ID)
+		render(ctx, w, rendering.SignaturePlacementPage(view, chrome.WorkspaceName, chrome.UserInitials, workspaceRole, switchHref))
 	}
 }
 

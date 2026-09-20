@@ -52,11 +52,13 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, w
 			return
 		}
 
+		// "" exactly for the shared admin credential's placeholder identity (no membership row,
+		// no email) -- every real identity gets it unconditionally (owner request, 2026-09-20),
+		// matching viewerWorkspaceContext's own switchHref rule, since /switch-workspace is where
+		// an "add workspace" entry point is meant to land next.
 		switchHref := ""
 		if membership.Email != "" {
-			if choices, err := loadWorkspaceChoices(ctx, store, membership.Email); err == nil && len(choices) > 1 {
-				switchHref = "/switch-workspace"
-			}
+			switchHref = "/switch-workspace"
 		}
 
 		render(ctx, w, rendering.WorkspaceHomePage(

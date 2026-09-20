@@ -70,7 +70,8 @@ func showReviewDocument(machines map[string]*domain.Machine, store *data.Store, 
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.ReviewDocumentPage(view, chrome.WorkspaceName, chrome.UserInitials, workspaceRoleOf(ctx, store, actor.ID)))
+		workspaceRole, switchHref := viewerWorkspaceContext(ctx, store, actor.ID)
+		render(ctx, w, rendering.ReviewDocumentPage(view, chrome.WorkspaceName, chrome.UserInitials, workspaceRole, switchHref))
 	}
 }
 
@@ -96,20 +97,4 @@ func documentPageCount(ctx context.Context, store *data.Store, files *storage.St
 		return 0
 	}
 	return pages
-}
-
-// workspaceRoleOf is the viewer's own Workspace role, or "" when they hold no membership row --
-// the degradation every other caller of this question already makes. It feeds appShell's launcher
-// filtering through rendering.membersHiddenFor, so a plain member is not offered the two
-// admin-gated destinations.
-func workspaceRoleOf(ctx context.Context, store *data.Store, userID string) string {
-	if userID == "" {
-		return ""
-	}
-	workspaceID, _ := data.WorkspaceScope(ctx)
-	m, err := store.GetMembership(ctx, workspaceID, userID)
-	if err != nil {
-		return ""
-	}
-	return m.WorkspaceRole
 }

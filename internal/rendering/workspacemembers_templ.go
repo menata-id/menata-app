@@ -64,7 +64,7 @@ func memberInitials(email string) string {
 //
 // The board also shows each member's full name above their email; data.Membership carries only
 // Email (see memberInitials above), so the row shows the address alone.
-func WorkspaceMembersPage(members []data.Membership, workspaceName, userInitials string, roleApps []RoleApplication) templ.Component {
+func WorkspaceMembersPage(members []data.Membership, workspaceName, userInitials string, roleApps []RoleApplication, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -385,7 +385,7 @@ func WorkspaceMembersPage(members []data.Membership, workspaceName, userInitials
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell(labelByID("nav_workspace_members"), workspaceName, userInitials, "nav_workspace_members", nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell(labelByID("nav_workspace_members"), workspaceName, userInitials, "nav_workspace_members", switchWorkspaceHref, nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -405,7 +405,7 @@ func WorkspaceMembersPage(members []data.Membership, workspaceName, userInitials
 // the panel shows the merged set rather than picking a winner, and it says plainly that
 // group-derived access is changed by editing the Group, not here: this screen writes only the
 // direct half.
-func EditMemberPage(m data.Membership, workspaceName, userInitials string, roleApps []RoleApplication) templ.Component {
+func EditMemberPage(m data.Membership, workspaceName, userInitials string, roleApps []RoleApplication, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -598,7 +598,7 @@ func EditMemberPage(m data.Membership, workspaceName, userInitials string, roleA
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell("Edit member", workspaceName, userInitials, "", nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var19), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell("Edit member", workspaceName, userInitials, "", switchWorkspaceHref, nil).Render(templ.WithChildren(ctx, templ_7745c5c3_Var19), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

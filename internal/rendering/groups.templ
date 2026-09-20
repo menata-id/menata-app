@@ -14,8 +14,8 @@ import "menata.app/internal/data"
 // replaced by this app's appShell, and the search box is omitted for the same reason board 04's
 // is -- search does not exist anywhere in this app (ROADMAP.md, "Planned"), and a box that
 // filters nothing is worse than none.
-templ GroupsPage(groups []data.Group, workspaceName, userInitials string, roleApps []RoleApplication) {
-	@appShell(labelByID("nav_workspace_groups"), workspaceName, userInitials, "", nil) {
+templ GroupsPage(groups []data.Group, workspaceName, userInitials string, roleApps []RoleApplication, switchWorkspaceHref string) {
+	@appShell(labelByID("nav_workspace_groups"), workspaceName, userInitials, "", switchWorkspaceHref, nil) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
@@ -85,8 +85,8 @@ type GroupMemberChoice struct {
 // The role selects reuse roleSelect and the same RoleApplication vocabulary the member screens
 // use, which is what the mockup's own note asks for: "same role vocabulary as a per-user
 // assignment".
-templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceName, userInitials string, roleApps []RoleApplication) {
-	@appShell(group.Name, workspaceName, userInitials, "", nil) {
+templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceName, userInitials string, roleApps []RoleApplication, switchWorkspaceHref string) {
+	@appShell(group.Name, workspaceName, userInitials, "", switchWorkspaceHref, nil) {
 		<a href={ templ.SafeURL(routeByID("nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID("nav_workspace_groups") }</a>
 		<div class="flex items-center justify-between gap-3">
 			<h1 class="m-0 text-xl font-medium">{ group.Name }</h1>
