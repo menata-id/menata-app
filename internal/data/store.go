@@ -107,6 +107,33 @@ func (s *Store) ListRecords(ctx context.Context, machineID string) ([]*Record, e
 	`, machineID, workspaceID)
 }
 
+// CountRecords returns how many Records of machineID exist in this Store's Workspace.
+//
+// A real COUNT rather than len(ListRecords(...)): its one caller renders a single integer on a
+// card, and the existing path would load every row, decode every record's JSON and discard it all
+// to produce that number. Workspace-scoped like every other read (007 §20: scope is established
+// before retrieval, never trimmed after).
+//
+// Deliberately not routed through a Dataset: a Dataset is a *named semantic definition* a screen
+// resolves by id, and this is one Application's card count, declared by summary_machine and
+// meaningful only there. Making it a Dataset would mean declaring one per Application to say
+// "count this Machine's rows", which is the declaration the Machine id already is.
+func (s *Store) CountRecords(ctx context.Context, machineID string) (int, error) {
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return 0, errNotScoped
+	}
+	readLogFrom(ctx).record(machineID)
+	var n int
+	err := s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM records WHERE machine_id = $1 AND workspace_id = $2
+	`, machineID, workspaceID).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count records: %w", err)
+	}
+	return n, nil
+}
+
 // ListRecordsBy returns every Record of machineID in this Store's Workspace whose fieldID value
 // equals value, in sort_order -- the query behind a child collection (ROADMAP.md Phase 9): fieldID
 // is a reference field on machineID pointing back to another record (value = that record's id).

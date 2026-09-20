@@ -1,7 +1,9 @@
 package web
 
 import (
+	"context"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -59,7 +61,7 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, w
 
 		render(ctx, w, rendering.WorkspaceHomePage(
 			chrome.WorkspaceName, membership.WorkspaceRole, chrome.UserInitials, switchHref,
-			applicationCards(ws, membership, len(inbox.Pending)),
+			applicationCards(ctx, store, machines, ws, membership, len(inbox.Pending)),
 		))
 	}
 }
@@ -79,7 +81,12 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, w
 // Role comes from that Application's own entry in membership.AppRoles (Fase 3b), so each card
 // shows the role held *there* rather than repeating one workspace-wide value. An Application the
 // member holds no role in shows "—".
-func applicationCards(ws domain.Workspace, membership *data.Membership, pending int) []rendering.ApplicationCard {
+//
+// Count is that Application's declared summary_machine count (Fase 3c), and its label is that
+// Machine's own Name -- so "4 Tasks" is two metadata reads, not a retyped literal. A counting
+// failure degrades to no count rather than failing the page: Workspace Home's job is to list the
+// Applications, and losing one number is not worth losing the screen.
+func applicationCards(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, ws domain.Workspace, membership *data.Membership, pending int) []rendering.ApplicationCard {
 	cards := make([]rendering.ApplicationCard, 0, len(ws.Applications))
 	for _, app := range ws.Applications {
 		route := app.HomeRoute
@@ -87,16 +94,28 @@ func applicationCards(ws domain.Workspace, membership *data.Membership, pending 
 			route = "/home"
 		}
 		card := rendering.ApplicationCard{
-			Name:      app.Name,
-			Initials:  composition.Initials(app.Name),
-			Role:      membership.AppRoles[app.ID],
-			HomeRoute: route,
+			Name:        app.Name,
+			Initials:    composition.Initials(app.Name),
+			Description: app.Description,
+			Icon:        app.Icon,
+			Color:       app.Color,
+			Role:        membership.AppRoles[app.ID],
+			HomeRoute:   route,
 		}
 		for _, item := range app.AllNavigation {
 			if item.Badge == domain.NavBadgeApprovalInboxPending {
 				card.PendingCount = pending
 				card.ShowPending = true
 				break
+			}
+		}
+		if m, ok := machines[app.SummaryMachine]; ok {
+			if n, err := store.CountRecords(ctx, app.SummaryMachine); err == nil {
+				card.Count = n
+				card.CountLabel = m.Name
+				card.ShowCount = true
+			} else {
+				log.Printf("workspace home: count %s for %s: %v", app.SummaryMachine, app.ID, err)
 			}
 		}
 		cards = append(cards, card)

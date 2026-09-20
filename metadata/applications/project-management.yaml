@@ -7,6 +7,14 @@
 id: app_project_management
 name: Project Management
 
+# See document-approval.yaml's own comments for what these four are and why the count is declared
+# rather than summed. mch_task is this Application's work: the 13 its Machines total between them
+# is mostly lists, labels and join rows.
+description: Task boards, sprints and team capacity.
+icon: "▤"
+color: emerald
+summary_machine: mch_task
+
 # See document-approval.yaml's own machines: comment for what this list is and is not. mch_user
 # and mch_activity are shared across Applications and therefore claimed by neither, staying
 # Workspace-level.

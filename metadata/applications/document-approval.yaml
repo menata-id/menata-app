@@ -5,6 +5,33 @@
 id: app_document_approval
 name: Document Approval
 
+# description, icon and color are the Application's own card face on Workspace Home
+# (ui-sample/case-03-flow1 board 03). icon and color follow ui-sample/nav-metadata.js, which
+# already declares exactly this shape -- and carries its own caveat worth keeping attached: the
+# glyphs there are "placeholders standing in for a real SVG icon set ... swapping to one is a
+# separate, not-yet-scoped piece of work". So this is deliberately a character, not an asset.
+#
+# color is a closed set (domain.KnownApplicationColors): a colour the runtime cannot realize fails
+# at load rather than rendering nothing, the same posture as field types and navigation badges.
+description: Submit, review and approve controlled documents.
+icon: "✓"
+color: blue
+
+# summary_machine: which Machine's record count this Application's card reports.
+#
+# Declared rather than derived, because the obvious derivation is wrong: summing every Machine an
+# Application claims counts its configuration and plumbing as work. Project Management's own
+# Machines sum to 13 -- 4 tasks and 2 projects, plus 3 lists, 2 labels and 2 join rows -- a number
+# that is true and useless. Naming one Machine makes the count mean something.
+#
+# Must be a Machine *this* Application claims (validated at load): pointing elsewhere would put
+# another Application's number on this card, which is the same misleading-number failure in a
+# different shape.
+#
+# The card prefers its pending-approval badge count where an Application declares both, since that
+# is the more specific statement.
+summary_machine: mch_document
+
 # show_nav: false replaces what app.yaml expressed as `hidden_nav_groups: [Document Approval]`
 # (owner request, 2026-09-19). It is now sayable where it belongs -- on the Application itself,
 # exactly as ui-sample/nav-metadata.js declares it -- rather than as a group label filtered out of

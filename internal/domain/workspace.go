@@ -71,6 +71,21 @@ func (w Workspace) ApplicationForRoute(route string) (Application, bool) {
 	return Application{}, false
 }
 
+// KnownApplicationColors is the closed set of colour tokens an Application may declare -- the
+// same static-seam posture as KnownFieldTypes and KnownNavigationBadges (007 §14). Closed for two
+// reasons here: an unrecognized colour would render nothing, and the renderer maps each token to
+// whole literal Tailwind class strings because Tailwind's scanner cannot see a class name built at
+// runtime. An open set would mean building names, which fails silently in the browser rather than
+// at load (capabilities.md, "two scanner rules").
+//
+// The tokens are Tailwind's own scale names, matching ui-sample/nav-metadata.js's `color` field.
+var KnownApplicationColors = map[string]bool{
+	"blue":    true,
+	"emerald": true,
+	"amber":   true,
+	"slate":   true,
+}
+
 // Application is an independently realizable business solution within a Workspace
 // (004-runtime-metadata.md "Application").
 type Application struct {
@@ -84,6 +99,24 @@ type Application struct {
 	// single authority on who may do what (006 §Behavioral Model). Its load-bearing job is
 	// Workspace.ApplicationForMachine above.
 	Machines []string
+	// Description, Icon and Color are this Application's card face on Workspace Home. Icon is a
+	// single character, following ui-sample/nav-metadata.js, whose own comment records that these
+	// glyphs stand in for a real SVG icon set that is "not-yet-scoped" -- the placeholder status
+	// travels with the declaration rather than being rediscovered later.
+	//
+	// Color must be one of KnownApplicationColors. All three are optional: an Application
+	// declaring none still renders, just plainly.
+	Description string
+	Icon        string
+	Color       string
+	// SummaryMachine names the Machine whose record count this Application's card reports, or ""
+	// for no count.
+	//
+	// Declared rather than derived, because deriving it is misleading: summing every Machine an
+	// Application claims counts configuration and plumbing as work (Project Management's Machines
+	// total 13 -- mostly lists, labels and join rows, not its 4 tasks). Validated to be a Machine
+	// this Application itself claims, so a card can never report another Application's number.
+	SummaryMachine string
 	// Roles is this Application's own role vocabulary -- what a member may hold *here*, which is a
 	// different question from their Workspace role (admin/member). Declared per Application
 	// because the vocabularies genuinely differ between them; an Application may declare none,

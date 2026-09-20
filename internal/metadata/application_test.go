@@ -993,3 +993,96 @@ roles:
 		t.Fatal("LoadApplication() error = nil, want error: blank role -- 'no role' is already the absence of one")
 	}
 }
+
+func TestLoadApplication_unknownColorRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", "\nid: mch_task\nname: Task\n")
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_main
+name: Main
+machines:
+  - mch_task
+color: chartreuse
+`)
+
+	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: color outside the closed set would render nothing")
+	}
+}
+
+// TestLoadApplication_summaryMachineMustBeOwn is the check that keeps a card's number honest: an
+// Application reporting a Machine it does not claim would put another Application's count on its
+// own card.
+func TestLoadApplication_summaryMachineMustBeOwn(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", "\nid: mch_task\nname: Task\n")
+	writeFile(t, dir, "project.yaml", "\nid: mch_project\nname: Project\n")
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - task.yaml
+    - project.yaml
+applications:
+  - app-one.yaml
+  - app-two.yaml
+`)
+	writeFile(t, dir, "app-one.yaml", `
+id: app_one
+name: One
+machines:
+  - mch_task
+summary_machine: mch_project
+`)
+	writeFile(t, dir, "app-two.yaml", `
+id: app_two
+name: Two
+machines:
+  - mch_project
+`)
+
+	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err == nil {
+		t.Fatal("LoadApplication() error = nil, want error: app_one reports mch_project, which app_two owns")
+	}
+}
+
+// TestLoadApplication_cardFaceOptional: an Application declaring none of the card-face keys loads
+// fine and renders plainly, so the default state is covered rather than assumed.
+func TestLoadApplication_cardFaceOptional(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", "\nid: mch_task\nname: Task\n")
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - task.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_main
+name: Main
+machines:
+  - mch_task
+`)
+
+	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	got := app.Workspace.Applications[0]
+	if got.Description != "" || got.Icon != "" || got.Color != "" || got.SummaryMachine != "" {
+		t.Errorf("card face = %+v, want all empty when nothing is declared", got)
+	}
+}

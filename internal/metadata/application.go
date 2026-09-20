@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -50,6 +51,12 @@ type applicationDoc struct {
 	// Roles is this Application's own role vocabulary -- see domain.Application.Roles. Optional:
 	// an Application that declares none offers no role, rather than falling back to another's.
 	Roles []string `yaml:"roles"`
+	// Description/Icon/Color/SummaryMachine are the Application's card face on Workspace Home --
+	// see domain.Application for what each is and why the count is declared rather than summed.
+	Description    string `yaml:"description"`
+	Icon           string `yaml:"icon"`
+	Color          string `yaml:"color"`
+	SummaryMachine string `yaml:"summary_machine"`
 	// ShowNav defaults to *true* when the key is absent, which is why it is a *bool here: an
 	// Application that says nothing about its menu keeps it (ui-sample/nav-metadata.js's own
 	// convention -- case19 has no showNav field and keeps both bars). A plain bool would default
@@ -196,6 +203,15 @@ func loadApplicationFile(path, workspaceID string) (*domain.Application, error) 
 			seenRole[r] = true
 		}
 	}
+	if doc.Color != "" && !domain.KnownApplicationColors[doc.Color] {
+		issues = append(issues, fmt.Sprintf("application %q: color %q is not a known application color", doc.ID, doc.Color))
+	}
+	// summary_machine must be one of this Application's *own* machines. Pointing at another
+	// Application's would put that Application's record count on this card -- the same misleading
+	// number the declaration exists to prevent, just sourced differently.
+	if doc.SummaryMachine != "" && !slices.Contains(doc.Machines, doc.SummaryMachine) {
+		issues = append(issues, fmt.Sprintf("application %q: summary_machine %q is not one of this application's own machines -- a card must report its own count, not another application's", doc.ID, doc.SummaryMachine))
+	}
 	if len(issues) > 0 {
 		return nil, &ValidationError{Issues: issues}
 	}
@@ -234,6 +250,10 @@ func loadApplicationFile(path, workspaceID string) (*domain.Application, error) 
 		WorkspaceID:     workspaceID,
 		Machines:        doc.Machines,
 		Roles:           doc.Roles,
+		Description:     doc.Description,
+		Icon:            doc.Icon,
+		Color:           doc.Color,
+		SummaryMachine:  doc.SummaryMachine,
 		ShowNav:         showNav,
 		Navigation:      navigation,
 		PrimaryNavGroup: primaryNavGroup,

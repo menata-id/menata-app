@@ -109,8 +109,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      and a member holds one role per Application (`workspace_member_app_roles`, migration 008,
      which keeps the old `app_role` column so a rollback loses nothing). It also closed a
      pre-existing gap — the write paths accepted any `app_role` string, since until roles were
-     declared there was nothing to validate against. Still to come: **3c**, the board's own card
-     face (icon, description, record count).
+     declared there was nothing to validate against. **3c** *shipped 2026-09-20*: the card face —
+     `description`, `icon`, `color` and `summary_machine`, the Machine whose count a card reports.
+     Declared rather than summed, because summing an Application's Machines counts its
+     configuration as work (Project Management totals 13, of which 4 are tasks). **Fase 3 is
+     complete.**
   4. Groups — absent entirely, and present in five of the ten boards. A Group and its membership
      can be ordinary Machines (many-to-many is already proven by `mch_card_label`); the parts that
      cannot be, and need a decision: effective access as the union of direct and group-inherited
@@ -129,7 +132,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
   | Left undone | Finished in | Blocked on |
   |---|---|---|
-  | ~~Workspace Home shows one Application card~~ — done in 3a | — | — |
+  | ~~Workspace Home's Application cards~~ — *done in 3a/3c*: one card per declared Application, with its own icon, description and declared count. Board 03's three cards assume Procurement and HR, which this app has no Machines, routes or roles for | — | — |
   | ~~Per-Application role columns on Members~~ — *done in 3b*: one line per Application that declares a `roles:` vocabulary, captioned with its name | — | — |
   | Source / "Group: Reviewers" column (board 04) | Fase 4 | Groups do not exist; with none, every row would read "Direct" |
   | Effective-access panel, direct ∪ group-inherited (board 05) | Fase 4 | Groups; the union itself has no primitive |
