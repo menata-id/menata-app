@@ -29,6 +29,7 @@ func renderPlacement(t *testing.T, v PlacementView) string {
 	ConfigureWorkspace(domain.Workspace{Navigation: []domain.NavigationItem{
 		{ID: "nav_home", Label: "Home", Route: "/home"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
+		{ID: "nav_my_documents", Label: "My Documents", Route: "/approval-inbox?tab=mine"},
 	}})
 	var buf bytes.Buffer
 	if err := SignaturePlacementPage(v, "Dokter Kecil", Viewer{Initials: "AP"}, "").Render(context.Background(), &buf); err != nil {

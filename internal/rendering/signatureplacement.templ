@@ -55,10 +55,17 @@ type PlacementStep struct {
 // table rather than an oversight: the zoom controls (nothing stores or needs a zoom level -- the
 // app serves one rendered size), the selected-step highlight (no selection model exists, and the
 // screen works without one), the approver's department sub-line ("Finance" -- mch_user has no such
-// Field; fld_step_name is the honest substitute and is what this renders), and the footer's
-// "Save positions →". That last one is not a missing button: every drag, place and width change is
-// already persisted by its own request, so a Save button would claim a staging step that does not
-// exist. The board's own "STEP 2 OF 3" is likewise "Step 2 of 2" here, because two screens exist.
+// Field; fld_step_name is the honest substitute and is what this renders), and the board's own
+// "Save positions →" wording specifically -- every drag, place and width change is already
+// persisted by its own request, so a button claiming to *save* would claim a staging step that
+// does not exist. The board's own "STEP 2 OF 3" is likewise "Step 2 of 2" here, because two
+// screens exist.
+//
+// What this DOES have that the board's footer does not spell out: a "Done" link (owner report,
+// 2026-09-21 -- landing here after submitting a Document left no way back to My Documents short of
+// the browser's own back button). It says "Done", not "Save", for the reason above, and its
+// destination is routeByID("nav_my_documents") rather than a retyped "/approval-inbox?tab=mine" --
+// metadata/applications/document-approval.yaml already declares that route under nav_my_documents.
 //
 // What this has that the board does not: page navigation (the board shows only "Page 6 of 6"), a
 // width control, and an honest "Not placed yet" state -- every step on the board is pre-placed.
@@ -107,6 +114,14 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 					Approvers are supplied by Groups. Changing group membership is managed separately.
 				</p>
 			</aside>
+		</div>
+		<div class="flex justify-end">
+			<a
+				href={ templ.SafeURL(routeByID("nav_my_documents")) }
+				class="flex h-9 items-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+			>
+				Done →
+			</a>
 		</div>
 		@placementDragScript()
 	}
