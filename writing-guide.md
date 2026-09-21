@@ -532,9 +532,9 @@ the same declaration to decide whether to draw the Approve/Reject bar at all, ra
 comparing against the literal `pending`.
 
 The **Authorization Matrix** (`/authorization-matrix`, Workspace admins) draws every one of these
-declarations for one Application in three sections — its transitions, its record actions
-(create/edit/delete), and the rules the Workspace decides instead — so "what may this role do
-here" is a table rather than a walk through every Machine's `permissions:` block. It renders the
+declarations in two sections — what the Workspace decides, then one block per Application — so
+"what may this role do here" is a page rather than a walk through every Machine's `permissions:`
+block. It renders the
 same declarations the server enforces and has no permission model of its own. **Read it after
 writing a `permissions:` block**: an action nobody governs and an action everybody is granted look
 identical in a YAML file and are labelled differently there.

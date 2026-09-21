@@ -1,233 +1,221 @@
 package rendering
 
-import "fmt"
-
 // RoleMatrixView is the Authorization Matrix's own shape, resolved by composition.RoleMatrix
 // (ui-sample/case-03-flow1/06b-authorization-matrix.html).
 //
-// A resolved view model rather than the Application and Machines themselves, for the reason every
-// screen added since Fase 6b has one: a new .templ file may not join internal/conformance's
-// projection ratchet, so nothing here may read a declaration and work out what it means. The
-// joins happen once, in the Composition plane; this file draws tables already decided.
-type RoleMatrixView struct {
-	ApplicationID   string
-	ApplicationName string
-	// Roles is this Application's declared vocabulary, in declaration order -- the column headers,
-	// and the same order every row's Granted slice follows.
-	Roles []string
-	// Transitions is the declared state model, role-first. RecordActions is create/edit/delete on
-	// the same Application's Machines -- the same Permission primitive, never drawn until now.
-	Transitions   []RoleMatrixRow
-	RecordActions []RoleMatrixRow
-	// WorkspaceRules are the rules no Application decides: a Machine no Application claims, an
-	// append-only Machine, a Permission requiring the Workspace role. They have no role columns
-	// on purpose -- an Application's vocabulary cannot express them.
-	WorkspaceRules []RoleMatrixNote
-}
-
-// RoleMatrixRow is one rule, seen role-first.
-type RoleMatrixRow struct {
-	MachineName string
-	// Name is the row's heading (a transition's business name, or the Machine's own name for a
-	// record action); Detail is the sub-line under it (the move, or the action names).
-	Name   string
-	Detail string
-	// System marks an edge the runtime performs itself, which no role can be granted -- a
-	// different statement from a row no role has been granted yet.
-	System bool
-	// Unrestricted is true when no Permission on this action names a role at all: every role may,
-	// because nothing was declared to the contrary. Distinct from every role having been listed,
-	// because only one of the two changes when the Application declares a new role.
-	Unrestricted bool
-	// Granted is one entry per RoleMatrixView.Roles, in the same order.
-	Granted []bool
-	// Note is what the rule says *besides* which roles may -- the record-scoped arm, in words.
-	// A tick answers the role question only, and a matrix that showed ticks while hiding this
-	// would overstate every grant on it.
-	Note string
-}
-
-// RoleMatrixNote is one Workspace-level rule: no role columns, a sentence instead.
-type RoleMatrixNote struct {
-	MachineName string
-	Detail      string
-	Who         string
-	Why         string
-}
-
-// RoleMatrixPage renders the Authorization Matrix: what each role may do in one Application, and
-// what the Workspace decides instead.
+// Two sections by *scope* -- the Workspace, then one block per Application -- rather than by
+// mechanism. That is the owner's own structure (2026-09-21) and it corrects the first draft's:
+// splitting by "Transitions" and "Record actions" asked the reader to know what a transition is
+// before they could find out what they may do, and it buried the two rows that matter under six
+// that nobody can ever be granted.
 //
-// applications is every Application that declares a role vocabulary -- the board's own header
-// selector. An Application declaring no roles (Project Management) is deliberately absent rather
-// than shown with an empty table: it has no column to draw, and offering it would suggest roles
-// are simply unassigned there when in fact none has ever been declared.
-templ RoleMatrixPage(v RoleMatrixView, applications []RoleApplication, workspaceName, userInitials, workspaceRole, switchWorkspaceHref string) {
+// A resolved view model rather than the Machines themselves, for the reason every screen added
+// since Fase 6b has one: a new .templ file may not join internal/conformance's projection ratchet,
+// so nothing here may read a declaration and work out what it means. The joins happen once, in the
+// Composition plane; this file draws what has already been decided.
+type RoleMatrixView struct {
+	Workspace    []RoleMatrixNote
+	Applications []RoleMatrixApp
+}
+
+// RoleMatrixApp is one Application's card: its own role vocabulary, what each role may do grouped
+// by the thing being acted on, and a sentence for the status changes nobody performs.
+type RoleMatrixApp struct {
+	ID          string
+	Name        string
+	Description string
+	// Roles is this Application's declared vocabulary, in declaration order -- the column headers,
+	// and the same order every row's Granted slice follows. Empty for an Application that declares
+	// none, which renders as a sentence instead of an empty table.
+	Roles  []string
+	Groups []RoleMatrixGroup
+	// Automatic are the status changes the runtime performs itself, one line per Machine. They are
+	// prose rather than rows because a reader needs to know the value is not theirs to set, not to
+	// audit six ordered pairs -- and as rows they outnumbered everything else on the page.
+	Automatic []string
+}
+
+// RoleMatrixGroup is one Machine's rows, headed by what a person calls it.
+type RoleMatrixGroup struct {
+	Label string
+	Rows  []RoleMatrixRow
+}
+
+// RoleMatrixRow is one thing a person can do.
+type RoleMatrixRow struct {
+	// Action is the phrase a person reads ("Approve", "Edit or delete"); Actions is what it was
+	// built from, kept so folding two rows into one can rebuild the phrase.
+	Action  string
+	Actions []string
+	// Qualifier is what the rule says besides which roles may -- the record-scoped arm, in the
+	// words the screens use. A tick answers the role question only, and a page showing ticks while
+	// hiding this would overstate every grant on it.
+	Qualifier string
+	// Open marks a row no rule governs at all. Rendered in amber rather than hidden: in metadata
+	// "ungoverned" and "granted to everyone" look identical, and only one of them is something an
+	// administrator would want to know about.
+	Open bool
+	// Granted is one entry per RoleMatrixApp.Roles, in the same order.
+	Granted []bool
+}
+
+// RoleMatrixNote is one Workspace-level rule: no role columns, a sentence instead, because these
+// are not an Application's to decide and a column per role would invite reading them as though one
+// could grant them.
+type RoleMatrixNote struct {
+	Rule string
+	Who  string
+	Why  string
+	// Undeclared marks a rule this page cannot project from metadata because metadata cannot state
+	// it yet -- route-level admin gating (ROADMAP.md, "Declared requires_role: on a navigation
+	// item"). Labelled rather than dropped: leaving the most familiar rule in the Workspace off
+	// the one page meant to answer "who can do what" would be worse than admitting where it lives.
+	Undeclared bool
+}
+
+// RoleMatrixPage renders the Authorization Matrix: who can do what here, for someone who does not
+// read YAML.
+//
+// Every Application is on the page at once rather than behind a selector: there is nothing to
+// discover, no Application that quietly has no tab, and the Workspace/Application split is
+// visible without interacting with anything.
+templ RoleMatrixPage(v RoleMatrixView, workspaceName, userInitials, workspaceRole, switchWorkspaceHref string) {
 	@appShell(labelByID("nav_role_matrix"), workspaceName, userInitials, "nav_role_matrix", switchWorkspaceHref, membersHiddenFor(workspaceRole)) {
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-			<div class="flex max-w-[700px] flex-col gap-2">
-				<h1 class="m-0 text-xl font-medium">{ labelByID("nav_role_matrix") }</h1>
-				<p class="m-0 text-sm leading-5 text-slate-500">
-					What each role may do in { v.ApplicationName }, and what the Workspace decides instead.
-					Every row is re-projected from a declaration the server already enforces — this page adds
-					no permission model of its own. A ✓ answers the <i>role</i> question only; a rule that
-					also narrows <i>which record</i> is spelled out under the row.
+		<div class="flex max-w-[760px] flex-col gap-2">
+			<h1 class="m-0 text-xl font-medium">Who can do what</h1>
+			<p class="m-0 text-sm leading-6 text-slate-500">
+				Some rules belong to the whole workspace. The rest belong to each application separately —
+				a person can hold a different role in each one. A <span class="text-green-600">✓</span> means
+				that role is allowed; the line underneath says whether it is also limited to certain records.
+			</p>
+		</div>
+		<section class="flex flex-col gap-3">
+			<div class="flex flex-col gap-1">
+				<h2 class="m-0 text-base font-medium">Workspace</h2>
+				<p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">
+					Applies everywhere, whichever application you are in. These are not an application's to
+					decide, so no role can grant them.
 				</p>
 			</div>
-			if len(applications) > 1 {
-				<form method="GET" class="shrink-0">
-					<label for="app" class="sr-only">Application</label>
-					<select
-						id="app"
-						name="app"
-						onchange="this.form.submit()"
-						class="h-9 rounded-md border border-slate-300 bg-white pr-2 pl-3 text-sm text-slate-900"
-					>
-						for _, a := range applications {
-							<option value={ a.ID } selected?={ a.ID == v.ApplicationID }>{ a.Name }</option>
-						}
-					</select>
-				</form>
-			}
-		</div>
-		if len(v.Roles) == 0 {
-			<div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-				{ v.ApplicationName } declares no roles, so there is nothing to grant here yet.
+			<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+				<div class="hidden gap-6 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-3xs tracking-wide text-slate-500 uppercase sm:grid sm:grid-cols-[320px_minmax(0,1fr)]">
+					<span>What you can do</span>
+					<span>Who can do it</span>
+				</div>
+				for _, n := range v.Workspace {
+					<div class="grid gap-1 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[320px_minmax(0,1fr)] sm:gap-6">
+						<div class="flex flex-col gap-0.5">
+							<span class="text-sm">{ n.Rule }</span>
+							if n.Undeclared {
+								<span class="text-3xs text-slate-400">Enforced in code, not yet declared in metadata</span>
+							}
+						</div>
+						<div class="text-xs leading-5">
+							<span class="font-medium text-slate-900">{ n.Who }</span>
+							{ " " }
+							<span class="text-slate-500">{ n.Why }</span>
+						</div>
+					</div>
+				}
 			</div>
-		} else {
-			@roleMatrixSection(
-				"Transitions",
-				"A named move of a status field from one value to another, and the action that performs it. A row marked System is derived by the runtime — no role can be granted it, which is a different statement from a row where no role has been granted yet.",
-				v.Roles, v.Transitions,
-			)
-			@roleMatrixSection(
-				"Record actions",
-				"Creating, editing and deleting records of this Application's own Machines. These are governed by the same Permission primitive as a transition, and nothing ever drew them until this screen — which is how an ungoverned action could stay ungoverned without anyone noticing.",
-				v.Roles, v.RecordActions,
-			)
-			if len(v.WorkspaceRules) > 0 {
-				@roleMatrixWorkspaceSection(v.WorkspaceRules)
+		</section>
+		<section class="flex flex-col gap-4">
+			<div class="flex flex-col gap-1">
+				<h2 class="m-0 text-base font-medium">Applications</h2>
+				<p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">
+					Each application declares its own roles and decides what they may do inside it. A role
+					means nothing outside the application that declared it.
+				</p>
+			</div>
+			for _, app := range v.Applications {
+				@roleMatrixApp(app)
 			}
-			<p class="m-0 max-w-[820px] text-2xs leading-4 text-slate-500">
-				<span class="text-green-600">✓</span> the role satisfies every Permission governing this rule ·
-				<span class="text-slate-300">·</span> no grant. Several roles on one Permission are
-				alternatives — hold any one; several Permissions on one action are requirements — pass all.
-				Holding Workspace admin grants nothing here that a rule has not asked for: there is no
-				bypass, deliberately, because an administrator who can approve a document they are not an
-				approver of is the audit hole an approval flow exists to close.
-			</p>
-		}
+		</section>
+		<p class="m-0 max-w-[820px] text-2xs leading-4 text-slate-500">
+			Holding <b>Workspace admin</b> does not unlock anything inside an application. An admin who is
+			not an approver on a document still cannot approve it — that separation is the point of having
+			an approval step at all. <span class="text-amber-700">Amber</span> marks something no rule
+			covers yet.
+		</p>
 	}
 }
 
-// roleMatrixSection is one role-column table. Both sections share it because they differ only in
-// what a row *is*, never in how a grant is shown — and two near-identical tables would be two
-// places for the legend to drift.
-templ roleMatrixSection(title, blurb string, roles []string, rows []RoleMatrixRow) {
-	<section class="flex flex-col gap-2.5">
-		<h2 class="m-0 text-sm font-medium">{ title }</h2>
-		<p class="m-0 max-w-[820px] text-2xs leading-4 text-slate-500">{ blurb }</p>
-		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-			<table class="w-full min-w-[720px] border-collapse text-left">
-				<thead>
-					<tr class="border-b border-slate-200 bg-slate-50">
-						<th scope="col" class="w-[300px] px-4 py-2.5 text-3xs font-normal tracking-wide text-slate-600 uppercase">Rule</th>
-						for _, role := range roles {
-							<th scope="col" class="px-4 py-2.5 text-center text-3xs font-normal tracking-wide text-slate-600 uppercase">{ role }</th>
-						}
-					</tr>
-				</thead>
-				<tbody>
-					if len(rows) == 0 {
-						<tr>
-							<td colspan={ fmt.Sprintf("%d", len(roles)+1) } class="px-4 py-8 text-center text-sm text-slate-500">
-								Nothing declared here yet.
-							</td>
-						</tr>
-					}
-					for _, row := range rows {
-						@roleMatrixRow(row, len(roles))
-					}
-				</tbody>
-			</table>
+// roleMatrixApp is one Application's card. An Application declaring no roles renders a sentence
+// rather than an empty table: it has no column to draw, and an empty grid would suggest roles are
+// simply unassigned there when in fact none has ever been declared.
+templ roleMatrixApp(app RoleMatrixApp) {
+	<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+		<div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5">
+			<div class="flex flex-col gap-1">
+				<span class="text-[15px] font-medium">{ app.Name }</span>
+				if app.Description != "" {
+					<span class="text-xs text-slate-500">{ app.Description }</span>
+				}
+			</div>
+			<div class="flex flex-wrap gap-1.5">
+				for _, role := range app.Roles {
+					<span class="rounded-full bg-blue-50 px-2.5 py-1 text-2xs text-blue-700">{ role }</span>
+				}
+			</div>
 		</div>
-	</section>
-}
-
-// roleMatrixRow draws one rule. The System row is a separate branch rather than a row of blanks:
-// "no human action performs this" and "no role has been granted this yet" are different
-// statements, and only one of them is something an administrator can act on.
-templ roleMatrixRow(row RoleMatrixRow, roleCount int) {
-	<tr class="border-b border-slate-100 last:border-b-0">
-		<th scope="row" class="px-4 py-3 text-left align-top font-normal">
-			<span class="flex flex-col gap-1">
-				<span class="text-sm text-slate-900">{ row.Name }</span>
-				if row.Name == row.MachineName {
-					// A record-action row is headed by its Machine, so repeating the Machine in the
-					// sub-line would print it twice ("Document" / "Document · create").
-					<span class="text-3xs text-slate-400">{ row.Detail }</span>
-				} else {
-					<span class="text-3xs text-slate-400">{ row.MachineName } · { row.Detail }</span>
-				}
-				if row.Note != "" {
-					<span class="text-3xs leading-4 text-slate-500">{ row.Note }</span>
-				}
-			</span>
-		</th>
-		if row.System {
-			<td colspan={ fmt.Sprintf("%d", roleCount) } class="px-4 py-3 text-center align-top text-2xs text-slate-400">
-				System — derived, performed by no one
-			</td>
+		if len(app.Roles) == 0 {
+			<p class="m-0 px-4 py-4 text-xs leading-5 text-slate-500">
+				This application declares <b>no roles</b>, so there is nothing to assign here yet — everyone
+				in the workspace can do everything in it.
+			</p>
 		} else {
-			for _, granted := range row.Granted {
-				<td class="px-4 py-3 text-center align-top">
-					if granted {
-						<span class="text-sm text-green-600" role="img" aria-label="Granted">✓</span>
-					} else {
-						<span class="inline-block size-1 rounded-full bg-slate-300 align-middle" role="img" aria-label="No grant"></span>
+			<div class="overflow-x-auto">
+				<table class="w-full min-w-[640px] border-collapse text-left">
+					<thead>
+						<tr class="border-b border-slate-200 bg-slate-50">
+							<th scope="col" class="px-4 py-2.5 text-3xs font-normal tracking-wide text-slate-500 uppercase">What you can do</th>
+							for _, role := range app.Roles {
+								<th scope="col" class="w-[110px] px-3 py-2.5 text-center text-3xs font-normal tracking-wide text-slate-500 uppercase">{ role }</th>
+							}
+						</tr>
+					</thead>
+					<tbody>
+						for _, group := range app.Groups {
+							<tr class="border-b border-slate-100 bg-slate-50/40">
+								<th scope="colgroup" colspan={ len(app.Roles) + 1 } class="px-4 py-2 text-left text-3xs font-normal tracking-wide text-slate-400 uppercase">
+									{ group.Label }
+								</th>
+							</tr>
+							for _, row := range group.Rows {
+								<tr class="border-b border-slate-100 last:border-b-0">
+									<th scope="row" class="max-w-[420px] px-4 py-3 text-left align-top font-normal">
+										<span class="flex flex-col gap-0.5">
+											<span class="text-sm text-slate-900">{ row.Action }</span>
+											if row.Open {
+												<span class="text-3xs leading-4 text-amber-700">{ row.Qualifier }</span>
+											} else {
+												<span class="text-3xs leading-4 text-slate-500">{ row.Qualifier }</span>
+											}
+										</span>
+									</th>
+									for _, granted := range row.Granted {
+										<td class="px-3 py-3 text-center align-top">
+											if granted {
+												<span class="text-sm text-green-600" role="img" aria-label="Yes">✓</span>
+											} else {
+												<span class="inline-block size-1 rounded-full bg-slate-300 align-middle" role="img" aria-label="No"></span>
+											}
+										</td>
+									}
+								</tr>
+							}
+						}
+					</tbody>
+				</table>
+			</div>
+			if len(app.Automatic) > 0 {
+				<div class="border-t border-slate-200 bg-slate-50/50 px-4 py-3.5">
+					<div class="mb-1.5 text-3xs tracking-wide text-slate-400 uppercase">Happens on its own</div>
+					for _, line := range app.Automatic {
+						<p class="m-0 max-w-[760px] text-xs leading-5 text-slate-600">{ line }</p>
 					}
-				</td>
+				</div>
 			}
 		}
-	</tr>
-}
-
-// roleMatrixWorkspaceSection has no role columns, which is the point: these rules are decided by
-// the Workspace, so no Application's own vocabulary can express them and a column per role would
-// invite reading them as though one could.
-templ roleMatrixWorkspaceSection(notes []RoleMatrixNote) {
-	<section class="flex flex-col gap-2.5">
-		<h2 class="m-0 text-sm font-medium">Decided by the Workspace, not by this Application</h2>
-		<p class="m-0 max-w-[820px] text-2xs leading-4 text-slate-500">
-			Some rules are not an Application's to make. A role vocabulary is declared per Application;
-			administering the Workspace is not, and an audit trail belongs to no one at all.
-		</p>
-		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-			<table class="w-full min-w-[560px] border-collapse text-left">
-				<thead>
-					<tr class="border-b border-slate-200 bg-slate-50">
-						<th scope="col" class="w-[300px] px-4 py-2.5 text-3xs font-normal tracking-wide text-slate-600 uppercase">Rule</th>
-						<th scope="col" class="px-4 py-2.5 text-3xs font-normal tracking-wide text-slate-600 uppercase">Who</th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, n := range notes {
-						<tr class="border-b border-slate-100 last:border-b-0">
-							<th scope="row" class="px-4 py-3 text-left align-top font-normal">
-								<span class="flex flex-col gap-1">
-									<span class="text-sm text-slate-900">{ n.MachineName }</span>
-									<span class="text-3xs text-slate-400">{ n.Detail }</span>
-								</span>
-							</th>
-							<td class="px-4 py-3 align-top text-xs text-slate-700">
-								<span class="font-medium">{ n.Who }</span>
-								{ " " }
-								<span class="text-slate-500">{ n.Why }</span>
-							</td>
-						</tr>
-					}
-				</tbody>
-			</table>
-		</div>
-	</section>
+	</div>
 }

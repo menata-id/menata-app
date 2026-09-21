@@ -62,6 +62,12 @@ model that actually runs the whole Application has exactly two role-gated transi
 matrix of transitions alone is nearly empty however much work goes into the screen. `ROADMAP.md`'s
 deferral table carries that as a model decision for the owner, not as screen work.
 
+Its structure is **two sections by scope — Workspace, then one block per application** (owner
+request, 2026-09-21), replacing a first draft that split by mechanism ("Transitions" / "Record
+actions"). That draft asked the reader to know what a transition is before they could find out
+what they may do, and its six system-derived status rows — which no role can ever be granted —
+drowned the two rows that matter. They are one sentence per Machine now.
+
 What 06b changes is the premise, not the styling: a transition is not the only thing a role gates.
 It adds the record actions (create/edit/delete) that Permission has always governed and nothing
 ever drew, and a Workspace section for the rules that are not an Application's to make. Every row
