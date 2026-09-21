@@ -1,0 +1,114 @@
+package rendering
+
+// ProfilePage lets the signed-in identity edit their own display name; email is shown read-only
+// (it is the sign-in identity itself, not a display field -- changing it is a separate,
+// not-yet-built capability, same posture as Security's 2FA row).
+//
+// Deliberately not the generic Machine record editor (/machines/mch_user/records/{id}): that
+// route takes its record id from the URL and is gated by mch_user's own declared permissions:
+// (today, none). This handler never reads an id from the request at all -- the caller's own
+// session names the only record it can ever touch (internal/web.submitProfile) -- which is a
+// narrower, simpler guarantee than a Permission would need to express for one case. See
+// CLAUDE.md's decomposition criteria: a second self-edit case is what would earn a general form.
+templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorkspaceHref, errorMsg string) {
+	@appShell("Profile", workspaceName, viewer, "", switchWorkspaceHref, nil) {
+		<div class="flex flex-col gap-1">
+			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
+			<h1 class="m-0 text-xl font-medium">Profile</h1>
+			<div class="text-sm text-slate-500">Manage your personal information.</div>
+		</div>
+		if errorMsg != "" {
+			<p class="m-0 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{ errorMsg }</p>
+		}
+		<form method="POST" action="/account-profile" class="flex flex-col gap-4">
+			@csrfHiddenInput()
+			<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+				<div class="flex flex-col gap-2">
+					<label for="profile-name" class="text-sm font-medium">Full name</label>
+					<input
+						id="profile-name"
+						type="text"
+						name="name"
+						value={ name }
+						required
+						class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
+					/>
+				</div>
+				<div class="flex flex-col gap-2">
+					<label for="profile-email" class="text-sm font-medium">Email</label>
+					<input
+						id="profile-email"
+						type="email"
+						value={ email }
+						disabled
+						class="h-10.5 rounded-md border border-slate-200 bg-slate-50 px-3 text-[15px] text-slate-500 sm:h-9.5 sm:text-sm"
+					/>
+					<p class="m-0 text-2xs text-slate-400">Your sign-in email -- contact a workspace admin to change this.</p>
+				</div>
+			</section>
+			<div class="flex justify-end gap-2.5">
+				<a href="/home" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Cancel</a>
+				@authSubmit("Save changes")
+			</div>
+		</form>
+	}
+}
+
+// SecurityPage ships exactly what the real session model can back: change password, and revoke
+// every session but this one. It deliberately does not show a per-device "active sessions" list --
+// internal/authorization's session model is one signed cookie plus a generation counter per
+// mch_user record (internal/authorization/session.go), with no per-device/browser/location
+// tracking at all, so a fabricated single "This device" row would be exactly the "mockup draws
+// data the app doesn't have" pattern menata-app-document's development-history.md already calls
+// out repeatedly. Two-factor authentication stays marked "(planned)", matching
+// ui-sample/nav-chrome.js's own convention for a menu item with no primitive behind it yet.
+templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, passwordErr, passwordOK, signOutOK string) {
+	@appShell("Security", workspaceName, viewer, "", switchWorkspaceHref, nil) {
+		<div class="flex flex-col gap-1">
+			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
+			<h1 class="m-0 text-xl font-medium">Security</h1>
+			<div class="text-sm text-slate-500">Manage your password and where you're signed in.</div>
+		</div>
+		<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			<div class="flex flex-col gap-1">
+				<h2 class="m-0 text-sm font-medium">Password</h2>
+				<p class="m-0 text-2xs text-slate-500">Choose a strong password you don't use elsewhere.</p>
+			</div>
+			if passwordErr != "" {
+				<p class="m-0 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{ passwordErr }</p>
+			}
+			if passwordOK != "" {
+				<p class="m-0 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{ passwordOK }</p>
+			}
+			<form method="POST" action="/account-security/change-password" class="flex flex-col gap-4">
+				@csrfHiddenInput()
+				@authField("current-password", "current_password", "Current password", "password", "current-password", false)
+				@authPasswordField("new-password", "new_password", "New password", "new-password", false)
+				@authPasswordField("confirm-password", "confirm_password", "Confirm new password", "new-password", false)
+				<div class="flex justify-end">
+					@authSubmit("Update password")
+				</div>
+			</form>
+		</section>
+		<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			<div class="flex flex-col gap-1">
+				<h2 class="m-0 text-sm font-medium">Other devices</h2>
+				<p class="m-0 text-2xs text-slate-500">Sign every other session out, keeping this one.</p>
+			</div>
+			if signOutOK != "" {
+				<p class="m-0 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{ signOutOK }</p>
+			}
+			<form method="POST" action="/account-security/sign-out-other-devices">
+				@csrfHiddenInput()
+				<button type="submit" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Sign out of other devices</button>
+			</form>
+		</section>
+		<section class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-5">
+			<div class="flex flex-col gap-1">
+				<h2 class="m-0 text-sm font-medium">Two-factor authentication</h2>
+				<p class="m-0 text-2xs text-slate-500">Not enabled <span class="text-3xs text-slate-300">(planned)</span></p>
+			</div>
+			<button disabled class="shrink-0 cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-400">Enable</button>
+		</section>
+	}
+}

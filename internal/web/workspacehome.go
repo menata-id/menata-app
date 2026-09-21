@@ -62,7 +62,7 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, w
 		}
 
 		render(ctx, w, rendering.WorkspaceHomePage(
-			chrome.WorkspaceName, membership.WorkspaceRole, chrome.UserInitials, switchHref,
+			chrome.WorkspaceName, membership.WorkspaceRole, chrome.Viewer(), switchHref,
 			applicationCards(ctx, store, machines, ws, membership, len(inbox.Pending)),
 		))
 	}

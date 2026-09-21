@@ -137,6 +137,12 @@ var runtimeLevelRoutes = map[string]bool{
 	"/workspace-groups": true,
 	"/switch-workspace": true,
 	"/choose-workspace": true,
+	// Account menu destinations (internal/rendering/appshell.templ's accountMenu, Account menu
+	// port 2026-09-21): the signed-in identity's own settings, same criterion as
+	// /workspace-members above -- they exist regardless of which Applications a Workspace
+	// configures, registered as fixed literals in router.go, declared by no navigation list.
+	"/account-profile":  true,
+	"/account-security": true,
 }
 
 var templHref = regexp.MustCompile(`href="(/[^"{]*)"`)

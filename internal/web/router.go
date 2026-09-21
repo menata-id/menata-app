@@ -128,6 +128,10 @@ func Routes(d Deps) http.Handler {
 	r.Group(func(pr chi.Router) {
 		pr.Use(requireAuth(d.Store, d.DefaultWorkspaceID, d.Cfg))
 		pr.Use(currentApplication(d.Workspace))
+		// Immediately after, and never before: it reads the Application currentApplication just
+		// resolved. Every route inside an Application passes through both, which is what makes
+		// "no role here means no access" complete rather than a list of gated handlers.
+		pr.Use(requireApplicationAccess(d.Store, d.Cfg))
 		pr.Use(queryDiagnostics)
 
 		pr.Post("/logout", logout(d.Store, d.Cfg))
@@ -142,6 +146,11 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.Workspace, d.Cfg))
 		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
 		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))
+		pr.Get("/account-profile", showProfile(d.Store, d.Cfg))
+		pr.Post("/account-profile", submitProfile(d.Store, d.Cfg))
+		pr.Get("/account-security", showSecurity(d.Store, d.Cfg))
+		pr.Post("/account-security/change-password", submitChangePassword(d.Store, d.Cfg))
+		pr.Post("/account-security/sign-out-other-devices", submitSignOutOtherDevices(d.Store, d.Cfg))
 		pr.Get("/dashboard", showDashboard(d.Machines, d.Store))
 		pr.Get("/my-tasks", showMyTasks(d.Machines, d.Store, d.Cfg))
 		pr.Get("/board-settings", showBoardSettings(d.Store))

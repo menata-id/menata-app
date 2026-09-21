@@ -32,7 +32,7 @@ func showGroups(store *data.Store, cfg config.Config, ws domain.Workspace) http.
 		}
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
-		render(ctx, w, rendering.GroupsPage(groups, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws), switchHref))
+		render(ctx, w, rendering.GroupsPage(groups, chrome.WorkspaceName, chrome.Viewer(), roleApplications(ws), switchHref))
 	}
 }
 
@@ -59,7 +59,7 @@ func showGroupDetail(store *data.Store, cfg config.Config, ws domain.Workspace) 
 		}
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
-		render(ctx, w, rendering.GroupDetailPage(*group, choices, chrome.WorkspaceName, chrome.UserInitials, roleApplications(ws), switchHref))
+		render(ctx, w, rendering.GroupDetailPage(*group, choices, chrome.WorkspaceName, chrome.Viewer(), roleApplications(ws), switchHref))
 	}
 }
 

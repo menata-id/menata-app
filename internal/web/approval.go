@@ -76,7 +76,7 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 		render(ctx, w, rendering.ApprovalInboxPage(
 			filters, pending, inbox.Mine,
 			req.URL.Query().Get("tab") == inboxTabMine, filterKey,
-			chrome.WorkspaceName, chrome.UserInitials, workspaceRole, switchHref,
+			chrome.WorkspaceName, chrome.Viewer(), workspaceRole, switchHref,
 		))
 	}
 }

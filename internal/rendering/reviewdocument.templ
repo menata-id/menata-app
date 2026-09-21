@@ -90,8 +90,8 @@ type ReviewPlacement struct {
 // The step titles ("Finance Review") are real as of this phase: fld_step_name is declared, and
 // composition.stepLabel falls back to the assignee's name until board 08's wizard writes it in
 // Fase 6c. A Document submitted today therefore reads exactly as it did before.
-templ ReviewDocumentPage(v ReviewView, workspaceName, userInitials, workspaceRole, switchWorkspaceHref string) {
-	@appShell(v.Title, workspaceName, userInitials, "nav_approval_inbox", switchWorkspaceHref, membersHiddenFor(workspaceRole)) {
+templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, workspaceRole, switchWorkspaceHref string) {
+	@appShell(v.Title, workspaceName, viewer, "nav_approval_inbox", switchWorkspaceHref, membersHiddenFor(workspaceRole)) {
 		<a href={ templ.SafeURL(routeByID("nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { labelByID("nav_approval_inbox") }
 		</a>

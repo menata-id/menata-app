@@ -79,8 +79,8 @@ func appIconClasses(color string) string {
 	}
 }
 
-templ WorkspaceHomePage(workspaceName, workspaceRole, userInitials, switchHref string, apps []ApplicationCard) {
-	@appShell(labelByID("nav_home"), workspaceName, userInitials, "nav_home", switchHref, membersHiddenFor(workspaceRole)) {
+templ WorkspaceHomePage(workspaceName, workspaceRole string, viewer Viewer, switchHref string, apps []ApplicationCard) {
+	@appShell(labelByID("nav_home"), workspaceName, viewer, "nav_home", switchHref, membersHiddenFor(workspaceRole)) {
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex items-center gap-2.5">
 				<span class="text-xs tracking-wide text-blue-600">WORKSPACE</span>

@@ -30,7 +30,7 @@ func workspaceHomeLinksTo(t *testing.T, workspaceRole, route string) bool {
 	ConfigureWorkspace(domain.Workspace{Navigation: all})
 
 	var buf bytes.Buffer
-	c := WorkspaceHomePage("Acme", workspaceRole, "AN", "", []ApplicationCard{
+	c := WorkspaceHomePage("Acme", workspaceRole, Viewer{Initials: "AN"}, "", []ApplicationCard{
 		{Name: "Task Tracker", Initials: "TT", Role: "member", HomeRoute: "/approval-inbox"},
 	})
 	if err := c.Render(context.Background(), &buf); err != nil {

@@ -9,13 +9,18 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/rendering"
 )
 
 // shellChrome is what rendering.appShell needs beyond the page's own content: the Workspace name
-// for its breadcrumb, and the viewer's initials for its avatar (Fase 2 of the
-// ui-sample/case-03-flow1 port).
+// for its breadcrumb (Fase 2 of the ui-sample/case-03-flow1 port), and the viewer's own Name/
+// Email/Initials for the Account menu (added Account menu port, 2026-09-21) -- all three read
+// from the one mch_user record this function already loads, so Email costs nothing new and Name
+// is exposed rather than only its derived Initials.
 type shellChrome struct {
 	WorkspaceName string
+	Name          string
+	Email         string
 	UserInitials  string
 }
 
@@ -45,13 +50,20 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 	// "fld_name" still is one: there is no declared "which Field is a record's display name"
 	// pointer yet, which is why composition.DisplayString callers all name it. Forward-checkable
 	// pointer: ROADMAP.md's Case 03 Fase 3b, where membership and identity metadata are reworked.
-	userName := ""
+	userName, userEmail := "", ""
 	userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 	if userRecord, err := store.GetRecord(ctx, domain.UserMachineID, userID); err == nil {
 		userName = composition.DisplayString(userRecord.Values["fld_name"])
+		userEmail = composition.DisplayString(userRecord.Values["fld_email"])
 	}
 
-	return shellChrome{WorkspaceName: ws.Name, UserInitials: composition.Initials(userName)}, nil
+	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName)}, nil
+}
+
+// Viewer is shellChrome's three identity fields as rendering.appShell's own parameter type, so
+// every call site builds it the same way instead of repeating the field-by-field literal.
+func (c shellChrome) Viewer() rendering.Viewer {
+	return rendering.Viewer{Name: c.Name, Email: c.Email, Initials: c.UserInitials}
 }
 
 // viewerWorkspaceContext resolves the two per-viewer facts every appShell screen threads down to

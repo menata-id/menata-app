@@ -34,7 +34,7 @@ import (
 //   - "Save this as the default approval flow for <Type>". It needs a per-Document-Type template
 //     entity and a write direction, not a checkbox; ROADMAP.md's deferral table has it with that
 //     as the blocker.
-func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName, userInitials, workspaceRole, switchWorkspaceHref string) templ.Component {
+func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName string, viewer Viewer, workspaceRole, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -296,7 +296,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell(labelByID("nav_new_approval"), workspaceName, userInitials, "nav_new_approval", switchWorkspaceHref, membersHiddenFor(workspaceRole)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell(labelByID("nav_new_approval"), workspaceName, viewer, "nav_new_approval", switchWorkspaceHref, membersHiddenFor(workspaceRole)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
