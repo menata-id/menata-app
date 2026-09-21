@@ -162,14 +162,19 @@ transitions:
 permissions:
   # roles: is CAP-P01, added in Fase 7 -- the first thing in this repo that gates on an
   # Application role rather than on a record's own actor field. It ANDs with the actor arms below:
-  # "someone holding approver or reviewer in app_document_approval, AND the person (or Group) this
-  # step names". Several roles on one Permission are alternatives; several Permissions on one
-  # Action stay requirements, which is AllowsAction's existing contract, unchanged.
+  # "someone holding approver in app_document_approval, AND the person (or Group) this step
+  # names". Several roles on one Permission are alternatives; several Permissions on one Action
+  # stay requirements, which is AllowsAction's existing contract, unchanged.
   #
-  # approver and reviewer, not submitter: a submitter organizes their own Document's approval
-  # chain (they create its Steps), but deciding one is what the other two words are for. The role
-  # vocabulary is declared in applications/document-approval.yaml and validated against it at
-  # load, so a typo here fails the boot rather than silently denying everyone.
+  # **approver only.** This read `[approver, reviewer]` until the owner decided the vocabulary
+  # outright (2026-09-21): *a reviewer can only look -- they cannot submit and they cannot
+  # approve.* That settles a question this file could not: until then approver and reviewer named
+  # the same grant everywhere they appeared, which made the two words indistinguishable to anyone
+  # reading the Members screen, and submitter named no grant at all. All three now mean something
+  # different, and the difference is declared rather than implied.
+  #
+  # The role vocabulary is declared in applications/document-approval.yaml and validated against
+  # it at load, so a typo here fails the boot rather than silently denying everyone.
   #
   # This is a real narrowing of who may act, and the Approval Role Matrix (/approval-role-matrix)
   # is where it is now visible without reading this file: a member assigned as a step's approver
@@ -182,9 +187,21 @@ permissions:
   # empty or holds something the runtime does not recognize. Every Approval Step written before
   # Fase 6c-1 is exactly that case, so this gained the dynamic gate with no migration, no backfill
   # and no rewritten test.
+  # Adding a step to a Document is part of submitting one, so it carries the same roles the
+  # Document's own create rule does -- and deliberately not `reviewer`, who may only look.
+  #
+  # Two honest limits, both recorded rather than papered over. It gates the *generic* create route
+  # only: the submit wizard writes its steps through internal/data directly
+  # (web.createApprovalSteps), so a submitter building their own chain is unaffected either way.
+  # And it cannot say the rule anyone actually wants -- "only THIS Document's submitter may add
+  # steps to it" -- because that reads a field on the parent record, which no Permission arm can
+  # reach (ROADMAP.md's deferral table).
+  - id: prm_create_step
+    action: create
+    roles: [approver, submitter]
   - id: prm_decide_own_step
     action: decide
-    roles: [approver, reviewer]
+    roles: [approver]
     actor_field: fld_assignee
     actor_type_field: fld_approver_type
     actor_user_field: fld_assignee
@@ -206,14 +223,14 @@ permissions:
   # asserted in internal/authorization's tests rather than assumed.
   - id: prm_edit_own_step
     action: edit
-    roles: [approver, reviewer]
+    roles: [approver]
     actor_field: fld_assignee
     actor_type_field: fld_approver_type
     actor_user_field: fld_assignee
     actor_group_field: fld_approver_group
   - id: prm_delete_own_step
     action: delete
-    roles: [approver, reviewer]
+    roles: [approver]
     actor_field: fld_assignee
     actor_type_field: fld_approver_type
     actor_user_field: fld_assignee

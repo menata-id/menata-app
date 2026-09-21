@@ -71,10 +71,20 @@ machines:
 # single-Application role vocabulary" -- true while one Application existed, wrong the moment a
 # second did, since Project Management has no "approver".
 #
-# What a role does today: it fills the selects on Edit member and Invite, and captions the Members
-# list. It is *not* yet an authorization input -- nothing gates on it (authorization.AllowsAction
-# never sees it; requireWorkspaceAdmin reads the Workspace role). Roles become grantable in
-# ROADMAP.md's Case 03 Fase 7, alongside role-based Permission.
+# What each role means here, decided by the owner 2026-09-21 and declared rather than implied:
+#
+#   approver  -- decides an approval step assigned to them (approve/reject), and may submit.
+#   submitter -- submits documents and builds their approval chain. Cannot decide.
+#   reviewer  -- **may only look.** Cannot submit, cannot approve, cannot change a document.
+#
+# Before that decision the vocabulary said nothing: approver and reviewer named the identical
+# grant everywhere they appeared, so the two words were indistinguishable to anyone reading the
+# Members screen, and submitter named no grant at all. The rules themselves live on the Machines
+# that own them (approval_step.yaml, document.yaml) -- this block is the vocabulary, not the
+# rules -- and /authorization-matrix renders the result.
+#
+# This line read "not yet an authorization input -- nothing gates on it" until Fase 7
+# (2026-09-21), which is when authorization.AllowsAction gained its roles: arm.
 #
 # An Application may declare none (project-management.yaml does), in which case it offers no role
 # select and shows no access row at all -- rather than inventing a vocabulary nobody has decided.

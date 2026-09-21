@@ -118,6 +118,11 @@ func TestSubmitDocumentWizard_writesBothApproverKinds(t *testing.T) {
 	// all (authorization.AllowsAction: "an unidentified caller is not an actor"). In the running
 	// app this route is inside requireAuth so a session is always present; mounting the handler
 	// directly is what let the test post without one.
+	// Submitting is now a role-gated action (owner decision, 2026-09-21: a reviewer may only
+	// look), so the identity posting this has to hold one that grants it.
+	if err := store.SetMemberAppRole(wsCtx, ws.ID, rina.ID, "app_document_approval", "submitter"); err != nil {
+		t.Fatalf("SetMemberAppRole: %v", err)
+	}
 	cfg := config.Config{SessionSecret: "test-secret-for-document-wizard"}
 	r := chi.NewRouter()
 	r.Post("/documents", submitDocumentWizard(machines, store, files, cfg))

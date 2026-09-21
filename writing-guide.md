@@ -407,14 +407,14 @@ person must hold at least one of the named roles in the Application that claims 
 permissions:
   - id: prm_decide_own_step
     action: decide
-    roles: [approver, reviewer]   # hold EITHER role...
-    actor_field: fld_assignee     # ...AND be the person this record names
+    roles: [approver, submitter]   # hold EITHER role...
+    actor_field: fld_assignee      # ...AND be the person this record names
 ```
 
 Three rules worth knowing before you write one:
 
 - **Roles within one Permission are alternatives; Permissions on one Action are requirements.**
-  The example above passes for someone holding `approver` *or* `reviewer`. Splitting them into
+  The example above passes for someone holding `approver` *or* `submitter`. Splitting them into
   two Permissions would mean holding *both*, which is almost never what you want.
 - **The words come from that Application's own `roles:` vocabulary** (§2), not a Workspace-wide
   one. A role the claiming Application does not declare fails the load — it could never be held,

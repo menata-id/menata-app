@@ -51,9 +51,9 @@ func approvalStepTestMachine() *domain.Machine {
 		// what keeps the fixture honest about the manifest.
 		ApplicationID: "app_document_approval",
 		Permissions: []domain.Permission{
-			{ID: "prm_decide_own_step", Action: domain.ActionDecide, Roles: approverOrReviewer, ActorField: action.FieldStepAssignee},
-			{ID: "prm_edit_own_step", Action: domain.ActionEdit, Roles: approverOrReviewer, ActorField: action.FieldStepAssignee},
-			{ID: "prm_delete_own_step", Action: domain.ActionDelete, Roles: approverOrReviewer, ActorField: action.FieldStepAssignee},
+			{ID: "prm_decide_own_step", Action: domain.ActionDecide, Roles: approverOnly, ActorField: action.FieldStepAssignee},
+			{ID: "prm_edit_own_step", Action: domain.ActionEdit, Roles: approverOnly, ActorField: action.FieldStepAssignee},
+			{ID: "prm_delete_own_step", Action: domain.ActionDelete, Roles: approverOnly, ActorField: action.FieldStepAssignee},
 		},
 		Transitions: []domain.Transition{
 			{ID: "trn_step_approve", Name: "Approve", Field: action.FieldStepDecision, From: action.DecisionPending, To: action.DecisionApproved, Action: domain.ActionDecide},
@@ -439,8 +439,11 @@ func TestDecideStep_signsDocumentAfterEveryApproval(t *testing.T) {
 	}
 }
 
-// approverOrReviewer mirrors the roles: arm on all three of mch_approval_step's Permissions.
-var approverOrReviewer = []string{"approver", "reviewer"}
+// approverOnly mirrors the roles: arm on all three of mch_approval_step's Permissions. It was
+// [approver, reviewer] until the owner settled the vocabulary (2026-09-21): a reviewer may only
+// look. internal/conformance.TestApprovalStepPermissionsCarryRoles keeps the real manifest
+// honest; this keeps the fixture honest about the manifest.
+var approverOnly = []string{"approver"}
 
 // grantApproverRole gives a member the Document Approval role its Permissions require, so these
 // handler tests exercise the real gate rather than the un-roled path the fixture used to take.
@@ -462,13 +465,22 @@ func TestDecideStep_refusesAnActorWithoutTheRole(t *testing.T) {
 		t.Fatalf("decideStep without the role: status = %d, want 403; body=%s", rec.Code, rec.Body.String())
 	}
 
-	// And granting it back is all it takes -- which is what makes the Approval Role Matrix an
-	// administrative screen rather than a report.
+	// Holding a *different* real role is still not enough, which is the owner's decision of
+	// 2026-09-21 seen from the route: a reviewer may only look.
 	if err := s.store.SetMemberAppRole(s.ctx, s.workspaceID, s.assignee, "app_document_approval", "reviewer"); err != nil {
 		t.Fatalf("grant reviewer: %v", err)
 	}
+	if rec := postDecide(t, s, action.DecisionRejected, nil); rec.Code != http.StatusForbidden {
+		t.Fatalf("decideStep holding reviewer: status = %d, want 403; body=%s", rec.Code, rec.Body.String())
+	}
+
+	// And granting the role that does carry it is all it takes -- which is what makes the
+	// Authorization Matrix an administrative screen rather than a report.
+	if err := s.store.SetMemberAppRole(s.ctx, s.workspaceID, s.assignee, "app_document_approval", "approver"); err != nil {
+		t.Fatalf("grant approver: %v", err)
+	}
 	if rec := postDecide(t, s, action.DecisionRejected, nil); rec.Code >= 400 {
-		t.Fatalf("decideStep holding reviewer: status = %d, want success; body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("decideStep holding approver: status = %d, want success; body=%s", rec.Code, rec.Body.String())
 	}
 }
 

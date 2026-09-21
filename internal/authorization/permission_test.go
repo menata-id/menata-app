@@ -314,15 +314,61 @@ func TestAllowsAction_roleArmGatesTheAssigneeToo(t *testing.T) {
 	}
 }
 
-// TestAllowsAction_reviewerAlsoDecides holds the other half of the declaration: roles within one
-// Permission are alternatives, not a single required role. mch_approval_step names two, and a
-// member holding only the second must pass exactly as one holding the first does.
-func TestAllowsAction_reviewerAlsoDecides(t *testing.T) {
+// TestAllowsAction_reviewerMayNotDecide holds an owner decision (2026-09-21): *a reviewer can
+// only look -- they cannot submit and they cannot approve.*
+//
+// This test is the inverse of the one it replaces. That one asserted a reviewer assigned to a
+// step could decide it, which was true while mch_approval_step named `[approver, reviewer]` --
+// and that declaration was itself the problem the decision settles: approver and reviewer granted
+// exactly the same thing everywhere they appeared, so the two words were indistinguishable to
+// anyone reading the Members screen, while submitter granted nothing at all.
+//
+// Against the real manifest, because what it guards is a declaration: putting `reviewer` back
+// into that roles: list is a one-word edit that no other test would notice.
+func TestAllowsAction_reviewerMayNotDecide(t *testing.T) {
 	step := realStepMachine(t)
+	// Assigned to this very step, which is what makes the assertion about the *role* and nothing
+	// else: every other arm passes.
 	ownStep := map[string]any{"fld_assignee": "usr_rina"}
 	reviewer := domain.Actor{ID: "usr_rina", Roles: map[string][]string{"app_document_approval": {"reviewer"}}}
 
-	if !AllowsAction(step, domain.ActionDecide, ownStep, reviewer) {
-		t.Error("roles on one permission are alternatives -- holding reviewer alone must satisfy it")
+	for _, act := range []string{domain.ActionDecide, domain.ActionEdit, domain.ActionDelete} {
+		if AllowsAction(step, act, ownStep, reviewer) {
+			t.Errorf("a reviewer may only look -- %s on their own assigned step must still be refused", act)
+		}
+	}
+
+	// And the role that does grant it still does, so this is a narrowing rather than a lockout.
+	if !AllowsAction(step, domain.ActionDecide, ownStep, domain.Actor{ID: "usr_rina", Roles: approverRoles}) {
+		t.Error("an approver assigned to the step must still be able to decide it")
+	}
+}
+
+// TestDocumentCreateExcludesReviewer is the submit half of the same decision, on the Machine that
+// carries it. A reviewer holding a real role in this Application still may not create a Document,
+// even one naming themselves -- which is the arm that would otherwise let them through.
+func TestDocumentCreateExcludesReviewer(t *testing.T) {
+	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication: %v", err)
+	}
+	var document *domain.Machine
+	for _, m := range app.Machines {
+		if m.ID == "mch_document" {
+			document = m
+		}
+	}
+	if document == nil {
+		t.Fatal("mch_document is not declared in the real manifest")
+	}
+	own := map[string]any{"fld_submitted_by": "usr_rina"}
+
+	reviewer := domain.Actor{ID: "usr_rina", Roles: map[string][]string{"app_document_approval": {"reviewer"}}}
+	if AllowsAction(document, domain.ActionCreate, own, reviewer) {
+		t.Error("a reviewer may only look -- submitting a document must be refused")
+	}
+	submitter := domain.Actor{ID: "usr_rina", Roles: map[string][]string{"app_document_approval": {"submitter"}}}
+	if !AllowsAction(document, domain.ActionCreate, own, submitter) {
+		t.Error("a submitter creating a document in their own name must be allowed")
 	}
 }

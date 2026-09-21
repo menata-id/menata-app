@@ -77,12 +77,15 @@ events:
 # reading before adding it.
 #
 # `create` with actor_field reads "you may only create a Document that names you as its
-# submitter" -- it restricts whose name you may submit under, not who may submit, so it needs no
-# business decision about roles and it cannot lock anyone out. The wizard fills the field with the
-# signed-in identity (internal/web.submitDocumentWizard).
+# submitter" -- it restricts whose name you may submit under. Its `roles:` arm is the owner's own
+# decision of 2026-09-21: *a reviewer can only look -- they cannot submit and they cannot
+# approve*, so submitting is approver and submitter, never reviewer. The wizard fills the field
+# with the signed-in identity (internal/web.submitDocumentWizard).
 #
-# What is deliberately NOT declared: `edit`/`delete` with actor_field: fld_submitted_by, which is
-# the rule that would close "any member may delete anyone's in-review Document". It cannot be
+# What is deliberately NOT declared: `edit`/`delete` with **actor_field: fld_submitted_by**, which
+# is the rule that would close "any member may delete anyone's in-review Document". The role half
+# of that IS declared below (a reviewer may not touch one at all); it is only the owner-scoped
+# half that waits. It cannot be
 # declared yet because the field is new and every Document written before it is empty -- and an
 # empty actor field satisfies nobody (authorization.isActor: an unassigned record is actionable by
 # no one, rather than by everyone), so declaring it would make every existing Document
@@ -93,7 +96,20 @@ events:
 permissions:
   - id: prm_create_own_document
     action: create
+    roles: [approver, submitter]
     actor_field: fld_submitted_by
+  # Role-only, with no actor_field, and that is what makes them declarable today: they say nothing
+  # about *which* Document, only that a reviewer may not change one. The owner-scoped half -- only
+  # this Document's own submitter -- still waits on every existing Document having an owner (see
+  # the note above and ROADMAP.md's deferral table), and these do not block it: a second
+  # Permission on the same Action ANDs with this one, so adding it later narrows further rather
+  # than replacing anything.
+  - id: prm_edit_document_not_reviewer
+    action: edit
+    roles: [approver, submitter]
+  - id: prm_delete_document_not_reviewer
+    action: delete
+    roles: [approver, submitter]
 
 # transitions: fld_status's own state model (ROADMAP.md Case 03 Fase 7).
 #
