@@ -26,14 +26,19 @@ import (
 //   - "Save this as the default approval flow for <Type>". It needs a per-Document-Type template
 //     entity and a write direction, not a checkbox; ROADMAP.md's deferral table has it with that
 //     as the blocker.
-templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName string, viewer Viewer, workspaceRole, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_new_approval"), workspaceName, viewer, "nav_new_approval", switchWorkspaceHref, membersHiddenFor(workspaceRole)) {
+templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	// "New Document" is a literal for the same reason the button that opens this screen is -- see
+	// approvalinbox.templ's own comment: nav_new_approval was deleted on 2026-09-21 because a submit
+	// form is not a menu destination, and no Page-level title/action primitive exists yet (007
+	// §12.3 ActionBar). activeNavID is "" -- this screen is a sub-page of the Approval Inbox, the
+	// same way Edit member is one of Workspace Members.
+	@appShell("New Document", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL(routeByID("nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { labelByID("nav_approval_inbox") }
 		</a>
 		<div class="flex flex-col gap-2">
 			<span class="text-3xs tracking-wide text-blue-600 uppercase">Step 1 of 2</span>
-			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_new_approval") }</h1>
+			<h1 class="m-0 text-xl font-medium">New Document</h1>
 			<div class="text-sm text-slate-500">Submit a document for approval.</div>
 		</div>
 		<form

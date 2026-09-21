@@ -31,7 +31,7 @@ func renderPlacement(t *testing.T, v PlacementView) string {
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
 	}})
 	var buf bytes.Buffer
-	if err := SignaturePlacementPage(v, "Dokter Kecil", Viewer{Initials: "AP"}, "admin", "").Render(context.Background(), &buf); err != nil {
+	if err := SignaturePlacementPage(v, "Dokter Kecil", Viewer{Initials: "AP"}, "").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return buf.String()

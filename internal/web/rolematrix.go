@@ -36,10 +36,10 @@ func showRoleMatrix(machineList []*domain.Machine, store *data.Store, cfg config
 			return
 		}
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		workspaceRole, switchHref := viewerWorkspaceContext(ctx, store, userID)
+		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
 		render(ctx, w, rendering.RoleMatrixPage(
 			composition.RoleMatrix(ws.Applications, machineList),
-			chrome.WorkspaceName, chrome.Viewer(), workspaceRole, switchHref,
+			chrome.WorkspaceName, chrome.Viewer(), switchHref,
 		))
 	}
 }

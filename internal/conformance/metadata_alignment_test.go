@@ -94,8 +94,13 @@ func TestNavigationRoutesAreRegistered(t *testing.T) {
 	}
 
 	for _, route := range declaredNavRoutes(t) {
-		if !registered[route] {
-			t.Errorf("metadata/app.yaml declares navigation route %q, but internal/web/router.go registers no GET handler for it", route)
+		// A declared route may carry a query (nav_my_documents is /approval-inbox?tab=mine): two
+		// navigation items pointing at one handler that reads the query to decide which of its two
+		// lists it composes. chi routes on path alone, so that is what this matches -- the query is
+		// the handler's input, not a second registration. A route whose *path* has no handler still
+		// fails exactly as before.
+		if path, _, _ := strings.Cut(route, "?"); !registered[path] {
+			t.Errorf("metadata/app.yaml declares navigation route %q, but internal/web/router.go registers no GET handler for path %q", route, path)
 		}
 	}
 }
@@ -221,6 +226,25 @@ var staticAssetHref = regexp.MustCompile(`\.[a-z0-9]{2,5}$`)
 // undeclaredScreenRatchet is the frozen violation set, the same shape projectionRatchet uses and
 // for the same reason: this gate states an invariant that does not hold yet, so it freezes what
 // is broken rather than failing the build. The list may only shrink.
+// applicationSubScreens are Application screens reached from a parent screen's own primary action
+// rather than from any menu -- deliberately undeclared, and therefore deliberately linked by
+// literal. This is a third category the gate's own doc comment above did not anticipate: not a
+// runtime-level route, and not debt either, which is why it is separate from the ratchet below (a
+// ratchet may only shrink; this is a standing exemption that shrinks when a *capability* lands).
+//
+// The missing capability is a Page declaring its own primary action -- 007 §12.3's ActionBar
+// component, still unbuilt. Until it exists, "the Approval Inbox has a + New Document button
+// pointing at the submit form" is sayable only in a .templ. The Review screen
+// (/machines/{id}/records/{id}/review) is the same category and has always been a literal, in
+// internal/composition rather than a .templ, which is the only reason this gate never saw it.
+//
+// Re-check at each ROADMAP.md phase close (CLAUDE.md step 4): if ActionBar or an equivalent lands,
+// these become declarable and the entry leaves. Also listed in writing-guide.md's "What comes free
+// vs. what's hardcoded today" table.
+var applicationSubScreens = map[string]string{
+	"/documents/new": "Approval Inbox's + New Document action; nav_new_approval deleted 2026-09-21 (owner) -- a submit form is not a menu destination. Leaves when 007 §12.3 ActionBar lands.",
+}
+
 var undeclaredScreenRatchet = map[string]string{
 	// Empty since Fase 6a, and that is the intended end state rather than a gap: /workspace-groups
 	// was this list's only entry, and declaring nav_workspace_groups (metadata/app.yaml) closed it
@@ -258,6 +282,9 @@ func TestRenderingLinksOnlyToDeclaredRoutes(t *testing.T) {
 				strings.HasPrefix(href, "/machines/"),
 				runtimeLevelRoutes[href],
 				declared[href]:
+				continue
+			}
+			if _, exempt := applicationSubScreens[href]; exempt {
 				continue
 			}
 			seen[href] = true

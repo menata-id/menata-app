@@ -3,8 +3,10 @@ package rendering
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
+	"menata.app/internal/domain"
 	"menata.app/internal/experience"
 )
 
@@ -82,47 +84,67 @@ type inboxTab struct {
 	Active bool
 }
 
-// inboxTabs builds board 07's four-tab strip.
+// inboxTabs projects the *Document Approval Application's own declared navigation* into board 07's
+// strip: one entry per level-1 item, in declared order.
 //
-// It is this page's own chrome rather than a second level of `navigation:` metadata: two of the
-// four tabs are ?tab= views of *one* route, and a navigation item points at a route. Fase 2 had
-// recorded the strip as "the only part needing a navigation: second level"; with Groups real and
-// My Documents a query parameter, that turned out not to be so, and building a second level for
-// one case would be the shape-before-second-need this repo refuses.
+// Nothing here is a tab list. Until 2026-09-21 this function held one -- two hardcoded entries
+// plus Groups and Admin borrowed from the Workspace's menu -- and the owner's answer to "why is
+// this hardcoded" was to make the Application's menu *be* these two items and render the menu with
+// this component. So the strip is now what an Application's menu looks like on an appShell screen,
+// the same role pageShell's topbar plays for an Application that has one; "Approval Inbox" and
+// "My Documents" are both real level-1 destinations (metadata/applications/document-approval.yaml),
+// and there is deliberately no second navigation level in this runtime.
 //
-// tab and filter compose rather than replace: each tab link carries the active ?filter= forward,
-// so switching tabs does not silently drop an SLA chip the viewer chose.
+// The active entry is decided by ?tab=, not by path, because both items share the path
+// /approval-inbox and differ only in that query -- see the nav_my_documents comment in that file.
+// currentTab is the request's own ?tab= value and is compared against each declared route's, so
+// which entry means "my documents" is read out of metadata rather than re-asserted here. A value
+// matching no declared item (a stale ?tab=inbox link, the shape this page used before the items
+// were declared) falls back to the first entry rather than leaving the strip with nothing marked.
 //
-// The Admin and Groups tabs are hidden from a viewer who cannot reach them, by membersHiddenFor --
-// the same rule Workspace Home already uses, not a second one. Both destinations sit behind
-// requireWorkspaceAdmin, so offering them to a plain member would only ever produce a 403.
-func inboxTabs(mine bool, filterKey, workspaceRole string) []inboxTab {
-	q := ""
+// items is the Application's *unfiltered* navigation: Document Approval declares show_nav: false,
+// which empties Navigation to suppress a pageShell topbar it does not have anyway, and reading the
+// filtered list here would leave this Application with no menu at all.
+//
+// tab and filter compose rather than replace: each entry carries the active ?filter= forward, so
+// switching views does not silently drop an SLA chip the viewer chose.
+func inboxTabs(items []domain.NavigationItem, currentTab, filterKey string) []inboxTab {
+	filter := ""
 	if filterKey != "" && filterKey != "all" {
-		q = "&filter=" + url.QueryEscape(filterKey)
+		filter = "filter=" + url.QueryEscape(filterKey)
 	}
-	inbox := routeByID("nav_approval_inbox")
-	tabs := []inboxTab{
-		{Label: labelByID("nav_approval_inbox"), Href: inbox + "?tab=inbox" + q, Active: !mine},
-		{Label: "My Documents", Href: inbox + "?tab=mine" + q, Active: mine},
+	tabs := make([]inboxTab, 0, len(items))
+	matched := false
+	for _, item := range items {
+		href := item.Route
+		if filter != "" {
+			separator := "?"
+			if strings.Contains(href, "?") {
+				separator = "&"
+			}
+			href += separator + filter
+		}
+		active := routeTabParam(item.Route) == currentTab
+		matched = matched || active
+		tabs = append(tabs, inboxTab{Label: item.Label, Href: href, Active: active})
 	}
-	hidden := membersHiddenFor(workspaceRole)
-	if !containsID(hidden, "nav_workspace_groups") {
-		tabs = append(tabs, inboxTab{Label: labelByID("nav_workspace_groups"), Href: routeByID("nav_workspace_groups")})
-	}
-	if !containsID(hidden, "nav_workspace_members") {
-		tabs = append(tabs, inboxTab{Label: "Admin", Href: routeByID("nav_workspace_members")})
+	if !matched && len(tabs) > 0 {
+		tabs[0].Active = true
 	}
 	return tabs
 }
 
-func containsID(ids []string, id string) bool {
-	for _, s := range ids {
-		if s == id {
-			return true
-		}
+// routeTabParam returns a declared route's own ?tab= value, or "" for a route that carries none.
+func routeTabParam(route string) string {
+	_, query, found := strings.Cut(route, "?")
+	if !found {
+		return ""
 	}
-	return false
+	values, err := url.ParseQuery(query)
+	if err != nil {
+		return ""
+	}
+	return values.Get("tab")
 }
 
 // ApprovalInboxPage is Case 3's worklist, ported to ui-sample/case-03-flow1/07-approval-inbox.html
@@ -136,10 +158,11 @@ func containsID(ids []string, id string) bool {
 // type built to satisfy one label, which is the shape-before-need this repo refuses. Same class as
 // board 03's Procurement/HR cards and board 06's ProcessEdge: the board draws something the app
 // has no data for. Recorded in ROADMAP.md's deferral table with that as its real blocker.
-templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []SummaryCard, showMine bool, filterKey, workspaceName string, viewer Viewer, workspaceRole, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_approval_inbox"), workspaceName, viewer, "nav_approval_inbox", switchWorkspaceHref, membersHiddenFor(workspaceRole)) {
+templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []PendingApprovalCard, showMine bool, currentTab, filterKey, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(labelByID("nav_approval_inbox"), workspaceName, viewer, switchWorkspaceHref) {
+		{{ currentApp, _ := CurrentApplication(ctx) }}
 		<nav aria-label="Approval sections" class="flex gap-0.5 self-start rounded-lg bg-slate-100 p-1">
-			for _, t := range inboxTabs(showMine, filterKey, workspaceRole) {
+			for _, t := range inboxTabs(currentApp.AllNavigation, currentTab, filterKey) {
 				<a
 					href={ templ.SafeURL(t.Href) }
 					class={ "rounded-md px-3 py-1.5 text-sm",
@@ -158,7 +181,7 @@ templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine
 				<span class="text-3xs tracking-wide text-blue-600 uppercase">Approval</span>
 				<h1 class="m-0 text-xl font-medium">
 					if showMine {
-						My Documents
+						{ labelByID("nav_my_documents") }
 					} else {
 						{ labelByID("nav_approval_inbox") }
 					}
@@ -171,18 +194,27 @@ templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine
 					}
 				</div>
 			</div>
+			// METADATA CANNOT EXPRESS THIS YET, and the exception is deliberate (CLAUDE.md, "Deciding
+			// whether a literal is a metadata-hardcoding violation", step 2). nav_new_approval was
+			// deleted from metadata on 2026-09-21: the submit form is not a menu destination, it is
+			// this screen's own call to action -- the same category as the Review screen, whose route
+			// internal/composition has always built as a literal because no navigation item names it.
+			// What is missing is a way for a Page to declare its own primary action (007 §12.3's
+			// ActionBar component, still unbuilt; ROADMAP.md Fase 6's bespoke-screen note). Until
+			// then the route and the label are literals here. Listed in writing-guide.md's "What
+			// comes free vs. what's hardcoded today" table.
 			<a
-				href={ templ.SafeURL(routeByID("nav_new_approval")) }
+				href="/documents/new"
 				class="flex h-9 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
 			>
-				+ { labelByID("nav_new_approval") }
+				+ New Document
 			</a>
 		</div>
 		if showMine {
 			if len(mine) == 0 {
 				@inboxEmpty("You haven't submitted any documents yet.")
 			} else {
-				@summaryCardList(mine)
+				@pendingApprovalCardGrid(mine)
 			}
 		} else {
 			<div role="group" aria-label="Filter" class="flex flex-wrap gap-2">
@@ -193,14 +225,21 @@ templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine
 			if len(pending) == 0 {
 				@inboxEmpty("Nothing pending your approval.")
 			} else {
-				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-					for _, c := range pending {
-						@pendingApprovalCard(c)
-					}
-				</div>
+				@pendingApprovalCardGrid(pending)
 			}
 		}
 	}
+}
+
+// pendingApprovalCardGrid draws one card face for both of this screen's lists. Extracted when the
+// owner asked for My Documents to look like the Inbox (2026-09-21) -- the second caller is what
+// earned it a name, rather than the grid classes being written twice.
+templ pendingApprovalCardGrid(cards []PendingApprovalCard) {
+	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+		for _, c := range cards {
+			@pendingApprovalCard(c)
+		}
+	</div>
 }
 
 templ inboxEmpty(message string) {
@@ -249,12 +288,17 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 			<h2 class="m-0 text-[15px] font-medium">{ c.Title }</h2>
 			<p class="m-0 text-2xs text-slate-400">{ c.Reference } · { c.DocumentType }</p>
 		</div>
-		<p class="m-0 text-xs text-slate-500">
-			Submitted by <span class="text-slate-700">{ c.Submitter }</span>
-			if c.SubmittedAt != "" {
-				{ " · " + c.SubmittedAt }
-			}
-		</p>
+		// Omitted entirely when there is no submitter to name, which is what My Documents passes:
+		// every card there was submitted by the viewer, so the line would read "Submitted by you"
+		// on every one of them (composition.Inbox.Mine).
+		if c.Submitter != "" {
+			<p class="m-0 text-xs text-slate-500">
+				Submitted by <span class="text-slate-700">{ c.Submitter }</span>
+				if c.SubmittedAt != "" {
+					{ " · " + c.SubmittedAt }
+				}
+			</p>
+		}
 		if len(c.Approvers) > 0 {
 			<ul aria-label="Approvers" class="m-0 flex list-none flex-wrap gap-2 p-0">
 				for _, a := range c.Approvers {

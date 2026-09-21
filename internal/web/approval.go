@@ -25,11 +25,15 @@ import (
 // document-approval.html). Composing the inbox is composition.ApprovalInbox's job; what stays
 // here is the part that is genuinely about HTTP -- reading the ?filter= tab and reducing the
 // composed list to it.
-// inboxTabMine is the query value selecting board 07's "My Documents" tab.
+// inboxTabMine is the ?tab= value that selects My Documents.
 //
-// A tab rather than a route, because board 11 -- the dedicated My Documents screen -- is one of
-// the two boards the owner marked TIDAK DIPAKAI. Both lists already rendered on this one route
-// before Fase 6a, stacked; the tabs split them rather than moving one elsewhere.
+// It is the one thing about that view metadata does not state. nav_my_documents declares *where*
+// it is (/approval-inbox?tab=mine, metadata/applications/document-approval.yaml) and the strip
+// reads the entry's label and href straight from there -- but what the value *means* ("compose
+// every Document this identity submitted, not the steps awaiting it") is a composition decision,
+// and no declared filter can express "submitted by me" yet: the submitter is derived from the
+// activity log, not stored on the Document. Forward-checkable pointer: 007 §7.7 Filter over a
+// Dataset, which is what would let this branch be declared rather than switched on here.
 const inboxTabMine = "mine"
 
 func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
@@ -68,15 +72,20 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 			serverError(w, err)
 			return
 		}
-		// The viewer's Workspace role decides whether the Admin and Groups tabs are offered at
-		// all, through rendering's own membersHiddenFor -- the same rule that already hides those
-		// destinations on Workspace Home, rather than a second one invented here. A missing
-		// membership row degrades to "" and is treated as it is everywhere else.
-		workspaceRole, switchHref := viewerWorkspaceContext(ctx, store, userID)
+		// Only the switch-workspace href is wanted here now. This used to also take the viewer's
+		// Workspace role, to hide the Admin and Groups entries this strip once carried; the strip
+		// projects this Application's own two navigation items and nothing else since 2026-09-21,
+		// so there is no Workspace destination on it left to hide.
+		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
+		// tab is passed through raw as well as decided on: this handler owns what ?tab=mine *means*
+		// (compose Mine rather than Pending), while the strip across the top owns which declared
+		// navigation item it marks current, by comparing this value against each item's own declared
+		// route. Two readings of one query value, each in the plane that owns that question.
+		tab := req.URL.Query().Get("tab")
 		render(ctx, w, rendering.ApprovalInboxPage(
 			filters, pending, inbox.Mine,
-			req.URL.Query().Get("tab") == inboxTabMine, filterKey,
-			chrome.WorkspaceName, chrome.Viewer(), workspaceRole, switchHref,
+			tab == inboxTabMine, tab, filterKey,
+			chrome.WorkspaceName, chrome.Viewer(), switchHref,
 		))
 	}
 }

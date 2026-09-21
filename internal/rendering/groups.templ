@@ -15,7 +15,7 @@ import "menata.app/internal/data"
 // is -- search does not exist anywhere in this app (ROADMAP.md, "Planned"), and a box that
 // filters nothing is worse than none.
 templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_workspace_groups"), workspaceName, viewer, "", switchWorkspaceHref, nil) {
+	@appShell(labelByID("nav_workspace_groups"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
@@ -86,7 +86,7 @@ type GroupMemberChoice struct {
 // use, which is what the mockup's own note asks for: "same role vocabulary as a per-user
 // assignment".
 templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
-	@appShell(group.Name, workspaceName, viewer, "", switchWorkspaceHref, nil) {
+	@appShell(group.Name, workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL(routeByID("nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID("nav_workspace_groups") }</a>
 		<div class="flex items-center justify-between gap-3">
 			<h1 class="m-0 text-xl font-medium">{ group.Name }</h1>

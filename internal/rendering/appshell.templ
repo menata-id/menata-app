@@ -1,53 +1,6 @@
 package rendering
 
-import "slices"
-
 import "menata.app/internal/domain"
-
-// workspaceLauncherItems is the launcher panel's "Workspace" section: workspace.Navigation minus
-// the items this viewer must not be offered (appShell's hiddenNavIDs), minus nav_home and
-// nav_machines specifically.
-//
-// nav_home is excluded because it is rendered separately, as the panel's own header row (see
-// appLauncher) rather than as a flat item alongside Workspace Members/Groups -- the owner's own
-// redesign (2026-09-20), matching what the panel's title already is everywhere else (Workspace
-// Home's own "WORKSPACE" eyebrow + name).
-//
-// nav_machines ("All Machines") is dropped outright, by owner request (2026-09-20): it is
-// `internal/rendering.MachineList`, the generic reference renderer machine.templ's own doc
-// comment already calls out as existing "to prove the metadata -> data -> render pipeline end to
-// end", not a polished destination any ui-sample board links to. It stays declared in
-// metadata/app.yaml (still a valid, reachable route -- domain.Application.AllNavigation still
-// resolves it for anything that looks it up by id) and still renders in pageShell's own topbar
-// (workspace.Navigation there is untouched); only this one entry point loses it.
-func workspaceLauncherItems(hiddenNavIDs []string) []domain.NavigationItem {
-	items := make([]domain.NavigationItem, 0, len(workspace.Navigation))
-	for _, item := range workspace.Navigation {
-		if item.ID == "nav_home" || item.ID == "nav_machines" {
-			continue
-		}
-		if !slices.Contains(hiddenNavIDs, item.ID) {
-			items = append(items, item)
-		}
-	}
-	return items
-}
-
-// launcherAppItems is one Application's flat item list inside the launcher (the pre-redesign
-// shape, still used for an Application with ShowNav false -- see appLauncher), filtered the same
-// viewer-level way workspaceLauncherItems is. Unfiltered until then: an Application with
-// show_nav: false has no menu chrome anywhere else, and the launcher is deliberately the one
-// place its screens stay reachable (nav-metadata.js states this outright), so this reads
-// AllNavigation, not the (possibly empty) filtered Navigation.
-func launcherAppItems(hiddenNavIDs []string, app domain.Application) []domain.NavigationItem {
-	items := make([]domain.NavigationItem, 0, len(app.AllNavigation))
-	for _, item := range app.AllNavigation {
-		if !slices.Contains(hiddenNavIDs, item.ID) {
-			items = append(items, item)
-		}
-	}
-	return items
-}
 
 // launcherAppHomeRoute is an Application card's link target: its own declared HomeRoute, falling
 // back to Workspace Home exactly the way internal/web.applicationCards does for the Workspace
@@ -103,24 +56,20 @@ type Viewer struct {
 	Initials string
 }
 //
-// activeNavID names the navigation item this page *is*, so the launcher can mark it current; ""
-// for a screen with no navigation item of its own (Edit member, which is a sub-page of Workspace
-// Members). It is an id rather than a route so no caller has to hand-type a route string, which
-// internal/conformance's TestHandlersHaveNoHardcodedApplicationRoute would reject anyway.
+// TWO PARAMETERS WERE REMOVED ON 2026-09-21, both dead the moment the launcher stopped listing
+// navigation items:
 //
-// hiddenNavIDs are navigation items this *viewer* must not be offered, by id. It exists because
-// moving navigation into the launcher created the forcing condition ROADMAP.md's "Per-user/role
-// navigation filtering" was explicitly waiting for: that entry reasoned the feature wasn't needed
-// because "the one concrete case found, Workspace Home's Members link, was workspace-level chrome,
-// not a metadata nav item". The launcher makes `nav_workspace_members` exactly that nav item, and
-// /workspace-members* is requireWorkspaceAdmin-gated server-side -- so without this a plain member
-// would be offered a link that only ever 403s, re-opening the code-review finding of 2026-09-19
-// that TestWorkspaceHomePage_membersLinkVisibility exists to hold shut.
-//
-// It is a caller-supplied list rather than a declared `requires_role:` on the navigation item
-// because the declared form is the real feature, and this is one case, not a shape: the handler
-// naming the item it already gates is honest and small. Forward-checkable pointer: ROADMAP.md's
-// "Per-user/role navigation filtering", which this is now the first real case for.
+//   - activeNavID named the item this page *is*, so the launcher could mark it current. The
+//     launcher lists Applications now; there is no item row left to mark.
+//   - hiddenNavIDs were the items this *viewer* must not be offered (rendering.membersHiddenFor,
+//     deleted with it). It existed because moving navigation into the launcher would otherwise
+//     have offered a plain member `nav_workspace_members`, a link that only ever 403s -- the
+//     code-review finding of 2026-09-19. The launcher offers the Workspace's administration
+//     screens to *nobody* now, so there is nothing left to filter, and a filter that filters
+//     nothing reads as protection without being it. The server-side gate (requireWorkspaceAdmin)
+//     was always the real one and is untouched; Workspace Home's own "Manage members" link keeps
+//     its separate `workspaceRole != "member"` check, which is the half still capable of leaking.
+//     ROADMAP.md's "Per-user/role navigation filtering" goes back to having no real case.
 //
 // switchWorkspaceHref is the launcher's own "All Workspaces" link target, or "" to omit it --
 // internal/web.viewerWorkspaceContext's second return value. "" exactly for the shared admin
@@ -128,7 +77,7 @@ type Viewer struct {
 // keyed on); every real identity gets the link regardless of how many Workspaces they actually
 // belong to, by owner request (2026-09-20) -- /switch-workspace is where an "add workspace" entry
 // point is meant to land next, so it stays offered even to a single-Workspace identity.
-templ appShell(title, workspaceName string, viewer Viewer, activeNavID, switchWorkspaceHref string, hiddenNavIDs []string) {
+templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -138,7 +87,7 @@ templ appShell(title, workspaceName string, viewer Viewer, activeNavID, switchWo
 		</head>
 		<body hx-headers={ csrfHeadersAttr(ctx) } class="m-0 bg-slate-50 font-sans text-slate-900">
 			<header class="flex h-15 shrink-0 items-center gap-2.5 border-b border-slate-200 bg-white px-4 sm:pr-7 sm:pl-9">
-				@appLauncher(activeNavID, switchWorkspaceHref, hiddenNavIDs)
+				@appLauncher(switchWorkspaceHref)
 				<nav aria-label="Breadcrumb" class="min-w-0 truncate text-sm text-slate-400">
 					// "/home" is a runtime-level route -- it exists regardless of which Application is
 					// configured (internal/conformance's runtimeLevelRoutes), the same literal
@@ -213,16 +162,18 @@ templ accountMenu(viewer Viewer) {
 //     nav_home item should panic here exactly as it would for any other lookup) -- what nav_home
 //     used to be as a flat item, promoted to the panel's own title, the same role it already
 //     plays on Workspace Home itself (workspacehome.templ's "WORKSPACE" eyebrow + <h1>).
-//  2. workspaceLauncherItems: the rest of the Workspace's own destinations (Workspace Members,
-//     Groups -- All Machines is dropped, see workspaceLauncherItems), filtered for this viewer.
-//  3. One entry per Application, in Workspace.Applications' own declaration order. An Application
-//     with ShowNav true renders as a single card (launcherAppCard) -- icon, name, description,
-//     linking straight to its HomeRoute -- because it keeps its own menu chrome once you're
-//     inside it (pageShell's topbar; Project Management is the current example), so the launcher
-//     only has to get you there. An Application with ShowNav false (Document Approval: appShell
-//     screens, no topbar of their own) still lists every one of its own items flat
-//     (launcherAppItems), because the launcher is deliberately the only place those screens stay
-//     reachable -- collapsing it to a card would orphan them.
+//  2. One entry per Application, in Workspace.Applications' own declaration order -- always a
+//     single card (launcherAppCard): icon, name, description, linking straight to its HomeRoute.
+//     The launcher's whole job is to get you *into* an Application; its screens are that
+//     Application's own menu's problem.
+//
+//     Until 2026-09-21 an Application with ShowNav false (Document Approval) was the exception,
+//     listing every one of its screens flat, "because the launcher is deliberately the only place
+//     those screens stay reachable -- collapsing it to a card would orphan them". That premise is
+//     gone: Document Approval has its own menu now, the strip across the top of its screens, which
+//     projects its two declared navigation items (approvalinbox.templ's inboxTabs). Nothing is
+//     orphaned by collapsing it, and the owner's own instruction for this panel is that it shows
+//     links to the Applications in the Workspace -- not to their insides.
 //
 // "All Workspaces" at the very bottom is shown only when switchWorkspaceHref is non-empty (see
 // appShell's own doc comment for who that excludes) -- routeByID would panic looking it up, since
@@ -231,7 +182,7 @@ templ accountMenu(viewer Viewer) {
 //
 // <details> rather than JavaScript, matching the details.nav-group dropdown pageShell already
 // uses.
-templ appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string) {
+templ appLauncher(switchWorkspaceHref string) {
 	<details class="relative shrink-0">
 		<summary class="flex size-7 cursor-pointer list-none items-center justify-center text-slate-500 [&::-webkit-details-marker]:hidden" aria-label="Open app launcher">
 			<svg width="16" height="16" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
@@ -251,15 +202,8 @@ templ appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string
 				<span class="text-3xs font-medium tracking-wide text-blue-600 uppercase">Workspace</span>
 				<span class="text-sm font-medium text-slate-900">{ workspace.Name }</span>
 			</a>
-			for _, item := range workspaceLauncherItems(hiddenNavIDs) {
-				@launcherLink(item, item.ID == activeNavID)
-			}
 			for _, app := range workspace.Applications {
-				if app.ShowNav {
-					@launcherAppCard(app)
-				} else {
-					@launcherAppGroup(app, launcherAppItems(hiddenNavIDs, app), activeNavID)
-				}
+				@launcherAppCard(app)
 			}
 			if switchWorkspaceHref != "" {
 				<a href={ templ.SafeURL(switchWorkspaceHref) } class="mt-1 block rounded-md p-2 text-xs font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
@@ -268,22 +212,8 @@ templ appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string
 	</details>
 }
 
-// launcherAppGroup is one Application's flat item list inside the launcher, for an Application
-// with ShowNav false (see appLauncher) -- the pre-redesign shape, kept because the launcher is
-// its screens' only reachable menu. items is computed by the caller (launcherAppItems) rather
-// than recomputed here so the "drop a section left with nothing visible" check and the render
-// share one filtered slice.
-templ launcherAppGroup(app domain.Application, items []domain.NavigationItem, activeNavID string) {
-	if len(items) > 0 {
-		<p class="px-2 pt-2 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">{ app.Name }</p>
-		for _, item := range items {
-			@launcherLink(item, item.ID == activeNavID)
-		}
-	}
-}
-
-// launcherAppCard is one Application's face in the launcher when it keeps its own menu chrome
-// elsewhere (ShowNav true) -- ui-sample/nav-chrome.js's launcherPanelHTML row shape, reusing
+// launcherAppCard is one Application's face in the launcher -- ui-sample/nav-chrome.js's
+// launcherPanelHTML row shape, reusing
 // appIconClasses (workspacehome.templ) so an Application's icon tile matches its own Workspace
 // Home card exactly.
 templ launcherAppCard(app domain.Application) {
@@ -300,35 +230,11 @@ templ launcherAppCard(app domain.Application) {
 	</a>
 }
 
-// launcherLink is one destination inside the launcher panel.
+// launcherLink was deleted on 2026-09-21 with its last caller (launcherAppGroup). The launcher
+// lists Applications now, not their screens, so there is no per-screen row left to render.
 //
-// The badge is carried forward from pageShell's own navLink exactly as it was, including its
-// fixed hx-get: domain.NavBadgeApprovalInboxPending is a known Domain Plane leak (the engine
-// naming one business screen), written up in menata-app-document's
-// audits/2026-09-20-decomposition-criteria-drift.md, and it is *blocked* from being generalized
-// rather than merely unfinished -- the count it renders depends on cross-record sequencing
-// ("assigned to me AND pending AND actionable"), which no declared filter can express yet. It is
-// deliberately not "fixed" here, and deliberately not dropped: dropping it would be a product
-// decision, not a refactor.
-templ launcherLink(item domain.NavigationItem, current bool) {
-	<a
-		href={ templ.SafeURL(item.Route) }
-		class={ "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50",
-			templ.KV("bg-blue-50 font-medium text-blue-700", current),
-			templ.KV("text-slate-600", !current) }
-		if current {
-			aria-current="page"
-		}
-	>
-		{ item.Label }
-		if item.Badge == domain.NavBadgeApprovalInboxPending {
-			<span
-				id="launcher-pending-badge"
-				class="rounded-full bg-red-100 px-1.5 text-3xs font-semibold text-red-700 empty:hidden"
-				hx-get="/api/approval-inbox/pending-count"
-				hx-trigger="load"
-				hx-swap="innerHTML"
-			></span>
-		}
-	</a>
-}
+// It carried the pending-approval badge (hx-get /api/approval-inbox/pending-count) on the Approval
+// Inbox row. That badge is not lost -- pageShell's own navLink still renders it, from the same
+// domain.NavBadgeApprovalInboxPending declaration -- but the launcher no longer shows one, because
+// it no longer shows that screen. Putting a count on an Application *card* is a different feature
+// (Workspace Home's cards already do it) and was not folded in here.

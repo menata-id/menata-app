@@ -70,8 +70,8 @@ func showReviewDocument(machines map[string]*domain.Machine, store *data.Store, 
 			serverError(w, err)
 			return
 		}
-		workspaceRole, switchHref := viewerWorkspaceContext(ctx, store, actor.ID)
-		render(ctx, w, rendering.ReviewDocumentPage(view, chrome.WorkspaceName, chrome.Viewer(), workspaceRole, switchHref))
+		_, switchHref := viewerWorkspaceContext(ctx, store, actor.ID)
+		render(ctx, w, rendering.ReviewDocumentPage(view, chrome.WorkspaceName, chrome.Viewer(), switchHref))
 	}
 }
 

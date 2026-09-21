@@ -37,12 +37,18 @@ func ConfigureWorkspace(ws domain.Workspace) {
 // links must still resolve by id. domain.Application.AllNavigation exists for exactly this, and
 // both metadata-hardcoding conformance gates depend on the property.
 // metadata.validateNavigationIDsAreUnique guarantees an id resolves to one item workspace-wide.
+// domain.RuntimeScreens is appended because the Workspace's own screens stopped being metadata on
+// 2026-09-21 (see metadata/app.yaml's comment where `navigation:` used to be). They are still
+// looked up by id from eight .templ files, and the alternative to resolving them here was retyping
+// four routes and four labels as literals across those files -- the exact duplication the two
+// hardcoding gates exist to prevent. workspace.Navigation stays in the chain and stays first: it
+// is empty today, but an installation that does declare workspace navigation should still win.
 func declaredNavigation() []domain.NavigationItem {
 	items := append([]domain.NavigationItem(nil), workspace.Navigation...)
 	for _, app := range workspace.Applications {
 		items = append(items, app.AllNavigation...)
 	}
-	return items
+	return append(items, domain.RuntimeScreens...)
 }
 
 // routeByID looks up the declared navigation for the item named id, returning its route -- how a
@@ -61,6 +67,33 @@ func routeByID(id string) string {
 		}
 	}
 	panic("rendering: no navigation item with id " + id)
+}
+
+// runtimeScreenByID returns one of domain.RuntimeScreens whole, for the two places that need an
+// item rather than one of its fields (pageShell's topbar). Same panic-on-unknown-id posture as
+// routeByID.
+func runtimeScreenByID(id string) domain.NavigationItem {
+	for _, s := range domain.RuntimeScreens {
+		if s.ID == id {
+			return s
+		}
+	}
+	panic("rendering: no runtime screen with id " + id)
+}
+
+// applicationNavEntry presents one Application as a navigation item -- its own name, pointing at
+// its own declared home (launcherAppHomeRoute, the same resolution the launcher's card face uses,
+// so the two never disagree about where an Application starts).
+//
+// Synthesized rather than declared: which Applications a Workspace contains is already stated by
+// `applications:` in metadata/app.yaml, and re-listing them as navigation items would be 001
+// Principle #8 duplication of the list one line above them.
+func applicationNavEntry(app domain.Application) domain.NavigationItem {
+	return domain.NavigationItem{
+		ID:    app.ID,
+		Label: app.Name,
+		Route: launcherAppHomeRoute(app),
+	}
 }
 
 // labelByID is routeByID's label-side counterpart: a page rendering the title of one of its own
@@ -182,16 +215,8 @@ templ pageStyles() {
 				ul.activity-feed li { padding: 0.5rem 0; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0.6rem; align-items: baseline; }
 				.muted { color: #999; font-size: 0.8rem; margin-left: auto; }
 				.section-link { font-size: 0.8rem; font-weight: normal; margin-left: 0.75rem; }
-				.summary-card-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
-				.summary-card { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #e5e5e5; border-radius: 6px; text-decoration: none; color: #1a1a1a; }
-				.summary-card:hover { background: #f7f8fc; }
-				.avatar { width: 2rem; height: 2rem; border-radius: 50%; background: #eef1fb; color: #3949ab; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; flex-shrink: 0; }
-				.summary-card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-				.summary-card-title { font-weight: 500; }
-				.summary-card-ref { color: #999; font-weight: 400; font-size: 0.8rem; margin-right: 0.4rem; }
 				.pdf-thumb { margin-top: 0.5rem; }
 				.pdf-thumb img { max-width: 160px; border: 1px solid #ccc; border-radius: 4px; display: block; }
-				.summary-card-subtitle { font-size: 0.8rem; color: #666; }
 				.card-field-label { color: #999; }
 				.card-field-value { color: #444; }
 				.summary-card-fields { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.5rem; margin-top: 0.25rem; font-size: 0.8rem; }
@@ -306,15 +331,16 @@ templ pageShell(title string) {
 			{{ ungrouped, primary, rest := navSections(currentApp.Navigation, currentApp.PrimaryNavGroup) }}
 			<header class="topbar">
 				<nav class="left" aria-label="Primary">
-					// The Workspace's own destinations (Home, All Machines, Workspace Members) come
-					// first, always, whichever Application this is. They used to reach these screens
-					// as an ungrouped item plus a "Workspace" group *inside* the single Application's
-					// navigation; Fase 3 moved them to where they belong, which would otherwise have
-					// left them unreachable from every pageShell screen -- appShell has the launcher,
-					// this shell does not. Rendering them here is what keeps the split from being a
-					// navigation regression.
-					for _, item := range workspace.Navigation {
-						@navLink(item)
+					// The Workspace's own entry comes first, always, whichever Application this is:
+					// this shell has no launcher, so without it every pageShell screen would be a
+					// dead end. It used to be a loop over workspace.Navigation -- Home, All Machines,
+					// Workspace Members, Groups, Authorization Matrix, five hand-declared items. That
+					// block is gone from metadata (2026-09-21, owner instruction), and what replaces
+					// it is derived: Workspace Home, then one link per Application in this Workspace,
+					// the same list the launcher shows. Same navLink styling as before.
+					@navLink(runtimeScreenByID("nav_home"))
+					for _, app := range workspace.Applications {
+						@navLink(applicationNavEntry(app))
 					}
 					for _, item := range ungrouped {
 						@navLink(item)
@@ -850,50 +876,13 @@ templ sectionHeader(title, linkHref, linkLabel string) {
 	</h2>
 }
 
-// SummaryCard is one Record Summary Card (ROADMAP.md Phase 15 Step 1, Study 38 Cluster 2): an
-// avatar, title, subtitle, status badge, and an optional SLA due-date badge, linking to the
-// record's own detail page. First menata-app occurrence is Case 3's Approval Inbox; a genuinely
-// new presentation shape (a card, not a table row), not yet cleared for schema-level `display:
-// cards` promotion (needs a second Machine, see Phase 15's target-schema table).
-type SummaryCard struct {
-	AvatarInitials string
-	// Reference is an optional human-readable identity (e.g. "DOC-0091", ROADMAP.md's UI mockup
-	// conformance audit) shown before Title -- empty for a card whose Machine declares none.
-	Reference   string
-	Title       string
-	Subtitle    string
-	StatusLabel string
-	SLADue      any
-	Href        string
-}
-
-// recordSummaryCard is a plain navigation to the record's own detail page (2026-09-19: dropped
-// the hx-get/hx-target inline swap this used to layer on top, same reasoning as
-// approvalinbox.templ's pendingApprovalCard -- a click should open the record's own page, not
-// load it into a pane below the list it was clicked from).
-templ recordSummaryCard(c SummaryCard) {
-	<a href={ templ.URL(c.Href) } class="summary-card">
-		<span class="avatar">{ c.AvatarInitials }</span>
-		<span class="summary-card-body">
-			<span class="summary-card-title">
-				if c.Reference != "" {
-					<code class="summary-card-ref">{ c.Reference }</code>
-				}
-				{ c.Title }
-			</span>
-			<span class="summary-card-subtitle">{ c.Subtitle }</span>
-		</span>
-		<span class="badge">{ c.StatusLabel }</span>
-		if c.SLADue != nil {
-			@slaBadge(c.SLADue)
-		}
-	</a>
-}
-
-templ summaryCardList(cards []SummaryCard) {
-	<div class="summary-card-list">
-		for _, c := range cards {
-			@recordSummaryCard(c)
-		}
-	</div>
-}
+// SummaryCard / recordSummaryCard / summaryCardList were deleted on 2026-09-21, with their last
+// caller. They drew the Approval Inbox's My Documents list as plain rows -- avatar, title,
+// subtitle, status badge -- which is what board 11 specified before that board was retired; the
+// owner asked for one card face across both of that screen's lists, so My Documents now renders
+// approvalinbox.templ's own pendingApprovalCard and nothing referenced these three any more.
+//
+// Not kept "in case": 007 §12.3 names RecordSummaryCard as a Component example, so the concept is
+// still in the target vocabulary and comes back the moment a screen needs it -- but a component
+// with zero callers is a claim capabilities.md would be making on the code's behalf, and this repo
+// gates exactly that kind of drift.

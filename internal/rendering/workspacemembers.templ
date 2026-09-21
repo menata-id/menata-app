@@ -57,7 +57,7 @@ func memberInitials(email string) string {
 // The board also shows each member's full name above their email; data.Membership carries only
 // Email (see memberInitials above), so the row shows the address alone.
 templ WorkspaceMembersPage(members []data.Membership, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_workspace_members"), workspaceName, viewer, "nav_workspace_members", switchWorkspaceHref, nil) {
+	@appShell(labelByID("nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
@@ -145,7 +145,7 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName string, view
 // group-derived access is changed by editing the Group, not here: this screen writes only the
 // direct half.
 templ EditMemberPage(m data.Membership, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
-	@appShell("Edit member", workspaceName, viewer, "", switchWorkspaceHref, nil) {
+	@appShell("Edit member", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { labelByID("nav_workspace_members") }
 		</a>

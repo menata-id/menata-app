@@ -394,8 +394,8 @@ name: Task Tracker
 machines:
   - mch_task
 navigation:
-  - id: nav_home
-    label: Home
+  - id: nav_overview
+    label: Overview
     route: /home
   - id: nav_inbox
     label: Approval Inbox
@@ -439,8 +439,8 @@ name: Task Tracker
 machines:
   - mch_task
 navigation:
-  - id: nav_home
-    label: Home
+  - id: nav_overview
+    label: Overview
     route: /home
   - id: nav_inbox
     label: Approval Inbox
@@ -480,8 +480,8 @@ name: Task Tracker
 machines:
   - mch_task
 navigation:
-  - id: nav_home
-    label: Home
+  - id: nav_overview
+    label: Overview
     route: /home
   - id: nav_inbox
     label: Approval Inbox
@@ -581,8 +581,8 @@ name: Task Tracker
 machines:
   - mch_task
 navigation:
-  - id: nav_home
-    label: Home
+  - id: nav_overview
+    label: Overview
     route: home
 `)
 
@@ -613,8 +613,8 @@ name: Task Tracker
 machines:
   - mch_task
 navigation:
-  - id: nav_home
-    label: Home
+  - id: nav_overview
+    label: Overview
     route: /home
     badge: made_up_badge
 `)
@@ -646,11 +646,11 @@ name: Task Tracker
 machines:
   - mch_task
 navigation:
-  - id: nav_home
-    label: Home
+  - id: nav_overview
+    label: Overview
     route: /home
-  - id: nav_home
-    label: Home Again
+  - id: nav_overview
+    label: Overview Again
     route: /home2
 `)
 

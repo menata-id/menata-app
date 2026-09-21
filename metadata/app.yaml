@@ -25,40 +25,18 @@ workspace:
     - activity.yaml
     - signature.yaml
 
-  # Workspace-level navigation: destinations that belong to no single Application. They stay
-  # reachable however many Applications exist, and they are what the launcher shows above the
-  # Application list (ui-sample/nav-metadata.js's own "Menata · <workspace>" header).
-  navigation:
-    - id: nav_home
-      label: Home
-      route: /home
-      priority: 0
-    - id: nav_machines
-      label: All Machines
-      route: /
-      priority: 1
-    - id: nav_workspace_members
-      label: Workspace Members
-      route: /workspace-members
-      priority: 2
-    # Declared in Fase 6a, after Fase 4 shipped /workspace-groups as a hardcoded literal in
-    # groups.templ and workspacemembers.templ. Neither route gate caught it: both ask "is this
-    # literal equal to a route metadata declares?", so a route that *should* be declared and
-    # simply is not passes in silence. TestLinksOnlyToDeclaredScreens (added after that gap) had
-    # it on an allowlist pointing here; declaring it is what removes the exemption.
-    - id: nav_workspace_groups
-      label: Groups
-      route: /workspace-groups
-      priority: 3
-    # Board 06 (ui-sample/case-03-flow1/06-approval-role-matrix.html). Workspace-level rather
-    # than one Application's own item, because the board itself says so: it carries an Application
-    # selector in its header and its breadcrumb reads "<workspace> / Approval Role Matrix", which
-    # is appShell's shape, not an Application topbar's. It sits beside Members and Groups because
-    # it answers the same question they do -- who holds what -- read from the other end.
-    - id: nav_role_matrix
-      label: Authorization Matrix
-      route: /authorization-matrix
-      priority: 4
+  # There is deliberately NO workspace-level `navigation:` block (removed 2026-09-21, owner
+  # instruction). A Workspace's menu is *derived*, not authored: it is the Applications this
+  # Workspace contains, plus the link out to All Workspaces. Hand-listing Home / All Machines /
+  # Workspace Members / Groups / Authorization Matrix here made five runtime screens look like
+  # application metadata, which they are not -- they exist identically in a Workspace with ten
+  # Applications or none.
+  #
+  # Those screens' own route and label now live in domain.RuntimeScreens (001 Principle #2,
+  # Runtime First), which is what routeByID/labelByID resolve them through, so nothing had to be
+  # retyped as a literal to survive this deletion. An Application may not redeclare one of their
+  # ids -- metadata.validateNavigationIDsAreUnique refuses it, the same way it already refuses two
+  # Applications claiming one id.
 
 # applications: file paths, resolved relative to this manifest. One file per Application, matching
 # how machines: has always worked -- app.yaml names files, files hold the declaration. An

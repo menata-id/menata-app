@@ -31,6 +31,13 @@ navigation:
     route: /my-tasks
     priority: 1
     home_card: true
+  # Moved here from document-approval.yaml (2026-09-21): the page composes Projects, Tasks and
+  # their Activity -- this Application's Machines -- and had only ever been declared over there
+  # because both Applications were one before Fase 3 split them.
+  - id: nav_dashboard
+    label: Dashboard
+    route: /dashboard
+    priority: 1
   - id: nav_calendar
     label: Calendar
     route: /calendar

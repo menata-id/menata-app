@@ -70,7 +70,7 @@ type PlacementStep struct {
 //
 // What this has that the board does not: page navigation (the board shows only "Page 6 of 6"), a
 // width control, and an honest "Not placed yet" state -- every step on the board is pre-placed.
-func SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer, workspaceRole, switchWorkspaceHref string) templ.Component {
+func SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -212,7 +212,7 @@ func SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell("Signature positions", workspaceName, viewer, "nav_approval_inbox", switchWorkspaceHref, membersHiddenFor(workspaceRole)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell("Signature positions", workspaceName, viewer, switchWorkspaceHref).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

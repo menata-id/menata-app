@@ -11,7 +11,7 @@ package rendering
 // narrower, simpler guarantee than a Permission would need to express for one case. See
 // CLAUDE.md's decomposition criteria: a second self-edit case is what would earn a general form.
 templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorkspaceHref, errorMsg string) {
-	@appShell("Profile", workspaceName, viewer, "", switchWorkspaceHref, nil) {
+	@appShell("Profile", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
 			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
 			<h1 class="m-0 text-xl font-medium">Profile</h1>
@@ -63,7 +63,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 // out repeatedly. Two-factor authentication stays marked "(planned)", matching
 // ui-sample/nav-chrome.js's own convention for a menu item with no primitive behind it yet.
 templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, passwordErr, passwordOK, signOutOK string) {
-	@appShell("Security", workspaceName, viewer, "", switchWorkspaceHref, nil) {
+	@appShell("Security", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
 			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
 			<h1 class="m-0 text-xl font-medium">Security</h1>

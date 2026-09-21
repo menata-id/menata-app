@@ -382,7 +382,7 @@ func WorkspaceHomePage(workspaceName, workspaceRole string, viewer Viewer, switc
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell(labelByID("nav_home"), workspaceName, viewer, "nav_home", switchHref, membersHiddenFor(workspaceRole)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell(labelByID("nav_home"), workspaceName, viewer, switchHref).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -390,32 +390,14 @@ func WorkspaceHomePage(workspaceName, workspaceRole string, viewer Viewer, switc
 	})
 }
 
-// membersHiddenFor decides whether this viewer is offered the Workspace *administration*
-// destinations at all -- in the launcher (appShell's hiddenNavIDs), in this page's own "Manage
-// members" link, and in the Approval Inbox's tab strip, all by the same test.
+// membersHiddenFor was deleted on 2026-09-21, with appShell's hiddenNavIDs parameter (see
+// appshell.templ). It named the three Workspace-administration destinations a plain member must
+// not be offered. The launcher offers those to nobody now -- it lists Applications, not
+// destinations -- so the filter had nothing left to filter, and keeping it would have read as a
+// protection that no longer protects anything. requireWorkspaceAdmin was always the real gate.
 //
-// Both ids sit behind one requireWorkspaceAdmin group in router.go, so they are one question, not
-// two. nav_workspace_groups joined the list in Fase 6a for a reason worth keeping: Fase 4 shipped
-// /workspace-groups admin-gated but *undeclared*, so it appeared in no navigation list and this
-// function had nothing to hide. Declaring it (6a) put it in AllNavigation -- which appLauncher
-// reads by design, before any filtering -- and that is what would have started offering a plain
-// member a link that only ever 403s. The declaration created the exposure; leaving this function
-// naming one id would have reintroduced exactly the bug hiddenNavIDs exists to prevent.
-//
-// workspaceRole != "member" rather than == "admin", which is the whole point:
-// requireWorkspaceAdmin (internal/web/middleware.go) fails *open* for an identity with no real
-// membership row at all (the shared admin credential predating per-user accounts), letting it
-// reach /workspace-members regardless of role; showWorkspaceHome degrades that same
-// missing-membership case to workspaceRole == "" (data.Membership{}). Gating on == "admin" would
-// therefore hide a link that identity can still open directly -- the code-review finding of
-// 2026-09-19 that TestWorkspaceHomePage_membersLinkVisibility now holds shut for both the link
-// and the launcher.
-func membersHiddenFor(workspaceRole string) []string {
-	if workspaceRole == "member" {
-		return []string{"nav_workspace_members", "nav_workspace_groups", "nav_role_matrix"}
-	}
-	return nil
-}
+// The "Manage members" link on this page keeps its own inline `workspaceRole != "member"` check,
+// which is the half of the 2026-09-19 code-review finding that can still leak.
 
 // accessTile is one "Your access" cell: which scope, and the role held in it. A separate
 // component because Fase 3 turns this from two tiles into one per Application, and the shape is
@@ -448,7 +430,7 @@ func accessTile(scope, role string) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(scope)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 178, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 160, Col: 47}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 		if templ_7745c5c3_Err != nil {
@@ -461,7 +443,7 @@ func accessTile(scope, role string) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(role)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 179, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 161, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 		if templ_7745c5c3_Err != nil {

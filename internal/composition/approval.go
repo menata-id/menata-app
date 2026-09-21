@@ -38,7 +38,15 @@ type Inbox struct {
 
 	// Mine is every Document this identity submitted, which is a different question from
 	// Pending's "waiting on me" and deliberately unfiltered by SLA.
-	Mine []rendering.SummaryCard
+	//
+	// The same rendering.PendingApprovalCard the Pending list uses, by owner instruction
+	// (2026-09-21): "tampilan card nya sama, hanya beda bahwa card tersebut dari semua dokumen yang
+	// dia submit". It was rendering.SummaryCard -- a plain list row -- which is what the board 11
+	// mockup drew, but that board was retired and the owner wants one card face across both views.
+	// The card's own "Submitted by" line is what distinguishes the two here: it is left empty,
+	// since on this list the submitter is always the viewer, and pendingApprovalCard omits the line
+	// entirely rather than rendering "Submitted by you".
+	Mine []rendering.PendingApprovalCard
 
 	// NewBreaches names every Document found newly overdue this render, not yet logged
 	// (ROADMAP.md Phase 21 round 2, Step G) -- a decision, not a write: buildInbox stays pure and
@@ -221,15 +229,21 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 		if submissions[d.ID].actor != userID {
 			continue
 		}
-		mode := DisplayString(d.Values[action.FieldDocumentMode])
-		approved := approvedCount(stepsByDoc[d.ID])
-		inbox.Mine = append(inbox.Mine, rendering.SummaryCard{
-			AvatarInitials: Initials(names[userID]),
-			Reference:      action.DocumentReference(d.SortOrder),
-			Title:          DisplayString(d.Values["fld_title"]),
-			Subtitle:       fmt.Sprintf("%s · %s · %d/%d approved", DisplayString(d.Values["fld_document_type"]), mode, approved, len(stepsByDoc[d.ID])),
-			StatusLabel:    DisplayString(d.Values[action.FieldDocumentStatus]),
-			Href:           fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, d.ID),
+		// Every field the Pending branch resolves, resolved the same way -- Mode through
+		// behavior.SequencingMode rather than the raw fld_mode this used to print, so one card face
+		// cannot report the mode two different ways depending on which tab drew it. Submitter and
+		// SubmittedAt stay zero: see Inbox.Mine. The href goes to the Document, not to a step's
+		// review screen, because on this list the viewer is the submitter and has no step to decide.
+		inbox.Mine = append(inbox.Mine, rendering.PendingApprovalCard{
+			Reference:    action.DocumentReference(d.SortOrder),
+			Title:        DisplayString(d.Values["fld_title"]),
+			DocumentType: DisplayString(d.Values["fld_document_type"]),
+			Mode:         behavior.SequencingMode(seq, d),
+			Approved:     approvedCount(stepsByDoc[d.ID]),
+			TotalSteps:   len(stepsByDoc[d.ID]),
+			SLADue:       d.Values["fld_due_date"],
+			Approvers:    stepStates(seq, d, stepsByDoc[d.ID], names, userID),
+			Href:         fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, d.ID),
 		})
 	}
 

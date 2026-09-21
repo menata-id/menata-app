@@ -63,17 +63,19 @@ func TestWorkspaceHomePage_membersLinkVisibility(t *testing.T) {
 		{role: "", want: true}, // no real membership row -- requireWorkspaceAdmin's fail-open case
 		{role: "member", want: false},
 	}
-	// Both routes sit behind the same requireWorkspaceAdmin group in router.go, so the visibility
-	// question is one question and the table answers it once for both. /workspace-groups is here
-	// from Fase 6a: Fase 4 shipped it gated but undeclared, so it reached no launcher and nothing
-	// could leak it; declaring it put it in AllNavigation, which appLauncher reads before any
-	// filtering. Without membersHiddenFor naming it too, a plain member would be offered a link
-	// that only ever 403s -- the exact regression this test caught when the launcher first shipped.
-	for _, route := range []string{"/workspace-members", "/workspace-groups"} {
-		for _, tt := range tests {
-			if got := workspaceHomeLinksTo(t, tt.role, route); got != tt.want {
-				t.Errorf("workspaceRole = %q: link to %s present = %v, want %v", tt.role, route, got, tt.want)
-			}
+	// /workspace-groups was checked here alongside Members from Fase 6a until 2026-09-21, when
+	// workspace navigation stopped being metadata and the launcher stopped rendering it (it lists
+	// Applications now). Groups appears in no menu on this page for any role, so asserting it is
+	// hidden from a member would assert something no longer capable of leaking -- a test that
+	// passes for the wrong reason. It is still reachable, from the Workspace Members screen, and
+	// still behind requireWorkspaceAdmin; what changed is only that no menu offers it.
+	//
+	// Members stays checked because this page still links it directly ("Workspace Members →",
+	// gated by workspaceRole != "member"), which is the half of the 2026-09-19 finding that is
+	// still live.
+	for _, tt := range tests {
+		if got := workspaceHomeLinksTo(t, tt.role, "/workspace-members"); got != tt.want {
+			t.Errorf("workspaceRole = %q: link to /workspace-members present = %v, want %v", tt.role, got, tt.want)
 		}
 	}
 }

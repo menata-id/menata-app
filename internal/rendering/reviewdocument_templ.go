@@ -98,7 +98,7 @@ type ReviewPlacement struct {
 // The step titles ("Finance Review") are real as of this phase: fld_step_name is declared, and
 // composition.stepLabel falls back to the assignee's name until board 08's wizard writes it in
 // Fase 6c. A Document submitted today therefore reads exactly as it did before.
-func ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, workspaceRole, switchWorkspaceHref string) templ.Component {
+func ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -264,7 +264,7 @@ func ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, works
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell(v.Title, workspaceName, viewer, "nav_approval_inbox", switchWorkspaceHref, membersHiddenFor(workspaceRole)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell(v.Title, workspaceName, viewer, switchWorkspaceHref).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

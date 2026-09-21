@@ -93,11 +93,23 @@ roles:
   - submitter
   - reviewer
 
+# This Application's whole menu: two screens, and both are real destinations of their own -- there
+# is no second navigation level here (owner instruction, 2026-09-21: "dengan level 1, kebutuhanku
+# sudah cukup"). The strip the Approval Inbox draws across its top is a projection of exactly these
+# two items (rendering.applicationTabs), not a hand-written tab list.
+#
+# Two items this list no longer carries, and why:
+#
+#   nav_dashboard   -- moved to project-management.yaml, where its data actually lives. The page
+#                      renders Projects and Tasks; it had been declared here since before Document
+#                      Approval and Project Management were separate Applications.
+#   nav_new_approval -- deleted. /documents/new is reached from the "+ New Document" button on the
+#                      Approval Inbox, which is that screen's own chrome, not a menu destination --
+#                      the same category as the Review screen (/machines/.../review), which has
+#                      never had a navigation item either. The Approval Inbox *is* this
+#                      Application's home: what opens first, carrying the new-document button and
+#                      the list of documents awaiting this viewer.
 navigation:
-  - id: nav_dashboard
-    label: Dashboard
-    route: /dashboard
-    priority: 1
   - id: nav_approval_inbox
     label: Approval Inbox
     route: /approval-inbox
@@ -106,7 +118,12 @@ navigation:
     # home_card: the one item this Application's own card on Workspace Home links to -- at most
     # one per Application (validated at load time).
     home_card: true
-  - id: nav_new_approval
-    label: New Approval
-    route: /documents/new
+  # A route carrying a query is still one destination, which is what makes this a level-1 item
+  # rather than the level-2 `tabs:` concept briefly drafted and rejected: /approval-inbox?tab=mine
+  # is where "My Documents" *is*. internal/web.showApprovalInbox reads ?tab= to decide which of the
+  # two lists it composes; internal/conformance's route gate matches a declared route against its
+  # handler by path, ignoring the query.
+  - id: nav_my_documents
+    label: My Documents
+    route: /approval-inbox?tab=mine
     priority: 2

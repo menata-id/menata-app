@@ -8,54 +8,7 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "slices"
-
 import "menata.app/internal/domain"
-
-// workspaceLauncherItems is the launcher panel's "Workspace" section: workspace.Navigation minus
-// the items this viewer must not be offered (appShell's hiddenNavIDs), minus nav_home and
-// nav_machines specifically.
-//
-// nav_home is excluded because it is rendered separately, as the panel's own header row (see
-// appLauncher) rather than as a flat item alongside Workspace Members/Groups -- the owner's own
-// redesign (2026-09-20), matching what the panel's title already is everywhere else (Workspace
-// Home's own "WORKSPACE" eyebrow + name).
-//
-// nav_machines ("All Machines") is dropped outright, by owner request (2026-09-20): it is
-// `internal/rendering.MachineList`, the generic reference renderer machine.templ's own doc
-// comment already calls out as existing "to prove the metadata -> data -> render pipeline end to
-// end", not a polished destination any ui-sample board links to. It stays declared in
-// metadata/app.yaml (still a valid, reachable route -- domain.Application.AllNavigation still
-// resolves it for anything that looks it up by id) and still renders in pageShell's own topbar
-// (workspace.Navigation there is untouched); only this one entry point loses it.
-func workspaceLauncherItems(hiddenNavIDs []string) []domain.NavigationItem {
-	items := make([]domain.NavigationItem, 0, len(workspace.Navigation))
-	for _, item := range workspace.Navigation {
-		if item.ID == "nav_home" || item.ID == "nav_machines" {
-			continue
-		}
-		if !slices.Contains(hiddenNavIDs, item.ID) {
-			items = append(items, item)
-		}
-	}
-	return items
-}
-
-// launcherAppItems is one Application's flat item list inside the launcher (the pre-redesign
-// shape, still used for an Application with ShowNav false -- see appLauncher), filtered the same
-// viewer-level way workspaceLauncherItems is. Unfiltered until then: an Application with
-// show_nav: false has no menu chrome anywhere else, and the launcher is deliberately the one
-// place its screens stay reachable (nav-metadata.js states this outright), so this reads
-// AllNavigation, not the (possibly empty) filtered Navigation.
-func launcherAppItems(hiddenNavIDs []string, app domain.Application) []domain.NavigationItem {
-	items := make([]domain.NavigationItem, 0, len(app.AllNavigation))
-	for _, item := range app.AllNavigation {
-		if !slices.Contains(hiddenNavIDs, item.ID) {
-			items = append(items, item)
-		}
-	}
-	return items
-}
 
 // launcherAppHomeRoute is an Application card's link target: its own declared HomeRoute, falling
 // back to Workspace Home exactly the way internal/web.applicationCards does for the Workspace
@@ -101,7 +54,7 @@ func headMeta(title string) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 71, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 24, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -142,24 +95,20 @@ type Viewer struct {
 	Initials string
 }
 
-// activeNavID names the navigation item this page *is*, so the launcher can mark it current; ""
-// for a screen with no navigation item of its own (Edit member, which is a sub-page of Workspace
-// Members). It is an id rather than a route so no caller has to hand-type a route string, which
-// internal/conformance's TestHandlersHaveNoHardcodedApplicationRoute would reject anyway.
+// TWO PARAMETERS WERE REMOVED ON 2026-09-21, both dead the moment the launcher stopped listing
+// navigation items:
 //
-// hiddenNavIDs are navigation items this *viewer* must not be offered, by id. It exists because
-// moving navigation into the launcher created the forcing condition ROADMAP.md's "Per-user/role
-// navigation filtering" was explicitly waiting for: that entry reasoned the feature wasn't needed
-// because "the one concrete case found, Workspace Home's Members link, was workspace-level chrome,
-// not a metadata nav item". The launcher makes `nav_workspace_members` exactly that nav item, and
-// /workspace-members* is requireWorkspaceAdmin-gated server-side -- so without this a plain member
-// would be offered a link that only ever 403s, re-opening the code-review finding of 2026-09-19
-// that TestWorkspaceHomePage_membersLinkVisibility exists to hold shut.
-//
-// It is a caller-supplied list rather than a declared `requires_role:` on the navigation item
-// because the declared form is the real feature, and this is one case, not a shape: the handler
-// naming the item it already gates is honest and small. Forward-checkable pointer: ROADMAP.md's
-// "Per-user/role navigation filtering", which this is now the first real case for.
+//   - activeNavID named the item this page *is*, so the launcher could mark it current. The
+//     launcher lists Applications now; there is no item row left to mark.
+//   - hiddenNavIDs were the items this *viewer* must not be offered (rendering.membersHiddenFor,
+//     deleted with it). It existed because moving navigation into the launcher would otherwise
+//     have offered a plain member `nav_workspace_members`, a link that only ever 403s -- the
+//     code-review finding of 2026-09-19. The launcher offers the Workspace's administration
+//     screens to *nobody* now, so there is nothing left to filter, and a filter that filters
+//     nothing reads as protection without being it. The server-side gate (requireWorkspaceAdmin)
+//     was always the real one and is untouched; Workspace Home's own "Manage members" link keeps
+//     its separate `workspaceRole != "member"` check, which is the half still capable of leaking.
+//     ROADMAP.md's "Per-user/role navigation filtering" goes back to having no real case.
 //
 // switchWorkspaceHref is the launcher's own "All Workspaces" link target, or "" to omit it --
 // internal/web.viewerWorkspaceContext's second return value. "" exactly for the shared admin
@@ -167,7 +116,7 @@ type Viewer struct {
 // keyed on); every real identity gets the link regardless of how many Workspaces they actually
 // belong to, by owner request (2026-09-20) -- /switch-workspace is where an "add workspace" entry
 // point is meant to land next, so it stays offered even to a single-Workspace identity.
-func appShell(title, workspaceName string, viewer Viewer, activeNavID, switchWorkspaceHref string, hiddenNavIDs []string) templ.Component {
+func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -203,7 +152,7 @@ func appShell(title, workspaceName string, viewer Viewer, activeNavID, switchWor
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfHeadersAttr(ctx))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 139, Col: 41}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 88, Col: 41}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -213,7 +162,7 @@ func appShell(title, workspaceName string, viewer Viewer, activeNavID, switchWor
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = appLauncher(activeNavID, switchWorkspaceHref, hiddenNavIDs).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appLauncher(switchWorkspaceHref).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -224,7 +173,7 @@ func appShell(title, workspaceName string, viewer Viewer, activeNavID, switchWor
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(workspaceName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 147, Col: 87}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 96, Col: 87}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -237,7 +186,7 @@ func appShell(title, workspaceName string, viewer Viewer, activeNavID, switchWor
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(" / ")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 148, Col: 12}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 97, Col: 12}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -250,7 +199,7 @@ func appShell(title, workspaceName string, viewer Viewer, activeNavID, switchWor
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 149, Col: 12}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 98, Col: 12}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -337,7 +286,7 @@ func accountMenu(viewer Viewer) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(viewer.Initials)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 187, Col: 20}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 136, Col: 20}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -350,7 +299,7 @@ func accountMenu(viewer Viewer) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(viewer.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 192, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 141, Col: 75}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -363,7 +312,7 @@ func accountMenu(viewer Viewer) templ.Component {
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(viewer.Email)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 193, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 142, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -394,16 +343,19 @@ func accountMenu(viewer Viewer) templ.Component {
 //     nav_home item should panic here exactly as it would for any other lookup) -- what nav_home
 //     used to be as a flat item, promoted to the panel's own title, the same role it already
 //     plays on Workspace Home itself (workspacehome.templ's "WORKSPACE" eyebrow + <h1>).
-//  2. workspaceLauncherItems: the rest of the Workspace's own destinations (Workspace Members,
-//     Groups -- All Machines is dropped, see workspaceLauncherItems), filtered for this viewer.
-//  3. One entry per Application, in Workspace.Applications' own declaration order. An Application
-//     with ShowNav true renders as a single card (launcherAppCard) -- icon, name, description,
-//     linking straight to its HomeRoute -- because it keeps its own menu chrome once you're
-//     inside it (pageShell's topbar; Project Management is the current example), so the launcher
-//     only has to get you there. An Application with ShowNav false (Document Approval: appShell
-//     screens, no topbar of their own) still lists every one of its own items flat
-//     (launcherAppItems), because the launcher is deliberately the only place those screens stay
-//     reachable -- collapsing it to a card would orphan them.
+//
+//  2. One entry per Application, in Workspace.Applications' own declaration order -- always a
+//     single card (launcherAppCard): icon, name, description, linking straight to its HomeRoute.
+//     The launcher's whole job is to get you *into* an Application; its screens are that
+//     Application's own menu's problem.
+//
+//     Until 2026-09-21 an Application with ShowNav false (Document Approval) was the exception,
+//     listing every one of its screens flat, "because the launcher is deliberately the only place
+//     those screens stay reachable -- collapsing it to a card would orphan them". That premise is
+//     gone: Document Approval has its own menu now, the strip across the top of its screens, which
+//     projects its two declared navigation items (approvalinbox.templ's inboxTabs). Nothing is
+//     orphaned by collapsing it, and the owner's own instruction for this panel is that it shows
+//     links to the Applications in the Workspace -- not to their insides.
 //
 // "All Workspaces" at the very bottom is shown only when switchWorkspaceHref is non-empty (see
 // appShell's own doc comment for who that excludes) -- routeByID would panic looking it up, since
@@ -412,7 +364,7 @@ func accountMenu(viewer Viewer) templ.Component {
 //
 // <details> rather than JavaScript, matching the details.nav-group dropdown pageShell already
 // uses.
-func appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string) templ.Component {
+func appLauncher(switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -440,7 +392,7 @@ func appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string)
 		var templ_7745c5c3_Var13 templ.SafeURL
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID("nav_home")))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 250, Col: 49}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 201, Col: 49}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -453,7 +405,7 @@ func appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string)
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(workspace.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 252, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 203, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 		if templ_7745c5c3_Err != nil {
@@ -463,23 +415,10 @@ func appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, item := range workspaceLauncherItems(hiddenNavIDs) {
-			templ_7745c5c3_Err = launcherLink(item, item.ID == activeNavID).Render(ctx, templ_7745c5c3_Buffer)
+		for _, app := range workspace.Applications {
+			templ_7745c5c3_Err = launcherAppCard(app).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
-			}
-		}
-		for _, app := range workspace.Applications {
-			if app.ShowNav {
-				templ_7745c5c3_Err = launcherAppCard(app).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = launcherAppGroup(app, launcherAppItems(hiddenNavIDs, app), activeNavID).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
 			}
 		}
 		if switchWorkspaceHref != "" {
@@ -490,7 +429,7 @@ func appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string)
 			var templ_7745c5c3_Var15 templ.SafeURL
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(switchWorkspaceHref))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 265, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 209, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -509,12 +448,11 @@ func appLauncher(activeNavID, switchWorkspaceHref string, hiddenNavIDs []string)
 	})
 }
 
-// launcherAppGroup is one Application's flat item list inside the launcher, for an Application
-// with ShowNav false (see appLauncher) -- the pre-redesign shape, kept because the launcher is
-// its screens' only reachable menu. items is computed by the caller (launcherAppItems) rather
-// than recomputed here so the "drop a section left with nothing visible" check and the render
-// share one filtered slice.
-func launcherAppGroup(app domain.Application, items []domain.NavigationItem, activeNavID string) templ.Component {
+// launcherAppCard is one Application's face in the launcher -- ui-sample/nav-chrome.js's
+// launcherPanelHTML row shape, reusing
+// appIconClasses (workspacehome.templ) so an Application's icon tile matches its own Workspace
+// Home card exactly.
+func launcherAppCard(app domain.Application) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -535,145 +473,91 @@ func launcherAppGroup(app domain.Application, items []domain.NavigationItem, act
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if len(items) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<p class=\"px-2 pt-2 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var17 string
-			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 278, Col: 98}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</p>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			for _, item := range items {
-				templ_7745c5c3_Err = launcherLink(item, item.ID == activeNavID).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-		}
-		return nil
-	})
-}
-
-// launcherAppCard is one Application's face in the launcher when it keeps its own menu chrome
-// elsewhere (ShowNav true) -- ui-sample/nav-chrome.js's launcherPanelHTML row shape, reusing
-// appIconClasses (workspacehome.templ) so an Application's icon tile matches its own Workspace
-// Home card exactly.
-func launcherAppCard(app domain.Application) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var18 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var18 == nil {
-			templ_7745c5c3_Var18 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var19 templ.SafeURL
-		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(launcherAppHomeRoute(app)))
+		var templ_7745c5c3_Var17 templ.SafeURL
+		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(launcherAppHomeRoute(app)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 290, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 220, Col: 51}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" class=\"flex items-start gap-3 rounded-md p-2 hover:bg-slate-50\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var20 = []any{"flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-medium", appIconClasses(app.Color)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\" class=\"flex items-start gap-3 rounded-md p-2 hover:bg-slate-50\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<span class=\"")
+		var templ_7745c5c3_Var18 = []any{"flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-medium", appIconClasses(app.Color)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var18...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var19 string
+		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var18).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var20 string
+		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(app.Icon)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 222, Col: 13}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> <span class=\"flex min-w-0 flex-col\"><span class=\"text-sm font-medium text-slate-900\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var21 string
-		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var20).String())
+		templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1, Col: 0}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 225, Col: 62}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var22 string
-		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(app.Icon)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 292, Col: 13}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</span> <span class=\"flex min-w-0 flex-col\"><span class=\"text-sm font-medium text-slate-900\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var23 string
-		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 295, Col: 62}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if app.Description != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<span class=\"text-xs text-slate-500\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<span class=\"text-xs text-slate-500\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var24 string
-			templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(app.Description)
+			var templ_7745c5c3_Var22 string
+			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(app.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 297, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 227, Col: 58}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</span></a>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</span></a>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -681,109 +565,12 @@ func launcherAppCard(app domain.Application) templ.Component {
 	})
 }
 
-// launcherLink is one destination inside the launcher panel.
+// launcherLink was deleted on 2026-09-21 with its last caller (launcherAppGroup). The launcher
+// lists Applications now, not their screens, so there is no per-screen row left to render.
 //
-// The badge is carried forward from pageShell's own navLink exactly as it was, including its
-// fixed hx-get: domain.NavBadgeApprovalInboxPending is a known Domain Plane leak (the engine
-// naming one business screen), written up in menata-app-document's
-// audits/2026-09-20-decomposition-criteria-drift.md, and it is *blocked* from being generalized
-// rather than merely unfinished -- the count it renders depends on cross-record sequencing
-// ("assigned to me AND pending AND actionable"), which no declared filter can express yet. It is
-// deliberately not "fixed" here, and deliberately not dropped: dropping it would be a product
-// decision, not a refactor.
-func launcherLink(item domain.NavigationItem, current bool) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var25 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var25 == nil {
-			templ_7745c5c3_Var25 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var26 = []any{"flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50",
-			templ.KV("bg-blue-50 font-medium text-blue-700", current),
-			templ.KV("text-slate-600", !current)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var26...)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<a href=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var27 templ.SafeURL
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(item.Route))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 315, Col: 34}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" class=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var28 string
-		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var26).String())
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 1, Col: 0}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if current {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, " aria-current=\"page\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, ">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var29 string
-		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(item.Label)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appshell.templ`, Line: 323, Col: 14}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, " ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if item.Badge == domain.NavBadgeApprovalInboxPending {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<span id=\"launcher-pending-badge\" class=\"rounded-full bg-red-100 px-1.5 text-3xs font-semibold text-red-700 empty:hidden\" hx-get=\"/api/approval-inbox/pending-count\" hx-trigger=\"load\" hx-swap=\"innerHTML\"></span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</a>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
+// It carried the pending-approval badge (hx-get /api/approval-inbox/pending-count) on the Approval
+// Inbox row. That badge is not lost -- pageShell's own navLink still renders it, from the same
+// domain.NavBadgeApprovalInboxPending declaration -- but the launcher no longer shows one, because
+// it no longer shows that screen. Putting a count on an Application *card* is a different feature
+// (Workspace Home's cards already do it) and was not folded in here.
 var _ = templruntime.GeneratedTemplate

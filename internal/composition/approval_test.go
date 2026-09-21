@@ -280,8 +280,17 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 	if got.Mine[0].Title != "Mine" {
 		t.Errorf("Title = %q, want %q", got.Mine[0].Title, "Mine")
 	}
-	if want := "Contract · parallel · 0/0 approved"; got.Mine[0].Subtitle != want {
-		t.Errorf("Subtitle = %q, want %q", got.Mine[0].Subtitle, want)
+	if got.Mine[0].DocumentType != "Contract" || got.Mine[0].Mode != "parallel" {
+		t.Errorf("DocumentType/Mode = %q/%q, want Contract/parallel", got.Mine[0].DocumentType, got.Mine[0].Mode)
+	}
+	if got.Mine[0].TotalSteps != 0 || got.Mine[0].Approved != 0 {
+		t.Errorf("Approved/TotalSteps = %d/%d, want 0/0", got.Mine[0].Approved, got.Mine[0].TotalSteps)
+	}
+	// Submitter is deliberately empty on this list: every card here is the viewer's own, so
+	// pendingApprovalCard drops the "Submitted by" line rather than printing the viewer's own name
+	// back at them (Inbox.Mine's own doc comment).
+	if got.Mine[0].Submitter != "" || got.Mine[0].SubmittedAt != "" {
+		t.Errorf("Submitter/SubmittedAt = %q/%q, want both empty", got.Mine[0].Submitter, got.Mine[0].SubmittedAt)
 	}
 }
 
