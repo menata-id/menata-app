@@ -21,7 +21,7 @@ draws the line precisely, with the source lines that prove it.
 ## 1. A Machine is a YAML file
 
 Every Machine is one file under `metadata/`, referenced from `metadata/app.yaml`'s own
-`application.machines` list. The minimal shape:
+`workspace.machines` list. The minimal shape:
 
 ```yaml
 id: mch_component
@@ -53,19 +53,15 @@ process refuses to serve traffic on invalid metadata rather than failing on firs
 separate "lint" command today; a syntax/validation error surfaces the first time you `make run` or
 restart. Read the error text carefully — it names the exact field/id/value that's wrong.
 
-## 2. The application manifest (`app.yaml`)
+## 2. The manifest: a Workspace file plus one file per Application
 
-One manifest per Workspace, naming its Workspace, its one Application, the ordered list of Machine
-files to load, and the navigation menu:
+`app.yaml` declares the **Workspace** — the Machines it owns and the navigation that belongs to no
+single Application — and then names one file per Application:
 
 ```yaml
 workspace:
   id: ws_default
   name: Default Workspace
-
-application:
-  id: app_task_tracker
-  name: Task Tracker
   machines:
     - component.yaml
     - bug.yaml
@@ -74,17 +70,65 @@ application:
       label: Home
       route: /home
       priority: 0
-    - id: nav_bugs
-      label: Bugs
-      route: /machines/mch_bug
-      group: Bug Tracker
-      priority: 1
+
+applications:
+  - applications/bug-tracker.yaml
 ```
 
-`workspace.id` matches `^ws_[a-z][a-z0-9_]*$`, `application.id` matches `^app_[a-z][a-z0-9_]*$`.
-Each entry in `machines:` is a path to a Machine file, resolved relative to `app.yaml`'s own
-directory — order here doesn't affect behavior, but keeping it alphabetical or grouped by
-Application area helps a human (or an agent) scanning the file.
+```yaml
+# applications/bug-tracker.yaml
+id: app_bug_tracker
+name: Bug Tracker
+description: Track and triage defects.
+icon: "🐞"
+color: amber
+
+# Machines this Application claims, by id -- selected from the Workspace's own set above, never
+# file paths. A Machine may be claimed by at most one Application; shared ones (the user Machine,
+# an activity log) are claimed by none and stay Workspace-level.
+machines:
+  - mch_bug
+  - mch_component
+
+# The Machine whose record count this Application's card on Workspace Home reports.
+summary_machine: mch_bug
+
+# This Application's own role vocabulary. Optional -- declare none and the Application simply
+# offers no role select. Roles caption the Members list today; they are not yet an authorization
+# input.
+roles:
+  - triager
+  - reporter
+
+navigation:
+  - id: nav_bugs
+    label: Bugs
+    route: /machines/mch_bug
+    priority: 1
+    home_card: true
+```
+
+**Machines are Workspace-level, declared once.** Several Applications genuinely share one (a user
+Machine is every Application's identity), so ownership per Application would load the same file
+twice and produce two Machine objects with one id. An Application *selects* from the Workspace's
+set by id.
+
+`workspace.id` matches `^ws_[a-z][a-z0-9_]*$`, an Application's `id` matches
+`^app_[a-z][a-z0-9_]*$`. Each entry in `workspace.machines:` is a path to a Machine file, and each
+entry in `applications:` a path to an Application file, both resolved relative to `app.yaml`'s own
+directory — order in `machines:` doesn't affect behavior, but keeping it alphabetical or grouped by
+Application area helps a human (or an agent) scanning the file. Order in `applications:` *is* the
+order the launcher and Workspace Home list them in.
+
+Two Application-level keys worth knowing before you need them: `show_nav: false` suppresses this
+Application's persistent menu chrome without making any of its routes unreachable (they stay
+reachable from the launcher and from in-page links), and `home_card: true` on **at most one**
+navigation item names where this Application's Workspace Home card links to.
+
+**This section described a single inline `application:` block until 2026-09-21** — the shape that
+existed before Applications became a list (2026-09-20). Writing that older shape today fails at
+startup with "at least one machine is required / at least one application is required", which
+names neither key that actually moved; if you hit that error, this is why.
 
 **Navigation is a real declared list, not free-form:** `id`/`label`/`route` are required
 (`route` must start with `/`); `group` is an optional submenu label (a plain string, not a
@@ -206,14 +250,16 @@ stakes composed from Relation and Child Collection, not a third primitive.
 
 ## 6. Views: table or board
 
-The default, with no `view:` block at all, is a flat table. Two ways to get a board instead:
+The default, with no `views:` block at all, is a flat table. Two ways to get a board instead:
 
 **Fixed columns, grouped by a `status` field's own options:**
 
 ```yaml
-view:
-  layout: board
-  group_by: fld_status
+views:
+  - id: vw_bug_status_board
+    name: By status
+    type: board
+    group_by: fld_status
 ```
 
 **Dynamic, reorderable columns, grouped by a `relation` to another Machine** (the real shipped
@@ -298,14 +344,20 @@ This is the section most likely to trip up an agent generating metadata for a ne
 process, because CRUD's genuine flexibility makes it tempting to assume behavior is equally
 open-ended. It is not, and the runtime's own source says so explicitly.
 
-**There is exactly one Action the runtime realizes today: `decide`** (Approve/Reject on an
-Approval Step). `internal/domain.KnownActions` is a closed map containing only that one entry.
-Declaring a Permission with any other `action:` value fails metadata validation outright
-("action %q is not an action this runtime realizes"). There is no way to declare a brand-new
-Action — "Submit," "Publish," "Cancel," anything — purely in YAML. Doing that requires real Go
-code: a new entry in `internal/domain.KnownActions`, a new handler, and whatever business logic
-that Action performs. This is the one place "no per-model code required" (the very first line of
-this guide) does not hold.
+**The runtime realizes exactly three Actions: `decide`, `edit` and `delete`.**
+`internal/domain.KnownActions` is a closed map holding those three and nothing else. Declaring a
+Permission with any other `action:` value fails metadata validation outright ("action %q is not an
+action this runtime realizes"). There is no way to declare a brand-new Action — "Submit,"
+"Publish," "Cancel," anything — purely in YAML. Doing that requires real Go code: a new entry in
+`internal/domain.KnownActions`, a new handler, and whatever business logic that Action performs.
+This is the one place "no per-model code required" (the very first line of this guide) does not
+hold.
+
+Of those three, **only `decide` is bound to specific Machines**; `edit` and `delete` gate the
+generic update/delete routes and work on any Machine (see "What a Permission *can* do today"
+below). This paragraph read "exactly one Action" until 2026-09-21 — wrong since `edit`/`delete`
+were generalized on 2026-09-19, and contradicted three paragraphs further down in this same
+section.
 
 **And `decide` itself is hardcoded to one specific pair of Machines**, by explicit design, not
 oversight — `internal/action/decide.go`'s own comment: *"This is hardcoded to
@@ -470,15 +522,31 @@ by prefix; closed vocabularies are extended by Go code and a recompile, never by
 value in YAML; and every cross-reference (`fld_*` naming a field, `mch_*` naming a Machine) is
 resolved and checked at load time, not at first use.
 
-### 12.1 `app.yaml` — the application manifest
+### 12.1 `app.yaml` — the Workspace manifest, and one file per Application
+
+**`app.yaml` — the Workspace manifest**
 
 | Key | Value | Notes |
 |---|---|---|
 | `workspace.id` / `workspace.name` | string | One Workspace per process today |
-| `application.id` / `application.name` | string | |
-| `application.machines[]` | file names | Load order; each file is one Machine |
-| `application.navigation[]` | list of items | The topbar is rendered from this list, never hand-written |
-| `application.hidden_nav_groups[]` | group labels | Filtered out after `home_card`/primary-group resolution |
+| `workspace.machines[]` | file paths | Load order; each file is one Machine. Workspace-level, shared by every Application |
+| `workspace.navigation[]` | list of items | Destinations belonging to no single Application (Home, All Machines, Members, Groups) |
+| `applications[]` | file paths | One file per Application; declaration order is launcher/Workspace Home order |
+
+**One Application file** (`applications/<name>.yaml`)
+
+| Key | Value | Notes |
+|---|---|---|
+| `id` / `name` | `app_*` / string | |
+| `description` / `icon` / `color` | string / string / closed set | The Application's card face on Workspace Home. `color` ∈ `blue`, `emerald`, `amber`, `slate` (`domain.KnownApplicationColors`) |
+| `summary_machine` | `mch_*` | Whose record count the card reports; must be a Machine this Application claims |
+| `show_nav` | bool | `false` suppresses this Application's menu chrome only — every route stays reachable, and the launcher never reads it to decide *whether* an Application appears |
+| `machines[]` | `mch_*` ids | Selected from the Workspace's set, never file paths. At most one Application may claim a given Machine |
+| `roles[]` | strings | This Application's own role vocabulary; optional. Captions the Members list — not yet an authorization input |
+| `navigation[]` | list of items | This Application's own menu |
+
+There is no `application:` singular block and no `hidden_nav_groups:` any more — the first became
+`applications:`, the second became per-Application `show_nav:` (2026-09-20).
 
 Navigation item keys:
 
@@ -581,14 +649,32 @@ permissions:
 Reads as: *only the person named in `actor_field` on this record may perform `action` on it.* A
 Machine declaring no permission for an action leaves it open to any authenticated member.
 
-### 12.7 `view`
+### 12.7 `views[]`, plus the two Machine-level keys that are *not* per-View
+
+`views[]` — zero or more arrangements of this Machine's own records, each addressable by id
+(`?view=vw_...`). No block at all means one implicit table.
 
 | Key | Value | Notes |
 |---|---|---|
-| `layout` | `table` \| `board` | Default `table` |
-| `group_by` | `fld_*` | **Required when `layout: board`** — the field whose values become columns |
+| `id` | `vw_*` | Required, unique within the Machine |
+| `name` | text | Required, and deliberately **not** derived from `type` — the viewer reads it |
+| `type` | `table` \| `board` \| `cards` | Closed set (`domain.KnownViewKinds`). `cards` requires `card_fields` below |
+| `group_by` | `fld_*` | **Required when `type: board`**, rejected on any other type |
+
+`sla_field` and `card_fields[]` are **Machine-level, beside `fields:` — not inside a View**. They
+describe how this Machine's records look *wherever* they appear, and the record detail page selects
+no View at all, so putting them on one arrangement would have forced an arbitrary choice:
+
+| Key | Value | Notes |
+|---|---|---|
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
-| `card_fields[]` | `{field: fld_*, role: ...}` | Projected onto a composed card. Only the Approval Inbox card consumes this today |
+| `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`) and by `internal/composition` for a bespoke card outside any View |
+
+**There is no singular `view:` block any more.** It was one anonymous arrangement per Machine until
+2026-09-20; a second arrangement of the same records could not be expressed at all. If you write
+`view:` today, nothing validates it and nothing reads it — the loader accepts the file and the
+Machine simply has no declared View (see "What this can't do yet": unknown keys are ignored, not
+rejected).
 
 ### 12.6a `sequencing` — records acted on in order
 
@@ -733,8 +819,16 @@ that will fail validation or silently do nothing.
 
 Honest current limits, not a roadmap — some of these may change over time:
 
-- **Exactly one Action, hardcoded to one Machine pair.** See §8 — this is the limit most likely
-  to matter for a new business process.
+- **Three Actions, one of them hardcoded to a single Machine pair.** `decide`, `edit`, `delete` —
+  and `decide` only ever runs for `mch_document`/`mch_approval_step`. See §8 — this is the limit
+  most likely to matter for a new business process.
+- **Unknown metadata keys are ignored, not rejected.** A misspelled or retired key (`view:` where
+  `views:` is meant, `sla_filed:` for `sla_field:`) loads without complaint and the capability
+  simply never appears. Everything the runtime *does* know is validated strictly — unknown field
+  types, dangling relation targets, a `cards` View with no `card_fields` all fail startup — but a
+  key the parser has no home for is dropped in silence, which is the one failure shape that looks
+  exactly like success. Re-read §12's key tables against the version of this guide shipped with
+  your binary rather than trusting a remembered spelling.
 - **No field-level permissions.** Access control today is per-Machine and per-Action at best; you
   cannot hide or lock one Field from one role while leaving the rest editable.
 - **Events fire on a field change or a record creation — not on a schedule.** See §10.
@@ -750,8 +844,11 @@ Honest current limits, not a roadmap — some of these may change over time:
   existing data already stored under that field's id — it's simply no longer read.
 - **Constraints are intentionally limited.** Only `equals`/`not_equals` against a literal value,
   no boolean combinators, no cross-field arithmetic.
-- **One Workspace runs one fixed Application today.** A different Workspace needing a genuinely
-  different set of Machines isn't supported yet — every Workspace shares the same metadata.
+- **Every Workspace shares one manifest.** A Workspace may run several Applications — `app.yaml`
+  declares a list, and two are live (Document Approval, Project Management) — but the set of
+  Machines and Applications is process-wide: a second Workspace needing a genuinely different set
+  isn't supported yet. This bullet read "one Workspace runs one fixed Application" until
+  2026-09-21, which stopped being true at Fase 3a when `applications:` became a list.
 
 If you hit one of these and it matters for what you're building, the numbered concept docs explain
 the reasoning behind the current shape and where each of these is headed.

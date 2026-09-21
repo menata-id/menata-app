@@ -165,10 +165,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 - `TestRenderingUsesProjectionNotRawValues` — the one *ratchet* in this suite: a `.templ` file may
   not read a named field off a record (`Values["fld_..."]`, or the same laundered through a
   `action.Field*` constant) — Composition resolves the shape, a Page renders it (007 §4.4, §7.6).
-  Ten files are grandfathered in `projectionRatchet` and **the list may only shrink**: adding an
-  entry is not the way to pass, and an entry left behind after a file is migrated fails too. Use
+  Seven files are grandfathered in `projectionRatchet` (ten when it was written) and **the list
+  may only shrink**: adding an entry is not the way to pass, and an entry left behind after a file
+  is migrated fails too. Read the count out of the test, not out of this line. Use
   `composition.ProjectCardFields`/`card_fields`; generic access (`Values[f.ID]` from ranging
   over `m.Fields`, as `machine.templ`/`detail.templ` do) is the target pattern, not a violation.
+  It gates *reads only* — an input's `name=` is 007 §11.3 Binding, ungated, so leaving this list
+  is not the same as the screen being composable.
 - `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —
   `capabilities.md`'s own Machines and Shared rendering components tables match the real
   `metadata/*.yaml` and `internal/rendering/*.templ`.

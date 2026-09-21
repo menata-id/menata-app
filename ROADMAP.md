@@ -17,7 +17,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   screen.
 - **Document Approval** -- submission wizard, sequential or parallel multi-step approval, SLA
   tracking, an approval inbox and dashboard, an activity feed, drag-to-place PDF signatures, and
-  automatic signature compositing onto the approved document.
+  automatic signature compositing onto the approved document. Two pieces of the flow as originally
+  scoped are **not** here: a per-document-type saved default approval flow, and a third wizard step
+  where sending actually happens (both in the deferral table below, both "no phase yet"). Read this
+  bullet as the feature set that exists, not as the flow being closed.
 - **Project Management** (core mechanics shipped, still rounding out) -- task boards with labels
   and ordered lists, my-tasks view, calendar, sprint dashboard, team capacity view, activity feed.
 - **Grouped navigation**, declared as metadata rather than hardcoded per page.
@@ -237,6 +240,18 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      roles, so the foundation is closer than when this list was written — but both primitives are
      still absent from 006 and 007, which is why this stays last.
 
+     **Step zero has not been run for this phase, and "absent from 006/007" is not the same
+     answer.** The companion repo's own rule (`case-03-composability-checklist.md` §5) says prior
+     art comes in three kinds — mechanisms, decided semantics, drawn screens — and binds even when
+     this repo's concept docs are silent. Upstream carries role-based event permission, CRUD-level
+     per-role permission and a scope-depth modifier as shipped, conformance-tested rows, plus a
+     rendered state/transition map and a whole `process:` overlay block that compiles to
+     Events/Permissions/Constraints. Board 06's copy citing a `ProcessEdge` primitive and a
+     `/{machineID}/process-map` route that "exist nowhere in this repo" is not the mockup inventing
+     something: it is drawn against that overlay. Read those rows before designing Fase 7, so the
+     work is implementing a decided shape rather than re-deciding it — the same correction that
+     turned `decide.go`'s "documented B4 failure" into `activate_next` in 6c.
+
   **Penyempurnaan — what each shipped phase left undone, and when it lands.** Kept as one table
   on purpose: a comment at a call site answers *why* something is missing, this answers *when* it
   stops being. The "no phase yet" rows are the point of having it — an unscheduled gap that looks
@@ -274,9 +289,20 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | Saved default approval flow (board 08: "Save this as the default approval flow for **Contract** documents", checked by default) | **no phase yet** | Upstream built it (CAP-V28) as two companion Machines — one template per Document Type, plus its own ordered steps — with a write direction that find-or-creates the template on submit. That is the real blocker: a template entity and a write path, not the screen. **This row exists because the deferral did not.** It has been live since Phase 15, recorded only inside `menata-app-document`'s development history, in no table anyone re-reads at a phase close — and with a reason that was wrong when written ("only one Document Type exists in metadata today"; there were zero) and is wrong now in the other direction (there are three: `Kontrak`, `Tagihan`, `Lain-lain`). Same shape as the bottom-bar row that sat wrong through four closes |
   | One signature box for a Group-held step (boards 08/09) | **no phase yet** — **named, not solved** | Board 09 places exactly one signature box for `Legal Group · 4 members`, and nothing on either board says whose signature image lands in it, or what happens when two of the four act. Upstream has the identical gap on its own compositing capability, recorded there in the same words. Worth holding here rather than discovering it during 6c-2's port |
   | Member search box (board 04) | **no phase yet** — "Planned: search, filtering and pagination" below | search does not exist anywhere in the app |
+  | Write-side Binding: a form input's `name=` hardcoded to a Field id (007 §11.3) | **no phase yet** — **and it is the gap a shrinking ratchet hides** | `signatureplacement.templ` carries twelve `name={ action.Field… }`, `documentsubmit.templ` six, while `machine.templ` already does it generically (`name={ f.ID }` over `m.Fields`). `TestRenderingUsesProjectionNotRawValues` gates *reads*, never writes, so both files could leave `projectionRatchet` with every binding still hand-typed — which is exactly what happened in 6c-2 and 6c-3. Recorded here so the ratchet count is not read as a composability score. Trigger: a third bespoke write screen, or the generic update route stopping its whole-record rewrite (the same route that forced 6c-3's carry-forward list) |
+  | `NavBadgeApprovalInboxPending` still resolved in the Domain Plane | **no phase yet** | `domain.NavigationItem.Badge` names one live count the runtime special-cases end to end (`domain/navigation.go`, `web/workspacehome.go`, `appshell.templ`, `machine.templ`). It cannot become an ordinary Dataset: the count filters on assignee **and** on `behavior.CanAct`, which reads a *sibling* record, while a Measure's `where:` is evaluated per record against its own values. So the blocker is record selection (007 §8), not the identity sentinel below — a point the companion repo's Stage 0 first got wrong in the other direction |
+  | PDF signature compositing is hand-written Go (upstream CAP-F22) | **no phase yet** | The third of the three Case 3 behaviours named above; the other two (`activate_next`, `aggregate_status`) landed 2026-09-20 and this one did not, so it should stop riding on their line. `internal/action/composite.go`/`banner.go` manipulate a binary PDF rather than express a rule, which is the lowest generalization value of the three — but "lowest value" is a ranking, not a deferral reason, and it had neither a phase nor a row until now |
+  | The approval stepper is five constants, not a declared View (upstream CAP-V20 ✅) | **no phase yet** | `approvalstepper.templ` is the **last Case 3 entry left in `projectionRatchet`**, and nothing anywhere states how it leaves. Upstream carries the sequential decision stepper as a shipped View *type* (ordered done/current/pending over a parent's child steps), so this is an implement-a-known-capability question rather than a design one — the same posture `activate_next` was in before 6c. Blocked in practice on a View that composes other Views (Planned, below), since the stepper renders a parent record's children, not its own Machine's records |
   | "Keep me signed in" (board 01) | **no phase yet** | a session-lifetime change; `internal/authorization` has no remember-me concept |
 - Rounding out Project Management: a project-level workspace overview, richer task detail
-  (checklist, comments, attachments), and scoping views to one project at a time.
+  (checklist, comments, attachments), and scoping views to one project at a time. **Its standing
+  relative to the Document Approval scope decision is unsettled, and that matters more than it
+  looks:** the 2026-09-20 decision narrowed the proof-of-concept to Document Approval, while this
+  line still reads as active work — and six of the seven files left in `projectionRatchet` are
+  Project Management screens whose stated exit is "migrates with Dataset/Projection". So the
+  ratchet's own path to empty runs through work whose scope is undecided. Either these screens are
+  in scope and the ratchet can drain, or they are parked and the ratchet's remaining entries are
+  parked with them; both are fine, being unsaid is not.
 - ~~Two-level navigation for switching between applications inside a workspace~~ — *shipped*: the
   9-dot launcher (Fase 2) over real Applications (Fase 3a).
 - Accessibility and mobile/responsive polish across existing screens. The Case 03 port carries its
@@ -326,6 +352,37 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `card_fields` describe how a Machine's records look *wherever* they appear (the detail page
   selects no View at all), so they became Machine-level and a View now carries only the
   arrangement.
+- **A filter that reads the viewing identity, not a literal** — `datasets:`' `where:` compares a
+  Field against a written value, so any count scoped to "mine" stays Go. Two screens do it today:
+  `composition.PersonalTasks` (assignee == the viewer) and `composition.ApprovalInbox` (the inbox
+  and the nav badge). That is the second real case this repo's own rule waits for, and
+  `PersonalTasks`' doc comment still says "neither has a second case yet" — true when written,
+  worth re-reading now. Upstream settled the shape rather than leaving it open: a `$current_user`
+  sentinel resolved at evaluation time, not a parameter threaded through metadata. **What it does
+  not unblock:** the Approval Inbox itself, which needs record *selection* and a sibling read as
+  well (see the deferral table).
+- **Ordered comparison operators in `internal/expression`** (`lt`/`lte`/`gt`/`gte`, type-aware
+  rather than the current `fmt.Sprint` string compare). Named here because two unrelated gaps are
+  waiting on the same three lines: My Tasks' Overdue/Due-today counts compare a date against now,
+  and the hour-scale SLA wording in the deferral table needs the same ordering once a datetime
+  Field type exists. `expression.Comparison`'s own doc comment asks for a second differently-shaped
+  Constraint before growing the vocabulary; these two are that evidence arriving from the filter
+  side instead.
+- **Reject unknown metadata keys at load** — `internal/metadata`'s three `yaml.Unmarshal` calls
+  decode without `KnownFields`, so a key the parser has no home for is dropped in silence and the
+  Machine loads clean. 005 Phase 3 says invalid metadata must not reach compilation; this is the
+  one validation hole that makes *documentation* drift dangerous rather than merely untidy — a
+  guide that still shows a retired key produces no error anywhere, which is how the pre-2026-09-20
+  singular `view:` block stayed in `writing-guide.md` §6/§12.7 unnoticed (verified by loading a
+  copy of `metadata/` that used it: no error, zero Views). Small change, real blast radius: every
+  existing manifest must be clean before it can be turned on.
+- **Metadata hot reload and change classification** — tracked in `capabilities.md`'s limits as two
+  separate deliberate deferrals (a `*.yaml` edit needs a restart; deleting a Field silently orphans
+  its data in every record's JSONB) and in the companion repo's own
+  `guides/metadata-hot-reload-safety.md`, but named in no plan at all until now. Neither is
+  urgent while the manifest ships with the binary; both stop being optional the moment metadata is
+  edited by someone who cannot restart the process, which is the actual end state this runtime is
+  for.
 - Search, filtering and pagination on record lists.
 - Background/scheduled jobs (e.g. SLA-breach notifications that don't depend on someone opening
   the page).
