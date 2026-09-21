@@ -13,11 +13,9 @@ import (
 
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
-	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
-	"menata.app/internal/rendering"
 )
 
 // TestSignaturePlacementPut_preservesApproverFields is the test Fase 6c-2's doc comment claimed
@@ -83,25 +81,22 @@ func TestSignaturePlacementPut_preservesApproverFields(t *testing.T) {
 	}
 
 	machines := loadRealMachines(t)
-	stepMachine := machines[action.StepMachineID]
 	cfg := config.Config{SessionSecret: "test-secret-for-placement-put"}
 
-	// Exactly what a marker drag submits: the form's own four signature fields, plus every field
-	// composition.carryForward decided to echo. Built from the composer rather than hand-listed,
-	// because hand-listing is the failure this test exists to prevent.
+	// Exactly what a marker drag submits, and nothing else -- which is the point of the route it
+	// now goes to. The three forms on board 09 send four Fields; every other Field on the step is
+	// untouched because the route never writes it, rather than because the form remembered to
+	// echo it back.
 	form := url.Values{}
-	for _, f := range carryFieldsFor(t, stepMachine, step) {
-		form.Set(f.Name, f.Value)
-	}
 	form.Set(action.FieldStepSignaturePage, "1")
 	form.Set(action.FieldStepSignatureX, "20.0")
 	form.Set(action.FieldStepSignatureY, "84.0")
 	form.Set(action.FieldStepSignatureWidth, "25")
 
 	r := chi.NewRouter()
-	r.Put("/machines/{machineID}/records/{id}", updateRecordForm(machines, store, nil, cfg))
+	r.Put("/machines/{machineID}/records/{id}/signature-placement", updateSignaturePlacement(machines, store, cfg))
 	req := httptest.NewRequest(http.MethodPut,
-		fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, step.ID),
+		fmt.Sprintf("/machines/%s/records/%s/signature-placement", action.StepMachineID, step.ID),
 		strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, member.ID, 0)})
@@ -132,16 +127,4 @@ func TestSignaturePlacementPut_preservesApproverFields(t *testing.T) {
 	if got := fmt.Sprint(after.Values[action.FieldStepSignatureX]); got != "20" {
 		t.Errorf("fld_signature_x = %q, want the dragged position", got)
 	}
-}
-
-// carryFieldsFor mirrors what the rendered form would submit, by asking the same composer the page
-// asks. Deliberately not a literal list: a literal would drift from the page exactly the way the
-// hidden-input list drifted from the Machine.
-func carryFieldsFor(t *testing.T, m *domain.Machine, s *data.Record) []rendering.CarryField {
-	t.Helper()
-	v := composition.PlacementFieldsForTest(m, s)
-	if len(v) == 0 {
-		t.Fatal("carryForward returned nothing -- the form would submit an empty record")
-	}
-	return v
 }

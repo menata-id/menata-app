@@ -52,6 +52,16 @@ func readWizardOptions(req *http.Request, machines map[string]*domain.Machine, s
 	if err != nil {
 		return wizardOptions{}, err
 	}
+	// Narrowed to people who could actually decide a step (composition.ApproverOptions). Without
+	// it a submitter can name anyone in the Workspace, including someone holding no role in this
+	// Application at all -- producing a step assigned to a real person and decidable by nobody,
+	// with no error anywhere.
+	workspaceID, _ := data.WorkspaceScope(req.Context())
+	members, err := store.ListMembers(req.Context(), workspaceID)
+	if err != nil {
+		return wizardOptions{}, err
+	}
+	approvers = composition.ApproverOptions(approvers, stepMachine, members)
 	groups, err := ld.GroupOptions(req.Context(), stepMachine)
 	if err != nil {
 		return wizardOptions{}, err

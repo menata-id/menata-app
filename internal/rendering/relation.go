@@ -34,14 +34,3 @@ func GroupLabel(groups GroupOptions, id string) string {
 	}
 	return id
 }
-
-// CarryField is one hidden input a form must echo back so the generic update route does not erase
-// it: a Field name and its current value, resolved by composition.carryForward.
-//
-// It carries no type and no role on purpose. These are not a projection -- they are a verbatim
-// round-trip forced by the update route rewriting a whole record, and dressing them up as semantic
-// fields would claim a meaning they do not have.
-type CarryField struct {
-	Name  string
-	Value string
-}

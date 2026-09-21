@@ -41,15 +41,11 @@ type PlacementStep struct {
 	X      float64
 	Y      float64
 	Width  float64
-	// Editable is authorization.AllowsAction(ActionEdit) for this step, resolved once per step by
-	// Composition. Since Fase 6c-3 a Group-held step resolves it through its Group -- before that
-	// it resolved against an empty fld_assignee and came back false for everyone, which made this
-	// screen's own marker undraggable by anybody.
+	// Editable is composition.MayPlaceSignature for this step: the Document's own submitter, or
+	// this step's own approver. It is deliberately not the edit Permission alone -- board 09 is
+	// STEP 2 OF 3 of the submit wizard, so the person laying the boxes out is the one submitting,
+	// and gating on "may edit this step" sent them to a screen where every marker was static.
 	Editable bool
-	// CarryFields is every Field this step holds that the forms below do not submit themselves.
-	// See composition.carryForward: it is derived from the Machine's declared Fields, so a Field
-	// added later is carried without anyone editing this file.
-	CarryFields []CarryField
 }
 
 // SignaturePlacementPage is board 09 (ui-sample/case-03-flow1/09-signature-positions.html,
@@ -147,9 +143,8 @@ templ placementCanvas(v PlacementView, tailwind bool) {
 // around this centre.
 templ placementMarker(s PlacementStep, tailwind bool) {
 	if s.Editable {
-		<form hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.StepID) } hx-swap="none">
+		<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", action.StepMachineID, s.StepID) } hx-swap="none">
 			@csrfHiddenInput()
-			@stepCarryFields(s)
 			<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(s.Page) }/>
 			<input type="hidden" class="sig-x-input" name={ action.FieldStepSignatureX } value={ fmt.Sprintf("%.1f", s.X) }/>
 			<input type="hidden" class="sig-y-input" name={ action.FieldStepSignatureY } value={ fmt.Sprintf("%.1f", s.Y) }/>
@@ -223,9 +218,8 @@ func placementSubline(s PlacementStep) string {
 // placeStepForm puts an unplaced step's marker on the page being viewed, or re-centres a placed
 // one -- the no-JavaScript path to the same result the drag gives.
 templ placeStepForm(s PlacementStep, page int) {
-	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.StepID) } hx-swap="none">
+	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", action.StepMachineID, s.StepID) } hx-swap="none">
 		@csrfHiddenInput()
-		@stepCarryFields(s)
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(page) }/>
 		<input type="hidden" name={ action.FieldStepSignatureX } value="50"/>
 		<input type="hidden" name={ action.FieldStepSignatureY } value="50"/>
@@ -243,9 +237,8 @@ templ placeStepForm(s PlacementStep, page int) {
 // widthControl resizes a marker without moving it: the placement's own page and coordinates are
 // carried forward unchanged, so a width-only edit never relocates the signature.
 templ widthControl(s PlacementStep, page int) {
-	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.StepID) } hx-trigger="change" hx-swap="none">
+	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", action.StepMachineID, s.StepID) } hx-trigger="change" hx-swap="none">
 		@csrfHiddenInput()
-		@stepCarryFields(s)
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(placementPageOrCurrent(s, page)) }/>
 		<input type="hidden" name={ action.FieldStepSignatureX } value={ fmt.Sprintf("%.1f", s.X) }/>
 		<input type="hidden" name={ action.FieldStepSignatureY } value={ fmt.Sprintf("%.1f", s.Y) }/>
@@ -257,17 +250,15 @@ templ widthControl(s PlacementStep, page int) {
 	</form>
 }
 
-// stepCarryFields echoes back every Field the surrounding form does not submit itself.
+// The carry-forward block that used to live here is gone, and its absence is the point.
 //
-// It is a loop over a list Composition derived from the Machine's own declared Fields, not a
-// hand-written set of hidden inputs. That distinction is the whole fix: the hand-written version
-// silently erased whatever it forgot, and it forgot three Fields for two phases and then a fourth
-// (fld_signature_image) even after being corrected. See composition.carryForward.
-templ stepCarryFields(s PlacementStep) {
-	for _, f := range s.CarryFields {
-		<input type="hidden" name={ f.Name } value={ f.Value }/>
-	}
-}
+// These three forms PUT to the generic record route, which rewrites a whole record from whatever
+// is submitted -- so every Field they did not submit had to be echoed back as a hidden input or be
+// erased. That list was hand-written first and silently forgot three Fields for two phases, then a
+// fourth (fld_signature_image) even after being corrected; deriving it from the Machine's declared
+// Fields fixed the forgetting but not the shape. They now PUT to a route that writes four named
+// Fields and touches nothing else (internal/web.updateSignaturePlacement), so there is nothing to
+// carry and no list to keep right.
 
 // placementDragScript is the drag behaviour, and it travels with whichever page renders a canvas.
 //

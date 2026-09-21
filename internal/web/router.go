@@ -173,6 +173,10 @@ func Routes(d Deps) http.Handler {
 		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/review", showReviewDocument(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Machines, d.Store, d.Files, d.Cfg))
+		// The write half, on its own route rather than the generic record one: this screen asks
+		// "may you place this signature", which is a different question from "may you edit this
+		// step" -- see composition.MayPlaceSignature.
+		pr.Put("/machines/{machineID}/records/{id}/signature-placement", updateSignaturePlacement(d.Machines, d.Store, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/pdf-preview", servePDFPreview(d.Machines, d.Store, d.Files))
 
 		pr.Group(func(ar chi.Router) {

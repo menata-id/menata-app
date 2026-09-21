@@ -27,25 +27,6 @@ func SignaturePlacement(ctx context.Context, l *Loader, stepMachine *domain.Mach
 	return buildPlacement(stepMachine, document, steps, relations, groups, page, totalPages, viewer), nil
 }
 
-// formOwnedFields are the Fields each placement form supplies itself, and therefore the only ones
-// carryForward must leave out.
-//
-// Everything else a step holds has to ride along as a hidden input, because these forms PUT to the
-// *generic* update route, which rewrites a record from what it is given while data.ValuesFromForm
-// drops whatever is absent. That is the trap Fase 6c-2 found and fixed by hand -- and the hand fix
-// was already incomplete: it added three names and missed fld_signature_image, so a one-time
-// signature captured at Approve time was still erased by the next drag.
-//
-// Deriving the list from m.Fields instead is what makes the trap structurally impossible rather
-// than fixed once. The next Field added to mch_approval_step is carried without anyone
-// remembering to, which is exactly the remembering that failed twice.
-var formOwnedFields = map[string]bool{
-	action.FieldStepSignaturePage:  true,
-	action.FieldStepSignatureX:     true,
-	action.FieldStepSignatureY:     true,
-	action.FieldStepSignatureWidth: true,
-}
-
 // buildPlacement is the whole derivation, over records someone else already fetched.
 func buildPlacement(stepMachine *domain.Machine, document *data.Record, steps []*data.Record, relations rendering.RelationOptions, groups rendering.GroupOptions, page, totalPages int, viewer domain.Actor) rendering.PlacementView {
 	v := rendering.PlacementView{
@@ -63,8 +44,7 @@ func buildPlacement(stepMachine *domain.Machine, document *data.Record, steps []
 			// decide whether to render a draggable marker or a static one. Presentation, never
 			// protection -- and since Fase 6c-3 it resolves a Group-held step through its Group,
 			// which is the whole reason such a step's marker is draggable at all.
-			Editable:    stepMachine != nil && authorization.AllowsAction(stepMachine, domain.ActionEdit, s.Values, viewer),
-			CarryFields: carryForward(stepMachine, s),
+			Editable: MayPlaceSignature(stepMachine, document, s, viewer),
 		}
 		step.ApproverKind, step.Approver = approverOf(s, relations, groups)
 		if p, x, y, width, ok := placementOf(s); ok {
@@ -94,28 +74,6 @@ func approverOf(s *data.Record, relations rendering.RelationOptions, groups rend
 	return domain.ActorKindUser, rendering.RelationLabel(relations, domain.UserMachineID, DisplayString(s.Values[action.FieldStepAssignee]))
 }
 
-// carryForward is every Field this Machine declares that the placement forms do not themselves
-// submit, as name/value pairs ready to render as hidden inputs. See formOwnedFields for why this
-// is derived rather than listed.
-//
-// A Field with no value on this record is still emitted, as an empty input. That is deliberate:
-// data.ValuesFromForm treats empty and absent identically (it skips both), so an empty input
-// changes nothing -- but rendering one keeps the form's shape stable across records, which is what
-// makes "did this Field get carried?" answerable by looking at one rendered page.
-func carryForward(m *domain.Machine, s *data.Record) []rendering.CarryField {
-	if m == nil {
-		return nil
-	}
-	fields := make([]rendering.CarryField, 0, len(m.Fields))
-	for _, f := range m.Fields {
-		if formOwnedFields[f.ID] {
-			continue
-		}
-		fields = append(fields, rendering.CarryField{Name: f.ID, Value: DisplayString(s.Values[f.ID])})
-	}
-	return fields
-}
-
 // PlacementPageHref and PlacementPreviewHref are the two routes board 09 links: another page of
 // the same screen, and the rendered image of one page. Both live here rather than in the .templ so
 // the page renders strings it was handed -- the same posture ReviewPlacement's own PreviewHref
@@ -128,10 +86,33 @@ func PlacementPreviewHref(documentID string, page int) string {
 	return fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=%d", action.DocumentMachineID, documentID, page)
 }
 
-// PlacementFieldsForTest exposes carryForward to internal/web's own round-trip test, which must
-// submit exactly what the rendered form submits. A test that hand-listed those names instead would
-// drift from the page the same way the hidden-input list drifted from the Machine -- which is the
-// drift the whole carry-forward change exists to end.
-func PlacementFieldsForTest(m *domain.Machine, s *data.Record) []rendering.CarryField {
-	return carryForward(m, s)
+// MayPlaceSignature answers who can move a signature box on this screen, and it is deliberately a
+// different question from "who may edit this Approval Step".
+//
+// Board 09 is `STEP 2 OF 3` of the submit wizard: the person laying the boxes out is the one
+// submitting the Document, and internal/web.submitDocumentWizard redirects them straight here. But
+// mch_approval_step's edit Permission says only a step's *own approver* may change it -- which is
+// right for every other screen and wrong for this one. Until 2026-09-21 the two were the same
+// check, so the wizard sent a submitter to a screen on which they could move nothing: every marker
+// rendered static, and the PUT behind it would have been refused anyway. It became total when
+// `edit` gained its approver-role arm; before that a submitter who happened to also be a step's
+// assignee could still drag that one marker, which is why it read as a regression rather than as
+// the long-standing mismatch it is.
+//
+// So: the Document's own submitter, or the step's own approver. The first arm is a cross-record
+// rule -- it reads fld_submitted_by on the *parent* -- which no Permission arm in this runtime can
+// express (ROADMAP.md's deferral table). It lives here rather than in metadata for that reason,
+// and it lives in ONE function so the screen that draws a draggable marker and the route that
+// accepts the drag cannot disagree, which is the property authorization.AllowsAction's own doc
+// comment describes for buttons and POSTs.
+func MayPlaceSignature(stepMachine *domain.Machine, document, step *data.Record, actor domain.Actor) bool {
+	if stepMachine == nil || actor.ID == "" {
+		return false
+	}
+	if document != nil {
+		if submitter, ok := document.Values[action.FieldDocumentSubmittedBy].(string); ok && submitter != "" && submitter == actor.ID {
+			return true
+		}
+	}
+	return authorization.AllowsAction(stepMachine, domain.ActionEdit, step.Values, actor)
 }

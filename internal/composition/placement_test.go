@@ -9,38 +9,49 @@ import (
 	"menata.app/internal/rendering"
 )
 
-// TestCarryForward_isDerivedFromTheMachineNotAList is the test that proves what Fase 6c-3 actually
-// changed, rather than what it happened to produce.
-//
-// A test asserting today's field names would pass equally well against the hand-maintained list
-// Fase 6c-2 shipped -- and that list had already forgotten fld_signature_image. So this declares a
-// Field the code has never heard of and asserts it is carried anyway. That can only pass if the
-// list is derived, which is the difference between "fixed" and "cannot recur".
-func TestCarryForward_isDerivedFromTheMachineNotAList(t *testing.T) {
-	m := &domain.Machine{ID: action.StepMachineID, Fields: []domain.Field{
-		{ID: action.FieldStepDocument, Type: domain.FieldTypeRelation, RelatedMachine: action.DocumentMachineID},
-		{ID: action.FieldStepSignatureX, Type: domain.FieldTypeNumber},
-		{ID: "fld_invented_tomorrow", Type: domain.FieldTypeText},
-	}}
-	s := &data.Record{ID: "stp_1", Values: map[string]any{
-		action.FieldStepDocument:   "doc_1",
-		action.FieldStepSignatureX: float64(20),
-		"fld_invented_tomorrow":    "still carried",
-	}}
+// MayPlaceSignature is the whole of who can move a box on board 09, and the submitter arm is the
+// one that needed a function rather than a Permission: it reads fld_submitted_by on the *parent*
+// Document, which no Permission arm in this runtime can reach.
+func TestMayPlaceSignature(t *testing.T) {
+	stepM := &domain.Machine{
+		ID:            action.StepMachineID,
+		ApplicationID: "app_document_approval",
+		Fields:        []domain.Field{{ID: action.FieldStepAssignee, Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID}},
+		Permissions: []domain.Permission{{
+			ID: "prm_edit_own_step", Action: domain.ActionEdit,
+			Roles: []string{"approver"}, ActorField: action.FieldStepAssignee,
+		}},
+	}
+	document := &data.Record{ID: "doc_1", Values: map[string]any{action.FieldDocumentSubmittedBy: "usr_nana"}}
+	step := &data.Record{ID: "stp_1", Values: map[string]any{action.FieldStepAssignee: "usr_rina"}}
 
-	got := carryForward(m, s)
-	byName := map[string]string{}
-	for _, f := range got {
-		byName[f.Name] = f.Value
+	// The submitter, holding no approver role and named on no step: this is the case the wizard
+	// actually produces, and the one that was broken.
+	submitter := domain.Actor{ID: "usr_nana", Roles: map[string][]string{"app_document_approval": {"submitter"}}}
+	if !MayPlaceSignature(stepM, document, step, submitter) {
+		t.Error("the document's own submitter lays the boxes out -- board 09 is step 2 of 3 of submitting")
 	}
-	if v, ok := byName["fld_invented_tomorrow"]; !ok || v != "still carried" {
-		t.Errorf("a Field nobody wrote into this code must still be carried; got %q, ok=%v", v, ok)
+
+	// The step's own approver, on someone else's document.
+	approver := domain.Actor{ID: "usr_rina", Roles: map[string][]string{"app_document_approval": {"approver"}}}
+	if !MayPlaceSignature(stepM, document, step, approver) {
+		t.Error("a step's own approver may still place its signature")
 	}
-	if _, ok := byName[action.FieldStepSignatureX]; ok {
-		t.Error("a Field the placement forms submit themselves must NOT be carried, or the form would send it twice")
+
+	// Neither: a real member of the Application who is not this document's submitter and holds no
+	// step here.
+	bystander := domain.Actor{ID: "usr_budi", Roles: map[string][]string{"app_document_approval": {"approver"}}}
+	if MayPlaceSignature(stepM, document, step, bystander) {
+		t.Error("someone who neither submitted the document nor holds the step must be refused")
 	}
-	if _, ok := byName[action.FieldStepDocument]; !ok {
-		t.Error("every other declared Field must be carried")
+	if MayPlaceSignature(stepM, document, step, domain.Actor{}) {
+		t.Error("an unidentified caller places nothing")
+	}
+	// A Document with no submitter recorded -- every one written before fld_submitted_by existed
+	// -- falls back to the step's own approver rather than opening up.
+	legacy := &data.Record{ID: "doc_0", Values: map[string]any{}}
+	if MayPlaceSignature(stepM, legacy, step, submitter) {
+		t.Error("an empty fld_submitted_by must grant nobody, the same way an empty actor field does")
 	}
 }
 

@@ -292,3 +292,59 @@ func DisplayString(v any) string {
 	b, _ := json.Marshal(v)
 	return string(b)
 }
+
+// ApproverOptions narrows the person picker on the submit wizard to people who could actually
+// decide a step -- those holding a role the step Machine's own `decide` Permission requires
+// (upstream's CAP-F05, "a query-time filter, no new metadata concept").
+//
+// It exists because the roles decision of 2026-09-21 gave the unfiltered picker a way to fail
+// silently: a submitter could name anyone in the Workspace, so they could build a chain whose
+// steps are assigned to a real person who holds no `approver` role -- or no role in Document
+// Approval at all, and therefore cannot even open its screens. The step is created, looks normal,
+// and is decidable by nobody. Nothing errors, at submit time or after.
+//
+// The eligible set is derived, never declared twice: the required roles come from the same
+// Permissions authorization.AllowsAction enforces (requiredRoles, shared with the Authorization
+// Matrix), and a member's own roles come from data.EffectiveRoles, so a role held through a Group
+// qualifies exactly as a direct one does. A Machine whose decide Permission names no role at all
+// narrows nothing -- the picker goes back to everyone, which is what "no rule declared" means
+// everywhere else (001 Principle #6).
+//
+// Deliberately scoped to the mch_user list and to `decide`. The Group half of the picker needs no
+// narrowing (a Group's members are checked at the moment someone acts, not at submission -- board
+// 09's own note), and narrowing every reference field on every screen by whatever Permission
+// happens to mention it would be a general rule invented from one case.
+func ApproverOptions(all rendering.RelationOptions, stepMachine *domain.Machine, members []data.Membership) rendering.RelationOptions {
+	if stepMachine == nil {
+		return all
+	}
+	required, restricted := requiredRoles(stepMachine, domain.ActionDecide)
+	if !restricted {
+		return all
+	}
+	eligible := make(map[string]bool, len(members))
+	for _, m := range members {
+		for _, role := range data.EffectiveRoles(m.AppRoles, m.Groups)[stepMachine.ApplicationID] {
+			if required[role] {
+				eligible[m.UserRecordID] = true
+				break
+			}
+		}
+	}
+
+	narrowed := make(rendering.RelationOptions, len(all))
+	for machineID, list := range all {
+		if machineID != domain.UserMachineID {
+			narrowed[machineID] = list
+			continue
+		}
+		kept := make([]rendering.RelationOption, 0, len(list))
+		for _, opt := range list {
+			if eligible[opt.ID] {
+				kept = append(kept, opt)
+			}
+		}
+		narrowed[machineID] = kept
+	}
+	return narrowed
+}

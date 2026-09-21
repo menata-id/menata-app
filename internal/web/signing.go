@@ -5,10 +5,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"sort"
 
+	"github.com/go-chi/chi/v5"
+
 	"menata.app/internal/action"
+	"menata.app/internal/composition"
+	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/storage"
@@ -178,4 +183,80 @@ func readStoredImage(files *storage.Store, key string) ([]byte, error) {
 		return nil, err
 	}
 	return os.ReadFile(path)
+}
+
+// placementFields are the only Fields the signature-placement screen writes: where a step's
+// signature box sits, and how wide it is.
+//
+// Naming them here is what makes this route safe in the way the generic update route was not. That
+// route rewrites a whole record from whatever the form submits, so the screen had to echo every
+// other Field back as a hidden input or lose it -- a list that silently forgot four Fields once and
+// erased a one-time signature on the next drag (ROADMAP.md Fase 6c-2/6c-3). A route that writes
+// four named Fields and touches nothing else cannot have that bug at all, so the echo is gone
+// rather than merely correct.
+var placementFields = []string{
+	action.FieldStepSignaturePage,
+	action.FieldStepSignatureX,
+	action.FieldStepSignatureY,
+	action.FieldStepSignatureWidth,
+}
+
+// updateSignaturePlacement moves or resizes one step's signature box (board 09).
+//
+// It exists because the question this screen asks is not the one mch_approval_step's edit
+// Permission answers. Board 09 is `STEP 2 OF 3` of the submit wizard -- the person laying the
+// boxes out is the one *submitting* the Document -- while that Permission says only a step's own
+// approver may change it. Both are right; they are simply about different people, and
+// composition.MayPlaceSignature is the one function that resolves which applies, called here and
+// by the screen that decides whether to draw a draggable marker.
+//
+// Until this route existed those forms PUT to the generic record route, so the wizard redirected a
+// submitter to a screen where every marker was static and the write would have been refused
+// anyway. It is the bug the owner hit the first time they submitted a document after the role
+// rules landed.
+func updateSignaturePlacement(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+		if machine.ID != action.StepMachineID {
+			http.Error(w, "this machine has no signature placement", http.StatusNotFound)
+			return
+		}
+		ctx := req.Context()
+		step, err := store.GetRecord(ctx, machine.ID, chi.URLParam(req, "id"))
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		documentID, _ := step.Values[action.FieldStepDocument].(string)
+		document, err := store.GetRecord(ctx, action.DocumentMachineID, documentID)
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		if !composition.MayPlaceSignature(machine, document, step, currentActor(req, store, cfg)) {
+			http.Error(w, "only this document's submitter, or this step's own approver, may place its signature", http.StatusForbidden)
+			return
+		}
+
+		if err := req.ParseForm(); err != nil {
+			http.Error(w, "invalid form body", http.StatusBadRequest)
+			return
+		}
+		values := data.ValuesFromForm(machine, req.Form)
+		for _, id := range placementFields {
+			// Only the four, and only when the form actually sent them -- a form that omits one
+			// leaves the stored value alone rather than clearing it.
+			if _, sent := req.Form[id]; sent {
+				step.Values[id] = values[id]
+			}
+		}
+		if _, err := store.UpdateRecord(ctx, machine.ID, step.ID, step.Values); err != nil {
+			recordError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
 }

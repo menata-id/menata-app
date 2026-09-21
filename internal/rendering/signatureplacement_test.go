@@ -3,9 +3,11 @@ package rendering
 import (
 	"bytes"
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 
+	"menata.app/internal/action"
 	"menata.app/internal/domain"
 )
 
@@ -17,12 +19,6 @@ func placementFixture(editable bool) PlacementView {
 			Approver: "Legal Group", ApproverKind: domain.ActorKindGroup,
 			Placed: true, Page: 1, X: 20, Y: 84, Width: 25,
 			Editable: editable,
-			CarryFields: []CarryField{
-				{Name: "fld_document", Value: "doc_1"},
-				{Name: "fld_approver_type", Value: domain.ActorKindGroup},
-				{Name: "fld_approver_group", Value: "grp_legal"},
-				{Name: "fld_signature_image", Value: "sig_key"},
-			},
 		}},
 	}
 }
@@ -41,28 +37,32 @@ func renderPlacement(t *testing.T, v PlacementView) string {
 	return buf.String()
 }
 
-// Every carried Field must reach the form as a hidden input, whatever it is.
+// The forms must write through the placement route, not the generic record route -- and must send
+// nothing but the four placement Fields.
 //
-// This asserts the *list it was handed*, not a set of names this test knows — which is the whole
-// difference from the version Fase 6c-2 shipped. That one checked three specific names, so it
-// passed against a hand-maintained list that had already forgotten fld_signature_image. A loop
-// over CarryFields cannot forget, and this test cannot pass by coincidence.
-func TestSignaturePlacementPage_rendersEveryCarriedField(t *testing.T) {
-	v := placementFixture(true)
-	html := renderPlacement(t, v)
-	for _, f := range v.Steps[0].CarryFields {
-		if !strings.Contains(html, `name="`+f.Name+`"`) {
-			t.Errorf("no hidden input for %s -- the next drag would erase it, silently", f.Name)
-		}
-		if f.Value != "" && !strings.Contains(html, `value="`+f.Value+`"`) {
-			t.Errorf("%s is present but does not carry %q forward", f.Name, f.Value)
-		}
+// This replaces TestSignaturePlacementPage_rendersEveryCarriedField, which asserted the opposite
+// shape: that every *other* Field on the step was echoed back as a hidden input, because the
+// generic route rewrote a whole record from whatever was submitted and erased what was missing.
+// That echo is gone. A route writing four named Fields cannot erase a fifth, so the property worth
+// holding is now the absence: any hidden input naming a Field outside the four is a step back
+// toward the bug (ROADMAP.md Fase 6c-2/6c-3, where the hand-written list forgot four Fields and
+// silently destroyed a one-time signature on the next drag).
+func TestSignaturePlacementPage_writesOnlyPlacementFields(t *testing.T) {
+	html := renderPlacement(t, placementFixture(true))
+
+	if !strings.Contains(html, "/signature-placement\"") {
+		t.Error("the forms must PUT to the placement route, not the generic record route")
 	}
-	// fld_signature_image is called out by name because it is the one Fase 6c-2's hand-written
-	// list missed: a one-time signature captured at Approve time was still being erased by the
-	// next marker drag after that fix shipped.
-	if !strings.Contains(html, `name="fld_signature_image"`) {
-		t.Error("fld_signature_image must be carried -- it was the Field the hand-maintained list forgot")
+	placement := map[string]bool{
+		action.FieldStepSignaturePage:  true,
+		action.FieldStepSignatureX:     true,
+		action.FieldStepSignatureY:     true,
+		action.FieldStepSignatureWidth: true,
+	}
+	for _, m := range regexp.MustCompile(`<input type="hidden" name="(fld_[a-z_]+)"`).FindAllStringSubmatch(html, -1) {
+		if !placement[m[1]] {
+			t.Errorf("%s is submitted as a hidden input -- this screen writes only the four placement fields", m[1])
+		}
 	}
 }
 
