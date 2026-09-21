@@ -475,6 +475,22 @@ generic routes — declaring no Permission means unrestricted, not "nobody can."
 per-Field permission (see "What this can't do yet" below), and record creation has no Permission
 of its own yet (there is no existing record to match an `actor_field` against at that point).
 
+## 7.2. Declaring `roles:` also closes the Application
+
+An Application that declares a `roles:` vocabulary (§2) is **gated on holding one of them**:
+someone with no role there cannot open a single one of its screens, reading included. An
+Application that declares none stays fully open, because requiring a role nobody can hold would
+deny everyone.
+
+That is not a separate key — it falls out of the vocabulary existing
+(`internal/web.requireApplicationAccess`). It is worth knowing before you add `roles:` to an
+Application that did not have them: the moment you do, every existing member without an assigned
+role loses access to it.
+
+It is coarse on purpose. There is no `read` Action in this runtime, so what can be said is "in or
+out of this Application", never "may see Documents but not Approval Steps". The finer shape
+(upstream's per-role `can_read`) is in `ROADMAP.md`, unbuilt.
+
 ## 8.0. `append_only`: a Machine whose records are never changed
 
 ```yaml
