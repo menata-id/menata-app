@@ -1,111 +1,79 @@
 <!doctype html>
+<!--
+  Redrawn 2026-09-21 (owner request) and now matching the screen that actually ships at
+  /authorization-matrix. The previous version of this file drew a STAGE model -- Submit, Approve
+  Finance, Approve Legal, Approve Director over Draft/In Review/Finance OK/Legal OK -- gated on
+  roles named Admin, Finance Reviewer, Legal Reviewer, Director, Member.
+
+  Three things were wrong with it against the app this repo builds, and none of them was styling:
+
+    * The app derives a document's status from its approval steps and treats *who approves* as
+      per-record data the submitter picks, so there is no stage machine to gate. That difference is
+      a model decision for the owner, recorded in ROADMAP.md's deferral table, not screen work.
+    * Admin and Member are the WORKSPACE role pair (see member-role-detail.html, whose own caption
+      reads "independent of application permissions"), so two of its five columns were not
+      application roles at all. The other three appear in no declared vocabulary anywhere.
+    * A matrix of transitions alone is nearly empty here, while the actions it left out --
+      create/edit/delete -- were the ones actually ungoverned.
+
+  The original is not lost: 06-approval-role-matrix.html in case-03-flow1/ is the owner's own
+  board, untouched, and this file's previous content is in git.
+
+  Structure is two sections by scope, Workspace then one block per application, every application
+  on the page at once. Content matches the real declarations in metadata/*.yaml, including the two
+  amber rows -- an action nobody governs is drawn as open on purpose, because in a YAML file
+  "ungoverned" and "granted to everyone" look identical.
+
+  Sibling in the newer inline-styled board set: case-03-flow1/06b-authorization-matrix.html.
+-->
 <html lang="en" class="h-full bg-slate-50">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>UI Sample — Approval Role Matrix</title>
+<title>UI Sample — Who can do what</title>
 <script src="/vendor/tailwind.play.js"></script>
 <script src="nav-metadata.js"></script><script src="nav-chrome.js"></script></head>
 <body class="min-h-full text-slate-900">
 
 <header class="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
   <div class="mx-auto flex max-w-6xl items-center justify-between gap-4">
-    <div class="text-sm font-semibold">Menata Runtime <span class="font-normal text-slate-400">/ Approval Role Matrix</span></div>
+    <div class="text-sm font-semibold">Menata Runtime <span class="font-normal text-slate-400">/ Who can do what</span></div>
     <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold">NS</span>
   </div>
 </header>
 <main class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-  <a href="/ui-sample/index.html" class="mb-4 inline-block text-xs font-medium text-blue-600 hover:underline">&larr; Back to ui-sample index</a>
+  <a href="/ui-sample/index.html" class="mb-5 inline-block text-xs font-medium text-blue-600 hover:underline">&larr; Back to ui-sample index</a>
 
-  <div class="mb-5 flex flex-wrap items-end justify-between gap-4">
-    <div>
-      <h1 class="text-xl font-semibold text-slate-900">Approval Role Matrix</h1>
-      <p class="mt-1 max-w-2xl text-sm text-slate-500">
-        Which role may perform which approval transition, for one Application. Derived from that
-        Application's own Machines' Permissions — this page doesn't invent a new permission model,
-        it just re-projects <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">ProcessEdge</code>
-        (already rendered per-transition on <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">/{machineID}/process-map</code>)
-        role-first instead of transition-first.
-      </p>
+  <div class="mb-7 max-w-[760px]">
+    <h1 class="text-xl font-semibold text-slate-900">Who can do what</h1>
+    <p class="mt-2 text-sm leading-6 text-slate-500">
+      Some rules belong to the whole workspace. The rest belong to each application separately &mdash; a
+      person can hold a different role in each one. A <span class="text-emerald-600">&#10003;</span> means
+      that role is allowed; the line underneath says whether it is also limited to certain records.
+    </p>
+  </div>
+
+  <section class="mb-8 flex flex-col gap-3">
+    <div class="flex flex-col gap-1">
+      <h2 class="m-0 text-base font-medium">Workspace</h2>
+      <p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">Applies everywhere, whichever application you are in. These are not an application&rsquo;s to decide, so no role can grant them.</p>
     </div>
-    <select class="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm">
-      <option>Document Approval</option>
-      <option>Procurement</option>
-      <option>HR</option>
-    </select>
-  </div>
+    <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"><div class="hidden gap-6 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-[11px] uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[320px_minmax(0,1fr)]"><span>What you can do</span><span>Who can do it</span></div><div class="grid gap-1 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[320px_minmax(0,1fr)] sm:gap-6"><div class="flex flex-col gap-0.5"><span class="text-sm">Manage members, groups and who gets which role</span><span class="text-[11px] text-slate-400">Enforced in code, not yet declared in metadata</span></div><div class="text-xs leading-5"><span class="font-medium text-slate-900">Workspace admins only.</span> <span class="text-slate-500">This page is part of that &mdash; a plain member cannot open it.</span></div></div><div class="grid gap-1 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[320px_minmax(0,1fr)] sm:gap-6"><div class="flex flex-col gap-0.5"><span class="text-sm">Edit or delete a user</span></div><div class="text-xs leading-5"><span class="font-medium text-slate-900">Workspace admins only.</span> <span class="text-slate-500">This is the workspace&rsquo;s own directory, so changing it is administration &mdash; not something any application decides.</span></div></div><div class="grid gap-1 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[320px_minmax(0,1fr)] sm:gap-6"><div class="flex flex-col gap-0.5"><span class="text-sm">Change the activity history</span></div><div class="text-xs leading-5"><span class="font-medium text-slate-900">No one, not even an admin.</span> <span class="text-slate-500">It is a permanent record of what happened. Entries are added, never edited or removed.</span></div></div></div>
+  </section>
 
-  <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-    <table class="w-full min-w-[720px] text-sm">
-      <thead class="border-b border-slate-200 bg-slate-50">
-        <tr>
-          <th class="sticky left-0 bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Transition</th>
-          <th class="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Admin</th>
-          <th class="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Finance Reviewer</th>
-          <th class="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Legal Reviewer</th>
-          <th class="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Director</th>
-          <th class="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">Member</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-100">
-        <tr class="hover:bg-slate-50">
-          <td class="sticky left-0 bg-white px-4 py-2.5"><div class="font-medium text-slate-800">Submit</div><div class="text-xs text-slate-400">Draft &rarr; In Review</div></td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-        </tr>
-        <tr class="hover:bg-slate-50">
-          <td class="sticky left-0 bg-white px-4 py-2.5"><div class="font-medium text-slate-800">Approve — Finance</div><div class="text-xs text-slate-400">In Review &rarr; Finance OK</div></td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-        </tr>
-        <tr class="hover:bg-slate-50">
-          <td class="sticky left-0 bg-white px-4 py-2.5"><div class="font-medium text-slate-800">Approve — Legal</div><div class="text-xs text-slate-400">Finance OK &rarr; Legal OK</div></td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-        </tr>
-        <tr class="hover:bg-slate-50">
-          <td class="sticky left-0 bg-white px-4 py-2.5"><div class="font-medium text-slate-800">Approve — Director</div><div class="text-xs text-slate-400">Legal OK &rarr; Approved</div></td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-        </tr>
-        <tr class="hover:bg-slate-50">
-          <td class="sticky left-0 bg-white px-4 py-2.5"><div class="font-medium text-slate-800">Reject</div><div class="text-xs text-slate-400">any pending state &rarr; Rejected</div></td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-        </tr>
-        <tr class="hover:bg-slate-50">
-          <td class="sticky left-0 bg-white px-4 py-2.5"><div class="font-medium text-slate-800">Reopen</div><div class="text-xs text-slate-400">Rejected &rarr; Draft</div></td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-slate-200">&#183;</td>
-          <td class="px-4 py-2.5 text-center text-emerald-600">&#10003;</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <section class="flex flex-col gap-4">
+    <div class="flex flex-col gap-1">
+      <h2 class="m-0 text-base font-medium">Applications</h2>
+      <p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">Each application declares its own roles and decides what they may do inside it. A role means nothing outside the application that declared it.</p>
+    </div>
+    <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"><div class="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5"><div class="flex flex-col gap-1"><span class="text-[15px] font-medium">Document Approval</span><span class="text-xs text-slate-500">Submit, review and approve controlled documents.</span></div><div class="flex flex-wrap gap-1.5"><span class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] text-blue-700">approver</span><span class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] text-blue-700">submitter</span><span class="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] text-blue-700">reviewer</span></div></div><div class="overflow-x-auto"><table class="w-full min-w-[640px] border-collapse text-left"><thead><tr class="border-b border-slate-200 bg-slate-50"><th scope="col" class="px-4 py-2.5 text-left text-[11px] font-normal uppercase tracking-wide text-slate-500">What you can do</th><th scope="col" class="w-[110px] px-3 py-2.5 text-center text-[11px] font-normal uppercase tracking-wide text-slate-500">approver</th><th scope="col" class="w-[110px] px-3 py-2.5 text-center text-[11px] font-normal uppercase tracking-wide text-slate-500">submitter</th><th scope="col" class="w-[110px] px-3 py-2.5 text-center text-[11px] font-normal uppercase tracking-wide text-slate-500">reviewer</th></tr></thead><tbody><tr class="border-b border-slate-100 bg-slate-50/50"><th scope="colgroup" colspan="4" class="px-4 py-2 text-left text-[11px] font-normal uppercase tracking-wide text-slate-400">Document</th></tr><tr class="border-b border-slate-100 last:border-b-0"><th scope="row" class="max-w-[420px] px-4 py-3 text-left align-top font-normal"><span class="flex flex-col gap-0.5"><span class="text-sm text-slate-900">Create</span><span class="text-[11px] leading-4 text-slate-500">Anyone, but only in your own name.</span></span></th><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td></tr><tr class="border-b border-slate-100 last:border-b-0"><th scope="row" class="max-w-[420px] px-4 py-3 text-left align-top font-normal"><span class="flex flex-col gap-0.5"><span class="text-sm text-slate-900">Edit or delete</span><span class="text-[11px] leading-4 text-amber-700">No restriction set yet — anyone in this workspace can do this to anyone's record.</span></span></th><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td></tr><tr class="border-b border-slate-100 bg-slate-50/50"><th scope="colgroup" colspan="4" class="px-4 py-2 text-left text-[11px] font-normal uppercase tracking-wide text-slate-400">Approval Step</th></tr><tr class="border-b border-slate-100 last:border-b-0"><th scope="row" class="max-w-[420px] px-4 py-3 text-left align-top font-normal"><span class="flex flex-col gap-0.5"><span class="text-sm text-slate-900">Approve</span><span class="text-[11px] leading-4 text-slate-500">Only the roles ticked here, and only the person it is assigned to, or a member of the group it names.</span></span></th><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top"><span class="inline-block h-1 w-1 rounded-full bg-slate-300 align-middle"></span></td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td></tr><tr class="border-b border-slate-100 last:border-b-0"><th scope="row" class="max-w-[420px] px-4 py-3 text-left align-top font-normal"><span class="flex flex-col gap-0.5"><span class="text-sm text-slate-900">Reject</span><span class="text-[11px] leading-4 text-slate-500">Only the roles ticked here, and only the person it is assigned to, or a member of the group it names.</span></span></th><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top"><span class="inline-block h-1 w-1 rounded-full bg-slate-300 align-middle"></span></td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td></tr><tr class="border-b border-slate-100 last:border-b-0"><th scope="row" class="max-w-[420px] px-4 py-3 text-left align-top font-normal"><span class="flex flex-col gap-0.5"><span class="text-sm text-slate-900">Create</span><span class="text-[11px] leading-4 text-amber-700">No restriction set yet — anyone in this workspace can do this to anyone's record.</span></span></th><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td></tr><tr class="border-b border-slate-100 last:border-b-0"><th scope="row" class="max-w-[420px] px-4 py-3 text-left align-top font-normal"><span class="flex flex-col gap-0.5"><span class="text-sm text-slate-900">Edit or delete</span><span class="text-[11px] leading-4 text-slate-500">Only the roles ticked here, and only the person it is assigned to, or a member of the group it names.</span></span></th><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top"><span class="inline-block h-1 w-1 rounded-full bg-slate-300 align-middle"></span></td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td></tr><tr class="border-b border-slate-100 bg-slate-50/50"><th scope="colgroup" colspan="4" class="px-4 py-2 text-left text-[11px] font-normal uppercase tracking-wide text-slate-400">Signature</th></tr><tr class="border-b border-slate-100 last:border-b-0"><th scope="row" class="max-w-[420px] px-4 py-3 text-left align-top font-normal"><span class="flex flex-col gap-0.5"><span class="text-sm text-slate-900">Create</span><span class="text-[11px] leading-4 text-slate-500">Anyone, but only in your own name.</span></span></th><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td></tr><tr class="border-b border-slate-100 last:border-b-0"><th scope="row" class="max-w-[420px] px-4 py-3 text-left align-top font-normal"><span class="flex flex-col gap-0.5"><span class="text-sm text-slate-900">Edit or delete</span><span class="text-[11px] leading-4 text-slate-500">Anyone, but only the person named as owner.</span></span></th><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td><td class="px-3 py-3 text-center align-top text-emerald-600">&#10003;</td></tr></tbody></table></div><div class="border-t border-slate-200 bg-slate-50/50 px-4 py-3.5"><div class="mb-1.5 text-[11px] uppercase tracking-wide text-slate-400">Happens on its own</div><p class="m-0 max-w-[760px] text-xs leading-5 text-slate-600">A document&rsquo;s status changes on its own &mdash; it becomes <b>approved</b>, <b>rejected</b> or <b>in_review</b> depending on its approval steps. Nobody sets it by hand, not even an admin, so it is not something a role can be given.</p></div></div>
+    <div class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"><div class="border-b border-slate-200 px-4 py-4"><div class="flex flex-col gap-1"><span class="text-[15px] font-medium">Project Management</span><span class="text-xs text-slate-500">Task boards, sprints and team capacity.</span></div></div><p class="m-0 px-4 py-4 text-xs leading-5 text-slate-500">This application declares <b>no roles</b>, so there is nothing to assign here yet &mdash; everyone in the workspace can do everything in it.</p></div>
+  </section>
 
-  <p class="mt-3 max-w-2xl text-xs text-slate-500">
-    <span class="mr-1 text-emerald-600">&#10003;</span> role holds a Permission granting this
-    transition's Event · <span class="mx-1 text-slate-300">&#183;</span> no grant. A role that
-    holds none of a transition's grants never sees the action on that record's Detail page — this
-    matrix exists to answer "who <em>can</em> approve this Machine" without opening each
-    Permission individually.
+  <p class="mt-6 max-w-[820px] text-xs leading-5 text-slate-500">
+    Holding <b>Workspace admin</b> does not unlock anything inside an application. An admin who is not an
+    approver on a document still cannot approve it &mdash; that separation is the point of having an
+    approval step at all. <span class="text-amber-700">Amber</span> marks something no rule covers yet.
   </p>
 </main>
 <script>MenataNav.mount();</script></body>
