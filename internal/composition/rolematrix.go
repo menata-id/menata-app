@@ -57,6 +57,24 @@ func applicationBlock(app domain.Application, byID map[string]*domain.Machine) r
 	if len(app.Roles) == 0 {
 		return block
 	}
+	// Entry first, because it is the only row that says what a role lets you *see*, and without it
+	// a role granted nothing else reads as a role granted nothing at all -- which is how the first
+	// version of this page showed `reviewer`: an empty column, for a role whose whole point is
+	// looking.
+	//
+	// It is derived rather than typed: an Application declaring `roles:` is gated on holding one
+	// (internal/web.requireApplicationAccess), so this row exists exactly when that list is
+	// non-empty, and every declared role grants it.
+	block.Groups = append(block.Groups, rendering.RoleMatrixGroup{
+		Label: "Access",
+		Rows: []rendering.RoleMatrixRow{{
+			Action:  "See " + app.Name + " at all",
+			Actions: []string{"enter"},
+			Qualifier: "Any role here. Someone with no role in " + app.Name +
+				" cannot open a single one of its screens, including looking at a document.",
+			Granted: allTrue(len(app.Roles)),
+		}},
+	})
 	for _, machineID := range app.Machines {
 		m, ok := byID[machineID]
 		if !ok {
@@ -348,4 +366,13 @@ func requiredRoles(m *domain.Machine, action string) (required map[string]bool, 
 		}
 	}
 	return required, restricted
+}
+
+// allTrue is one granted cell per role, for a row every declared role satisfies.
+func allTrue(n int) []bool {
+	out := make([]bool, n)
+	for i := range out {
+		out[i] = true
+	}
+	return out
 }

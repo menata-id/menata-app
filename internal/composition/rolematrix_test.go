@@ -251,3 +251,28 @@ func sameGrants(got, want []bool) bool {
 	}
 	return true
 }
+
+// The Access row is what makes a view-only role legible. Without it a role granted nothing else
+// renders as an empty column, which reads as "this role can do nothing" -- the opposite of what a
+// reviewer is for.
+func TestRoleMatrix_accessRowComesFirstAndEveryRoleHasIt(t *testing.T) {
+	v := RoleMatrix(matrixWorkspace())
+	da := v.Applications[0]
+
+	if len(da.Groups) == 0 || da.Groups[0].Label != "Access" {
+		t.Fatalf("groups = %v, want Access first", da.Groups)
+	}
+	row := da.Groups[0].Rows[0]
+	if want := []bool{true, true, true}; !sameGrants(row.Granted, want) {
+		t.Errorf("granted = %v, want every declared role to have it -- holding any role is what grants entry", row.Granted)
+	}
+	if !strings.Contains(row.Qualifier, "no role") {
+		t.Errorf("qualifier = %q, want it to state what someone without a role sees", row.Qualifier)
+	}
+
+	// An Application declaring no roles is gated on nothing, so it has no Access row to draw
+	// either -- and says so in a sentence instead.
+	if pm := v.Applications[1]; len(pm.Groups) != 0 {
+		t.Errorf("%s declares no roles, so it has no access rule to render", pm.Name)
+	}
+}

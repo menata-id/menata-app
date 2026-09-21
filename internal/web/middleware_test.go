@@ -6,9 +6,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 func passOrFail(t *testing.T) http.Handler {
@@ -108,5 +111,81 @@ func TestLogout_bumpsGenerationAndClearsCookie(t *testing.T) {
 	requireAuth(store, "", cfg)(passOrFail(t)).ServeHTTP(authedRec, authedReq)
 	if authedRec.Code == http.StatusOK {
 		t.Error("requireAuth let a post-logout cookie copy through, want it rejected")
+	}
+}
+
+// TestRequireApplicationAccess is the owner's rule of 2026-09-21 at its chokepoint: *someone who
+// is not a member of an application cannot do anything in it* -- not even look.
+//
+// It exercises the middleware's own pure decision through the real router-shaped chain
+// (currentApplication resolves the Application, this one reads it), because what it guards is
+// completeness: the value of gating here rather than in each handler is that /dashboard and
+// /approval-inbox -- the two screens that read across everyone's documents -- cannot be forgotten.
+func TestRequireApplicationAccess(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+
+	ws, err := store.CreateWorkspace(ctx, "App Access", "app-access-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, "app_access@example.com")
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	member, err := store.CreateRecord(wsCtx, domain.UserMachineID, map[string]any{"fld_name": "Rina", "fld_email": "app_access@example.com"})
+	if err != nil {
+		t.Fatalf("CreateRecord(user): %v", err)
+	}
+	if err := store.AddMember(wsCtx, ws.ID, member.ID, "app_access@example.com", "member", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	workspace := domain.Workspace{
+		ID: ws.ID,
+		Applications: []domain.Application{
+			// Declares roles, so entry requires one.
+			{ID: "app_document_approval", Name: "Document Approval", Machines: []string{"mch_document"}, Roles: []string{"approver", "submitter", "reviewer"}},
+			// Declares none: nobody can hold a role there, so requiring one would lock out
+			// everyone -- it stays open.
+			{ID: "app_project_management", Name: "Project Management", Machines: []string{"mch_task"}},
+		},
+	}
+	cfg := config.Config{SessionSecret: "test-secret-for-app-access"}
+
+	get := func(path string) int {
+		r := chi.NewRouter()
+		r.Use(currentApplication(workspace))
+		r.Use(requireApplicationAccess(store, cfg))
+		r.Get("/machines/{machineID}", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+		r.Get("/home", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, member.ID, 0)})
+		req = req.WithContext(wsCtx)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// No role in Document Approval yet: every one of its routes is closed, reading included.
+	if got := get("/machines/mch_document"); got != http.StatusForbidden {
+		t.Errorf("no role: status = %d, want 403 -- a non-member cannot even look", got)
+	}
+	// A Workspace-level route is not inside any Application, so it is untouched.
+	if got := get("/home"); got != http.StatusOK {
+		t.Errorf("workspace route: status = %d, want 200 -- it belongs to no application", got)
+	}
+	// An Application declaring no roles gates on nothing.
+	if got := get("/machines/mch_task"); got != http.StatusOK {
+		t.Errorf("role-less application: status = %d, want 200 -- requiring a role nobody can hold would deny everyone", got)
+	}
+
+	// The weakest role is enough to get in, which is the point of the rule: reviewer grants
+	// nothing else anywhere, and still opens every screen.
+	if err := store.SetMemberAppRole(wsCtx, ws.ID, member.ID, "app_document_approval", "reviewer"); err != nil {
+		t.Fatalf("SetMemberAppRole: %v", err)
+	}
+	if got := get("/machines/mch_document"); got != http.StatusOK {
+		t.Errorf("reviewer: status = %d, want 200 -- a reviewer may look", got)
 	}
 }

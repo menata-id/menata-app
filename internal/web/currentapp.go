@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	"menata.app/internal/config"
+	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
 )
@@ -75,4 +77,57 @@ func machineIDFromPath(path string) (string, bool) {
 		return "", false
 	}
 	return id, true
+}
+
+// requireApplicationAccess refuses a request that is inside an Application the viewer holds no
+// role in (owner decision, 2026-09-21: *someone who is not a member of an application cannot do
+// anything in it* -- not even look).
+//
+// It is registered immediately after currentApplication and reads what that middleware just
+// resolved, which is what makes it complete rather than approximate: every route inside an
+// Application passes through here, the generic /machines/... surface and the bespoke screens
+// alike, so there is no page to remember to gate and none to forget. Gating the handlers one by
+// one was the alternative, and it would have left /dashboard and /approval-inbox -- the two that
+// read across everyone's documents -- depending on nobody overlooking them.
+//
+// **This is Application-level access, deliberately coarser than a per-Machine `read` Permission.**
+// The runtime has no `read` Action (upstream's CAP-P05 `can_read` is the finer shape, unbuilt
+// here; see ROADMAP.md), so what can be said today is "in or out of this Application", not "may
+// see Documents but not Approval Steps". That is exactly the rule the owner stated, so it is
+// enough -- but it is worth naming, because the Authorization Matrix renders this as one row and
+// a reader could otherwise take it for per-record read control.
+//
+// Three cases pass through untouched, each for its own reason:
+//
+//   - A request in no Application at all (Workspace Home, Members, Groups, the matrix itself).
+//     There is no vocabulary to check against.
+//   - An Application that declares no `roles:` (Project Management). Nobody can hold a role there,
+//     so requiring one would lock out every single person -- the "rule that reads as a grant and
+//     denies everyone" shape this repo refuses elsewhere.
+//   - The shared admin credential's placeholder identity, by id, the same narrow exemption
+//     requireWorkspaceAdmin takes. It has no membership row and therefore no role anywhere; it
+//     predates all of this.
+//
+// The membership read is skipped entirely for the first two, so an Application declaring no roles
+// costs nothing per request and the Workspace screens cost nothing at all.
+func requireApplicationAccess(store *data.Store, cfg config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			app, ok := rendering.CurrentApplication(req.Context())
+			if !ok || len(app.Roles) == 0 {
+				next.ServeHTTP(w, req)
+				return
+			}
+			actor := currentActor(req, store, cfg)
+			if actor.ID != "" && actor.ID == cfg.AdminUserID {
+				next.ServeHTTP(w, req)
+				return
+			}
+			if len(actor.Roles[app.ID]) == 0 {
+				http.Error(w, "you have no role in "+app.Name, http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, req)
+		})
+	}
 }
