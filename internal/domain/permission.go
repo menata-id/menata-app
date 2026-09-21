@@ -16,13 +16,44 @@ const (
 	ActionDelete = "delete"
 )
 
+// ActionCreate governs the generic record-creation routes (POST .../records and the JSON twin).
+//
+// It did not exist until the authorization review of 2026-09-21, and the reason it did not is
+// recorded above and in internal/web's own create handler: "record creation has no existing
+// record to match an actor field against yet, so it deliberately has no Action here." That was a
+// correct reading of the *record-scoped* shape and it stopped being the whole story when the role
+// arm landed (CAP-P01) -- a rule about who may act at all needs no record to read. Creation was
+// consequently the one write path in this runtime with no authorization check of any kind, on
+// every Machine, and the audit found that before a case did.
+//
+// ActorField keeps a meaning here, and only the one it can have: at creation the values being
+// checked are the ones *being submitted*, so `actor_field: fld_owner` reads "you may only create
+// a record that names you". That is what closes the signature-forgery hole (metadata/signature.
+// yaml) -- and it needed no new key, because "the actor must be this field's value" is already
+// exactly what ActorField says; only the record it is read from is different.
+const ActionCreate = "create"
+
 // KnownActions is the closed set of Action names a Permission may govern. Like KnownFieldTypes,
 // this is a deliberate static seam (007 §14), not a name inferred from metadata -- a Permission
 // naming an Action the runtime does not have would silently protect nothing.
 var KnownActions = map[string]bool{
 	ActionDecide: true,
+	ActionCreate: true,
 	ActionEdit:   true,
 	ActionDelete: true,
+}
+
+// WorkspaceRoleAdmin is the one Workspace-level role a Permission may require. Workspace roles are
+// a closed, runtime-owned pair (admin/member) rather than a declared vocabulary the way an
+// Application's own roles: are -- they describe administering the Workspace itself, which every
+// Workspace has identically, so there is nothing per-Workspace to declare.
+const WorkspaceRoleAdmin = "admin"
+
+// KnownWorkspaceRoles is the closed set a Permission's WorkspaceRole may name. "member" is
+// deliberately absent: requiring it would be a Permission that every member satisfies and every
+// admin fails, which is never a rule anyone means.
+var KnownWorkspaceRoles = map[string]bool{
+	WorkspaceRoleAdmin: true,
 }
 
 // Permission expresses an authorization requirement for performing an Action
@@ -77,6 +108,23 @@ type Permission struct {
 	// granted through a Group gates identically to one granted directly, which is CAP-O07's rule
 	// and the same late resolution DynamicActor's group arm already relies on.
 	Roles []string
+	// WorkspaceRole, when set, requires the actor to hold that Workspace role -- today only
+	// WorkspaceRoleAdmin. Empty on every Permission that says nothing about it, which is most.
+	//
+	// It is a *separate* key from Roles rather than a reserved word inside it, because the two
+	// name different things and merging them would be the drift this runtime keeps catching: an
+	// Application's roles: vocabulary is declared per Application and means whatever that
+	// Application says, while admin/member is runtime-owned and identical everywhere. A single
+	// list would make `roles: [admin, approver]` read as one alternation across two namespaces,
+	// and an Application could shadow the Workspace's own word by declaring "admin" itself.
+	//
+	// It ANDs with Roles and the record-scoped arms, like every other arm: a Permission naming
+	// both a Workspace role and an Application role requires both. It is deliberately NOT a
+	// bypass -- holding admin satisfies a Permission that *asks* for admin, and changes nothing
+	// about any Permission that does not. See internal/conformance's own test for why that is a
+	// decision rather than an omission: an administrator who can approve a document they are not
+	// an approver of is the audit hole an approval flow exists to close.
+	WorkspaceRole string
 }
 
 // Actor is who is acting, as far as a Permission is concerned: an identity, and the Workspace
@@ -102,6 +150,10 @@ type Actor struct {
 	// caller and for any caller not yet taught to resolve it -- both fail closed, since a
 	// role-bearing Permission asks "does this actor hold one of these" and a nil map holds none.
 	Roles map[string][]string
+	// WorkspaceRole is this Actor's role in the Workspace the request is scoped to ("admin",
+	// "member", or "" for an identity with no membership row). Read by a Permission declaring
+	// WorkspaceRole; "" satisfies none, which is the fail-closed direction.
+	WorkspaceRole string
 }
 
 // InGroup reports whether this Actor belongs to groupID. Nil-safe: the zero Actor is in nothing.

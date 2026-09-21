@@ -43,7 +43,7 @@ func currentActor(req *http.Request, store *data.Store, cfg config.Config) domai
 	}
 	ctx := req.Context()
 	workspaceID, _ := data.WorkspaceScope(ctx)
-	groups, direct, err := store.ActorMembership(ctx, workspaceID, id)
+	groups, direct, workspaceRole, err := store.ActorMembership(ctx, workspaceID, id)
 	if err != nil {
 		log.Printf("resolve membership for actor %s: %v", id, err)
 		return domain.Actor{ID: id}
@@ -55,5 +55,5 @@ func currentActor(req *http.Request, store *data.Store, cfg config.Config) domai
 	// EffectiveRoles, not a second merge written here: CAP-O07's union of direct and
 	// group-granted roles has exactly one home (data.EffectiveRoles), and it is already unit
 	// tested against the cases that rule and board 05 name.
-	return domain.Actor{ID: id, Groups: ids, Roles: data.EffectiveRoles(direct, groups)}
+	return domain.Actor{ID: id, Groups: ids, Roles: data.EffectiveRoles(direct, groups), WorkspaceRole: workspaceRole}
 }

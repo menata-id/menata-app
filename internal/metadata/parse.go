@@ -30,6 +30,8 @@ type machineDoc struct {
 	CardFields []cardFieldDoc `yaml:"card_fields"`
 	// Views are the declared arrangements of those records.
 	Views []viewDoc `yaml:"views"`
+	// AppendOnly -- see domain.Machine.AppendOnly.
+	AppendOnly bool `yaml:"append_only"`
 }
 
 // transitionDoc is the YAML serialization of a domain.Transition (Case 03 Fase 7).
@@ -159,6 +161,9 @@ type permissionDoc struct {
 	ID         string `yaml:"id"`
 	Action     string `yaml:"action"`
 	ActorField string `yaml:"actor_field"`
+	// WorkspaceRole is the Workspace-level arm (admin), a separate key from roles: because the
+	// two name different namespaces -- see domain.Permission.WorkspaceRole.
+	WorkspaceRole string `yaml:"workspace_role"`
 	// Roles is CAP-P01's own arm (Case 03 Fase 7): role words from the vocabulary declared by the
 	// Application that claims this Machine, any one of which satisfies it.
 	Roles           []string `yaml:"roles"`
@@ -252,10 +257,11 @@ func Parse(data []byte) (*domain.Machine, error) {
 	}
 	for _, pd := range doc.Permissions {
 		perm := domain.Permission{
-			ID:         pd.ID,
-			Action:     pd.Action,
-			ActorField: pd.ActorField,
-			Roles:      pd.Roles,
+			ID:            pd.ID,
+			Action:        pd.Action,
+			ActorField:    pd.ActorField,
+			Roles:         pd.Roles,
+			WorkspaceRole: pd.WorkspaceRole,
 		}
 		// Any one of the three keys builds the gate, so a partial declaration reaches
 		// validatePermission as a real gate with an empty field name and is reported -- rather
@@ -311,6 +317,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 	}
 
 	m.SLAField = doc.SLAField
+	m.AppendOnly = doc.AppendOnly
 	for _, cf := range doc.CardFields {
 		m.CardFields = append(m.CardFields, domain.CardField{
 			Field: cf.Field,

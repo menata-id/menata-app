@@ -177,7 +177,7 @@ func Routes(d Deps) http.Handler {
 			// gate as the member routes above.
 			// Board 06 (Case 03 Fase 7) -- the Workspace's access model read role-first, so the
 			// same administration gate as Members and Groups above.
-			ar.Get("/approval-role-matrix", showRoleMatrix(d.Machines, d.Store, d.Cfg, d.Workspace))
+			ar.Get("/authorization-matrix", showRoleMatrix(d.MachineList, d.Store, d.Cfg, d.Workspace))
 
 			ar.Get("/workspace-groups", showGroups(d.Store, d.Cfg, d.Workspace))
 			ar.Post("/workspace-groups", submitCreateGroup(d.Store))

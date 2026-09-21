@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"menata.app/internal/action"
+	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -112,10 +113,17 @@ func TestSubmitDocumentWizard_writesBothApproverKinds(t *testing.T) {
 		{name: "Director", approverType: domain.ActorKindUser, assignee: maya.ID},
 	})
 
+	// A real session, which this test did not carry before Fase 7's follow-up: mch_document now
+	// declares prm_create_own_document, and an unidentified caller satisfies no Permission at
+	// all (authorization.AllowsAction: "an unidentified caller is not an actor"). In the running
+	// app this route is inside requireAuth so a session is always present; mounting the handler
+	// directly is what let the test post without one.
+	cfg := config.Config{SessionSecret: "test-secret-for-document-wizard"}
 	r := chi.NewRouter()
-	r.Post("/documents", submitDocumentWizard(machines, store, files, config.Config{}))
+	r.Post("/documents", submitDocumentWizard(machines, store, files, cfg))
 	req := httptest.NewRequest(http.MethodPost, "/documents", body)
 	req.Header.Set("Content-Type", contentType)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, rina.ID, 0)})
 	req = req.WithContext(wsCtx)
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)

@@ -327,9 +327,9 @@ func (s *Store) SetGroupAppRole(ctx context.Context, groupID, applicationID, rol
 }
 
 // ActorMembership returns everything a domain.Actor needs beyond its own id: the Groups this
-// member belongs to (each with its per-Application grants) and their own direct per-Application
-// roles. The caller merges the two through EffectiveRoles, which stays the one place CAP-O07's
-// union rule is expressed.
+// member belongs to (each with its per-Application grants), their own direct per-Application
+// roles, and their Workspace role. The caller merges the first two through EffectiveRoles, which
+// stays the one place CAP-O07's union rule is expressed.
 //
 // It replaces GroupIDsForMember at the one call site that needs roles as well (internal/web's
 // currentActor, on every permission-checking request), and is deliberately two narrow queries
@@ -337,9 +337,9 @@ func (s *Store) SetGroupAppRole(ctx context.Context, groupID, applicationID, rol
 // question about one member, which is the N+1-in-reverse this method exists to avoid. The grants
 // come back on the same row as the Group through a LEFT JOIN, so a Group holding no grant at all
 // still appears -- it still gates a CAP-F24 approver_group even when it grants no role.
-func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID string) ([]Group, map[string]string, error) {
+func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID string) ([]Group, map[string]string, string, error) {
 	if userRecordID == "" {
-		return nil, nil, nil
+		return nil, nil, "", nil
 	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT g.id, g.name, r.application_id, r.role
@@ -350,7 +350,7 @@ func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID s
 		ORDER BY g.name
 	`, userRecordID, workspaceID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("list actor groups: %w", err)
+		return nil, nil, "", fmt.Errorf("list actor groups: %w", err)
 	}
 	defer rows.Close()
 
@@ -360,7 +360,7 @@ func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID s
 		var id, name string
 		var appID, role *string
 		if err := rows.Scan(&id, &name, &appID, &role); err != nil {
-			return nil, nil, fmt.Errorf("scan actor group: %w", err)
+			return nil, nil, "", fmt.Errorf("scan actor group: %w", err)
 		}
 		i, seen := byID[id]
 		if !seen {
@@ -373,12 +373,25 @@ func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID s
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	direct, err := s.appRolesFor(ctx, workspaceID, userRecordID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
-	return groups, direct, nil
+
+	// The Workspace role rides along on the same read (CAP-P01's workspace_role arm). A missing
+	// membership row is "" rather than an error: an identity with no membership -- the shared
+	// admin credential's placeholder -- holds no Workspace role, and "" satisfies no Permission
+	// that asks for one, which is the fail-closed direction.
+	var workspaceRole string
+	err = s.pool.QueryRow(ctx, `
+		SELECT workspace_role FROM workspace_members
+		WHERE workspace_id = $1 AND user_record_id = $2
+	`, workspaceID, userRecordID).Scan(&workspaceRole)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil, "", fmt.Errorf("read workspace role: %w", err)
+	}
+	return groups, direct, workspaceRole, nil
 }

@@ -49,3 +49,26 @@ is described here rather than kept, since it is single-use.
 The boards link to each other by the design tool's own names (`Inbox.dc.html`,
 `WorkspaceHome.dc.html`, `Review.dc.html`, …), which do not exist here. Those links are dead on
 purpose — they record the *intended* flow, and `index.html` is the way to move between boards.
+
+## `06b-authorization-matrix.html` — a proposed redesign, kept beside board 06
+
+Drawn 2026-09-21 after an authorization review, and **added rather than replacing
+`06-approval-role-matrix.html`**, which stays exactly as the owner supplied it.
+
+Board 06 draws a *stage* model: a Document holding `Draft → In Review → Finance OK → Legal OK →
+Approved`, each stage's transition gated on a role. This app derives a Document's status from its
+Approval Steps and treats *who approves* as per-record data the submitter picks, so under the
+model that actually runs the whole Application has exactly two role-gated transitions — and a
+matrix of transitions alone is nearly empty however much work goes into the screen. `ROADMAP.md`'s
+deferral table carries that as a model decision for the owner, not as screen work.
+
+What 06b changes is the premise, not the styling: a transition is not the only thing a role gates.
+It adds the record actions (create/edit/delete) that Permission has always governed and nothing
+ever drew, and a Workspace section for the rules that are not an Application's to make. Every row
+on it is a real declaration in `metadata/*.yaml`, including the honest blanks — an action nobody
+governs is drawn as open, because a matrix that hides what is ungoverned is worse than no matrix.
+
+Its two Workspace rows follow `ui-sample/member-role-detail.html` rather than board 06: that
+mockup puts `Admin`/`Member` in a "Workspace role" section captioned *"independent of application
+permissions"*, above a separate "Application access" section — so the matrix's role columns are
+Application roles only, and board 06's own `ADMIN` and `MEMBER` columns have no place in them.

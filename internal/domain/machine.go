@@ -240,6 +240,22 @@ type Machine struct {
 	// Views are this Machine's declared arrangements of its own records. Empty means one implicit
 	// table, which is how every Machine behaved before views: existed.
 	Views []View
+	// AppendOnly declares that a record of this Machine is never changed or removed once written:
+	// every update and delete route refuses, for everyone, including a Workspace admin.
+	//
+	// A Machine-level property rather than a Permission, because it is not a statement about who.
+	// A Permission answers "which actor may"; there is no actor who may edit an audit trail, and
+	// expressing that as a Permission would mean inventing a role nobody can hold -- a rule that
+	// reads as a grant and denies everyone, which is exactly the shape internal/metadata refuses
+	// elsewhere. It is `menata-runtime`'s CAP-R07 (record immutability) narrowed to the one case
+	// that exists here; upstream carries the richer state-triggered form ("frozen once posted"),
+	// which needs a case this repo does not have yet.
+	//
+	// mch_activity is the whole of it today: internal/web.logActivity and every declared
+	// log_activity Event write it, and until 2026-09-21 any authenticated member could edit or
+	// delete those rows through the generic CRUD screens -- an audit trail with no integrity
+	// property at all, found by the authorization review rather than by a case.
+	AppendOnly bool
 }
 
 // ViewByID returns the View with the given id, if m declares one -- the lookup a screen uses to

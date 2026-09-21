@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"menata.app/internal/authorization"
 	"menata.app/internal/domain"
 )
 
@@ -127,5 +128,49 @@ func TestCapabilitiesDocumentsKnownActionsAndServices(t *testing.T) {
 		if !strings.Contains(text, service) {
 			t.Errorf("domain.KnownServices declares %q, but capabilities.md never mentions it -- document the new Service or its removal", service)
 		}
+	}
+}
+
+// TestWorkspaceAdminIsNotAPermissionBypass holds a decision, not an implementation detail, and it
+// is here because the decision is invisible in the code: there is no "if admin { return true }"
+// to read, so nothing marks its absence as deliberate, and adding one would look like a fix.
+//
+// The question is real and the owner's own board 06 draws the other answer -- an ADMIN column
+// ticked for every transition. The answer taken (2026-09-21) is that holding the Workspace admin
+// role satisfies a Permission that *asks* for it (`workspace_role: admin`) and changes nothing
+// about any Permission that does not. An administrator who can approve a document they are not an
+// approver of is precisely the audit hole an approval flow exists to close, and the owner's own
+// member-role-detail.html mockup says the same thing in its own caption: the Workspace role
+// "controls workspace administration, independent of application permissions."
+//
+// What this test can check mechanically is that authorization's evaluator never reads the actor's
+// Workspace role except to compare it against a Permission that named one. Any other use of
+// Actor.WorkspaceRole in that package is, by construction, a bypass being introduced.
+func TestWorkspaceAdminIsNotAPermissionBypass(t *testing.T) {
+	path := filepath.Join(repoRoot(), "internal", "authorization", "permission.go")
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	const onlyAllowedUse = "if p.WorkspaceRole != \"\" && actor.WorkspaceRole != p.WorkspaceRole {"
+	body := string(src)
+	if !strings.Contains(body, onlyAllowedUse) {
+		t.Fatalf("internal/authorization/permission.go no longer compares the actor's workspace role against a permission that asked for one -- the workspace_role arm is gone or changed shape")
+	}
+	if n := strings.Count(body, "actor.WorkspaceRole"); n != 1 {
+		t.Errorf("actor.WorkspaceRole is read %d times in internal/authorization/permission.go, want exactly 1 (the comparison above) -- a second read is a bypass: holding admin must never grant what a permission has not asked for", n)
+	}
+
+	// The same decision, asserted behaviourally rather than by reading source: an admin who is not
+	// the record's own actor is still refused.
+	m := &domain.Machine{
+		ID:          "mch_approval_step",
+		Fields:      []domain.Field{{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID}},
+		Permissions: []domain.Permission{{ID: "prm_decide_own_step", Action: domain.ActionDecide, ActorField: "fld_assignee"}},
+	}
+	step := map[string]any{"fld_assignee": "usr_rina"}
+	admin := domain.Actor{ID: "usr_ana", WorkspaceRole: domain.WorkspaceRoleAdmin}
+	if authorization.AllowsAction(m, domain.ActionDecide, step, admin) {
+		t.Error("a Workspace admin who is not this step's own approver must still be refused -- admin is not a bypass")
 	}
 }

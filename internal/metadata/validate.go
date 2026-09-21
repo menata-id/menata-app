@@ -168,6 +168,18 @@ func Validate(m *domain.Machine) error {
 		}
 	}
 
+	// An append-only Machine that also declares who may edit or delete it is a contradiction the
+	// runtime would resolve silently (the refusal wins), leaving a Permission that reads as a
+	// grant and can never fire -- the same "declared but unreachable" shape validateTransition
+	// refuses. Say one or the other.
+	if m.AppendOnly {
+		for _, p := range m.Permissions {
+			if p.Action == domain.ActionEdit || p.Action == domain.ActionDelete {
+				issues = append(issues, fmt.Sprintf("machine %q: append_only is declared, so permission %q (%s) can never be satisfied by anyone -- drop the permission or drop append_only", m.ID, p.ID, p.Action))
+			}
+		}
+	}
+
 	seenViews := make(map[string]bool, len(m.Views))
 	for _, v := range m.Views {
 		issues = append(issues, validateView(m, v, fieldsByID, seenViews)...)
@@ -382,11 +394,15 @@ func validatePermission(m *domain.Machine, p domain.Permission, fieldsByID map[s
 	// all is the dangerous case the emptiness would otherwise hide: authorization.allowsOne reads
 	// it as "nothing to check", so it would parse, validate, and protect nothing while looking
 	// like a guard.
+	if p.WorkspaceRole != "" && !domain.KnownWorkspaceRoles[p.WorkspaceRole] {
+		issues = append(issues, fmt.Sprintf("permission %q: workspace_role %q is not a workspace role this runtime realizes -- admin is the only one, and requiring \"member\" would be a rule every member passes and every admin fails", p.ID, p.WorkspaceRole))
+	}
+
 	switch {
-	case p.ActorField == "" && p.DynamicActor == nil && len(p.Roles) == 0:
-		issues = append(issues, fmt.Sprintf("permission %q: declares no actor_field, no actor_*_field gate and no roles -- a permission that gates on nothing protects nothing", p.ID))
+	case p.ActorField == "" && p.DynamicActor == nil && len(p.Roles) == 0 && p.WorkspaceRole == "":
+		issues = append(issues, fmt.Sprintf("permission %q: declares no actor_field, no actor_*_field gate, no roles and no workspace_role -- a permission that gates on nothing protects nothing", p.ID))
 	case p.ActorField == "":
-		// Role-only (or dynamic-gate-only): nothing to check here, checked below/above instead.
+		// Role-only, workspace-role-only or dynamic-gate-only: checked above/below instead.
 	default:
 		actorField, ok := fieldsByID[p.ActorField]
 		if !ok {

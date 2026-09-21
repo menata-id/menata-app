@@ -70,11 +70,18 @@ func requireAuth(store *data.Store, defaultWorkspaceID string, cfg config.Config
 	}
 }
 
-// requireWorkspaceAdmin gates Workspace Members (ROADMAP.md Phase 21 Step 6) behind a real
-// "admin" WorkspaceRole. The shared admin credential's placeholder identity has no membership row
-// at all (it predates real Workspace membership entirely) -- rather than locking it out of a
-// screen it could always reach before this phase existed, an absent membership is let through,
-// the same fallback posture requireAuth already takes for that same identity.
+// requireWorkspaceAdmin gates Workspace administration (Members, Groups, the Approval Role
+// Matrix) behind a real "admin" WorkspaceRole.
+//
+// **It used to fail open**, and that was found by the 2026-09-21 authorization review rather than
+// by a case: an absent membership row was let through, so the gate passed whenever its own lookup
+// found nothing. The intent was narrow and legitimate -- the shared admin credential's
+// placeholder identity predates Workspace membership entirely and has no row -- but the
+// implementation said "anyone this lookup cannot find", which is a different and much larger set,
+// and it is the shape of an authorization gate that admits whatever it fails to identify.
+//
+// It is now the intent, written literally: that one configured identity, by id, and nobody else.
+// Any other identity with no membership row is refused, as it always should have been.
 func requireWorkspaceAdmin(store *data.Store, cfg config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -85,7 +92,11 @@ func requireWorkspaceAdmin(store *data.Store, cfg config.Config) func(http.Handl
 			membership, err := store.GetMembership(ctx, workspaceID, userID)
 			if err != nil {
 				if errors.Is(err, data.ErrRecordNotFound) {
-					next.ServeHTTP(w, req)
+					if userID != "" && userID == cfg.AdminUserID {
+						next.ServeHTTP(w, req)
+						return
+					}
+					http.Error(w, "forbidden", http.StatusForbidden)
 					return
 				}
 				serverError(w, err)

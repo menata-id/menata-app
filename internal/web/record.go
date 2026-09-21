@@ -44,6 +44,10 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 		}
 		data.ApplyDefaults(machine, values)
 
+		actor := currentActor(req, store, cfg)
+		if !allowsRecordCreate(w, machine, values, actor) {
+			return
+		}
 		if !validRecord(w, req, store, machine, values) {
 			return
 		}
@@ -52,7 +56,6 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			serverError(w, err)
 			return
 		}
-		actor := currentActor(req, store, cfg)
 		runCreateEvents(req.Context(), store, machine, record, actor.ID)
 
 		renderMachineBody(w, req, machines, machine, store, actor)
@@ -159,6 +162,9 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
+			return
+		}
+		if refusesAppendOnlyWrite(w, machine) {
 			return
 		}
 		id := chi.URLParam(req, "id")
@@ -345,6 +351,9 @@ func deleteRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
+			return
+		}
+		if refusesAppendOnlyWrite(w, machine) {
 			return
 		}
 		id := chi.URLParam(req, "id")
@@ -551,4 +560,46 @@ func carryForwardExistingFiles(ctx context.Context, store *data.Store, machine *
 		}
 	}
 	return nil
+}
+
+// allowsRecordCreate enforces any declared domain.ActionCreate Permission before the generic
+// create routes write anything (2026-09-21 authorization review).
+//
+// Creation was the one write path in this runtime with no authorization check of any kind, on
+// every Machine. The reason was real and is recorded on domain.ActionCreate: a record-scoped rule
+// needs a record, and at creation there is none. What changed is that a Permission can now state
+// a rule that reads no record at all (roles:, workspace_role:), so the blocker applied to one
+// arm rather than to the Action.
+//
+// `values` are the ones being submitted, which is what gives ActorField its only possible meaning
+// here -- "the value you submit for this field must be you" -- and is what stops a record being
+// written in somebody else's name. mch_signature is the case that forced it: fld_owner selects
+// whose signature gets composited onto an approved PDF, and anyone could create a record naming
+// anyone.
+//
+// Skips the check entirely when no create Permission is declared, the same fast path
+// recordEditAllowed takes, so declaring one on one Machine costs nothing on every other create.
+func allowsRecordCreate(w http.ResponseWriter, machine *domain.Machine, values map[string]any, actor domain.Actor) bool {
+	if len(machine.PermissionsFor(domain.ActionCreate)) == 0 {
+		return true
+	}
+	if !authorization.AllowsAction(machine, domain.ActionCreate, values, actor) {
+		http.Error(w, "not allowed to create this record", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+// refusesAppendOnlyWrite refuses an update or delete of a Machine declared append_only -- for
+// everyone, with no actor consulted at all, which is the point (domain.Machine.AppendOnly).
+//
+// It is checked before the Permission arms rather than alongside them, because it is not an
+// authorization question: there is no actor who may edit an audit trail, so asking "who is this"
+// first would imply one exists.
+func refusesAppendOnlyWrite(w http.ResponseWriter, machine *domain.Machine) bool {
+	if !machine.AppendOnly {
+		return false
+	}
+	http.Error(w, machine.Name+" records are append-only: they are never changed or removed once written", http.StatusUnprocessableEntity)
+	return true
 }

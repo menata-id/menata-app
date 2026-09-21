@@ -47,6 +47,19 @@ fields:
   - id: fld_signed_file
     name: Signed File
     type: file
+  # fld_submitted_by: who submitted this Document. Added 2026-09-21 by the authorization review,
+  # which found that a Document had no owner anywhere on the record -- so "only the submitter may
+  # delete their own document" was not a rule this runtime could express, and any authenticated
+  # member could delete anyone's in-review Document (the only guard was business state: not
+  # approved, no decided steps).
+  #
+  # Who submitted a Document *was* recoverable before this, by scanning the activity feed for its
+  # creation row (composition.submittersFromActivity) -- which is fine for rendering a byline and
+  # wrong as an authorization input: it depends on a log row still existing, on the same Machine
+  # that is now append_only precisely because it did not.
+  - id: fld_submitted_by
+    name: Submitted By
+    type: person
 
 # A Document logs its own submission to the Activity feed (ROADMAP.md Phase 21 round 2 Step I),
 # generalized here (2026-09-19) from internal/web's own hardcoded logRecordCreated switch into a
@@ -59,6 +72,28 @@ events:
     then:
       service: log_activity
       summary: "\"{fld_title}\" submitted"
+
+# permissions: exactly one rule today, and the reason the obvious second one is absent is worth
+# reading before adding it.
+#
+# `create` with actor_field reads "you may only create a Document that names you as its
+# submitter" -- it restricts whose name you may submit under, not who may submit, so it needs no
+# business decision about roles and it cannot lock anyone out. The wizard fills the field with the
+# signed-in identity (internal/web.submitDocumentWizard).
+#
+# What is deliberately NOT declared: `edit`/`delete` with actor_field: fld_submitted_by, which is
+# the rule that would close "any member may delete anyone's in-review Document". It cannot be
+# declared yet because the field is new and every Document written before it is empty -- and an
+# empty actor field satisfies nobody (authorization.isActor: an unassigned record is actionable by
+# no one, rather than by everyone), so declaring it would make every existing Document
+# permanently uneditable and undeletable by every person. Backfilling does not rescue it either:
+# checked against the real data, eight of nine existing Documents were created by the shared admin
+# credential's placeholder identity, which is not a real mch_user record, so the derived value
+# would match nobody. ROADMAP.md's deferral table carries the row and names the condition.
+permissions:
+  - id: prm_create_own_document
+    action: create
+    actor_field: fld_submitted_by
 
 # transitions: fld_status's own state model (ROADMAP.md Case 03 Fase 7).
 #

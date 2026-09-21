@@ -31,6 +31,10 @@ import (
 // Semantics:
 //   - A Machine declaring no Permission for action leaves it unrestricted (metadata describes
 //     exceptions, not defaults -- 001 Principle #6).
+//   - For domain.ActionCreate the record being checked does not exist yet, so `values` is what
+//     the request is *submitting*. An ActorField therefore reads "the value you submit for this
+//     field must be you", which is the only meaning it can carry at creation and the one that
+//     closes a record being written in somebody else's name.
 //   - Every declared Permission for action must pass; they are requirements, not alternatives.
 //     Within one Permission, several Roles are alternatives -- hold any one (CAP-P01).
 //   - An empty actorID never satisfies a Permission -- an unidentified caller is not an actor.
@@ -58,6 +62,16 @@ func AllowsAction(m *domain.Machine, action string, values map[string]any, actor
 // tests kept passing unchanged, which is the evidence that the old behaviour really is preserved
 // rather than the claim that it is.
 func allowsOne(applicationID string, p domain.Permission, values map[string]any, actor domain.Actor) bool {
+	// The Workspace arm, first, because it reads nothing at all -- not the record, not the
+	// Application. A Permission requiring admin is refused for a member before anything else is
+	// resolved.
+	//
+	// Note what this is NOT: holding admin never *grants* anything a Permission has not asked
+	// for. There is no bypass anywhere in this function, deliberately (see
+	// domain.Permission.WorkspaceRole, and internal/conformance's own test).
+	if p.WorkspaceRole != "" && actor.WorkspaceRole != p.WorkspaceRole {
+		return false
+	}
 	if !holdsOneOf(applicationID, p.Roles, actor) {
 		return false
 	}

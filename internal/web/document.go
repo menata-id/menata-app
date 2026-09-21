@@ -12,7 +12,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"menata.app/internal/action"
-	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -132,6 +131,15 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 		// The wizard's own explicit rule outranks any declared default here, the same way an
 		// INSERT's explicit column value outranks a SQL DEFAULT.
 		values[action.FieldDocumentStatus] = action.DocumentStatusInReview
+		// Who submitted this Document, stamped from the session rather than accepted from the
+		// form (2026-09-21). It is what mch_document's own prm_create_own_document checks, and
+		// what finally puts an owner on the record instead of leaving it recoverable only by
+		// scanning the activity feed.
+		actor := currentActor(req, store, cfg)
+		values[action.FieldDocumentSubmittedBy] = actor.ID
+		if !allowsRecordCreate(w, docMachine, values, actor) {
+			return
+		}
 		if !validRecord(w, req, store, docMachine, values) {
 			return
 		}
@@ -145,8 +153,7 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 			return
 		}
 
-		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		logActivity(req.Context(), store, docMachine.ID, document.ID, actor,
+		logActivity(req.Context(), store, docMachine.ID, document.ID, actor.ID,
 			fmt.Sprintf("%q submitted", toDisplayString(document.Values["fld_title"])))
 
 		redirectTo(w, req, fmt.Sprintf("/machines/%s/records/%s/signature-placement", docMachine.ID, document.ID))

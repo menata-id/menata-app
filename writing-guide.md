@@ -346,8 +346,8 @@ This is the section most likely to trip up an agent generating metadata for a ne
 process, because CRUD's genuine flexibility makes it tempting to assume behavior is equally
 open-ended. It is not, and the runtime's own source says so explicitly.
 
-**The runtime realizes exactly three Actions: `decide`, `edit` and `delete`.**
-`internal/domain.KnownActions` is a closed map holding those three and nothing else. Declaring a
+**The runtime realizes exactly four Actions: `decide`, `create`, `edit` and `delete`.**
+`internal/domain.KnownActions` is a closed map holding those four and nothing else. Declaring a
 Permission with any other `action:` value fails metadata validation outright ("action %q is not an
 action this runtime realizes"). There is no way to declare a brand-new Action — "Submit,"
 "Publish," "Cancel," anything — purely in YAML. Doing that requires real Go code: a new entry in
@@ -355,11 +355,14 @@ action this runtime realizes"). There is no way to declare a brand-new Action �
 This is the one place "no per-model code required" (the very first line of this guide) does not
 hold.
 
-Of those three, **only `decide` is bound to specific Machines**; `edit` and `delete` gate the
-generic update/delete routes and work on any Machine (see "What a Permission *can* do today"
-below). This paragraph read "exactly one Action" until 2026-09-21 — wrong since `edit`/`delete`
-were generalized on 2026-09-19, and contradicted three paragraphs further down in this same
-section.
+Of those four, **only `decide` is bound to specific Machines**; `create`, `edit` and `delete`
+gate the generic create/update/delete routes and work on any Machine (see "What a Permission
+*can* do today" below). This paragraph read "exactly one Action" until 2026-09-21 — wrong since
+`edit`/`delete` were generalized on 2026-09-19, and contradicted three paragraphs further down in
+this same section. `create` was added later the same day: it had been left out because a
+record-scoped rule needs a record and creation has none, which stopped being the whole story once
+a Permission could gate on a role, and had meanwhile left creation as the one write path in this
+runtime with no authorization check of any kind on any Machine.
 
 **And `decide` itself is hardcoded to one specific pair of Machines**, by explicit design, not
 oversight — `internal/action/decide.go`'s own comment: *"This is hardcoded to
@@ -424,13 +427,73 @@ Three rules worth knowing before you write one:
   touched.
 
 `roles:` alone, with no `actor_field`, is a valid Permission: "anyone holding this role may, on
-any record." What is *not* valid is a Permission with neither — it would gate on nothing.
+any record." What is *not* valid is a Permission that names no arm at all — it would gate on
+nothing.
+
+**`create` is the one Action where `actor_field` reads differently, and deliberately so.** At
+creation there is no stored record, so what gets checked is what the request is *submitting* —
+which makes `actor_field` mean "the value you submit for this field must be you":
+
+```yaml
+permissions:
+  - id: prm_create_own_signature
+    action: create
+    actor_field: fld_owner      # you may only create a signature that names YOU as its owner
+```
+
+That is a rule about the record you may write, not one you may reach, and it is what stops a
+record being created in somebody else's name. Before it existed, any member could create a
+signature record naming anyone as owner — and `fld_owner` is what selects whose signature gets
+composited onto an approved PDF.
+
+**A Permission can also require a *Workspace* role**, which is a different namespace from an
+Application's `roles:`:
+
+```yaml
+permissions:
+  - id: prm_edit_user_is_admin
+    action: edit
+    workspace_role: admin       # administering the Workspace, not a role any Application declares
+```
+
+`admin` is the only value (`member` would be a rule every member passes and every admin fails).
+It is a separate key rather than a word inside `roles:` because the two namespaces genuinely
+overlap: an Application may declare `admin` in its own vocabulary — `ui-sample/member-role-detail.
+html` shows exactly that for HR — and a single list would make `roles: [admin, approver]` read as
+one alternation across two different meanings.
+
+**Holding `admin` is not a bypass.** It satisfies a Permission that *asks* for it and changes
+nothing about any Permission that does not. This is a decision, held by
+`internal/conformance.TestWorkspaceAdminIsNotAPermissionBypass` because it is invisible in the
+code — there is no bypass branch to read, so nothing would otherwise mark its absence as
+deliberate. An administrator who can approve a document they are not an approver of is the audit
+hole an approval flow exists to close.
 
 **What every Machine gets for free regardless, with no Permission declared at all:** any
 authenticated member of the Workspace can create, edit, and delete its records through the
 generic routes — declaring no Permission means unrestricted, not "nobody can." There is still no
 per-Field permission (see "What this can't do yet" below), and record creation has no Permission
 of its own yet (there is no existing record to match an `actor_field` against at that point).
+
+## 8.0. `append_only`: a Machine whose records are never changed
+
+```yaml
+append_only: true
+```
+
+A Machine-level key, not a Permission: every update and delete refuses, for everyone, including a
+Workspace admin. Records can still be created — that is what the runtime itself does for an audit
+trail.
+
+It is a Machine property rather than a Permission because a Permission answers "which actor may",
+and here the answer is that there is no such actor. Saying it as a Permission would mean naming a
+role nobody can hold, which is a rule that reads as a grant and denies everyone — a shape this
+runtime refuses at load elsewhere. Declaring `append_only` alongside an `edit` or `delete`
+Permission is therefore a load-time error: one of the two can never fire.
+
+`mch_activity` is the whole of it today. Until 2026-09-21 it declared nothing, which in this
+runtime means unrestricted — so any member could edit the summary of an approval they did not
+make, or delete the row recording it, through the ordinary CRUD screens.
 
 ## 8.1. Transitions: which moves of a status Field exist, and who performs them
 
@@ -468,10 +531,13 @@ and none leaves `approved` or `rejected`, so a decision is final — and the Rev
 the same declaration to decide whether to draw the Approve/Reject bar at all, rather than
 comparing against the literal `pending`.
 
-The **Approval Role Matrix** (`/approval-role-matrix`, Workspace admins) draws every declared
-transition in one Application against that Application's roles, so "who can approve this" is a
-table rather than a walk through each Machine's `permissions:` block. It renders the same
-declarations the server enforces; it has no permission model of its own.
+The **Authorization Matrix** (`/authorization-matrix`, Workspace admins) draws every one of these
+declarations for one Application in three sections — its transitions, its record actions
+(create/edit/delete), and the rules the Workspace decides instead — so "what may this role do
+here" is a table rather than a walk through every Machine's `permissions:` block. It renders the
+same declarations the server enforces and has no permission model of its own. **Read it after
+writing a `permissions:` block**: an action nobody governs and an action everybody is granted look
+identical in a YAML file and are labelled differently there.
 
 ## 9. Constraints: simple cross-record rules
 
@@ -714,14 +780,17 @@ must be options of the *parent's* `target_field`, and `any.value`/`all.value` op
 ```yaml
 permissions:
   - id: prm_*
-    action: decide|edit|delete   # closed set
-    roles: [role, role]          # any ONE of this Application's declared roles
-    actor_field: fld_*           # must be a person/relation field on this Machine
+    action: decide|create|edit|delete   # closed set
+    roles: [role, role]                 # any ONE of this Application's declared roles
+    workspace_role: admin               # the Workspace namespace; admin is the only value
+    actor_field: fld_*                  # a person/relation field on this Machine
 ```
 
-Reads as: *someone holding one of `roles`, who is also the person named in `actor_field` on this
-record, may perform `action` on it.* Either arm may be omitted; **both may not** — a Permission
-gating on nothing fails the load rather than silently protecting nothing. A Machine declaring no
+Reads as: *someone holding one of `roles`, and the Workspace role if one is named, who is also
+the person named in `actor_field` on this record, may perform `action` on it.* Every arm is
+optional; **all of them may not be** — a Permission gating on nothing fails the load rather than
+silently protecting nothing. On `action: create` the values checked are the ones being submitted,
+so `actor_field` there reads "the record must name you" (§8). A Machine declaring no
 permission for an action leaves it open to any authenticated member.
 
 `roles` names words from the vocabulary of the Application that claims this Machine (§2); a word
@@ -743,6 +812,8 @@ transitions:
     to: approved
     action: decide|edit|delete   # omit for a move the runtime performs itself
 ```
+
+Machine-level keys not shown above that belong to the same question: `append_only: true` (§8.0).
 
 Opt-in per Field: a status Field no transition names still moves freely. Once one names it, any
 move that is not a declared edge — or is declared for a different `action:` than the route

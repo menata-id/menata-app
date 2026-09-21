@@ -13,3 +13,28 @@ fields:
     name: Image
     type: file
     required: true
+
+# permissions: a signature record names whose signature it is (fld_owner), and that value decides
+# whose image gets composited onto an approved PDF (internal/web.signatureImageFor looks
+# mch_signature up by exactly this field). Until 2026-09-21 this Machine declared nothing, which
+# in this runtime means unrestricted -- so any authenticated member could create a signature
+# record naming *someone else* as its owner, and that image would then be stamped onto a document
+# as that person's signature. Found by an authorization review, not by a case.
+#
+# actor_field on `create` is what closes it, and it needed no new concept: at creation the values
+# being checked are the ones being submitted, so this reads "you may only create a signature that
+# names you". edit and delete then say the same thing about a record that already exists.
+#
+# Note what is deliberately NOT declared here: any role. Keeping your own signature is not a
+# privilege an Application grants -- anyone who can approve anything needs one, and someone with
+# no role at all still owns their own image.
+permissions:
+  - id: prm_create_own_signature
+    action: create
+    actor_field: fld_owner
+  - id: prm_edit_own_signature
+    action: edit
+    actor_field: fld_owner
+  - id: prm_delete_own_signature
+    action: delete
+    actor_field: fld_owner

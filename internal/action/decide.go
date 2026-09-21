@@ -56,10 +56,13 @@ const (
 
 	// Phase 17: a person's own reusable signature image (Phase 15 Step 5's mch_signature, an
 	// ordinary Machine) and the Document's own composited output.
-	SignatureMachineID      = "mch_signature"
-	FieldSignatureOwner     = "fld_owner"
-	FieldSignatureImage     = "fld_image"
-	FieldDocumentSignedFile = "fld_signed_file"
+	SignatureMachineID  = "mch_signature"
+	FieldSignatureOwner = "fld_owner"
+	// FieldDocumentSubmittedBy is who submitted a Document -- stamped from the session by the
+	// wizard, and the actor field mch_document's own create Permission checks.
+	FieldDocumentSubmittedBy = "fld_submitted_by"
+	FieldSignatureImage      = "fld_image"
+	FieldDocumentSignedFile  = "fld_signed_file"
 
 	DecisionPending  = "pending"
 	DecisionApproved = "approved"

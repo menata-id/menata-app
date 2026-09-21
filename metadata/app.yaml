@@ -56,8 +56,8 @@ workspace:
     # is appShell's shape, not an Application topbar's. It sits beside Members and Groups because
     # it answers the same question they do -- who holds what -- read from the other end.
     - id: nav_role_matrix
-      label: Approval Role Matrix
-      route: /approval-role-matrix
+      label: Authorization Matrix
+      route: /authorization-matrix
       priority: 4
 
 # applications: file paths, resolved relative to this manifest. One file per Application, matching

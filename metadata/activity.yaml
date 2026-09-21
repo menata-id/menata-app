@@ -25,3 +25,19 @@ fields:
   - id: fld_actor
     name: Actor
     type: person
+
+# append_only: a record of this Machine is never changed or removed once written -- by anyone,
+# including a Workspace admin (domain.Machine.AppendOnly).
+#
+# This is the integrity property an audit trail is *for*, and it was missing entirely: mch_activity
+# declared no permissions, which in this runtime means unrestricted, so until 2026-09-21 any
+# authenticated member could edit the summary of an approval they did not make, or delete the row
+# recording it, through the ordinary CRUD screens. Nothing anywhere said otherwise.
+#
+# Declared as a Machine property rather than as permissions, deliberately: a Permission answers
+# "which actor may", and the answer here is that there is no such actor. Writing that as a
+# Permission would mean naming a role nobody can hold -- a rule that reads as a grant and denies
+# everyone, which internal/metadata refuses elsewhere for exactly that reason. Creation stays open,
+# because creation is what the runtime itself does here (internal/web.logActivity and every
+# declared log_activity Event).
+append_only: true

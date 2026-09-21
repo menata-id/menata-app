@@ -46,6 +46,9 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 		}
 		data.ApplyDefaults(machine, values)
 
+		if !allowsRecordCreate(w, machine, values, currentActor(req, store, cfg)) {
+			return
+		}
 		if !validRecord(w, req, store, machine, values) {
 			return
 		}
@@ -75,6 +78,9 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
+			return
+		}
+		if refusesAppendOnlyWrite(w, machine) {
 			return
 		}
 		id := chi.URLParam(req, "id")
@@ -115,6 +121,9 @@ func deleteRecordAPI(machines map[string]*domain.Machine, store *data.Store, cfg
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
+			return
+		}
+		if refusesAppendOnlyWrite(w, machine) {
 			return
 		}
 		id := chi.URLParam(req, "id")

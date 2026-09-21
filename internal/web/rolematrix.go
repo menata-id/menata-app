@@ -26,7 +26,7 @@ import (
 // It reads metadata only. There is no store call here at all, which is the honest shape of this
 // screen: every fact it draws is declared, so nothing about it can differ between two people
 // looking at it, and composition.RoleMatrix is a pure function over the loaded Workspace.
-func showRoleMatrix(machines map[string]*domain.Machine, store *data.Store, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
+func showRoleMatrix(machineList []*domain.Machine, store *data.Store, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		apps := roleApplications(ws)
@@ -58,7 +58,7 @@ func showRoleMatrix(machines map[string]*domain.Machine, store *data.Store, cfg 
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		workspaceRole, switchHref := viewerWorkspaceContext(ctx, store, userID)
 		render(ctx, w, rendering.RoleMatrixPage(
-			composition.RoleMatrix(application, machines), apps,
+			composition.RoleMatrix(application, machineList), apps,
 			chrome.WorkspaceName, chrome.UserInitials, workspaceRole, switchHref,
 		))
 	}
