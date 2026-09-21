@@ -15,6 +15,20 @@
 // piece of work, not done here.
 window.MenataNav = {
   workspace: "Dokter Kecil",
+  // The signed-in demo identity behind the header avatar button and its own Account menu panel
+  // (nav-chrome.js's accountHTML(), added 2026-09-21 from an owner-supplied Account menu / App
+  // launcher mockup pair, M11/M12 mobile + 13/14 desktop). The avatar was previously a plain "NS"
+  // span with no person behind it -- replaced with this Workspace's own Admin, already present as
+  // workspace-members.html's first row and login.html's pre-filled sample email, instead of
+  // inventing a third, unrelated demo identity for the same signed-in user.
+  currentUser: { initials: "SR", name: "Silvia Indah Rini", email: "silvia@menata.id" },
+  // The Account menu's own "Workspaces" quick-switch list (same mockup pair) -- the same two
+  // Workspaces choose-workspace.html already lists, read from here instead of a second hardcoded
+  // copy. `current: true` marks the one the Account menu checkmarks as "you are here".
+  workspaces: [
+    { name: "Dokter Kecil", role: "Admin", current: true },
+    { name: "Happy Eyes", role: "Member", current: false }
+  ],
   apps: {
     case3: {
       name: "Document Approval",

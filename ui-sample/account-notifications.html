@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UI Sample — Notifications</title>
+<script src="/vendor/tailwind.play.js"></script>
+<script src="nav-metadata.js"></script>
+<script src="nav-chrome.js"></script>
+</head>
+<body class="min-h-full text-slate-900">
+<header class="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+  <div class="mx-auto flex max-w-3xl items-center justify-between gap-4">
+    <div class="text-sm font-semibold">Menata Runtime <span class="font-normal text-slate-400">/ Notifications</span></div>
+    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold">NS</span>
+  </div>
+</header>
+<main class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-7">
+  <a href="workspace-home.html" class="text-xs text-slate-500">← Back to Workspace</a>
+
+  <div class="mt-2 mb-6">
+    <p class="text-xs font-medium uppercase tracking-wide text-blue-600">Account</p>
+    <h1 class="mt-1 text-2xl font-semibold">Notifications</h1>
+    <p class="mt-1 text-sm text-slate-500">Choose which emails you want to receive. This is about your own preferences, not sending reminders to others.</p>
+  </div>
+
+  <div class="mb-6 flex gap-1 border-b border-slate-200">
+    <a href="account-profile.html" class="border-b-2 border-transparent px-3 py-2.5 text-sm text-slate-500 hover:text-slate-900">Profile</a>
+    <a href="account-notifications.html" aria-current="page" class="border-b-2 border-slate-900 px-3 py-2.5 text-sm font-medium text-slate-900">Notifications</a>
+    <a href="account-security.html" class="border-b-2 border-transparent px-3 py-2.5 text-sm text-slate-500 hover:text-slate-900">Security</a>
+  </div>
+
+  <div class="flex flex-col gap-6">
+    <div class="sm:grid sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-10">
+      <div class="mb-3 sm:mb-0">
+        <h2 class="text-sm font-semibold sm:text-[15px]">Document Approval</h2>
+        <p class="mt-1 text-xs leading-5 text-slate-500">Emails about approvals you're involved in.</p>
+      </div>
+      <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div class="divide-y divide-slate-100">
+          <div class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+            <div class="min-w-0">
+              <p class="text-sm">A document is assigned to me for approval</p>
+              <p class="text-xs text-slate-400">Matches the Approval Inbox badge count.</p>
+            </div>
+            <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+              <input type="checkbox" checked class="peer sr-only">
+              <span class="h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-slate-900"></span>
+              <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+            </label>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+            <div class="min-w-0">
+              <p class="text-sm">My submitted document is approved or rejected</p>
+            </div>
+            <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+              <input type="checkbox" checked class="peer sr-only">
+              <span class="h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-slate-900"></span>
+              <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+            </label>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+            <div class="min-w-0">
+              <p class="text-sm">A step I'm waiting on is overdue</p>
+              <p class="text-xs text-slate-400">Needs an SLA/overdue concept the app doesn't have yet — see ROADMAP.md's ordered-comparison-operators line.</p>
+            </div>
+            <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+              <input type="checkbox" disabled class="peer sr-only">
+              <span class="h-6 w-11 rounded-full bg-slate-100 transition peer-checked:bg-slate-900"></span>
+              <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="border-t border-slate-200 pt-6 sm:grid sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-10">
+      <div class="mb-3 sm:mb-0">
+        <h2 class="text-sm font-semibold sm:text-[15px]">Workspace</h2>
+        <p class="mt-1 text-xs leading-5 text-slate-500">Emails about Dokter Kecil as a whole.</p>
+      </div>
+      <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div class="divide-y divide-slate-100">
+          <div class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+            <div class="min-w-0">
+              <p class="text-sm">Weekly summary email</p>
+            </div>
+            <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+              <input type="checkbox" class="peer sr-only">
+              <span class="h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-slate-900"></span>
+              <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+            </label>
+          </div>
+          <div class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
+            <div class="min-w-0">
+              <p class="text-sm">A new member joins the workspace</p>
+            </div>
+            <label class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+              <input type="checkbox" class="peer sr-only">
+              <span class="h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-slate-900"></span>
+              <span class="absolute left-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2.5 border-t border-slate-200 pt-6 sm:flex sm:justify-end">
+      <a href="workspace-home.html" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium sm:h-auto sm:py-2">Cancel</a>
+      <button class="flex h-11 items-center justify-center rounded-md bg-slate-900 px-5 text-sm font-medium text-white sm:h-auto sm:py-2">Save changes</button>
+    </div>
+  </div>
+</main>
+<script>MenataNav.mount();</script>
+</body>
+</html>

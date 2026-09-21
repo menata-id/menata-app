@@ -211,7 +211,7 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 			SubmittedAt:  submittedAt,
 			SLADue:       doc.Values["fld_due_date"],
 			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names, ""),
-			Href:         fmt.Sprintf("/machines/%s/records/%s", action.StepMachineID, s.ID),
+			Href:         fmt.Sprintf("/machines/%s/records/%s/review", action.StepMachineID, s.ID),
 			CardFields:   cardFields,
 		})
 		inbox.Buckets = append(inbox.Buckets, bucket)

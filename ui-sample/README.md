@@ -245,3 +245,69 @@ Their three CDN `<script>` tags were rewritten to `/vendor/...` on copy, exactly
 above describes for every other mockup here — `default-src 'self'` would otherwise render them
 unstyled. Nothing else in them was changed, so their own navigation links still point at
 `menata-runtime`'s screens and are dead here, the same way `case-03-flow1`'s cross-links are.
+
+## Admin-only "Add workspace" CTA (2026-09-21)
+
+Owner-supplied design (an appifact `Workspace.dc.html` export) added a dashed-border "+ Add
+workspace" entry to the bottom of `choose-workspace.html`'s workspace list, gated in the source
+component on `viewerRole === 'Admin'` (`sc-if value="{{ isAdmin }}"`). This static mockup has no
+conditional-render mechanism, so the CTA is included directly with an HTML comment above it noting
+it is admin-only — the same way this file already shows per-workspace `Admin`/`Member` role badges
+without a variant file per role. A real implementation reads the signed-in user's admin status the
+same way it already resolves the two role badges, not as a new capability.
+
+## Account menu + App launcher become clickable, mobile + desktop (2026-09-21)
+
+Owner supplied a second mockup pair (appifact exports: `AccountMenu.dc.html`/`M11-AccountMenu.dc.html`
+for desktop/mobile, `AppLauncher.dc.html`/`M12-AppLauncher.dc.html` likewise) showing both menus'
+open state. Previously the header avatar was a static, unclickable "NS" span, and the 9-dot
+launcher (already clickable) only ever rendered as a desktop dropdown, even at mobile width.
+`nav-chrome.js` now wires both to the same responsive shape the mockups show: a dropdown anchored
+under the button at `sm` and up, a full-width bottom sheet with its own dismiss backdrop and drag
+handle below it (`sheetPanelClasses()`, `wireMenus()` in place of the old launcher-only
+`wireLaunchers()`) — one shared implementation, since the mockups gave both menus the same two
+shapes rather than two different ones.
+
+The Account menu's own content (signed-in user, Workspace role badge, Profile/Notifications/
+Security placeholders, a Workspaces quick-switch list, Sign out) is new data in `nav-metadata.js`
+(`currentUser`, `workspaces`), not hardcoded in `nav-chrome.js` a second time. Building it surfaced
+an existing inconsistency worth fixing rather than carrying forward: the header avatar's "NS" had
+no real person behind it, while `workspace-members.html`'s own first row, `login.html`'s pre-filled
+sample email, and `document-approval.html`'s own approver list ("Silvia (You)") already agree on
+one signed-in identity — Silvia Indah Rini / SR / silvia@menata.id, the Workspace's Admin. The
+avatar now shows "SR" and the Account menu identifies as her, matching the new mockups and every
+other file that already assumed this identity, rather than inventing a name to fit "NS".
+
+`wireAccountMenu()` only enhances a header that already has this avatar span (`rounded-full
+bg-slate-200`, scoped to `<header>` so it can't match the unrelated per-record avatars several
+pages also use this class combination for, e.g. `approval-dashboard.html`'s approver list). Several
+Case 19 screens have no avatar in their header at all — left alone, since adding one would be new
+page content, not wiring up a click on something that already exists. Verified with a headless
+Playwright render of `workspace-home.html`, `document-approval.html`, and `project-board.html` at
+both 1280px and 390px widths: both menus open/close (button click, outside click, Escape), the
+Account panel's content resolves from `nav-metadata.js`, `project-board.html` correctly has no
+Account button, and no unrelated avatar elsewhere on a page was touched.
+
+### Profile / Notifications / Security get their own screens (2026-09-21)
+
+The three Account menu rows above ("Profile/Notifications/Security placeholders") were `href="#"`
+because no screen existed for any of them — flagged in `nav-chrome.js`'s own doc comment when
+written, and recorded as a gap in `menata-app-document`'s `development-history.md` the same day.
+Added `account-profile.html`, `account-notifications.html`, `account-security.html` (mounted
+launcher-only, like `workspace-home.html` and the other Workspace-level screens — these are the
+signed-in user's own settings, not scoped to either Application) and pointed the three rows at
+them instead of `#`.
+
+All three follow the existing `member-role-detail.html` settings-page shape (a `200px` label
+column beside a bordered/shadowed content card, Cancel/Save at the bottom) rather than inventing a
+new one, and share a small Profile/Notifications/Security tab row at the top — the three are
+siblings reached from a panel, not a page, so there is no single screen to put a `←` back-link on
+between them the way `member-role-detail.html` links back to `workspace-members.html`; the tabs
+are the wayfinding instead. `account-notifications.html`'s toggle switches are a plain
+`peer`/`peer-checked` checkbox (no JS, no custom CSS) — Tailwind's own mechanism, not a hand-rolled
+one, per the owner's "pakai css dan style bawaan tailwind" instruction for this pair.
+
+This is still a design reference only, same as everything else in this directory: none of the
+three has a `domain` model, a real route, or anything behind its Save/Update buttons. That is
+recorded as still-open in `development-history.md`, not resolved by adding the mockups — the
+mockups are what "needs to be prepared" meant, the model/route work is separate and unstarted.

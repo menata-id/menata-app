@@ -135,7 +135,7 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 	if len(got.Pending) != 1 {
 		t.Fatalf("want only my own still-pending step, got %d", len(got.Pending))
 	}
-	if want := "/machines/" + action.StepMachineID + "/records/stp_mine"; got.Pending[0].Href != want {
+	if want := "/machines/" + action.StepMachineID + "/records/stp_mine/review"; got.Pending[0].Href != want {
 		t.Errorf("Href = %q, want %q", got.Pending[0].Href, want)
 	}
 	// One of three steps is approved, and the card says so.
