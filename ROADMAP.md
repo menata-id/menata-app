@@ -34,7 +34,9 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Document. Until that decision the vocabulary said nothing: approver and reviewer named the
   identical grant everywhere they appeared, so the two words were indistinguishable to anyone
   reading the Members screen, and submitter named no grant at all. Declared on the Machines that
-  own the rules (`mch_approval_step`'s three Permissions, `mch_document`'s create/edit/delete),
+  own the rules (`mch_approval_step`'s three Permissions, `mch_document`'s create/edit/delete,
+  and -- on a same-day correction from the owner -- `mch_signature`'s, since a signature has
+  exactly one consumer and only an approver reaches it),
   not on the vocabulary, and it closed both of the Authorization Matrix's amber rows on the way.
   **Live effect, stated because it is real**: of nine pending Approval Steps in the dev Workspace,
   six are assigned to people who hold no `approver` role and can no longer decide them -- they

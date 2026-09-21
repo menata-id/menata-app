@@ -25,16 +25,35 @@ fields:
 # being checked are the ones being submitted, so this reads "you may only create a signature that
 # names you". edit and delete then say the same thing about a record that already exists.
 #
-# Note what is deliberately NOT declared here: any role. Keeping your own signature is not a
-# privilege an Application grants -- anyone who can approve anything needs one, and someone with
-# no role at all still owns their own image.
+# roles: [approver] -- owner decision, 2026-09-21. A signature exists to be composited onto a
+# document at the moment its holder approves a step (internal/web.signatureImageFor), and since
+# the same day only an approver decides anything. A submitter or a reviewer holding a signature
+# record is therefore a stored image nothing can ever use.
+#
+# This file argued the opposite for a few hours -- "keeping your own signature is not a privilege
+# an Application grants" -- and the owner overruled it. The argument was about signatures in
+# general; the rule is about *this* Application, where a signature has exactly one consumer and
+# exactly one role reaches it.
+#
+# The gate is on the ordinary CRUD routes only. Approve's own canvas modal writes through
+# internal/data directly (web.applyApprovalSignature), and it runs after the decide gate has
+# already established the actor is an approver -- so the capture flow is unaffected and cannot
+# become a way around this.
+#
+# One existing record predates the rule: a signature owned by a member who holds `submitter`. It
+# is left in place rather than deleted -- nothing reads it (its owner can no longer be a step's
+# approver either), and removing somebody's stored handwriting to satisfy a rule about who may
+# create one is not a migration this runtime should make on its own.
 permissions:
   - id: prm_create_own_signature
     action: create
+    roles: [approver]
     actor_field: fld_owner
   - id: prm_edit_own_signature
     action: edit
+    roles: [approver]
     actor_field: fld_owner
   - id: prm_delete_own_signature
     action: delete
+    roles: [approver]
     actor_field: fld_owner
