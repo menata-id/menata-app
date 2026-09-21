@@ -375,6 +375,34 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      them is an approval-model decision for the owner, not engineering — it is deliberately not
      taken here.
 
+  **Open at the 2026-09-21 session close — three things waiting on the owner, not on engineering.**
+  Written here rather than left in a chat log, because a decision that lives only in a reply is
+  the failure this whole table exists against, and two of these were already noticed as such.
+
+  1. **Which approval model** (the board 06 row below). Three ways forward are written into that
+     row with the trade-off of each; **CAP-V28 is the recommendation**. Nothing else in the
+     Document Approval backlog can be sequenced honestly until this is answered, because the stage
+     model would rework the wizard, the rollup and boards 07-10 while the other two would not.
+  2. **One document's fate.** `Vendor Contract 2026` (`rec_e56a51b513564f98f9da6099`) holds two
+     Approval Steps: one still pending and assigned to a user record that is not a Workspace
+     member at all, and one **already approved**. It is the last of the orphaned test data; its
+     two siblings were deleted on owner request the same day. It was not deleted with them
+     precisely because of that approved step -- removing a document to tidy up a dangling
+     assignment would destroy a real approval record, and rolling that up would also flip the
+     document's own status. Delete the document, or only the pending step?
+  3. **Does `approver` vs `submitter` still need narrowing anywhere?** The vocabulary now grants
+     three different things, but `submitter` and `approver` are identical on every Document and
+     Approval Step *create* rule. That is deliberate (an approver submits their own documents
+     too), and it is the kind of sameness that made `approver`/`reviewer` indistinguishable for a
+     phase, so it is named here rather than left to be rediscovered.
+
+  **State of the tree at that close**, for whoever picks this up: `menata-app` and
+  `menata-app-document` are both pushed and in sync, every test green including the
+  Postgres-backed ones, and the dev server running the current build. A parallel session's
+  Account-menu work (`1ba1a1a`) and its `ui-sample` chrome redesign landed in the same window; one
+  collision is recorded on that commit (it registered a middleware whose function was still
+  uncommitted, so it does not build in isolation -- `64662c1` restored it).
+
   **Penyempurnaan — what each shipped phase left undone, and when it lands.** Kept as one table
   on purpose: a comment at a call site answers *why* something is missing, this answers *when* it
   stops being. The "no phase yet" rows are the point of having it — an unscheduled gap that looks
