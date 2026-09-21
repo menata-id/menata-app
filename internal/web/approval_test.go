@@ -43,10 +43,21 @@ func approvalStepTestMachine() *domain.Machine {
 			{ID: action.FieldStepSignatureWidth, Name: "Signature Width", Type: domain.FieldTypeNumber},
 			{ID: action.FieldStepSignatureImage, Name: "Signature Image", Type: domain.FieldTypeFile},
 		},
+		// ApplicationID, the roles: arm and the transitions below all mirror
+		// metadata/approval_step.yaml as of Fase 7, for the same reason the rollup Event does: a
+		// fixture that omits them lets these tests pass against a Machine looser than the one that
+		// actually runs. internal/conformance.TestApprovalStepPermissionsCarryRoles and
+		// TestApprovalStepDeclaresItsTransitions are what keep the real manifest honest; this is
+		// what keeps the fixture honest about the manifest.
+		ApplicationID: "app_document_approval",
 		Permissions: []domain.Permission{
-			{ID: "prm_decide_own_step", Action: domain.ActionDecide, ActorField: action.FieldStepAssignee},
-			{ID: "prm_edit_own_step", Action: domain.ActionEdit, ActorField: action.FieldStepAssignee},
-			{ID: "prm_delete_own_step", Action: domain.ActionDelete, ActorField: action.FieldStepAssignee},
+			{ID: "prm_decide_own_step", Action: domain.ActionDecide, Roles: approverOrReviewer, ActorField: action.FieldStepAssignee},
+			{ID: "prm_edit_own_step", Action: domain.ActionEdit, Roles: approverOrReviewer, ActorField: action.FieldStepAssignee},
+			{ID: "prm_delete_own_step", Action: domain.ActionDelete, Roles: approverOrReviewer, ActorField: action.FieldStepAssignee},
+		},
+		Transitions: []domain.Transition{
+			{ID: "trn_step_approve", Name: "Approve", Field: action.FieldStepDecision, From: action.DecisionPending, To: action.DecisionApproved, Action: domain.ActionDecide},
+			{ID: "trn_step_reject", Name: "Reject", Field: action.FieldStepDecision, From: action.DecisionPending, To: action.DecisionRejected, Action: domain.ActionDecide},
 		},
 		// Mirrors metadata/approval_step.yaml's own evt_step_decision_rollup -- the Document's
 		// status follows its steps by declaration now, not by a hardcoded recompute in the
@@ -141,6 +152,12 @@ func newDecideStepTestSetup(t *testing.T, testName string) decideStepTestSetup {
 	if err != nil {
 		t.Fatalf("CreateRecord(assignee): %v", err)
 	}
+	// The Application role prm_decide_own_step now also requires (CAP-P01, Fase 7). Granted
+	// directly here; the Group-granted path is covered in signatureplacement_test.go, so between
+	// them both arms of data.EffectiveRoles reach a real request.
+	if err := grantApproverRole(t, store, ctx, ws.ID, assignee.ID); err != nil {
+		t.Fatalf("SetMemberAppRole(assignee): %v", err)
+	}
 	if err := store.AddMember(ctx, ws.ID, assignee.ID, email, "member", ""); err != nil {
 		t.Fatalf("AddMember: %v", err)
 	}
@@ -149,6 +166,9 @@ func newDecideStepTestSetup(t *testing.T, testName string) decideStepTestSetup {
 	assignee2, err := store.CreateRecord(wsCtx, "mch_user", map[string]any{"fld_name": "Budi Santoso", "fld_email": email2})
 	if err != nil {
 		t.Fatalf("CreateRecord(assignee2): %v", err)
+	}
+	if err := grantApproverRole(t, store, ctx, ws.ID, assignee2.ID); err != nil {
+		t.Fatalf("SetMemberAppRole(assignee2): %v", err)
 	}
 	if err := store.AddMember(ctx, ws.ID, assignee2.ID, email2, "member", ""); err != nil {
 		t.Fatalf("AddMember(assignee2): %v", err)
@@ -416,5 +436,66 @@ func TestDecideStep_signsDocumentAfterEveryApproval(t *testing.T) {
 	}
 	if key, _ := document2.Values[action.FieldDocumentSignedFile].(string); key == "" {
 		t.Error("document fld_signed_file is empty after both steps approved")
+	}
+}
+
+// approverOrReviewer mirrors the roles: arm on all three of mch_approval_step's Permissions.
+var approverOrReviewer = []string{"approver", "reviewer"}
+
+// grantApproverRole gives a member the Document Approval role its Permissions require, so these
+// handler tests exercise the real gate rather than the un-roled path the fixture used to take.
+func grantApproverRole(t *testing.T, store *data.Store, ctx context.Context, workspaceID, userRecordID string) error {
+	t.Helper()
+	return store.SetMemberAppRole(ctx, workspaceID, userRecordID, "app_document_approval", "approver")
+}
+
+// TestDecideStep_refusesAnActorWithoutTheRole is CAP-P01 at the route, and the assertion it makes
+// is the behaviour change Fase 7 actually shipped: being the person a step names is no longer
+// enough. The same identity, the same step, the same POST -- only the role row differs.
+func TestDecideStep_refusesAnActorWithoutTheRole(t *testing.T) {
+	s := newDecideStepTestSetup(t, "decide_step_role_gate")
+
+	if err := s.store.SetMemberAppRole(s.ctx, s.workspaceID, s.assignee, "app_document_approval", ""); err != nil {
+		t.Fatalf("clear app role: %v", err)
+	}
+	if rec := postDecide(t, s, action.DecisionRejected, nil); rec.Code != http.StatusForbidden {
+		t.Fatalf("decideStep without the role: status = %d, want 403; body=%s", rec.Code, rec.Body.String())
+	}
+
+	// And granting it back is all it takes -- which is what makes the Approval Role Matrix an
+	// administrative screen rather than a report.
+	if err := s.store.SetMemberAppRole(s.ctx, s.workspaceID, s.assignee, "app_document_approval", "reviewer"); err != nil {
+		t.Fatalf("grant reviewer: %v", err)
+	}
+	if rec := postDecide(t, s, action.DecisionRejected, nil); rec.Code >= 400 {
+		t.Fatalf("decideStep holding reviewer: status = %d, want success; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestDecideStep_refusesRedecidingADecidedStep is the declared state model at the route, and it
+// covers the hole neither existing guard did: sequencing only ever locked a step behind an
+// *earlier* one, so on a parallel Document an already-approved step could be decided again and
+// re-run the rollup onto its Document. No transition leaves `approved`, so this is 422 now.
+func TestDecideStep_refusesRedecidingADecidedStep(t *testing.T) {
+	s := newDecideStepTestSetup(t, "decide_step_redecide")
+
+	step, err := s.store.GetRecord(s.ctx, action.StepMachineID, s.stepID)
+	if err != nil {
+		t.Fatalf("GetRecord(step): %v", err)
+	}
+	step.Values[action.FieldStepDecision] = action.DecisionApproved
+	if _, err := s.store.UpdateRecord(s.ctx, action.StepMachineID, s.stepID, step.Values); err != nil {
+		t.Fatalf("UpdateRecord(step): %v", err)
+	}
+
+	if rec := postDecide(t, s, action.DecisionRejected, nil); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("decideStep re-deciding an approved step: status = %d, want 422; body=%s", rec.Code, rec.Body.String())
+	}
+	after, err := s.store.GetRecord(s.ctx, action.StepMachineID, s.stepID)
+	if err != nil {
+		t.Fatalf("GetRecord(step) after: %v", err)
+	}
+	if got := after.Values[action.FieldStepDecision]; got != action.DecisionApproved {
+		t.Errorf("step decision = %v, want still approved -- a decision is final", got)
 	}
 }

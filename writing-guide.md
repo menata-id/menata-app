@@ -45,6 +45,7 @@ can bend:**
 | Field id | `^fld_[a-z][a-z0-9_]*$` | `fld_name` |
 | Constraint id | `^cst_[a-z][a-z0-9_]*$` | `cst_component_archived_no_open_bugs` |
 | Permission id | `^prm_[a-z][a-z0-9_]*$` | `prm_decide_own_step` |
+| Transition id | `^trn_[a-z][a-z0-9_]*$` | `trn_step_approve` |
 | Navigation item id | `^nav_[a-z][a-z0-9_]*$` | `nav_dashboard` |
 
 A bad id, a duplicate id within its own kind, or any other structural problem below fails
@@ -94,8 +95,9 @@ machines:
 summary_machine: mch_bug
 
 # This Application's own role vocabulary. Optional -- declare none and the Application simply
-# offers no role select. Roles caption the Members list today; they are not yet an authorization
-# input.
+# offers no role select. Roles caption the Members list and are what a Permission's `roles:` arm
+# names (see section 8); a member holds them directly or through a Group, and either grants
+# identically.
 roles:
   - triager
   - reporter
@@ -395,11 +397,81 @@ themselves when `authorization.AllowsAction` would refuse them, the same way `de
 Approve/Reject buttons already did) — declaring the Permission is enough; no handler code is
 needed for a new Machine the way `decide` still requires.
 
+**A Permission can also gate on an Application role** (`roles:`, added 2026-09-21). The acting
+person must hold at least one of the named roles in the Application that claims this Machine:
+
+```yaml
+permissions:
+  - id: prm_decide_own_step
+    action: decide
+    roles: [approver, reviewer]   # hold EITHER role...
+    actor_field: fld_assignee     # ...AND be the person this record names
+```
+
+Three rules worth knowing before you write one:
+
+- **Roles within one Permission are alternatives; Permissions on one Action are requirements.**
+  The example above passes for someone holding `approver` *or* `reviewer`. Splitting them into
+  two Permissions would mean holding *both*, which is almost never what you want.
+- **The words come from that Application's own `roles:` vocabulary** (§2), not a Workspace-wide
+  one. A role the claiming Application does not declare fails the load — it could never be held,
+  so the Permission would deny everyone while reading like a grant. So does a `roles:` on a
+  Machine no Application claims (`mch_user`, `mch_activity`): there is no vocabulary to resolve
+  it against.
+- **A role held through a Group counts identically to a direct one.** What is checked is the
+  member's *effective* roles — their direct assignment plus every role any Group they belong to
+  holds there — so granting a role to a Group grants it to everyone in it, with no Document
+  touched.
+
+`roles:` alone, with no `actor_field`, is a valid Permission: "anyone holding this role may, on
+any record." What is *not* valid is a Permission with neither — it would gate on nothing.
+
 **What every Machine gets for free regardless, with no Permission declared at all:** any
 authenticated member of the Workspace can create, edit, and delete its records through the
 generic routes — declaring no Permission means unrestricted, not "nobody can." There is still no
 per-Field permission (see "What this can't do yet" below), and record creation has no Permission
 of its own yet (there is no existing record to match an `actor_field` against at that point).
+
+## 8.1. Transitions: which moves of a status Field exist, and who performs them
+
+A `status` Field lists its legal *values* (§3). `transitions:` lists the legal *moves* between
+them, and which Action is allowed to make each one:
+
+```yaml
+transitions:
+  - id: trn_step_approve
+    name: Approve            # what this move is called in the business -- required
+    field: fld_decision      # a status Field on this Machine
+    from: pending            # both must be options that Field declares
+    to: approved
+    action: decide           # one of decide/edit/delete, or omitted (see below)
+```
+
+**Opt-in, per Field.** A status Field that no transition mentions still moves freely — declaring
+the state model of one Field does not freeze the others. But once a Field *is* mentioned, every
+move of it must be declared, or the write is refused (`422`).
+
+**Omitting `action:` means "the runtime performs this itself."** That is not the same as leaving
+the edge out. `mch_document`'s `fld_status` is derived — an Event rolls it up from the Document's
+own Approval Steps — so all six of its edges declare no action, which is what refuses a person
+setting the status by hand through the ordinary edit form while leaving the rollup free to write
+it. Leaving those edges undeclared instead would make the rollup's own result look like an
+undeclared move.
+
+**Naming a different Action than the route performing the write refuses it.** `action: decide`
+above is why an Approval Step's decision cannot be changed through the generic edit form: the
+edit route realizes `edit`, and this edge is reserved for `decide`. Before transitions existed
+this was one hand-written Go rule naming this exact Machine and Field.
+
+**Nothing may leave a value with no outgoing edge.** The two edges above both start at `pending`
+and none leaves `approved` or `rejected`, so a decision is final — and the Review screen reads
+the same declaration to decide whether to draw the Approve/Reject bar at all, rather than
+comparing against the literal `pending`.
+
+The **Approval Role Matrix** (`/approval-role-matrix`, Workspace admins) draws every declared
+transition in one Application against that Application's roles, so "who can approve this" is a
+table rather than a walk through each Machine's `permissions:` block. It renders the same
+declarations the server enforces; it has no permission model of its own.
 
 ## 9. Constraints: simple cross-record rules
 
@@ -637,17 +709,45 @@ without waiting for the remaining children. Declaring only one of `any`/`all` is
 neither leaves the parent permanently at `default`, which fails validation. `set` and `default`
 must be options of the *parent's* `target_field`, and `any.value`/`all.value` options of `on`.
 
-### 12.6 `permissions[]` — one shape
+### 12.6 `permissions[]` — two arms, combinable
 
 ```yaml
 permissions:
   - id: prm_*
     action: decide|edit|delete   # closed set
-    actor_field: fld_*           # must be a person field on this Machine
+    roles: [role, role]          # any ONE of this Application's declared roles
+    actor_field: fld_*           # must be a person/relation field on this Machine
 ```
 
-Reads as: *only the person named in `actor_field` on this record may perform `action` on it.* A
-Machine declaring no permission for an action leaves it open to any authenticated member.
+Reads as: *someone holding one of `roles`, who is also the person named in `actor_field` on this
+record, may perform `action` on it.* Either arm may be omitted; **both may not** — a Permission
+gating on nothing fails the load rather than silently protecting nothing. A Machine declaring no
+permission for an action leaves it open to any authenticated member.
+
+`roles` names words from the vocabulary of the Application that claims this Machine (§2); a word
+that Application does not declare, or a `roles:` on a Machine no Application claims, fails the
+load. What is matched is the member's *effective* roles — direct assignment ∪ every role any
+Group they belong to holds there.
+
+Several Permissions on one action are **requirements** (all must pass); several roles within one
+Permission are **alternatives** (hold any one).
+
+### 12.6b `transitions[]` — a status Field's declared state model
+
+```yaml
+transitions:
+  - id: trn_*
+    name: Approve          # required -- the business name, no screen can derive it
+    field: fld_*           # a status field on this Machine
+    from: pending          # both must be options that field declares, and differ
+    to: approved
+    action: decide|edit|delete   # omit for a move the runtime performs itself
+```
+
+Opt-in per Field: a status Field no transition names still moves freely. Once one names it, any
+move that is not a declared edge — or is declared for a different `action:` than the route
+performing the write — is refused with `422`. Declaring the same `field`/`from`/`to` twice fails
+the load, since which action governed it would depend on declaration order.
 
 ### 12.7 `views[]`, plus the two Machine-level keys that are *not* per-View
 
@@ -788,10 +888,11 @@ similar-looking metadata for a *different* Machine does not activate it.
 
 | Generic (any Machine, metadata only) | Hardcoded to specific Machines (real Go code required for a new one) |
 |---|---|
-| CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded |
+| CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded, and *which decisions are legal at all* moved left in Fase 7 (`transitions:`, replacing `internal/web`'s own `allowsDecisionChange`) |
 | Relations, `person`, child collections, many-to-many | Document submission wizard |
 | Constraints (`equals`/`not_equals` shape) | Signature-coordinate placement screen |
 | Events (post-write field-change or record-creation → one Service) | PDF signature compositing |
+| Role-based Permission (`roles:` on any Permission, any Machine an Application claims — CAP-P01, Fase 7) and a **declared transition model** (`transitions:`, any Machine's own status Fields), both enforced by the generic routes with no per-Machine code | — |
 | Record-scoped `edit`/`delete` Permission (any Machine), and a **per-record User-or-Group actor gate** on any of them (CAP-F24) — declared on `decide`, `edit` and `delete` alike since 6c-3 | Approval progress stepper UI, and the Review Document screen it sits on (Fase 6b) — its Approve/Reject bar, signature canvas and placement panel are all `mch_approval_step`-shaped. What moved *left* with it: the generic record-detail page no longer special-cases deciding, and no longer runs a signature lookup for every Machine |
 | Field defaults | SLA-breach detection (still read-triggered, not a real Event yet) |
 | — | **Conditional required** — "this Field is required only when a sibling Field holds a given value". `Constraint` has one shape (block a transition while a *related Machine* has a matching record), which cannot condition on a sibling Field of the same record. The one real case is `mch_approval_step`: `fld_assignee` is required when `fld_approver_type` is User and meaningless when it is Group, so the Field is declared optional and `internal/web`'s `parseStepInputs` enforces the pairing (Fase 6c-2). Upstream states the same rule as two conditional Constraints, so the shape is known — it is this runtime's Constraint that has to grow |
@@ -830,7 +931,17 @@ Honest current limits, not a roadmap — some of these may change over time:
   exactly like success. Re-read §12's key tables against the version of this guide shipped with
   your binary rather than trusting a remembered spelling.
 - **No field-level permissions.** Access control today is per-Machine and per-Action at best; you
-  cannot hide or lock one Field from one role while leaving the rest editable.
+  cannot hide or lock one Field from one role while leaving the rest editable. A `roles:` arm
+  (§8) gates a whole Action, not a Field within it.
+- **A role grants the same thing everywhere in its Application.** There is no scope depth
+  ("their own records", "their unit and below") — a role either satisfies a Permission or does
+  not, and narrowing *which records* is still `actor_field`'s job alone. Upstream carries the
+  scope-depth shape as a proposed, unbuilt capability, so this is a known gap rather than an
+  open design question.
+- **A transition cannot carry a condition or a side effect.** `transitions:` declares which moves
+  exist and which Action performs each (§8.1) — not "only when this other Field is set", not
+  "and then notify". Those remain `constraints:` and `events:`, declared separately against the
+  same Fields.
 - **Events fire on a field change or a record creation — not on a schedule.** See §10.
   SLA-breach detection is still hardcoded, read-triggered Go for exactly that reason.
 - **An Event's wording supports at most one override**, not arbitrary per-value branching (§10).

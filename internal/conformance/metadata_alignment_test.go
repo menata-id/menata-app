@@ -760,3 +760,128 @@ func fieldByID(m *domain.Machine, id string) (domain.Field, bool) {
 	}
 	return domain.Field{}, false
 }
+
+// TestApprovalStepDeclaresItsTransitions checks the real manifest, not a fixture, for the same
+// reason TestDynamicActorGateIsDeclaredAndResolvable and TestApprovalStepDeclaresSequencing do:
+// load-time validation refuses a *malformed* declaration, and has nothing at all to say about one
+// that is simply absent.
+//
+// An absent transitions: block here is not a cosmetic gap. behavior.CheckTransitions reads an
+// undeclared state model as "this Machine restricts nothing" (Principle #6), so deleting these
+// two lines silently reopens two things at once: an already-decided step becomes decidable again
+// on a parallel Document, and fld_decision becomes writable straight through the generic edit
+// route -- which is what internal/web's allowsDecisionChange used to stop by hand before this
+// declaration replaced it. Both would pass every other test in this repo.
+func TestApprovalStepDeclaresItsTransitions(t *testing.T) {
+	step := machineFromManifest(t, "mch_approval_step")
+
+	if len(step.Transitions) == 0 {
+		t.Fatal("mch_approval_step declares no transitions: -- a decision would become reversible and directly editable, with nothing else failing")
+	}
+	for _, want := range []struct{ from, to string }{{"pending", "approved"}, {"pending", "rejected"}} {
+		tr, ok := step.TransitionFor("fld_decision", want.from, want.to)
+		if !ok {
+			t.Errorf("mch_approval_step declares no fld_decision transition %q -> %q", want.from, want.to)
+			continue
+		}
+		if tr.Action != domain.ActionDecide {
+			t.Errorf("transition %q: action = %q, want %q -- reserving it for decide is what keeps the generic edit route from being a bypass", tr.ID, tr.Action, domain.ActionDecide)
+		}
+	}
+	// The other half of the rule, and the one that is easy to lose by "just adding an edge":
+	// nothing may leave a decided state.
+	for _, from := range []string{"approved", "rejected"} {
+		if got := step.TransitionsFrom("fld_decision", from); len(got) > 0 {
+			t.Errorf("mch_approval_step declares %d transition(s) leaving %q -- a decision is final, and composition.canStillDecide reads exactly this to stop offering the bar", len(got), from)
+		}
+	}
+}
+
+// TestDocumentStatusIsDerivedNotSettable holds the second thing Fase 7's transitions declare: a
+// Document's status is computed from its steps (evt_step_decision_rollup), so no Action performs
+// any of its edges.
+//
+// The failure this guards is the one that was live until Fase 7 and that no test noticed: the
+// generic update route rewrites a record from whatever the form submits, so any authenticated
+// member could set fld_status to "approved" directly -- skipping every step, the sequencing rule
+// and the PDF compositing at once. Giving one of these edges an action: would restore it.
+func TestDocumentStatusIsDerivedNotSettable(t *testing.T) {
+	document := machineFromManifest(t, "mch_document")
+
+	if len(document.Transitions) == 0 {
+		t.Fatal("mch_document declares no transitions: -- fld_status becomes directly writable through the generic update route again")
+	}
+	for _, tr := range document.Transitions {
+		if tr.Field != "fld_status" {
+			continue
+		}
+		if tr.Action != "" {
+			t.Errorf("transition %q: action = %q, want none -- a Document's status is derived from its Approval Steps, so declaring an action makes it settable by hand", tr.ID, tr.Action)
+		}
+	}
+}
+
+// TestApprovalStepPermissionsCarryRoles is CAP-P01's own declaration gate, the role-side twin of
+// the two above.
+//
+// authorization.holdsOneOf reads an empty roles: as "this Permission says nothing about roles",
+// which is the right default and exactly what makes its absence invisible: dropping the arm from
+// the manifest returns the app to Fase 6's behaviour -- anyone a submitter names as an approver
+// may decide, whatever role they hold -- with every unit test still green, because the unit tests
+// build their own Permissions. Only the real manifest can answer whether the rule is live.
+func TestApprovalStepPermissionsCarryRoles(t *testing.T) {
+	app, err := metadata.LoadApplication(filepath.Join(repoRoot(), "metadata", "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication: %v", err)
+	}
+	step := machineFromManifest(t, "mch_approval_step")
+
+	if step.ApplicationID == "" {
+		t.Fatal("mch_approval_step is claimed by no application -- a role-bearing permission on it could never be satisfied (domain.Actor.HasRole returns false for an empty application id)")
+	}
+	declared := map[string]bool{}
+	for _, a := range app.Workspace.Applications {
+		if a.ID == step.ApplicationID {
+			for _, r := range a.Roles {
+				declared[r] = true
+			}
+		}
+	}
+
+	for _, action := range []string{domain.ActionDecide, domain.ActionEdit, domain.ActionDelete} {
+		perms := step.PermissionsFor(action)
+		if len(perms) == 0 {
+			t.Errorf("mch_approval_step declares no %q permission at all", action)
+			continue
+		}
+		for _, p := range perms {
+			if len(p.Roles) == 0 {
+				t.Errorf("permission %q (%s) names no roles -- the role gate is off for this action and nothing else reports it", p.ID, action)
+			}
+			for _, role := range p.Roles {
+				if !declared[role] {
+					t.Errorf("permission %q names role %q, which application %q does not declare", p.ID, role, step.ApplicationID)
+				}
+			}
+		}
+	}
+}
+
+// machineFromManifest loads one Machine out of the real manifest, through the loader rather than
+// by re-parsing the YAML -- the lesson declaredNavItems records above, applied here: a private
+// copy of the shape cannot notice the shape changing. It goes through LoadApplication rather than
+// Load so ApplicationID is stamped, which the role checks above depend on.
+func machineFromManifest(t *testing.T, id string) *domain.Machine {
+	t.Helper()
+	app, err := metadata.LoadApplication(filepath.Join(repoRoot(), "metadata", "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication: %v", err)
+	}
+	for _, m := range app.Machines {
+		if m.ID == id {
+			return m
+		}
+	}
+	t.Fatalf("%s is not declared in the real manifest", id)
+	return nil
+}

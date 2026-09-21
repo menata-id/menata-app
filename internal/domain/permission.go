@@ -53,6 +53,30 @@ type Permission struct {
 	// was a step deciding for itself, at submission, which of the two applies -- board 08's own
 	// User/Group toggle, and board 09's note "Approvers are supplied by Groups".
 	DynamicActor *DynamicActorGate
+	// Roles are Application roles, any one of which the actor must hold for this Permission to
+	// pass (ROADMAP.md Case 03 Fase 7). Empty means this Permission states nothing about roles,
+	// which is every Permission written before Fase 7 -- so adding the arm changed no existing
+	// answer, the same adoption path DynamicActor took.
+	//
+	// This is `menata-runtime`'s CAP-P01 (role-based event permission, ✅, conformance T11/T12)
+	// implemented rather than re-decided. Two properties are upstream's, not invented here:
+	//
+	//   - The roles are read from the *Application that claims this Permission's Machine*
+	//     (Machine.ApplicationID), because a role word only means something inside one
+	//     Application's declared vocabulary (Application.Roles) -- "approver" in Document Approval
+	//     and "approver" in some future Procurement are different grants, and a Workspace-wide
+	//     role namespace would silently merge them.
+	//   - Several roles on one Permission are alternatives (hold ANY one), while several
+	//     *Permissions* on one Action stay requirements (pass ALL) -- the existing AllowsAction
+	//     contract, unchanged. So `roles: [approver, reviewer]` beside an `actor_field` reads
+	//     "someone holding either role, AND the person this record names", which is upstream's own
+	//     one-Permission-per-{role, owner_field}-pair shape written as one row instead of several.
+	//
+	// The actor's own side of this is domain.Actor.Roles: their *effective* roles
+	// (data.EffectiveRoles -- direct assignment ∪ every role their Groups hold there), so a role
+	// granted through a Group gates identically to one granted directly, which is CAP-O07's rule
+	// and the same late resolution DynamicActor's group arm already relies on.
+	Roles []string
 }
 
 // Actor is who is acting, as far as a Permission is concerned: an identity, and the Workspace
@@ -69,10 +93,34 @@ type Permission struct {
 type Actor struct {
 	ID     string
 	Groups map[string]bool
+	// Roles is this Actor's effective Application roles, keyed by Application id -- exactly what
+	// data.EffectiveRoles returns (direct assignment ∪ every role their Groups hold there), so the
+	// union rule stays expressed in the one pure function that already owns it rather than being
+	// recomputed, or worse re-derived in SQL, here.
+	//
+	// Resolved once per request by the transport layer, like Groups, and nil for an unidentified
+	// caller and for any caller not yet taught to resolve it -- both fail closed, since a
+	// role-bearing Permission asks "does this actor hold one of these" and a nil map holds none.
+	Roles map[string][]string
 }
 
 // InGroup reports whether this Actor belongs to groupID. Nil-safe: the zero Actor is in nothing.
 func (a Actor) InGroup(groupID string) bool { return a.Groups[groupID] }
+
+// HasRole reports whether this Actor holds role in applicationID. Nil-safe, and deliberately
+// false for an empty applicationID: a Machine no Application claims has no role vocabulary to
+// name, so a role-bearing Permission on one would be unanswerable rather than universally true.
+func (a Actor) HasRole(applicationID, role string) bool {
+	if applicationID == "" {
+		return false
+	}
+	for _, held := range a.Roles[applicationID] {
+		if held == role {
+			return true
+		}
+	}
+	return false
+}
 
 // DynamicActorGate names the three Fields that together let one record pick its own actor kind:
 // a status Field holding User or Group, and the two candidate Fields it selects between.

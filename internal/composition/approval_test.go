@@ -62,9 +62,14 @@ func stepMachineForTest() *domain.Machine {
 		// duplicate of the declaration -- removing it (a Group-held step has no assignee to match)
 		// is what exposed the gap. The fixture now carries the rule the metadata carries, so these
 		// tests exercise the real gate rather than a copy of it.
+		// ApplicationID and Roles are part of that same faithfulness, added in Fase 7: the role
+		// arm resolves against the Application claiming the Machine, so a fixture that stamped
+		// neither would exercise the un-roled path forever while the real manifest gates on one.
+		ApplicationID: "app_document_approval",
 		Permissions: []domain.Permission{{
 			ID:         "prm_decide_own_step",
 			Action:     domain.ActionDecide,
+			Roles:      []string{"approver", "reviewer"},
 			ActorField: action.FieldStepAssignee,
 			DynamicActor: &domain.DynamicActorGate{
 				ActorTypeField:  action.FieldStepApproverType,
@@ -72,6 +77,13 @@ func stepMachineForTest() *domain.Machine {
 				ActorGroupField: action.FieldStepApproverGroup,
 			},
 		}},
+		// The declared state model, for the same reason (Fase 7). Without it canStillDecide reads
+		// "this Machine restricts nothing" and offers the decision bar on an already-decided step
+		// -- which is precisely the assertion this fixture's own tests make.
+		Transitions: []domain.Transition{
+			{ID: "trn_step_approve", Name: "Approve", Field: action.FieldStepDecision, From: action.DecisionPending, To: action.DecisionApproved, Action: domain.ActionDecide},
+			{ID: "trn_step_reject", Name: "Reject", Field: action.FieldStepDecision, From: action.DecisionPending, To: action.DecisionRejected, Action: domain.ActionDecide},
+		},
 		Sequencing: &domain.Sequencing{
 			ParentField:     action.FieldStepDocument,
 			ModeField:       action.FieldDocumentMode,
@@ -404,4 +416,15 @@ func TestInitials(t *testing.T) {
 			t.Errorf("Initials(%q) = %q, want %q", tc.name, got, tc.want)
 		}
 	}
+}
+
+// approverActor is a viewer holding `approver` in Document Approval -- the shape
+// internal/web.currentActor builds from data.EffectiveRoles.
+//
+// Every composition test that had written domain.Actor{ID: ...} now goes through here, because
+// mch_approval_step's Permissions carry a roles: arm as of Fase 7 and the fixture above mirrors
+// it. Keeping the id-only literal would have made each of those tests pass or fail for a reason
+// it was not written to ask about.
+func approverActor(id string) domain.Actor {
+	return domain.Actor{ID: id, Roles: map[string][]string{"app_document_approval": {"approver"}}}
 }

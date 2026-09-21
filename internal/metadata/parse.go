@@ -20,6 +20,7 @@ type machineDoc struct {
 	Constraints []constraintDoc `yaml:"constraints"`
 	Events      []eventDoc      `yaml:"events"`
 	Permissions []permissionDoc `yaml:"permissions"`
+	Transitions []transitionDoc `yaml:"transitions"`
 	Datasets    []datasetDoc    `yaml:"datasets"`
 	Sequencing  *sequencingDoc  `yaml:"sequencing"`
 
@@ -29,6 +30,19 @@ type machineDoc struct {
 	CardFields []cardFieldDoc `yaml:"card_fields"`
 	// Views are the declared arrangements of those records.
 	Views []viewDoc `yaml:"views"`
+}
+
+// transitionDoc is the YAML serialization of a domain.Transition (Case 03 Fase 7).
+//
+// `action` is omitted for an edge the runtime performs on its own -- see domain.Transition.Action
+// for why such an edge is still written down rather than left out.
+type transitionDoc struct {
+	ID     string `yaml:"id"`
+	Name   string `yaml:"name"`
+	Field  string `yaml:"field"`
+	From   string `yaml:"from"`
+	To     string `yaml:"to"`
+	Action string `yaml:"action"`
 }
 
 // sequencingDoc is the YAML serialization of a domain.Sequencing.
@@ -142,12 +156,15 @@ type rollupRuleDoc struct {
 // them -- see domain.DynamicActorGate. All three together or none: a partially declared gate is
 // rejected by validatePermission rather than silently half-applied.
 type permissionDoc struct {
-	ID              string `yaml:"id"`
-	Action          string `yaml:"action"`
-	ActorField      string `yaml:"actor_field"`
-	ActorTypeField  string `yaml:"actor_type_field"`
-	ActorUserField  string `yaml:"actor_user_field"`
-	ActorGroupField string `yaml:"actor_group_field"`
+	ID         string `yaml:"id"`
+	Action     string `yaml:"action"`
+	ActorField string `yaml:"actor_field"`
+	// Roles is CAP-P01's own arm (Case 03 Fase 7): role words from the vocabulary declared by the
+	// Application that claims this Machine, any one of which satisfies it.
+	Roles           []string `yaml:"roles"`
+	ActorTypeField  string   `yaml:"actor_type_field"`
+	ActorUserField  string   `yaml:"actor_user_field"`
+	ActorGroupField string   `yaml:"actor_group_field"`
 }
 
 // Parse decodes Runtime Metadata YAML describing a single Machine. It performs structural
@@ -238,6 +255,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			ID:         pd.ID,
 			Action:     pd.Action,
 			ActorField: pd.ActorField,
+			Roles:      pd.Roles,
 		}
 		// Any one of the three keys builds the gate, so a partial declaration reaches
 		// validatePermission as a real gate with an empty field name and is reported -- rather
@@ -250,6 +268,16 @@ func Parse(data []byte) (*domain.Machine, error) {
 			}
 		}
 		m.Permissions = append(m.Permissions, perm)
+	}
+	for _, td := range doc.Transitions {
+		m.Transitions = append(m.Transitions, domain.Transition{
+			ID:     td.ID,
+			Name:   td.Name,
+			Field:  td.Field,
+			From:   td.From,
+			To:     td.To,
+			Action: td.Action,
+		})
 	}
 	for _, dd := range doc.Datasets {
 		ds := domain.Dataset{ID: dd.ID, Source: doc.ID, Dimension: dd.Dimension}

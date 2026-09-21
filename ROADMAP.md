@@ -28,6 +28,13 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - **Authentication and file-handling hardening**, based on an internal security review --
   invite-acceptance and session handling, upload validation and access checks, security response
   headers, and CSRF protection.
+- **Role-based Permission and a declared transition model** (Case 03 Fase 7, 2026-09-21) -- a
+  Permission may require an Application role (`roles:`, upstream's CAP-P01), and a Machine may
+  declare which moves of a status Field exist and which Action performs each (`transitions:`).
+  Together they replaced one hand-written Go rule and closed two real holes it never covered: an
+  already-approved step could be decided again on a parallel Document, and a Document's status
+  could be written straight to `approved` through the generic edit route with no step decided.
+  The **Approval Role Matrix** (`/approval-role-matrix`) draws both declarations as one table.
 - **Permission-aware action visibility** -- Edit/Delete/Save buttons, and an Approval Step's own
   signature-marker drag controls, follow the current user's authorization the same way
   Approve/Reject already did: hidden (not just disabled) when the backend's own
@@ -103,6 +110,18 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      launcher created the first real case for **per-viewer navigation filtering** (see
      `capabilities.md`, "Navigation: two filters"), and it confirmed the launcher must read
      `AllNavigation`, since a hidden group's routes stay reachable there.
+  2b. **The launcher becomes cards** — *shipped 2026-09-20* (`e973630`), an owner-requested
+     redesign authored in a parallel session. The panel was a flat list of every declared
+     navigation item; it becomes `ui-sample/nav-chrome.js`'s card shape — a WORKSPACE header row,
+     the Workspace's own remaining destinations, one entry per Application, closing on "All
+     Workspaces". `show_nav` gained a second reader, and only to decide **how** an Application
+     appears, never whether it does. Full description in `capabilities.md`'s `appShell` row.
+
+     **This entry was missing entirely until the Fase 7 close**, which is the same failure this
+     section's own table warns about one paragraph below: the work was recorded in
+     `capabilities.md` and in its commit message, and in no plan anyone re-reads. Numbered 2b
+     rather than appended to Fase 2 because it post-dates Fase 3a (it reads
+     `Workspace.Applications`), and renumbering 3-7 would break every reference to them.
   3. **Multi-application** — 3a *shipped 2026-09-20*: `applications:` is a list of per-Application
      files, Machines are workspace-level (loaded once, unique by id), and Task Tracker is now
      `app_document_approval` + `app_project_management`. Which Application a request is in is
@@ -236,21 +255,74 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        exists. Board 10's signature dialog had been rendering with its `pageStyles` rules unloaded
        since 6b, including `touch-action: none`, which is behaviour: signing on a phone did not
        work. And the drag script threw a TypeError on any marker the viewer could not edit.
-  7. Role-based Permission + a declared transition model, then board 06 itself. Fase 4 supplied
-     roles, so the foundation is closer than when this list was written — but both primitives are
-     still absent from 006 and 007, which is why this stays last.
+  7. **Role-based Permission + a declared transition model, then board 06** — *shipped
+     2026-09-21*. Three things landed, and step zero is what decided the shape of all three.
 
-     **Step zero has not been run for this phase, and "absent from 006/007" is not the same
-     answer.** The companion repo's own rule (`case-03-composability-checklist.md` §5) says prior
-     art comes in three kinds — mechanisms, decided semantics, drawn screens — and binds even when
-     this repo's concept docs are silent. Upstream carries role-based event permission, CRUD-level
-     per-role permission and a scope-depth modifier as shipped, conformance-tested rows, plus a
-     rendered state/transition map and a whole `process:` overlay block that compiles to
-     Events/Permissions/Constraints. Board 06's copy citing a `ProcessEdge` primitive and a
-     `/{machineID}/process-map` route that "exist nowhere in this repo" is not the mockup inventing
-     something: it is drawn against that overlay. Read those rows before designing Fase 7, so the
-     work is implementing a decided shape rather than re-deciding it — the same correction that
-     turned `decide.go`'s "documented B4 failure" into `activate_next` in 6c.
+     **Step zero, run this time, and it overturned this entry's own premise.** This line used to
+     read "both primitives are still absent from 006 and 007, which is why this stays last" —
+     true about *this repo's* concept docs and irrelevant, because the companion rule
+     (`case-03-composability-checklist.md` §5) binds on upstream's shipped artifacts as well.
+     Upstream carries role-based event permission (**CAP-P01 ✅**, conformance T11/T12) and a
+     whole `process:` overlay whose `transitions[]` compile to guarded Events. So neither
+     primitive needed deciding; both needed implementing. Two divergences were then forced by the
+     *shipped* shapes differing (the rule's own "if two kinds of prior art disagree, the shipped
+     schema wins"), and both are recorded at the declaration rather than here:
+     a Transition does **not** compile into an Event, because a `domain.Event` in this runtime is
+     a post-write notification rather than a triggerable operation — compiling an edge into one
+     would produce a declaration that notifies and never guards; and a Transition carries no
+     `actor:`, because Permission here already says *which records* an actor may move, more
+     richly than upstream can (CAP-F24's dynamic gate), and restating a role on the edge would be
+     two sources for one answer.
+
+     - **Role-based Permission (CAP-P01).** `roles:` on any `permissions:` entry; the actor must
+       hold one of them in the Application that claims the Machine (`domain.Machine.
+       ApplicationID`, stamped at load from that Application's own `machines:` list — an index
+       over a claim already declared once, never a second declaration). Roles within one
+       Permission are alternatives, Permissions on one Action stay requirements, which is
+       `AllowsAction`'s existing contract unchanged — so the arm was added to the *one* function
+       both the button and the POST already call, rather than beside it. The actor's half is
+       their **effective** roles (`data.EffectiveRoles`, direct ∪ group-granted), so CAP-O07's
+       union reaches a Permission gate without a second merge existing anywhere.
+     - **A declared transition model.** `transitions:` on a Machine — which moves of a status
+       Field exist and which Action performs each, `behavior.CheckTransitions` deciding, the
+       generic update route, its JSON twin and `/decide` enforcing. It **replaced**
+       `allowsDecisionChange`, a hand-written Go rule naming one Machine and one Field, and
+       closed two holes that rule never covered. Both were live and neither had a test:
+       an already-approved step could be decided again on a *parallel* Document (sequencing only
+       ever locked a step behind an *earlier* one, so nothing anywhere said a decision was
+       final); and a Document's own `fld_status` could be written straight to `approved` through
+       the generic route with no step decided at all — skipping the approval flow, the sequencing
+       rule and the PDF compositing together. Verified live against the dev database: that PUT is
+       now `422 fld_status moves from "in_review" to "approved" by itself`, record unchanged.
+     - **Board 06.** `/approval-role-matrix`, Workspace-level and `requireWorkspaceAdmin`-gated
+       beside Members and Groups — which the board itself dictated rather than this list: it
+       carries an Application selector and an appShell breadcrumb, not an Application topbar.
+       `composition.RoleMatrix` is a pure projection with no store call at all, which is the
+       honest shape of a screen every fact of which is declared. Its one subtlety is that a cell
+       is the **intersection** of the role sets across an Action's Permissions, not the union —
+       a union would tick a role the server refuses, which is the exact button-says-yes /
+       server-says-no disagreement this screen exists to make visible.
+
+     **A third consumer moved onto the declaration rather than a constant:** the Review screen's
+     Approve/Reject bar asked `decision == "pending"`; it now asks whether any declared edge
+     leaves the current value through `decide`. Same answer today, one declaration instead of
+     two places that could drift.
+
+     **What this narrows, and it is visible in the live data.** `mch_approval_step`'s three
+     Permissions now declare `roles: [approver, reviewer]`, so being the person a step names is
+     no longer sufficient. Of the dev Workspace's three members, two hold a qualifying role
+     (one directly, one through the Groups grant — both paths reach the gate, which is the
+     property the placement integration test now pins); the third holds only `submitter` and has
+     one pending step assigned, which they can no longer decide until a role is granted on
+     Workspace Members or through a Group. That is the capability working rather than a
+     regression, but it is a real access change on real data and is called out rather than left
+     to be discovered.
+
+     **Board 06's Application selector renders only when more than one Application declares
+     roles, so today it does not render at all** — Project Management declares none. The mockup's
+     own three options (Document Approval, Procurement, HR) assume Applications this Workspace
+     has no Machines, routes or roles for, the same board-03 situation the deferral table already
+     records.
 
   **Penyempurnaan — what each shipped phase left undone, and when it lands.** Kept as one table
   on purpose: a comment at a call site answers *why* something is missing, this answers *when* it
@@ -283,8 +355,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | Uploaded file size (board 10: "6 pages · 2.4 MB") | **no phase yet** | the page count is real (`internal/pdf.PageCount`) and is rendered; **the byte size is stored nowhere** — not on the record, not in `internal/storage`'s key, which embeds only the original filename. It needs a write-path change (capture size at upload) plus a Field to hold it, for one label. The trigger is a second caller that needs file metadata, not this line |
   | Step names with real values (board 10: "Finance Review") | **Fase 6c** | `fld_step_name` is declared as of 6b and `composition.stepLabel` reads it; nothing *writes* it until board 08's wizard collects it. Until then every step is titled with its assignee, which is exactly what the app did before the Field existed — the fallback is the honest state, not a placeholder |
   | New chrome on the Document Approval screens (~~inbox~~, ~~review~~, submit, signature) | **inbox done in 6a, review in 6b**; submit and signature both 6c | Preflight ties chrome to content; their content ports there. Signature moved out of 6b — board 09 is `STEP 2 OF 3` of the submit wizard and shows Group approvers (CAP-F24), so it belongs with board 08, not before it |
-  | Approval Role Matrix (board 06) | Fase 7 | role-based Permission + a declared transition model, neither in 006/007 |
-  | Declared `requires_role:` on a navigation item | **a second real case, not a phase** — likeliest around Fase 7, when an Application role could gate an item (a handler naming an id cannot express that) | one case exists today and has code: `appShell`'s `hiddenNavIDs`. See "Per-user/role navigation filtering" below for why the second case, not the calendar, is the trigger |
+  | ~~Approval Role Matrix (board 06)~~ — *done in Fase 7*: `/approval-role-matrix`. The blocker this row named ("neither in 006/007") was answered by step zero rather than by building both from scratch — upstream had already shipped CAP-P01 and a `transitions[]` shape; what this repo's concept docs say about them turned out not to be the binding question | — | — |
+  | Declared `requires_role:` on a navigation item | **a second real case, not a phase** — and **Fase 7 came and went without supplying one**, which this row predicted it would ("likeliest around Fase 7") | Re-checked at the Fase 7 close, which is the only reason this line is honest. Fase 7 *did* add a third id to `appShell`'s `hiddenNavIDs` (`nav_role_matrix`, beside Members and Groups) — but all three are gated on the **Workspace** role (admin), which a handler naming an id expresses perfectly well. The trigger this row names is an item gated on an **Application** role, the case a handler *cannot* express, and role-based Permission landing did not create one: no navigation item in the manifest is scoped to an Application role. Three instances of the same shape is, separately, the B1 repetition signal — so the next hardcoded id is worth running through the decomposition criteria even if the trigger below still has not arrived |
   | Mobile bottom bar for an Application's own menu | **no phase yet** — lands when the Project Management screens get boards | Those screens are still `pageStyles`, so a bottom bar there would be hand-written CSS thrown away when they port — that is the real blocker. **This row previously said "nothing in Fase 2–7 displays it", which stopped being true at Fase 3a**: Project Management declares no `show_nav`, keeps its menu, and `/my-tasks` renders ten nav links today. It stayed wrong through four phase closes because nobody re-read the table, which is the one thing this table needs. The owner's decision (`navigation.html`, 3–4 icons, top-4 by priority) was never the missing part |
   | Saved default approval flow (board 08: "Save this as the default approval flow for **Contract** documents", checked by default) | **no phase yet** | Upstream built it (CAP-V28) as two companion Machines — one template per Document Type, plus its own ordered steps — with a write direction that find-or-creates the template on submit. That is the real blocker: a template entity and a write path, not the screen. **This row exists because the deferral did not.** It has been live since Phase 15, recorded only inside `menata-app-document`'s development history, in no table anyone re-reads at a phase close — and with a reason that was wrong when written ("only one Document Type exists in metadata today"; there were zero) and is wrong now in the other direction (there are three: `Kontrak`, `Tagihan`, `Lain-lain`). Same shape as the bottom-bar row that sat wrong through four closes |
   | One signature box for a Group-held step (boards 08/09) | **no phase yet** — **named, not solved** | Board 09 places exactly one signature box for `Legal Group · 4 members`, and nothing on either board says whose signature image lands in it, or what happens when two of the four act. Upstream has the identical gap on its own compositing capability, recorded there in the same words. Worth holding here rather than discovering it during 6c-2's port |
@@ -292,7 +364,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | Write-side Binding: a form input's `name=` hardcoded to a Field id (007 §11.3) | **no phase yet** — **and it is the gap a shrinking ratchet hides** | `signatureplacement.templ` carries twelve `name={ action.Field… }`, `documentsubmit.templ` six, while `machine.templ` already does it generically (`name={ f.ID }` over `m.Fields`). `TestRenderingUsesProjectionNotRawValues` gates *reads*, never writes, so both files could leave `projectionRatchet` with every binding still hand-typed — which is exactly what happened in 6c-2 and 6c-3. Recorded here so the ratchet count is not read as a composability score. Trigger: a third bespoke write screen, or the generic update route stopping its whole-record rewrite (the same route that forced 6c-3's carry-forward list) |
   | `NavBadgeApprovalInboxPending` still resolved in the Domain Plane | **no phase yet** | `domain.NavigationItem.Badge` names one live count the runtime special-cases end to end (`domain/navigation.go`, `web/workspacehome.go`, `appshell.templ`, `machine.templ`). It cannot become an ordinary Dataset: the count filters on assignee **and** on `behavior.CanAct`, which reads a *sibling* record, while a Measure's `where:` is evaluated per record against its own values. So the blocker is record selection (007 §8), not the identity sentinel below — a point the companion repo's Stage 0 first got wrong in the other direction |
   | PDF signature compositing is hand-written Go (upstream CAP-F22) | **no phase yet** | The third of the three Case 3 behaviours named above; the other two (`activate_next`, `aggregate_status`) landed 2026-09-20 and this one did not, so it should stop riding on their line. `internal/action/composite.go`/`banner.go` manipulate a binary PDF rather than express a rule, which is the lowest generalization value of the three — but "lowest value" is a ranking, not a deferral reason, and it had neither a phase nor a row until now |
-  | The approval stepper is five constants, not a declared View (upstream CAP-V20 ✅) | **no phase yet** | `approvalstepper.templ` is the **last Case 3 entry left in `projectionRatchet`**, and nothing anywhere states how it leaves. Upstream carries the sequential decision stepper as a shipped View *type* (ordered done/current/pending over a parent's child steps), so this is an implement-a-known-capability question rather than a design one — the same posture `activate_next` was in before 6c. Blocked in practice on a View that composes other Views (Planned, below), since the stepper renders a parent record's children, not its own Machine's records |
+  | The approval stepper is five constants, not a declared View (upstream CAP-V20 ✅) | **no phase yet** — re-checked at the Fase 7 close and still blocked, but on *less* than before: the stepper's own done/current/pending vocabulary is now half-expressible, since `transitions:` says which states a step can still leave. What it still needs is a View that composes other Views | `approvalstepper.templ` is the **last Case 3 entry left in `projectionRatchet`**, and nothing anywhere states how it leaves. Upstream carries the sequential decision stepper as a shipped View *type* (ordered done/current/pending over a parent's child steps), so this is an implement-a-known-capability question rather than a design one — the same posture `activate_next` was in before 6c. Blocked in practice on a View that composes other Views (Planned, below), since the stepper renders a parent record's children, not its own Machine's records |
   | "Keep me signed in" (board 01) | **no phase yet** | a session-lifetime change; `internal/authorization` has no remember-me concept |
 - Rounding out Project Management: a project-level workspace overview, richer task detail
   (checklist, comments, attachments), and scoping views to one project at a time. **Its standing
@@ -319,7 +391,13 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.
-- Group-based roles and a visual approval role matrix.
+- **Role-based Permission -- ~~planned~~ shipped 2026-09-21** (Case 03 Fase 7, above). This
+  section listed "Group-based roles and a visual approval role matrix" as one Planned line; both
+  halves are now built (Groups in Fase 4, the matrix and the role gate in Fase 7). What stays
+  unbuilt, and is a different thing, is **scope depth** on a role -- "their own records", "their
+  unit and below" -- which upstream carries as a proposed, unbuilt row (CAP-P08) depending on an
+  organizational-unit tree this repo does not have either. Narrowing *which* records a role
+  reaches is still `actor_field`'s job alone.
 - **Per-user/role navigation filtering -- the first real case has now arrived** (Fase 2 of the
   Case 03 port, 2026-09-20). This entry used to read "no declared nav item needs role-gating yet",
   and noted that the one concrete case found -- Workspace Home's "Members" link -- was

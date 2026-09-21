@@ -174,7 +174,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 		if !carryForwardFiles(w, req, store, machine, id, uploaded, values) {
 			return
 		}
-		if !allowsDecisionChange(w, req, store, machine, id, values) {
+		if !allowsTransition(w, req, store, machine, id, values) {
 			return
 		}
 		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
@@ -259,12 +259,29 @@ func carryForwardFiles(w http.ResponseWriter, req *http.Request, store *data.Sto
 	return true
 }
 
-// allowsDecisionChange refuses an attempt to move an Approval Step's fld_decision through the
-// generic edit route. That transition only ever happens through POST .../decide, which enforces
-// action.CanDecide's sequencing rule; the edit route must not become a bypass for it
-// (ROADMAP.md Phase 12).
-func allowsDecisionChange(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
-	if machine.ID != action.StepMachineID {
+// allowsTransition holds the Machine's own declared state model against this write: every status
+// Field the request moves must be moving along a declared edge, and that edge must be reserved for
+// the Action this route realizes (domain.ActionEdit here -- the generic update route and its JSON
+// twin both go through it).
+//
+// It replaces allowsDecisionChange, which said exactly this for one Machine and one Field by
+// hand: "an Approval Step's fld_decision only ever moves through POST .../decide, the edit route
+// must not become a bypass." That rule is now three lines of metadata on mch_approval_step
+// (`trn_step_approve`/`trn_step_reject`, both `action: decide`), and the same declaration is what
+// the Approval Role Matrix draws -- so the screen showing who may approve and the guard refusing
+// an edit read one statement instead of agreeing by coincidence.
+//
+// It also closed a second bypass the hand-written rule never covered, which is the evidence the
+// generalization was worth making rather than the claim: nothing stopped a Document's own
+// fld_status being set directly through the same generic route, even though that Field is
+// *derived* from its steps (evt_step_decision_rollup). Its declared edges name no action at all,
+// so this now refuses it.
+//
+// The fetch is skipped entirely for a Machine that declares no transitions -- the same fast path
+// recordEditAllowed takes for an undeclared Permission, and the reason declaring the state model
+// of one Machine costs nothing on every other write in the manifest.
+func allowsTransition(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, values map[string]any) bool {
+	if len(machine.Transitions) == 0 {
 		return true
 	}
 	existing, err := store.GetRecord(req.Context(), machine.ID, id)
@@ -272,8 +289,8 @@ func allowsDecisionChange(w http.ResponseWriter, req *http.Request, store *data.
 		recordError(w, err)
 		return false
 	}
-	if newDecision, ok := values[action.FieldStepDecision]; ok && fmt.Sprint(newDecision) != fmt.Sprint(existing.Values[action.FieldStepDecision]) {
-		http.Error(w, "use Approve/Reject to change a decision, not a direct edit", http.StatusUnprocessableEntity)
+	if err := behavior.CheckTransitions(machine, domain.ActionEdit, existing.Values, values); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return false
 	}
 	return true

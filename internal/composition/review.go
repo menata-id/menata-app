@@ -94,11 +94,17 @@ func buildReview(step, document *data.Record, siblings, activities, users []*dat
 	// knows which (CAP-F24). Asking it directly -- rather than pre-filtering on fld_assignee and
 	// then asking -- is what keeps a Group-held step decidable here; an assignee check ANDed in
 	// front would have silently cancelled the whole capability on this screen.
-	if decision == action.DecisionPending && behavior.CanAct(seq, document, step, siblings) {
+	// "Is there still a decision to make" is now read off the Machine's own declared state model
+	// rather than compared against the literal `pending` (Case 03 Fase 7): a step can be decided
+	// exactly when some declared edge leaves its current value through the decide Action. Same
+	// answer today -- only `pending` has outgoing edges -- but it is the same declaration the
+	// server's own guard enforces (internal/web's declaredDecision), so the bar and the POST
+	// cannot drift the way a constant and a rule can.
+	if stepMachine != nil && canStillDecide(stepMachine, decision) && behavior.CanAct(seq, document, step, siblings) {
 		// The same declared Permission internal/web enforces on POST .../decide, asked here only
 		// to decide whether to draw the bar. Presentation, never protection -- the server is what
 		// actually refuses, the posture the decide bar already established.
-		v.CanDecide = stepMachine != nil && authorization.AllowsAction(stepMachine, domain.ActionDecide, step.Values, viewer)
+		v.CanDecide = authorization.AllowsAction(stepMachine, domain.ActionDecide, step.Values, viewer)
 	}
 
 	if key := DisplayString(document.Values[action.FieldDocumentFile]); key != "" {
@@ -167,4 +173,23 @@ func numberValue(s *data.Record, fieldID string) float64 {
 		}
 		return f
 	}
+}
+
+// canStillDecide reports whether any declared Transition leaves decision through the decide
+// Action -- "is this step still open", asked of the declaration instead of a constant.
+//
+// A Machine declaring no transitions at all answers true, which is the same Principle #6 reading
+// behavior.CheckTransitions applies: an undeclared state model restricts nothing, so the screen
+// falls back to offering the bar and lets the server's own Permission decide, exactly as it did
+// before this declaration existed.
+func canStillDecide(stepMachine *domain.Machine, decision string) bool {
+	if len(stepMachine.Transitions) == 0 {
+		return true
+	}
+	for _, t := range stepMachine.TransitionsFrom(action.FieldStepDecision, decision) {
+		if t.Action == domain.ActionDecide {
+			return true
+		}
+	}
+	return false
 }

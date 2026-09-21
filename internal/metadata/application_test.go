@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"menata.app/internal/domain"
 )
 
 func writeFile(t *testing.T, dir, name, content string) {
@@ -1084,5 +1086,154 @@ machines:
 	got := app.Workspace.Applications[0]
 	if got.Description != "" || got.Icon != "" || got.Color != "" || got.SummaryMachine != "" {
 		t.Errorf("card face = %+v, want all empty when nothing is declared", got)
+	}
+}
+
+// rolePermissionManifest writes a two-Machine Workspace where one Machine is claimed by an
+// Application declaring `roles`, and the other is claimed by nobody -- the shared-Machine case
+// (mch_user, mch_activity) that the role arm has to answer for as well.
+func rolePermissionManifest(t *testing.T, roles, permission string) string {
+	t.Helper()
+	dir := t.TempDir()
+	writeFile(t, dir, "step.yaml", `
+id: mch_step
+name: Step
+fields:
+  - id: fld_assignee
+    name: Assignee
+    type: person
+permissions:
+`+permission)
+	// mch_user is the person Field's implicit target, and doubles as the unclaimed, shared
+	// Machine this test needs -- exactly what it is in the real manifest.
+	writeFile(t, dir, "shared.yaml", `
+id: mch_user
+name: User
+fields:
+  - id: fld_name
+    name: Name
+    type: text
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - step.yaml
+    - shared.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_approval
+name: Approval
+machines:
+  - mch_step
+roles:
+`+roles)
+	return filepath.Join(dir, "app.yaml")
+}
+
+// A Machine's ApplicationID is an index over the Application's own machines: selection, never a
+// second declaration -- and a Machine no Application claims keeps "".
+func TestLoadApplication_stampsApplicationID(t *testing.T) {
+	app, err := LoadApplication(rolePermissionManifest(t, "  - approver\n", "  - id: prm_decide\n    action: decide\n    actor_field: fld_assignee\n"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	for _, m := range app.Machines {
+		want := "app_approval"
+		if m.ID == domain.UserMachineID {
+			want = ""
+		}
+		if m.ApplicationID != want {
+			t.Errorf("%s.ApplicationID = %q, want %q", m.ID, m.ApplicationID, want)
+		}
+	}
+}
+
+// Both failures validatePermissionRoles catches are silent ones: the Permission parses, validates
+// and then denies everyone forever while reading like a grant.
+func TestLoadApplication_permissionRolesMustBeDeclared(t *testing.T) {
+	tests := []struct {
+		name       string
+		roles      string
+		permission string
+		wantErr    bool
+	}{
+		{
+			name:       "a role the application declares",
+			roles:      "  - approver\n",
+			permission: "  - id: prm_decide\n    action: decide\n    roles: [approver]\n    actor_field: fld_assignee\n",
+		},
+		{
+			name:       "a role nobody declares -- nobody can hold it",
+			roles:      "  - approver\n",
+			permission: "  - id: prm_decide\n    action: decide\n    roles: [supervisor]\n    actor_field: fld_assignee\n",
+			wantErr:    true,
+		},
+		{
+			// The Application declares no vocabulary at all, so the word means nothing here.
+			name:       "a role on an application that declares none",
+			roles:      "",
+			permission: "  - id: prm_decide\n    action: decide\n    roles: [approver]\n    actor_field: fld_assignee\n",
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := LoadApplication(rolePermissionManifest(t, tt.roles, tt.permission))
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LoadApplication() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// The unclaimed-Machine half, which no per-Machine validator can see: mch_user belongs to no
+// Application, so domain.Actor.HasRole would return false for every role every time.
+func TestLoadApplication_roleBearingPermissionOnUnclaimedMachine(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "shared.yaml", `
+id: mch_user
+name: User
+fields:
+  - id: fld_assignee
+    name: Assignee
+    type: person
+permissions:
+  - id: prm_edit
+    action: edit
+    roles: [approver]
+    actor_field: fld_assignee
+`)
+	writeFile(t, dir, "step.yaml", `
+id: mch_step
+name: Step
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace:
+  id: ws_default
+  name: Default Workspace
+  machines:
+    - shared.yaml
+    - step.yaml
+applications:
+  - app-main.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_approval
+name: Approval
+machines:
+  - mch_step
+roles:
+  - approver
+`)
+	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err == nil {
+		t.Error("LoadApplication() = nil, want an error -- a role-bearing permission on a machine no application claims can never be satisfied")
 	}
 }

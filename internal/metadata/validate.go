@@ -23,6 +23,7 @@ var (
 	datasetIDPattern    = regexp.MustCompile(`^ds_[a-z][a-z0-9_]*$`)
 	measureIDPattern    = regexp.MustCompile(`^msr_[a-z][a-z0-9_]*$`)
 	viewIDPattern       = regexp.MustCompile(`^vw_[a-z][a-z0-9_]*$`)
+	transitionIDPattern = regexp.MustCompile(`^trn_[a-z][a-z0-9_]*$`)
 )
 
 // validateNavigation checks the Application's own navigation: list (ROADMAP.md's "Navigation is
@@ -133,6 +134,12 @@ func Validate(m *domain.Machine) error {
 	seenPermissions := make(map[string]bool, len(m.Permissions))
 	for _, p := range m.Permissions {
 		issues = append(issues, validatePermission(m, p, fieldsByID, seenPermissions)...)
+	}
+
+	seenTransitions := make(map[string]bool, len(m.Transitions))
+	seenEdges := make(map[string]string, len(m.Transitions))
+	for _, t := range m.Transitions {
+		issues = append(issues, validateTransition(m, t, fieldsByID, seenTransitions, seenEdges)...)
 	}
 
 	seenDatasets := make(map[string]bool, len(m.Datasets))
@@ -369,14 +376,94 @@ func validatePermission(m *domain.Machine, p domain.Permission, fieldsByID map[s
 		issues = append(issues, fmt.Sprintf("permission %q: action %q is not an action this runtime realizes", p.ID, p.Action))
 	}
 
-	actorField, ok := fieldsByID[p.ActorField]
-	if !ok {
-		issues = append(issues, fmt.Sprintf("permission %q: actor_field %q is not a field of machine %q", p.ID, p.ActorField, m.ID))
-	} else if !actorField.IsReference() {
-		issues = append(issues, fmt.Sprintf("permission %q: actor_field %q must reference an identity (a person or relation field), got %q", p.ID, p.ActorField, actorField.Type))
+	// A Permission must gate on *something*. Until Fase 7 that was always actor_field, so its
+	// absence was simply a missing field; now a Permission may be role-only (CAP-P01), and the
+	// check has to be "at least one arm" rather than "this one arm". A Permission with no arm at
+	// all is the dangerous case the emptiness would otherwise hide: authorization.allowsOne reads
+	// it as "nothing to check", so it would parse, validate, and protect nothing while looking
+	// like a guard.
+	switch {
+	case p.ActorField == "" && p.DynamicActor == nil && len(p.Roles) == 0:
+		issues = append(issues, fmt.Sprintf("permission %q: declares no actor_field, no actor_*_field gate and no roles -- a permission that gates on nothing protects nothing", p.ID))
+	case p.ActorField == "":
+		// Role-only (or dynamic-gate-only): nothing to check here, checked below/above instead.
+	default:
+		actorField, ok := fieldsByID[p.ActorField]
+		if !ok {
+			issues = append(issues, fmt.Sprintf("permission %q: actor_field %q is not a field of machine %q", p.ID, p.ActorField, m.ID))
+		} else if !actorField.IsReference() {
+			issues = append(issues, fmt.Sprintf("permission %q: actor_field %q must reference an identity (a person or relation field), got %q", p.ID, p.ActorField, actorField.Type))
+		}
+	}
+
+	for i, role := range p.Roles {
+		if strings.TrimSpace(role) == "" {
+			issues = append(issues, fmt.Sprintf("permission %q: roles entry %d is empty -- omit it rather than declaring a blank role, which no vocabulary contains", p.ID, i))
+		}
 	}
 
 	issues = append(issues, validateDynamicActor(m, p, fieldsByID)...)
+
+	return issues
+}
+
+// validateTransition checks one declared edge of a Machine's state model (Case 03 Fase 7).
+//
+// Every check here exists because its absence fails silently rather than loudly. A transition
+// naming a Field that is not a status Field, or a value that Field does not declare, can never
+// match at write time -- so behavior.CheckTransitions would refuse a move that metadata looks
+// like it permits, and the screen reading the same declaration would draw a row for an edge no
+// record can take. Both are the "declared but unreachable" shape this package exists to catch at
+// load; the Machine would still boot.
+//
+// seenEdges keys on field+from+to rather than on the id, because TransitionFor resolves an edge
+// by those three and returns the first match: two declarations of one edge would make which
+// Action governs it depend on declaration order, which is the same ambiguity
+// validateApplicationClaims refuses for a Machine claimed twice.
+func validateTransition(m *domain.Machine, t domain.Transition, fieldsByID map[string]domain.Field, seen map[string]bool, seenEdges map[string]string) []string {
+	var issues []string
+
+	if !transitionIDPattern.MatchString(t.ID) {
+		issues = append(issues, fmt.Sprintf("machine %q: transition id %q must match %s", m.ID, t.ID, transitionIDPattern.String()))
+	}
+	if seen[t.ID] {
+		issues = append(issues, fmt.Sprintf("machine %q: transition id %q is declared more than once", m.ID, t.ID))
+	}
+	seen[t.ID] = true
+
+	if t.Name == "" {
+		issues = append(issues, fmt.Sprintf("machine %q: transition %q: name is required -- it is what this move is called in the business, and no screen can derive it from from/to", m.ID, t.ID))
+	}
+
+	field, ok := fieldsByID[t.Field]
+	switch {
+	case !ok:
+		issues = append(issues, fmt.Sprintf("machine %q: transition %q: field %q is not a field of this machine", m.ID, t.ID, t.Field))
+	case field.Type != domain.FieldTypeStatus:
+		issues = append(issues, fmt.Sprintf("machine %q: transition %q: field %q must be a status field, got %q -- a transition moves between declared options", m.ID, t.ID, t.Field, field.Type))
+	default:
+		for label, value := range map[string]string{"from": t.From, "to": t.To} {
+			if !slices.Contains(field.Options, value) {
+				issues = append(issues, fmt.Sprintf("machine %q: transition %q: %s %q is not one of %q's own options %v", m.ID, t.ID, label, value, t.Field, field.Options))
+			}
+		}
+		if t.From == t.To {
+			issues = append(issues, fmt.Sprintf("machine %q: transition %q: from and to are both %q -- a value that does not change is never a transition (behavior.CheckTransitions skips it), so this edge could never fire", m.ID, t.ID, t.From))
+		}
+	}
+
+	// An empty action is the declared "the runtime performs this itself" case (domain.Transition.
+	// Action), so only a non-empty one is checked against the closed set.
+	if t.Action != "" && !domain.KnownActions[t.Action] {
+		issues = append(issues, fmt.Sprintf("machine %q: transition %q: action %q is not an action this runtime realizes", m.ID, t.ID, t.Action))
+	}
+
+	edge := t.Field + "\x00" + t.From + "\x00" + t.To
+	if prev, dup := seenEdges[edge]; dup {
+		issues = append(issues, fmt.Sprintf("machine %q: transition %q declares the same %s move %q -> %q as %q -- which action governs it would depend on declaration order", m.ID, t.ID, t.Field, t.From, t.To, prev))
+	} else {
+		seenEdges[edge] = t.ID
+	}
 
 	return issues
 }
@@ -663,6 +750,80 @@ func validateNavigationIDsAreUnique(ws domain.Workspace) error {
 	record(ws.Navigation, fmt.Sprintf("workspace %q", ws.ID))
 	for _, app := range ws.Applications {
 		record(app.AllNavigation, fmt.Sprintf("application %q", app.ID))
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
+// stampApplicationIDs fills domain.Machine.ApplicationID from each Application's own `machines:`
+// selection -- the claim is declared once, there, and this is the index over it, not a second
+// declaration (001 Principle #8).
+//
+// It runs after validateApplicationClaims, never before: that check is what guarantees no Machine
+// is claimed twice, and stamping an ambiguous claim would silently pick whichever Application
+// loaded first -- which for a role-bearing Permission means resolving its role words against the
+// wrong vocabulary and denying the right people. A Machine no Application claims (mch_user,
+// mch_activity) keeps "", which Actor.HasRole reads as "no vocabulary here".
+func stampApplicationIDs(applications []domain.Application, machines []*domain.Machine) {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	for _, app := range applications {
+		for _, id := range app.Machines {
+			if m, ok := byID[id]; ok {
+				m.ApplicationID = app.ID
+			}
+		}
+	}
+}
+
+// validatePermissionRoles is CAP-P01's cross-Machine half: a Permission's `roles:` name words
+// from the vocabulary of the Application that claims its Machine, and that Application has to
+// both exist and declare them.
+//
+// Cross-Machine, and therefore here rather than in Validate, for the same reason
+// validateSequencingModes is: the two halves of the fact live in different files. The role word
+// is written on the Machine; the vocabulary that gives it meaning is written on the Application.
+//
+// Both failures it catches are silent ones. A role nobody declares can never be held, so the
+// Permission denies everyone forever while reading like a grant -- the same "protects everything"
+// shape a Permission with no arm at all would have. And a role-bearing Permission on an
+// *unclaimed* Machine has no vocabulary to resolve against at all (Actor.HasRole returns false for
+// an empty Application id), so it denies everyone for a different reason and with even less to
+// show for it. Neither would fail a single existing validator.
+func validatePermissionRoles(applications []domain.Application, machines []*domain.Machine) error {
+	vocabulary := make(map[string]map[string]bool, len(applications))
+	for _, app := range applications {
+		words := make(map[string]bool, len(app.Roles))
+		for _, r := range app.Roles {
+			words[r] = true
+		}
+		vocabulary[app.ID] = words
+	}
+
+	var issues []string
+	for _, m := range machines {
+		for _, p := range m.Permissions {
+			if len(p.Roles) == 0 {
+				continue
+			}
+			if m.ApplicationID == "" {
+				issues = append(issues, fmt.Sprintf(
+					"machine %q: permission %q names roles %v, but no application claims this machine -- a role word only means something inside one application's own vocabulary, so this permission could never be satisfied by anyone",
+					m.ID, p.ID, p.Roles))
+				continue
+			}
+			for _, role := range p.Roles {
+				if !vocabulary[m.ApplicationID][role] {
+					issues = append(issues, fmt.Sprintf(
+						"machine %q: permission %q names role %q, which application %q does not declare in its roles: vocabulary -- nobody can hold it, so this permission would deny everyone while reading as a grant",
+						m.ID, p.ID, role, m.ApplicationID))
+				}
+			}
+		}
 	}
 	if len(issues) > 0 {
 		return &ValidationError{Issues: issues}

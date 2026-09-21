@@ -144,6 +144,13 @@ func LoadApplication(path string) (*App, error) {
 	if err := validateApplicationClaims(app.Workspace.Applications, app.Machines); err != nil {
 		return nil, err
 	}
+	// Stamping comes straight after the claim check, and before any validator that reads it: a
+	// Machine's ApplicationID is only unambiguous once "claimed by at most one Application" has
+	// been established.
+	stampApplicationIDs(app.Workspace.Applications, app.Machines)
+	if err := validatePermissionRoles(app.Workspace.Applications, app.Machines); err != nil {
+		return nil, err
+	}
 	if err := validateNavigationIDsAreUnique(app.Workspace); err != nil {
 		return nil, err
 	}

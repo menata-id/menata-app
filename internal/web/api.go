@@ -91,7 +91,7 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 		if !carryForwardFiles(w, req, store, machine, id, nil, values) {
 			return
 		}
-		if !allowsDecisionChange(w, req, store, machine, id, values) {
+		if !allowsTransition(w, req, store, machine, id, values) {
 			return
 		}
 		if !passesWriteGuards(w, req, store, machines, machine, id, values) {

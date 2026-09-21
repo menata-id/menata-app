@@ -141,6 +141,10 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 			return
 		}
 
+		if !declaredDecision(w, machine, step, decision) {
+			return
+		}
+
 		documentID, _ := step.Values[action.FieldStepDocument].(string)
 		document, ok := decidableDocument(w, ctx, store, machine, step, documentID)
 		if !ok {
@@ -177,6 +181,27 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 
 		redirectTo(w, req, "/machines/"+action.DocumentMachineID+"/records/"+documentID)
 	}
+}
+
+// declaredDecision holds this Machine's own declared state model against the decision being made
+// (Case 03 Fase 7): the move has to be an edge mch_approval_step actually declares, and one
+// reserved for the decide Action.
+//
+// It runs before anything is written and before the signature is even captured, alongside the
+// other two pre-write guards, per decideStep's own ordering contract.
+//
+// It closes a real hole neither of those guards covered. Sequencing only locks a step behind an
+// *earlier* one, and only when its Document is sequential -- so on a parallel Document an
+// already-approved step could be decided again, flipping approved -> rejected and re-running the
+// rollup onto the Document. Nothing anywhere said a decision was final; mch_approval_step's
+// transitions do, by declaring no edge that leaves `approved` or `rejected`.
+func declaredDecision(w http.ResponseWriter, machine *domain.Machine, step *data.Record, decision string) bool {
+	if err := behavior.CheckTransitions(machine, domain.ActionDecide, step.Values,
+		map[string]any{action.FieldStepDecision: decision}); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return false
+	}
+	return true
 }
 
 // submittedDecision reads the decision field, accepting only the two values an Approval Step can

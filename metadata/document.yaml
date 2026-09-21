@@ -60,6 +60,56 @@ events:
       service: log_activity
       summary: "\"{fld_title}\" submitted"
 
+# transitions: fld_status's own state model (ROADMAP.md Case 03 Fase 7).
+#
+# Every edge here declares no `action:`, and that is the substance of this block rather than an
+# omission: a Document's status is *derived* -- mch_approval_step's evt_step_decision_rollup
+# computes it fresh from that Document's own steps every time one is decided. No person sets it,
+# so no Action performs any of these moves, and the Approval Role Matrix renders all six as
+# "System" with no role able to grant them.
+#
+# What declaring them buys is a hole that was open until now: the generic update route would
+# happily write fld_status straight from a form, so any member could set a Document to `approved`
+# without a single step being decided -- bypassing the entire approval flow, the sequencing rule
+# and the signature compositing at once. behavior.CheckTransitions refuses that now, because
+# `edit` is not the action any of these edges names.
+#
+# All six ordered pairs are listed because all six are genuinely reachable: the rollup recomputes
+# from scratch on every decision, so it can move the Document from any of the three values to any
+# other. Listing only the "expected" three would make a real rollup result look like an
+# undeclared transition the day a step is deleted and the next decision recomputes past it.
+transitions:
+  - id: trn_document_approved
+    name: All steps approved
+    field: fld_status
+    from: in_review
+    to: approved
+  - id: trn_document_rejected
+    name: A step rejected
+    field: fld_status
+    from: in_review
+    to: rejected
+  - id: trn_document_reopened_from_approved
+    name: Reopened
+    field: fld_status
+    from: approved
+    to: in_review
+  - id: trn_document_reopened_from_rejected
+    name: Reopened
+    field: fld_status
+    from: rejected
+    to: in_review
+  - id: trn_document_rejected_after_approval
+    name: A step rejected
+    field: fld_status
+    from: approved
+    to: rejected
+  - id: trn_document_approved_after_rejection
+    name: All steps approved
+    field: fld_status
+    from: rejected
+    to: approved
+
 # The Dashboard's Document status tiles (007 §7.2-§7.4), generalized from what buildDashboard
 # used to count with a hardcoded `switch` over three literal status values. The switch's other
 # job -- collecting the in_review Documents themselves into a list -- is record *selection*, not

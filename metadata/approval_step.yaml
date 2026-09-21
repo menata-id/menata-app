@@ -130,7 +130,53 @@ sequencing:
   state_field: fld_decision
   open_value: pending
 
+# transitions: this Machine's own declared state model (ROADMAP.md Case 03 Fase 7) -- which moves
+# of fld_decision exist, and which Action performs each.
+#
+# This is `menata-runtime`'s Process Overlay `transitions[]` implemented rather than re-decided
+# (its shipped compiler turns exactly {name, from, to} into one guarded edge). What it replaces
+# here is internal/web's own allowsDecisionChange: a hand-written Go rule naming this one Machine
+# and this one Field to say "a decision moves only through POST .../decide, never through the
+# generic edit route". The two lines below say it, and the Approval Role Matrix draws its rows
+# from the same declaration -- so the screen listing who may approve and the guard refusing an
+# edit now read one statement instead of agreeing by coincidence.
+#
+# Nothing leaves `approved` or `rejected`: a decision is final. That is a real tightening, not a
+# restatement -- sequencing only ever locked a step behind an *earlier* one, and only on a
+# sequential Document, so on a parallel Document an already-approved step could be decided again
+# and re-run the rollup. There was no rule anywhere that said a decision is final; now there is.
+transitions:
+  - id: trn_step_approve
+    name: Approve
+    field: fld_decision
+    from: pending
+    to: approved
+    action: decide
+  - id: trn_step_reject
+    name: Reject
+    field: fld_decision
+    from: pending
+    to: rejected
+    action: decide
+
 permissions:
+  # roles: is CAP-P01, added in Fase 7 -- the first thing in this repo that gates on an
+  # Application role rather than on a record's own actor field. It ANDs with the actor arms below:
+  # "someone holding approver or reviewer in app_document_approval, AND the person (or Group) this
+  # step names". Several roles on one Permission are alternatives; several Permissions on one
+  # Action stay requirements, which is AllowsAction's existing contract, unchanged.
+  #
+  # approver and reviewer, not submitter: a submitter organizes their own Document's approval
+  # chain (they create its Steps), but deciding one is what the other two words are for. The role
+  # vocabulary is declared in applications/document-approval.yaml and validated against it at
+  # load, so a typo here fails the boot rather than silently denying everyone.
+  #
+  # This is a real narrowing of who may act, and the Approval Role Matrix (/approval-role-matrix)
+  # is where it is now visible without reading this file: a member assigned as a step's approver
+  # who holds neither role in this Application can no longer decide, edit or delete it. Grant the
+  # role on Workspace Members, or through a Group -- an effective role reaches here either way
+  # (data.EffectiveRoles), which is CAP-O07's own rule.
+  #
   # prm_decide_own_step carries both shapes at once, which is the adoption path rather than a
   # redundancy: actor_field is the fallback, used whenever a record's own fld_approver_type is
   # empty or holds something the runtime does not recognize. Every Approval Step written before
@@ -138,6 +184,7 @@ permissions:
   # and no rewritten test.
   - id: prm_decide_own_step
     action: decide
+    roles: [approver, reviewer]
     actor_field: fld_assignee
     actor_type_field: fld_approver_type
     actor_user_field: fld_assignee
@@ -159,12 +206,14 @@ permissions:
   # asserted in internal/authorization's tests rather than assumed.
   - id: prm_edit_own_step
     action: edit
+    roles: [approver, reviewer]
     actor_field: fld_assignee
     actor_type_field: fld_approver_type
     actor_user_field: fld_assignee
     actor_group_field: fld_approver_group
   - id: prm_delete_own_step
     action: delete
+    roles: [approver, reviewer]
     actor_field: fld_assignee
     actor_type_field: fld_approver_type
     actor_user_field: fld_assignee

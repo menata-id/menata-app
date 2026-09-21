@@ -201,12 +201,29 @@ var KnownServices = map[string]bool{
 // Machine is the primary runtime realization unit for a business capability
 // (006-runtime-model.md "Machine").
 type Machine struct {
-	ID          string
-	Name        string
-	Fields      []Field
-	Constraints []Constraint
-	Events      []Event
-	Permissions []Permission
+	ID   string
+	Name string
+	// ApplicationID is the Application that claims this Machine, resolved once at load time from
+	// that Application's own `machines:` list (internal/metadata.stampApplicationIDs) rather than
+	// declared here -- the claim already exists in exactly one place and retyping it on the
+	// Machine would be a second source of truth (001 Principle #8).
+	//
+	// Empty for a Machine no Application claims: mch_user and mch_activity are shared, and
+	// Workspace.ApplicationForMachine already returns false for them. It is load-bearing for
+	// exactly one thing -- a role-bearing Permission names a role from *some* Application's
+	// vocabulary (domain.Application.Roles), and this is how AllowsAction knows which, without
+	// every caller threading a Workspace through. A Machine with no Application therefore cannot
+	// carry a role-bearing Permission, which internal/metadata refuses at load rather than
+	// letting it silently deny everyone.
+	ApplicationID string
+	Fields        []Field
+	Constraints   []Constraint
+	Events        []Event
+	Permissions   []Permission
+	// Transitions are this Machine's own declared state model: which moves of a status Field
+	// exist, and which Action performs each (ROADMAP.md Case 03 Fase 7). Empty means every status
+	// Field on this Machine moves freely, the same opt-in posture Sequencing takes.
+	Transitions []Transition
 	Datasets    []Dataset
 	// Sequencing is set only by a Machine whose records are acted on in order; nil means every
 	// record is always actionable.

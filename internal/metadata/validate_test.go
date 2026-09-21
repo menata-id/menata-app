@@ -525,3 +525,109 @@ func TestValidate_groupFieldRejectsAMachineTarget(t *testing.T) {
 		t.Error("Validate() = nil, want an error -- a Group is a Workspace platform record, so machine: could never resolve")
 	}
 }
+
+// transitionMachine is the shape validateTransition is checked against: one status Field with
+// three options, plus a text Field, so both "not a status field" and "not one of its options" have
+// something real to fail on.
+func transitionMachine(transitions ...domain.Transition) *domain.Machine {
+	return &domain.Machine{
+		ID:   "mch_approval_step",
+		Name: "Approval Step",
+		Fields: []domain.Field{
+			{ID: "fld_decision", Name: "Decision", Type: domain.FieldTypeStatus, Options: []string{"pending", "approved", "rejected"}},
+			{ID: "fld_note", Name: "Note", Type: domain.FieldTypeText},
+		},
+		Transitions: transitions,
+	}
+}
+
+func TestValidate_transitions(t *testing.T) {
+	valid := domain.Transition{ID: "trn_step_approve", Name: "Approve", Field: "fld_decision", From: "pending", To: "approved", Action: domain.ActionDecide}
+
+	tests := []struct {
+		name    string
+		machine *domain.Machine
+		wantErr bool
+	}{
+		{name: "a well-formed edge", machine: transitionMachine(valid)},
+		{
+			// The declared "the runtime performs this itself" case -- mch_document's whole state
+			// model. Rejecting it would force a derived field to name an Action it has none of.
+			name:    "an edge naming no action",
+			machine: transitionMachine(domain.Transition{ID: "trn_document_approved", Name: "Approved", Field: "fld_decision", From: "pending", To: "approved"}),
+		},
+		{
+			name:    "an id that is not a trn_ id",
+			machine: transitionMachine(domain.Transition{ID: "approve", Name: "Approve", Field: "fld_decision", From: "pending", To: "approved"}),
+			wantErr: true,
+		},
+		{
+			name:    "no name -- no screen can derive one from from/to",
+			machine: transitionMachine(domain.Transition{ID: "trn_step_approve", Field: "fld_decision", From: "pending", To: "approved"}),
+			wantErr: true,
+		},
+		{
+			name:    "a field this machine does not declare",
+			machine: transitionMachine(domain.Transition{ID: "trn_x", Name: "X", Field: "fld_missing", From: "pending", To: "approved"}),
+			wantErr: true,
+		},
+		{
+			// Silent failure if allowed: CheckTransitions only ever inspects status Fields, so
+			// this edge would never match and the move it describes would be refused forever.
+			name:    "a field that is not a status field",
+			machine: transitionMachine(domain.Transition{ID: "trn_x", Name: "X", Field: "fld_note", From: "a", To: "b"}),
+			wantErr: true,
+		},
+		{
+			name:    "a value the field does not declare",
+			machine: transitionMachine(domain.Transition{ID: "trn_x", Name: "X", Field: "fld_decision", From: "pending", To: "cancelled"}),
+			wantErr: true,
+		},
+		{
+			// CheckTransitions skips a value that does not change, so this edge could never fire.
+			name:    "from and to are the same value",
+			machine: transitionMachine(domain.Transition{ID: "trn_x", Name: "X", Field: "fld_decision", From: "pending", To: "pending"}),
+			wantErr: true,
+		},
+		{
+			name:    "an action this runtime does not realize",
+			machine: transitionMachine(domain.Transition{ID: "trn_x", Name: "X", Field: "fld_decision", From: "pending", To: "approved", Action: "publish"}),
+			wantErr: true,
+		},
+		{
+			name:    "the same id twice",
+			machine: transitionMachine(valid, valid),
+			wantErr: true,
+		},
+		{
+			// TransitionFor returns the first match, so two declarations of one edge would make
+			// which Action governs it depend on declaration order.
+			name: "the same edge under two ids",
+			machine: transitionMachine(valid,
+				domain.Transition{ID: "trn_step_approve_again", Name: "Approve", Field: "fld_decision", From: "pending", To: "approved", Action: domain.ActionEdit}),
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := Validate(tt.machine); (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// A Permission may now gate on roles alone, with no actor_field at all -- but it must still gate
+// on something. A Permission naming no arm whatsoever reads as a guard and checks nothing.
+func TestValidate_permissionMustGateOnSomething(t *testing.T) {
+	m := transitionMachine()
+	m.Permissions = []domain.Permission{{ID: "prm_role_only", Action: domain.ActionEdit, Roles: []string{"approver"}}}
+	if err := Validate(m); err != nil {
+		t.Errorf("Validate() = %v, want nil -- a role-only permission is a valid shape as of CAP-P01", err)
+	}
+
+	m.Permissions = []domain.Permission{{ID: "prm_empty", Action: domain.ActionEdit}}
+	if err := Validate(m); err == nil {
+		t.Error("Validate() = nil, want an error -- a permission that gates on nothing protects nothing")
+	}
+}

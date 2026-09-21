@@ -32,6 +32,7 @@ import (
 //   - A Machine declaring no Permission for action leaves it unrestricted (metadata describes
 //     exceptions, not defaults -- 001 Principle #6).
 //   - Every declared Permission for action must pass; they are requirements, not alternatives.
+//     Within one Permission, several Roles are alternatives -- hold any one (CAP-P01).
 //   - An empty actorID never satisfies a Permission -- an unidentified caller is not an actor.
 //   - A record whose actor field is empty or is not a record id satisfies nothing: an
 //     unassigned record is actionable by no one, rather than by everyone.
@@ -40,7 +41,7 @@ func AllowsAction(m *domain.Machine, action string, values map[string]any, actor
 		if actor.ID == "" {
 			return false
 		}
-		if !allowsOne(p, values, actor) {
+		if !allowsOne(m.ApplicationID, p, values, actor) {
 			return false
 		}
 	}
@@ -56,7 +57,10 @@ func AllowsAction(m *domain.Machine, action string, values map[string]any, actor
 // declared on an existing Permission without rewriting a single stored record, and the existing
 // tests kept passing unchanged, which is the evidence that the old behaviour really is preserved
 // rather than the claim that it is.
-func allowsOne(p domain.Permission, values map[string]any, actor domain.Actor) bool {
+func allowsOne(applicationID string, p domain.Permission, values map[string]any, actor domain.Actor) bool {
+	if !holdsOneOf(applicationID, p.Roles, actor) {
+		return false
+	}
 	if p.DynamicActor != nil {
 		switch fmt.Sprint(values[p.DynamicActor.ActorTypeField]) {
 		case domain.ActorKindUser:
@@ -72,7 +76,39 @@ func allowsOne(p domain.Permission, values map[string]any, actor domain.Actor) b
 		}
 		// Unset or unrecognized: this record does not use the dynamic gate. Fall through.
 	}
+	if p.ActorField == "" {
+		// A Permission that names no actor Field says nothing about *which* record may be acted
+		// on -- only, through Roles above, about who may act at all. Returning true here is what
+		// makes a role-only Permission mean what it reads as; falling through to the lookup below
+		// would read values[""], find nothing, and deny everyone, which is the shape of an
+		// authorization rule that silently protects everything. internal/metadata refuses a
+		// Permission that declares no arm at all, so "" here always means a real role-only rule.
+		return true
+	}
 	return isActor(values[p.ActorField], actor.ID)
+}
+
+// holdsOneOf is CAP-P01's own arm: the actor must hold at least one of the roles this Permission
+// names, in the Application that claims the Machine declaring it.
+//
+// Declaring no role is "this Permission says nothing about roles", not "no role may" -- the same
+// Principle #6 reading PermissionsFor already applies one level up, and the reason every
+// Permission written before Fase 7 kept its exact previous answer.
+//
+// It runs *before* the record-scoped arms rather than after, which is not only ordering: a role
+// check reads nothing off the record, so refusing here means a Permission can state a rule about
+// who may act at all without the record having to name anybody -- which is what makes a
+// role-bearing Permission declarable on a Machine that has no actor Field.
+func holdsOneOf(applicationID string, roles []string, actor domain.Actor) bool {
+	if len(roles) == 0 {
+		return true
+	}
+	for _, role := range roles {
+		if actor.HasRole(applicationID, role) {
+			return true
+		}
+	}
+	return false
 }
 
 func isActor(assigned any, actorID string) bool {

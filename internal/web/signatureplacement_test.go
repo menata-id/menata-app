@@ -73,6 +73,14 @@ func TestSignaturePlacementPut_preservesApproverFields(t *testing.T) {
 	if err := store.SetGroupMembers(wsCtx, group.ID, []string{member.ID}); err != nil {
 		t.Fatalf("SetGroupMembers: %v", err)
 	}
+	// The role half, added in Fase 7: prm_edit_own_step now also requires an Application role
+	// (CAP-P01), so being in the owning Group is necessary and no longer sufficient. Granted
+	// through the Group rather than directly on purpose -- it exercises the property CAP-O07 and
+	// CAP-P01 have to agree on, that a role held through a Group gates identically to one held
+	// directly (data.EffectiveRoles), on the one request path that reads both.
+	if err := store.SetGroupAppRole(wsCtx, group.ID, "app_document_approval", "approver"); err != nil {
+		t.Fatalf("SetGroupAppRole: %v", err)
+	}
 
 	machines := loadRealMachines(t)
 	stepMachine := machines[action.StepMachineID]

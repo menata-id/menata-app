@@ -228,8 +228,11 @@ func TestAllowsAction_groupHeldStepIsActionableByItsGroup(t *testing.T) {
 		"fld_approver_type":  domain.ActorKindGroup,
 		"fld_approver_group": "grp_legal",
 	}
-	member := domain.Actor{ID: "usr_budi", Groups: map[string]bool{"grp_legal": true}}
-	outsider := domain.Actor{ID: "usr_ana", Groups: map[string]bool{"grp_finance": true}}
+	// Both hold a role the step's Permissions require (CAP-P01, Fase 7), so this test keeps
+	// asking the question it was written for -- does the *Group* arm work -- rather than
+	// accidentally becoming a test of the role arm added beside it.
+	member := domain.Actor{ID: "usr_budi", Groups: map[string]bool{"grp_legal": true}, Roles: approverRoles}
+	outsider := domain.Actor{ID: "usr_ana", Groups: map[string]bool{"grp_finance": true}, Roles: approverRoles}
 
 	for _, act := range []string{domain.ActionDecide, domain.ActionEdit, domain.ActionDelete} {
 		t.Run(act, func(t *testing.T) {
@@ -249,9 +252,9 @@ func TestAllowsAction_groupHeldStepIsActionableByItsGroup(t *testing.T) {
 func TestAllowsAction_personHeldStepUnchangedByTheGroupArm(t *testing.T) {
 	step := realStepMachine(t)
 	legacyStep := map[string]any{"fld_assignee": "usr_rina"}
-	rina := domain.Actor{ID: "usr_rina"}
+	rina := domain.Actor{ID: "usr_rina", Roles: approverRoles}
 	// In every Group, and still not this step's approver.
-	joiner := domain.Actor{ID: "usr_budi", Groups: map[string]bool{"grp_legal": true, "grp_finance": true}}
+	joiner := domain.Actor{ID: "usr_budi", Groups: map[string]bool{"grp_legal": true, "grp_finance": true}, Roles: approverRoles}
 
 	for _, act := range []string{domain.ActionDecide, domain.ActionEdit, domain.ActionDelete} {
 		t.Run(act, func(t *testing.T) {
@@ -262,5 +265,64 @@ func TestAllowsAction_personHeldStepUnchangedByTheGroupArm(t *testing.T) {
 				t.Errorf("group membership must grant nothing on a person-held step (%s)", act)
 			}
 		})
+	}
+}
+
+// approverRoles is the effective-role map of someone holding `approver` in Document Approval --
+// the shape internal/web.currentActor builds from data.EffectiveRoles, keyed by Application id.
+//
+// Named rather than inlined because both CAP-F24 tests above need it now: mch_approval_step's
+// Permissions gained a `roles:` arm in Fase 7, so an actor with no roles at all fails them for a
+// reason those tests are not about. That they had to change is the evidence the arm is live --
+// they run against the real manifest, so nothing here could have declared it into existence.
+var approverRoles = map[string][]string{"app_document_approval": {"approver"}}
+
+// TestAllowsAction_roleArmGatesTheAssigneeToo is CAP-P01's own test, and it asks the one question
+// the two above deliberately do not: being the person a record names is no longer sufficient.
+//
+// Against the real manifest, for the same reason the others are -- the failure this guards is a
+// missing `roles:` declaration, which a hand-built Machine would simply have declared.
+func TestAllowsAction_roleArmGatesTheAssigneeToo(t *testing.T) {
+	step := realStepMachine(t)
+	ownStep := map[string]any{"fld_assignee": "usr_rina"}
+
+	withRole := domain.Actor{ID: "usr_rina", Roles: approverRoles}
+	// The same person, holding a role that exists in the vocabulary but is not one this
+	// Permission names.
+	wrongRole := domain.Actor{ID: "usr_rina", Roles: map[string][]string{"app_document_approval": {"submitter"}}}
+	// The same person and the right word, held in the wrong Application. Role vocabularies are
+	// per-Application on purpose (domain.Application.Roles); a Workspace-wide namespace would
+	// make this grant succeed.
+	wrongApp := domain.Actor{ID: "usr_rina", Roles: map[string][]string{"app_project_management": {"approver"}}}
+	noRole := domain.Actor{ID: "usr_rina"}
+
+	for _, act := range []string{domain.ActionDecide, domain.ActionEdit, domain.ActionDelete} {
+		t.Run(act, func(t *testing.T) {
+			if !AllowsAction(step, act, ownStep, withRole) {
+				t.Errorf("the assignee holding a granted role must be allowed to %s their own step", act)
+			}
+			for name, actor := range map[string]domain.Actor{
+				"a role the permission does not name":   wrongRole,
+				"the right role in another application": wrongApp,
+				"no role at all":                        noRole,
+			} {
+				if AllowsAction(step, act, ownStep, actor) {
+					t.Errorf("%s must not be allowed to %s their own step (%s)", actor.ID, act, name)
+				}
+			}
+		})
+	}
+}
+
+// TestAllowsAction_reviewerAlsoDecides holds the other half of the declaration: roles within one
+// Permission are alternatives, not a single required role. mch_approval_step names two, and a
+// member holding only the second must pass exactly as one holding the first does.
+func TestAllowsAction_reviewerAlsoDecides(t *testing.T) {
+	step := realStepMachine(t)
+	ownStep := map[string]any{"fld_assignee": "usr_rina"}
+	reviewer := domain.Actor{ID: "usr_rina", Roles: map[string][]string{"app_document_approval": {"reviewer"}}}
+
+	if !AllowsAction(step, domain.ActionDecide, ownStep, reviewer) {
+		t.Error("roles on one permission are alternatives -- holding reviewer alone must satisfy it")
 	}
 }

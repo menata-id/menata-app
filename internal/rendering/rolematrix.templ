@@ -1,0 +1,148 @@
+package rendering
+
+import "fmt"
+
+// RoleMatrixView is board 06's own shape, resolved by composition.RoleMatrix.
+//
+// A resolved view model rather than the Application and Machines themselves, for the reason every
+// screen added since Fase 6b has one: a new .templ file may not join internal/conformance's
+// projection ratchet, so nothing here may read a declaration and work out what it means. The join
+// (transitions x roles x permissions) happens once, in the Composition plane; this file draws a
+// table that has already been decided.
+type RoleMatrixView struct {
+	ApplicationID   string
+	ApplicationName string
+	// Roles is this Application's declared vocabulary, in declaration order -- the column headers,
+	// and the same order each row's Granted slice follows.
+	Roles []string
+	Rows  []RoleMatrixRow
+}
+
+// RoleMatrixRow is one declared transition, seen role-first.
+type RoleMatrixRow struct {
+	MachineName string
+	Name        string
+	From        string
+	To          string
+	// Action is the Action that performs this edge, "" for one the runtime performs itself.
+	Action string
+	// System is Action == "", carried as its own field so the template states the case by name
+	// rather than re-deriving it from an empty string.
+	System bool
+	// Unrestricted is true when the Action's Permissions name no role at all -- every role may,
+	// because nothing was declared to the contrary, which is a different fact from every role
+	// having been listed.
+	Unrestricted bool
+	// Granted is one entry per RoleMatrixView.Roles, in the same order.
+	Granted []bool
+}
+
+// RoleMatrixPage renders board 06 (ui-sample/case-03-flow1/06-approval-role-matrix.html): which
+// role may perform which approval transition, for one Application.
+//
+// applications is every Application that declares a role vocabulary -- the board's own header
+// selector. An Application declaring no roles (Project Management) is deliberately absent rather
+// than shown with an empty table: it has no column to draw, and offering it would suggest roles
+// are simply unassigned there when in fact none has ever been declared.
+//
+// The mockup's own three options (Document Approval, Procurement, HR) assume Applications this
+// Workspace has no Machines, routes or roles for -- the same board-03 situation ROADMAP.md's
+// deferral table already records. The selector is real and renders what is declared.
+templ RoleMatrixPage(v RoleMatrixView, applications []RoleApplication, workspaceName, userInitials, workspaceRole, switchWorkspaceHref string) {
+	@appShell(labelByID("nav_role_matrix"), workspaceName, userInitials, "nav_role_matrix", switchWorkspaceHref, membersHiddenFor(workspaceRole)) {
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+			<div class="flex max-w-[650px] flex-col gap-2">
+				<h1 class="m-0 text-xl font-medium">{ labelByID("nav_role_matrix") }</h1>
+				<p class="m-0 text-sm leading-5 text-slate-500">
+					Which role may perform which approval transition, for one Application. Derived from that
+					Application's own Machines' declared transitions and Permissions — this page adds no
+					permission model of its own, it re-projects the same declarations the server enforces,
+					role-first instead of transition-first.
+				</p>
+			</div>
+			if len(applications) > 1 {
+				<form method="GET" class="shrink-0">
+					<label for="app" class="sr-only">Application</label>
+					<select
+						id="app"
+						name="app"
+						onchange="this.form.submit()"
+						class="h-9 rounded-md border border-slate-300 bg-white pr-2 pl-3 text-sm text-slate-900"
+					>
+						for _, a := range applications {
+							<option value={ a.ID } selected?={ a.ID == v.ApplicationID }>{ a.Name }</option>
+						}
+					</select>
+				</form>
+			}
+		</div>
+		if len(v.Roles) == 0 {
+			<div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+				{ v.ApplicationName } declares no roles, so there is nothing to grant here yet.
+			</div>
+		} else {
+			<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+				<table class="w-full min-w-[720px] border-collapse text-left">
+					<thead>
+						<tr class="border-b border-slate-200 bg-slate-50">
+							<th scope="col" class="w-[260px] px-4 py-2.5 text-3xs font-normal tracking-wide text-slate-600 uppercase">Transition</th>
+							for _, role := range v.Roles {
+								<th scope="col" class="px-4 py-2.5 text-center text-3xs font-normal tracking-wide text-slate-600 uppercase">{ role }</th>
+							}
+						</tr>
+					</thead>
+					<tbody>
+						if len(v.Rows) == 0 {
+							<tr>
+								<td colspan={ fmt.Sprintf("%d", len(v.Roles)+1) } class="px-4 py-8 text-center text-sm text-slate-500">
+									No Machine in { v.ApplicationName } declares a transition yet.
+								</td>
+							</tr>
+						}
+						for _, row := range v.Rows {
+							@roleMatrixRow(row, len(v.Roles))
+						}
+					</tbody>
+				</table>
+			</div>
+			<p class="m-0 max-w-[670px] text-2xs leading-4 text-slate-500">
+				<span class="text-green-600">✓</span> the role satisfies every Permission governing this
+				transition's action · <span class="text-slate-300">·</span> no grant. A role that holds
+				none of a transition's grants never sees the action on that record's own screen — the
+				button and the server read one declaration (<code class="rounded bg-slate-100 px-1 py-px font-mono text-3xs text-slate-700">authorization.AllowsAction</code>),
+				so they cannot disagree. A transition still also honours any record-scoped rule on the
+				same action (who the record itself names), which is not a role question and is not shown
+				here.
+			</p>
+		}
+	}
+}
+
+// roleMatrixRow draws one transition. The System row is a separate branch rather than a row of
+// blanks: "no human action performs this" and "no role has been granted this yet" are different
+// statements, and only one of them is something an administrator can act on.
+templ roleMatrixRow(row RoleMatrixRow, roleCount int) {
+	<tr class="border-b border-slate-100 last:border-b-0">
+		<th scope="row" class="px-4 py-3 text-left font-normal">
+			<span class="flex flex-col gap-1">
+				<span class="text-sm text-slate-900">{ row.Name }</span>
+				<span class="text-3xs text-slate-400">{ row.MachineName } · { row.From } → { row.To }</span>
+			</span>
+		</th>
+		if row.System {
+			<td colspan={ fmt.Sprintf("%d", roleCount) } class="px-4 py-3 text-center text-2xs text-slate-400">
+				System — derived, not performed by anyone
+			</td>
+		} else {
+			for _, granted := range row.Granted {
+				<td class="px-4 py-3 text-center">
+					if granted {
+						<span class="text-sm text-green-600" role="img" aria-label="Granted">✓</span>
+					} else {
+						<span class="inline-block size-1 rounded-full bg-slate-300 align-middle" role="img" aria-label="No grant"></span>
+					}
+				</td>
+			}
+		}
+	</tr>
+}

@@ -36,6 +36,34 @@ var mutatingWriteGuards = map[string]map[string]string{
 	},
 }
 
+// transitionGuards names the handlers that must hold a Machine's own declared state model against
+// the write they perform (Case 03 Fase 7), for the same reason the map above exists: what these
+// calls enforce used to be hand-written Go (allowsDecisionChange, naming one Machine and one
+// Field), and dropping the declared replacement would reopen the bypass silently -- a Document
+// could be written straight to `approved` through the generic route with no step decided, exactly
+// as it could before this phase.
+var transitionGuards = map[string]map[string]string{
+	"record.go":   {"updateRecordForm": "allowsTransition"},
+	"api.go":      {"updateRecord": "allowsTransition"},
+	"approval.go": {"decideStep": "declaredDecision"},
+}
+
+func TestMutatingHandlersCheckDeclaredTransitions(t *testing.T) {
+	fset := token.NewFileSet()
+	for file, handlers := range transitionGuards {
+		path := filepath.Join(repoRoot(), "internal", "web", file)
+		f, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		for handlerName, guard := range handlers {
+			if !funcBodyCallsIdent(f, handlerName, guard) {
+				t.Errorf("internal/web/%s: %s no longer calls %s -- a declared transition model that no route enforces is a state machine drawn on a screen and nowhere else", file, handlerName, guard)
+			}
+		}
+	}
+}
+
 func TestMutatingHandlersCallTheirAuthorizationGuard(t *testing.T) {
 	fset := token.NewFileSet()
 	for file, handlers := range mutatingWriteGuards {

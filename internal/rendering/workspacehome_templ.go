@@ -412,7 +412,7 @@ func WorkspaceHomePage(workspaceName, workspaceRole, userInitials, switchHref st
 // and the launcher.
 func membersHiddenFor(workspaceRole string) []string {
 	if workspaceRole == "member" {
-		return []string{"nav_workspace_members", "nav_workspace_groups"}
+		return []string{"nav_workspace_members", "nav_workspace_groups", "nav_role_matrix"}
 	}
 	return nil
 }

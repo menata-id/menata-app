@@ -50,6 +50,15 @@ workspace:
       label: Groups
       route: /workspace-groups
       priority: 3
+    # Board 06 (ui-sample/case-03-flow1/06-approval-role-matrix.html). Workspace-level rather
+    # than one Application's own item, because the board itself says so: it carries an Application
+    # selector in its header and its breadcrumb reads "<workspace> / Approval Role Matrix", which
+    # is appShell's shape, not an Application topbar's. It sits beside Members and Groups because
+    # it answers the same question they do -- who holds what -- read from the other end.
+    - id: nav_role_matrix
+      label: Approval Role Matrix
+      route: /approval-role-matrix
+      priority: 4
 
 # applications: file paths, resolved relative to this manifest. One file per Application, matching
 # how machines: has always worked -- app.yaml names files, files hold the declaration. An
