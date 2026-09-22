@@ -28,16 +28,35 @@ type shellChrome struct {
 // is what makes this a function rather than three copies -- and keeps each of them inside
 // internal/conformance's own handler-size budget (TestHandlersStaySmall).
 //
-// Deliberately *not* resolved in requireAuth and carried on ctx, which was the first design:
-// that would add a Workspace lookup and a user-record read to every authenticated request,
-// including every /api/* call and every HTMX partial, to serve chrome that only full-page
-// Workspace-level screens render. Three explicit call sites cost less and say more.
+// **It reads what resolveIdentity already resolved, as of 2026-09-22.** This comment used to
+// argue the opposite at length -- that carrying chrome on ctx "would add a Workspace lookup and a
+// user-record read to every authenticated request... Three explicit call sites cost less and say
+// more" -- and the measurement contradicted it. There are fifteen call sites, not three; the
+// Workspace lookup was already happening on every request in currentWorkspace, so this one was
+// the *second*; and GetMembership is four queries, not one, so calling it here and again in
+// viewerWorkspaceContext cost eight. /home issued seventeen queries in total. The argument was
+// sound about what it was avoiding and wrong about what was already there.
 //
 // Both halves are best-effort in the same way showWorkspaceHome's own userName already was: the
 // shared admin credential's placeholder identity has no mch_user record and no membership row at
 // all, so this degrades to an empty name and Initials("") == "?" rather than failing a page that
 // would otherwise render. A real error reaching the database is still returned.
 func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cfg config.Config) (shellChrome, error) {
+	if id, ok := identityFrom(ctx); ok {
+		name, email := id.ViewerName(ctx), ""
+		if m := id.Membership(ctx); m != nil {
+			email = m.Email
+		}
+		workspaceName := ""
+		if id.workspace != nil {
+			workspaceName = id.workspace.Name
+		}
+		return shellChrome{WorkspaceName: workspaceName, Name: name, Email: email, UserInitials: composition.Initials(name)}, nil
+	}
+
+	// Fallback for a handler mounted without resolveIdentity -- in this repo, a test mounting one
+	// handler on a bare chi router. Kept rather than made fatal so those tests keep exercising the
+	// handler they are about instead of the middleware chain they deliberately skip.
 	workspaceID, _ := data.WorkspaceScope(ctx)
 	ws, err := store.GetWorkspace(ctx, workspaceID)
 	if err != nil {
@@ -48,19 +67,11 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 	// stopped being Fields on 2026-09-22 (metadata/user.yaml, migration 010) because they belong
 	// to whoever owns the login rather than to one Workspace. The membership row is what ties this
 	// session's record id to that identity, so it is the first hop.
-	//
-	// This retires the old "fld_name is a hardcoded Field id here" exception along with its own
-	// stale forward pointer (it named ROADMAP.md's Case 03 Fase 3b, which shipped having moved
-	// roles but not identity -- ROADMAP.md's own deferral table says so). Nothing here names a
-	// Field any more.
 	userName, userEmail := "", ""
 	userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 	if membership, err := store.GetMembership(ctx, workspaceID, userID); err == nil && membership != nil {
 		userEmail = membership.Email
-		userName = userEmail // an identity with no name yet degrades to something addressable
-		if cred, err := store.GetCredential(ctx, membership.Email); err == nil && cred.FullName != "" {
-			userName = cred.FullName
-		}
+		userName = viewerNameFor(ctx, store, membership)
 	}
 
 	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName)}, nil
@@ -96,6 +107,19 @@ func (c shellChrome) Viewer() rendering.Viewer {
 func viewerWorkspaceContext(ctx context.Context, store *data.Store, userID string) (workspaceRole, switchHref string) {
 	if userID == "" {
 		return "", ""
+	}
+	// resolveIdentity read this membership once for the whole request; before 2026-09-22 this was
+	// a fourth read of it (see resolveChrome above). The fallback is the same as everywhere else
+	// here: a handler mounted without the middleware, which means a test.
+	if id, ok := identityFrom(ctx); ok {
+		m := id.Membership(ctx)
+		if m == nil {
+			return "", ""
+		}
+		if m.Email != "" {
+			switchHref = "/switch-workspace"
+		}
+		return m.WorkspaceRole, switchHref
 	}
 	workspaceID, _ := data.WorkspaceScope(ctx)
 	m, err := store.GetMembership(ctx, workspaceID, userID)

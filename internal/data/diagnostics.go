@@ -16,9 +16,38 @@ import (
 // execution planning, the runtime should be able to expose the resolved result through
 // diagnostics or equivalent tooling" -- what a page actually read is the observable half of that.
 type ReadLog struct {
-	mu       sync.Mutex
+	mu sync.Mutex
+	// queries is every statement the pool actually issued, counted by QueryTracer. total and
+	// byTarget are the named half, recorded by the Store methods themselves. The two are kept
+	// apart rather than merged because their disagreement is the useful signal: queries above
+	// total means something issued a statement without naming itself.
+	queries  int
 	total    int
 	byTarget map[string]int
+}
+
+// countQuery records one statement issued through the pool (QueryTracer). Unlike record it takes
+// no target: the tracer sees SQL text, not the Machine or table a caller meant, and naming a read
+// after the first token of its SQL would be a worse label than none.
+func (l *ReadLog) countQuery() {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.queries++
+}
+
+// Queries is how many statements the pool issued for this request -- the driver's own count,
+// which no caller can forget to increment. Total is the subset that named itself; where the two
+// differ, Queries is the one to trust.
+func (l *ReadLog) Queries() int {
+	if l == nil {
+		return 0
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.queries
 }
 
 // Target names one read: the Machine, plus the field a child-collection read filtered on.

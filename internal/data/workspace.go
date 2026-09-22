@@ -47,6 +47,7 @@ func (s *Store) CreateWorkspace(ctx context.Context, name, baseSlug string) (*Wo
 // GetWorkspace returns one Workspace by id, for Choose Workspace's own labels (a membership row
 // names a workspace_id, not a display name).
 func (s *Store) GetWorkspace(ctx context.Context, id string) (*Workspace, error) {
+	readLogFrom(ctx).record("workspace by id")
 	w := &Workspace{ID: id}
 	err := s.pool.QueryRow(ctx, `SELECT name, slug FROM workspaces WHERE id = $1`, id).Scan(&w.Name, &w.Slug)
 	if err != nil {
@@ -88,6 +89,7 @@ type Membership struct {
 
 // appRolesFor reads the per-Application roles of one member.
 func (s *Store) appRolesFor(ctx context.Context, workspaceID, userRecordID string) (map[string]string, error) {
+	readLogFrom(ctx).record("member app roles")
 	rows, err := s.pool.Query(ctx, `
 		SELECT application_id, role FROM workspace_member_app_roles
 		WHERE workspace_id = $1 AND user_record_id = $2
@@ -193,6 +195,7 @@ func (s *Store) AddMember(ctx context.Context, workspaceID, userRecordID, email,
 // userRecordID rather than an email (the caller usually only has the former, from an already-
 // resolved session).
 func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID string) (*Membership, error) {
+	readLogFrom(ctx).record("membership")
 	m := &Membership{WorkspaceID: workspaceID, UserRecordID: userRecordID}
 	err := s.pool.QueryRow(ctx, `
 		SELECT email, workspace_role, COALESCE(app_role, '')
@@ -316,6 +319,7 @@ func (s *Store) UpdateMemberRole(ctx context.Context, workspaceID, userRecordID,
 // so resolving which Workspace it belongs to is the auth middleware's very first step
 // (ROADMAP.md Phase 21 Step 4).
 func (s *Store) ResolveUserWorkspace(ctx context.Context, userRecordID string) (string, error) {
+	readLogFrom(ctx).record("mch_user workspace by id")
 	var workspaceID string
 	err := s.pool.QueryRow(ctx, `
 		SELECT workspace_id FROM records WHERE machine_id = 'mch_user' AND id = $1

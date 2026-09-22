@@ -38,7 +38,7 @@ func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, c
 			serverError(w, err)
 			return
 		}
-		membership, err := store.GetMembership(ctx, workspaceID, userID)
+		membership, err := membershipFor(ctx, store, workspaceID, userID)
 		if err != nil && !errors.Is(err, data.ErrRecordNotFound) {
 			serverError(w, err)
 			return

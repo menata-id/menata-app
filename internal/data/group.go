@@ -60,6 +60,7 @@ func EffectiveRoles(direct map[string]string, groups []Group) map[string][]strin
 
 // ListGroups returns every Group in workspaceID, with its member count and grants.
 func (s *Store) ListGroups(ctx context.Context, workspaceID string) ([]Group, error) {
+	readLogFrom(ctx).record("workspace groups")
 	rows, err := s.pool.Query(ctx, `
 		SELECT g.id, g.name, count(m.user_record_id)
 		FROM workspace_groups g
@@ -225,6 +226,7 @@ func (s *Store) GroupsByMember(ctx context.Context, workspaceID string) (map[str
 		byID[g.ID] = g
 	}
 
+	readLogFrom(ctx).record("group memberships")
 	rows, err := s.pool.Query(ctx, `
 		SELECT m.user_record_id, m.group_id
 		FROM workspace_group_members m
@@ -341,6 +343,7 @@ func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID s
 	if userRecordID == "" {
 		return nil, nil, "", nil
 	}
+	readLogFrom(ctx).record("actor groups")
 	rows, err := s.pool.Query(ctx, `
 		SELECT g.id, g.name, r.application_id, r.role
 		FROM workspace_group_members m
@@ -385,6 +388,7 @@ func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID s
 	// membership row is "" rather than an error: an identity with no membership -- the shared
 	// admin credential's placeholder -- holds no Workspace role, and "" satisfies no Permission
 	// that asks for one, which is the fail-closed direction.
+	readLogFrom(ctx).record("membership")
 	var workspaceRole string
 	err = s.pool.QueryRow(ctx, `
 		SELECT workspace_role FROM workspace_members

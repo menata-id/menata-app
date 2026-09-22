@@ -123,7 +123,16 @@ func Routes(d Deps) http.Handler {
 	r.Post("/choose-workspace", submitChooseWorkspace(d.Store, d.Cfg))
 
 	r.Group(func(pr chi.Router) {
+		// First in the group, ahead of requireAuth: the diagnostic can only count what happens
+		// after it installs the ReadLog on ctx, and requireAuth issues two queries of its own. It
+		// sat *below* all four of these until 2026-09-22, which is why the log under-reported
+		// every authenticated request by the whole cost of its own middleware.
+		pr.Use(queryDiagnostics)
 		pr.Use(requireAuth(d.Store, d.DefaultWorkspaceID, d.Cfg))
+		// Immediately after requireAuth, which establishes the Workspace scope it reads, and
+		// before the three below, all of which consume what it resolves rather than querying
+		// again. It is the one place this request's Workspace row, membership and Actor are read.
+		pr.Use(resolveIdentity(d.Store, d.Cfg))
 		// Workspace first, then Application: currentApplication reads the Workspace this
 		// resolves, and requireApplicationAccess reads the Application that resolves.
 		pr.Use(currentWorkspace(d.Store, d.Workspaces))
@@ -132,7 +141,6 @@ func Routes(d Deps) http.Handler {
 		// resolved. Every route inside an Application passes through both, which is what makes
 		// "no role here means no access" complete rather than a list of gated handlers.
 		pr.Use(requireApplicationAccess(d.Store, d.Cfg))
-		pr.Use(queryDiagnostics)
 
 		pr.Post("/logout", logout(d.Store, d.Cfg))
 

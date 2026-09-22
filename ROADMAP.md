@@ -477,6 +477,115 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - "Keep me signed in" on the sign-in board — deliberately *not* rendered during phase 1, because it
   is a session-lifetime change rather than styling and `internal/authorization` has no remember-me
   concept; a checkbox that does nothing would be worse than none.
+- **The read diagnostic is measuring the wrong half of the request** (log review 2026-09-22, owner
+  request; **all four steps shipped 2026-09-22**, see the close at the end of this entry). Six
+  hours of `/var/log/menata-app/app.log` — 1853
+  diagnostic lines — say the runtime is healthy on every axis anyone would check first: 7.4M
+  resident (peak 9.3M), **798ms of CPU across six hours**, 40 req/min at the busiest minute, and no
+  route whose `reads=` grows with the number of records in it. There is no N+1 here and no slow
+  query. What the log does have is a **blind spot in the instrument itself**, which is worse than a
+  slow page because it is the thing that would have told us about one.
+
+  `queryDiagnostics` is registered at `internal/web/router.go:135` — *after* `requireAuth` (:126),
+  `currentWorkspace` (:129) and `requireApplicationAccess` (:134) — and `data.ReadLog.record` is
+  called from exactly four Machine-level methods (`internal/data/store.go:101,126,145,182`). No
+  identity, Workspace or membership query calls it. So its own doc comment's promise
+  (`internal/web/middleware.go:114`, "reports what each request actually read") is not what it
+  delivers, and `repeated=0` — printed on 1,700+ of those lines — is reassurance the instrument is
+  not entitled to give. This is the same failure mode as the deferral table above, in the read
+  path rather than in prose: a number nobody re-checks against what it actually counts.
+
+  | # | Finding | Evidence |
+  |---|---|---|
+  | 1 | **Up to six queries run before the counter starts.** `CurrentSessionGeneration` (`data/store.go:379`), `ResolveUserWorkspace` (`data/workspace.go:318`), `GetWorkspace` (`web/currentapp.go:33`), and `ActorMembership` (`data/group.go:340`) — which is **three** queries on its own: the group JOIN, `appRolesFor`, and the `workspace_role` row | Read statically from the middleware chain, **not yet measured** — step 1 below exists to replace this row with a number |
+  | 2 | **The same identity rows are re-read 2-3× per request, and `repeated=` cannot see it.** On `/approval-inbox`: `GetWorkspace` twice (`web/currentapp.go:33`, then `web/chrome.go:42`), the membership row three times (`ActorMembership`, `resolveChrome`'s `GetMembership` at `chrome.go:58`, `viewerWorkspaceContext`'s at `chrome.go:101`). `composition.Loader` is already this repo's request-scoped memo and covers Machine reads only; the chrome path has none | 387 hits logged at `reads=5 repeated=0`, against ~15 queries read off the call chain |
+  | 3 | **`requireApplicationAccess` computes the Actor and throws it away** (`web/currentapp.go:152`), and `currentWorkspace` resolves the Workspace row and keeps only two fields off it (`:33-34`). Both are already on the hot path; both answers are wanted again downstream | The cheapest fix in the list — it removes reads by *keeping* work already done, not by adding a cache |
+  | 4 | **The nav badge recomputes the whole Approval Inbox to print one integer.** `showPendingCount` (`web/approval.go:94`) runs the full `composition.ApprovalInbox`; on `/approval-inbox` itself that composition therefore runs **twice per screen**, since the page handler already holds the number (`web/approval.go:52`, `len(inbox.Pending)`) | 463 hits vs 1390 page loads: it fires on a third of all requests. `machine.templ:144` is `hx-trigger="load"` — one shot per page, *not* polling, which is the one thing worth not "fixing" |
+  | 5 | **`/decide` is the worst logged ratio: `reads=12 repeated=7`.** Part of that is legitimate — `Loader`'s own doc (`composition/loader.go:27`) forbids one memo spanning a write — but seven repeats implies re-reading *before* the write too. `/documents` (`reads=7 repeated=5`) and `/home` (`mch_document x2`) are the same shape, smaller | Low frequency (POST), so ranked below 1-3 despite the worse ratio |
+  | 6 | **Client disconnects are logged as server faults.** `internal error: context canceled` / `get session generation: context canceled` (2026-09-21 03:28) are a browser navigating away, reported through `serverError` as a 500 | Two lines in six hours — trivial volume, but it puts noise in the one channel a real fault would arrive on |
+  | 7 | **Three overlapping indexes on `records`**: `idx_records_machine_id` (001), `idx_records_machine_sort` (002), both largely covered by `idx_records_workspace_machine_sort` (004). Write cost for no read anyone has shown needs them | Not urgent; needs `pg_stat_user_indexes` evidence before dropping anything, not a reading of the DDL |
+  | 8 | **`ListRecordsBy` filters on `data->>$2 = $3` with no supporting index** (`data/store.go:140`) and cannot easily have a plain expression one, since the Field id is a bound parameter. Today it scans a handful of rows behind `idx_records_workspace_machine` and costs nothing | The actual scaling wall, named now so it is not discovered later. **No phase** — a row count that makes it hurt is the trigger, not this entry |
+
+  **Order of work, and why it is this order:** (1) move/extend the instrument until the log tells
+  the truth — findings 1 and 2 are read off a call chain, and this repo's own rule is to check a
+  live claim against the data rather than against having written it, so every number above stays
+  provisional until the diagnostic itself prints it; (2) findings 2 and 3 together, which is one
+  change (resolve identity and Workspace once, on ctx, at the chokepoint that already resolves
+  both); (3) finding 4; (4) findings 5 and 6. Findings 7 and 8 are recorded, not scheduled.
+
+  **What this is not**: a performance problem. Nothing in the log is slow, and at 40 req/min
+  nothing here would be. It is on this list because the runtime's own claim (001 Principle #6 —
+  the resolved result of inference must be *exposed through diagnostics*) is currently half-kept,
+  and a diagnostic that under-reports is the failure that hides the next one.
+
+  ### Close, 2026-09-22 — and the numbers above were wrong
+
+  **Every count in the table above was read off a call chain, and the first honest measurement
+  disagreed with all of them.** The entry estimated ~15 queries for `/approval-inbox`; measured
+  through the real router, `/home` alone issued **17**. The reason was a method nobody had
+  counted: `data.Store.GetMembership` is **four** queries, not one — the membership row,
+  `appRolesFor`, and `GroupsByMember`'s two, the last of which loads *every* Group in the
+  Workspace and *every* group membership in order to find one person's. `/home` called it twice,
+  so eight of its seventeen queries were one question asked twice. Nothing in the old log could
+  have shown this; it printed `reads=3` for the same request.
+
+  That is the entry's own argument landing on the entry: a number that is not measured is not a
+  number. Measured results, by `internal/web`'s new `TestAuthenticatedPageQueryCost` /
+  `TestNavBadgeQueryCost`, which assert these through the real middleware chain rather than a
+  bare handler:
+
+  | Route | Before | After |
+  |---|---|---|
+  | `/home` | `queries=17 reads=13 repeated=3` | **`queries=12 reads=12 repeated=0`** |
+  | `/api/approval-inbox/pending-count` | 4 reads + a possible *write*, within ~10 queries | **`queries=5 reads=5 repeated=0`**, no write |
+
+  What shipped, against the four steps planned:
+
+  1. **The instrument** — `data.QueryTracer` (a `pgx.QueryTracer`, installed on the pool by
+     `db.Connect`, wired in `cmd/server/main.go` because `internal/db` may not import
+     `internal/data`) counts every statement at the driver, so no Store method can forget to.
+     `record()` stays for the *names*, and the gap between the two counts prints as `unnamed=`
+     rather than being reconciled away — a statement that did not name itself is exactly what this
+     whole entry was about. `queryDiagnostics` moved to the **top** of the authenticated group.
+     Two conformance gates hold both halves: `TestQueryDiagnosticsRunsBeforeAuth` and
+     `TestPoolInstallsQueryTracer`. **Both were verified to fail** when the wiring is undone, which
+     is the only thing that makes them worth having.
+  2. **Identity resolved once** — `web.resolveIdentity` puts this request's Workspace row,
+     membership, Actor and viewer name on ctx, the shape `data.WithWorkspaceScope` already set the
+     precedent for. `ActorMembership` turned out to be redundant on this path entirely:
+     `domain.Actor`'s four parts are all derivable from a `Membership` that already carries
+     `AppRoles` and `Groups`. **Corrected mid-implementation**: the first version resolved
+     everything eagerly and made the badge cost ten queries to print one integer — the exact cost
+     `resolveChrome`'s old doc comment warned a middleware would impose. The membership is now
+     resolved *lazily and memoized*, the Workspace row eagerly (`currentWorkspace` needs it on
+     every request). Every consumer keeps a fallback for a handler mounted without the middleware,
+     which is how most of `internal/web`'s own tests run.
+  3. **The badge** — `composition.PendingApprovalCount`, two reads and no write, sharing
+     `pendingStepsFor` with `buildInbox` so the badge and the list it links to cannot drift apart.
+     Worth recording separately: `ApprovalInbox` **writes** (`logSLABreaches`), so the old badge
+     was a GET that wrote SLA-breach rows on a third of all requests. Its dedup is read-then-write
+     with no unique constraint, so genuinely concurrent composers would double-log; the page/badge
+     pair is *not* concurrent (`hx-trigger="load"` fires after the page response completes), and
+     the dev database holds **zero** breach rows, so this has never fired here — **unobserved, not
+     disproven**.
+  4. **The two small ones** — `serverError` now separates a client disconnect
+     (`context.Canceled`) from a server fault, so the error channel stays meaningful. And
+     `/decide`'s largest repeat was found and removed: it called `store.GetRecord` for the step,
+     then `eventOldValues` re-read *the same row* a few lines later — not because of the write
+     (which had not happened yet) but because `applyApprovalSignature` mutates `step.Values` in
+     place, leaving the handler with no copy of what it started with. `snapshotValues` is what the
+     situation actually called for. `eventOldValues` stays right for its other two callers, which
+     build new values from a form and genuinely have not read the old ones.
+
+  **`TestHandlersStaySmall` caught the extraction on the way**: inlining that copy pushed
+  `decideStep` to 82 lines, and the budget's own advice — move it, don't raise the number — is
+  what produced `snapshotValues` as a named helper instead of six lines in a handler.
+
+  **Still open, and now measurable rather than inferred:** `GroupsByMember` reads the whole
+  Workspace's groups to answer a question about one member, while `ActorMembership` already has
+  the targeted per-user query for exactly that. Two of `/home`'s twelve remaining queries are
+  that shape. Not changed here because it alters what `Membership.Groups` costs for every other
+  caller, which deserves its own look rather than a ride on a diagnostics change.
 
 ## Planned
 

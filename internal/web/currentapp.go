@@ -29,11 +29,13 @@ func currentWorkspace(store *data.Store, workspaces map[string]domain.Workspace)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			ctx := req.Context()
-			if workspaceID, ok := data.WorkspaceScope(ctx); ok {
-				if row, err := store.GetWorkspace(ctx, workspaceID); err == nil && row != nil {
-					ctx = rendering.WithCurrentWorkspace(ctx, workspaces[row.Slug], row.Name)
-					req = req.WithContext(ctx)
-				}
+			// The Workspace row comes from resolveIdentity, which read it for this request
+			// already; this used to fetch it a second time (the duplicate resolveChrome's own
+			// doc comment now records). The fallback keeps a handler mounted without that
+			// middleware working, same as every other consumer of the identity.
+			if row, ok := currentWorkspaceRow(ctx, store); ok {
+				ctx = rendering.WithCurrentWorkspace(ctx, workspaces[row.Slug], row.Name)
+				req = req.WithContext(ctx)
 			}
 			next.ServeHTTP(w, req)
 		})

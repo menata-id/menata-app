@@ -50,7 +50,22 @@ func recordError(w http.ResponseWriter, err error) {
 
 // serverError logs err server-side and returns a generic 500 body -- the caller's error may carry
 // internal detail (a DB error, a file path) that has no business reaching an HTTP client.
+//
+// A cancelled context is logged differently and deliberately: it means the client went away
+// mid-request (a browser navigating on from a page still loading), which is not a fault of this
+// server and has no recipient left to receive a 500. The log review on 2026-09-22 found these
+// filed as `internal error: context canceled` among real faults -- two lines out of six hours,
+// so this is about keeping the error channel meaningful rather than about volume. It is the same
+// reasoning render's own doc comment already gives for its twin case, applied to the half that
+// happens before the response starts.
 func serverError(w http.ResponseWriter, err error) {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		log.Printf("request abandoned by client: %v", err)
+		// Still a 5xx on the wire: nobody is reading it, but a handler must not fall through to
+		// writing a success body after its work was cut short.
+		http.Error(w, "request cancelled", http.StatusServiceUnavailable)
+		return
+	}
 	log.Printf("internal error: %v", err)
 	http.Error(w, "internal error", http.StatusInternalServerError)
 }
@@ -126,6 +141,27 @@ func eventOldValues(req *http.Request, store *data.Store, machine *domain.Machin
 		return nil, false
 	}
 	return existing.Values, true
+}
+
+// snapshotValues copies a record's values so a caller that is about to mutate them in place still
+// holds what they were.
+//
+// It is the alternative to eventOldValues for a handler that has *already* read the record.
+// decideStep used to call both: one store.GetRecord to fetch the step, then a second of the very
+// same row a few lines later, purely because applyApprovalSignature mutates step.Values in place
+// and left the handler with no copy of the original. That second read was the largest single
+// entry in /decide's `repeated=7` and had nothing to do with the write, which had not happened
+// yet. eventOldValues remains right for its other two callers (record.go, api.go), which build
+// new values from a form and genuinely have not read the old ones.
+//
+// Shallow on purpose: Events compare Field values, which are scalars, and an in-place mutation
+// replaces map entries rather than reaching inside one.
+func snapshotValues(values map[string]any) map[string]any {
+	out := make(map[string]any, len(values))
+	for k, v := range values {
+		out[k] = v
+	}
+	return out
 }
 
 // runEvents performs the I/O half of every domain.Event MatchedEvents returns for this write,

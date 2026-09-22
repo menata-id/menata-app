@@ -111,24 +111,33 @@ func requireWorkspaceAdmin(store *data.Store, cfg config.Config) func(http.Handl
 	}
 }
 
-// queryDiagnostics reports what each request actually read: how many queries it issued, how many
-// of those repeated a target it had already fetched, and the per-target breakdown (ROADMAP.md
-// Phase 18 Step 3). Phase 6 needed a throwaway probe inside internal/data to learn this; making
-// it permanent is what lets the next forcing condition show up as a number during development
-// rather than as a surprise in production -- see the Method's 2026-09-18 correction for why this
-// repo can no longer wait for real use to reveal its thresholds.
+// queryDiagnostics reports what each request actually read: how many statements it issued, how
+// many of those repeated a target it had already fetched, and the per-target breakdown
+// (ROADMAP.md Phase 18 Step 3). Phase 6 needed a throwaway probe inside internal/data to learn
+// this; making it permanent is what lets the next forcing condition show up as a number during
+// development rather than as a surprise in production -- see the Method's 2026-09-18 correction
+// for why this repo can no longer wait for real use to reveal its thresholds.
 //
 // It logs rather than setting a response header because the count is only final once the handler
 // has rendered, by which point the headers are already on the wire.
+//
+// TWO COUNTS, AND WHY BOTH ARE PRINTED. `queries` is data.QueryTracer's: every statement the pool
+// issued, counted by the driver, which no Store method can forget to increment. `reads` is the
+// named half, recorded by the Store methods themselves, and it is what the breakdown lists. They
+// should agree. **When they don't, the difference is the point** -- it is a statement issued by
+// something that did not name itself, which is precisely the state that made this diagnostic
+// under-report every authenticated request before 2026-09-22: it was registered below four
+// middlewares and counted none of them. Reconciling the two numbers into one would restore
+// exactly the blind spot the second number exists to expose, so the gap is printed instead.
 func queryDiagnostics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx, reads := data.WithReadLog(req.Context())
 		next.ServeHTTP(w, req.WithContext(ctx))
 
-		if reads.Total() == 0 {
+		if reads.Queries() == 0 {
 			return
 		}
-		parts := make([]string, 0, 4)
+		parts := make([]string, 0, 8)
 		for _, tc := range reads.Breakdown() {
 			if tc.Reads > 1 {
 				parts = append(parts, fmt.Sprintf("%s x%d", tc.Target, tc.Reads))
@@ -136,6 +145,13 @@ func queryDiagnostics(next http.Handler) http.Handler {
 			}
 			parts = append(parts, tc.Target)
 		}
-		log.Printf("reads=%d repeated=%d %s [%s]", reads.Total(), reads.Repeated(), req.URL.Path, strings.Join(parts, ", "))
+		// unnamed is the gap described above, printed only when there is one so a healthy line
+		// stays as short as it was.
+		unnamed := ""
+		if gap := reads.Queries() - reads.Total(); gap > 0 {
+			unnamed = fmt.Sprintf(" unnamed=%d", gap)
+		}
+		log.Printf("queries=%d reads=%d repeated=%d%s %s [%s]",
+			reads.Queries(), reads.Total(), reads.Repeated(), unnamed, req.URL.Path, strings.Join(parts, ", "))
 	})
 }

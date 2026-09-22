@@ -20,10 +20,17 @@ import (
 // the two into one value (see domain.Actor) is what makes "I forgot the groups" impossible to
 // write; this function is what makes it cheap not to.
 //
-// The membership read is two indexed queries (data.ActorMembership) and is skipped entirely for
-// an unidentified caller. It is resolved per request rather than in requireAuth and carried on
-// ctx, for the same reason resolveChrome gives for not doing that: a middleware would charge
-// every /api/* call and every HTMX partial for something only permission-checking pages need.
+// It IS resolved in a middleware and carried on ctx, as of 2026-09-22 -- resolveIdentity. This
+// comment used to argue the opposite ("a middleware would charge every /api/* call and every HTMX
+// partial for something only permission-checking pages need"), and measuring the real router
+// showed the argument had it backwards: sixteen handlers call this function, requireApplicationAccess
+// called it as well and discarded the result, and resolveChrome/viewerWorkspaceContext were
+// separately reading the same membership. Nothing was being saved by resolving late; the same rows
+// were simply being read several times. What the middleware charges every request is *one*
+// membership read, which is fewer than the routes it was supposed to be sparing.
+//
+// The fallback below is for a handler mounted without that middleware -- which in this repo means
+// a test mounting one handler on a bare chi router, the shape most of internal/web's own tests use.
 //
 // Roles and Groups come from one read on purpose. They are answered by the same two tables --
 // a Group both gates a CAP-F24 approver_group and grants a CAP-P01 role -- so resolving them
@@ -42,6 +49,9 @@ func currentActor(req *http.Request, store *data.Store, cfg config.Config) domai
 		return domain.Actor{}
 	}
 	ctx := req.Context()
+	if resolved, ok := identityFrom(ctx); ok {
+		return resolved.Actor(ctx)
+	}
 	workspaceID, _ := data.WorkspaceScope(ctx)
 	groups, direct, workspaceRole, err := store.ActorMembership(ctx, workspaceID, id)
 	if err != nil {

@@ -279,6 +279,7 @@ func (s *Store) CreateCredential(ctx context.Context, email, fullName, passwordH
 
 // GetCredential returns the stored credential for email, or ErrCredentialNotFound.
 func (s *Store) GetCredential(ctx context.Context, email string) (*Credential, error) {
+	readLogFrom(ctx).record("credential by email")
 	cred := &Credential{Email: email}
 	err := s.pool.QueryRow(ctx, `SELECT full_name, password_hash, email_verified FROM credentials WHERE email = $1`, email).Scan(&cred.FullName, &cred.PasswordHash, &cred.EmailVerified)
 	if err != nil {
@@ -338,6 +339,7 @@ func (s *Store) SetFullName(ctx context.Context, email, fullName string) error {
 // Falls back to the email when an identity has no name yet, so a screen degrades to something
 // addressable rather than to a bare record id.
 func (s *Store) MemberNames(ctx context.Context, workspaceID string) (map[string]string, error) {
+	readLogFrom(ctx).record("member names")
 	rows, err := s.pool.Query(ctx, `
 		SELECT wm.user_record_id, COALESCE(NULLIF(c.full_name, ''), wm.email)
 		FROM workspace_members wm
@@ -377,6 +379,7 @@ func (s *Store) MarkEmailVerified(ctx context.Context, email string) error {
 // 2026-09-19, M2) -- 0 for a subject that has never been bumped, which is not an error: every
 // subject implicitly starts at generation 0 whether or not a row exists for it yet.
 func (s *Store) CurrentSessionGeneration(ctx context.Context, subject string) (int, error) {
+	readLogFrom(ctx).record("session generation")
 	var gen int
 	err := s.pool.QueryRow(ctx, `SELECT generation FROM session_generations WHERE subject = $1`, subject).Scan(&gen)
 	if errors.Is(err, pgx.ErrNoRows) {

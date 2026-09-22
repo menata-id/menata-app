@@ -140,6 +140,77 @@ func logSLABreaches(ctx context.Context, store *data.Store, breaches []SLABreach
 	}
 }
 
+// pendingStepsFor selects the Approval Steps this viewer can act on right now: assigned to them,
+// still undecided, whose Document exists, and which the Machine's own sequencing rule says are
+// reachable (behavior.CanAct -- the arm that reads sibling steps, so a parallel Document's
+// second step is actionable and a sequential one's is not).
+//
+// It is a function rather than four conditions inline because two callers need the identical
+// answer and must never disagree: buildInbox, which turns each into a card, and
+// PendingApprovalCount, which only counts them for the nav badge. A badge reporting a different
+// number from the list it links to is the kind of defect nobody reports and everybody distrusts,
+// and the way to make it impossible is one predicate, not two that currently match.
+func pendingStepsFor(steps []*data.Record, docByID map[string]*data.Record, stepsByDoc map[string][]*data.Record, userID string, seq *domain.Sequencing) []*data.Record {
+	var selected []*data.Record
+	for _, s := range steps {
+		if DisplayString(s.Values[action.FieldStepAssignee]) != userID {
+			continue
+		}
+		if DisplayString(s.Values[action.FieldStepDecision]) != action.DecisionPending {
+			continue
+		}
+		docID := DisplayString(s.Values[action.FieldStepDocument])
+		doc := docByID[docID]
+		if doc == nil {
+			continue
+		}
+		if !behavior.CanAct(seq, doc, s, stepsByDoc[docID]) {
+			continue
+		}
+		selected = append(selected, s)
+	}
+	return selected
+}
+
+// PendingApprovalCount is the number the nav badge shows: how many Approval Steps this viewer can
+// decide right now.
+//
+// It exists because the badge used to obtain that integer by composing the entire Approval Inbox
+// (ApprovalInbox, via showPendingCount) -- which reads the activity log and every member's name to
+// build cards nobody renders, and, through logSLABreaches, *writes*. The badge fires on every page
+// carrying it: 463 times in the six hours of log reviewed on 2026-09-22, roughly a third of all
+// requests. Two reads and no write is what the number actually needs.
+//
+// It shares pendingStepsFor with the inbox itself, so the badge and the list it links to cannot
+// drift apart. It deliberately does NOT log SLA breaches: breach detection is the *inbox's*
+// read-triggered side effect (logSLABreaches' own doc comment explains why this app has nowhere
+// else to put it yet), and duplicating it onto a badge would mean a count endpoint racing the
+// page it decorates to write the same activity rows.
+func PendingApprovalCount(ctx context.Context, l *Loader, userID string, stepMachine *domain.Machine) (int, error) {
+	steps, err := l.ListRecords(ctx, action.StepMachineID)
+	if err != nil {
+		return 0, err
+	}
+	documents, err := l.ListRecords(ctx, action.DocumentMachineID)
+	if err != nil {
+		return 0, err
+	}
+	docByID := make(map[string]*data.Record, len(documents))
+	for _, d := range documents {
+		docByID[d.ID] = d
+	}
+	stepsByDoc := make(map[string][]*data.Record, len(documents))
+	for _, s := range steps {
+		stepsByDoc[DisplayString(s.Values[action.FieldStepDocument])] = append(
+			stepsByDoc[DisplayString(s.Values[action.FieldStepDocument])], s)
+	}
+	var seq *domain.Sequencing
+	if stepMachine != nil {
+		seq = stepMachine.Sequencing
+	}
+	return len(pendingStepsFor(steps, docByID, stepsByDoc, userID, seq)), nil
+}
+
 // buildInbox is the whole of the inbox's derivation, over records someone else already fetched.
 // Keeping it free of I/O is what makes the sequencing, bucketing and submitter-resolution rules
 // testable at all: they need four related record sets and a fixed clock, not a database.
@@ -163,21 +234,9 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 	}
 
 	var inbox Inbox
-	for _, s := range steps {
-		if DisplayString(s.Values[action.FieldStepAssignee]) != userID {
-			continue
-		}
-		if DisplayString(s.Values[action.FieldStepDecision]) != action.DecisionPending {
-			continue
-		}
+	for _, s := range pendingStepsFor(steps, docByID, stepsByDoc, userID, seq) {
 		docID := DisplayString(s.Values[action.FieldStepDocument])
 		doc := docByID[docID]
-		if doc == nil {
-			continue
-		}
-		if !behavior.CanAct(seq, doc, s, stepsByDoc[docID]) {
-			continue
-		}
 
 		approved := approvedCount(stepsByDoc[docID])
 		sub := submissions[docID]

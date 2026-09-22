@@ -64,7 +64,10 @@ func main() {
 		}
 	}
 
-	pool, err := db.Connect(ctx, cfg.DatabaseURL)
+	// The tracer is paired with the pool here because it is the one place that may hold both:
+	// internal/db must not import internal/data (plane rule), and internal/data does not build
+	// pools. data.QueryTracer counts every statement against the request's own ReadLog.
+	pool, err := db.Connect(ctx, cfg.DatabaseURL, data.NewQueryTracer())
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}

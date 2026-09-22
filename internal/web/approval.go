@@ -88,21 +88,27 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 }
 
 // showPendingCount serves pageShell's own nav badge (ROADMAP.md Phase 21 round 2, Step J) -- the
-// same Pending count showApprovalInbox already computes, reused rather than threading it through
-// every one of pageShell's ~20 callers as a new parameter. Renders nothing at all when there's
-// nothing pending, so the badge's own :empty CSS rule hides it instead of showing "(0)".
+// same Pending count showApprovalInbox reports, computed from the same predicate rather than
+// threaded through every one of pageShell's ~20 callers as a new parameter. Renders nothing at all
+// when there's nothing pending, so the badge's own :empty CSS rule hides it instead of showing
+// "(0)".
+//
+// It calls PendingApprovalCount, not ApprovalInbox. Composing the whole inbox for one integer read
+// the activity log and every member's name to build cards this endpoint discards, and wrote SLA
+// breach rows as a side effect -- on an endpoint that fires on a third of all requests. The two
+// still cannot disagree, because both select through composition's own pendingStepsFor.
 func showPendingCount(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		inbox, err := composition.ApprovalInbox(req.Context(), composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
+		pending, err := composition.PendingApprovalCount(req.Context(), composition.NewLoader(store, machines), userID, machines[action.StepMachineID])
 		if err != nil {
 			serverError(w, err)
 			return
 		}
-		if len(inbox.Pending) == 0 {
+		if pending == 0 {
 			return
 		}
-		_, _ = fmt.Fprintf(w, "%d", len(inbox.Pending))
+		_, _ = fmt.Fprintf(w, "%d", pending)
 	}
 }
 
@@ -157,14 +163,13 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 			return
 		}
 
+		// Captured before anything mutates step.Values, so the declared Events below see a real
+		// before/after pair -- see snapshotValues for why this is a copy rather than a re-read.
+		oldValues := snapshotValues(step.Values)
+
 		if !applyApprovalSignature(w, req, ctx, store, files, actor.ID, step, decision) {
 			return
 		}
-
-		// Read the stored values before the write, so the declared Events below see a real
-		// before/after pair. applyApprovalSignature only mutates step.Values in memory, so
-		// nothing has been persisted for this step yet.
-		oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
 
 		step.Values[action.FieldStepDecision] = decision
 		step.Values[action.FieldStepDecidedByName] = deciderName(ctx, store, actor.ID)
@@ -181,7 +186,9 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 			signDocument(ctx, store, files, document, documentID)
 		}
 
-		runEvents(ctx, store, machine, step, actor.ID, oldValues, oldValuesOK)
+		// Always true now: oldValues came from a read this handler already made and checked, so
+		// there is no second fetch left to fail.
+		runEvents(ctx, store, machine, step, actor.ID, oldValues, true)
 
 		logActivity(ctx, store, action.DocumentMachineID, documentID, actor.ID,
 			fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
