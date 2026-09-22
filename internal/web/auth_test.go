@@ -43,6 +43,18 @@ func cleanupAuthTest(t *testing.T, pool *pgxpool.Pool, workspaceID, email string
 		if _, err := pool.Exec(ctx, `DELETE FROM pending_invites WHERE workspace_id = $1`, workspaceID); err != nil {
 			t.Errorf("cleanup pending_invites: %v", err)
 		}
+		// Before records, and the order is the correctness: a session generation is keyed by
+		// subject, which is an mch_user *record id*, so once the records are gone this subquery
+		// matches nothing and the rows are orphaned forever. That is what had been happening --
+		// the 2026-09-22 query/index study found session_generations holding 369 rows for three
+		// credentials, 367 of them orphans, making it the largest table in the dev database,
+		// larger than `records` itself (66).
+		if _, err := pool.Exec(ctx, `
+			DELETE FROM session_generations
+			WHERE subject IN (SELECT id FROM records WHERE workspace_id = $1)
+		`, workspaceID); err != nil {
+			t.Errorf("cleanup session_generations: %v", err)
+		}
 		if _, err := pool.Exec(ctx, `DELETE FROM records WHERE workspace_id = $1`, workspaceID); err != nil {
 			t.Errorf("cleanup records: %v", err)
 		}

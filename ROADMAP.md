@@ -503,7 +503,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | 4 | **The nav badge recomputes the whole Approval Inbox to print one integer.** `showPendingCount` (`web/approval.go:94`) runs the full `composition.ApprovalInbox`; on `/approval-inbox` itself that composition therefore runs **twice per screen**, since the page handler already holds the number (`web/approval.go:52`, `len(inbox.Pending)`) | 463 hits vs 1390 page loads: it fires on a third of all requests. `machine.templ:144` is `hx-trigger="load"` — one shot per page, *not* polling, which is the one thing worth not "fixing" |
   | 5 | **`/decide` is the worst logged ratio: `reads=12 repeated=7`.** Part of that is legitimate — `Loader`'s own doc (`composition/loader.go:27`) forbids one memo spanning a write — but seven repeats implies re-reading *before* the write too. `/documents` (`reads=7 repeated=5`) and `/home` (`mch_document x2`) are the same shape, smaller | Low frequency (POST), so ranked below 1-3 despite the worse ratio |
   | 6 | **Client disconnects are logged as server faults.** `internal error: context canceled` / `get session generation: context canceled` (2026-09-21 03:28) are a browser navigating away, reported through `serverError` as a 500 | Two lines in six hours — trivial volume, but it puts noise in the one channel a real fault would arrive on |
-  | 7 | **Three overlapping indexes on `records`**: `idx_records_machine_id` (001), `idx_records_machine_sort` (002), both largely covered by `idx_records_workspace_machine_sort` (004). Write cost for no read anyone has shown needs them | Not urgent; needs `pg_stat_user_indexes` evidence before dropping anything, not a reading of the DDL |
+  | 7 | ~~**Three overlapping indexes on `records`**~~ — **this row was wrong, and the way it was wrong is the point.** It was written by reading `CREATE INDEX` lines out of the migrations and named `idx_records_machine_sort` (002) as live; migration 004 line 20 *drops* it, so it does not exist. Checked against `pg_indexes` on 2026-09-22: four indexes, and the redundancy is a different one — `idx_records_workspace_machine` is a strict prefix of `idx_records_workspace_machine_sort`. **The real finding is bloat, not redundancy**: 66 live rows in a 72 kB table carrying **21 MB of indexes**, residue of `make threshold` seeding and deleting hundreds of thousands of rows, which autovacuum marks reusable but never shrinks. **Fixed** — one `REINDEX TABLE CONCURRENTLY records` took it to **64 kB**, and `cleanupBench` now runs it on every harness run. A second wrong claim was corrected on the way: the `Planning Time 0.625ms` vs `Execution Time 0.084ms` ratio this row first blamed on the bloat survived the REINDEX unchanged, so it is a cold-relcache artifact of measuring through `psql`, not a cost the app pays (see the query-layer entry below) | Measured, not read off the DDL — which is what this row failed to do the first time, twice |
   | 8 | **`ListRecordsBy` filters on `data->>$2 = $3` with no supporting index** (`data/store.go:140`) and cannot easily have a plain expression one, since the Field id is a bound parameter. Today it scans a handful of rows behind `idx_records_workspace_machine` and costs nothing | The actual scaling wall, named now so it is not discovered later. **No phase** — a row count that makes it hurt is the trigger, not this entry |
 
   **Order of work, and why it is this order:** (1) move/extend the instrument until the log tells
@@ -668,9 +668,12 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   that touches no architecture. It is an omission, not a design choice.
 
   **What this is not, again:** a performance problem. 66 records, 40 req/min, `/home` at
-  `queries=12 reads=12 repeated=0`. Note that 12 is exactly `maxQueriesPerAuthenticatedPage`, so
-  the budget is tight rather than slack — the next move on that path is removing a query, not
-  adding one, and raising the constant to pass is the thing it exists to prevent.
+  `queries=14 reads=14 repeated=0` against the real installed Workspace, which is exactly
+  `maxQueriesPerAuthenticatedPage` — so the budget is tight rather than slack. The next move on
+  that path is removing a query, not adding one, and raising the constant to pass is the thing it
+  exists to prevent. (This read `queries=12` until the sweep measured against a Workspace with
+  Applications installed; the two extra are each Application's own summary-Machine count, which
+  the page genuinely needs.)
 
   **One methodological correction the study made to itself**, recorded because it is the entry
   above's own lesson arriving one level up: two of its Tier-1 proposals (the nav badge recomputing
@@ -680,6 +683,68 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   on the merits too: a bare `CountRecords` for the badge would have counted something different
   from what the page shows, which is why `PendingApprovalCount` shares `pendingStepsFor` with
   `buildInbox` instead.
+- **The query layer itself, and the number the repo already had** (owner request, 2026-09-22,
+  closing the day: *"kalau dikaji dari sisi query, apakah ada yang bisa dioptimalkan? apakah ada
+  benchmark atau best practice untuk ini?"*). Full study:
+  `menata-app-document`'s `audits/2026-09-22-lapisan-query-dan-indeks-kajian.md`.
+
+  **Answer: nothing in the query layer needs optimizing.** No query exceeds 1ms and every plan
+  chooses a Seq Scan, which is correct on 66 rows in a four-page table. The standard advice — add
+  indexes, tune queries, raise the pool — misses on all three counts here: four indexes exist and
+  none is used at this volume, there is no slow query to tune, and on 1 vCPU `pgxpool`'s default
+  `MaxConns = 4` sits against one active connection. A GIN index for `data->>$2` would be the
+  wrong answer for a different reason: this app pulls every row and filters in Go, so it would
+  speed up a filter that never runs.
+
+  **THE BENCHMARK ALREADY EXISTED AND HAD ALREADY ANSWERED.** `make threshold`
+  (`internal/composition/threshold_test.go`, Phase 18 Step 4) measures exactly this, and
+  `TestVolumeThreshold` closes with the literal instruction *"record it in ROADMAP.md Phase 6"*.
+  Nobody did — which is how the performance study directly above came to build two fresh
+  benchmarks for a question the repo could already answer. Recording it now, which is the whole of
+  what that instruction asked:
+
+  | rows | whole-Machine read | |
+  |---|---|---|
+  | 100 | 900µs | |
+  | 1,000 | 6.2ms | |
+  | 10,000 | 42.4ms | |
+  | **50,000** | **232.5ms** | **past the 100ms interactive budget** |
+  | 100,000 | 980.7ms | |
+
+  10k→50k is 5x the rows for 5.5x the time (linear); **50k→100k is 2x the rows for 4.2x the
+  time** — superlinear, and the break is `json.Unmarshal` plus allocation pressure in
+  `data.queryRecords`, not the scan. That is Finding D of the study above arriving from a second,
+  independent direction. `TestBreadthThreshold` separately shows read count **flat** in schema
+  breadth (1 read for 64 referring Machines, `served-from-memo=63`) — `composition.Loader`'s memo,
+  still locked.
+
+  **Two triggers, ten times apart, and not in conflict** — worth saying because otherwise they
+  read as two answers to one question. **50,000** is where the existing "read the whole Machine"
+  pattern leaves the interactive budget. **~5,000** is the study above's trigger for *starting to
+  build* pushdown, deliberately more conservative because building it takes time and must not
+  begin on the day it is already late.
+
+  **`make threshold` was bloating the database it measured.** It seeds hundreds of thousands of
+  rows and deletes them, and autovacuum never shrinks a btree — it only marks pages reusable. The
+  state found: 66 live rows, 72 kB table, **21 MB of indexes**, and running the harness once for
+  this study is what took it from 9.7 MB to 21 MB. One `REINDEX TABLE CONCURRENTLY records` brought
+  it to **64 kB**, and `cleanupBench` now does it on every run, so the harness repairs what
+  measuring costs instead of charging it to everything afterwards.
+
+  **A correction this entry owes itself.** The study first attributed a `Planning Time` of 0.6ms
+  against an `Execution Time` of 0.08ms — planning seven times dearer than execution — to that
+  bloat. Re-measured after the REINDEX, with indexes 336x smaller, **planning did not move**
+  (~0.6ms, ~150 planner buffers). The bloat was real and worth fixing; the evidence attached to it
+  was not. The 7x ratio is an artifact of measuring through a fresh `psql` backend with a cold
+  relcache, and it does not describe the app at all: `pgxpool` holds connections and pgx v5
+  defaults to `QueryExecModeCacheStatement`, so planning is amortized per connection, not paid per
+  request. **Second time in one day that a claim of this entry's own was read rather than
+  measured** — the first being the index that migration 004 deletes.
+
+  `session_generations` also held **369 rows for three credentials**, 367 of them orphans — the
+  largest table in the dev database, larger than `records` (66), because `cleanupAuthTest` swept
+  five tables and never that one. Now swept, before the records it keys on, since a subject is an
+  `mch_user` record id and the subquery finds nothing once the records are gone.
 
 ## Planned
 

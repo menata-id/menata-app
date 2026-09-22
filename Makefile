@@ -62,6 +62,12 @@ install-hooks:
 # users (ROADMAP.md Phase 18 Step 4). Needs a real database and seeds tens of thousands of
 # mch_bench_* rows, which it deletes afterwards -- it never touches application records. Kept out
 # of `make test` so the default suite stays fast and needs no database.
+#
+# It also REINDEXes `records` on the way out (cleanupBench). Deleting the seeded rows does not
+# give back the index pages they cost: autovacuum marks a bloated btree reusable, never smaller.
+# Without that step each run left the indexes permanently larger -- measured at 21 MB of indexes
+# over a 72 kB table before it was added (menata-app-document,
+# audits/2026-09-22-lapisan-query-dan-indeks-kajian.md).
 threshold:
 	DATABASE_URL="$(DB_URL)" go test -tags=threshold -run Threshold -v -timeout 10m ./internal/composition/
 

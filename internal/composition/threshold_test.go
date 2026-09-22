@@ -82,10 +82,29 @@ func seed(t *testing.T, pool *pgxpool.Pool, machineID string, n int) {
 	}
 }
 
+// cleanupBench removes what this harness wrote, and then repairs what writing it did to the
+// indexes.
+//
+// The DELETE alone is not the whole undo, which is what the 2026-09-22 query/index study found:
+// seeding and deleting hundreds of thousands of rows leaves the btree indexes on `records`
+// enormously bloated, and autovacuum never shrinks a btree -- it only marks pages reusable. The
+// measurement was 66 live rows in a 72 kB table carrying **21 MB** of indexes, accumulated over
+// this harness's own runs, and a single REINDEX took it to 64 kB.
+//
+// CONCURRENTLY because this runs against a shared dev database with menata-app.service live on
+// it: the plain form takes an ACCESS EXCLUSIVE lock. It cannot run inside a transaction block,
+// which pool.Exec satisfies (autocommit). A failure leaves an INVALID index behind that must be
+// dropped by hand, so it is reported like the DELETE above -- t.Errorf, never t.Fatalf: a
+// teardown that fails should say so without discarding the measurement the run already produced.
 func cleanupBench(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
-	if _, err := pool.Exec(context.Background(), `DELETE FROM records WHERE machine_id LIKE 'mch_bench_%'`); err != nil {
+	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `DELETE FROM records WHERE machine_id LIKE 'mch_bench_%'`); err != nil {
 		t.Errorf("cleanup bench records: %v", err)
+	}
+	// After the DELETE, so it rebuilds against the small table rather than the seeded one.
+	if _, err := pool.Exec(ctx, `REINDEX TABLE CONCURRENTLY records`); err != nil {
+		t.Errorf("reindex records after bench run (indexes stay bloated; run REINDEX TABLE CONCURRENTLY records by hand): %v", err)
 	}
 }
 
