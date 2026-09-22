@@ -744,7 +744,42 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `session_generations` also held **369 rows for three credentials**, 367 of them orphans — the
   largest table in the dev database, larger than `records` (66), because `cleanupAuthTest` swept
   five tables and never that one. Now swept, before the records it keys on, since a subject is an
-  `mch_user` record id and the subquery finds nothing once the records are gone.
+  `mch_user` record id and the subquery finds nothing once the records are gone. The 366 orphans
+  already there were deleted on owner approval, keeping the configured admin subject.
+- **The ratchet goes seven → three, and 359kB comes off a cold load** (2026-09-22, the last round).
+  **The seven routes had three causes between them**, which is why four left the same day rather
+  than one at a time:
+
+  | Cause | Reach |
+  |---|---|
+  | **Ten read methods in `internal/data` carried no `record()` target** (`ListMembers`, `ListMemberships`, `appRolesByMember`, `WorkspaceBySlug`, `GetGroup`, `GroupIDsForMember`, `GroupMemberIDs`, `attachGrants`, `GetPendingInvite`, `ListPendingInvites`) | **every `unnamed=` in the sweep**, now zero |
+  | **`requireWorkspaceAdmin` re-read a membership `resolveIdentity` had already resolved** — and `GetMembership` is four queries, not one | all three admin screens at once (`/workspace-members` was `repeated=6`, `/workspace-groups` 5, `/authorization-matrix` 4) |
+  | **`GetMembership` answered "which Groups is this one person in" by reading every Group in the Workspace** — while `ActorMembership` already had the targeted query. Now `data.GroupsForMember`, used by both | the "still open" note above, closed; `/home` 14 → 13 queries |
+
+  `/authorization-matrix`, `/create-workspace`, `/workspace-groups` and `/workspace-members` left
+  the ratchet. The three that remain are **three different problems, not one shape**, and are
+  described individually in `getSweepRatchet`: `/documents/new` and its HTMX fragment reach
+  `ListGroups` by two paths (the handler's `ListMembers`, and `composition.Loader`'s one
+  un-memoized read); `/switch-workspace` is **the only true N+1 found all day** —
+  `loadWorkspaceChoices` calls `GetWorkspace` once per membership, so it is 1+N in how many
+  Workspaces the viewer belongs to, and reads 2 in the fixture only because that identity belongs
+  to one. Its fix is a join in `ListMemberships`, which deserves its own change and test.
+
+  **`requireWorkspaceAdmin` had no test of its own**, which is uncomfortable for the one gate in
+  this repo that is recorded as having *failed open* (2026-09-21 review). It has one now
+  (`TestRequireWorkspaceAdmin`, five branches), added because editing an authorization gate for a
+  query-count reason is not a reason to verify it by reading. Confirmed it fails when the
+  no-membership arm is made to pass.
+
+  **Response compression, static assets only** — `hyperscript.min.js` 369→67kB, `htmx.min.js`
+  51→16kB, `app.css` 30→6.5kB: **~359kB off a cold load**, the performance study's one Tier-1 item
+  needing no trigger. **HTML is deliberately excluded** (owner decision): every page carries the
+  CSRF token in its own markup (`hx-headers`, security audit L1), and a secret in a compressed
+  response beside attacker-influenceable content is the BREACH precondition. HTML is worth 2.6kB
+  per page against that, so the static assets are ~99% of the win without having to answer the
+  question. Verified on the live server that HTML returns **no** `Content-Encoding`, rather than
+  inferring it from where the middleware sits. `Cache-Control` was deliberately deferred: the
+  filenames carry no content hash, so a long max-age would serve stale assets after a deploy.
 
 ## Planned
 

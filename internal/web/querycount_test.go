@@ -47,13 +47,14 @@ import (
 // should be a deliberate act in a commit that says why -- a page quietly costing twice what it
 // did is precisely the drift this whole exercise was about.
 //
-// **It went 12 -> 14 within that same day, and the reason is worth keeping.** The first figure was
+// **It moved 12 -> 14 -> 13 in one day, and both moves are worth keeping.** The first figure was
 // measured against a fixture Workspace carrying Machines and no Applications; against the real
-// installed Workspace, /home also counts each Application's summary Machine, which is two more
-// queries it genuinely needs (`mch_document count`, `mch_task count`). The budget did not move
-// because the page got worse -- it moved because the first measurement was of something thinner
-// than production, which is the same mistake in miniature that this whole entry is about.
-const maxQueriesPerAuthenticatedPage = 14
+// installed Workspace /home also counts each Application's summary Machine, which is two more
+// queries it genuinely needs (`mch_document count`, `mch_task count`) -- so 14 was not the page
+// getting worse, it was the first measurement being of something thinner than production. 13 is
+// the real improvement: GetMembership stopped answering "which Groups is this one person in" by
+// reading every Group in the Workspace (data.GroupsForMember).
+const maxQueriesPerAuthenticatedPage = 13
 
 var queryCountPattern = regexp.MustCompile(`queries=(\d+) reads=(\d+) repeated=(\d+)`)
 
@@ -128,28 +129,35 @@ const minSweptRoutes = 8
 // it violated when the sweep was written (2026-09-22). **The list may only shrink.**
 //
 // It is a ratchet for the same reason TestRenderingUsesProjectionNotRawValues is one: the gate is
-// worth having now, the seven routes below are worth fixing, and holding the gate hostage to
-// fixing them first is how a check that would have prevented the next instance ends up not
-// existing. Adding an entry is not the way to make this pass -- an entry left behind after its
-// route is fixed fails too, so the list cannot quietly stop meaning anything.
+// worth having now, the routes below are worth fixing, and holding the gate hostage to fixing them
+// first is how a check that would have prevented the next instance ends up not existing. Adding an
+// entry is not the way to make this pass -- an entry left behind after its route is fixed fails
+// too, so the list cannot quietly stop meaning anything.
 //
-// **These seven are the answer to "do the two budget tests above cover enough?".** They did not:
-// before this sweep, two routes of fifty-four were checked, both of them ones that had just been
-// worked on. Every route below has the same disease those two had, and none of it was visible.
+// **It started at seven and is at three**, which is the answer to "do the two budget tests above
+// cover enough?" -- they did not. Before the sweep, two routes of fifty-four were checked, both of
+// them ones that had just been worked on; the sweep found seven more with the same disease. Four
+// left the same day, and not by being fixed one at a time: the seven had **three** causes between
+// them. Ten read methods in internal/data carried no record() target, which was every `unnamed=`.
+// requireWorkspaceAdmin re-read a membership resolveIdentity had already resolved, which was all
+// three admin screens at once. And GetMembership answered "which Groups is this one person in" by
+// reading every Group in the Workspace (now data.GroupsForMember).
 //
-// The shape is familiar. `unnamed=` is a Store method that never got a record() target (the
-// invite and workspace-listing paths). `repeated=` is the admin screens re-reading membership,
-// groups and app roles per member or per row -- resolveIdentity fixed the *request-level*
-// duplication, and these are the *within-handler* kind it cannot see: a loop over members that
-// asks the database about each one separately.
+// What is left is genuinely three separate problems rather than one shape, which is why they are
+// described individually below instead of as a class.
 var getSweepRatchet = map[string]string{
-	"/authorization-matrix":       "repeated=4 (membership, groups, app roles each read twice)",
-	"/create-workspace":           "unnamed=1 (the Workspace-listing query names no target)",
-	"/documents/new":              "unnamed=2, repeated=3 (approver picker re-reads groups per row)",
-	"/documents/new/approver-row": "unnamed=2, repeated=1 (same picker, rendered as a fragment)",
-	"/switch-workspace":           "unnamed=1, repeated=1 (Workspace row read twice, listing unnamed)",
-	"/workspace-groups":           "repeated=5 (groups and memberships re-read per group)",
-	"/workspace-members":          "unnamed=3, repeated=6 (the worst: per-member membership and group reads)",
+	"/documents/new": "repeated=1 -- `workspace groups x2`: the handler reads members through " +
+		"store.ListMembers (document.go:60, which reaches ListGroups via GroupsByMember) while " +
+		"composition.Loader separately calls store.ListGroups for the approver options " +
+		"(loader.go:192, the one read there that is not memoized like its neighbours). Two paths " +
+		"to the same question; the fix is one of them going through the other, not a third cache",
+	"/documents/new/approver-row": "repeated=1 -- the same two paths as /documents/new, rendered " +
+		"as an HTMX fragment. It leaves the list when that one does",
+	"/switch-workspace": "repeated=1 today, but **this one is a real N+1 and the count is not the " +
+		"point**: loadWorkspaceChoices (auth.go:325-326) calls GetWorkspace once per membership, " +
+		"so it is 1+N in how many Workspaces the viewer belongs to. It reads 2 here only because " +
+		"the fixture identity belongs to one. The fix is a join in ListMemberships rather than a " +
+		"loop, which is a contained data-layer change and deserves its own test",
 }
 
 // TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed sweeps every authenticated GET route that needs no
@@ -210,7 +218,12 @@ func TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed(t *testing.T) {
 				t.Errorf("%s is in getSweepRatchet (%q) but now satisfies both invariants -- remove the entry\n"+
 					"  the list may only shrink, and an entry left behind is one nobody is checking",
 					route, grandfathered)
+				continue
 			}
+			// Logged, not silent: a grandfathered route is still being measured every run, and
+			// the whole value of a ratchet is seeing whether its entries are getting better or
+			// worse before someone gets round to them.
+			t.Logf("still grandfathered %s: %s", route, line)
 			continue
 		}
 		if queries != reads {

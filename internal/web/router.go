@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -95,17 +96,38 @@ func Routes(d Deps) http.Handler {
 	})
 	r.Get("/manifest.json", serveManifest)
 	r.Get("/sw.js", serveServiceWorker)
-	r.Handle("/icons/*", http.StripPrefix("/icons/", http.FileServer(http.Dir("static/icons"))))
-	// The Tailwind build (static/css/app.css, `make css`). Public rather than inside requireAuth
-	// because the pre-auth pages -- sign in, register, password reset -- render from it too, and a
-	// stylesheet behind an auth gate would leave the sign-in page unstyled for exactly the people
-	// who cannot be authenticated yet.
-	r.Handle("/css/*", http.StripPrefix("/css/", http.FileServer(http.Dir("static/css"))))
-	// Vendored htmx/hyperscript (pageHead's own doc comment) -- self-hosted rather than loaded
-	// from unpkg.com so a CDN outage or block can't silently take down every hx-* interaction.
-	// Also serves the Ubuntu woff2 faces app.css names (static/vendor/fonts/ubuntu), which is why
-	// they live under vendor/ rather than needing a public route of their own.
-	r.Handle("/vendor/*", http.StripPrefix("/vendor/", http.FileServer(http.Dir("static/vendor"))))
+	// STATIC FILES, AND THE ONE PLACE THIS APP COMPRESSES.
+	//
+	// Measured 2026-09-22: hyperscript.min.js 369kB -> 67kB, htmx.min.js 51kB -> 16kB,
+	// app.css 30kB -> 6.5kB. About 359kB off a cold load, which was the largest single
+	// perceived-speed item in the performance study and cost nothing architectural.
+	//
+	// **HTML is deliberately not compressed**, and the omission is the decision rather than an
+	// oversight (owner, 2026-09-22). Every page carries the CSRF token in its own markup
+	// (`hx-headers` on <body>, rendering's csrfHeadersAttr, from the 2026-09-19 security audit's
+	// L1), and a secret inside a compressed response alongside content an attacker can influence
+	// -- a record title someone else wrote, rendered on the page -- is the BREACH precondition.
+	// Compressing HTML is worth 2.6kB per page against that; the static assets above are ~99% of
+	// the win and carry no secret at all, so the question does not have to be answered to collect
+	// it. Revisit alongside per-response CSRF token masking, not before.
+	//
+	// chi's default compressible content types cover text/css and application/javascript and do
+	// not cover font/woff2, so the Ubuntu faces under /vendor/fonts are not re-compressed for
+	// nothing. No custom type list is needed.
+	r.Group(func(sr chi.Router) {
+		sr.Use(middleware.Compress(5))
+		sr.Handle("/icons/*", http.StripPrefix("/icons/", http.FileServer(http.Dir("static/icons"))))
+		// The Tailwind build (static/css/app.css, `make css`). Public rather than inside
+		// requireAuth because the pre-auth pages -- sign in, register, password reset -- render
+		// from it too, and a stylesheet behind an auth gate would leave the sign-in page unstyled
+		// for exactly the people who cannot be authenticated yet.
+		sr.Handle("/css/*", http.StripPrefix("/css/", http.FileServer(http.Dir("static/css"))))
+		// Vendored htmx/hyperscript (pageHead's own doc comment) -- self-hosted rather than loaded
+		// from unpkg.com so a CDN outage or block can't silently take down every hx-* interaction.
+		// Also serves the Ubuntu woff2 faces app.css names (static/vendor/fonts/ubuntu), which is
+		// why they live under vendor/ rather than needing a public route of their own.
+		sr.Handle("/vendor/*", http.StripPrefix("/vendor/", http.FileServer(http.Dir("static/vendor"))))
+	})
 	r.Get("/login", showLogin)
 	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))
 	r.Get("/register", showRegistration)

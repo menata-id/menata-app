@@ -52,6 +52,7 @@ func (s *Store) CreatePendingInvite(ctx context.Context, inv PendingInvite) erro
 // GetPendingInvite returns one unaccepted invitation, or ErrPendingInviteNotFound.
 func (s *Store) GetPendingInvite(ctx context.Context, workspaceID, email string) (*PendingInvite, error) {
 	inv := &PendingInvite{WorkspaceID: workspaceID, Email: email}
+	readLogFrom(ctx).record("pending invite by email")
 	err := s.pool.QueryRow(ctx, `
 		SELECT workspace_role, app_roles
 		FROM pending_invites
@@ -70,6 +71,7 @@ func (s *Store) GetPendingInvite(ctx context.Context, workspaceID, email string)
 // accept" section of the Workspace Members screen -- shown separately from members, because that
 // is exactly what they are not yet.
 func (s *Store) ListPendingInvites(ctx context.Context, workspaceID string) ([]PendingInvite, error) {
+	readLogFrom(ctx).record("pending invites")
 	rows, err := s.pool.Query(ctx, `
 		SELECT email, workspace_role, app_roles
 		FROM pending_invites

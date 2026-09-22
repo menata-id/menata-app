@@ -114,6 +114,7 @@ func (s *Store) appRolesFor(ctx context.Context, workspaceID, userRecordID strin
 // user record id. ListMembers already returns every member, so asking per member would be a
 // self-inflicted N+1 -- this is read once and stitched in Go instead.
 func (s *Store) appRolesByMember(ctx context.Context, workspaceID string) (map[string]map[string]string, error) {
+	readLogFrom(ctx).record("member app roles (all)")
 	rows, err := s.pool.Query(ctx, `
 		SELECT user_record_id, application_id, role FROM workspace_member_app_roles
 		WHERE workspace_id = $1
@@ -167,6 +168,7 @@ func (s *Store) SetMemberAppRole(ctx context.Context, workspaceID, userRecordID,
 // `ws_...` id is generated when the Workspace is created and is not.
 func (s *Store) WorkspaceBySlug(ctx context.Context, slug string) (*Workspace, error) {
 	ws := &Workspace{Slug: slug}
+	readLogFrom(ctx).record("workspace by slug")
 	err := s.pool.QueryRow(ctx, `SELECT id, name FROM workspaces WHERE slug = $1`, slug).Scan(&ws.ID, &ws.Name)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -213,11 +215,14 @@ func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID str
 		return nil, err
 	}
 	m.AppRoles = roles
-	groups, err := s.GroupsByMember(ctx, workspaceID)
+	// GroupsForMember, not GroupsByMember: this method is about one person, and GroupsByMember
+	// reads every Group and every group membership in the Workspace to answer that. It was the
+	// larger half of GetMembership's four queries, on a method every authenticated request reaches.
+	groups, err := s.GroupsForMember(ctx, workspaceID, userRecordID)
 	if err != nil {
 		return nil, err
 	}
-	m.Groups = groups[userRecordID]
+	m.Groups = groups
 	return m, nil
 }
 
@@ -229,6 +234,7 @@ func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID str
 // a Workspace name and Workspace role only, and filling it would mean querying per-Application
 // roles across every Workspace an identity belongs to for data no screen reads.
 func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership, error) {
+	readLogFrom(ctx).record("memberships by email")
 	rows, err := s.pool.Query(ctx, `
 		SELECT workspace_id, user_record_id, email, workspace_role, COALESCE(app_role, '')
 		FROM workspace_members
@@ -254,6 +260,7 @@ func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership
 // ListMembers returns every member of workspaceID, for the Workspace Members screen (ROADMAP.md
 // Phase 21 Step 6).
 func (s *Store) ListMembers(ctx context.Context, workspaceID string) ([]Membership, error) {
+	readLogFrom(ctx).record("members")
 	rows, err := s.pool.Query(ctx, `
 		SELECT workspace_id, user_record_id, email, workspace_role, COALESCE(app_role, '')
 		FROM workspace_members

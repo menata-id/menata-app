@@ -89,17 +89,32 @@ func requireWorkspaceAdmin(store *data.Store, cfg config.Config) func(http.Handl
 			userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 			workspaceID, _ := data.WorkspaceScope(ctx)
 
-			membership, err := store.GetMembership(ctx, workspaceID, userID)
-			if err != nil {
-				if errors.Is(err, data.ErrRecordNotFound) {
-					if userID != "" && userID == cfg.AdminUserID {
-						next.ServeHTTP(w, req)
-						return
-					}
-					http.Error(w, "forbidden", http.StatusForbidden)
+			// membershipFor, not store.GetMembership: resolveIdentity already read this exact row
+			// for this request, and GetMembership is four queries, not one. Every admin route
+			// was paying for it twice (2026-09-22 sweep: `/workspace-members` at repeated=6,
+			// `/workspace-groups` at 5, `/authorization-matrix` at 4 -- all three behind this gate).
+			//
+			// The four branches below are unchanged, and that is deliberate rather than incidental:
+			// this gate **used to fail open** for any identity it could not find (2026-09-21
+			// authorization review), so "row absent -> refuse, except the one configured admin
+			// identity" is the behaviour, not an implementation detail. Two shape changes to watch:
+			// membershipFor reports an absent row as (nil, nil) where GetMembership reports
+			// ErrRecordNotFound, so absence is tested on the value; and when the identity was
+			// resolved by middleware, a database error has already been logged and degraded to a
+			// nil membership there -- which lands on "refuse", the fail-closed direction, instead
+			// of on a 500. Losing the 500 is acceptable here precisely because the alternative
+			// direction is the one this gate was once wrong in.
+			membership, err := membershipFor(ctx, store, workspaceID, userID)
+			if err != nil && !errors.Is(err, data.ErrRecordNotFound) {
+				serverError(w, err)
+				return
+			}
+			if membership == nil {
+				if userID != "" && userID == cfg.AdminUserID {
+					next.ServeHTTP(w, req)
 					return
 				}
-				serverError(w, err)
+				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}
 			if membership.WorkspaceRole != "admin" {

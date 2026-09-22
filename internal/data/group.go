@@ -94,6 +94,7 @@ func (s *Store) attachGrants(ctx context.Context, workspaceID string, groups []G
 	if len(groups) == 0 {
 		return groups, nil
 	}
+	readLogFrom(ctx).record("group grants")
 	rows, err := s.pool.Query(ctx, `
 		SELECT r.group_id, r.application_id, r.role
 		FROM workspace_group_app_roles r
@@ -133,6 +134,7 @@ func (s *Store) attachGrants(ctx context.Context, workspaceID string, groups []G
 // filter: a group id from another Workspace must not resolve here.
 func (s *Store) GetGroup(ctx context.Context, workspaceID, groupID string) (*Group, error) {
 	g := &Group{ID: groupID}
+	readLogFrom(ctx).record("group by id")
 	err := s.pool.QueryRow(ctx, `
 		SELECT g.name, count(m.user_record_id)
 		FROM workspace_groups g
@@ -155,6 +157,7 @@ func (s *Store) GetGroup(ctx context.Context, workspaceID, groupID string) (*Gro
 
 // GroupMemberIDs returns the user record ids belonging to one Group.
 func (s *Store) GroupMemberIDs(ctx context.Context, groupID string) ([]string, error) {
+	readLogFrom(ctx).record("group member ids")
 	rows, err := s.pool.Query(ctx, `
 		SELECT user_record_id FROM workspace_group_members WHERE group_id = $1
 	`, groupID)
@@ -190,6 +193,7 @@ func (s *Store) GroupIDsForMember(ctx context.Context, workspaceID, userRecordID
 	if userRecordID == "" {
 		return nil, nil
 	}
+	readLogFrom(ctx).record("group ids for member")
 	rows, err := s.pool.Query(ctx, `
 		SELECT m.group_id
 		FROM workspace_group_members m
@@ -210,6 +214,61 @@ func (s *Store) GroupIDsForMember(ctx context.Context, workspaceID, userRecordID
 		ids[id] = true
 	}
 	return ids, rows.Err()
+}
+
+// GroupsForMember returns the Groups one member belongs to, each carrying its own grants.
+//
+// **This is the per-member counterpart of GroupsByMember, and choosing between them is the whole
+// point of having both.** GroupsByMember answers "who is in what" for the entire Workspace, which
+// is right for the Members list and wrong for one person: it reads every Group and every group
+// membership in the Workspace to answer a question about one row. GetMembership was doing exactly
+// that on every authenticated request until 2026-09-22, which is what this method exists to stop.
+//
+// The grant comes back on the same row as the Group through a LEFT JOIN, so a Group holding no
+// grant at all still appears -- it still gates a CAP-F24 approver_group even when it grants no
+// role. MemberCount is deliberately not populated: it costs an aggregate over the whole Workspace
+// and only the Groups admin screen renders it (groups.templ), fed by ListGroups/GetGroup.
+//
+// Workspace-scoped through the join rather than filtered afterwards, the same reasoning
+// GroupIDsForMember gives: a Group id from another Workspace must not resolve here, since a
+// Permission gate reads the result.
+func (s *Store) GroupsForMember(ctx context.Context, workspaceID, userRecordID string) ([]Group, error) {
+	if userRecordID == "" {
+		return nil, nil
+	}
+	readLogFrom(ctx).record("groups for member")
+	rows, err := s.pool.Query(ctx, `
+		SELECT g.id, g.name, r.application_id, r.role
+		FROM workspace_group_members m
+		JOIN workspace_groups g ON g.id = m.group_id
+		LEFT JOIN workspace_group_app_roles r ON r.group_id = g.id
+		WHERE m.user_record_id = $1 AND g.workspace_id = $2
+		ORDER BY g.name
+	`, userRecordID, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list groups for member: %w", err)
+	}
+	defer rows.Close()
+
+	var groups []Group
+	byID := map[string]int{}
+	for rows.Next() {
+		var id, name string
+		var appID, role *string
+		if err := rows.Scan(&id, &name, &appID, &role); err != nil {
+			return nil, fmt.Errorf("scan member group: %w", err)
+		}
+		i, seen := byID[id]
+		if !seen {
+			groups = append(groups, Group{ID: id, Name: name, Grants: map[string]string{}})
+			i = len(groups) - 1
+			byID[id] = i
+		}
+		if appID != nil && role != nil {
+			groups[i].Grants[*appID] = *role
+		}
+	}
+	return groups, rows.Err()
 }
 
 // GroupsByMember returns every member's Groups for one Workspace, keyed by user record id.
@@ -343,39 +402,8 @@ func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID s
 	if userRecordID == "" {
 		return nil, nil, "", nil
 	}
-	readLogFrom(ctx).record("actor groups")
-	rows, err := s.pool.Query(ctx, `
-		SELECT g.id, g.name, r.application_id, r.role
-		FROM workspace_group_members m
-		JOIN workspace_groups g ON g.id = m.group_id
-		LEFT JOIN workspace_group_app_roles r ON r.group_id = g.id
-		WHERE m.user_record_id = $1 AND g.workspace_id = $2
-		ORDER BY g.name
-	`, userRecordID, workspaceID)
+	groups, err := s.GroupsForMember(ctx, workspaceID, userRecordID)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("list actor groups: %w", err)
-	}
-	defer rows.Close()
-
-	var groups []Group
-	byID := map[string]int{}
-	for rows.Next() {
-		var id, name string
-		var appID, role *string
-		if err := rows.Scan(&id, &name, &appID, &role); err != nil {
-			return nil, nil, "", fmt.Errorf("scan actor group: %w", err)
-		}
-		i, seen := byID[id]
-		if !seen {
-			groups = append(groups, Group{ID: id, Name: name, Grants: map[string]string{}})
-			i = len(groups) - 1
-			byID[id] = i
-		}
-		if appID != nil && role != nil {
-			groups[i].Grants[*appID] = *role
-		}
-	}
-	if err := rows.Err(); err != nil {
 		return nil, nil, "", err
 	}
 
