@@ -91,15 +91,15 @@ templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine
 	// (inboxTabs, deleted with this change): appShell now renders the current Application's own
 	// menu itself -- a second header row on desktop, a bottom bar on mobile -- generalized from
 	// this exact shape to every Application (appshell.templ's defaultAppMenu/navItemActive).
-	@appShell(labelByID("nav_approval_inbox"), workspaceName, viewer, switchWorkspaceHref) {
+	@appShell(labelByID(ctx, "nav_approval_inbox"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-blue-600 uppercase">Approval</span>
 				<h1 class="m-0 text-xl font-medium">
 					if showMine {
-						{ labelByID("nav_my_documents") }
+						{ labelByID(ctx, "nav_my_documents") }
 					} else {
-						{ labelByID("nav_approval_inbox") }
+						{ labelByID(ctx, "nav_approval_inbox") }
 					}
 				</h1>
 				<div class="text-sm text-slate-500">
@@ -168,7 +168,7 @@ templ inboxEmpty(message string) {
 // preserve the active filter -- neither may silently discard the other.
 templ filterChip(f SLAFilter) {
 	<a
-		href={ templ.SafeURL(routeByID("nav_approval_inbox") + "?filter=" + url.QueryEscape(f.Key)) }
+		href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox") + "?filter=" + url.QueryEscape(f.Key)) }
 		class={ "rounded-full border px-3 py-1 text-xs",
 			templ.KV("border-slate-900 bg-slate-900 text-white", f.Active),
 			templ.KV("border-slate-300 text-slate-600 hover:border-slate-400", !f.Active) }

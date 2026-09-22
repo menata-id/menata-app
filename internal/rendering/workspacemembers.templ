@@ -72,15 +72,15 @@ func personInitials(name, email string) string {
 // approver. It is also why an invited row shows no name: only its owner ever states one, when
 // they accept.
 templ WorkspaceMembersPage(members []data.Membership, names map[string]string, pending []data.PendingInvite, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
+	@appShell(labelByID(ctx, "nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
-				<h1 class="m-0 text-xl font-medium">{ labelByID("nav_workspace_members") }</h1>
+				<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_workspace_members") }</h1>
 				<div class="text-sm text-slate-500">Manage workspace membership and application access.</div>
 			</div>
 			<div class="flex items-center gap-4">
-				<a href={ templ.SafeURL(routeByID("nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">{ labelByID("nav_workspace_groups") } →</a>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">{ labelByID(ctx, "nav_workspace_groups") } →</a>
 				<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", len(members)) }{ pluralS(len(members)) }</span>
 			</div>
 		</div>
@@ -203,8 +203,8 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 // direct half.
 templ EditMemberPage(m data.Membership, name string, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
 	@appShell("Edit member", workspaceName, viewer, switchWorkspaceHref) {
-		<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
-			← { labelByID("nav_workspace_members") }
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
+			← { labelByID(ctx, "nav_workspace_members") }
 		</a>
 		<div class="flex items-center gap-3">
 			<span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-medium text-slate-700">{ personInitials(name, m.Email) }</span>
@@ -240,7 +240,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 				}
 			</section>
 			<div class="flex items-center justify-end gap-3">
-				<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-sm text-slate-500 hover:text-slate-700">Cancel</a>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-sm text-slate-500 hover:text-slate-700">Cancel</a>
 				@authSubmit("Save changes")
 			</div>
 		</form>

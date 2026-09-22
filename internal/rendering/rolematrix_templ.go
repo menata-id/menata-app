@@ -208,7 +208,7 @@ func RoleMatrixPage(v RoleMatrixView, workspaceName string, viewer Viewer, switc
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell(labelByID("nav_role_matrix"), workspaceName, viewer, switchWorkspaceHref).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell(labelByID(ctx, "nav_role_matrix"), workspaceName, viewer, switchWorkspaceHref).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

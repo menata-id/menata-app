@@ -764,11 +764,11 @@ func validateNavigationIDsAreUnique(ws domain.Workspace) error {
 	}
 
 	// The runtime's own screens are seeded first so an Application cannot take one of their ids.
-	// They are no longer declared in metadata (see metadata/app.yaml), but rendering.routeByID
+	// They are no longer declared in metadata (see metadata/workspaces/*.yaml), but rendering.routeByID
 	// still resolves them, so a redeclared id would silently shadow -- or be shadowed by -- a real
 	// runtime screen depending only on slice order.
 	record(domain.RuntimeScreens, "the runtime itself (domain.RuntimeScreens)")
-	record(ws.Navigation, fmt.Sprintf("workspace %q", ws.ID))
+	record(ws.Navigation, fmt.Sprintf("workspace %q", ws.Slug))
 	for _, app := range ws.Applications {
 		record(app.AllNavigation, fmt.Sprintf("application %q", app.ID))
 	}

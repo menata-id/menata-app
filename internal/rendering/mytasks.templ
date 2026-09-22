@@ -28,10 +28,10 @@ type TaskRow struct {
 // Completed (status done). This is a filtered/bucketed view over one whole-machine Task query,
 // not a new query mechanism.
 templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_my_tasks"), workspaceName, viewer, switchWorkspaceHref) {
+	@appShell(labelByID(ctx, "nav_my_tasks"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-2">
 			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
-			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_my_tasks") }</h1>
+			<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_my_tasks") }</h1>
 			<div class="text-sm text-slate-500">Tasks assigned to you, projected across all projects.</div>
 		</div>
 

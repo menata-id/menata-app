@@ -5,13 +5,13 @@
 This is **not an ordinary application** — it's a **composable runtime** (README.md: "The runtime
 application that turns Menata Runtime Metadata into a running application"). The product is the
 runtime itself; any one app it renders (Task Tracker, Document Approval, whatever's in
-`metadata/app.yaml` today) is just one metadata description it happens to be interpreting right
+`metadata/workspaces/*.yaml` today) is just one metadata description it happens to be interpreting right
 now. `007-composable-runtime-architecture.md` is the normative target for this.
 
 That distinction changes what "just add a button/field/route" means here. In an ordinary app,
 hand-writing a button is the whole job. In this repo, hand-writing something that metadata could
 express instead is a regression against the actual product — it's exactly the kind of change that
-works today and quietly breaks the runtime's own premise (`metadata/app.yaml`, no per-model code)
+works today and quietly breaks the runtime's own premise (`metadata/workspaces/*.yaml`, no per-model code)
 the next time someone tries to evolve the app by editing YAML alone. Default to asking "can
 metadata express this?" before "let me just write the code" — not the other way around.
 
@@ -25,14 +25,33 @@ The two that most often get violated by an unreviewed edit:
 
 - **001 Principle #3, Metadata First** — "Application evolution should primarily occur by
   changing Runtime Metadata rather than application source code." If a route, label, or
-  navigation entry already exists in `metadata/app.yaml`, a page must reference it, not retype it
+  navigation entry already exists in a Workspace's manifest, a page must reference it, not retype it
   as a second literal.
 - **001 Principle #8, Reference over Duplication** — "Duplicated metadata should be avoided
   whenever possible." Before hardcoding a string that looks like it describes application
   behavior (a route, a label, a count), grep `metadata/*.yaml` for it first.
 
+## One manifest per Workspace (2026-09-22)
+
+An Application is **installed into** a Workspace, not owned by the process. `metadata/workspaces/
+<slug>.yaml` is one Workspace's installation: which Workspace it is for (by **slug** — the `ws_...`
+id is generated when a Workspace is created through the UI, so nobody can write it into a file),
+which Machines exist there, and which Applications are installed. The directory is *scanned*, so
+dropping a file in installs; deleting it uninstalls. An empty `applications: []` is valid and
+normal — it is what a Workspace looks like the moment it is created.
+
+This replaced a single process-wide `metadata/app.yaml` loaded once at startup, which made every
+Workspace render the same Applications no matter which one you were in: a `workspaces` row scoped
+records and membership, but not what the Workspace *was*. The owner found it by creating a
+Workspace and seeing two Applications in it that nobody had installed.
+
+So **which Workspace a request is in is a per-request fact**, like which Application already was.
+It travels on ctx (`rendering.WithCurrentWorkspace`, set by `internal/web.currentWorkspace`), and
+`routeByID`/`labelByID` take `ctx` for that reason. There is no package-level `workspace` any more;
+do not reintroduce one.
+
 Concretely, before adding any hardcoded `href`, label, or button to a page under
-`internal/rendering/`: check `metadata/app.yaml`'s `application.navigation` list first. If the
+`internal/rendering/`: check the installed Application's own `navigation:` list first. If the
 same route/label is already declared there, that's a signal the value belongs in metadata (or
 should be read from the `Navigation` the handler already has, e.g. `internal/web/router.go`'s
 `d.Navigation`), not typed again in the `.templ`. If you add it anyway because metadata can't
@@ -45,7 +64,7 @@ has exactly one home: a named, doc-commented field on `domain.Application` (or `
 -- not a local variable computed ad hoc in a handler, not a string re-typed in a `.templ`. The
 full chain, worked example `HomeRoute`:
 
-1. `metadata/app.yaml` declares it (`home_card: true` on a navigation item).
+1. An Application's own file declares it (`home_card: true` on a navigation item).
 2. `internal/metadata.LoadApplication` resolves it once, at load time, into a field on
    `domain.Application` (`HomeRoute`) -- doc-commented with where its value comes from and any
    ordering subtlety (here: resolved *before* `hidden_nav_groups` filtering, the same reason
@@ -150,7 +169,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 
 - `TestPlaneBoundaries` / `TestEveryPackageHasARule` — import-boundary obligations per package.
 - `TestHandlersStaySmall` — the `internal/web` handler-size budget.
-- `TestAppManifestLoads` — `metadata/app.yaml` parses and validates.
+- `TestAppManifestLoads` — `metadata/workspaces/default.yaml` parses and validates.
 - `TestNavigationRoutesAreRegistered` — every declared `navigation:` route has a real
   `internal/web/router.go` handler.
 - `TestRenderingHasNoHardcodedApplicationRoute` / `TestHandlersHaveNoHardcodedApplicationRoute` —

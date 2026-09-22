@@ -5,10 +5,10 @@ package rendering
 // (Phase 13), grouped by day instead of a flat top-10 list -- a different shape over the same
 // already-built data, not a new event mechanism.
 templ ActivityPage(today, yesterday, older []ActivityEntry, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_activity"), workspaceName, viewer, switchWorkspaceHref) {
+	@appShell(labelByID(ctx, "nav_activity"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-2">
 			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
-			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_activity") }</h1>
+			<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_activity") }</h1>
 			<div class="text-sm text-slate-500">A cross-project feed of business events.</div>
 		</div>
 		@activityGroup("Today", today)

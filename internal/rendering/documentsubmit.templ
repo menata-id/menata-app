@@ -33,8 +33,8 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 	// §12.3 ActionBar). activeNavID is "" -- this screen is a sub-page of the Approval Inbox, the
 	// same way Edit member is one of Workspace Members.
 	@appShell("New Document", workspaceName, viewer, switchWorkspaceHref) {
-		<a href={ templ.SafeURL(routeByID("nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">
-			← { labelByID("nav_approval_inbox") }
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">
+			← { labelByID(ctx, "nav_approval_inbox") }
 		</a>
 		<div class="flex flex-col gap-2">
 			<span class="text-3xs tracking-wide text-blue-600 uppercase">Step 1 of 2</span>

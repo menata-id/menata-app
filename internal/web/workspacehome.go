@@ -26,9 +26,10 @@ import (
 // `applications:` a real list, rendering a single card would be showing stale data, not a
 // deferred port. What is still deferred to Fase 3c is the *board's* card face (icon, description,
 // record count) and the per-Application role rows -- see ROADMAP.md's deferral table.
-func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, ws domain.Workspace, cfg config.Config) http.HandlerFunc {
+func showWorkspaceHome(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 

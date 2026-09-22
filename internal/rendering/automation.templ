@@ -15,7 +15,7 @@ type AutomationRule struct {
 
 templ AutomationPage(rules []AutomationRule, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	// Title kept as the mockup's own "Workflow Automation" (project-automation.html) rather than
-	// labelByID("nav_automation")'s plain "Automation" -- unchanged from pageShell's own call here,
+	// labelByID(ctx, "nav_automation")'s plain "Automation" -- unchanged from pageShell's own call here,
 	// a page-local heading distinct from its nav label, not a metadata-hardcoding violation (the
 	// declared label still governs the menu entry pointing at this route).
 	@appShell("Workflow Automation", workspaceName, viewer, switchWorkspaceHref) {

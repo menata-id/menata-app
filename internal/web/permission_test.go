@@ -10,6 +10,7 @@ import (
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
 	"menata.app/internal/data"
+	"menata.app/internal/rendering"
 )
 
 // putRecordAs PUTs a form-encoded update to machineID/id, as actorID, through the real
@@ -23,7 +24,7 @@ func putRecordAs(t *testing.T, s decideStepTestSetup, machineID, id, actorID str
 	}
 	req := httptest.NewRequest(http.MethodPut, "/machines/"+machineID+"/records/"+id, strings.NewReader(strings.Join(values, "&")))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(data.WithWorkspaceScope(req.Context(), s.workspaceID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace"))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, actorID, 0)})
 
 	r := chi.NewRouter()
@@ -37,7 +38,7 @@ func putRecordAs(t *testing.T, s decideStepTestSetup, machineID, id, actorID str
 func deleteRecordAs(t *testing.T, s decideStepTestSetup, machineID, id, actorID string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodDelete, "/machines/"+machineID+"/records/"+id, nil)
-	req = req.WithContext(data.WithWorkspaceScope(req.Context(), s.workspaceID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace"))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, actorID, 0)})
 
 	r := chi.NewRouter()

@@ -9,14 +9,17 @@ import (
 	"menata.app/internal/domain"
 )
 
-func submitNavFixture(t *testing.T) {
+// submitNavFixture returns a ctx carrying the navigation this page resolves its links through.
+// It used to set package state (ConfigureWorkspace) and restore it in a Cleanup; since 2026-09-22
+// the installed Workspace is per-request, so a fixture hands back a ctx instead of mutating a
+// global -- which also means these tests no longer have to be careful about running in parallel.
+func submitNavFixture(t *testing.T) context.Context {
 	t.Helper()
-	t.Cleanup(func() { ConfigureWorkspace(domain.Workspace{}) })
-	ConfigureWorkspace(domain.Workspace{Navigation: []domain.NavigationItem{
+	return WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: []domain.NavigationItem{
 		{ID: "nav_home", Label: "Home", Route: "/home"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
 		{ID: "nav_new_approval", Label: "New Approval", Route: "/documents/new"},
-	}})
+	}}, "Test Workspace")
 }
 
 // modeField and documentTypeField are the two mch_document Fields the wizard renders options from.
@@ -34,13 +37,13 @@ func documentTypeField() domain.Field {
 
 func renderSubmitPage(t *testing.T) string {
 	t.Helper()
-	submitNavFixture(t)
+	ctx := submitNavFixture(t)
 	approvers := RelationOptions{domain.UserMachineID: {{ID: "usr_rina", Label: "Rina Nur"}}}
 	groups := GroupOptions{{ID: "grp_legal", Label: "Legal Group"}}
 
 	var buf bytes.Buffer
 	c := DocumentSubmitPage(documentTypeField(), modeField(), approvers, groups, "Dokter Kecil", Viewer{Initials: "AP"}, "")
-	if err := c.Render(context.Background(), &buf); err != nil {
+	if err := c.Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return buf.String()

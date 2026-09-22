@@ -31,10 +31,10 @@ func (s SprintSummary) CompletionPercent() int {
 // composability audit found this list re-implementing taskRowList's markup by hand and silently
 // dropping its status badge).
 templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_sprint"), workspaceName, viewer, switchWorkspaceHref) {
+	@appShell(labelByID(ctx, "nav_sprint"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-2">
 			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
-			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_sprint") }</h1>
+			<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_sprint") }</h1>
 			<div class="text-sm text-slate-500">A composed analytics view over real Task data -- no fabricated points or burndown.</div>
 		</div>
 
@@ -46,7 +46,7 @@ templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, atte
 		})
 
 		<section class="rounded-lg border border-slate-200 bg-white p-4">
-			@sectionHeaderRow("Workload", routeByID("nav_team_capacity"), "Full team capacity →")
+			@sectionHeaderRow("Workload", routeByID(ctx, "nav_team_capacity"), "Full team capacity →")
 			if len(workload) == 0 {
 				<p class="m-0 text-sm text-slate-500">No members yet.</p>
 			} else {

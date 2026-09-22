@@ -12,6 +12,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/mail"
+	"menata.app/internal/rendering"
 )
 
 // inviteRoleWorkspace is a Workspace with one Application declaring the role these invites assign.
@@ -44,12 +45,12 @@ func TestSubmitInviteMember_recordsInvitationWithoutMembership(t *testing.T) {
 	}
 	cleanupAuthTest(t, pool, ws.ID, email)
 
-	handler := submitInviteMember(store, mail.LogMailer{}, cfg, inviteRoleWorkspace())
+	handler := submitInviteMember(store, mail.LogMailer{}, cfg)
 	form := strings.NewReader("email=" + email + "&" +
 		url.QueryEscape("app_role[app_document_approval]") + "=approver")
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(data.WithWorkspaceScope(ctx, ws.ID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace"))
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)
@@ -104,10 +105,10 @@ func TestSubmitInviteMember_missingEmailIsRejected(t *testing.T) {
 	}
 	cleanupAuthTest(t, pool, ws.ID, email)
 
-	handler := submitInviteMember(store, mail.LogMailer{}, cfg, domain.Workspace{})
+	handler := submitInviteMember(store, mail.LogMailer{}, cfg)
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", strings.NewReader("email="))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(data.WithWorkspaceScope(ctx, ws.ID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace"))
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)
@@ -149,10 +150,10 @@ func TestSubmitInviteMember_existingMemberIsRejected(t *testing.T) {
 		t.Fatalf("AddMember: %v", err)
 	}
 
-	handler := submitInviteMember(store, mail.LogMailer{}, cfg, domain.Workspace{})
+	handler := submitInviteMember(store, mail.LogMailer{}, cfg)
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", strings.NewReader("email="+email))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(data.WithWorkspaceScope(ctx, ws.ID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace"))
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)

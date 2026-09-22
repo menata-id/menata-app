@@ -98,11 +98,10 @@ func TestRecordDetailView_noLongerCarriesTheDecisionBar(t *testing.T) {
 // which the per-component tests above cannot. It asserts the elements a reviewer actually needs to
 // see rather than exact markup, so restyling the board does not break it.
 func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
-	t.Cleanup(func() { ConfigureWorkspace(domain.Workspace{}) })
-	ConfigureWorkspace(domain.Workspace{Navigation: []domain.NavigationItem{
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: []domain.NavigationItem{
 		{ID: "nav_home", Label: "Home", Route: "/home"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
-	}})
+	}}, "Test Workspace")
 
 	v := ReviewView{
 		StepID: "stp_2", DocumentID: "doc_1",
@@ -121,7 +120,7 @@ func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := ReviewDocumentPage(v, "Dokter Kecil", Viewer{Initials: "AP"}, "").Render(context.Background(), &buf); err != nil {
+	if err := ReviewDocumentPage(v, "Dokter Kecil", Viewer{Initials: "AP"}, "").Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := buf.String()
@@ -143,7 +142,7 @@ func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
 	// A step with no placement renders the prompt instead of an <img> with an empty src.
 	v.Placement = nil
 	buf.Reset()
-	if err := ReviewDocumentPage(v, "Dokter Kecil", Viewer{Initials: "AP"}, "").Render(context.Background(), &buf); err != nil {
+	if err := ReviewDocumentPage(v, "Dokter Kecil", Viewer{Initials: "AP"}, "").Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() without a placement error = %v", err)
 	}
 	if !strings.Contains(buf.String(), "haven't placed your signature") {

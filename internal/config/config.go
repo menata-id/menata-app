@@ -49,7 +49,7 @@ func Load() Config {
 	return Config{
 		Port:          port,
 		DatabaseURL:   getenv("DATABASE_URL", ""),
-		MetadataPath:  getenv("METADATA_PATH", "metadata/app.yaml"),
+		MetadataPath:  getenv("METADATA_PATH", "metadata/workspaces"),
 		AdminUsername: getenv("ADMIN_USERNAME", ""),
 		AdminPassword: getenv("ADMIN_PASSWORD", ""),
 		SessionSecret: getenv("SESSION_SECRET", ""),

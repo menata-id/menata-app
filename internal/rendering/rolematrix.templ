@@ -80,7 +80,7 @@ type RoleMatrixNote struct {
 // discover, no Application that quietly has no tab, and the Workspace/Application split is
 // visible without interacting with anything.
 templ RoleMatrixPage(v RoleMatrixView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_role_matrix"), workspaceName, viewer, switchWorkspaceHref) {
+	@appShell(labelByID(ctx, "nav_role_matrix"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex max-w-[760px] flex-col gap-2">
 			<h1 class="m-0 text-xl font-medium">Who can do what</h1>
 			<p class="m-0 text-sm leading-6 text-slate-500">

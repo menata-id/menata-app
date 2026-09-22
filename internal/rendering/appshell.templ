@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"time"
@@ -13,11 +14,11 @@ import (
 // back to Workspace Home exactly the way internal/web.applicationCards does for the Workspace
 // Home grid -- the two card faces should never disagree about where an Application with no
 // home_card item goes.
-func launcherAppHomeRoute(app domain.Application) string {
+func launcherAppHomeRoute(ctx context.Context, app domain.Application) string {
 	if app.HomeRoute != "" {
 		return app.HomeRoute
 	}
-	return routeByID("nav_home")
+	return routeByID(ctx, "nav_home")
 }
 
 // headMeta is the <head> content shared by every Tailwind-styled page -- the pre-auth screens
@@ -105,11 +106,11 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			{{ hasAppMenu := inApp && len(menu) > 0 }}
 			<header class="flex flex-col border-b border-slate-200 bg-white">
 				<div class="flex h-15 shrink-0 items-center gap-2.5 px-4 sm:pr-7 sm:pl-9">
-					@appLauncher(switchWorkspaceHref)
+					@appLauncher(workspaceName, switchWorkspaceHref)
 					<nav aria-label="Breadcrumb" class="min-w-0 truncate text-sm text-slate-400">
 						// "/home" is a runtime-level route -- it exists regardless of which Application is
 						// configured (internal/conformance's runtimeLevelRoutes), the same literal
-						// workspaceHomeShell used before this. Not routeByID("nav_home"), which would panic
+						// workspaceHomeShell used before this. Not routeByID(ctx, "nav_home"), which would panic
 						// if an Application ever declared no home item.
 						<a href="/home" class="font-medium text-slate-900 hover:underline">{ workspaceName }</a>
 						{ " / " }
@@ -298,7 +299,7 @@ templ accountMenu(viewer Viewer) {
 // parts, top to bottom:
 //
 //  1. A header row -- "WORKSPACE" eyebrow + the Workspace's own name, linking to Workspace Home
-//     (routeByID("nav_home"), not the literal appShell's breadcrumb uses, since a missing
+//     (routeByID(ctx, "nav_home"), not the literal appShell's breadcrumb uses, since a missing
 //     nav_home item should panic here exactly as it would for any other lookup) -- what nav_home
 //     used to be as a flat item, promoted to the panel's own title, the same role it already
 //     plays on Workspace Home itself (workspacehome.templ's "WORKSPACE" eyebrow + <h1>).
@@ -322,7 +323,7 @@ templ accountMenu(viewer Viewer) {
 //
 // <details> rather than JavaScript, matching the details.nav-group dropdown pageShell already
 // uses.
-templ appLauncher(switchWorkspaceHref string) {
+templ appLauncher(workspaceName, switchWorkspaceHref string) {
 	<details class="relative shrink-0">
 		<summary class="flex size-7 cursor-pointer list-none items-center justify-center text-slate-500 [&::-webkit-details-marker]:hidden" aria-label="Open app launcher">
 			<svg width="16" height="16" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
@@ -338,11 +339,11 @@ templ appLauncher(switchWorkspaceHref string) {
 			</svg>
 		</summary>
 		<div class="absolute top-9 left-0 z-40 w-72 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-			<a href={ templ.SafeURL(routeByID("nav_home")) } class="mb-1 flex flex-col gap-0.5 rounded-md p-2 hover:bg-slate-50">
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class="mb-1 flex flex-col gap-0.5 rounded-md p-2 hover:bg-slate-50">
 				<span class="text-3xs font-medium tracking-wide text-blue-600 uppercase">Workspace</span>
-				<span class="text-sm font-medium text-slate-900">{ workspace.Name }</span>
+				<span class="text-sm font-medium text-slate-900">{ workspaceName }</span>
 			</a>
-			for _, app := range workspace.Applications {
+			for _, app := range CurrentWorkspace(ctx).Applications {
 				@launcherAppCard(app)
 			}
 			if switchWorkspaceHref != "" {
@@ -357,7 +358,7 @@ templ appLauncher(switchWorkspaceHref string) {
 // appIconClasses (workspacehome.templ) so an Application's icon tile matches its own Workspace
 // Home card exactly.
 templ launcherAppCard(app domain.Application) {
-	<a href={ templ.SafeURL(launcherAppHomeRoute(app)) } class="flex items-start gap-3 rounded-md p-2 hover:bg-slate-50">
+	<a href={ templ.SafeURL(launcherAppHomeRoute(ctx, app)) } class="flex items-start gap-3 rounded-md p-2 hover:bg-slate-50">
 		<span class={ "flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-medium", appIconClasses(app.Color) }>
 			{ app.Icon }
 		</span>

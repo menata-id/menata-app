@@ -26,14 +26,13 @@ func workspaceHomeLinksTo(t *testing.T, workspaceRole, route string) bool {
 		{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
 	}
-	t.Cleanup(func() { ConfigureWorkspace(domain.Workspace{}) })
-	ConfigureWorkspace(domain.Workspace{Navigation: all})
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: all}, "Test Workspace")
 
 	var buf bytes.Buffer
 	c := WorkspaceHomePage("Acme", workspaceRole, Viewer{Initials: "AN"}, "", []ApplicationCard{
 		{Name: "Task Tracker", Initials: "TT", Role: "member", HomeRoute: "/approval-inbox"},
 	})
-	if err := c.Render(context.Background(), &buf); err != nil {
+	if err := c.Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return strings.Contains(buf.String(), `href="`+route+`"`)

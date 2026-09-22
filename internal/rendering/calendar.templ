@@ -14,10 +14,10 @@ type CalendarDay struct {
 // the Dashboard, reusing the board-column CSS shape already built for the Task board Layout
 // rather than inventing new grid CSS.
 templ CalendarPage(days []CalendarDay, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_calendar"), workspaceName, viewer, switchWorkspaceHref) {
+	@appShell(labelByID(ctx, "nav_calendar"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-2">
 			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
-			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_calendar") }</h1>
+			<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_calendar") }</h1>
 			<div class="text-sm text-slate-500">Tasks due this week, across all Projects.</div>
 		</div>
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-7">

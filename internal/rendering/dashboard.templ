@@ -39,10 +39,10 @@ type ActivityEntry struct {
 // whole-machine queries stay correct and cheap regardless of record counts, so this page does
 // not, on its own, force Phase 6 even with four sections composed.
 templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []*data.Record, activity []ActivityEntry, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	@appShell(labelByID("nav_dashboard"), workspaceName, viewer, switchWorkspaceHref) {
+	@appShell(labelByID(ctx, "nav_dashboard"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-2">
 			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
-			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_dashboard") }</h1>
+			<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_dashboard") }</h1>
 		</div>
 
 		<section class="rounded-lg border border-slate-200 bg-white p-4">
@@ -110,7 +110,7 @@ templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []
 		</section>
 
 		<section class="rounded-lg border border-slate-200 bg-white p-4">
-			@sectionHeaderRow("Recent Activity", routeByID("nav_activity"), "View all →")
+			@sectionHeaderRow("Recent Activity", routeByID(ctx, "nav_activity"), "View all →")
 			if len(activity) == 0 {
 				<p class="m-0 mt-3 text-sm text-slate-500">No activity yet.</p>
 			} else {

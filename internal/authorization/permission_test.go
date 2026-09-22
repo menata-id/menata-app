@@ -198,7 +198,7 @@ func TestActor_zeroValueIsInNoGroup(t *testing.T) {
 // invisible to the whole suite until someone read the metadata.
 func realStepMachine(t *testing.T) *domain.Machine {
 	t.Helper()
-	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "app.yaml"))
+	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "workspaces", "default.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication: %v", err)
 	}
@@ -348,7 +348,7 @@ func TestAllowsAction_reviewerMayNotDecide(t *testing.T) {
 // carries it. A reviewer holding a real role in this Application still may not create a Document,
 // even one naming themselves -- which is the arm that would otherwise let them through.
 func TestDocumentCreateExcludesReviewer(t *testing.T) {
-	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "app.yaml"))
+	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "workspaces", "default.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication: %v", err)
 	}

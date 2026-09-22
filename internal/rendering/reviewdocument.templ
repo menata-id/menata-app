@@ -92,8 +92,8 @@ type ReviewPlacement struct {
 // Fase 6c. A Document submitted today therefore reads exactly as it did before.
 templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(v.Title, workspaceName, viewer, switchWorkspaceHref) {
-		<a href={ templ.SafeURL(routeByID("nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">
-			← { labelByID("nav_approval_inbox") }
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">
+			← { labelByID(ctx, "nav_approval_inbox") }
 		</a>
 		<div class="flex flex-col gap-2">
 			<div class="flex flex-wrap items-center gap-2">

@@ -22,12 +22,12 @@ import (
 // these tests are what actually holds it, the same posture boundary_test.go and
 // handlersize_test.go already take for the plane-boundary and handler-size obligations.
 
-// TestAppManifestLoads is a fast, no-database sanity check that metadata/app.yaml -- the real
+// TestAppManifestLoads is a fast, no-database sanity check that metadata/workspaces/default.yaml -- the real
 // manifest this runtime ships, not a synthetic fixture -- still parses and validates. A metadata
 // typo otherwise surfaces only when someone starts the server; this catches it at `go test` time,
 // cheap enough to run on every commit.
 func TestAppManifestLoads(t *testing.T) {
-	path := filepath.Join(repoRoot(), "metadata", "app.yaml")
+	path := filepath.Join(repoRoot(), "metadata", "workspaces", "default.yaml")
 	if _, err := metadata.LoadApplication(path); err != nil {
 		t.Fatalf("LoadApplication(%s) = %v, want a valid manifest", path, err)
 	}
@@ -47,7 +47,7 @@ func TestAppManifestLoads(t *testing.T) {
 // with show_nav: false still owns its routes and labels, so both gates must still cover them.
 func declaredNavItems(t *testing.T) []domain.NavigationItem {
 	t.Helper()
-	path := filepath.Join(repoRoot(), "metadata", "app.yaml")
+	path := filepath.Join(repoRoot(), "metadata", "workspaces", "default.yaml")
 	app, err := metadata.LoadApplication(path)
 	if err != nil {
 		t.Fatalf("LoadApplication(%s): %v", path, err)
@@ -77,7 +77,7 @@ var chiGetCall = regexp.MustCompile(`\.Get\(\s*"([^"]+)"`)
 
 // TestNavigationRoutesAreRegistered closes the gap domain.NavigationItem's own doc comment names:
 // "Route existence is therefore not cross-checked against anything at load time... routes are a
-// runtime/internal/web concern, not a metadata one." metadata/app.yaml can declare a route no
+// runtime/internal/web concern, not a metadata one." metadata/workspaces/default.yaml can declare a route no
 // handler ever serves, and nothing fails until someone actually clicks it -- this makes that fail
 // at commit time instead. An exact-string match on purpose (not a chi-pattern match against
 // path-parameter segments like {id}): no navigation route declared today has one, and a future
@@ -100,7 +100,7 @@ func TestNavigationRoutesAreRegistered(t *testing.T) {
 		// the handler's input, not a second registration. A route whose *path* has no handler still
 		// fails exactly as before.
 		if path, _, _ := strings.Cut(route, "?"); !registered[path] {
-			t.Errorf("metadata/app.yaml declares navigation route %q, but internal/web/router.go registers no GET handler for path %q", route, path)
+			t.Errorf("metadata/workspaces/default.yaml declares navigation route %q, but internal/web/router.go registers no GET handler for path %q", route, path)
 		}
 	}
 }
@@ -157,7 +157,7 @@ var runtimeLevelRoutes = map[string]bool{
 var templHref = regexp.MustCompile(`href="(/[^"{]*)"`)
 
 // TestRenderingHasNoHardcodedApplicationRoute is the gate: no internal/rendering/*.templ file may
-// contain a literal href equal to a metadata/app.yaml navigation route, unless that route is
+// contain a literal href equal to a metadata/workspaces/default.yaml navigation route, unless that route is
 // runtime-level (runtimeLevelRoutes) -- an Application's own route must come from routeByID or an
 // equivalent Go value, never a retyped literal, so it follows metadata instead of silently going
 // stale next to it. Universal across every .templ file on purpose: an earlier version of this
@@ -190,7 +190,7 @@ func TestRenderingHasNoHardcodedApplicationRoute(t *testing.T) {
 		}
 		for _, m := range templHref.FindAllStringSubmatch(string(src), -1) {
 			if navRoutes[m[1]] {
-				t.Errorf("%s hardcodes href=%q, a route metadata/app.yaml already declares -- link to it with routeByID(...) instead", path, m[1])
+				t.Errorf("%s hardcodes href=%q, a route metadata/workspaces/default.yaml already declares -- link to it with routeByID(...) instead", path, m[1])
 			}
 		}
 	}
@@ -251,7 +251,7 @@ var applicationSubScreens = map[string]string{
 
 var undeclaredScreenRatchet = map[string]string{
 	// Empty since Fase 6a, and that is the intended end state rather than a gap: /workspace-groups
-	// was this list's only entry, and declaring nav_workspace_groups (metadata/app.yaml) closed it
+	// was this list's only entry, and declaring nav_workspace_groups (metadata/workspaces/default.yaml) closed it
 	// along with the viewer-level hiding that made declaring it safe. The map stays so the gate
 	// keeps its shape -- a future undeclared screen gets frozen here rather than failing a build
 	// mid-port -- but per the ratchet rule it may only shrink, so nothing should ever be added
@@ -349,7 +349,7 @@ func TestHandlersHaveNoHardcodedApplicationRoute(t *testing.T) {
 				return true
 			}
 			if navRoutes[value] {
-				t.Errorf("%s hardcodes %q, a route metadata/app.yaml already declares -- it must come from a domain.Application field threaded through web.Deps, not be retyped here", fset.Position(lit.Pos()), value)
+				t.Errorf("%s hardcodes %q, a route metadata/workspaces/default.yaml already declares -- it must come from a domain.Application field threaded through web.Deps, not be retyped here", fset.Position(lit.Pos()), value)
 			}
 			return true
 		})
@@ -374,7 +374,7 @@ var templPageShellTitle = regexp.MustCompile(`pageShell\(\s*"([^"]*)"`)
 // templTagText matches a run of Title-Case words between two tags -- `<h1>Approval Inbox</h1>`,
 // `← Approval Inbox` inside an `<a>`, a card's plain-text body -- covering the rendered-text shape
 // pageShell's title argument doesn't (workspacehome.templ's card subtitle, detail.templ's back
-// link). Every declared label in metadata/app.yaml today is itself a Title-Case phrase, so this is
+// link). Every declared label in metadata/workspaces/default.yaml today is itself a Title-Case phrase, so this is
 // scoped to that shape rather than matching arbitrary text -- exactly the same "match the specific
 // shape that's actually at risk" posture templHref already takes for hrefs, not a blanket
 // substring search (which false-positives on prose, per capabilities.md's own
@@ -384,7 +384,7 @@ var templTagText = regexp.MustCompile(`>[^<{]*?([A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]
 // TestRenderingHasNoHardcodedApplicationLabel is TestRenderingHasNoHardcodedApplicationRoute's
 // label-side counterpart: no internal/rendering/*.templ file may render a metadata-declared
 // navigation label as a literal -- it must come from rendering.labelByID(id) instead, so a label
-// edit in metadata/app.yaml can't go stale next to a page that still shows the old wording. Found
+// edit in metadata/workspaces/default.yaml can't go stale next to a page that still shows the old wording. Found
 // three real instances before this test existed (label text sitting on the very same line as an
 // already-correct routeByID href): approvalinbox.templ and documentsubmit.templ's own pageShell
 // title + <h1>, and workspacehome.templ's "Approval Inbox" card subtitle -- all three fixed via
@@ -418,7 +418,7 @@ func TestRenderingHasNoHardcodedApplicationLabel(t *testing.T) {
 		}
 		for literal := range found {
 			if navLabels[literal] {
-				t.Errorf("%s hardcodes %q, a label metadata/app.yaml already declares -- render it with labelByID(...) instead", path, literal)
+				t.Errorf("%s hardcodes %q, a label metadata/workspaces/default.yaml already declares -- render it with labelByID(...) instead", path, literal)
 			}
 		}
 	}
@@ -458,7 +458,7 @@ func TestHandlersHaveNoHardcodedApplicationLabel(t *testing.T) {
 				return true
 			}
 			if navLabels[value] {
-				t.Errorf("%s hardcodes %q, a label metadata/app.yaml already declares -- it must come from a domain.Application field or rendering.labelByID, not be retyped here", fset.Position(lit.Pos()), value)
+				t.Errorf("%s hardcodes %q, a label metadata/workspaces/default.yaml already declares -- it must come from a domain.Application field or rendering.labelByID, not be retyped here", fset.Position(lit.Pos()), value)
 			}
 			return true
 		})
@@ -735,7 +735,7 @@ func TestCapabilitiesComponentsTableCitesPromotionGuide(t *testing.T) {
 // route conformance gates ran against an empty list while reporting `ok`, and how Projection sat
 // wired end to end with zero declarations. The capability is only real if the metadata says so.
 func TestDynamicActorGateIsDeclaredAndResolvable(t *testing.T) {
-	app, err := metadata.LoadApplication(filepath.Join(repoRoot(), "metadata", "app.yaml"))
+	app, err := metadata.LoadApplication(filepath.Join(repoRoot(), "metadata", "workspaces", "default.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication: %v", err)
 	}
@@ -867,7 +867,7 @@ func TestDocumentStatusIsDerivedNotSettable(t *testing.T) {
 // may decide, whatever role they hold -- with every unit test still green, because the unit tests
 // build their own Permissions. Only the real manifest can answer whether the rule is live.
 func TestApprovalStepPermissionsCarryRoles(t *testing.T) {
-	app, err := metadata.LoadApplication(filepath.Join(repoRoot(), "metadata", "app.yaml"))
+	app, err := metadata.LoadApplication(filepath.Join(repoRoot(), "metadata", "workspaces", "default.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication: %v", err)
 	}
@@ -910,7 +910,7 @@ func TestApprovalStepPermissionsCarryRoles(t *testing.T) {
 // Load so ApplicationID is stamped, which the role checks above depend on.
 func machineFromManifest(t *testing.T, id string) *domain.Machine {
 	t.Helper()
-	app, err := metadata.LoadApplication(filepath.Join(repoRoot(), "metadata", "app.yaml"))
+	app, err := metadata.LoadApplication(filepath.Join(repoRoot(), "metadata", "workspaces", "default.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication: %v", err)
 	}

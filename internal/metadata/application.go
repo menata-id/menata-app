@@ -15,7 +15,11 @@ import (
 )
 
 var (
-	workspaceIDPattern   = regexp.MustCompile(`^ws_[a-z][a-z0-9_]*$`)
+	// workspaceSlugPattern is the manifest's own key: the slug of the Workspace it installs into
+	// (metadata/workspaces/<slug>.yaml). Same shape internal/web.slugify produces when a Workspace
+	// is created -- lowercase alphanumerics joined by single hyphens -- so a manifest can only
+	// name a Workspace that could actually exist.
+	workspaceSlugPattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 	applicationIDPattern = regexp.MustCompile(`^app_[a-z][a-z0-9_]*$`)
 )
 
@@ -29,17 +33,32 @@ type App struct {
 	Machines  []*domain.Machine
 }
 
-type appDoc struct {
-	Workspace struct {
-		ID         string       `yaml:"id"`
-		Name       string       `yaml:"name"`
-		Machines   []string     `yaml:"machines"`
-		Navigation []navItemDoc `yaml:"navigation"`
-	} `yaml:"workspace"`
-	// Applications are file paths, resolved relative to this manifest -- the same shape machines:
-	// has always had. One file per Application: a navigation block alone runs to ~40 lines, so
-	// inlining several would bury the Workspace identity, and it keeps one Application's menu
-	// changes off another's lines.
+// workspaceDoc is one Workspace's installation manifest: which Workspace it is for, which Machines
+// exist there, and which Applications are installed.
+//
+// Flat rather than nested under a `workspace:` block, which is what it was until 2026-09-22: that
+// block held the Workspace's own id and name, and neither belongs in a file any more (see
+// domain.Workspace.Slug). What is left is a single scalar naming the target, so a nesting level
+// that once carried four keys would now carry one.
+type workspaceDoc struct {
+	// Workspace is the target Workspace's slug -- see domain.Workspace.Slug.
+	Workspace string `yaml:"workspace"`
+	// Machines are file paths, resolved relative to this manifest. Workspace-level and unique by
+	// id: an Application *selects* from this set by id rather than owning files, because several
+	// Applications genuinely share one (mch_user, mch_activity).
+	Machines []string `yaml:"machines"`
+	// Navigation is the Workspace's own menu. Empty in every manifest today -- the owner removed
+	// it on 2026-09-21, since a Workspace's menu is derived from the Applications it contains --
+	// but the runtime still reads it first, so an installation that does declare one still wins.
+	Navigation []navItemDoc `yaml:"navigation"`
+	// Applications are file paths, resolved relative to this manifest. One file per Application:
+	// a navigation block alone runs to ~40 lines, so inlining several would bury the manifest's
+	// own point, and it keeps one Application's menu changes off another's lines.
+	//
+	// An Application file names no Workspace of its own: it is a reusable declaration, and several
+	// Workspaces may install the same one. Listing it here is what installs it -- and an empty
+	// list is a perfectly valid Workspace, which is exactly what one looks like the moment it is
+	// created through the UI.
 	Applications []string `yaml:"applications"`
 }
 
@@ -77,6 +96,59 @@ type navItemDoc struct {
 	Icon string `yaml:"icon"`
 }
 
+// Workspaces is every installed Workspace manifest, keyed by the slug it names. A Workspace whose
+// slug is absent from this map has no manifest, which is not an error: it has no Applications, no
+// Machines, and renders an empty Home -- exactly the state a Workspace is in the moment it is
+// created through the UI, before anyone installs anything into it.
+type Workspaces map[string]*App
+
+// LoadWorkspaces reads every Workspace manifest in dir, keyed by slug (2026-09-22).
+//
+// Scanning a directory, rather than reading an index file that lists the manifests, is what makes
+// installation a file operation: dropping <slug>.yaml in here installs its Applications into that
+// Workspace, and deleting it uninstalls them. An index would mean every install also edited a
+// second file, and a Workspace whose manifest existed but went unlisted would be invisible for a
+// reason nothing in its own file could explain.
+//
+// It replaced a single process-wide manifest. Until this, one file was loaded once at startup and
+// handed to every request, so every Workspace showed the same Applications no matter which one the
+// viewer was in -- a `workspaces` row scoped records and membership, but not what the Workspace
+// *was*. That gap is what the owner saw on Dokter Kecil's own Home page: a brand-new, empty
+// Workspace showing two Applications it had never installed.
+//
+// Two manifests naming the same slug is refused rather than resolved by filename order: both
+// would claim to be that Workspace's installation, and picking one silently would make the
+// Applications a Workspace has depend on how its files happen to sort.
+func LoadWorkspaces(dir string) (Workspaces, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("read workspace manifests %s: %w", dir, err)
+	}
+
+	loaded := Workspaces{}
+	from := map[string]string{}
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || (!strings.HasSuffix(name, ".yaml") && !strings.HasSuffix(name, ".yml")) {
+			continue
+		}
+		path := filepath.Join(dir, name)
+		app, err := LoadApplication(path)
+		if err != nil {
+			return nil, err
+		}
+		slug := app.Workspace.Slug
+		if earlier, taken := from[slug]; taken {
+			return nil, &ValidationError{Issues: []string{fmt.Sprintf(
+				"workspace %q is installed by two manifests (%s and %s) -- one Workspace has one installation",
+				slug, earlier, path)}}
+		}
+		from[slug] = path
+		loaded[slug] = app
+	}
+	return loaded, nil
+}
+
 // LoadApplication reads a Workspace manifest: its own Machine files and navigation, then every
 // Application file it references (all paths resolved relative to the manifest's own directory),
 // validating each in turn (005-runtime-lifecycle.md Phase 3-4: invalid metadata must not enter
@@ -90,26 +162,26 @@ func LoadApplication(path string) (*App, error) {
 		return nil, fmt.Errorf("read application manifest %s: %w", path, err)
 	}
 
-	var doc appDoc
+	var doc workspaceDoc
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("parse application manifest: %w", err)
+		return nil, fmt.Errorf("parse workspace manifest %s: %w", path, err)
 	}
 
 	var issues []string
-	if !workspaceIDPattern.MatchString(doc.Workspace.ID) {
-		issues = append(issues, fmt.Sprintf("workspace id %q must match %s", doc.Workspace.ID, workspaceIDPattern.String()))
+	if !workspaceSlugPattern.MatchString(doc.Workspace) {
+		issues = append(issues, fmt.Sprintf("workspace slug %q must match %s", doc.Workspace, workspaceSlugPattern.String()))
 	}
-	if len(doc.Workspace.Machines) == 0 {
-		issues = append(issues, fmt.Sprintf("workspace %q: at least one machine is required", doc.Workspace.ID))
+	if len(doc.Machines) == 0 {
+		issues = append(issues, fmt.Sprintf("workspace %q: at least one machine is required", doc.Workspace))
 	}
-	if len(doc.Applications) == 0 {
-		issues = append(issues, fmt.Sprintf("workspace %q: at least one application is required", doc.Workspace.ID))
-	}
+	// No "at least one application" check, deliberately, and this is the change that makes a
+	// Workspace installable rather than born fully formed: a Workspace with nothing installed is
+	// the normal state of one that was just created, not a broken manifest.
 	if len(issues) > 0 {
 		return nil, &ValidationError{Issues: issues}
 	}
 
-	workspaceNav := toNavigationItems(doc.Workspace.Navigation)
+	workspaceNav := toNavigationItems(doc.Navigation)
 	if navIssues := validateNavigation(workspaceNav); len(navIssues) > 0 {
 		return nil, &ValidationError{Issues: navIssues}
 	}
@@ -117,27 +189,27 @@ func LoadApplication(path string) (*App, error) {
 	dir := filepath.Dir(path)
 	app := &App{
 		Workspace: domain.Workspace{
-			ID:         doc.Workspace.ID,
-			Name:       doc.Workspace.Name,
+			Slug:       doc.Workspace,
 			Navigation: workspaceNav,
 		},
 	}
 
 	// Machines first, and once: every Application selects from this one set by id, so they must
 	// exist before any Application is resolved against them.
-	for _, rel := range doc.Workspace.Machines {
+	for _, rel := range doc.Machines {
 		m, err := Load(filepath.Join(dir, rel))
 		if err != nil {
-			return nil, fmt.Errorf("workspace %q: machine %s: %w", doc.Workspace.ID, rel, err)
+			return nil, fmt.Errorf("workspace %q: machine %s: %w", doc.Workspace, rel, err)
 		}
 		app.Machines = append(app.Machines, m)
+		app.Workspace.MachineIDs = append(app.Workspace.MachineIDs, m.ID)
 	}
 	if err := validateMachineIDsAreUnique(app.Machines); err != nil {
 		return nil, err
 	}
 
 	for _, rel := range doc.Applications {
-		application, err := loadApplicationFile(filepath.Join(dir, rel), doc.Workspace.ID)
+		application, err := loadApplicationFile(filepath.Join(dir, rel), doc.Workspace)
 		if err != nil {
 			return nil, err
 		}
@@ -181,7 +253,7 @@ func LoadApplication(path string) (*App, error) {
 }
 
 // loadApplicationFile reads and validates one Application's own file.
-func loadApplicationFile(path, workspaceID string) (*domain.Application, error) {
+func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read application %s: %w", path, err)
@@ -256,7 +328,7 @@ func loadApplicationFile(path, workspaceID string) (*domain.Application, error) 
 	return &domain.Application{
 		ID:              doc.ID,
 		Name:            doc.Name,
-		WorkspaceID:     workspaceID,
+		WorkspaceSlug:   workspaceSlug,
 		Machines:        doc.Machines,
 		Roles:           doc.Roles,
 		Description:     doc.Description,

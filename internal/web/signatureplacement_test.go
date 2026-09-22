@@ -16,6 +16,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/rendering"
 )
 
 // TestSignaturePlacementPut_preservesApproverFields is the test Fase 6c-2's doc comment claimed
@@ -80,7 +81,7 @@ func TestSignaturePlacementPut_preservesApproverFields(t *testing.T) {
 		t.Fatalf("SetGroupAppRole: %v", err)
 	}
 
-	machines := loadRealMachines(t)
+	machines, _ := loadRealMachines(t)
 	cfg := config.Config{SessionSecret: "test-secret-for-placement-put"}
 
 	// Exactly what a marker drag submits, and nothing else -- which is the point of the route it
@@ -100,7 +101,7 @@ func TestSignaturePlacementPut_preservesApproverFields(t *testing.T) {
 		strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, member.ID, 0)})
-	req = req.WithContext(wsCtx)
+	req = req.WithContext(rendering.WithCurrentWorkspace(wsCtx, testWorkspaceFor(machines), "Test Workspace"))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 

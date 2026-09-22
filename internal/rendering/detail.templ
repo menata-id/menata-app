@@ -54,7 +54,7 @@ templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOpti
 // real destination.
 templ detailBackLink(m *domain.Machine) {
 	if m.ID == action.DocumentMachineID || m.ID == action.StepMachineID {
-		<p><a href={ templ.SafeURL(routeByID("nav_approval_inbox")) }>← { labelByID("nav_approval_inbox") }</a></p>
+		<p><a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) }>← { labelByID(ctx, "nav_approval_inbox") }</a></p>
 	} else {
 		<p><a href={ templ.URL("/machines/" + m.ID) }>← { m.Name }</a></p>
 	}

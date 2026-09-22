@@ -13,9 +13,11 @@ import (
 )
 
 func listMachines(machines []*domain.Machine) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		writeJSON(w, machines)
+		// The JSON twin of All Machines, narrowed the same way: this Workspace's own Machines,
+		// not every Machine the process happens to have loaded.
+		writeJSON(w, installedMachines(req.Context(), machines))
 	}
 }
 

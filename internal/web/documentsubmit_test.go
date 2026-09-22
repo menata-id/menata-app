@@ -105,7 +105,7 @@ func TestSubmitDocumentWizard_writesBothApproverKinds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("storage.NewStore: %v", err)
 	}
-	machines := loadRealMachines(t)
+	machines, _ := loadRealMachines(t)
 
 	contentType, body := wizardForm(t, "Vendor Contract Q3", "Kontrak", "sequential", testPDF(t), []stepInput{
 		{name: "Finance Review", approverType: domain.ActorKindUser, assignee: rina.ID},
@@ -207,7 +207,7 @@ func TestSubmitDocumentWizard_rejectsAGroupRowWithNoGroup(t *testing.T) {
 	})
 
 	r := chi.NewRouter()
-	r.Post("/documents", submitDocumentWizard(loadRealMachines(t), store, files, config.Config{}))
+	r.Post("/documents", submitDocumentWizard(realMachines(t), store, files, config.Config{}))
 	req := httptest.NewRequest(http.MethodPost, "/documents", body)
 	req.Header.Set("Content-Type", contentType)
 	req = req.WithContext(wsCtx)

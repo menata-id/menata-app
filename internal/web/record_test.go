@@ -165,28 +165,26 @@ func TestHandleFileUploads_allowsRealPDF(t *testing.T) {
 	}
 }
 
-// loadRealMachines loads the app's own real metadata/app.yaml -- the same manifest cmd/server
+// loadRealMachines loads the app's own real metadata/workspaces/default.yaml -- the same manifest cmd/server
 // loads -- so a showRecordRow test exercises real Field/relation wiring (mch_approval_step's
 // fld_document relation back to mch_document, in particular) rather than a hand-rolled stand-in
-// that could silently drift from what ships. It also calls rendering.ConfigureWorkspace, the
-// same call internal/web.Routes makes in production (router.go) -- detailBackLink's own
-// routeByID("nav_approval_inbox") panics without it -- and resets that package-level state via
-// t.Cleanup, the same pattern internal/rendering/navigation_test.go already uses, so this test
-// doesn't leak navigation state into any other test in this package.
-func loadRealMachines(t *testing.T) map[string]*domain.Machine {
+// that could silently drift from what ships. It also returns the installed Workspace, which the
+// caller puts on the request ctx exactly as internal/web's currentWorkspace middleware does in
+// production -- detailBackLink's own routeByID(ctx, "nav_approval_inbox") resolves through it and
+// panics without it. Before 2026-09-22 this set package state and undid it in a Cleanup; a
+// per-request value needs neither.
+func loadRealMachines(t *testing.T) (map[string]*domain.Machine, domain.Workspace) {
 	t.Helper()
-	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "app.yaml"))
+	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "workspaces", "default.yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication: %v", err)
 	}
-	rendering.ConfigureWorkspace(app.Workspace)
-	t.Cleanup(func() { rendering.ConfigureWorkspace(domain.Workspace{}) })
 
 	machines := make(map[string]*domain.Machine, len(app.Machines))
 	for _, m := range app.Machines {
 		machines[m.ID] = m
 	}
-	return machines
+	return machines, app.Workspace
 }
 
 // TestShowRecordRow_documentDetailIncludesInlineSignaturePlacement is the Fase 0 regression test
@@ -235,12 +233,12 @@ func TestShowRecordRow_documentDetailIncludesInlineSignaturePlacement(t *testing
 		t.Fatalf("CreateRecord(step): %v", err)
 	}
 
-	machines := loadRealMachines(t)
+	machines, installed := loadRealMachines(t)
 	r := chi.NewRouter()
 	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, config.Config{}))
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, document.ID), nil)
-	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), ws.ID), installed, "Test Workspace"))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -282,12 +280,12 @@ func TestShowRecordRow_nonDocumentDetailHasNoSignaturePlacement(t *testing.T) {
 		t.Fatalf("CreateRecord(project): %v", err)
 	}
 
-	machines := loadRealMachines(t)
+	machines, installed := loadRealMachines(t)
 	r := chi.NewRouter()
 	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, config.Config{}))
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/machines/mch_project/records/%s", project.ID), nil)
-	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), ws.ID), installed, "Test Workspace"))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -297,4 +295,23 @@ func TestShowRecordRow_nonDocumentDetailHasNoSignaturePlacement(t *testing.T) {
 	if body := rec.Body.String(); strings.Contains(body, `id="sig-body"`) {
 		t.Errorf("mch_project's own detail page unexpectedly contains signaturePlacementBlock's #sig-body")
 	}
+}
+
+// realMachines is loadRealMachines for the callers that want only the Machine set -- they render
+// no page whose links resolve through navigation, so they need no Workspace on ctx.
+func realMachines(t *testing.T) map[string]*domain.Machine {
+	t.Helper()
+	machines, _ := loadRealMachines(t)
+	return machines
+}
+
+// testWorkspaceFor returns an installed Workspace carrying every Machine in machines, for tests
+// that exercise a handler directly rather than through the router's currentWorkspace middleware.
+// The narrowing itself is covered by its own tests; here it would only be scaffolding in the way.
+func testWorkspaceFor(machines map[string]*domain.Machine) domain.Workspace {
+	ws := domain.Workspace{Slug: "test"}
+	for id := range machines {
+		ws.MachineIDs = append(ws.MachineIDs, id)
+	}
+	return ws
 }

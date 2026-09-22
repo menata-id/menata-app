@@ -64,7 +64,7 @@ type PlacementStep struct {
 // What this DOES have that the board's footer does not spell out: a "Done" link (owner report,
 // 2026-09-21 -- landing here after submitting a Document left no way back to My Documents short of
 // the browser's own back button). It says "Done", not "Save", for the reason above, and its
-// destination is routeByID("nav_my_documents") rather than a retyped "/approval-inbox?tab=mine" --
+// destination is routeByID(ctx, "nav_my_documents") rather than a retyped "/approval-inbox?tab=mine" --
 // metadata/applications/document-approval.yaml already declares that route under nav_my_documents.
 //
 // What this has that the board does not: page navigation (the board shows only "Page 6 of 6"), a
@@ -117,7 +117,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 		</div>
 		<div class="flex justify-end">
 			<a
-				href={ templ.SafeURL(routeByID("nav_my_documents")) }
+				href={ templ.SafeURL(routeByID(ctx, "nav_my_documents")) }
 				class="flex h-9 items-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
 			>
 				Done →

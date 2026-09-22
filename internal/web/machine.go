@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 
@@ -15,8 +16,27 @@ import (
 
 func showMachineList(machines []*domain.Machine) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		render(req.Context(), w, rendering.MachineList(machines))
+		render(req.Context(), w, rendering.MachineList(installedMachines(req.Context(), machines)))
 	}
+}
+
+// installedMachines narrows the process-wide Machine list to the ones this request's Workspace
+// actually installed (2026-09-22). Declaration order is preserved: it filters the loaded slice
+// rather than rebuilding one from the id list, so a Workspace lists its Machines in the order its
+// own manifest names them.
+//
+// A Workspace with no manifest gets an empty list, which is the point -- before this it got every
+// Machine in the process, which is what made a freshly created Workspace look like it already had
+// an application's worth of data model in it.
+func installedMachines(ctx context.Context, machines []*domain.Machine) []*domain.Machine {
+	ws := rendering.CurrentWorkspace(ctx)
+	out := make([]*domain.Machine, 0, len(machines))
+	for _, m := range machines {
+		if ws.HasMachine(m.ID) {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 func showMachinePage(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
@@ -125,8 +145,15 @@ func resolveView(w http.ResponseWriter, machine *domain.Machine, req *http.Reque
 }
 
 func resolveMachine(w http.ResponseWriter, machines map[string]*domain.Machine, req *http.Request) (*domain.Machine, bool) {
-	m, ok := machines[chi.URLParam(req, "machineID")]
-	if !ok {
+	id := chi.URLParam(req, "machineID")
+	m, ok := machines[id]
+	// Installed here, not merely loaded by this process (2026-09-22). Machines are shared objects
+	// -- one file produces one object however many Workspaces install it -- so the map alone says
+	// only that *some* Workspace declared it. A Workspace that never installed it must not serve
+	// its pages: the records would be empty, since they are workspace-scoped, but an empty page
+	// for a Machine this Workspace does not have is a different claim from "unknown machine", and
+	// the second one is the true one.
+	if !ok || !rendering.CurrentWorkspace(req.Context()).HasMachine(id) {
 		http.Error(w, "unknown machine", http.StatusNotFound)
 		return nil, false
 	}

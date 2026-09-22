@@ -10,15 +10,15 @@ import (
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
-	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
 )
 
 // showGroups lists the Workspace's Groups (ROADMAP.md Case 03 Fase 4). Gated by
 // requireWorkspaceAdmin, like every other membership-administration route.
-func showGroups(store *data.Store, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
+func showGroups(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		groups, err := store.ListGroups(ctx, workspaceID)
 		if err != nil {
@@ -36,9 +36,10 @@ func showGroups(store *data.Store, cfg config.Config, ws domain.Workspace) http.
 	}
 }
 
-func showGroupDetail(store *data.Store, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
+func showGroupDetail(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		groupID := chi.URLParam(req, "groupID")
 
@@ -139,9 +140,10 @@ func submitGroupMembers(store *data.Store) http.HandlerFunc {
 // submitGroupRoles sets the Group's role in each Application, validated against that
 // Application's own declared roles: vocabulary by the same submittedAppRoles the member path
 // uses -- so an undeclared role is rejected here too, not only there.
-func submitGroupRoles(store *data.Store, ws domain.Workspace) http.HandlerFunc {
+func submitGroupRoles(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		groupID := chi.URLParam(req, "groupID")
 		if _, err := store.GetGroup(ctx, workspaceID, groupID); err != nil {

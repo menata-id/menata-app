@@ -29,9 +29,10 @@ import (
 // It reads metadata only. There is no store call for the matrix itself, which is the honest shape
 // of this screen: every fact it draws is declared, so nothing about it can differ between two
 // people looking at it, and composition.RoleMatrix is a pure function over the loaded Workspace.
-func showRoleMatrix(machineList []*domain.Machine, store *data.Store, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
+func showRoleMatrix(machineList []*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
 		chrome, err := resolveChrome(ctx, req, store, cfg)
 		if err != nil {
 			serverError(w, err)

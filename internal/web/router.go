@@ -10,7 +10,6 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/mail"
-	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
 
@@ -40,9 +39,9 @@ type Deps struct {
 	// value for the process any more. Which Application a given *request* is in is resolved per
 	// request by the currentApplication middleware and read back through
 	// rendering.CurrentApplication.
-	Workspace domain.Workspace
+	Workspaces map[string]domain.Workspace
 
-	// DefaultWorkspaceID is this manifest's own declared Workspace (metadata/app.yaml) --
+	// DefaultWorkspaceID is this manifest's own declared Workspace (the default Workspace row) --
 	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
 	// (ROADMAP.md Phase 21 Step 4).
 	DefaultWorkspaceID string
@@ -82,8 +81,6 @@ const (
 )
 
 func Routes(d Deps) http.Handler {
-	rendering.ConfigureWorkspace(d.Workspace)
-
 	r := chi.NewRouter()
 	r.Use(secureHeaders)
 	r.Use(csrfProtect(d.Cfg))
@@ -127,7 +124,10 @@ func Routes(d Deps) http.Handler {
 
 	r.Group(func(pr chi.Router) {
 		pr.Use(requireAuth(d.Store, d.DefaultWorkspaceID, d.Cfg))
-		pr.Use(currentApplication(d.Workspace))
+		// Workspace first, then Application: currentApplication reads the Workspace this
+		// resolves, and requireApplicationAccess reads the Application that resolves.
+		pr.Use(currentWorkspace(d.Store, d.Workspaces))
+		pr.Use(currentApplication())
 		// Immediately after, and never before: it reads the Application currentApplication just
 		// resolved. Every route inside an Application passes through both, which is what makes
 		// "no role here means no access" complete rather than a list of gated handlers.
@@ -143,7 +143,7 @@ func Routes(d Deps) http.Handler {
 		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Machines, d.Store, d.Cfg))
 
 		pr.Get("/", showMachineList(d.MachineList))
-		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.Workspace, d.Cfg))
+		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.Cfg))
 		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
 		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))
 		pr.Get("/create-workspace", showCreateWorkspace(d.Store, d.Cfg))
@@ -183,23 +183,23 @@ func Routes(d Deps) http.Handler {
 
 		pr.Group(func(ar chi.Router) {
 			ar.Use(requireWorkspaceAdmin(d.Store, d.Cfg))
-			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.Cfg, d.Workspace))
-			ar.Post("/workspace-members/invite", submitInviteMember(d.Store, d.Mailer, d.Cfg, d.Workspace))
+			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.Cfg))
+			ar.Post("/workspace-members/invite", submitInviteMember(d.Store, d.Mailer, d.Cfg))
 			ar.Post("/workspace-members/revoke-invite", submitRevokeInvite(d.Store))
-			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg, d.Workspace))
-			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store, d.Workspace))
+			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg))
+			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
 
 			// Groups (Case 03 Fase 4) -- membership administration, so the same requireWorkspaceAdmin
 			// gate as the member routes above.
 			// Board 06 (Case 03 Fase 7) -- the Workspace's access model read role-first, so the
 			// same administration gate as Members and Groups above.
-			ar.Get("/authorization-matrix", showRoleMatrix(d.MachineList, d.Store, d.Cfg, d.Workspace))
+			ar.Get("/authorization-matrix", showRoleMatrix(d.MachineList, d.Store, d.Cfg))
 
-			ar.Get("/workspace-groups", showGroups(d.Store, d.Cfg, d.Workspace))
+			ar.Get("/workspace-groups", showGroups(d.Store, d.Cfg))
 			ar.Post("/workspace-groups", submitCreateGroup(d.Store))
-			ar.Get("/workspace-groups/{groupID}", showGroupDetail(d.Store, d.Cfg, d.Workspace))
+			ar.Get("/workspace-groups/{groupID}", showGroupDetail(d.Store, d.Cfg))
 			ar.Post("/workspace-groups/{groupID}/members", submitGroupMembers(d.Store))
-			ar.Post("/workspace-groups/{groupID}/roles", submitGroupRoles(d.Store, d.Workspace))
+			ar.Post("/workspace-groups/{groupID}/roles", submitGroupRoles(d.Store))
 			ar.Post("/workspace-groups/{groupID}/delete", submitDeleteGroup(d.Store))
 		})
 

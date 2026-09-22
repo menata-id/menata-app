@@ -14,19 +14,43 @@ import (
 	"menata.app/internal/storage"
 )
 
-// workspace is the loaded Workspace -- its own navigation plus every Application declared inside
-// it -- set once at startup by ConfigureWorkspace. It is boot-time-static, identical on every
-// request for the process's whole lifetime, so it is package state rather than a parameter
-// threaded through pageShell's ~20 callers, the same posture ROADMAP.md Phase 21 round 2 Step J
-// already chose for the pending-approval badge. Nothing here varies per request; *which*
-// Application a given request is in does, and that travels on ctx instead (CurrentApplication).
-var workspace domain.Workspace
+// currentWorkspaceKey carries the installed Workspace, and its display name, for one request.
+//
+// This was package state until 2026-09-22 -- one `workspace` variable set once at startup by a
+// `ConfigureWorkspace` whose own comment conceded it was "not safe to call concurrently with a
+// request in flight". That was true while one manifest described the whole process, and it is
+// exactly what made every Workspace render the same Applications: a Workspace row scoped records
+// and membership, but the Applications came from a file the process had loaded once. An empty,
+// freshly created Workspace therefore showed two Applications nobody had installed in it.
+//
+// Which Workspace a request is in now varies per request, the same way *which Application* already
+// did, so it travels the same way: on ctx, set by internal/web.currentWorkspace.
+type currentWorkspaceKey struct{}
 
-// ConfigureWorkspace sets the loaded Workspace. Called exactly once, in cmd/server/main.go,
-// immediately after metadata.LoadApplication and before the server starts serving -- not safe to
-// call concurrently with a request in flight.
-func ConfigureWorkspace(ws domain.Workspace) {
-	workspace = ws
+type currentWorkspace struct {
+	Workspace domain.Workspace
+	Name      string
+}
+
+// WithCurrentWorkspace puts the installed Workspace and its display name on ctx. name comes from
+// the `workspaces` row, not from metadata: a manifest names its Workspace by slug and deliberately
+// does not restate the name (domain.Workspace.Slug).
+func WithCurrentWorkspace(ctx context.Context, ws domain.Workspace, name string) context.Context {
+	return context.WithValue(ctx, currentWorkspaceKey{}, currentWorkspace{Workspace: ws, Name: name})
+}
+
+// CurrentWorkspace returns the installed Workspace for this request. The zero value is a real
+// answer, not a failure: a Workspace with no manifest has no Applications and no Machines, which
+// is what one looks like the moment it is created and before anything is installed into it.
+func CurrentWorkspace(ctx context.Context) domain.Workspace {
+	cw, _ := ctx.Value(currentWorkspaceKey{}).(currentWorkspace)
+	return cw.Workspace
+}
+
+// CurrentWorkspaceName is the Workspace's own display name, for the chrome that shows it.
+func CurrentWorkspaceName(ctx context.Context) string {
+	cw, _ := ctx.Value(currentWorkspaceKey{}).(currentWorkspace)
+	return cw.Name
 }
 
 // declaredNavigation is every navigation item declared anywhere in the Workspace: its own list
@@ -43,9 +67,10 @@ func ConfigureWorkspace(ws domain.Workspace) {
 // four routes and four labels as literals across those files -- the exact duplication the two
 // hardcoding gates exist to prevent. workspace.Navigation stays in the chain and stays first: it
 // is empty today, but an installation that does declare workspace navigation should still win.
-func declaredNavigation() []domain.NavigationItem {
-	items := append([]domain.NavigationItem(nil), workspace.Navigation...)
-	for _, app := range workspace.Applications {
+func declaredNavigation(ctx context.Context) []domain.NavigationItem {
+	ws := CurrentWorkspace(ctx)
+	items := append([]domain.NavigationItem(nil), ws.Navigation...)
+	for _, app := range ws.Applications {
 		items = append(items, app.AllNavigation...)
 	}
 	return append(items, domain.RuntimeScreens...)
@@ -60,8 +85,8 @@ func declaredNavigation() []domain.NavigationItem {
 // domain.KnownActions/KnownFieldTypes already take for an unrecognized declared value, just
 // caught at first render instead of at metadata load (id isn't validated at load time since it
 // names a *caller's own* expectation, not a shape metadata itself declares).
-func routeByID(id string) string {
-	for _, item := range declaredNavigation() {
+func routeByID(ctx context.Context, id string) string {
+	for _, item := range declaredNavigation(ctx) {
 		if item.ID == id {
 			return item.Route
 		}
@@ -86,13 +111,13 @@ func runtimeScreenByID(id string) domain.NavigationItem {
 // so the two never disagree about where an Application starts).
 //
 // Synthesized rather than declared: which Applications a Workspace contains is already stated by
-// `applications:` in metadata/app.yaml, and re-listing them as navigation items would be 001
+// `applications:` in this Workspace's own manifest, and re-listing them as navigation items would be 001
 // Principle #8 duplication of the list one line above them.
-func applicationNavEntry(app domain.Application) domain.NavigationItem {
+func applicationNavEntry(ctx context.Context, app domain.Application) domain.NavigationItem {
 	return domain.NavigationItem{
 		ID:    app.ID,
 		Label: app.Name,
-		Route: launcherAppHomeRoute(app),
+		Route: launcherAppHomeRoute(ctx, app),
 	}
 }
 
@@ -101,8 +126,8 @@ func applicationNavEntry(app domain.Application) domain.NavigationItem {
 // the label string -- internal/conformance's TestRenderingHasNoHardcodedApplicationLabel holds
 // every .templ file to this, the same way TestRenderingHasNoHardcodedApplicationRoute already
 // holds routeByID's href side. Same panic-on-unknown-id posture as routeByID, for the same reason.
-func labelByID(id string) string {
-	for _, item := range declaredNavigation() {
+func labelByID(ctx context.Context, id string) string {
+	for _, item := range declaredNavigation(ctx) {
 		if item.ID == id {
 			return item.Label
 		}
@@ -339,8 +364,8 @@ templ pageShell(title string) {
 					// it is derived: Workspace Home, then one link per Application in this Workspace,
 					// the same list the launcher shows. Same navLink styling as before.
 					@navLink(runtimeScreenByID("nav_home"))
-					for _, app := range workspace.Applications {
-						@navLink(applicationNavEntry(app))
+					for _, app := range CurrentWorkspace(ctx).Applications {
+						@navLink(applicationNavEntry(ctx, app))
 					}
 					for _, item := range ungrouped {
 						@navLink(item)

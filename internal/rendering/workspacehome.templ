@@ -80,7 +80,7 @@ func appIconClasses(color string) string {
 }
 
 templ WorkspaceHomePage(workspaceName, workspaceRole string, viewer Viewer, switchHref string, apps []ApplicationCard) {
-	@appShell(labelByID("nav_home"), workspaceName, viewer, switchHref) {
+	@appShell(labelByID(ctx, "nav_home"), workspaceName, viewer, switchHref) {
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex items-center gap-2.5">
 				<span class="text-xs tracking-wide text-blue-600">WORKSPACE</span>
@@ -89,8 +89,21 @@ templ WorkspaceHomePage(workspaceName, workspaceRole string, viewer Viewer, swit
 				}
 			</div>
 			<h1 class="m-0 text-2xl font-medium">{ workspaceName }</h1>
-			<div class="text-sm text-slate-500">Your applications, based on the roles assigned to you.</div>
+			if len(apps) == 0 {
+				<div class="text-sm text-slate-500">No applications are installed in this workspace yet.</div>
+			} else {
+				<div class="text-sm text-slate-500">Your applications, based on the roles assigned to you.</div>
+			}
 		</div>
+		if len(apps) == 0 {
+			<div class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+				<span class="text-sm font-medium text-slate-700">Nothing installed here yet</span>
+				<span class="max-w-md text-2xs text-slate-500">
+					An application appears here once it is installed into this workspace. Until then this
+					workspace holds only its members and their records.
+				</span>
+			</div>
+		}
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 			for _, app := range apps {
 				<a href={ templ.SafeURL(app.HomeRoute) } class="flex flex-col gap-2.5 rounded-lg border border-slate-200 bg-white p-5 text-slate-900 hover:border-blue-300">
@@ -128,8 +141,8 @@ templ WorkspaceHomePage(workspaceName, workspaceRole string, viewer Viewer, swit
 					<span class="text-2xs text-slate-500">Effective roles in this workspace.</span>
 				</div>
 				if workspaceRole != "member" {
-					<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
-						{ labelByID("nav_workspace_members") } →
+					<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
+						{ labelByID(ctx, "nav_workspace_members") } →
 					</a>
 				}
 			</div>

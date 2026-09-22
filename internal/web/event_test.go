@@ -12,6 +12,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/rendering"
 )
 
 // eventTestSetup is the shared fixture every test below needs: a Workspace, a member, and one
@@ -63,7 +64,7 @@ func newEventTestSetup(t *testing.T, testName string) eventTestSetup {
 	return eventTestSetup{
 		store:       store,
 		cfg:         cfg,
-		machines:    loadRealMachines(t),
+		machines:    realMachines(t),
 		ctx:         wsCtx,
 		workspaceID: ws.ID,
 		actor:       actor.ID,
@@ -77,7 +78,7 @@ func putTaskStatus(t *testing.T, s eventTestSetup, newStatus string) *httptest.R
 	form := "fld_title=Fix+bug&fld_status=" + newStatus
 	req := httptest.NewRequest(http.MethodPut, "/machines/mch_task/records/"+s.taskID, strings.NewReader(form))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(data.WithWorkspaceScope(req.Context(), s.workspaceID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace"))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()
@@ -161,7 +162,7 @@ func TestCreateRecordForm_taskCreationLogsActivity(t *testing.T) {
 	form := "fld_title=New+Task"
 	req := httptest.NewRequest(http.MethodPost, "/machines/mch_task/records", strings.NewReader(form))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(data.WithWorkspaceScope(req.Context(), s.workspaceID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace"))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()
@@ -200,7 +201,7 @@ func TestCreateRecord_api_taskCreationLogsActivity(t *testing.T) {
 	body := `{"fld_title":"API Task"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/machines/mch_task/records", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req = req.WithContext(data.WithWorkspaceScope(req.Context(), s.workspaceID))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace"))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()

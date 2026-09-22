@@ -160,6 +160,21 @@ func (s *Store) SetMemberAppRole(ctx context.Context, workspaceID, userRecordID,
 	return nil
 }
 
+// WorkspaceBySlug finds a Workspace by the slug a metadata manifest names it with
+// (metadata/workspaces/<slug>.yaml, 2026-09-22). The slug is what a person can write down; the
+// `ws_...` id is generated when the Workspace is created and is not.
+func (s *Store) WorkspaceBySlug(ctx context.Context, slug string) (*Workspace, error) {
+	ws := &Workspace{Slug: slug}
+	err := s.pool.QueryRow(ctx, `SELECT id, name FROM workspaces WHERE slug = $1`, slug).Scan(&ws.ID, &ws.Name)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, fmt.Errorf("workspace by slug: %w", err)
+	}
+	return ws, nil
+}
+
 // AddMember records email's membership in workspaceID, naming the mch_user record (created in
 // that Workspace's own scoped Store) that represents them there.
 func (s *Store) AddMember(ctx context.Context, workspaceID, userRecordID, email, workspaceRole, appRole string) error {

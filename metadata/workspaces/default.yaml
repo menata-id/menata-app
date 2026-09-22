@@ -1,0 +1,42 @@
+# Default Workspace's own installation manifest.
+#
+# One file per Workspace, discovered by scanning this directory (internal/metadata.LoadWorkspaces):
+# dropping a file in here is what *installs* a set of Applications into a Workspace, and removing
+# it leaves that Workspace with none. This replaced the single process-wide metadata/app.yaml on
+# 2026-09-22, which made every Workspace show the same Applications no matter which one you were
+# looking at -- a Workspace row scoped records and membership, but not what the Workspace *is*.
+#
+# `workspace:` names its target by **slug**, not by the `ws_...` id. The id is generated when a
+# Workspace is created through the UI (Add workspace), so it is not something a person can write
+# down here; the slug is already unique in the `workspaces` table and is what a human can actually
+# type. The runtime matches it at load time.
+#
+# The Workspace's *name* is deliberately absent: it lives in the `workspaces` row, written when the
+# Workspace was created, and restating it here would be the duplication 001 Principle #8 rules out.
+workspace: default
+
+# machines: every Machine available in this Workspace, workspace-level and unique by id -- the same
+# arrangement app.yaml had, and for the same reason: mch_user and mch_activity are genuinely shared
+# by several Applications, so per-Application ownership would load one file twice and make
+# dataset-id uniqueness incoherent. An Application's own `machines:` selects from this set by id.
+#
+# mch_user and mch_activity are listed explicitly rather than assumed by the runtime. Assuming them
+# would mean hardcoding two file paths in Go, and this is metadata's own question to answer.
+machines:
+  - ../user.yaml
+  - ../activity.yaml
+  - ../project.yaml
+  - ../list.yaml
+  - ../label.yaml
+  - ../task.yaml
+  - ../card_label.yaml
+  - ../document.yaml
+  - ../approval_step.yaml
+  - ../signature.yaml
+
+# applications: which Applications are installed here. Paths are resolved relative to this file.
+# An Application file itself names no Workspace -- it is a reusable declaration, and several
+# Workspaces may install the same one.
+applications:
+  - ../applications/document-approval.yaml
+  - ../applications/project-management.yaml

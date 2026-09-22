@@ -20,7 +20,7 @@ draws the line precisely, with the source lines that prove it.
 
 ## 1. A Machine is a YAML file
 
-Every Machine is one file under `metadata/`, referenced from `metadata/app.yaml`'s own
+Every Machine is one file under `metadata/`, referenced from a Workspace manifest's own
 `workspace.machines` list. The minimal shape:
 
 ```yaml
@@ -56,7 +56,7 @@ restart. Read the error text carefully — it names the exact field/id/value tha
 
 ## 2. The manifest: a Workspace file plus one file per Application
 
-`app.yaml` declares the **Workspace** — the Machines it owns and the navigation that belongs to no
+A Workspace manifest (`metadata/workspaces/<slug>.yaml`) declares the **Workspace** — the Machines it owns and the navigation that belongs to no
 single Application — and then names one file per Application:
 
 ```yaml
@@ -117,7 +117,7 @@ set by id.
 
 `workspace.id` matches `^ws_[a-z][a-z0-9_]*$`, an Application's `id` matches
 `^app_[a-z][a-z0-9_]*$`. Each entry in `workspace.machines:` is a path to a Machine file, and each
-entry in `applications:` a path to an Application file, both resolved relative to `app.yaml`'s own
+entry in `applications:` a path to an Application file, both resolved relative to the manifest's own
 directory — order in `machines:` doesn't affect behavior, but keeping it alphabetical or grouped by
 Application area helps a human (or an agent) scanning the file. Order in `applications:` *is* the
 order the launcher and Workspace Home list them in.
@@ -209,7 +209,7 @@ fields:
 Validation you'll actually hit while authoring: a `status` field with an empty `options:` list
 fails to load; a `relation` field whose `machine:` isn't a valid-looking Machine id fails to load;
 once the whole Application loads, a `relation`/`person` field whose target Machine doesn't
-actually exist in `app.yaml`'s own `machines:` list also fails (a single Machine file can't check
+actually exist in the manifest's own `machines:` list also fails (a single Machine file can't check
 this on its own — it's checked once every file is loaded).
 
 ## 4. Relations, `person`, and child collections
@@ -676,9 +676,12 @@ by prefix; closed vocabularies are extended by Go code and a recompile, never by
 value in YAML; and every cross-reference (`fld_*` naming a field, `mch_*` naming a Machine) is
 resolved and checked at load time, not at first use.
 
-### 12.1 `app.yaml` — the Workspace manifest, and one file per Application
+### 12.1 `metadata/workspaces/<slug>.yaml` — one installation manifest per Workspace, and one file per Application
 
-**`app.yaml` — the Workspace manifest**
+**`metadata/workspaces/<slug>.yaml` — a Workspace's installation manifest**
+
+Since 2026-09-22 there is one per Workspace, named by slug, discovered by scanning the directory:
+dropping a file in *installs* its Applications into that Workspace. `applications: []` is valid.
 
 | Key | Value | Notes |
 |---|---|---|
@@ -1042,7 +1045,7 @@ Honest current limits, not a roadmap — some of these may change over time:
   existing data already stored under that field's id — it's simply no longer read.
 - **Constraints are intentionally limited.** Only `equals`/`not_equals` against a literal value,
   no boolean combinators, no cross-field arithmetic.
-- **Every Workspace shares one manifest.** A Workspace may run several Applications — `app.yaml`
+- **~~Every Workspace shares one manifest.~~** Closed 2026-09-22: one manifest per Workspace, keyed by slug. A Workspace may run several Applications — its manifest
   declares a list, and two are live (Document Approval, Project Management) — but the set of
   Machines and Applications is process-wide: a second Workspace needing a genuinely different set
   isn't supported yet. This bullet read "one Workspace runs one fixed Application" until

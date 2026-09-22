@@ -1,0 +1,16 @@
+# Dokter Kecil -- created through the UI on 2026-09-22 (Add workspace), and installed with nothing
+# yet. This is what an empty Workspace's manifest looks like: it exists, it has the two Machines
+# every Workspace has, and its Home page shows no Applications at all.
+#
+# Adding a path under `applications:` below is what makes an Application appear here.
+workspace: dokter-kecil
+
+# mch_user is not optional: a Workspace's members each have a record in it (that is what a
+# membership row points at), so it is present before any Application is. mch_activity is the same
+# -- every Application writes to it, and the activity feed is a runtime screen, not an
+# Application's.
+machines:
+  - ../user.yaml
+  - ../activity.yaml
+
+applications: []

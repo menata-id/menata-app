@@ -44,5 +44,5 @@ func CurrentApplicationName(ctx context.Context) string {
 	if app, ok := CurrentApplication(ctx); ok {
 		return app.Name
 	}
-	return workspace.Name
+	return CurrentWorkspaceName(ctx)
 }

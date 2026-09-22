@@ -43,9 +43,10 @@ func roleApplications(ws domain.Workspace) []rendering.RoleApplication {
 
 // showWorkspaceMembers lists every member of the signed-in identity's Workspace (ROADMAP.md
 // Phase 21 Step 6). Gated by requireWorkspaceAdmin.
-func showWorkspaceMembers(store *data.Store, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
+func showWorkspaceMembers(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		members, err := store.ListMembers(ctx, workspaceID)
 		if err != nil {
@@ -76,9 +77,10 @@ func showWorkspaceMembers(store *data.Store, cfg config.Config, ws domain.Worksp
 	}
 }
 
-func showEditMember(store *data.Store, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
+func showEditMember(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		m, err := store.GetMembership(ctx, workspaceID, chi.URLParam(req, "userRecordID"))
 		if err != nil {
@@ -101,9 +103,10 @@ func showEditMember(store *data.Store, cfg config.Config, ws domain.Workspace) h
 	}
 }
 
-func submitEditMember(store *data.Store, ws domain.Workspace) http.HandlerFunc {
+func submitEditMember(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		userRecordID := chi.URLParam(req, "userRecordID")
 
@@ -151,9 +154,10 @@ func submitEditMember(store *data.Store, ws domain.Workspace) http.HandlerFunc {
 // a stranger's name into a Field on a record created for them; now the invitee states it once,
 // when they accept, onto their own identity (migration 010). An admin supplies the email and the
 // roles -- the two things that genuinely are the Workspace's decision.
-func submitInviteMember(store *data.Store, mailer mail.Mailer, cfg config.Config, ws domain.Workspace) http.HandlerFunc {
+func submitInviteMember(store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		ws := rendering.CurrentWorkspace(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 
 		if err := req.ParseForm(); err != nil {

@@ -72,7 +72,7 @@ type PlacementStep struct {
 // What this DOES have that the board's footer does not spell out: a "Done" link (owner report,
 // 2026-09-21 -- landing here after submitting a Document left no way back to My Documents short of
 // the browser's own back button). It says "Done", not "Save", for the reason above, and its
-// destination is routeByID("nav_my_documents") rather than a retyped "/approval-inbox?tab=mine" --
+// destination is routeByID(ctx, "nav_my_documents") rather than a retyped "/approval-inbox?tab=mine" --
 // metadata/applications/document-approval.yaml already declares that route under nav_my_documents.
 //
 // What this has that the board does not: page navigation (the board shows only "Page 6 of 6"), a
@@ -227,9 +227,9 @@ func SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 templ.SafeURL
-			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID("nav_my_documents")))
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID(ctx, "nav_my_documents")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 120, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/signatureplacement.templ`, Line: 120, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {

@@ -9,8 +9,25 @@ package domain
 // would load the same file twice and produce two Machine objects with one id. An Application
 // *selects* from this set instead -- see Application.Machines.
 type Workspace struct {
-	ID   string
-	Name string
+	// Slug names which Workspace this manifest installs into, matched against the `workspaces`
+	// table's own slug column at load time (metadata/workspaces/<slug>.yaml, 2026-09-22).
+	//
+	// It replaced an `ID`/`Name` pair that the manifest used to declare. Both were wrong once a
+	// Workspace could be created through the UI: the `ws_...` id is generated at that moment, so
+	// nobody can write it into a file by hand, and the name already lives in the Workspace's own
+	// row -- restating it here would be the duplication 001 Principle #8 rules out. What a
+	// manifest legitimately says is *which* Workspace it is for, and the slug is the only key a
+	// person can both read and type.
+	Slug string
+	// MachineIDs are the Machines this Workspace's manifest declares, in declaration order. The
+	// Machines themselves are loaded process-wide and shared (one file, one object, however many
+	// Workspaces install it); this is the per-Workspace *membership* list, which is what decides
+	// whether a Machine exists here at all.
+	//
+	// Without it a Workspace with nothing installed still listed every Machine in the process, and
+	// /machines/<id> served a page for one it had never installed -- empty, since records are
+	// workspace-scoped, but reachable and listed.
+	MachineIDs []string
 	// Applications are the Applications declared inside this Workspace, in declaration order --
 	// which is the order the launcher and Workspace Home list them in.
 	Applications []Application
@@ -89,9 +106,13 @@ var KnownApplicationColors = map[string]bool{
 // Application is an independently realizable business solution within a Workspace
 // (004-runtime-metadata.md "Application").
 type Application struct {
-	ID          string
-	Name        string
-	WorkspaceID string
+	ID   string
+	Name string
+	// WorkspaceSlug is the Workspace whose manifest installed this Application -- the slug, since
+	// that is what a manifest names (domain.Workspace.Slug). The same Application file may be
+	// installed by several Workspaces, so this says which installation produced *this* value, not
+	// something the Application file itself declares.
+	WorkspaceSlug string
 	// Machines are the ids this Application exposes, selected from its Workspace's own set. Not
 	// file paths: the Machines themselves are loaded once, at Workspace level.
 	//
@@ -157,4 +178,15 @@ type Application struct {
 	// resolve the real route even though the item never appears in a menu. Both
 	// metadata-hardcoding conformance gates depend on this property.
 	AllNavigation []NavigationItem
+}
+
+// HasMachine reports whether machineID is installed in this Workspace. A Workspace with no
+// manifest has none, which is the correct answer rather than a missing one.
+func (w Workspace) HasMachine(machineID string) bool {
+	for _, id := range w.MachineIDs {
+		if id == machineID {
+			return true
+		}
+	}
+	return false
 }

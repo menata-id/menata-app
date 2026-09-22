@@ -10,6 +10,36 @@ import (
 	"menata.app/internal/rendering"
 )
 
+// currentWorkspace resolves which Workspace a request is in and puts its installation on ctx
+// (2026-09-22). Registered before currentApplication, which reads what this resolves.
+//
+// This is the fix for what the owner found on a brand-new Workspace: Dokter Kecil had just been
+// created, its Home should have been empty, and it showed two Applications. The Applications came
+// from a single manifest the process loaded once at startup and handed to every request, so a
+// `workspaces` row scoped records and membership but not what the Workspace *was*.
+//
+// The hop is slug-shaped because that is what a manifest names: session -> Workspace row -> slug
+// -> installed manifest. A Workspace with no manifest resolves to the zero Workspace, which is a
+// real answer and not an error -- no Applications, an empty Home, exactly the state a Workspace is
+// in before anything is installed into it.
+//
+// Best-effort on a failed lookup, like resolveChrome's own reads: a page renders with empty chrome
+// rather than failing outright, and the request is still scoped to the right records either way.
+func currentWorkspace(store *data.Store, workspaces map[string]domain.Workspace) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			ctx := req.Context()
+			if workspaceID, ok := data.WorkspaceScope(ctx); ok {
+				if row, err := store.GetWorkspace(ctx, workspaceID); err == nil && row != nil {
+					ctx = rendering.WithCurrentWorkspace(ctx, workspaces[row.Slug], row.Name)
+					req = req.WithContext(ctx)
+				}
+			}
+			next.ServeHTTP(w, req)
+		})
+	}
+}
+
 // currentApplication resolves which Application a request is in and puts it on ctx for the
 // rendering layer (Fase 3, 2026-09-20). Registered inside the authenticated group, after
 // requireAuth, since no pre-auth screen has an Application.
@@ -32,11 +62,11 @@ import (
 // Resolving to no Application is a normal outcome, not a failure: the Workspace-level screens
 // (Home, Members) belong to none, and so do routes concerning a shared Machine (mch_user,
 // mch_activity). rendering.CurrentApplicationName degrades to the Workspace's own name.
-func currentApplication(ws domain.Workspace) func(http.Handler) http.Handler {
+func currentApplication() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			ctx := rendering.WithCurrentPath(req.Context(), req.URL.Path, req.URL.RawQuery)
-			if app, ok := applicationForPath(ws, req.URL.Path); ok {
+			if app, ok := applicationForPath(rendering.CurrentWorkspace(req.Context()), req.URL.Path); ok {
 				ctx = rendering.WithCurrentApplication(ctx, app)
 			}
 			next.ServeHTTP(w, req.WithContext(ctx))

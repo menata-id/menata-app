@@ -27,11 +27,9 @@ fields:
     required: true
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -46,29 +44,29 @@ machines:
 	if err != nil {
 		t.Fatalf("LoadApplication() error = %v", err)
 	}
-	if app.Workspace.ID != "ws_default" {
-		t.Errorf("Workspace.ID = %q, want ws_default", app.Workspace.ID)
+	if app.Workspace.Slug != "default" {
+		t.Errorf("Workspace.Slug = %q, want default", app.Workspace.Slug)
 	}
-	if app.Workspace.Applications[0].WorkspaceID != "ws_default" {
-		t.Errorf("Application.WorkspaceID = %q, want ws_default", app.Workspace.Applications[0].WorkspaceID)
+	if app.Workspace.Applications[0].WorkspaceSlug != "default" {
+		t.Errorf("Application.WorkspaceSlug = %q, want default", app.Workspace.Applications[0].WorkspaceSlug)
 	}
 	if len(app.Machines) != 1 || app.Machines[0].ID != "mch_task" {
 		t.Fatalf("Machines = %+v, want one machine mch_task", app.Machines)
 	}
 }
 
-func TestLoadApplication_badWorkspaceID(t *testing.T) {
+func TestLoadApplication_badWorkspaceSlug(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "task.yaml", `
 id: mch_task
 name: Task
 `)
+	// "ws_default" was the *valid* form until 2026-09-22 and is now the invalid one: a manifest
+	// names its Workspace by slug, and a slug carries no underscores.
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: ws_default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -81,7 +79,7 @@ machines:
 
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
 	if err == nil {
-		t.Fatal("LoadApplication() error = nil, want error for malformed workspace id")
+		t.Fatal("LoadApplication() error = nil, want error for a malformed workspace slug")
 	}
 }
 
@@ -106,12 +104,10 @@ fields:
     machine: mch_project
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - project.yaml
-    - task.yaml
+workspace: default
+machines:
+  - project.yaml
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -144,11 +140,9 @@ fields:
     machine: mch_project
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -176,11 +170,9 @@ fields:
     type: person
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -216,12 +208,10 @@ fields:
     type: person
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - user.yaml
-    - task.yaml
+workspace: default
+machines:
+  - user.yaml
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -296,12 +286,10 @@ constraints:
         value: done
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - project.yaml
-    - task.yaml
+workspace: default
+machines:
+  - project.yaml
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -350,12 +338,10 @@ constraints:
         value: done
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - project.yaml
-    - task.yaml
+workspace: default
+machines:
+  - project.yaml
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -380,11 +366,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -425,11 +409,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -466,11 +448,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -530,11 +510,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -567,11 +545,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -599,11 +575,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -632,11 +606,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -667,11 +639,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -727,11 +697,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -770,11 +738,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-one.yaml
   - app-two.yaml
@@ -808,11 +774,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -843,12 +807,10 @@ id: mch_project
 name: Project
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
-    - project.yaml
+workspace: default
+machines:
+  - task.yaml
+  - project.yaml
 applications:
   - app-one.yaml
   - app-two.yaml
@@ -896,12 +858,10 @@ id: mch_project
 name: Project
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
-    - project.yaml
+workspace: default
+machines:
+  - task.yaml
+  - project.yaml
 applications:
   - with-roles.yaml
   - without-roles.yaml
@@ -943,11 +903,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -973,11 +931,9 @@ id: mch_task
 name: Task
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -1000,11 +956,9 @@ func TestLoadApplication_unknownColorRejected(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "task.yaml", "\nid: mch_task\nname: Task\n")
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -1029,12 +983,10 @@ func TestLoadApplication_summaryMachineMustBeOwn(t *testing.T) {
 	writeFile(t, dir, "task.yaml", "\nid: mch_task\nname: Task\n")
 	writeFile(t, dir, "project.yaml", "\nid: mch_project\nname: Project\n")
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
-    - project.yaml
+workspace: default
+machines:
+  - task.yaml
+  - project.yaml
 applications:
   - app-one.yaml
   - app-two.yaml
@@ -1064,11 +1016,9 @@ func TestLoadApplication_cardFaceOptional(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "task.yaml", "\nid: mch_task\nname: Task\n")
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - task.yaml
+workspace: default
+machines:
+  - task.yaml
 applications:
   - app-main.yaml
 `)
@@ -1115,12 +1065,10 @@ fields:
     type: text
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - step.yaml
-    - shared.yaml
+workspace: default
+machines:
+  - step.yaml
+  - shared.yaml
 applications:
   - app-main.yaml
 `)
@@ -1216,12 +1164,10 @@ fields:
     type: text
 `)
 	writeFile(t, dir, "app.yaml", `
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - shared.yaml
-    - step.yaml
+workspace: default
+machines:
+  - shared.yaml
+  - step.yaml
 applications:
   - app-main.yaml
 `)

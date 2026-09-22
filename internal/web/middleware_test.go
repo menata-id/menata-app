@@ -12,6 +12,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/rendering"
 )
 
 func passOrFail(t *testing.T) http.Handler {
@@ -142,7 +143,7 @@ func TestRequireApplicationAccess(t *testing.T) {
 	}
 
 	workspace := domain.Workspace{
-		ID: ws.ID,
+		Slug: ws.Slug,
 		Applications: []domain.Application{
 			// Declares roles, so entry requires one.
 			{ID: "app_document_approval", Name: "Document Approval", Machines: []string{"mch_document"}, Roles: []string{"approver", "submitter", "reviewer"}},
@@ -155,7 +156,14 @@ func TestRequireApplicationAccess(t *testing.T) {
 
 	get := func(path string) int {
 		r := chi.NewRouter()
-		r.Use(currentApplication(workspace))
+		// The Workspace now arrives on ctx (set by currentWorkspace in the real router), so the
+		// test supplies it the same way rather than handing it to the middleware directly.
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				next.ServeHTTP(w, req.WithContext(rendering.WithCurrentWorkspace(req.Context(), workspace, "Test Workspace")))
+			})
+		})
+		r.Use(currentApplication())
 		r.Use(requireApplicationAccess(store, cfg))
 		r.Get("/machines/{machineID}", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 		r.Get("/home", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
