@@ -829,38 +829,18 @@ templ projectedFieldValue(p ProjectedField) {
 }
 
 // SummaryItem is one label/value pair on a summary-counts strip. Promoted to a shared component
-// (ROADMAP.md Phase 15 Step 0) after the same `<ul class="summary-counts">` shape was found
-// hand-rendered independently across the Dashboard, My Tasks, Sprint Dashboard, and Team
-// Capacity pages -- real cross-domain recurrence (four different business questions), the same
-// admission bar `slaBadge` itself already cleared in Phase 13.
+// (ROADMAP.md Phase 15 Step 0) after the same shape was found hand-rendered independently across
+// the Dashboard, My Tasks, Sprint Dashboard, and Team Capacity pages -- real cross-domain
+// recurrence (four different business questions), the same admission bar `slaBadge` itself already
+// cleared in Phase 13. summaryCounts, the `pageStyles` templ that rendered it, and activityFeedList
+// beside it, were both deleted 2026-09-22 with their last callers: all four pages ported from
+// `pageShell` to `appShell` the same day, onto summaryCountTiles/activityFeedListRow
+// (appshell.templ) instead -- the type stays, the two pageStyles-era renderers of it did not
+// (capabilities.md, "component with zero callers is a claim capabilities.md would be making on the
+// code's behalf, and this repo gates exactly that kind of drift").
 type SummaryItem struct {
 	Label string
 	Value string
-}
-
-templ summaryCounts(items []SummaryItem) {
-	<ul class="summary-counts">
-		for _, it := range items {
-			<li>{ it.Label }: { it.Value }</li>
-		}
-	</ul>
-}
-
-// activityFeedList renders ActivityEntry rows as the shared activity-feed shape -- the Dashboard
-// and Activity pages each hand-rendered an identical actor+summary+timestamp `<li>` before this
-// (Phase 15 Step 0).
-templ activityFeedList(entries []ActivityEntry) {
-	<ul class="activity-feed">
-		for _, a := range entries {
-			<li>
-				<span>{ a.Summary }</span>
-				if a.Actor != "" {
-					<span class="badge">{ a.Actor }</span>
-				}
-				<span class="muted">{ a.When }</span>
-			</li>
-		}
-	</ul>
 }
 
 // sectionHeader is a composed page's own "Title + optional 'View all' link" wrapper (Study 38's

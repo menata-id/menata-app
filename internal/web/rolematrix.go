@@ -16,8 +16,10 @@ import (
 // block per Application.
 //
 // Gated by requireWorkspaceAdmin, like the Members and Groups routes it sits beside: it renders
-// the whole Workspace's access model, which is administration. The nav item is hidden from a plain
-// member by the same membersHiddenFor list, so nobody is offered a link that only ever 403s.
+// the whole Workspace's access model, which is administration. The launcher no longer lists
+// individual destinations at all (chrome.go's own viewerWorkspaceContext doc comment), so there is
+// no nav item here for a plain member to be offered in the first place; requireWorkspaceAdmin is
+// the real, and now only, gate.
 //
 // Every Application renders at once. It used to take ?app= and show one, which was the mockup's
 // own selector -- dropped 2026-09-21 with the restructure, because with the sections split by

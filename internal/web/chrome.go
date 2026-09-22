@@ -72,10 +72,15 @@ func (c shellChrome) Viewer() rendering.Viewer {
 	return rendering.Viewer{Name: c.Name, Email: c.Email, Initials: c.UserInitials}
 }
 
-// viewerWorkspaceContext resolves the two per-viewer facts every appShell screen threads down to
-// rendering: the Workspace role held here (feeds rendering.membersHiddenFor, so a plain member
-// isn't offered the two admin-gated launcher destinations) and the launcher's own "All
-// Workspaces" link target (rendering.appShell's switchWorkspaceHref parameter).
+// viewerWorkspaceContext resolves two per-viewer facts. switchWorkspaceHref (the launcher's "All
+// Workspaces" link target, rendering.appShell's own parameter) is the one every appShell screen
+// still threads down; workspaceRole is returned alongside it for the one caller that still needs
+// it (Workspace Home's own "Manage members" link, workspacehome.templ's inline `workspaceRole !=
+// "member"` check) -- most callers, including pageChrome (pages.go), discard it with `_`.
+// rendering.membersHiddenFor, which this comment used to say workspaceRole fed, was deleted
+// 2026-09-21 along with appShell's own hiddenNavIDs parameter (capabilities.md, "Navigation: one
+// filter now, not two") -- the launcher stopped listing individual destinations at all, so there
+// was nothing left for a viewer-level filter to hide.
 //
 // Both come from one GetMembership call rather than two separate ones (workspaceRoleOf used to be
 // its own function; approval.go's own handler duplicated the same query inline) -- every

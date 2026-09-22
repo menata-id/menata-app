@@ -27,58 +27,69 @@ type TaskRow struct {
 // due date -- Today (due today or overdue, SLA-badged), Upcoming (due later or undated),
 // Completed (status done). This is a filtered/bucketed view over one whole-machine Task query,
 // not a new query mechanism.
-templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow) {
-	@pageShell(labelByID("nav_my_tasks")) {
-		<h1>{ labelByID("nav_my_tasks") }</h1>
-		<p>Tasks assigned to you, projected across all projects.</p>
+templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(labelByID("nav_my_tasks"), workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-2">
+			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
+			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_my_tasks") }</h1>
+			<div class="text-sm text-slate-500">Tasks assigned to you, projected across all projects.</div>
+		</div>
 
-		@summaryCounts([]SummaryItem{
+		@summaryCountTiles([]SummaryItem{
 			{Label: "Open", Value: fmt.Sprint(summary.Open)},
 			{Label: "Due today", Value: fmt.Sprint(summary.DueToday)},
 			{Label: "Overdue", Value: fmt.Sprint(summary.Overdue)},
 		})
 
-		<h2>Today</h2>
-		if len(today) == 0 {
-			<p>Nothing due today or overdue.</p>
-		} else {
-			@taskRowList(today, true)
-		}
+		<section class="rounded-lg border border-slate-200 bg-white p-4">
+			<h2 class="m-0 mb-3 text-base font-medium">Today</h2>
+			if len(today) == 0 {
+				<p class="m-0 text-sm text-slate-500">Nothing due today or overdue.</p>
+			} else {
+				@taskRowList(today, true)
+			}
+		</section>
 
-		<h2>Upcoming</h2>
-		if len(upcoming) == 0 {
-			<p>Nothing upcoming.</p>
-		} else {
-			@taskRowList(upcoming, false)
-		}
+		<section class="rounded-lg border border-slate-200 bg-white p-4">
+			<h2 class="m-0 mb-3 text-base font-medium">Upcoming</h2>
+			if len(upcoming) == 0 {
+				<p class="m-0 text-sm text-slate-500">Nothing upcoming.</p>
+			} else {
+				@taskRowList(upcoming, false)
+			}
+		</section>
 
-		<h2>Completed</h2>
-		if len(completed) == 0 {
-			<p>No completed tasks yet.</p>
-		} else {
-			<ul class="activity-feed">
-				for _, t := range completed {
-					<li>
-						<span style="text-decoration: line-through; color: #999;">{ toString(t.Task.Values["fld_title"]) }</span>
-						<span class="muted">{ t.ProjectName }</span>
-					</li>
-				}
-			</ul>
-		}
+		<section class="rounded-lg border border-slate-200 bg-white p-4">
+			<h2 class="m-0 mb-3 text-base font-medium">Completed</h2>
+			if len(completed) == 0 {
+				<p class="m-0 text-sm text-slate-500">No completed tasks yet.</p>
+			} else {
+				<ul class="flex flex-col gap-2">
+					for _, t := range completed {
+						<li class="flex items-center gap-2 text-sm">
+							<span class="text-slate-400 line-through">{ toString(t.Task.Values["fld_title"]) }</span>
+							<span class="ml-auto text-xs text-slate-400">{ t.ProjectName }</span>
+						</li>
+					}
+				</ul>
+			}
+		</section>
 	}
 }
 
 templ taskRowList(rows []TaskRow, sla bool) {
-	<ul class="activity-feed">
+	<ul class="flex flex-col gap-2">
 		for _, t := range rows {
-			<li>
+			<li class="flex flex-wrap items-center gap-2 text-sm">
 				<span>{ toString(t.Task.Values["fld_title"]) }</span>
-				<span class="badge">{ toString(t.Task.Values["fld_status"]) }</span>
-				<span class="muted">{ t.ProjectName }</span>
+				<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ toString(t.Task.Values["fld_status"]) }</span>
+				<span class="text-xs text-slate-400">{ t.ProjectName }</span>
 				if sla {
-					@slaBadge(t.Task.Values["fld_due_date"])
+					<span class="ml-auto">
+						@slaBadgePill(t.Task.Values["fld_due_date"])
+					</span>
 				} else if due := toString(t.Task.Values["fld_due_date"]); due != "" {
-					<span class="muted">{ due }</span>
+					<span class="ml-auto text-xs text-slate-400">{ due }</span>
 				}
 			</li>
 		}

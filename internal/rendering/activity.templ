@@ -4,22 +4,27 @@ package rendering
 // project-activity.html): the same mch_activity data as the Dashboard's Recent Activity section
 // (Phase 13), grouped by day instead of a flat top-10 list -- a different shape over the same
 // already-built data, not a new event mechanism.
-templ ActivityPage(today, yesterday, older []ActivityEntry) {
-	@pageShell(labelByID("nav_activity")) {
-		<h1>{ labelByID("nav_activity") }</h1>
-		<p>A cross-project feed of business events.</p>
+templ ActivityPage(today, yesterday, older []ActivityEntry, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(labelByID("nav_activity"), workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-2">
+			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
+			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_activity") }</h1>
+			<div class="text-sm text-slate-500">A cross-project feed of business events.</div>
+		</div>
 		@activityGroup("Today", today)
 		@activityGroup("Yesterday", yesterday)
 		@activityGroup("Earlier", older)
 		if len(today) == 0 && len(yesterday) == 0 && len(older) == 0 {
-			<p>No activity yet.</p>
+			<p class="text-sm text-slate-500">No activity yet.</p>
 		}
 	}
 }
 
 templ activityGroup(label string, entries []ActivityEntry) {
 	if len(entries) > 0 {
-		<h2>{ label }</h2>
-		@activityFeedList(entries)
+		<section class="rounded-lg border border-slate-200 bg-white p-4">
+			<h2 class="m-0 mb-3 text-base font-medium">{ label }</h2>
+			@activityFeedListRow(entries)
+		</section>
 	}
 }

@@ -13,28 +13,35 @@ type AutomationRule struct {
 	Action    string
 }
 
-templ AutomationPage(rules []AutomationRule) {
-	@pageShell("Workflow Automation") {
-		<h1>Workflow Automation</h1>
-		<p>Trigger → Condition → Action, read from this Application's own Constraint metadata and
-		Action behavior -- not a generic automation builder.</p>
-
+templ AutomationPage(rules []AutomationRule, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	// Title kept as the mockup's own "Workflow Automation" (project-automation.html) rather than
+	// labelByID("nav_automation")'s plain "Automation" -- unchanged from pageShell's own call here,
+	// a page-local heading distinct from its nav label, not a metadata-hardcoding violation (the
+	// declared label still governs the menu entry pointing at this route).
+	@appShell("Workflow Automation", workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-2">
+			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
+			<h1 class="m-0 text-xl font-medium">Workflow Automation</h1>
+			<div class="text-sm text-slate-500">Trigger → Condition → Action, read from this Application's own Constraint metadata and Action behavior -- not a generic automation builder.</div>
+		</div>
 		if len(rules) == 0 {
-			<p>No automation rules defined.</p>
+			<p class="text-sm text-slate-500">No automation rules defined.</p>
 		} else {
-			for _, r := range rules {
-				<section style="margin-top: 1.5rem; padding: 1rem; border: 1px solid #e5e5e5; border-radius: 6px;">
-					<h2 style="margin-top: 0;">{ r.Name }</h2>
-					<dl class="detail-fields">
-						<dt>Trigger</dt>
-						<dd>{ r.Trigger }</dd>
-						<dt>Condition</dt>
-						<dd>{ r.Condition }</dd>
-						<dt>Action</dt>
-						<dd>{ r.Action }</dd>
-					</dl>
-				</section>
-			}
+			<div class="flex flex-col gap-3">
+				for _, r := range rules {
+					<section class="rounded-lg border border-slate-200 bg-white p-4">
+						<h2 class="m-0 mb-3 text-base font-medium">{ r.Name }</h2>
+						<dl class="grid grid-cols-[6rem_1fr] gap-x-4 gap-y-2 text-sm">
+							<dt class="font-medium text-slate-500">Trigger</dt>
+							<dd class="m-0">{ r.Trigger }</dd>
+							<dt class="font-medium text-slate-500">Condition</dt>
+							<dd class="m-0">{ r.Condition }</dd>
+							<dt class="font-medium text-slate-500">Action</dt>
+							<dd class="m-0">{ r.Action }</dd>
+						</dl>
+					</section>
+				}
+			</div>
 		}
 	}
 }

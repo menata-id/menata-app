@@ -3,8 +3,10 @@ package rendering
 import (
 	"sort"
 	"strings"
+	"time"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 )
 
 // launcherAppHomeRoute is an Application card's link target: its own declared HomeRoute, falling
@@ -376,3 +378,59 @@ templ launcherAppCard(app domain.Application) {
 // domain.NavBadgeApprovalInboxPending declaration -- but the launcher no longer shows one, because
 // it no longer shows that screen. Putting a count on an Application *card* is a different feature
 // (Workspace Home's cards already do it) and was not folded in here.
+
+// summaryCountTiles / activityFeedListRow / sectionHeaderRow are the Tailwind twins of
+// machine.templ's summaryCounts / activityFeedList / sectionHeader -- same data shapes
+// (SummaryItem, ActivityEntry), different markup, for the same reason reviewdocument.templ's own
+// reviewProgress is deliberately not approvalStepper even though both draw a []StepApprover:
+// Preflight ties chrome to content (capabilities.md, "Styling: two systems, on purpose"), so a
+// pageStyles class name (.summary-counts, .activity-feed, .section-link) renders unstyled under
+// appShell's app.css. Dashboard, Sprint Dashboard, My Tasks, Team Capacity and Activity (Project
+// Management's own pageShell -> appShell port, 2026-09-22) use these; detail.templ still uses the
+// originals, being still pageStyles.
+templ summaryCountTiles(items []SummaryItem) {
+	<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+		for _, it := range items {
+			<div class="rounded-lg border border-slate-200 bg-white p-3">
+				<div class="text-2xl font-medium">{ it.Value }</div>
+				<div class="text-xs text-slate-500">{ it.Label }</div>
+			</div>
+		}
+	</div>
+}
+
+templ activityFeedListRow(entries []ActivityEntry) {
+	<ul class="flex flex-col gap-2">
+		for _, a := range entries {
+			<li class="flex flex-wrap items-center gap-2 text-sm">
+				<span>{ a.Summary }</span>
+				if a.Actor != "" {
+					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ a.Actor }</span>
+				}
+				<span class="ml-auto text-xs text-slate-400">{ a.When }</span>
+			</li>
+		}
+	</ul>
+}
+
+templ sectionHeaderRow(title, linkHref, linkLabel string) {
+	<div class="flex items-center justify-between">
+		<h2 class="m-0 text-base font-medium">{ title }</h2>
+		if linkHref != "" {
+			<a href={ templ.URL(linkHref) } class="text-sm text-blue-600 hover:text-blue-700">{ linkLabel }</a>
+		}
+	</div>
+}
+
+// slaBadgePill is machine.templ's slaBadge, Tailwind side -- same experience.EvaluateSLA
+// resolution, red text over a plain badge for overdue, a slate pill otherwise.
+templ slaBadgePill(v any) {
+	if due, err := time.Parse("2006-01-02", toString(v)); err == nil {
+		{{ status, label := experience.EvaluateSLA(due, time.Now()) }}
+		if status == experience.SLAOverdue {
+			<span class="text-xs font-medium text-red-600">{ label }</span>
+		} else {
+			<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ label }</span>
+		}
+	}
+}

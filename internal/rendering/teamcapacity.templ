@@ -23,41 +23,46 @@ type MemberCapacity struct {
 
 // TeamCapacityPage is Case 19's workload/ownership view: People, weekly capacity (declared on
 // mch_user), and active Task counts, composed from existing Machines.
-templ TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int) {
-	@pageShell(labelByID("nav_team_capacity")) {
-		<h1>{ labelByID("nav_team_capacity") }</h1>
-		<p>People, weekly capacity, and active work, composed from existing Member and Task data.</p>
+templ TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(labelByID("nav_team_capacity"), workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-2">
+			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
+			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_team_capacity") }</h1>
+			<div class="text-sm text-slate-500">People, weekly capacity, and active work, composed from existing Member and Task data.</div>
+		</div>
 
-		@summaryCounts([]SummaryItem{
+		@summaryCountTiles([]SummaryItem{
 			{Label: "Team capacity", Value: fmt.Sprint(totalCapacity) + "h/week"},
 			{Label: "Active cards", Value: fmt.Sprint(totalActive)},
 		})
 
-		<table>
-			<thead>
-				<tr>
-					<th>Member</th>
-					<th>Weekly Capacity</th>
-					<th>Active Cards</th>
-					<th>Total Cards</th>
-				</tr>
-			</thead>
-			<tbody>
-				for _, m := range members {
-					<tr>
-						<td>{ m.Name }</td>
-						<td>
-							if cap, ok := m.User.Values["fld_weekly_capacity"]; ok && toString(cap) != "" {
-								{ toString(cap) }h/week
-							} else {
-								<span class="muted">not set</span>
-							}
-						</td>
-						<td>{ fmt.Sprint(m.ActiveCards) }</td>
-						<td>{ fmt.Sprint(m.TotalCards) }</td>
+		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+			<table class="w-full min-w-[560px] border-collapse text-left">
+				<thead>
+					<tr class="border-b border-slate-200 bg-slate-50">
+						<th scope="col" class="px-4 py-2.5 text-3xs font-normal tracking-wide text-slate-500 uppercase">Member</th>
+						<th scope="col" class="px-4 py-2.5 text-3xs font-normal tracking-wide text-slate-500 uppercase">Weekly Capacity</th>
+						<th scope="col" class="px-4 py-2.5 text-3xs font-normal tracking-wide text-slate-500 uppercase">Active Cards</th>
+						<th scope="col" class="px-4 py-2.5 text-3xs font-normal tracking-wide text-slate-500 uppercase">Total Cards</th>
 					</tr>
-				}
-			</tbody>
-		</table>
+				</thead>
+				<tbody>
+					for _, m := range members {
+						<tr class="border-b border-slate-100 text-sm last:border-b-0">
+							<td class="px-4 py-3">{ m.Name }</td>
+							<td class="px-4 py-3">
+								if cap, ok := m.User.Values["fld_weekly_capacity"]; ok && toString(cap) != "" {
+									{ toString(cap) }h/week
+								} else {
+									<span class="text-slate-400">not set</span>
+								}
+							</td>
+							<td class="px-4 py-3">{ fmt.Sprint(m.ActiveCards) }</td>
+							<td class="px-4 py-3">{ fmt.Sprint(m.TotalCards) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
 	}
 }

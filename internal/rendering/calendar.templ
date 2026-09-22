@@ -13,26 +13,33 @@ type CalendarDay struct {
 // current week, one column per day -- composed from the same Task/Project data as My Tasks and
 // the Dashboard, reusing the board-column CSS shape already built for the Task board Layout
 // rather than inventing new grid CSS.
-templ CalendarPage(days []CalendarDay) {
-	@pageShell(labelByID("nav_calendar")) {
-		<h1>{ labelByID("nav_calendar") }</h1>
-		<p>Tasks due this week, across all Projects.</p>
-		<div class="board">
+templ CalendarPage(days []CalendarDay, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(labelByID("nav_calendar"), workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-2">
+			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
+			<h1 class="m-0 text-xl font-medium">{ labelByID("nav_calendar") }</h1>
+			<div class="text-sm text-slate-500">Tasks due this week, across all Projects.</div>
+		</div>
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-7">
 			for _, d := range days {
-				<div class="board-column">
-					<h3>{ d.Label }</h3>
-					if d.IsToday {
-						<span class="badge">today</span>
-					}
+				<div class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3">
+					<div class="flex items-center gap-2">
+						<h3 class="m-0 text-sm font-medium">{ d.Label }</h3>
+						if d.IsToday {
+							<span class="rounded-full bg-blue-50 px-2 py-0.5 text-2xs font-medium text-blue-700">today</span>
+						}
+					</div>
 					if len(d.Tasks) == 0 {
-						<p class="muted">Nothing due.</p>
+						<p class="m-0 text-xs text-slate-400">Nothing due.</p>
 					} else {
 						for _, t := range d.Tasks {
-							<p>
-								<span>{ toString(t.Task.Values["fld_title"]) }</span>
-								<span class="badge">{ toString(t.Task.Values["fld_status"]) }</span>
-								<span class="muted">{ t.ProjectName }</span>
-							</p>
+							<div class="flex flex-col gap-1 rounded-md bg-slate-50 p-2">
+								<span class="text-sm">{ toString(t.Task.Values["fld_title"]) }</span>
+								<div class="flex items-center gap-1.5">
+									<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ toString(t.Task.Values["fld_status"]) }</span>
+									<span class="text-2xs text-slate-400">{ t.ProjectName }</span>
+								</div>
+							</div>
 						}
 					}
 				</div>
