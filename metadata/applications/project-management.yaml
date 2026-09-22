@@ -31,6 +31,7 @@ navigation:
     route: /my-tasks
     priority: 1
     home_card: true
+    icon: "☑"
   # Moved here from document-approval.yaml (2026-09-21): the page composes Projects, Tasks and
   # their Activity -- this Application's Machines -- and had only ever been declared over there
   # because both Applications were one before Fase 3 split them.
@@ -38,27 +39,34 @@ navigation:
     label: Dashboard
     route: /dashboard
     priority: 1
+    icon: "▥"
   - id: nav_calendar
     label: Calendar
     route: /calendar
     priority: 2
+    icon: "▦"
   - id: nav_sprint
     label: Sprint Dashboard
     route: /sprint
     priority: 2
+    icon: "◷"
   - id: nav_team_capacity
     label: Team Capacity
     route: /team-capacity
     priority: 3
+    icon: "◨"
   - id: nav_activity
     label: Activity
     route: /activity
     priority: 3
+    icon: "☰"
   - id: nav_automation
     label: Automation
     route: /automation
     priority: 4
+    icon: "⚙"
   - id: nav_board_settings
     label: Board Settings
     route: /board-settings
     priority: 4
+    icon: "⚒"

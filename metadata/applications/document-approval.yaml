@@ -118,6 +118,7 @@ navigation:
     # home_card: the one item this Application's own card on Workspace Home links to -- at most
     # one per Application (validated at load time).
     home_card: true
+    icon: "▣"
   # A route carrying a query is still one destination, which is what makes this a level-1 item
   # rather than the level-2 `tabs:` concept briefly drafted and rejected: /approval-inbox?tab=mine
   # is where "My Documents" *is*. internal/web.showApprovalInbox reads ?tab= to decide which of the
@@ -127,3 +128,4 @@ navigation:
     label: My Documents
     route: /approval-inbox?tab=mine
     priority: 2
+    icon: "▧"

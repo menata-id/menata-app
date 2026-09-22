@@ -1,6 +1,11 @@
 package rendering
 
-import "menata.app/internal/domain"
+import (
+	"sort"
+	"strings"
+
+	"menata.app/internal/domain"
+)
 
 // launcherAppHomeRoute is an Application card's link target: its own declared HomeRoute, falling
 // back to Workspace Home exactly the way internal/web.applicationCards does for the Workspace
@@ -86,27 +91,160 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			<script src="/vendor/hyperscript.min.js" defer></script>
 		</head>
 		<body hx-headers={ csrfHeadersAttr(ctx) } class="m-0 bg-slate-50 font-sans text-slate-900">
-			<header class="flex h-15 shrink-0 items-center gap-2.5 border-b border-slate-200 bg-white px-4 sm:pr-7 sm:pl-9">
-				@appLauncher(switchWorkspaceHref)
-				<nav aria-label="Breadcrumb" class="min-w-0 truncate text-sm text-slate-400">
-					// "/home" is a runtime-level route -- it exists regardless of which Application is
-					// configured (internal/conformance's runtimeLevelRoutes), the same literal
-					// workspaceHomeShell used before this. Not routeByID("nav_home"), which would panic
-					// if an Application ever declared no home item.
-					<a href="/home" class="font-medium text-slate-900 hover:underline">{ workspaceName }</a>
-					{ " / " }
-					{ title }
-				</nav>
-				<span class="ml-auto">
-					@accountMenu(viewer)
-				</span>
+			// The current Application's own menu (defaultAppMenu below) -- owner spec, ui-sample/
+			// README.md's "Menu Navigasi": level 2 is "untuk desktop ada di atas" (a second row inside
+			// this same header, not a bar stacked above it) and "untuk mobile ada di bagian bawah
+			// berupa bottom bar". hasAppMenu is false for a Workspace-level screen (no Application, or
+			// one declaring no navigation at all -- Workspace Home, Members), which is exactly when
+			// neither row below renders.
+			{{ currentApp, inApp := CurrentApplication(ctx) }}
+			{{ path, rawQuery := CurrentPath(ctx) }}
+			{{ menu := defaultAppMenu(currentApp.AllNavigation, path, rawQuery) }}
+			{{ hasAppMenu := inApp && len(menu) > 0 }}
+			<header class="flex flex-col border-b border-slate-200 bg-white">
+				<div class="flex h-15 shrink-0 items-center gap-2.5 px-4 sm:pr-7 sm:pl-9">
+					@appLauncher(switchWorkspaceHref)
+					<nav aria-label="Breadcrumb" class="min-w-0 truncate text-sm text-slate-400">
+						// "/home" is a runtime-level route -- it exists regardless of which Application is
+						// configured (internal/conformance's runtimeLevelRoutes), the same literal
+						// workspaceHomeShell used before this. Not routeByID("nav_home"), which would panic
+						// if an Application ever declared no home item.
+						<a href="/home" class="font-medium text-slate-900 hover:underline">{ workspaceName }</a>
+						{ " / " }
+						{ title }
+					</nav>
+					<span class="ml-auto">
+						@accountMenu(viewer)
+					</span>
+				</div>
+				if hasAppMenu {
+					@applicationMenuRow(menu)
+				}
 			</header>
-			<main class="mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 pt-6 pb-10 sm:px-6 sm:pt-8">
+			<main class={ "mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 pt-6 sm:px-6 sm:pt-8", templ.KV("pb-24 sm:pb-10", hasAppMenu), templ.KV("pb-10", !hasAppMenu) }>
 				{ children... }
 			</main>
+			if hasAppMenu {
+				@applicationBottomBar(bottomBarItems(menu))
+			}
 			@pwaRegistrationScript()
 		</body>
 	</html>
+}
+
+// navMenuItem is one entry in the current Application's own menu -- appShell's desktop row and
+// mobile bottom bar both render this, not domain.NavigationItem directly, because Active is a
+// presentation decision (which item matches the current request) that neither belongs on the
+// declared metadata shape nor need be recomputed by each of the two renderers separately.
+type navMenuItem struct {
+	Label  string
+	Href   string
+	Icon   string
+	Active bool
+}
+
+// defaultAppMenu turns an Application's own declared navigation into appShell's menu, sorted by
+// Priority (ties keep declaration order -- the same stable sort experience.GroupNavigation
+// already uses) and with exactly one entry marked Active.
+//
+// Matching is path-plus-tab, not a plain prefix compare: Approval Inbox's own "My Documents" is a
+// query on the same path as "Approval Inbox" (nav_my_documents's declared route is literally
+// "/approval-inbox?tab=mine"), the one place this runtime uses a query to name a distinct
+// destination (document-approval.yaml's own comment on that item). navItemActive compares each
+// declared route's own ?tab= against the request's, generalizing what approvalinbox.templ's
+// inboxTabs/routeTabParam did for that one Application to every Application's menu. Falling back
+// to the first item when nothing matches keeps inboxTabs' own fallback behavior (a stale or
+// tab-less link still shows something selected, rather than a menu with nothing marked).
+//
+// One accepted trade: inboxTabs used to carry the active `?filter=` SLA chip forward across a tab
+// switch. A generic menu shared by every Application has no such per-Application concept to
+// forward, so switching tabs here resets it -- a minor UX regression traded for one menu instead
+// of a bespoke one per Application (CLAUDE.md's decomposition trigger: this is the second
+// Application that needs this exact shape).
+func defaultAppMenu(items []domain.NavigationItem, path, rawQuery string) []navMenuItem {
+	sorted := make([]domain.NavigationItem, len(items))
+	copy(sorted, items)
+	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Priority < sorted[j].Priority })
+
+	menu := make([]navMenuItem, len(sorted))
+	matched := -1
+	for i, item := range sorted {
+		active := navItemActive(item, path, rawQuery)
+		if active && matched == -1 {
+			matched = i
+		}
+		menu[i] = navMenuItem{Label: item.Label, Href: item.Route, Icon: item.Icon, Active: active}
+	}
+	if matched == -1 && len(menu) > 0 {
+		menu[0].Active = true
+	}
+	return menu
+}
+
+// navItemActive reports whether item's declared route names the current request: same path, and
+// the same ?tab= value (both empty counts as a match) -- see defaultAppMenu's own doc comment.
+func navItemActive(item domain.NavigationItem, path, rawQuery string) bool {
+	itemPath, itemQuery, _ := strings.Cut(item.Route, "?")
+	return itemPath == path && tabParam(itemQuery) == tabParam(rawQuery)
+}
+
+// tabParam reads a raw query string's own "tab" value without a full net/url round trip --
+// good enough here because every declared route's query is metadata this package itself wrote.
+func tabParam(rawQuery string) string {
+	for _, pair := range strings.Split(rawQuery, "&") {
+		key, value, _ := strings.Cut(pair, "=")
+		if key == "tab" {
+			return value
+		}
+	}
+	return ""
+}
+
+// bottomBarItems is appShell's mobile row: the menu's own first 3-4 entries (owner spec,
+// ui-sample/README.md: "dengan 3-4 icon"), in the same Priority order the desktop row already
+// uses -- not a separate declaration, so the two rows can never disagree about which items lead.
+func bottomBarItems(menu []navMenuItem) []navMenuItem {
+	return menu[:min(4, len(menu))]
+}
+
+// applicationMenuRow is appShell's header, second row: the current Application's own menu, plain
+// text links, `hidden` below `sm` where applicationBottomBar takes over instead (owner spec,
+// ui-sample/README.md's "Menu Navigasi" -- see appShell's own doc comment above).
+templ applicationMenuRow(menu []navMenuItem) {
+	<nav aria-label="Application" class="hidden items-center gap-1 border-t border-slate-100 px-4 py-1.5 sm:flex sm:px-6">
+		for _, item := range menu {
+			<a
+				href={ templ.SafeURL(item.Href) }
+				class={ "rounded-md px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !item.Active) }
+				if item.Active {
+					aria-current="page"
+				}
+			>
+				{ item.Label }
+			</a>
+		}
+	</nav>
+}
+
+// applicationBottomBar is the mobile counterpart of applicationMenuRow -- owner spec's other half:
+// a fixed bar, icon over label, shown only below `sm` where the header's own second row is
+// `hidden`. ui-sample/case-03-flow1's own M07-Inbox board is the visual reference: 76px tall,
+// evenly split columns, active in blue-600, the rest in slate-500.
+templ applicationBottomBar(items []navMenuItem) {
+	<nav aria-label="Application" class="fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t border-slate-200 bg-white px-1 pb-3 sm:hidden">
+		for _, item := range items {
+			<a
+				href={ templ.SafeURL(item.Href) }
+				class={ "flex flex-1 flex-col items-center gap-1 py-2 text-2xs", templ.KV("font-medium text-blue-600", item.Active), templ.KV("text-slate-500", !item.Active) }
+				if item.Active {
+					aria-current="page"
+				}
+			>
+				<span aria-hidden="true" class="text-base leading-none">{ item.Icon }</span>
+				{ item.Label }
+			</a>
+		}
+	</nav>
 }
 
 // accountMenu is the avatar's own menu (Account menu port, 2026-09-21, from

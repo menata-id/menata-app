@@ -64,9 +64,6 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 			}
 		}
 
-		// tab and filter compose rather than replace each other: the SLA chips carry ?filter= and
-		// must survive a tab switch, which is why each tab link preserves the other's value
-		// (rendering.inboxTabs) instead of being a bare href.
 		chrome, err := resolveChrome(ctx, req, store, cfg)
 		if err != nil {
 			serverError(w, err)
@@ -77,14 +74,14 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 		// projects this Application's own two navigation items and nothing else since 2026-09-21,
 		// so there is no Workspace destination on it left to hide.
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
-		// tab is passed through raw as well as decided on: this handler owns what ?tab=mine *means*
-		// (compose Mine rather than Pending), while the strip across the top owns which declared
-		// navigation item it marks current, by comparing this value against each item's own declared
-		// route. Two readings of one query value, each in the plane that owns that question.
+		// tab decides what this handler composes (Mine vs Pending); which declared navigation item
+		// appShell's own menu marks current is a separate reading of the same request, done there
+		// (appshell.templ's defaultAppMenu/navItemActive) by comparing the request's raw path and
+		// query against each item's own declared route -- not threaded through here any more.
 		tab := req.URL.Query().Get("tab")
 		render(ctx, w, rendering.ApprovalInboxPage(
 			filters, pending, inbox.Mine,
-			tab == inboxTabMine, tab, filterKey,
+			tab == inboxTabMine,
 			chrome.WorkspaceName, chrome.Viewer(), switchHref,
 		))
 	}

@@ -48,6 +48,13 @@ type NavigationItem struct {
 	// TestWorkspaceHomeHasNoHardcodedApplicationRoute now catches. No item marked: Workspace Home
 	// falls back to linking at itself ("/home"), never a guessed Application route.
 	HomeCard bool
+	// Icon is a single character, the same convention as Application.Icon (ui-sample/
+	// nav-metadata.js's own placeholder-glyph choice, "not-yet-scoped" for a real SVG set).
+	// Rendered by appShell's mobile bottom bar (owner spec, ui-sample/README.md's "Menu Navigasi":
+	// "untuk mobile ada di bagian bawah berupa bottom bar menu, dengan 3-4 icon") -- the desktop
+	// row stays plain text links, so an item with no Icon still renders fully there. Optional:
+	// only the items a bottom bar actually shows (appshell.templ's topByPriority) need one.
+	Icon string
 }
 
 // HomeCardRoute returns the route of items' one HomeCard item, or "" if none is marked --

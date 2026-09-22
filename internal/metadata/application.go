@@ -73,6 +73,8 @@ type navItemDoc struct {
 	Priority int    `yaml:"priority"`
 	Badge    string `yaml:"badge"`
 	HomeCard bool   `yaml:"home_card"`
+	// Icon -- see domain.NavigationItem.Icon. Optional.
+	Icon string `yaml:"icon"`
 }
 
 // LoadApplication reads a Workspace manifest: its own Machine files and navigation, then every
@@ -280,6 +282,7 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 			Priority: n.Priority,
 			Badge:    n.Badge,
 			HomeCard: n.HomeCard,
+			Icon:     n.Icon,
 		})
 	}
 	return items

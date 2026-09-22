@@ -35,10 +35,11 @@ import (
 func currentApplication(ws domain.Workspace) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			ctx := rendering.WithCurrentPath(req.Context(), req.URL.Path, req.URL.RawQuery)
 			if app, ok := applicationForPath(ws, req.URL.Path); ok {
-				req = req.WithContext(rendering.WithCurrentApplication(req.Context(), app))
+				ctx = rendering.WithCurrentApplication(ctx, app)
 			}
-			next.ServeHTTP(w, req)
+			next.ServeHTTP(w, req.WithContext(ctx))
 		})
 	}
 }

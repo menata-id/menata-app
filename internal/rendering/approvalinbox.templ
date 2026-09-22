@@ -3,10 +3,8 @@ package rendering
 import (
 	"fmt"
 	"net/url"
-	"strings"
 	"time"
 
-	"menata.app/internal/domain"
 	"menata.app/internal/experience"
 )
 
@@ -77,76 +75,6 @@ type PendingApprovalCard struct {
 	CardFields []ProjectedField
 }
 
-// inboxTab is one entry in board 07's section strip.
-type inboxTab struct {
-	Label  string
-	Href   string
-	Active bool
-}
-
-// inboxTabs projects the *Document Approval Application's own declared navigation* into board 07's
-// strip: one entry per level-1 item, in declared order.
-//
-// Nothing here is a tab list. Until 2026-09-21 this function held one -- two hardcoded entries
-// plus Groups and Admin borrowed from the Workspace's menu -- and the owner's answer to "why is
-// this hardcoded" was to make the Application's menu *be* these two items and render the menu with
-// this component. So the strip is now what an Application's menu looks like on an appShell screen,
-// the same role pageShell's topbar plays for an Application that has one; "Approval Inbox" and
-// "My Documents" are both real level-1 destinations (metadata/applications/document-approval.yaml),
-// and there is deliberately no second navigation level in this runtime.
-//
-// The active entry is decided by ?tab=, not by path, because both items share the path
-// /approval-inbox and differ only in that query -- see the nav_my_documents comment in that file.
-// currentTab is the request's own ?tab= value and is compared against each declared route's, so
-// which entry means "my documents" is read out of metadata rather than re-asserted here. A value
-// matching no declared item (a stale ?tab=inbox link, the shape this page used before the items
-// were declared) falls back to the first entry rather than leaving the strip with nothing marked.
-//
-// items is the Application's *unfiltered* navigation: Document Approval declares show_nav: false,
-// which empties Navigation to suppress a pageShell topbar it does not have anyway, and reading the
-// filtered list here would leave this Application with no menu at all.
-//
-// tab and filter compose rather than replace: each entry carries the active ?filter= forward, so
-// switching views does not silently drop an SLA chip the viewer chose.
-func inboxTabs(items []domain.NavigationItem, currentTab, filterKey string) []inboxTab {
-	filter := ""
-	if filterKey != "" && filterKey != "all" {
-		filter = "filter=" + url.QueryEscape(filterKey)
-	}
-	tabs := make([]inboxTab, 0, len(items))
-	matched := false
-	for _, item := range items {
-		href := item.Route
-		if filter != "" {
-			separator := "?"
-			if strings.Contains(href, "?") {
-				separator = "&"
-			}
-			href += separator + filter
-		}
-		active := routeTabParam(item.Route) == currentTab
-		matched = matched || active
-		tabs = append(tabs, inboxTab{Label: item.Label, Href: href, Active: active})
-	}
-	if !matched && len(tabs) > 0 {
-		tabs[0].Active = true
-	}
-	return tabs
-}
-
-// routeTabParam returns a declared route's own ?tab= value, or "" for a route that carries none.
-func routeTabParam(route string) string {
-	_, query, found := strings.Cut(route, "?")
-	if !found {
-		return ""
-	}
-	values, err := url.ParseQuery(query)
-	if err != nil {
-		return ""
-	}
-	return values.Get("tab")
-}
-
 // ApprovalInboxPage is Case 3's worklist, ported to ui-sample/case-03-flow1/07-approval-inbox.html
 // (Fase 6a, 2026-09-20).
 //
@@ -158,24 +86,12 @@ func routeTabParam(route string) string {
 // type built to satisfy one label, which is the shape-before-need this repo refuses. Same class as
 // board 03's Procurement/HR cards and board 06's ProcessEdge: the board draws something the app
 // has no data for. Recorded in ROADMAP.md's deferral table with that as its real blocker.
-templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []PendingApprovalCard, showMine bool, currentTab, filterKey, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []PendingApprovalCard, showMine bool, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	// The "Approval Inbox" / "My Documents" section strip used to be this Page's own nav here
+	// (inboxTabs, deleted with this change): appShell now renders the current Application's own
+	// menu itself -- a second header row on desktop, a bottom bar on mobile -- generalized from
+	// this exact shape to every Application (appshell.templ's defaultAppMenu/navItemActive).
 	@appShell(labelByID("nav_approval_inbox"), workspaceName, viewer, switchWorkspaceHref) {
-		{{ currentApp, _ := CurrentApplication(ctx) }}
-		<nav aria-label="Approval sections" class="flex gap-0.5 self-start rounded-lg bg-slate-100 p-1">
-			for _, t := range inboxTabs(currentApp.AllNavigation, currentTab, filterKey) {
-				<a
-					href={ templ.SafeURL(t.Href) }
-					class={ "rounded-md px-3 py-1.5 text-sm",
-						templ.KV("bg-white text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.08)]", t.Active),
-						templ.KV("text-slate-600 hover:text-slate-900", !t.Active) }
-					if t.Active {
-						aria-current="page"
-					}
-				>
-					{ t.Label }
-				</a>
-			}
-		</nav>
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-blue-600 uppercase">Approval</span>
