@@ -268,11 +268,7 @@ func workspaceRoleActions(m *domain.Machine) []string {
 
 // verbFor renders an action list the way a person says it: "Create", "Edit or delete".
 func verbFor(actions []string) string {
-	words := make([]string, 0, len(actions))
-	for _, a := range actions {
-		words = append(words, a)
-	}
-	joined := strings.Join(words, " or ")
+	joined := strings.Join(actions, " or ")
 	return strings.ToUpper(joined[:1]) + joined[1:]
 }
 
