@@ -191,6 +191,27 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   over `m.Fields`, as `machine.templ`/`detail.templ` do) is the target pattern, not a violation.
   It gates *reads only* — an input's `name=` is 007 §11.3 Binding, ungated, so leaving this list
   is not the same as the screen being composable.
+- `TestQueryDiagnosticsRunsBeforeAuth` / `TestPoolInstallsQueryTracer` — the read diagnostic's own
+  wiring. It must be the *first* middleware in the authenticated group (it installs the ReadLog on
+  ctx, so anything registered above it is counted by nothing), and `internal/db` must install the
+  `pgx.QueryTracer` it is handed. Both failures are invisible at runtime: the app works, the log
+  just quietly reports a smaller number. That is what happened between Phase 18 Step 3 and
+  2026-09-22.
+- `TestGetRoutesDoNotWrite` — no handler registered for GET may reach `CreateRecord`/
+  `UpdateRecord`/`DeleteRecord`, walking the call graph across `internal/web` and
+  `internal/composition` (the one that prompted this was four calls deep). Exactly one exception
+  is declared, `readPathWriters`, and it carries its reason plus a forward pointer; a stale entry
+  fails too.
+- `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed` (`internal/web`, needs `DATABASE_URL`) — the
+  second *ratchet*. It sweeps every authenticated GET route taking no path parameter (discovered
+  by parsing `router.go`, so a new route is covered without anyone remembering) and holds each to
+  two invariants: `queries == reads` (every statement named itself) and `repeated == 0`. Seven
+  routes are grandfathered in `getSweepRatchet` and **the list may only shrink** — adding an entry
+  is not the way to pass, and an entry left behind after a route is fixed fails too. Writes are
+  deliberately out of scope: `composition.Loader` may not span a mutation, so a POST re-reading
+  after its write is correct. `TestAuthenticatedPageQueryCost`/`TestNavBadgeQueryCost` sit beside
+  it with per-route *budgets* — kept to two on purpose, since a budget is a threshold that rots
+  while the two invariants above do not.
 - `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —
   `capabilities.md`'s own Machines and Shared rendering components tables match the real
   `metadata/*.yaml` and `internal/rendering/*.templ`.

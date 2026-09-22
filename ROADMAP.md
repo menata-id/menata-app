@@ -583,9 +583,58 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
   **Still open, and now measurable rather than inferred:** `GroupsByMember` reads the whole
   Workspace's groups to answer a question about one member, while `ActorMembership` already has
-  the targeted per-user query for exactly that. Two of `/home`'s twelve remaining queries are
-  that shape. Not changed here because it alters what `Membership.Groups` costs for every other
-  caller, which deserves its own look rather than a ride on a diagnostics change.
+  the targeted per-user query for exactly that. Two of `/home`'s remaining queries are that shape.
+  Not changed here because it alters what `Membership.Groups` costs for every other caller, which
+  deserves its own look rather than a ride on a diagnostics change.
+
+  ### Round 2, same day — the gates, and the seven routes they found
+
+  Asked whether this should be gated or left to periodic audit, the answer turned out to be
+  neither wholesale: **gate the invariants, not the budgets.** A budget is a threshold someone
+  chose, and fifty-four of them would be fifty-four numbers to maintain and an invitation to raise
+  whichever fails; `queries == reads` and `repeated == 0` on a read path have one correct value
+  that does not move with data volume. Three things landed:
+
+  1. **The log marks its own anomalies** (`web.anomalyPrefix`) — `ANOMALY(unnamed,repeated)`, so
+     the next review is a grep rather than a read of 1853 lines. This is the half that covers
+     *production traffic on routes no fixture exercises*, which no gate can. `repeated` is flagged
+     on GET/HEAD only: `composition.Loader` may not span a write, so flagging a POST would train
+     the reader to ignore the marker.
+  2. **`TestGetRoutesDoNotWrite`** — a GET may not reach a Store write, call graph walked across
+     `internal/web` and `internal/composition`. Verified failing with the exception removed, and
+     it traces the whole chain (`showApprovalInbox -> ApprovalInbox -> logSLABreaches ->
+     CreateRecord`). One declared exception. Notably `showPendingCount` is **not** among the
+     offenders, which is the badge fix above holding.
+  3. **`TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed`** — sweeps **22** routes, discovered by
+     parsing `router.go` so a new one is covered automatically.
+
+  **And the sweep immediately justified itself.** The two budget tests covered two routes out of
+  fifty-four, both of them ones just worked on — coverage that reassures more than it protects.
+  Run across every param-free authenticated GET, it found **seven more routes with the same
+  disease**, none of it previously visible:
+
+  | Route | |
+  |---|---|
+  | `/workspace-members` | `unnamed=3, repeated=6` — the worst; per-member membership and group reads |
+  | `/workspace-groups` | `repeated=5` |
+  | `/authorization-matrix` | `repeated=4` |
+  | `/documents/new` | `unnamed=2, repeated=3` — approver picker re-reads groups per row |
+  | `/documents/new/approver-row` | `unnamed=2, repeated=1` |
+  | `/switch-workspace` | `unnamed=1, repeated=1` |
+  | `/create-workspace` | `unnamed=1` |
+
+  These are grandfathered in `getSweepRatchet`, **which may only shrink** — the same posture
+  `projectionRatchet` takes, and for the same reason: holding the gate hostage to fixing seven
+  routes first is how the check that would prevent the eighth ends up not existing. `resolveIdentity`
+  fixed the *request-level* duplication; every `repeated=` above is the *within-handler* kind it
+  cannot see — a loop that asks the database about each member separately.
+
+  **One of the original findings turned out to be a labelling artifact**, and it is recorded
+  because the correction matters more than the finding: `/home`'s `mch_document x2` (present in
+  the very first log read) was `CountRecords` and `ListRecords` sharing one `record()` target.
+  They are different statements; the repeat was in the label, not in the request. `CountRecords`
+  now records `"<machine> count"`. Whether counting a Machine the page has *already listed* is
+  itself waste is a real question this naming now makes askable.
 - **What a composable runtime actually costs, measured against a conventional app** (owner
   request, 2026-09-22, immediately after the entry above; **study done, one item actionable, the
   rest trigger-gated**). Full method, evidence and repeatable benchmark scripts:

@@ -123,7 +123,13 @@ func (s *Store) CountRecords(ctx context.Context, machineID string) (int, error)
 	if !ok {
 		return 0, errNotScoped
 	}
-	readLogFrom(ctx).record(machineID)
+	// A distinct target from ListRecords', though both concern the same Machine: they are
+	// different statements, and labelling them alike made a page that lists a Machine and counts
+	// it look like it had read the same thing twice. /home did exactly that (`mch_document x2` in
+	// the log from the day this diagnostic was fixed), and the repeat was in the label, not in the
+	// request. Whether counting a Machine a page has *already listed* is itself waste is a
+	// separate question, and one this naming now lets someone actually ask.
+	readLogFrom(ctx).record(machineID + " count")
 	var n int
 	err := s.pool.QueryRow(ctx, `
 		SELECT count(*) FROM records WHERE machine_id = $1 AND workspace_id = $2

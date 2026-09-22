@@ -147,11 +147,50 @@ func queryDiagnostics(next http.Handler) http.Handler {
 		}
 		// unnamed is the gap described above, printed only when there is one so a healthy line
 		// stays as short as it was.
+		gap := reads.Queries() - reads.Total()
 		unnamed := ""
-		if gap := reads.Queries() - reads.Total(); gap > 0 {
+		if gap > 0 {
 			unnamed = fmt.Sprintf(" unnamed=%d", gap)
 		}
-		log.Printf("queries=%d reads=%d repeated=%d%s %s [%s]",
+		log.Printf("%squeries=%d reads=%d repeated=%d%s %s [%s]",
+			anomalyPrefix(req.Method, reads.Repeated(), gap),
 			reads.Queries(), reads.Total(), reads.Repeated(), unnamed, req.URL.Path, strings.Join(parts, ", "))
 	})
+}
+
+// anomalyMarker is the token a periodic log review greps for.
+//
+// It exists because the 2026-09-22 review had to read 1853 lines to find what was wrong with
+// them. Conformance gates cover the routes someone wrote a fixture for -- two of fifty-four when
+// this was added -- so the log is the only thing that observes the rest, and it observes them
+// under real traffic rather than under a test's idea of it. Marking the interesting lines is what
+// turns the next review from a read into a grep.
+const anomalyMarker = "ANOMALY"
+
+// anomalyPrefix marks a request whose own counts say something is wrong with it.
+//
+// Two conditions, and the asymmetry between them is deliberate:
+//
+//   - **An unnamed query is always anomalous**, whatever the method. It means a statement was
+//     issued by something that did not call record(), so the breakdown beside it is incomplete --
+//     precisely the blind spot that made this diagnostic under-report for months.
+//
+//   - **A repeated read is anomalous only on a safe method.** A GET that reads the same target
+//     twice is waste: composition.Loader memoizes within a request and the identity is resolved
+//     once on ctx, so there is nothing left that legitimately re-reads. A write is different --
+//     composition.Loader's own doc comment forbids one memo from spanning a mutation, so a POST
+//     re-reading after its write is the correct behaviour, not a defect. Flagging it would train
+//     the reader to ignore the marker, which is the only way a marker like this fails.
+func anomalyPrefix(method string, repeated, unnamed int) string {
+	var reasons []string
+	if unnamed > 0 {
+		reasons = append(reasons, "unnamed")
+	}
+	if repeated > 0 && (method == http.MethodGet || method == http.MethodHead) {
+		reasons = append(reasons, "repeated")
+	}
+	if len(reasons) == 0 {
+		return ""
+	}
+	return anomalyMarker + "(" + strings.Join(reasons, ",") + ") "
 }
