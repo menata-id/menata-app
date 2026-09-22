@@ -586,6 +586,51 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   the targeted per-user query for exactly that. Two of `/home`'s twelve remaining queries are
   that shape. Not changed here because it alters what `Membership.Groups` costs for every other
   caller, which deserves its own look rather than a ride on a diagnostics change.
+- **What a composable runtime actually costs, measured against a conventional app** (owner
+  request, 2026-09-22, immediately after the entry above; **study done, one item actionable, the
+  rest trigger-gated**). Full method, evidence and repeatable benchmark scripts:
+  `menata-app-document`'s `audits/2026-09-22-kinerja-composable-vs-konvensional-kajian.md`.
+
+  The question was whether being metadata-driven makes this app slower and heavier than one that
+  hand-writes its models, queries and pages. **Mostly it does not, and the part that does is not
+  the part that gets blamed.** Metadata is compiled once at startup (`cmd/server/main.go:41`), the
+  31 `.templ` files are compiled to Go, and the process lives in 6.8M resident — so the per-request
+  cost of the runtime *being* a runtime is effectively zero. `003-runtime-language.md`'s
+  distinction ("compiled to runtime-internal representations, never a flat metadata-to-View
+  dispatch") is what buys that, and this measurement is the first evidence the implementation
+  actually honours it.
+
+  The one real divergence is the data path, and it has one shape: **load the whole thing, then
+  filter in memory.** Measured on 200k synthetic rows against the real `records` shape, and on
+  100k records through the real Go decode path:
+
+  | Finding | Evidence | Trigger |
+  |---|---|---|
+  | **JSONB is not the problem.** A field filter costs 1.66ms on the generic `records` shape with an expression index vs. 0.69ms on a typed column with a btree — 2.4x, both under 2ms. Storage is +42% | Appendix A of the audit, `EXPLAIN (ANALYZE, BUFFERS)` output quoted verbatim | **None — this closes a question rather than opening one.** Replacing JSONB with per-Machine tables would spend the product's own premise to buy 1ms |
+  | **The missing index is the problem, and it is finding #8 above with a number on it.** `ListRecordsBy`'s `data->>$2 = $3` is 78ms Seq Scan (199,800 rows discarded to return 200) without an expression index and **1.66ms** with one — 47x, the largest ratio anywhere in the study | Same appendix | A row count that makes it hurt, unchanged from finding #8. What is new: the *fix* now has a named shape — index declared in metadata (007 §21.4), which is the only form that keeps it metadata-first instead of a hand-written migration per Machine |
+  | **The dominant cost is decode, not SQL.** `ListRecords` on 100k records: 805ms to decode JSONB into `map[string]any`, **6ms** to then filter it in Go, **+97MB heap per request**. Ten concurrent requests on a Workspace that size is ~1GB on a process that runs at 6.8M today | Appendix B, a standalone Go program | Same as below. Worth stating plainly because it inverts the intuition: composition is the cheapest part of composing, by two orders of magnitude |
+  | **Filter/Projection/Aggregate pushdown (007 §21.1-21.3) are generalizations of things already in the tree, not new concepts.** `expression.Comparison` is a closed vocabulary with no parser (so compiling it to SQL is injection-safe *by construction*, 007 §9.1) and `Measure.Where` already uses it — in Go, after every row is loaded. `domain.Dataset{Dimension, Measures}` is already shaped like `GROUP BY dimension, agg(measure)`. `ProjectCardFields`/`card_fields` already knows which fields a screen uses, and uses that knowledge *after* the full JSONB is fetched | `composition/dataset.go:62`, `domain/dataset.go:57`, `internal/planner`+`internal/ir` still `doc.go`-only | **One Machine past ~5,000 rows in one Workspace, or one route whose `queries`/latency tracks record count.** `internal/planner`'s own doc says to build it against real forcing cases; neither has arrived. Pagination (Planned, below) is cheaper than all three if what is wanted is only list screens |
+  | **The same shape is already live on the identity path**, not just the record path: `GroupsByMember` reads every Group and every group membership in the Workspace to answer a question about one member — the "still open" note directly above, which this study reclassifies as the same finding rather than a separate one | Two of `/home`'s twelve queries | Already named above; the reclassification is the point, because one fix (push the predicate down) covers both paths |
+
+  **Actionable with no trigger at all, and the only such item: there is no response compression and
+  no `Cache-Control` on `/css/*` or `/vendor/*`** — `grep` for gzip/compress/Cache-Control/etag in
+  `internal/web` returns nothing. Metadata-driven HTML is unusually repetitive and compresses well,
+  so this is the largest perceived-speed win per line of code in the whole study, and the only one
+  that touches no architecture. It is an omission, not a design choice.
+
+  **What this is not, again:** a performance problem. 66 records, 40 req/min, `/home` at
+  `queries=12 reads=12 repeated=0`. Note that 12 is exactly `maxQueriesPerAuthenticatedPage`, so
+  the budget is tight rather than slack — the next move on that path is removing a query, not
+  adding one, and raising the constant to pass is the thing it exists to prevent.
+
+  **One methodological correction the study made to itself**, recorded because it is the entry
+  above's own lesson arriving one level up: two of its Tier-1 proposals (the nav badge recomputing
+  the whole inbox; `context.Canceled` logged as a 500) were read off `92e841b` and were **already
+  fixed** in an uncommitted working tree that landed as `f1767b0` mid-study. In a checkout several
+  sessions share, `git status` is evidence-gathering, not a formality. A third proposal was wrong
+  on the merits too: a bare `CountRecords` for the badge would have counted something different
+  from what the page shows, which is why `PendingApprovalCount` shares `pendingStepsFor` with
+  `buildInbox` instead.
 
 ## Planned
 
@@ -661,7 +706,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   urgent while the manifest ships with the binary; both stop being optional the moment metadata is
   edited by someone who cannot restart the process, which is the actual end state this runtime is
   for.
-- Search, filtering and pagination on record lists.
+- Search, filtering and pagination on record lists. **Pagination is also the cheapest answer to the
+  data-path cost measured in the study above** (007 §7.9): it breaks the "a page costs what the
+  Machine holds" relationship outright, without needing Filter/Projection/Aggregate pushdown first.
+  Its own trigger arrives sooner than theirs — one list screen past ~200 rows.
 - Background/scheduled jobs (e.g. SLA-breach notifications that don't depend on someone opening
   the page).
 - Expanding beyond the first two applications into the wider portfolio of business cases this
