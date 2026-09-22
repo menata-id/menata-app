@@ -771,6 +771,25 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   query-count reason is not a reason to verify it by reading. Confirmed it fails when the
   no-membership arm is made to pass.
 
+  **The ratchet reached zero the same day**, and the last three were three more causes rather than
+  one: `loadWorkspaceChoices` fetched **one Workspace per membership** — the only true N+1 the whole
+  audit found, now a join in `ListMemberships` carrying `WorkspaceName`; `composition.Loader`'s
+  `ListGroups` was **the one read of its four without a memo**, so the submit wizard reached the
+  Workspace's Groups by two paths (`Loader.Groups`/`Loader.Members` now, over
+  `data.ListMembersFrom`/`GroupsByMemberFrom`); and `currentUserEmail` was the last direct
+  `store.GetMembership` bypassing the resolved identity — latent rather than live, which is why the
+  sweep never saw it.
+
+  **`getSweepRatchet` is empty and stays declared.** An empty ratchet is an ordinary gate: the next
+  route that repeats a read or issues an unnamed query fails outright with no list to be added to.
+
+  Two assertions were added that the sweep structurally cannot make. **`repeated=0` does not say
+  an N+1 is gone** — a per-row loop repeats nothing when there is one row, which is exactly why
+  `/switch-workspace` measured as a mild `repeated=1` for weeks; `TestSwitchWorkspaceCostIsFlatInWorkspaceCount`
+  asserts the same request costs the same for an identity in one Workspace and in three. And since
+  the Workspace name moved from a per-row fetch onto a join, **nothing had ever asserted that name
+  renders at all**, so that is asserted too. Both were confirmed to fail when their fix is undone.
+
   **Response compression, static assets only** — `hyperscript.min.js` 369→67kB, `htmx.min.js`
   51→16kB, `app.css` 30→6.5kB: **~359kB off a cold load**, the performance study's one Tier-1 item
   needing no trigger. **HTML is deliberately excluded** (owner decision): every page carries the

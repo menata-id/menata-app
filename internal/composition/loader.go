@@ -38,6 +38,14 @@ type Loader struct {
 	// distinguishable from an empty Workspace because MemberNames always returns a non-nil map.
 	personNames map[string]string
 
+	// groups and members carry their own "already read" flags rather than relying on a nil
+	// check: both legitimately come back nil for a Workspace that has none, and a memo that
+	// cannot tell that from "not read yet" would read again every time.
+	groups      []data.Group
+	groupsRead  bool
+	members     []data.Membership
+	membersRead bool
+
 	reads  int
 	served int
 }
@@ -114,6 +122,52 @@ func (l *Loader) PersonNames(ctx context.Context) (map[string]string, error) {
 	return names, nil
 }
 
+// Groups memoizes this Workspace's Groups for the request.
+//
+// It closes the one gap in this type: of the four Store reads reached from here, this was the
+// only one without a memo, and /documents/new paid for it -- the approver picker asked for the
+// Group options while the members read separately reached ListGroups through GroupsByMember, so
+// the same list came back twice. A bool flag rather than a nil check, unlike PersonNames: a
+// Workspace with no Groups legitimately returns nil, and "read it and found nothing" must not be
+// mistaken for "not read yet".
+func (l *Loader) Groups(ctx context.Context) ([]data.Group, error) {
+	if l.groupsRead {
+		l.served++
+		return l.groups, nil
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	groups, err := l.store.ListGroups(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	l.reads++
+	l.groups, l.groupsRead = groups, true
+	return groups, nil
+}
+
+// Members memoizes this Workspace's members, with their per-Application roles and Groups.
+//
+// It reuses Groups above rather than letting the Store read them again (data.ListMembersFrom),
+// which is the whole reason it is here instead of the handler calling store.ListMembers.
+func (l *Loader) Members(ctx context.Context) ([]data.Membership, error) {
+	if l.membersRead {
+		l.served++
+		return l.members, nil
+	}
+	groups, err := l.Groups(ctx)
+	if err != nil {
+		return nil, err
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	members, err := l.store.ListMembersFrom(ctx, workspaceID, groups)
+	if err != nil {
+		return nil, err
+	}
+	l.reads++
+	l.members, l.membersRead = members, true
+	return members, nil
+}
+
 // RelationOptions fetches every option a reference field on m could select (Relation or Person,
 // per domain.Field.IsReference), keyed by target Machine ID. The target's first Field is used as
 // the display label -- a minimal convention until a real Projection/semantic "title" role exists
@@ -188,8 +242,7 @@ func (l *Loader) GroupOptions(ctx context.Context, m *domain.Machine) (rendering
 	if !needed {
 		return nil, nil
 	}
-	workspaceID, _ := data.WorkspaceScope(ctx)
-	groups, err := l.store.ListGroups(ctx, workspaceID)
+	groups, err := l.Groups(ctx)
 	if err != nil {
 		return nil, err
 	}

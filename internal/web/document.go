@@ -56,8 +56,9 @@ func readWizardOptions(req *http.Request, machines map[string]*domain.Machine, s
 	// it a submitter can name anyone in the Workspace, including someone holding no role in this
 	// Application at all -- producing a step assigned to a real person and decidable by nobody,
 	// with no error anywhere.
-	workspaceID, _ := data.WorkspaceScope(req.Context())
-	members, err := store.ListMembers(req.Context(), workspaceID)
+	// Through the Loader, not store.ListMembers: GroupOptions below wants this Workspace's Groups
+	// too, and reading them by both routes is what put this screen on the query-sweep ratchet.
+	members, err := ld.Members(req.Context())
 	if err != nil {
 		return wizardOptions{}, err
 	}

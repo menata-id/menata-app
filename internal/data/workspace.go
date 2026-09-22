@@ -85,6 +85,13 @@ type Membership struct {
 	// Application -- via two Groups, or direct plus a Group -- is produced by EffectiveRoles at
 	// read time, never stored; see its doc comment and migration 009's own note.
 	Groups []Group
+	// WorkspaceName is the display name of the Workspace this membership names. Filled by
+	// ListMemberships, which joins it; empty from GetMembership and ListMembers, whose callers
+	// already know which Workspace they are in and would be paying for a join to be told.
+	//
+	// It lives here rather than being fetched per row because fetching it per row is precisely
+	// what it replaced -- see ListMemberships' own doc comment.
+	WorkspaceName string
 }
 
 // appRolesFor reads the per-Application roles of one member.
@@ -230,16 +237,26 @@ func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID str
 // whether a signed-in identity has exactly one Workspace (skip straight in) or several (Choose
 // Workspace, ROADMAP.md Phase 21 Step 4).
 //
-// AppRoles is deliberately left nil here, unlike GetMembership/ListMembers: its two callers show
-// a Workspace name and Workspace role only, and filling it would mean querying per-Application
+// AppRoles is deliberately left nil here, unlike GetMembership/ListMembers: its callers show a
+// Workspace name and Workspace role only, and filling it would mean querying per-Application
 // roles across every Workspace an identity belongs to for data no screen reads.
+//
+// WorkspaceName comes back on the join rather than being fetched per row, and that is the whole
+// point of the join being here. Choose Workspace needs a name per membership, and
+// loadWorkspaceChoices used to get it by calling GetWorkspace once per membership -- **the only
+// true N+1 the 2026-09-22 query audit found**. It measured as a single repeated read because the
+// identity it was measured with belonged to one Workspace; someone in five paid for six queries.
+// A count that only looks wrong on data nobody has yet is exactly the kind this app cannot wait
+// to be told about, so it is closed by shape rather than by threshold.
 func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership, error) {
 	readLogFrom(ctx).record("memberships by email")
 	rows, err := s.pool.Query(ctx, `
-		SELECT workspace_id, user_record_id, email, workspace_role, COALESCE(app_role, '')
-		FROM workspace_members
-		WHERE email = $1
-		ORDER BY workspace_id
+		SELECT wm.workspace_id, wm.user_record_id, wm.email, wm.workspace_role,
+		       COALESCE(wm.app_role, ''), w.name
+		FROM workspace_members wm
+		JOIN workspaces w ON w.id = wm.workspace_id
+		WHERE wm.email = $1
+		ORDER BY wm.workspace_id
 	`, email)
 	if err != nil {
 		return nil, fmt.Errorf("list memberships: %w", err)
@@ -249,7 +266,7 @@ func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership
 	var memberships []Membership
 	for rows.Next() {
 		var m Membership
-		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole); err != nil {
+		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole, &m.WorkspaceName); err != nil {
 			return nil, fmt.Errorf("scan membership: %w", err)
 		}
 		memberships = append(memberships, m)
@@ -260,6 +277,17 @@ func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership
 // ListMembers returns every member of workspaceID, for the Workspace Members screen (ROADMAP.md
 // Phase 21 Step 6).
 func (s *Store) ListMembers(ctx context.Context, workspaceID string) ([]Membership, error) {
+	groups, err := s.ListGroups(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	return s.ListMembersFrom(ctx, workspaceID, groups)
+}
+
+// ListMembersFrom is ListMembers over a Group list the caller already holds. Same reasoning as
+// GroupsByMemberFrom: a request that needs the Workspace's Groups for something else as well
+// should read them once and pass them in, rather than have this method read them again.
+func (s *Store) ListMembersFrom(ctx context.Context, workspaceID string, groups []Group) ([]Membership, error) {
 	readLogFrom(ctx).record("members")
 	rows, err := s.pool.Query(ctx, `
 		SELECT workspace_id, user_record_id, email, workspace_role, COALESCE(app_role, '')
@@ -288,7 +316,7 @@ func (s *Store) ListMembers(ctx context.Context, workspaceID string) ([]Membersh
 	if err != nil {
 		return nil, err
 	}
-	groupsByMember, err := s.GroupsByMember(ctx, workspaceID)
+	groupsByMember, err := s.GroupsByMemberFrom(ctx, workspaceID, groups)
 	if err != nil {
 		return nil, err
 	}

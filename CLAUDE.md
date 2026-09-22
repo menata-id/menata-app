@@ -205,11 +205,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 - `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed` (`internal/web`, needs `DATABASE_URL`) — the
   second *ratchet*. It sweeps every authenticated GET route taking no path parameter (discovered
   by parsing `router.go`, so a new route is covered without anyone remembering) and holds each to
-  two invariants: `queries == reads` (every statement named itself) and `repeated == 0`. Seven
-  routes are grandfathered in `getSweepRatchet` and **the list may only shrink** — adding an entry
-  is not the way to pass, and an entry left behind after a route is fixed fails too. Writes are
-  deliberately out of scope: `composition.Loader` may not span a mutation, so a POST re-reading
-  after its write is correct. `TestAuthenticatedPageQueryCost`/`TestNavBadgeQueryCost` sit beside
+  two invariants: `queries == reads` (every statement named itself) and `repeated == 0`.
+  `getSweepRatchet` started at seven routes and **is now empty** — read that out of the map, not
+  out of this line. **The list may only shrink**: adding an entry is not the way to pass, and an
+  entry left behind after a route is fixed fails too. An empty ratchet is an ordinary gate, not a
+  retired one, so the map stays declared. Writes are deliberately out of scope:
+  `composition.Loader` may not span a mutation, so a POST re-reading after its write is correct.
+  **Neither invariant can see an N+1**, which is the sweep's own blind spot: a per-row loop repeats
+  nothing when there is one row. `TestSwitchWorkspaceCostIsFlatInWorkspaceCount` is the shape of
+  assertion that catches those — same request, more rows, same cost. `TestAuthenticatedPageQueryCost`/`TestNavBadgeQueryCost` sit beside
   it with per-route *budgets* — kept to two on purpose, since a budget is a threshold that rots
   while the two invariants above do not.
 - `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —

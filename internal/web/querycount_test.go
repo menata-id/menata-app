@@ -128,37 +128,30 @@ const minSweptRoutes = 8
 // getSweepRatchet grandfathers the routes that already violate the two invariants, each with what
 // it violated when the sweep was written (2026-09-22). **The list may only shrink.**
 //
-// It is a ratchet for the same reason TestRenderingUsesProjectionNotRawValues is one: the gate is
-// worth having now, the routes below are worth fixing, and holding the gate hostage to fixing them
-// first is how a check that would have prevented the next instance ends up not existing. Adding an
-// entry is not the way to make this pass -- an entry left behind after its route is fixed fails
-// too, so the list cannot quietly stop meaning anything.
+// It is a ratchet for the same reason TestRenderingUsesProjectionNotRawValues is one: the gate was
+// worth having before the routes it found were fixed, and holding it hostage to fixing them first
+// is how a check that would have prevented the next instance ends up not existing. Adding an entry
+// is not the way to make this pass -- an entry left behind after its route is fixed fails too, so
+// the list cannot quietly stop meaning anything.
 //
-// **It started at seven and is at three**, which is the answer to "do the two budget tests above
-// cover enough?" -- they did not. Before the sweep, two routes of fifty-four were checked, both of
-// them ones that had just been worked on; the sweep found seven more with the same disease. Four
-// left the same day, and not by being fixed one at a time: the seven had **three** causes between
-// them. Ten read methods in internal/data carried no record() target, which was every `unnamed=`.
-// requireWorkspaceAdmin re-read a membership resolveIdentity had already resolved, which was all
-// three admin screens at once. And GetMembership answered "which Groups is this one person in" by
-// reading every Group in the Workspace (now data.GroupsForMember).
+// **IT IS EMPTY, AND THAT IS ITS MOST USEFUL STATE, NOT ITS RETIREMENT.** An empty ratchet is an
+// ordinary gate: the next route that repeats a read or issues an unnamed query fails outright,
+// with no list to be added to. Deleting the map would delete that.
 //
-// What is left is genuinely three separate problems rather than one shape, which is why they are
-// described individually below instead of as a class.
-var getSweepRatchet = map[string]string{
-	"/documents/new": "repeated=1 -- `workspace groups x2`: the handler reads members through " +
-		"store.ListMembers (document.go:60, which reaches ListGroups via GroupsByMember) while " +
-		"composition.Loader separately calls store.ListGroups for the approver options " +
-		"(loader.go:192, the one read there that is not memoized like its neighbours). Two paths " +
-		"to the same question; the fix is one of them going through the other, not a third cache",
-	"/documents/new/approver-row": "repeated=1 -- the same two paths as /documents/new, rendered " +
-		"as an HTMX fragment. It leaves the list when that one does",
-	"/switch-workspace": "repeated=1 today, but **this one is a real N+1 and the count is not the " +
-		"point**: loadWorkspaceChoices (auth.go:325-326) calls GetWorkspace once per membership, " +
-		"so it is 1+N in how many Workspaces the viewer belongs to. It reads 2 here only because " +
-		"the fixture identity belongs to one. The fix is a join in ListMemberships rather than a " +
-		"loop, which is a contained data-layer change and deserves its own test",
-}
+// It went seven -> zero on 2026-09-22, and the shape of how is the part worth keeping. Before the
+// sweep existed, two routes of fifty-four were checked -- both of them ones that had just been
+// worked on. The sweep found seven more with the same disease, and the seven turned out to have
+// **five causes between them**, four of which reached more than one route at once:
+//
+//	ten read methods in internal/data carried no record() target  -> every `unnamed=`
+//	requireWorkspaceAdmin re-read a membership resolveIdentity had -> all three admin screens
+//	GetMembership read every Group to find one person's           -> data.GroupsForMember
+//	loadWorkspaceChoices fetched one Workspace per membership     -> the only true N+1 found
+//	composition.Loader's ListGroups was its one un-memoized read   -> the wizard and its fragment
+//
+// None of it was visible in the log the day before, which had been printing `repeated=0` for these
+// same routes because the diagnostic was registered below the middleware it needed to count.
+var getSweepRatchet = map[string]string{}
 
 // TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed sweeps every authenticated GET route that needs no
 // path parameter and holds all of them to the two invariants.

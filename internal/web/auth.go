@@ -292,7 +292,13 @@ func currentUserEmail(ctx context.Context, store *data.Store, req *http.Request,
 	if !ok {
 		return "", false
 	}
-	membership, err := store.GetMembership(ctx, workspaceID, userID)
+	// membershipFor, not store.GetMembership: this was the last consumer still going straight to
+	// the Store for a membership resolveIdentity had already resolved. It never showed up as a
+	// repeated read, because identity resolution is lazy and the routes reaching here ask nothing
+	// else of it -- latent duplication rather than live, which is why it survived the sweep that
+	// found the rest. Errors and an absent row collapse to the same answer here as before: no
+	// email, and the caller redirects.
+	membership, err := membershipFor(ctx, store, workspaceID, userID)
 	if err != nil || membership == nil || membership.Email == "" {
 		return "", false
 	}
@@ -321,13 +327,12 @@ func loadWorkspaceChoices(ctx context.Context, store *data.Store, email string) 
 	if err != nil {
 		return nil, err
 	}
+	// The name rides along on ListMemberships' own join. This loop used to call GetWorkspace once
+	// per membership, which is the one true N+1 the 2026-09-22 query audit found -- invisible in
+	// the diagnostics because the identity it was measured with belonged to a single Workspace.
 	choices := make([]rendering.WorkspaceChoice, 0, len(memberships))
 	for _, m := range memberships {
-		ws, err := store.GetWorkspace(ctx, m.WorkspaceID)
-		if err != nil {
-			return nil, err
-		}
-		choices = append(choices, rendering.WorkspaceChoice{ID: ws.ID, Name: ws.Name, Role: m.WorkspaceRole})
+		choices = append(choices, rendering.WorkspaceChoice{ID: m.WorkspaceID, Name: m.WorkspaceName, Role: m.WorkspaceRole})
 	}
 	return choices, nil
 }

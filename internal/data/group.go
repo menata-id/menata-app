@@ -280,6 +280,17 @@ func (s *Store) GroupsByMember(ctx context.Context, workspaceID string) (map[str
 	if err != nil {
 		return nil, err
 	}
+	return s.GroupsByMemberFrom(ctx, workspaceID, groups)
+}
+
+// GroupsByMemberFrom is GroupsByMember over a Group list the caller already holds -- the join
+// half, without the read half.
+//
+// It exists because a request can legitimately need the Workspace's Groups twice for two
+// different shapes: once as a flat list (the approver picker's own options) and once keyed by
+// member (the Members list's Source column). Reading them twice to answer that is what
+// /documents/new was doing; composition.Loader now reads them once and hands them here.
+func (s *Store) GroupsByMemberFrom(ctx context.Context, workspaceID string, groups []Group) (map[string][]Group, error) {
 	byID := make(map[string]Group, len(groups))
 	for _, g := range groups {
 		byID[g.ID] = g
