@@ -91,6 +91,18 @@ fields:
   - id: fld_signature_image
     name: Signature Image
     type: file
+  # Who signed this step, captured as text at the moment they decided it (owner decision,
+  # 2026-09-22). It is a *snapshot*, and deliberately the one place a person's name is copied
+  # rather than resolved: names now live on the identity, so a live lookup would silently rewrite
+  # the name printed on an already-signed PDF whenever that person later changed it. An invoice
+  # keeps the price it was issued at for the same reason.
+  #
+  # Written only by /decide (internal/web.decideStep). It is not a second source of truth for
+  # anyone's name -- nothing reads it to find out who someone is, only to reproduce what a
+  # particular signature said when it was made.
+  - id: fld_decided_by_name
+    name: Decided By
+    type: text
 
 # Only the step's own assignee may decide it (ROADMAP.md Phase 16). Until this existed, sequencing
 # was the only thing /decide enforced -- any authenticated user could approve or reject any step.

@@ -22,17 +22,24 @@ type RoleApplication struct {
 	Roles []string
 }
 
-// memberInitials is the avatar glyph for a member row. data.Membership carries an Email but no
-// display name, so this derives from the local part rather than showing a blank circle.
+// personInitials is the avatar glyph for a member row: built from the person's real name when the
+// runtime knows one, and from their email's local part when it does not (an invitation that has
+// not been accepted has no name yet, by design -- only its owner ever states it).
 //
-// It duplicates what composition.Initials does for a *name*, on purpose: internal/rendering
-// cannot import internal/composition (composition already imports rendering), and threading a
-// per-member initials slice through the handler for one avatar would be a worse trade than eight
-// lines here. When Fase 3 gives a member a real display name, both callers should take it from
-// there instead.
-func memberInitials(email string) string {
-	local, _, _ := strings.Cut(email, "@")
-	parts := strings.FieldsFunc(local, func(r rune) bool { return r == '.' || r == '_' || r == '-' || r == '+' })
+// It duplicates what composition.Initials does, on purpose: internal/rendering cannot import
+// internal/composition (composition already imports rendering), and threading a per-member
+// initials slice through the handler for one avatar would be a worse trade than the lines here.
+//
+// This replaced an email-only memberInitials on 2026-09-22, whose own comment had been waiting for
+// exactly this ("When Fase 3 gives a member a real display name, both callers should take it from
+// there instead") -- the name arrived from the identity rather than from Fase 3, but it arrived.
+func personInitials(name, email string) string {
+	source, sep := name, func(r rune) bool { return r == ' ' }
+	if strings.TrimSpace(name) == "" {
+		source, _, _ = strings.Cut(email, "@")
+		sep = func(r rune) bool { return r == '.' || r == '_' || r == '-' || r == '+' }
+	}
+	parts := strings.FieldsFunc(source, sep)
 	switch {
 	case len(parts) == 0:
 		return "?"
@@ -54,9 +61,17 @@ func memberInitials(email string) string {
 //     (ROADMAP.md, "Planned") -- a box that filters nothing would be worse than none, the same
 //     call made for "Keep me signed in" in Fase 1.
 //
-// The board also shows each member's full name above their email; data.Membership carries only
-// Email (see memberInitials above), so the row shows the address alone.
-templ WorkspaceMembersPage(members []data.Membership, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
+// The board's own "full name above the email" row works as of 2026-09-22: names maps each
+// member's record id to the display name of the identity behind it (data.Store.MemberNames),
+// resolved through the membership row rather than read off a Field, so it is the same name that
+// person carries in every Workspace.
+//
+// pending is the board's counterpart section: invitations sent and not yet accepted. They are
+// listed separately from members, and that separation is the model rather than a presentation
+// choice -- an unaccepted invitation holds no membership and no role, and cannot be picked as an
+// approver. It is also why an invited row shows no name: only its owner ever states one, when
+// they accept.
+templ WorkspaceMembersPage(members []data.Membership, names map[string]string, pending []data.PendingInvite, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
 	@appShell(labelByID("nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
@@ -73,7 +88,9 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName string, view
 			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ Invite member</summary>
 			<form method="POST" action="/workspace-members/invite" class="flex flex-col gap-4 border-t border-slate-200 px-5 py-4">
 				@csrfHiddenInput()
-				@authField("invite_name", "fld_name", "Full name", "text", "name", false)
+				// Email and roles only. The invitee's own name is theirs to state when they accept
+				// (rendering.AcceptInvitePage) -- an admin typing a stranger's name into a record
+				// created on their behalf is exactly what moving the name onto the identity removed.
 				@authField("invite_email", "email", "Email", "email", "email", false)
 				for _, app := range roleApps {
 					<div class="flex flex-col gap-2">
@@ -97,8 +114,15 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName string, view
 			for _, m := range members {
 				<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
 					<div class="flex grow items-center gap-3">
-						<span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-2xs font-medium text-slate-700">{ memberInitials(m.Email) }</span>
-						<span class="truncate text-sm">{ m.Email }</span>
+						<span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-2xs font-medium text-slate-700">{ personInitials(names[m.UserRecordID], m.Email) }</span>
+						<span class="flex min-w-0 flex-col gap-0.5">
+							if names[m.UserRecordID] != "" && names[m.UserRecordID] != m.Email {
+								<span class="truncate text-sm">{ names[m.UserRecordID] }</span>
+								<span class="truncate text-2xs text-slate-400">{ m.Email }</span>
+							} else {
+								<span class="truncate text-sm">{ m.Email }</span>
+							}
+						</span>
 					</div>
 					<div class="sm:w-32">
 						if m.WorkspaceRole == "admin" {
@@ -129,6 +153,39 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName string, view
 				</div>
 			}
 		</div>
+		if len(pending) > 0 {
+			<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+				<div class="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
+					<span class="text-xs text-slate-600">Waiting to accept</span>
+					<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d invitation", len(pending)) }{ pluralS(len(pending)) }</span>
+				</div>
+				for _, inv := range pending {
+					<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
+						<div class="flex grow items-center gap-3">
+							<span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-2xs font-medium text-slate-400">{ personInitials("", inv.Email) }</span>
+							<span class="truncate text-sm text-slate-600">{ inv.Email }</span>
+						</div>
+						<div class="sm:w-32">
+							<span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">Invited</span>
+						</div>
+						<div class="flex flex-col gap-1 sm:w-44">
+							if len(roleApps) == 0 {
+								<span class="text-sm text-slate-400">—</span>
+							}
+							for _, app := range roleApps {
+								<span class="text-2xs text-slate-500">{ app.Name } · { displayRole(inv.AppRoles[app.ID]) }</span>
+							}
+						</div>
+						<div class="sm:w-36"></div>
+						<form method="POST" action="/workspace-members/revoke-invite" class="sm:w-16">
+							@csrfHiddenInput()
+							<input type="hidden" name="email" value={ inv.Email }/>
+							<button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-sm text-slate-500 hover:text-red-600">Revoke</button>
+						</form>
+					</div>
+				}
+			</div>
+		}
 	}
 }
 
@@ -144,14 +201,21 @@ templ WorkspaceMembersPage(members []data.Membership, workspaceName string, view
 // the panel shows the merged set rather than picking a winner, and it says plainly that
 // group-derived access is changed by editing the Group, not here: this screen writes only the
 // direct half.
-templ EditMemberPage(m data.Membership, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
+templ EditMemberPage(m data.Membership, name string, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
 	@appShell("Edit member", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL(routeByID("nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { labelByID("nav_workspace_members") }
 		</a>
 		<div class="flex items-center gap-3">
-			<span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-medium text-slate-700">{ memberInitials(m.Email) }</span>
-			<span class="truncate text-[15px] font-medium">{ m.Email }</span>
+			<span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-medium text-slate-700">{ personInitials(name, m.Email) }</span>
+			<span class="flex min-w-0 flex-col gap-0.5">
+				if name != "" && name != m.Email {
+					<span class="truncate text-[15px] font-medium">{ name }</span>
+					<span class="truncate text-2xs text-slate-400">{ m.Email }</span>
+				} else {
+					<span class="truncate text-[15px] font-medium">{ m.Email }</span>
+				}
+			</span>
 		</div>
 		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class="flex flex-col gap-4">
 			@csrfHiddenInput()

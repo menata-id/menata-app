@@ -32,24 +32,24 @@ func TestBuildReview_DecisionBarIsOfferedToItsOwnAssigneeOnly(t *testing.T) {
 	document := reviewDoc()
 
 	// usr_budi holds step 1 and nothing is ahead of it.
-	got := buildReview(steps[0], document, steps, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_budi"), 6, true, at(10))
+	got := buildReview(steps[0], document, steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_budi"), 6, true, at(10))
 	if !got.CanDecide {
 		t.Error("step 1's own assignee must be offered the decision bar")
 	}
 
 	// usr_ana holds step 2, which sequential mode locks behind step 1.
-	if got := buildReview(steps[1], document, steps, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10)); got.CanDecide {
+	if got := buildReview(steps[1], document, steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10)); got.CanDecide {
 		t.Error("a step locked behind an earlier one must not be offered the bar; the server would refuse the POST")
 	}
 
 	// Somebody else entirely, looking at step 1.
-	if got := buildReview(steps[0], document, steps, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10)); got.CanDecide {
+	if got := buildReview(steps[0], document, steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10)); got.CanDecide {
 		t.Error("a viewer who is not this step's assignee must not be offered the bar")
 	}
 
 	// Already decided: there is nothing left to offer, whoever is looking.
 	decided := step("stp_1", "doc_1", "usr_budi", action.DecisionApproved, 1)
-	if got := buildReview(decided, document, []*data.Record{decided}, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_budi"), 6, true, at(10)); got.CanDecide {
+	if got := buildReview(decided, document, []*data.Record{decided}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_budi"), 6, true, at(10)); got.CanDecide {
 		t.Error("a decided step must not offer the bar again -- action.CanDecide's semantics are one-way")
 	}
 }
@@ -59,13 +59,13 @@ func TestBuildReview_DecisionBarIsOfferedToItsOwnAssigneeOnly(t *testing.T) {
 // assignee, exactly as approvalStepRow has always titled it.
 func TestBuildReview_StepLabelFallsBackToAssignee(t *testing.T) {
 	s := step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)
-	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
+	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
 	if got.StepLabel != "Ana Putri" {
 		t.Errorf("StepLabel = %q, want the assignee's name while fld_step_name is empty", got.StepLabel)
 	}
 
 	s.Values[action.FieldStepName] = "Legal Review"
-	got = buildReview(s, reviewDoc(), []*data.Record{s}, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
+	got = buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
 	if got.StepLabel != "Legal Review" {
 		t.Errorf("StepLabel = %q, want the declared fld_step_name once it exists", got.StepLabel)
 	}
@@ -83,7 +83,7 @@ func TestBuildReview_MarksOnlyTheViewersOwnStep(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 		step("stp_3", "doc_1", "", action.DecisionPending, 3),
 	}
-	got := buildReview(steps[1], reviewDoc(), steps, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
+	got := buildReview(steps[1], reviewDoc(), steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
 	if len(got.Steps) != 3 {
 		t.Fatalf("want one row per step, got %d", len(got.Steps))
 	}
@@ -93,7 +93,7 @@ func TestBuildReview_MarksOnlyTheViewersOwnStep(t *testing.T) {
 	}
 
 	// An anonymous viewer marks nothing -- including the unassigned step 3.
-	got = buildReview(steps[1], reviewDoc(), steps, nil, users, stepMachineForTest(), docMachineForTest(), domain.Actor{}, 0, true, at(10))
+	got = buildReview(steps[1], reviewDoc(), steps, nil, personNames, stepMachineForTest(), docMachineForTest(), domain.Actor{}, 0, true, at(10))
 	for i, s := range got.Steps {
 		if s.IsYou {
 			t.Errorf("step %d marked IsYou for an empty viewer; an unassigned step is not everyone's", i+1)
@@ -106,7 +106,7 @@ func TestBuildReview_MarksOnlyTheViewersOwnStep(t *testing.T) {
 // half-written step as placed would draw a marker at 0,0 over page 0.
 func TestBuildReview_PlacementNeedsAPage(t *testing.T) {
 	s := step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)
-	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10))
+	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10))
 	if got.Placement != nil {
 		t.Error("a step with no fld_signature_page has no placement to draw")
 	}
@@ -114,7 +114,7 @@ func TestBuildReview_PlacementNeedsAPage(t *testing.T) {
 	s.Values[action.FieldStepSignaturePage] = float64(6)
 	s.Values[action.FieldStepSignatureX] = float64(50)
 	s.Values[action.FieldStepSignatureY] = float64(84)
-	got = buildReview(s, reviewDoc(), []*data.Record{s}, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10))
+	got = buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10))
 	if got.Placement == nil {
 		t.Fatal("a step with a page has a placement")
 	}
@@ -145,7 +145,7 @@ func TestBuildReview_SLAIsDayScale(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			document := reviewDoc()
 			document.Values["fld_due_date"] = tc.due
-			got := buildReview(s, document, []*data.Record{s}, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
+			got := buildReview(s, document, []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
 			if got.SLALabel != tc.wantLabel || got.SLAOverdue != tc.wantOverdue {
 				t.Errorf("SLA = %q/%v, want %q/%v", got.SLALabel, got.SLAOverdue, tc.wantLabel, tc.wantOverdue)
 			}
@@ -157,7 +157,7 @@ func TestBuildReview_SLAIsDayScale(t *testing.T) {
 // attached renders an explicit absence rather than an href to /uploads/.
 func TestBuildReview_FileCardHandlesAMissingFile(t *testing.T) {
 	s := step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)
-	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10))
+	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10))
 	if got.FileName != "vendor-contract-q3.pdf" || got.FileHref != "/uploads/abc123__vendor-contract-q3.pdf" {
 		t.Errorf("File = %q / %q, want the stored key's display name and its upload URL", got.FileName, got.FileHref)
 	}
@@ -167,7 +167,7 @@ func TestBuildReview_FileCardHandlesAMissingFile(t *testing.T) {
 
 	bare := reviewDoc()
 	delete(bare.Values, "fld_file")
-	if got := buildReview(s, bare, []*data.Record{s}, nil, users, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10)); got.FileHref != "" {
+	if got := buildReview(s, bare, []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10)); got.FileHref != "" {
 		t.Errorf("FileHref = %q, want empty when no file is attached", got.FileHref)
 	}
 }

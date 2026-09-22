@@ -8,7 +8,6 @@ import (
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
-	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
 )
 
@@ -45,16 +44,23 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 		return shellChrome{}, err
 	}
 
-	// domain.UserMachineID is the runtime's own declared identity Machine -- the same constant
-	// FieldTypePerson resolves against -- so this is a reference, not a hardcoded Machine id.
-	// "fld_name" still is one: there is no declared "which Field is a record's display name"
-	// pointer yet, which is why composition.DisplayString callers all name it. Forward-checkable
-	// pointer: ROADMAP.md's Case 03 Fase 3b, where membership and identity metadata are reworked.
+	// The viewer's name and email come from their identity, not from their mch_user record: both
+	// stopped being Fields on 2026-09-22 (metadata/user.yaml, migration 010) because they belong
+	// to whoever owns the login rather than to one Workspace. The membership row is what ties this
+	// session's record id to that identity, so it is the first hop.
+	//
+	// This retires the old "fld_name is a hardcoded Field id here" exception along with its own
+	// stale forward pointer (it named ROADMAP.md's Case 03 Fase 3b, which shipped having moved
+	// roles but not identity -- ROADMAP.md's own deferral table says so). Nothing here names a
+	// Field any more.
 	userName, userEmail := "", ""
 	userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-	if userRecord, err := store.GetRecord(ctx, domain.UserMachineID, userID); err == nil {
-		userName = composition.DisplayString(userRecord.Values["fld_name"])
-		userEmail = composition.DisplayString(userRecord.Values["fld_email"])
+	if membership, err := store.GetMembership(ctx, workspaceID, userID); err == nil && membership != nil {
+		userEmail = membership.Email
+		userName = userEmail // an identity with no name yet degrades to something addressable
+		if cred, err := store.GetCredential(ctx, membership.Email); err == nil && cred.FullName != "" {
+			userName = cred.FullName
+		}
 	}
 
 	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName)}, nil

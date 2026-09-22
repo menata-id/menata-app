@@ -69,12 +69,19 @@ var projectionRatchet = map[string]string{
 	// Case 19's composed Project Management screens. These are ROADMAP.md's own named next step:
 	// Dataset + Dimension + Measure (007 §7.2-§7.4) resolves their data, Projection resolves their
 	// field shape, and each file leaves this list as it's migrated.
-	"boardsettings.templ":   "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
-	"calendar.templ":        "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
-	"dashboard.templ":       "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
-	"mytasks.templ":         "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
-	"sprintdashboard.templ": "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
-	"teamcapacity.templ":    "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
+	//
+	// "sprintdashboard.templ" left on 2026-09-22, and not by being migrated: its one raw read was
+	// the assignee's name off an mch_user record, and that Field stopped existing when names moved
+	// to the identity (metadata/user.yaml, migration 010). composition now resolves it into
+	// rendering.MemberCapacity.Name. Worth naming plainly -- the debt was retired by a change to
+	// where a person's name lives, not by Projection arriving, so the count moving does not mean
+	// Projection adoption moved. "teamcapacity.templ" stays: it still reads fld_weekly_capacity,
+	// which is genuinely Workspace-scoped and still a Field.
+	"boardsettings.templ": "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
+	"calendar.templ":      "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
+	"dashboard.templ":     "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
+	"mytasks.templ":       "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
+	"teamcapacity.templ":  "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
 
 	// Case 3's bespoke Document Approval flow. These have a stronger claim to stay than the group
 	// above: the stepper and the signature canvas render an orchestration whose own logic is

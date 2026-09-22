@@ -48,22 +48,18 @@ func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *dom
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
-	users, err := l.ListRecords(ctx, "mch_user")
+	names, err := l.PersonNames(ctx)
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
-	return buildReview(step, document, siblings, activities, users, stepMachine, docMachine, viewer, pdfPages, hasSignature, now), nil
+	return buildReview(step, document, siblings, activities, names, stepMachine, docMachine, viewer, pdfPages, hasSignature, now), nil
 }
 
 // buildReview is the whole derivation, over records someone else already fetched -- the same
 // split buildInbox uses, and for the same reason: the rules worth testing (whose step is
 // actionable, which approver is you, whether a signature placement exists) need related record
 // sets and a fixed clock, not a database.
-func buildReview(step, document *data.Record, siblings, activities, users []*data.Record, stepMachine, docMachine *domain.Machine, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) rendering.ReviewView {
-	names := make(map[string]string, len(users))
-	for _, u := range users {
-		names[u.ID] = DisplayString(u.Values["fld_name"])
-	}
+func buildReview(step, document *data.Record, siblings, activities []*data.Record, names map[string]string, stepMachine, docMachine *domain.Machine, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) rendering.ReviewView {
 
 	var seq *domain.Sequencing
 	if stepMachine != nil {

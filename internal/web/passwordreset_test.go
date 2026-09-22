@@ -28,7 +28,7 @@ func TestSubmitForgotPassword_existingEmail_sendsEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, hash, true); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", hash, true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -66,7 +66,7 @@ func TestSubmitForgotPassword_unknownEmail_sameResponseNoEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, knownEmail, hash, true); err != nil {
+	if err := store.CreateCredential(ctx, knownEmail, "Test Person", hash, true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -108,7 +108,7 @@ func TestSubmitResetPassword_validToken_updatesPasswordVerifiesAndLogsIn(t *test
 	}
 	// Starts unverified -- completing a reset must also verify it (submitResetPassword's own
 	// comment on closing the gap for someone who registered but never verified).
-	if err := store.CreateCredential(ctx, email, oldHash, false); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", oldHash, false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -154,7 +154,7 @@ func TestSubmitResetPassword_invalidToken_rejectedWithoutChangingCredential(t *t
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, oldHash, true); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", oldHash, true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -189,7 +189,7 @@ func TestSubmitResetPassword_tokenTaggedForVerificationIsRejected(t *testing.T) 
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, hash, true); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", hash, true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -220,7 +220,7 @@ func TestSubmitResetPassword_shortPassword_rerendersFormWithoutChanging(t *testi
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, oldHash, true); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", oldHash, true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -260,7 +260,7 @@ func TestSubmitResetPassword_invalidatesExistingSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, oldHash, true); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", oldHash, true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 

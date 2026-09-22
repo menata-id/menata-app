@@ -38,6 +38,11 @@ func cleanupAuthTest(t *testing.T, pool *pgxpool.Pool, workspaceID, email string
 		if _, err := pool.Exec(ctx, `DELETE FROM workspace_members WHERE workspace_id = $1`, workspaceID); err != nil {
 			t.Errorf("cleanup workspace_members: %v", err)
 		}
+		// Invitations live outside workspace_members since migration 011, so they need their own
+		// sweep -- and they reference workspaces, same foreign-key reasoning as the line above.
+		if _, err := pool.Exec(ctx, `DELETE FROM pending_invites WHERE workspace_id = $1`, workspaceID); err != nil {
+			t.Errorf("cleanup pending_invites: %v", err)
+		}
 		if _, err := pool.Exec(ctx, `DELETE FROM records WHERE workspace_id = $1`, workspaceID); err != nil {
 			t.Errorf("cleanup records: %v", err)
 		}
@@ -114,7 +119,7 @@ func TestAuthenticateMember_unverifiedCredentialNeedsVerification(t *testing.T) 
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, hash, false); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", hash, false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -139,7 +144,7 @@ func TestAuthenticateMember_verifiedCredentialSucceeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, hash, true); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", hash, true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 

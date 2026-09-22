@@ -49,7 +49,7 @@ templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, atte
 			<ul class="activity-feed">
 				for _, m := range workload {
 					<li>
-						<span>{ toString(m.User.Values["fld_name"]) }</span>
+						<span>{ m.Name }</span>
 						<span class="muted">{ fmt.Sprint(m.ActiveCards) } active cards</span>
 					</li>
 				}

@@ -34,6 +34,10 @@ type Loader struct {
 	listed   map[string][]*data.Record
 	listedBy map[string][]*data.Record
 
+	// personNames memoizes PersonNames for this request; nil means "not read yet", which is
+	// distinguishable from an empty Workspace because MemberNames always returns a non-nil map.
+	personNames map[string]string
+
 	reads  int
 	served int
 }
@@ -87,10 +91,39 @@ func (l *Loader) ListRecordsBy(ctx context.Context, machineID, fieldID, value st
 	return records, nil
 }
 
+// PersonNames maps every mch_user record id in this request's Workspace to the display name of
+// the identity behind it. It is the Loader's single answer to "who is this person", and the only
+// one there is: a name stopped being a Field on mch_user on 2026-09-22 (metadata/user.yaml,
+// migration 010), so nothing can read one off a record any more.
+//
+// Memoized like every other read here -- the Approval Inbox, the activity feed and the approver
+// picker each want it within one request, which is exactly the duplication this type exists to
+// collapse.
+func (l *Loader) PersonNames(ctx context.Context) (map[string]string, error) {
+	if l.personNames != nil {
+		l.served++
+		return l.personNames, nil
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	names, err := l.store.MemberNames(ctx, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	l.reads++
+	l.personNames = names
+	return names, nil
+}
+
 // RelationOptions fetches every option a reference field on m could select (Relation or Person,
 // per domain.Field.IsReference), keyed by target Machine ID. The target's first Field is used as
 // the display label -- a minimal convention until a real Projection/semantic "title" role exists
 // (007 §7.6), which isn't forced yet by a case that needs more than one reasonable label field.
+//
+// mch_user is the one target that does not work that way, and cannot: the runtime's own identity
+// Machine declares no name Field to be "first" (its name lives on the identity), so its options
+// are labelled through PersonNames instead. That is not a special case smuggled in -- mch_user is
+// the Machine domain.UserMachineID already names as the runtime's, and labelling a person is the
+// runtime's job in a way that labelling a Project is not.
 func (l *Loader) RelationOptions(ctx context.Context, m *domain.Machine) (rendering.RelationOptions, error) {
 	options := rendering.RelationOptions{}
 	for _, f := range m.Fields {
@@ -101,16 +134,30 @@ func (l *Loader) RelationOptions(ctx context.Context, m *domain.Machine) (render
 			continue
 		}
 		target, ok := l.machines[f.RelatedMachine]
-		if !ok || len(target.Fields) == 0 {
+		if !ok {
 			continue
 		}
-		labelFieldID := target.Fields[0].ID
 
 		records, err := l.ListRecords(ctx, target.ID)
 		if err != nil {
 			return nil, err
 		}
 		list := make([]rendering.RelationOption, 0, len(records))
+		if target.ID == domain.UserMachineID {
+			names, err := l.PersonNames(ctx)
+			if err != nil {
+				return nil, err
+			}
+			for _, r := range records {
+				list = append(list, rendering.RelationOption{ID: r.ID, Label: names[r.ID]})
+			}
+			options[f.RelatedMachine] = list
+			continue
+		}
+		if len(target.Fields) == 0 {
+			continue
+		}
+		labelFieldID := target.Fields[0].ID
 		for _, r := range records {
 			list = append(list, rendering.RelationOption{ID: r.ID, Label: DisplayString(r.Values[labelFieldID])})
 		}

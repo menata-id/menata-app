@@ -248,8 +248,17 @@ func (s *Store) DeleteRecord(ctx context.Context, machineID, id string) error {
 // their emailed link, but true immediately for an invited member's own first-login activation
 // (Step 6), a deliberately different trust model since a Workspace Admin already vouches for that
 // specific email by typing it in themselves.
+// Credential is one login identity: the email that keys it, the password hash, whether that email
+// has been proven, and -- since 2026-09-22 (migration 010) -- the person's full name.
+//
+// FullName lives here rather than on their mch_user record because a name belongs to the person
+// who owns the email, not to any one Workspace they happen to join (owner decision; see
+// migrations/010_identity_full_name.sql for the full reasoning). This is the single source of
+// reference for it: nothing copies it into a record, and only its owner may change it
+// (web.submitProfile).
 type Credential struct {
 	Email         string
+	FullName      string
 	PasswordHash  string
 	EmailVerified bool
 }
@@ -258,10 +267,10 @@ type Credential struct {
 // Phase 21 Step 1). Hashing is internal/authorization's job -- the store only persists whatever
 // hash it is given. emailVerified is set by the caller, not assumed: registration's own credential
 // starts unverified, an invite's activation starts verified.
-func (s *Store) CreateCredential(ctx context.Context, email, passwordHash string, emailVerified bool) error {
+func (s *Store) CreateCredential(ctx context.Context, email, fullName, passwordHash string, emailVerified bool) error {
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO credentials (email, password_hash, email_verified) VALUES ($1, $2, $3)
-	`, email, passwordHash, emailVerified)
+		INSERT INTO credentials (email, full_name, password_hash, email_verified) VALUES ($1, $2, $3, $4)
+	`, email, fullName, passwordHash, emailVerified)
 	if err != nil {
 		return fmt.Errorf("create credential: %w", err)
 	}
@@ -271,7 +280,7 @@ func (s *Store) CreateCredential(ctx context.Context, email, passwordHash string
 // GetCredential returns the stored credential for email, or ErrCredentialNotFound.
 func (s *Store) GetCredential(ctx context.Context, email string) (*Credential, error) {
 	cred := &Credential{Email: email}
-	err := s.pool.QueryRow(ctx, `SELECT password_hash, email_verified FROM credentials WHERE email = $1`, email).Scan(&cred.PasswordHash, &cred.EmailVerified)
+	err := s.pool.QueryRow(ctx, `SELECT full_name, password_hash, email_verified FROM credentials WHERE email = $1`, email).Scan(&cred.FullName, &cred.PasswordHash, &cred.EmailVerified)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrCredentialNotFound
@@ -296,6 +305,59 @@ func (s *Store) SetCredential(ctx context.Context, email, passwordHash string) e
 		return ErrCredentialNotFound
 	}
 	return nil
+}
+
+// SetFullName replaces an identity's own full name (migration 010). An UPDATE, not an upsert, for
+// the same reason SetCredential is one: the only caller is the Profile screen, acting for an
+// identity that is already signed in, so an email with no credential row reaching here is a bug to
+// surface rather than a new account to invent.
+//
+// One write changes the name everywhere it is displayed, in every Workspace, because nothing
+// stores a second copy of it -- which is the whole point of it living here.
+func (s *Store) SetFullName(ctx context.Context, email, fullName string) error {
+	ct, err := s.pool.Exec(ctx, `UPDATE credentials SET full_name = $2 WHERE email = $1`, email, fullName)
+	if err != nil {
+		return fmt.Errorf("set full name: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrCredentialNotFound
+	}
+	return nil
+}
+
+// MemberNames maps every mch_user record id in workspaceID to the display name of the identity
+// behind it -- the runtime's single resolution point for "who is this person", replacing the
+// fld_name each record used to carry (migration 010).
+//
+// The join is the membership row: workspace_members is what ties a Workspace's own mch_user record
+// to a login identity, and it is the only thing that does. A record with no membership therefore
+// resolves to no name at all, which is not a gap to paper over -- under the model this runtime now
+// follows, an mch_user record only ever comes into existence when an invitation is accepted or a
+// Workspace is created, both of which require an identity to exist first.
+//
+// Falls back to the email when an identity has no name yet, so a screen degrades to something
+// addressable rather than to a bare record id.
+func (s *Store) MemberNames(ctx context.Context, workspaceID string) (map[string]string, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT wm.user_record_id, COALESCE(NULLIF(c.full_name, ''), wm.email)
+		FROM workspace_members wm
+		LEFT JOIN credentials c ON c.email = wm.email
+		WHERE wm.workspace_id = $1
+	`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("member names: %w", err)
+	}
+	defer rows.Close()
+
+	names := map[string]string{}
+	for rows.Next() {
+		var recordID, name string
+		if err := rows.Scan(&recordID, &name); err != nil {
+			return nil, fmt.Errorf("scan member name: %w", err)
+		}
+		names[recordID] = name
+	}
+	return names, rows.Err()
 }
 
 // MarkEmailVerified sets a credential's EmailVerified to true, once its owner has proven they

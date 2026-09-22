@@ -235,7 +235,11 @@ func SprintDashboard(ctx context.Context, l *Loader, now time.Time) (Sprint, err
 		return Sprint{}, err
 	}
 
-	return buildSprint(tasks, users, names, now, byStatus, workload), nil
+	people, err := l.PersonNames(ctx)
+	if err != nil {
+		return Sprint{}, err
+	}
+	return buildSprint(tasks, users, people, names, now, byStatus, workload), nil
 }
 
 // buildSprint reads two Datasets, and the second one is the point: ds_task_workload is the same
@@ -247,7 +251,7 @@ func SprintDashboard(ctx context.Context, l *Loader, now time.Time) (Sprint, err
 // The Attention list stays a loop for the same reason buildDashboard's Pending does: it selects
 // records rather than counting them, and its predicate is temporal (overdue or due today against
 // now), which the declared where: shape cannot express at all.
-func buildSprint(tasks, users []*data.Record, projects map[string]string, now time.Time, byStatus, workload Aggregation) Sprint {
+func buildSprint(tasks, users []*data.Record, people, projects map[string]string, now time.Time, byStatus, workload Aggregation) Sprint {
 	var out Sprint
 
 	out.Summary.Total = int(byStatus.Total[measureTotal])
@@ -275,6 +279,7 @@ func buildSprint(tasks, users []*data.Record, projects map[string]string, now ti
 	for _, u := range users {
 		out.Workload = append(out.Workload, rendering.MemberCapacity{
 			User:        u,
+			Name:        people[u.ID],
 			ActiveCards: int(active[u.ID][measureTotalOpen]),
 		})
 	}
@@ -304,7 +309,11 @@ func TeamCapacity(ctx context.Context, l *Loader) (Capacity, error) {
 	if err != nil {
 		return Capacity{}, err
 	}
-	return buildCapacity(users, workload, capacity), nil
+	people, err := l.PersonNames(ctx)
+	if err != nil {
+		return Capacity{}, err
+	}
+	return buildCapacity(users, people, workload, capacity), nil
 }
 
 // buildCapacity is the first screen composed from declared Datasets rather than a hand-written
@@ -317,7 +326,7 @@ func TeamCapacity(ctx context.Context, l *Loader) (Capacity, error) {
 // Total: those two differ, and the difference is visible. Total counts every open Task including
 // ones assigned to nobody (or to a since-deleted identity), while the table below it lists only
 // real Users -- so using Total would print a header number the rows underneath can't add up to.
-func buildCapacity(users []*data.Record, workload, capacity Aggregation) Capacity {
+func buildCapacity(users []*data.Record, people map[string]string, workload, capacity Aggregation) Capacity {
 	out := Capacity{
 		Members:       make([]rendering.MemberCapacity, 0, len(users)),
 		TotalCapacity: int(capacity.Total[measureTotalCapacity]),
@@ -327,6 +336,7 @@ func buildCapacity(users []*data.Record, workload, capacity Aggregation) Capacit
 		out.TotalActive += int(mine[measureTotalOpen])
 		out.Members = append(out.Members, rendering.MemberCapacity{
 			User:        u,
+			Name:        people[u.ID],
 			ActiveCards: int(mine[measureTotalOpen]),
 			TotalCards:  int(mine[measureTotal]),
 		})
@@ -457,13 +467,9 @@ func recentEvents(ctx context.Context, l *Loader, limit int) ([]*data.Record, ma
 		events = events[:limit]
 	}
 
-	users, err := l.ListRecords(ctx, userMachineID)
+	names, err := l.PersonNames(ctx)
 	if err != nil {
 		return nil, nil, err
-	}
-	names := make(map[string]string, len(users))
-	for _, u := range users {
-		names[u.ID] = DisplayString(u.Values["fld_name"])
 	}
 	return events, names, nil
 }

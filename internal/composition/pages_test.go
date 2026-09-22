@@ -113,9 +113,11 @@ func TestBuildMyTasks_Buckets(t *testing.T) {
 
 // Sprint counts every Task including done, but workload and attention consider only open ones.
 func TestBuildSprint_CountsAndAttention(t *testing.T) {
+	// mch_user records carry no name any more (migration 010); the display name arrives as a
+	// resolved map beside them, which is what personNames stands in for.
 	users := []*data.Record{
-		rec("usr_ana", map[string]any{"fld_name": "Ana"}),
-		rec("usr_budi", map[string]any{"fld_name": "Budi"}),
+		rec("usr_ana", nil),
+		rec("usr_budi", nil),
 	}
 	tasks := []*data.Record{
 		task("tsk_1", "prj_1", "usr_ana", "todo", "2026-09-09"),        // overdue -> attention
@@ -124,7 +126,7 @@ func TestBuildSprint_CountsAndAttention(t *testing.T) {
 		task("tsk_4", "prj_2", "usr_budi", "done", "2026-09-01"),       // done -> no workload
 	}
 
-	got := buildSprint(tasks, users, projectLabels, at(10), Aggregate(taskByStatus(), tasks), Aggregate(taskWorkload(), tasks))
+	got := buildSprint(tasks, users, personNames, projectLabels, at(10), Aggregate(taskByStatus(), tasks), Aggregate(taskWorkload(), tasks))
 
 	s := got.Summary
 	if s.Total != 4 || s.Open != 2 || s.InProgress != 1 || s.Done != 1 {
@@ -146,8 +148,8 @@ func TestBuildSprint_CountsAndAttention(t *testing.T) {
 
 func TestBuildCapacity(t *testing.T) {
 	users := []*data.Record{
-		rec("usr_ana", map[string]any{"fld_name": "Ana", "fld_weekly_capacity": float64(40)}),
-		rec("usr_budi", map[string]any{"fld_name": "Budi"}), // no capacity declared
+		rec("usr_ana", map[string]any{"fld_weekly_capacity": float64(40)}),
+		rec("usr_budi", nil), // no capacity declared
 	}
 	tasks := []*data.Record{
 		task("tsk_1", "prj_1", "usr_ana", "todo", ""),
@@ -155,7 +157,7 @@ func TestBuildCapacity(t *testing.T) {
 		task("tsk_3", "prj_1", "usr_budi", "todo", ""),
 	}
 
-	got := buildCapacity(users, Aggregate(taskWorkload(), tasks), Aggregate(userCapacity(), users))
+	got := buildCapacity(users, personNames, Aggregate(taskWorkload(), tasks), Aggregate(userCapacity(), users))
 
 	if got.TotalCapacity != 40 {
 		t.Errorf("TotalCapacity = %d, want 40 (a user with no declared capacity adds nothing)", got.TotalCapacity)

@@ -14,24 +14,24 @@ import (
 	"menata.app/internal/mail"
 )
 
-func inviteTestUserMachine() *domain.Machine {
-	return &domain.Machine{
-		ID: domain.UserMachineID,
-		Fields: []domain.Field{
-			{ID: "fld_name", Name: "Name", Type: domain.FieldTypeText, Required: true},
-			{ID: "fld_email", Name: "Email", Type: domain.FieldTypeText, Required: true},
-		},
-	}
+// inviteRoleWorkspace is a Workspace with one Application declaring the role these invites assign.
+// submittedAppRoles validates against the Application's own roles: vocabulary since Fase 3b, so an
+// invite naming a role no Application declares is rejected rather than stored.
+func inviteRoleWorkspace() domain.Workspace {
+	return domain.Workspace{Applications: []domain.Application{{
+		ID: "app_document_approval", Name: "Document Approval", Roles: []string{"approver", "submitter"},
+	}}}
 }
 
-// TestSubmitInviteMember_usesSuppliedFullName is the regression test for the gap the owner found
-// manually (2026-09-19): submitInviteMember used to default fld_name to the invited email address
-// itself, which then surfaced everywhere a person's name is displayed -- the approver picker
-// (ApproverRow), approvalStepper's assignee label, SummaryCard/PendingApprovalCard's submitter --
-// showing an email instead of a real name until the invitee separately edited their own record.
-// The invite form now collects the name up front (workspacemembers.templ), same as
-// RegistrationPage's own "Your name" -- this pins that the handler actually uses it.
-func TestSubmitInviteMember_usesSuppliedFullName(t *testing.T) {
+// TestSubmitInviteMember_recordsInvitationWithoutMembership pins the owner's rule from 2026-09-22:
+// inviting someone records an *invitation*, not a membership. Until they accept, they hold no
+// membership row, no mch_user record and no role -- so they cannot appear in a member list, be
+// picked as an approver, or pass any authorization check.
+//
+// It replaces TestSubmitInviteMember_usesSuppliedFullName, which pinned the opposite arrangement:
+// that the inviting admin's typed name landed on a record created for the invitee. The form no
+// longer collects a name at all, because a name belongs to whoever owns the email.
+func TestSubmitInviteMember_recordsInvitationWithoutMembership(t *testing.T) {
 	pool := authTestPool(t)
 	store := data.NewStore(pool)
 	cfg := config.Config{SessionSecret: "invite-member-test-secret", SecureCookies: false}
@@ -44,16 +44,8 @@ func TestSubmitInviteMember_usesSuppliedFullName(t *testing.T) {
 	}
 	cleanupAuthTest(t, pool, ws.ID, email)
 
-	machines := map[string]*domain.Machine{domain.UserMachineID: inviteTestUserMachine()}
-	// A Workspace with one Application declaring the role this invite assigns -- submittedAppRoles
-	// validates against the Application's own roles: vocabulary since Fase 3b, so an invite naming
-	// a role no Application declares is rejected rather than stored.
-	inviteWS := domain.Workspace{Applications: []domain.Application{{
-		ID: "app_document_approval", Name: "Document Approval", Roles: []string{"approver", "submitter"},
-	}}}
-	handler := submitInviteMember(machines, store, mail.LogMailer{}, cfg, inviteWS)
-
-	form := strings.NewReader("email=" + email + "&fld_name=Budi+Santoso&" +
+	handler := submitInviteMember(store, mail.LogMailer{}, cfg, inviteRoleWorkspace())
+	form := strings.NewReader("email=" + email + "&" +
 		url.QueryEscape("app_role[app_document_approval]") + "=approver")
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -70,39 +62,50 @@ func TestSubmitInviteMember_usesSuppliedFullName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListMembers: %v", err)
 	}
-	if len(members) != 1 {
-		t.Fatalf("want one member, got %d", len(members))
+	if len(members) != 0 {
+		t.Errorf("inviting created %d membership row(s); an invitation is not a membership", len(members))
+	}
+	records, err := store.ListRecords(data.WithWorkspaceScope(ctx, ws.ID), domain.UserMachineID)
+	if err != nil {
+		t.Fatalf("ListRecords: %v", err)
+	}
+	if len(records) != 0 {
+		t.Errorf("inviting created %d mch_user record(s); the record is created on acceptance", len(records))
 	}
 
-	user, err := store.GetRecord(data.WithWorkspaceScope(ctx, ws.ID), domain.UserMachineID, members[0].UserRecordID)
+	invites, err := store.ListPendingInvites(ctx, ws.ID)
 	if err != nil {
-		t.Fatalf("GetRecord(invited user): %v", err)
+		t.Fatalf("ListPendingInvites: %v", err)
 	}
-	if got := user.Values["fld_name"]; got != "Budi Santoso" {
-		t.Errorf("fld_name = %q, want %q -- must not fall back to the email address", got, "Budi Santoso")
+	if len(invites) != 1 {
+		t.Fatalf("want one pending invitation, got %d", len(invites))
+	}
+	if invites[0].Email != email {
+		t.Errorf("invitation email = %q, want %q", invites[0].Email, email)
+	}
+	// The roles the admin chose wait on the invitation until there is a member to attach them to.
+	if got := invites[0].AppRoles["app_document_approval"]; got != "approver" {
+		t.Errorf("invitation AppRoles[app_document_approval] = %q, want %q", got, "approver")
 	}
 }
 
-// TestSubmitInviteMember_missingNameIsRejected pins the other half: an invite with no name at all
-// is rejected outright (422), not silently defaulted back to the email address.
-func TestSubmitInviteMember_missingNameIsRejected(t *testing.T) {
+// TestSubmitInviteMember_missingEmailIsRejected pins the one field the form still requires. An
+// email is the Workspace's own decision to make; the invitee's name is not.
+func TestSubmitInviteMember_missingEmailIsRejected(t *testing.T) {
 	pool := authTestPool(t)
 	store := data.NewStore(pool)
 	cfg := config.Config{SessionSecret: "invite-member-test-secret", SecureCookies: false}
 	ctx := context.Background()
-	const email = "invite_flow_test_noname@example.com"
+	const email = "invite_flow_test_noemail@example.com"
 
-	ws, err := store.CreateWorkspace(ctx, "Invite Test Workspace No Name", "invite-test-workspace-no-name")
+	ws, err := store.CreateWorkspace(ctx, "Invite Test Workspace No Email", "invite-test-workspace-no-email")
 	if err != nil {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}
 	cleanupAuthTest(t, pool, ws.ID, email)
 
-	machines := map[string]*domain.Machine{domain.UserMachineID: inviteTestUserMachine()}
-	handler := submitInviteMember(machines, store, mail.LogMailer{}, cfg, domain.Workspace{})
-
-	form := strings.NewReader("email=" + email)
-	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", form)
+	handler := submitInviteMember(store, mail.LogMailer{}, cfg, domain.Workspace{})
+	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", strings.NewReader("email="))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(data.WithWorkspaceScope(ctx, ws.ID))
 	rec := httptest.NewRecorder()
@@ -112,11 +115,56 @@ func TestSubmitInviteMember_missingNameIsRejected(t *testing.T) {
 	if rec.Code != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want %d; body: %s", rec.Code, http.StatusUnprocessableEntity, rec.Body.String())
 	}
-	members, err := store.ListMembers(ctx, ws.ID)
+	invites, err := store.ListPendingInvites(ctx, ws.ID)
 	if err != nil {
-		t.Fatalf("ListMembers: %v", err)
+		t.Fatalf("ListPendingInvites: %v", err)
 	}
-	if len(members) != 0 {
-		t.Errorf("want no member created when name is missing, got %d", len(members))
+	if len(invites) != 0 {
+		t.Errorf("want no invitation recorded when the email is missing, got %d", len(invites))
+	}
+}
+
+// TestSubmitInviteMember_existingMemberIsRejected guards the case that would otherwise try to
+// create a second membership for one identity: accepting such an invitation would violate
+// workspace_members' own (workspace_id, user_record_id) shape, and the invitation grants nothing
+// they do not already hold.
+func TestSubmitInviteMember_existingMemberIsRejected(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	cfg := config.Config{SessionSecret: "invite-member-test-secret", SecureCookies: false}
+	ctx := context.Background()
+	const email = "invite_flow_test_existing@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Invite Test Workspace Existing", "invite-test-workspace-existing")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+
+	user, err := store.CreateRecord(data.WithWorkspaceScope(ctx, ws.ID), domain.UserMachineID, map[string]any{})
+	if err != nil {
+		t.Fatalf("CreateRecord: %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "member", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	handler := submitInviteMember(store, mail.LogMailer{}, cfg, domain.Workspace{})
+	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", strings.NewReader("email="+email))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(data.WithWorkspaceScope(ctx, ws.ID))
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want %d; body: %s", rec.Code, http.StatusUnprocessableEntity, rec.Body.String())
+	}
+	invites, err := store.ListPendingInvites(ctx, ws.ID)
+	if err != nil {
+		t.Fatalf("ListPendingInvites: %v", err)
+	}
+	if len(invites) != 0 {
+		t.Errorf("want no invitation recorded for an existing member, got %d", len(invites))
 	}
 }

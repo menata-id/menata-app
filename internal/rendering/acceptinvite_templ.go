@@ -8,20 +8,22 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// RegistrationPage is login.html's "Create a workspace" flow (ROADMAP.md Phase 21 Step 3):
-// registration creates a new Workspace and its first member (that Workspace's Admin) in one step
-// -- there is no path to a bare user account with nowhere to go. errorMsg is shown when a prior
-// attempt failed; empty renders no message.
+// AcceptInvitePage is the screen an invited person lands on from their emailed link, and since
+// 2026-09-22 it is where a membership actually begins: an invitation is not a membership, so
+// nothing exists in the Workspace for this person until this form is submitted.
 //
-// Ported onto the shared authShell kit (Fase 1, 2026-09-20). ui-sample/case-03-flow1 has no
-// registration board of its own, so this follows board 01's own control sizing and card shape
-// rather than inventing a second visual language for the one screen the design skipped.
+// It has two shapes, decided by needsName -- whether this email already holds a credential:
 //
-// The name and email inputs are named "full_name"/"email", not "fld_name"/"fld_email" as they
-// were until 2026-09-22: those are no longer Fields of any Machine (metadata/user.yaml gave both
-// up to the identity, migration 010), and a form input wearing an `fld_` prefix that
-// data.ValuesFromForm would never resolve is a name that lies about where its value goes.
-func RegistrationPage(errorMsg string) templ.Component {
+//   - New to Menata: full name and a password to set. The name is written onto the identity, not
+//     onto any Workspace's record, so it is stated once here and every Workspace this person ever
+//     joins reads it from there.
+//   - Already has an account: their existing password, to confirm they own it, and nothing else.
+//     The runtime already knows their name -- which is the whole point of it living on the
+//     identity (and CAP-O10's own reference shape for this case: confirm, don't re-register).
+//
+// token is carried hidden and re-verified server-side on submit; rendering this page is never
+// taken to mean the invitation is still live.
+func AcceptInvitePage(token, errorMsg, heading string, needsName bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -66,7 +68,7 @@ func RegistrationPage(errorMsg string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form method=\"POST\" action=\"/register\" class=\"flex flex-col gap-4.5 px-4 py-5 sm:p-6\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form method=\"POST\" action=\"/accept-invite\" class=\"flex flex-col gap-4.5 px-4 py-5 sm:p-6\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -74,31 +76,51 @@ func RegistrationPage(errorMsg string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = authField("workspace_name", "workspace_name", "Workspace name", "text", "organization", true).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<input type=\"hidden\" name=\"token\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = authField("full_name", "full_name", "Your name", "text", "name", false).Render(ctx, templ_7745c5c3_Buffer)
+				var templ_7745c5c3_Var4 string
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(token)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/acceptinvite.templ`, Line: 23, Col: 51}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = authField("email", "email", "Email", "email", "username", false).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = authPasswordField("password", "password", "Password", "new-password", false).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
+				if needsName {
+					templ_7745c5c3_Err = authField("full_name", "full_name", "Your full name", "text", "name", true).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " ")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = authPasswordField("password", "password", "Password", "new-password", false).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = authPasswordField("password", "password", "Your password", "current-password", true).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
 				}
 				templ_7745c5c3_Err = authError(errorMsg).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = authSubmit("Create workspace").Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = authSubmit("Join workspace").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</form>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</form>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -108,40 +130,23 @@ func RegistrationPage(errorMsg string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Var4 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-				if !templ_7745c5c3_IsBuffer {
-					defer func() {
-						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-						if templ_7745c5c3_Err == nil {
-							templ_7745c5c3_Err = templ_7745c5c3_BufErr
-						}
-					}()
-				}
-				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "Already have a workspace? <a href=\"/login\" class=\"text-blue-600 hover:text-blue-700\">Sign in</a>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				return nil
-			})
-			templ_7745c5c3_Err = authFooterNote().Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
 			return nil
 		})
-		templ_7745c5c3_Err = authShell("Create a workspace", "Create a workspace", "This creates a new Workspace and makes you its Admin.").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = authShell("Join workspace", heading, acceptInviteSubtitle(needsName)).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		return nil
 	})
+}
+
+// acceptInviteSubtitle states which of the two shapes above the viewer is looking at, so the page
+// explains itself rather than leaving a returning member wondering why it wants a password at all.
+func acceptInviteSubtitle(needsName bool) string {
+	if needsName {
+		return "Your name and password work across every Menata workspace you join."
+	}
+	return "Confirm the password you already use for Menata."
 }
 
 var _ = templruntime.GeneratedTemplate

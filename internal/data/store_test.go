@@ -253,7 +253,7 @@ func TestStore_CreateAndGetCredential(t *testing.T) {
 	// 3) -- an ordinary, unscoped context is correct here, unlike the record-scoped tests above.
 	ctx := context.Background()
 
-	if err := store.CreateCredential(ctx, email, "hashed-value", false); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", "hashed-value", false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -276,7 +276,7 @@ func TestStore_CreateCredential_verified(t *testing.T) {
 	store := NewStore(pool)
 	ctx := context.Background()
 
-	if err := store.CreateCredential(ctx, email, "hashed-value", true); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", "hashed-value", true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 	got, err := store.GetCredential(ctx, email)
@@ -295,7 +295,7 @@ func TestStore_SetCredential_updatesExisting(t *testing.T) {
 	store := NewStore(pool)
 	ctx := context.Background()
 
-	if err := store.CreateCredential(ctx, email, "old-hash", true); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", "old-hash", true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 	if err := store.SetCredential(ctx, email, "new-hash"); err != nil {
@@ -330,7 +330,7 @@ func TestStore_MarkEmailVerified(t *testing.T) {
 	store := NewStore(pool)
 	ctx := context.Background()
 
-	if err := store.CreateCredential(ctx, email, "hashed-value", false); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", "hashed-value", false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 	if err := store.MarkEmailVerified(ctx, email); err != nil {

@@ -1,0 +1,44 @@
+package rendering
+
+// AcceptInvitePage is the screen an invited person lands on from their emailed link, and since
+// 2026-09-22 it is where a membership actually begins: an invitation is not a membership, so
+// nothing exists in the Workspace for this person until this form is submitted.
+//
+// It has two shapes, decided by needsName -- whether this email already holds a credential:
+//
+//   - New to Menata: full name and a password to set. The name is written onto the identity, not
+//     onto any Workspace's record, so it is stated once here and every Workspace this person ever
+//     joins reads it from there.
+//   - Already has an account: their existing password, to confirm they own it, and nothing else.
+//     The runtime already knows their name -- which is the whole point of it living on the
+//     identity (and CAP-O10's own reference shape for this case: confirm, don't re-register).
+//
+// token is carried hidden and re-verified server-side on submit; rendering this page is never
+// taken to mean the invitation is still live.
+templ AcceptInvitePage(token, errorMsg, heading string, needsName bool) {
+	@authShell("Join workspace", heading, acceptInviteSubtitle(needsName)) {
+		@authCard("max-w-96") {
+			<form method="POST" action="/accept-invite" class="flex flex-col gap-4.5 px-4 py-5 sm:p-6">
+				@csrfHiddenInput()
+				<input type="hidden" name="token" value={ token }/>
+				if needsName {
+					@authField("full_name", "full_name", "Your full name", "text", "name", true)
+					@authPasswordField("password", "password", "Password", "new-password", false)
+				} else {
+					@authPasswordField("password", "password", "Your password", "current-password", true)
+				}
+				@authError(errorMsg)
+				@authSubmit("Join workspace")
+			</form>
+		}
+	}
+}
+
+// acceptInviteSubtitle states which of the two shapes above the viewer is looking at, so the page
+// explains itself rather than leaving a returning member wondering why it wants a password at all.
+func acceptInviteSubtitle(needsName bool) string {
+	if needsName {
+		return "Your name and password work across every Menata workspace you join."
+	}
+	return "Confirm the password you already use for Menata."
+}

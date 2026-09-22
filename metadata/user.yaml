@@ -1,14 +1,26 @@
 id: mch_user
 name: User
+
+# This Machine holds what is true about a person *in this Workspace*, and nothing else.
+#
+# fld_name and fld_email used to live here and were removed on 2026-09-22 (migration 010, owner
+# decision): a full name and an email belong to the person who owns the login, not to any one
+# Workspace they happen to join. Keeping them here meant the same human carried a separately-typed
+# name in every Workspace -- entered again on each registration, and typed *by someone else* when
+# an admin invited them. They now live on the identity (the platform `credentials` table, keyed by
+# email), which is the single source of reference for all three of name, email and password, and
+# only their owner may change them.
+#
+# What remains is genuinely Workspace-scoped: how much capacity this person has declared here, and
+# the record's own existence as the referent every `person` Field points at. A record here is
+# created when an invitation is accepted or a Workspace is created -- never before an identity
+# exists to stand behind it.
+#
+# Display names are resolved through data.Store.MemberNames (the membership row joins this record
+# to its identity), not read off a Field. That is also why this Machine's Field list no longer
+# starts with a name: composition.Loader.RelationOptions labels a `person` Field's options through
+# that same resolver rather than through "the target Machine's first Field".
 fields:
-  - id: fld_name
-    name: Name
-    type: text
-    required: true
-  - id: fld_email
-    name: Email
-    type: text
-    required: true
   - id: fld_weekly_capacity
     name: Weekly Capacity (hours)
     type: number
@@ -34,15 +46,17 @@ datasets:
 # correctly, because "who administers this Workspace" is not a question any Application's own
 # vocabulary can answer.
 #
-# Credentials are NOT here (they live in the platform `credentials` table, keyed by email), so this
-# was never a path to taking over an account -- it was a path to editing identity and to breaking
-# the record that Permissions, assignments and the activity feed all point at.
+# Since 2026-09-22 these rules are also narrower than they read, and correctly so: name and email
+# are no longer Fields here, so an admin editing this Machine's records can change what a person
+# has declared *in this Workspace* and can remove them from it, but cannot rename them or take
+# over their login. That is the owner's rule -- a full name is the right of whoever owns the email
+# -- enforced by there being nothing here to edit rather than by a carve-out.
 #
 # No `create` rule is declared, and that is not an oversight: the real create paths -- registration
-# and invite -- write through internal/data directly rather than through the generic route, so a
-# rule here would gate only hand-made records while leaving both real paths exactly as they are.
-# Gating those is a separate question about who may add people, which /workspace-members already
-# answers with its own requireWorkspaceAdmin.
+# and invite acceptance -- write through internal/data directly rather than through the generic
+# route, so a rule here would gate only hand-made records while leaving both real paths exactly as
+# they are. Gating those is a separate question about who may add people, which /workspace-members
+# already answers with its own requireWorkspaceAdmin.
 permissions:
   - id: prm_edit_user_is_admin
     action: edit

@@ -170,6 +170,7 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 		oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
 
 		step.Values[action.FieldStepDecision] = decision
+		step.Values[action.FieldStepDecidedByName] = deciderName(ctx, store, actor.ID)
 		if _, err := store.UpdateRecord(ctx, machine.ID, id, step.Values); err != nil {
 			serverError(w, err)
 			return
@@ -313,4 +314,17 @@ func decidableDocument(w http.ResponseWriter, ctx context.Context, store *data.S
 		return nil, false
 	}
 	return document, true
+}
+
+// deciderName resolves the deciding actor's name once, at the moment of the decision, so
+// fld_decided_by_name can hold what the signature actually said (metadata/approval_step.yaml).
+// Empty when the actor has no membership in this Workspace -- the shared admin credential's
+// placeholder identity -- which signing.go then falls back on as it always did.
+func deciderName(ctx context.Context, store *data.Store, actorID string) string {
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	names, err := store.MemberNames(ctx, workspaceID)
+	if err != nil {
+		return ""
+	}
+	return names[actorID]
 }

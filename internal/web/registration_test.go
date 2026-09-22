@@ -20,19 +20,20 @@ func TestSlugify(t *testing.T) {
 
 func TestValidateRegistration(t *testing.T) {
 	cases := []struct {
-		name, workspaceName, email, password string
-		wantOK                               bool
+		name, workspaceName, fullName, email, password string
+		wantOK                                         bool
 	}{
-		{"valid", "Acme", "a@example.com", "hunter22", true},
-		{"missing workspace name", "", "a@example.com", "hunter22", false},
-		{"missing email", "Acme", "", "hunter22", false},
-		{"short password", "Acme", "a@example.com", "short", false},
+		{"valid", "Acme", "Ana Putri", "a@example.com", "hunter22", true},
+		{"missing workspace name", "", "Ana Putri", "a@example.com", "hunter22", false},
+		{"missing full name", "Acme", "", "a@example.com", "hunter22", false},
+		{"missing email", "Acme", "Ana Putri", "", "hunter22", false},
+		{"short password", "Acme", "Ana Putri", "a@example.com", "short", false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, ok := validateRegistration(c.workspaceName, c.email, c.password)
+			_, ok := validateRegistration(c.workspaceName, c.fullName, c.email, c.password)
 			if ok != c.wantOK {
-				t.Errorf("validateRegistration(%q, %q, %q) ok = %v, want %v", c.workspaceName, c.email, c.password, ok, c.wantOK)
+				t.Errorf("validateRegistration(%q, %q, %q, %q) ok = %v, want %v", c.workspaceName, c.fullName, c.email, c.password, ok, c.wantOK)
 			}
 		})
 	}

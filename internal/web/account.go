@@ -10,7 +10,6 @@ import (
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
-	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
 )
 
@@ -31,15 +30,19 @@ func showProfile(store *data.Store, cfg config.Config) http.HandlerFunc {
 	}
 }
 
-// submitProfile writes the signed-in identity's own display name. userID comes only from the
-// session (authorization.CurrentUserID), never from a URL or form parameter -- there is no way to
-// reach another user's record through this handler, which is what makes it safe without a new
-// Permission (see rendering.ProfilePage's own doc comment).
+// submitProfile writes the signed-in identity's own full name -- and since 2026-09-22 it writes it
+// to the identity itself (migration 010), so one save changes it in every Workspace at once rather
+// than only in whichever one the viewer happened to be looking at.
 //
-// UpdateRecord replaces a record's whole values, not a partial merge (internal/data/store.go's
-// UPDATE ... SET data = $3::jsonb), so this reads the current record first and writes it back
-// with only fld_name changed -- a bare map[string]any{"fld_name": name} would silently drop
-// fld_email and fld_weekly_capacity.
+// That is what makes this screen's placement honest. It sits in the Account menu beside Security,
+// which has always written the credential; until the name moved, Profile looked identity-level and
+// silently edited one Workspace's record instead.
+//
+// The email comes from the session's own membership (currentUserEmail), never from a form or URL
+// parameter, so there is no way to reach another identity's name through this handler -- the same
+// property that makes it safe without a new Permission (see rendering.ProfilePage's doc comment),
+// and the enforcement of the owner's rule that a full name may only be changed by the person who
+// owns it.
 func submitProfile(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
@@ -61,14 +64,13 @@ func submitProfile(store *data.Store, cfg config.Config) http.HandlerFunc {
 			return
 		}
 
-		record, err := store.GetRecord(ctx, domain.UserMachineID, userID)
-		if err != nil {
-			recordError(w, err)
+		email, ok := currentUserEmail(ctx, store, req, cfg)
+		if !ok {
+			http.Error(w, "no workspace membership for this identity", http.StatusForbidden)
 			return
 		}
-		record.Values["fld_name"] = name
-		if _, err := store.UpdateRecord(ctx, domain.UserMachineID, userID, record.Values); err != nil {
-			recordError(w, err)
+		if err := store.SetFullName(ctx, email, name); err != nil {
+			serverError(w, err)
 			return
 		}
 		redirectTo(w, req, "/account-profile")

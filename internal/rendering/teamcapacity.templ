@@ -10,8 +10,13 @@ import (
 // project-team.html): their own record, declared weekly capacity, and how many Tasks currently
 // assigned to them are still open -- all derived from already-fetched User/Task data, not a new
 // aggregation mechanism.
+//
+// Name is resolved by composition from the identity behind the record (data.Store.MemberNames),
+// not read off it: since 2026-09-22 a person's name is not a Field on mch_user at all. The record
+// stays because the row still renders what *is* Workspace-scoped -- the declared weekly capacity.
 type MemberCapacity struct {
 	User        *data.Record
+	Name        string
 	ActiveCards int
 	TotalCards  int
 }
@@ -40,7 +45,7 @@ templ TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int)
 			<tbody>
 				for _, m := range members {
 					<tr>
-						<td>{ toString(m.User.Values["fld_name"]) }</td>
+						<td>{ m.Name }</td>
 						<td>
 							if cap, ok := m.User.Values["fld_weekly_capacity"]; ok && toString(cap) != "" {
 								{ toString(cap) }h/week

@@ -8,20 +8,17 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// RegistrationPage is login.html's "Create a workspace" flow (ROADMAP.md Phase 21 Step 3):
-// registration creates a new Workspace and its first member (that Workspace's Admin) in one step
-// -- there is no path to a bare user account with nowhere to go. errorMsg is shown when a prior
-// attempt failed; empty renders no message.
+// CreateWorkspacePage is /switch-workspace's own "Add workspace" affordance (ui-sample/
+// choose-workspace.html's dashed-border row, comment: "Admin-only: shown when the signed-in user
+// is an admin of at least one workspace, so they can create a new one").
 //
-// Ported onto the shared authShell kit (Fase 1, 2026-09-20). ui-sample/case-03-flow1 has no
-// registration board of its own, so this follows board 01's own control sizing and card shape
-// rather than inventing a second visual language for the one screen the design skipped.
-//
-// The name and email inputs are named "full_name"/"email", not "fld_name"/"fld_email" as they
-// were until 2026-09-22: those are no longer Fields of any Machine (metadata/user.yaml gave both
-// up to the identity, migration 010), and a form input wearing an `fld_` prefix that
-// data.ValuesFromForm would never resolve is a name that lies about where its value goes.
-func RegistrationPage(errorMsg string) templ.Component {
+// It asks for one thing: the new Workspace's name. Reached only by an already-authenticated
+// identity, so the email and password are known -- and since 2026-09-22 the full name is known
+// too, because it lives on that identity rather than on a per-Workspace record (migration 010).
+// This screen briefly asked "Your name" as well, which is what surfaced the question: if the
+// runtime already accepts your email and password without asking, there is no reason it should
+// have to ask your name.
+func CreateWorkspacePage(errorMsg string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -66,7 +63,7 @@ func RegistrationPage(errorMsg string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form method=\"POST\" action=\"/register\" class=\"flex flex-col gap-4.5 px-4 py-5 sm:p-6\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form method=\"POST\" action=\"/create-workspace\" class=\"flex flex-col gap-4.5 px-4 py-5 sm:p-6\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -75,18 +72,6 @@ func RegistrationPage(errorMsg string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				templ_7745c5c3_Err = authField("workspace_name", "workspace_name", "Workspace name", "text", "organization", true).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = authField("full_name", "full_name", "Your name", "text", "name", false).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = authField("email", "email", "Email", "email", "username", false).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = authPasswordField("password", "password", "Password", "new-password", false).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -124,7 +109,7 @@ func RegistrationPage(errorMsg string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "Already have a workspace? <a href=\"/login\" class=\"text-blue-600 hover:text-blue-700\">Sign in</a>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<a href=\"/switch-workspace\" class=\"text-blue-600 hover:text-blue-700\">← Back to workspaces</a>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

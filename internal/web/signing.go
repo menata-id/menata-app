@@ -47,7 +47,7 @@ func signDocument(ctx context.Context, store *data.Store, files *storage.Store, 
 		banner = append(banner, action.ApprovalStatusLine{
 			Sequence:     int(stepSequence(step)),
 			Total:        len(steps),
-			ApproverName: approverName(ctx, store, toDisplayString(step.Values[action.FieldStepAssignee])),
+			ApproverName: approverName(ctx, store, step),
 			ApprovedAt:   step.UpdatedAt,
 		})
 
@@ -104,19 +104,27 @@ func stepSequence(step *data.Record) float64 {
 	return v
 }
 
-// approverName resolves an Approval Step's own fld_assignee (a mch_user id) to that person's
-// display name for the status banner. Falls back to the raw id on any read failure -- a banner
-// with an id in it is still useful; silently dropping the whole line would hide that this step
-// was ever approved.
-func approverName(ctx context.Context, store *data.Store, userID string) string {
-	user, err := store.GetRecord(ctx, "mch_user", userID)
-	if err != nil {
-		return userID
-	}
-	if name := toDisplayString(user.Values["fld_name"]); name != "" {
+// approverName is the name printed on a step's line of the signed PDF's status banner.
+//
+// It prefers the snapshot the decision itself recorded (fld_decided_by_name) over any live lookup,
+// which is the whole point of that Field existing: a name lives on the identity now, so resolving
+// it fresh on every re-composite would rewrite the name on an already-signed document whenever
+// that person later changed theirs.
+//
+// The live path below is the fallback for steps decided before the snapshot existed. It resolves
+// through the membership rather than through a Field on the record (there is no longer a name
+// Field to read), and ends at the raw id when even that finds nothing -- a banner line carrying an
+// id is still evidence the step was approved, where dropping the line would hide it.
+func approverName(ctx context.Context, store *data.Store, step *data.Record) string {
+	if name := toDisplayString(step.Values[action.FieldStepDecidedByName]); name != "" {
 		return name
 	}
-	return userID
+	assignee := toDisplayString(step.Values[action.FieldStepAssignee])
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	if names, err := store.MemberNames(ctx, workspaceID); err == nil && names[assignee] != "" {
+		return names[assignee]
+	}
+	return assignee
 }
 
 // signatureImageForStep resolves the image signDocument should stamp for one approved step:

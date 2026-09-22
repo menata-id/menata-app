@@ -29,6 +29,9 @@ const (
 	FieldStepSequence   = "fld_sequence"
 	FieldStepAssignee   = "fld_assignee"
 	FieldStepDecision   = "fld_decision"
+	// FieldStepDecidedByName is the signer's name as it stood when they decided the step -- a
+	// snapshot the signed PDF reproduces, not a lookup (see metadata/approval_step.yaml).
+	FieldStepDecidedByName = "fld_decided_by_name"
 	// FieldStepApproverType selects which kind of actor gates this step, and FieldStepApproverGroup
 	// names the Group when it is a Group (CAP-F24, Fase 6c-1). The User half is FieldStepAssignee
 	// above -- deliberately not a second person Field, see metadata/approval_step.yaml.

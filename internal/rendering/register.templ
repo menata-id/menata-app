@@ -8,14 +8,19 @@ package rendering
 // Ported onto the shared authShell kit (Fase 1, 2026-09-20). ui-sample/case-03-flow1 has no
 // registration board of its own, so this follows board 01's own control sizing and card shape
 // rather than inventing a second visual language for the one screen the design skipped.
+//
+// The name and email inputs are named "full_name"/"email", not "fld_name"/"fld_email" as they
+// were until 2026-09-22: those are no longer Fields of any Machine (metadata/user.yaml gave both
+// up to the identity, migration 010), and a form input wearing an `fld_` prefix that
+// data.ValuesFromForm would never resolve is a name that lies about where its value goes.
 templ RegistrationPage(errorMsg string) {
 	@authShell("Create a workspace", "Create a workspace", "This creates a new Workspace and makes you its Admin.") {
 		@authCard("max-w-96") {
 			<form method="POST" action="/register" class="flex flex-col gap-4.5 px-4 py-5 sm:p-6">
 				@csrfHiddenInput()
 				@authField("workspace_name", "workspace_name", "Workspace name", "text", "organization", true)
-				@authField("fld_name", "fld_name", "Your name", "text", "name", false)
-				@authField("fld_email", "fld_email", "Email", "email", "username", false)
+				@authField("full_name", "full_name", "Your name", "text", "name", false)
+				@authField("email", "email", "Email", "email", "username", false)
 				@authPasswordField("password", "password", "Password", "new-password", false)
 				@authError(errorMsg)
 				@authSubmit("Create workspace")

@@ -105,7 +105,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 				for _, m := range members {
 					<label class="flex cursor-pointer items-center gap-3 rounded-md border border-slate-200 p-3 hover:border-blue-300">
 						<input type="checkbox" name="member" value={ m.UserRecordID } checked?={ m.InGroup } class="size-4 accent-blue-500"/>
-						<span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-2xs font-medium text-slate-700">{ memberInitials(m.Email) }</span>
+						<span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-2xs font-medium text-slate-700">{ personInitials("", m.Email) }</span>
 						<span class="truncate text-sm">{ m.Email }</span>
 					</label>
 				}

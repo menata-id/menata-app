@@ -104,7 +104,7 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 	if err != nil {
 		return Inbox{}, err
 	}
-	users, err := l.ListRecords(ctx, "mch_user")
+	names, err := l.PersonNames(ctx)
 	if err != nil {
 		return Inbox{}, err
 	}
@@ -115,7 +115,7 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 			return Inbox{}, err
 		}
 	}
-	inbox := buildInbox(steps, documents, activities, users, userID, now, stepMachine, relations)
+	inbox := buildInbox(steps, documents, activities, names, userID, now, stepMachine, relations)
 	logSLABreaches(ctx, l.store, inbox.NewBreaches)
 	return inbox, nil
 }
@@ -143,7 +143,7 @@ func logSLABreaches(ctx context.Context, store *data.Store, breaches []SLABreach
 // buildInbox is the whole of the inbox's derivation, over records someone else already fetched.
 // Keeping it free of I/O is what makes the sequencing, bucketing and submitter-resolution rules
 // testable at all: they need four related record sets and a fixed clock, not a database.
-func buildInbox(steps, documents, activities, users []*data.Record, userID string, now time.Time, stepMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
+func buildInbox(steps, documents, activities []*data.Record, names map[string]string, userID string, now time.Time, stepMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
 	docByID := make(map[string]*data.Record, len(documents))
 	for _, d := range documents {
 		docByID[d.ID] = d
@@ -152,10 +152,6 @@ func buildInbox(steps, documents, activities, users []*data.Record, userID strin
 	for _, s := range steps {
 		docID := DisplayString(s.Values[action.FieldStepDocument])
 		stepsByDoc[docID] = append(stepsByDoc[docID], s)
-	}
-	names := make(map[string]string, len(users))
-	for _, u := range users {
-		names[u.ID] = DisplayString(u.Values["fld_name"])
 	}
 	submissions := submittersFromActivity(activities)
 

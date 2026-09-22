@@ -35,10 +35,11 @@ func submitRegistration(machines map[string]*domain.Machine, store *data.Store, 
 			return
 		}
 		workspaceName := strings.TrimSpace(req.FormValue("workspace_name"))
-		email := normalizeEmail(req.FormValue("fld_email"))
+		fullName := strings.TrimSpace(req.FormValue("full_name"))
+		email := normalizeEmail(req.FormValue("email"))
 		password := req.FormValue("password")
 
-		if msg, ok := validateRegistration(workspaceName, email, password); !ok {
+		if msg, ok := validateRegistration(workspaceName, fullName, email, password); !ok {
 			rejectRegistration(w, req, msg)
 			return
 		}
@@ -50,16 +51,19 @@ func submitRegistration(machines map[string]*domain.Machine, store *data.Store, 
 			return
 		}
 
+		// The name and email submitted above are identity data and do not appear here: this builds
+		// the new Workspace's own mch_user record, which carries only what is Workspace-scoped
+		// (metadata/user.yaml). The chain stays generic rather than being replaced by an empty
+		// map, so a Workspace-scoped Field added to that Machine later flows through unchanged.
 		userMachine := machines[domain.UserMachineID]
 		values := data.ValuesFromForm(userMachine, req.Form)
-		values["fld_email"] = email
 		data.ApplyDefaults(userMachine, values)
 		if err := data.ValidateRecord(userMachine, values); err != nil {
 			rejectRegistration(w, req, err.Error())
 			return
 		}
 
-		if err := registerWorkspace(req.Context(), store, workspaceName, email, password, values); err != nil {
+		if err := registerWorkspace(req.Context(), store, workspaceName, fullName, email, password, values); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -73,10 +77,12 @@ func rejectRegistration(w http.ResponseWriter, req *http.Request, msg string) {
 	render(req.Context(), w, rendering.RegistrationPage(msg))
 }
 
-func validateRegistration(workspaceName, email, password string) (string, bool) {
+func validateRegistration(workspaceName, fullName, email, password string) (string, bool) {
 	switch {
 	case workspaceName == "":
 		return "Workspace name is required.", false
+	case fullName == "":
+		return "Your name is required.", false
 	case email == "":
 		return "Email is required.", false
 	case len(password) < 8:
@@ -91,7 +97,11 @@ func validateRegistration(workspaceName, email, password string) (string, bool) 
 // partway through is an operational anomaly to clean up by hand (this app has no real users yet to
 // affect), not a case an actual retry-safe flow is forced by yet -- the same posture logActivity's
 // own best-effort writes already take.
-func registerWorkspace(ctx context.Context, store *data.Store, workspaceName, email, password string, userValues map[string]any) error {
+//
+// fullName is written onto the credential, not the record (migration 010): this is the one moment
+// a brand-new identity is created, so it is where that identity's name is first stated. Every
+// Workspace this person joins afterwards reads it from there rather than asking again.
+func registerWorkspace(ctx context.Context, store *data.Store, workspaceName, fullName, email, password string, userValues map[string]any) error {
 	hash, err := authorization.HashPassword(password)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
@@ -104,7 +114,7 @@ func registerWorkspace(ctx context.Context, store *data.Store, workspaceName, em
 	if err != nil {
 		return err
 	}
-	if err := store.CreateCredential(ctx, email, hash, false); err != nil {
+	if err := store.CreateCredential(ctx, email, fullName, hash, false); err != nil {
 		return err
 	}
 	if err := store.AddMember(ctx, ws.ID, user.ID, email, "admin", ""); err != nil {

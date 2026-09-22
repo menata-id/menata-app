@@ -50,7 +50,7 @@ func TestShowVerifyEmail_validToken_marksVerifiedAndLogsIn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, hash, false); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", hash, false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -87,7 +87,7 @@ func TestShowVerifyEmail_invalidToken_rejectedWithoutVerifying(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, hash, false); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", hash, false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -120,7 +120,7 @@ func TestShowVerifyEmail_tokenTaggedForPasswordResetIsRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, hash, false); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", hash, false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -149,7 +149,7 @@ func TestSubmitResendVerification_unverifiedEmail_sendsEmail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, email, hash, false); err != nil {
+	if err := store.CreateCredential(ctx, email, "Test Person", hash, false); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 
@@ -187,7 +187,7 @@ func TestSubmitResendVerification_noEnumeration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if err := store.CreateCredential(ctx, verifiedEmail, hash, true); err != nil {
+	if err := store.CreateCredential(ctx, verifiedEmail, "Test Person", hash, true); err != nil {
 		t.Fatalf("CreateCredential: %v", err)
 	}
 

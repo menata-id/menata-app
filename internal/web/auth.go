@@ -169,7 +169,7 @@ func showChooseWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc 
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.ChooseWorkspacePage(choices, "", "/choose-workspace", "/login", "Sign out"))
+		render(req.Context(), w, rendering.ChooseWorkspacePage(choices, "", "/choose-workspace", "/login", "Sign out", false))
 	}
 }
 
@@ -235,7 +235,14 @@ func showSwitchWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc 
 			redirectTo(w, req, "/home")
 			return
 		}
-		render(ctx, w, rendering.ChooseWorkspacePage(choices, "", "/switch-workspace", "/home", "Back to Menata"))
+		canCreate := false
+		for _, c := range choices {
+			if c.Role == "admin" {
+				canCreate = true
+				break
+			}
+		}
+		render(ctx, w, rendering.ChooseWorkspacePage(choices, "", "/switch-workspace", "/home", "Back to Menata", canCreate))
 	}
 }
 

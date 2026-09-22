@@ -30,7 +30,15 @@ type WorkspaceChoice struct {
 // no metadata/*.yaml declares roles at all -- "role" does not appear in 006 or 007 either. The
 // forward pointer step 2b asks for is ROADMAP.md's Case 03 phase 7, which makes roles a declared
 // runtime concept; when that lands, this branch should read the declaration instead of the column.
-templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, backHref, backLabel string) {
+//
+// canCreateWorkspace adds ui-sample/choose-workspace.html's dashed-border "Add workspace" row
+// (2026-09-21), linking to /create-workspace -- CreateWorkspacePage, a runtime-level screen like
+// this one (routed by a fixed router.go literal, not by any Application's metadata). The mockup's
+// own comment gates it to an identity that is already Admin of at least one Workspace, so only
+// the mid-session switcher call (showSwitchWorkspace) ever passes true; showChooseWorkspace's
+// pre-session, pending-email call always passes false, since that identity has no session yet for
+// /create-workspace's own auth-gated handler to act on.
+templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, backHref, backLabel string, canCreateWorkspace bool) {
 	@authShell("Choose a workspace", "Choose a workspace", "You have access to more than one workspace.") {
 		@authCard("max-w-112") {
 			<div class="flex flex-col gap-2 p-3">
@@ -53,6 +61,15 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 							}
 						</button>
 					</form>
+				}
+				if canCreateWorkspace {
+					<a
+						href="/create-workspace"
+						class="flex min-h-11 items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 px-4 py-3.5 text-sm font-medium text-blue-600 transition hover:border-blue-400 hover:bg-blue-50"
+					>
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+						Add workspace
+					</a>
 				}
 			</div>
 		}
