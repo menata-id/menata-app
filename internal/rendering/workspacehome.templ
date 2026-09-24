@@ -90,18 +90,12 @@ func appIconClasses(color string) string {
 
 templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, apps []ApplicationCard) {
 	@appShell(labelByID(ctx, "nav_home"), workspaceName, viewer, switchHref) {
-		<div class="mb-3 flex flex-col gap-2">
-			<div class="flex items-center gap-2.5">
-				<span class="text-xs tracking-wide text-blue-600">WORKSPACE</span>
-				if switchHref != "" {
-					<a href={ templ.SafeURL(switchHref) } class="px-1 text-sm leading-none text-slate-400 hover:text-blue-600" aria-label="Switch workspace" title="Switch workspace">⋯</a>
-				}
-			</div>
-			<h1 class="m-0 text-2xl font-medium">{ workspaceName }</h1>
+		<div class="flex flex-col gap-1.5">
+			<h1 class="m-0 text-2xl font-medium">{ titleByID(ctx, "nav_home") }</h1>
 			if len(apps) == 0 {
 				<div class="text-sm text-slate-500">No applications are installed in this workspace yet.</div>
 			} else {
-				<div class="text-sm text-slate-500">Your applications, based on the roles assigned to you.</div>
+				<div class="text-sm text-slate-500">{ descriptionByID(ctx, "nav_home") }</div>
 			}
 		</div>
 		if len(apps) == 0 {
@@ -112,56 +106,74 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 					workspace holds only its members and their records.
 				</span>
 			</div>
-		}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-			for _, app := range apps {
-				<a href={ templ.SafeURL(app.HomeRoute) } class="flex flex-col gap-2.5 rounded-lg border border-slate-200 bg-white p-5 text-slate-900 hover:border-blue-300">
-					<span class={ "mb-5 flex size-10 items-center justify-center rounded-md text-base font-medium", appIconClasses(app.Color) }>
-						if app.Icon != "" {
-							@icon(app.Icon, "size-5.5")
-						} else {
-							{ app.Initials }
-						}
-					</span>
-					<span class="text-[17px] font-medium">{ app.Name }</span>
-					if app.Description != "" {
-						<span class="text-xs text-slate-500">{ app.Description }</span>
-					}
-					<span class="mt-3 text-xs">
-						if app.ShowPending && app.PendingCount > 0 {
-							<span class="text-blue-600">
-								{ fmt.Sprintf("%d pending decision", app.PendingCount) }{ pluralS(app.PendingCount) } →
-							</span>
-						} else if app.ShowCount {
-							<span class="text-slate-400">
-								{ fmt.Sprintf("%d %s", app.Count, app.CountLabel) }{ pluralS(app.Count) }
-							</span>
-						} else {
-							<span class="text-blue-600">Open →</span>
-						}
-					</span>
-				</a>
-			}
-		</div>
-		<section class="mt-4 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
-			<div class="flex items-center justify-between">
-				<div class="flex flex-col gap-2">
-					<h2 class="m-0 text-sm font-medium">Your access</h2>
-					<span class="text-2xs text-slate-500">Effective roles in this workspace.</span>
-				</div>
-				if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-					<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
-						{ labelByID(ctx, "nav_workspace_members") } →
+		} else {
+			<section aria-label={ titleByID(ctx, "nav_home") } class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+				for i, app := range apps {
+					<a
+						href={ templ.SafeURL(app.HomeRoute) }
+						class={ "flex items-center gap-3 px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", templ.KV("border-t border-slate-100", i > 0) }
+					>
+						<span class={ "flex size-10 shrink-0 items-center justify-center rounded-lg text-base font-medium", appIconClasses(app.Color) }>
+							if app.Icon != "" {
+								@icon(app.Icon, "size-5.5")
+							} else {
+								{ app.Initials }
+							}
+						</span>
+						<span class="flex min-w-0 grow flex-col gap-0.5">
+							<span class="text-[15px] font-medium">{ app.Name }</span>
+							if app.Description != "" {
+								<span class="text-xs leading-4.5 text-slate-500">{ app.Description }</span>
+							}
+							// The role reads under the name below `sm` and in its own column above it:
+							// the mockup's desktop row has four columns of its own, and a phone has room
+							// for one.
+							<span class="text-xs text-slate-400 sm:hidden">Your role: { displayRole(app.Role) }</span>
+						</span>
+						<span class="hidden w-42 shrink-0 text-xs text-slate-500 sm:block">
+							Your role: <span class="text-slate-900">{ displayRole(app.Role) }</span>
+						</span>
+						// No fixed width below `sm`: a phone has ~100px of slack on this row, and
+						// reserving a column for a count that may not exist was enough to wrap every
+						// Application's name onto two lines. The declared summary count is the part
+						// that gives way -- board M03 shows the pending badge and nothing else.
+						<span class="flex shrink-0 justify-end text-xs sm:w-30">
+							if app.ShowPending && app.PendingCount > 0 {
+								<span class="rounded-full bg-blue-50 px-2.5 py-1 whitespace-nowrap text-blue-700">
+									{ fmt.Sprintf("%d pending", app.PendingCount) }
+								</span>
+							} else if app.ShowCount {
+								<span class="hidden whitespace-nowrap text-slate-400 sm:inline">
+									{ fmt.Sprintf("%d %s", app.Count, app.CountLabel) }{ pluralS(app.Count) }
+								</span>
+							}
+						</span>
+						<span class="shrink-0 text-slate-300">
+							@icon("chevron-right", "size-4")
+						</span>
 					</a>
 				}
-			</div>
-			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-				@accessTile("Workspace", displayRole(viewer.WorkspaceRole))
-				for _, app := range apps {
-					@accessTile(app.Name, displayRole(app.Role))
+			</section>
+		}
+		// Board 03's own closing row. The mockup reads "You manage Dokter Kecil · 24 members"; the
+		// member count is dropped for the reason recorded three times now -- it is not a field on
+		// domain.Workspace -- so the row states the role and the destination, which are both real.
+		if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
+			<div class="mt-2 flex items-center gap-3 border-t border-slate-200 pt-4 text-sm text-slate-500">
+				// Only when there is a role to name. displayRole renders "—" for an empty one, which
+				// reads fine in a table cell and reads broken inside a pill -- and empty is exactly
+				// the shared admin credential's case, which still sees this row because it can open
+				// the destination (the != member split above).
+				if viewer.WorkspaceRole != "" {
+					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs font-medium text-slate-600">{ viewer.WorkspaceRole }</span>
 				}
+				<span class="grow">You manage { workspaceName }</span>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="flex shrink-0 items-center gap-1.5 text-blue-600 hover:text-blue-700">
+					@icon("settings", "size-3.5")
+					{ labelByID(ctx, "nav_workspace_members") }
+				</a>
 			</div>
-		</section>
+		}
 	}
 }
 
@@ -174,15 +186,11 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 // The "Manage members" link on this page keeps its own inline `workspaceRole != "member"` check,
 // which is the half of the 2026-09-19 code-review finding that can still leak.
 
-// accessTile is one "Your access" cell: which scope, and the role held in it. A separate
-// component because Fase 3 turns this from two tiles into one per Application, and the shape is
-// then rendered from a loop rather than written twice.
-templ accessTile(scope, role string) {
-	<div class="flex flex-col gap-1.5 rounded-md bg-slate-50 p-3">
-		<span class="text-2xs text-slate-400">{ scope }</span>
-		<span class="text-sm">{ role }</span>
-	</div>
-}
+// accessTile was deleted on 2026-09-24 with the "Your access" section it existed for. That
+// section answered "which role do I hold where" in a separate grid at the bottom of the page;
+// board 03 answers it on each Application's own row instead, where the question is actually being
+// asked. Its own doc comment had predicted the opposite -- that Fase 3 would turn two tiles into
+// one per Application -- which is what happened, and then the rows absorbed them.
 
 func pluralS(n int) string {
 	if n == 1 {

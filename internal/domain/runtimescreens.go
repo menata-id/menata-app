@@ -23,7 +23,18 @@ package domain
 // "All Machines" ("/") is absent: it is a real route, but no screen looks it up by id, and adding
 // a row nothing reads would just be the hand-maintained list this change removed.
 var RuntimeScreens = []NavigationItem{
-	{ID: "nav_home", Label: "Home", Route: "/home"},
+	// Title/Description rather than Label alone, the same split an Application's own navigation
+	// items gained on 2026-09-24: "Home" is what a menu and a breadcrumb call this screen, and
+	// "Applications" is what the screen calls itself (Flow 2 mockup, board 03). The description
+	// deliberately does not name the Workspace the way the board does -- a static string cannot,
+	// and the Workspace's name is one row up in the chrome anyway.
+	{
+		ID:          "nav_home",
+		Label:       "Home",
+		Route:       "/home",
+		Title:       "Applications",
+		Description: "The applications you can open here, based on the roles assigned to you.",
+	},
 	{ID: "nav_workspace_members", Label: "Workspace Members", Route: "/workspace-members"},
 	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups"},
 	{ID: "nav_role_matrix", Label: "Authorization Matrix", Route: "/authorization-matrix"},

@@ -929,6 +929,34 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     platform had the missing piece instead, and it is better than any of them for this: `popover`
     is one attribute, needs no bundle, and cannot go stale.
 
+  - **Workspace Home is board 03 now** (item 2). The three-card grid plus a separate "Your
+    access" grid at the bottom became one row list: icon tile, name, description, the viewer's
+    role in that Application, its pending badge, a chevron.
+
+    **The "Your access" section did not shrink, it dissolved.** It answered "which role do I hold
+    where" in its own grid at the foot of the page; the row answers it where the question is
+    actually being asked, next to the Application it is about. `accessTile`'s own doc comment had
+    predicted half of this -- that Fase 3 would turn two tiles into one per Application, which it
+    did -- and then the rows absorbed them.
+
+    `nav_home` gained a `title:` and `description:` in `domain.RuntimeScreens`, which is the
+    label/title split from two commits earlier applied to a *runtime* screen: "Home" is what a
+    menu and a breadcrumb call this page, "Applications" is what the page calls itself (board 03).
+    The board's own subtitle names the Workspace ("Apps you can open in Dokter Kecil"); a static
+    string cannot, and the Workspace's name is one row up in the chrome anyway, so it does not.
+
+    Two things the board asks for and this does not render, both for reasons already recorded: the
+    **"Add an application" panel** (§5.1 of the gap study -- there is no such capability) and the
+    **member count** in the closing row (not a field on `domain.Workspace`). The closing row's
+    role pill also renders only when there is a role to name: `displayRole` prints an em dash for
+    an empty one, which reads fine in a table cell and reads broken inside a pill -- and empty is
+    exactly the shared admin credential's case, which still sees the row because it can open the
+    destination.
+
+    Caught on a phone, not in review: reserving a fixed-width column for the declared summary
+    count wrapped every Application's name onto two lines at 390px. The count gives way below
+    `sm` -- board M03 shows the pending badge and nothing else.
+
   - **One control vocabulary** (2026-09-24, item 1 of the post-port cleanup). `controls.templ`
     holds one literal class string per control kind -- `controlPrimary`, `controlSecondary`,
     `controlDanger`, `controlField`, `tableCell`, `tableHeadCell` -- and every `appShell` screen
