@@ -114,19 +114,23 @@ func Routes(d Deps) http.Handler {
 	// chi's default compressible content types cover text/css and application/javascript and do
 	// not cover font/woff2, so the Ubuntu faces under /vendor/fonts are not re-compressed for
 	// nothing. No custom type list is needed.
+	// Content hashes for the assets a page names, computed once here so the URL a page emits and
+	// the file served below can never disagree (assets.go).
+	installAssetFingerprints()
+
 	r.Group(func(sr chi.Router) {
 		sr.Use(middleware.Compress(5))
-		sr.Handle("/icons/*", http.StripPrefix("/icons/", http.FileServer(http.Dir("static/icons"))))
+		sr.Handle("/icons/*", staticAssets("icons", "static/icons"))
 		// The Tailwind build (static/css/app.css, `make css`). Public rather than inside
 		// requireAuth because the pre-auth pages -- sign in, register, password reset -- render
 		// from it too, and a stylesheet behind an auth gate would leave the sign-in page unstyled
 		// for exactly the people who cannot be authenticated yet.
-		sr.Handle("/css/*", http.StripPrefix("/css/", http.FileServer(http.Dir("static/css"))))
+		sr.Handle("/css/*", staticAssets("css", "static/css"))
 		// Vendored htmx/hyperscript (pageHead's own doc comment) -- self-hosted rather than loaded
 		// from unpkg.com so a CDN outage or block can't silently take down every hx-* interaction.
 		// Also serves the Ubuntu woff2 faces app.css names (static/vendor/fonts/ubuntu), which is
 		// why they live under vendor/ rather than needing a public route of their own.
-		sr.Handle("/vendor/*", http.StripPrefix("/vendor/", http.FileServer(http.Dir("static/vendor"))))
+		sr.Handle("/vendor/*", staticAssets("vendor", "static/vendor"))
 	})
 	r.Get("/login", showLogin)
 	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))

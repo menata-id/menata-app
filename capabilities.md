@@ -171,6 +171,21 @@ Ubuntu, which is why they read as a different application rather than a plainer 
 `pageShell`, `pageHead`, `pageStyles`, `navLink`, `navSections` and `CurrentApplicationName` were
 deleted with them.
 
+**Static assets carry a content hash, since 2026-09-24.** A page names
+`/css/app.<8 hex>.css` and the two vendored scripts the same way; the hash is computed once at
+startup (`internal/web.installAssetFingerprints`) off the files the same router serves, so the URL
+a page emits and the file it resolves to cannot disagree. A request carrying a fingerprint is
+`public, max-age=31536000, immutable` — safe precisely because its URL moves the moment the bytes
+do — and one without is `no-cache`, still cached but always revalidated.
+
+`ROADMAP.md` had deferred `Cache-Control` naming this exact dependency ("the filenames carry no
+content hash, so a long max-age would serve stale assets after a deploy"). The cost of leaving it
+was not theoretical: with no hash *and* no header, browsers fall back to heuristic freshness, and
+a stylesheet from before a deploy was served twice in one day — reported as a UI that "still looks
+the old way", which is a cache problem wearing a rendering problem's clothes. Gated by
+`TestFingerprintedAssetCachePolicy` / `TestAssetURLChangesWithContent`, because nothing else in the
+app can see it fail.
+
 **One control vocabulary, since 2026-09-24.** `controls.templ` holds one literal class string per
 control kind -- `controlPrimary`, `controlSecondary`, `controlDanger`, `controlField`, plus
 `tableCell`/`tableHeadCell` -- and every `appShell` screen reads them instead of hand-writing its

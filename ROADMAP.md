@@ -797,8 +797,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   response beside attacker-influenceable content is the BREACH precondition. HTML is worth 2.6kB
   per page against that, so the static assets are ~99% of the win without having to answer the
   question. Verified on the live server that HTML returns **no** `Content-Encoding`, rather than
-  inferring it from where the middleware sits. `Cache-Control` was deliberately deferred: the
-  filenames carry no content hash, so a long max-age would serve stale assets after a deploy.
+  inferring it from where the middleware sits. ~~`Cache-Control` was deliberately deferred: the
+  filenames carry no content hash, so a long max-age would serve stale assets after a deploy.~~
+  **Done 2026-09-24** — the hash arrived, so the header could too. See the asset-fingerprint entry
+  below; the deferral was right about the dependency and the dependency is what got built.
 
 - **The Flow 2 mockup — gap recorded 2026-09-23, nothing scheduled yet.** A second owner canvas
   ("Menata Runtime — Case 03 Flow", 39 artboards: 19 desktop at 1280px, 20 mobile at 390px)
@@ -928,6 +930,31 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     vocabulary, which this repo's Node-free standalone-CLI build deliberately does not have. The
     platform had the missing piece instead, and it is better than any of them for this: `popover`
     is one attribute, needs no bundle, and cannot go stale.
+
+  - **Static assets carry a content hash** (item 3). A page names `/css/app.<8 hex>.css` and the
+    two vendored scripts likewise; the hash is computed once at startup off the files the same
+    router serves, so the URL a page emits and the file it resolves to cannot disagree. A
+    fingerprinted request is `immutable` for a year -- safe precisely because its URL moves the
+    moment the bytes do -- and a bare one is `no-cache`.
+
+    **This closes a deferral that named its own precondition and was right about it.** The
+    `Cache-Control` row above read: "the filenames carry no content hash, so a long max-age would
+    serve stale assets after a deploy." True, and the conclusion drawn from it -- defer the header
+    -- left the *other* half unhandled: with no hash and no header, browsers fall back to
+    heuristic freshness, which is how a stylesheet from before a deploy got served twice in one
+    day and was reported as a UI that "still looks the old way". A cache problem wearing a
+    rendering problem's clothes, and it cost a round of looking in the wrong place.
+
+    The hash goes in the filename rather than a `?v=` query: both move the URL, but a query is the
+    weaker form, since proxies and CDNs may drop it from the cache key or refuse to cache at all,
+    and this app is already behind one.
+
+    Gated by `TestFingerprintedAssetCachePolicy` and `TestAssetURLChangesWithContent`, which
+    assert the two halves as one mechanism -- a fingerprint with no long max-age buys nothing, and
+    a long max-age with no fingerprint *is* the bug. The second test began as one that skipped
+    when `static/css/app.css` did not resolve from the package directory, which is a test passing
+    for the wrong reason; the hashing was split into `fingerprintOf` so it could run against a
+    file the test writes.
 
   - **Workspace Home is board 03 now** (item 2). The three-card grid plus a separate "Your
     access" grid at the bottom became one row list: icon tile, name, description, the viewer's
