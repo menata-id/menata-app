@@ -9,7 +9,10 @@ import (
 	"menata.app/internal/domain"
 )
 
-// workspaceHomeLinksTo renders WorkspaceHomePage with the given workspaceRole and every other
+// workspaceHomeLinksTo renders WorkspaceHomePage with the given workspaceRole -- carried on
+// Viewer since 2026-09-24, where it belongs: this test is what caught the page and appShell's new
+// Workspace menu reading two different sources for the same fact, on the first build after that
+// menu existed. Every other
 // parameter fixed to a minimal valid fixture, reporting whether the rendered page links to route.
 // WorkspaceHomePage resolves every route and label it renders through routeByID/labelByID
 // (machine.templ), so a nav fixture must be configured before rendering, same pattern
@@ -29,7 +32,7 @@ func workspaceHomeLinksTo(t *testing.T, workspaceRole, route string) bool {
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: all}, "Test Workspace")
 
 	var buf bytes.Buffer
-	c := WorkspaceHomePage("Acme", workspaceRole, Viewer{Initials: "AN"}, "", []ApplicationCard{
+	c := WorkspaceHomePage("Acme", Viewer{Initials: "AN", WorkspaceRole: workspaceRole}, "", []ApplicationCard{
 		{Name: "Task Tracker", Initials: "TT", Role: "member", HomeRoute: "/approval-inbox"},
 	})
 	if err := c.Render(ctx, &buf); err != nil {

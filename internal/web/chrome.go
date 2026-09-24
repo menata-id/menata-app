@@ -21,6 +21,15 @@ type shellChrome struct {
 	Name          string
 	Email         string
 	UserInitials  string
+	// WorkspaceRole is the viewer's role in *this* Workspace ("admin"/"member"), read from the
+	// membership row resolveIdentity already loaded. appShell's Workspace menu needs it: its
+	// Workspace-settings row points at a requireWorkspaceAdmin-gated route, and offering a plain
+	// member a link that only ever 403s is the same code-review finding that deleted
+	// rendering.membersHiddenFor (appshell.templ's own history). Empty for the shared admin
+	// credential's placeholder identity, which holds no membership row -- so it sees no admin row
+	// either, which is correct rather than unfortunate: cfg.AdminUserID is a break-glass login,
+	// not a Workspace member.
+	WorkspaceRole string
 }
 
 // resolveChrome reads both values for one request. The three Workspace-level handlers
@@ -43,15 +52,15 @@ type shellChrome struct {
 // would otherwise render. A real error reaching the database is still returned.
 func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cfg config.Config) (shellChrome, error) {
 	if id, ok := identityFrom(ctx); ok {
-		name, email := id.ViewerName(ctx), ""
+		name, email, role := id.ViewerName(ctx), "", ""
 		if m := id.Membership(ctx); m != nil {
-			email = m.Email
+			email, role = m.Email, m.WorkspaceRole
 		}
 		workspaceName := ""
 		if id.workspace != nil {
 			workspaceName = id.workspace.Name
 		}
-		return shellChrome{WorkspaceName: workspaceName, Name: name, Email: email, UserInitials: composition.Initials(name)}, nil
+		return shellChrome{WorkspaceName: workspaceName, Name: name, Email: email, UserInitials: composition.Initials(name), WorkspaceRole: role}, nil
 	}
 
 	// Fallback for a handler mounted without resolveIdentity -- in this repo, a test mounting one
@@ -67,20 +76,20 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 	// stopped being Fields on 2026-09-22 (metadata/user.yaml, migration 010) because they belong
 	// to whoever owns the login rather than to one Workspace. The membership row is what ties this
 	// session's record id to that identity, so it is the first hop.
-	userName, userEmail := "", ""
+	userName, userEmail, userRole := "", "", ""
 	userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 	if membership, err := store.GetMembership(ctx, workspaceID, userID); err == nil && membership != nil {
-		userEmail = membership.Email
+		userEmail, userRole = membership.Email, membership.WorkspaceRole
 		userName = viewerNameFor(ctx, store, membership)
 	}
 
-	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName)}, nil
+	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName), WorkspaceRole: userRole}, nil
 }
 
 // Viewer is shellChrome's three identity fields as rendering.appShell's own parameter type, so
 // every call site builds it the same way instead of repeating the field-by-field literal.
 func (c shellChrome) Viewer() rendering.Viewer {
-	return rendering.Viewer{Name: c.Name, Email: c.Email, Initials: c.UserInitials}
+	return rendering.Viewer{Name: c.Name, Email: c.Email, Initials: c.UserInitials, WorkspaceRole: c.WorkspaceRole}
 }
 
 // viewerWorkspaceContext resolves two per-viewer facts. switchWorkspaceHref (the launcher's "All

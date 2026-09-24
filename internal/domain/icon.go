@@ -47,5 +47,7 @@ var KnownIcons = map[string]bool{
 	"grid":          true,
 	"more":          true,
 	"chevron-right": true,
+	"chevron-down":  true,
+	"switch":        true,
 	"user-check":    true,
 }

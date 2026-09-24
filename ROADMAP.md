@@ -929,6 +929,40 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     platform had the missing piece instead, and it is better than any of them for this: `popover`
     is one attribute, needs no bundle, and cannot go stale.
 
+  - **The Workspace menu** (boards 03b / M03b, owner: *"workspace dulu"*) — the last item of the
+    Flow 2 gap study's Tahap 1. The Workspace name gains a chevron and opens `workspaceMenu`:
+    its initials tile, the viewer's role, Workspace settings, Switch workspace. Straight onto
+    `sheetPanel`, so it was a sheet on mobile and a dropdown on desktop with no new mechanism.
+
+    It renders at Workspace level only, never inside an Application. That is the mockup's own
+    split rather than a shortcut: board 07's in-Application breadcrumb keeps the Workspace name a
+    one-tap link home, and inside an Application the launcher and the More sheet already offer
+    these same destinations. Two rows, not three — **"Invite members" is not rendered**, because
+    this app has no invite route of its own (the form is a `<details>` inside the Members screen)
+    and a second row pointing where the row above it already goes is worse than one honest row.
+    The mockup's "Admin · 24 members" loses its count for the reason already recorded twice: a
+    member count is not a field on `domain.Workspace`.
+
+    **What it actually cost was a duplication it exposed, not the menu.** The row is admin-gated,
+    so the viewer's Workspace role had to reach `appShell` — and `WorkspaceHomePage` was already
+    taking that same role as a parameter of its own beside `Viewer`. Two sources for one fact, and
+    they disagreed on the first build: `TestWorkspaceHomePage_membersLinkVisibility` failed
+    because the page hid its Members link from a member while the new menu, reading the other
+    source, still offered it. The role lives on `Viewer` now — "who is looking" is what that type
+    already is — and the page's parameter is gone. The test caught it because it asserts on the
+    whole rendered page rather than on one element, which is the property its own comment claims
+    and this is the second time that has paid.
+
+    The gate is `!= member`, not `== admin`, matching `workspacehome.templ`'s deliberate three-way
+    split: the shared admin credential holds no membership row, so its role reads `""` while it
+    *can* still open the destination — hiding the row from it would hide a link that works.
+    `domain.WorkspaceRoleMember` exists now so that split is a named constant in both readers
+    rather than a bare literal, which is how the second one nearly got `== admin` instead.
+
+    Workspace Home's own breadcrumb also stops reading "Workspace / Home": the page names itself
+    in its `<h1>`, and board 03's breadcrumb is the Workspace name alone. Every other
+    Workspace-level screen still says which one it is.
+
   - **The same fix, missed on two of the three menus** (owner, 2026-09-24, testing the build):
     *"jika klik avatar bulat di pojok kanan atas, perilaku bottom sheet masih menimpa bottom bar
     dan tidak ada transparan gelap"*. The More sheet got a shade and was positioned above the bar;

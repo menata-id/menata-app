@@ -62,6 +62,15 @@ type Viewer struct {
 	Name     string
 	Email    string
 	Initials string
+	// WorkspaceRole is the viewer's role in the Workspace they are looking at ("admin"/"member"),
+	// added 2026-09-24 with the Workspace menu -- which offers a requireWorkspaceAdmin-gated
+	// destination and must not offer it to someone it would only ever 403.
+	//
+	// It sits on Viewer rather than arriving as a fourth appShell parameter because it is a fact
+	// about *who is looking*, which is what this type already is. It is presentation only: the
+	// server-side gate is the real one and is untouched, exactly as the deleted hiddenNavIDs
+	// parameter's own note records.
+	WorkspaceRole string
 }
 //
 // TWO PARAMETERS WERE REMOVED ON 2026-09-21, both dead the moment the launcher stopped listing
@@ -133,10 +142,16 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 							<span class="truncate text-sm leading-5 font-medium text-slate-900 sm:hidden">{ currentApp.Name }</span>
 						</nav>
 					} else {
-						<nav aria-label="Breadcrumb" class="min-w-0 truncate text-sm text-slate-400">
-							<a href="/home" class="font-medium text-slate-900 hover:underline">{ workspaceName }</a>
-							{ " / " }
-							{ title }
+						<nav aria-label="Breadcrumb" class="flex min-w-0 items-center text-sm text-slate-400">
+							@workspaceMenu(workspaceName, viewer, switchWorkspaceHref)
+							// Workspace Home names itself in its own <h1>, so repeating it here as
+							// "Dokter Kecil / Home" is the duplication board 03 leaves out -- its
+							// breadcrumb is the Workspace name alone. Every other Workspace-level
+							// screen still says which one it is.
+							if title != labelByID(ctx, "nav_home") {
+								<span class="shrink-0">{ " / " }</span>
+								<span class="truncate">{ title }</span>
+							}
 						</nav>
 					}
 					<span class="ml-auto">
@@ -419,6 +434,76 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 			if switchWorkspaceHref != "" {
 				<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
 				<a href={ templ.SafeURL(switchWorkspaceHref) } class="block rounded-lg p-3 text-sm font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
+			}
+		}
+	</div>
+}
+
+// workspaceMenu is the Workspace's own name, made into a menu (Flow 2 mockup, boards 03b / M03b):
+// which Workspace you are in, and the two things you can do *to* it rather than inside it.
+//
+// It renders at Workspace level only, never inside an Application, which is the mockup's own
+// split rather than a simplification: board 03b is drawn on Workspace Home, while board 07's
+// in-Application breadcrumb keeps "Dokter Kecil" a plain one-tap link back to Home. Nothing is
+// lost by that -- inside an Application the launcher and the More sheet already offer these same
+// destinations -- and it keeps the breadcrumb's job unambiguous in the place a user is deepest.
+//
+// Two rows, not the mockup's three. **"Invite members" is not rendered**: this app has no invite
+// route of its own, the invite form is a <details> inside the Members screen, and a second row
+// pointing at the same place the row above it already goes is worse than one honest row. The
+// mockup can afford three because it has an Invitations screen (Flow 2 gap study §5.3); we do not
+// yet. The mockup's "Admin · 24 members" line loses its count for the recorded reason: a member
+// count is not a field on domain.Workspace, and inventing one here is the hardcoding CLAUDE.md's
+// decision path rules out.
+//
+// The Workspace-settings row follows the viewer's role, because its destination is
+// requireWorkspaceAdmin-gated and offering a plain member a link that could only ever 403 is the
+// 2026-09-19 code-review finding arriving again on a different menu. That gate is the real one and
+// is untouched; this is chrome.
+//
+// `!= member`, not `== admin`, which is workspacehome.templ's own deliberate three-way split
+// rather than a looser test: the shared admin credential holds no membership row at all, so its
+// role reads as "" -- and it *can* open the destination. Hiding the row from it would hide a link
+// that works. A real member is the only case that must not see it.
+templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	<div class="flex min-w-0">
+		<button
+			type="button"
+			popovertarget="menata-workspace-menu"
+			aria-haspopup="menu"
+			class="flex min-w-0 cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-2 py-1 font-sans text-sm font-medium text-slate-900 hover:bg-slate-100"
+		>
+			<span class="truncate">{ workspaceName }</span>
+			@icon("chevron-down", "size-3.5 shrink-0 text-slate-500")
+		</button>
+		@sheetPanel("menata-workspace-menu", false, "left") {
+			<div class="flex items-center gap-3 px-3 pt-1 pb-2.5">
+				<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-[13px] font-medium text-white">
+					{ personInitials(workspaceName, "") }
+				</span>
+				<span class="flex min-w-0 flex-col gap-0.5">
+					<span class="truncate text-sm font-medium text-slate-900">{ workspaceName }</span>
+					if viewer.WorkspaceRole != "" {
+						<span class="text-xs text-slate-400">{ displayRole(viewer.WorkspaceRole) }</span>
+					}
+				</span>
+			</div>
+			<div class="my-1 h-px bg-slate-100"></div>
+			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
+					<span class="text-slate-500">
+						@icon("settings", "size-4")
+					</span>
+					{ labelByID(ctx, "nav_workspace_members") }
+				</a>
+			}
+			if switchWorkspaceHref != "" {
+				<a href={ templ.SafeURL(switchWorkspaceHref) } class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
+					<span class="text-slate-500">
+						@icon("switch", "size-4")
+					</span>
+					Switch workspace
+				</a>
 			}
 		}
 	</div>

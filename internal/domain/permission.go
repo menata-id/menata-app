@@ -49,6 +49,18 @@ var KnownActions = map[string]bool{
 // Workspace has identically, so there is nothing per-Workspace to declare.
 const WorkspaceRoleAdmin = "admin"
 
+// WorkspaceRoleMember is the other half of that pair. It names no Permission -- KnownWorkspaceRoles
+// deliberately excludes it, see below -- but chrome tests against it directly, and that is a
+// different question with a different answer.
+//
+// The distinction is worth the constant: a screen deciding whether to *offer* an admin destination
+// asks `!= member`, not `== admin`, because the shared admin credential holds no membership row at
+// all and its role reads as "" while still being able to open the destination. Hiding the link from
+// it would hide a link that works. Two readers rely on that exact split (workspacehome.templ's
+// "Manage members" link, appshell.templ's Workspace menu), and a bare "member" literal in both was
+// how the second one nearly got `== admin` instead.
+const WorkspaceRoleMember = "member"
+
 // KnownWorkspaceRoles is the closed set a Permission's WorkspaceRole may name. "member" is
 // deliberately absent: requiring it would be a Permission that every member satisfies and every
 // admin fails, which is never a rule anyone means.

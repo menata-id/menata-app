@@ -1,6 +1,10 @@
 package rendering
 
-import "fmt"
+import (
+	"fmt"
+
+	"menata.app/internal/domain"
+)
 
 // WorkspaceHomePage is the landing page after login (ROADMAP.md Phase 21 Step 5). switchHref is
 // the mid-session Choose Workspace link (showSwitchWorkspace) when the signed-in identity belongs
@@ -19,7 +23,12 @@ import "fmt"
 // the phase that fills it. Inventing a second card here would be exactly the hardcoding
 // CLAUDE.md's decision path rules out.
 //
-// showMembersLink (workspaceRole != "member", not == "admin") decides whether the "Manage members"
+// The viewer's Workspace role arrives on Viewer, not as a parameter of its own -- it was both
+// until 2026-09-24, and appShell's new Workspace menu is what exposed the cost: two sources for one
+// fact, which disagreed the moment the second reader appeared (this page's own test caught it, on
+// the very first build). Viewer is "who is looking"; their role in this Workspace is that.
+//
+// viewer.WorkspaceRole != "member" (not == "admin") decides whether the "Manage members"
 // link renders -- requireWorkspaceAdmin (internal/web/middleware.go) fails *open* for an identity
 // with no real membership row at all (the shared admin credential predating per-user accounts),
 // letting it reach /workspace-members regardless of role; showWorkspaceHome degrades that same
@@ -79,7 +88,7 @@ func appIconClasses(color string) string {
 	}
 }
 
-templ WorkspaceHomePage(workspaceName, workspaceRole string, viewer Viewer, switchHref string, apps []ApplicationCard) {
+templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, apps []ApplicationCard) {
 	@appShell(labelByID(ctx, "nav_home"), workspaceName, viewer, switchHref) {
 		<div class="mb-3 flex flex-col gap-2">
 			<div class="flex items-center gap-2.5">
@@ -140,14 +149,14 @@ templ WorkspaceHomePage(workspaceName, workspaceRole string, viewer Viewer, swit
 					<h2 class="m-0 text-sm font-medium">Your access</h2>
 					<span class="text-2xs text-slate-500">Effective roles in this workspace.</span>
 				</div>
-				if workspaceRole != "member" {
+				if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
 					<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
 						{ labelByID(ctx, "nav_workspace_members") } →
 					</a>
 				}
 			</div>
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-				@accessTile("Workspace", displayRole(workspaceRole))
+				@accessTile("Workspace", displayRole(viewer.WorkspaceRole))
 				for _, app := range apps {
 					@accessTile(app.Name, displayRole(app.Role))
 				}
