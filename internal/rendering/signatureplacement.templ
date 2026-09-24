@@ -364,7 +364,7 @@ templ signaturePlacementBlock(v PlacementView) {
 			for _, s := range v.Steps {
 				<div class="sig-step-card">
 					<strong>{ fmt.Sprintf("%d. %s", s.Index, s.Approver) }</strong>
-					<p class="step-status">{ placementSubline(s) }</p>
+					<p class="m-0 text-xs text-slate-500">{ placementSubline(s) }</p>
 					if s.Editable {
 						@widthControl(s, v.Page)
 						@placeStepForm(s, v.Page)

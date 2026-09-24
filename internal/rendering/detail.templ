@@ -35,10 +35,10 @@ type DocumentSignaturePlacement struct {
 // actor is the viewing identity, needed only so an Action the viewer is not permitted to
 // perform isn't offered in the first place (ROADMAP.md Phase 16) -- the server enforces the same
 // rule regardless, this only keeps the UI honest about it.
-templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement) {
-	@pageShell(m.Name) {
+templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(m.Name, workspaceName, viewer, switchWorkspaceHref) {
 		@detailBackLink(m)
-		<div id="record-detail">
+		<div id="record-detail" class="flex flex-col gap-4">
 			@RecordDetailView(m, r, relations, groups, children, actor, sigPlacement)
 		</div>
 	}
@@ -54,9 +54,9 @@ templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOpti
 // real destination.
 templ detailBackLink(m *domain.Machine) {
 	if m.ID == action.DocumentMachineID || m.ID == action.StepMachineID {
-		<p><a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) }>← { labelByID(ctx, "nav_approval_inbox") }</a></p>
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID(ctx, "nav_approval_inbox") }</a>
 	} else {
-		<p><a href={ templ.URL("/machines/" + m.ID) }>← { m.Name }</a></p>
+		<a href={ templ.URL("/machines/" + m.ID) } class="text-xs text-blue-600 hover:text-blue-700">← { m.Name }</a>
 	}
 }
 
@@ -64,20 +64,22 @@ templ detailBackLink(m *domain.Machine) {
 // section per child collection -- every record of another Machine that references this one
 // (ROADMAP.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
 templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement) {
-	<div id="record-detail">
-		<h1>{ recordTitle(m, r) }</h1>
-		if m.ID == action.DocumentMachineID {
-			<code>{ action.DocumentReference(r.SortOrder) }</code>
-		} else {
-			<code>{ r.ID }</code>
-		}
-		<dl class="detail-fields">
+	<div id="record-detail" class="flex flex-col gap-4">
+		<div class="flex flex-col gap-1">
+			<h1 class="m-0 text-xl font-medium">{ recordTitle(m, r) }</h1>
+			if m.ID == action.DocumentMachineID {
+				<code class="font-mono text-2xs text-slate-400">{ action.DocumentReference(r.SortOrder) }</code>
+			} else {
+				<code class="font-mono text-2xs text-slate-400">{ r.ID }</code>
+			}
+		</div>
+		<dl class="m-0 grid grid-cols-1 gap-x-4 gap-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm sm:grid-cols-[10rem_1fr]">
 			for _, f := range m.Fields {
 				if !hiddenDetailField(m, f) {
-					<dt>{ f.Name }</dt>
-					<dd>
+					<dt class="self-center text-2xs font-medium tracking-wide text-slate-500 uppercase">{ f.Name }</dt>
+					<dd class="m-0 text-slate-900">
 						if f.ID == m.SLAField {
-							@slaBadge(r.Values[f.ID])
+							@slaBadgePill(r.Values[f.ID])
 						} else if f.Type == domain.FieldTypeFile {
 							@fileLink(r.Values[f.ID])
 							if m.ID == action.DocumentMachineID && f.ID == action.FieldDocumentFile {
@@ -102,17 +104,16 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			// run for every Machine's detail page, mch_task included. Board 10 is that screen now;
 			// this links to it rather than rendering a second, quietly diverging copy of the same
 			// decision.
-			<p><a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)) }>Review and decide →</a></p>
+			<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)) } class="text-sm font-medium text-blue-600 hover:text-blue-700">Review and decide →</a>
 		}
 		{{ deletable, blockedReason := canDeleteInView(m, r, children, actor) }}
-		<div class="actions">
+		<div class="flex flex-wrap items-center gap-2">
 			if m.ID == action.DocumentMachineID {
-				<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)) }>
-					<button type="button">Signature Positions</button>
-				</a>
+				<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)) } class={ btnSecondary }>Signature Positions</a>
 			}
 			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
+					class={ btnSecondary }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 					hx-target="#record-detail"
 					hx-swap="outerHTML"
@@ -120,24 +121,25 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			}
 			if deletable {
 				<button
+					class={ btnSecondary }
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target="#record-detail"
 					hx-confirm="Delete this record?"
 				>Delete</button>
 			} else {
-				<span class="step-status" title={ blockedReason }>Cannot delete: { blockedReason }</span>
+				<span class="text-xs text-slate-500" title={ blockedReason }>Cannot delete: { blockedReason }</span>
 			}
 		</div>
 		for _, cc := range children {
 			if m.ID == action.DocumentMachineID && cc.Machine.ID == action.StepMachineID {
-				@sectionHeader("Approval Progress", "", "")
+				@sectionHeaderRow("Approval Progress", "", "")
 				@approvalStepper(cc.Machine.Sequencing, r, cc.Records, cc.Relations)
 			} else {
 				@ChildSectionView(cc, groups, actor)
 			}
 		}
 		if m.ID == action.DocumentMachineID && sigPlacement != nil {
-			@sectionHeader("Signature Positions", "", "")
+			@sectionHeaderRow("Signature Positions", "", "")
 			@signaturePlacementBlock(sigPlacement.View)
 		}
 	</div>
@@ -147,9 +149,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 // mockup conformance audit) -- the capability already existed, reachable only from the
 // signature-placement screen; this is the detail page's own use of the same route, not a new one.
 templ pdfThumbnail(machineID, recordID string) {
-	<div class="pdf-thumb">
+	<div class="mt-2">
 		<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/pdf-preview", machineID, recordID)) } target="_blank">
-			<img src={ fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=1", machineID, recordID) } alt="Document PDF preview, page 1"/>
+			<img src={ fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=1", machineID, recordID) } alt="Document PDF preview, page 1" class="block max-w-40 rounded border border-slate-200"/>
 		</a>
 	</div>
 }
@@ -157,47 +159,55 @@ templ pdfThumbnail(machineID, recordID string) {
 // ChildSectionView renders one child collection: a compact table of the child Machine's records,
 // each row the same generic RecordRow used everywhere else.
 templ ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor) {
-	<h2>{ cc.Machine.Name } ({ fmt.Sprint(len(cc.Records)) })</h2>
-	<table>
-		<thead>
-			<tr>
-				for _, f := range cc.Machine.Fields {
-					<th>{ f.Name }</th>
-				}
-				<th></th>
-			</tr>
-		</thead>
-		<tbody>
-			for _, rec := range cc.Records {
-				@RecordRow(cc.Machine, rec, cc.Relations, groups, actor)
-			}
-		</tbody>
-	</table>
+	<section class="flex flex-col gap-2">
+		@sectionHeaderRow(fmt.Sprintf("%s (%d)", cc.Machine.Name, len(cc.Records)), "", "")
+		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+			<table class="w-full border-collapse text-sm">
+				<thead>
+					<tr>
+						for _, f := range cc.Machine.Fields {
+							<th class={ headCellBase }>{ f.Name }</th>
+						}
+						<th class={ headCellBase }></th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, rec := range cc.Records {
+						@RecordRow(cc.Machine, rec, cc.Relations, groups, actor)
+					}
+				</tbody>
+			</table>
+		</div>
+	</section>
 }
 
 // RecordDetailEdit is one Record's detail in edit mode: the same Field set as an inline form.
 templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions) {
-	<div id="record-detail">
+	<div id="record-detail" class="flex flex-col gap-4">
 		<form
+			class="flex flex-col gap-4"
 			hx-put={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 			hx-target="#record-detail"
 			hx-swap="outerHTML"
 			hx-encoding="multipart/form-data"
 		>
-			<h1>{ recordTitle(m, r) }</h1>
-			<code>{ r.ID }</code>
-			<dl class="detail-fields">
+			<div class="flex flex-col gap-1">
+				<h1 class="m-0 text-xl font-medium">{ recordTitle(m, r) }</h1>
+				<code class="font-mono text-2xs text-slate-400">{ r.ID }</code>
+			</div>
+			<dl class="m-0 grid grid-cols-1 items-center gap-x-4 gap-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm sm:grid-cols-[10rem_1fr]">
 				for _, f := range m.Fields {
-					<dt>{ f.Name }</dt>
-					<dd>
+					<dt class="self-center text-2xs font-medium tracking-wide text-slate-500 uppercase">{ f.Name }</dt>
+					<dd class="m-0">
 						@fieldInput(f, r.Values[f.ID], relations, groups)
 					</dd>
 				}
 			</dl>
-			<div class="actions">
-				<button type="submit" class="primary">Save</button>
+			<div class="flex flex-wrap items-center gap-2">
+				<button type="submit" class={ btnPrimary }>Save</button>
 				<button
 					type="button"
+					class={ btnSecondary }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target="#record-detail"
 					hx-swap="outerHTML"

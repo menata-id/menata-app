@@ -98,7 +98,12 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files
 				return
 			}
 			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID, actor)
-			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, groups, children, actor, sigPlacement))
+			workspaceName, viewer, switchHref, err := pageChrome(req.Context(), req, store, cfg)
+			if err != nil {
+				serverError(w, err)
+				return
+			}
+			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, groups, children, actor, sigPlacement, workspaceName, viewer, switchHref))
 			return
 		}
 		if isDetailContext(req) {

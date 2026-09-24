@@ -929,6 +929,46 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     platform had the missing piece instead, and it is better than any of them for this: `popover`
     is one attribute, needs no bundle, and cannot go stale.
 
+  - **The last two screens left the other stylesheet** (2026-09-24) — `/`, `/machines/{id}` and
+    the generic record detail page moved from `pageShell` to `appShell`, and `pageStyles` was
+    deleted with them. This closes two deferral rows below ("Dashboard (`/dashboard`) still on
+    `pageStyles`" was closed on 2026-09-22; "Document / Approval Step detail pages still on
+    `pageStyles`" is closed here) and retires `capabilities.md`'s whole "Styling: two systems, on
+    purpose" section, which had described the split as a planned transition since Fase 1.
+
+    **What it was costing did not read as a missing feature, which is why it survived four
+    phases.** Those screens linked no `app.css` at all: no sticky header, no bottom bar, no
+    launcher, and the platform's default font instead of Ubuntu. On a phone, opening one record
+    dropped the viewer out of the chrome entirely, with the browser's back button as the only way
+    back — measured, not guessed: the page's `link[rel=stylesheet]` list was empty. It read as a
+    different application rather than a plainer page.
+
+    The reason the boundary was per *screen* rather than per layer still holds and is worth
+    keeping written down for the next migration of this shape: Preflight resets heading sizes,
+    list markers and button defaults that a hand-written sheet leaves to the browser, so a page
+    linking `app.css` must have its content ported in the same change or it visibly breaks.
+
+    Deleted with the shell, each with its last caller: `pageShell`, `pageHead`, `pageStyles`,
+    `navLink`, `navSections` (and its three tests), `CurrentApplicationName`,
+    `applicationNavEntry` — the grouped, collapsible topbar has no counterpart in `appShell`,
+    whose launcher lists Applications rather than every declared item.
+
+    **Two components stopped being twins.** `slaBadge`/`slaBadgePill` and
+    `sectionHeader`/`sectionHeaderRow` each drew the identical thing in the two stylesheets — a
+    deliberate, documented cost of the transition. With one stylesheet left they were simply the
+    same component written twice, so the `pageStyles` halves went. A test went with them in
+    spirit: `TestMachineBody_cardsViewRendersProjectedFields` asserted on the class name
+    `summary-card-list`, which made it a test of styling rather than of rendering; it asserts on
+    the link every card carries now.
+
+    **Two things this surfaced rather than caused.** `show_nav` now suppresses **nothing at all**
+    — its only reader was `pageShell`'s topbar, so a field two Applications declare changes no
+    pixel anywhere; either it should mean something to `applicationMenuRow`/`applicationBottomBar`
+    or it should go, and that is the owner's call (`capabilities.md` states it plainly rather than
+    leaving the field looking live). And the Document detail page's PDF thumbnail returns 422 for
+    the one old test Document — same route, same `<img>`, unchanged by this port; it is the
+    orphaned `Vendor Contract 2026` record the open-questions list above still names.
+
   - **The Workspace menu** (boards 03b / M03b, owner: *"workspace dulu"*) — the last item of the
     Flow 2 gap study's Tahap 1. The Workspace name gains a chevron and opens `workspaceMenu`:
     its initials tile, the viewer's role, Workspace settings, Switch workspace. Straight onto

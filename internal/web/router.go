@@ -172,7 +172,7 @@ func Routes(d Deps) http.Handler {
 		pr.Put("/api/machines/{machineID}/records/{id}", updateRecord(d.Machines, d.Store, d.Cfg))
 		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Machines, d.Store, d.Cfg))
 
-		pr.Get("/", showMachineList(d.MachineList))
+		pr.Get("/", showMachineList(d.MachineList, d.Store, d.Cfg))
 		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.Cfg))
 		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
 		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))

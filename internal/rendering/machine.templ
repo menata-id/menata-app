@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
@@ -106,20 +105,10 @@ func runtimeScreenByID(id string) domain.NavigationItem {
 	panic("rendering: no runtime screen with id " + id)
 }
 
-// applicationNavEntry presents one Application as a navigation item -- its own name, pointing at
-// its own declared home (launcherAppHomeRoute, the same resolution the launcher's card face uses,
-// so the two never disagree about where an Application starts).
-//
-// Synthesized rather than declared: which Applications a Workspace contains is already stated by
-// `applications:` in this Workspace's own manifest, and re-listing them as navigation items would be 001
-// Principle #8 duplication of the list one line above them.
-func applicationNavEntry(ctx context.Context, app domain.Application) domain.NavigationItem {
-	return domain.NavigationItem{
-		ID:    app.ID,
-		Label: app.Name,
-		Route: launcherAppHomeRoute(ctx, app),
-	}
-}
+// applicationNavEntry was deleted on 2026-09-24 with pageShell, its only caller. It turned an
+// Application into a synthetic navigation item so the old topbar could list "Document Approval"
+// beside the declared items. appShell's launcher renders Applications as cards from
+// Workspace.Applications directly, so there is nothing left to synthesize.
 
 // labelByID is routeByID's label-side counterpart: a page rendering the title of one of its own
 // nav siblings (a pageShell title, an <h1>, a card's link text) must read it from here, not retype
@@ -173,43 +162,6 @@ func descriptionByID(ctx context.Context, id string) string {
 	panic("rendering: no navigation item with id " + id)
 }
 
-// navLink renders one NavigationItem as a topbar link, including its live badge if it declares
-// one -- currently only the pending-approval count (the only entry in KnownNavigationBadges).
-templ navLink(item domain.NavigationItem) {
-	<a href={ templ.SafeURL(item.Route) }>
-		{ item.Label }
-		if item.Badge == domain.NavBadgeApprovalInboxPending {
-			<span id="pending-badge" class="nav-badge" hx-get="/api/approval-inbox/pending-count" hx-trigger="load" hx-swap="innerHTML"></span>
-		}
-	</a>
-}
-
-// pageHead is the <head> every page shares -- title, PWA manifest/icons, htmx/hyperscript, and
-// the site's one stylesheet (pageStyles). Split out of pageShell so workspaceHomeShell (a
-// different <body>/topbar for Workspace-level screens) doesn't duplicate it.
-//
-// htmx/hyperscript are vendored into static/vendor (router.go's own "/vendor/*" FileServer,
-// pinned at the same htmx.org@2.0.4/hyperscript.org@0.9.93 this app has always run) rather than
-// loaded from unpkg.com -- found 2026-09-19 while debugging a live report of a signature-placement
-// form silently falling back to a native (non-HTMX) GET submit: every hx-* interaction on a page
-// depends on this script actually loading, and a CDN outage/block (an ad-blocker, a restrictive
-// network) took all of it down at once with no visible error. Self-hosting removes that failure
-// mode entirely; secureHeaders' CSP script-src no longer needs https://unpkg.com either.
-templ pageHead(title string) {
-	<head>
-		<meta charset="UTF-8"/>
-		<meta name="viewport" content="width=device-width, initial-scale=1"/>
-		<title>{ title } · Menata App</title>
-		<link rel="manifest" href="/manifest.json"/>
-		<link rel="icon" href="/icons/favicon-32.png"/>
-		<link rel="apple-touch-icon" href="/icons/icon-180.png"/>
-		<meta name="theme-color" content="#2563EB"/>
-		<script src="/vendor/htmx.min.js" defer></script>
-		<script src="/vendor/hyperscript.min.js" defer></script>
-		@pageStyles()
-	</head>
-}
-
 // pwaRegistrationScript is the service-worker registration every page shares (ROADMAP.md's
 // "Installable as a PWA") -- registration only, no cache population, since this app's data is
 // live/session-scoped and the service worker (serveServiceWorker, internal/web/pwa.go)
@@ -222,129 +174,6 @@ templ pwaRegistrationScript() {
 			})
 		}
 	</script>
-}
-
-templ pageStyles() {
-	<style>
-				body { font-family: system-ui, -apple-system, sans-serif; max-width: 760px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
-				header.topbar { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #e5e5e5; }
-				header.topbar .left { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
-				header.topbar span { color: #666; font-size: 0.85rem; }
-				header.topbar a { color: #3949ab; font-size: 0.85rem; text-decoration: none; }
-				header.topbar a[aria-current="page"] { font-weight: 600; text-decoration: underline; }
-				.nav-badge:empty { display: none; }
-				.nav-badge { display: inline-block; margin-left: 0.3rem; padding: 0 0.4rem; border-radius: 999px; background: #b00020; color: #fff; font-size: 0.7rem; line-height: 1.4; }
-				header.topbar button { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; }
-				.nav-group { display: flex; align-items: center; gap: 0.85rem; }
-				.nav-group-label { color: #999; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-				details.nav-group { position: relative; display: block; }
-				details.nav-group summary { list-style: none; cursor: pointer; color: #444; font-size: 0.85rem; }
-				details.nav-group summary::-webkit-details-marker { display: none; }
-				details.nav-group summary::after { content: " \25be"; color: #999; font-size: 0.7rem; }
-				details.nav-group[open] summary::after { content: " \25b4"; }
-				details.nav-group .nav-group-items { position: absolute; top: 100%; left: 0; margin-top: 0.5rem; background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 0.6rem 0.75rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 0.6rem; min-width: 11rem; z-index: 20; }
-				h1 { margin-bottom: 0.25rem; }
-				code { color: #666; font-size: 0.9rem; }
-				table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-				th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e5e5; vertical-align: middle; }
-				th { color: #666; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
-				.badge { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px; background: #eef1fb; color: #3949ab; font-size: 0.8rem; }
-				.yes { color: #b00020; }
-				.no { color: #999; }
-				input, select { padding: 0.35rem 0.5rem; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; width: 100%; box-sizing: border-box; }
-				button { padding: 0.35rem 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.85rem; }
-				button.primary { background: #3949ab; color: #fff; border-color: #3949ab; }
-				.actions { white-space: nowrap; }
-				.actions button { margin-right: 0.25rem; }
-				.decide-actions { position: sticky; bottom: 0; background: #fff; padding: 0.75rem 0; border-top: 1px solid #e5e5e5; margin-top: 1rem; }
-				form.create-form td { padding-top: 0.75rem; }
-				dl.detail-fields { display: grid; grid-template-columns: 10rem 1fr; row-gap: 0.75rem; column-gap: 1rem; margin: 1.5rem 0; }
-				dl.detail-fields dt { color: #666; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; align-self: center; }
-				dl.detail-fields dd { margin: 0; }
-				ul.machine-list { list-style: none; padding: 0; }
-				ul.machine-list li { padding: 0.75rem; border-bottom: 1px solid #e5e5e5; }
-				ul.machine-list a { color: #1a1a1a; text-decoration: none; font-weight: 500; }
-				.board { display: flex; gap: 1rem; margin-top: 1rem; overflow-x: auto; padding-bottom: 0.5rem; }
-				.board-column { flex: 0 0 260px; background: #f7f8fc; border-radius: 6px; padding: 0.75rem; }
-				.board-column h3 { margin: 0 0 0.5rem 0; font-size: 0.8rem; color: #444; text-transform: uppercase; }
-				.board-column table { margin-top: 0; font-size: 0.85rem; }
-				.board-column th { display: none; }
-				.board-column td { padding: 0.35rem 0.4rem; }
-				h2 { margin-top: 2rem; }
-				h3 { margin-top: 1.5rem; font-size: 1rem; color: #444; }
-				ul.summary-counts { list-style: none; padding: 0; display: flex; gap: 1.5rem; }
-				ul.summary-counts li { color: #444; font-size: 0.9rem; }
-				ul.activity-feed { list-style: none; padding: 0; }
-				ul.activity-feed li { padding: 0.5rem 0; border-bottom: 1px solid #e5e5e5; display: flex; gap: 0.6rem; align-items: baseline; }
-				.muted { color: #999; font-size: 0.8rem; margin-left: auto; }
-				.section-link { font-size: 0.8rem; font-weight: normal; margin-left: 0.75rem; }
-				.pdf-thumb { margin-top: 0.5rem; }
-				.pdf-thumb img { max-width: 160px; border: 1px solid #ccc; border-radius: 4px; display: block; }
-				.card-field-label { color: #999; }
-				.card-field-value { color: #444; }
-				.summary-card-fields { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.5rem; margin-top: 0.25rem; font-size: 0.8rem; }
-				.view-switcher { display: flex; gap: 0.5rem; margin: 0.75rem 0; }
-				.view-switcher-option { padding: 0.25rem 0.7rem; border: 1px solid #ccc; border-radius: 999px; font-size: 0.8rem; color: #444; text-decoration: none; }
-				.view-switcher-option.is-selected { background: #3949ab; color: #fff; border-color: #3949ab; }
-				.filter-chips { display: flex; gap: 0.5rem; margin-top: 1rem; }
-				.filter-chips a { padding: 0.3rem 0.75rem; border: 1px solid #ccc; border-radius: 999px; font-size: 0.8rem; color: #444; text-decoration: none; }
-				.filter-chips a.active { background: #3949ab; color: #fff; border-color: #3949ab; }
-				.pending-card-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-top: 1rem; }
-				@media (min-width: 640px) { .pending-card-grid { grid-template-columns: 1fr 1fr; } }
-				.pending-card { display: block; border: 1px solid #e5e5e5; border-radius: 6px; padding: 1rem; text-decoration: none; color: #1a1a1a; }
-				.pending-card:hover { border-color: #3949ab; }
-				.pending-card-overdue { border-color: #f3c6c6; }
-				.pending-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem; }
-				.pending-card-head h2 { margin: 0.15rem 0 0; font-size: 1rem; }
-				.pending-card-ref { margin: 0.15rem 0 0; color: #999; font-size: 0.8rem; }
-				.pending-card-submitted { margin: 0 0 0.75rem; font-size: 0.85rem; color: #444; }
-				.pending-card-progress { display: flex; align-items: center; gap: 0.3rem; margin-bottom: 0.75rem; }
-				.progress-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #ccc; flex-shrink: 0; }
-				.progress-dot.done { background: #2e7d32; }
-				.progress-dot.current { background: #3949ab; box-shadow: 0 0 0 3px #eef1fb; }
-				.progress-dot.rejected { background: #b00020; }
-				.progress-line { flex: 1; height: 2px; background: #e5e5e5; }
-				.progress-line-done { background: #a5d6a7; }
-				.pending-card-foot { display: flex; justify-content: space-between; align-items: center; }
-				.pending-card-sla-label { font-size: 0.75rem; font-weight: 600; }
-				.pending-card-sla-label.yes { color: #b00020; }
-				.pending-card-review { font-size: 0.85rem; font-weight: 500; color: #3949ab; }
-				ul.approval-stepper { list-style: none; padding: 0; margin: 1rem 0; }
-				ul.approval-stepper li { display: flex; gap: 0.75rem; padding: 0.5rem 0; align-items: center; }
-				.step-marker { width: 1.75rem; height: 1.75rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; flex-shrink: 0; }
-				.step-marker.done { background: #eef1fb; color: #3949ab; }
-				.step-marker.rejected { background: #fdeaea; color: #b00020; }
-				.step-marker.current { background: #3949ab; color: #fff; }
-				.step-marker.waiting { background: #f0f0f0; color: #999; }
-				.step-body { display: flex; flex-direction: column; }
-				.step-title { font-weight: 500; }
-				.step-status { font-size: 0.8rem; color: #666; }
-				.sig-layout { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-top: 1rem; align-items: start; }
-				.sig-pager { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-				.sig-canvas { position: relative; display: inline-block; max-width: 480px; }
-				.sig-canvas img { display: block; width: 100%; border: 1px solid #ccc; border-radius: 4px; }
-				.sig-marker { position: absolute; transform: translate(-50%, -50%); width: 1.75rem; height: 1.75rem; padding: 0; border-radius: 50%; background: #3949ab; color: #fff; border: 3px solid #fff; box-shadow: 0 0 0 1px #3949ab; font-size: 0.75rem; font-weight: 600; cursor: grab; touch-action: none; }
-				.sig-step-card { border: 1px solid #e5e5e5; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; }
-				.sig-step-card form { margin-top: 0.5rem; }
-				.sig-width-label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #666; }
-				.sig-width-label input { width: 4rem; }
-				.sig-modal { border: 1px solid #e5e5e5; border-radius: 8px; padding: 1.25rem; max-width: 440px; box-shadow: 0 4px 24px rgba(0,0,0,0.15); }
-				.sig-modal::backdrop { background: rgba(0,0,0,0.4); }
-				.sig-modal h3 { margin-top: 0; }
-				.sig-modal-canvas { display: block; width: 100%; height: 160px; border: 1px dashed #ccc; border-radius: 4px; background: #fff; touch-action: none; cursor: crosshair; }
-				.sig-modal-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.75rem; }
-				.sig-modal-row label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem; color: #444; }
-				.sig-modal-actions { justify-content: flex-end; }
-				.approver-rows { counter-reset: approver-step; margin: 1rem 0; }
-				.approver-row { counter-increment: approver-step; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 0.5rem; }
-				.approver-row::before { content: counter(approver-step); flex-shrink: 0; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: #3949ab; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; }
-				.approver-row select { flex: 1; width: auto; }
-				.approver-move { padding: 0.2rem 0.5rem; }
-				.approver-row:first-child .approver-move-up { visibility: hidden; }
-				.approver-row:last-child .approver-move-down { visibility: hidden; }
-				.approver-row:only-child .approver-move-remove { visibility: hidden; }
-
-			</style>
 }
 
 // csrfHeadersAttr returns pageShell's page-wide hx-headers value (security audit 2026-09-19, L1)
@@ -373,114 +202,57 @@ templ csrfHiddenInput() {
 	<input type="hidden" name="csrf_token" value={ authorization.CSRFTokenFromContext(ctx) }/>
 }
 
-// pageShell is the shared HTML document, styles, and topbar every Application-level page uses.
-// It exists so generalizing from one Machine to several (ROADMAP.md Phase 3) doesn't duplicate
-// boilerplate per page. The topbar itself is a projection of the Application's own navigation:
-// metadata (navSections/navLink above), not hand-written links -- closing ROADMAP.md's
-// long-tracked "Navigation is code, not metadata" conformance gap (004 §Navigation Metadata, 006
-// §Navigation, 001 Principle #3 Metadata First). Workspace-level screens (Workspace Home) use
-// workspaceHomeShell instead, which has no Application menu to project.
-templ pageShell(title string) {
-	<!DOCTYPE html>
-	<html lang="en">
-		@pageHead(title)
-		<body hx-headers={ csrfHeadersAttr(ctx) }>
-			// The topbar projects the *current* Application's menu (Fase 3, 2026-09-20). It used to
-			// project the process's one Application; with several, which one a request is in is a
-			// per-request fact, resolved by internal/web's currentApplication middleware. An
-			// Application with show_nav: false contributes an empty Navigation, so its screens render
-			// no menu -- which is exactly what that declaration asks for.
-			{{ currentApp, _ := CurrentApplication(ctx) }}
-			{{ ungrouped, primary, rest := navSections(currentApp.Navigation, currentApp.PrimaryNavGroup) }}
-			<header class="topbar">
-				<nav class="left" aria-label="Primary">
-					// The Workspace's own entry comes first, always, whichever Application this is:
-					// this shell has no launcher, so without it every pageShell screen would be a
-					// dead end. It used to be a loop over workspace.Navigation -- Home, All Machines,
-					// Workspace Members, Groups, Authorization Matrix, five hand-declared items. That
-					// block is gone from metadata (2026-09-21, owner instruction), and what replaces
-					// it is derived: Workspace Home, then one link per Application in this Workspace,
-					// the same list the launcher shows. Same navLink styling as before.
-					@navLink(runtimeScreenByID("nav_home"))
-					for _, app := range CurrentWorkspace(ctx).Applications {
-						@navLink(applicationNavEntry(ctx, app))
-					}
-					for _, item := range ungrouped {
-						@navLink(item)
-					}
-					if primary.Label != "" {
-						<span class="nav-group">
-							<span class="nav-group-label">{ primary.Label }</span>
-							for _, item := range primary.Items {
-								@navLink(item)
-							}
-						</span>
-					}
-					for _, group := range rest {
-						<details class="nav-group">
-							<summary>{ group.Label }</summary>
-							<span class="nav-group-items">
-								for _, item := range group.Items {
-									@navLink(item)
-								}
-							</span>
-						</details>
-					}
-					<span>{ CurrentApplicationName(ctx) }</span>
-				</nav>
-				<form method="POST" action="/logout">
-					@csrfHiddenInput()
-					<button type="submit">Log out</button>
-				</form>
-			</header>
-			{ children... }
-			@pwaRegistrationScript()
-			<script>
-				// Marks the topbar link matching the current page aria-current="page" (ROADMAP.md
-				// Phase 21 round 2, Step J) -- purely client-side so pageShell needs no new parameter
-				// threaded through every one of its ~20 callers. Extended (Phase 21 nav grouping) to
-				// also open the <details> group containing the active link, so a page inside a
-				// collapsed group (Project Management, Workspace) doesn't look like it belongs nowhere.
-				(function () {
-					var path = location.pathname;
-					var links = document.querySelectorAll("header.topbar .left a");
-					for (var i = 0; i < links.length; i++) {
-						var href = links[i].getAttribute("href");
-						if (href === path || (href !== "/" && path.indexOf(href) === 0)) {
-							links[i].setAttribute("aria-current", "page");
-							var details = links[i].closest("details.nav-group");
-							if (details) { details.setAttribute("open", ""); }
-						}
-					}
-				})();
-			</script>
-		</body>
-	</html>
-}
+// pageShell, pageHead, pageStyles and navLink were deleted on 2026-09-24, with their last two
+// callers. They were the app's *other* stylesheet -- a 122-line hand-written <style> block and a
+// topbar that projected navigation as plain text links -- and capabilities.md carried a whole
+// section, "Styling: two systems, on purpose", explaining the coexistence as a planned transition
+// rather than drift. The transition finished here: MachineList, MachinePage and RecordDetailPage
+// moved to appShell, and nothing renders from that block any more.
+//
+// What ended with it is worth naming, because none of it was visible as a missing feature: those
+// three screens loaded no app.css at all, so on a phone they had no sticky header, no bottom bar
+// and no launcher -- opening one record dropped you out of the chrome entirely, with the browser's
+// back button as the only way back. They also rendered in the platform's default font rather than
+// Ubuntu, which is why they read as a different application rather than a plainer page.
+//
+// navSections and CurrentApplicationName went with pageShell, their only caller; the grouped,
+// collapsible topbar they fed has no counterpart in appShell, whose launcher lists Applications
+// rather than every declared item.
 
-// workspaceHomeShell was the Workspace-level chrome here until Fase 2 (2026-09-20), when the
-// three Workspace-level screens moved to appShell (appshell.templ) and its launcher: a plain
-// "Menata" brand plus a Members link is exactly what ui-sample/case-03-flow1's boards replace
-// with a 9-dot launcher, a breadcrumb and an avatar. Its Members-link visibility rule did not
-// disappear with it -- WorkspaceHomePage still applies the same workspaceRole != "member" test,
-// and that test's reasoning (requireWorkspaceAdmin fails *open* for an identity with no
-// membership row at all, so == "admin" would hide a link that identity can still open) now lives
-// in WorkspaceHomePage's own doc comment.
+// The class vocabularies these screens render with. Whole literal strings, never assembled, for
+// the reason appIconClasses (workspacehome.templ) records at length: Tailwind's scanner reads
+// source text, so a name built at runtime silently never reaches app.css. Constants rather than
+// repetition because the generic record screens draw the same button and the same input dozens of
+// times, and a table that half matches the rest of the app is worse than one that matches none of
+// it.
+const (
+	btnSecondary = "inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-3 font-sans text-sm text-slate-700 hover:bg-slate-50"
+	btnPrimary   = "inline-flex h-8 cursor-pointer items-center justify-center rounded-md border-0 bg-slate-900 px-3 font-sans text-sm font-medium text-white hover:bg-slate-700"
+	inputBase    = "h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 font-sans text-sm text-slate-900"
+	cellBase     = "border-b border-slate-100 px-3 py-2 align-middle"
+	headCellBase = "border-b border-slate-200 px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
+)
 
-// MachineList is the landing page: every Machine in the Application, linking to its own page.
+// MachineList is the landing page: every Machine in the Workspace, linking to its own page.
 // Adding a third Machine requires no code change here -- it appears because it's in the
-// Application manifest, per ROADMAP.md Phase 3's exit criterion.
-templ MachineList(machines []*domain.Machine) {
-	@pageShell("Machines") {
-		<h1>Machines</h1>
-		<ul class="machine-list">
-			for _, m := range machines {
-				<li>
-					<a href={ templ.URL("/machines/" + m.ID) }>{ m.Name }</a>
-					<code>{ m.ID }</code>
-				</li>
+// Workspace manifest, per ROADMAP.md Phase 3's exit criterion.
+templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell("Machines", workspaceName, viewer, switchWorkspaceHref) {
+		<h1 class="m-0 text-xl font-medium">Machines</h1>
+		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+			for i, m := range machines {
+				<a
+					href={ templ.URL("/machines/" + m.ID) }
+					class={ "flex items-center gap-3 px-4 py-3 text-sm text-slate-900 hover:bg-slate-50", templ.KV("border-t border-slate-100", i > 0) }
+				>
+					<span class="grow font-medium">{ m.Name }</span>
+					<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
+				</a>
 			}
-		</ul>
+			if len(machines) == 0 {
+				<div class="px-4 py-8 text-center text-sm text-slate-500">No machines are installed in this workspace.</div>
+			}
+		</div>
 	}
 }
 
@@ -488,14 +260,15 @@ templ MachineList(machines []*domain.Machine) {
 // and its persisted records with inline edit/delete. It exists to prove the metadata -> data ->
 // render pipeline end to end; it is not yet driven by UI IR or a View Model
 // (007-composable-runtime-architecture.md §10, §23).
+//
 // actor is the viewing identity, threaded down to RecordRow the same reason detail.templ's
 // RecordDetailPage already takes it (ROADMAP.md Phase 16) -- so an Edit/Delete the viewer is not
 // permitted to perform isn't offered in the first place; the server enforces the same rule
 // regardless (allowsRecordEdit/deleteAllowed, internal/web/record.go), this only keeps the UI
 // honest about it.
-templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
-	@pageShell(m.Name) {
-		<div id="machine-body">
+templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(m.Name, workspaceName, viewer, switchWorkspaceHref) {
+		<div id="machine-body" class="flex flex-col gap-4">
 			@MachineBody(m, v, records, relations, groups, boardColumns, cards, actor)
 		</div>
 	}
@@ -513,66 +286,76 @@ templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, rela
 // caller-supplies-I/O reason as boardColumns -- the projection is resolved in
 // internal/composition, which this package cannot import.
 templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
-	<h1>{ m.Name }</h1>
-	<code>{ m.ID }</code>
-
-	<h2>Fields</h2>
-	<table>
-		<thead>
-			<tr>
-				<th>Field</th>
-				<th>Type</th>
-				<th>Required</th>
-			</tr>
-		</thead>
-		<tbody>
-			for _, f := range m.Fields {
-				<tr>
-					<td>{ f.Name }</td>
-					<td><span class="badge">{ string(f.Type) }</span></td>
-					<td>
-						if f.Required {
-							<span class="yes">yes</span>
-						} else {
-							<span class="no">no</span>
-						}
-					</td>
-				</tr>
-			}
-		</tbody>
-	</table>
-
-	<h2>Records ({ fmt.Sprint(len(records)) })</h2>
-	@viewSwitcher(m, v)
-	switch v.EffectiveType() {
-		case domain.ViewBoard:
-			@boardLayout(m, v, records, relations, groups, boardColumns, actor)
-		case domain.ViewCards:
-			@cardsLayout(m, cards)
-		default:
-			@tableLayout(m, records, relations, groups, actor)
-	}
+	<div class="flex flex-col gap-1">
+		<h1 class="m-0 text-xl font-medium">{ m.Name }</h1>
+		<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
+	</div>
+	<section class="flex flex-col gap-2">
+		@sectionHeaderRow("Fields", "", "")
+		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+			<table class="w-full border-collapse text-sm">
+				<thead>
+					<tr>
+						<th class={ headCellBase }>Field</th>
+						<th class={ headCellBase }>Type</th>
+						<th class={ headCellBase }>Required</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, f := range m.Fields {
+						<tr>
+							<td class={ cellBase }>{ f.Name }</td>
+							<td class={ cellBase }>
+								<span class="rounded-full bg-blue-50 px-2 py-0.5 text-2xs text-blue-700">{ string(f.Type) }</span>
+							</td>
+							<td class={ cellBase }>
+								if f.Required {
+									<span class="text-xs font-medium text-red-600">yes</span>
+								} else {
+									<span class="text-xs text-slate-400">no</span>
+								}
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</section>
+	<section class="flex flex-col gap-2">
+		@sectionHeaderRow(fmt.Sprintf("Records (%d)", len(records)), "", "")
+		@viewSwitcher(m, v)
+		switch v.EffectiveType() {
+			case domain.ViewBoard:
+				@boardLayout(m, v, records, relations, groups, boardColumns, actor)
+			case domain.ViewCards:
+				@cardsLayout(m, cards)
+			default:
+				@tableLayout(m, records, relations, groups, actor)
+		}
+	</section>
 }
 
 // tableLayout is the generic flat-list Layout: every Field as a column, every Record as a row,
 // plus a create-form row (007 §12.2 "Layout is a generic structural composition primitive").
 templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) {
-	<table>
-		<thead>
-			<tr>
-				for _, f := range m.Fields {
-					<th>{ f.Name }</th>
+	<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+		<table class="w-full border-collapse text-sm">
+			<thead>
+				<tr>
+					for _, f := range m.Fields {
+						<th class={ headCellBase }>{ f.Name }</th>
+					}
+					<th class={ headCellBase }></th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, r := range records {
+					@RecordRow(m, r, relations, groups, actor)
 				}
-				<th></th>
-			</tr>
-		</thead>
-		<tbody>
-			for _, r := range records {
-				@RecordRow(m, r, relations, groups, actor)
-			}
-			@createFormRow(m, relations, groups)
-		</tbody>
-	</table>
+				@createFormRow(m, relations, groups)
+			</tbody>
+		</table>
+	</div>
 }
 
 // viewSwitcher offers the Machine's other declared arrangements, labelled by each View's own
@@ -585,12 +368,12 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 // item declares.
 templ viewSwitcher(m *domain.Machine, selected domain.View) {
 	if len(m.Views) > 1 {
-		<nav class="view-switcher">
+		<nav class="flex gap-2" aria-label="View">
 			for _, o := range m.Views {
 				if o.ID == selected.ID {
-					<span class="view-switcher-option is-selected" aria-current="true">{ o.Name }</span>
+					<span class="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-medium text-white" aria-current="true">{ o.Name }</span>
 				} else {
-					<a class="view-switcher-option" href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)) }>{ o.Name }</a>
+					<a class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50" href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)) }>{ o.Name }</a>
 				}
 			}
 		</nav>
@@ -605,16 +388,14 @@ templ viewSwitcher(m *domain.Machine, selected domain.View) {
 // resolved an empty list for every record because no Machine declared card_fields at all, which
 // is why internal/metadata refuses a cards View on a Machine that declares none.
 templ cardsLayout(m *domain.Machine, cards []RecordCard) {
-	<div class="summary-card-list">
+	<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 		for _, c := range cards {
-			<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class="summary-card">
-				<span class="summary-card-body">
-					<span class="summary-card-title">{ recordTitle(m, c.Record) }</span>
-					<span class="summary-card-fields">
-						for _, f := range c.Fields {
-							@projectedFieldValue(f)
-						}
-					</span>
+			<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-4 text-slate-900 hover:border-blue-300">
+				<span class="text-sm font-medium">{ recordTitle(m, c.Record) }</span>
+				<span class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs">
+					for _, f := range c.Fields {
+						@projectedFieldValue(f)
+					}
 				</span>
 			</a>
 		}
@@ -635,11 +416,11 @@ type RecordCard struct {
 // renderer, it is Collection + Group Dimension + the existing Table renderer, reused per column
 // (006-runtime-model.md "View" lowering formula).
 templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, actor domain.Actor) {
-	<div class="board">
+	<div class="flex gap-4 overflow-x-auto pb-2">
 		for _, col := range experience.GroupRecords(m, v, records, boardColumns) {
-			<div class="board-column">
-				<h3>{ col.Label } ({ fmt.Sprint(len(col.Records)) })</h3>
-				<table>
+			<div class="flex w-65 shrink-0 flex-col gap-2 rounded-lg bg-slate-100 p-3">
+				<h3 class="m-0 text-2xs font-medium tracking-wide text-slate-500 uppercase">{ col.Label } ({ fmt.Sprint(len(col.Records)) })</h3>
+				<table class="w-full border-collapse text-sm">
 					<tbody>
 						for _, r := range col.Records {
 							@RecordRow(m, r, relations, groups, actor)
@@ -649,12 +430,16 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, rela
 			</div>
 		}
 	</div>
-	<h3>Add Record</h3>
-	<table>
-		<tbody>
-			@createFormRow(m, relations, groups)
-		</tbody>
-	</table>
+	<div class="flex flex-col gap-2">
+		<h3 class="m-0 text-2xs font-medium tracking-wide text-slate-500 uppercase">Add Record</h3>
+		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+			<table class="w-full border-collapse text-sm">
+				<tbody>
+					@createFormRow(m, relations, groups)
+				</tbody>
+			</table>
+		</div>
+	</div>
 }
 
 // createFormRow is the record-creation form, shared by every Layout so a create form isn't
@@ -662,19 +447,18 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, rela
 templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOptions) {
 	<tr>
 		<form
-			class="create-form"
 			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
 			hx-target="#machine-body"
 			hx-swap="innerHTML"
 			hx-encoding="multipart/form-data"
 		>
 			for _, f := range m.Fields {
-				<td>
+				<td class="border-b border-slate-100 px-3 pt-3 pb-2 align-middle">
 					@fieldInput(f, nil, relations, groups)
 				</td>
 			}
-			<td>
-				<button type="submit" class="primary">Add</button>
+			<td class="border-b border-slate-100 px-3 pt-3 pb-2 align-middle whitespace-nowrap">
+				<button type="submit" class={ btnPrimary }>Add</button>
 			</td>
 		</form>
 	</tr>
@@ -695,11 +479,11 @@ templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOp
 templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) {
 	<tr id={ "record-" + r.ID }>
 		for i, f := range m.Fields {
-			<td>
+			<td class={ cellBase }>
 				if i == 0 {
-					<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
+					<a class="font-medium text-blue-600 hover:text-blue-700" href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
 				} else if f.ID == m.SLAField {
-					@slaBadge(r.Values[f.ID])
+					@slaBadgePill(r.Values[f.ID])
 				} else if f.Type == domain.FieldTypeFile {
 					@fileLink(r.Values[f.ID])
 				} else if f.IsReference() {
@@ -711,9 +495,10 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 				}
 			</td>
 		}
-		<td class="actions">
+		<td class="border-b border-slate-100 px-3 py-2 align-middle whitespace-nowrap">
 			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
+					class={ btnSecondary + " mr-1" }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"
@@ -722,6 +507,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 			{{ deletable, _ := action.CanDelete(m.ID, r.Values, nil) }}
 			if deletable && authorization.AllowsAction(m, domain.ActionDelete, r.Values, actor) {
 				<button
+					class={ btnSecondary }
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"
@@ -746,14 +532,15 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 			hx-encoding="multipart/form-data"
 		>
 			for _, f := range m.Fields {
-				<td>
+				<td class={ cellBase }>
 					@fieldInput(f, r.Values[f.ID], relations, groups)
 				</td>
 			}
-			<td class="actions">
-				<button type="submit" class="primary">Save</button>
+			<td class="border-b border-slate-100 px-3 py-2 align-middle whitespace-nowrap">
+				<button type="submit" class={ btnPrimary + " mr-1" }>Save</button>
 				<button
 					type="button"
+					class={ btnSecondary }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"
@@ -770,14 +557,14 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 templ fieldInput(f domain.Field, current any, relations RelationOptions, groups GroupOptions) {
 	switch {
 		case f.Type == domain.FieldTypeStatus:
-			<select name={ f.ID }>
+			<select name={ f.ID } class={ inputBase }>
 				<option value=""></option>
 				for _, opt := range f.Options {
 					<option value={ opt } selected?={ toString(current) == opt }>{ opt }</option>
 				}
 			</select>
 		case f.IsReference():
-			<select name={ f.ID }>
+			<select name={ f.ID } class={ inputBase }>
 				<option value=""></option>
 				for _, opt := range relations[f.RelatedMachine] {
 					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
@@ -787,29 +574,29 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 		// the IsReference() one above precisely because IsReference() is false for it: a Group has
 		// no target Machine to key relations by, so the options arrive in their own list.
 		case f.Type == domain.FieldTypeGroup:
-			<select name={ f.ID }>
+			<select name={ f.ID } class={ inputBase }>
 				<option value=""></option>
 				for _, opt := range groups {
 					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
 				}
 			</select>
 		case f.Type == domain.FieldTypeBoolean:
-			<input type="checkbox" name={ f.ID } checked?={ toBool(current) }/>
+			<input type="checkbox" name={ f.ID } checked?={ toBool(current) } class="size-4 accent-blue-600"/>
 		case f.Type == domain.FieldTypeDate:
-			<input type="date" name={ f.ID } value={ toString(current) }/>
+			<input type="date" name={ f.ID } value={ toString(current) } class={ inputBase }/>
 		case f.Type == domain.FieldTypeNumber:
-			<input type="number" step="any" name={ f.ID } value={ toString(current) }/>
+			<input type="number" step="any" name={ f.ID } value={ toString(current) } class={ inputBase }/>
 		case f.Type == domain.FieldTypeFile:
 			if key := toString(current); key != "" {
-				<div>
-					<a href={ templ.URL("/uploads/" + key) } target="_blank">{ storage.DisplayName(key) }</a>
-					<input type="file" name={ f.ID }/>
+				<div class="flex flex-col gap-1">
+					<a href={ templ.URL("/uploads/" + key) } target="_blank" class="truncate text-xs text-blue-600 hover:text-blue-700">{ storage.DisplayName(key) }</a>
+					<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-600"/>
 				</div>
 			} else {
-				<input type="file" name={ f.ID }/>
+				<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-600"/>
 			}
 		default:
-			<input type="text" name={ f.ID } value={ toString(current) }/>
+			<input type="text" name={ f.ID } value={ toString(current) } class={ inputBase }/>
 	}
 }
 
@@ -846,23 +633,15 @@ func RelationLabel(relations RelationOptions, machineID, id string) string {
 // fileLink renders a FieldTypeFile value as a download link, or nothing if unset.
 templ fileLink(v any) {
 	if key := toString(v); key != "" {
-		<a href={ templ.URL("/uploads/" + key) } target="_blank">{ storage.DisplayName(key) }</a>
+		<a href={ templ.URL("/uploads/" + key) } target="_blank" class="text-blue-600 hover:text-blue-700">{ storage.DisplayName(key) }</a>
 	}
 }
 
-// slaBadge renders a date value as an OVERDUE / "N day(s) left" badge (ROADMAP.md Phase 13,
-// matching document-approval.html's own real markup), or nothing if the date can't be parsed
-// (empty/unset).
-templ slaBadge(v any) {
-	if due, err := time.Parse("2006-01-02", toString(v)); err == nil {
-		{{ status, label := experience.EvaluateSLA(due, time.Now()) }}
-		if status == experience.SLAOverdue {
-			<span class="yes">{ label }</span>
-		} else {
-			<span class="badge">{ label }</span>
-		}
-	}
-}
+// slaBadge and sectionHeader were deleted on 2026-09-24, with the stylesheet that was their whole
+// reason for existing. Each had a Tailwind twin (slaBadgePill, sectionHeaderRow -- appshell.templ)
+// drawing the identical thing in the other system, which was a deliberate, documented cost of the
+// two-stylesheet transition; once the last pageStyles screen ported, the pair was simply the same
+// component written twice. Callers use the appshell.templ ones.
 
 // ProjectedField is one Field a Machine's card_fields (domain.CardField, 007 §7.6
 // Projection) projected onto a composed card, already resolved to a display string by
@@ -883,11 +662,11 @@ type ProjectedField struct {
 // -- no currency/date-reformatting logic invented beyond what internal/composition already does
 // for values like SubmittedAt.
 templ projectedFieldValue(p ProjectedField) {
-	<span class="card-field-label">{ p.Label }</span>
+	<span class="text-slate-400">{ p.Label }</span>
 	if p.Role == string(domain.CardFieldRoleStatus) {
-		<span class="badge">{ p.Display }</span>
+		<span class="rounded-full bg-blue-50 px-2 py-0.5 text-2xs text-blue-700">{ p.Display }</span>
 	} else {
-		<span class="card-field-value">{ p.Display }</span>
+		<span class="text-slate-600">{ p.Display }</span>
 	}
 }
 
@@ -904,19 +683,6 @@ templ projectedFieldValue(p ProjectedField) {
 type SummaryItem struct {
 	Label string
 	Value string
-}
-
-// sectionHeader is a composed page's own "Title + optional 'View all' link" wrapper (Study 38's
-// Section-wrapper pattern, ROADMAP.md Phase 15 Step 0) -- the literal mechanism that makes a
-// composed page like the Dashboard or Approval Dashboard visually legible as several sections,
-// not a wall of unlabeled tables.
-templ sectionHeader(title, linkHref, linkLabel string) {
-	<h2>
-		{ title }
-		if linkHref != "" {
-			<a href={ templ.URL(linkHref) } class="section-link">{ linkLabel }</a>
-		}
-	</h2>
 }
 
 // SummaryCard / recordSummaryCard / summaryCardList were deleted on 2026-09-21, with their last

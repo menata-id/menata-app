@@ -14,9 +14,15 @@ import (
 	"menata.app/internal/rendering"
 )
 
-func showMachineList(machines []*domain.Machine) http.HandlerFunc {
+func showMachineList(machines []*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		render(req.Context(), w, rendering.MachineList(installedMachines(req.Context(), machines)))
+		ctx := req.Context()
+		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		render(ctx, w, rendering.MachineList(installedMachines(ctx, machines), workspaceName, viewer, switchHref))
 	}
 }
 
@@ -56,7 +62,12 @@ func showMachinePage(machines map[string]*domain.Machine, store *data.Store, cfg
 			return
 		}
 		actor := currentActor(req, store, cfg)
-		render(req.Context(), w, rendering.MachinePage(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor))
+		workspaceName, viewer, switchHref, err := pageChrome(req.Context(), req, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		render(req.Context(), w, rendering.MachinePage(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor, workspaceName, viewer, switchHref))
 	}
 }
 

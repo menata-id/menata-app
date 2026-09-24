@@ -20,7 +20,7 @@ import (
 // knowing which Fields hold it.
 templ approvalStepper(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, relations RelationOptions) {
 	{{ ordered := sortedBySequence(steps) }}
-	<ul class="approval-stepper">
+	<ul class="m-0 flex list-none flex-col rounded-lg border border-slate-200 bg-white p-2">
 		for _, s := range ordered {
 			@approvalStepRow(seq, parent, s, ordered, relations)
 		}
@@ -31,32 +31,32 @@ templ approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Recor
 	{{ decision := toString(s.Values[action.FieldStepDecision]) }}
 	{{ assignee := RelationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee])) }}
 	{{ seqLabel := toString(s.Values[action.FieldStepSequence]) }}
-	<li>
+	<li class="flex items-center gap-3 px-2 py-2">
 		switch decision {
 			case action.DecisionApproved:
-				<span class="step-marker done">✓</span>
-				<span class="step-body">
-					<span class="step-title">{ assignee }</span>
-					<span class="step-status">Approved · { s.UpdatedAt.Format("15:04") }</span>
+				<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-blue-50 text-blue-700">✓</span>
+				<span class="flex flex-col">
+					<span class="text-sm font-medium text-slate-900">{ assignee }</span>
+					<span class="text-xs text-slate-500">Approved · { s.UpdatedAt.Format("15:04") }</span>
 				</span>
 			case action.DecisionRejected:
-				<span class="step-marker rejected">✗</span>
-				<span class="step-body">
-					<span class="step-title">{ assignee }</span>
-					<span class="step-status">Rejected · { s.UpdatedAt.Format("15:04") }</span>
+				<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-red-50 text-red-600">✗</span>
+				<span class="flex flex-col">
+					<span class="text-sm font-medium text-slate-900">{ assignee }</span>
+					<span class="text-xs text-slate-500">Rejected · { s.UpdatedAt.Format("15:04") }</span>
 				</span>
 			default:
 				if behavior.CanAct(seq, parent, s, siblings) {
-					<span class="step-marker current">{ seqLabel }</span>
-					<span class="step-body">
-						<span class="step-title">{ assignee }</span>
-						<span class="step-status">Pending decision</span>
+					<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-blue-600 text-white">{ seqLabel }</span>
+					<span class="flex flex-col">
+						<span class="text-sm font-medium text-slate-900">{ assignee }</span>
+						<span class="text-xs text-slate-500">Pending decision</span>
 					</span>
 				} else {
-					<span class="step-marker waiting">{ seqLabel }</span>
-					<span class="step-body">
-						<span class="step-title">{ assignee }</span>
-						<span class="step-status">Waiting</span>
+					<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-slate-100 text-slate-400">{ seqLabel }</span>
+					<span class="flex flex-col">
+						<span class="text-sm font-medium text-slate-900">{ assignee }</span>
+						<span class="text-xs text-slate-500">Waiting</span>
 					</span>
 				}
 		}

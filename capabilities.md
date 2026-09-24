@@ -125,14 +125,11 @@ has its own cost, so staying page-internal is the correct default, not a gap, un
 
 | Component | What it renders | Where |
 |---|---|---|
-| `slaBadge` | A machine-level `sla_field` date as OVERDUE / "Due today" / "N day(s) left" | `machine.templ`; used by `RecordRow` and `RecordDetailView` -- both still `pageStyles`. `slaBadgePill` (below) is its Tailwind twin |
-| `sectionHeader` | A composed page's section title + optional "View all →" link | `machine.templ`; `detail.templ`'s `RecordDetailPage` -- still `pageStyles`. `sectionHeaderRow` (below) is its Tailwind twin |
-| `summaryCountTiles` / `activityFeedListRow` / `sectionHeaderRow` / `slaBadgePill` | The Tailwind twins of `summaryCounts` / `activityFeedList` / `sectionHeader` / `slaBadge` above -- same data shapes (`SummaryItem`, `ActivityEntry`, plain title/link args, a Field value), different markup, because Preflight ties chrome to content (below) so a `pageStyles` class name renders unstyled under `appShell`'s `app.css`. `summaryCounts`/`activityFeedList` themselves were deleted 2026-09-22 with their last callers, all four ported the same day -- see "Styling: two systems" below | `appshell.templ`; Dashboard, My Tasks, Sprint Dashboard, Team Capacity, Activity |
+| `summaryCountTiles` / `activityFeedListRow` / `sectionHeaderRow` / `slaBadgePill` | A composed page's count strip, event feed, section title and SLA badge. They were the **Tailwind twins** of four `pageStyles` renderers drawing the identical things in the other stylesheet — a deliberate, documented cost of the two-system transition. `summaryCounts`/`activityFeedList` went with their last callers on 2026-09-22; `sectionHeader` and `slaBadge` followed on 2026-09-24 when the last `pageStyles` screen ported, because once one stylesheet was left the pair was just the same component written twice. Same data shapes (`SummaryItem`, `ActivityEntry`, plain title/link args, a Field value) -- same data shapes (`SummaryItem`, `ActivityEntry`, plain title/link args, a Field value), different markup, because Preflight ties chrome to content (below) so a `pageStyles` class name renders unstyled under `appShell`'s `app.css`. `summaryCounts`/`activityFeedList` themselves were deleted 2026-09-22 with their last callers, all four ported the same day -- see "Styling: two systems" below | `appshell.templ`; Dashboard, My Tasks, Sprint Dashboard, Team Capacity, Activity |
 | `taskRowList` | My Tasks' own Today/Upcoming/Attention row shape: title, status pill, project name, optional SLA badge | `mytasks.templ`; My Tasks and Sprint Dashboard's own Attention Needed section |
 | `pendingApprovalCard` | Approval Inbox's own Pending-my-approval grid card (`case-03-flow1/07-approval-inbox.html`, Fase 6a): SLA framing, Mode/approval-ratio badge, submitted-by/date line, the approver list and a labelled `role="progressbar"`. Its two sub-shapes (`approverChip`, `approvalProgress`) are deliberately *not* rows of their own: board 10 will plausibly want both in Fase 6b, but a predicted second caller is not a second caller, and this table's default is page-internal until one exists | `approvalinbox.templ`; Approval Inbox's worklist only — page-internal, not yet reused elsewhere |
 | `filterChip` | A query-param filter chip with its own count (no JS) | `approvalinbox.templ` |
 | `approvalStepper` | A Document's own steps as done / current / waiting | `approvalstepper.templ` |
-| `pageShell` | The page frame and the topbar — a projection of the installed Applications' own `navigation:` lists (2026-09-19), grouped and collapsible, with a live pending-approval-count badge and `aria-current="page"`. Down to two callers (2026-09-22, previous entry): the generic per-Machine list/detail page (`machine.templ`'s own `MachinePage`/`RecordRow`/`RecordDetailView`) and `detail.templ`'s `RecordDetailPage` -- every one of Project Management's own bespoke screens (Dashboard, My Tasks, Calendar, Sprint Dashboard, Team Capacity, Activity, Automation, Board Settings) ported to `appShell` the same day, closing the desktop topbar-wrap defect this row used to describe for all nine. Porting the remaining two means porting the generic Machine page every Application shares, not one Application's screens -- a larger, separate change | `machine.templ` |
 | `pdfThumbnail` | A Document's own PDF, page 1, as a small linked preview image | `detail.templ`; the Document detail page (reuses the `.../pdf-preview` route, no new route) |
 | `detailBackLink` | A record detail page's own "← back" link: `routeByID("nav_approval_inbox")` for a Document/Approval Step (2026-09-19 -- their generic Machine page is POC scaffolding, not a real destination), the generic Machine page for every other Machine | `detail.templ`; `RecordDetailPage` |
 | `reviewSignaturePanel` | Where the reviewer's own signature will land, drawn over the real page image (the existing `pdf-preview` route) rather than described in a sentence | `reviewdocument.templ`; board 10's right column. Replaced `signatureConfirmation`, which stated the coordinates in prose because the Document detail page's inline placement block shows *every* step's marker and is pinned to page 1 -- neither of which answers "where does mine go" |
@@ -150,29 +147,36 @@ has its own cost, so staying page-internal is the correct default, not a gap, un
 | `authPasswordToggle` | The eye button inside a password box that reveals what was typed (2026-09-20): flips its input's own `type` between `password` and `text` via `aria-controls`, so the field keeps its name, minlength and autocomplete. The *toggle* is what's shared, not a whole labelled control -- the two password inputs differ (new-password carries minlength/required; sign-in's label row carries "Forgot password?"), the same split that already separates `authPasswordField` from `authField`. Inline `onclick`, not hyperscript: `authShell` loads no JavaScript at all, and nothing in CSS can change an input's type | `authshell.templ`; both password inputs -- `authPasswordField` (registration, set-password/accept-invite) and `login.templ`'s own sign-in field |
 | `authShell` / `authCard` / `authError` / `authFooterNote` / `authField` / `authPasswordField` / `authSubmit` | The pre-auth page kit: `pageShell`'s counterpart for screens with no Workspace or Application chosen yet, so nothing to project a navigation from — a centered brand lockup over one white card, plus the labelled control, primary button and footer-note shapes those forms repeat | `authshell.templ`; all seven pre-auth screens (`login`, `register`, `chooseworkspace`, `forgotpassword`, `resetpassword`, `resendverification`, `checkyouremail`). Promoted on arrival rather than after a second caller: those seven each carried their own near-identical `<style>` block before this, all repeating one `body` rule verbatim, so the duplication this table exists to prevent was already seven deep. The first components styled with Tailwind (`static/css/app.css`) rather than `pageStyles` — see the layout note below |
 
-### Styling: two systems, on purpose (Fase 1, 2026-09-20)
+### Styling: one system, since 2026-09-24
 
-Pages are styled two different ways right now, and which one a page uses says where it is in the
-`ui-sample/case-03-flow1` port:
+Every page renders from `static/css/app.css`, built from `static/css/input.css` by `make css` and
+committed so `go build ./cmd/server` needs neither Node nor the Tailwind binary.
 
-| | Stylesheet | Pages |
-|---|---|---|
-| **Tailwind** | `static/css/app.css`, built from `static/css/input.css` by `make css` | The seven pre-auth screens (`authShell`); the Workspace-level screens (`appShell`): Workspace Home, Workspace Members, Edit member, Groups, Group detail; every Document Approval screen (Approval Inbox, My Documents, Review Document, the submission wizard, Signature positions); and, since 2026-09-22, every Project Management screen that has one (Dashboard, My Tasks, Calendar, Sprint Dashboard, Team Capacity, Activity, Automation, Board Settings). **What is left on `pageStyles` is one thing, not several**: the generic per-Machine list/detail page (`machine.templ`, `detail.templ`'s `RecordDetailPage`) every Application shares -- porting it is a Machine-shaped change, not an Application-shaped one |
-| **Hand-written** | `pageStyles`, an inline `<style>` block in `machine.templ` | The generic Machine list/detail page, via `pageShell` -- `machine.templ`, `detail.templ` |
+This section used to be called "two systems, on purpose" and described a planned transition: a
+hand-written 122-line `<style>` block (`pageStyles`) served the generic per-Machine list and
+detail screens through `pageShell`, while everything ported to a `ui-sample` board rendered from
+Tailwind. The boundary was per *screen* rather than per layer for a real reason, worth keeping
+written down because it governs any future migration of this shape: Tailwind's Preflight resets
+heading sizes, list markers and button defaults that a hand-written sheet leaves to the browser,
+so a page linking `app.css` must have its **content** ported in the same change or it visibly
+breaks. That is what stopped the chrome being migrated on its own.
 
-This split is a planned transition, not drift, and the boundary is **per screen rather than per
-layer** for a specific reason: Tailwind's Preflight resets heading sizes, list markers and button
-defaults that `pageStyles` leaves to the browser (it sets `h1 { margin-bottom }` and no font
-size). A page linking `app.css` must therefore have its *content* ported in the same change, or it
-visibly breaks. That is what stops the chrome from being migrated on its own, and why each phase
-of the `ui-sample/case-03-flow1` port moves whole screens. `pageStyles` shrinks as each one goes.
+The transition finished when the last three screens moved (`MachineList`, `MachinePage`,
+`RecordDetailPage`). What it cost while it lasted was not visible as a missing feature: those
+screens loaded no `app.css` at all, so on a phone they had no sticky header, no bottom bar and no
+launcher -- opening one record dropped the viewer out of the chrome entirely, with the browser's
+back button as the only way back -- and they rendered in the platform's default font rather than
+Ubuntu, which is why they read as a different application rather than a plainer page.
+
+`pageShell`, `pageHead`, `pageStyles`, `navLink`, `navSections` and `CurrentApplicationName` were
+deleted with them.
 
 ### The Workspace's menu is derived, not declared (2026-09-21)
 
 A Workspace manifest has no `navigation:` block any more, by owner instruction. A
 Workspace's menu is now **the Applications it contains**, plus the link out to All Workspaces —
-computed, not authored, in both shells: `appLauncher`'s panel and `pageShell`'s topbar
-(`applicationNavEntry`). Hand-listing Home / All Machines / Workspace Members / Groups /
+computed, not authored, by `appLauncher`'s panel (`pageShell`'s topbar and its own
+`applicationNavEntry` were deleted 2026-09-24). Hand-listing Home / All Machines / Workspace Members / Groups /
 Authorization Matrix made five *runtime* screens look like application metadata, which they are
 not: they exist identically in a Workspace with ten Applications or none.
 
@@ -199,15 +203,16 @@ below; that filter is gone (previous paragraph), so there is one left.
 
 `show_nav` (an Application's own file, e.g. `metadata/applications/document-approval.yaml`)
 is **metadata-level**: identical for every viewer, it replaced the older `hidden_nav_groups:`
-Workspace-level key (both now historical, kept only as forward-pointers in comments). Today it
-suppresses exactly one thing, `pageShell`'s topbar -- Document Approval declares `show_nav: false`
-and has no `pageShell` screen to suppress, so the field is effectively inert for it. It does not
+Workspace-level key (both now historical, kept only as forward-pointers in comments). **Today it suppresses nothing at all.** Its one reader was `pageShell`'s topbar, and `pageShell`
+was deleted on 2026-09-24 when the last screens using it moved to `appShell` -- so a field two
+Applications declare now changes no pixel anywhere. That is a real question for the owner, not a
+tidy-up: either `show_nav` should mean something to `applicationMenuRow`/`applicationBottomBar`,
+or it should go. It does not
 reach the launcher (`appLauncher` reads `AllNavigation`, uniformly, for every Application) and it
 does not gate `applicationMenuRow`/`applicationBottomBar` either (that row's own doc comment above
 says so): both read `AllNavigation` the same way `inboxTabs` always did for Document Approval, so
 an Application declaring `show_nav: false` still gets appShell's own menu chrome. Whether `show_nav`
-should mean anything once every screen renders through `appShell` (no `pageShell` topbar left to
-suppress) is an open question this table does not answer yet.
+should mean anything now that every screen renders through `appShell` is the open question above.
 
 Tailwind is the **standalone CLI binary**, pinned and checksum-verified in the `Makefile` the same
 way CI pins `goose` — it bundles its own runtime, so this stays a Node-free build. `app.css` is
@@ -395,8 +400,8 @@ Every route above is registered in `internal/web.Routes` and served by a handler
 `internal/conformance` keeps a handler from quietly becoming a screen's worth of logic again.
 
 Navigation itself **is** metadata, as of 2026-09-19: each installed Application's own `navigation:` list drives
-`rendering.pageShell`'s topbar (`domain.NavigationItem`, `experience.GroupNavigation`,
-`rendering.navSections`) — adding or moving a link is a metadata edit, not a code edit. This
+`appShell`'s own Application menu row and mobile bottom bar (`domain.NavigationItem`,
+`rendering.defaultAppMenu`) — adding or moving a link is a metadata edit, not a code edit. This
 extends to a page's own in-content links to its sibling screens, not just the topbar: any Machine-
 independent screen (Approval Inbox's "+ New Approval", the Document wizard's "← Approval Inbox",
 Sprint Dashboard's "Full team capacity →") looks its target up by navigation item id via
@@ -410,7 +415,7 @@ counterpart, `rendering.labelByID`, holds the same discipline for a page's own t
 text (`TestRenderingHasNoHardcodedApplicationLabel`/`TestHandlersHaveNoHardcodedApplicationLabel`)
 — the label gate alone found violations across nine `.templ` files the first time it ran (three
 more had already been found and fixed by hand while designing it), almost all a Page's own
-`pageShell(...)` title retyping its nav item's `label:` right next to an already-correct
+page title retyping its nav item's `label:` right next to an already-correct
 `routeByID` href.
 
 ---

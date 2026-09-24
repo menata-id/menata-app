@@ -63,7 +63,7 @@ func currentWorkspace(store *data.Store, workspaces map[string]domain.Workspace)
 //
 // Resolving to no Application is a normal outcome, not a failure: the Workspace-level screens
 // (Home, Members) belong to none, and so do routes concerning a shared Machine (mch_user,
-// mch_activity). rendering.CurrentApplicationName degrades to the Workspace's own name.
+// mch_activity). rendering.CurrentApplication returns false and callers degrade to the Workspace's own name.
 func currentApplication() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {

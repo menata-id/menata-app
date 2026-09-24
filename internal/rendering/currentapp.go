@@ -28,21 +28,10 @@ func WithCurrentApplication(ctx context.Context, app domain.Application) context
 // CurrentApplication returns the Application this request is in, and whether one was resolved.
 //
 // Not every request has one: the Workspace-level screens (Home, Members) belong to no
-// Application, and neither do routes concerning a shared Machine (mch_user, mch_activity). A
-// caller that needs a display name should use CurrentApplicationName, which degrades to the
-// Workspace's own name rather than to empty.
+// Application, and neither do routes concerning a shared Machine (mch_user, mch_activity), so
+// every caller checks the bool. appShell does exactly that -- an Application's own menu row and
+// the mobile bottom bar render only when one was resolved.
 func CurrentApplication(ctx context.Context) (domain.Application, bool) {
 	app, ok := ctx.Value(currentAppKey{}).(domain.Application)
 	return app, ok
-}
-
-// CurrentApplicationName is what the chrome renders where it used to render a single hardcoded
-// AppName: the current Application's name, or the Workspace's own when the request belongs to no
-// Application. It never returns empty for a configured Workspace, so no page has to handle a
-// blank heading.
-func CurrentApplicationName(ctx context.Context) string {
-	if app, ok := CurrentApplication(ctx); ok {
-		return app.Name
-	}
-	return CurrentWorkspaceName(ctx)
 }

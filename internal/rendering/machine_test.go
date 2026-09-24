@@ -76,8 +76,11 @@ func TestMachineBody_cardsViewRendersProjectedFields(t *testing.T) {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
-	if !strings.Contains(got, "summary-card-list") {
-		t.Error("cards view rendered no card list")
+	// Asserts on the link every card carries, not on a class name: the class it used to check
+	// ("summary-card-list") belonged to the hand-written stylesheet deleted on 2026-09-24, and a
+	// test pinned to a class name passes or fails on restyling rather than on rendering.
+	if !strings.Contains(got, `href="/machines/mch_document/records/doc_1"`) {
+		t.Error("cards view rendered no card linking to its record")
 	}
 	for _, want := range []string{"Kontrak A", "Status", "in_review"} {
 		if !strings.Contains(got, want) {
