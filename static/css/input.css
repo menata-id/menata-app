@@ -105,3 +105,32 @@
 		U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF,
 		U+FFFD;
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Popover menus: the launcher, the account menu, and the bottom bar's "More" sheet.
+
+   All three are the native Popover API (`popover` + `popovertarget`), not `<details>` and not a
+   JavaScript menu library. That choice is what gives them light dismiss -- a click anywhere
+   outside closes them -- and Escape, from the browser, with no script at all. It replaced
+   `<details>` on 2026-09-24, whose panels could only be closed by re-clicking the control that
+   opened them; the owner met that as "behaviour bottom sheet juga masih belum bisa tertutup".
+
+   Two rules Tailwind utilities cannot express, so they live here rather than as an arbitrary
+   variant nobody can read:
+
+   1. A popover's UA stylesheet sets `border: solid` and `padding: 0.25em` on every popover, and
+      `overflow: auto`. The utilities on each element already override those, but a popover added
+      later and styled only with Tailwind would inherit a 1px black frame -- a trap worth removing
+      once, centrally, rather than rediscovering per menu.
+   2. "My sibling popover is open" has no Tailwind variant. The bottom bar's More tab must turn
+      blue while its own sheet is showing (Flow 2 mockup, M07b), which is exactly that selector.
+   --------------------------------------------------------------------------------------------- */
+[popover] {
+	border: 0;
+	padding: 0;
+}
+
+.menata-more-tab:has(+ [popover]:popover-open) {
+	font-weight: 500;
+	color: var(--color-blue-600);
+}

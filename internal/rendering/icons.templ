@@ -77,20 +77,23 @@ templ icon(name, class string) {
 			case "home":
 				<path d="M4 10.5 12 4l8 6.5"></path>
 				<path d="M6.5 9.5V20h11V9.5"></path>
+			// grid and more draw *dots*, so their circles carry their own fill="currentColor" --
+			// the <svg> above is fill="none" because every other icon in the set is an outline, and
+			// a stroked circle of this radius reads as a ring rather than a dot.
 			case "grid":
-				<circle cx="6" cy="6" r="1.6"></circle>
-				<circle cx="12" cy="6" r="1.6"></circle>
-				<circle cx="18" cy="6" r="1.6"></circle>
-				<circle cx="6" cy="12" r="1.6"></circle>
-				<circle cx="12" cy="12" r="1.6"></circle>
-				<circle cx="18" cy="12" r="1.6"></circle>
-				<circle cx="6" cy="18" r="1.6"></circle>
-				<circle cx="12" cy="18" r="1.6"></circle>
-				<circle cx="18" cy="18" r="1.6"></circle>
+				<circle cx="6" cy="6" r="1.6" fill="currentColor"></circle>
+				<circle cx="12" cy="6" r="1.6" fill="currentColor"></circle>
+				<circle cx="18" cy="6" r="1.6" fill="currentColor"></circle>
+				<circle cx="6" cy="12" r="1.6" fill="currentColor"></circle>
+				<circle cx="12" cy="12" r="1.6" fill="currentColor"></circle>
+				<circle cx="18" cy="12" r="1.6" fill="currentColor"></circle>
+				<circle cx="6" cy="18" r="1.6" fill="currentColor"></circle>
+				<circle cx="12" cy="18" r="1.6" fill="currentColor"></circle>
+				<circle cx="18" cy="18" r="1.6" fill="currentColor"></circle>
 			case "more":
-				<circle cx="6" cy="12" r="1.4"></circle>
-				<circle cx="12" cy="12" r="1.4"></circle>
-				<circle cx="18" cy="12" r="1.4"></circle>
+				<circle cx="6" cy="12" r="1.7" fill="currentColor"></circle>
+				<circle cx="12" cy="12" r="1.7" fill="currentColor"></circle>
+				<circle cx="18" cy="12" r="1.7" fill="currentColor"></circle>
 			case "chevron-right":
 				<path d="M9 6l6 6-6 6"></path>
 			case "user-check":

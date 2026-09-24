@@ -111,28 +111,40 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// the launcher, the breadcrumb and the account menu off screen together, leaving a long
 			// form with no way out of it but the browser's own back button.
 			//
-			// z-40 over the bottom bar's z-30 on purpose: accountMenu's mobile sheet is a `fixed`
-			// child of this header, so it must paint above the bar it overlaps rather than behind it.
-			// A sticky element does not create a containing block for a fixed descendant (only a
-			// transform/filter/perspective does), so that sheet still positions against the viewport.
+			// z-40 over the bottom bar's z-30 so the header always wins where they overlap. The
+			// menus themselves no longer depend on this: they are `popover` elements, which the
+			// browser paints in the top layer, above every z-index on the page.
 			<header class="sticky top-0 z-40 flex flex-col border-b border-slate-200 bg-white">
 				<div class="flex h-15 shrink-0 items-center gap-2.5 px-4 sm:pr-7 sm:pl-9">
 					@appLauncher(workspaceName, switchWorkspaceHref)
-					<nav aria-label="Breadcrumb" class="min-w-0 truncate text-sm text-slate-400">
-						// "/home" is a runtime-level route -- it exists regardless of which Application is
-						// configured (internal/conformance's runtimeLevelRoutes), the same literal
-						// workspaceHomeShell used before this. Not routeByID(ctx, "nav_home"), which would panic
-						// if an Application ever declared no home item.
-						<a href="/home" class="font-medium text-slate-900 hover:underline">{ workspaceName }</a>
-						{ " / " }
-						{ title }
-					</nav>
+					// Two breadcrumb shapes, because the Flow 2 mockup has two. Inside an Application
+					// (board 07 / M07) the Workspace name stands alone up here and the Application
+					// names itself on the row below -- except on a phone, which has no second row, so
+					// the Application's name becomes a second line here instead (M07's own stacked
+					// "Dokter Kecil" over "Document Approval"). A Workspace-level screen (board 04) has
+					// no Application to name, so it keeps the plain "Workspace / Page" pair.
+					//
+					// "/home" is a runtime-level route -- it exists regardless of which Application is
+					// configured (internal/conformance's runtimeLevelRoutes). Not routeByID(ctx,
+					// "nav_home"), which would panic if an Application ever declared no home item.
+					if hasAppMenu {
+						<nav aria-label="Breadcrumb" class="flex min-w-0 flex-col justify-center">
+							<a href="/home" class="truncate text-xs leading-4 font-medium text-slate-500 hover:text-slate-900 sm:text-sm sm:text-slate-900">{ workspaceName }</a>
+							<span class="truncate text-sm leading-5 font-medium text-slate-900 sm:hidden">{ currentApp.Name }</span>
+						</nav>
+					} else {
+						<nav aria-label="Breadcrumb" class="min-w-0 truncate text-sm text-slate-400">
+							<a href="/home" class="font-medium text-slate-900 hover:underline">{ workspaceName }</a>
+							{ " / " }
+							{ title }
+						</nav>
+					}
 					<span class="ml-auto">
 						@accountMenu(viewer)
 					</span>
 				</div>
 				if hasAppMenu {
-					@applicationMenuRow(menu)
+					@applicationMenuRow(menu, currentApp)
 				}
 			</header>
 			<main class={ "mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 pt-6 sm:px-6 sm:pt-8", templ.KV("pb-24 sm:pb-10", hasAppMenu), templ.KV("pb-10", !hasAppMenu) }>
@@ -232,23 +244,68 @@ func bottomBarItems(menu []navMenuItem) []navMenuItem {
 	return menu[:min(3, len(menu))]
 }
 
-// applicationMenuRow is appShell's header, second row: the current Application's own menu, plain
-// text links, `hidden` below `sm` where applicationBottomBar takes over instead (owner spec,
+// applicationMenuRow is appShell's header, second row: the current Application's own menu,
+// `hidden` below `sm` where applicationBottomBar takes over instead (owner spec,
 // ui-sample/README.md's "Menu Navigasi" -- see appShell's own doc comment above).
-templ applicationMenuRow(menu []navMenuItem) {
+//
+// It opens on the Application naming itself -- its own declared icon tile and name, then a rule --
+// which is the Flow 2 mockup's board 07 and is not decoration: with the Workspace name one row up
+// and the page's own <h1> below, this row was the only place that ever said *which Application you
+// are in*, and before 2026-09-24 it said it nowhere.
+//
+// The mockup's right-hand "Settings" link is deliberately absent, the same call moreSheet makes
+// for the same reason: no per-Application settings hub exists yet (the Flow 2 gap study's §5.3,
+// menata-app-document's audits/2026-09-23-kajian-gap-mockup-flow2.md). Pointing it at
+// /authorization-matrix -- a Workspace-level admin screen -- while labelling it this Application's
+// would be a worse lie than the gap.
+templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 	<nav aria-label="Application" class="hidden items-center gap-1 border-t border-slate-100 px-4 py-1.5 sm:flex sm:px-6">
+		<span class="mr-1 flex items-center gap-2">
+			if app.Icon != "" {
+				<span class={ "flex size-6 shrink-0 items-center justify-center rounded-md", appIconClasses(app.Color) }>
+					@icon(app.Icon, "size-3.5")
+				</span>
+			}
+			<span class="text-sm font-medium text-slate-900">{ app.Name }</span>
+		</span>
+		<span aria-hidden="true" class="mr-2 ml-1 h-5 w-px bg-slate-200"></span>
 		for _, item := range menu {
 			<a
 				href={ templ.SafeURL(item.Href) }
-				class={ "rounded-md px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !item.Active) }
+				class={ "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !item.Active) }
 				if item.Active {
 					aria-current="page"
 				}
 			>
 				{ item.Label }
+				@navBadge(item.Badge, "inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-blue-50 px-1.5 text-3xs font-medium text-blue-700 empty:hidden")
 			</a>
 		}
 	</nav>
+}
+
+// navBadge is the live count a navigation item declares, drawn wherever that item is (the header
+// row's small blue pill, the bottom bar's red bubble -- class carries the difference).
+//
+// `empty:hidden` is load-bearing, not tidiness: the endpoint deliberately renders *nothing* when
+// there is nothing pending (internal/web.showPendingCount), so without it a viewer with an empty
+// inbox gets a bare coloured dot with no number in it. pageShell's own hand-written stylesheet has
+// always carried the same rule as `.nav-badge:empty`; this is its Tailwind half, and it was missing
+// for the first day the bottom-bar badge existed.
+//
+// Each badge is its own hx-get, so a screen drawing both rows pays for the count twice -- ~5
+// queries, on Document Approval's screens only, and only because a count nobody threaded through
+// appShell has to fetch itself. One request again the moment that stops being true (ROADMAP.md's
+// `NavBadgeApprovalInboxPending` deferral row).
+templ navBadge(badge, class string) {
+	if badge == domain.NavBadgeApprovalInboxPending {
+		<span
+			class={ class }
+			hx-get="/api/approval-inbox/pending-count"
+			hx-trigger="load"
+			hx-swap="innerHTML"
+		></span>
+	}
 }
 
 // applicationBottomBar is the mobile counterpart of applicationMenuRow -- owner spec's other half:
@@ -259,14 +316,6 @@ templ applicationMenuRow(menu []navMenuItem) {
 //
 // Four columns: three declared items (bottomBarItems) and "More", whose sheet is the one way out
 // of an Application on a phone -- see moreSheet.
-//
-// The badge is drawn here and NOT on applicationMenuRow, which is a cost decision rather than a
-// design one. Each badge is its own hx-get to /api/approval-inbox/pending-count (the count is
-// still resolved per request in the Domain Plane -- ROADMAP.md's own deferral row), so rendering
-// it in both rows would fire that endpoint twice per page while only ever one row is visible.
-// One row, one request: the same number of badge requests a pageShell page has always made.
-// When that count stops needing its own round trip, both rows can read one value and this
-// asymmetry goes away.
 templ applicationBottomBar(items []navMenuItem, app domain.Application, workspaceName, switchWorkspaceHref string) {
 	<nav aria-label="Application" class="fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t border-slate-200 bg-white px-1 pb-3 sm:hidden">
 		for _, item := range items {
@@ -279,14 +328,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 			>
 				<span class="relative flex">
 					@icon(item.Icon, "size-5.5")
-					if item.Badge == domain.NavBadgeApprovalInboxPending {
-						<span
-							class="menata-tab-badge absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-3xs text-white"
-							hx-get="/api/approval-inbox/pending-count"
-							hx-trigger="load"
-							hx-swap="innerHTML"
-						></span>
-					}
+					@navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-3xs text-white empty:hidden")
 				</span>
 				{ item.Label }
 			</a>
@@ -302,9 +344,8 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 // browser's back button.
 //
 // Its three groups are Workspace home, the Workspace's own Applications, and All Workspaces: the
-// same three the launcher shows, deliberately, because they answer the same question. It is not
-// launcherAppCard reused as-is, though -- the sheet marks the Application you are already in
-// (aria-current) and the launcher never needs to, since the launcher does not know.
+// same three the launcher shows, deliberately, because they answer the same question. It marks the
+// Application you are already in (aria-current), which the launcher never needs to.
 //
 // The mockup's third row, "<Application> settings", is NOT rendered: no per-Application settings
 // hub exists yet (the Flow 2 gap study's §5.3, menata-app-document's
@@ -312,58 +353,86 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 // at a Workspace-level admin screen and calling it the Application's, would both be worse than
 // its absence.
 //
-// <details>, no JavaScript and no backdrop -- the same mechanism and the same accepted cost as
-// appLauncher and accountMenu (a tap outside does not dismiss it; the handle, a link, or tapping
-// "More" again does). This is consistency with two existing menus, not a third pattern.
+// THE POPOVER API, not <details> (2026-09-24, and it replaced <details> the same day it shipped
+// on one). The owner's report was exact: "behaviour bottom sheet juga masih belum bisa tertutup,
+// kecuali klik di avatar pojok kanan atas" -- a <details> panel closes only by re-clicking its own
+// summary, and the shipped comment called that an "accepted cost" of having no JavaScript. It was
+// not acceptable and it did not need JavaScript: `popover` gives light dismiss (a click anywhere
+// outside closes it) and Escape for free, from the browser, and it paints in the top layer so no
+// z-index anywhere can trap it. appLauncher and accountMenu moved with it, since all three had the
+// identical flaw -- which is why the owner met it on the avatar.
+//
+// The shade is a *button* covering the screen above the bar, not a styled ::backdrop. Two reasons,
+// both from M07b: a real ::backdrop covers the whole viewport, including the bottom bar the mockup
+// deliberately leaves undimmed and legible; and light dismiss does not fire for clicks *inside*
+// the popover, so the shade has to dismiss the sheet itself. `popovertargetaction="hide"` does
+// that with no script, and being a <button> it is reachable by keyboard rather than a dead div.
 templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string) {
-	<details class="group flex flex-1 flex-col">
-		<summary class="flex cursor-pointer list-none flex-col items-center gap-1 py-2 text-2xs text-slate-500 group-open:font-medium group-open:text-blue-600 [&::-webkit-details-marker]:hidden">
+	<div class="flex flex-1 flex-col">
+		<button
+			type="button"
+			popovertarget="menata-more-sheet"
+			class="menata-more-tab flex w-full cursor-pointer flex-col items-center gap-1 border-0 bg-transparent py-2 font-sans text-2xs text-slate-500"
+		>
 			@icon("more", "size-5.5")
 			More
-		</summary>
-		<div class="fixed inset-x-0 bottom-19 z-40 max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-slate-200 bg-white p-2 pb-4 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]">
-			<div class="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-200"></div>
-			<a href="/home" class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50">
-				<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
-					@icon("home", "size-5")
-				</span>
-				<span class="flex min-w-0 grow flex-col gap-0.5">
-					<span class="text-sm text-slate-900">{ labelByID(ctx, "nav_home") }</span>
-					<span class="truncate text-xs text-slate-400">{ workspaceName }</span>
-				</span>
-				<span class="text-slate-300">
-					@icon("chevron-right", "size-4")
-				</span>
-			</a>
-			<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
-			for _, other := range CurrentWorkspace(ctx).Applications {
-				<a
-					href={ templ.SafeURL(launcherAppHomeRoute(ctx, other)) }
-					class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50"
-					if other.ID == app.ID {
-						aria-current="page"
-					}
-				>
-					<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", appIconClasses(other.Color) }>
-						@icon(other.Icon, "size-5")
+		</button>
+		<div id="menata-more-sheet" popover class="menata-sheet inset-x-0 top-0 bottom-19 m-0 h-auto max-h-none w-auto max-w-none overflow-visible border-0 bg-transparent p-0">
+			<button
+				type="button"
+				popovertarget="menata-more-sheet"
+				popovertargetaction="hide"
+				aria-label="Close"
+				class="absolute inset-0 w-full cursor-default border-0 bg-slate-900/40 p-0"
+			></button>
+			<div class="absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl bg-white p-2 pb-4 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]">
+				<div class="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-200"></div>
+				<div class="flex items-center justify-between px-3 pt-1 pb-2">
+					<span class="text-base font-medium text-slate-900">More</span>
+					<span class="truncate text-xs text-slate-400">{ app.Name }</span>
+				</div>
+				<a href="/home" class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50">
+					<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+						@icon("home", "size-5")
 					</span>
 					<span class="flex min-w-0 grow flex-col gap-0.5">
-						<span class={ "text-sm text-slate-900", templ.KV("font-medium", other.ID == app.ID) }>{ other.Name }</span>
-						if other.Description != "" {
-							<span class="truncate text-xs text-slate-400">{ other.Description }</span>
-						}
+						<span class="text-sm text-slate-900">{ labelByID(ctx, "nav_home") }</span>
+						<span class="truncate text-xs text-slate-400">{ workspaceName }</span>
 					</span>
 					<span class="text-slate-300">
 						@icon("chevron-right", "size-4")
 					</span>
 				</a>
-			}
-			if switchWorkspaceHref != "" {
 				<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
-				<a href={ templ.SafeURL(switchWorkspaceHref) } class="block rounded-lg p-3 text-sm font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
-			}
+				for _, other := range CurrentWorkspace(ctx).Applications {
+					<a
+						href={ templ.SafeURL(launcherAppHomeRoute(ctx, other)) }
+						class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50"
+						if other.ID == app.ID {
+							aria-current="page"
+						}
+					>
+						<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", appIconClasses(other.Color) }>
+							@icon(other.Icon, "size-5")
+						</span>
+						<span class="flex min-w-0 grow flex-col gap-0.5">
+							<span class={ "text-sm text-slate-900", templ.KV("font-medium", other.ID == app.ID) }>{ other.Name }</span>
+							if other.Description != "" {
+								<span class="truncate text-xs text-slate-400">{ other.Description }</span>
+							}
+						</span>
+						<span class="text-slate-300">
+							@icon("chevron-right", "size-4")
+						</span>
+					</a>
+				}
+				if switchWorkspaceHref != "" {
+					<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
+					<a href={ templ.SafeURL(switchWorkspaceHref) } class="block rounded-lg p-3 text-sm font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
+				}
+			</div>
 		</div>
-	</details>
+	</div>
 }
 
 // accountMenu is the avatar's own menu (Account menu port, 2026-09-21, from
@@ -372,14 +441,16 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 // identical shape") -- since appShell is its only caller; it does not yet get a "Shared rendering
 // components" row of its own.
 //
-// <details>/<summary>, matching appLauncher's own no-JS mechanism, not a new pattern for this one
-// menu. Its panel is positioned bottom-sheet-style on mobile (fixed to the viewport bottom,
-// rounded top corners) and as a right-anchored dropdown at `sm` and up, via Tailwind classes
-// alone -- ported from ui-sample/nav-chrome.js's sheetPanelClasses(). Deliberately no backdrop and
-// no JS-driven dismiss: appLauncher already made that call for the same reason (no script), and
-// this menu stays consistent with it rather than reopening the decision for itself alone. The
-// practical cost is that a mobile viewer dismisses the sheet by tapping the avatar again or by
-// picking a link, not by tapping outside it.
+// A `popover`, like appLauncher and moreSheet -- see moreSheet's own comment for why all three
+// left <details> on 2026-09-24. This is the menu the owner actually hit the old behaviour on:
+// with no light dismiss anywhere, the avatar was the only control that would close *anything*,
+// so it became the way to dismiss the More sheet too.
+//
+// Its panel is positioned bottom-sheet-style on mobile (pinned to the viewport bottom, rounded top
+// corners) and as a right-anchored dropdown at `sm` and up, via Tailwind classes alone -- ported
+// from ui-sample/nav-chrome.js's sheetPanelClasses(). `top-17` rather than CSS anchor positioning:
+// the header is a fixed 60px and sticky at top-0, so the panel's own offset is knowable without a
+// feature that is still Chromium-only.
 //
 // Profile and Security are runtime-level routes (`/account-profile`, `/account-security`) --
 // they exist regardless of which Applications a Workspace configures, the same category as
@@ -388,11 +459,16 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 // this reason. Sign out reuses pageShell's own logout form shape (machine.templ) -- appShell-based
 // screens had no sign-out at all before this.
 templ accountMenu(viewer Viewer) {
-	<details class="relative shrink-0">
-		<summary class="flex size-8 cursor-pointer list-none items-center justify-center rounded-full bg-slate-200 text-xs font-medium text-slate-700 [&::-webkit-details-marker]:hidden" aria-label="Account menu">
+	<div class="shrink-0">
+		<button
+			type="button"
+			popovertarget="menata-account-menu"
+			aria-label="Account menu"
+			class="flex size-8 cursor-pointer items-center justify-center rounded-full border-0 bg-slate-200 font-sans text-xs font-medium text-slate-700"
+		>
 			{ viewer.Initials }
-		</summary>
-		<div class="menata-account-panel fixed inset-x-0 bottom-0 z-40 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-slate-200 bg-white p-2 pb-6 shadow-xl sm:absolute sm:inset-x-auto sm:top-9 sm:right-0 sm:bottom-auto sm:max-h-none sm:w-72 sm:overflow-visible sm:rounded-lg sm:border sm:pb-2 sm:shadow-lg">
+		</button>
+		<div id="menata-account-menu" popover class="menata-popover inset-x-0 top-auto bottom-0 m-0 max-h-[80vh] w-auto max-w-none overflow-y-auto rounded-t-2xl rounded-b-none border-0 border-t border-slate-200 bg-white p-2 pb-6 shadow-xl sm:inset-auto sm:top-17 sm:right-4 sm:w-72 sm:rounded-lg sm:border sm:pb-2 sm:shadow-lg">
 			<div class="mx-auto mb-1 h-1 w-10 rounded-full bg-slate-200 sm:hidden"></div>
 			<div class="flex flex-col gap-0.5 px-2 pt-1 pb-2">
 				<span class="truncate text-sm font-medium text-slate-900">{ viewer.Name }</span>
@@ -404,10 +480,10 @@ templ accountMenu(viewer Viewer) {
 			<div class="my-1 h-px bg-slate-100"></div>
 			<form method="POST" action="/logout">
 				@csrfHiddenInput()
-				<button type="submit" class="w-full rounded-md px-2 py-2 text-left text-sm text-slate-700 hover:bg-slate-50">Sign out</button>
+				<button type="submit" class="w-full rounded-md px-2 py-2 text-left font-sans text-sm text-slate-700 hover:bg-slate-50">Sign out</button>
 			</form>
 		</div>
-	</details>
+	</div>
 }
 
 // appLauncher is the 9-dot menu at the head of the bar (redesigned 2026-09-20, by owner request,
@@ -437,24 +513,21 @@ templ accountMenu(viewer Viewer) {
 // it names no declared navigation item at all, so the caller-supplied href stays a plain string
 // exactly like ChooseWorkspacePage's own pre-auth links.
 //
-// <details> rather than JavaScript, matching the details.nav-group dropdown pageShell already
-// uses.
+// A `popover` since 2026-09-24 (it was <details> before) -- see moreSheet for the reasoning and
+// for what the old mechanism cost. pageShell's own details.nav-group dropdown is untouched: that
+// stylesheet and that topbar are a separate system (capabilities.md, "Styling: two systems, on
+// purpose"), and changing it here would be a port nobody asked for.
 templ appLauncher(workspaceName, switchWorkspaceHref string) {
-	<details class="relative shrink-0">
-		<summary class="flex size-7 cursor-pointer list-none items-center justify-center text-slate-500 [&::-webkit-details-marker]:hidden" aria-label="Open app launcher">
-			<svg width="16" height="16" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
-				<circle cx="3" cy="3" r="1.6"></circle>
-				<circle cx="9" cy="3" r="1.6"></circle>
-				<circle cx="15" cy="3" r="1.6"></circle>
-				<circle cx="3" cy="9" r="1.6"></circle>
-				<circle cx="9" cy="9" r="1.6"></circle>
-				<circle cx="15" cy="9" r="1.6"></circle>
-				<circle cx="3" cy="15" r="1.6"></circle>
-				<circle cx="9" cy="15" r="1.6"></circle>
-				<circle cx="15" cy="15" r="1.6"></circle>
-			</svg>
-		</summary>
-		<div class="absolute top-9 left-0 z-40 w-72 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+	<div class="shrink-0">
+		<button
+			type="button"
+			popovertarget="menata-app-launcher"
+			aria-label="Open app launcher"
+			class="flex size-7 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-slate-500"
+		>
+			@icon("grid", "size-4")
+		</button>
+		<div id="menata-app-launcher" popover class="menata-popover inset-auto top-17 left-4 m-0 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white p-2 shadow-lg sm:left-9">
 			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class="mb-1 flex flex-col gap-0.5 rounded-md p-2 hover:bg-slate-50">
 				<span class="text-3xs font-medium tracking-wide text-blue-600 uppercase">Workspace</span>
 				<span class="text-sm font-medium text-slate-900">{ workspaceName }</span>
@@ -466,7 +539,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string) {
 				<a href={ templ.SafeURL(switchWorkspaceHref) } class="mt-1 block rounded-md p-2 text-xs font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
 			}
 		</div>
-	</details>
+	</div>
 }
 
 // launcherAppCard is one Application's face in the launcher -- ui-sample/nav-chrome.js's

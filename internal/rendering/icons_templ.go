@@ -136,17 +136,17 @@ func icon(name, class string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		case "home":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<path d=\"M4 10.5 12 4l8 6.5\"></path> <path d=\"M6.5 9.5V20h11V9.5\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<path d=\"M4 10.5 12 4l8 6.5\"></path> <path d=\"M6.5 9.5V20h11V9.5\"></path>  ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "grid":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<circle cx=\"6\" cy=\"6\" r=\"1.6\"></circle> <circle cx=\"12\" cy=\"6\" r=\"1.6\"></circle> <circle cx=\"18\" cy=\"6\" r=\"1.6\"></circle> <circle cx=\"6\" cy=\"12\" r=\"1.6\"></circle> <circle cx=\"12\" cy=\"12\" r=\"1.6\"></circle> <circle cx=\"18\" cy=\"12\" r=\"1.6\"></circle> <circle cx=\"6\" cy=\"18\" r=\"1.6\"></circle> <circle cx=\"12\" cy=\"18\" r=\"1.6\"></circle> <circle cx=\"18\" cy=\"18\" r=\"1.6\"></circle>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<circle cx=\"6\" cy=\"6\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"6\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"6\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"6\" cy=\"12\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"12\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"12\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"6\" cy=\"18\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"18\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"18\" r=\"1.6\" fill=\"currentColor\"></circle>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "more":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<circle cx=\"6\" cy=\"12\" r=\"1.4\"></circle> <circle cx=\"12\" cy=\"12\" r=\"1.4\"></circle> <circle cx=\"18\" cy=\"12\" r=\"1.4\"></circle>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<circle cx=\"6\" cy=\"12\" r=\"1.7\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"12\" r=\"1.7\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"12\" r=\"1.7\" fill=\"currentColor\"></circle>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

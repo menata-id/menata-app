@@ -887,6 +887,48 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     `queries=11 reads=11 repeated=0` — the bars add no server-side read. The asymmetry dissolves
     when that count stops needing its own round trip (the `NavBadgeApprovalInboxPending` deferral
     row below).
+  - **Same-day correction, from the owner testing it** (2026-09-24). Three things the first cut
+    got wrong, and one it never had:
+
+    **The menus could not be closed.** `<details>` panels close only by re-clicking their own
+    summary; the shipped comment called that an "accepted cost" of having no JavaScript, and the
+    owner's report shows what the cost actually was — *"behaviour bottom sheet juga masih belum
+    bisa tertutup, kecuali klik di avatar pojok kanan atas"*: with no light dismiss anywhere, the
+    avatar had become the way to dismiss a sheet it does not own. All three menus (launcher,
+    account, More) are the native **Popover API** now — `popover` + `popovertarget`, which gives
+    click-outside and Escape from the browser and paints in the top layer, **still with no
+    script**. The no-JS posture was never the problem; reaching for `<details>` to keep it was.
+
+    **The sheet had no shade.** M07b dims everything above the bar and leaves the bar itself
+    legible. A real `::backdrop` cannot do that — it covers the whole viewport — so the shade is a
+    full-width `<button popovertargetaction="hide">` inside the popover, which also solves the
+    second half: light dismiss deliberately does not fire for clicks *inside* a popover, so the
+    shade has to dismiss the sheet itself. Being a button, it is keyboard-reachable rather than a
+    dead div.
+
+    **An empty badge rendered as a bare red dot.** `showPendingCount` writes nothing when nothing
+    is pending, so the bubble needs `empty:hidden` — the Tailwind half of the `.nav-badge:empty`
+    rule `pageStyles` has carried since Phase 21. It was missing for the whole first day, and it
+    is exactly the class of defect a screenshot catches and a test does not.
+
+    **The top bar was never ported, only kept.** Board 07's second row opens on the Application's
+    own icon and name; ours opened straight into links. With the Workspace name one row up and the
+    page's `<h1>` below, that row was the only place that could say *which Application you are in*,
+    and it said it nowhere. On a phone, where there is no second row, the Application's name
+    becomes the breadcrumb's second line instead (M07's stacked pair). The badge reaches the
+    desktop row with it, at the cost of a second `hx-get` per page — named in `capabilities.md`
+    rather than hidden, since only one row is ever visible. The mockup's right-hand **Settings**
+    link stays absent for the same reason `moreSheet`'s third row does: no per-Application
+    settings hub exists, and pointing it at a Workspace-level admin screen would be a worse lie
+    than the gap.
+
+    **Tailwind ships no components** — it is a utility framework with no JavaScript and no widget
+    layer, so there is no stock bottom sheet, bottom bar or top bar to adopt. The component
+    libraries built on it (daisyUI, Flowbite, Preline) all want npm and their own class
+    vocabulary, which this repo's Node-free standalone-CLI build deliberately does not have. The
+    platform had the missing piece instead, and it is better than any of them for this: `popover`
+    is one attribute, needs no bundle, and cannot go stale.
+
   - **`icon:` is a name from a closed set now, not a literal glyph** (`domain.KnownIcons`,
     `internal/rendering/icons.templ`, validated at load like `color:`; `icon: "▣"` became
     `icon: inbox`). This was already owed: `ui-sample/nav-metadata.js`'s own comment had called
