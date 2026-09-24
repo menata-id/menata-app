@@ -287,8 +287,22 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 		// Every field the Pending branch resolves, resolved the same way -- Mode through
 		// behavior.SequencingMode rather than the raw fld_mode this used to print, so one card face
 		// cannot report the mode two different ways depending on which tab drew it. Submitter and
-		// SubmittedAt stay zero: see Inbox.Mine. The href goes to the Document, not to a step's
-		// review screen, because on this list the viewer is the submitter and has no step to decide.
+		// SubmittedAt stay zero: see Inbox.Mine.
+		//
+		// **The href was wrong until 2026-09-24**, and the comment here explained why at the time:
+		// "the href goes to the Document, not to a step's review screen, because on this list the
+		// viewer is the submitter and has no step to decide." The premise was right and the
+		// conclusion did not follow. Having no step to decide is a reason not to show a decision
+		// bar -- which the Review screen already handles, gating it on authorization.AllowsAction --
+		// not a reason to send someone to the Document's *generic record page*, which is the one
+		// destination this repo had already ruled out for these two Machines ("POC scaffolding no
+		// real approver should land on", owner request 2026-09-19). A submitter asking "where has
+		// my document got to" got a field-by-field CRUD form with an Edit and a Delete button.
+		//
+		// It links the Review screen by Document id now (internal/web.reviewStep resolves which
+		// step that opens on). The fallback below is the one case that screen cannot render: a
+		// Document with no steps at all, which the generic create form can make and the wizard
+		// never does.
 		inbox.Mine = append(inbox.Mine, rendering.PendingApprovalCard{
 			Reference:    action.DocumentReference(d.SortOrder),
 			Title:        DisplayString(d.Values["fld_title"]),
@@ -298,7 +312,7 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 			TotalSteps:   len(stepsByDoc[d.ID]),
 			SLADue:       d.Values["fld_due_date"],
 			Approvers:    stepStates(seq, d, stepsByDoc[d.ID], names, userID),
-			Href:         fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, d.ID),
+			Href:         reviewHref(d.ID, len(stepsByDoc[d.ID])),
 		})
 	}
 
@@ -386,13 +400,7 @@ func submittersFromActivity(activities []*data.Record) map[string]submission {
 // viewer is the actor whose own step gets StepApprover.IsYou; pass "" when nobody is viewing in
 // particular, as the inbox does -- every card there is already the viewer's own.
 func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, names map[string]string, viewer string) []rendering.StepApprover {
-	ordered := make([]*data.Record, len(steps))
-	copy(ordered, steps)
-	sort.Slice(ordered, func(i, j int) bool {
-		a, _ := strconv.Atoi(DisplayString(ordered[i].Values[action.FieldStepSequence]))
-		b, _ := strconv.Atoi(DisplayString(ordered[j].Values[action.FieldStepSequence]))
-		return a < b
-	})
+	ordered := orderedBySequence(steps)
 	approvers := make([]rendering.StepApprover, len(ordered))
 	for i, s := range ordered {
 		state := "waiting"
@@ -456,4 +464,33 @@ func Initials(name string) string {
 		out += strings.ToUpper(fields[1][:1])
 	}
 	return out
+}
+
+// orderedBySequence sorts Approval Steps by their declared fld_sequence, ascending -- the semantic
+// order of an approval chain, which is not the storage sort_order (creation order) and not the
+// order the database happened to return them in.
+//
+// Extracted from stepStates on 2026-09-24 when ReviewStepForDocument needed the same ordering to
+// answer "which step is this Document waiting on". Two copies of a sort that decides which
+// approver a screen names first is the kind of duplication that reads identical until one of them
+// gains a tiebreak.
+func orderedBySequence(steps []*data.Record) []*data.Record {
+	ordered := make([]*data.Record, len(steps))
+	copy(ordered, steps)
+	sort.Slice(ordered, func(i, j int) bool {
+		a, _ := strconv.Atoi(DisplayString(ordered[i].Values[action.FieldStepSequence]))
+		b, _ := strconv.Atoi(DisplayString(ordered[j].Values[action.FieldStepSequence]))
+		return a < b
+	})
+	return ordered
+}
+
+// reviewHref is a Document card's destination: its Review screen, or -- for a Document with no
+// Approval Steps, which that screen has nothing to draw for -- its generic record page, the one
+// place that can still show something.
+func reviewHref(documentID string, steps int) string {
+	if steps == 0 {
+		return fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, documentID)
+	}
+	return fmt.Sprintf("/machines/%s/records/%s/review", action.DocumentMachineID, documentID)
 }

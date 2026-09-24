@@ -931,6 +931,36 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     platform had the missing piece instead, and it is better than any of them for this: `popover`
     is one attribute, needs no bundle, and cannot go stale.
 
+  - **My Documents was sending submitters to the page this repo had already ruled out**
+    (2026-09-24, owner: *"card nya masih mengarahkan ke halaman yang salah"*). Its cards linked
+    `/machines/mch_document/records/{id}` -- the *generic* record page, a field-by-field CRUD form
+    with Edit and Delete buttons. A submitter asking "where has my document got to" got that.
+
+    **The comment at the call site explained the bug and did not see it.** It read: "the href goes
+    to the Document, not to a step's review screen, because on this list the viewer is the
+    submitter and has no step to decide." The premise is right; the conclusion does not follow.
+    Having no step to decide is a reason not to show a *decision bar* -- which the Review screen
+    already handles, gating it on `authorization.AllowsAction` -- not a reason to send someone to
+    the generic page that `rendering.detailBackLink`'s own comment had called "POC scaffolding no
+    real approver should land on" since 2026-09-19, on the owner's own instruction. Two parts of
+    the codebase held the rule and the exception to it, three days apart, and neither knew.
+
+    The Review screen was always the right destination -- it draws the document, its PDF, every
+    step's state and the SLA -- so what was missing was a way to reach it holding a *Document*.
+    `/machines/{machineID}/records/{id}/review` accepts a Document id now;
+    `composition.ReviewStepForDocument` decides which step it opens on, as a rule rather than a
+    guess: the viewer's own actionable step, else the step the Document is waiting on, else the
+    first undecided one, else the last by sequence. A Document with no steps at all 404s there and
+    the card falls back to the generic page, which is the one case that screen cannot draw.
+
+    **Opening an approver's screen as a non-approver exposed a second defect, in words rather than
+    logic.** The panel headed "Your Signature Position" told the submitter that "your saved
+    signature image is stamped here automatically when you approve" -- about somebody else's
+    signature, on a document they cannot approve. Every clause was wrong. It carries whose
+    signature it is now and switches to the third person: *"Isnawan's signature is stamped here
+    when they approve."* Verified in a browser, along with the decision bar correctly not
+    rendering at all.
+
   - **Why the app felt slow to open, answered from the logs** (2026-09-24, owner: *"kenapa baru
     saja aku akses, tidak langsung membuka ya? apakah terlihat di log?"*). It was visible, but not
     in this app's log -- which records query counts and no status, duration or request headers at

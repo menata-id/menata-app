@@ -126,10 +126,14 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 
 	if page, x, y, width, ok := placementOf(step); ok {
 		v.Placement = &rendering.ReviewPlacement{
-			Page:  page,
-			X:     x,
-			Y:     y,
-			Width: width,
+			// Named only when it is somebody else's -- the panel switches to the third person on
+			// a non-empty Approver, and the viewer's own signature should never be labelled with
+			// their own name back at them.
+			Approver: placementApprover(step, names, viewer.ID),
+			Page:     page,
+			X:        x,
+			Y:        y,
+			Width:    width,
 			// The page image the signature-placement screen already serves. Reusing that route
 			// rather than adding a per-step one keeps this screen additive: it introduces no
 			// rendering capability the app did not already have, only a read-only framing of it.
@@ -188,4 +192,86 @@ func canStillDecide(stepMachine *domain.Machine, decision string) bool {
 		}
 	}
 	return false
+}
+
+// ReviewStepForDocument picks which Approval Step the Review screen should open on when the
+// caller has a Document rather than a Step -- which is My Documents' case: it lists Documents, and
+// the viewer there is the submitter, who has no step of their own to point at.
+//
+// It exists because the alternative shapes were both worse. Sending a submitter to the Document's
+// *generic* record page is what the app did until 2026-09-24, and that page is the one this repo
+// already ruled out for these two Machines: "POC scaffolding no real approver should land on"
+// (owner request, 2026-09-19, recorded on rendering.detailBackLink). Making the Review screen's
+// whole view model tolerate a nil step would spread "there may be no step" through every field and
+// every branch of a screen whose entire subject is a step's own decision.
+//
+// The order is what a person opening a Document actually wants to see first:
+//
+//  1. their own step, if they have one still to decide -- an approver who reaches this screen from
+//     a Document link gets the same screen the Inbox would have given them;
+//  2. the step the Document is waiting on, which is "where this is now";
+//  3. the first undecided step, if none is actionable yet (a parallel flow locked behind nothing
+//     still has one);
+//  4. the last step by sequence, for a Document already finished -- the decision that closed it.
+//
+// nil, with no error, when the Document has no steps at all. That is not a failure: a Document can
+// exist without them (the generic create form makes one), and the caller decides what to do --
+// internal/web 404s, and internal/composition's own card falls back to the generic page rather
+// than linking a screen with nothing to render.
+func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine *domain.Machine, document *data.Record, viewerID string) (*data.Record, error) {
+	steps, err := l.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, document.ID)
+	if err != nil {
+		return nil, err
+	}
+	if len(steps) == 0 {
+		return nil, nil
+	}
+	ordered := orderedBySequence(steps)
+
+	var seq *domain.Sequencing
+	if stepMachine != nil {
+		seq = stepMachine.Sequencing
+	}
+
+	var firstPending, waitingOn *data.Record
+	for _, s := range ordered {
+		if !canStillDecide(stepMachine, DisplayString(s.Values[action.FieldStepDecision])) {
+			continue
+		}
+		if firstPending == nil {
+			firstPending = s
+		}
+		if !behavior.CanAct(seq, document, s, ordered) {
+			continue
+		}
+		if waitingOn == nil {
+			waitingOn = s
+		}
+		// The viewer's own actionable step wins outright, wherever it sits in the order.
+		if viewerID != "" && DisplayString(s.Values[action.FieldStepAssignee]) == viewerID {
+			return s, nil
+		}
+	}
+	switch {
+	case waitingOn != nil:
+		return waitingOn, nil
+	case firstPending != nil:
+		return firstPending, nil
+	default:
+		return ordered[len(ordered)-1], nil
+	}
+}
+
+// placementApprover names whose signature a placement belongs to, or "" when it is the viewer's
+// own. A step held by a Group has no one person's name to give, so it falls back to the step's own
+// label -- which is what the approval progress list already calls it.
+func placementApprover(step *data.Record, names map[string]string, viewerID string) string {
+	assignee := DisplayString(step.Values[action.FieldStepAssignee])
+	if assignee != "" && assignee == viewerID {
+		return ""
+	}
+	if name := names[assignee]; name != "" {
+		return name
+	}
+	return stepLabel(step, "")
 }
