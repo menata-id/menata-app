@@ -116,7 +116,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// browser paints in the top layer, above every z-index on the page.
 			<header class="sticky top-0 z-40 flex flex-col border-b border-slate-200 bg-white">
 				<div class="flex h-15 shrink-0 items-center gap-2.5 px-4 sm:pr-7 sm:pl-9">
-					@appLauncher(workspaceName, switchWorkspaceHref)
+					@appLauncher(workspaceName, switchWorkspaceHref, hasAppMenu)
 					// Two breadcrumb shapes, because the Flow 2 mockup has two. Inside an Application
 					// (board 07 / M07) the Workspace name stands alone up here and the Application
 					// names itself on the row below -- except on a phone, which has no second row, so
@@ -140,7 +140,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 						</nav>
 					}
 					<span class="ml-auto">
-						@accountMenu(viewer)
+						@accountMenu(viewer, hasAppMenu)
 					</span>
 				</div>
 				if hasAppMenu {
@@ -362,11 +362,10 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 // z-index anywhere can trap it. appLauncher and accountMenu moved with it, since all three had the
 // identical flaw -- which is why the owner met it on the avatar.
 //
-// The shade is a *button* covering the screen above the bar, not a styled ::backdrop. Two reasons,
-// both from M07b: a real ::backdrop covers the whole viewport, including the bottom bar the mockup
-// deliberately leaves undimmed and legible; and light dismiss does not fire for clicks *inside*
-// the popover, so the shade has to dismiss the sheet itself. `popovertargetaction="hide"` does
-// that with no script, and being a <button> it is reachable by keyboard rather than a dead div.
+// The sheet itself -- the shade, the panel, the handle -- is sheetPanel, shared with the launcher
+// and the account menu since 2026-09-24. It was written here first and *only* here, which is what
+// let the account menu keep its old bare panel for a day: no shade, sitting over the bottom bar,
+// so the one thing that would dismiss it was the avatar that opened it.
 templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string) {
 	<div class="flex flex-1 flex-col">
 		<button
@@ -377,62 +376,123 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 			@icon("more", "size-5.5")
 			More
 		</button>
-		<div id="menata-more-sheet" popover class="menata-sheet inset-x-0 top-0 bottom-19 m-0 h-auto max-h-none w-auto max-w-none overflow-visible border-0 bg-transparent p-0">
-			<button
-				type="button"
-				popovertarget="menata-more-sheet"
-				popovertargetaction="hide"
-				aria-label="Close"
-				class="absolute inset-0 w-full cursor-default border-0 bg-slate-900/40 p-0"
-			></button>
-			<div class="absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl bg-white p-2 pb-4 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]">
-				<div class="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-200"></div>
-				<div class="flex items-center justify-between px-3 pt-1 pb-2">
-					<span class="text-base font-medium text-slate-900">More</span>
-					<span class="truncate text-xs text-slate-400">{ app.Name }</span>
-				</div>
-				<a href="/home" class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50">
-					<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
-						@icon("home", "size-5")
+		@sheetPanel("menata-more-sheet", true, "") {
+			<div class="flex items-center justify-between px-3 pt-1 pb-2">
+				<span class="text-base font-medium text-slate-900">More</span>
+				<span class="truncate text-xs text-slate-400">{ app.Name }</span>
+			</div>
+			<a href="/home" class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50">
+				<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+					@icon("home", "size-5")
+				</span>
+				<span class="flex min-w-0 grow flex-col gap-0.5">
+					<span class="text-sm text-slate-900">{ labelByID(ctx, "nav_home") }</span>
+					<span class="truncate text-xs text-slate-400">{ workspaceName }</span>
+				</span>
+				<span class="text-slate-300">
+					@icon("chevron-right", "size-4")
+				</span>
+			</a>
+			<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
+			for _, other := range CurrentWorkspace(ctx).Applications {
+				<a
+					href={ templ.SafeURL(launcherAppHomeRoute(ctx, other)) }
+					class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50"
+					if other.ID == app.ID {
+						aria-current="page"
+					}
+				>
+					<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", appIconClasses(other.Color) }>
+						@icon(other.Icon, "size-5")
 					</span>
 					<span class="flex min-w-0 grow flex-col gap-0.5">
-						<span class="text-sm text-slate-900">{ labelByID(ctx, "nav_home") }</span>
-						<span class="truncate text-xs text-slate-400">{ workspaceName }</span>
+						<span class={ "text-sm text-slate-900", templ.KV("font-medium", other.ID == app.ID) }>{ other.Name }</span>
+						if other.Description != "" {
+							<span class="truncate text-xs text-slate-400">{ other.Description }</span>
+						}
 					</span>
 					<span class="text-slate-300">
 						@icon("chevron-right", "size-4")
 					</span>
 				</a>
+			}
+			if switchWorkspaceHref != "" {
 				<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
-				for _, other := range CurrentWorkspace(ctx).Applications {
-					<a
-						href={ templ.SafeURL(launcherAppHomeRoute(ctx, other)) }
-						class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50"
-						if other.ID == app.ID {
-							aria-current="page"
-						}
-					>
-						<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", appIconClasses(other.Color) }>
-							@icon(other.Icon, "size-5")
-						</span>
-						<span class="flex min-w-0 grow flex-col gap-0.5">
-							<span class={ "text-sm text-slate-900", templ.KV("font-medium", other.ID == app.ID) }>{ other.Name }</span>
-							if other.Description != "" {
-								<span class="truncate text-xs text-slate-400">{ other.Description }</span>
-							}
-						</span>
-						<span class="text-slate-300">
-							@icon("chevron-right", "size-4")
-						</span>
-					</a>
-				}
-				if switchWorkspaceHref != "" {
-					<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
-					<a href={ templ.SafeURL(switchWorkspaceHref) } class="block rounded-lg p-3 text-sm font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
-				}
-			</div>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } class="block rounded-lg p-3 text-sm font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
+			}
+		}
+	</div>
+}
+
+// sheetPanel is the one shape all three of appShell's menus share: a `popover` that is a bottom
+// sheet on a phone -- a dark shade over everything except the bottom bar, and a rounded panel
+// pinned to the bottom -- and, for the two in the header, an anchored dropdown at `sm` and up.
+//
+// Extracted on 2026-09-24, at the third use rather than the second, which is what
+// menata-app-document's ui-composition-decomposition-criteria.md asks for. The second use is also
+// what created the bug that forced it: the More sheet was built with a shade and positioned above
+// the bar, the account menu was left as the bare panel it had always been, and the owner found the
+// difference immediately -- its sheet covered the bottom bar, had no shade, and so the only thing
+// that would dismiss it was the avatar that opened it. Tapping the bar to escape was a tap *inside*
+// the popover, which is exactly where light dismiss does not fire.
+//
+// aboveBar is appShell's own hasAppMenu: a Workspace-level screen has no bottom bar, so its shade
+// covers the whole viewport (mockup M11/M12, `inset: 0`), while inside an Application it stops at
+// the bar's top edge (M07b, `bottom: 76px`) and leaves the bar lit and legible.
+//
+// The shade is a <button popovertargetaction="hide">, not a styled ::backdrop and not a div: a real
+// ::backdrop covers the whole viewport including that bar, light dismiss does not fire inside a
+// popover so the shade must dismiss it itself, and a button is keyboard-reachable where a div with
+// a click handler is not.
+//
+// desktop is "" for a menu that stays a sheet at every width (moreSheet -- its whole bar is
+// sm:hidden), or "left"/"right" for one that becomes a dropdown anchored under its own control.
+// Whole literal class strings per case, never assembled, for the reason appIconClasses records:
+// Tailwind's scanner reads source text, so a name built at runtime never reaches app.css.
+templ sheetPanel(id string, aboveBar bool, desktop string) {
+	<div
+		id={ id }
+		popover
+		class={ "inset-x-0 top-0 m-0 h-auto max-h-none w-auto max-w-none overflow-visible border-0 bg-transparent p-0",
+			templ.KV("bottom-19", aboveBar), templ.KV("bottom-0", !aboveBar),
+			sheetContainerClasses(desktop) }
+	>
+		<button
+			type="button"
+			popovertarget={ id }
+			popovertargetaction="hide"
+			aria-label="Close"
+			class="absolute inset-0 w-full cursor-default border-0 bg-slate-900/40 p-0 sm:hidden"
+		></button>
+		<div class={ "absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl bg-white p-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]", sheetPanelClasses(desktop) }>
+			<div class="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-200 sm:hidden"></div>
+			{ children... }
 		</div>
 	</div>
+}
+
+// sheetContainerClasses positions the popover box itself at `sm` and up: full-width sheet frame
+// below that breakpoint, a 288px box under its own control above it. `top-17` rather than CSS
+// anchor positioning -- the header is a fixed 60px and sticky at top-0, so the offset is knowable
+// without a feature that is still Chromium-only.
+func sheetContainerClasses(desktop string) string {
+	switch desktop {
+	case "left":
+		return "sm:inset-auto sm:top-17 sm:right-auto sm:bottom-auto sm:left-9 sm:w-72"
+	case "right":
+		return "sm:inset-auto sm:top-17 sm:right-7 sm:bottom-auto sm:left-auto sm:w-72"
+	default:
+		return ""
+	}
+}
+
+// sheetPanelClasses turns the sheet's own white panel back into an ordinary dropdown body at `sm`:
+// no longer pinned to the bottom of its container, squared-off shadow, its own border.
+func sheetPanelClasses(desktop string) string {
+	if desktop == "" {
+		return ""
+	}
+	return "sm:static sm:max-h-none sm:overflow-visible sm:rounded-lg sm:border sm:border-slate-200 sm:pb-2 sm:shadow-lg"
 }
 
 // accountMenu is the avatar's own menu (Account menu port, 2026-09-21, from
@@ -458,7 +518,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 // app.yaml navigation) -- both are listed in internal/conformance's runtimeLevelRoutes for exactly
 // this reason. Sign out reuses pageShell's own logout form shape (machine.templ) -- appShell-based
 // screens had no sign-out at all before this.
-templ accountMenu(viewer Viewer) {
+templ accountMenu(viewer Viewer, aboveBar bool) {
 	<div class="shrink-0">
 		<button
 			type="button"
@@ -468,21 +528,29 @@ templ accountMenu(viewer Viewer) {
 		>
 			{ viewer.Initials }
 		</button>
-		<div id="menata-account-menu" popover class="menata-popover inset-x-0 top-auto bottom-0 m-0 max-h-[80vh] w-auto max-w-none overflow-y-auto rounded-t-2xl rounded-b-none border-0 border-t border-slate-200 bg-white p-2 pb-6 shadow-xl sm:inset-auto sm:top-17 sm:right-4 sm:w-72 sm:rounded-lg sm:border sm:pb-2 sm:shadow-lg">
-			<div class="mx-auto mb-1 h-1 w-10 rounded-full bg-slate-200 sm:hidden"></div>
-			<div class="flex flex-col gap-0.5 px-2 pt-1 pb-2">
-				<span class="truncate text-sm font-medium text-slate-900">{ viewer.Name }</span>
-				<span class="truncate text-xs text-slate-400">{ viewer.Email }</span>
-			</div>
-			<div class="my-1 h-px bg-slate-100"></div>
-			<a href="/account-profile" class="block rounded-md px-2 py-2 text-sm text-slate-700 hover:bg-slate-50">Profile</a>
-			<a href="/account-security" class="block rounded-md px-2 py-2 text-sm text-slate-700 hover:bg-slate-50">Security</a>
+		@sheetPanel("menata-account-menu", aboveBar, "right") {
+			// The shared admin credential resolves to a placeholder identity with no name and no
+			// email (its avatar is the "?" glyph), so rendering the block unconditionally left an
+			// empty strip above a divider -- invisible as a bare dropdown, obvious as a sheet.
+			if viewer.Name != "" || viewer.Email != "" {
+				<div class="flex flex-col gap-0.5 px-3 pt-1 pb-2">
+					if viewer.Name != "" {
+						<span class="truncate text-sm font-medium text-slate-900">{ viewer.Name }</span>
+					}
+					if viewer.Email != "" {
+						<span class="truncate text-xs text-slate-400">{ viewer.Email }</span>
+					}
+				</div>
+				<div class="my-1 h-px bg-slate-100"></div>
+			}
+			<a href="/account-profile" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Profile</a>
+			<a href="/account-security" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Security</a>
 			<div class="my-1 h-px bg-slate-100"></div>
 			<form method="POST" action="/logout">
 				@csrfHiddenInput()
-				<button type="submit" class="w-full rounded-md px-2 py-2 text-left font-sans text-sm text-slate-700 hover:bg-slate-50">Sign out</button>
+				<button type="submit" class="w-full rounded-md px-3 py-2.5 text-left font-sans text-sm text-slate-700 hover:bg-slate-50">Sign out</button>
 			</form>
-		</div>
+		}
 	</div>
 }
 
@@ -517,7 +585,7 @@ templ accountMenu(viewer Viewer) {
 // for what the old mechanism cost. pageShell's own details.nav-group dropdown is untouched: that
 // stylesheet and that topbar are a separate system (capabilities.md, "Styling: two systems, on
 // purpose"), and changing it here would be a port nobody asked for.
-templ appLauncher(workspaceName, switchWorkspaceHref string) {
+templ appLauncher(workspaceName, switchWorkspaceHref string, aboveBar bool) {
 	<div class="shrink-0">
 		<button
 			type="button"
@@ -527,8 +595,8 @@ templ appLauncher(workspaceName, switchWorkspaceHref string) {
 		>
 			@icon("grid", "size-4")
 		</button>
-		<div id="menata-app-launcher" popover class="menata-popover inset-auto top-17 left-4 m-0 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white p-2 shadow-lg sm:left-9">
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class="mb-1 flex flex-col gap-0.5 rounded-md p-2 hover:bg-slate-50">
+		@sheetPanel("menata-app-launcher", aboveBar, "left") {
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class="mb-1 flex flex-col gap-0.5 rounded-md p-3 hover:bg-slate-50 sm:p-2">
 				<span class="text-3xs font-medium tracking-wide text-blue-600 uppercase">Workspace</span>
 				<span class="text-sm font-medium text-slate-900">{ workspaceName }</span>
 			</a>
@@ -536,9 +604,9 @@ templ appLauncher(workspaceName, switchWorkspaceHref string) {
 				@launcherAppCard(app)
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } class="mt-1 block rounded-md p-2 text-xs font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } class="mt-1 block rounded-md p-3 text-xs font-medium text-blue-600 hover:bg-slate-50 sm:p-2">All Workspaces →</a>
 			}
-		</div>
+		}
 	</div>
 }
 

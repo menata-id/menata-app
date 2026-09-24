@@ -929,6 +929,26 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     platform had the missing piece instead, and it is better than any of them for this: `popover`
     is one attribute, needs no bundle, and cannot go stale.
 
+  - **The same fix, missed on two of the three menus** (owner, 2026-09-24, testing the build):
+    *"jika klik avatar bulat di pojok kanan atas, perilaku bottom sheet masih menimpa bottom bar
+    dan tidak ada transparan gelap"*. The More sheet got a shade and was positioned above the bar;
+    the account menu kept the bare panel it had always had. Three symptoms, one cause — with no
+    shade there is no visible "outside" to tap, and the panel sat *over* the bottom bar, so
+    tapping the bar to escape was a tap **inside** the popover, where light dismiss deliberately
+    does not fire. The avatar was the only control left.
+
+    `sheetPanel` now holds that shape once, for all three menus, and the launcher became a real
+    bottom sheet on mobile with it (mockup M12, which it never matched). Extracted at the *third*
+    use rather than the second, which is what `ui-composition-decomposition-criteria.md` asks for
+    — and the day between the second use and the third is exactly the bug above. Verified in a
+    browser at 390px: the popover spans 0–768 inside an Application (the bar's top edge) and
+    0–844 on a Workspace screen with no bar, and closes on an outside tap, a tap on the bar, and
+    Escape.
+
+    One thing it made visible rather than caused: the shared admin credential resolves to an
+    identity with no name and no email, so the sheet's identity block rendered as an empty strip
+    above a divider. Invisible as a small dropdown, obvious as a full-width sheet.
+
   - **A navigation item declares three strings now, not one** (owner, 2026-09-24, on being asked
     whether to rename the Inbox tab: *"pengaturan ini seharusnya ada di metadata bukan?"* — and it
     was the right answer to a question that should not have been asked). `label:` is what a menu
