@@ -448,7 +448,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | New chrome on the Document Approval screens (~~inbox~~, ~~review~~, submit, signature) | **inbox done in 6a, review in 6b**; submit and signature both 6c | Preflight ties chrome to content; their content ports there. Signature moved out of 6b — board 09 is `STEP 2 OF 3` of the submit wizard and shows Group approvers (CAP-F24), so it belongs with board 08, not before it |
   | ~~Approval Role Matrix (board 06)~~ — *done in Fase 7*: `/approval-role-matrix`. The blocker this row named ("neither in 006/007") was answered by step zero rather than by building both from scratch — upstream had already shipped CAP-P01 and a `transitions[]` shape; what this repo's concept docs say about them turned out not to be the binding question | — | — |
   | Declared `requires_role:` on a navigation item | **a second real case, not a phase** — and **Fase 7 came and went without supplying one**, which this row predicted it would ("likeliest around Fase 7") | Re-checked at the Fase 7 close, which is the only reason this line is honest. Fase 7 *did* add a third id to `appShell`'s `hiddenNavIDs` (`nav_role_matrix`, beside Members and Groups) — but all three are gated on the **Workspace** role (admin), which a handler naming an id expresses perfectly well. The trigger this row names is an item gated on an **Application** role, the case a handler *cannot* express, and role-based Permission landing did not create one: no navigation item in the manifest is scoped to an Application role. Three instances of the same shape is, separately, the B1 repetition signal — so the next hardcoded id is worth running through the decomposition criteria even if the trigger below still has not arrived |
-  | Mobile bottom bar for an Application's own menu | **no phase yet** — lands when the Project Management screens get boards | Those screens are still `pageStyles`, so a bottom bar there would be hand-written CSS thrown away when they port — that is the real blocker. **This row previously said "nothing in Fase 2–7 displays it", which stopped being true at Fase 3a**: Project Management declares no `show_nav`, keeps its menu, and `/my-tasks` renders ten nav links today. It stayed wrong through four phase closes because nobody re-read the table, which is the one thing this table needs. The owner's decision (`navigation.html`, 3–4 icons, top-4 by priority) was never the missing part |
+  | ~~Mobile bottom bar for an Application's own menu~~ | **done 2026-09-22** (`applicationBottomBar`), extended with a "More" sheet 2026-09-24 | **This row was stale for two further closes after the thing it describes shipped**, which is worse than the wrongness it already records below: a row saying "no phase yet" about built code reads exactly like a real gap, and the 2026-09-23 Flow 2 gap study had to re-derive from the source that the bar existed. Kept, struck through, with its own history: it previously said "nothing in Fase 2–7 displays it", which stopped being true at Fase 3a — Project Management declares no `show_nav`, keeps its menu, and `/my-tasks` renders ten nav links. It then said the blocker was Project Management still being `pageStyles`; those screens ported to `appShell` on 2026-09-22 and the bar came with them. Three wrong states, one cause: nobody re-read the table, which is the one thing this table needs |
   | Saved default approval flow (board 08: "Save this as the default approval flow for **Contract** documents", checked by default) | **no phase yet** | Upstream built it (CAP-V28) as two companion Machines — one template per Document Type, plus its own ordered steps — with a write direction that find-or-creates the template on submit. That is the real blocker: a template entity and a write path, not the screen. **This row exists because the deferral did not.** It has been live since Phase 15, recorded only inside `menata-app-document`'s development history, in no table anyone re-reads at a phase close — and with a reason that was wrong when written ("only one Document Type exists in metadata today"; there were zero) and is wrong now in the other direction (there are three: `Kontrak`, `Tagihan`, `Lain-lain`). Same shape as the bottom-bar row that sat wrong through four closes |
   | One signature box for a Group-held step (boards 08/09) | **no phase yet** — **named, not solved** | Board 09 places exactly one signature box for `Legal Group · 4 members`, and nothing on either board says whose signature image lands in it, or what happens when two of the four act. Upstream has the identical gap on its own compositing capability, recorded there in the same words. Worth holding here rather than discovering it during 6c-2's port |
   | Member search box (board 04) | **no phase yet** — "Planned: search, filtering and pagination" below | search does not exist anywhere in the app |
@@ -799,6 +799,106 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   question. Verified on the live server that HTML returns **no** `Content-Encoding`, rather than
   inferring it from where the middleware sits. `Cache-Control` was deliberately deferred: the
   filenames carry no content hash, so a long max-age would serve stale assets after a deploy.
+
+- **The Flow 2 mockup — gap recorded 2026-09-23, nothing scheduled yet.** A second owner canvas
+  ("Menata Runtime — Case 03 Flow", 39 artboards: 19 desktop at 1280px, 20 mobile at 390px)
+  revises the Flow 1 set this section's seven phases ported, rather than replacing it. Full study,
+  board-by-board, with what each gap would cost in *primitives* rather than in screens:
+  `menata-app-document`'s `audits/2026-09-23-kajian-gap-mockup-flow2.md`. Feature level, and only
+  what a reader of this file needs:
+
+  **It subtracts before it adds, and the subtraction is the largest item.** Board 06 is no longer
+  a role × *stage* matrix; it is a plain-language **Permissions** page whose every statement is a
+  projection of what this runtime already declares (`permissions:`, `roles:`, `transitions:`,
+  `aggregate_status`), including an honest "No restriction set yet" for the two rules nobody has
+  declared. Its own **"HAPPENS ON ITS OWN"** section states the model this app actually runs:
+  a Document's status follows its Steps, and *"Nobody sets it by hand — not even an admin."*
+  If the owner confirms that board 06 new supersedes board 06 old, **open question 1 above is
+  answered without building the stage model**, and six deferral rows close as *not wanted* rather
+  than *not done*. The one piece of CAP-V28 the new set still asks for is the saved default
+  approval flow per Document Type, which stands on its own without stages. The wizard likewise
+  drops to `Step 1 of 2` / `Step 2 of 2`, closing "the wizard's third step" by deletion.
+
+  **Already built, and worth saying so:** Ubuntu + the slate/blue palette, the 9-dot card
+  launcher, breadcrumb, account menu, and the mobile bottom bar. Chrome is four small items from
+  done (a badge on the bottom bar's Inbox tab, its "More" sheet, the workspace-name dropdown, a
+  launcher entry) — this is finishing, not porting. The **bottom-bar deferral row above is stale**
+  and says so at the next phase close: it was built in Fase 2, while the row still reads
+  "no phase yet".
+
+  **New screens:** Assigned to me (a third worklist beside Inbox and My Documents — and the
+  *third* real case for a filter that reads the viewing identity, after My Tasks and the Inbox);
+  My Documents promoted to a full screen with a **Drafts** section and a "Revise" action, both of
+  which need the `draft` status and the `Rejected → Draft` edge two deferral rows already carry;
+  two **Settings hubs** with sidebars of their own, one per Workspace and one per Application —
+  which moves Groups and Permissions *into* the Application and leaves Workspace settings with an
+  access toggle and a "Manage in app →" link; and search boxes on three screens at once.
+
+  **New concepts, none of which exist in any form today:** an Application with a **draft →
+  published** lifecycle and a publish-time access scope; **archiving and restoring a Workspace**
+  (a read-only gate above every write, which is not a per-Machine Permission); **deactivating a
+  member**; a workspace **audit log**; and **notifications** (in-app and email, per user and per
+  Application) — `internal/mail` serves invitations and verification only.
+
+  **And one that is not a phase but a product:** boards 15/16 generate a whole Application from a
+  natural-language description, review it, then publish it. It lands on the three deferrals this
+  file already carries as "not urgent while the manifest ships with the binary" — runtime-writable
+  metadata, hot reload with change classification, and rejecting unknown keys at load — because
+  it *is* the end state those rows name: metadata edited by someone who cannot restart the
+  process. Its danger is the ordinary one stated inside out: a generator that emits Go, or emits
+  YAML that then needs per-Application code to work, would break this runtime's premise while
+  looking like it succeeded.
+
+  **Four things wait on the owner, not on engineering** (the study's §7): whether board 06 new
+  supersedes board 06 old; how soon the generated-Application work is real, since it reorders
+  everything after it; whether merging pending invitations into the Members table is a display
+  choice or a model change (the identity model says an invitation is not a membership); and
+  whether Groups/Permissions really move into the Application, which changes routes, gates, and
+  who may open them.
+
+  **Flow 2 step 1 — the bars and the icon set — *shipped 2026-09-24*** (owner request: chrome
+  first, "top bar dan bottom bar dibuat selalu terlihat di screen", plus "pilihkan juga icon yang
+  style nya cocok dan bisa dipakai"). The gap study's §8 Tahap 1, less the workspace-name dropdown
+  and the launcher's "New application" entry, which belong to features that do not exist yet.
+
+  - **Both bars stay on screen.** The bottom bar was already `fixed`; the top bar was not, and on
+    the mockup's own tallest mobile boards that was not cosmetic — M06 is 1500px and M08 1560px,
+    so scrolling either took the launcher, the breadcrumb and the account menu away together and
+    left a long form with no way out but the browser's back button. `appShell`'s header is
+    `sticky top-0 z-40` now, above the bar's `z-30` so `accountMenu`'s mobile sheet still paints
+    over it.
+  - **The bottom bar's fourth column is "More"**, a `<details>` bottom sheet (`moreSheet`) holding
+    Workspace Home, one row per Application in the Workspace with the current one marked, and
+    "All Workspaces". This is the phone's only way *out* of an Application: the 9-dot launcher is
+    a pointer-sized dropdown, and until the top bar became sticky it was not even reliably on
+    screen. `<details>` and no JavaScript, the third component to make that same call after
+    `appLauncher` and `accountMenu` — consistency rather than a new pattern, and the same accepted
+    cost (a tap outside does not dismiss it). **The mockup's third sheet row, "<Application>
+    settings", is deliberately absent**: no per-Application settings hub exists yet, and a row
+    that links nowhere — or points at a Workspace-level admin screen while calling it the
+    Application's — would be worse than its absence.
+  - **A real trade, named rather than buried:** the bar now shows three declared items instead of
+    four. The right way round — items past the third stay reachable from the desktop row and the
+    launcher, while leaving the Application had no mobile affordance at all.
+  - **The nav badge reaches the bottom bar** (`NavigationItem.Badge`, already declared), and
+    deliberately **not** the desktop row: each badge is its own `hx-get` to
+    `/api/approval-inbox/pending-count`, so drawing both would double that endpoint's per-page
+    cost while only one row is ever visible. `/approval-inbox` itself still measures
+    `queries=11 reads=11 repeated=0` — the bars add no server-side read. The asymmetry dissolves
+    when that count stops needing its own round trip (the `NavBadgeApprovalInboxPending` deferral
+    row below).
+  - **`icon:` is a name from a closed set now, not a literal glyph** (`domain.KnownIcons`,
+    `internal/rendering/icons.templ`, validated at load like `color:`; `icon: "▣"` became
+    `icon: inbox`). This was already owed: `ui-sample/nav-metadata.js`'s own comment had called
+    those glyphs placeholders for "a real SVG icon set ... not-yet-scoped" since before Fase 3c,
+    and every declaration carrying one repeated the caveat. Seventeen icons, one drawing style —
+    24x24, `stroke="currentColor"` at 1.8, round caps — written once as shared attributes on a
+    single `<svg>` so they cannot drift apart, which is the only thing making seventeen separate
+    drawings read as one set. A glyph could never have that: its weight belongs to whichever font
+    happened to carry the codepoint. Metadata names *which* icon and never how it is drawn, so
+    restyling the set is one file. `TestKnownIconsAreAllDrawn` closes the seam a name-list cannot
+    close by itself — a declared name nothing draws would ship as an empty box with no error
+    anywhere, the same invisible failure a colour token with no `appIconClasses` branch has.
 
 ## Planned
 

@@ -6,15 +6,19 @@ id: app_document_approval
 name: Document Approval
 
 # description, icon and color are the Application's own card face on Workspace Home
-# (ui-sample/case-03-flow1 board 03). icon and color follow ui-sample/nav-metadata.js, which
-# already declares exactly this shape -- and carries its own caveat worth keeping attached: the
-# glyphs there are "placeholders standing in for a real SVG icon set ... swapping to one is a
-# separate, not-yet-scoped piece of work". So this is deliberately a character, not an asset.
+# (ui-sample/case-03-flow1 board 03), following the shape ui-sample/nav-metadata.js declares.
 #
-# color is a closed set (domain.KnownApplicationColors): a colour the runtime cannot realize fails
-# at load rather than rendering nothing, the same posture as field types and navigation badges.
+# icon and color are both closed sets (domain.KnownIcons, domain.KnownApplicationColors): a name
+# the runtime cannot realize fails at load rather than rendering nothing, the same posture as
+# field types and navigation badges.
+#
+# This line said `icon` was "deliberately a character, not an asset" until 2026-09-24, carrying
+# nav-metadata.js's own caveat that its glyphs were "placeholders standing in for a real SVG icon
+# set ... swapping to one is a separate, not-yet-scoped piece of work". That work is done: the icon
+# is a *name* now, drawn as inline stroke SVG by internal/rendering.icon. Still not an asset --
+# nothing is fetched, and metadata never says how an icon is drawn, only which one.
 description: Submit, review and approve controlled documents.
-icon: "✓"
+icon: check
 color: blue
 
 # summary_machine: which Machine's record count this Application's card reports.
@@ -118,7 +122,7 @@ navigation:
     # home_card: the one item this Application's own card on Workspace Home links to -- at most
     # one per Application (validated at load time).
     home_card: true
-    icon: "▣"
+    icon: inbox
   # A route carrying a query is still one destination, which is what makes this a level-1 item
   # rather than the level-2 `tabs:` concept briefly drafted and rejected: /approval-inbox?tab=mine
   # is where "My Documents" *is*. internal/web.showApprovalInbox reads ?tab= to decide which of the
@@ -128,4 +132,4 @@ navigation:
     label: My Documents
     route: /approval-inbox?tab=mine
     priority: 2
-    icon: "▧"
+    icon: file-text

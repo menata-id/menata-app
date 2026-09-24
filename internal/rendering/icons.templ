@@ -1,0 +1,102 @@
+package rendering
+
+// icon draws one of domain.KnownIcons as an inline stroke SVG.
+//
+// Inline rather than a sprite sheet or an <img>: every icon here sits next to text and must take
+// that text's own colour (an active bottom-bar tab is blue, an inactive one slate, and the launcher
+// card's tile colour comes from the Application's declared `color:`). `stroke="currentColor"` is
+// what makes that free; an <img> would need one file per colour, and a sprite would need a second
+// request before the first paint of the chrome.
+//
+// One <svg> element with the switch inside it, rather than one per case, so the shared attributes
+// -- the 24x24 box, the 1.8 stroke, round caps and joins -- are written once and cannot drift
+// between icons. That consistency *is* the icon set: it is the only thing making twelve separate
+// drawings read as one family (Flow 2 mockup, 2026-09-24).
+//
+// class carries the size (size-4, size-5, ...) and nothing else. It is a caller-supplied literal
+// so Tailwind's scanner can see it in the .templ source -- a name assembled at runtime never
+// reaches app.css (capabilities.md, "two scanner rules").
+//
+// An unknown name draws an empty box rather than panicking, unlike routeByID/labelByID. The
+// difference is what each failure costs: an unresolvable route or label breaks the page's meaning,
+// while a missing icon is a decoration next to a label that still reads correctly. The name is
+// validated at *load* instead (internal/metadata, against domain.KnownIcons), which is the earlier
+// and cheaper gate -- and internal/conformance.TestKnownIconsAreAllDrawn asserts this switch covers
+// every declared name, so "unknown" cannot happen from metadata at all.
+templ icon(name, class string) {
+	<svg
+		class={ class }
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		stroke-width="1.8"
+		stroke-linecap="round"
+		stroke-linejoin="round"
+		aria-hidden="true"
+	>
+		switch name {
+			case "check":
+				<path d="M5 12.5l4.5 4.5L19 7.5"></path>
+			case "board":
+				<rect x="4" y="4.5" width="16" height="15" rx="2"></rect>
+				<path d="M4 9h16M9.5 9v10.5"></path>
+			case "inbox":
+				<path d="M4 13h4l1.5 3h5L16 13h4"></path>
+				<path d="M5.5 5.5h13l1.5 7.5v4a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17v-4z"></path>
+			case "file-text":
+				<path d="M7 3.5h7l4 4v13H7z"></path>
+				<path d="M14 3.5v4h4"></path>
+				<path d="M10 12h6M10 16h6"></path>
+			case "check-square":
+				<rect x="4" y="4" width="16" height="16" rx="2"></rect>
+				<path d="M8.5 12.5l2.5 2.5 4.5-5"></path>
+			case "dashboard":
+				<rect x="3.5" y="3.5" width="7" height="9" rx="1.5"></rect>
+				<rect x="13.5" y="3.5" width="7" height="5" rx="1.5"></rect>
+				<rect x="13.5" y="11.5" width="7" height="9" rx="1.5"></rect>
+				<rect x="3.5" y="15.5" width="7" height="5" rx="1.5"></rect>
+			case "calendar":
+				<rect x="3.5" y="5.5" width="17" height="15" rx="2"></rect>
+				<path d="M3.5 10h17M8 3.5v4M16 3.5v4"></path>
+			case "timer":
+				<circle cx="12" cy="13.5" r="7"></circle>
+				<path d="M12 10v3.5l2.5 1.5M9.5 2.5h5"></path>
+			case "bar-chart":
+				<path d="M3.5 20.5h17"></path>
+				<path d="M7 20.5v-6M12 20.5V7M17 20.5v-9"></path>
+			case "list":
+				<path d="M8.5 6.5h11M8.5 12h11M8.5 17.5h11"></path>
+				<circle cx="4.5" cy="6.5" r="1"></circle>
+				<circle cx="4.5" cy="12" r="1"></circle>
+				<circle cx="4.5" cy="17.5" r="1"></circle>
+			case "bolt":
+				<path d="M13.5 3 5.5 13.5h5.5l-1 7.5 8-10.5h-5.5z"></path>
+			case "settings":
+				<circle cx="12" cy="12" r="3"></circle>
+				<path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path>
+			case "home":
+				<path d="M4 10.5 12 4l8 6.5"></path>
+				<path d="M6.5 9.5V20h11V9.5"></path>
+			case "grid":
+				<circle cx="6" cy="6" r="1.6"></circle>
+				<circle cx="12" cy="6" r="1.6"></circle>
+				<circle cx="18" cy="6" r="1.6"></circle>
+				<circle cx="6" cy="12" r="1.6"></circle>
+				<circle cx="12" cy="12" r="1.6"></circle>
+				<circle cx="18" cy="12" r="1.6"></circle>
+				<circle cx="6" cy="18" r="1.6"></circle>
+				<circle cx="12" cy="18" r="1.6"></circle>
+				<circle cx="18" cy="18" r="1.6"></circle>
+			case "more":
+				<circle cx="6" cy="12" r="1.4"></circle>
+				<circle cx="12" cy="12" r="1.4"></circle>
+				<circle cx="18" cy="12" r="1.4"></circle>
+			case "chevron-right":
+				<path d="M9 6l6 6-6 6"></path>
+			case "user-check":
+				<circle cx="10" cy="8" r="3.5"></circle>
+				<path d="M3.5 19.5c1-3.3 3.6-5 6.5-5s5.5 1.7 6.5 5"></path>
+				<path d="M16 11.5l2 2 3.5-3.5"></path>
+		}
+	</svg>
+}

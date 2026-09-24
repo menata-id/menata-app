@@ -11,7 +11,7 @@ name: Project Management
 # rather than summed. mch_task is this Application's work: the 13 its Machines total between them
 # is mostly lists, labels and join rows.
 description: Task boards, sprints and team capacity.
-icon: "▤"
+icon: board
 color: emerald
 summary_machine: mch_task
 
@@ -31,7 +31,7 @@ navigation:
     route: /my-tasks
     priority: 1
     home_card: true
-    icon: "☑"
+    icon: check-square
   # Moved here from document-approval.yaml (2026-09-21): the page composes Projects, Tasks and
   # their Activity -- this Application's Machines -- and had only ever been declared over there
   # because both Applications were one before Fase 3 split them.
@@ -39,34 +39,34 @@ navigation:
     label: Dashboard
     route: /dashboard
     priority: 1
-    icon: "▥"
+    icon: dashboard
   - id: nav_calendar
     label: Calendar
     route: /calendar
     priority: 2
-    icon: "▦"
+    icon: calendar
   - id: nav_sprint
     label: Sprint Dashboard
     route: /sprint
     priority: 2
-    icon: "◷"
+    icon: timer
   - id: nav_team_capacity
     label: Team Capacity
     route: /team-capacity
     priority: 3
-    icon: "◨"
+    icon: bar-chart
   - id: nav_activity
     label: Activity
     route: /activity
     priority: 3
-    icon: "☰"
+    icon: list
   - id: nav_automation
     label: Automation
     route: /automation
     priority: 4
-    icon: "⚙"
+    icon: bolt
   - id: nav_board_settings
     label: Board Settings
     route: /board-settings
     priority: 4
-    icon: "⚒"
+    icon: settings

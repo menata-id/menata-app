@@ -55,6 +55,12 @@ func validateNavigation(items []domain.NavigationItem) []string {
 		if n.Badge != "" && !domain.KnownNavigationBadges[n.Badge] {
 			issues = append(issues, fmt.Sprintf("navigation item %q: unknown badge %q", n.ID, n.Badge))
 		}
+		// Same closed-set posture as badge directly above, and for a sharper reason: an icon name
+		// nothing draws renders an empty box in the bottom bar rather than no icon at all, so the
+		// tab looks broken instead of plain (domain.KnownIcons, internal/rendering.icon).
+		if n.Icon != "" && !domain.KnownIcons[n.Icon] {
+			issues = append(issues, fmt.Sprintf("navigation item %q: unknown icon %q -- see domain.KnownIcons", n.ID, n.Icon))
+		}
 		if n.HomeCard {
 			if homeCardID != "" {
 				issues = append(issues, fmt.Sprintf("navigation item %q: home_card is already set on %q -- at most one item may claim it", n.ID, homeCardID))

@@ -104,7 +104,18 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			{{ path, rawQuery := CurrentPath(ctx) }}
 			{{ menu := defaultAppMenu(currentApp.AllNavigation, path, rawQuery) }}
 			{{ hasAppMenu := inApp && len(menu) > 0 }}
-			<header class="flex flex-col border-b border-slate-200 bg-white">
+			// sticky, not static (owner request, 2026-09-24: "top bar dan bottom bar dibuat selalu
+			// terlihat di screen"). The bottom bar was already `fixed`; this is the half that was
+			// missing, and on the Flow 2 mockup's own tallest boards it is not cosmetic -- M06
+			// (Permissions) is 1500px and M08 (Submit) 1560px, so scrolling either one used to take
+			// the launcher, the breadcrumb and the account menu off screen together, leaving a long
+			// form with no way out of it but the browser's own back button.
+			//
+			// z-40 over the bottom bar's z-30 on purpose: accountMenu's mobile sheet is a `fixed`
+			// child of this header, so it must paint above the bar it overlaps rather than behind it.
+			// A sticky element does not create a containing block for a fixed descendant (only a
+			// transform/filter/perspective does), so that sheet still positions against the viewport.
+			<header class="sticky top-0 z-40 flex flex-col border-b border-slate-200 bg-white">
 				<div class="flex h-15 shrink-0 items-center gap-2.5 px-4 sm:pr-7 sm:pl-9">
 					@appLauncher(workspaceName, switchWorkspaceHref)
 					<nav aria-label="Breadcrumb" class="min-w-0 truncate text-sm text-slate-400">
@@ -128,7 +139,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 				{ children... }
 			</main>
 			if hasAppMenu {
-				@applicationBottomBar(bottomBarItems(menu))
+				@applicationBottomBar(bottomBarItems(menu), currentApp, workspaceName, switchWorkspaceHref)
 			}
 			@pwaRegistrationScript()
 		</body>
@@ -140,9 +151,13 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 // presentation decision (which item matches the current request) that neither belongs on the
 // declared metadata shape nor need be recomputed by each of the two renderers separately.
 type navMenuItem struct {
-	Label  string
-	Href   string
-	Icon   string
+	Label string
+	Href  string
+	Icon  string
+	// Badge is the declared domain.KnownNavigationBadges kind this item asks for, carried through
+	// unchanged from domain.NavigationItem.Badge so the bottom bar can draw the same live count
+	// pageShell's own navLink already draws. Empty for an item that declares none.
+	Badge  string
 	Active bool
 }
 
@@ -176,7 +191,7 @@ func defaultAppMenu(items []domain.NavigationItem, path, rawQuery string) []navM
 		if active && matched == -1 {
 			matched = i
 		}
-		menu[i] = navMenuItem{Label: item.Label, Href: item.Route, Icon: item.Icon, Active: active}
+		menu[i] = navMenuItem{Label: item.Label, Href: item.Route, Icon: item.Icon, Badge: item.Badge, Active: active}
 	}
 	if matched == -1 && len(menu) > 0 {
 		menu[0].Active = true
@@ -203,11 +218,18 @@ func tabParam(rawQuery string) string {
 	return ""
 }
 
-// bottomBarItems is appShell's mobile row: the menu's own first 3-4 entries (owner spec,
+// bottomBarItems is appShell's mobile row: the menu's own first three entries (owner spec,
 // ui-sample/README.md: "dengan 3-4 icon"), in the same Priority order the desktop row already
 // uses -- not a separate declaration, so the two rows can never disagree about which items lead.
+//
+// THREE, not four, since 2026-09-24: the fourth column is always "More" (applicationBottomBar's
+// own sheet), which is the Flow 2 mockup's M07/M07b pair. That is a real trade and worth naming --
+// an Application declaring four or more navigation items now surfaces three of them here instead
+// of four. It is the right way round: the items past the third are reachable from the desktop row
+// and the launcher either way, while *leaving the Application* had no mobile affordance at all
+// before this, because the launcher lives in the top bar that used to scroll away.
 func bottomBarItems(menu []navMenuItem) []navMenuItem {
-	return menu[:min(4, len(menu))]
+	return menu[:min(3, len(menu))]
 }
 
 // applicationMenuRow is appShell's header, second row: the current Application's own menu, plain
@@ -231,9 +253,21 @@ templ applicationMenuRow(menu []navMenuItem) {
 
 // applicationBottomBar is the mobile counterpart of applicationMenuRow -- owner spec's other half:
 // a fixed bar, icon over label, shown only below `sm` where the header's own second row is
-// `hidden`. ui-sample/case-03-flow1's own M07-Inbox board is the visual reference: 76px tall,
-// evenly split columns, active in blue-600, the rest in slate-500.
-templ applicationBottomBar(items []navMenuItem) {
+// `hidden`. The Flow 2 mockup's M07-Inbox board is the visual reference: 76px tall, evenly split
+// columns, active in blue-600, the rest in slate-500, with a red count bubble on the tab whose
+// item declares a badge.
+//
+// Four columns: three declared items (bottomBarItems) and "More", whose sheet is the one way out
+// of an Application on a phone -- see moreSheet.
+//
+// The badge is drawn here and NOT on applicationMenuRow, which is a cost decision rather than a
+// design one. Each badge is its own hx-get to /api/approval-inbox/pending-count (the count is
+// still resolved per request in the Domain Plane -- ROADMAP.md's own deferral row), so rendering
+// it in both rows would fire that endpoint twice per page while only ever one row is visible.
+// One row, one request: the same number of badge requests a pageShell page has always made.
+// When that count stops needing its own round trip, both rows can read one value and this
+// asymmetry goes away.
+templ applicationBottomBar(items []navMenuItem, app domain.Application, workspaceName, switchWorkspaceHref string) {
 	<nav aria-label="Application" class="fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t border-slate-200 bg-white px-1 pb-3 sm:hidden">
 		for _, item := range items {
 			<a
@@ -243,11 +277,93 @@ templ applicationBottomBar(items []navMenuItem) {
 					aria-current="page"
 				}
 			>
-				<span aria-hidden="true" class="text-base leading-none">{ item.Icon }</span>
+				<span class="relative flex">
+					@icon(item.Icon, "size-5.5")
+					if item.Badge == domain.NavBadgeApprovalInboxPending {
+						<span
+							class="menata-tab-badge absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-3xs text-white"
+							hx-get="/api/approval-inbox/pending-count"
+							hx-trigger="load"
+							hx-swap="innerHTML"
+						></span>
+					}
+				</span>
 				{ item.Label }
 			</a>
 		}
+		@moreSheet(app, workspaceName, switchWorkspaceHref)
 	</nav>
+}
+
+// moreSheet is the bottom bar's fourth column: a bottom sheet holding the destinations that leave
+// the current Application (Flow 2 mockup, M07b). It exists because a phone has no launcher of its
+// own -- the 9-dot panel is a top-bar dropdown sized for a pointer -- so before this, the only way
+// from an Application's screen back to the Workspace, or across to another Application, was the
+// browser's back button.
+//
+// Its three groups are Workspace home, the Workspace's own Applications, and All Workspaces: the
+// same three the launcher shows, deliberately, because they answer the same question. It is not
+// launcherAppCard reused as-is, though -- the sheet marks the Application you are already in
+// (aria-current) and the launcher never needs to, since the launcher does not know.
+//
+// The mockup's third row, "<Application> settings", is NOT rendered: no per-Application settings
+// hub exists yet (the Flow 2 gap study's §5.3, menata-app-document's
+// audits/2026-09-23-kajian-gap-mockup-flow2.md). Drawing a row that links nowhere, or pointing it
+// at a Workspace-level admin screen and calling it the Application's, would both be worse than
+// its absence.
+//
+// <details>, no JavaScript and no backdrop -- the same mechanism and the same accepted cost as
+// appLauncher and accountMenu (a tap outside does not dismiss it; the handle, a link, or tapping
+// "More" again does). This is consistency with two existing menus, not a third pattern.
+templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string) {
+	<details class="group flex flex-1 flex-col">
+		<summary class="flex cursor-pointer list-none flex-col items-center gap-1 py-2 text-2xs text-slate-500 group-open:font-medium group-open:text-blue-600 [&::-webkit-details-marker]:hidden">
+			@icon("more", "size-5.5")
+			More
+		</summary>
+		<div class="fixed inset-x-0 bottom-19 z-40 max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-slate-200 bg-white p-2 pb-4 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]">
+			<div class="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-200"></div>
+			<a href="/home" class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50">
+				<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+					@icon("home", "size-5")
+				</span>
+				<span class="flex min-w-0 grow flex-col gap-0.5">
+					<span class="text-sm text-slate-900">{ labelByID(ctx, "nav_home") }</span>
+					<span class="truncate text-xs text-slate-400">{ workspaceName }</span>
+				</span>
+				<span class="text-slate-300">
+					@icon("chevron-right", "size-4")
+				</span>
+			</a>
+			<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
+			for _, other := range CurrentWorkspace(ctx).Applications {
+				<a
+					href={ templ.SafeURL(launcherAppHomeRoute(ctx, other)) }
+					class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50"
+					if other.ID == app.ID {
+						aria-current="page"
+					}
+				>
+					<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", appIconClasses(other.Color) }>
+						@icon(other.Icon, "size-5")
+					</span>
+					<span class="flex min-w-0 grow flex-col gap-0.5">
+						<span class={ "text-sm text-slate-900", templ.KV("font-medium", other.ID == app.ID) }>{ other.Name }</span>
+						if other.Description != "" {
+							<span class="truncate text-xs text-slate-400">{ other.Description }</span>
+						}
+					</span>
+					<span class="text-slate-300">
+						@icon("chevron-right", "size-4")
+					</span>
+				</a>
+			}
+			if switchWorkspaceHref != "" {
+				<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } class="block rounded-lg p-3 text-sm font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
+			}
+		</div>
+	</details>
 }
 
 // accountMenu is the avatar's own menu (Account menu port, 2026-09-21, from
@@ -359,8 +475,8 @@ templ appLauncher(workspaceName, switchWorkspaceHref string) {
 // Home card exactly.
 templ launcherAppCard(app domain.Application) {
 	<a href={ templ.SafeURL(launcherAppHomeRoute(ctx, app)) } class="flex items-start gap-3 rounded-md p-2 hover:bg-slate-50">
-		<span class={ "flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-medium", appIconClasses(app.Color) }>
-			{ app.Icon }
+		<span class={ "flex size-8 shrink-0 items-center justify-center rounded-lg", appIconClasses(app.Color) }>
+			@icon(app.Icon, "size-4.5")
 		</span>
 		<span class="flex min-w-0 flex-col">
 			<span class="text-sm font-medium text-slate-900">{ app.Name }</span>

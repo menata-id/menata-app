@@ -922,3 +922,38 @@ func machineFromManifest(t *testing.T, id string) *domain.Machine {
 	t.Fatalf("%s is not declared in the real manifest", id)
 	return nil
 }
+
+// TestKnownIconsAreAllDrawn closes the one seam domain.KnownIcons cannot close by itself: it is a
+// list of *names*, and a name is only worth declaring if something draws it. internal/rendering's
+// icon templ deliberately does not panic on an unknown name (an icon is decoration beside a label
+// that still reads), so a name added to the set and never drawn would ship as an empty 24x24 box
+// in a bottom-bar tab or an Application tile, with no error anywhere -- the same
+// invisible-at-runtime failure shape as a colour token with no appIconClasses branch, which is
+// exactly why KnownApplicationColors' own doc comment warns it "must be extended here in step".
+//
+// The check reads the switch's `case` labels out of icons.templ rather than rendering each icon,
+// because what can go wrong is a missing branch, not a wrong path: a typo'd `d=` attribute is a
+// drawing bug a test like this could never see, while a missing case is exactly what it catches.
+//
+// One direction only, matching TestCapabilitiesComponentsTableMatchesTempl's own reasoning:
+// a drawn icon that KnownIcons does not list is unreachable from metadata but perfectly usable by
+// the chrome (chevron-right, home, grid and more are drawn for appShell and named by no manifest),
+// so requiring the reverse would forbid the runtime from having icons of its own.
+func TestKnownIconsAreAllDrawn(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join(repoRoot(), "internal", "rendering", "icons.templ"))
+	if err != nil {
+		t.Fatalf("read icons.templ: %v", err)
+	}
+	drawn := make(map[string]bool)
+	for _, m := range regexp.MustCompile(`(?m)^\s*case "([a-z-]+)":`).FindAllStringSubmatch(string(src), -1) {
+		drawn[m[1]] = true
+	}
+	if len(drawn) == 0 {
+		t.Fatal("internal/rendering/icons.templ declares no `case \"...\":` branches -- the icon switch is gone or changed shape")
+	}
+	for name := range domain.KnownIcons {
+		if !drawn[name] {
+			t.Errorf("domain.KnownIcons declares %q, but internal/rendering/icons.templ draws no case for it -- metadata could name an icon that renders an empty box", name)
+		}
+	}
+}

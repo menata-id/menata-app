@@ -120,13 +120,16 @@ type Application struct {
 	// single authority on who may do what (006 §Behavioral Model). Its load-bearing job is
 	// Workspace.ApplicationForMachine above.
 	Machines []string
-	// Description, Icon and Color are this Application's card face on Workspace Home. Icon is a
-	// single character, following ui-sample/nav-metadata.js, whose own comment records that these
-	// glyphs stand in for a real SVG icon set that is "not-yet-scoped" -- the placeholder status
-	// travels with the declaration rather than being rediscovered later.
+	// Description, Icon and Color are this Application's card face on Workspace Home.
 	//
-	// Color must be one of KnownApplicationColors. All three are optional: an Application
-	// declaring none still renders, just plainly.
+	// Icon must be one of KnownIcons and Color one of KnownApplicationColors -- two closed sets
+	// for the same reason, since both are names the renderer must recognize to draw anything at
+	// all. Icon was a single literal character until 2026-09-24, the ui-sample/nav-metadata.js
+	// placeholder its own comment called "not-yet-scoped" for a real SVG set; KnownIcons is that
+	// set arriving.
+	//
+	// All three are optional: an Application declaring none still renders, just plainly -- with
+	// its initials in place of an icon (rendering.ApplicationCard.Initials).
 	Description string
 	Icon        string
 	Color       string

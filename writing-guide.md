@@ -81,7 +81,7 @@ applications:
 id: app_bug_tracker
 name: Bug Tracker
 description: Track and triage defects.
-icon: "🐞"
+icon: bolt
 color: amber
 
 # Machines this Application claims, by id -- selected from the Workspace's own set above, never
@@ -695,7 +695,7 @@ dropping a file in *installs* its Applications into that Workspace. `application
 | Key | Value | Notes |
 |---|---|---|
 | `id` / `name` | `app_*` / string | |
-| `description` / `icon` / `color` | string / string / closed set | The Application's card face on Workspace Home. `color` ∈ `blue`, `emerald`, `amber`, `slate` (`domain.KnownApplicationColors`) |
+| `description` / `icon` / `color` | string / closed set / closed set | The Application's card face on Workspace Home. `icon` ∈ `domain.KnownIcons` (see below); `color` ∈ `blue`, `emerald`, `amber`, `slate` (`domain.KnownApplicationColors`) |
 | `summary_machine` | `mch_*` | Whose record count the card reports; must be a Machine this Application claims |
 | `show_nav` | bool | `false` suppresses this Application's menu chrome only — every route stays reachable, and the launcher never reads it to decide *whether* an Application appears |
 | `machines[]` | `mch_*` ids | Selected from the Workspace's set, never file paths. At most one Application may claim a given Machine |
@@ -716,6 +716,28 @@ Navigation item keys:
 | `priority` | int | |
 | `badge` | closed set | Only `approval_inbox_pending` today |
 | `home_card` | bool | Marks the Workspace Home card's destination (`Application.HomeRoute`) |
+| `icon` | closed set | Drawn on the mobile bottom bar. Same vocabulary as an Application's own `icon` — see below |
+
+**Icon names** (`domain.KnownIcons`, drawn by `internal/rendering/icons.templ`). A name, never a
+glyph or a path: metadata says *which* icon, the runtime says how it is drawn, so the whole set is
+restyled in one file and every icon on a screen keeps the same stroke weight. An unknown name fails
+at load.
+
+| Declarable | |
+|---|---|
+| `check` `board` `inbox` `file-text` `check-square` | |
+| `dashboard` `calendar` `timer` `bar-chart` `list` | |
+| `bolt` `settings` | |
+
+`home`, `grid`, `more`, `chevron-right` and `user-check` are drawn too, but they are the runtime's
+own chrome (`appShell`) and no manifest names them. Adding an icon means adding a `case` to
+`icons.templ` *and* a name to `KnownIcons` — `TestKnownIconsAreAllDrawn` fails if only one of
+the two happens.
+
+This replaced `icon: "▣"`, a single literal character, on 2026-09-24. A character could never
+carry a consistent stroke weight across a set, because it belongs to whichever font happened to
+have that codepoint — which is why the convention's own declaration comment had always called
+it a placeholder.
 
 ### 12.2 A Machine file
 

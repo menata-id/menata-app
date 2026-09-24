@@ -287,6 +287,9 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 	if doc.Color != "" && !domain.KnownApplicationColors[doc.Color] {
 		issues = append(issues, fmt.Sprintf("application %q: color %q is not a known application color", doc.ID, doc.Color))
 	}
+	if doc.Icon != "" && !domain.KnownIcons[doc.Icon] {
+		issues = append(issues, fmt.Sprintf("application %q: icon %q is not a known icon -- see domain.KnownIcons", doc.ID, doc.Icon))
+	}
 	// summary_machine must be one of this Application's *own* machines. Pointing at another
 	// Application's would put that Application's record count on this card -- the same misleading
 	// number the declaration exists to prevent, just sourced differently.
