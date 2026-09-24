@@ -931,6 +931,37 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     platform had the missing piece instead, and it is better than any of them for this: `popover`
     is one attribute, needs no bundle, and cannot go stale.
 
+  - **Why the app felt slow to open, answered from the logs** (2026-09-24, owner: *"kenapa baru
+    saja aku akses, tidak langsung membuka ya? apakah terlihat di log?"*). It was visible, but not
+    in this app's log -- which records query counts and no status, duration or request headers at
+    all. The edge log had it.
+
+    **The access itself was fine**: 38 requests, every one 200, 1-18ms server time bar two honest
+    outliers (177ms for the first request after three hours idle, 425ms for a 129kB PDF render).
+    The `303 -> /login` sitting at the tail of the log, which looks exactly like "it would not
+    open", was a crawler from another address, not the owner.
+
+    **What was real was in a header.** `/home` and `/approval-inbox` arrived with
+    `Sec-Fetch-Dest: empty` 410 times against `document` 11. A navigation is always `document`;
+    `empty` is a `fetch()` -- the service worker re-issuing every request. It did two wasteful
+    things: proxied every subresource through `event.respondWith(fetch(event.request))`, which is
+    what the browser does unaided minus a trip through the worker, and made each navigation wait
+    for the worker to *boot* before its own request started. That wait happens in the browser
+    before anything reaches the server, which is precisely why no amount of reading this app's own
+    log would have found it.
+
+    Fixed with navigation preload plus returning without `respondWith` for anything that is not a
+    navigation (a registered fetch handler is all installability requires). Verified at the edge:
+    navigations now arrive as `document` with `Service-Worker-Navigation-Preload: true`, one
+    request per navigation instead of three.
+
+    **And the edge was overriding the asset fix from the entry above.** `caddy` matched `*.css
+    *.js` by path and stamped `immutable` on all of them whatever this app sent -- the actual
+    mechanism behind the stale stylesheet, and it also pinned `/sw.js`, the worker in front of
+    every navigation (bounded at 24h by the browser, not permanent). Both patterns are out of that
+    site's block now; images and fonts keep the long cache because their URLs never move. `/sw.js`
+    additionally sends `no-cache` from the app, which is where that decision belongs.
+
   - **Static assets carry a content hash** (item 3). A page names `/css/app.<8 hex>.css` and the
     two vendored scripts likewise; the hash is computed once at startup off the files the same
     router serves, so the URL a page emits and the file it resolves to cannot disagree. A

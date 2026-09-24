@@ -186,6 +186,23 @@ the old way", which is a cache problem wearing a rendering problem's clothes. Ga
 `TestFingerprintedAssetCachePolicy` / `TestAssetURLChangesWithContent`, because nothing else in the
 app can see it fail.
 
+**The edge was overriding it, and that was the original cause.** `caddy` matched `*.css *.js` by
+path and stamped every one `max-age=31536000, immutable` regardless of what this app sent -- which
+is what served a stylesheet from before a deploy, and which also pinned `/sw.js`, the service
+worker sitting in front of every navigation (browsers cap a worker script at 24h, so bounded, not
+permanent). Both patterns were removed from that site's block on 2026-09-24; images and fonts keep
+the long cache, since their URLs never move. The app decides for `.css`/`.js` now, which is the
+only place that knows whether a URL carries a hash.
+
+**The service worker no longer proxies anything it does not need to.** It called
+`event.respondWith(fetch(event.request))` for every subresource -- exactly what the browser does
+unaided, minus a trip through the worker -- and made navigations wait for the worker to boot
+before their own fetch started. Both are gone: subresources return without `respondWith` (a
+registered fetch handler is all installability asks for), and navigations use navigation preload.
+Measured at the edge before and after: `/home` and `/approval-inbox` used to arrive with
+`Sec-Fetch-Dest: empty` 410 times against `document` 11, and now arrive as `document` with
+`Service-Worker-Navigation-Preload: true`, one request per navigation instead of three.
+
 **One control vocabulary, since 2026-09-24.** `controls.templ` holds one literal class string per
 control kind -- `controlPrimary`, `controlSecondary`, `controlDanger`, `controlField`, plus
 `tableCell`/`tableHeadCell` -- and every `appShell` screen reads them instead of hand-writing its
