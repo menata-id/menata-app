@@ -142,14 +142,16 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 							<span class="truncate text-sm leading-5 font-medium text-slate-900 sm:hidden">{ currentApp.Name }</span>
 						</nav>
 					} else {
-						<nav aria-label="Breadcrumb" class="flex min-w-0 items-center text-sm text-slate-400">
+						// gap-1.5 rather than spaces inside the separator: both parts are flex items, and
+					// whitespace at a flex item's own edge collapses, so " / " rendered as "/Title".
+					<nav aria-label="Breadcrumb" class="flex min-w-0 items-center gap-1.5 text-sm text-slate-400">
 							@workspaceMenu(workspaceName, viewer, switchWorkspaceHref)
 							// Workspace Home names itself in its own <h1>, so repeating it here as
 							// "Dokter Kecil / Home" is the duplication board 03 leaves out -- its
 							// breadcrumb is the Workspace name alone. Every other Workspace-level
 							// screen still says which one it is.
 							if title != labelByID(ctx, "nav_home") {
-								<span class="shrink-0">{ " / " }</span>
+								<span class="shrink-0">/</span>
 								<span class="truncate">{ title }</span>
 							}
 						</nav>

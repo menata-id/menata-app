@@ -1,0 +1,117 @@
+package rendering
+
+import (
+	"menata.app/internal/domain"
+	"menata.app/internal/storage"
+)
+
+// The app's in-screen control vocabulary: one string per control kind, read by every
+// appShell-based screen instead of each hand-writing its own.
+//
+// WHY THIS EXISTS AT ALL, since it is a list of strings and could read as tidiness. Until
+// 2026-09-24 the app rendered from two stylesheets, so a control written twice was written in two
+// different systems and the duplication was invisible -- `pageStyles` had `button.primary`,
+// Tailwind screens spelled it out. With one stylesheet left it became measurable, and the
+// measurement was bad: **four different primary buttons** (`h-9 px-4`, `h-8 px-3`, `h-11 sm:h-9`,
+// plus two that only differed by a leading `flex items-center`) and **six different text inputs**,
+// some with a focus ring and some without. Two of those variants were added by the same change
+// that made them countable -- the generic record screens' port -- which is the argument for fixing
+// it now rather than after the next screen adds a seventh.
+//
+// WHOLE LITERAL STRINGS, never assembled from parts. Tailwind's scanner reads source text, so a
+// class name built at runtime never reaches app.css (appIconClasses, workspacehome.templ, records
+// the same rule at length). Callers may append with `+ " mr-1"` for one-off spacing, which is
+// fine: both halves are still literal text in a scanned file.
+//
+// THE PRE-AUTH SCREENS ARE DELIBERATELY NOT HERE. authShell's own kit (`authField`,
+// `authPasswordField`, `authSubmit`) renders at `h-10.5 sm:h-9.5` / `h-11 sm:h-9` with a 15px
+// label -- a bigger touch target for a screen someone reaches on a phone before they have an
+// account, which is a real decision rather than drift, and it already lives in named components.
+// Unifying the two sizes would be undoing that decision, not removing a duplicate.
+const (
+	// controlPrimary is the one affirmative action on a screen: Save, Add, Approve, Continue.
+	controlPrimary = "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-800"
+
+	// controlSecondary is everything beside it: Cancel, Edit, Delete, a link styled as a button.
+	controlSecondary = "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-4 font-sans text-sm text-slate-700 hover:bg-slate-50"
+
+	// controlDanger is a destructive decision the screen wants read before it is clicked -- today
+	// only Reject. Deliberately not used for Delete: a row's Delete is ordinary and reversible by
+	// re-creating the record, while Reject ends an approval.
+	controlDanger = "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-red-200 bg-white px-4 font-sans text-sm text-red-700 hover:bg-red-50"
+
+	// controlField is one text/date/number input or select. The focus ring is part of the
+	// definition, not decoration: half the inputs in the app carried it and half did not, and the
+	// half without were the ones nobody had looked at since they were written.
+	//
+	// It carries no width on purpose. Every caller has an opinion -- `w-full` inside a table cell,
+	// `min-w-44 grow` in the wizard's approver row, a fixed `w-36` for a filter -- and baking one
+	// in would mean each of those fighting it with a second width utility whose winner depends on
+	// the order Tailwind happens to emit them in, which is not a thing a caller should have to
+	// reason about.
+	controlField = "h-9 rounded-md border border-slate-300 bg-white px-3 font-sans text-sm text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
+
+	// tableCell / tableHeadCell are the generic record table's own two cells, kept beside the
+	// controls because a table that half matches the rest of a screen is the same defect in a
+	// different element.
+	tableCell     = "border-b border-slate-100 px-3 py-2 align-middle"
+	tableHeadCell = "border-b border-slate-200 px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
+)
+
+// fieldInput renders the input control appropriate to a Field's semantic type, pre-filled with
+// current (nil for a blank create-form field). relations supplies <select> options for any
+// reference field (Relation or Person, per domain.Field.IsReference); unused for every other
+// type.
+templ fieldInput(f domain.Field, current any, relations RelationOptions, groups GroupOptions) {
+	switch {
+		case f.Type == domain.FieldTypeStatus:
+			<select name={ f.ID } class={ controlField + " w-full" }>
+				<option value=""></option>
+				for _, opt := range f.Options {
+					<option value={ opt } selected?={ toString(current) == opt }>{ opt }</option>
+				}
+			</select>
+		case f.IsReference():
+			<select name={ f.ID } class={ controlField + " w-full" }>
+				<option value=""></option>
+				for _, opt := range relations[f.RelatedMachine] {
+					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
+				}
+			</select>
+		// A group Field picks from the Workspace's own Groups (CAP-F24). Its own case rather than
+		// the IsReference() one above precisely because IsReference() is false for it: a Group has
+		// no target Machine to key relations by, so the options arrive in their own list.
+		case f.Type == domain.FieldTypeGroup:
+			<select name={ f.ID } class={ controlField + " w-full" }>
+				<option value=""></option>
+				for _, opt := range groups {
+					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
+				}
+			</select>
+		case f.Type == domain.FieldTypeBoolean:
+			<input type="checkbox" name={ f.ID } checked?={ toBool(current) } class="size-4 accent-blue-600"/>
+		case f.Type == domain.FieldTypeDate:
+			<input type="date" name={ f.ID } value={ toString(current) } class={ controlField + " w-full" }/>
+		case f.Type == domain.FieldTypeNumber:
+			<input type="number" step="any" name={ f.ID } value={ toString(current) } class={ controlField + " w-full" }/>
+		case f.Type == domain.FieldTypeFile:
+			if key := toString(current); key != "" {
+				<div class="flex flex-col gap-1">
+					<a href={ templ.URL("/uploads/" + key) } target="_blank" class="truncate text-xs text-blue-600 hover:text-blue-700">{ storage.DisplayName(key) }</a>
+					<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-600"/>
+				</div>
+			} else {
+				<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-600"/>
+			}
+		default:
+			<input type="text" name={ f.ID } value={ toString(current) } class={ controlField + " w-full" }/>
+	}
+}
+
+// fileLink renders a FieldTypeFile value as a download link, or nothing if unset.
+templ fileLink(v any) {
+	if key := toString(v); key != "" {
+		<a href={ templ.URL("/uploads/" + key) } target="_blank" class="text-blue-600 hover:text-blue-700">{ storage.DisplayName(key) }</a>
+	}
+}
+

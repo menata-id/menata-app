@@ -929,6 +929,35 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     platform had the missing piece instead, and it is better than any of them for this: `popover`
     is one attribute, needs no bundle, and cannot go stale.
 
+  - **One control vocabulary** (2026-09-24, item 1 of the post-port cleanup). `controls.templ`
+    holds one literal class string per control kind -- `controlPrimary`, `controlSecondary`,
+    `controlDanger`, `controlField`, `tableCell`, `tableHeadCell` -- and every `appShell` screen
+    reads them.
+
+    **Added against a measurement, not a preference, and the measurement indicted the change that
+    produced it.** While two stylesheets existed a control written twice was written in two
+    different systems, so the duplication was invisible. With one left it became countable: four
+    different primary buttons (`h-9 px-4`, `h-8 px-3`, `h-11 sm:h-9`, plus two differing only by a
+    leading `flex items-center`) and six different text inputs, some with a focus ring and some
+    without. **Two of those variants were added by the port that made them countable** -- the
+    generic record screens got their own local `btnPrimary`/`inputBase` a day earlier -- which is
+    why this is item 1 rather than a later tidy-up: the next screen would have added a seventh.
+
+    `controlField` carries no width on purpose. Every caller has one (`w-full` in a table cell,
+    `min-w-44 grow` in the wizard's approver row, `w-36` for a filter), and baking one in would
+    make each fight it with a second width utility whose winner depends on the order Tailwind
+    emits them in.
+
+    **The pre-auth screens are deliberately excluded**: `authShell`'s kit renders larger
+    (`h-10.5 sm:h-9.5`, 15px labels) for a screen reached on a phone before an account exists.
+    That is a decision already captured in named components, and unifying the sizes would undo it.
+    Verified in a browser: every form control on the ported screens now measures 36px, and the
+    only other heights left belong to chrome (the 28px launcher, the 32px avatar).
+
+    One defect fixed on the way, introduced by the Workspace menu two commits earlier: the
+    breadcrumb separator rendered as `/Title` with no space, because both parts are flex items and
+    whitespace at a flex item's own edge collapses. It is a `gap` now, not a padded string.
+
   - **The last two screens left the other stylesheet** (2026-09-24) — `/`, `/machines/{id}` and
     the generic record detail page moved from `pageShell` to `appShell`, and `pageStyles` was
     deleted with them. This closes two deferral rows below ("Dashboard (`/dashboard`) still on

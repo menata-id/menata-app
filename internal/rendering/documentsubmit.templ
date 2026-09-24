@@ -50,7 +50,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
 				<h2 class="m-0 text-sm font-medium">Document</h2>
 				@wizardField("doc_title", "Title") {
-					<input id="doc_title" type="text" name="fld_title" required class="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"/>
+					<input id="doc_title" type="text" name="fld_title" required class={ controlField }/>
 				}
 				@wizardField("doc_type", documentType.Name) {
 					@wizardSelect("doc_type", documentType.ID, documentType.Options, "")
@@ -94,7 +94,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 				</section>
 			</div>
 			<div class="flex justify-end">
-				<button type="submit" class="h-9 cursor-pointer rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">Continue →</button>
+				<button type="submit" class={ controlPrimary }>Continue →</button>
 			</div>
 		</form>
 	}
@@ -114,7 +114,7 @@ templ wizardField(id, label string) {
 // Field keeps it usable for the approver-type picker too, whose values are domain.ActorKind*
 // rather than a Field's Options -- see approverTypeSelect.
 templ wizardSelect(id, name string, options []string, placeholder string) {
-	<select id={ id } name={ name } required class="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300">
+	<select id={ id } name={ name } required class={ controlField }>
 		<option value="">{ placeholder }</option>
 		for _, opt := range options {
 			<option value={ opt }>{ opt }</option>
@@ -161,12 +161,12 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions) {
 			name={ action.FieldStepName }
 			placeholder="Step name (optional)"
 			aria-label="Step name"
-			class="h-9 w-36 rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
+			class={ controlField + " w-36" }
 		/>
 		<select
 			name={ action.FieldStepApproverType }
 			aria-label="Approver type"
-			class="approver-type h-9 rounded-md border border-slate-300 bg-white px-2 text-sm outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
+			class={ "approver-type px-2 " + controlField }
 			_="on change if my value is 'Group' then remove .hidden from the next <.approver-group/> then add .hidden to the next <.approver-user/> else add .hidden to the next <.approver-group/> then remove .hidden from the next <.approver-user/> end"
 		>
 			<option value={ domain.ActorKindUser }>{ domain.ActorKindUser }</option>
@@ -175,7 +175,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions) {
 		<select
 			name={ action.FieldStepAssignee }
 			aria-label="Approver"
-			class="approver-user h-9 min-w-44 grow rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
+			class={ "approver-user min-w-44 grow " + controlField }
 		>
 			<option value="">Select a person…</option>
 			for _, opt := range approvers[domain.UserMachineID] {

@@ -109,11 +109,11 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 		{{ deletable, blockedReason := canDeleteInView(m, r, children, actor) }}
 		<div class="flex flex-wrap items-center gap-2">
 			if m.ID == action.DocumentMachineID {
-				<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)) } class={ btnSecondary }>Signature Positions</a>
+				<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)) } class={ controlSecondary }>Signature Positions</a>
 			}
 			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
-					class={ btnSecondary }
+					class={ controlSecondary }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 					hx-target="#record-detail"
 					hx-swap="outerHTML"
@@ -121,7 +121,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			}
 			if deletable {
 				<button
-					class={ btnSecondary }
+					class={ controlSecondary }
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target="#record-detail"
 					hx-confirm="Delete this record?"
@@ -166,9 +166,9 @@ templ ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor)
 				<thead>
 					<tr>
 						for _, f := range cc.Machine.Fields {
-							<th class={ headCellBase }>{ f.Name }</th>
+							<th class={ tableHeadCell }>{ f.Name }</th>
 						}
-						<th class={ headCellBase }></th>
+						<th class={ tableHeadCell }></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -204,10 +204,10 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 				}
 			</dl>
 			<div class="flex flex-wrap items-center gap-2">
-				<button type="submit" class={ btnPrimary }>Save</button>
+				<button type="submit" class={ controlPrimary }>Save</button>
 				<button
 					type="button"
-					class={ btnSecondary }
+					class={ controlSecondary }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target="#record-detail"
 					hx-swap="outerHTML"

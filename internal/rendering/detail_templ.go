@@ -385,7 +385,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			return templ_7745c5c3_Err
 		}
 		if m.ID == action.DocumentMachineID {
-			var templ_7745c5c3_Var17 = []any{btnSecondary}
+			var templ_7745c5c3_Var17 = []any{controlSecondary}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -422,7 +422,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			}
 		}
 		if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
-			var templ_7745c5c3_Var20 = []any{btnSecondary}
+			var templ_7745c5c3_Var20 = []any{controlSecondary}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -459,7 +459,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			}
 		}
 		if deletable {
-			var templ_7745c5c3_Var23 = []any{btnSecondary}
+			var templ_7745c5c3_Var23 = []any{controlSecondary}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var23...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -667,7 +667,7 @@ func ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor) 
 			return templ_7745c5c3_Err
 		}
 		for _, f := range cc.Machine.Fields {
-			var templ_7745c5c3_Var32 = []any{headCellBase}
+			var templ_7745c5c3_Var32 = []any{tableHeadCell}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var32...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -692,7 +692,7 @@ func ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor) 
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 169, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 169, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -703,7 +703,7 @@ func ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor) 
 				return templ_7745c5c3_Err
 			}
 		}
-		var templ_7745c5c3_Var35 = []any{headCellBase}
+		var templ_7745c5c3_Var35 = []any{tableHeadCell}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var35...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -835,7 +835,7 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var42 = []any{btnPrimary}
+		var templ_7745c5c3_Var42 = []any{controlPrimary}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var42...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -857,7 +857,7 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var44 = []any{btnSecondary}
+		var templ_7745c5c3_Var44 = []any{controlSecondary}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var44...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

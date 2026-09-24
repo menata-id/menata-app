@@ -10,7 +10,6 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
-	"menata.app/internal/storage"
 )
 
 // currentWorkspaceKey carries the installed Workspace, and its display name, for one request.
@@ -219,20 +218,6 @@ templ csrfHiddenInput() {
 // collapsible topbar they fed has no counterpart in appShell, whose launcher lists Applications
 // rather than every declared item.
 
-// The class vocabularies these screens render with. Whole literal strings, never assembled, for
-// the reason appIconClasses (workspacehome.templ) records at length: Tailwind's scanner reads
-// source text, so a name built at runtime silently never reaches app.css. Constants rather than
-// repetition because the generic record screens draw the same button and the same input dozens of
-// times, and a table that half matches the rest of the app is worse than one that matches none of
-// it.
-const (
-	btnSecondary = "inline-flex h-8 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-3 font-sans text-sm text-slate-700 hover:bg-slate-50"
-	btnPrimary   = "inline-flex h-8 cursor-pointer items-center justify-center rounded-md border-0 bg-slate-900 px-3 font-sans text-sm font-medium text-white hover:bg-slate-700"
-	inputBase    = "h-9 w-full rounded-md border border-slate-300 bg-white px-2.5 font-sans text-sm text-slate-900"
-	cellBase     = "border-b border-slate-100 px-3 py-2 align-middle"
-	headCellBase = "border-b border-slate-200 px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
-)
-
 // MachineList is the landing page: every Machine in the Workspace, linking to its own page.
 // Adding a third Machine requires no code change here -- it appears because it's in the
 // Workspace manifest, per ROADMAP.md Phase 3's exit criterion.
@@ -296,19 +281,19 @@ templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, rela
 			<table class="w-full border-collapse text-sm">
 				<thead>
 					<tr>
-						<th class={ headCellBase }>Field</th>
-						<th class={ headCellBase }>Type</th>
-						<th class={ headCellBase }>Required</th>
+						<th class={ tableHeadCell }>Field</th>
+						<th class={ tableHeadCell }>Type</th>
+						<th class={ tableHeadCell }>Required</th>
 					</tr>
 				</thead>
 				<tbody>
 					for _, f := range m.Fields {
 						<tr>
-							<td class={ cellBase }>{ f.Name }</td>
-							<td class={ cellBase }>
+							<td class={ tableCell }>{ f.Name }</td>
+							<td class={ tableCell }>
 								<span class="rounded-full bg-blue-50 px-2 py-0.5 text-2xs text-blue-700">{ string(f.Type) }</span>
 							</td>
-							<td class={ cellBase }>
+							<td class={ tableCell }>
 								if f.Required {
 									<span class="text-xs font-medium text-red-600">yes</span>
 								} else {
@@ -343,9 +328,9 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 			<thead>
 				<tr>
 					for _, f := range m.Fields {
-						<th class={ headCellBase }>{ f.Name }</th>
+						<th class={ tableHeadCell }>{ f.Name }</th>
 					}
-					<th class={ headCellBase }></th>
+					<th class={ tableHeadCell }></th>
 				</tr>
 			</thead>
 			<tbody>
@@ -458,7 +443,7 @@ templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOp
 				</td>
 			}
 			<td class="border-b border-slate-100 px-3 pt-3 pb-2 align-middle whitespace-nowrap">
-				<button type="submit" class={ btnPrimary }>Add</button>
+				<button type="submit" class={ controlPrimary }>Add</button>
 			</td>
 		</form>
 	</tr>
@@ -479,7 +464,7 @@ templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOp
 templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) {
 	<tr id={ "record-" + r.ID }>
 		for i, f := range m.Fields {
-			<td class={ cellBase }>
+			<td class={ tableCell }>
 				if i == 0 {
 					<a class="font-medium text-blue-600 hover:text-blue-700" href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
 				} else if f.ID == m.SLAField {
@@ -498,7 +483,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 		<td class="border-b border-slate-100 px-3 py-2 align-middle whitespace-nowrap">
 			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
-					class={ btnSecondary + " mr-1" }
+					class={ controlSecondary + " mr-1" }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"
@@ -507,7 +492,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 			{{ deletable, _ := action.CanDelete(m.ID, r.Values, nil) }}
 			if deletable && authorization.AllowsAction(m, domain.ActionDelete, r.Values, actor) {
 				<button
-					class={ btnSecondary }
+					class={ controlSecondary }
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"
@@ -532,15 +517,15 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 			hx-encoding="multipart/form-data"
 		>
 			for _, f := range m.Fields {
-				<td class={ cellBase }>
+				<td class={ tableCell }>
 					@fieldInput(f, r.Values[f.ID], relations, groups)
 				</td>
 			}
 			<td class="border-b border-slate-100 px-3 py-2 align-middle whitespace-nowrap">
-				<button type="submit" class={ btnPrimary + " mr-1" }>Save</button>
+				<button type="submit" class={ controlPrimary + " mr-1" }>Save</button>
 				<button
 					type="button"
-					class={ btnSecondary }
+					class={ controlSecondary }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"
@@ -548,56 +533,6 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 			</td>
 		</form>
 	</tr>
-}
-
-// fieldInput renders the input control appropriate to a Field's semantic type, pre-filled with
-// current (nil for a blank create-form field). relations supplies <select> options for any
-// reference field (Relation or Person, per domain.Field.IsReference); unused for every other
-// type.
-templ fieldInput(f domain.Field, current any, relations RelationOptions, groups GroupOptions) {
-	switch {
-		case f.Type == domain.FieldTypeStatus:
-			<select name={ f.ID } class={ inputBase }>
-				<option value=""></option>
-				for _, opt := range f.Options {
-					<option value={ opt } selected?={ toString(current) == opt }>{ opt }</option>
-				}
-			</select>
-		case f.IsReference():
-			<select name={ f.ID } class={ inputBase }>
-				<option value=""></option>
-				for _, opt := range relations[f.RelatedMachine] {
-					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
-				}
-			</select>
-		// A group Field picks from the Workspace's own Groups (CAP-F24). Its own case rather than
-		// the IsReference() one above precisely because IsReference() is false for it: a Group has
-		// no target Machine to key relations by, so the options arrive in their own list.
-		case f.Type == domain.FieldTypeGroup:
-			<select name={ f.ID } class={ inputBase }>
-				<option value=""></option>
-				for _, opt := range groups {
-					<option value={ opt.ID } selected?={ toString(current) == opt.ID }>{ opt.Label }</option>
-				}
-			</select>
-		case f.Type == domain.FieldTypeBoolean:
-			<input type="checkbox" name={ f.ID } checked?={ toBool(current) } class="size-4 accent-blue-600"/>
-		case f.Type == domain.FieldTypeDate:
-			<input type="date" name={ f.ID } value={ toString(current) } class={ inputBase }/>
-		case f.Type == domain.FieldTypeNumber:
-			<input type="number" step="any" name={ f.ID } value={ toString(current) } class={ inputBase }/>
-		case f.Type == domain.FieldTypeFile:
-			if key := toString(current); key != "" {
-				<div class="flex flex-col gap-1">
-					<a href={ templ.URL("/uploads/" + key) } target="_blank" class="truncate text-xs text-blue-600 hover:text-blue-700">{ storage.DisplayName(key) }</a>
-					<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-600"/>
-				</div>
-			} else {
-				<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-600"/>
-			}
-		default:
-			<input type="text" name={ f.ID } value={ toString(current) } class={ inputBase }/>
-	}
 }
 
 func toString(v any) string {
@@ -628,13 +563,6 @@ func RelationLabel(relations RelationOptions, machineID, id string) string {
 		}
 	}
 	return id
-}
-
-// fileLink renders a FieldTypeFile value as a download link, or nothing if unset.
-templ fileLink(v any) {
-	if key := toString(v); key != "" {
-		<a href={ templ.URL("/uploads/" + key) } target="_blank" class="text-blue-600 hover:text-blue-700">{ storage.DisplayName(key) }</a>
-	}
 }
 
 // slaBadge and sectionHeader were deleted on 2026-09-24, with the stylesheet that was their whole
