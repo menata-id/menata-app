@@ -137,7 +137,7 @@ navigation:
   # two lists it composes; internal/conformance's route gate matches a declared route against its
   # handler by path, ignoring the query.
   - id: nav_my_documents
-    label: My Documents
+    label: My Doc
     title: My documents
     description: Everything you created, newest first.
     route: /approval-inbox?tab=mine
