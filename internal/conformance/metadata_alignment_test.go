@@ -957,3 +957,81 @@ func TestKnownIconsAreAllDrawn(t *testing.T) {
 		}
 	}
 }
+
+// declaredHeadings are every page heading and subtitle metadata declares (NavigationItem.Title /
+// .Description), which is a different shape from declaredNavLabels and needs a different gate --
+// see TestRenderingHasNoHardcodedPageHeading.
+func declaredHeadings(t *testing.T) []string {
+	t.Helper()
+	var out []string
+	for _, n := range declaredNavItems(t) {
+		if n.Title != "" {
+			out = append(out, n.Title)
+		}
+		if n.Description != "" {
+			out = append(out, n.Description)
+		}
+	}
+	return out
+}
+
+// TestRenderingHasNoHardcodedPageHeading is the third gate in the metadata-hardcoding family, after
+// the route and label pairs: a `title:` or `description:` metadata declares may not also be typed
+// into a .templ. Render them with rendering.titleByID / descriptionByID.
+//
+// It exists because the label gate structurally could not see this class. templTagText matches a
+// run of Title-Case words, which every declared *label* happens to be -- and no heading or
+// subtitle is: "Pending my approval" is one capital, and a description is a whole sentence. So the
+// literals this catches were sitting in plain sight inside the file the label gate was passing
+// (approvalinbox.templ carried two subtitles as raw text between tags), and the gate's own doc
+// comment claimed coverage of "a card's plain-text body".
+//
+// Exact substring rather than a shape regex, for the same "match what's actually at risk" reason
+// templTagText gives for the opposite choice: a title or description is long and specific enough
+// that finding it verbatim anywhere in a .templ *is* the violation, with none of the prose
+// false-positives a substring search for a short Title-Case phrase would produce.
+//
+// Comments are stripped first, and that is load-bearing rather than defensive: machine.templ's own
+// titleByID doc comment quotes "Pending my approval" to explain why the lookup exists at all, and
+// a gate that forbade explaining itself would be traded away the first time someone needed to.
+func TestRenderingHasNoHardcodedPageHeading(t *testing.T) {
+	headings := declaredHeadings(t)
+	if len(headings) == 0 {
+		t.Skip("no navigation item declares a title: or description: yet")
+	}
+
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		body := stripLineComments(string(src))
+		for _, heading := range headings {
+			if strings.Contains(body, heading) {
+				t.Errorf("%s hardcodes %q, which a navigation item already declares as its title:/description: -- render it with titleByID(...)/descriptionByID(...) instead", path, heading)
+			}
+		}
+	}
+}
+
+// stripLineComments drops each line's `//` tail. Crude on purpose: the only thing it must not do
+// is hide real markup, and a truncated `https://...` inside an attribute can at worst make this
+// gate miss a violation, never invent one.
+func stripLineComments(src string) string {
+	lines := strings.Split(src, "\n")
+	for i, line := range lines {
+		if idx := strings.Index(line, "//"); idx >= 0 {
+			lines[i] = line[:idx]
+		}
+	}
+	return strings.Join(lines, "\n")
+}

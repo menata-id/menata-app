@@ -135,6 +135,44 @@ func labelByID(ctx context.Context, id string) string {
 	panic("rendering: no navigation item with id " + id)
 }
 
+// titleByID is the heading a screen renders for *itself* -- its own <h1> -- read from the
+// navigation item that names it, falling back to that item's Label when it declares none.
+//
+// Separate from labelByID because a menu entry and a heading answer different questions, which
+// the Flow 2 mockup made concrete: the Approval Inbox is "Inbox" in a tab strip and a 4-column
+// bottom bar, and "Pending my approval" at the top of its own page. Until 2026-09-24 a Page had
+// only labelByID, so every heading in the app was whatever string also had to fit in a bottom bar.
+//
+// The fallback is here rather than in domain so an item declaring no title keeps working unchanged
+// -- which is most of them, and none of them are wrong for it: a screen whose heading really is
+// its menu label should say that by staying silent, not by repeating the string in a second key.
+func titleByID(ctx context.Context, id string) string {
+	for _, item := range declaredNavigation(ctx) {
+		if item.ID == id {
+			if item.Title != "" {
+				return item.Title
+			}
+			return item.Label
+		}
+	}
+	panic("rendering: no navigation item with id " + id)
+}
+
+// descriptionByID is the sentence under that heading, or "" when the item declares none -- in
+// which case the Page renders no subtitle at all rather than inventing one.
+//
+// No panic-on-empty, unlike the three lookups above: an absent route or label breaks a page, an
+// absent subtitle is a page with no subtitle. The id itself is still checked, so a typo fails
+// exactly as loudly as it does everywhere else.
+func descriptionByID(ctx context.Context, id string) string {
+	for _, item := range declaredNavigation(ctx) {
+		if item.ID == id {
+			return item.Description
+		}
+	}
+	panic("rendering: no navigation item with id " + id)
+}
+
 // navLink renders one NavigationItem as a topbar link, including its live badge if it declares
 // one -- currently only the pending-approval count (the only entry in KnownNavigationBadges).
 templ navLink(item domain.NavigationItem) {

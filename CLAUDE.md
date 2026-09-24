@@ -181,6 +181,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   the label-side counterpart of the pair above: no `.templ`/handler may hardcode a `label:`
   metadata already declares (a page's own title, `<h1>`, or card text). Use
   `rendering.labelByID("nav_xxx")` instead.
+- `TestRenderingHasNoHardcodedPageHeading` — the third of the family, and the one that exists
+  because the label gate structurally could not see its class. A navigation item declares three
+  strings, not one: `label:` (what a menu says), `title:` (what the screen says about itself) and
+  `description:` (the line under it). The label gate matches Title-Case phrases, which every
+  `label:` is and no heading or sentence ever is, so subtitles sat as raw text in a `.templ` the
+  gate was passing. This one matches the declared string verbatim, with `//` comments stripped
+  first. Use `rendering.titleByID`/`descriptionByID`.
 - `TestRenderingUsesProjectionNotRawValues` — the one *ratchet* in this suite: a `.templ` file may
   not read a named field off a record (`Values["fld_..."]`, or the same laundered through a
   `action.Field*` constant) — Composition resolves the shape, a Page renders it (007 §4.4, §7.6).

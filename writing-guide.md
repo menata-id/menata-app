@@ -710,7 +710,9 @@ Navigation item keys:
 | Key | Value | Notes |
 |---|---|---|
 | `id` | `nav_*` | Referenced from `.templ` via `routeByID("nav_xxx")` — that's how a page links to a sibling screen without retyping the route |
-| `label` | string | |
+| `label` | string | What a **menu** says: the header strip and the mobile bottom bar. Short enough for a four-column bar |
+| `title` | string | What the **screen** says about itself — its own `<h1>`. Optional; falls back to `label`. Render with `titleByID("nav_xxx")`, never retyped |
+| `description` | string | The sentence under that heading. Optional; no subtitle renders when absent. Render with `descriptionByID("nav_xxx")` |
 | `route` | path | Must have a real handler in `internal/web/router.go` (gated by `TestNavigationRoutesAreRegistered`) |
 | `group` | string | Presentational label. First group declared stays inline; later ones collapse into a dropdown |
 | `priority` | int | |

@@ -92,6 +92,9 @@ type navItemDoc struct {
 	Priority int    `yaml:"priority"`
 	Badge    string `yaml:"badge"`
 	HomeCard bool   `yaml:"home_card"`
+	// Title/Description -- see domain.NavigationItem. Both optional; Title falls back to Label.
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
 	// Icon -- see domain.NavigationItem.Icon. Optional.
 	Icon string `yaml:"icon"`
 }
@@ -350,14 +353,16 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 	var items []domain.NavigationItem
 	for _, n := range docs {
 		items = append(items, domain.NavigationItem{
-			ID:       n.ID,
-			Label:    n.Label,
-			Route:    n.Route,
-			Group:    n.Group,
-			Priority: n.Priority,
-			Badge:    n.Badge,
-			HomeCard: n.HomeCard,
-			Icon:     n.Icon,
+			ID:          n.ID,
+			Label:       n.Label,
+			Route:       n.Route,
+			Group:       n.Group,
+			Priority:    n.Priority,
+			Badge:       n.Badge,
+			HomeCard:    n.HomeCard,
+			Icon:        n.Icon,
+			Title:       n.Title,
+			Description: n.Description,
 		})
 	}
 	return items

@@ -115,7 +115,15 @@ roles:
 #                      the list of documents awaiting this viewer.
 navigation:
   - id: nav_approval_inbox
-    label: Approval Inbox
+    # label is what a *menu* says (the header strip, the mobile bottom bar); title is what the
+    # screen says about itself, and description the line under it. Three keys because the Flow 2
+    # mockup needs three strings: board 07 labels this tab "Inbox" and heads its page "Pending my
+    # approval". Until 2026-09-24 there was only `label`, so every heading in the app was whatever
+    # string also had to fit in a four-column bottom bar -- and the description was a literal in
+    # approvalinbox.templ, which carried one for each of these two items.
+    label: Inbox
+    title: Pending my approval
+    description: Documents where your decision is currently required.
     route: /approval-inbox
     priority: 1
     badge: approval_inbox_pending
@@ -130,6 +138,8 @@ navigation:
   # handler by path, ignoring the query.
   - id: nav_my_documents
     label: My Documents
+    title: My documents
+    description: Everything you created, newest first.
     route: /approval-inbox?tab=mine
     priority: 2
     icon: file-text

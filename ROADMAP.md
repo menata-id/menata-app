@@ -929,6 +929,30 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     platform had the missing piece instead, and it is better than any of them for this: `popover`
     is one attribute, needs no bundle, and cannot go stale.
 
+  - **A navigation item declares three strings now, not one** (owner, 2026-09-24, on being asked
+    whether to rename the Inbox tab: *"pengaturan ini seharusnya ada di metadata bukan?"* — and it
+    was the right answer to a question that should not have been asked). `label:` is what a menu
+    says, `title:` what the screen says about itself, `description:` the line under it. Board 07
+    needs all three and they are all different: the tab reads **Inbox**, the page is headed
+    **Pending my approval**.
+
+    What was actually wrong was bigger than the rename. Every `<h1>` in the app came from
+    `labelByID`, so **every heading was constrained by how it had to read in a four-column bottom
+    bar** — and every subtitle was a literal in its own `.templ` (`approvalinbox.templ` carried
+    one per tab). `title:` falls back to `label:`, so a screen whose heading really is its menu
+    label still says that by staying silent, and nothing else in the app had to change.
+
+    **`TestRenderingHasNoHardcodedPageHeading` is the third gate in the family**, and it exists
+    because the label gate could not structurally see this class: `templTagText` matches a run of
+    Title-Case words, which every declared `label:` is and no heading or sentence ever is. So the
+    subtitles sat in plain text inside a file that gate was passing, while its own doc comment
+    claimed to cover "a card's plain-text body". The new one matches the declared string verbatim
+    with comments stripped, and was confirmed to fail on a reintroduced violation rather than
+    assumed to.
+
+    The "APPROVAL" eyebrow above that heading is gone with it: board 07 has none, and it was a
+    hardcoded word naming the Application on a screen whose chrome now names it two rows up.
+
   - **`icon:` is a name from a closed set now, not a literal glyph** (`domain.KnownIcons`,
     `internal/rendering/icons.templ`, validated at load like `color:`; `icon: "▣"` became
     `icon: inbox`). This was already owed: `ui-sample/nav-metadata.js`'s own comment had called

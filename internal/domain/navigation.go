@@ -48,6 +48,24 @@ type NavigationItem struct {
 	// TestWorkspaceHomeHasNoHardcodedApplicationRoute now catches. No item marked: Workspace Home
 	// falls back to linking at itself ("/home"), never a guessed Application route.
 	HomeCard bool
+	// Title is the heading the destination screen renders for *itself* -- its own <h1> -- and
+	// Description the sentence under it. Both optional; a screen with no Title declared falls back
+	// to Label (rendering.titleByID), which is what every screen did unconditionally until
+	// 2026-09-24.
+	//
+	// They are separate from Label because they answer a different question, and the Flow 2 mockup
+	// is where that stopped being theoretical: its Approval Inbox is labelled "Inbox" in the menu
+	// and headed "Pending my approval" on the page. A menu entry has to be short enough to sit in
+	// a tab strip and a 4-column bottom bar; a heading is the screen telling you what you are
+	// looking at, and the two are only the same string by coincidence. Forcing them to be one
+	// meant every screen's heading was constrained by how it had to read in a bottom bar.
+	//
+	// Description had no home at all before this -- every screen's own subtitle was a literal in
+	// its .templ (approvalinbox.templ carried two), which is the metadata-hardcoding violation
+	// CLAUDE.md's decision path describes, hiding in the one place the label gate could not see:
+	// a sentence is not a Title-Case phrase, so nothing matched it.
+	Title       string
+	Description string
 	// Icon must be one of KnownIcons, the same convention as Application.Icon. It was a single
 	// literal character until 2026-09-24 -- see KnownIcons for why that convention ended and what
 	// a name buys over a glyph.

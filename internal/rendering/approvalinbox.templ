@@ -92,23 +92,23 @@ templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine
 	// menu itself -- a second header row on desktop, a bottom bar on mobile -- generalized from
 	// this exact shape to every Application (appshell.templ's defaultAppMenu/navItemActive).
 	@appShell(labelByID(ctx, "nav_approval_inbox"), workspaceName, viewer, switchWorkspaceHref) {
+		// Which of this screen's two declared destinations is being rendered -- both are ?tab= views
+		// of one route (document-approval.yaml's own comment on nav_my_documents), so the heading and
+		// its subtitle come from whichever item the request names, not from a branch of literals.
+		//
+		// The "APPROVAL" eyebrow that sat above this heading is gone (2026-09-24): board 07 has no
+		// eyebrow, and it was a hardcoded word naming the Application on a screen whose chrome now
+		// names it two rows up (appshell.templ's applicationMenuRow).
+		{{ navID := "nav_approval_inbox" }}
+		if showMine {
+			{{ navID = "nav_my_documents" }}
+		}
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
-				<span class="text-3xs tracking-wide text-blue-600 uppercase">Approval</span>
-				<h1 class="m-0 text-xl font-medium">
-					if showMine {
-						{ labelByID(ctx, "nav_my_documents") }
-					} else {
-						{ labelByID(ctx, "nav_approval_inbox") }
-					}
-				</h1>
-				<div class="text-sm text-slate-500">
-					if showMine {
-						Documents you submitted, and where each one stands.
-					} else {
-						Documents where your decision is currently required.
-					}
-				</div>
+				<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, navID) }</h1>
+				if desc := descriptionByID(ctx, navID); desc != "" {
+					<div class="text-sm text-slate-500">{ desc }</div>
+				}
 			</div>
 			// METADATA CANNOT EXPRESS THIS YET, and the exception is deliberate (CLAUDE.md, "Deciding
 			// whether a literal is a metadata-hardcoding violation", step 2). nav_new_approval was
