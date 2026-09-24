@@ -1204,6 +1204,42 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     restyling the set is one file. `TestKnownIconsAreAllDrawn` closes the seam a name-list cannot
     close by itself — a declared name nothing draws would ship as an empty box with no error
     anywhere, the same invisible failure a colour token with no `appIconClasses` branch has.
+  - **Assigned to me** (board 07b, owner: *"ok untuk assign to me. ubah label jadi assign me di
+    teks bawah ikonnya"*) — the Approval Inbox's third `?tab=` destination: every Approval Step
+    that has ever named this viewer, directly or through a Group they belong to, whatever its own
+    decision is. `nav_assigned_to_me` declares `label: Assign Me` (the tab strip and the mobile
+    bottom bar), `title: Assigned to me` (the page's own `<h1>`), `route:
+    /approval-inbox?tab=assigned`, `icon: user-check` — moved out of the icon set's chrome-only
+    group into the declarable one, its first real user.
+
+    **This is the third real case for a filter that reads the viewing identity**, past this
+    repo's own two-case trigger for the `$current_user` sentinel `datasets:`' `where:` still
+    cannot express — named explicitly rather than left implicit, because the shape genuinely does
+    not fit that sentinel (the Planned section's own entry on this, below, says why: a two-armed
+    membership test plus a second Machine's sequencing state, not a Field compared against a
+    written value) and a reader should not have to rediscover that. `composition.AssignedToMe`
+    follows `ApprovalInbox`'s own shape instead — an I/O wrapper plus a pure `buildAssigned` a
+    test can call with no database, exactly the split `buildInbox` already uses, with nine tests
+    of its own (sequential locking, Group membership both ways, the submission-activity source for
+    FROM/REQUESTED, newest-first ordering, orphan and other-people's-step skipping).
+
+    **Reused `reviewStatusPill` rather than inventing a second status pill** — board 10's own
+    Document-status colouring, now promoted out of `capabilities.md`'s page-internal row on its
+    first real second caller. And found, while wiring the handler, that the original design
+    (building each tab's filter-chip hrefs in `internal/web`) would have hardcoded a declared
+    route literal there — `TestHandlersHaveNoHardcodedApplicationRoute`'s own territory — so
+    `FilterChip` stayed plain data and `filterChip` resolves its own href from `ctx` via
+    `routeByID`, same as everywhere else in this package; the Inbox's own SLA chips moved onto the
+    same generalized component rather than keeping a separate one now that a second real caller
+    existed for it too.
+
+    Each tab composes only its own content — `showApprovalInbox` calls either
+    `composition.ApprovalInbox` or `composition.AssignedToMe`, never both — so the new tab costs
+    the other two nothing, and its own `GroupsForMember` read is the one query specific to it.
+    Verified live: `/approval-inbox?tab=assigned` measures `queries=9 reads=9 repeated=0`, `queries
+    == reads` and no repeats, same invariant the empty `getSweepRatchet` holds every other
+    authenticated GET route to (this route is not swept by that test itself, since the sweep
+    parses `router.go`'s literal path and never appends a query, but the property holds anyway).
 
 ## Planned
 
@@ -1249,11 +1285,20 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   selects no View at all), so they became Machine-level and a View now carries only the
   arrangement.
 - **A filter that reads the viewing identity, not a literal** — `datasets:`' `where:` compares a
-  Field against a written value, so any count scoped to "mine" stays Go. Two screens do it today:
-  `composition.PersonalTasks` (assignee == the viewer) and `composition.ApprovalInbox` (the inbox
-  and the nav badge). That is the second real case this repo's own rule waits for, and
-  `PersonalTasks`' doc comment still says "neither has a second case yet" — true when written,
-  worth re-reading now. Upstream settled the shape rather than leaving it open: a `$current_user`
+  Field against a written value, so any count scoped to "mine" stays Go. Three screens do it now:
+  `composition.PersonalTasks` (assignee == the viewer), `composition.ApprovalInbox` (the inbox and
+  the nav badge), and — since 2026-09-24 — `composition.AssignedToMe` (Assigned to me, below).
+  Three real cases is past this repo's own two-case trigger, and it is worth being explicit about
+  why the third did not generalize the primitive rather than leaving that looking like an oversight:
+  `AssignedToMe`'s own "mine" test is not `where:`'s simple shape at all. It is two-armed (a direct
+  `fld_assignee` match, or `fld_approver_group` naming a Group the viewer belongs to — CAP-F24, the
+  same dynamic gate `authorization.AllowsAction` already evaluates) and its per-row output depends
+  on a second Machine's sequencing state and a third read (the submission activity) — the same
+  class of derivation `ApprovalInbox` already is, not a filtered list. `PersonalTasks` and the
+  Inbox's own "mine" test *are* that simple shape and remain the real candidates whenever this is
+  picked up; `PersonalTasks`' doc comment still says "neither has a second case yet" — true when
+  written, and now stale against its own sibling, worth fixing in the same change that finally
+  builds the sentinel. Upstream settled the shape rather than leaving it open: a `$current_user`
   sentinel resolved at evaluation time, not a parameter threaded through metadata. **What it does
   not unblock:** the Approval Inbox itself, which needs record *selection* and a sibling read as
   well (see the deferral table).

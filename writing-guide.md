@@ -729,10 +729,10 @@ at load.
 |---|---|
 | `check` `board` `inbox` `file-text` `check-square` | |
 | `dashboard` `calendar` `timer` `bar-chart` `list` | |
-| `bolt` `settings` | |
+| `bolt` `settings` `user-check` | |
 
-`home`, `grid`, `more`, `chevron-right` and `user-check` are drawn too, but they are the runtime's
-own chrome (`appShell`) and no manifest names them. Adding an icon means adding a `case` to
+`home`, `grid`, `more`, `chevron-right` and `chevron-down`/`switch` are drawn too, but they are the
+runtime's own chrome (`appShell`) and no manifest names them. Adding an icon means adding a `case` to
 `icons.templ` *and* a name to `KnownIcons` — `TestKnownIconsAreAllDrawn` fails if only one of
 the two happens.
 

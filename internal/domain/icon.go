@@ -21,9 +21,9 @@ package domain
 //
 // Two groups, one set. Most names are declarable on an Application or a NavigationItem
 // (`icon:`, validated in internal/metadata). The rest -- home, grid, more, chevron-right,
-// user-check -- are the runtime's own chrome, drawn by appShell and never named by any manifest;
-// they live here anyway so one gate (internal/conformance.TestKnownIconsAreAllDrawn) covers every
-// name the renderer must handle, rather than two lists that can disagree.
+// chevron-down, switch -- are the runtime's own chrome, drawn by appShell and never named by any
+// manifest; they live here anyway so one gate (internal/conformance.TestKnownIconsAreAllDrawn)
+// covers every name the renderer must handle, rather than two lists that can disagree.
 //
 // The drawings follow the Flow 2 mockup's own style, which is what makes them one set rather than
 // a collection: 24x24 viewBox, no fill, stroke: currentColor at 1.8, round caps and joins.
@@ -41,6 +41,10 @@ var KnownIcons = map[string]bool{
 	"list":         true,
 	"bolt":         true,
 	"settings":     true,
+	// user-check: Assigned to me (2026-09-24) -- a person with a check mark, distinct from
+	// "check" alone (Document Approval's own mark) the way the two screens themselves are
+	// distinct: one is the Application, the other is "approval steps naming you".
+	"user-check": true,
 
 	// Runtime chrome only -- appShell draws these; no manifest names them.
 	"home":          true,
@@ -49,5 +53,4 @@ var KnownIcons = map[string]bool{
 	"chevron-right": true,
 	"chevron-down":  true,
 	"switch":        true,
-	"user-check":    true,
 }

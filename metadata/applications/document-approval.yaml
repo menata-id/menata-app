@@ -143,3 +143,14 @@ navigation:
     route: /approval-inbox?tab=mine
     priority: 2
     icon: file-text
+  # Board 07b, the third tab this route carries -- same shape as nav_my_documents right above:
+  # one physical handler (showApprovalInbox), a ?tab= value deciding which of the three lists it
+  # composes. "Assign Me" is the label in the tab strip and the mobile bottom bar; the page's own
+  # heading (title:) stays the fuller "Assigned to me" board 07b actually draws.
+  - id: nav_assigned_to_me
+    label: Assign Me
+    title: Assigned to me
+    description: Every document that asked for your approval -- directly, or through a group you belong to. Newest request first.
+    route: /approval-inbox?tab=assigned
+    priority: 3
+    icon: user-check

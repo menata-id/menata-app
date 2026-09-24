@@ -8,9 +8,25 @@ import (
 	"menata.app/internal/experience"
 )
 
-// SLAFilter is one of the Approval Inbox's SLA filter chips (ROADMAP.md Phase 15 Step 1, board
-// 07's own "All / Overdue / Due today" chips).
-type SLAFilter struct {
+// TabMine and TabAssigned are two of the Approval Inbox's three ?tab= destinations (the third,
+// Pending, is the route with no ?tab= at all). Declared here rather than only inline in
+// internal/web.showApprovalInbox because this Page switches on the identical values to decide
+// its own heading and body -- two independent string literals that happened to agree is exactly
+// the drift a shared metadata-derived value exists to prevent elsewhere in this app, so the
+// handler reads these instead of retyping "mine"/"assigned".
+const (
+	TabMine     = "mine"
+	TabAssigned = "assigned"
+)
+
+// FilterChip is one query-param chip on the Approval Inbox's own two tabs that carry filters:
+// the Inbox's SLA chips (board 07's "All / Overdue / Due today") and, since 2026-09-24, Assigned
+// to me's decision chips ("All / Waiting for me / Not yet my turn / Approved by me / Rejected by
+// me", board 07b). Plain data -- no Href -- on purpose: internal/web may not hold a literal route
+// string metadata already declares (TestHandlersHaveNoHardcodedApplicationRoute), so the handler
+// cannot build this chip's link, and filterChip below resolves it from ctx via routeByID instead,
+// the same as every other in-page link this package renders.
+type FilterChip struct {
 	Key    string
 	Label  string
 	Count  int
@@ -75,8 +91,31 @@ type PendingApprovalCard struct {
 	CardFields []ProjectedField
 }
 
+// AssignedRow is one row on the Assigned to me screen (board 07b): one Approval Step that has
+// ever named this viewer, and where its decision stands. composition.AssignedToMe is the only
+// writer -- see its own doc comment for why this is bespoke Go rather than a declared filter.
+type AssignedRow struct {
+	Reference    string
+	Title        string
+	DocumentType string
+	From         string
+	// RequestedAt is already formatted ("17 Sep 2026"), or "" when no submission event was found
+	// -- the same degrade-rather-than-guess posture PendingApprovalCard.SubmittedAt already takes.
+	RequestedAt string
+	// Status is the Document's own fld_status, raw ("in_review"/"approved"/"rejected"), rendered
+	// through reviewStatusPill (reviewdocument.templ) -- the same component board 10 uses, so a
+	// Document's status reads identically wherever this app shows it.
+	Status string
+	// DecisionKey is one of composition.Assigned{Waiting,NotYet,Approved,Rejected} -- what the
+	// filter chips and assignedDecisionPill both key on.
+	DecisionKey   string
+	DecisionLabel string
+	Href          string
+}
+
 // ApprovalInboxPage is Case 3's worklist, ported to ui-sample/case-03-flow1/07-approval-inbox.html
-// (Fase 6a, 2026-09-20).
+// (Fase 6a, 2026-09-20), and since 2026-09-24 the same page's third tab, Assigned to me
+// (board 07b).
 //
 // ONE BOARD ELEMENT IS DELIBERATELY NOT RENDERED. Board 07 shows "SLA breached · 4h" and "8h
 // remaining"; this renders day-scale wording. That is not a formatting choice: mch_document's
@@ -86,22 +125,27 @@ type PendingApprovalCard struct {
 // type built to satisfy one label, which is the shape-before-need this repo refuses. Same class as
 // board 03's Procurement/HR cards and board 06's ProcessEdge: the board draws something the app
 // has no data for. Recorded in ROADMAP.md's deferral table with that as its real blocker.
-templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine []PendingApprovalCard, showMine bool, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	// The "Approval Inbox" / "My Documents" section strip used to be this Page's own nav here
-	// (inboxTabs, deleted with this change): appShell now renders the current Application's own
-	// menu itself -- a second header row on desktop, a bottom bar on mobile -- generalized from
-	// this exact shape to every Application (appshell.templ's defaultAppMenu/navItemActive).
+templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, mine []PendingApprovalCard, assigned []AssignedRow, assignedFilters []FilterChip, tab string, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	// The "Approval Inbox" / "My Documents" / "Assigned to me" section strip used to be this
+	// Page's own nav here (inboxTabs, deleted with this change): appShell now renders the current
+	// Application's own menu itself -- a second header row on desktop, a bottom bar on mobile --
+	// generalized from this exact shape to every Application (appshell.templ's
+	// defaultAppMenu/navItemActive).
 	@appShell(labelByID(ctx, "nav_approval_inbox"), workspaceName, viewer, switchWorkspaceHref) {
-		// Which of this screen's two declared destinations is being rendered -- both are ?tab= views
-		// of one route (document-approval.yaml's own comment on nav_my_documents), so the heading and
-		// its subtitle come from whichever item the request names, not from a branch of literals.
+		// Which of this screen's three declared destinations is being rendered -- all three are
+		// ?tab= views of one route (document-approval.yaml's own comment on nav_my_documents), so
+		// the heading and its subtitle come from whichever item the request names, not from a
+		// branch of literals.
 		//
 		// The "APPROVAL" eyebrow that sat above this heading is gone (2026-09-24): board 07 has no
 		// eyebrow, and it was a hardcoded word naming the Application on a screen whose chrome now
 		// names it two rows up (appshell.templ's applicationMenuRow).
 		{{ navID := "nav_approval_inbox" }}
-		if showMine {
-			{{ navID = "nav_my_documents" }}
+		switch tab {
+			case TabMine:
+				{{ navID = "nav_my_documents" }}
+			case TabAssigned:
+				{{ navID = "nav_assigned_to_me" }}
 		}
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
@@ -110,6 +154,10 @@ templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine
 					<div class="text-sm text-slate-500">{ desc }</div>
 				}
 			</div>
+			// "+ New Document" is Pending/My Documents' own call to action -- Assigned to me is a
+			// worklist over decisions other people's documents asked of this viewer, not a place
+			// to start one, so board 07b carries no such button and neither does this.
+			//
 			// METADATA CANNOT EXPRESS THIS YET, and the exception is deliberate (CLAUDE.md, "Deciding
 			// whether a literal is a metadata-hardcoding violation", step 2). nav_new_approval was
 			// deleted from metadata on 2026-09-21: the submit form is not a menu destination, it is
@@ -119,32 +167,103 @@ templ ApprovalInboxPage(filters []SLAFilter, pending []PendingApprovalCard, mine
 			// ActionBar component, still unbuilt; ROADMAP.md Fase 6's bespoke-screen note). Until
 			// then the route and the label are literals here. Listed in writing-guide.md's "What
 			// comes free vs. what's hardcoded today" table.
-			<a
-				href="/documents/new"
-				class={ controlPrimary }
-			>
-				+ New Document
-			</a>
+			if tab != TabAssigned {
+				<a
+					href="/documents/new"
+					class={ controlPrimary }
+				>
+					+ New Document
+				</a>
+			}
 		</div>
-		if showMine {
-			if len(mine) == 0 {
-				@inboxEmpty("You haven't submitted any documents yet.")
-			} else {
-				@pendingApprovalCardGrid(mine)
-			}
-		} else {
-			<div role="group" aria-label="Filter" class="flex flex-wrap gap-2">
-				for _, f := range filters {
-					@filterChip(f)
+		switch tab {
+			case TabMine:
+				if len(mine) == 0 {
+					@inboxEmpty("You haven't submitted any documents yet.")
+				} else {
+					@pendingApprovalCardGrid(mine)
 				}
-			</div>
-			if len(pending) == 0 {
-				@inboxEmpty("Nothing pending your approval.")
-			} else {
-				@pendingApprovalCardGrid(pending)
-			}
+			case TabAssigned:
+				{{ assignedChipPrefix := routeByID(ctx, "nav_assigned_to_me") + "&status=" }}
+				<div role="group" aria-label="Filter" class="flex flex-wrap gap-2">
+					for _, f := range assignedFilters {
+						@filterChip(f, assignedChipPrefix)
+					}
+				</div>
+				if len(assigned) == 0 {
+					@inboxEmpty("No document has asked for your approval yet.")
+				} else {
+					@assignedTable(assigned)
+				}
+			default:
+				{{ inboxChipPrefix := routeByID(ctx, "nav_approval_inbox") + "?filter=" }}
+				<div role="group" aria-label="Filter" class="flex flex-wrap gap-2">
+					for _, f := range filters {
+						@filterChip(f, inboxChipPrefix)
+					}
+				</div>
+				if len(pending) == 0 {
+					@inboxEmpty("Nothing pending your approval.")
+				} else {
+					@pendingApprovalCardGrid(pending)
+				}
 		}
 	}
+}
+
+// assignedTable is board 07b's own table: DOCUMENT / FROM / REQUESTED / YOUR DECISION / STATUS /
+// Action. The same responsive flex-row construction workspacemembers.templ's member list already
+// uses (a header row hidden below `sm`, each field labelled inline on a phone) rather than a third
+// table idiom -- this screen's rows are exactly as tabular as that one's.
+templ assignedTable(rows []AssignedRow) {
+	<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+		<div class="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600 sm:flex">
+			<span class="grow">Document</span>
+			<span class="w-32">From</span>
+			<span class="w-28">Requested</span>
+			<span class="w-56">Your decision</span>
+			<span class="w-24">Status</span>
+			<span class="w-14"></span>
+		</div>
+		for _, r := range rows {
+			<div class="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
+				<div class="flex min-w-0 grow flex-col gap-0.5">
+					<span class="truncate text-sm font-medium text-slate-900">{ r.Title }</span>
+					<span class="truncate text-2xs text-slate-400">{ r.Reference } · { r.DocumentType }</span>
+				</div>
+				<div class="text-xs text-slate-600 sm:w-32">{ r.From }</div>
+				<div class="text-xs text-slate-500 sm:w-28">
+					if r.RequestedAt != "" {
+						{ r.RequestedAt }
+					} else {
+						—
+					}
+				</div>
+				<div class="sm:w-56">
+					@assignedDecisionLabel(r.DecisionKey, r.DecisionLabel)
+				</div>
+				<div class="sm:w-24">
+					@reviewStatusPill(r.Status)
+				</div>
+				<div class="sm:w-14">
+					<a href={ templ.SafeURL(r.Href) } class="text-sm text-blue-600 hover:text-blue-700">View</a>
+				</div>
+			</div>
+		}
+	</div>
+}
+
+// assignedDecisionLabel colours the YOUR DECISION column by composition.Assigned{Waiting,...}:
+// waiting is the one state that asks the viewer to act, so it is the one state drawn in a colour
+// that reads as an alert rather than a status report.
+templ assignedDecisionLabel(key, label string) {
+	<span
+		class={ "text-xs",
+			templ.KV("font-medium text-blue-700", key == "waiting"),
+			templ.KV("text-slate-500", key != "waiting") }
+	>
+		{ label }
+	</span>
 }
 
 // pendingApprovalCardGrid draws one card face for both of this screen's lists. Extracted when the
@@ -166,9 +285,13 @@ templ inboxEmpty(message string) {
 
 // filterChip is one SLA filter chip. It preserves the active tab for the same reason the tabs
 // preserve the active filter -- neither may silently discard the other.
-templ filterChip(f SLAFilter) {
+// hrefPrefix is everything before the chip's own key: a declared nav route plus the query
+// separator and param name for that tab's own filter ("?filter=" on the Inbox's own route, which
+// carries no query of its own yet; "&status=" on Assigned's, whose route already carries
+// "?tab=assigned" and must keep it).
+templ filterChip(f FilterChip, hrefPrefix string) {
 	<a
-		href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox") + "?filter=" + url.QueryEscape(f.Key)) }
+		href={ templ.SafeURL(hrefPrefix + url.QueryEscape(f.Key)) }
 		class={ "rounded-full border px-3 py-1 text-xs",
 			templ.KV("border-slate-900 bg-slate-900 text-white", f.Active),
 			templ.KV("border-slate-300 text-slate-600 hover:border-slate-400", !f.Active) }

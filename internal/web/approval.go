@@ -22,46 +22,42 @@ import (
 )
 
 // showApprovalInbox serves Case 3's Approval Inbox (ROADMAP.md Phase 15 Step 1,
-// document-approval.html). Composing the inbox is composition.ApprovalInbox's job; what stays
-// here is the part that is genuinely about HTTP -- reading the ?filter= tab and reducing the
-// composed list to it.
-// inboxTabMine is the ?tab= value that selects My Documents.
+// document-approval.html) and, since 2026-09-24, its two sibling tabs (My Documents, Assigned to
+// me) that share its route. Composing each tab's own content is composition's job
+// (ApprovalInbox, AssignedToMe); what stays here is genuinely about HTTP -- reading ?tab=/
+// ?filter=/?status= and reducing the composed list to them.
 //
-// It is the one thing about that view metadata does not state. nav_my_documents declares *where*
-// it is (/approval-inbox?tab=mine, metadata/applications/document-approval.yaml) and the strip
-// reads the entry's label and href straight from there -- but what the value *means* ("compose
-// every Document this identity submitted, not the steps awaiting it") is a composition decision,
-// and no declared filter can express "submitted by me" yet: the submitter is derived from the
-// activity log, not stored on the Document. Forward-checkable pointer: 007 §7.7 Filter over a
-// Dataset, which is what would let this branch be declared rather than switched on here.
-const inboxTabMine = "mine"
-
+// rendering.TabMine/TabAssigned name the same two ?tab= values nav_my_documents/
+// nav_assigned_to_me declare their own routes with -- see that package's own doc comment on why
+// the constant lives there and not here. tab=="" (no query at all) is Pending, the route's own
+// default and nav_approval_inbox's own declared route.
+//
+// Each tab composes only its own content, not all three: ApprovalInbox reads five record sets and
+// writes SLA-breach activity rows as a documented side effect (logSLABreaches), and AssignedToMe
+// reads a sixth (this identity's own Groups) that neither of the other two tabs needs. Composing
+// every tab on every request would be the query-budget mistake ROADMAP.md's own performance audit
+// already found once on this exact screen (showPendingCount's doc comment tells that story); this
+// avoids repeating it on the tab that is new.
 func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		tab := req.URL.Query().Get("tab")
 
-		inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
+		var (
+			filters, assignedFilters []rendering.FilterChip
+			pending, mine            []rendering.PendingApprovalCard
+			assignedRows             []rendering.AssignedRow
+			err                      error
+		)
+		if tab == rendering.TabAssigned {
+			assignedRows, assignedFilters, err = assignedTabContent(ctx, store, machines, userID, req.URL.Query().Get("status"))
+		} else {
+			pending, mine, filters, err = pendingTabContent(ctx, store, machines, userID, req.URL.Query().Get("filter"))
+		}
 		if err != nil {
 			serverError(w, err)
 			return
-		}
-
-		filterKey := req.URL.Query().Get("filter")
-		filters := []rendering.SLAFilter{
-			{Key: "all", Label: "All", Count: len(inbox.Pending), Active: filterKey == "" || filterKey == "all"},
-			{Key: "overdue", Label: "Overdue", Count: inbox.OverdueCount, Active: filterKey == composition.BucketOverdue},
-			{Key: "today", Label: "Due today", Count: inbox.TodayCount, Active: filterKey == composition.BucketToday},
-		}
-
-		pending := inbox.Pending
-		if filterKey == composition.BucketOverdue || filterKey == composition.BucketToday {
-			pending = nil
-			for i, c := range inbox.Pending {
-				if inbox.Buckets[i] == filterKey {
-					pending = append(pending, c)
-				}
-			}
 		}
 
 		chrome, err := resolveChrome(ctx, req, store, cfg)
@@ -71,20 +67,69 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 		}
 		// Only the switch-workspace href is wanted here now. This used to also take the viewer's
 		// Workspace role, to hide the Admin and Groups entries this strip once carried; the strip
-		// projects this Application's own two navigation items and nothing else since 2026-09-21,
-		// so there is no Workspace destination on it left to hide.
+		// projects this Application's own declared navigation items and nothing else since
+		// 2026-09-21, so there is no Workspace destination on it left to hide.
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
-		// tab decides what this handler composes (Mine vs Pending); which declared navigation item
-		// appShell's own menu marks current is a separate reading of the same request, done there
-		// (appshell.templ's defaultAppMenu/navItemActive) by comparing the request's raw path and
-		// query against each item's own declared route -- not threaded through here any more.
-		tab := req.URL.Query().Get("tab")
 		render(ctx, w, rendering.ApprovalInboxPage(
-			filters, pending, inbox.Mine,
-			tab == inboxTabMine,
+			filters, pending, mine, assignedRows, assignedFilters, tab,
 			chrome.WorkspaceName, chrome.Viewer(), switchHref,
 		))
 	}
+}
+
+// pendingTabContent composes the Pending and My Documents tabs from one call to
+// composition.ApprovalInbox, which already returns both (Pending is its own list, My Documents is
+// Inbox.Mine) -- the two have shared one composed read since before this tab strip had a third
+// tab, and giving My Documents a call of its own would read every record set a second time for a
+// screen that already has the answer. filterKey narrows Pending by SLA bucket; My Documents
+// carries no filter of its own.
+func pendingTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, filterKey string) (pending, mine []rendering.PendingApprovalCard, filters []rendering.FilterChip, err error) {
+	inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	filters = []rendering.FilterChip{
+		{Key: "all", Label: "All", Count: len(inbox.Pending), Active: filterKey == "" || filterKey == "all"},
+		{Key: "overdue", Label: "Overdue", Count: inbox.OverdueCount, Active: filterKey == composition.BucketOverdue},
+		{Key: "today", Label: "Due today", Count: inbox.TodayCount, Active: filterKey == composition.BucketToday},
+	}
+	pending = inbox.Pending
+	if filterKey == composition.BucketOverdue || filterKey == composition.BucketToday {
+		pending = nil
+		for i, c := range inbox.Pending {
+			if inbox.Buckets[i] == filterKey {
+				pending = append(pending, c)
+			}
+		}
+	}
+	return pending, inbox.Mine, filters, nil
+}
+
+// assignedTabContent composes the Assigned to me tab: composition.AssignedToMe's own reads (a
+// sixth record set, this identity's Groups, that neither sibling tab touches), reduced by
+// ?status= the same way pendingTabContent reduces Pending by ?filter=.
+func assignedTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, statusKey string) (rows []rendering.AssignedRow, filters []rendering.FilterChip, err error) {
+	assigned, err := composition.AssignedToMe(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
+	if err != nil {
+		return nil, nil, err
+	}
+	filters = []rendering.FilterChip{
+		{Key: "all", Label: "All", Count: len(assigned.Rows), Active: statusKey == "" || statusKey == "all"},
+		{Key: composition.AssignedWaiting, Label: "Waiting for me", Count: assigned.WaitingCount, Active: statusKey == composition.AssignedWaiting},
+		{Key: composition.AssignedNotYet, Label: "Not yet my turn", Count: assigned.NotYetCount, Active: statusKey == composition.AssignedNotYet},
+		{Key: composition.AssignedApproved, Label: "Approved by me", Count: assigned.ApprovedCount, Active: statusKey == composition.AssignedApproved},
+		{Key: composition.AssignedRejected, Label: "Rejected by me", Count: assigned.RejectedCount, Active: statusKey == composition.AssignedRejected},
+	}
+	rows = assigned.Rows
+	if statusKey != "" && statusKey != "all" {
+		rows = nil
+		for _, r := range assigned.Rows {
+			if r.DecisionKey == statusKey {
+				rows = append(rows, r)
+			}
+		}
+	}
+	return rows, filters, nil
 }
 
 // showPendingCount serves pageShell's own nav badge (ROADMAP.md Phase 21 round 2, Step J) -- the
