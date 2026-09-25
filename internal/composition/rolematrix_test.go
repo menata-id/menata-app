@@ -83,14 +83,14 @@ func TestRoleMatrix_applicationBlock(t *testing.T) {
 	if !ok {
 		t.Fatalf("no Approve row; got %v", keys(rows))
 	}
-	if want := []bool{true, false, true}; !sameGrants(approve.Granted, want) {
-		t.Errorf("Approve granted = %v, want %v -- roles within one permission are alternatives", approve.Granted, want)
+	if approve.Who != "Approver, Reviewer" {
+		t.Errorf("Approve who = %q, want %q -- roles within one permission are alternatives, in app.Roles' own declared order", approve.Who, "Approver, Reviewer")
 	}
-	// A tick answers the role question only. The record-scoped arm has to be said, or the row
+	// Who answers the role question only. The record-scoped arm has to be said, or the row
 	// overstates the grant: "an approver may approve" is true, "any approver may approve any
-	// step" is not.
-	if !strings.Contains(approve.Qualifier, "assigned to") || !strings.Contains(approve.Qualifier, "roles ticked here") {
-		t.Errorf("Approve qualifier = %q, want it to name the record-scoped arm in plain words", approve.Qualifier)
+	// step" is not. It must not repeat the role half Who already carries.
+	if !strings.Contains(approve.Qualifier, "assigned to") || strings.Contains(approve.Qualifier, "roles ticked here") {
+		t.Errorf("Approve qualifier = %q, want it to name only the record-scoped arm in plain words", approve.Qualifier)
 	}
 
 	create := rows["Document · Create"]
@@ -179,8 +179,8 @@ func TestRoleMatrix_severalPermissionsOnOneActionIntersect(t *testing.T) {
 	})
 
 	got := rowsOf(RoleMatrix(apps, all).Applications[0])["Approval Step · Approve"]
-	if want := []bool{false, false, true}; !sameGrants(got.Granted, want) {
-		t.Errorf("granted = %v, want %v -- only a role satisfying BOTH permissions reaches the action", got.Granted, want)
+	if got.Who != "Reviewer" {
+		t.Errorf("who = %q, want %q -- only a role satisfying BOTH permissions reaches the action", got.Who, "Reviewer")
 	}
 }
 
@@ -198,8 +198,8 @@ func TestRoleMatrix_disjointPermissionsGrantNobody(t *testing.T) {
 	if got.Open {
 		t.Fatal("two permissions with no role in common restrict everyone, they do not restrict nobody")
 	}
-	if want := []bool{false, false, false}; !sameGrants(got.Granted, want) {
-		t.Errorf("granted = %v, want %v", got.Granted, want)
+	if got.Who != "No one" {
+		t.Errorf("who = %q, want %q", got.Who, "No one")
 	}
 }
 
@@ -224,8 +224,8 @@ func TestRoleMatrix_appendOnlyMachineInsideAnApplication(t *testing.T) {
 	apps[0].Machines = append(apps[0].Machines, "mch_activity")
 
 	got := rowsOf(RoleMatrix(apps, all).Applications[0])["Activity · Edit or delete"]
-	if want := []bool{false, false, false}; !sameGrants(got.Granted, want) {
-		t.Errorf("granted = %v, want %v -- append-only refuses everyone", got.Granted, want)
+	if got.Who != "No one" {
+		t.Errorf("who = %q, want %q -- append-only refuses everyone", got.Who, "No one")
 	}
 	if got.Open {
 		t.Error("append-only is a rule, not the absence of one")
@@ -240,18 +240,6 @@ func keys(m map[string]rendering.RoleMatrixRow) []string {
 	return out
 }
 
-func sameGrants(got, want []bool) bool {
-	if len(got) != len(want) {
-		return false
-	}
-	for i := range got {
-		if got[i] != want[i] {
-			return false
-		}
-	}
-	return true
-}
-
 // The Access row is what makes a view-only role legible. Without it a role granted nothing else
 // renders as an empty column, which reads as "this role can do nothing" -- the opposite of what a
 // reviewer is for.
@@ -263,8 +251,8 @@ func TestRoleMatrix_accessRowComesFirstAndEveryRoleHasIt(t *testing.T) {
 		t.Fatalf("groups = %v, want Access first", da.Groups)
 	}
 	row := da.Groups[0].Rows[0]
-	if want := []bool{true, true, true}; !sameGrants(row.Granted, want) {
-		t.Errorf("granted = %v, want every declared role to have it -- holding any role is what grants entry", row.Granted)
+	if row.Who != "All roles" {
+		t.Errorf("who = %q, want %q -- holding any role is what grants entry", row.Who, "All roles")
 	}
 	if !strings.Contains(row.Qualifier, "no role") {
 		t.Errorf("qualifier = %q, want it to state what someone without a role sees", row.Qualifier)
@@ -274,5 +262,28 @@ func TestRoleMatrix_accessRowComesFirstAndEveryRoleHasIt(t *testing.T) {
 	// either -- and says so in a sentence instead.
 	if pm := v.Applications[1]; len(pm.Groups) != 0 {
 		t.Errorf("%s declares no roles, so it has no access rule to render", pm.Name)
+	}
+	if da.RolesSummary != "Approver, Submitter, Reviewer" {
+		t.Errorf("rolesSummary = %q, want %q", da.RolesSummary, "Approver, Submitter, Reviewer")
+	}
+}
+
+// whoText's two edge cases named in requiredRoles' own doc comment: no role-bearing Permission at
+// all reads "All roles", and two Permissions leaving nothing in common reads "No one" -- neither
+// is "some roles", so both need their own test rather than being inferred from the ordinary case.
+func TestWhoText(t *testing.T) {
+	roles := []string{"approver", "submitter", "reviewer"}
+
+	if got := whoText(roles, nil, false); got != "All roles" {
+		t.Errorf("unrestricted = %q, want %q", got, "All roles")
+	}
+	if got := whoText(roles, map[string]bool{"reviewer": true}, true); got != "Reviewer" {
+		t.Errorf("one match = %q, want %q", got, "Reviewer")
+	}
+	if got := whoText(roles, map[string]bool{"reviewer": true, "approver": true}, true); got != "Approver, Reviewer" {
+		t.Errorf("two matches = %q, want them in roles' own declared order, got %q", got, got)
+	}
+	if got := whoText(roles, map[string]bool{}, true); got != "No one" {
+		t.Errorf("disjoint permissions = %q, want %q", got, "No one")
 	}
 }

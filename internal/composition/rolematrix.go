@@ -49,10 +49,11 @@ func RoleMatrix(apps []domain.Application, all []*domain.Machine) rendering.Role
 // being acted on, and a plain sentence for the status changes nobody performs.
 func applicationBlock(app domain.Application, byID map[string]*domain.Machine) rendering.RoleMatrixApp {
 	block := rendering.RoleMatrixApp{
-		ID:          app.ID,
-		Name:        app.Name,
-		Description: app.Description,
-		Roles:       app.Roles,
+		ID:           app.ID,
+		Name:         app.Name,
+		Description:  app.Description,
+		Roles:        app.Roles,
+		RolesSummary: rolesSummary(app.Roles),
 	}
 	if len(app.Roles) == 0 {
 		return block
@@ -72,7 +73,7 @@ func applicationBlock(app domain.Application, byID map[string]*domain.Machine) r
 			Actions: []string{"enter"},
 			Qualifier: "Any role here. Someone with no role in " + app.Name +
 				" cannot open a single one of its screens, including looking at a document.",
-			Granted: allTrue(len(app.Roles)),
+			Who: "All roles",
 		}},
 	})
 	for _, machineID := range app.Machines {
@@ -109,7 +110,7 @@ func recordActionRows(m *domain.Machine, roles []string) []rendering.RoleMatrixR
 				Action:    verbFor([]string{act}),
 				Actions:   []string{act},
 				Qualifier: "No one, not even an admin — records here are added, never changed or removed.",
-				Granted:   make([]bool, len(roles)),
+				Who:       "No one",
 			})
 			continue
 		}
@@ -122,29 +123,66 @@ func recordActionRows(m *domain.Machine, roles []string) []rendering.RoleMatrixR
 func actionRow(m *domain.Machine, label, action string, actions, roles []string) rendering.RoleMatrixRow {
 	row := rendering.RoleMatrixRow{Action: label, Actions: actions}
 	required, restricted := requiredRoles(m, action)
-	unrestricted := !restricted
-	for _, role := range roles {
-		row.Granted = append(row.Granted, unrestricted || required[role])
-	}
-	row.Qualifier, row.Open = qualifier(m, action, unrestricted)
+	row.Who = whoText(roles, required, restricted)
+	row.Qualifier, row.Open = restrictionText(m, action, !restricted)
 	return row
 }
 
-// qualifier is the line under a row: what the rule says *besides* which roles may, in the words
-// the screens use rather than in field ids.
-//
-// A ✓ answers the role question only, and every rule in this manifest that matters also narrows
-// which record. A page that showed the ticks and hid that would overstate every grant on it --
-// "an approver may reject" is true and "any approver may reject any step" is not.
+// whoText is a row's own "who can do it" phrase: the role names requiredRoles found to satisfy
+// every role-bearing Permission, in this Application's own declared order, or the two edge cases
+// requiredRoles' own doc comment names as distinct from "some roles" -- no role-bearing Permission
+// at all ("All roles"), and two Permissions leaving nothing in common ("No one").
+func whoText(roles []string, required map[string]bool, restricted bool) string {
+	if !restricted {
+		return "All roles"
+	}
+	var matched []string
+	for _, r := range roles {
+		if required[r] {
+			matched = append(matched, capitalizeRole(r))
+		}
+	}
+	if len(matched) == 0 {
+		return "No one"
+	}
+	return strings.Join(matched, ", ")
+}
+
+// rolesSummary renders an Application's whole role vocabulary for display -- "Approver, Submitter,
+// Reviewer" -- capitalized and joined once here so rolematrix.templ only ever renders an
+// already-resolved string, the same rule its own top doc comment states for everything else on
+// this page.
+func rolesSummary(roles []string) string {
+	capitalized := make([]string, len(roles))
+	for i, r := range roles {
+		capitalized[i] = capitalizeRole(r)
+	}
+	return strings.Join(capitalized, ", ")
+}
+
+// capitalizeRole renders a declared role id ("approver") the way a person reads it ("Approver") --
+// metadata's own vocabulary stays lower-case (member-role-detail.html's own dropdown options do
+// the same lower-case-in-YAML, capitalized-on-screen split), so this is presentation only.
+func capitalizeRole(role string) string {
+	if role == "" {
+		return role
+	}
+	return strings.ToUpper(role[:1]) + role[1:]
+}
+
+// restrictionText is the line under a row: what the rule says *besides* which roles may, in the
+// words the screens use rather than in field ids. whoText already carries the role half, so this
+// never repeats it the way this function's own predecessor (qualifier) did before the Flow 2
+// mockup gave "who may" its own column (ROADMAP.md "Application Settings hub").
 //
 // It also says so, and says so in amber, when *nothing* is declared. An ungoverned action and a
-// fully granted one render identically in the cells, and only one of them is something an
-// administrator would want to know about -- in a YAML file they look identical too, which is
-// exactly how three of them stayed ungoverned until someone went looking.
-func qualifier(m *domain.Machine, action string, unrestricted bool) (text string, open bool) {
+// fully granted one read identically in Who ("All roles" either way), and only one of them is
+// something an administrator would want to know about -- in a YAML file they look identical too,
+// which is exactly how three of them stayed ungoverned until someone went looking.
+func restrictionText(m *domain.Machine, action string, unrestricted bool) (text string, open bool) {
 	perms := m.PermissionsFor(action)
 	if len(perms) == 0 {
-		return "No restriction set yet — anyone in this workspace can do this to anyone's record.", true
+		return "No restriction set yet — anyone in this workspace can do this to anyone's " + strings.ToLower(m.Name) + ".", true
 	}
 	var parts []string
 	for _, p := range perms {
@@ -161,19 +199,19 @@ func qualifier(m *domain.Machine, action string, unrestricted bool) (text string
 			parts = append(parts, "a workspace "+p.WorkspaceRole)
 		}
 	}
-	// The two halves are joined rather than concatenated, because saying them separately produced
-	// sentences that contradict themselves ("Anyone -- only the person named as owner.") or
-	// stutter ("Only the ticked roles -- only the person it is assigned to"). Which half leads
-	// depends on whether a role rule exists at all.
 	switch {
 	case len(parts) == 0 && unrestricted:
+		// A Permission exists but declares no restriction of any kind -- unconditional, and
+		// genuinely distinct from "no Permission at all" above, which is why this isn't folded
+		// into that amber branch.
 		return "Anyone in this workspace.", false
 	case len(parts) == 0:
-		return "Only the roles ticked here.", false
+		// Who already names exactly which roles; there is nothing left for this line to add.
+		return "", false
 	case unrestricted:
 		return "Anyone, but only " + strings.Join(parts, "; and only ") + ".", false
 	default:
-		return "Only the roles ticked here, and only " + strings.Join(parts, "; and only ") + ".", false
+		return "Only " + strings.Join(parts, "; and only ") + ".", false
 	}
 }
 
@@ -290,15 +328,7 @@ func foldIdentical(rows []rendering.RoleMatrixRow) []rendering.RoleMatrixRow {
 }
 
 func sameGrant(a, b rendering.RoleMatrixRow) bool {
-	if a.Qualifier != b.Qualifier || a.Open != b.Open || len(a.Granted) != len(b.Granted) {
-		return false
-	}
-	for i := range a.Granted {
-		if a.Granted[i] != b.Granted[i] {
-			return false
-		}
-	}
-	return true
+	return a.Who == b.Who && a.Qualifier == b.Qualifier && a.Open == b.Open
 }
 
 func dedupe(in []string) []string {
@@ -362,13 +392,4 @@ func requiredRoles(m *domain.Machine, action string) (required map[string]bool, 
 		}
 	}
 	return required, restricted
-}
-
-// allTrue is one granted cell per role, for a row every declared role satisfies.
-func allTrue(n int) []bool {
-	out := make([]bool, n)
-	for i := range out {
-		out[i] = true
-	}
-	return out
 }

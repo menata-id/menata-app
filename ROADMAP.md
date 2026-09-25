@@ -1248,7 +1248,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     authenticated GET route to (this route is not swept by that test itself, since the sweep
     parses `router.go`'s literal path and never appends a query, but the property holds anyway).
 
-  - **Application Settings hub (Fase 8) — plan recorded 2026-09-25, Phase 1 of 5 shipped.** Asked
+  - **Application Settings hub (Fase 8) — plan recorded 2026-09-25, Phase 2 of 5 shipped.** Asked
     for a mobile "chip layout" fix on the Role Matrix (this file's own deferral table, "Board m06's
     mobile layout"), reading that row's premise against the actual Flow 2 canvas (owner-supplied
     link, `ui-sample/README.md`'s "The Flow 2 canvas — its live link") found it stale twice over:
@@ -1359,13 +1359,42 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        `internal/web/router.go`, `metadata/applications/document-approval.yaml`, this file, plus
        the new `internal/web/appsettings.go`). A session resuming this work should diff or commit
        them before starting Phase 2, not assume a clean tree.
-    2. **Permissions content reshape.** `internal/composition/rolematrix.go` /
-       `internal/rendering/rolematrix.templ`'s `roleMatrixApp` drops its role-per-column grid for
-       the two-column list the Workspace section of this same file already renders for
-       `RoleMatrixNote`; `RoleMatrixRow` gains `Who string` (derived from `requiredRoles`'s
-       existing role-intersection, not a new metadata read) in place of `Granted []bool`.
-       Independently shippable against the existing `/authorization-matrix` route, which keeps its
-       current multi-Application-plus-Workspace-notes scope. **Not started.**
+    2. **Permissions content reshape — *shipped 2026-09-25*.** `roleMatrixApp`'s role-per-column
+       `<table>` is gone; every Application block now renders the same responsive two-column list
+       (`grid ... sm:grid-cols-[320px_minmax(0,1fr)]`, header row hidden below `sm:`) the Workspace
+       section of this same file already used for `RoleMatrixNote` — one pattern, not two, and the
+       same reuse Flow 2's own `RoleMatrix.dc.html`/`M06-RoleMatrix.dc.html` draw (no grid, no
+       chips, at either breakpoint). `RoleMatrixRow` gained `Who string` in place of
+       `Granted []bool`, derived in `internal/composition/rolematrix.go`'s new `whoText` from the
+       same `requiredRoles` intersection `actionRow` already computed -- "All roles" when
+       unrestricted, the matching role names (declared order) when restricted, and "No one" for the
+       disjoint-permissions state `requiredRoles`'s own doc comment names as real but previously had
+       no rendering at all. `restrictionText` (renamed from `qualifier`) dropped the role-clause
+       Who now carries, substituted a Machine's own name for the generic "record" in the ungoverned
+       amber sentence, and returns an empty string (no second line) when Who already says
+       everything a row needs to. `foldIdentical`/`sameGrant` compare on `Who`+`Qualifier`+`Open`
+       now, and `TestWhoText`/the existing `rolematrix_test.go` suite were rewritten off `Granted`
+       onto `Who` string assertions, plus one new edge-case test for the disjoint-permissions "No
+       one" state that had no test before this pass either.
+
+       The Application card's own header gained the mockup's framing: a `routeByID(ctx,
+       "nav_workspace_members")` link (rendered as the real declared label, "Workspace Members →",
+       not the mockup's own "Members & roles" copy -- CLAUDE.md's rule against a second literal for
+       an already-declared label applies to a link's own text, not just its href) and a
+       `RolesSummary` line ("Roles in this application: Approver, Submitter, Reviewer.") --
+       capitalized and joined once in composition (`rolesSummary`/`capitalizeRole`), never in the
+       `.templ`, the same "resolved view model, not a raw value worked out on the page" rule this
+       file's own top doc comment already states. Replaces the bare role-name pill row that was
+       there before.
+
+       Verified live at `/authorization-matrix` (unchanged route and scope -- still every
+       Application plus the Workspace notes on one page) against a logged-in admin session at both
+       1280px and 390px: every row's Who matches what `document.yaml`/`approval_step.yaml`/
+       `signature.yaml` actually declare (e.g. "Edit or delete a document" reads "Approver,
+       Submitter" with **no** second line, correctly, since that Permission is role-restricted with
+       no record-scoped arm yet -- the owner-scoped half ROADMAP.md's deferral table already names
+       as blocked on data, not on this screen). `go test ./...` and `go test -race ./...` both
+       green with `DATABASE_URL` set.
     3. **The hub page.** Fills in the real bodies of the two placeholder handlers Phase 1 already
        registered (`internal/web/appsettings.go`), plus new `internal/composition/appsettings.go`
        and `internal/rendering/appsettings.templ` — reusing Phase 2's row-building code for a
