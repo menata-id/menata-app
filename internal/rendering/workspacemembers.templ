@@ -71,7 +71,7 @@ func personInitials(name, email string) string {
 // choice -- an unaccepted invitation holds no membership and no role, and cannot be picked as an
 // approver. It is also why an invited row shows no name: only its owner ever states one, when
 // they accept.
-templ WorkspaceMembersPage(members []data.Membership, names map[string]string, pending []data.PendingInvite, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
+templ WorkspaceMembersPage(members []data.Membership, names map[string]string, pending []data.PendingInvite, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref, q string, totalMembers int) {
 	@appShell(labelByID(ctx, "nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 			<div class="flex flex-col gap-2">
@@ -81,7 +81,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			</div>
 			<div class="flex items-center gap-4">
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">{ labelByID(ctx, "nav_workspace_groups") } →</a>
-				<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", len(members)) }{ pluralS(len(members)) }</span>
+				<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", totalMembers) }{ pluralS(totalMembers) }</span>
 			</div>
 		</div>
 		<details class="rounded-lg border border-slate-200 bg-white">
@@ -101,6 +101,10 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				@authSubmit("Send invitation")
 			</form>
 		</details>
+		@searchBox(routeByID(ctx, "nav_workspace_members"), q, "Search members…", nil)
+		if len(members) == 0 && q != "" {
+			<p class="m-0 text-sm text-slate-500">No member matches "{ q }".</p>
+		}
 		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
 			<div class="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600 sm:flex">
 				<span class="grow">Member</span>

@@ -43,17 +43,20 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 		ctx := req.Context()
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		tab := req.URL.Query().Get("tab")
+		// q is My Documents' and Assigned to me's own search box (Flow 2 mockup) -- the Pending
+		// tab carries none, matching its own board (Inbox.dc.html has no search input at all).
+		q := req.URL.Query().Get("q")
 
 		var (
-			filters, assignedFilters []rendering.FilterChip
-			pending, mine            []rendering.PendingApprovalCard
-			assignedRows             []rendering.AssignedRow
-			err                      error
+			filters, mineFilters, assignedFilters []rendering.FilterChip
+			pending, mine                         []rendering.PendingApprovalCard
+			assignedRows                          []rendering.AssignedRow
+			err                                   error
 		)
 		if tab == rendering.TabAssigned {
-			assignedRows, assignedFilters, err = assignedTabContent(ctx, store, machines, userID, req.URL.Query().Get("status"))
+			assignedRows, assignedFilters, err = assignedTabContent(ctx, store, machines, userID, req.URL.Query().Get("status"), q)
 		} else {
-			pending, mine, filters, err = pendingTabContent(ctx, store, machines, userID, req.URL.Query().Get("filter"))
+			pending, mine, filters, mineFilters, err = pendingTabContent(ctx, store, machines, userID, req.URL.Query().Get("filter"), req.URL.Query().Get("status"), q)
 		}
 		if err != nil {
 			serverError(w, err)
@@ -71,7 +74,7 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 		// 2026-09-21, so there is no Workspace destination on it left to hide.
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
 		render(ctx, w, rendering.ApprovalInboxPage(
-			filters, pending, mine, assignedRows, assignedFilters, tab,
+			filters, pending, mine, mineFilters, assignedRows, assignedFilters, tab, q,
 			chrome.WorkspaceName, chrome.Viewer(), switchHref,
 		))
 	}
@@ -81,12 +84,13 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 // composition.ApprovalInbox, which already returns both (Pending is its own list, My Documents is
 // Inbox.Mine) -- the two have shared one composed read since before this tab strip had a third
 // tab, and giving My Documents a call of its own would read every record set a second time for a
-// screen that already has the answer. filterKey narrows Pending by SLA bucket; My Documents
-// carries no filter of its own.
-func pendingTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, filterKey string) (pending, mine []rendering.PendingApprovalCard, filters []rendering.FilterChip, err error) {
+// screen that already has the answer. filterKey narrows Pending by SLA bucket; mineStatusKey/q
+// narrow My Documents by its own status chips (composition.MineFilters) and search box, in that
+// order, so a search always narrows within whichever chip is already active.
+func pendingTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, filterKey, mineStatusKey, q string) (pending, mine []rendering.PendingApprovalCard, filters, mineFilters []rendering.FilterChip, err error) {
 	inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	filters = []rendering.FilterChip{
 		{Key: "all", Label: "All", Count: len(inbox.Pending), Active: filterKey == "" || filterKey == "all"},
@@ -102,13 +106,16 @@ func pendingTabContent(ctx context.Context, store *data.Store, machines map[stri
 			}
 		}
 	}
-	return pending, inbox.Mine, filters, nil
+	mineFilters = composition.MineFilters(inbox.Mine, mineStatusKey)
+	mine = composition.SearchCards(composition.FilterCardsByStatus(inbox.Mine, mineStatusKey), q)
+	return pending, mine, filters, mineFilters, nil
 }
 
 // assignedTabContent composes the Assigned to me tab: composition.AssignedToMe's own reads (a
 // sixth record set, this identity's Groups, that neither sibling tab touches), reduced by
-// ?status= the same way pendingTabContent reduces Pending by ?filter=.
-func assignedTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, statusKey string) (rows []rendering.AssignedRow, filters []rendering.FilterChip, err error) {
+// ?status= the same way pendingTabContent reduces Pending by ?filter=, then by ?q= within whichever
+// status chip is active.
+func assignedTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, statusKey, q string) (rows []rendering.AssignedRow, filters []rendering.FilterChip, err error) {
 	assigned, err := composition.AssignedToMe(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
 	if err != nil {
 		return nil, nil, err
@@ -129,6 +136,7 @@ func assignedTabContent(ctx context.Context, store *data.Store, machines map[str
 			}
 		}
 	}
+	rows = composition.SearchAssignedRows(rows, q)
 	return rows, filters, nil
 }
 

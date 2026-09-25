@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"menata.app/internal/authorization"
+	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -73,7 +74,16 @@ func showWorkspaceMembers(store *data.Store, cfg config.Config) http.HandlerFunc
 		}
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
-		render(ctx, w, rendering.WorkspaceMembersPage(members, names, pending, chrome.WorkspaceName, chrome.Viewer(), roleApplications(ws), switchHref))
+		// q narrows both lists in Go, over what's already been fetched -- no new query, matching
+		// every other filter this app has (ROADMAP.md "Application Settings hub"'s own search
+		// plan). totalMembers is the *unfiltered* count: the mockup's own member-count pill does
+		// not change as you type, only the rows below it do.
+		q := req.URL.Query().Get("q")
+		totalMembers := len(members)
+		render(ctx, w, rendering.WorkspaceMembersPage(
+			composition.FilterMembers(members, names, q), names, composition.FilterPendingInvites(pending, q),
+			chrome.WorkspaceName, chrome.Viewer(), roleApplications(ws), switchHref, q, totalMembers,
+		))
 	}
 }
 

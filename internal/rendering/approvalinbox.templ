@@ -79,7 +79,13 @@ type PendingApprovalCard struct {
 	TotalSteps  int
 	Submitter   string
 	SubmittedAt string // formatted "2 Jan 2006"; empty if no submission event was found
-	SLADue      any
+	// Status is the Document's own fld_status, raw ("in_review"/"approved"/"rejected") -- the same
+	// convention AssignedRow.Status already documents. Unused by the Pending grid's own rendering
+	// (a pending card's SLA framing already says enough), but every declared value from create
+	// through this composed shape rather than only where a screen already draws it -- My
+	// Documents' own status filter chips (internal/web's mineTabContent) are the reader.
+	Status string
+	SLADue any
 	// Approvers is every step's approver and state, ordered by fld_sequence.
 	Approvers []StepApprover
 	Href      string
@@ -125,7 +131,7 @@ type AssignedRow struct {
 // type built to satisfy one label, which is the shape-before-need this repo refuses. Same class as
 // board 03's Procurement/HR cards and board 06's ProcessEdge: the board draws something the app
 // has no data for. Recorded in ROADMAP.md's deferral table with that as its real blocker.
-templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, mine []PendingApprovalCard, assigned []AssignedRow, assignedFilters []FilterChip, tab string, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, mine []PendingApprovalCard, mineFilters []FilterChip, assigned []AssignedRow, assignedFilters []FilterChip, tab, q string, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	// The "Approval Inbox" / "My Documents" / "Assigned to me" section strip used to be this
 	// Page's own nav here (inboxTabs, deleted with this change): appShell now renders the current
 	// Application's own menu itself -- a second header row on desktop, a bottom bar on mobile --
@@ -178,20 +184,40 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, min
 		</div>
 		switch tab {
 			case TabMine:
+				{{ mineChipPrefix := routeByID(ctx, "nav_my_documents") + "&status=" }}
+				<div role="group" aria-label="Filter by status" class="flex flex-wrap items-center justify-between gap-3">
+					<div class="flex flex-wrap gap-2">
+						for _, f := range mineFilters {
+							@filterChip(f, mineChipPrefix)
+						}
+					</div>
+					@searchBox(routeByID(ctx, "nav_approval_inbox"), q, "Search title or DOC number…", map[string]string{"tab": TabMine, "status": activeFilterKey(mineFilters)})
+				</div>
 				if len(mine) == 0 {
-					@inboxEmpty("You haven't submitted any documents yet.")
+					if q != "" {
+						@inboxEmpty(fmt.Sprintf("No document matches %q.", q))
+					} else {
+						@inboxEmpty("You haven't submitted any documents yet.")
+					}
 				} else {
 					@pendingApprovalCardGrid(mine)
 				}
 			case TabAssigned:
 				{{ assignedChipPrefix := routeByID(ctx, "nav_assigned_to_me") + "&status=" }}
-				<div role="group" aria-label="Filter" class="flex flex-wrap gap-2">
-					for _, f := range assignedFilters {
-						@filterChip(f, assignedChipPrefix)
-					}
+				<div role="group" aria-label="Filter" class="flex flex-wrap items-center justify-between gap-3">
+					<div class="flex flex-wrap gap-2">
+						for _, f := range assignedFilters {
+							@filterChip(f, assignedChipPrefix)
+						}
+					</div>
+					@searchBox(routeByID(ctx, "nav_approval_inbox"), q, "Search title or DOC number…", map[string]string{"tab": TabAssigned, "status": activeFilterKey(assignedFilters)})
 				</div>
 				if len(assigned) == 0 {
-					@inboxEmpty("No document has asked for your approval yet.")
+					if q != "" {
+						@inboxEmpty(fmt.Sprintf("No document matches %q.", q))
+					} else {
+						@inboxEmpty("No document has asked for your approval yet.")
+					}
 				} else {
 					@assignedTable(assigned)
 				}
@@ -281,6 +307,18 @@ templ inboxEmpty(message string) {
 	<div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
 		{ message }
 	</div>
+}
+
+// activeFilterKey is whichever chip in filters is currently Active, or "" if none is (a filter row
+// with no chips at all) -- the search box's own hidden "status" field reads this, so submitting a
+// search never resets whichever chip was already picked.
+func activeFilterKey(filters []FilterChip) string {
+	for _, f := range filters {
+		if f.Active {
+			return f.Key
+		}
+	}
+	return ""
 }
 
 // filterChip is one SLA filter chip. It preserves the active tab for the same reason the tabs

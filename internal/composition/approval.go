@@ -211,6 +211,61 @@ func PendingApprovalCount(ctx context.Context, l *Loader, userID string, stepMac
 	return len(pendingStepsFor(steps, docByID, stepsByDoc, userID, seq)), nil
 }
 
+// MineFilters is My Documents' own status chip row (Flow 2 mockup, My Documents' "All / Draft /
+// In review / Approved / Rejected"), counts built from mine -- the *unfiltered* list -- so a chip's
+// own count never changes depending on which chip is already active, the same rule
+// pendingTabContent's Overdue/Due-today chips and assignedTabContent's four decision chips both
+// already follow.
+//
+// No "Draft" chip: metadata/document.yaml's own comment says that option was deliberately removed
+// ("Add it back only alongside a real save-as-draft flow, not speculatively") and fld_status
+// declares exactly [in_review, approved, rejected] -- a chip for a status this runtime cannot
+// produce would count zero forever and read as a bug, not an honest gap.
+func MineFilters(mine []rendering.PendingApprovalCard, statusKey string) []rendering.FilterChip {
+	counts := make(map[string]int, 3)
+	for _, c := range mine {
+		counts[c.Status]++
+	}
+	return []rendering.FilterChip{
+		{Key: "all", Label: "All", Count: len(mine), Active: statusKey == "" || statusKey == "all"},
+		{Key: action.DocumentStatusInReview, Label: "In review", Count: counts[action.DocumentStatusInReview], Active: statusKey == action.DocumentStatusInReview},
+		{Key: action.DocumentStatusApproved, Label: "Approved", Count: counts[action.DocumentStatusApproved], Active: statusKey == action.DocumentStatusApproved},
+		{Key: action.DocumentStatusRejected, Label: "Rejected", Count: counts[action.DocumentStatusRejected], Active: statusKey == action.DocumentStatusRejected},
+	}
+}
+
+// FilterCardsByStatus narrows cards to statusKey's own Status; "" or "all" (MineFilters' own "no
+// chip picked" values) returns cards unchanged.
+func FilterCardsByStatus(cards []rendering.PendingApprovalCard, statusKey string) []rendering.PendingApprovalCard {
+	if statusKey == "" || statusKey == "all" {
+		return cards
+	}
+	out := make([]rendering.PendingApprovalCard, 0, len(cards))
+	for _, c := range cards {
+		if c.Status == statusKey {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// SearchCards narrows cards to those whose Title or Reference contains q, case-insensitively -- My
+// Documents' own search box (Flow 2 mockup: "Search title or DOC number…"). An empty q returns
+// cards unchanged, the same convention every filter on this app already uses.
+func SearchCards(cards []rendering.PendingApprovalCard, q string) []rendering.PendingApprovalCard {
+	if q == "" {
+		return cards
+	}
+	needle := strings.ToLower(q)
+	out := make([]rendering.PendingApprovalCard, 0, len(cards))
+	for _, c := range cards {
+		if strings.Contains(strings.ToLower(c.Title), needle) || strings.Contains(strings.ToLower(c.Reference), needle) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // buildInbox is the whole of the inbox's derivation, over records someone else already fetched.
 // Keeping it free of I/O is what makes the sequencing, bucketing and submitter-resolution rules
 // testable at all: they need four related record sets and a fixed clock, not a database.
@@ -272,6 +327,7 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 			TotalSteps:   len(stepsByDoc[docID]),
 			Submitter:    submitter,
 			SubmittedAt:  submittedAt,
+			Status:       DisplayString(doc.Values[action.FieldDocumentStatus]),
 			SLADue:       doc.Values["fld_due_date"],
 			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names, ""),
 			Href:         fmt.Sprintf("/machines/%s/records/%s/review", action.StepMachineID, s.ID),
@@ -310,6 +366,7 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 			Mode:         behavior.SequencingMode(seq, d),
 			Approved:     approvedCount(stepsByDoc[d.ID]),
 			TotalSteps:   len(stepsByDoc[d.ID]),
+			Status:       DisplayString(d.Values[action.FieldDocumentStatus]),
 			SLADue:       d.Values["fld_due_date"],
 			Approvers:    stepStates(seq, d, stepsByDoc[d.ID], names, userID),
 			Href:         reviewHref(d.ID, len(stepsByDoc[d.ID])),

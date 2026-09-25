@@ -5,6 +5,7 @@ import (
 
 	"menata.app/internal/action"
 	"menata.app/internal/data"
+	"menata.app/internal/rendering"
 )
 
 // groupStep is step's own group-held counterpart: fld_approver_type: Group, no fld_assignee --
@@ -180,5 +181,24 @@ func TestBuildAssigned_SkipsOtherPeoplesSteps(t *testing.T) {
 	got := buildAssigned(steps, docs, nil, personNames, nil, "usr_ana", at(10), stepMachineForTest())
 	if len(got.Rows) != 0 {
 		t.Errorf("got %d row(s), want 0", len(got.Rows))
+	}
+}
+
+func TestSearchAssignedRows(t *testing.T) {
+	rows := []rendering.AssignedRow{
+		{Title: "Lead Actor Contract Amendment", Reference: "DOC-0103"},
+		{Title: "Camera Package Invoice", Reference: "DOC-0092"},
+	}
+	if got := SearchAssignedRows(rows, ""); len(got) != 2 {
+		t.Errorf("empty query = %v, want both rows unchanged", got)
+	}
+	if got := SearchAssignedRows(rows, "lead actor"); len(got) != 1 || got[0].Reference != "DOC-0103" {
+		t.Errorf("case-insensitive title match = %+v, want just DOC-0103", got)
+	}
+	if got := SearchAssignedRows(rows, "doc-0092"); len(got) != 1 || got[0].Title != "Camera Package Invoice" {
+		t.Errorf("case-insensitive reference match = %+v, want just Camera Package Invoice", got)
+	}
+	if got := SearchAssignedRows(rows, "nothing matches this"); len(got) != 0 {
+		t.Errorf("no-match query = %v, want an empty slice", got)
 	}
 }

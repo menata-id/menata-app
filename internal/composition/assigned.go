@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"menata.app/internal/action"
@@ -83,6 +84,23 @@ func AssignedToMe(ctx context.Context, l *Loader, viewerID string, now time.Time
 		myGroupNames[g.ID] = g.Name
 	}
 	return buildAssigned(steps, documents, activities, names, myGroupNames, viewerID, now, stepMachine), nil
+}
+
+// SearchAssignedRows is composition.SearchCards' own counterpart for this screen's row shape
+// (Flow 2 mockup: "Search title or DOC number…", the same placeholder My Documents' box carries).
+// An empty q returns rows unchanged.
+func SearchAssignedRows(rows []rendering.AssignedRow, q string) []rendering.AssignedRow {
+	if q == "" {
+		return rows
+	}
+	needle := strings.ToLower(q)
+	out := make([]rendering.AssignedRow, 0, len(rows))
+	for _, r := range rows {
+		if strings.Contains(strings.ToLower(r.Title), needle) || strings.Contains(strings.ToLower(r.Reference), needle) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // buildAssigned is AssignedToMe's whole derivation, over records someone else already fetched --

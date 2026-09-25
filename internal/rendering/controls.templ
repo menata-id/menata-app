@@ -58,6 +58,26 @@ const (
 	tableHeadCell = "border-b border-slate-200 px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
 )
 
+// searchBox is a plain GET form posting `q` back to path -- Enter submits it natively in every
+// browser, matching every other filter on these screens (a filter chip is a plain <a>, this is a
+// plain <form>), so the feature needs no script at all.
+//
+// path is the bare route with no query string of its own (e.g. routeByID(ctx, "nav_my_documents")
+// returns "/approval-inbox?tab=mine", but a GET form's own submitted query string always replaces
+// whatever query the action URL already carried -- the browser does not merge the two -- so any
+// state that must survive the round trip, tab included, has to travel as a hidden input instead).
+// q pre-fills the box with the current query so a search is never silently lost when a filter chip
+// is clicked next to it.
+templ searchBox(path, q, placeholder string, hidden map[string]string) {
+	<form method="get" action={ templ.SafeURL(path) } role="search" class="flex items-center gap-2">
+		for k, v := range hidden {
+			<input type="hidden" name={ k } value={ v }/>
+		}
+		<label for="q" class="sr-only">{ placeholder }</label>
+		<input id="q" type="search" name="q" value={ q } placeholder={ placeholder } class={ controlField + " w-full sm:w-70" }/>
+	</form>
+}
+
 // fieldInput renders the input control appropriate to a Field's semantic type, pre-filled with
 // current (nil for a blank create-form field). relations supplies <select> options for any
 // reference field (Relation or Person, per domain.Field.IsReference); unused for every other

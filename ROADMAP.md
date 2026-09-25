@@ -451,7 +451,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | ~~Mobile bottom bar for an Application's own menu~~ | **done 2026-09-22** (`applicationBottomBar`), extended with a "More" sheet 2026-09-24 | **This row was stale for two further closes after the thing it describes shipped**, which is worse than the wrongness it already records below: a row saying "no phase yet" about built code reads exactly like a real gap, and the 2026-09-23 Flow 2 gap study had to re-derive from the source that the bar existed. Kept, struck through, with its own history: it previously said "nothing in Fase 2–7 displays it", which stopped being true at Fase 3a — Project Management declares no `show_nav`, keeps its menu, and `/my-tasks` renders ten nav links. It then said the blocker was Project Management still being `pageStyles`; those screens ported to `appShell` on 2026-09-22 and the bar came with them. Three wrong states, one cause: nobody re-read the table, which is the one thing this table needs |
   | Saved default approval flow (board 08: "Save this as the default approval flow for **Contract** documents", checked by default) | **no phase yet** | Upstream built it (CAP-V28) as two companion Machines — one template per Document Type, plus its own ordered steps — with a write direction that find-or-creates the template on submit. That is the real blocker: a template entity and a write path, not the screen. **This row exists because the deferral did not.** It has been live since Phase 15, recorded only inside `menata-app-document`'s development history, in no table anyone re-reads at a phase close — and with a reason that was wrong when written ("only one Document Type exists in metadata today"; there were zero) and is wrong now in the other direction (there are three: `Kontrak`, `Tagihan`, `Lain-lain`). Same shape as the bottom-bar row that sat wrong through four closes |
   | One signature box for a Group-held step (boards 08/09) | **no phase yet** — **named, not solved** | Board 09 places exactly one signature box for `Legal Group · 4 members`, and nothing on either board says whose signature image lands in it, or what happens when two of the four act. Upstream has the identical gap on its own compositing capability, recorded there in the same words. Worth holding here rather than discovering it during 6c-2's port |
-  | Member search box (board 04) | **no phase yet** — "Planned: search, filtering and pagination" below | search does not exist anywhere in the app |
+  | Member search box (board 04) | **closed 2026-09-25** | See this file's "In progress" section, "Search on Workspace Members, My Documents and Assigned to me" |
   | Write-side Binding: a form input's `name=` hardcoded to a Field id (007 §11.3) | **no phase yet** — **and it is the gap a shrinking ratchet hides** | `signatureplacement.templ` carries twelve `name={ action.Field… }`, `documentsubmit.templ` four (this read "six" until it was counted, 2026-09-21), while `machine.templ` already does it generically (`name={ f.ID }` over `m.Fields`). `TestRenderingUsesProjectionNotRawValues` gates *reads*, never writes, so both files could leave `projectionRatchet` with every binding still hand-typed — which is exactly what happened in 6c-2 and 6c-3. Recorded here so the ratchet count is not read as a composability score. Trigger: a third bespoke write screen, or the generic update route stopping its whole-record rewrite (the same route that forced 6c-3's carry-forward list). **Half of that trigger arrived 2026-09-21, and the count did not move at all** -- which is the useful part. Board 09's forms left the generic route for one that writes four named Fields, so the carry-forward echo is gone; the twelve hand-typed bindings are exactly as hand-typed as before. The first guess while writing this row said the count would drop to four, and checking the file said twelve: the echo rendered `name={ f.Name }` from a derived list, never `action.Field*`, so it was never part of this number. The whole-record rewrite was the reason the *echo* existed; it was never the reason the *bindings* are literal, and removing it changes nothing here. The other half of the trigger -- a third bespoke write screen -- is still the one to watch |
   | `NavBadgeApprovalInboxPending` still resolved in the Domain Plane | **no phase yet** | `domain.NavigationItem.Badge` names one live count the runtime special-cases end to end (`domain/navigation.go`, `web/workspacehome.go`, `appshell.templ`, `machine.templ`). It cannot become an ordinary Dataset: the count filters on assignee **and** on `behavior.CanAct`, which reads a *sibling* record, while a Measure's `where:` is evaluated per record against its own values. So the blocker is record selection (007 §8), not the identity sentinel below — a point the companion repo's Stage 0 first got wrong in the other direction |
   | PDF signature compositing is hand-written Go (upstream CAP-F22) | **no phase yet** | The third of the three Case 3 behaviours named above; the other two (`activate_next`, `aggregate_status`) landed 2026-09-20 and this one did not, so it should stop riding on their line. `internal/action/composite.go`/`banner.go` manipulate a binary PDF rather than express a rule, which is the lowest generalization value of the three — but "lowest value" is a ranking, not a deferral reason, and it had neither a phase nor a row until now |
@@ -1498,6 +1498,55 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        tied to Workspace concepts (archive/restore a Workspace, an audit log, deactivating a member)
        with no phase of their own anywhere in this file yet.
 
+- **Search on Workspace Members, My Documents and Assigned to me — *shipped 2026-09-25*.**
+  "Search, filtering and pagination on record lists" (below, "Planned") was checked against the
+  Flow 2 mockup canvas rather than assumed: search is what three boards concretely ask for
+  (`Members.dc.html`, `MyDocuments.dc.html`, `AssignedToMe.dc.html`, each with an
+  `<input type="search">`); **none of the 39 boards show pagination controls**, and every list
+  shown is small (≤24 rows). `internal/data.Store` also has zero `LIMIT`/`OFFSET` capability today
+  (every statement in the package is a fixed-literal `WHERE`, confirmed by reading all of it), so
+  building pagination would mean writing genuinely new SQL against a `data jsonb` column with no
+  forcing case yet -- the same "never build ahead of a real need" discipline already governing
+  `internal/expression`'s missing `lt`/`gt` and 007 §8's Query Model. **This shipped search only;
+  pagination stays "Planned" until a list actually reaches the ~200-row trigger
+  `capabilities.md`'s own volume-threshold harness measures.**
+
+  Every new filter follows the one pattern this app already had three working copies of
+  (`pendingTabContent`'s Overdue/Due-today chips, `assignedTabContent`'s four decision chips): read
+  the query param, reduce the **already-fetched** full list in Go, build any chip's count from the
+  *unfiltered* set first. Zero new SQL and zero new queries, which is what makes it trivially
+  compatible with `internal/web/querycount_test.go`'s sweep and the two numeric budgets --
+  `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed`/`TestAuthenticatedPageQueryCost`/
+  `TestNavBadgeQueryCost` all measured unchanged after this change (`/home` still 13 queries, the
+  nav badge still 5-8, the sweep's 24 routes still `queries == reads`, `repeated == 0`).
+
+  New shared `searchBox` (`controls.templ`) -- a plain `<form method="get">` that submits `q` on
+  Enter natively, no script, matching every existing filter chip's own no-JS posture. Used
+  identically on all three screens from the start (the "second and third real case at once" this
+  repo's promotion criterion asks for). One real HTML-forms subtlety it exists to hide: a GET
+  form's own query string always **replaces** whatever query its `action` URL already carried
+  (`?tab=mine` does not survive submission by itself), so `tab`/`status` travel as hidden inputs
+  instead, and searching never resets whichever filter chip was already active
+  (`activeFilterKey`, `approvalinbox.templ`).
+
+  **My Documents gained a status filter row it never had** (`composition.MineFilters`,
+  `internal/web`'s `pendingTabContent` widened rather than a new function, since it already returns
+  `Mine` from the one `composition.ApprovalInbox` call): `All / In review / Approved / Rejected` --
+  no "Draft" chip, since `metadata/document.yaml`'s own comment says that option was deliberately
+  removed ("Add it back only alongside a real save-as-draft flow, not speculatively") and
+  `fld_status` declares exactly the three real values. `PendingApprovalCard` gained a `Status`
+  field (the Document's own `fld_status`, the same convention `AssignedRow.Status` already
+  documented) to make this possible. **Assigned to me already had its own four-state filter row**
+  (`assignedTabContent`, shipped with the screen itself) -- confirmed reading the real code before
+  assuming a gap that wasn't there; it only needed the search box added on top.
+
+  Verified live (browser, admin session): `/workspace-members` narrows by name or email while its
+  total-count pill stays fixed (the mockup's own "24 members" does not change as you type);
+  `/approval-inbox?tab=mine` shows real chip counts, clicking one narrows the grid, and searching
+  narrows further within the active chip (confirmed by URL: `?tab=mine&status=in_review&q=...` --
+  the chip survives the search); `/approval-inbox?tab=assigned` behaves identically. `go test ./...`
+  (with and without `DATABASE_URL`) and `go test -race ./...` all green.
+
 ## Planned
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
@@ -1581,10 +1630,13 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   urgent while the manifest ships with the binary; both stop being optional the moment metadata is
   edited by someone who cannot restart the process, which is the actual end state this runtime is
   for.
-- Search, filtering and pagination on record lists. **Pagination is also the cheapest answer to the
-  data-path cost measured in the study above** (007 §7.9): it breaks the "a page costs what the
-  Machine holds" relationship outright, without needing Filter/Projection/Aggregate pushdown first.
-  Its own trigger arrives sooner than theirs — one list screen past ~200 rows.
+- **Pagination on record lists** — search itself shipped 2026-09-25 ("In progress", above), checked
+  against the Flow 2 mockup rather than assumed: no board shows pagination controls, so it stays
+  here. **Pagination is also the cheapest answer to the data-path cost measured in the study
+  above** (007 §7.9): it breaks the "a page costs what the Machine holds" relationship outright,
+  without needing Filter/Projection/Aggregate pushdown first. Its own trigger arrives sooner than
+  theirs — one list screen past ~200 rows, `capabilities.md`'s own volume-threshold harness
+  (`make threshold`) is what would confirm it's been reached.
 - Background/scheduled jobs (e.g. SLA-breach notifications that don't depend on someone opening
   the page).
 - Expanding beyond the first two applications into the wider portfolio of business cases this

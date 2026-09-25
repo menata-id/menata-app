@@ -416,6 +416,85 @@ func TestBuildInbox_NilStepMachineProjectsNothing(t *testing.T) {
 	}
 }
 
+func TestMineFilters(t *testing.T) {
+	mine := []rendering.PendingApprovalCard{
+		{Status: action.DocumentStatusInReview},
+		{Status: action.DocumentStatusInReview},
+		{Status: action.DocumentStatusApproved},
+		{Status: action.DocumentStatusRejected},
+	}
+	got := MineFilters(mine, action.DocumentStatusInReview)
+	want := map[string]struct {
+		count  int
+		active bool
+	}{
+		"all":                         {4, false},
+		action.DocumentStatusInReview: {2, true},
+		action.DocumentStatusApproved: {1, false},
+		action.DocumentStatusRejected: {1, false},
+	}
+	if len(got) != 4 {
+		t.Fatalf("MineFilters returned %d chips, want 4 (no Draft -- fld_status declares none)", len(got))
+	}
+	for _, chip := range got {
+		w, ok := want[chip.Key]
+		if !ok {
+			t.Errorf("unexpected chip key %q", chip.Key)
+			continue
+		}
+		if chip.Count != w.count {
+			t.Errorf("chip %q count = %d, want %d", chip.Key, chip.Count, w.count)
+		}
+		if chip.Active != w.active {
+			t.Errorf("chip %q active = %v, want %v (statusKey was %q)", chip.Key, chip.Active, w.active, action.DocumentStatusInReview)
+		}
+	}
+	// Counts must not depend on which chip is active -- built from the unfiltered set, matching
+	// pendingTabContent's own Overdue/Due-today chips and assignedTabContent's four decision chips.
+	gotAll := MineFilters(mine, "")
+	for i, chip := range gotAll {
+		if chip.Count != got[i].Count {
+			t.Errorf("chip %q count changed with statusKey (%d vs %d) -- counts must come from the unfiltered list", chip.Key, chip.Count, got[i].Count)
+		}
+	}
+}
+
+func TestFilterCardsByStatus(t *testing.T) {
+	cards := []rendering.PendingApprovalCard{
+		{Title: "A", Status: action.DocumentStatusInReview},
+		{Title: "B", Status: action.DocumentStatusApproved},
+	}
+	if got := FilterCardsByStatus(cards, ""); len(got) != 2 {
+		t.Errorf("empty statusKey = %v, want both cards unchanged", got)
+	}
+	if got := FilterCardsByStatus(cards, "all"); len(got) != 2 {
+		t.Errorf("\"all\" statusKey = %v, want both cards unchanged", got)
+	}
+	got := FilterCardsByStatus(cards, action.DocumentStatusApproved)
+	if len(got) != 1 || got[0].Title != "B" {
+		t.Errorf("FilterCardsByStatus(..., approved) = %+v, want just card B", got)
+	}
+}
+
+func TestSearchCards(t *testing.T) {
+	cards := []rendering.PendingApprovalCard{
+		{Title: "Catering Contract", Reference: "DOC-0106"},
+		{Title: "Lighting Rental", Reference: "DOC-0104"},
+	}
+	if got := SearchCards(cards, ""); len(got) != 2 {
+		t.Errorf("empty query = %v, want both cards unchanged", got)
+	}
+	if got := SearchCards(cards, "catering"); len(got) != 1 || got[0].Reference != "DOC-0106" {
+		t.Errorf("case-insensitive title match = %+v, want just DOC-0106", got)
+	}
+	if got := SearchCards(cards, "doc-0104"); len(got) != 1 || got[0].Title != "Lighting Rental" {
+		t.Errorf("case-insensitive reference match = %+v, want just Lighting Rental", got)
+	}
+	if got := SearchCards(cards, "nothing matches this"); len(got) != 0 {
+		t.Errorf("no-match query = %v, want an empty slice", got)
+	}
+}
+
 func TestInitials(t *testing.T) {
 	for _, tc := range []struct{ name, want string }{
 		{"Ana Putri", "AP"},
