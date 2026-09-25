@@ -158,6 +158,13 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 		// Board 03's own closing row. The mockup reads "You manage Dokter Kecil · 24 members"; the
 		// member count is dropped for the reason recorded three times now -- it is not a field on
 		// domain.Workspace -- so the row states the role and the destination, which are both real.
+		//
+		// Pointed at nav_workspace_members until 2026-09-25, when a screenshot caught it still doing
+		// that after the Workspace Settings hub shipped (Flow 2 gap study Tahap 5) -- the assumption
+		// that this link was "untouched by design" was never actually checked against
+		// M03-WorkspaceHome.dc.html, whose own closing row reads "Settings →" and links to
+		// M04a-Settings.dc.html, not to Members directly. Fixed here rather than left stale a second
+		// time: this row now opens the hub, same as workspaceMenu's own settings row.
 		if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
 			<div class="mt-2 flex items-center gap-3 border-t border-slate-200 pt-4 text-sm text-slate-500">
 				// Only when there is a role to name. displayRole renders "—" for an empty one, which
@@ -168,9 +175,9 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs font-medium text-slate-600">{ viewer.WorkspaceRole }</span>
 				}
 				<span class="grow">You manage { workspaceName }</span>
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="flex shrink-0 items-center gap-1.5 text-blue-600 hover:text-blue-700">
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="flex shrink-0 items-center gap-1.5 text-blue-600 hover:text-blue-700">
 					@icon("settings", "size-3.5")
-					{ labelByID(ctx, "nav_workspace_members") }
+					{ labelByID(ctx, "nav_workspace_settings") }
 				</a>
 			</div>
 		}
@@ -183,8 +190,9 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 // destinations -- so the filter had nothing left to filter, and keeping it would have read as a
 // protection that no longer protects anything. requireWorkspaceAdmin was always the real gate.
 //
-// The "Manage members" link on this page keeps its own inline `workspaceRole != "member"` check,
-// which is the half of the 2026-09-19 code-review finding that can still leak.
+// This page's own closing row (now "Settings", 2026-09-25) keeps its own inline
+// `workspaceRole != "member"` check, which is the half of the 2026-09-19 code-review finding that
+// can still leak.
 
 // accessTile was deleted on 2026-09-24 with the "Your access" section it existed for. That
 // section answered "which role do I hold where" in a separate grid at the bottom of the page;
