@@ -209,8 +209,19 @@ type navMenuItem struct {
 // of a bespoke one per Application (CLAUDE.md's decomposition trigger: this is the second
 // Application that needs this exact shape).
 func defaultAppMenu(items []domain.NavigationItem, path, rawQuery string) []navMenuItem {
-	sorted := make([]domain.NavigationItem, len(items))
-	copy(sorted, items)
+	var filtered []domain.NavigationItem
+	for _, item := range items {
+		// A Settings hub item (or one of its own hub members, e.g. Permissions) belongs to the
+		// chrome's dedicated "Settings" link, not this Application's main menu --
+		// domain.NavigationItem's own SettingsHub/SettingsHubMember doc comments.
+		if item.SettingsHub || item.SettingsHubMember {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+
+	sorted := make([]domain.NavigationItem, len(filtered))
+	copy(sorted, filtered)
 	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Priority < sorted[j].Priority })
 
 	menu := make([]navMenuItem, len(sorted))

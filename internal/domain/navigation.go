@@ -66,6 +66,30 @@ type NavigationItem struct {
 	// a sentence is not a Title-Case phrase, so nothing matched it.
 	Title       string
 	Description string
+	// SettingsHub marks the one navigation item that *is* an Application's Settings landing page
+	// (ROADMAP.md "In progress", "Application Settings hub") -- at most one per Application,
+	// validated the same way HomeCard is. Its own Label/Title/Description/Route/Icon are what the
+	// Application chrome's "Settings" link and the hub page's own heading read, the same "declare
+	// it once, read it everywhere" shape HomeRoute already established.
+	SettingsHub bool
+	// SettingsHubMember marks any *other* item reached from that hub (e.g. the Permissions page)
+	// rather than from the main menu -- mutually exclusive with SettingsHub on one item, and
+	// excluded from appshell.templ's tab strip / bottom bar exactly like the hub root is.
+	//
+	// Deliberately a bool, not a string naming which section it sits under (an earlier draft of
+	// this field, SettingsSection): the hub has exactly one real section ("Access") today, so a
+	// per-item classification value would be declaring a fact metadata does not yet have two real
+	// answers for. The section's own label is a plain string in appsettings.templ instead --
+	// CLAUDE.md's "second real case" trigger applies to the *grouping concept* here, not to
+	// whether an item is reachable at all, which this field still says.
+	//
+	// What actually decides whether the hub's Access section (and this item's own row in it) is
+	// worth showing is domain.Application.Roles, read directly by internal/composition/
+	// appsettings.go -- not the mere existence of a SettingsHubMember-flagged item. An Application
+	// declaring nav_app_settings_permissions and later removing all its roles would otherwise leave
+	// a dead-looking row that nothing catches; deriving the row's *content* from Roles, while this
+	// field only ever decided the item's *addressability*, is what keeps that from drifting.
+	SettingsHubMember bool
 	// Icon must be one of KnownIcons, the same convention as Application.Icon. It was a single
 	// literal character until 2026-09-24 -- see KnownIcons for why that convention ended and what
 	// a name buys over a glyph.

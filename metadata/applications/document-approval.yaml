@@ -154,3 +154,31 @@ navigation:
     route: /approval-inbox?tab=assigned
     priority: 3
     icon: user-check
+  # nav_app_settings / nav_app_settings_permissions -- the Settings hub (ROADMAP.md "In progress",
+  # "Application Settings hub"). settings_hub/settings_hub_member keep both out of the tab strip
+  # and mobile bottom bar above (appshell.templ's defaultAppMenu excludes any item carrying
+  # either) -- they are reached from the chrome's own dedicated "Settings" link, not this
+  # Application's main menu. No priority: neither renders in a Priority-ordered list.
+  #
+  # Declaring nav_app_settings_permissions here is what makes /document-approval/settings/
+  # permissions a real, addressable destination (this runtime resolves "which Application" a
+  # route belongs to by matching a declared route, the same reason nav_my_documents/
+  # nav_assigned_to_me are each declared despite sharing one physical handler with
+  # nav_approval_inbox) -- it is not what decides whether the hub's Access section actually shows
+  # a Permissions row. That is derived from this Application's own `roles:` above, by
+  # internal/composition/appsettings.go, the same "derived, not typed" rule
+  # internal/composition/rolematrix.go's own "Access" row already follows.
+  - id: nav_app_settings
+    label: Settings
+    title: Document Approval settings
+    description: Applies to this application only.
+    route: /document-approval/settings
+    icon: settings
+    settings_hub: true
+  - id: nav_app_settings_permissions
+    label: Permissions
+    title: Permissions
+    description: Who can do what in Document Approval.
+    route: /document-approval/settings/permissions
+    settings_hub_member: true
+    icon: settings

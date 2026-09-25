@@ -97,6 +97,10 @@ type navItemDoc struct {
 	Description string `yaml:"description"`
 	// Icon -- see domain.NavigationItem.Icon. Optional.
 	Icon string `yaml:"icon"`
+	// SettingsHub/SettingsHubMember -- see domain.NavigationItem. Both optional; absent means an
+	// ordinary navigation item, unchanged from before either field existed.
+	SettingsHub       bool `yaml:"settings_hub"`
+	SettingsHubMember bool `yaml:"settings_hub_member"`
 }
 
 // Workspaces is every installed Workspace manifest, keyed by the slug it names. A Workspace whose
@@ -353,16 +357,18 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 	var items []domain.NavigationItem
 	for _, n := range docs {
 		items = append(items, domain.NavigationItem{
-			ID:          n.ID,
-			Label:       n.Label,
-			Route:       n.Route,
-			Group:       n.Group,
-			Priority:    n.Priority,
-			Badge:       n.Badge,
-			HomeCard:    n.HomeCard,
-			Icon:        n.Icon,
-			Title:       n.Title,
-			Description: n.Description,
+			ID:                n.ID,
+			Label:             n.Label,
+			Route:             n.Route,
+			Group:             n.Group,
+			Priority:          n.Priority,
+			Badge:             n.Badge,
+			HomeCard:          n.HomeCard,
+			Icon:              n.Icon,
+			Title:             n.Title,
+			Description:       n.Description,
+			SettingsHub:       n.SettingsHub,
+			SettingsHubMember: n.SettingsHubMember,
 		})
 	}
 	return items

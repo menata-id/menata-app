@@ -36,6 +36,7 @@ func validateNavigation(items []domain.NavigationItem) []string {
 	var issues []string
 	seen := make(map[string]bool, len(items))
 	homeCardID := ""
+	settingsHubID := ""
 	for _, n := range items {
 		if !navItemIDPattern.MatchString(n.ID) {
 			issues = append(issues, fmt.Sprintf("navigation item id %q must match %s", n.ID, navItemIDPattern.String()))
@@ -66,6 +67,17 @@ func validateNavigation(items []domain.NavigationItem) []string {
 				issues = append(issues, fmt.Sprintf("navigation item %q: home_card is already set on %q -- at most one item may claim it", n.ID, homeCardID))
 			}
 			homeCardID = n.ID
+		}
+		// SettingsHub is at most one per list, the same shape as HomeCard directly above -- it names
+		// the one destination an Application's "Settings" link and hub page read.
+		if n.SettingsHub {
+			if settingsHubID != "" {
+				issues = append(issues, fmt.Sprintf("navigation item %q: settings_hub is already set on %q -- at most one item may claim it", n.ID, settingsHubID))
+			}
+			settingsHubID = n.ID
+			if n.SettingsHubMember {
+				issues = append(issues, fmt.Sprintf("navigation item %q: settings_hub and settings_hub_member are mutually exclusive -- the hub item is the landing page, not a member of its own hub", n.ID))
+			}
 		}
 	}
 	return issues

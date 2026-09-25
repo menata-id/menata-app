@@ -311,3 +311,27 @@ This is still a design reference only, same as everything else in this directory
 three has a `domain` model, a real route, or anything behind its Save/Update buttons. That is
 recorded as still-open in `development-history.md`, not resolved by adding the mockups — the
 mockups are what "needs to be prepared" meant, the model/route work is separate and unstarted.
+
+## The Flow 2 canvas — its live link (2026-09-24)
+
+`ROADMAP.md`'s "Flow 2 mockup" entry (gap recorded 2026-09-23) had, until now, only been read
+secondhand through `menata-app-document`'s `audits/2026-09-23-kajian-gap-mockup-flow2.md` — the
+canvas itself was never linked from either repo. The owner supplied it directly:
+`https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`, an appifact **Design canvas** (not a static
+HTML export like everything else in this directory), 39 artboards confirmed against
+`project/canvas.json` — 19 desktop (`AccountMenu`, `AppLauncher`, `AssignedToMe`, `Dashboard`,
+`Inbox`, `Main`, `MemberEdit`, `Members`, `MyDocuments`, `NewApp`, `NewAppReview`, `Review`,
+`RoleMatrix`, `SignaturePositions`, `SubmitDetails`, `Workspace`, `WorkspaceArchived`,
+`WorkspaceHome`, `WorkspaceMenu`) and 20 mobile, `M##-` prefixed, one per desktop board except
+`Main` plus a `Settings`/`AppSettings` split (`M01-SignIn` through `M12-AppLauncher`, including
+`M02b-WorkspaceArchived`, `M03b-WorkspaceMenu`, `M03c-NewApp`, `M04a-Settings`,
+`M06a-AppSettings`, `M07a-MyDocuments`, `M07b-InboxMore`, `M07c-AssignedToMe`).
+
+None of these `.dc.html` files are copied into this directory the way earlier appifact exports
+(`AccountMenu.dc.html`/`M11-AccountMenu.dc.html`, `AppLauncher.dc.html`/`M12-AppLauncher.dc.html`,
+`Workspace.dc.html`, above) were — those four names now also exist as boards on the live canvas,
+so they may be earlier exports of the same boards rather than a separate set; not reconciled here.
+Read a board with the Artifact tool's `read` action (`path: "project/<Name>.dc.html"`) against the
+URL above rather than assuming a copy exists in this directory. `NewApp`/`NewAppReview` are the
+boards ROADMAP.md calls "boards 15/16" (generate-an-Application-from-a-description); `Workspace`/
+`WorkspaceArchived` are the archive/restore-a-Workspace concept named there as not built yet.

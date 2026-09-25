@@ -200,6 +200,12 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/documents/new", showDocumentSubmit(d.Machines, d.Store, d.Cfg))
 		pr.Get("/documents/new/approver-row", newApproverRow(d.Machines, d.Store))
 		pr.Post("/documents", submitDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
+		// nav_app_settings / nav_app_settings_permissions (metadata/applications/document-
+		// approval.yaml) -- placeholder bodies until Phase 3 (ROADMAP.md "Application Settings
+		// hub"). Gated by requireApplicationAccess above like every other Document Approval route,
+		// not requireWorkspaceAdmin: the eventual page is read-only information for any member.
+		pr.Get("/document-approval/settings", showApplicationSettingsHub)
+		pr.Get("/document-approval/settings/permissions", showApplicationPermissions)
 		pr.Get("/machines/{machineID}", showMachinePage(d.Machines, d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records", createRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Machines, d.Store, d.Files, d.Cfg))

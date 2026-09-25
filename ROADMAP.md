@@ -804,10 +804,17 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 - **The Flow 2 mockup — gap recorded 2026-09-23, nothing scheduled yet.** A second owner canvas
   ("Menata Runtime — Case 03 Flow", 39 artboards: 19 desktop at 1280px, 20 mobile at 390px)
-  revises the Flow 1 set this section's seven phases ported, rather than replacing it. Full study,
-  board-by-board, with what each gap would cost in *primitives* rather than in screens:
-  `menata-app-document`'s `audits/2026-09-23-kajian-gap-mockup-flow2.md`. Feature level, and only
-  what a reader of this file needs:
+  revises the Flow 1 set this section's seven phases ported, rather than replacing it. The live
+  canvas itself (an appifact Design canvas, not a static export) is
+  `https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6` — read its `project/canvas.json` for the
+  board index, one `project/<Name>.dc.html` per artboard (desktop unprefixed, mobile `M##-`
+  prefixed; `NewApp`/`NewAppReview` are boards 15/16, the generated-Application flow named below;
+  `WorkspaceArchived`/`M02b-`, `M03b-WorkspaceMenu`, `M03c-NewApp`, `M04a-Settings`,
+  `M06a-AppSettings`, `M07a-MyDocuments`, `M07b-InboxMore`, `M07c-AssignedToMe` are boards this file
+  had previously only seen described secondhand, via the audit below). Full study, board-by-board,
+  with what each gap would cost in *primitives* rather than in screens: `menata-app-document`'s
+  `audits/2026-09-23-kajian-gap-mockup-flow2.md`. Feature level, and only what a reader of this
+  file needs:
 
   **It subtracts before it adds, and the subtraction is the largest item.** Board 06 is no longer
   a role × *stage* matrix; it is a plain-language **Permissions** page whose every statement is a
@@ -1240,6 +1247,142 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     == reads` and no repeats, same invariant the empty `getSweepRatchet` holds every other
     authenticated GET route to (this route is not swept by that test itself, since the sweep
     parses `router.go`'s literal path and never appends a query, but the property holds anyway).
+
+  - **Application Settings hub (Fase 8) — plan recorded 2026-09-25, Phase 1 of 5 shipped.** Asked
+    for a mobile "chip layout" fix on the Role Matrix (this file's own deferral table, "Board m06's
+    mobile layout"), reading that row's premise against the actual Flow 2 canvas (owner-supplied
+    link, `ui-sample/README.md`'s "The Flow 2 canvas — its live link") found it stale twice over:
+    board 06 is not a grid at all any more on *either* breakpoint, desktop or mobile — a
+    plain-language two-column "What you can do / Who can do it" list — and that list lives inside
+    a per-Application **Settings hub** (`M06a-AppSettings.dc.html`: Access → Members & roles /
+    Groups / Permissions; Communication → Notifications; Configuration → Document types / Approval
+    flow) that `appshell.templ`'s own doc comments already named and deliberately deferred ("no
+    per-Application settings hub exists yet ... pointing it at `/authorization-matrix` ... would
+    be a worse lie than the gap").
+
+    Answers the fourth of this same bullet's own "four things wait on the owner" list, above
+    ("whether Groups/Permissions really move into the Application"): **Permissions** becomes
+    genuinely per-Application (a new page, scoped to one Application's own block); **Members/Groups
+    administration stays exactly where it is** (`/workspace-members`/`/workspace-groups`), since a
+    Group's and a Member's roles already span multiple Applications by design
+    (`data.Group.Grants map[string]string`; `roleApplications`/`submittedAppRoles`,
+    `internal/web/workspacemembers.go`) — moving either route's ownership into one Application
+    would misrepresent that. The hub's own Members/Groups rows just door into those existing
+    screens. The mockup's *Workspace*-level half (`M04a-Settings.dc.html`: General/Applications/
+    Invitations/Authentication/Audit log/Danger zone) is explicitly **not** part of this — separate,
+    tied to Workspace concepts (archive/restore a Workspace, an audit log) with no phase of their
+    own anywhere in this file yet.
+
+    Full design: `/root/.claude/plans/robust-squishing-pelican.md` (local to the machine that wrote
+    it, not checked in — summarized here so a session without that file can still resume from this
+    entry alone). Five phases, each its own commit and a safe place to stop between sessions:
+
+    1. **Domain + metadata plumbing — *shipped 2026-09-25, corrected same day*.**
+       `domain.NavigationItem` gained `SettingsHub bool` / `SettingsHubMember bool` — a new pair,
+       not a reuse of the existing `Group` field, which `writing-guide.md` §12.1 already documents
+       for a different purpose (the main nav's own dropdown-vs-inline submenu) and which no
+       manifest populates today. `internal/metadata`'s `navItemDoc`/`toNavigationItems`/
+       `validateNavigation` carry and validate both (an at-most-one `settings_hub` check mirroring
+       `home_card`'s, plus `settings_hub`/`settings_hub_member` declared mutually exclusive on one
+       item). Two new nav items (`nav_app_settings`, `nav_app_settings_permissions`) in
+       `metadata/applications/document-approval.yaml`.
+
+       Two things done in this phase that its own plan had marked optional, both to keep
+       `go test ./...` green rather than expecting a red window until Phase 3: `appshell.templ`'s
+       `defaultAppMenu` now filters out any item carrying `SettingsHub`/`SettingsHubMember`
+       *before* sorting, so the two new items don't silently show up as a fourth/fifth tab in
+       Document Approval's own strip and bottom bar the moment they were declared — the plan's
+       design section had named this filter as part of the field's own meaning, but the phase
+       breakdown had left it ambiguous which phase actually wires it, and leaving it for Phase 3/4
+       would have been a real, if brief, visual regression. And `internal/web/appsettings.go` now
+       exists with two handlers that answer `501 Not Implemented` (named, not a bare panic or 404),
+       registered in `router.go` purely so `TestNavigationRoutesAreRegistered` has something to
+       find — the plan's own preferred alternative over letting that gate go red until Phase 3.
+       Neither route is reachable from the UI yet (no "Settings" link exists before Phase 4), so
+       this is inert outside someone typing the URL by hand. `go test ./...` and
+       `go test -race ./...` both green, with `DATABASE_URL` set (Postgres-backed suite included).
+
+       **Per-Application by declaration, not a default every Application gets** — asked and worth
+       recording rather than assumed: `SettingsHub`/`SettingsHubMember` are schema capability, not
+       behavior. Only `metadata/applications/document-approval.yaml` declares the two new items;
+       `project-management.yaml` is untouched and therefore still has no Settings hub or "Settings"
+       link at all (Phase 4's own design checks whether the *current* Application declares a
+       `SettingsHub` item before rendering the link, precisely so an Application with none is
+       silently unaffected rather than shown a broken one). If Project Management ever needs one,
+       its own file declares its own items — Document Approval's Permissions row makes no sense
+       for an Application declaring no `roles:` at all, the same conditionality `roles:` itself
+       already has, which is exactly the correction below turns into an enforced rule rather than a
+       reader's inference.
+
+       **Corrected the same day, before anything downstream depended on it: `SettingsSection
+       string` (a per-item section *label*, e.g. `"Access"`) was itself a duplication this file's
+       own conventions already warn against.** Asked directly ("bukannya kalau ini tinggal kalau
+       tidak ada, tidak perlu muncul... bisa diotomatiskan?"), and the honest answer is that it
+       should have been from the start: `internal/composition/rolematrix.go`'s `applicationBlock`
+       already derives its own "Access" row from `len(app.Roles) > 0` rather than from a second
+       declared fact ("It is derived rather than typed... so this row exists exactly when that
+       list is non-empty"), and `SettingsSection` asked a metadata author to restate that
+       distinction by hand, one string per item, for a grouping concept this hub has exactly one
+       real value of. Two things survive the correction and one does not:
+       - **Still declared, because routing genuinely needs it**: both `nav_app_settings` and
+         `nav_app_settings_permissions` stay real nav items — this runtime resolves "which
+         Application" a request belongs to by matching a *declared* route
+         (`domain.Workspace.ApplicationForRoute`), the same reason `nav_my_documents`/
+         `nav_assigned_to_me` are each declared despite sharing one physical handler with
+         `nav_approval_inbox`. That is addressability, not classification, and dropping it would
+         make `/document-approval/settings/permissions` unresolvable to any Application at all.
+       - **Renamed, not removed**: `SettingsHubMember bool` replaces `SettingsSection string` on
+         `nav_app_settings_permissions` — still needed to keep it out of the tab strip/bottom bar
+         (`SettingsHub` alone only ever marks the *one* hub root), but a plain bool rather than an
+         open string, since there is no second section value to distinguish yet. The section's own
+         label ("Access") becomes a plain string in Phase 3's `appsettings.templ`, not a metadata
+         field, until a real second section is a proven need.
+       - **Actually removed, and this is the part worth naming**: whether the Access section's rows
+         (Members & roles, Groups, Permissions) *render* is now Phase 3's job, reading
+         `domain.Application.Roles` directly in `internal/composition/appsettings.go` — never "does
+         a `SettingsHubMember` item exist". A `nav_app_settings_permissions` item that outlived its
+         Application's own `roles:` being emptied would previously have kept showing a dead-looking
+         row forever; deriving the row's *content* from `Roles`, while the nav item only ever
+         decided its *addressability*, is what a second real case (a future Application's own hub)
+         would otherwise have had to teach this file the hard way.
+
+       Confirmed with the same `SettingsHub`-marked owner-decision question asked of Notifications/
+       Document types/Approval flow, which this correction does **not** extend to: those three have
+       no existing declared fact to derive from at all (no `document_types:`, no notification
+       config anywhere in this schema), so there is nothing to automate yet — they stay static
+       "Not built yet" rows in Phase 3, each its own future capability with its own metadata shape
+       when it lands, not a placeholder mechanism built ahead of that need.
+
+       **Not yet committed** — `git status` on this tree shows the changes above still uncommitted
+       (`internal/domain/navigation.go`, `internal/metadata/application.go`, `internal/metadata/
+       validate.go`, `internal/rendering/appshell.templ` (+ generated `appshell_templ.go`),
+       `internal/web/router.go`, `metadata/applications/document-approval.yaml`, this file, plus
+       the new `internal/web/appsettings.go`). A session resuming this work should diff or commit
+       them before starting Phase 2, not assume a clean tree.
+    2. **Permissions content reshape.** `internal/composition/rolematrix.go` /
+       `internal/rendering/rolematrix.templ`'s `roleMatrixApp` drops its role-per-column grid for
+       the two-column list the Workspace section of this same file already renders for
+       `RoleMatrixNote`; `RoleMatrixRow` gains `Who string` (derived from `requiredRoles`'s
+       existing role-intersection, not a new metadata read) in place of `Granted []bool`.
+       Independently shippable against the existing `/authorization-matrix` route, which keeps its
+       current multi-Application-plus-Workspace-notes scope. **Not started.**
+    3. **The hub page.** Fills in the real bodies of the two placeholder handlers Phase 1 already
+       registered (`internal/web/appsettings.go`), plus new `internal/composition/appsettings.go`
+       and `internal/rendering/appsettings.templ` — reusing Phase 2's row-building code for a
+       single Application rather than a second content pipeline. The Access section's three rows
+       (Members & roles, Groups, Permissions) are hardcoded structure gated on
+       `len(app.Roles) > 0`, read directly off `domain.Application`, not derived from iterating
+       `SettingsHubMember`-flagged nav items — Phase 1's own correction above is what this phase
+       has to actually honor, not just leave written down. Notifications/Document types/Approval
+       flow render as honest non-links ("Not built yet"), never a dead `href`, per this file's and
+       `CLAUDE.md`'s own convention against hardcoding a destination that doesn't exist.
+       **Not started.**
+    4. **Wire the entry point.** `applicationMenuRow`/`moreSheet` gain a conditional "Settings"
+       link, present only for an Application that declares a `SettingsHub` item — Project
+       Management, which declares none, is unaffected. **Not started.**
+    5. **Docs.** `capabilities.md`'s Composition primitives / Shared rendering components tables;
+       this entry folded down to the past-tense summary style the rest of this section uses, once
+       actually shipped.
 
 ## Planned
 
