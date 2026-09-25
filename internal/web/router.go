@@ -227,6 +227,9 @@ func Routes(d Deps) http.Handler {
 
 		pr.Group(func(ar chi.Router) {
 			ar.Use(requireWorkspaceAdmin(d.Store, d.Cfg))
+			// nav_workspace_settings (Flow 2 gap study Tahap 5) -- the Workspace-level Settings
+			// hub, same admin gate as everything else in this group.
+			ar.Get("/workspace-settings", showWorkspaceSettings(d.Store, d.Cfg))
 			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.Cfg))
 			ar.Post("/workspace-members/invite", submitInviteMember(d.Store, d.Mailer, d.Cfg))
 			ar.Post("/workspace-members/revoke-invite", submitRevokeInvite(d.Store))

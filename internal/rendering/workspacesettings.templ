@@ -1,0 +1,57 @@
+package rendering
+
+// WorkspaceSettingsPage is the Workspace-level Settings hub (Flow 2 gap study Tahap 5,
+// 2026-09-25, M04a-Settings.dc.html) -- Application Settings hub's Workspace-level counterpart
+// (appsettings.templ's ApplicationSettingsPage), and considerably simpler: there is no per-viewer
+// derivation here (the route itself is requireWorkspaceAdmin-gated, so every viewer who reaches
+// this page sees the identical rows) and no detail sub-route -- every real row here already has
+// its own full screen elsewhere (Workspace Home, Workspace Members); this page only indexes them.
+//
+// Real vs. placeholder, row by row, checked against the mockup rather than assumed:
+//   - General: placeholder. domain.Workspace has no logo/time zone/language field, and no UI
+//     renames one after creation.
+//   - Applications: real -- nav_home's own Title/Description ("Applications" / "The applications
+//     you can open here, based on the roles assigned to you.") already say exactly what this row's
+//     mockup copy asks for, reused rather than retyped.
+//   - Members / Invitations: both real, and both resolve to the *same* route
+//     (nav_workspace_members) -- internal/web.showWorkspaceMembers already renders two lists on
+//     one page (members, and invitations not yet accepted; ROADMAP.md 2026-09-22, "an invitation
+//     is not a membership"), so two mockup rows sharing one physical destination is the identical
+//     shape nav_my_documents/nav_assigned_to_me already established for the Approval Inbox.
+//   - Authentication, Audit log: placeholder. Neither exists in any form -- ROADMAP.md's own Flow 2
+//     gap-study entry names a workspace audit log as a wholly new concept, and internal/web's
+//     /activity feed is a different thing (a running feed for any member, owned by Project
+//     Management's own navigation, not an admin-only permanent record) -- reusing it here would
+//     overstate what it does.
+//   - Danger zone: placeholder. Workspace lifecycle (archive/restore/transfer ownership) is Tahap 7,
+//     not built. Rendered with the same settingsPlaceholderRow every other unbuilt row uses rather
+//     than the mockup's own red styling -- visual weight the mockup spends on a real destructive
+//     action would misrepresent a row that does nothing yet.
+templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(titleByID(ctx, "nav_workspace_settings"), workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-1">
+			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_workspace_settings") }</h1>
+			<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_workspace_settings") }</p>
+		</div>
+		<div class="flex max-w-md flex-col gap-4">
+			<div class="flex flex-col gap-0.5">
+				<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Workspace</h2>
+				@settingsPlaceholderRow("General", "Name, logo, time zone and language.")
+				@settingsRow(routeByID(ctx, "nav_home"), titleByID(ctx, "nav_home"), descriptionByID(ctx, "nav_home"), false)
+			</div>
+			<div class="flex flex-col gap-0.5">
+				<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">People</h2>
+				@settingsRow(routeByID(ctx, "nav_workspace_members"), labelByID(ctx, "nav_workspace_members"), "Workspace role and application access.", false)
+				@settingsRow(routeByID(ctx, "nav_workspace_members"), "Invitations", "Pending and expired invitations.", false)
+			</div>
+			<div class="flex flex-col gap-0.5">
+				<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Security</h2>
+				@settingsPlaceholderRow("Authentication", "Two-step verification, allowed email domains.")
+				@settingsPlaceholderRow("Audit log", "Permanent record of changes.")
+			</div>
+			<div class="flex flex-col gap-0.5">
+				@settingsPlaceholderRow("Danger zone", "Transfer ownership, archive workspace.")
+			</div>
+		</div>
+	}
+}

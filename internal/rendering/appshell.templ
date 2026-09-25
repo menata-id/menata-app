@@ -537,12 +537,17 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				</span>
 			</div>
 			<div class="my-1 h-px bg-slate-100"></div>
+			// Workspace settings (Flow 2 gap study Tahap 5, 2026-09-25) replaced this menu's own
+			// direct "Workspace Members" link, matching M03b-WorkspaceMenu.dc.html: the mockup
+			// shows one settings entry, not a shortcut to one of the hub's own rows. Members stays
+			// fully reachable -- one hop further, through the hub's own People section -- and
+			// Workspace Home's own "Manage members" link (workspacehome.templ) is untouched.
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
 					<span class="text-slate-500">
 						@icon("settings", "size-4")
 					</span>
-					{ labelByID(ctx, "nav_workspace_members") }
+					{ labelByID(ctx, "nav_workspace_settings") }
 				</a>
 			}
 			if switchWorkspaceHref != "" {

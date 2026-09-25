@@ -1643,6 +1643,60 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Applications (Tahap 8) -- all still waiting on the four owner decisions this section's own §7
   names, none of them engineering.
 
+- **Flow 2's Tahap 5 is shipped, with a scope the gap study did not anticipate.** The gap study
+  (`menata-app-document`'s §8, "Dua hub Settings") asked to move Members/Groups/Permissions into a
+  new IA and named that as depending on **Q4** (whether Groups & Permissions really move into the
+  Application, changing routes and the authorization gate). Checking the actual code before
+  building anything found that Q4 had already been answered, differently, by the prior "Application
+  Settings hub" entry above: Permissions genuinely moved to `/document-approval/settings/
+  permissions`, but Members/Groups deliberately did **not** -- kept Workspace-level
+  (`requireWorkspaceAdmin`), reasoned there because a Group's/Member's roles already span multiple
+  Applications by design, and because an Application-level admin role (which any real move would
+  need) does not exist anywhere in `domain`. The owner confirmed that answer stands.
+
+  That leaves exactly one real gap in Tahap 5: the **Workspace-level** Settings hub
+  (`M04a-Settings.dc.html`) did not exist in any form. Read directly from the mockup canvas rather
+  than assumed, row by row, against what the app can actually do today:
+
+  - **Real, linked**: Applications (`nav_home`'s own Title/Description already say exactly what the
+    mockup's row asks for -- reused, not retyped) and Members/Invitations, both resolving to
+    `nav_workspace_members` -- the same "two mockup rows, one physical destination" shape
+    `nav_my_documents`/`nav_assigned_to_me` already established, since `showWorkspaceMembers`
+    already renders both lists on one page.
+  - **Honest placeholders, "Not built yet"**: General (no logo/time zone/language field exists on
+    `domain.Workspace`, and nothing renames one), Authentication (no 2FA/domain-allowlist concept
+    anywhere), Audit log (a genuinely new concept -- `/activity` is a different thing, a running
+    feed for any member owned by Project Management's own navigation, not an admin-only permanent
+    record; reusing it would overstate what it does), and Danger zone (Workspace lifecycle is
+    Tahap 7, not built -- rendered with the same muted placeholder every other unbuilt row uses
+    rather than the mockup's own red styling, since spending that visual weight on a row that does
+    nothing yet would misrepresent it).
+
+  `GET /workspace-settings` (`showWorkspaceSettings`, `internal/web/workspacesettings.go`), gated by
+  the same `requireWorkspaceAdmin` group as `/workspace-members`/`/workspace-groups`/
+  `/authorization-matrix` -- simpler than the Application hub's own handler in the one way that
+  matters: no per-viewer admin check of its own (the middleware already refused everyone else), and
+  no composition function (every row is either a real RuntimeScreen lookup or a static placeholder,
+  nothing derived per request). `nav_workspace_settings` joins `nav_home`/`nav_workspace_members`/
+  `nav_workspace_groups`/`nav_role_matrix` as a fifth `domain.RuntimeScreen` -- a Workspace-level
+  concept, not an Application one, for the identical reason the other four already are.
+
+  **Entry point, read from `M03b-WorkspaceMenu.dc.html` rather than guessed**: the Workspace
+  dropdown menu's own single settings row, which used to link straight to Workspace Members, now
+  reads "Workspace settings" and opens the hub instead -- matching the mockup's own consolidated IA
+  (one settings entry, not a shortcut to one of the hub's own rows). Nothing is lost: Members stays
+  fully reachable, one hop further through the hub's own People section, and Workspace Home's own
+  "Manage members" link is untouched.
+
+  `settingsRow`/`settingsPlaceholderRow` (written for the Application hub) were reused verbatim
+  rather than rebuilt -- capabilities.md's own promotion criterion's second real caller, moved into
+  the "Shared rendering components" table on arrival rather than staying page-internal a second
+  time.
+
+  **What's still open, unchanged**: notifications (Tahap 6), Workspace lifecycle (Tahap 7), and
+  generated Applications (Tahap 8) -- the first two now genuinely blocked on nothing but being
+  picked up; the third still waits on Q2.
+
 ## Planned
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a

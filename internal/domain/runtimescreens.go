@@ -38,6 +38,18 @@ var RuntimeScreens = []NavigationItem{
 	{ID: "nav_workspace_members", Label: "Workspace Members", Route: "/workspace-members"},
 	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups"},
 	{ID: "nav_role_matrix", Label: "Authorization Matrix", Route: "/authorization-matrix"},
+	// nav_workspace_settings: Flow 2 gap study Tahap 5, 2026-09-25 (M04a-Settings.dc.html) --
+	// the Workspace-level counterpart of an Application's own Settings hub
+	// (nav_app_settings, metadata/applications/*.yaml). A runtime screen like the three above it,
+	// not an Application concept, for the identical reason: it exists in a Workspace with any
+	// number of Applications or none.
+	{
+		ID:          "nav_workspace_settings",
+		Label:       "Workspace settings",
+		Route:       "/workspace-settings",
+		Title:       "Workspace settings",
+		Description: "Applies to everyone in this workspace. Only workspace admins can see it.",
+	},
 }
 
 // IsRuntimeScreenID reports whether id names one of RuntimeScreens.
