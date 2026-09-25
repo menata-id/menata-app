@@ -1248,7 +1248,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     authenticated GET route to (this route is not swept by that test itself, since the sweep
     parses `router.go`'s literal path and never appends a query, but the property holds anyway).
 
-  - **Application Settings hub (Fase 8) — plan recorded 2026-09-25, Phase 3 of 5 shipped.** Asked
+  - **Application Settings hub (Fase 8) — plan recorded 2026-09-25, Phase 4 of 5 shipped.** Asked
     for a mobile "chip layout" fix on the Role Matrix (this file's own deferral table, "Board m06's
     mobile layout"), reading that row's premise against the actual Flow 2 canvas (owner-supplied
     link, `ui-sample/README.md`'s "The Flow 2 canvas — its live link") found it stale twice over:
@@ -1452,9 +1452,26 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        `go test -race ./...` all green;
        `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed` swept both new routes cleanly (`queries ==
        reads`, `repeated == 0`) with no ratchet entry needed.
-    4. **Wire the entry point.** `applicationMenuRow`/`moreSheet` gain a conditional "Settings"
-       link, present only for an Application that declares a `SettingsHub` item — Project
-       Management, which declares none, is unaffected. **Not started.**
+    4. **Wire the entry point — *shipped 2026-09-25*.** New `settingsHubItem(app) (domain.
+       NavigationItem, bool)` (`appshell.templ`) searches `app.AllNavigation` for the
+       `SettingsHub`-marked item rather than looking one up by a fixed id -- the same reason
+       `defaultAppMenu` had to become a filter rather than an unconditional call: a hardcoded
+       `routeByID(ctx, "nav_app_settings")` would panic the moment `applicationMenuRow`/`moreSheet`
+       render for an Application declaring none (Project Management, today, and any future one
+       before it earns a hub of its own). `applicationMenuRow` gains a right-aligned link
+       (`ml-auto`, icon + label, matching board 07's own placement) when found, nothing when not;
+       `moreSheet` gains a row in the same position the mockup's own third row occupied, right
+       after Workspace Home and before the per-Application switcher list. Both doc comments, which
+       had explicitly deferred this ("no per-Application settings hub exists yet ... would be a
+       worse lie than the gap"), are updated to say it now exists rather than left stale.
+
+       Verified live at 1280px and 390px: Document Approval's desktop row shows "⚙ Settings" after
+       Assign Me; its More sheet shows "Document Approval settings" after Home; Project
+       Management's own desktop row and More sheet show neither, confirmed in the same browser
+       session. `go build`, `go test ./...` (with and without `DATABASE_URL`) and
+       `go test -race ./...` all green -- no conformance gate needed touching, since every string
+       rendered is a field read off the already-resolved `domain.NavigationItem` `settingsHubItem`
+       returns, never a retyped literal.
     5. **Docs.** `capabilities.md`'s Composition primitives / Shared rendering components tables;
        this entry folded down to the past-tense summary style the rest of this section uses, once
        actually shipped.

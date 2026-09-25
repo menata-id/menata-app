@@ -239,6 +239,19 @@ func defaultAppMenu(items []domain.NavigationItem, path, rawQuery string) []navM
 	return menu
 }
 
+// settingsHubItem finds app's own SettingsHub-marked item, if it declares one (ROADMAP.md "In
+// progress", "Application Settings hub") -- a search, not a fixed id, so applicationMenuRow/
+// moreSheet never panic on an Application that declares no hub at all (Project Management, today).
+// domain.NavigationItem's own validation guarantees at most one match per Application.
+func settingsHubItem(app domain.Application) (domain.NavigationItem, bool) {
+	for _, item := range app.AllNavigation {
+		if item.SettingsHub {
+			return item, true
+		}
+	}
+	return domain.NavigationItem{}, false
+}
+
 // navItemActive reports whether item's declared route names the current request: same path, and
 // the same ?tab= value (both empty counts as a match) -- see defaultAppMenu's own doc comment.
 func navItemActive(item domain.NavigationItem, path, rawQuery string) bool {
@@ -281,11 +294,12 @@ func bottomBarItems(menu []navMenuItem) []navMenuItem {
 // and the page's own <h1> below, this row was the only place that ever said *which Application you
 // are in*, and before 2026-09-24 it said it nowhere.
 //
-// The mockup's right-hand "Settings" link is deliberately absent, the same call moreSheet makes
-// for the same reason: no per-Application settings hub exists yet (the Flow 2 gap study's §5.3,
-// menata-app-document's audits/2026-09-23-kajian-gap-mockup-flow2.md). Pointing it at
-// /authorization-matrix -- a Workspace-level admin screen -- while labelling it this Application's
-// would be a worse lie than the gap.
+// The mockup's right-hand "Settings" link is now drawn, the same call moreSheet makes for the
+// same reason it used to defer this: it is present exactly when app declares a SettingsHub item
+// (settingsHubItem) -- absent for an Application like Project Management that declares none,
+// rather than pointing at /authorization-matrix (a Workspace-level admin screen) and calling it
+// this Application's own, which would have been a worse lie than the gap ("Application Settings
+// hub", ROADMAP.md "In progress").
 templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 	<nav aria-label="Application" class="hidden items-center gap-1 border-t border-slate-100 px-4 py-1.5 sm:flex sm:px-6">
 		<span class="mr-1 flex items-center gap-2">
@@ -307,6 +321,15 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 			>
 				{ item.Label }
 				@navBadge(item.Badge, "inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-blue-50 px-1.5 text-3xs font-medium text-blue-700 empty:hidden")
+			</a>
+		}
+		if hub, ok := settingsHubItem(app); ok {
+			<a
+				href={ templ.SafeURL(hub.Route) }
+				class="ml-auto flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+			>
+				@icon(hub.Icon, "size-4")
+				{ hub.Label }
 			</a>
 		}
 	</nav>
@@ -375,11 +398,10 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 // same three the launcher shows, deliberately, because they answer the same question. It marks the
 // Application you are already in (aria-current), which the launcher never needs to.
 //
-// The mockup's third row, "<Application> settings", is NOT rendered: no per-Application settings
-// hub exists yet (the Flow 2 gap study's §5.3, menata-app-document's
-// audits/2026-09-23-kajian-gap-mockup-flow2.md). Drawing a row that links nowhere, or pointing it
-// at a Workspace-level admin screen and calling it the Application's, would both be worse than
-// its absence.
+// The mockup's third row, "<Application> settings", is now drawn -- present exactly when app
+// declares a SettingsHub item (settingsHubItem), same as applicationMenuRow's own right-hand link
+// added the same day ("Application Settings hub", ROADMAP.md "In progress"). Absent for an
+// Application declaring none (Project Management, today), never a link to nowhere.
 //
 // THE POPOVER API, not <details> (2026-09-24, and it replaced <details> the same day it shipped
 // on one). The owner's report was exact: "behaviour bottom sheet juga masih belum bisa tertutup,
@@ -421,6 +443,19 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 					@icon("chevron-right", "size-4")
 				</span>
 			</a>
+			if hub, ok := settingsHubItem(app); ok {
+				<a href={ templ.SafeURL(hub.Route) } class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50">
+					<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+						@icon(hub.Icon, "size-5")
+					</span>
+					<span class="flex min-w-0 grow flex-col gap-0.5">
+						<span class="text-sm text-slate-900">{ hub.Title }</span>
+					</span>
+					<span class="text-slate-300">
+						@icon("chevron-right", "size-4")
+					</span>
+				</a>
+			}
 			<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
 			for _, other := range CurrentWorkspace(ctx).Applications {
 				<a
