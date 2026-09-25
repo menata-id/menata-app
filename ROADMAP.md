@@ -858,6 +858,24 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   YAML that then needs per-Application code to work, would break this runtime's premise while
   looking like it succeeded.
 
+  **Kajian requested by the owner, 2026-09-25**: `menata-app-document`'s
+  `audits/2026-09-25-kajian-new-application-ai.md` -- reads boards 15/16/M03c directly, finds
+  generating a *new* Application is actually the additive-only, lowest-risk case
+  `metadata-hot-reload-safety.md`'s own §7.2 table already names (no prior Application to compare
+  against, no stored data to violate), and formalizes four best practices the owner asked for:
+  the generator's own conversation grounded in `capabilities.md`'s declared vocabulary (so it can
+  never propose what the runtime can't build), confirming via `internal/metadata.Validate` failures
+  rather than a memorized question list, scope-narrowing questions driven by structural ambiguity,
+  and -- the one with no precedent anywhere yet -- an append-only record of every "New application"
+  conversation, with the AI's own "the runtime can't say this yet" moments recorded as structured
+  rows, generalizing this repo's own "second real case" discipline from code that had to be
+  hand-written twice to conversations that ask for the same missing capability more than once.
+  Four things still wait on the owner before any of it is built (the kajian's own §4): build order
+  (additive-only first, vs. the full hot-reload gate), where conversation history is stored and who
+  may read it, the generator's own model/prompt work (out of this kajian's scope), and confirming
+  `requireWorkspaceAdmin` is the right gate (the mockup's own "Only workspace admins can add
+  applications" suggests it already is).
+
   **Four things wait on the owner, not on engineering** (the study's §7): whether board 06 new
   supersedes board 06 old; how soon the generated-Application work is real, since it reorders
   everything after it; whether merging pending invitations into the Members table is a display
