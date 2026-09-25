@@ -335,17 +335,3 @@ Read a board with the Artifact tool's `read` action (`path: "project/<Name>.dc.h
 URL above rather than assuming a copy exists in this directory. `NewApp`/`NewAppReview` are the
 boards ROADMAP.md calls "boards 15/16" (generate-an-Application-from-a-description); `Workspace`/
 `WorkspaceArchived` are the archive/restore-a-Workspace concept named there as not built yet.
-
-## `RoleMatrix.dc.html` / `M06-RoleMatrix.dc.html` / `M06a-AppSettings.dc.html` ported (2026-09-25)
-
-Board 06 turned out to be a different screen than the one already ported from Flow 1
-(`case-03-flow1/06-approval-role-matrix.html`, a role×transition grid): the Flow 2 canvas draws a
-plain-language two-column list ("What you can do" / "Who can do it"), with no grid and no chips at
-either breakpoint, living inside a per-Application **Settings hub**
-(`M06a-AppSettings.dc.html`: Access → Members & roles / Groups / Permissions; Communication →
-Notifications; Configuration → Document types / Approval flow). Ported as `/authorization-matrix`'s
-own per-Application card shape (`rolematrix.templ`'s `roleMatrixApp`, reused unchanged by the new
-`/document-approval/settings`/`.../permissions` routes) — see `ROADMAP.md`'s "Application Settings
-hub (Fase 8)" entry for the full five-phase account, including what was deliberately not ported
-(the mockup's *Workspace*-level `M04a-Settings.dc.html` half, and the three Settings-hub rows with
-no metadata shape to back them yet, rendered as honest "Not built yet" placeholders instead).
