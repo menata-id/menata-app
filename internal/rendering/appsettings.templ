@@ -1,0 +1,163 @@
+package rendering
+
+import "context"
+
+// pageTitle is the <title> tag ApplicationSettingsPage renders -- the hub's own title normally,
+// the Permissions page's own title while its content is what's showing, matching how every other
+// screen's <title> already tracks what a viewer is actually looking at rather than staying fixed
+// to one Application-level name.
+func pageTitle(ctx context.Context, showingDetail bool) string {
+	if showingDetail {
+		return titleByID(ctx, "nav_app_settings_permissions")
+	}
+	return titleByID(ctx, "nav_app_settings")
+}
+
+// SettingsHubView is one Application's Settings hub: which of its own real sections have anything
+// to show, resolved by composition.ApplicationSettingsHub. See that function's own doc comment for
+// why this is two booleans rather than a generic, metadata-iterated row list.
+type SettingsHubView struct {
+	// ShowAccess is len(app.Roles) > 0 -- an Application declaring no roles has nothing to
+	// configure access for, so the whole Access section is absent, not three empty-looking rows.
+	ShowAccess bool
+	// ShowMembersAndGroups additionally requires the viewer to be a Workspace admin -- hidden, not
+	// shown-then-403, matching workspaceMenu's own gate for these same two destinations. Permissions
+	// itself carries no such gate: it is read-only information for any Application member.
+	ShowMembersAndGroups bool
+}
+
+// settingsRow is one real, linked destination in the Access section -- styled like
+// workspacehome.templ's own Application row (label, description, trailing chevron), reused rather
+// than a new shape invented for this page. current marks the row for the screen already showing
+// (only ever true for Permissions, and only on desktop -- the mobile list never renders alongside
+// its own detail view, so current has nothing to highlight there).
+templ settingsRow(href, label, description string, current bool) {
+	<a
+		href={ templ.SafeURL(href) }
+		if current {
+			aria-current="page"
+		}
+		class={ "flex items-start gap-3 rounded-md p-3", templ.KV("bg-slate-100", current), templ.KV("hover:bg-slate-50", !current) }
+	>
+		<span class="flex min-w-0 grow flex-col gap-0.5">
+			<span class={ "text-sm text-slate-900", templ.KV("font-medium", current) }>{ label }</span>
+			<span class="text-xs text-slate-500">{ description }</span>
+		</span>
+		<span class="shrink-0 text-slate-300">
+			@icon("chevron-right", "size-4")
+		</span>
+	</a>
+}
+
+// settingsPlaceholderRow is an honest, non-interactive row for a section this runtime cannot serve
+// yet -- no <a href>, so it can never be a link to nowhere, plus a muted tag saying so rather than
+// leaving the reason to be guessed.
+templ settingsPlaceholderRow(label, description string) {
+	<div class="flex items-start gap-3 rounded-md p-3">
+		<span class="flex min-w-0 grow flex-col gap-0.5">
+			<span class="flex flex-wrap items-center gap-2 text-sm text-slate-400">
+				{ label }
+				<span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-3xs font-medium tracking-wide text-slate-400 uppercase">Not built yet</span>
+			</span>
+			<span class="text-xs text-slate-400">{ description }</span>
+		</span>
+	</div>
+}
+
+// settingsAccessRows is the Access section: Members & roles, Groups, then Permissions, gated on
+// hub.ShowAccess/ShowMembersAndGroups -- never on which nav items happen to be declared (Phase 1's
+// own 2026-09-25 correction). Shared verbatim between the desktop sidebar and the mobile list so
+// the two can never disagree about what this Application offers.
+//
+// Members & roles/Groups resolve their href and label from their own declared identity
+// (nav_workspace_members/nav_workspace_groups) -- their description lines are this row's own
+// framing text, since neither runtime screen declares a description of its own to reuse. Permissions
+// resolves all three (href, label, description) from nav_app_settings_permissions, since that one
+// *is* already exactly the right framing -- reused rather than retyped a second time.
+templ settingsAccessRows(hub SettingsHubView, showingDetail bool) {
+	if hub.ShowAccess {
+		<div class="flex flex-col gap-0.5">
+			<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Access</h2>
+			if hub.ShowMembersAndGroups {
+				@settingsRow(routeByID(ctx, "nav_workspace_members"), labelByID(ctx, "nav_workspace_members"), "Who can use this application, and with which role.", false)
+				@settingsRow(routeByID(ctx, "nav_workspace_groups"), labelByID(ctx, "nav_workspace_groups"), "Approver groups used in approval steps.", false)
+			}
+			@settingsRow(routeByID(ctx, "nav_app_settings_permissions"), labelByID(ctx, "nav_app_settings_permissions"), descriptionByID(ctx, "nav_app_settings_permissions"), showingDetail)
+		</div>
+	}
+}
+
+// settingsStaticSections are Communication and Configuration -- entirely static, since neither has
+// a metadata shape to derive from at all yet (ROADMAP.md "Application Settings hub", Phase 3):
+// Notifications has no declared per-Application preference concept anywhere in this schema;
+// Document types would need its own declared list, and a saved default Approval flow is CAP-V28
+// (ROADMAP.md's own "Planned" section) -- a new Machine, not a nav concept. Listed in
+// capabilities.md's own tables per CLAUDE.md's hardcoding-exception convention.
+templ settingsStaticSections() {
+	<div class="flex flex-col gap-0.5">
+		<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Communication</h2>
+		@settingsPlaceholderRow("Notifications", "Default alerts for requests, reminders and SLA.")
+	</div>
+	<div class="flex flex-col gap-0.5">
+		<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Configuration</h2>
+		@settingsPlaceholderRow("Document types", "Contract, invoice, quotation...")
+		@settingsPlaceholderRow("Approval flow", "Default steps per document type.")
+	</div>
+}
+
+// ApplicationSettingsPage serves both the hub landing route and the Permissions sub-route from one
+// function, the same "mobile/desktop pair in one file" convention every other ported screen uses,
+// extended here to a third axis (which sub-section is active) rather than only a breakpoint:
+//
+//   - Desktop always shows a sidebar (settingsAccessRows + settingsStaticSections) beside the
+//     content pane, because the Flow 2 mockup's own RoleMatrix.dc.html always shows both together
+//     -- there is no desktop screen that is just a bare list. The content pane always renders
+//     roleMatrixApp(permissions), the only real content this hub has, regardless of activeSection.
+//   - Mobile shows either the same rows as a full-page list (activeSection == "", matching
+//     M06a-AppSettings.dc.html) or a "back to hub" link plus roleMatrixApp(permissions) alone
+//     (activeSection == "permissions", matching M06-RoleMatrix.dc.html) -- never both at once,
+//     which is the whole reason two routes exist: a phone needs a URL to land the list on and a
+//     different one to go back to.
+templ ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, activeSection, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	{{ showingDetail := activeSection == "permissions" }}
+	@appShell(pageTitle(ctx, showingDetail), workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-1 sm:hidden">
+			if showingDetail {
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_app_settings")) } class="text-xs text-blue-600 hover:text-blue-800">
+					← { titleByID(ctx, "nav_app_settings") }
+				</a>
+				<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_app_settings_permissions") }</h1>
+			} else {
+				<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_app_settings") }</h1>
+				if descriptionByID(ctx, "nav_app_settings") != "" {
+					<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_app_settings") }</p>
+				}
+			}
+		</div>
+		<div class="hidden flex-col gap-1 sm:flex">
+			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_app_settings") }</h1>
+			if descriptionByID(ctx, "nav_app_settings") != "" {
+				<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_app_settings") }</p>
+			}
+		</div>
+		<div class="sm:hidden">
+			if showingDetail {
+				@roleMatrixApp(permissions)
+			} else {
+				<div class="flex flex-col gap-4">
+					@settingsAccessRows(hub, showingDetail)
+					@settingsStaticSections()
+				</div>
+			}
+		</div>
+		<div class="hidden gap-8 sm:flex">
+			<aside class="flex w-55 shrink-0 flex-col gap-5">
+				@settingsAccessRows(hub, showingDetail)
+				@settingsStaticSections()
+			</aside>
+			<div class="min-w-0 flex-1">
+				@roleMatrixApp(permissions)
+			</div>
+		</div>
+	}
+}

@@ -34,15 +34,30 @@ var recordActions = []string{domain.ActionCreate, domain.ActionEdit, domain.Acti
 // `all` is the Workspace's whole Machine list in declaration order -- not the id-keyed map -- so
 // row order is the manifest's rather than a map's iteration order.
 func RoleMatrix(apps []domain.Application, all []*domain.Machine) rendering.RoleMatrixView {
-	byID := make(map[string]*domain.Machine, len(all))
-	for _, m := range all {
-		byID[m.ID] = m
-	}
+	byID := machinesByID(all)
 	v := rendering.RoleMatrixView{Workspace: workspaceSection(all)}
 	for _, app := range apps {
 		v.Applications = append(v.Applications, applicationBlock(app, byID))
 	}
 	return v
+}
+
+// RoleMatrixForApplication is RoleMatrix's single-Application half, exported for the Application
+// Settings hub's own Permissions page (internal/web/appsettings.go) to reuse the exact same
+// row-building code the multi-Application /authorization-matrix overview uses -- one content
+// pipeline, two pages, not two pipelines (ROADMAP.md "Application Settings hub", Phase 2's own
+// note on this).
+func RoleMatrixForApplication(app domain.Application, all []*domain.Machine) rendering.RoleMatrixApp {
+	return applicationBlock(app, machinesByID(all))
+}
+
+// machinesByID is RoleMatrix's and RoleMatrixForApplication's shared lookup-building step.
+func machinesByID(all []*domain.Machine) map[string]*domain.Machine {
+	byID := make(map[string]*domain.Machine, len(all))
+	for _, m := range all {
+		byID[m.ID] = m
+	}
+	return byID
 }
 
 // applicationBlock is one Application's own card: its roles, what each may do grouped by the thing

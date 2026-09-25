@@ -1248,7 +1248,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     authenticated GET route to (this route is not swept by that test itself, since the sweep
     parses `router.go`'s literal path and never appends a query, but the property holds anyway).
 
-  - **Application Settings hub (Fase 8) — plan recorded 2026-09-25, Phase 2 of 5 shipped.** Asked
+  - **Application Settings hub (Fase 8) — plan recorded 2026-09-25, Phase 3 of 5 shipped.** Asked
     for a mobile "chip layout" fix on the Role Matrix (this file's own deferral table, "Board m06's
     mobile layout"), reading that row's premise against the actual Flow 2 canvas (owner-supplied
     link, `ui-sample/README.md`'s "The Flow 2 canvas — its live link") found it stale twice over:
@@ -1395,17 +1395,63 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        no record-scoped arm yet -- the owner-scoped half ROADMAP.md's deferral table already names
        as blocked on data, not on this screen). `go test ./...` and `go test -race ./...` both
        green with `DATABASE_URL` set.
-    3. **The hub page.** Fills in the real bodies of the two placeholder handlers Phase 1 already
-       registered (`internal/web/appsettings.go`), plus new `internal/composition/appsettings.go`
-       and `internal/rendering/appsettings.templ` — reusing Phase 2's row-building code for a
-       single Application rather than a second content pipeline. The Access section's three rows
-       (Members & roles, Groups, Permissions) are hardcoded structure gated on
-       `len(app.Roles) > 0`, read directly off `domain.Application`, not derived from iterating
-       `SettingsHubMember`-flagged nav items — Phase 1's own correction above is what this phase
-       has to actually honor, not just leave written down. Notifications/Document types/Approval
-       flow render as honest non-links ("Not built yet"), never a dead `href`, per this file's and
-       `CLAUDE.md`'s own convention against hardcoding a destination that doesn't exist.
-       **Not started.**
+    3. **The hub page — *shipped 2026-09-25*.** Filled in the real bodies of the two Phase 1
+       placeholder handlers (`internal/web/appsettings.go`, now one `showApplicationSettings`
+       factory instead of two near-duplicates), plus new `internal/composition/appsettings.go`
+       (`SettingsHubView`/`ApplicationSettingsHub` — two booleans, deliberately not a generic
+       metadata-iterated row list: only one real Application has ever needed this hub, and a
+       generic shape ahead of a second real case is exactly what the B1-B5 decomposition criteria
+       warn against) and new `internal/rendering/appsettings.templ`. The Access section's rows
+       (Members & roles, Groups, Permissions) are hardcoded structure gated on `hub.ShowAccess`
+       (`len(app.Roles) > 0`) / `hub.ShowMembersAndGroups` (additionally the viewer's own
+       Workspace role), read directly off `domain.Application` and the request's own identity —
+       never derived from iterating `SettingsHubMember`-flagged nav items, honoring Phase 1's own
+       correction rather than leaving it written down and unenforced. Notifications/Document
+       types/Approval flow render as honest non-links ("Not built yet" tag, no `<a href>`), each
+       with a comment naming the missing capability.
+
+       One page, one route pair, reusing rather than duplicating: `roleMatrixApp` (Phase 2's own
+       component) renders the content pane/detail unchanged, and a new
+       `composition.RoleMatrixForApplication` (a five-line exported wrapper around the existing
+       unexported `applicationBlock`, `internal/composition/rolematrix.go`) is the only new
+       row-building code — Phase 2's own "one content pipeline, two pages" note finally cashed in.
+       `/document-approval/settings` and `/document-approval/settings/permissions` render
+       identically on desktop (sidebar + content always together, matching the Flow 2 mockup's own
+       `RoleMatrix.dc.html`, which has no bare-list state at all) and differ only on a phone, where
+       the root shows the row list (`M06a-AppSettings.dc.html`) and `/permissions` shows a "←
+       back" link plus the detail alone (`M06-RoleMatrix.dc.html`) — the whole reason two routes
+       exist. The current sub-page's own row is highlighted (`aria-current="page"`, a filled
+       background) in the desktop sidebar, matching the mockup's own current-item styling.
+
+       **One real bug caught before it shipped, not after:** the page's own `activeSection ==
+       "permissions"` local variable was first named `onPermissions`, which itself contains the
+       substring "Permissions" — `TestRenderingHasNoHardcodedPageHeading` correctly failed on it,
+       since that gate matches a declared title/description as a plain substring after stripping
+       comments, with no notion of word boundaries or identifier context. Renamed to
+       `showingDetail`. Worth recording because it is exactly the class of false positive a gate
+       with no comment-vs-identifier distinction will keep producing — not a defect in the gate,
+       which did its job, but a naming trap worth remembering the next time a local variable's name
+       happens to echo a declared string.
+
+       **A pre-existing quirk this phase surfaced rather than caused, left unfixed on purpose:**
+       the mobile bottom bar and desktop tab strip both default to marking their *first* item
+       (Inbox) active when the current path matches none of their own declared items
+       (`appshell.templ`'s `defaultAppMenu`, `matched == -1` fallback) — visiting either Settings
+       route today shows "Inbox" highlighted, which is wrong. This is not new to this phase and
+       Phase 4 does not fix it either: Settings reaches the tab strip via a *separate*,
+       right-aligned link (§6 below), never one of `defaultAppMenu`'s own items, so the fallback's
+       "nothing matched, default to first" logic has nothing to compare Settings against either
+       way. Recorded here since this is the first screen to make the fallback visibly wrong rather
+       than merely imprecise; fixing it is a `defaultAppMenu` change, out of scope for this phase.
+
+       Verified live (browser, admin session, `.env` credentials) at 1280px and 390px against both
+       routes: sidebar/list shows all three Access rows for an admin, content pane matches Phase
+       2's own `/authorization-matrix` output exactly, mobile root shows the list, mobile
+       `/permissions` shows back+detail only, and the Permissions row highlights correctly as
+       current on desktop. `go build`, `go test ./...` (with and without `DATABASE_URL`) and
+       `go test -race ./...` all green;
+       `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed` swept both new routes cleanly (`queries ==
+       reads`, `repeated == 0`) with no ratchet entry needed.
     4. **Wire the entry point.** `applicationMenuRow`/`moreSheet` gain a conditional "Settings"
        link, present only for an Application that declares a `SettingsHub` item — Project
        Management, which declares none, is unaffected. **Not started.**
