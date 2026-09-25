@@ -217,21 +217,36 @@ func PendingApprovalCount(ctx context.Context, l *Loader, userID string, stepMac
 // pendingTabContent's Overdue/Due-today chips and assignedTabContent's four decision chips both
 // already follow.
 //
-// No "Draft" chip: metadata/document.yaml's own comment says that option was deliberately removed
-// ("Add it back only alongside a real save-as-draft flow, not speculatively") and fld_status
-// declares exactly [in_review, approved, rejected] -- a chip for a status this runtime cannot
-// produce would count zero forever and read as a bug, not an honest gap.
+// The Draft chip landed 2026-09-25 (Flow 2 gap study Tahap 4) alongside the save-as-draft flow
+// that can finally produce that status -- this row used to explain why there was no such chip
+// ("fld_status declares exactly [in_review, approved, rejected]"); that condition is gone.
 func MineFilters(mine []rendering.PendingApprovalCard, statusKey string) []rendering.FilterChip {
-	counts := make(map[string]int, 3)
+	counts := make(map[string]int, 4)
 	for _, c := range mine {
 		counts[c.Status]++
 	}
 	return []rendering.FilterChip{
 		{Key: "all", Label: "All", Count: len(mine), Active: statusKey == "" || statusKey == "all"},
+		{Key: action.DocumentStatusDraft, Label: "Draft", Count: counts[action.DocumentStatusDraft], Active: statusKey == action.DocumentStatusDraft},
 		{Key: action.DocumentStatusInReview, Label: "In review", Count: counts[action.DocumentStatusInReview], Active: statusKey == action.DocumentStatusInReview},
 		{Key: action.DocumentStatusApproved, Label: "Approved", Count: counts[action.DocumentStatusApproved], Active: statusKey == action.DocumentStatusApproved},
 		{Key: action.DocumentStatusRejected, Label: "Rejected", Count: counts[action.DocumentStatusRejected], Active: statusKey == action.DocumentStatusRejected},
 	}
+}
+
+// SplitDrafts partitions My Documents' own cards into Drafts and Submitted (Flow 2 mockup's own
+// two sections, MyDocuments.dc.html) -- a Draft card shows "Continue", nothing else does. Order
+// within each half is preserved from mine, and either half may come back empty (a status chip
+// narrows mine before this runs, so e.g. the Draft chip active leaves submitted empty).
+func SplitDrafts(mine []rendering.PendingApprovalCard) (drafts, submitted []rendering.PendingApprovalCard) {
+	for _, c := range mine {
+		if c.Status == action.DocumentStatusDraft {
+			drafts = append(drafts, c)
+		} else {
+			submitted = append(submitted, c)
+		}
+	}
+	return drafts, submitted
 }
 
 // FilterCardsByStatus narrows cards to statusKey's own Status; "" or "all" (MineFilters' own "no
@@ -319,6 +334,7 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 			cardFields = ProjectCardFields(stepMachine, s, relations)
 		}
 		inbox.Pending = append(inbox.Pending, rendering.PendingApprovalCard{
+			ID:           docID,
 			Reference:    action.DocumentReference(doc.SortOrder),
 			Title:        DisplayString(doc.Values["fld_title"]),
 			DocumentType: DisplayString(doc.Values["fld_document_type"]),
@@ -342,8 +358,13 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 		}
 		// Every field the Pending branch resolves, resolved the same way -- Mode through
 		// behavior.SequencingMode rather than the raw fld_mode this used to print, so one card face
-		// cannot report the mode two different ways depending on which tab drew it. Submitter and
-		// SubmittedAt stay zero: see Inbox.Mine.
+		// cannot report the mode two different ways depending on which tab drew it. Submitter stays
+		// empty: see Inbox.Mine (every card here was submitted by the viewer, so it would read
+		// "Submitted by you" on every one). SubmittedAt is filled in now (2026-09-25) -- it always
+		// was resolved (`submissions[d.ID]`, the same map the Pending branch reads), just never
+		// rendered because pendingApprovalCard's own "Submitted by" line, the only place it used to
+		// appear, is gated on Submitter being non-empty. A Draft card's own "Not submitted -- Last
+		// edited {SubmittedAt}" line (rendering) is this field's first real reader.
 		//
 		// **The href was wrong until 2026-09-24**, and the comment here explained why at the time:
 		// "the href goes to the Document, not to a step's review screen, because on this list the
@@ -359,17 +380,24 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 		// step that opens on). The fallback below is the one case that screen cannot render: a
 		// Document with no steps at all, which the generic create form can make and the wizard
 		// never does.
+		status := DisplayString(d.Values[action.FieldDocumentStatus])
+		mineSubmittedAt := ""
+		if at := submissions[d.ID].at; !at.IsZero() {
+			mineSubmittedAt = at.Format("2 Jan 2006")
+		}
 		inbox.Mine = append(inbox.Mine, rendering.PendingApprovalCard{
+			ID:           d.ID,
 			Reference:    action.DocumentReference(d.SortOrder),
 			Title:        DisplayString(d.Values["fld_title"]),
 			DocumentType: DisplayString(d.Values["fld_document_type"]),
 			Mode:         behavior.SequencingMode(seq, d),
 			Approved:     approvedCount(stepsByDoc[d.ID]),
 			TotalSteps:   len(stepsByDoc[d.ID]),
-			Status:       DisplayString(d.Values[action.FieldDocumentStatus]),
+			SubmittedAt:  mineSubmittedAt,
+			Status:       status,
 			SLADue:       d.Values["fld_due_date"],
 			Approvers:    stepStates(seq, d, stepsByDoc[d.ID], names, userID),
-			Href:         reviewHref(d.ID, len(stepsByDoc[d.ID])),
+			Href:         reviewHref(d.ID, len(stepsByDoc[d.ID]), status),
 		})
 	}
 
@@ -544,8 +572,14 @@ func orderedBySequence(steps []*data.Record) []*data.Record {
 
 // reviewHref is a Document card's destination: its Review screen, or -- for a Document with no
 // Approval Steps, which that screen has nothing to draw for -- its generic record page, the one
-// place that can still show something.
-func reviewHref(documentID string, steps int) string {
+// place that can still show something. A Draft is the one status guaranteed to have zero steps by
+// construction (2026-09-25, Tahap 4) and has its own real destination -- the submit wizard,
+// reopened on this draft -- so it takes priority over the zero-steps fallback rather than landing
+// on the generic record page like the other, pre-existing zero-step edge case still does.
+func reviewHref(documentID string, steps int, status string) string {
+	if status == action.DocumentStatusDraft {
+		return fmt.Sprintf("/machines/%s/records/%s/continue-submit", action.DocumentMachineID, documentID)
+	}
 	if steps == 0 {
 		return fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, documentID)
 	}

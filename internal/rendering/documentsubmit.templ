@@ -26,7 +26,13 @@ import (
 //   - "Save this as the default approval flow for <Type>". It needs a per-Document-Type template
 //     entity and a write direction, not a checkbox; ROADMAP.md's deferral table has it with that
 //     as the blocker.
-templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+//
+// draft is the zero value on a fresh submission and the Draft's own stored values when this page
+// is reopened by "Continue" on My Documents (internal/web.showDocumentContinue, Flow 2 gap study
+// Tahap 4, 2026-09-25) -- see DraftPrefill's own doc comment for what each half of this page does
+// differently. Approver rows are never prefilled either way: a Draft is guaranteed to carry none
+// (see internal/web.continueDocumentWizard's own doc comment).
+templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName string, viewer Viewer, switchWorkspaceHref string, draft DraftPrefill) {
 	// "New Document" is a literal for the same reason the button that opens this screen is -- see
 	// approvalinbox.templ's own comment: nav_new_approval was deleted on 2026-09-21 because a submit
 	// form is not a menu destination, and no Page-level title/action primitive exists yet (007
@@ -42,7 +48,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			<div class="text-sm text-slate-500">Submit a document for approval.</div>
 		</div>
 		<form
-			hx-post="/documents"
+			hx-post={ documentSubmitAction(draft) }
 			hx-encoding="multipart/form-data"
 			class="flex flex-col gap-4"
 		>
@@ -50,13 +56,16 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
 				<h2 class="m-0 text-sm font-medium">Document</h2>
 				@wizardField("doc_title", "Title") {
-					<input id="doc_title" type="text" name="fld_title" required class={ controlField }/>
+					<input id="doc_title" type="text" name="fld_title" value={ draft.Title } required class={ controlField }/>
 				}
 				@wizardField("doc_type", documentType.Name) {
-					@wizardSelect("doc_type", documentType.ID, documentType.Options, "")
+					@wizardSelect("doc_type", documentType.ID, documentType.Options, "", draft.DocumentType)
 				}
 				@wizardField("doc_file", "PDF file") {
-					<input id="doc_file" type="file" name="fld_file" accept="application/pdf" required class="text-sm"/>
+					<input id="doc_file" type="file" name="fld_file" accept="application/pdf" required?={ draft.ID == "" } class="text-sm"/>
+					if draft.ID != "" {
+						<p class="m-0 text-2xs text-slate-500">Current file: { draft.FileName } — choose a new file to replace it.</p>
+					}
 				}
 			</section>
 			<div class="grid grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -68,7 +77,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 					</p>
 					for i, opt := range mode.Options {
 						<label class="flex cursor-pointer items-center gap-2.5 rounded-md border border-slate-200 p-3 text-sm hover:border-blue-300">
-							<input type="radio" name={ mode.ID } value={ opt } checked?={ i == 0 } class="size-4 accent-blue-500"/>
+							<input type="radio" name={ mode.ID } value={ opt } checked?={ modeChecked(draft.Mode, opt, i) } class="size-4 accent-blue-500"/>
 							{ opt }
 						</label>
 					}
@@ -93,11 +102,53 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 					</div>
 				</section>
 			</div>
-			<div class="flex justify-end">
-				<button type="submit" class={ controlPrimary }>Continue →</button>
+			<div class="flex justify-end gap-2">
+				if draft.ID == "" {
+					<button type="submit" name="intent" value="draft" class={ controlSecondary }>Save as draft</button>
+				}
+				<button type="submit" name="intent" value="submit" class={ controlPrimary }>Continue →</button>
 			</div>
 		</form>
 	}
+}
+
+// DraftPrefill is DocumentSubmitPage's own "which mode is this render" switch (Flow 2 gap study
+// Tahap 4, 2026-09-25). The zero value (ID == "") is a fresh submission: no prefill, both the
+// "Save as draft" button and the file input's `required` are live, and the form posts to
+// POST /documents. A non-empty ID is "Continue" reopening an existing Draft
+// (internal/web.showDocumentContinue): the four fields already on this form are prefilled from it,
+// there is no "Save as draft" button (continuing always finalizes -- see this file's own scope
+// note above ApproverRow... no, see continueDocumentWizard's doc comment in internal/web), the file
+// input is optional (a Draft already has one; internal/web's own carry-forward keeps it when
+// nothing new is chosen), and the form posts to POST .../records/{ID}/continue-submit instead.
+type DraftPrefill struct {
+	ID           string
+	Title        string
+	DocumentType string
+	Mode         string
+	// FileName is the draft's current file, storage.DisplayName's own already-human-readable form
+	// (never the raw storage key), shown so "no re-upload" doesn't look like an oversight.
+	FileName string
+}
+
+// documentSubmitAction is this form's own POST target -- computed rather than hardcoded twice
+// (once here, once as a literal), since the two routes it switches between are themselves internal
+// routing detail, not metadata.
+func documentSubmitAction(draft DraftPrefill) string {
+	if draft.ID == "" {
+		return "/documents"
+	}
+	return "/machines/" + action.DocumentMachineID + "/records/" + draft.ID + "/continue-submit"
+}
+
+// modeChecked marks opt as the radio the browser should pre-check: the draft's own stored fld_mode
+// when continuing one, otherwise the Field's first declared option (metadata/document.yaml
+// declares sequential first for exactly the reason firstOption's own comment names).
+func modeChecked(draftMode, opt string, i int) bool {
+	if draftMode != "" {
+		return opt == draftMode
+	}
+	return i == 0
 }
 
 // wizardField is one labelled control on this page. Not authField (authshell.templ): that one is
@@ -112,12 +163,14 @@ templ wizardField(id, label string) {
 
 // wizardSelect renders a status Field's own declared options. Taking the []string rather than the
 // Field keeps it usable for the approver-type picker too, whose values are domain.ActorKind*
-// rather than a Field's Options -- see approverTypeSelect.
-templ wizardSelect(id, name string, options []string, placeholder string) {
+// rather than a Field's Options -- see approverTypeSelect. selected marks the matching option
+// (a Draft's own stored value, when DocumentSubmitPage is reopened via "Continue"); "" selects
+// none, leaving the placeholder shown, exactly as every fresh-wizard call already behaved.
+templ wizardSelect(id, name string, options []string, placeholder, selected string) {
 	<select id={ id } name={ name } required class={ controlField }>
 		<option value="">{ placeholder }</option>
 		for _, opt := range options {
-			<option value={ opt }>{ opt }</option>
+			<option value={ opt } selected?={ opt == selected }>{ opt }</option>
 		}
 	</select>
 }

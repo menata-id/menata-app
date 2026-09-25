@@ -1,7 +1,3 @@
-# `fld_status` has no `draft` option (removed 2026-09-19, ROADMAP.md's UI mockup conformance
-# audit): submitDocumentWizard has always hardcoded fld_status to in_review, so no code path could
-# ever reach it -- a declared option nothing produces. Add it back only alongside a real
-# save-as-draft flow, not speculatively.
 id: mch_document
 name: Document
 fields:
@@ -40,7 +36,10 @@ fields:
     name: Status
     type: status
     required: true
-    options: [in_review, approved, rejected]
+    # draft added back 2026-09-25 (Flow 2 gap study Tahap 4) alongside the save-as-draft flow and
+    # the Rejected -> Draft ("Revise") move below -- both real code paths that can now produce it,
+    # closing the condition this Field's own comment used to name for leaving it out.
+    options: [draft, in_review, approved, rejected]
   - id: fld_due_date
     name: Due Date
     type: date
@@ -110,6 +109,15 @@ permissions:
   - id: prm_delete_document_not_reviewer
     action: delete
     roles: [approver, submitter]
+  # prm_revise_document: Flow 2 gap study Tahap 4, 2026-09-25 -- gates internal/web.reviseDocument
+  # (Rejected -> Draft, "Revise" on My Documents; not a declared Transition -- see the transitions:
+  # block's own note on why fld_status may declare none). Same scope as
+  # prm_edit_document_not_reviewer, deliberately: no actor_field yet, for the identical reason that
+  # one has none (ROADMAP.md's deferral table -- every Document written before fld_submitted_by
+  # existed has it empty, and an empty actor field satisfies nobody).
+  - id: prm_revise_document
+    action: revise
+    roles: [approver, submitter]
 
 # transitions: fld_status's own state model (ROADMAP.md Case 03 Fase 7).
 #
@@ -117,7 +125,8 @@ permissions:
 # omission: a Document's status is *derived* -- mch_approval_step's evt_step_decision_rollup
 # computes it fresh from that Document's own steps every time one is decided. No person sets it,
 # so no Action performs any of these moves, and the Approval Role Matrix renders all six as
-# "System" with no role able to grant them.
+# "System" with no role able to grant them. internal/conformance.TestDocumentStatusIsDerivedNotSettable
+# holds this literally: not one fld_status edge, ever, may carry an Action.
 #
 # What declaring them buys is a hole that was open until now: the generic update route would
 # happily write fld_status straight from a form, so any member could set a Document to `approved`
@@ -129,6 +138,17 @@ permissions:
 # from scratch on every decision, so it can move the Document from any of the three values to any
 # other. Listing only the "expected" three would make a real rollup result look like an
 # undeclared transition the day a step is deleted and the next decision recomputes past it.
+#
+# Draft (2026-09-25, Tahap 4) deliberately gets no edges here at all, in either direction. Its two
+# moves (submit-a-draft-into-review, revise-a-rejected-document-back-to-draft) are person-performed,
+# which is exactly what this block's own invariant forbids declaring for fld_status -- so both stay
+# undeclared on purpose, which also means the *generic* edit route still can't move either value
+# (an undeclared transition refuses every Action, this one included). internal/web's
+# continueDocumentWizard/reviseDocument perform them directly, gated by a plain business-state check
+# (action.CanContinueDraft/CanReviseDocument, the same posture action.CanDeleteDocument already
+# takes for delete) plus a Permission (prm_revise_document, above, for Revise;
+# prm_edit_document_not_reviewer, already declared, for Continue) -- Permission and Transition are
+# separate mechanisms, and only the latter is what this invariant constrains.
 transitions:
   - id: trn_document_approved
     name: All steps approved

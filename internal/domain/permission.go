@@ -33,6 +33,14 @@ const (
 // exactly what ActorField says; only the record it is read from is different.
 const ActionCreate = "create"
 
+// ActionRevise is the second cross-record Action beyond a plain field write (Flow 2 gap study
+// Tahap 4, 2026-09-25): Rejected -> Draft on a Document (`POST .../revise`,
+// internal/web.reviseDocument). Deliberately not folded into ActionEdit -- the write carries a
+// side effect (deleting the Document's own already-decided Approval Steps) that a plain
+// generic-edit PUT must not be able to trigger, the same reasoning that already keeps
+// Approve/Reject off the generic route behind ActionDecide.
+const ActionRevise = "revise"
+
 // KnownActions is the closed set of Action names a Permission may govern. Like KnownFieldTypes,
 // this is a deliberate static seam (007 §14), not a name inferred from metadata -- a Permission
 // naming an Action the runtime does not have would silently protect nothing.
@@ -41,6 +49,7 @@ var KnownActions = map[string]bool{
 	ActionCreate: true,
 	ActionEdit:   true,
 	ActionDelete: true,
+	ActionRevise: true,
 }
 
 // WorkspaceRoleAdmin is the one Workspace-level role a Permission may require. Workspace roles are

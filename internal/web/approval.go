@@ -49,14 +49,14 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 
 		var (
 			filters, mineFilters, assignedFilters []rendering.FilterChip
-			pending, mine                         []rendering.PendingApprovalCard
+			pending, drafts, mine                 []rendering.PendingApprovalCard
 			assignedRows                          []rendering.AssignedRow
 			err                                   error
 		)
 		if tab == rendering.TabAssigned {
 			assignedRows, assignedFilters, err = assignedTabContent(ctx, store, machines, userID, req.URL.Query().Get("status"), q)
 		} else {
-			pending, mine, filters, mineFilters, err = pendingTabContent(ctx, store, machines, userID, req.URL.Query().Get("filter"), req.URL.Query().Get("status"), q)
+			pending, drafts, mine, filters, mineFilters, err = pendingTabContent(ctx, store, machines, userID, req.URL.Query().Get("filter"), req.URL.Query().Get("status"), q)
 		}
 		if err != nil {
 			serverError(w, err)
@@ -74,7 +74,7 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 		// 2026-09-21, so there is no Workspace destination on it left to hide.
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
 		render(ctx, w, rendering.ApprovalInboxPage(
-			filters, pending, mine, mineFilters, assignedRows, assignedFilters, tab, q,
+			filters, pending, drafts, mine, mineFilters, assignedRows, assignedFilters, tab, q,
 			chrome.WorkspaceName, chrome.Viewer(), switchHref,
 		))
 	}
@@ -86,11 +86,14 @@ func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, c
 // tab, and giving My Documents a call of its own would read every record set a second time for a
 // screen that already has the answer. filterKey narrows Pending by SLA bucket; mineStatusKey/q
 // narrow My Documents by its own status chips (composition.MineFilters) and search box, in that
-// order, so a search always narrows within whichever chip is already active.
-func pendingTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, filterKey, mineStatusKey, q string) (pending, mine []rendering.PendingApprovalCard, filters, mineFilters []rendering.FilterChip, err error) {
+// order, so a search always narrows within whichever chip is already active. drafts/mine are then
+// composition.SplitDrafts' own partition of that narrowed list (Flow 2 gap study Tahap 4,
+// 2026-09-25) -- so an active status chip still narrows what lands in either half, e.g. the Draft
+// chip active leaves mine (Submitted) empty.
+func pendingTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, filterKey, mineStatusKey, q string) (pending, drafts, mine []rendering.PendingApprovalCard, filters, mineFilters []rendering.FilterChip, err error) {
 	inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
 	}
 	filters = []rendering.FilterChip{
 		{Key: "all", Label: "All", Count: len(inbox.Pending), Active: filterKey == "" || filterKey == "all"},
@@ -107,8 +110,9 @@ func pendingTabContent(ctx context.Context, store *data.Store, machines map[stri
 		}
 	}
 	mineFilters = composition.MineFilters(inbox.Mine, mineStatusKey)
-	mine = composition.SearchCards(composition.FilterCardsByStatus(inbox.Mine, mineStatusKey), q)
-	return pending, mine, filters, mineFilters, nil
+	narrowedMine := composition.SearchCards(composition.FilterCardsByStatus(inbox.Mine, mineStatusKey), q)
+	drafts, mine = composition.SplitDrafts(narrowedMine)
+	return pending, drafts, mine, filters, mineFilters, nil
 }
 
 // assignedTabContent composes the Assigned to me tab: composition.AssignedToMe's own reads (a
@@ -247,6 +251,83 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 			fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
 
 		redirectTo(w, req, "/machines/"+action.DocumentMachineID+"/records/"+documentID)
+	}
+}
+
+// reviseDocument is Rejected -> Draft (Flow 2 gap study Tahap 4, 2026-09-25): "Revise" on a
+// Rejected row in My Documents. Mirrors decideStep's own ordering contract (identity checked
+// before anything is fetched twice, business-state checked before anything is written).
+//
+// Step 5 below is a deliberate, documented exception to action.CanDeleteApprovalStep's own rule
+// ("a decided step... is the audit trail Phase 16/17 exist to protect... blocked outright") --
+// reached through store.DeleteRecord directly rather than the generic delete route, so that
+// function's own guard never runs. It is not a bypass of that rule so much as a different question:
+// CanDeleteApprovalStep protects a decided step from being deleted *in place*, on a Document that
+// otherwise keeps its own outcome. Revise is not that -- it is the one place in this runtime that
+// deliberately starts a Document's approval history over, and doing that with the old, decided
+// steps of a *finished* rejected cycle still attached would corrupt the new one: evt_step_decision_
+// rollup recomputes a Document's status from *every* step naming it, so a fresh pending step sitting
+// beside an old rejected one would immediately roll the Document back to rejected before anyone
+// decides anything. The human-readable fact ("Step N rejected") survives regardless, in
+// mch_activity, which is append-only -- only the structured step row itself (assignee, signature
+// image, decided-by-name) is traded away, and only for a step whose Document is about to be
+// resubmitted from scratch.
+func reviseDocument(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+		if machine.ID != action.DocumentMachineID {
+			http.Error(w, "this machine has no revise action", http.StatusNotFound)
+			return
+		}
+
+		ctx := req.Context()
+		id := chi.URLParam(req, "id")
+		document, err := store.GetRecord(ctx, machine.ID, id)
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+
+		actor := currentActor(req, store, cfg)
+		if !authorization.AllowsAction(machine, domain.ActionRevise, document.Values, actor) {
+			http.Error(w, "not allowed to revise this document", http.StatusForbidden)
+			return
+		}
+
+		// Not behavior.CheckTransitions: internal/conformance.TestDocumentStatusIsDerivedNotSettable
+		// holds that no mch_document transition on fld_status may declare an Action, so this move is
+		// gated by a plain business-state check instead (action.CanReviseDocument), the same posture
+		// action.CanDeleteDocument already takes for delete.
+		if ok, reason := action.CanReviseDocument(toDisplayString(document.Values[action.FieldDocumentStatus])); !ok {
+			http.Error(w, reason, http.StatusUnprocessableEntity)
+			return
+		}
+
+		document.Values[action.FieldDocumentStatus] = action.DocumentStatusDraft
+		if _, err := store.UpdateRecord(ctx, machine.ID, id, document.Values); err != nil {
+			serverError(w, err)
+			return
+		}
+
+		steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, id)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		for _, s := range steps {
+			if err := store.DeleteRecord(ctx, action.StepMachineID, s.ID); err != nil {
+				serverError(w, err)
+				return
+			}
+		}
+
+		logActivity(ctx, store, machine.ID, id, actor.ID,
+			fmt.Sprintf("%q moved back to draft for revision", toDisplayString(document.Values["fld_title"])))
+
+		redirectTo(w, req, navRouteByID(ctx, "nav_my_documents"))
 	}
 }
 

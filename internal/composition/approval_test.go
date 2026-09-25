@@ -291,9 +291,13 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 	}
 	// Submitter is deliberately empty on this list: every card here is the viewer's own, so
 	// pendingApprovalCard drops the "Submitted by" line rather than printing the viewer's own name
-	// back at them (Inbox.Mine's own doc comment).
-	if got.Mine[0].Submitter != "" || got.Mine[0].SubmittedAt != "" {
-		t.Errorf("Submitter/SubmittedAt = %q/%q, want both empty", got.Mine[0].Submitter, got.Mine[0].SubmittedAt)
+	// back at them (Inbox.Mine's own doc comment). SubmittedAt is filled in (2026-09-25, Tahap 4) --
+	// a Draft card's own "Not submitted -- Last edited {SubmittedAt}" line is its first real reader.
+	if got.Mine[0].Submitter != "" {
+		t.Errorf("Submitter = %q, want empty", got.Mine[0].Submitter)
+	}
+	if want := at(8).Format("2 Jan 2006"); got.Mine[0].SubmittedAt != want {
+		t.Errorf("SubmittedAt = %q, want %q", got.Mine[0].SubmittedAt, want)
 	}
 }
 
@@ -418,6 +422,7 @@ func TestBuildInbox_NilStepMachineProjectsNothing(t *testing.T) {
 
 func TestMineFilters(t *testing.T) {
 	mine := []rendering.PendingApprovalCard{
+		{Status: action.DocumentStatusDraft},
 		{Status: action.DocumentStatusInReview},
 		{Status: action.DocumentStatusInReview},
 		{Status: action.DocumentStatusApproved},
@@ -428,13 +433,14 @@ func TestMineFilters(t *testing.T) {
 		count  int
 		active bool
 	}{
-		"all":                         {4, false},
+		"all":                         {5, false},
+		action.DocumentStatusDraft:    {1, false},
 		action.DocumentStatusInReview: {2, true},
 		action.DocumentStatusApproved: {1, false},
 		action.DocumentStatusRejected: {1, false},
 	}
-	if len(got) != 4 {
-		t.Fatalf("MineFilters returned %d chips, want 4 (no Draft -- fld_status declares none)", len(got))
+	if len(got) != 5 {
+		t.Fatalf("MineFilters returned %d chips, want 5 (All/Draft/In review/Approved/Rejected)", len(got))
 	}
 	for _, chip := range got {
 		w, ok := want[chip.Key]
@@ -456,6 +462,36 @@ func TestMineFilters(t *testing.T) {
 		if chip.Count != got[i].Count {
 			t.Errorf("chip %q count changed with statusKey (%d vs %d) -- counts must come from the unfiltered list", chip.Key, chip.Count, got[i].Count)
 		}
+	}
+}
+
+func TestSplitDrafts(t *testing.T) {
+	drafts, submitted := SplitDrafts(nil)
+	if drafts != nil || submitted != nil {
+		t.Errorf("empty input: drafts=%v submitted=%v, want both nil", drafts, submitted)
+	}
+
+	a := rendering.PendingApprovalCard{ID: "a", Status: action.DocumentStatusDraft}
+	b := rendering.PendingApprovalCard{ID: "b", Status: action.DocumentStatusInReview}
+	c := rendering.PendingApprovalCard{ID: "c", Status: action.DocumentStatusDraft}
+	d := rendering.PendingApprovalCard{ID: "d", Status: action.DocumentStatusRejected}
+
+	drafts, submitted = SplitDrafts([]rendering.PendingApprovalCard{a, b, c, d})
+	if !reflect.DeepEqual(drafts, []rendering.PendingApprovalCard{a, c}) {
+		t.Errorf("drafts = %+v, want [a, c] in order", drafts)
+	}
+	if !reflect.DeepEqual(submitted, []rendering.PendingApprovalCard{b, d}) {
+		t.Errorf("submitted = %+v, want [b, d] in order", submitted)
+	}
+
+	allDrafts, none := SplitDrafts([]rendering.PendingApprovalCard{a, c})
+	if len(allDrafts) != 2 || none != nil {
+		t.Errorf("all-drafts input: drafts=%+v submitted=%v, want 2 drafts and nil submitted", allDrafts, none)
+	}
+
+	none, allSubmitted := SplitDrafts([]rendering.PendingApprovalCard{b, d})
+	if none != nil || len(allSubmitted) != 2 {
+		t.Errorf("all-submitted input: drafts=%v submitted=%+v, want nil drafts and 2 submitted", none, allSubmitted)
 	}
 }
 

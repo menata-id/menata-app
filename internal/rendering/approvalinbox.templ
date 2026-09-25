@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"time"
 
+	"menata.app/internal/action"
 	"menata.app/internal/experience"
 )
 
@@ -68,6 +69,10 @@ type StepApprover struct {
 // list and a progress bar, none of which any other screen needs -- so this stays an Approval
 // Inbox-specific shape rather than a field added to SummaryCard.
 type PendingApprovalCard struct {
+	// ID is the Document's own record id -- added 2026-09-25 (Flow 2 gap study Tahap 4) for the
+	// Revise button on a Rejected row, which needs the id to POST to rather than parsing it back
+	// out of Href (Href points at a different screen -- the Review page -- for most statuses).
+	ID           string
 	Reference    string
 	Title        string
 	DocumentType string
@@ -131,7 +136,7 @@ type AssignedRow struct {
 // type built to satisfy one label, which is the shape-before-need this repo refuses. Same class as
 // board 03's Procurement/HR cards and board 06's ProcessEdge: the board draws something the app
 // has no data for. Recorded in ROADMAP.md's deferral table with that as its real blocker.
-templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, mine []PendingApprovalCard, mineFilters []FilterChip, assigned []AssignedRow, assignedFilters []FilterChip, tab, q string, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, drafts []PendingApprovalCard, mine []PendingApprovalCard, mineFilters []FilterChip, assigned []AssignedRow, assignedFilters []FilterChip, tab, q string, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	// The "Approval Inbox" / "My Documents" / "Assigned to me" section strip used to be this
 	// Page's own nav here (inboxTabs, deleted with this change): appShell now renders the current
 	// Application's own menu itself -- a second header row on desktop, a bottom bar on mobile --
@@ -193,14 +198,27 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, min
 					</div>
 					@searchBox(routeByID(ctx, "nav_approval_inbox"), q, "Search title or DOC number…", map[string]string{"tab": TabMine, "status": activeFilterKey(mineFilters)})
 				</div>
-				if len(mine) == 0 {
+				if len(drafts) == 0 && len(mine) == 0 {
 					if q != "" {
 						@inboxEmpty(fmt.Sprintf("No document matches %q.", q))
 					} else {
 						@inboxEmpty("You haven't submitted any documents yet.")
 					}
 				} else {
-					@pendingApprovalCardGrid(mine)
+					// Two sections, Flow 2 mockup's own split (MyDocuments.dc.html) -- a Draft has
+					// nowhere else to go (it isn't Pending, Approved or Rejected), and grouping it
+					// apart from Submitted is what makes "Continue" discoverable instead of an
+					// oddly-blank card sitting among real submissions.
+					if len(drafts) > 0 {
+						<span class="text-3xs tracking-wide text-slate-400 uppercase">Drafts</span>
+						@pendingApprovalCardGrid(drafts)
+					}
+					if len(mine) > 0 {
+						if len(drafts) > 0 {
+							<span class="text-3xs tracking-wide text-slate-400 uppercase">Submitted</span>
+						}
+						@pendingApprovalCardGrid(mine)
+					}
 				}
 			case TabAssigned:
 				{{ assignedChipPrefix := routeByID(ctx, "nav_assigned_to_me") + "&status=" }}
@@ -342,56 +360,95 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 // navigation to the step's own detail page (2026-09-19: dropped the hx-get/hx-target inline swap
 // this used to layer on top -- a worklist click opens the record's page, not a pane below).
 //
+// The card became a <div> wrapping an inner <a> (2026-09-25, Flow 2 gap study Tahap 4), rather than
+// the whole card staying one <a>: a Rejected row's own Revise button (below) is a second
+// interactive element, and a <form>/<button> nested inside an <a> is invalid HTML that browsers
+// handle inconsistently on click. Every other status still behaves identically -- the inner <a>
+// wraps the same content this templ always rendered, and the hover style moved to the outer <div>
+// with it.
+//
 // Page-internal on purpose: capabilities.md records it as cataloged-but-not-yet-reused, which is
 // the honest state until a second, genuinely different screen needs the identical shape.
 templ pendingApprovalCard(c PendingApprovalCard) {
 	{{ status, label := parseSLA(c.SLADue) }}
-	<a
-		href={ templ.SafeURL(c.Href) }
+	<div
 		class={ "flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-300",
 			templ.KV("border-red-200", status == experience.SLAOverdue),
 			templ.KV("border-slate-200", status != experience.SLAOverdue) }
 	>
-		if label != "" {
-			<span
-				class={ "self-start rounded-full px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase",
-					templ.KV("bg-red-50 text-red-700", status == experience.SLAOverdue),
-					templ.KV("bg-amber-50 text-amber-700", status != experience.SLAOverdue) }
-			>
-				{ label }
-			</span>
-		}
-		<div class="flex flex-col gap-1">
-			<h2 class="m-0 text-[15px] font-medium">{ c.Title }</h2>
-			<p class="m-0 text-2xs text-slate-400">{ c.Reference } · { c.DocumentType }</p>
-		</div>
-		// Omitted entirely when there is no submitter to name, which is what My Documents passes:
-		// every card there was submitted by the viewer, so the line would read "Submitted by you"
-		// on every one of them (composition.Inbox.Mine).
-		if c.Submitter != "" {
-			<p class="m-0 text-xs text-slate-500">
-				Submitted by <span class="text-slate-700">{ c.Submitter }</span>
-				if c.SubmittedAt != "" {
-					{ " · " + c.SubmittedAt }
-				}
-			</p>
-		}
-		if len(c.Approvers) > 0 {
-			<ul aria-label="Approvers" class="m-0 flex list-none flex-wrap gap-2 p-0">
-				for _, a := range c.Approvers {
-					@approverChip(a)
-				}
-			</ul>
-		}
-		@approvalProgress(c.Approved, c.TotalSteps)
-		if len(c.CardFields) > 0 {
-			<div class="flex flex-wrap gap-1.5">
-				for _, f := range c.CardFields {
-					@projectedFieldValue(f)
-				}
+		<a href={ templ.SafeURL(c.Href) } class="flex flex-col gap-3">
+			if label != "" {
+				<span
+					class={ "self-start rounded-full px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase",
+						templ.KV("bg-red-50 text-red-700", status == experience.SLAOverdue),
+						templ.KV("bg-amber-50 text-amber-700", status != experience.SLAOverdue) }
+				>
+					{ label }
+				</span>
+			}
+			<div class="flex flex-col gap-1">
+				<h2 class="m-0 text-[15px] font-medium">{ c.Title }</h2>
+				<p class="m-0 text-2xs text-slate-400">{ c.Reference } · { c.DocumentType }</p>
 			</div>
+			// A Draft's own line (Flow 2 mockup: "Not submitted / Last edited {date}") takes
+			// priority over the ordinary submitted-by line below, which a Draft would otherwise
+			// also qualify for (Submitter is empty on every My Documents card, Draft included, so
+			// that branch alone would render nothing at all for one -- this is its real content).
+			if c.Status == "draft" {
+				<p class="m-0 text-xs text-slate-500">
+					Not submitted
+					if c.SubmittedAt != "" {
+						{ " · Last edited " + c.SubmittedAt }
+					}
+				</p>
+			} else if c.Submitter != "" {
+				// Omitted entirely when there is no submitter to name, which is what My Documents
+				// passes: every card there was submitted by the viewer, so the line would read
+				// "Submitted by you" on every one of them (composition.Inbox.Mine).
+				<p class="m-0 text-xs text-slate-500">
+					Submitted by <span class="text-slate-700">{ c.Submitter }</span>
+					if c.SubmittedAt != "" {
+						{ " · " + c.SubmittedAt }
+					}
+				</p>
+			}
+			// Guarded on TotalSteps (2026-09-25): a Draft is guaranteed to have zero Approval Steps
+			// by construction, and rendering "0 of 0 approved" for one would read as a bug rather
+			// than the honest "hasn't gone anywhere yet" the mockup's own "--" draws. Every other
+			// card keeps its existing progress bar unchanged.
+			if c.TotalSteps > 0 {
+				if len(c.Approvers) > 0 {
+					<ul aria-label="Approvers" class="m-0 flex list-none flex-wrap gap-2 p-0">
+						for _, a := range c.Approvers {
+							@approverChip(a)
+						}
+					</ul>
+				}
+				@approvalProgress(c.Approved, c.TotalSteps)
+			}
+			if len(c.CardFields) > 0 {
+				<div class="flex flex-wrap gap-1.5">
+					for _, f := range c.CardFields {
+						@projectedFieldValue(f)
+					}
+				</div>
+			}
+		</a>
+		// Revise (Flow 2 mockup: My Documents' Rejected row) -- a POST, not a link, so it cannot be
+		// the inner <a> above. Moves the Document back to Draft and clears its own Approval Steps;
+		// see internal/web.reviseDocument's own doc comment for why that's a deliberate, documented
+		// exception to action.CanDeleteApprovalStep's rule rather than an oversight.
+		if c.Status == "rejected" {
+			<form
+				hx-post={ fmt.Sprintf("/machines/%s/records/%s/revise", action.DocumentMachineID, c.ID) }
+				hx-confirm="Move this document back to Draft? Its approval steps will be cleared."
+				class="self-start"
+			>
+				@csrfHiddenInput()
+				<button type="submit" class="cursor-pointer text-xs text-blue-600 hover:text-blue-700">Revise</button>
+			</form>
 		}
-	</a>
+	</div>
 }
 
 // approverChip is one approver on the card, labelled for a screen reader with their own state --

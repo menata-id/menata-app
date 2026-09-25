@@ -95,7 +95,7 @@ func showDocumentSubmit(machines map[string]*domain.Machine, store *data.Store, 
 		actor := currentActor(req, store, cfg)
 		_, switchHref := viewerWorkspaceContext(ctx, store, actor.ID)
 		render(ctx, w, rendering.DocumentSubmitPage(opts.documentType, opts.mode, opts.approvers, opts.groups,
-			chrome.WorkspaceName, chrome.Viewer(), switchHref))
+			chrome.WorkspaceName, chrome.Viewer(), switchHref, rendering.DraftPrefill{}))
 	}
 }
 
@@ -117,6 +117,14 @@ func newApproverRow(machines map[string]*domain.Machine, store *data.Store) http
 // mch_approval_step records together. Hardcoded to mch_document/mch_approval_step, same posture
 // as internal/action and every other Case 3-specific screen -- not a generic multi-Machine
 // composite-create mechanism, since no second case needs one yet.
+//
+// Two intents share this one handler (Flow 2 gap study Tahap 4, 2026-09-25): the wizard's own
+// "intent" form field is "submit" (the pre-existing behaviour, default when the field is missing
+// so an old cached page keeps working) or "draft". A draft skips hasApprover entirely -- it hasn't
+// gone anywhere yet, so it may have zero approvers -- and creates no Approval Steps, which is what
+// makes reviewHref/SplitDrafts able to tell a Draft apart from the pre-existing "zero-step
+// Document the generic form can make" edge case: a Draft is the *only* status guaranteed to have
+// zero steps by construction.
 func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		docMachine := machines[action.DocumentMachineID]
@@ -130,7 +138,8 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 			http.Error(w, problem, http.StatusUnprocessableEntity)
 			return
 		}
-		if !hasApprover(rows) {
+		isDraft := req.FormValue("intent") == "draft"
+		if !isDraft && !hasApprover(rows) {
 			// Without this, createApprovalSteps below silently skips every empty slot and
 			// returns success -- a Document would be created with zero Approval Steps, and
 			// nothing could ever decide it. Checked before CreateRecord so a rejected submission
@@ -141,7 +150,11 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 		data.ApplyDefaults(docMachine, values)
 		// The wizard's own explicit rule outranks any declared default here, the same way an
 		// INSERT's explicit column value outranks a SQL DEFAULT.
-		values[action.FieldDocumentStatus] = action.DocumentStatusInReview
+		if isDraft {
+			values[action.FieldDocumentStatus] = action.DocumentStatusDraft
+		} else {
+			values[action.FieldDocumentStatus] = action.DocumentStatusInReview
+		}
 		// Who submitted this Document, stamped from the session rather than accepted from the
 		// form (2026-09-21). It is what mch_document's own prm_create_own_document checks, and
 		// what finally puts an owner on the record instead of leaving it recoverable only by
@@ -160,6 +173,14 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 			serverError(w, err)
 			return
 		}
+
+		if isDraft {
+			logActivity(req.Context(), store, docMachine.ID, document.ID, actor.ID,
+				fmt.Sprintf("%q saved as draft", toDisplayString(document.Values["fld_title"])))
+			redirectTo(w, req, navRouteByID(req.Context(), "nav_my_documents"))
+			return
+		}
+
 		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, rows) {
 			return
 		}
@@ -168,6 +189,173 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 			fmt.Sprintf("%q submitted", toDisplayString(document.Values["fld_title"])))
 
 		redirectTo(w, req, fmt.Sprintf("/machines/%s/records/%s/signature-placement", docMachine.ID, document.ID))
+	}
+}
+
+// navRouteByID mirrors rendering.routeByID's own lookup (internal/web cannot call it directly --
+// unexported, and it reads ctx through a different package's own accessor) for the one place a
+// handler needs to redirect to a declared nav route instead of retyping it
+// (internal/conformance.TestHandlersHaveNoHardcodedApplicationRoute; CLAUDE.md "Where a
+// metadata-derived value belongs"). Panics on an unknown id, matching routeByID's own posture -- a
+// typo here is a programmer error, cheaper to find at first use than as a silently broken redirect.
+func navRouteByID(ctx context.Context, id string) string {
+	for _, app := range rendering.CurrentWorkspace(ctx).Applications {
+		for _, item := range app.AllNavigation {
+			if item.ID == id {
+				return item.Route
+			}
+		}
+	}
+	panic("web: no navigation item with id " + id)
+}
+
+// showDocumentContinue reopens the submit wizard for a Draft (Flow 2 gap study Tahap 4,
+// 2026-09-25): "Continue" on My Documents' own Drafts section. Prefilled from the draft's own
+// stored values; approver rows start empty exactly as a fresh wizard's do, because a Draft is
+// guaranteed to carry none (submitDocumentWizard's own draft branch creates no Approval Steps, and
+// reviseDocument deletes any that existed before moving a Document back to Draft).
+func showDocumentContinue(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+		if machine.ID != action.DocumentMachineID {
+			http.Error(w, "this machine has no continue-submit screen", http.StatusNotFound)
+			return
+		}
+		ctx := req.Context()
+		id := chi.URLParam(req, "id")
+		document, err := store.GetRecord(ctx, machine.ID, id)
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		if ok, reason := action.CanContinueDraft(toDisplayString(document.Values[action.FieldDocumentStatus])); !ok {
+			http.Error(w, reason, http.StatusUnprocessableEntity)
+			return
+		}
+
+		opts, err := readWizardOptions(req, machines, store)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		chrome, err := resolveChrome(ctx, req, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		actor := currentActor(req, store, cfg)
+		_, switchHref := viewerWorkspaceContext(ctx, store, actor.ID)
+		draft := rendering.DraftPrefill{
+			ID:           document.ID,
+			Title:        toDisplayString(document.Values["fld_title"]),
+			DocumentType: toDisplayString(document.Values["fld_document_type"]),
+			Mode:         toDisplayString(document.Values[action.FieldDocumentMode]),
+			FileName:     storage.DisplayName(toDisplayString(document.Values["fld_file"])),
+		}
+		render(ctx, w, rendering.DocumentSubmitPage(opts.documentType, opts.mode, opts.approvers, opts.groups,
+			chrome.WorkspaceName, chrome.Viewer(), switchHref, draft))
+	}
+}
+
+// continueDocumentWizard is showDocumentContinue's own POST: finishes a Draft into review, reusing
+// this wizard's own approver-row handling (parseStepInputs/createApprovalSteps) exactly as
+// submitDocumentWizard's create path does, but as an UpdateRecord on the existing draft rather than
+// a CreateRecord.
+//
+// One fetch (existing, below) feeds both recordEditAllowed's permission check and the Field
+// carry-forward, rather than reusing record.go's allowsRecordEdit/carryForwardFiles as separate
+// calls that would each fetch the record again on their own: this bespoke wizard form only carries
+// four of mch_document's eight Fields (title/type/file/mode), so whatever it doesn't mention --
+// fld_due_date, fld_submitted_by, and fld_signed_file -- has to be carried forward from that one
+// fetch or a plain UpdateRecord (a whole-record replace, not a merge) would silently erase it. This
+// is exactly the "generic route rewrites a whole record" trap signatureplacement's own
+// carry-forward history already found once (ROADMAP.md) -- the loop below is
+// carryForwardExistingFiles' own reasoning generalized to every Field, not just file ones, and
+// Machine-agnostic for the same reason that function is: a Field added to mch_document later is
+// carried forward automatically rather than needing this list remembered a second time.
+//
+// draft -> in_review is not behavior.CheckTransitions either, and deliberately so -- see
+// action.CanContinueDraft's own doc comment for why mch_document's fld_status may declare no
+// person-performed Transition at all.
+//
+// Scope, stated once rather than left to be discovered: continuing a draft only ever finalizes it
+// into in_review here. There is no "save this edit, stay draft" loop on this form -- revisiting a
+// draft without submitting it is just leaving the page.
+func continueDocumentWizard(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, machines, req)
+		if !ok {
+			return
+		}
+		if machine.ID != action.DocumentMachineID {
+			http.Error(w, "this machine has no continue-submit screen", http.StatusNotFound)
+			return
+		}
+		ctx := req.Context()
+		id := chi.URLParam(req, "id")
+		existing, err := store.GetRecord(ctx, machine.ID, id)
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		actor := currentActor(req, store, cfg)
+		if !recordEditAllowed(machine, existing.Values, actor) {
+			http.Error(w, "not allowed to edit this record", http.StatusForbidden)
+			return
+		}
+		// Not behavior.CheckTransitions: internal/conformance.TestDocumentStatusIsDerivedNotSettable
+		// holds that no mch_document transition on fld_status may declare an Action (draft <->
+		// in_review included), so this move is gated by a plain business-state check instead
+		// (action.CanContinueDraft), the same posture action.CanDeleteDocument already takes for
+		// delete.
+		if ok, reason := action.CanContinueDraft(toDisplayString(existing.Values[action.FieldDocumentStatus])); !ok {
+			http.Error(w, reason, http.StatusUnprocessableEntity)
+			return
+		}
+
+		rows, problem := parseStepInputs(req)
+		if problem != "" {
+			http.Error(w, problem, http.StatusUnprocessableEntity)
+			return
+		}
+		if !hasApprover(rows) {
+			http.Error(w, "at least one approver is required", http.StatusUnprocessableEntity)
+			return
+		}
+
+		values, _, ok := submittedValues(w, req, machine, files)
+		if !ok {
+			return
+		}
+		for _, f := range machine.Fields {
+			if _, present := values[f.ID]; present {
+				continue
+			}
+			if v, ok := existing.Values[f.ID]; ok {
+				values[f.ID] = v
+			}
+		}
+		values[action.FieldDocumentStatus] = action.DocumentStatusInReview
+		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
+			return
+		}
+
+		document, err := store.UpdateRecord(ctx, machine.ID, id, values)
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, rows) {
+			return
+		}
+
+		logActivity(ctx, store, machine.ID, document.ID, actor.ID,
+			fmt.Sprintf("%q submitted", toDisplayString(document.Values["fld_title"])))
+
+		redirectTo(w, req, fmt.Sprintf("/machines/%s/records/%s/signature-placement", machine.ID, document.ID))
 	}
 }
 

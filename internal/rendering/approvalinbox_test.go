@@ -94,7 +94,7 @@ func TestApprovalInboxPage_AssignedTabRendersRows(t *testing.T) {
 	filters := []FilterChip{{Key: "all", Label: "All", Count: 1, Active: true}}
 
 	var buf bytes.Buffer
-	page := ApprovalInboxPage(nil, nil, nil, nil, rows, filters, TabAssigned, "", "Acme", Viewer{Initials: "AN"}, "")
+	page := ApprovalInboxPage(nil, nil, nil, nil, nil, rows, filters, TabAssigned, "", "Acme", Viewer{Initials: "AN"}, "")
 	if err := page.Render(assignedNavFixture(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
@@ -118,7 +118,7 @@ func TestApprovalInboxPage_AssignedTabEmptyState(t *testing.T) {
 	filters := []FilterChip{{Key: "all", Label: "All", Count: 0, Active: true}}
 
 	var buf bytes.Buffer
-	page := ApprovalInboxPage(nil, nil, nil, nil, nil, filters, TabAssigned, "", "Acme", Viewer{Initials: "AN"}, "")
+	page := ApprovalInboxPage(nil, nil, nil, nil, nil, nil, filters, TabAssigned, "", "Acme", Viewer{Initials: "AN"}, "")
 	if err := page.Render(assignedNavFixture(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}

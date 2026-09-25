@@ -1547,6 +1547,102 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   the chip survives the search); `/approval-inbox?tab=assigned` behaves identically. `go test ./...`
   (with and without `DATABASE_URL`) and `go test -race ./...` all green.
 
+- **Flow 2's Tahap 3 is closed** (`menata-app-document`'s gap study §8: "Tiga worklist +
+  pencarian + chip"), recorded here because it never was anywhere -- the two entries above shipped
+  its whole scope (`composition.AssignedToMe` 2026-09-24, search+chips 2026-09-25) with no line
+  tying them to the gap study's own numbering, the exact "the work happened, the plan doesn't say
+  so" gap this file's own preamble warns about (see the bottom-bar row's history, above). Checked
+  line by line against the study's §4.2/§4.3 tables rather than assumed:
+  - Assigned to me: screen (`nav_assigned_to_me`, a tab by deliberate design --
+    `document-approval.yaml`'s own comment on why a query is one destination, not a second nav
+    level), all four filter chips (`assignedTabContent`), the two-armed "mine" test
+    (`stepBelongsTo` -- direct assignee or a Group the viewer belongs to), the "via {group}"
+    provenance note, and the decision date ("You approved 13 Sep") are all shipped.
+  - My Documents: status chips (`MineFilters`), search, and the PROGRESS figure
+    (`PendingApprovalCard.Approved`/`TotalSteps`) are all shipped.
+  - **Not in scope here, and correctly still absent**: the **Drafts** section and the "Revise"
+    action. The gap study puts both in Tahap 4 on purpose (`draft` status + `Rejected → Draft`
+    don't exist yet) -- their absence is not a Tahap 3 gap.
+
+- **Flow 2's Tahap 4 is shipped** (`menata-app-document`'s gap study §8: "`draft` + 'Revise'"),
+  2026-09-25 -- `draft` as a real `fld_status` option, "Save as draft" in the submit wizard,
+  "Continue" reopening it on an existing Draft, and "Revise" on a Rejected row in My Documents. The
+  wizard's step count and reorder buttons, also named under this Tahap in the gap study, were
+  already shipped in 6c-2/6c-3 (`documentsubmit.templ` already said "Step 1 of 2" and already had
+  working ▲/▼/✕) -- confirmed by reading the file before assuming a gap, not carried forward
+  unreviewed.
+
+  **A real architectural conflict was found and resolved during this work, not assumed away.** The
+  first design declared two new `fld_status` transitions (`draft → in_review`, `rejected → draft`)
+  with an `action:`, mirroring how `mch_approval_step`'s own `fld_decision` edges carry `decide`.
+  `internal/conformance.TestDocumentStatusIsDerivedNotSettable` -- a pre-existing gate this session
+  had read but not connected to this design until the test failed -- holds a stricter, deliberate
+  invariant than that: **no `mch_document` transition on `fld_status` may declare an Action at
+  all**, because a Document's status is derived from its Approval Steps, never person-set, "not even
+  an admin" (this file's own Flow 2 gap-study copy from board 06 new). Both new moves are real
+  person-triggered status changes, so declaring them as Transitions was the wrong mechanism outright,
+  not a test to work around. **Resolution:** neither move is a declared Transition. Each is gated
+  the same way `action.CanDeleteDocument` already gates `delete` -- a plain business-state check in
+  Go (`action.CanContinueDraft`/`CanReviseDocument`) -- plus a Permission for *who*
+  (`prm_revise_document`, a new `revise` Action; Continue reuses the existing
+  `prm_edit_document_not_reviewer`). The generic edit route still cannot move either value (an
+  undeclared transition refuses every Action, `edit` included), so the hole this test exists to
+  prevent stays closed; only the two new dedicated, Permission-gated routes below can.
+
+  - **`draft`** added to `fld_status.options` (`metadata/document.yaml`), closing the condition its
+    own header comment named for leaving it out ("add it back only alongside a real save-as-draft
+    flow") -- that comment is now deleted rather than left stale.
+  - **Save as draft** -- `submitDocumentWizard` (`internal/web/document.go`) branches on the
+    wizard's own `intent` form field (`"draft"` vs `"submit"`, a second button,
+    `documentsubmit.templ`): a draft skips `hasApprover` entirely and creates no Approval Steps,
+    which is what makes a Draft the *only* status guaranteed to have zero steps by construction --
+    the property `composition.SplitDrafts`/`reviewHref` both key on to tell it apart from the
+    pre-existing "zero-step Document the generic form can make" edge case.
+  - **Continue** -- `GET`/`POST .../records/{id}/continue-submit` (`showDocumentContinue`/
+    `continueDocumentWizard`) reopen the same wizard prefilled from the Draft's own stored values
+    and finalize it into `in_review` with fresh Approval Steps, as an `UpdateRecord` rather than a
+    `CreateRecord`. **A second whole-record-rewrite trap was found and closed before it could ship**:
+    the wizard's own bespoke form carries only four of `mch_document`'s eight Fields
+    (title/type/file/mode), so a naive `UpdateRecord` with just the submitted values would have
+    silently erased `fld_due_date`, `fld_submitted_by` and `fld_signed_file` on every Continue --
+    the exact class of bug `signatureplacement`'s own carry-forward history already found once. Fixed
+    by carrying forward every Field the form doesn't mention from one fetch, Machine-agnostic like
+    `carryForwardExistingFiles` already is, rather than naming the three fields by hand. Scope,
+    stated once rather than left to be discovered: Continue only ever finalizes a Draft into review
+    in this pass -- there is no "save this edit, stay draft" loop on the form.
+  - **Revise** -- `POST .../records/{id}/revise` (`reviseDocument`) moves a Rejected Document back
+    to Draft and deletes its own Approval Steps. **A second deliberate exception, found and
+    documented rather than papered over**: `action.CanDeleteApprovalStep` explicitly blocks deleting
+    a *decided* step ("the audit trail... blocked outright"), and Revise needs exactly that --
+    mixing old decided steps into `evt_step_decision_rollup`'s pool alongside a fresh submission
+    would immediately roll the new cycle back to rejected before anyone decides anything. Reached
+    through `store.DeleteRecord` directly (never the generic delete route, so that guard never
+    runs), on the reasoning that Revise is not "delete a decided step in place" but "start a
+    Document's approval history over" -- a different question that function's own rule was never
+    written to answer. The human-readable fact ("Step N rejected") survives regardless, in
+    `mch_activity`, which is append-only; only the structured step row itself is traded away, and
+    only for a step whose Document is about to be resubmitted from scratch.
+  - **My Documents' Drafts section** -- `composition.SplitDrafts` partitions the already-filtered
+    `mine` list into Drafts/Submitted (`internal/web/approval.go`'s `pendingTabContent`); each
+    renders only when non-empty. `MineFilters` gained the Draft chip its own doc comment used to
+    explain the absence of. A Draft's card shows "Not submitted -- Last edited {date}" (its own
+    creation activity, the same `submissions` map the Pending branch already reads -- resolved all
+    along, just never rendered until now) instead of a progress bar (`TotalSteps > 0` now guards
+    `pendingApprovalCard`'s approvers list and progress bar, so a zero-step Draft shows neither
+    rather than a misleading "0 of 0 approved").
+  - `pendingApprovalCard` changed from one whole-card `<a>` to a `<div>` wrapping an inner `<a>`,
+    because Revise's own `<form>`/`<button>` cannot legally nest inside an `<a>` -- invalid HTML
+    that browsers handle inconsistently on click. Every other status renders identically; only a
+    Rejected card gained the sibling form.
+  - `capabilities.md`: the Action row (second real case, `revise`), the Role-based Action permission
+    row (`prm_revise_document`), and three new routes documented. `domain.KnownActions` grew to five
+    (`ActionRevise`), gated by `TestCapabilitiesDocumentsKnownActionsAndServices`.
+
+  **What's still open, unchanged**: the Workspace-level Settings hub (Tahap 5's Workspace half),
+  notifications (Tahap 6), Workspace lifecycle -- archive/restore (Tahap 7), and generated
+  Applications (Tahap 8) -- all still waiting on the four owner decisions this section's own §7
+  names, none of them engineering.
+
 ## Planned
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a

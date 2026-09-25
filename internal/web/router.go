@@ -200,6 +200,9 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/documents/new", showDocumentSubmit(d.Machines, d.Store, d.Cfg))
 		pr.Get("/documents/new/approver-row", newApproverRow(d.Machines, d.Store))
 		pr.Post("/documents", submitDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}/continue-submit", showDocumentContinue(d.Machines, d.Store, d.Cfg))
+		pr.Post("/machines/{machineID}/records/{id}/continue-submit", continueDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
+		pr.Post("/machines/{machineID}/records/{id}/revise", reviseDocument(d.Machines, d.Store, d.Cfg))
 		// nav_app_settings / nav_app_settings_permissions (metadata/applications/document-
 		// approval.yaml) -- the Application Settings hub and its Permissions sub-page
 		// (ROADMAP.md "Application Settings hub"), one handler factory for both. Gated by

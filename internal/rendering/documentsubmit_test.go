@@ -42,7 +42,7 @@ func renderSubmitPage(t *testing.T) string {
 	groups := GroupOptions{{ID: "grp_legal", Label: "Legal Group"}}
 
 	var buf bytes.Buffer
-	c := DocumentSubmitPage(documentTypeField(), modeField(), approvers, groups, "Dokter Kecil", Viewer{Initials: "AP"}, "")
+	c := DocumentSubmitPage(documentTypeField(), modeField(), approvers, groups, "Dokter Kecil", Viewer{Initials: "AP"}, "", DraftPrefill{})
 	if err := c.Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}

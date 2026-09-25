@@ -71,6 +71,7 @@ const (
 	DecisionApproved = "approved"
 	DecisionRejected = "rejected"
 
+	DocumentStatusDraft    = "draft"
 	DocumentStatusInReview = "in_review"
 	DocumentStatusApproved = "approved"
 	DocumentStatusRejected = "rejected"
