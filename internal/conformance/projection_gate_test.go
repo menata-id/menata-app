@@ -115,7 +115,19 @@ var projectionRatchet = map[string]string{
 	// instead (composition.carryForward), which is generic access -- explicitly fine here -- and
 	// which turned a hand-maintained list that had already forgotten four Fields into one that
 	// cannot forget. The rest composed normally.
-	"approvalstepper.templ": "Case 3 bespoke approval UI (writing-guide.md honest map)",
+	//
+	// "approvalstepper.templ" left the same way detail.templ did in Fase 6b: not by being
+	// migrated to card_fields, but by getting a real declared shape of its own -- domain.ViewStepper
+	// (menata-runtime's CAP-V20, "a View composing other Views", ROADMAP.md Planned). Its
+	// action.Field*/action.Decision* reads are gone: sequence and decision now come from
+	// domain.Sequencing's own OrderField/StateField (dynamic field names, not the Machine-specific
+	// constants this gate targets), and the assignee comes from ranging m.Fields for the first
+	// person Field -- the same "generic access" pattern RecordRow/tableLayout already use, not
+	// Projection/card_fields (which the inbox's own pending-card list already dormantly wires for
+	// this same Machine -- declaring card_fields here too would have silently activated that
+	// screen's own branch with two redundant constant chips, checked directly before ruling it
+	// out). It was the whole of Case 3's own group above -- that group is now empty, and only
+	// Case 19's five composed screens remain.
 }
 
 func TestRenderingUsesProjectionNotRawValues(t *testing.T) {

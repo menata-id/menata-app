@@ -278,6 +278,21 @@ func (m *Machine) DefaultView() View {
 	return m.Views[0]
 }
 
+// StepperView returns the first declared View of type ViewStepper, if m has one -- what a child
+// collection's own renderer (internal/rendering/detail.templ) checks to decide whether to compose
+// the sequential stepper instead of the generic child-collection table. Never more than one is
+// expected in practice (there is exactly one Sequencing per Machine to render), but this returns
+// the first rather than erroring on a second, the same permissive posture ViewByID/DefaultView
+// already take toward a Machine's own View list.
+func (m *Machine) StepperView() (View, bool) {
+	for _, v := range m.Views {
+		if v.EffectiveType() == ViewStepper {
+			return v, true
+		}
+	}
+	return View{}, false
+}
+
 // DatasetByID returns the Dataset with the given id, if m declares one. Composed screens look
 // their Dataset up by id rather than by position, so reordering the datasets: block in YAML is
 // never a behavioral change.

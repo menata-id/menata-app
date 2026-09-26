@@ -131,9 +131,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			}
 		</div>
 		for _, cc := range children {
-			if m.ID == action.DocumentMachineID && cc.Machine.ID == action.StepMachineID {
-				@sectionHeaderRow("Approval Progress", "", "")
-				@approvalStepper(cc.Machine.Sequencing, r, cc.Records, cc.Relations)
+			if stepperView, ok := cc.Machine.StepperView(); ok {
+				@sectionHeaderRow(stepperView.Name, "", "")
+				@approvalStepper(cc.Machine, cc.Machine.Sequencing, r, cc.Records, cc.Relations)
 			} else {
 				@ChildSectionView(cc, groups, actor)
 			}

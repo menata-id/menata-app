@@ -14,13 +14,26 @@ const (
 	// KnownCardFieldRoles below, and internal/metadata's requirement that a cards View's Machine
 	// actually declare card_fields.
 	ViewCards ViewKind = "cards"
+	// ViewStepper renders a sequential done/current/waiting progress indicator over a *different*
+	// Machine's records that reference this View's own Machine as their parent -- the exact
+	// relationship a Sequencing declaration already names (Machine.Sequencing.ParentField). This
+	// is `menata-runtime`'s CAP-V20 (capability-registry.md), "a View composing other Views"
+	// (ROADMAP.md Planned): the first View type that arranges a parent record's children rather
+	// than a Machine's own records. Requires the Machine to declare `sequencing:` --
+	// internal/metadata.validateView refuses one that doesn't, mirroring the existing
+	// ViewCards/card_fields requirement -- since there is no ordering/decision concept to render
+	// otherwise. Composed by internal/composition.Loader.ChildSections' caller
+	// (internal/rendering/detail.templ), not by a top-level ?view= switch: a Machine using this
+	// type today (mch_approval_step) has no navigable list page of its own for one to select on.
+	ViewStepper ViewKind = "stepper"
 )
 
 // KnownViewKinds is the closed set of View types the runtime currently understands.
 var KnownViewKinds = map[ViewKind]bool{
-	ViewTable: true,
-	ViewBoard: true,
-	ViewCards: true,
+	ViewTable:   true,
+	ViewBoard:   true,
+	ViewCards:   true,
+	ViewStepper: true,
 }
 
 // CardFieldRole is the semantic role a projected Field plays on a composed card -- 007 §7.6

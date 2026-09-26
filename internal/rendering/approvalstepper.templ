@@ -3,74 +3,98 @@ package rendering
 import (
 	"fmt"
 	"sort"
-	"strconv"
+	"strings"
 
-	"menata.app/internal/action"
 	"menata.app/internal/behavior"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
 
-// approvalStepper is Case 3's Approval Progress visual (ROADMAP.md Phase 15 Step 2,
-// document-approval.html's own "Approval Progress" section): a vertical done/current/waiting
-// stepper over a Document's own Approval Steps, replacing the generic child-collection table
-// (ChildSectionView) only for this one Machine pair. Purely presentational -- reuses
-// behavior.CanAct to tell an actionable "current" step from one still locked behind an earlier
-// step, reading the ordering rule the child Machine itself declares (sequencing:) rather than
-// knowing which Fields hold it.
-templ approvalStepper(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, relations RelationOptions) {
-	{{ ordered := sortedBySequence(steps) }}
+// approvalStepper renders a domain.ViewStepper View (menata-runtime's CAP-V20, "a View composing
+// other Views", ROADMAP.md Planned): a vertical done/current/waiting stepper over a parent
+// record's own children on some OTHER Machine, arranged and gated purely by that child Machine's
+// own domain.Sequencing declaration -- no Machine-specific field is read here. Composed by
+// internal/rendering/detail.templ whenever a child collection's own Machine declares a
+// domain.ViewStepper (domain.Machine.StepperView), so any future Machine pair that declares
+// sequencing: and this View type gets this rendering for free.
+//
+// Matches upstream's own admitted CAP-V20 shape exactly: three states (done/current/waiting), no
+// further distinction between "why" a step is done -- see capitalize below for how the outcome
+// still reads on screen.
+templ approvalStepper(m *domain.Machine, seq *domain.Sequencing, parent *data.Record, steps []*data.Record, relations RelationOptions) {
+	{{ ordered := sortedBySequence(seq, steps) }}
+	{{ personField, hasPersonField := personFieldID(m) }}
 	<ul class="m-0 flex list-none flex-col rounded-lg border border-slate-200 bg-white p-2">
 		for _, s := range ordered {
-			@approvalStepRow(seq, parent, s, ordered, relations)
+			@approvalStepRow(seq, parent, s, ordered, relations, personField, hasPersonField)
 		}
 	</ul>
 }
 
-templ approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record, siblings []*data.Record, relations RelationOptions) {
-	{{ decision := toString(s.Values[action.FieldStepDecision]) }}
-	{{ assignee := RelationLabel(relations, "mch_user", toString(s.Values[action.FieldStepAssignee])) }}
-	{{ seqLabel := toString(s.Values[action.FieldStepSequence]) }}
+templ approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Record, siblings []*data.Record, relations RelationOptions, personField string, hasPersonField bool) {
+	{{ decision := fmt.Sprint(s.Values[seq.StateField]) }}
+	{{ done := decision != seq.OpenValue }}
+	{{ assignee := "" }}
+	if hasPersonField {
+		{{ assignee = RelationLabel(relations, "mch_user", toString(s.Values[personField])) }}
+	}
+	{{ seqLabel := fmt.Sprint(s.Values[seq.OrderField]) }}
 	<li class="flex items-center gap-3 px-2 py-2">
-		switch decision {
-			case action.DecisionApproved:
-				<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-blue-50 text-blue-700">✓</span>
-				<span class="flex flex-col">
-					<span class="text-sm font-medium text-slate-900">{ assignee }</span>
-					<span class="text-xs text-slate-500">Approved · { s.UpdatedAt.Format("15:04") }</span>
-				</span>
-			case action.DecisionRejected:
-				<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-red-50 text-red-600">✗</span>
-				<span class="flex flex-col">
-					<span class="text-sm font-medium text-slate-900">{ assignee }</span>
-					<span class="text-xs text-slate-500">Rejected · { s.UpdatedAt.Format("15:04") }</span>
-				</span>
-			default:
-				if behavior.CanAct(seq, parent, s, siblings) {
-					<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-blue-600 text-white">{ seqLabel }</span>
-					<span class="flex flex-col">
-						<span class="text-sm font-medium text-slate-900">{ assignee }</span>
-						<span class="text-xs text-slate-500">Pending decision</span>
-					</span>
-				} else {
-					<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-slate-100 text-slate-400">{ seqLabel }</span>
-					<span class="flex flex-col">
-						<span class="text-sm font-medium text-slate-900">{ assignee }</span>
-						<span class="text-xs text-slate-500">Waiting</span>
-					</span>
-				}
+		if done {
+			<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-blue-50 text-blue-700">✓</span>
+			<span class="flex flex-col">
+				<span class="text-sm font-medium text-slate-900">{ assignee }</span>
+				<span class="text-xs text-slate-500">{ capitalize(decision) } · { s.UpdatedAt.Format("15:04") }</span>
+			</span>
+		} else if behavior.CanAct(seq, parent, s, siblings) {
+			<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-blue-600 text-white">{ seqLabel }</span>
+			<span class="flex flex-col">
+				<span class="text-sm font-medium text-slate-900">{ assignee }</span>
+				<span class="text-xs text-slate-500">Pending decision</span>
+			</span>
+		} else {
+			<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-slate-100 text-slate-400">{ seqLabel }</span>
+			<span class="flex flex-col">
+				<span class="text-sm font-medium text-slate-900">{ assignee }</span>
+				<span class="text-xs text-slate-500">Waiting</span>
+			</span>
 		}
 	</li>
 }
 
-// sortedBySequence orders Approval Steps by fld_sequence (ascending), independent of storage
-// sort_order -- sequence is the semantic order for this stepper, not creation order.
-func sortedBySequence(steps []*data.Record) []*data.Record {
+// personFieldID returns the id of m's first Field of type person -- the generic convention this
+// stepper uses to find "the name to show" on a step row, the same "first Field of a known shape"
+// convention Loader.RelationOptions already uses for a reference target's label Field. Returns
+// false for a Machine with no person Field at all, which the row renders as simply having no name
+// rather than a panic.
+func personFieldID(m *domain.Machine) (string, bool) {
+	for _, f := range m.Fields {
+		if f.Type == domain.FieldTypePerson {
+			return f.ID, true
+		}
+	}
+	return "", false
+}
+
+// capitalize renders a decision value ("approved", "rejected", ...) for display. A local
+// one-liner rather than strings.Title (deprecated) or golang.org/x/text/cases (an indirect
+// dependency this repo does not otherwise import directly) -- decision values are plain ASCII
+// words, so uppercasing the first byte is exactly as correct as either and adds no dependency.
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// sortedBySequence orders a stepper View's rows by seq.OrderField (ascending), independent of
+// storage sort_order -- sequence is the semantic order for this stepper, not creation order.
+func sortedBySequence(seq *domain.Sequencing, steps []*data.Record) []*data.Record {
 	ordered := make([]*data.Record, len(steps))
 	copy(ordered, steps)
 	sort.Slice(ordered, func(i, j int) bool {
-		a, _ := strconv.Atoi(fmt.Sprint(ordered[i].Values[action.FieldStepSequence]))
-		b, _ := strconv.Atoi(fmt.Sprint(ordered[j].Values[action.FieldStepSequence]))
+		a, _ := ordered[i].Values[seq.OrderField].(float64)
+		b, _ := ordered[j].Values[seq.OrderField].(float64)
 		return a < b
 	})
 	return ordered

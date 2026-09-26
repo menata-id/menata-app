@@ -531,8 +531,8 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			return templ_7745c5c3_Err
 		}
 		for _, cc := range children {
-			if m.ID == action.DocumentMachineID && cc.Machine.ID == action.StepMachineID {
-				templ_7745c5c3_Err = sectionHeaderRow("Approval Progress", "", "").Render(ctx, templ_7745c5c3_Buffer)
+			if stepperView, ok := cc.Machine.StepperView(); ok {
+				templ_7745c5c3_Err = sectionHeaderRow(stepperView.Name, "", "").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -540,7 +540,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = approvalStepper(cc.Machine.Sequencing, r, cc.Records, cc.Relations).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = approvalStepper(cc.Machine, cc.Machine.Sequencing, r, cc.Records, cc.Relations).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

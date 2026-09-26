@@ -242,6 +242,10 @@ func validateView(m *domain.Machine, v domain.View, fieldsByID map[string]domain
 		if len(m.CardFields) == 0 {
 			issues = append(issues, fmt.Sprintf("machine %q: view %q renders cards, so this machine must declare card_fields -- a cards view over no projection renders empty cards", m.ID, v.ID))
 		}
+	case domain.ViewStepper:
+		if m.Sequencing == nil {
+			issues = append(issues, fmt.Sprintf("machine %q: view %q renders a stepper, so this machine must declare sequencing -- a stepper has no ordering/decision concept to render otherwise", m.ID, v.ID))
+		}
 	default:
 		if v.GroupBy != "" {
 			issues = append(issues, fmt.Sprintf("machine %q: view %q is a %s, so group_by %q means nothing here", m.ID, v.ID, v.EffectiveType(), v.GroupBy))

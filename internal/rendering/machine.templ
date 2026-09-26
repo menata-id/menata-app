@@ -348,13 +348,20 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 // should be shown. Renders nothing at all below two views, so a Machine declaring one (or none)
 // looks exactly as it did before views: existed.
 //
+// selectableViews below excludes domain.ViewStepper: that type composes a *parent's* children
+// (domain.Machine.StepperView, internal/rendering/detail.templ), which is meaningless as an
+// alternate arrangement of this Machine's own flat list -- the generic records section a few lines
+// down has no case for it either, so offering it here would be a switch option that silently
+// renders a plain table instead of what its label promises.
+//
 // The link is a query parameter on the page's own route, not a route of its own: a View decides
 // what renders inside the page, never which shell -- so no path appears here that no navigation
 // item declares.
 templ viewSwitcher(m *domain.Machine, selected domain.View) {
-	if len(m.Views) > 1 {
+	{{ views := selectableViews(m) }}
+	if len(views) > 1 {
 		<nav class="flex gap-2" aria-label="View">
-			for _, o := range m.Views {
+			for _, o := range views {
 				if o.ID == selected.ID {
 					<span class="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-medium text-white" aria-current="true">{ o.Name }</span>
 				} else {
@@ -540,6 +547,18 @@ func toString(v any) string {
 		return ""
 	}
 	return fmt.Sprint(v)
+}
+
+// selectableViews is m.Views minus any domain.ViewStepper entries -- see viewSwitcher's own doc
+// comment for why that type is not a valid alternate arrangement of a Machine's own flat list.
+func selectableViews(m *domain.Machine) []domain.View {
+	views := make([]domain.View, 0, len(m.Views))
+	for _, v := range m.Views {
+		if v.EffectiveType() != domain.ViewStepper {
+			views = append(views, v)
+		}
+	}
+	return views
 }
 
 func toBool(v any) bool {

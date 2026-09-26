@@ -252,3 +252,15 @@ views:
   - id: vw_approval_step_table
     name: All Steps
     type: table
+  # The Approval Progress stepper on a Document's own detail page (ROADMAP.md's Case 3, closing
+  # the last entry in internal/conformance's projectionRatchet) -- menata-runtime's
+  # capability-registry.md CAP-V20, "a View composing other Views". Declared here, on the child
+  # Machine, because sequencing: above already carries every field binding a stepper needs
+  # (order/state/open value) -- no new config. Not offered by vw_approval_step_table's own
+  # viewSwitcher above (internal/rendering/machine.templ skips ViewStepper there): this type
+  # renders a *parent's* children, which is meaningless as an alternate arrangement of this
+  # Machine's own flat list -- it is composed by internal/rendering/detail.templ's own
+  # child-collection rendering instead (domain.Machine.StepperView).
+  - id: vw_step_progress
+    name: Approval Progress
+    type: stepper
