@@ -143,6 +143,16 @@ var rules = []rule{
 		because:   "internal/mail doc.go: sends bytes over SMTP; it has no business touching the database or the renderer",
 	},
 	{
+		pkg: "aiassist",
+		// httpPkg is deliberately allowed (unlike mail, which speaks SMTP): calling the Gemini API
+		// is a plain HTTPS/JSON request, this package's own reason for existing. internal/metadata
+		// is deliberately allowed too, one-way -- Validate is exported and reused as-is (this
+		// package's own doc comment: "the same gate every hand-written *.yaml file passes"); it
+		// never calls back into internal/web or internal/data.
+		forbidden: []string{postgres, sqlPkg, templ, internalPkg("data"), internalPkg("db"), internalPkg("rendering")},
+		because:   "internal/aiassist doc.go: proposes Runtime Metadata and calls an external AI API; it holds no pool, renders nothing, and never touches internal/data directly -- internal/web owns persistence and hands this package only the state it needs",
+	},
+	{
 		pkg:       "conformance",
 		forbidden: []string{postgres, sqlPkg, httpPkg, templ, module + "/internal"},
 		because:   "these checks must not depend on the code they police",

@@ -41,6 +41,14 @@ type Config struct {
 	// inside an email body -- a relative link means nothing once it's outside a browser tab that
 	// already knows the origin. Defaults to a local dev URL using Port.
 	AppBaseURL string
+
+	// GeminiAPIKey configures internal/aiassist's real Gemini client (the "New application"/
+	// "extend an application" AI conversation, Flow 2 gap study Tahap 8). An empty value means no
+	// AI assistant is configured -- internal/aiassist.NewClientFromConfig returns an
+	// UnconfiguredClient (mirrors SMTPHost's own posture), and the feature's own entry point is
+	// hidden rather than offered-then-broken (internal/web, same "hide, don't 403" convention
+	// ShowMembersAndGroups already uses).
+	GeminiAPIKey string
 }
 
 // Load reads Config from the environment, applying defaults where unset.
@@ -62,6 +70,7 @@ func Load() Config {
 		SMTPPassword:  getenv("SMTP_PASSWORD", ""),
 		SMTPFrom:      getenv("SMTP_FROM", ""),
 		AppBaseURL:    getenv("APP_BASE_URL", "http://localhost:"+port),
+		GeminiAPIKey:  getenv("GEMINI_API_KEY", ""),
 	}
 }
 

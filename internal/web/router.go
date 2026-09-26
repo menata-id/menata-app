@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"menata.app/internal/aiassist"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -29,6 +30,11 @@ type Deps struct {
 	Mailer mail.Mailer
 	Cfg    config.Config
 
+	// AIClient is the AI Metadata Assistant's own Gemini conversation client (Flow 2 gap study
+	// Tahap 8) -- aiassist.UnconfiguredClient when GEMINI_API_KEY is unset, matching Mailer's own
+	// injected-interface shape.
+	AIClient aiassist.Client
+
 	// Workspace is the whole loaded Workspace -- its own navigation and every Application
 	// declared inside it (004 §Navigation Metadata, 006 §Navigation). Routes hands it to
 	// internal/rendering once, at startup, rather than threading it through every handler and
@@ -46,6 +52,20 @@ type Deps struct {
 	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
 	// (ROADMAP.md Phase 21 Step 4).
 	DefaultWorkspaceID string
+
+	// ReloadMetadata rebuilds this whole route table from metadata on disk and swaps it in
+	// atomically -- the AI Metadata Assistant's own publish handler (internal/web/newapplication.go,
+	// Flow 2 gap study Tahap 8) calls it after writing a purely-additive change, so the new
+	// Application is reachable with no process restart.
+	//
+	// A plain func() error, not a call into internal/metadata directly: this package is forbidden
+	// from importing internal/metadata (internal/conformance.TestPlaneBoundaries -- "the transport
+	// layer adapts HTTP to the planes; it holds no pool and loads no Runtime Metadata... the
+	// composition root builds both once at startup"). cmd/server builds the real closure (it already
+	// owns metadata.LoadWorkspaces and web.Routes) and hands it in here, the same injection shape
+	// Mailer already uses for a capability this package must invoke but not implement. Nil in any
+	// test/fixture Deps that never exercises the AI assistant's publish path.
+	ReloadMetadata func() error
 }
 
 // Routes builds the application's complete route table.
@@ -248,6 +268,16 @@ func Routes(d Deps) http.Handler {
 			ar.Post("/workspace-groups/{groupID}/members", submitGroupMembers(d.Store))
 			ar.Post("/workspace-groups/{groupID}/roles", submitGroupRoles(d.Store))
 			ar.Post("/workspace-groups/{groupID}/delete", submitDeleteGroup(d.Store))
+
+			// AI Metadata Assistant (Flow 2 gap study Tahap 8) -- "Only workspace admins can add
+			// applications" (the mockup's own words, M03b-WorkspaceMenu.dc.html), same gate as
+			// everything else in this group. Entry point itself is hidden from navigation when
+			// d.Cfg.GeminiAPIKey is unset (internal/rendering's own showNewApplicationEntry).
+			ar.Get("/new-application", showNewApplication(d.Machines, d.Store, d.AIClient, d.Cfg))
+			ar.Post("/new-application/message", postNewApplicationMessage(d.Store, d.AIClient, d.Cfg))
+			ar.Get("/new-application/{session}/review", showNewApplicationReview(d.Store, d.Cfg))
+			ar.Post("/new-application/{session}/publish", publishNewApplication(d.Machines, d.Store, d.Cfg, d.ReloadMetadata))
+			ar.Post("/new-application/{session}/discard", discardNewApplication(d.Store))
 		})
 
 		pr.Get("/uploads/*", serveUpload(d.Store, d.Files))

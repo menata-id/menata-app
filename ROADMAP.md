@@ -1703,8 +1703,16 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   dropdown menu's own single settings row, which used to link straight to Workspace Members, now
   reads "Workspace settings" and opens the hub instead -- matching the mockup's own consolidated IA
   (one settings entry, not a shortcut to one of the hub's own rows). Nothing is lost: Members stays
-  fully reachable, one hop further through the hub's own People section, and Workspace Home's own
-  "Manage members" link is untouched.
+  fully reachable, one hop further through the hub's own People section.
+
+  **This entry originally also claimed Workspace Home's own "Manage members" link was
+  untouched.** That was never actually checked against `M03-WorkspaceHome.dc.html` -- whose own
+  closing row already read "Settings →" pointing at this hub, not at Members directly -- and a
+  screenshot caught the live page still linking straight to `/workspace-members` within the hour.
+  Fixed the same day: that row also opens the hub now. Left here, not quietly corrected in place,
+  because the sequence is the point this file's own preamble keeps making: an unverified "X is
+  unchanged" is a claim like any other, and this one only got checked because someone using the
+  actual page noticed it was wrong.
 
   `settingsRow`/`settingsPlaceholderRow` (written for the Application hub) were reused verbatim
   rather than rebuilt -- capabilities.md's own promotion criterion's second real caller, moved into
@@ -1714,6 +1722,88 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   **What's still open, unchanged**: notifications (Tahap 6), Workspace lifecycle (Tahap 7), and
   generated Applications (Tahap 8) -- the first two now genuinely blocked on nothing but being
   picked up; the third still waits on Q2.
+
+- **Flow 2's Tahap 8 is shipped -- the owner answered Q2 (2026-09-26): build the AI Metadata
+  Assistant in full, live, no restart required.** `menata-app-document`'s own
+  `audits/2026-09-25-kajian-new-application-ai.md` is the design this implements; read that first
+  for the reasoning, this entry only records what actually shipped and where it diverged.
+
+  **Two boundaries confirmed with the owner before writing any code, both load-bearing:**
+  1. The assistant only ever proposes what is *already fully composable* today -- Machines,
+     Fields, role-based Permissions, status Transitions moved through the generic edit form,
+     on-create Events. It can never propose a real Approve/Reject-with-signatures workflow:
+     `internal/action`'s own doc comment says that engine is hardcoded to
+     `mch_document`/`mch_approval_step`, not generic, and a generated Application promising one
+     would be exactly the "generator that emits YAML that then needs per-Application code to
+     work" this file has warned against since Tahap 8 was first named. "Approval" in a generated
+     Application means a role-gated status field, stated as such in the conversation, not
+     approximated into something that looks like Document Approval and isn't.
+  2. Two modes, unified in one conversation rather than built as two features, per the owner's own
+     request: **new_application** (a whole new Application) and **extend_application** (a purely
+     additive change to one already installed -- a new status option, a new role). Both produce
+     the identical shape of artifact -- a validated `aiassist.GeneratedChange` -- and go through
+     the same review → publish → reload pipeline.
+
+  **The hot-reload question resolved smaller than the kajian's own §4 open question implied.**
+  Generating a *new* Application is the one case `metadata-hot-reload-safety.md`'s own §3.3/§7.2
+  classification table already calls the safest kind of change there is -- purely additive, no
+  prior Application to compare against, no stored data to violate. That meant this shipped without
+  building that design's own data-compatibility gate at all, not because it was skipped but
+  because nothing this feature ever writes can produce the class of change that gate exists to
+  catch (a removal, a rewrite, a retargeted relation) -- `internal/aiassist`'s writer is
+  structurally incapable of emitting one. What *did* need building, and didn't exist anywhere in
+  this codebase before today: an actual live-reload mechanism. `cmd/server`'s own
+  `dynamicHandler` holds the whole route table behind an `atomic.Pointer[http.Handler]`; publishing
+  rebuilds it from `metadata.LoadWorkspaces` and swaps it in only on success, leaving whatever was
+  live untouched on any failure. Deliberately *not* the `AppState`-inside-`Deps` shape
+  `metadata-hot-reload-safety.md` §3.4 sketches -- every handler in `internal/web` closes over
+  `Deps`'s plain fields once, and there was no forcing case to change that everywhere; treating the
+  *whole route table* as the swappable unit gets the identical atomicity property by reusing
+  `web.Routes`/`web.Deps` completely unchanged, at the cost of resetting a couple of in-memory-only
+  rate-limiter counters on the rare, deliberate admin action that triggers a reload -- named here as
+  an accepted trade-off, not discovered later as a surprise.
+
+  **`internal/aiassist` is a new package**, and its own boundary rule
+  (`internal/conformance.boundary_test.go`) is worth naming since it is unlike every sibling: it may
+  import `net/http` (calling the Gemini API is a plain HTTPS/JSON request, stdlib only -- `go.mod`
+  gained no new dependency) *and* `internal/metadata` (reusing the real, exported `Validate`
+  one-way -- the same gate every hand-written `*.yaml` file already passes), while still being
+  forbidden from touching the database or the renderer directly. `internal/web` is still forbidden
+  from importing `internal/metadata` itself (005 Phase 3-4's "the composition root builds both
+  once"), so the reload trigger reaches it as a plain `func() error` on `Deps` --
+  `Deps.ReloadMetadata` -- built and injected by `cmd/server`, the identical injected-capability
+  shape `Mailer` already uses.
+
+  **The one genuinely new capability with no precedent anywhere in this codebase**: every
+  conversation is recorded (`migrations/012_ai_sessions.sql`), and every moment the assistant says
+  "the runtime can't say this yet" is written as its own structured row
+  (`ai_capability_gaps` -- requested capability, a one-sentence note, which session), separate from
+  the free-text turn so a pattern across many conversations is a `GROUP BY` away rather than a
+  prose-parsing exercise. This is the kajian's own §3.4 ask, generalizing the "second real case"
+  discipline this whole file already runs on (`card_fields`, `Event.OnCreate`, both generalized
+  only after a real second case, never predicted) from evidence that used to only come from code
+  someone had already hand-written twice, to evidence that can now come from what people actually
+  ask the assistant for. No dedicated review screen for it yet -- queryable directly, on purpose
+  (the owner's own words: "untuk akses baca tanpa ui"), the same "don't build a screen before
+  there's real content" discipline already applied to the Application Settings hub's static rows.
+
+  **Scoped down from the mockup in one place, named rather than silently carried forward**: the
+  conversation is a plain form POST + redirect per message (`POST /new-application/message`
+  redirecting back to the same `GET`), not an htmx fragment swap or the mockup's own live-typing
+  feel -- there is no chat-log precedent anywhere else in this app to extend, and a full round trip
+  per message is judged an honest simplification for a screen used rarely and deliberately, not one
+  worth optimizing perceived latency on in this pass. The entry point
+  (`M03b-WorkspaceMenu.dc.html`'s own "Add an application" panel, a whole describe-it box inline in
+  the menu) is similarly scoped to a plain link into the real conversation screen rather than
+  replicating that box in the menu itself.
+
+  **Not built in this pass, named rather than assumed**: navigation-item generation for an
+  extended Application (`GeneratedNavItem` exists in the schema; `writeExtension` refuses it with a
+  clear error rather than guessing a route); a review screen for the capability-gap log; and, per
+  the owner's own explicit answer, the general hot-reload compatibility gate for editing an
+  Application that already has real data behind it -- still exactly the scope
+  `metadata-hot-reload-safety.md` describes, still unbuilt, and now with one real, narrower
+  precedent next to it instead of zero.
 
 ## Planned
 

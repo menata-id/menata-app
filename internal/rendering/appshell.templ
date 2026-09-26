@@ -549,6 +549,28 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 					</span>
 					{ labelByID(ctx, "nav_workspace_settings") }
 				</a>
+				// New application (Flow 2 gap study Tahap 8, 2026-09-26): the mockup's own
+				// M03b-WorkspaceMenu.dc.html panel is a whole describe-it box inline in this menu;
+				// this is a scoped-down link to the same destination (/new-application) rather than
+				// replicating that box here, since the real conversation screen already exists at
+				// that route. Always shown rather than hidden when GEMINI_API_KEY is unset --
+				// threading that flag through appShell's whole call chain for one link was judged
+				// not worth it; the route itself explains plainly when the assistant isn't
+				// configured yet, rather than 403ing or looking broken.
+				//
+				// METADATA CANNOT EXPRESS THIS YET, same category as /documents/new right above it
+				// in spirit (CLAUDE.md, "Deciding whether a literal is a metadata-hardcoding
+				// violation" step 2): this is a Workspace-level action triggered from chrome, not a
+				// menu destination any navigation list could declare. Missing capability: 007
+				// §12.3's ActionBar component, still unbuilt. Listed in
+				// internal/conformance's applicationSubScreens and writing-guide.md's own
+				// "What comes free vs. what's hardcoded today" table.
+				<a href="/new-application" class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
+					<span class="text-slate-500">
+						@icon("sparkle", "size-4")
+					</span>
+					New application
+				</a>
 			}
 			if switchWorkspaceHref != "" {
 				<a href={ templ.SafeURL(switchWorkspaceHref) } class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">

@@ -246,7 +246,8 @@ var staticAssetHref = regexp.MustCompile(`\.[a-z0-9]{2,5}$`)
 // these become declarable and the entry leaves. Also listed in writing-guide.md's "What comes free
 // vs. what's hardcoded today" table.
 var applicationSubScreens = map[string]string{
-	"/documents/new": "Approval Inbox's + New Document action; nav_new_approval deleted 2026-09-21 (owner) -- a submit form is not a menu destination. Leaves when 007 §12.3 ActionBar lands.",
+	"/documents/new":   "Approval Inbox's + New Document action; nav_new_approval deleted 2026-09-21 (owner) -- a submit form is not a menu destination. Leaves when 007 §12.3 ActionBar lands.",
+	"/new-application": "The Workspace menu's own \"New application\" action (AI Metadata Assistant, Flow 2 gap study Tahap 8, 2026-09-26) -- a Workspace-level action triggered from chrome, not a menu destination any Application's navigation could declare (it exists identically whether zero or ten Applications are installed, the same reason nav_workspace_settings/nav_workspace_members live in domain.RuntimeScreens rather than metadata -- but this route is triggered from an action link inside that menu, not a runtime screen with its own identity, so it stays here rather than there too). Leaves when 007 §12.3 ActionBar lands, same as /documents/new.",
 }
 
 var undeclaredScreenRatchet = map[string]string{

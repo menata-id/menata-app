@@ -53,4 +53,8 @@ var KnownIcons = map[string]bool{
 	"chevron-right": true,
 	"chevron-down":  true,
 	"switch":        true,
+	// sparkle: the Workspace menu's own "New application" link (AI Metadata Assistant, Flow 2 gap
+	// study Tahap 8) -- chrome, not a declarable Application/nav icon, the same posture "switch"
+	// already has.
+	"sparkle": true,
 }

@@ -1,0 +1,193 @@
+package rendering
+
+import "menata.app/internal/aiassist"
+
+// ConversationView is one render of the AI Metadata Assistant's own conversation screen
+// (NewApp.dc.html/M03c-NewApp.dc.html, Flow 2 gap study Tahap 8) -- built by internal/web from a
+// stored data.AISession's own turns.
+type ConversationView struct {
+	SessionID     string
+	Turns         []ConversationTurn
+	ReadyToReview bool
+	Summary       aiassist.GeneratedChange
+}
+
+// ConversationTurn is one message already resolved for display -- a user's own text, or the
+// assistant's plain-language Message (never the raw structured JSON it was decoded from).
+type ConversationTurn struct {
+	FromUser      bool
+	Message       string
+	CapabilityGap string // set when this assistant turn named one, shown as a small inline note
+}
+
+// NewApplicationPage is the conversation screen itself: a chat log and a live "What will be
+// built" summary, updated from the session's own latest valid proposal once one exists.
+//
+// Scope, stated once: this is a plain form POST + redirect per message
+// (internal/web.postNewApplicationMessage), not an htmx fragment swap -- there is no chat-log
+// precedent anywhere else in this app to extend, and a full round trip per message is an honest
+// simplification for a screen used rarely and deliberately.
+templ NewApplicationPage(view ConversationView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell("New application", workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-2">
+			<h1 class="m-0 text-xl font-medium">New application</h1>
+			<div class="text-sm text-slate-500">Tell Menata what your team needs. It asks a few questions, shows what it will build, then generates a draft only you can see.</div>
+		</div>
+		<div class="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
+			<section aria-label="Conversation" class="flex min-h-96 flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+				if len(view.Turns) == 0 {
+					<p class="m-0 text-sm text-slate-500">What should this application do? Describe it the way you would explain it to a new colleague.</p>
+				}
+				for _, t := range view.Turns {
+					@conversationBubble(t)
+				}
+				<form method="post" action="/new-application/message" class="mt-auto flex gap-2 border-t border-slate-100 pt-4">
+					@csrfHiddenInput()
+					<input type="hidden" name="session" value={ view.SessionID }/>
+					<label for="msg" class="sr-only">Your answer</label>
+					<input id="msg" type="text" name="message" required placeholder="Type your answer…" class={ controlField + " grow" }/>
+					<button type="submit" class={ controlPrimary }>Send</button>
+				</form>
+			</section>
+			<aside aria-label="What will be built" class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+				<div class="flex flex-col gap-1">
+					<h2 class="m-0 text-sm font-medium">What will be built</h2>
+					<span class="text-xs text-slate-500">Updated as you answer.</span>
+				</div>
+				if !view.ReadyToReview {
+					<p class="m-0 text-xs text-slate-400">Nothing to show yet -- keep answering.</p>
+				} else {
+					@changeSummary(view.Summary)
+					<a href={ templ.SafeURL("/new-application/" + view.SessionID + "/review") } class={ controlPrimary + " justify-center" }>
+						Review →
+					</a>
+				}
+				if view.SessionID != "" {
+					<form method="post" action={ templ.SafeURL("/new-application/" + view.SessionID + "/discard") }>
+						@csrfHiddenInput()
+						<button type="submit" class="cursor-pointer text-xs text-slate-400 hover:text-red-600">Discard this conversation</button>
+					</form>
+				}
+			</aside>
+		</div>
+	}
+}
+
+templ conversationBubble(t ConversationTurn) {
+	if t.FromUser {
+		<div class="flex justify-end">
+			<div class="max-w-md rounded-lg bg-blue-50 px-3.5 py-2.5 text-sm">{ t.Message }</div>
+		</div>
+	} else {
+		<div class="flex flex-col gap-1.5">
+			<div class="max-w-md rounded-lg bg-slate-50 px-3.5 py-2.5 text-sm">{ t.Message }</div>
+			if t.CapabilityGap != "" {
+				<span class="text-2xs text-amber-600">Noted for later: "{ t.CapabilityGap }" isn't something Menata can build yet.</span>
+			}
+		</div>
+	}
+}
+
+// changeSummary is the "What will be built" panel's own body, shared between the conversation
+// screen's live preview and (in a fuller form) the review screen.
+templ changeSummary(change aiassist.GeneratedChange) {
+	if change.Kind == aiassist.KindNewApplication && change.Application != nil {
+		{{ app := change.Application }}
+		<div class="flex flex-col gap-3 text-sm">
+			<div class="flex flex-col gap-1">
+				<span class="text-3xs text-slate-400 uppercase">Name</span>
+				<span>{ app.Name }</span>
+			</div>
+			if app.Description != "" {
+				<div class="flex flex-col gap-1">
+					<span class="text-3xs text-slate-400 uppercase">What it does</span>
+					<span class="text-slate-700">{ app.Description }</span>
+				</div>
+			}
+			<div class="flex flex-col gap-1">
+				<span class="text-3xs text-slate-400 uppercase">Data it keeps</span>
+				<div class="flex flex-wrap gap-1.5">
+					for _, m := range app.Machines {
+						<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs text-slate-600">{ m.Name }</span>
+					}
+				</div>
+			</div>
+			if len(app.Roles) > 0 {
+				<div class="flex flex-col gap-1">
+					<span class="text-3xs text-slate-400 uppercase">Roles</span>
+					<div class="flex flex-wrap gap-1.5">
+						for _, r := range app.Roles {
+							<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs text-slate-600">{ r }</span>
+						}
+					</div>
+				</div>
+			}
+		</div>
+	} else if change.Kind == aiassist.KindExtendApplication {
+		<div class="flex flex-col gap-2 text-sm">
+			<div class="flex flex-col gap-1">
+				<span class="text-3xs text-slate-400 uppercase">Extends</span>
+				<span>{ change.TargetAppID }</span>
+			</div>
+			<ul class="m-0 flex flex-col gap-1 pl-4 text-slate-700">
+				for _, add := range change.Additions {
+					<li>{ additionSummary(add) }</li>
+				}
+			</ul>
+		</div>
+	}
+}
+
+func additionSummary(add aiassist.MetadataAddition) string {
+	switch {
+	case add.NewOption != "":
+		return "Add \"" + add.NewOption + "\" as a new option on " + add.FieldID
+	case add.NewRole != "":
+		return "Add \"" + add.NewRole + "\" as a new role"
+	case add.NewNavItem != nil:
+		return "Add a \"" + add.NewNavItem.Label + "\" menu item"
+	default:
+		return "(unrecognized addition)"
+	}
+}
+
+// NewApplicationReviewPage is NewAppReview.dc.html's shape: what will be built, and -- for
+// new_application only, the mockup's own scope -- who gets access before publishing. An
+// extend_application review has no access question (it changes an application that already has
+// one) and is rendered with the same changeSummary the conversation screen's own preview uses,
+// framed as a plain diff rather than a full card face.
+templ NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell("Review new application", workspaceName, viewer, switchWorkspaceHref) {
+		<a href={ templ.SafeURL("/new-application?session=" + sessionID) } class="text-xs text-blue-600 hover:text-blue-700">← Back to conversation</a>
+		<div class="flex flex-col gap-2">
+			<span class="w-fit rounded-full bg-amber-50 px-2.5 py-1 text-2xs font-medium text-amber-700">Draft</span>
+			if change.Kind == aiassist.KindNewApplication && change.Application != nil {
+				<h1 class="m-0 text-xl font-medium">{ change.Application.Name }</h1>
+			} else {
+				<h1 class="m-0 text-xl font-medium">Extend { change.TargetAppID }</h1>
+			}
+			<div class="text-sm text-slate-500">Look it over before it becomes real. Generating does not publish anything by itself.</div>
+		</div>
+		<div class="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
+			<section class="rounded-lg border border-slate-200 bg-white p-5">
+				@changeSummary(change)
+			</section>
+			<aside class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+				<h2 class="m-0 text-sm font-medium">Before you publish</h2>
+				if change.Kind == aiassist.KindNewApplication {
+					<p class="m-0 text-xs text-slate-500">Only workspace admins can open it at first. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>
+				} else {
+					<p class="m-0 text-xs text-slate-500">This adds to an application that already has its own access rules -- nothing about who can use it changes.</p>
+				}
+				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/publish") } class="flex flex-col gap-2">
+					@csrfHiddenInput()
+					<button type="submit" class={ controlPrimary }>Publish to workspace</button>
+				</form>
+				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/discard") }>
+					@csrfHiddenInput()
+					<button type="submit" class="cursor-pointer text-xs text-slate-400 hover:text-red-600">Discard</button>
+				</form>
+			</aside>
+		</div>
+	}
+}
