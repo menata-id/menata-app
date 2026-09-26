@@ -25,6 +25,7 @@ workspace: default
 machines:
   - ../user.yaml
   - ../activity.yaml
+  - ../notification.yaml
   - ../project.yaml
   - ../list.yaml
   - ../label.yaml

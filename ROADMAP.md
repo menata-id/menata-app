@@ -1718,9 +1718,12 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   the "Shared rendering components" table on arrival rather than staying page-internal a second
   time.
 
-  **What's still open, unchanged**: notifications (Tahap 6), Workspace lifecycle (Tahap 7 --
-  shipped below), and generated Applications (Tahap 8) -- the first now genuinely blocked on
-  nothing but being picked up; the third still waits on Q2.
+  **What's still open, unchanged**: notifications (Tahap 6 -- shipped below), Workspace lifecycle
+  (Tahap 7 -- shipped below), and generated Applications (Tahap 8 -- shipped below too, by the time
+  all four of these entries are read together). Nothing from Flow 2's own gap study remains open at
+  this point except reminders/SLA-breach notifications and per-Application notification config,
+  both named explicitly in the Tahap 6 entry as needing a primitive (a scheduler) this runtime has
+  never built.
 
 - **Flow 2's Tahap 8 is shipped -- the owner answered Q2 (2026-09-26): build the AI Metadata
   Assistant in full, live, no restart required.** `menata-app-document`'s own
@@ -1861,6 +1864,80 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   can resolve, which the shared admin credential's placeholder subject does not have). The
   automated coverage above exercises the same handlers against the same real Postgres a manual
   session would have, which is why this is recorded as shipped rather than as verified-pending-manual-check.
+
+- **Flow 2's Tahap 6 is shipped (2026-09-26): Notifications, in-app + email, two triggers.** The
+  gap study's own framing was "a whole new concept in full (in-app + email, per-user and
+  per-Application preferences). No foundation today beyond `internal/mail`" -- confirmed: that
+  package's only three call sites before this were invite/verify-email/password-reset. The Flow 2
+  mockup canvas itself draws no content for this screen, only entry points (Account menu →
+  Notifications, Document Approval settings → COMMUNICATION → Notifications); the only real design
+  reference is the older `ui-sample/account-notifications.html`.
+
+  **Scope, confirmed with the owner before writing any code**: build the two triggers that are
+  actually buildable today without a new primitive -- *"a document is assigned to me for
+  approval"* and *"my submitted document is approved or rejected"*. The mockup's other two
+  (reminders, SLA-breach) need a time/schedule trigger this runtime has never built (this file's
+  own Planned entry, "Extending the Event primitive... a schedule/time trigger... no scheduler");
+  its own "step overdue" toggle is disabled for the identical reason. No per-Application admin
+  configuration screen either -- the mockup itself never draws one.
+
+  **Every piece reuses an existing primitive rather than adding a new mechanism.** A third
+  `Service`, `send_notification` (`domain.Notify`, alongside `Rollup` on `domain.Service`), is the
+  same "declared field-change/on-create Event → closed, runtime-owned Service" shape
+  `rollup_parent_status`/`log_activity` already are. "Assigned to me" is
+  `mch_approval_step.evt_step_created_notify` (`on_create: true`, `recipient_field: fld_assignee`)
+  -- exactly `evt_task_created`/`evt_document_submitted`'s own on-create shape, reading a Field on
+  the record the Event fired on, no cross-record resolution built (a case needing one is the
+  trigger to add `Rollup`'s own `ParentField` indirection to `Notify` too, not before). A
+  Group-held step (`fld_assignee` empty, CAP-F24) has no single recipient and is silently skipped
+  -- named, not solved, the same posture the "One signature box for a Group-held step" deferral
+  row already takes for the identical gap. "My document was decided" is
+  `mch_document.evt_document_approved_notify`/`_rejected_notify` (`on: fld_status, when_equals:
+  ...`, `recipient_field: fld_submitted_by`) -- declared on the *aggregate* status, not a step's
+  own decision, since a per-step Event would tell the submitter "approved" after the first of
+  several sequential steps.
+
+  In-app storage is a plain declared Machine, `mch_notification` -- the same admission
+  `mch_activity` already won, not a bespoke table. "Mark as read" was originally planned as the
+  generic `PUT /machines/mch_notification/records/{id}` route with an ordinary `edit` Permission
+  (`actor_field: fld_recipient`); building it surfaced a real hazard instead, corrected before
+  shipping rather than after: the generic route replaces a record's *whole* `data` column from
+  whatever the form submits (`data.ValuesFromForm`), so a minimal "just `fld_read`" form would have
+  silently wiped `fld_recipient`/`fld_message`/`fld_link` -- the exact carry-forward hazard
+  `signatureplacement.templ`'s own composed placement view was built to avoid. `POST
+  /notifications/mark-all-read` (`submitMarkAllNotificationsRead`) reads and rewrites each record's
+  full `Values` directly in Go instead, which has no such hazard; the `edit`/`delete` Permissions
+  stay declared for a future per-row action, unused by this pass. The unread badge and the
+  notification list (`GET /notifications`, `GET /api/notifications/unread-count`) are bespoke
+  composed screens, the same "filter by identity in Go" shape Approval Inbox/My Tasks already are.
+
+  **The one real gap this surfaced, found rather than assumed away**: `mch_document.fld_status` is
+  written by `rollUpParentStatus`, never by a handler that itself calls `runEvents` --
+  that function's own doc comment already named this precisely ("this write does not itself run
+  Events on the parent... no Machine declares an Event that would need that here today"). The
+  approved/rejected notification is exactly such an Event, so it would have silently never fired.
+  Closed as part of this change: `rollUpParentStatus` now snapshots the parent's own old values
+  before its write and calls `runEvents` on it after a successful one, one level deep (no Machine
+  has a second rollup level to recurse into today; not guarded against, since nothing forces the
+  case) -- `mailer`/`machines` threaded through `runEvents`/`runCreateEvents`/`rollUpParentStatus`
+  from their five existing call sites to make this possible.
+
+  Email preferences (`notify_assigned`/`notify_decided`, `migrations/
+  014_notification_preferences.sql`, default true) live on `credentials`, identity-level like the
+  rest of it (`/account-notifications`, ports `ui-sample/account-notifications.html`'s two real
+  rows) -- the in-app record is written unconditionally either way, only the email is gated.
+  `notificationLinkFor` is a named hardcoding exception (`writing-guide.md`): `mch_approval_step`'s
+  real destination is its own `/review` route, not the generic detail page.
+
+  **A second query-cost regression found and fixed the same session, by the same ratchet that
+  caught the Choose Workspace one in the Tahap 7 entry above**: `/account-notifications`'s first
+  version called `store.GetCredential` a second time for the notify columns, on top of the one
+  `resolveChrome`'s own identity resolution already makes for the display name --
+  `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed` caught it immediately (`repeated=1`). Fixed by
+  caching the whole credential on `requestIdentity` (`Credential(ctx)`, alongside the existing
+  `Membership`/`Actor`/`ViewerName`) instead of just the one field `viewerNameFor` used to fetch for
+  itself -- `viewerNameFor` is now pure, taking an already-resolved credential rather than fetching
+  one.
 
 ## Planned
 

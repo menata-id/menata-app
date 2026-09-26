@@ -72,6 +72,31 @@ events:
       service: log_activity
       summary: "\"{fld_title}\" submitted"
 
+  # "My submitted document is approved/rejected" (Flow 2 gap study Tahap 6). Declared on this
+  # Machine's own *aggregate* fld_status, not on a step's fld_decision: a per-step Event would tell
+  # the submitter "approved" after the first of several sequential steps, before the rest have even
+  # acted. fld_status is written by internal/web's own rollUpParentStatus (evt_step_decision_rollup
+  # above), never by a handler directly -- rollUpParentStatus now dispatches this Machine's own
+  # Events after that write (closing the gap its own doc comment used to name), the same way any
+  # handler would.
+  - id: evt_document_approved_notify
+    on: fld_status
+    when_equals: approved
+    then:
+      service: send_notification
+      recipient_field: fld_submitted_by
+      preference_key: decided
+      summary: "Your document was approved"
+
+  - id: evt_document_rejected_notify
+    on: fld_status
+    when_equals: rejected
+    then:
+      service: send_notification
+      recipient_field: fld_submitted_by
+      preference_key: decided
+      summary: "Your document was rejected"
+
 # permissions: exactly one rule today, and the reason the obvious second one is absent is worth
 # reading before adding it.
 #

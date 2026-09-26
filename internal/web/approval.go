@@ -17,6 +17,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
@@ -179,7 +180,7 @@ func showPendingCount(machines map[string]*domain.Machine, store *data.Store, cf
 // The order below is the contract, not a convenience: identity is checked before the Document is
 // even fetched (005-runtime-lifecycle.md "Security Ordering", 007 §20), and sequencing is checked
 // before anything is written.
-func decideStep(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
+func decideStep(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -245,7 +246,7 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 
 		// Always true now: oldValues came from a read this handler already made and checked, so
 		// there is no second fetch left to fail.
-		runEvents(ctx, store, machine, step, actor.ID, oldValues, true)
+		runEvents(ctx, store, mailer, machines, machine, step, actor.ID, oldValues, true)
 
 		logActivity(ctx, store, action.DocumentMachineID, documentID, actor.ID,
 			fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))

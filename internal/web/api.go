@@ -10,6 +10,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/mail"
 )
 
 func listMachines(machines []*domain.Machine) http.HandlerFunc {
@@ -34,7 +35,7 @@ func listRecords(store *data.Store) http.HandlerFunc {
 	}
 }
 
-func createRecord(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func createRecord(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -64,7 +65,7 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 		// below: the JSON path had silently never logged Activity for a Document/Task/Project
 		// created through it, unlike its form-based sibling.
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		runCreateEvents(req.Context(), store, machine, record, actor)
+		runCreateEvents(req.Context(), store, mailer, machine, record, actor)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -76,7 +77,7 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 // carry-forward files, then decision-change guard, then shape/relation/constraint checks), a JSON
 // body decoded straight into map[string]any needing no ValuesFromForm equivalent (createRecord
 // above already established this), and a JSON response instead of an HTML fragment.
-func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func updateRecord(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -112,7 +113,7 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, cfg co
 			recordError(w, err)
 			return
 		}
-		runEvents(req.Context(), store, machine, record, actor.ID, oldValues, oldValuesOK)
+		runEvents(req.Context(), store, mailer, machines, machine, record, actor.ID, oldValues, oldValuesOK)
 
 		w.Header().Set("Content-Type", "application/json")
 		writeJSON(w, record)

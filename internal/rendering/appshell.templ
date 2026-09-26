@@ -163,7 +163,8 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 							}
 						</nav>
 					}
-					<span class="ml-auto">
+					<span class="ml-auto flex items-center gap-1">
+						@notificationBell()
 						@accountMenu(viewer, hasAppMenu)
 					</span>
 				</div>
@@ -679,12 +680,35 @@ func sheetPanelClasses(desktop string) string {
 // the header is a fixed 60px and sticky at top-0, so the panel's own offset is knowable without a
 // feature that is still Chromium-only.
 //
-// Profile and Security are runtime-level routes (`/account-profile`, `/account-security`) --
-// they exist regardless of which Applications a Workspace configures, the same category as
-// `/home` above, so they're literals here rather than routeByID lookups (nothing declares them in
-// app.yaml navigation) -- both are listed in internal/conformance's runtimeLevelRoutes for exactly
-// this reason. Sign out reuses pageShell's own logout form shape (machine.templ) -- appShell-based
-// screens had no sign-out at all before this.
+// Profile, Notifications and Security are runtime-level routes (`/account-profile`,
+// `/account-notifications`, `/account-security`) -- they exist regardless of which Applications a
+// Workspace configures, the same category as `/home` above, so they're literals here rather than
+// routeByID lookups (nothing declares them in app.yaml navigation) -- all three are listed in
+// internal/conformance's runtimeLevelRoutes for exactly this reason. Sign out reuses pageShell's
+// own logout form shape (machine.templ) -- appShell-based screens had no sign-out at all before
+// this.
+// notificationBell is the header's own entry point into /notifications (Flow 2 gap study Tahap 6)
+// -- a plain link, not a popover, since the destination is a real page rather than a short menu.
+// The badge mirrors navBadge's own shape exactly (empty:hidden, hx-get/hx-trigger=load) but isn't
+// routed through it: navBadge dispatches on domain.NavBadgeApprovalInboxPending, a per-Application
+// nav-item concept, while this is Workspace-level chrome with its own fixed endpoint, the same way
+// accountMenu's own links are literals rather than routeByID lookups.
+templ notificationBell() {
+	<a
+		href="/notifications"
+		aria-label="Notifications"
+		class="relative flex size-8 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+	>
+		@icon("bell", "size-4.5")
+		<span
+			class="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-3xs text-white empty:hidden"
+			hx-get="/api/notifications/unread-count"
+			hx-trigger="load"
+			hx-swap="innerHTML"
+		></span>
+	</a>
+}
+
 templ accountMenu(viewer Viewer, aboveBar bool) {
 	<div class="shrink-0">
 		<button
@@ -711,6 +735,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 				<div class="my-1 h-px bg-slate-100"></div>
 			}
 			<a href="/account-profile" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Profile</a>
+			<a href="/account-notifications" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Notifications</a>
 			<a href="/account-security" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Security</a>
 			<div class="my-1 h-px bg-slate-100"></div>
 			<form method="POST" action="/logout">

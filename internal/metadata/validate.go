@@ -341,6 +341,8 @@ func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]doma
 		}
 	case domain.ServiceRollupParentStatus:
 		issues = append(issues, validateRollup(m, e, fieldsByID)...)
+	case domain.ServiceSendNotification:
+		issues = append(issues, validateNotify(m, e, fieldsByID)...)
 	default:
 		issues = append(issues, fmt.Sprintf("event %q: then.service %q is not a service this runtime realizes", e.ID, e.Then.Name))
 	}
@@ -385,6 +387,28 @@ func validateRollup(m *domain.Machine, e domain.Event, fieldsByID map[string]dom
 				issues = append(issues, fmt.Sprintf("event %q: then.%s %q is not one of field %q's options %v", e.ID, v.key, v.value, e.On, onField.Options))
 			}
 		}
+	}
+
+	return issues
+}
+
+// validateNotify checks a send_notification declaration (Flow 2 gap study Tahap 6): recipient_field
+// must be a real Field of this Machine -- no cross-record resolution exists yet (domain.Notify's
+// own doc comment), so unlike validateRollup there is no second, cross-Machine pass here -- and
+// preference_key must be one of the closed set, each naming a real column on credentials.
+func validateNotify(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+
+	if e.Then.Notify == nil {
+		return append(issues, fmt.Sprintf("event %q: then.service %q requires recipient_field/preference_key", e.ID, e.Then.Name))
+	}
+	n := *e.Then.Notify
+
+	if _, ok := fieldsByID[n.RecipientField]; !ok {
+		issues = append(issues, fmt.Sprintf("event %q: then.recipient_field %q is not a field of machine %q", e.ID, n.RecipientField, m.ID))
+	}
+	if !domain.KnownNotificationPreferenceKeys[n.PreferenceKey] {
+		issues = append(issues, fmt.Sprintf("event %q: then.preference_key %q is not a preference this runtime knows", e.ID, n.PreferenceKey))
 	}
 
 	return issues

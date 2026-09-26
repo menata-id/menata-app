@@ -57,4 +57,7 @@ var KnownIcons = map[string]bool{
 	// study Tahap 8) -- chrome, not a declarable Application/nav icon, the same posture "switch"
 	// already has.
 	"sparkle": true,
+	// bell: the header's own notification badge button (Flow 2 gap study Tahap 6) -- chrome, the
+	// same posture "switch"/"sparkle" already have.
+	"bell": true,
 }

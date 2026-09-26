@@ -67,10 +67,19 @@ type requestIdentity struct {
 	// viewerName is what the chrome shows: the identity's full name, falling back to its email,
 	// which is at least addressable. Empty when there is no membership to name.
 	viewerName string
+	// credential is this identity's own credential row, resolved alongside membership (same
+	// once.Do) rather than fetched again by whoever needs more of it than just FullName -- Tahap
+	// 6's own /account-notifications is the first such consumer (Credential(ctx)). nil when there
+	// is no membership to look one up for, or the read failed; both are normal, not an error.
+	credential *data.Credential
 }
 
-// resolveMembership reads this identity's membership, Actor and display name -- once per request,
-// on the first consumer that asks for any of them.
+// resolveMembership reads this identity's membership, Actor, credential and display name -- once
+// per request, on the first consumer that asks for any of them. Reading the credential here too
+// (not just inside viewerNameFor, which used to fetch it itself) is what keeps a second consumer
+// of it from paying for a second query -- exactly what internal/conformance's
+// TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed exists to catch, and did, the first time
+// /account-notifications asked for it independently.
 func (i *requestIdentity) resolveMembership(ctx context.Context) {
 	i.once.Do(func() {
 		if i.userID == "" {
@@ -84,11 +93,16 @@ func (i *requestIdentity) resolveMembership(ctx context.Context) {
 			log.Printf("resolve membership for %s: %v", i.userID, err)
 		}
 		i.actor = actorFromMembership(i.userID, i.membership)
-		i.viewerName = viewerNameFor(ctx, i.store, i.membership)
+		if i.membership != nil && i.membership.Email != "" {
+			if cred, err := i.store.GetCredential(ctx, i.membership.Email); err == nil {
+				i.credential = cred
+			}
+		}
+		i.viewerName = viewerNameFor(i.membership, i.credential)
 	})
 }
 
-// Membership, Actor and ViewerName are the three views of one resolution.
+// Membership, Actor, Credential and ViewerName are the four views of one resolution.
 func (i *requestIdentity) Membership(ctx context.Context) *data.Membership {
 	i.resolveMembership(ctx)
 	return i.membership
@@ -102,6 +116,15 @@ func (i *requestIdentity) Actor(ctx context.Context) domain.Actor {
 func (i *requestIdentity) ViewerName(ctx context.Context) string {
 	i.resolveMembership(ctx)
 	return i.viewerName
+}
+
+// Credential returns this identity's own credential row, or nil for one with no membership to
+// look it up by (the shared admin credential's placeholder subject) or an unreadable row -- both
+// normal, callers already degrade the same way GetCredential's own ErrCredentialNotFound would
+// have them do.
+func (i *requestIdentity) Credential(ctx context.Context) *data.Credential {
+	i.resolveMembership(ctx)
+	return i.credential
 }
 
 type identityKey struct{}
@@ -157,6 +180,21 @@ func membershipFor(ctx context.Context, store *data.Store, workspaceID, userID s
 	return store.GetMembership(ctx, workspaceID, userID)
 }
 
+// credentialFor returns the viewer's credential from the identity when one was resolved (no extra
+// query -- resolveMembership already read it), and by querying when none was. A nil credential
+// with a nil error means "no row, or it was unreadable" -- the same nil-is-normal shape
+// membershipFor's own callers already treat as "use defaults", not a failure to report.
+func credentialFor(ctx context.Context, store *data.Store, email string) (*data.Credential, error) {
+	if id, ok := identityFrom(ctx); ok {
+		return id.Credential(ctx), nil
+	}
+	cred, err := store.GetCredential(ctx, email)
+	if errors.Is(err, data.ErrCredentialNotFound) {
+		return nil, nil
+	}
+	return cred, err
+}
+
 // currentWorkspaceRow returns this request's Workspace row, from the identity when one was
 // resolved and by querying when none was.
 func currentWorkspaceRow(ctx context.Context, store *data.Store) (*data.Workspace, bool) {
@@ -200,11 +238,13 @@ func actorFromMembership(userID string, m *data.Membership) domain.Actor {
 // The name comes from the credential rather than from the mch_user record because both name and
 // email stopped being Fields on 2026-09-22 (metadata/user.yaml, migration 010) -- they belong to
 // whoever owns the login, not to one Workspace's record of them.
-func viewerNameFor(ctx context.Context, store *data.Store, m *data.Membership) string {
+// viewerNameFor is pure -- cred is already-resolved (or nil), never fetched here, so every caller
+// controls its own query cost instead of this function silently adding one of its own.
+func viewerNameFor(m *data.Membership, cred *data.Credential) string {
 	if m == nil || m.Email == "" {
 		return ""
 	}
-	if cred, err := store.GetCredential(ctx, m.Email); err == nil && cred.FullName != "" {
+	if cred != nil && cred.FullName != "" {
 		return cred.FullName
 	}
 	return m.Email

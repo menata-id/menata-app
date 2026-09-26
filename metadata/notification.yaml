@@ -1,0 +1,47 @@
+# A per-recipient in-app notification (Flow 2 gap study Tahap 6). A regular Machine, the same
+# admission mch_activity already won (007 §4.1's own question, "can an existing primitive express
+# it?") -- reuses the same Machine/Record machinery rather than a bespoke table. Written only by
+# domain.ServiceSendNotification (internal/web.sendNotification), never by a user form.
+#
+# Shared/unclaimed by any one Application, the same as mch_user/mch_activity: Document Approval is
+# the only source of notifications today, but nothing here assumes that -- Project Management could
+# earn its own notify-declaring Event later with no restructuring.
+id: mch_notification
+name: Notification
+fields:
+  - id: fld_recipient
+    name: Recipient
+    type: person
+  - id: fld_message
+    name: Message
+    type: text
+    required: true
+  # The route to visit when this notification is opened -- resolved by internal/web's own
+  # notificationLinkFor at write time (a named hardcoding exception, writing-guide.md), never
+  # composed generically: a notification's real destination is not always the generic record
+  # detail page (mch_approval_step's own is explicitly "POC scaffolding no real approver should
+  # land on", detail.templ's own doc comment -- its real screen is /review).
+  - id: fld_link
+    name: Link
+    type: text
+  - id: fld_read
+    name: Read
+    type: status
+    options: [unread, read]
+    required: true
+    default: unread
+
+# Mark-as-read is the *generic* PUT /machines/mch_notification/records/{id} route -- no bespoke
+# route needed, only this Permission, the exact shape prm_edit_own_step already established: the
+# acting identity must be the value fld_recipient names. Delete gets the identical gate, so a
+# notification can never be edited or removed by anyone but the person it was written for.
+#
+# Creation stays open, mirroring mch_activity's own accepted posture: creation is what the runtime
+# itself does here, not a form a person fills in.
+permissions:
+  - id: prm_edit_own_notification
+    action: edit
+    actor_field: fld_recipient
+  - id: prm_delete_own_notification
+    action: delete
+    actor_field: fld_recipient

@@ -21,6 +21,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/mail"
 	"menata.app/internal/pdf"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
@@ -262,7 +263,7 @@ func postDecideAs(t *testing.T, s decideStepTestSetup, stepID, actorID, decision
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, actorID, 0)})
 
 	r := chi.NewRouter()
-	r.Post("/machines/{machineID}/records/{id}/decide", decideStep(s.machines, s.store, s.files, s.cfg))
+	r.Post("/machines/{machineID}/records/{id}/decide", decideStep(s.machines, s.store, s.files, mail.LogMailer{}, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec

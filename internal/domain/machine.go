@@ -153,6 +153,8 @@ type Service struct {
 	SummaryOverride     string
 	// Rollup is ServiceRollupParentStatus's own configuration, nil for every other Service.
 	Rollup *Rollup
+	// Notify is ServiceSendNotification's own configuration, nil for every other Service.
+	Notify *Notify
 }
 
 // Rollup derives a parent record's own status from the values its children currently hold: the
@@ -189,6 +191,10 @@ const (
 	// ServiceRollupParentStatus writes a parent record's status from its children's own values
 	// (behavior.RollupValue decides, internal/web performs the read and write).
 	ServiceRollupParentStatus = "rollup_parent_status"
+	// ServiceSendNotification writes an mch_notification record and, if the recipient's own
+	// preference allows it, sends an email (internal/web's sendNotification, Flow 2 gap study
+	// Tahap 6).
+	ServiceSendNotification = "send_notification"
 )
 
 // KnownServices is the closed set of Service names a Service.Name may name, the same static-seam
@@ -196,6 +202,28 @@ const (
 var KnownServices = map[string]bool{
 	ServiceLogActivity:        true,
 	ServiceRollupParentStatus: true,
+	ServiceSendNotification:   true,
+}
+
+// Notify is send_notification's own configuration. RecipientField is a Field on the record the
+// Event fired on -- no cross-record resolution built, unlike Rollup's own ParentField indirection:
+// both real notification triggers today (Tahap 6) read a Field on their own record ("assigned to
+// me" reads mch_approval_step's own fld_assignee; "my document was decided" reads mch_document's
+// own fld_submitted_by). A case that needs a parent lookup is the trigger to add that indirection
+// here, mirroring Rollup, not before.
+type Notify struct {
+	RecipientField string
+	// PreferenceKey selects which of the recipient's own notify_* preferences (credentials table)
+	// gates whether this ALSO sends an email -- the in-app mch_notification row is written
+	// unconditionally either way. One of KnownNotificationPreferenceKeys.
+	PreferenceKey string
+}
+
+// KnownNotificationPreferenceKeys is the closed set of preference keys a Notify.PreferenceKey may
+// name, each corresponding to one boolean column on credentials.
+var KnownNotificationPreferenceKeys = map[string]bool{
+	"assigned": true,
+	"decided":  true,
 }
 
 // Machine is the primary runtime realization unit for a business capability

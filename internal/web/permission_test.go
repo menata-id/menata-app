@@ -10,6 +10,7 @@ import (
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
 	"menata.app/internal/data"
+	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 )
 
@@ -28,7 +29,7 @@ func putRecordAs(t *testing.T, s decideStepTestSetup, machineID, id, actorID str
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, actorID, 0)})
 
 	r := chi.NewRouter()
-	r.Put("/machines/{machineID}/records/{id}", updateRecordForm(s.machines, s.store, s.files, s.cfg))
+	r.Put("/machines/{machineID}/records/{id}", updateRecordForm(s.machines, s.store, s.files, mail.LogMailer{}, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec

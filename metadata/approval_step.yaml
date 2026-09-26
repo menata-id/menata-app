@@ -128,6 +128,20 @@ events:
       all: { value: approved, set: approved }
       default: in_review
 
+  # "A document is assigned to me for approval" (Flow 2 gap study Tahap 6). Fires once,
+  # unconditionally, when a step is created -- exactly evt_task_created/evt_document_submitted's own
+  # on_create shape. A Group-held step (fld_assignee empty, CAP-F24) has no single recipient to
+  # notify -- named and skipped (internal/web.sendNotification), not solved; the same posture the
+  # "One signature box for a Group-held step" deferral row (ROADMAP.md) already takes for the
+  # identical gap.
+  - id: evt_step_created_notify
+    on_create: true
+    then:
+      service: send_notification
+      recipient_field: fld_assignee
+      preference_key: assigned
+      summary: "You have a new approval request"
+
 # Approval Steps are acted on in order when their Document says so (menata-runtime's
 # capability-registry.md CAP-A07 `activate_next`, admitted on Case 3 + WCP-1 Sequence, conformance
 # T22-23/T25 there). Replaces internal/action's own CanDecide, whose rule was already generic --

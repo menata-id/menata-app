@@ -141,6 +141,10 @@ type eventDoc struct {
 		Any         *rollupRuleDoc `yaml:"any"`
 		All         *rollupRuleDoc `yaml:"all"`
 		Default     string         `yaml:"default"`
+
+		// send_notification's own keys (domain.Notify).
+		RecipientField string `yaml:"recipient_field"`
+		PreferenceKey  string `yaml:"preference_key"`
 	} `yaml:"then"`
 }
 
@@ -246,6 +250,12 @@ func Parse(data []byte) (*domain.Machine, error) {
 				r.AllValue, r.AllSet = ed.Then.All.Value, ed.Then.All.Set
 			}
 			then.Rollup = &r
+		}
+		if ed.Then.Service == domain.ServiceSendNotification {
+			then.Notify = &domain.Notify{
+				RecipientField: ed.Then.RecipientField,
+				PreferenceKey:  ed.Then.PreferenceKey,
+			}
 		}
 		m.Events = append(m.Events, domain.Event{
 			ID:         ed.ID,

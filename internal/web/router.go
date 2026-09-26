@@ -201,8 +201,8 @@ func Routes(d Deps) http.Handler {
 
 		pr.Get("/api/machines", listMachines(d.MachineList))
 		pr.Get("/api/machines/{machineID}/records", listRecords(d.Store))
-		pr.Post("/api/machines/{machineID}/records", createRecord(d.Machines, d.Store, d.Cfg))
-		pr.Put("/api/machines/{machineID}/records/{id}", updateRecord(d.Machines, d.Store, d.Cfg))
+		pr.Post("/api/machines/{machineID}/records", createRecord(d.Machines, d.Store, d.Mailer, d.Cfg))
+		pr.Put("/api/machines/{machineID}/records/{id}", updateRecord(d.Machines, d.Store, d.Mailer, d.Cfg))
 		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Machines, d.Store, d.Cfg))
 
 		pr.Get("/", showMachineList(d.MachineList, d.Store, d.Cfg))
@@ -216,6 +216,8 @@ func Routes(d Deps) http.Handler {
 		pr.Post("/create-workspace", submitCreateWorkspace(d.Machines, d.Store, d.Cfg))
 		pr.Get("/account-profile", showProfile(d.Store, d.Cfg))
 		pr.Post("/account-profile", submitProfile(d.Store, d.Cfg))
+		pr.Get("/account-notifications", showAccountNotifications(d.Store, d.Cfg))
+		pr.Post("/account-notifications", submitAccountNotifications(d.Store, d.Cfg))
 		pr.Get("/account-security", showSecurity(d.Store, d.Cfg))
 		pr.Post("/account-security/change-password", submitChangePassword(d.Store, d.Cfg))
 		pr.Post("/account-security/sign-out-other-devices", submitSignOutOtherDevices(d.Store, d.Cfg))
@@ -223,6 +225,12 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/my-tasks", showMyTasks(d.Machines, d.Store, d.Cfg))
 		pr.Get("/board-settings", showBoardSettings(d.Store, d.Cfg))
 		pr.Get("/activity", showActivity(d.Machines, d.Store, d.Cfg))
+		// Notifications (Flow 2 gap study Tahap 6) -- Workspace-level runtime routes, same category
+		// as /dashboard and /account-profile: reachable by any authenticated member regardless of
+		// Application access, since a notification can concern any Application's own Machine.
+		pr.Get("/notifications", showNotifications(d.Machines, d.Store, d.Cfg))
+		pr.Post("/notifications/mark-all-read", submitMarkAllNotificationsRead(d.Machines, d.Store, d.Cfg))
+		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Machines, d.Store, d.Cfg))
 		pr.Get("/team-capacity", showTeamCapacity(d.Machines, d.Store, d.Cfg))
 		pr.Get("/automation", showAutomation(d.MachineList, d.Store, d.Cfg))
 		pr.Get("/calendar", showCalendar(d.Machines, d.Store, d.Cfg))
@@ -243,12 +251,12 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/document-approval/settings", showApplicationSettings("", d.MachineList, d.Store, d.Cfg))
 		pr.Get("/document-approval/settings/permissions", showApplicationSettings("permissions", d.MachineList, d.Store, d.Cfg))
 		pr.Get("/machines/{machineID}", showMachinePage(d.Machines, d.Store, d.Cfg))
-		pr.Post("/machines/{machineID}/records", createRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
+		pr.Post("/machines/{machineID}/records", createRecordForm(d.Machines, d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Machines, d.Store, d.Cfg))
-		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Machines, d.Store, d.Files, d.Cfg))
+		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Machines, d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Machines, d.Store, d.Cfg))
-		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Machines, d.Store, d.Files, d.Cfg))
+		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Machines, d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/review", showReviewDocument(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Machines, d.Store, d.Files, d.Cfg))
 		// The write half, on its own route rather than the generic record one: this screen asks

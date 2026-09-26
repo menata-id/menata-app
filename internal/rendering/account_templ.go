@@ -130,15 +130,14 @@ func ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorkspa
 	})
 }
 
-// SecurityPage ships exactly what the real session model can back: change password, and revoke
-// every session but this one. It deliberately does not show a per-device "active sessions" list --
-// internal/authorization's session model is one signed cookie plus a generation counter per
-// mch_user record (internal/authorization/session.go), with no per-device/browser/location
-// tracking at all, so a fabricated single "This device" row would be exactly the "mockup draws
-// data the app doesn't have" pattern menata-app-document's development-history.md already calls
-// out repeatedly. Two-factor authentication stays marked "(planned)", matching
-// ui-sample/nav-chrome.js's own convention for a menu item with no primitive behind it yet.
-func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, passwordErr, passwordOK, signOutOK string) templ.Component {
+// AccountNotificationsPage is the signed-in identity's own email-notification preferences (Flow 2
+// gap study Tahap 6, ports ui-sample/account-notifications.html) -- identity-level, like Profile,
+// not per-Workspace. Only the two rows this pass actually built are real: the mockup's "step
+// overdue" row needs an SLA/schedule trigger this runtime has never built, and its separate
+// Workspace-level rows (weekly summary, new member) are a different, unbuilt trigger entirely --
+// both are dropped rather than rendered disabled, since a disabled toggle here would misrepresent
+// a capability this pass names as explicitly out of scope as if it were a state of this screen.
+func AccountNotificationsPage(notifyAssigned, notifyDecided bool, workspaceName string, viewer Viewer, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -171,49 +170,197 @@ func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pass
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"flex flex-col gap-1\"><span class=\"text-3xs tracking-wide text-slate-400 uppercase\">Account</span><h1 class=\"m-0 text-xl font-medium\">Security</h1><div class=\"text-sm text-slate-500\">Manage your password and where you're signed in.</div></div><section class=\"flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5\"><div class=\"flex flex-col gap-1\"><h2 class=\"m-0 text-sm font-medium\">Password</h2><p class=\"m-0 text-2xs text-slate-500\">Choose a strong password you don't use elsewhere.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"flex flex-col gap-1\"><span class=\"text-3xs tracking-wide text-slate-400 uppercase\">Account</span><h1 class=\"m-0 text-xl font-medium\">Notifications</h1><div class=\"text-sm text-slate-500\">Choose which emails you want to receive. In-app notifications always appear regardless of these.</div></div><form method=\"POST\" action=\"/account-notifications\" class=\"flex flex-col gap-4\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = csrfHiddenInput().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<section class=\"flex flex-col gap-1 rounded-lg border border-slate-200 bg-white p-5\"><h2 class=\"m-0 text-sm font-medium\">Document Approval</h2><p class=\"m-0 mb-2 text-2xs text-slate-500\">Emails about approvals you're involved in.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = notificationToggle("notify_assigned", "A document is assigned to me for approval", notifyAssigned).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = notificationToggle("notify_decided", "My submitted document is approved or rejected", notifyDecided).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</section><div class=\"flex justify-end gap-2.5\"><a href=\"/home\" class=\"flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm\">Cancel</a>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = authSubmit("Save changes").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></form>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = appShell("Notifications", workspaceName, viewer, switchWorkspaceHref).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func notificationToggle(name, label string, checked bool) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<label class=\"flex items-center justify-between gap-4 border-t border-slate-100 py-3 first:border-t-0 first:pt-0\"><span class=\"text-sm text-slate-900\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(label)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 89, Col: 46}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</span> <span class=\"relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center\"><input type=\"checkbox\" name=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 93, Col: 15}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if checked {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " checked")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " class=\"peer sr-only\"> <span class=\"h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-slate-900\"></span> <span class=\"absolute left-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5\"></span></span></label>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// SecurityPage ships exactly what the real session model can back: change password, and revoke
+// every session but this one. It deliberately does not show a per-device "active sessions" list --
+// internal/authorization's session model is one signed cookie plus a generation counter per
+// mch_user record (internal/authorization/session.go), with no per-device/browser/location
+// tracking at all, so a fabricated single "This device" row would be exactly the "mockup draws
+// data the app doesn't have" pattern menata-app-document's development-history.md already calls
+// out repeatedly. Two-factor authentication stays marked "(planned)", matching
+// ui-sample/nav-chrome.js's own convention for a menu item with no primitive behind it yet.
+func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, passwordErr, passwordOK, signOutOK string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var11 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var11 == nil {
+			templ_7745c5c3_Var11 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var12 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"flex flex-col gap-1\"><span class=\"text-3xs tracking-wide text-slate-400 uppercase\">Account</span><h1 class=\"m-0 text-xl font-medium\">Security</h1><div class=\"text-sm text-slate-500\">Manage your password and where you're signed in.</div></div><section class=\"flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5\"><div class=\"flex flex-col gap-1\"><h2 class=\"m-0 text-sm font-medium\">Password</h2><p class=\"m-0 text-2xs text-slate-500\">Choose a strong password you don't use elsewhere.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if passwordErr != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<p class=\"m-0 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<p class=\"m-0 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var8 string
-				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(passwordErr)
+				var templ_7745c5c3_Var13 string
+				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(passwordErr)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 78, Col: 84}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 126, Col: 84}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			if passwordOK != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p class=\"m-0 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<p class=\"m-0 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var9 string
-				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(passwordOK)
+				var templ_7745c5c3_Var14 string
+				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(passwordOK)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 81, Col: 91}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 129, Col: 91}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<form method=\"POST\" action=\"/account-security/change-password\" class=\"flex flex-col gap-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<form method=\"POST\" action=\"/account-security/change-password\" class=\"flex flex-col gap-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -233,7 +380,7 @@ func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pass
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"flex justify-end\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div class=\"flex justify-end\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -241,30 +388,30 @@ func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pass
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div></form></section><section class=\"flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5\"><div class=\"flex flex-col gap-1\"><h2 class=\"m-0 text-sm font-medium\">Other devices</h2><p class=\"m-0 text-2xs text-slate-500\">Sign every other session out, keeping this one.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</div></form></section><section class=\"flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5\"><div class=\"flex flex-col gap-1\"><h2 class=\"m-0 text-sm font-medium\">Other devices</h2><p class=\"m-0 text-2xs text-slate-500\">Sign every other session out, keeping this one.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if signOutOK != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<p class=\"m-0 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<p class=\"m-0 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var10 string
-				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(signOutOK)
+				var templ_7745c5c3_Var15 string
+				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(signOutOK)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 99, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 147, Col: 90}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<form method=\"POST\" action=\"/account-security/sign-out-other-devices\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<form method=\"POST\" action=\"/account-security/sign-out-other-devices\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -272,13 +419,13 @@ func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pass
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<button type=\"submit\" class=\"flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm\">Sign out of other devices</button></form></section><section class=\"flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-5\"><div class=\"flex flex-col gap-1\"><h2 class=\"m-0 text-sm font-medium\">Two-factor authentication</h2><p class=\"m-0 text-2xs text-slate-500\">Not enabled <span class=\"text-3xs text-slate-300\">(planned)</span></p></div><button disabled class=\"shrink-0 cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-400\">Enable</button></section>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<button type=\"submit\" class=\"flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm\">Sign out of other devices</button></form></section><section class=\"flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-5\"><div class=\"flex flex-col gap-1\"><h2 class=\"m-0 text-sm font-medium\">Two-factor authentication</h2><p class=\"m-0 text-2xs text-slate-500\">Not enabled <span class=\"text-3xs text-slate-300\">(planned)</span></p></div><button disabled class=\"shrink-0 cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-400\">Enable</button></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = appShell("Security", workspaceName, viewer, switchWorkspaceHref).Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = appShell("Security", workspaceName, viewer, switchWorkspaceHref).Render(templ.WithChildren(ctx, templ_7745c5c3_Var12), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

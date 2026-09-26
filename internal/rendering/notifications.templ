@@ -1,0 +1,67 @@
+package rendering
+
+// NotificationRow is one of the viewer's own mch_notification records, ready to render
+// (composition.MyNotifications, Flow 2 gap study Tahap 6) -- CreatedAt is pre-formatted the same
+// convention every other display date in this app already follows.
+type NotificationRow struct {
+	ID        string
+	Message   string
+	Link      string
+	Unread    bool
+	CreatedAt string
+}
+
+// NotificationsPage lists the viewer's own notifications, newest first, with a single "Mark all as
+// read" action -- not a per-row PUT through the generic edit route, which would need to echo back
+// every other Field to avoid the carry-forward hazard (submitMarkAllNotificationsRead's own doc
+// comment, internal/web/notification.go). A Workspace-level runtime route, no Application chrome.
+templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell("Notifications", workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex items-start justify-between gap-3">
+			<div class="flex flex-col gap-1">
+				<h1 class="m-0 text-xl font-medium">Notifications</h1>
+				<div class="text-sm text-slate-500">Approval requests and decisions that concern you.</div>
+			</div>
+			if hasUnread(rows) {
+				<form method="POST" action="/notifications/mark-all-read">
+					@csrfHiddenInput()
+					<button type="submit" class="flex h-9 shrink-0 cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 hover:bg-slate-50">Mark all as read</button>
+				</form>
+			}
+		</div>
+		<div class="flex flex-col gap-2">
+			for _, n := range rows {
+				@notificationRow(n)
+			}
+			if len(rows) == 0 {
+				<p class="text-sm text-slate-500">No notifications yet.</p>
+			}
+		</div>
+	}
+}
+
+templ notificationRow(n NotificationRow) {
+	<a
+		href={ templ.URL(n.Link) }
+		class={ "flex items-center gap-3 rounded-lg border bg-white p-3.5 hover:border-blue-300", templ.KV("border-blue-200 bg-blue-50/40", n.Unread), templ.KV("border-slate-200", !n.Unread) }
+	>
+		if n.Unread {
+			<span class="size-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true"></span>
+		} else {
+			<span class="size-2 shrink-0 rounded-full bg-transparent" aria-hidden="true"></span>
+		}
+		<span class="min-w-0 flex-1">
+			<span class={ "block text-sm text-slate-900", templ.KV("font-medium", n.Unread) }>{ n.Message }</span>
+			<span class="block text-xs text-slate-400">{ n.CreatedAt }</span>
+		</span>
+	</a>
+}
+
+func hasUnread(rows []NotificationRow) bool {
+	for _, r := range rows {
+		if r.Unread {
+			return true
+		}
+	}
+	return false
+}

@@ -17,10 +17,11 @@ import (
 // names its own: Case 19's screens are hardcoded to real Machines, and a typo in a string literal
 // repeated across six functions is invisible until the page renders empty.
 const (
-	taskMachineID     = "mch_task"
-	projectMachineID  = "mch_project"
-	userMachineID     = "mch_user"
-	activityMachineID = "mch_activity"
+	taskMachineID         = "mch_task"
+	projectMachineID      = "mch_project"
+	userMachineID         = "mch_user"
+	activityMachineID     = "mch_activity"
+	notificationMachineID = "mch_notification"
 )
 
 // Declared Datasets and Measures these screens read (007 §7.2-§7.4), named here for the same
@@ -156,6 +157,47 @@ type MyTasks struct {
 // now, which the equals/not_equals vocabulary cannot express at any level. Both are real gaps,
 // neither has a second case yet, and inventing either one for this single screen is the premature
 // declaration B5 exists to refuse.
+// MyNotifications lists the viewer's own mch_notification records, newest first (Flow 2 gap study
+// Tahap 6) -- the same "filter by identity in Go" shape PersonalTasks/PendingApprovalCount already
+// are (007 §20's named, accepted pattern for this class of per-viewer worklist), keyed by the
+// already-declared prm_edit_own_notification's own actor_field, fld_recipient.
+func MyNotifications(ctx context.Context, l *Loader, viewerID string) ([]rendering.NotificationRow, error) {
+	records, err := l.ListRecordsBy(ctx, notificationMachineID, "fld_recipient", viewerID)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(records, func(i, j int) bool { return records[i].CreatedAt.After(records[j].CreatedAt) })
+
+	rows := make([]rendering.NotificationRow, 0, len(records))
+	for _, r := range records {
+		rows = append(rows, rendering.NotificationRow{
+			ID:        r.ID,
+			Message:   DisplayString(r.Values["fld_message"]),
+			Link:      DisplayString(r.Values["fld_link"]),
+			Unread:    DisplayString(r.Values["fld_read"]) == "unread",
+			CreatedAt: r.CreatedAt.Format("2 Jan 2006 15:04"),
+		})
+	}
+	return rows, nil
+}
+
+// UnreadNotificationCount is the bell badge's own count -- the same shape PendingApprovalCount
+// already is (list the viewer's own rows, count in Go; no dedicated COUNT query exists anywhere in
+// this codebase, so this doesn't invent one either).
+func UnreadNotificationCount(ctx context.Context, l *Loader, viewerID string) (int, error) {
+	records, err := l.ListRecordsBy(ctx, notificationMachineID, "fld_recipient", viewerID)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, r := range records {
+		if DisplayString(r.Values["fld_read"]) == "unread" {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func PersonalTasks(ctx context.Context, l *Loader, userID string, now time.Time) (MyTasks, error) {
 	tasks, err := l.ListRecords(ctx, taskMachineID)
 	if err != nil {

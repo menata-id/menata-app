@@ -54,6 +54,54 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 	}
 }
 
+// AccountNotificationsPage is the signed-in identity's own email-notification preferences (Flow 2
+// gap study Tahap 6, ports ui-sample/account-notifications.html) -- identity-level, like Profile,
+// not per-Workspace. Only the two rows this pass actually built are real: the mockup's "step
+// overdue" row needs an SLA/schedule trigger this runtime has never built, and its separate
+// Workspace-level rows (weekly summary, new member) are a different, unbuilt trigger entirely --
+// both are dropped rather than rendered disabled, since a disabled toggle here would misrepresent
+// a capability this pass names as explicitly out of scope as if it were a state of this screen.
+templ AccountNotificationsPage(notifyAssigned, notifyDecided bool, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell("Notifications", workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-1">
+			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
+			<h1 class="m-0 text-xl font-medium">Notifications</h1>
+			<div class="text-sm text-slate-500">Choose which emails you want to receive. In-app notifications always appear regardless of these.</div>
+		</div>
+		<form method="POST" action="/account-notifications" class="flex flex-col gap-4">
+			@csrfHiddenInput()
+			<section class="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white p-5">
+				<h2 class="m-0 text-sm font-medium">Document Approval</h2>
+				<p class="m-0 mb-2 text-2xs text-slate-500">Emails about approvals you're involved in.</p>
+				@notificationToggle("notify_assigned", "A document is assigned to me for approval", notifyAssigned)
+				@notificationToggle("notify_decided", "My submitted document is approved or rejected", notifyDecided)
+			</section>
+			<div class="flex justify-end gap-2.5">
+				<a href="/home" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Cancel</a>
+				@authSubmit("Save changes")
+			</div>
+		</form>
+	}
+}
+
+templ notificationToggle(name, label string, checked bool) {
+	<label class="flex items-center justify-between gap-4 border-t border-slate-100 py-3 first:border-t-0 first:pt-0">
+		<span class="text-sm text-slate-900">{ label }</span>
+		<span class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center">
+			<input
+				type="checkbox"
+				name={ name }
+				if checked {
+					checked
+				}
+				class="peer sr-only"
+			/>
+			<span class="h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-slate-900"></span>
+			<span class="absolute left-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+		</span>
+	</label>
+}
+
 // SecurityPage ships exactly what the real session model can back: change password, and revoke
 // every session but this one. It deliberately does not show a per-device "active sessions" list --
 // internal/authorization's session model is one signed cookie plus a generation counter per

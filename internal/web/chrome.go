@@ -80,7 +80,8 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 	userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 	if membership, err := store.GetMembership(ctx, workspaceID, userID); err == nil && membership != nil {
 		userEmail, userRole = membership.Email, membership.WorkspaceRole
-		userName = viewerNameFor(ctx, store, membership)
+		cred, _ := store.GetCredential(ctx, membership.Email)
+		userName = viewerNameFor(membership, cred)
 	}
 
 	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName), WorkspaceRole: userRole}, nil

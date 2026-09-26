@@ -18,11 +18,12 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
 
-func createRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
+func createRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -56,7 +57,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			serverError(w, err)
 			return
 		}
-		runCreateEvents(req.Context(), store, machine, record, actor.ID)
+		runCreateEvents(req.Context(), store, mailer, machine, record, actor.ID)
 
 		renderMachineBody(w, req, machines, machine, store, actor)
 	}
@@ -163,7 +164,7 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store, cfg c
 // right -- one about file inputs, one about who may change a decision, one about Constraints --
 // and reading this handler should show the order they run in, which is itself the contract
 // (005-runtime-lifecycle.md "Security Ordering").
-func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
+func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, machines, req)
 		if !ok {
@@ -201,7 +202,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			recordError(w, err)
 			return
 		}
-		runEvents(req.Context(), store, machine, record, actor.ID, oldValues, oldValuesOK)
+		runEvents(req.Context(), store, mailer, machines, machine, record, actor.ID, oldValues, oldValuesOK)
 
 		renderRecord(w, req, machines, store, files, machine, record, actor)
 	}

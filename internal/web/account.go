@@ -77,6 +77,64 @@ func submitProfile(store *data.Store, cfg config.Config) http.HandlerFunc {
 	}
 }
 
+// showAccountNotifications renders the signed-in identity's own email-notification preferences
+// (Flow 2 gap study Tahap 6, ports ui-sample/account-notifications.html's two real rows) -- an
+// identity-level credential, the same "Account" placement Profile/Security already establish.
+//
+// credentialFor, not a second store.GetCredential: resolveChrome's own identity already read this
+// exact row (for the display name), and a second read here was the first violation
+// TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed ever caught on this route. A missing credential
+// (the shared admin credential's placeholder subject, which "predates Workspace membership
+// entirely and has no row" -- requireWorkspaceAdmin's own doc comment) degrades to the column
+// defaults (true/true) rather than a 500.
+func showAccountNotifications(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		chrome, err := resolveChrome(ctx, req, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		cred, err := credentialFor(ctx, store, chrome.Email)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		notifyAssigned, notifyDecided := true, true
+		if cred != nil {
+			notifyAssigned, notifyDecided = cred.NotifyAssigned, cred.NotifyDecided
+		}
+		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
+		render(ctx, w, rendering.AccountNotificationsPage(notifyAssigned, notifyDecided, chrome.WorkspaceName, chrome.Viewer(), switchHref))
+	}
+}
+
+// submitAccountNotifications saves the two toggles -- a plain checkbox pair, so an unchecked box
+// simply never appears in the posted form (the same reason data.ValuesFromForm treats a boolean
+// Field this way elsewhere): form.Has, not form.Get, is what tells "off" apart from "missing".
+func submitAccountNotifications(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		if err := req.ParseForm(); err != nil {
+			http.Error(w, "invalid form body", http.StatusBadRequest)
+			return
+		}
+		email, ok := currentUserEmail(ctx, store, req, cfg)
+		if !ok {
+			http.Error(w, "no workspace membership for this identity", http.StatusForbidden)
+			return
+		}
+		assigned := req.Form.Has("notify_assigned")
+		decided := req.Form.Has("notify_decided")
+		if err := store.UpdateNotificationPreferences(ctx, email, assigned, decided); err != nil {
+			serverError(w, err)
+			return
+		}
+		redirectTo(w, req, "/account-notifications")
+	}
+}
+
 // showSecurity renders the signed-in identity's own Security page. No extra data beyond chrome --
 // see rendering.SecurityPage's own doc comment for why there is no session list to fetch.
 func showSecurity(store *data.Store, cfg config.Config) http.HandlerFunc {

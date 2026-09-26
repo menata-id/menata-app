@@ -12,10 +12,12 @@ import (
 
 	"github.com/a-h/templ"
 
+	"menata.app/internal/action"
 	"menata.app/internal/behavior"
 	"menata.app/internal/composition"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/mail"
 )
 
 // pageFromQuery reads a 1-indexed ?page= query param, clamped to [1, totalPages], defaulting to
@@ -105,6 +107,72 @@ func logActivity(ctx context.Context, store *data.Store, machineID, recordID, ac
 	}
 }
 
+// sendNotification is ServiceSendNotification's own I/O half (Flow 2 gap study Tahap 6): write an
+// mch_notification record unconditionally, then email its recipient too if their own preference
+// allows it. Best-effort throughout, the same posture logActivity/rollUpParentStatus already take
+// -- a failure here must never fail the write it's describing.
+//
+// recipientID comes from notify.RecipientField on the record the Event fired on (domain.Notify's
+// own doc comment: no cross-record resolution built yet). Empty is a normal outcome, not an error
+// -- a Group-held Approval Step (CAP-F24) has no single person to notify, named and skipped here
+// rather than solved.
+func sendNotification(ctx context.Context, store *data.Store, mailer mail.Mailer, machine *domain.Machine, record *data.Record, notify domain.Notify, message string) {
+	recipientID := fmt.Sprint(record.Values[notify.RecipientField])
+	if recipientID == "" || recipientID == "<nil>" {
+		return
+	}
+
+	values := map[string]any{
+		"fld_recipient": recipientID,
+		"fld_message":   message,
+		"fld_link":      notificationLinkFor(machine.ID, record.ID),
+	}
+	if _, err := store.CreateRecord(ctx, "mch_notification", values); err != nil {
+		log.Printf("failed to create notification for %s: %v", recipientID, err)
+	}
+
+	recipient, err := store.GetRecord(ctx, domain.UserMachineID, recipientID)
+	if err != nil {
+		log.Printf("notify %s: reading recipient %s: %v", notify.PreferenceKey, recipientID, err)
+		return
+	}
+	email := fmt.Sprint(recipient.Values["fld_email"])
+	if email == "" || email == "<nil>" {
+		return
+	}
+	cred, err := store.GetCredential(ctx, email)
+	if err != nil {
+		log.Printf("notify %s: reading credential for %s: %v", notify.PreferenceKey, email, err)
+		return
+	}
+	wantsEmail := true
+	switch notify.PreferenceKey {
+	case "assigned":
+		wantsEmail = cred.NotifyAssigned
+	case "decided":
+		wantsEmail = cred.NotifyDecided
+	}
+	if !wantsEmail {
+		return
+	}
+	if err := mailer.Send(ctx, email, "Menata App", message); err != nil {
+		log.Printf("notify %s: sending email to %s: %v", notify.PreferenceKey, email, err)
+	}
+}
+
+// notificationLinkFor is a named hardcoding exception (writing-guide.md): a notification's real
+// destination is not always the generic record detail page. mch_approval_step's own generic page
+// is explicitly "POC scaffolding no real approver should land on" (detail.templ's detailBackLink,
+// same reasoning) -- its real screen is /review. Forward pointer: a second notification-emitting
+// Machine pair needing a non-generic destination is the trigger to generalize this into a declared
+// Field rather than a per-Machine-id branch.
+func notificationLinkFor(machineID, recordID string) string {
+	if machineID == action.StepMachineID {
+		return fmt.Sprintf("/machines/%s/records/%s/review", machineID, recordID)
+	}
+	return fmt.Sprintf("/machines/%s/records/%s", machineID, recordID)
+}
+
 // runCreateEvents is runEvents' own counterpart for the create path: every domain.Event a Machine
 // declares OnCreate (behavior.MatchedCreateEvents) fires once, unconditionally, for the record
 // just created -- generalizing what used to be a hardcoded per-Machine switch here
@@ -112,10 +180,13 @@ func logActivity(ctx context.Context, store *data.Store, machineID, recordID, ac
 // runEvents already established for field-change Events. renderEventSummary is reused as-is with
 // oldValues nil: a creation Event's own summary template only ever uses {field_id} placeholders,
 // never {old}/{new}, so nil resolves harmlessly.
-func runCreateEvents(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, actorID string) {
+func runCreateEvents(ctx context.Context, store *data.Store, mailer mail.Mailer, machine *domain.Machine, record *data.Record, actorID string) {
 	for _, e := range behavior.MatchedCreateEvents(machine) {
-		if e.Then.Name == domain.ServiceLogActivity {
+		switch e.Then.Name {
+		case domain.ServiceLogActivity:
 			logActivity(ctx, store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, nil, record.Values))
+		case domain.ServiceSendNotification:
+			sendNotification(ctx, store, mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, nil, record.Values))
 		}
 	}
 }
@@ -168,7 +239,11 @@ func snapshotValues(values map[string]any) map[string]any {
 // with the same best-effort posture logActivity already has (a failure is logged, never allowed
 // to fail the write it's describing). oldValuesOK is eventOldValues' own second return -- false
 // means its fetch failed, so no Event can be evaluated correctly and none should fire.
-func runEvents(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, actorID string, oldValues map[string]any, oldValuesOK bool) {
+//
+// machines is threaded through only so rollUpParentStatus can look up the *parent's* own Machine
+// (to dispatch its declared Events, Tahap 6) -- every other Service here still only ever touches
+// the one machine/record this call already names.
+func runEvents(ctx context.Context, store *data.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, actorID string, oldValues map[string]any, oldValuesOK bool) {
 	if !oldValuesOK {
 		return
 	}
@@ -177,7 +252,9 @@ func runEvents(ctx context.Context, store *data.Store, machine *domain.Machine, 
 		case domain.ServiceLogActivity:
 			logActivity(ctx, store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, oldValues, record.Values))
 		case domain.ServiceRollupParentStatus:
-			rollUpParentStatus(ctx, store, machine, record, e.On, *e.Then.Rollup)
+			rollUpParentStatus(ctx, store, mailer, machines, machine, record, actorID, e.On, *e.Then.Rollup)
+		case domain.ServiceSendNotification:
+			sendNotification(ctx, store, mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, oldValues, record.Values))
 		}
 	}
 }
@@ -192,12 +269,15 @@ func runEvents(ctx context.Context, store *data.Store, machine *domain.Machine, 
 // computed from what is actually stored -- the same reasoning the hardcoded recomputeDocumentStatus
 // this replaces already used.
 //
-// Known limitation, stated rather than assumed away: this write does not itself run Events on the
-// parent, because this runtime dispatches Events from handlers rather than from
-// data.Store.UpdateRecord. Upstream's own equivalent (capability-registry.md's CAP-A08) routes the
-// parent transition through the same path an HTTP request uses, so guards still apply to a
-// system-triggered change. No Machine declares an Event that would need that here today.
-func rollUpParentStatus(ctx context.Context, store *data.Store, machine *domain.Machine, record *data.Record, watchField string, r domain.Rollup) {
+// Closes a gap this function's own comment used to name: until 2026-09-26 this write never ran
+// Events on the *parent*, because this runtime dispatches Events from handlers rather than from
+// data.Store.UpdateRecord, and no Machine declared an Event that would have needed it. Tahap 6's
+// "my document was decided" notification is exactly such an Event
+// (mch_document.evt_document_approved_notify/_rejected_notify, on fld_status), so this now
+// snapshots the parent's own old values before the write and calls runEvents on it after a
+// successful one -- the same dispatch any handler would perform, one level deep (no Machine here
+// has a second rollup level to recurse into; not guarded against, because nothing forces the case).
+func rollUpParentStatus(ctx context.Context, store *data.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, actorID, watchField string, r domain.Rollup) {
 	parentID := fmt.Sprint(record.Values[r.ParentField])
 	if parentID == "" {
 		return
@@ -222,9 +302,14 @@ func rollUpParentStatus(ctx context.Context, store *data.Store, machine *domain.
 		log.Printf("rollup %s: reading parent %s: %v", r.TargetField, parentID, err)
 		return
 	}
+	oldParentValues := snapshotValues(parent.Values)
 	parent.Values[r.TargetField] = behavior.RollupValue(r, watched)
 	if _, err := store.UpdateRecord(ctx, parentField.RelatedMachine, parentID, parent.Values); err != nil {
 		log.Printf("rollup %s: writing parent %s: %v", r.TargetField, parentID, err)
+		return
+	}
+	if parentMachine, ok := machines[parentField.RelatedMachine]; ok {
+		runEvents(ctx, store, mailer, machines, parentMachine, parent, actorID, oldParentValues, true)
 	}
 }
 

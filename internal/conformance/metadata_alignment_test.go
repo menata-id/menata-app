@@ -152,6 +152,12 @@ var runtimeLevelRoutes = map[string]bool{
 	// configures, registered as fixed literals in router.go, declared by no navigation list.
 	"/account-profile":  true,
 	"/account-security": true,
+	// /account-notifications: same criterion, Flow 2 gap study Tahap 6. /notifications is the same
+	// category but not an Account menu item -- the header's own bell (appshell.templ's
+	// notificationBell), reachable regardless of which Applications are configured since a
+	// notification can concern any of them.
+	"/account-notifications": true,
+	"/notifications":         true,
 }
 
 var templHref = regexp.MustCompile(`href="(/[^"{]*)"`)

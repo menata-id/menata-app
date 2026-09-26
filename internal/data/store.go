@@ -267,6 +267,13 @@ type Credential struct {
 	FullName      string
 	PasswordHash  string
 	EmailVerified bool
+	// NotifyAssigned/NotifyDecided are Tahap 6's own email preferences (migrations/
+	// 014_notification_preferences.sql) -- identity-level, like everything else here, and default
+	// true so an existing credential (created before this column existed) keeps getting the emails
+	// it would have gotten had the preference always existed. sendNotification (internal/web) reads
+	// these; they gate only the email, never the in-app mch_notification row.
+	NotifyAssigned bool
+	NotifyDecided  bool
 }
 
 // CreateCredential stores a login credential's hashed password, keyed by email (ROADMAP.md
@@ -287,7 +294,8 @@ func (s *Store) CreateCredential(ctx context.Context, email, fullName, passwordH
 func (s *Store) GetCredential(ctx context.Context, email string) (*Credential, error) {
 	readLogFrom(ctx).record("credential by email")
 	cred := &Credential{Email: email}
-	err := s.pool.QueryRow(ctx, `SELECT full_name, password_hash, email_verified FROM credentials WHERE email = $1`, email).Scan(&cred.FullName, &cred.PasswordHash, &cred.EmailVerified)
+	err := s.pool.QueryRow(ctx, `SELECT full_name, password_hash, email_verified, notify_assigned, notify_decided FROM credentials WHERE email = $1`, email).
+		Scan(&cred.FullName, &cred.PasswordHash, &cred.EmailVerified, &cred.NotifyAssigned, &cred.NotifyDecided)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrCredentialNotFound
@@ -325,6 +333,20 @@ func (s *Store) SetFullName(ctx context.Context, email, fullName string) error {
 	ct, err := s.pool.Exec(ctx, `UPDATE credentials SET full_name = $2 WHERE email = $1`, email, fullName)
 	if err != nil {
 		return fmt.Errorf("set full name: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrCredentialNotFound
+	}
+	return nil
+}
+
+// UpdateNotificationPreferences replaces an identity's own email-notification preferences (Flow 2
+// gap study Tahap 6) -- an UPDATE, not an upsert, the same posture SetCredential/SetFullName take:
+// the only caller is /account-notifications, acting for an identity that is already signed in.
+func (s *Store) UpdateNotificationPreferences(ctx context.Context, email string, assigned, decided bool) error {
+	ct, err := s.pool.Exec(ctx, `UPDATE credentials SET notify_assigned = $2, notify_decided = $3 WHERE email = $1`, email, assigned, decided)
+	if err != nil {
+		return fmt.Errorf("update notification preferences: %w", err)
 	}
 	if ct.RowsAffected() == 0 {
 		return ErrCredentialNotFound
