@@ -680,13 +680,19 @@ func sheetPanelClasses(desktop string) string {
 // the header is a fixed 60px and sticky at top-0, so the panel's own offset is knowable without a
 // feature that is still Chromium-only.
 //
-// Profile, Notifications and Security are runtime-level routes (`/account-profile`,
-// `/account-notifications`, `/account-security`) -- they exist regardless of which Applications a
-// Workspace configures, the same category as `/home` above, so they're literals here rather than
-// routeByID lookups (nothing declares them in app.yaml navigation) -- all three are listed in
-// internal/conformance's runtimeLevelRoutes for exactly this reason. Sign out reuses pageShell's
-// own logout form shape (machine.templ) -- appShell-based screens had no sign-out at all before
-// this.
+// Profile and Security are runtime-level routes (`/account-profile`, `/account-security`) -- they
+// exist regardless of which Applications a Workspace configures, the same category as `/home`
+// above, so they're literals here rather than routeByID lookups (nothing declares them in app.yaml
+// navigation) -- both are listed in internal/conformance's runtimeLevelRoutes for exactly this
+// reason. Sign out reuses pageShell's own logout form shape (machine.templ) -- appShell-based
+// screens had no sign-out at all before this.
+//
+// Notifications (`/account-notifications`) is deliberately NOT listed here, even though it is the
+// same kind of runtime-level route: the owner asked to remove the duplicate entry point once the
+// Application Settings hub's own "Notifications" row (appsettings.templ's settingsStaticSections)
+// started linking to it -- one real destination, reached from where it's actually grouped by
+// Application, not two. The route and runtimeLevelRoutes entry both stay; only this menu item is
+// gone.
 // notificationBell is the header's own entry point into /notifications (Flow 2 gap study Tahap 6)
 // -- a plain link, not a popover, since the destination is a real page rather than a short menu.
 // The badge mirrors navBadge's own shape exactly (empty:hidden, hx-get/hx-trigger=load) but isn't
@@ -735,7 +741,6 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 				<div class="my-1 h-px bg-slate-100"></div>
 			}
 			<a href="/account-profile" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Profile</a>
-			<a href="/account-notifications" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Notifications</a>
 			<a href="/account-security" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Security</a>
 			<div class="my-1 h-px bg-slate-100"></div>
 			<form method="POST" action="/logout">
