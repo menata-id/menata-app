@@ -286,12 +286,19 @@ func settingsAccessRows(hub SettingsHubView, showingDetail bool) templ.Component
 	})
 }
 
-// settingsStaticSections are Communication and Configuration -- entirely static, since neither has
-// a metadata shape to derive from at all yet (ROADMAP.md "Application Settings hub", Phase 3):
-// Notifications has no declared per-Application preference concept anywhere in this schema;
-// Document types would need its own declared list, and a saved default Approval flow is CAP-V28
-// (ROADMAP.md's own "Planned" section) -- a new Machine, not a nav concept. Listed in
-// capabilities.md's own tables per CLAUDE.md's hardcoding-exception convention.
+// settingsStaticSections are Communication and Configuration. Document types and Approval flow
+// stay honest placeholders -- neither has a metadata shape to derive from at all yet
+// (`document_types:`/CAP-V28 are both still unbuilt, ROADMAP.md's own "Planned" section).
+//
+// Notifications is real since Tahap 6 (2026-09-26): the original gap study named this row's own
+// gap as "notifications (in-app and email, per user AND per Application)" -- the per-Application
+// half nothing built until now had a destination for. What Tahap 6 shipped is per-*identity*
+// preferences (`/account-notifications`, credentials-level, not a per-Application config table),
+// not a per-Application admin policy screen -- there is still no declared concept letting an admin
+// configure which alerts this Application sends by default, so that half of the original ask
+// stays unbuilt. But the identity-level page already groups its content by Application ("Document
+// Approval" as of Tahap 6), which is the real, honest destination this row can point at today
+// rather than leaving it a dead "Not built yet" tag for a capability that partially exists.
 func settingsStaticSections() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -317,7 +324,7 @@ func settingsStaticSections() templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = settingsPlaceholderRow("Notifications", "Default alerts for requests, reminders and SLA.").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = settingsRow("/account-notifications", "Notifications", "Which emails you receive for requests and decisions in this application.", false).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -400,7 +407,7 @@ func ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, act
 				var templ_7745c5c3_Var16 templ.SafeURL
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID(ctx, "nav_app_settings")))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 126, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 133, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -413,7 +420,7 @@ func ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, act
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(titleByID(ctx, "nav_app_settings"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 127, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 134, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -426,7 +433,7 @@ func ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, act
 				var templ_7745c5c3_Var18 string
 				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(titleByID(ctx, "nav_app_settings_permissions"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 129, Col: 88}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 136, Col: 88}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {
@@ -444,7 +451,7 @@ func ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, act
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(titleByID(ctx, "nav_app_settings"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 131, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 138, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -462,7 +469,7 @@ func ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, act
 					var templ_7745c5c3_Var20 string
 					templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(descriptionByID(ctx, "nav_app_settings"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 133, Col: 95}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 140, Col: 95}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 					if templ_7745c5c3_Err != nil {
@@ -481,7 +488,7 @@ func ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, act
 			var templ_7745c5c3_Var21 string
 			templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(titleByID(ctx, "nav_app_settings"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 138, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 145, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 			if templ_7745c5c3_Err != nil {
@@ -499,7 +506,7 @@ func ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, act
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(descriptionByID(ctx, "nav_app_settings"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 140, Col: 94}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/appsettings.templ`, Line: 147, Col: 94}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {

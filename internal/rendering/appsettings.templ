@@ -87,16 +87,23 @@ templ settingsAccessRows(hub SettingsHubView, showingDetail bool) {
 	}
 }
 
-// settingsStaticSections are Communication and Configuration -- entirely static, since neither has
-// a metadata shape to derive from at all yet (ROADMAP.md "Application Settings hub", Phase 3):
-// Notifications has no declared per-Application preference concept anywhere in this schema;
-// Document types would need its own declared list, and a saved default Approval flow is CAP-V28
-// (ROADMAP.md's own "Planned" section) -- a new Machine, not a nav concept. Listed in
-// capabilities.md's own tables per CLAUDE.md's hardcoding-exception convention.
+// settingsStaticSections are Communication and Configuration. Document types and Approval flow
+// stay honest placeholders -- neither has a metadata shape to derive from at all yet
+// (`document_types:`/CAP-V28 are both still unbuilt, ROADMAP.md's own "Planned" section).
+//
+// Notifications is real since Tahap 6 (2026-09-26): the original gap study named this row's own
+// gap as "notifications (in-app and email, per user AND per Application)" -- the per-Application
+// half nothing built until now had a destination for. What Tahap 6 shipped is per-*identity*
+// preferences (`/account-notifications`, credentials-level, not a per-Application config table),
+// not a per-Application admin policy screen -- there is still no declared concept letting an admin
+// configure which alerts this Application sends by default, so that half of the original ask
+// stays unbuilt. But the identity-level page already groups its content by Application ("Document
+// Approval" as of Tahap 6), which is the real, honest destination this row can point at today
+// rather than leaving it a dead "Not built yet" tag for a capability that partially exists.
 templ settingsStaticSections() {
 	<div class="flex flex-col gap-0.5">
 		<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Communication</h2>
-		@settingsPlaceholderRow("Notifications", "Default alerts for requests, reminders and SLA.")
+		@settingsRow("/account-notifications", "Notifications", "Which emails you receive for requests and decisions in this application.", false)
 	</div>
 	<div class="flex flex-col gap-0.5">
 		<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Configuration</h2>

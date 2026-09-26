@@ -1939,6 +1939,24 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   itself -- `viewerNameFor` is now pure, taking an already-resolved credential rather than fetching
   one.
 
+  **A stale placeholder found and closed the same day, by the owner asking where notification
+  settings actually belong**: `appsettings.templ`'s own Application Settings hub (`Application
+  Settings hub` entry, above) already carried a "Notifications" row under Communication --
+  `settingsPlaceholderRow`, "Not built yet" -- written in Phase 3 of that hub for the reason its own
+  comment gave: *"no existing declared fact to derive from at all... nothing to automate yet."* That
+  reason predates this entry and stopped being fully true the moment `/account-notifications`
+  existed. The two are genuinely different scopes, and re-checking the *original* gap study line
+  this row was always answering ("notifications (in-app and email, per user **and per
+  Application**)") is what settled it rather than guessing: Tahap 6 shipped the per-*identity* half
+  (an email preference on `credentials`, not a per-Application admin policy table), so an admin
+  still cannot configure which alerts an Application sends by default -- that half of the original
+  ask stays unbuilt, same as Document types/Approval flow beside it. But the identity-level page
+  already groups its content by Application ("Document Approval" as of Tahap 6), which is a real,
+  honest destination this row can point at today. Changed from `settingsPlaceholderRow` to a real
+  `settingsRow` linking to `/account-notifications`; Document types/Approval flow stay placeholders,
+  since neither has any shipped concept behind it at all. Verified live at
+  `/document-approval/settings`, both mobile and desktop sections.
+
 ## Planned
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
