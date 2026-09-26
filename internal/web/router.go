@@ -167,6 +167,11 @@ func Routes(d Deps) http.Handler {
 	r.Post("/accept-invite", rateLimitByAddress(inviteAcceptLimiter, "too many attempts -- try again later", submitAcceptInvite(d.Machines, d.Store, d.Cfg)))
 	r.Get("/choose-workspace", showChooseWorkspace(d.Store, d.Cfg))
 	r.Post("/choose-workspace", submitChooseWorkspace(d.Store, d.Cfg))
+	// Restore (Flow 2 gap study Tahap 7) is reachable pre-session, the same way Choose Workspace
+	// itself already is: the pending-email cookie names who is acting, not an authenticated
+	// session, since a Restore admin may be signing in via the Choose Workspace path rather than
+	// switching mid-session (submitSwitchWorkspace's /switch-workspace/restore counterpart below).
+	r.Post("/choose-workspace/restore", submitRestoreWorkspaceFromChoose(d.Store, d.Cfg))
 
 	r.Group(func(pr chi.Router) {
 		// First in the group, ahead of requireAuth: the diagnostic can only count what happens
@@ -187,6 +192,10 @@ func Routes(d Deps) http.Handler {
 		// resolved. Every route inside an Application passes through both, which is what makes
 		// "no role here means no access" complete rather than a list of gated handlers.
 		pr.Use(requireApplicationAccess(d.Store, d.Cfg))
+		// Tahap 7's own gate (Flow 2 gap study) -- one method-based rule above every write route in
+		// this whole group, not a per-Machine Permission. Needs currentWorkspaceRow, which
+		// resolveIdentity above already resolved, so this costs no extra query.
+		pr.Use(blockWritesToArchivedWorkspace(d.Store))
 
 		pr.Post("/logout", logout(d.Store, d.Cfg))
 
@@ -200,6 +209,9 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.Cfg))
 		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
 		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))
+		// Restore's mid-session counterpart -- allow-listed in blockWritesToArchivedWorkspace since
+		// it is the one write an archived Workspace must accept (see that gate's own doc comment).
+		pr.Post("/switch-workspace/restore", submitRestoreWorkspaceFromSwitch(d.Store, d.Cfg))
 		pr.Get("/create-workspace", showCreateWorkspace(d.Store, d.Cfg))
 		pr.Post("/create-workspace", submitCreateWorkspace(d.Machines, d.Store, d.Cfg))
 		pr.Get("/account-profile", showProfile(d.Store, d.Cfg))
@@ -250,6 +262,9 @@ func Routes(d Deps) http.Handler {
 			// nav_workspace_settings (Flow 2 gap study Tahap 5) -- the Workspace-level Settings
 			// hub, same admin gate as everything else in this group.
 			ar.Get("/workspace-settings", showWorkspaceSettings(d.Store, d.Cfg))
+			// Danger zone's Archive action (Flow 2 gap study Tahap 7) -- taken from inside the
+			// Workspace being archived, same admin gate as the hub itself.
+			ar.Post("/workspace-settings/archive", submitArchiveWorkspace(d.Store, d.Cfg))
 			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.Cfg))
 			ar.Post("/workspace-members/invite", submitInviteMember(d.Store, d.Mailer, d.Cfg))
 			ar.Post("/workspace-members/revoke-invite", submitRevokeInvite(d.Store))

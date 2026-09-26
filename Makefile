@@ -1,4 +1,4 @@
-DB_URL ?= $(shell grep DATABASE_URL .env 2>/dev/null | cut -d= -f2-)
+DB_URL ?= $(shell grep DATABASE_URL .env 2>/dev/null | cut -d= -f2- | tr -d "'\"")
 GOOSE   = go run github.com/pressly/goose/v3/cmd/goose@v3.28.0
 TEMPL   = go run github.com/a-h/templ/cmd/templ@v0.3.1020
 

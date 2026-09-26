@@ -103,6 +103,13 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			<script src={ assetURL("/vendor/hyperscript.min.js") } defer></script>
 		</head>
 		<body hx-headers={ csrfHeadersAttr(ctx) } class="m-0 bg-slate-50 font-sans text-slate-900">
+			// Read-only banner (Flow 2 gap study Tahap 7) -- the "keep the UI honest" half of
+			// blockWritesToArchivedWorkspace (internal/web/middleware.go), which is what actually
+			// enforces it. One banner on every authenticated page rather than disabling each
+			// individual form/button across the app -- the server refuses the write regardless.
+			if CurrentWorkspaceArchived(ctx) {
+				<div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">This workspace is archived and read-only.</div>
+			}
 			// The current Application's own menu (defaultAppMenu below) -- owner spec, ui-sample/
 			// README.md's "Menu Navigasi": level 2 is "untuk desktop ada di atas" (a second row inside
 			// this same header, not a bar stacked above it) and "untuk mobile ada di bagian bawah

@@ -34,7 +34,7 @@ func currentWorkspace(store *data.Store, workspaces map[string]domain.Workspace)
 			// doc comment now records). The fallback keeps a handler mounted without that
 			// middleware working, same as every other consumer of the identity.
 			if row, ok := currentWorkspaceRow(ctx, store); ok {
-				ctx = rendering.WithCurrentWorkspace(ctx, workspaces[row.Slug], row.Name)
+				ctx = rendering.WithCurrentWorkspace(ctx, workspaces[row.Slug], row.Name, row.Archived)
 				req = req.WithContext(ctx)
 			}
 			next.ServeHTTP(w, req)

@@ -28,13 +28,17 @@ type currentWorkspaceKey struct{}
 type currentWorkspace struct {
 	Workspace domain.Workspace
 	Name      string
+	// Archived rides along the same ctx value as Name (Flow 2 gap study Tahap 7) -- both come from
+	// the same `workspaces` row read once per request by internal/web.resolveIdentity, not from
+	// metadata, which is why this lives beside Name rather than on domain.Workspace itself.
+	Archived bool
 }
 
-// WithCurrentWorkspace puts the installed Workspace and its display name on ctx. name comes from
-// the `workspaces` row, not from metadata: a manifest names its Workspace by slug and deliberately
-// does not restate the name (domain.Workspace.Slug).
-func WithCurrentWorkspace(ctx context.Context, ws domain.Workspace, name string) context.Context {
-	return context.WithValue(ctx, currentWorkspaceKey{}, currentWorkspace{Workspace: ws, Name: name})
+// WithCurrentWorkspace puts the installed Workspace, its display name and its archived state on
+// ctx. name and archived come from the `workspaces` row, not from metadata: a manifest names its
+// Workspace by slug and deliberately does not restate either (domain.Workspace.Slug).
+func WithCurrentWorkspace(ctx context.Context, ws domain.Workspace, name string, archived bool) context.Context {
+	return context.WithValue(ctx, currentWorkspaceKey{}, currentWorkspace{Workspace: ws, Name: name, Archived: archived})
 }
 
 // CurrentWorkspace returns the installed Workspace for this request. The zero value is a real
@@ -49,6 +53,14 @@ func CurrentWorkspace(ctx context.Context) domain.Workspace {
 func CurrentWorkspaceName(ctx context.Context) string {
 	cw, _ := ctx.Value(currentWorkspaceKey{}).(currentWorkspace)
 	return cw.Name
+}
+
+// CurrentWorkspaceArchived reports whether this request's Workspace is archived (Flow 2 gap study
+// Tahap 7) -- appShell's own signal to show the read-only banner. The actual enforcement is
+// internal/web.blockWritesToArchivedWorkspace; this is the "keep the UI honest" half.
+func CurrentWorkspaceArchived(ctx context.Context) bool {
+	cw, _ := ctx.Value(currentWorkspaceKey{}).(currentWorkspace)
+	return cw.Archived
 }
 
 // declaredNavigation is every navigation item declared anywhere in the Workspace: its own list

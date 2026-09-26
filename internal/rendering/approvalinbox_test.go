@@ -72,7 +72,7 @@ func assignedNavFixture() context.Context {
 			ID: "nav_assigned_to_me", Label: "Assign Me", Title: "Assigned to me",
 			Description: "Every document that asked for your approval.", Route: "/approval-inbox?tab=assigned",
 		},
-	}}, "Test Workspace")
+	}}, "Test Workspace", false)
 }
 
 // TestApprovalInboxPage_AssignedTabRendersRows is the third tab's own proof: given a real

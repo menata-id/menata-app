@@ -19,7 +19,7 @@ func submitNavFixture(t *testing.T) context.Context {
 		{ID: "nav_home", Label: "Home", Route: "/home"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
 		{ID: "nav_new_approval", Label: "New Approval", Route: "/documents/new"},
-	}}, "Test Workspace")
+	}}, "Test Workspace", false)
 }
 
 // modeField and documentTypeField are the two mch_document Fields the wizard renders options from.

@@ -101,7 +101,7 @@ func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: []domain.NavigationItem{
 		{ID: "nav_home", Label: "Home", Route: "/home"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
-	}}, "Test Workspace")
+	}}, "Test Workspace", false)
 
 	v := ReviewView{
 		StepID: "stp_2", DocumentID: "doc_1",

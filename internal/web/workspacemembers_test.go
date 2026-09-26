@@ -50,7 +50,7 @@ func TestSubmitInviteMember_recordsInvitationWithoutMembership(t *testing.T) {
 		url.QueryEscape("app_role[app_document_approval]") + "=approver")
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", form)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace"))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)
@@ -108,7 +108,7 @@ func TestSubmitInviteMember_missingEmailIsRejected(t *testing.T) {
 	handler := submitInviteMember(store, mail.LogMailer{}, cfg)
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", strings.NewReader("email="))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace"))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)
@@ -153,7 +153,7 @@ func TestSubmitInviteMember_existingMemberIsRejected(t *testing.T) {
 	handler := submitInviteMember(store, mail.LogMailer{}, cfg)
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/invite", strings.NewReader("email="+email))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace"))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), inviteRoleWorkspace(), "Test Workspace", false))
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)

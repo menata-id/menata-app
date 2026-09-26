@@ -101,7 +101,7 @@ func TestSignaturePlacementPut_preservesApproverFields(t *testing.T) {
 		strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, member.ID, 0)})
-	req = req.WithContext(rendering.WithCurrentWorkspace(wsCtx, testWorkspaceFor(machines), "Test Workspace"))
+	req = req.WithContext(rendering.WithCurrentWorkspace(wsCtx, testWorkspaceFor(machines), "Test Workspace", false))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 

@@ -29,7 +29,7 @@ func workspaceHomeLinksTo(t *testing.T, workspaceRole, route string) bool {
 		{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups"},
 		{ID: "nav_approval_inbox", Label: "Approval Inbox", Route: "/approval-inbox"},
 	}
-	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: all}, "Test Workspace")
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: all}, "Test Workspace", false)
 
 	var buf bytes.Buffer
 	c := WorkspaceHomePage("Acme", Viewer{Initials: "AN", WorkspaceRole: workspaceRole}, "", []ApplicationCard{

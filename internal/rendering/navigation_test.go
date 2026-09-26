@@ -20,7 +20,7 @@ func TestRouteByID_survivesHiddenNavGroup(t *testing.T) {
 			// ...but every declared item is still resolvable by id:
 			AllNavigation: all,
 		}},
-	}, "Test Workspace")
+	}, "Test Workspace", false)
 
 	if got := routeByID(ctx, "nav_approval_inbox"); got != "/approval-inbox" {
 		t.Errorf("routeByID(ctx, nav_approval_inbox) with show_nav: false = %q, want /approval-inbox still resolvable", got)
@@ -35,7 +35,7 @@ func TestRouteByID_survivesHiddenNavGroup(t *testing.T) {
 }
 
 func TestRouteByID_unknownIDPanics(t *testing.T) {
-	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace")
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
 
 	defer func() {
 		if recover() == nil {

@@ -16,7 +16,7 @@ import (
 // (nav_workspace_settings, nav_home, nav_workspace_members) is one of domain.RuntimeScreens,
 // appended by declaredNavigation regardless of what the Workspace itself declares.
 func TestWorkspaceSettingsPage_realRowsAndPlaceholders(t *testing.T) {
-	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Dokter Kecil")
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Dokter Kecil", false)
 
 	var buf bytes.Buffer
 	if err := WorkspaceSettingsPage("Dokter Kecil", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
@@ -27,17 +27,20 @@ func TestWorkspaceSettingsPage_realRowsAndPlaceholders(t *testing.T) {
 	for _, want := range []string{
 		`href="/home"`, "Applications",
 		`href="/workspace-members"`, "Workspace Members", "Invitations",
+		// Danger zone (Flow 2 gap study Tahap 7): Archive is real now, Transfer ownership stays a
+		// placeholder -- both live under the same "Danger zone" heading.
+		"Danger zone", `action="/workspace-settings/archive"`, "Archive workspace",
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("rendered page missing %q", want)
 		}
 	}
-	for _, label := range []string{"General", "Authentication", "Audit log", "Danger zone"} {
+	for _, label := range []string{"General", "Authentication", "Audit log", "Transfer ownership"} {
 		if !strings.Contains(html, label) {
 			t.Errorf("rendered page missing placeholder row %q", label)
 		}
 	}
 	if strings.Count(html, "Not built yet") != 4 {
-		t.Errorf(`"Not built yet" appeared %d times, want 4 (General, Authentication, Audit log, Danger zone)`, strings.Count(html, "Not built yet"))
+		t.Errorf(`"Not built yet" appeared %d times, want 4 (General, Authentication, Audit log, Transfer ownership)`, strings.Count(html, "Not built yet"))
 	}
 }

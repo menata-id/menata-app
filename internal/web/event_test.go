@@ -78,7 +78,7 @@ func putTaskStatus(t *testing.T, s eventTestSetup, newStatus string) *httptest.R
 	form := "fld_title=Fix+bug&fld_status=" + newStatus
 	req := httptest.NewRequest(http.MethodPut, "/machines/mch_task/records/"+s.taskID, strings.NewReader(form))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace"))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace", false))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()
@@ -162,7 +162,7 @@ func TestCreateRecordForm_taskCreationLogsActivity(t *testing.T) {
 	form := "fld_title=New+Task"
 	req := httptest.NewRequest(http.MethodPost, "/machines/mch_task/records", strings.NewReader(form))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace"))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace", false))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()
@@ -201,7 +201,7 @@ func TestCreateRecord_api_taskCreationLogsActivity(t *testing.T) {
 	body := `{"fld_title":"API Task"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/machines/mch_task/records", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace"))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace", false))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()

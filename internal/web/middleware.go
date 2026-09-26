@@ -126,6 +126,51 @@ func requireWorkspaceAdmin(store *data.Store, cfg config.Config) func(http.Handl
 	}
 }
 
+// archivedWriteAllowlist is the small, named exception to blockWritesToArchivedWorkspace below:
+// requests a member sitting inside an archived Workspace must still be able to make even though
+// every other write is refused. Each entry carries its own reason rather than being pooled into
+// one comment, the same discipline readPathWriters/getSweepRatchet already document their own
+// exceptions with (CLAUDE.md's "a named, forward-checkable exception").
+var archivedWriteAllowlist = map[string]bool{
+	// Signing out must always work, archived Workspace or not -- refusing it would leave someone
+	// stuck signed into a read-only Workspace with no way to leave the session.
+	"/logout": true,
+	// Switching to a DIFFERENT Workspace must always work -- otherwise a member whose current
+	// Workspace was archived out from under them could never reach any other one they belong to.
+	"/switch-workspace": true,
+	// Restoring THIS Workspace is the one write an archived Workspace must accept -- see
+	// restoreWorkspaceIfAdmin (auth.go), which re-checks admin status on the target Workspace
+	// itself rather than trusting this allowlist as the authorization.
+	"/switch-workspace/restore": true,
+	// Creating a brand-new Workspace is unrelated to the current one's archived state.
+	"/create-workspace": true,
+}
+
+// blockWritesToArchivedWorkspace is Tahap 7's own gate (Flow 2 gap study, menata-app-document's
+// audits/2026-09-23-kajian-gap-mockup-flow2.md §5.2): "read-only" for an archived Workspace is not
+// a per-Machine Permission, it is one gate above every write action, regardless of which Machine
+// or Application the route concerns. Registered once in the authenticated group, right after
+// resolveIdentity/currentWorkspace establish which Workspace this request is in.
+//
+// Method-based rather than per-route: any request that is not GET/HEAD is a write by this app's
+// own convention (internal/conformance.TestGetRoutesDoNotWrite proves the converse holds -- no GET
+// route reaches a mutation), so refusing every non-GET/HEAD request is precise with no per-Machine
+// or per-Application awareness needed. Costs no extra query: currentWorkspaceRow reads the
+// identity's already-resolved Workspace row (resolveIdentity's own eager GetWorkspace).
+func blockWritesToArchivedWorkspace(store *data.Store) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.Method != http.MethodGet && req.Method != http.MethodHead && !archivedWriteAllowlist[req.URL.Path] {
+				if row, ok := currentWorkspaceRow(req.Context(), store); ok && row.Archived {
+					http.Error(w, "this workspace is archived and read-only", http.StatusForbidden)
+					return
+				}
+			}
+			next.ServeHTTP(w, req)
+		})
+	}
+}
+
 // queryDiagnostics reports what each request actually read: how many statements it issued, how
 // many of those repeated a target it had already fetched, and the per-target breakdown
 // (ROADMAP.md Phase 18 Step 3). Phase 6 needed a throwaway probe inside internal/data to learn

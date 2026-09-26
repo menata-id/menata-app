@@ -2,12 +2,15 @@ package web
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"menata.app/internal/authorization"
+	"menata.app/internal/config"
 	"menata.app/internal/data"
 )
 
@@ -162,5 +165,49 @@ func TestAuthenticateMember_verifiedCredentialSucceeds(t *testing.T) {
 
 	if outcome := authenticateMember(ctx, store, email, "a-real-password"); outcome != loginOK {
 		t.Errorf("authenticateMember(correct password, verified) = %v, want loginOK", outcome)
+	}
+}
+
+// TestCompleteLogin_singleArchivedMembershipFallsThroughToChooseWorkspace is Tahap 7's own edge
+// case (Flow 2 gap study): the single-membership fast path must not sign an identity straight into
+// a Workspace that just became read-only and hidden from ordinary members -- that would strand an
+// admin with no visible way to reach Choose Workspace's own Restore. One membership, archived,
+// must land on Choose Workspace exactly as if there were several.
+func TestCompleteLogin_singleArchivedMembershipFallsThroughToChooseWorkspace(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	cfg := config.Config{SessionSecret: "complete-login-archived-test-secret", SecureCookies: false}
+	ctx := context.Background()
+	const email = "complete_login_archived_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Complete Login Archived Test", "complete-login-archived-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	user, err := store.CreateRecord(data.WithWorkspaceScope(ctx, ws.ID), "mch_user", map[string]any{"fld_name": "Complete Login Archived", "fld_email": email})
+	if err != nil {
+		t.Fatalf("CreateRecord: %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "admin", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	if err := store.ArchiveWorkspace(ctx, ws.ID); err != nil {
+		t.Fatalf("ArchiveWorkspace: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/login", nil)
+	rec := httptest.NewRecorder()
+	if err := completeLogin(rec, req, cfg, store, email); err != nil {
+		t.Fatalf("completeLogin: %v", err)
+	}
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("completeLogin(sole archived membership) status = %d, want 303; body=%s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != "/choose-workspace" {
+		t.Errorf("completeLogin(sole archived membership) redirected to %q, want /choose-workspace (not /home)", got)
+	}
+	if cookies := rec.Result().Cookies(); len(cookies) == 0 {
+		t.Error("completeLogin(sole archived membership) set no cookie, want the pending-email cookie Choose Workspace reads")
 	}
 }

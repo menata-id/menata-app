@@ -130,15 +130,23 @@ func authenticateMember(ctx context.Context, store *data.Store, email, password 
 // exactly one signs in directly, more than one defers to Choose Workspace. Shared by submitLogin's
 // own per-user path, /verify-email, and Step E's /reset-password: each ends the same way once an
 // email is allowed in, so this is the one place that logic lives.
+//
+// The single-membership fast path also requires that one Workspace not be archived (Flow 2 gap
+// study Tahap 7): skipping straight to /home would otherwise strand an admin whose only Workspace
+// just became read-only, with no visible way to reach Choose Workspace's own Restore. Falling
+// through to the default branch instead renders it as if there were several -- zero live rows,
+// plus (for an admin) the archived section with Restore, or (for anyone else) an honest empty
+// list, neither of which the mockup itself anticipates but both of which are the honest result of
+// "the Workspace you're a member of happens to be archived", not a case this file is guessing at.
 func completeLogin(w http.ResponseWriter, req *http.Request, cfg config.Config, store *data.Store, email string) error {
 	memberships, err := store.ListMemberships(req.Context(), email)
 	if err != nil {
 		return err
 	}
-	switch len(memberships) {
-	case 0:
+	switch {
+	case len(memberships) == 0:
 		http.Error(w, "no workspace membership found for this account", http.StatusForbidden)
-	case 1:
+	case len(memberships) == 1 && !memberships[0].Archived:
 		if err := setSessionCookieFor(req.Context(), store, w, cfg, memberships[0].UserRecordID); err != nil {
 			return err
 		}
@@ -332,9 +340,82 @@ func loadWorkspaceChoices(ctx context.Context, store *data.Store, email string) 
 	// the diagnostics because the identity it was measured with belonged to a single Workspace.
 	choices := make([]rendering.WorkspaceChoice, 0, len(memberships))
 	for _, m := range memberships {
-		choices = append(choices, rendering.WorkspaceChoice{ID: m.WorkspaceID, Name: m.WorkspaceName, Role: m.WorkspaceRole})
+		choice := rendering.WorkspaceChoice{ID: m.WorkspaceID, Name: m.WorkspaceName, Role: m.WorkspaceRole, Archived: m.Archived}
+		if m.ArchivedAt != nil {
+			choice.ArchivedAt = m.ArchivedAt.Format("2 Jan 2006")
+		}
+		choices = append(choices, choice)
 	}
 	return choices, nil
+}
+
+// restoreWorkspaceIfAdmin un-archives workspaceID on email's behalf (Flow 2 gap study Tahap 7),
+// refusing unless email holds an admin membership in THAT Workspace specifically -- not the
+// ambient ctx-scoped one, since Restore is reached from *outside* the Workspace being restored
+// (the mockup's own archived row has no "open" link, only Restore -- WorkspaceArchived.dc.html).
+// "no such membership" and "found but not admin" collapse to the same ok=false, the same shape
+// resolveWorkspaceMembership already uses for "not a member of that workspace" -- a caller 403s
+// identically either way.
+func restoreWorkspaceIfAdmin(ctx context.Context, store *data.Store, email, workspaceID string) (ok bool, err error) {
+	memberships, err := store.ListMemberships(ctx, email)
+	if err != nil {
+		return false, err
+	}
+	for _, m := range memberships {
+		if m.WorkspaceID == workspaceID && m.WorkspaceRole == "admin" {
+			return true, store.RestoreWorkspace(ctx, workspaceID)
+		}
+	}
+	return false, nil
+}
+
+// submitRestoreWorkspace is the POST body Restore's two entry points below share -- they differ
+// only in how the acting email is resolved (pre-session pending cookie vs. mid-session identity)
+// and which screen to return to.
+func submitRestoreWorkspace(w http.ResponseWriter, req *http.Request, store *data.Store, email, backTo string) {
+	if err := req.ParseForm(); err != nil {
+		http.Error(w, "invalid form body", http.StatusBadRequest)
+		return
+	}
+	ok, err := restoreWorkspaceIfAdmin(req.Context(), store, email, req.FormValue("workspace_id"))
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	if !ok {
+		http.Error(w, "not an admin of that workspace", http.StatusForbidden)
+		return
+	}
+	redirectTo(w, req, backTo)
+}
+
+// submitRestoreWorkspaceFromChoose is Restore's pre-session entry point: Choose Workspace's own
+// "Archived workspaces" list, reached before any Workspace-scoped session exists, so the pending
+// email cookie names who is acting -- the same identity source /choose-workspace itself already
+// uses.
+func submitRestoreWorkspaceFromChoose(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		email, ok := authorization.PendingEmail(req, cfg.SessionSecret)
+		if !ok {
+			http.Redirect(w, req, "/login", http.StatusSeeOther)
+			return
+		}
+		submitRestoreWorkspace(w, req, store, email, "/choose-workspace")
+	}
+}
+
+// submitRestoreWorkspaceFromSwitch is Restore's mid-session counterpart, from the Workspace
+// switcher's own archived list -- allow-listed in blockWritesToArchivedWorkspace, since restoring
+// the current Workspace is the one write it must accept while sitting inside it read-only.
+func submitRestoreWorkspaceFromSwitch(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		email, ok := currentUserEmail(req.Context(), store, req, cfg)
+		if !ok {
+			redirectTo(w, req, "/home")
+			return
+		}
+		submitRestoreWorkspace(w, req, store, email, "/switch-workspace")
+	}
 }
 
 // logout bumps the current session's generation before clearing its cookie (security audit

@@ -134,6 +134,53 @@ func TestStore_MembershipLifecycle(t *testing.T) {
 	}
 }
 
+// TestStore_ListMemberships_reflectsArchivedState is Choose Workspace's own read path: the same
+// join that already returns WorkspaceName must also return Archived/ArchivedAt, since
+// loadWorkspaceChoices (internal/web/auth.go) has no second query to fall back on.
+func TestStore_ListMemberships_reflectsArchivedState(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+	ctx := context.Background()
+	const email = "archived_membership_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Archived Membership Test", "archived-membership-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupWorkspaceTest(t, pool, ws.ID, email)
+
+	if err := store.CreateCredential(ctx, email, "Test Person", "hashed-value", false); err != nil {
+		t.Fatalf("CreateCredential: %v", err)
+	}
+	user, err := store.CreateRecord(WithWorkspaceScope(ctx, ws.ID), "mch_user", map[string]any{"fld_name": "Test Member", "fld_email": email})
+	if err != nil {
+		t.Fatalf("CreateRecord(mch_user): %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "admin", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	before, err := store.ListMemberships(ctx, email)
+	if err != nil {
+		t.Fatalf("ListMemberships (before archive): %v", err)
+	}
+	if len(before) != 1 || before[0].Archived || before[0].ArchivedAt != nil {
+		t.Fatalf("ListMemberships (before archive) = %+v, want one live (unarchived) membership", before)
+	}
+
+	if err := store.ArchiveWorkspace(ctx, ws.ID); err != nil {
+		t.Fatalf("ArchiveWorkspace: %v", err)
+	}
+
+	after, err := store.ListMemberships(ctx, email)
+	if err != nil {
+		t.Fatalf("ListMemberships (after archive): %v", err)
+	}
+	if len(after) != 1 || !after[0].Archived || after[0].ArchivedAt == nil {
+		t.Fatalf("ListMemberships (after archive) = %+v, want one archived membership with ArchivedAt set", after)
+	}
+}
+
 func TestStore_GetMembership_notFound(t *testing.T) {
 	pool := storePool(t)
 	store := NewStore(pool)
@@ -161,5 +208,75 @@ func TestStore_UpdateMemberRole_notFound(t *testing.T) {
 	err := store.UpdateMemberRole(context.Background(), "ws_does_not_exist", "rec_does_not_exist", "member", "")
 	if !errors.Is(err, ErrRecordNotFound) {
 		t.Errorf("UpdateMemberRole(missing) error = %v, want ErrRecordNotFound", err)
+	}
+}
+
+// TestStore_ArchiveRestoreWorkspace is Tahap 7's own round-trip: archive sets Archived/ArchivedAt,
+// restore clears both, and each refuses (ErrRecordNotFound) when the Workspace is already in the
+// state being asked for -- the guard that stops a re-archive from silently bumping archived_at to
+// a later moment.
+func TestStore_ArchiveRestoreWorkspace(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+	ctx := context.Background()
+
+	ws, err := store.CreateWorkspace(ctx, "Archive Test", "archive-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	t.Cleanup(func() {
+		if _, err := pool.Exec(ctx, `DELETE FROM workspaces WHERE id = $1`, ws.ID); err != nil {
+			t.Errorf("cleanup workspaces: %v", err)
+		}
+	})
+
+	if err := store.ArchiveWorkspace(ctx, ws.ID); err != nil {
+		t.Fatalf("ArchiveWorkspace: %v", err)
+	}
+	archived, err := store.GetWorkspace(ctx, ws.ID)
+	if err != nil {
+		t.Fatalf("GetWorkspace after archive: %v", err)
+	}
+	if !archived.Archived || archived.ArchivedAt == nil {
+		t.Fatalf("GetWorkspace after archive = %+v, want Archived=true and ArchivedAt set", archived)
+	}
+
+	if err := store.ArchiveWorkspace(ctx, ws.ID); !errors.Is(err, ErrRecordNotFound) {
+		t.Errorf("ArchiveWorkspace(already archived) error = %v, want ErrRecordNotFound", err)
+	}
+
+	if err := store.RestoreWorkspace(ctx, ws.ID); err != nil {
+		t.Fatalf("RestoreWorkspace: %v", err)
+	}
+	restored, err := store.GetWorkspace(ctx, ws.ID)
+	if err != nil {
+		t.Fatalf("GetWorkspace after restore: %v", err)
+	}
+	if restored.Archived || restored.ArchivedAt != nil {
+		t.Fatalf("GetWorkspace after restore = %+v, want Archived=false and ArchivedAt nil", restored)
+	}
+
+	if err := store.RestoreWorkspace(ctx, ws.ID); !errors.Is(err, ErrRecordNotFound) {
+		t.Errorf("RestoreWorkspace(already live) error = %v, want ErrRecordNotFound", err)
+	}
+}
+
+func TestStore_ArchiveWorkspace_notFound(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+
+	err := store.ArchiveWorkspace(context.Background(), "ws_does_not_exist")
+	if !errors.Is(err, ErrRecordNotFound) {
+		t.Errorf("ArchiveWorkspace(missing) error = %v, want ErrRecordNotFound", err)
+	}
+}
+
+func TestStore_RestoreWorkspace_notFound(t *testing.T) {
+	pool := storePool(t)
+	store := NewStore(pool)
+
+	err := store.RestoreWorkspace(context.Background(), "ws_does_not_exist")
+	if !errors.Is(err, ErrRecordNotFound) {
+		t.Errorf("RestoreWorkspace(missing) error = %v, want ErrRecordNotFound", err)
 	}
 }

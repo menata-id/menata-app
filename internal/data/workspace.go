@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -17,6 +18,12 @@ type Workspace struct {
 	ID   string
 	Name string
 	Slug string
+	// Archived and ArchivedAt are the Workspace lifecycle (Flow 2 gap study Tahap 7,
+	// migrations/013_workspace_archive.sql). ArchivedAt is nil for a live Workspace, and cleared
+	// (not historized) on restore -- see the migration's own doc comment for why this is the
+	// moment of the *current* archival, not a log of every archive/restore cycle.
+	Archived   bool
+	ArchivedAt *time.Time
 }
 
 // CreateWorkspace inserts a new Workspace, retrying with a numeric suffix on a slug collision
@@ -45,11 +52,14 @@ func (s *Store) CreateWorkspace(ctx context.Context, name, baseSlug string) (*Wo
 }
 
 // GetWorkspace returns one Workspace by id, for Choose Workspace's own labels (a membership row
-// names a workspace_id, not a display name).
+// names a workspace_id, not a display name) and -- since migrations/013_workspace_archive.sql --
+// for resolveIdentity's own eager read, which is what lets blockWritesToArchivedWorkspace check
+// Archived at zero extra query cost: this is already fetched once per request.
 func (s *Store) GetWorkspace(ctx context.Context, id string) (*Workspace, error) {
 	readLogFrom(ctx).record("workspace by id")
 	w := &Workspace{ID: id}
-	err := s.pool.QueryRow(ctx, `SELECT name, slug FROM workspaces WHERE id = $1`, id).Scan(&w.Name, &w.Slug)
+	err := s.pool.QueryRow(ctx, `SELECT name, slug, archived, archived_at FROM workspaces WHERE id = $1`, id).
+		Scan(&w.Name, &w.Slug, &w.Archived, &w.ArchivedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRecordNotFound
@@ -57,6 +67,35 @@ func (s *Store) GetWorkspace(ctx context.Context, id string) (*Workspace, error)
 		return nil, fmt.Errorf("get workspace: %w", err)
 	}
 	return w, nil
+}
+
+// ArchiveWorkspace marks a Workspace read-only and hidden from its ordinary members (Flow 2 gap
+// study Tahap 7) -- the Danger Zone action, taken from *inside* the Workspace being archived
+// (requireWorkspaceAdmin on the current ctx scope; see submitArchiveWorkspace).
+func (s *Store) ArchiveWorkspace(ctx context.Context, id string) error {
+	ct, err := s.pool.Exec(ctx, `UPDATE workspaces SET archived = true, archived_at = now() WHERE id = $1 AND archived = false`, id)
+	if err != nil {
+		return fmt.Errorf("archive workspace: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrRecordNotFound
+	}
+	return nil
+}
+
+// RestoreWorkspace reverses ArchiveWorkspace -- taken from *outside* the Workspace being restored
+// (Choose Workspace's own "Archived workspaces" list, per-target-workspace admin check; see
+// restoreWorkspaceIfAdmin), since an archived Workspace's own read-only gate would otherwise make
+// restoring it from within impossible.
+func (s *Store) RestoreWorkspace(ctx context.Context, id string) error {
+	ct, err := s.pool.Exec(ctx, `UPDATE workspaces SET archived = false, archived_at = NULL WHERE id = $1 AND archived = true`, id)
+	if err != nil {
+		return fmt.Errorf("restore workspace: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrRecordNotFound
+	}
+	return nil
 }
 
 // Membership is one identity's role within one Workspace (ROADMAP.md Phase 21 Step 3/8):
@@ -92,6 +131,10 @@ type Membership struct {
 	// It lives here rather than being fetched per row because fetching it per row is precisely
 	// what it replaced -- see ListMemberships' own doc comment.
 	WorkspaceName string
+	// Archived/ArchivedAt ride along the same join, for Choose Workspace's own live/archived split
+	// (Flow 2 gap study Tahap 7) -- filled by ListMemberships only, same as WorkspaceName.
+	Archived   bool
+	ArchivedAt *time.Time
 }
 
 // appRolesFor reads the per-Application roles of one member.
@@ -252,7 +295,7 @@ func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership
 	readLogFrom(ctx).record("memberships by email")
 	rows, err := s.pool.Query(ctx, `
 		SELECT wm.workspace_id, wm.user_record_id, wm.email, wm.workspace_role,
-		       COALESCE(wm.app_role, ''), w.name
+		       COALESCE(wm.app_role, ''), w.name, w.archived, w.archived_at
 		FROM workspace_members wm
 		JOIN workspaces w ON w.id = wm.workspace_id
 		WHERE wm.email = $1
@@ -266,7 +309,7 @@ func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership
 	var memberships []Membership
 	for rows.Next() {
 		var m Membership
-		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole, &m.WorkspaceName); err != nil {
+		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole, &m.WorkspaceName, &m.Archived, &m.ArchivedAt); err != nil {
 			return nil, fmt.Errorf("scan membership: %w", err)
 		}
 		memberships = append(memberships, m)

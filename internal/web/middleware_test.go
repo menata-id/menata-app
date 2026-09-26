@@ -160,7 +160,7 @@ func TestRequireApplicationAccess(t *testing.T) {
 		// test supplies it the same way rather than handing it to the middleware directly.
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				next.ServeHTTP(w, req.WithContext(rendering.WithCurrentWorkspace(req.Context(), workspace, "Test Workspace")))
+				next.ServeHTTP(w, req.WithContext(rendering.WithCurrentWorkspace(req.Context(), workspace, "Test Workspace", false)))
 			})
 		})
 		r.Use(currentApplication())

@@ -258,7 +258,7 @@ func postDecideAs(t *testing.T, s decideStepTestSetup, stepID, actorID, decision
 	}
 	req := httptest.NewRequest(http.MethodPost, "/machines/"+action.StepMachineID+"/records/"+stepID+"/decide", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace"))
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace", false))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, actorID, 0)})
 
 	r := chi.NewRouter()

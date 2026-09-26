@@ -31,10 +31,16 @@ import templruntime "github.com/a-h/templ/runtime"
 //     /activity feed is a different thing (a running feed for any member, owned by Project
 //     Management's own navigation, not an admin-only permanent record) -- reusing it here would
 //     overstate what it does.
-//   - Danger zone: placeholder. Workspace lifecycle (archive/restore/transfer ownership) is Tahap 7,
-//     not built. Rendered with the same settingsPlaceholderRow every other unbuilt row uses rather
-//     than the mockup's own red styling -- visual weight the mockup spends on a real destructive
-//     action would misrepresent a row that does nothing yet.
+//   - Danger zone: half real, half placeholder, since Tahap 7 shipped only one of its two named
+//     actions. Archive is real (submitArchiveWorkspace, internal/web/workspacesettings.go) --
+//     confirmed with hx-confirm, matching this app's existing destructive-action convention
+//     (the generic delete button's "Delete this record?", reviseDocument's own confirm) rather than
+//     inventing a type-the-name confirmation the mockup doesn't show either. Restoring an archived
+//     Workspace happens from *outside* it (Choose Workspace's own archived list), never from this
+//     page -- see internal/web.restoreWorkspaceIfAdmin's own doc comment. Transfer ownership stays
+//     a settingsPlaceholderRow: the owner's own scope decision (2026-09-26) was Archive/Restore
+//     only, since there is no singular Workspace Owner concept today to transfer and no second real
+//     case forcing one yet (ROADMAP.md's Tahap 7 entry has the full reasoning).
 func WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -75,7 +81,7 @@ func WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceH
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(titleByID(ctx, "nav_workspace_settings"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacesettings.templ`, Line: 33, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacesettings.templ`, Line: 39, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -88,7 +94,7 @@ func WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceH
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(descriptionByID(ctx, "nav_workspace_settings"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacesettings.templ`, Line: 34, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacesettings.templ`, Line: 40, Col: 99}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -130,15 +136,23 @@ func WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceH
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><div class=\"flex flex-col gap-0.5\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><div class=\"flex flex-col gap-0.5 rounded-lg border border-red-200\"><h2 class=\"px-3 pt-2 pb-1 text-3xs font-medium tracking-wide text-red-400 uppercase\">Danger zone</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = settingsPlaceholderRow("Danger zone", "Transfer ownership, archive workspace.").Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = settingsPlaceholderRow("Transfer ownership", "No single Workspace Owner exists yet to transfer.").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<form method=\"POST\" action=\"/workspace-settings/archive\" hx-confirm=\"Archive this workspace? It becomes read-only and hidden from members until an admin restores it.\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = csrfHiddenInput().Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<button type=\"submit\" class=\"flex w-full cursor-pointer items-start gap-3 rounded-md p-3 text-left hover:bg-red-50\"><span class=\"flex min-w-0 grow flex-col gap-0.5\"><span class=\"text-sm font-medium text-red-700\">Archive workspace</span> <span class=\"text-xs text-slate-500\">Read-only and hidden from members until restored.</span></span></button></form></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

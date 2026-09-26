@@ -130,6 +130,11 @@ var knownPublicRoutes = map[string]bool{
 	"/reset-password":      true,
 	"/accept-invite":       true,
 	"/choose-workspace":    true,
+	// Restore's pre-session entry point (Flow 2 gap study Tahap 7) -- reached the same way
+	// /choose-workspace itself is, before any Workspace-scoped session exists: the pending-email
+	// cookie names who is acting, checked inside the handler itself
+	// (restoreWorkspaceIfAdmin), not by requireAuth.
+	"/choose-workspace/restore": true,
 }
 
 // routeVerbs is every chi.Router method that registers a route (as opposed to r.Group, r.Use,

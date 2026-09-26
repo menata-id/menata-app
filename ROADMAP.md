@@ -1685,10 +1685,9 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     `domain.Workspace`, and nothing renames one), Authentication (no 2FA/domain-allowlist concept
     anywhere), Audit log (a genuinely new concept -- `/activity` is a different thing, a running
     feed for any member owned by Project Management's own navigation, not an admin-only permanent
-    record; reusing it would overstate what it does), and Danger zone (Workspace lifecycle is
-    Tahap 7, not built -- rendered with the same muted placeholder every other unbuilt row uses
-    rather than the mockup's own red styling, since spending that visual weight on a row that does
-    nothing yet would misrepresent it).
+    record; reusing it would overstate what it does). Danger zone was in this list too, until
+    Tahap 7 (below) built half of it -- Archive is now real, Transfer ownership is the placeholder
+    that remains.
 
   `GET /workspace-settings` (`showWorkspaceSettings`, `internal/web/workspacesettings.go`), gated by
   the same `requireWorkspaceAdmin` group as `/workspace-members`/`/workspace-groups`/
@@ -1719,9 +1718,9 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   the "Shared rendering components" table on arrival rather than staying page-internal a second
   time.
 
-  **What's still open, unchanged**: notifications (Tahap 6), Workspace lifecycle (Tahap 7), and
-  generated Applications (Tahap 8) -- the first two now genuinely blocked on nothing but being
-  picked up; the third still waits on Q2.
+  **What's still open, unchanged**: notifications (Tahap 6), Workspace lifecycle (Tahap 7 --
+  shipped below), and generated Applications (Tahap 8) -- the first now genuinely blocked on
+  nothing but being picked up; the third still waits on Q2.
 
 - **Flow 2's Tahap 8 is shipped -- the owner answered Q2 (2026-09-26): build the AI Metadata
   Assistant in full, live, no restart required.** `menata-app-document`'s own
@@ -1804,6 +1803,64 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Application that already has real data behind it -- still exactly the scope
   `metadata-hot-reload-safety.md` describes, still unbuilt, and now with one real, narrower
   precedent next to it instead of zero.
+
+- **Flow 2's Tahap 7 is shipped (2026-09-26): Workspace lifecycle, archive/restore only.**
+  `menata-app-document`'s own `audits/2026-09-23-kajian-gap-mockup-flow2.md` §5.2 and the mockup
+  canvas's `Workspace`/`WorkspaceArchived`/`M02b-WorkspaceArchived` boards (read directly) are the
+  design this implements.
+
+  **Scope decision, confirmed with the owner before writing any code**: the Danger Zone mockup also
+  names "Transfer ownership", but no artboard exists for it anywhere in the canvas, and this
+  runtime has no singular Workspace Owner concept today -- `workspace_role` is admin/member, and
+  several members can hold admin at once. Answered: ship Archive/Restore only; Transfer ownership
+  stays a `settingsPlaceholderRow`, the same treatment every other not-yet-built row already gets.
+  No `workspaces.owner_id`, no new Owner concept invented to have something to transfer.
+
+  **The gap study's own warning turned out to be the real work**: *"Read-only global adalah yang
+  paling perlu dipikirkan: ia bukan Permission per-Machine, melainkan satu gerbang di atas semua
+  aksi tulis"* -- one gate above every write action, not a per-Machine Permission.
+  `web.blockWritesToArchivedWorkspace` is that gate: method-based (any non-GET/HEAD request against
+  an archived Workspace's own ctx scope is refused, `archivedWriteAllowlist` names the four writes
+  that must still work regardless -- sign out, switch to a different Workspace, create a new one,
+  restore this one), costing no extra query since `Archived`/`ArchivedAt` (`migrations/
+  013_workspace_archive.sql`) ride on the same `workspaces` row `resolveIdentity` already fetches
+  once per request. `appShell`'s own read-only banner (`rendering.CurrentWorkspaceArchived`) is the
+  "keep the UI honest" half at banner granularity, not a pass over every individual form/button in
+  the app -- the gate above enforces it regardless of what the UI shows.
+
+  **Archive and Restore act from opposite sides of the same read-only gate, following the mockup's
+  own words exactly**: `WorkspaceArchived.dc.html`'s copy is *"Archived workspaces are read-only and
+  hidden from members. Archive from Workspace settings"* -- Archive is an ordinary
+  `requireWorkspaceAdmin` action taken from *inside* the still-live Workspace (`POST
+  /workspace-settings/archive`, its Danger Zone). The archived row on Choose Workspace has no "open"
+  link, only Restore, so there is no "act from inside a read-only Workspace to leave read-only"
+  problem to solve -- Restore is reached from *outside* it instead (`restoreWorkspaceIfAdmin`, a
+  per-target-workspace admin check via `store.ListMemberships`, not the ambient ctx-scoped
+  Workspace), the same shape `resolveWorkspaceMembership` already used for switching into one.
+
+  **Edge case the mockup doesn't cover, found rather than silently mishandled**: `completeLogin`'s
+  single-membership fast path (`internal/web/auth.go`) used to skip Choose Workspace entirely for
+  an identity with exactly one membership. If that one Workspace were archived, the fast path would
+  strand its admin on `/home` with no visible way to reach Restore. Fixed: the fast path also
+  requires that one membership not be archived, otherwise falling through to Choose Workspace as if
+  there were several -- zero live rows, plus (for an admin) the archived section with Restore, or
+  (for anyone else) an honest empty list.
+
+  Verified against the real dev database (`internal/data/workspace_test.go`,
+  `internal/web/archivedworkspace_test.go`, `internal/web/auth_test.go`'s own new case,
+  `internal/rendering/chooseworkspace_test.go`): archive/restore round-trips and refuses a
+  double-archive/double-restore; the gate refuses a write and allows a GET plus every allow-listed
+  path against a real archived Workspace; Restore refuses a plain member and succeeds for an admin;
+  the sole-archived-membership login case falls through to Choose Workspace; an archived, admin-held
+  membership renders under "Archived workspaces (1)" while the identical row held as a plain member
+  renders nothing at all. A full manual click-through was not run against the shared dev
+  database's real default Workspace -- archiving it would have made it read-only and hidden for
+  whoever else is using this checkout, which the shared-working-directory convention this file
+  already documents rules out; the bootstrap admin credential also cannot create a throwaway one to
+  test against instead (`/create-workspace` needs a real per-email membership `currentUserEmail`
+  can resolve, which the shared admin credential's placeholder subject does not have). The
+  automated coverage above exercises the same handlers against the same real Postgres a manual
+  session would have, which is why this is recorded as shipped rather than as verified-pending-manual-check.
 
 ## Planned
 

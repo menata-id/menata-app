@@ -9,6 +9,25 @@ import (
 	"menata.app/internal/rendering"
 )
 
+// submitArchiveWorkspace is the Danger Zone's Archive action (Flow 2 gap study Tahap 7) -- an
+// ordinary requireWorkspaceAdmin action on the *current* ctx-scoped Workspace, matching the
+// mockup's own "Archive from Workspace settings" (WorkspaceArchived.dc.html). Redirects to
+// /choose-workspace rather than /home: the Workspace this session was just sitting in is now
+// archived, and showChooseWorkspace itself has no membership-count skip (only completeLogin's
+// login-time fast path does), so this always renders the chooser with whatever else this identity
+// belongs to.
+func submitArchiveWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		if err := store.ArchiveWorkspace(ctx, workspaceID); err != nil {
+			serverError(w, err)
+			return
+		}
+		redirectTo(w, req, "/choose-workspace")
+	}
+}
+
 // showWorkspaceSettings serves the Workspace-level Settings hub (Flow 2 gap study Tahap 5,
 // 2026-09-25, M04a-Settings.dc.html) -- the Workspace-level counterpart of an Application's own
 // Settings hub (internal/web/appsettings.go).
