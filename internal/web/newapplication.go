@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -151,7 +152,24 @@ func runAssistantTurn(ctx context.Context, machines map[string]*domain.Machine, 
 
 	reply, err := aiClient.Generate(ctx, prompt, turns)
 	if err != nil {
-		return err
+		if ctx.Err() != nil {
+			// The browser's own request genuinely went away (it navigated off, or its own
+			// connection dropped) -- nothing left to show it, same reasoning as serverError's own
+			// doc comment for that case.
+			return err
+		}
+		// Any other failure -- most commonly aiassist.GeminiClient's own 60s HTTPClient.Timeout
+		// firing (2026-09-27, observed live: a schema-constrained call can legitimately take close
+		// to a minute) -- is the assistant's own turn failing, not this request's. The browser is
+		// still here: this screen is a plain form POST (this package's own doc comment on why),
+		// which blocks the tab until a response arrives, so ctx.Err() == nil at this point *means*
+		// someone is still watching. serverError's generic "request cancelled" plain-text page
+		// would otherwise land on them mid-wait -- indistinguishable from the server having
+		// crashed -- for a failure that is really just "ask again." Shown as an ordinary assistant
+		// turn instead, the same shape every successful reply already is, so the person can retry
+		// from the conversation they're already looking at.
+		log.Printf("assistant turn failed, showing a retry message instead of an error page: %v", err)
+		reply = aiassist.Reply{Message: "Menata didn't get a response in time. Please try sending your message again."}
 	}
 	raw, err := json.Marshal(reply)
 	if err != nil {

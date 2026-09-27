@@ -91,7 +91,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<form method=\"post\" action=\"/new-application/message\" class=\"mt-auto flex gap-2 border-t border-slate-100 pt-4\" _=\"on load if #msg's value is not '' then call me.requestSubmit()\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"mt-auto flex flex-col gap-2 border-t border-slate-100 pt-4\"><form method=\"post\" action=\"/new-application/message\" class=\"flex gap-2\" _=\"on submit add @disabled to #send-btn then add @readonly to #msg then set #send-btn's textContent to 'Sending…' then remove .hidden from #thinking-note\n\t\t\t\t\t\t   on load if #msg's value is not '' then call me.requestSubmit()\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -106,7 +106,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(view.SessionID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 65, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 82, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -128,7 +128,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(view.PrefillIdea)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 67, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 84, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -156,7 +156,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<button type=\"submit\" class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<button id=\"send-btn\" type=\"submit\" class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -169,7 +169,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\">Send</button></form></section><aside aria-label=\"What will be built\" class=\"flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5\"><div class=\"flex flex-col gap-1\"><h2 class=\"m-0 text-sm font-medium\">What will be built</h2><span class=\"text-xs text-slate-500\">Updated as you answer.</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\">Send</button></form><p id=\"thinking-note\" class=\"hidden m-0 text-xs text-slate-400\">Menata is thinking — this can take up to a minute.</p></div></section><aside aria-label=\"What will be built\" class=\"flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5\"><div class=\"flex flex-col gap-1\"><h2 class=\"m-0 text-sm font-medium\">What will be built</h2><span class=\"text-xs text-slate-500\">Updated as you answer.</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -199,7 +199,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 				var templ_7745c5c3_Var10 templ.SafeURL
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/new-application/" + view.SessionID + "/review"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 80, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 99, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
@@ -231,7 +231,7 @@ func NewApplicationPage(view ConversationView, workspaceName string, viewer View
 				var templ_7745c5c3_Var12 templ.SafeURL
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/new-application/" + view.SessionID + "/discard"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 85, Col: 98}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 104, Col: 98}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -293,7 +293,7 @@ func conversationBubble(t ConversationTurn) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(t.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 98, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 117, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
@@ -311,7 +311,7 @@ func conversationBubble(t ConversationTurn) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(t.Message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 102, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 121, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -329,7 +329,7 @@ func conversationBubble(t ConversationTurn) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(t.CapabilityGap)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 104, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 123, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -381,7 +381,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(app.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 118, Col: 20}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 137, Col: 20}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -399,7 +399,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 				var templ_7745c5c3_Var19 string
 				templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(app.Description)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 123, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 142, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 				if templ_7745c5c3_Err != nil {
@@ -422,7 +422,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 				var templ_7745c5c3_Var20 string
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(m.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 130, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 149, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -450,7 +450,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 					var templ_7745c5c3_Var21 string
 					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(r)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 139, Col: 86}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 158, Col: 86}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 					if templ_7745c5c3_Err != nil {
@@ -478,7 +478,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(change.TargetAppID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 149, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 168, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -496,7 +496,7 @@ func changeSummary(change aiassist.GeneratedChange) templ.Component {
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(additionSummary(add))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 153, Col: 31}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 172, Col: 31}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 				if templ_7745c5c3_Err != nil {
@@ -574,7 +574,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, worksp
 			var templ_7745c5c3_Var26 templ.SafeURL
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/new-application?session=" + sessionID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 180, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 199, Col: 66}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {
@@ -592,7 +592,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, worksp
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(change.Application.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 184, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 203, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -610,7 +610,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, worksp
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(change.TargetAppID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 186, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 205, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -651,7 +651,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, worksp
 			var templ_7745c5c3_Var29 templ.SafeURL
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/new-application/" + sessionID + "/publish"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 201, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 220, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -690,7 +690,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, worksp
 			var templ_7745c5c3_Var32 templ.SafeURL
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/new-application/" + sessionID + "/discard"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 205, Col: 92}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/newapplication.templ`, Line: 224, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
