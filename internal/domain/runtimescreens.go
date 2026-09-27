@@ -1,7 +1,7 @@
 package domain
 
 // RuntimeScreens are the screens the *runtime* owns, as opposed to the ones an Application
-// describes: Workspace Home, Workspace Members, Groups, the Authorization Matrix.
+// describes: Workspace Home, Workspace Members, Groups, Workspace settings.
 //
 // They were `workspace.navigation:` in metadata/app.yaml until 2026-09-21, when the owner removed
 // that block: a Workspace's menu should be *derived* (the Applications it contains, plus "All
@@ -37,10 +37,17 @@ var RuntimeScreens = []NavigationItem{
 	},
 	{ID: "nav_workspace_members", Label: "Workspace Members", Route: "/workspace-members"},
 	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups"},
-	{ID: "nav_role_matrix", Label: "Authorization Matrix", Route: "/authorization-matrix"},
+	// nav_role_matrix ("Authorization Matrix", /authorization-matrix) lived here until 2026-09-27,
+	// when it was deleted rather than merely left unlinked: Q1 of the Flow 2 canvas re-audit
+	// (ROADMAP.md) confirmed board-06-new (the plain-language Permissions page,
+	// internal/web/appsettings.go) supersedes board-06-old (this screen), so an unreachable second
+	// implementation of the same fact was dead weight, not a kept exception. Its shared rendering
+	// (RoleMatrixApp/roleMatrixApp, internal/composition.RoleMatrixForApplication) lives on --
+	// appsettings.go's Permissions view is its one real caller now.
+	//
 	// nav_workspace_settings: Flow 2 gap study Tahap 5, 2026-09-25 (M04a-Settings.dc.html) --
 	// the Workspace-level counterpart of an Application's own Settings hub
-	// (nav_app_settings, metadata/applications/*.yaml). A runtime screen like the three above it,
+	// (nav_app_settings, metadata/applications/*.yaml). A runtime screen like the two above it,
 	// not an Application concept, for the identical reason: it exists in a Workspace with any
 	// number of Applications or none.
 	{

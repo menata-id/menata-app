@@ -14,39 +14,21 @@ import (
 // has a row of its own, and listing it twice would let one row say something the other does not.
 var recordActions = []string{domain.ActionCreate, domain.ActionEdit, domain.ActionDelete}
 
-// RoleMatrix composes the Authorization Matrix (ui-sample/case-03-flow1/06b-authorization-matrix.
-// html): who can do what here, written for someone who does not read YAML.
-//
-// Two sections, Workspace then Applications, which is the owner's own structure (2026-09-21) and
-// a correction of the first draft's. That draft split by mechanism -- "Transitions" and "Record
-// actions" -- which asked the reader to know what a transition is before they could find out what
-// they may do, and buried the two rows that matter under six a person can never be granted.
-// Splitting by *scope* instead matches how the rules are actually decided, and matches how the
-// owner's own member-role-detail.html already presents a person's access: a Workspace role, then
-// one role per Application.
+// RoleMatrixForApplication composes one Application's own card for the Application Settings hub's
+// Permissions page (internal/web/appsettings.go): who can do what inside it, written for someone
+// who does not read YAML.
 //
 // It is a pure projection over already-loaded metadata -- no database, no request, no identity.
-// Every cell has to be derivable from a declaration that already gates a real write; anything
-// this screen could say that authorization.AllowsAction would not agree with is a bug here rather
-// than a richer view. The one row that is *not* such a projection is marked as such on the page
-// (see workspaceSection).
+// Every cell has to be derivable from a declaration that already gates a real write; anything this
+// screen could say that authorization.AllowsAction would not agree with is a bug here rather than
+// a richer view.
 //
-// `all` is the Workspace's whole Machine list in declaration order -- not the id-keyed map -- so
-// row order is the manifest's rather than a map's iteration order.
-func RoleMatrix(apps []domain.Application, all []*domain.Machine) rendering.RoleMatrixView {
-	byID := machinesByID(all)
-	v := rendering.RoleMatrixView{Workspace: workspaceSection(all)}
-	for _, app := range apps {
-		v.Applications = append(v.Applications, applicationBlock(app, byID))
-	}
-	return v
-}
-
-// RoleMatrixForApplication is RoleMatrix's single-Application half, exported for the Application
-// Settings hub's own Permissions page (internal/web/appsettings.go) to reuse the exact same
-// row-building code the multi-Application /authorization-matrix overview uses -- one content
-// pipeline, two pages, not two pipelines (ROADMAP.md "Application Settings hub", Phase 2's own
-// note on this).
+// This used to be RoleMatrix's single-Application half, called once per Application by a
+// Workspace-wide overview page at /authorization-matrix (ui-sample/case-03-flow1/
+// 06b-authorization-matrix.html) that also drew a Workspace-level section (workspaceSection,
+// deleted with it). That overview was deleted 2026-09-27 (Q1 of the Flow 2 canvas re-audit,
+// ROADMAP.md, confirmed board-06-new -- this page -- supersedes board-06-old, the deleted one) --
+// applicationBlock below is what is left of one content pipeline that used to feed two pages.
 func RoleMatrixForApplication(app domain.Application, all []*domain.Machine) rendering.RoleMatrixApp {
 	return applicationBlock(app, machinesByID(all))
 }
@@ -261,62 +243,6 @@ func joinWithOr(values []string) string {
 	default:
 		return strings.Join(values[:len(values)-1], ", ") + " or " + values[len(values)-1]
 	}
-}
-
-// workspaceSection is the rules no Application decides: a Machine no Application claims, an
-// append-only Machine, a Permission requiring the Workspace role.
-//
-// Its first entry is deliberately NOT a projection of metadata, and says so on the page. Workspace
-// administration (members, groups, this screen itself) is gated by internal/web's
-// requireWorkspaceAdmin middleware on the route, and route-level gating is not something metadata
-// can declare here -- the missing capability is a declared `requires_role:` on a navigation item
-// (ROADMAP.md's deferral table, "a second real case, not a phase"). Omitting it would leave the
-// most familiar rule in the Workspace off the one page meant to answer "who can do what", so it
-// is included and labelled rather than dropped or silently implied to be declared.
-func workspaceSection(all []*domain.Machine) []rendering.RoleMatrixNote {
-	notes := []rendering.RoleMatrixNote{{
-		Rule:       "Manage members, groups and who gets which role",
-		Who:        "Workspace admins only.",
-		Why:        "This page is part of that — a plain member cannot open it.",
-		Undeclared: true,
-	}}
-	for _, m := range all {
-		if m.ApplicationID != "" {
-			// A claimed Machine's rules already appear in that Application's own block, read
-			// against its roles; repeating them here would put one declaration in two places.
-			continue
-		}
-		if m.AppendOnly {
-			notes = append(notes, rendering.RoleMatrixNote{
-				Rule: "Change the " + strings.ToLower(m.Name) + " history",
-				Who:  "No one, not even an admin.",
-				Why:  "It is a permanent record of what happened. Entries are added, never edited or removed.",
-			})
-		}
-		if actions := workspaceRoleActions(m); len(actions) > 0 {
-			notes = append(notes, rendering.RoleMatrixNote{
-				Rule: verbFor(actions) + " a " + strings.ToLower(m.Name),
-				Who:  "Workspace admins only.",
-				Why:  "This is the workspace's own directory, so changing it is administration — not something any application decides.",
-			})
-		}
-	}
-	return notes
-}
-
-// workspaceRoleActions is the actions on m that require a Workspace role, in KnownActions order
-// rather than declaration order so two Machines never phrase the same pair differently.
-func workspaceRoleActions(m *domain.Machine) []string {
-	var out []string
-	for _, act := range recordActions {
-		for _, p := range m.PermissionsFor(act) {
-			if p.WorkspaceRole != "" {
-				out = append(out, act)
-				break
-			}
-		}
-	}
-	return out
 }
 
 // verbFor renders an action list the way a person says it: "Create", "Edit or delete".

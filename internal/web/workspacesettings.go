@@ -33,9 +33,9 @@ func submitArchiveWorkspace(store *data.Store, cfg config.Config) http.HandlerFu
 // Settings hub (internal/web/appsettings.go).
 //
 // Simpler than that one in every way that matters: registered under the same requireWorkspaceAdmin
-// group as /workspace-members, /workspace-groups and /authorization-matrix
-// (internal/web/router.go), so unlike showApplicationSettings it does not compute its own "is this
-// viewer an admin" check -- the middleware already refused anyone else before this handler runs.
+// group as /workspace-members and /workspace-groups (internal/web/router.go), so unlike
+// showApplicationSettings it does not compute its own "is this viewer an admin" check -- the
+// middleware already refused anyone else before this handler runs.
 // It also composes nothing: every row is either a real link resolved from a RuntimeScreen id
 // (domain.RuntimeScreens, routeByID/labelByID/titleByID/descriptionByID) or a static
 // settingsPlaceholderRow, so there is no per-request derivation for a composition function to do --

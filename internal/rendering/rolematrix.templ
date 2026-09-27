@@ -1,23 +1,5 @@
 package rendering
 
-// RoleMatrixView is the Authorization Matrix's own shape, resolved by composition.RoleMatrix
-// (ui-sample/case-03-flow1/06b-authorization-matrix.html).
-//
-// Two sections by *scope* -- the Workspace, then one block per Application -- rather than by
-// mechanism. That is the owner's own structure (2026-09-21) and it corrects the first draft's:
-// splitting by "Transitions" and "Record actions" asked the reader to know what a transition is
-// before they could find out what they may do, and it buried the two rows that matter under six
-// that nobody can ever be granted.
-//
-// A resolved view model rather than the Machines themselves, for the reason every screen added
-// since Fase 6b has one: a new .templ file may not join internal/conformance's projection ratchet,
-// so nothing here may read a declaration and work out what it means. The joins happen once, in the
-// Composition plane; this file draws what has already been decided.
-type RoleMatrixView struct {
-	Workspace    []RoleMatrixNote
-	Applications []RoleMatrixApp
-}
-
 // RoleMatrixApp is one Application's card: its own role vocabulary, what each role may do grouped
 // by the thing being acted on, and a sentence for the status changes nobody performs.
 type RoleMatrixApp struct {
@@ -68,92 +50,17 @@ type RoleMatrixRow struct {
 	Open bool
 }
 
-// RoleMatrixNote is one Workspace-level rule: no role columns, a sentence instead, because these
-// are not an Application's to decide and a column per role would invite reading them as though one
-// could grant them.
-type RoleMatrixNote struct {
-	Rule string
-	Who  string
-	Why  string
-	// Undeclared marks a rule this page cannot project from metadata because metadata cannot state
-	// it yet -- route-level admin gating (ROADMAP.md, "Declared requires_role: on a navigation
-	// item"). Labelled rather than dropped: leaving the most familiar rule in the Workspace off
-	// the one page meant to answer "who can do what" would be worse than admitting where it lives.
-	Undeclared bool
-}
-
-// RoleMatrixPage renders the Authorization Matrix: who can do what here, for someone who does not
-// read YAML.
-//
-// Every Application is on the page at once rather than behind a selector: there is nothing to
-// discover, no Application that quietly has no tab, and the Workspace/Application split is
-// visible without interacting with anything.
-templ RoleMatrixPage(v RoleMatrixView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	@appShell(labelByID(ctx, "nav_role_matrix"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex max-w-[760px] flex-col gap-2">
-			<h1 class="m-0 text-xl font-medium">Who can do what</h1>
-			<p class="m-0 text-sm leading-6 text-slate-500">
-				Some rules belong to the whole workspace. The rest belong to each application separately —
-				a person can hold a different role in each one. A <span class="text-green-600">✓</span> means
-				that role is allowed; the line underneath says whether it is also limited to certain records.
-			</p>
-		</div>
-		<section class="flex flex-col gap-3">
-			<div class="flex flex-col gap-1">
-				<h2 class="m-0 text-base font-medium">Workspace</h2>
-				<p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">
-					Applies everywhere, whichever application you are in. These are not an application's to
-					decide, so no role can grant them.
-				</p>
-			</div>
-			<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-				<div class="hidden gap-6 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-3xs tracking-wide text-slate-500 uppercase sm:grid sm:grid-cols-[320px_minmax(0,1fr)]">
-					<span>What you can do</span>
-					<span>Who can do it</span>
-				</div>
-				for _, n := range v.Workspace {
-					<div class="grid gap-1 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:grid-cols-[320px_minmax(0,1fr)] sm:gap-6">
-						<div class="flex flex-col gap-0.5">
-							<span class="text-sm">{ n.Rule }</span>
-							if n.Undeclared {
-								<span class="text-3xs text-slate-400">Enforced in code, not yet declared in metadata</span>
-							}
-						</div>
-						<div class="text-xs leading-5">
-							<span class="font-medium text-slate-900">{ n.Who }</span>
-							{ " " }
-							<span class="text-slate-500">{ n.Why }</span>
-						</div>
-					</div>
-				}
-			</div>
-		</section>
-		<section class="flex flex-col gap-4">
-			<div class="flex flex-col gap-1">
-				<h2 class="m-0 text-base font-medium">Applications</h2>
-				<p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">
-					Each application declares its own roles and decides what they may do inside it. A role
-					means nothing outside the application that declared it.
-				</p>
-			</div>
-			for _, app := range v.Applications {
-				@roleMatrixApp(app)
-			}
-		</section>
-		<p class="m-0 max-w-[820px] text-2xs leading-4 text-slate-500">
-			Holding <b>Workspace admin</b> does not unlock anything inside an application. An admin who is
-			not an approver on a document still cannot approve it — that separation is the point of having
-			an approval step at all. <span class="text-amber-700">Amber</span> marks something no rule
-			covers yet.
-		</p>
-	}
-}
-
 // roleMatrixApp is one Application's card: a header naming its role vocabulary, then one
-// two-column list per Machine ("What you can do" / "Who can do it") -- the same responsive shape
-// RoleMatrixPage's own Workspace section above already uses for RoleMatrixNote, reused here rather
-// than a second pattern invented for this one (Flow 2's RoleMatrix.dc.html/M06-RoleMatrix.dc.html
-// draw both breakpoints this same way, not a grid at either).
+// two-column list per Machine ("What you can do" / "Who can do it") -- a plain responsive list, not
+// a grid, matching how Flow 2's RoleMatrix.dc.html/M06-RoleMatrix.dc.html draw both breakpoints.
+//
+// Its only caller today is appsettings.templ's ApplicationSettingsPage (composition.
+// RoleMatrixForApplication feeds it), which is a real second call site -- desktop's content pane
+// and mobile's detail view render the same component, not a page-internal shape. It used to have a
+// second caller, a Workspace-wide overview page at /authorization-matrix with its own Workspace
+// section (RoleMatrixNote) alongside one of these per Application; that page was deleted 2026-09-27
+// (Q1 of the Flow 2 canvas re-audit, ROADMAP.md: board-06-new, this one, supersedes board-06-old,
+// the deleted one) rather than left an unreachable second implementation of the same fact.
 //
 // An Application declaring no roles renders a sentence rather than an empty section: it has
 // nothing to draw, and an empty list would suggest roles are simply unassigned there when in fact

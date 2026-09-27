@@ -2284,6 +2284,38 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   own "four call sites" mis-scoping caught before writing code -- is worth a future re-audit
   reading, not just the outcome.
 
+- **Orphan route `/authorization-matrix` -- deleted, not just delinked, 2026-09-27.** Item 7 of
+  this study's own remaining-gaps list (above): the route was still registered in `router.go` but
+  linked from no `navigation:` entry in any Workspace's metadata, unreachable except by typing the
+  URL directly, ever since Permissions moved to `/document-approval/settings/permissions` (Tahap
+  5). CLAUDE.md's own metadata-hardcoding convention offers keeping an orphan with a named,
+  forward-pointered exception as one option -- not taken here, because Q1 of this same re-audit
+  (above, "Q1 and Q3 answered by the owner") had already answered the forward-pointer's question:
+  board-06-new (this Permissions page) supersedes board-06-old (the deleted screen). A superseded
+  screen kept alive as an unreachable second implementation of the same fact is dead weight with a
+  name, not a real exception.
+
+  Deleted: `internal/web/rolematrix.go` (`showRoleMatrix`, the route's only handler) and its
+  `router.go` registration; `nav_role_matrix` from `domain.RuntimeScreens` (routeByID/labelByID no
+  longer resolve it, correctly -- nothing should); `composition.RoleMatrix`/`workspaceSection`/
+  `workspaceRoleActions` and `rendering.RoleMatrixPage`/`RoleMatrixView`/`RoleMatrixNote` -- the
+  Workspace-wide-overview half of the old screen. **Not deleted**, because it is still live
+  infrastructure for `/document-approval/settings/permissions`: `composition.
+  RoleMatrixForApplication`/`applicationBlock` and `rendering.RoleMatrixApp`/`RoleMatrixGroup`/
+  `RoleMatrixRow`/`roleMatrixApp` -- one Application's own card was always a real second caller
+  (`appsettings.templ`'s desktop content pane and mobile detail view), not a page-internal shape,
+  so deleting the page it was extracted alongside would have deleted the Permissions page's own
+  content too. `internal/composition/rolematrix_test.go`'s nine tests were rewritten to call
+  `RoleMatrixForApplication` directly rather than through the deleted `RoleMatrix`; one test
+  (`workspaceSection`) was deleted outright since nothing calls that function any more.
+
+  Verified: `make generate && go build ./...` clean; `go test -race ./...` and, against the real
+  dev database, `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed`/`TestAuthenticatedPageQueryCost`
+  both still green (29 GET routes swept, one fewer than before, `/home` unchanged at 13) --
+  confirming the deletion touched no other route's query shape. `capabilities.md`'s route table,
+  `requireWorkspaceAdmin` route list, `roleMatrixApp` row and "Workspace's menu is derived" section
+  updated to match.
+
 ## Planned
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
