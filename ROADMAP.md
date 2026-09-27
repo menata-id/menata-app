@@ -2411,6 +2411,15 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      before offering to sign out of it. Nothing in `ChooseWorkspacePage`'s own props carries an
      email today (`backHref`/`backLabel` only), so this needs a new parameter threaded from
      `showChooseWorkspace`/`showSwitchWorkspace` (`internal/web/auth.go`), not a template-only fix.
+  4. **"Archived workspaces (N)" has no disclosure indicator at all** (found 2026-09-27, second
+     screenshot pair) -- the board shows a `>` chevron marking it as expandable; the shipped
+     `<summary>` (`chooseworkspace.templ:96`) strips both the native `<details>` marker and the
+     generic list one (`list-none [&::-webkit-details-marker]:hidden`) and adds no replacement.
+     Not a bug relative to *this app's own* convention -- the same line's comment cites
+     `groups.templ`'s identical "+ New group" disclosure (`groups.templ:34`) as precedent, and that
+     one also hides the marker, relying on its own "+" prefix as the affordance instead of a
+     chevron. This row just has no such stand-in text, so it reads as a plain, non-interactive
+     label rather than something to click.
 
 - **Bug, found and diagnosed 2026-09-27, not fixed yet (owner instruction: note only): archiving
   the Workspace you're currently in signs you out, and there is no legitimate reason for it --
