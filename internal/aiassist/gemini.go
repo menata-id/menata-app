@@ -13,8 +13,9 @@ import (
 )
 
 // geminiModel is the specific Gemini model this package calls. Named once here rather than
-// scattered as a literal, so upgrading it is a one-line change.
-const geminiModel = "gemini-2.5-flash"
+// scattered as a literal, so upgrading it is a one-line change. gemini-2.5-flash-lite by owner
+// choice, 2026-09-27 -- the cheapest tier in the 2.5 generation.
+const geminiModel = "gemini-2.5-flash-lite"
 
 const geminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + geminiModel + ":generateContent"
 
