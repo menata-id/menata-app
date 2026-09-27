@@ -2444,6 +2444,21 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   archive-while-authenticated must never depend on a pending-login cookie that only exists
   before a session does.
 
+- **Question asked and answered 2026-09-27, not a gap: why does "Didn't get your verification
+  email? Resend it" sit on `/login` rather than, say, `/reset-password`?** A real, functional
+  reason, not arbitrary placement -- `LoginPage`'s own doc comment (`internal/rendering/
+  login.templ:22-24`) already names *that* it's kept (the board omits it, but dropping an
+  existing account-recovery path would strand someone whose verification email never arrived),
+  but not *why here specifically*. The concrete answer is `submitLogin`
+  (`internal/web/auth.go:74-78`): an unverified account's login attempt fails *on this page*,
+  with the error "Please verify your email before signing in -- check your inbox, or resend the
+  link below" -- a message that names "the link below" because it is the same page's own
+  "Resend it" link. The failure and its recovery are the same screen on purpose: `/reset-password`
+  solves a different problem entirely (a real, verified account whose password is forgotten),
+  which is not the mental bucket someone who never got a verification email is in -- they know
+  their password, they just never received the link. No change needed; recorded so the reasoning
+  doesn't have to be rediscovered.
+
 ## Planned
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
