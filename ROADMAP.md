@@ -2412,6 +2412,29 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      email today (`backHref`/`backLabel` only), so this needs a new parameter threaded from
      `showChooseWorkspace`/`showSwitchWorkspace` (`internal/web/auth.go`), not a template-only fix.
 
+- **Bug, found and diagnosed 2026-09-27, not fixed yet (owner instruction: note only): archiving
+  the Workspace you're currently in signs you out, and there is no legitimate reason for it --
+  it is a wrong redirect target, not intended behaviour.** `submitArchiveWorkspace`
+  (`internal/web/workspacesettings.go:19-29`) redirects the admin who just archived to
+  `/choose-workspace`. That route is registered *outside* the `requireAuth` group entirely
+  (`router.go:168`), and its handler, `showChooseWorkspace` (`internal/web/auth.go:168-181`),
+  resolves who is asking purely from `authorization.PendingEmail` -- a cookie that exists only
+  during the pre-session login flow, before a real session is ever issued. An admin who was
+  already signed in when they archived has a valid `menata_session` cookie but no
+  `pending_email` one, so `PendingEmail` fails and the handler bounces them straight to
+  `/login` (`auth.go:171-174`) -- indistinguishable, from the admin's side, from being signed
+  out.
+
+  **The fix is a one-line redirect change, not new plumbing**: this app already has the
+  mid-session equivalent of this exact screen, `/switch-workspace`
+  (`showSwitchWorkspace`, `internal/web/auth.go:229-254`), which resolves identity through
+  `currentUserEmail` -- the real authenticated session -- and renders the identical
+  `ChooseWorkspacePage`. `submitArchiveWorkspace` should redirect there (or to `/home`, which
+  `blockWritesToArchivedWorkspace`'s own allowlist already treats as safe on an archived
+  Workspace) instead of `/choose-workspace`. Worth a regression test once fixed:
+  archive-while-authenticated must never depend on a pending-login cookie that only exists
+  before a session does.
+
 ## Planned
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
