@@ -2656,35 +2656,32 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   The four query-cost tests are **unmoved**, which is the assertion that matters most here: it
   proves Machines resolve in memory off the ctx Workspace and never from the database.
 
-  **A real cost of this design, found the same night, not yet fully paid: the Document Approval
-  and Project Management engines hardcode `machine.ID == action.DocumentMachineID`-shaped equality
-  checks in well over a dozen places** (`internal/composition`'s `ApprovalInbox`, `AssignedToMe`,
-  `ReviewStepForDocument`, `internal/execution`'s status rollup, a dozen more across
-  `internal/web`), all written when that id was process-wide unique and therefore a safe proxy for
-  "this is *the* Document Approval Document." Isolation makes a different Workspace's own,
-  unrelated Machine sharing that bare id legitimate everywhere else -- which is exactly what a
-  generated "Document Tracking" Application did the same night, and its own detail page panicked
-  twice reaching for `mch_approval_step`/`nav_approval_inbox`, neither of which that Workspace has.
-  Two call sites are patched (`loadSignaturePlacementData`'s nil guard, `detailBackLink`'s new
-  `hasNavItem` check, both 2026-09-27) -- enough for that Application's own most natural pages to
-  stop crashing -- and `aiassist.Validate` now refuses a *generated* Machine ever choosing one of
-  these reserved ids again (`reservedMachineIDs`, same commit), which closes the door going
-  forward. **The other dozen-plus call sites are not audited.** Most sit behind routes a
-  generated Application's own single auto-generated nav item never links to
-  (`/approval-inbox`, `/decide`, `/review`, ...), so the practical exposure today is narrow, but it
-  is real and unaudited, not merely theoretical.
+  **A real cost of this design, found and paid the same night.** The Document Approval engine
+  identified its own Machines by a bare `machine.ID == action.DocumentMachineID` comparison in 23
+  places across `internal/web` and `internal/rendering` -- a sound proxy for "this is *the*
+  Document Approval Document" while ids were unique across the process, and false the moment
+  isolation let two Workspaces each hold their own Machine under one id. A generated "Document
+  Tracking" Application did exactly that within hours, and its own detail page panicked twice,
+  reaching for an `mch_approval_step` and a `nav_approval_inbox` its Workspace does not have.
 
-  **The durable fix, named rather than left implicit**: `domain.Machine` already carries
-  `ApplicationID`, stamped once at load time by `internal/metadata`'s own claim-then-stamp pass
-  (`application.go`, "a Machine's ApplicationID is only unambiguous once 'claimed by at most one
-  Application' has been established") -- and it is now correctly per-Workspace, the same as
-  everything else Stage 1 moved off the process-wide map. Every one of these call sites should
-  check `m.ApplicationID == "app_document_approval"` instead of `m.ID == action.DocumentMachineID`;
-  the two patched tonight did not take this route only because a narrower, faster patch was what
-  stopped the actual crash. Auditing and converting the rest is a bounded, mechanical piece of
-  follow-up work for a later session -- grep for `action.DocumentMachineID`/`action.StepMachineID`
-  across `internal/composition`/`internal/execution`/`internal/web` and it will fail exactly as
-  loudly as a hardcoded literal should.
+  **The first fix was the wrong one and is recorded here because the reasoning matters**: a
+  reserved-id list in `aiassist.Validate`, forbidding seven names outright so the engine's
+  assumption could stay unexamined. The owner rejected it on exactly the right grounds -- under
+  this model another Workspace naming its own `mch_document` *is* supposed to be fine, so
+  forbidding the name makes the model give way to the code. It was reverted the same night.
+
+  **The real fix**: `domain.Machine.ApplicationID`, stamped at load from the claiming
+  Application's own `machines:` list (`internal/metadata`'s claim-then-stamp pass) and
+  per-Workspace since Stage 1 moved Machines onto the Workspace. `action.IsDocument`/`IsStep` ask
+  both halves -- which Application claims this Machine, and which Machine within it -- and
+  replaced all 23 comparisons. Confirmed against the real metadata: "default" stamps its
+  `mch_document` `app_document_approval`, "dokter-kecil" stamps its own `app_document_tracking`,
+  same id, different Applications, and the engine now tells them apart. A Workspace that merely
+  shares the id no longer enters Document Approval's branches at all, rather than entering them
+  and failing gracefully -- two fewer queries on that page, as a side effect of no longer asking a
+  question that never applied. The two defensive patches written before the real fix
+  (`loadSignaturePlacementData`'s nil guard, `detailBackLink`'s `hasNavItem` check) stay as
+  belt-and-braces; neither is reached any more.
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.
