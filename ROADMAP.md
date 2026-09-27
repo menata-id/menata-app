@@ -2503,9 +2503,9 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 ## Planned
 
-- **Workspace isolation: a Workspace's metadata must be its own copy, not a shared file** (owner
-  decision, 2026-09-27, prompted by the data-loss incident below). **This is the next substantial
-  architectural piece, and it is written up here for a later session to pick up whole.**
+- **Workspace isolation: a Workspace's metadata is its own copy, not a shared file -- ~~planned~~ shipped 2026-09-27** (owner
+  decision, 2026-09-27, prompted by the data-loss incident below). **Written up here as a plan
+  first, then built the same day; what actually shipped is recorded at the end of this entry.**
 
   **What the owner asked for, in their own framing**: a `*.yaml` is a **template**. Sharing it
   between Workspaces means sharing its *contents* -- installing **copies** it into the target
@@ -2593,6 +2593,51 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `composableSurface`) and becomes *install the Document Approval template into this Workspace,
   then diverge* -- which is the composable-runtime premise working as advertised rather than a
   capability gap to apologize for.
+
+  **Shipped 2026-09-27, in the three stages planned, each green on its own before the next.**
+
+  **Stage 1 -- Machines became a property of the Workspace.** `domain.Workspace` now carries its
+  own loaded `Machines`, populated by `metadata.LoadApplication`, which had produced them per
+  manifest all along; only `cmd/server` flattened them away. `Deps.Machines`/`MachineList` are
+  gone, and handlers resolve theirs from the Workspace on ctx (`machinesFor`/`installedMachines`),
+  across 46 call sites. The seam really was already there: `installedMachines` and `resolveMachine`
+  each paired the union with a `ws.HasMachine` gate, and that filtering step is exactly what
+  disappeared. `web.Deps` keeps one Machine, `UserMachine` -- the three handlers needing `mch_user`
+  (`/register`, `/accept-invite`, `/create-workspace`) run before a ctx Workspace exists or are
+  creating the Workspace in question. **One real bug fixed in passing**, as predicted:
+  `runScheduler` scoped a ctx per Workspace but passed the whole cross-Workspace list to
+  `RunScheduledEvents`. `decideStep` did tip over `TestHandlersStaySmall` at 71 lines, and was
+  resolved the way that test's own message prescribes -- the single `machines` use was inlined,
+  not the budget raised.
+
+  **Stage 2 -- copies on disk.** `metadata/*.yaml` + `metadata/applications/*.yaml` stayed put as
+  the template library (which keeps `TestCapabilitiesMachinesTableMatchesMetadata` both passing and
+  *meaningful* -- that table documents the library). "default" was migrated: ten Application-owned
+  Machines and both Application files became its own copies under `metadata/workspaces/default/`,
+  byte-identical to their templates, so divergence from here is a plain diff. **No data migration
+  at all** -- ids unchanged, `records.machine_id` untouched, which is the concrete payoff of
+  choosing scoping over id-prefixing. `mch_user`/`mch_activity`/`mch_notification` stay shared
+  references. `aiassist.Write` now derives the target Workspace's own directory from its manifest
+  path, so a generated Application can no longer land in the shared library at all.
+
+  **Stage 3 -- locked, and the old statements retired.** Two new gates in
+  `internal/conformance/workspace_isolation_test.go`: every Application an installed Workspace
+  claims (and every Machine those Applications claim) must be that Workspace's own copy, with a
+  short closed allowlist for the three runtime-level Machines; and two Workspaces must be able to
+  hold *different* Machines under one id, asserted against the real loader. Both were verified to
+  fail when the property is broken, not merely to pass. `internal/web.existingStateFor`'s global
+  collision check was **reverted** as the plan warned it would need to be -- correct that morning,
+  wrong by that evening, since a new Workspace naming its own `mch_document` is now exactly right;
+  its test was rewritten to assert the opposite of what it had asserted hours earlier.
+  `aiassist.refuseIfExists` stays, being the one guard correct under either model. CLAUDE.md,
+  `capabilities.md`, `domain.Workspace` and `metadata/workspaces/default.yaml` all had their
+  shared-model wording replaced.
+
+  **Verified live** with minted sessions against the running service: "default" still lists both
+  Applications and renders 14 `mch_document` records, `/approval-inbox`, `/dashboard` and
+  `/activity` all 200; the empty "Dokter Kecil" Workspace still shows "Nothing installed here yet".
+  The four query-cost tests are **unmoved**, which is the assertion that matters most here: it
+  proves Machines resolve in memory off the ctx Workspace and never from the database.
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.

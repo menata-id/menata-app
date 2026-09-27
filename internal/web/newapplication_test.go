@@ -155,34 +155,34 @@ func TestShowNewApplication_prefillsIdeaWhenNoSessionYet(t *testing.T) {
 	}
 }
 
-// TestExistingStateFor_treatsMachineIDsAsGlobal is the validation half of the 2026-09-27 incident
-// (see existingStateFor's own doc comment). The Workspace being generated into is empty -- it
-// claims no mch_document -- but another Workspace's installed Application does, and both would be
-// written to the same metadata/document.yaml. A collision check scoped to this Workspace alone saw
-// nothing wrong and let the publish through.
-func TestExistingStateFor_treatsMachineIDsAsGlobal(t *testing.T) {
+// TestExistingStateFor_reservesOnlyThisWorkspacesIDs is the validation half of Workspace
+// isolation, and it deliberately asserts the *opposite* of what this test said earlier on
+// 2026-09-27.
+//
+// Its first version widened the check to every Machine id in the process, which was right while
+// Machines were shared: the empty "Dokter Kecil" Workspace naming its own mch_document really did
+// overwrite the one "default" had installed, because both resolved to the same file. Isolation
+// removed that cause -- a Workspace holds its own Machines and a generated Application is written
+// into its own directory -- so the same proposal is now simply legitimate, and refusing it would
+// block a Workspace from naming its own Machines after its own business.
+func TestExistingStateFor_reservesOnlyThisWorkspacesIDs(t *testing.T) {
 	emptyWorkspace := domain.Workspace{
 		Slug:       "dokter-kecil",
 		MachineIDs: []string{"mch_user", "mch_activity"},
 	}
-	// What cmd/server.loadMetadataState builds: every Machine id this process knows, from every
-	// Workspace's manifest -- including the one installed somewhere else entirely.
-	allMachines := map[string]*domain.Machine{
-		"mch_user":     {ID: "mch_user"},
-		"mch_activity": {ID: "mch_activity"},
-		"mch_document": {ID: "mch_document"},
-	}
 
-	state := existingStateFor(emptyWorkspace, allMachines)
+	state := existingStateFor(emptyWorkspace)
 
-	if !state.MachineIDs["mch_document"] {
-		t.Error("mch_document is installed in another workspace and shares one flat file namespace, so it must count as taken")
-	}
 	if !state.MachineIDs["mch_user"] {
-		t.Error("this workspace's own machine ids must still be present")
+		t.Error("this Workspace's own machine ids must be reserved")
+	}
+	if state.MachineIDs["mch_document"] {
+		t.Error("mch_document is installed in another Workspace, which no longer makes it taken here -- that is what isolation means")
 	}
 
-	colliding := aiassist.GeneratedChange{
+	// The exact proposal the incident produced, now correct: this Workspace's own mch_document,
+	// written to metadata/workspaces/dokter-kecil/document.yaml, touching nobody else's.
+	ownDocument := aiassist.GeneratedChange{
 		Kind: aiassist.KindNewApplication,
 		Application: &aiassist.GeneratedApplication{
 			ID: "app_doc_submission", Name: "Pengajuan Dokumen",
@@ -192,11 +192,25 @@ func TestExistingStateFor_treatsMachineIDsAsGlobal(t *testing.T) {
 			}},
 		},
 	}
-	err := aiassist.Validate(colliding, state)
-	if err == nil {
-		t.Fatal("Validate() = nil, want a rejection of the mch_document collision")
+	if err := aiassist.Validate(ownDocument, state); err != nil {
+		t.Errorf("Validate() = %v, want nil -- a Workspace naming its own mch_document is legitimate now", err)
 	}
-	if !strings.Contains(err.Error(), "mch_document") {
+
+	// Its own ids are still reserved, which is the half that does not change: two Machines under
+	// one id inside one Workspace would be genuinely ambiguous.
+	duplicate := ownDocument
+	duplicate.Application = &aiassist.GeneratedApplication{
+		ID: "app_people", Name: "People",
+		Machines: []aiassist.GeneratedMachine{{
+			ID: "mch_user", Name: "User",
+			Fields: []aiassist.GeneratedField{{ID: "fld_title", Name: "Title", Type: "text", Required: true}},
+		}},
+	}
+	err := aiassist.Validate(duplicate, state)
+	if err == nil {
+		t.Fatal("Validate() = nil, want a rejection of an id this Workspace already has")
+	}
+	if !strings.Contains(err.Error(), "mch_user") {
 		t.Errorf("Validate() error = %v, want it to name the colliding machine id", err)
 	}
 }

@@ -50,6 +50,26 @@ It travels on ctx (`rendering.WithCurrentWorkspace`, set by `internal/web.curren
 `routeByID`/`labelByID` take `ctx` for that reason. There is no package-level `workspace` any more;
 do not reintroduce one.
 
+**And so is which Machine an id means (2026-09-27).** `domain.Workspace` carries its own loaded
+`Machines`; a handler resolves the request's set from the Workspace on ctx (`machinesFor`/
+`installedMachines` in `internal/web/machine.go`), never from a process-wide map. `web.Deps` holds
+exactly one Machine, `UserMachine` (`mch_user`), because that one genuinely crosses Workspaces and
+its three callers — `/register`, `/accept-invite`, `/create-workspace` — run before a ctx Workspace
+exists or are creating the Workspace in question. Do not add a second.
+
+**Installing an Application copies it; it does not point at a shared file.** `metadata/*.yaml` and
+`metadata/applications/*.yaml` are the **template library**. A Workspace's own copies live in
+`metadata/workspaces/<slug>/`, which is where anything generated for it must be written
+(`aiassist.Write` derives that directory from the manifest path). Two Workspaces may therefore each
+hold an `mch_document` meaning different things, and either may edit its own copy without touching
+the other's — which is the point (owner, 2026-09-27: "perubahan aplikasi di masing masing workspace
+tidak saling terkait"). Only `mch_user`, `mch_activity` and `mch_notification` stay shared
+references, claimed by no Application. `internal/conformance`'s
+`TestInstalledApplicationsAreCopiesNotSharedFiles` and
+`TestTwoWorkspacesCanHoldDifferentMachinesUnderOneID` hold both halves; this replaced a shared-file
+model whose own three comments described it accurately right up until a generated Application
+overwrote `metadata/document.yaml` and destroyed it.
+
 Concretely, before adding any hardcoded `href`, label, or button to a page under
 `internal/rendering/`: check the installed Application's own `navigation:` list first. If the
 same route/label is already declared there, that's a signal the value belongs in metadata (or
