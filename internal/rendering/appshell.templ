@@ -132,7 +132,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// browser paints in the top layer, above every z-index on the page.
 			<header class="sticky top-0 z-40 flex flex-col border-b border-slate-200 bg-white">
 				<div class="flex h-15 shrink-0 items-center gap-2.5 px-4 sm:pr-7 sm:pl-9">
-					@appLauncher(workspaceName, switchWorkspaceHref, hasAppMenu)
+					@appLauncher(workspaceName, switchWorkspaceHref, viewer, hasAppMenu)
 					// Two breadcrumb shapes, because the Flow 2 mockup has two. Inside an Application
 					// (board 07 / M07) the Workspace name stands alone up here and the Application
 					// names itself on the row below -- except on a phone, which has no second row, so
@@ -743,12 +743,54 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 			<a href="/account-profile" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Profile</a>
 			<a href="/account-security" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Security</a>
 			<div class="my-1 h-px bg-slate-100"></div>
+			// Workspaces (AccountMenu.dc.html, Flow 2 canvas re-audit -- ROADMAP.md, 2026-09-27):
+			// loaded lazily, not threaded through appShell's own parameters, because appShell
+			// renders on almost every authenticated page and the list needs a real query
+			// (store.ListMemberships, showAccountMenuWorkspaces/internal/web/accountmenu.go) --
+			// paying that on every page load for a menu most requests never open is exactly the
+			// query-budget cost this repo's own TestAuthenticatedPageQueryCost/
+			// TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed exist to catch. `toggle` is the native
+			// Popover-API event sheetPanel's own "menata-account-menu" div already dispatches on
+			// open/close (capabilities.md, "All three menus are the native Popover API"); `once`
+			// means the fetch happens at most one time per page view, the first time this menu is
+			// actually opened, matching notificationBell's own hx-trigger="load" simplicity but
+			// gated on interaction instead of paid on every render.
+			<div
+				id="account-menu-workspaces"
+				hx-get="/api/account-menu/workspaces"
+				hx-trigger="toggle once from:#menata-account-menu"
+				hx-swap="innerHTML"
+			></div>
+			<div class="my-1 h-px bg-slate-100"></div>
 			<form method="POST" action="/logout">
 				@csrfHiddenInput()
 				<button type="submit" class="w-full rounded-md px-3 py-2.5 text-left font-sans text-sm text-slate-700 hover:bg-slate-50">Sign out</button>
 			</form>
 		}
 	</div>
+}
+
+// AccountMenuWorkspaceRows is #account-menu-workspaces' own fetched content (showAccountMenuWorkspaces,
+// internal/web/accountmenu.go) -- every Workspace the identity belongs to that is not archived (the
+// mockup's own account menu draws none archived, unlike the full Choose Workspace page's own
+// expandable Archived section), the current one marked with a checkmark rather than a role pill
+// the way the other rows are, and "Switch workspace →" to the full picker. WorkspaceChoice is
+// chooseworkspace.templ's own type, reused as-is rather than declaring a second one for the
+// identical shape.
+templ AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID string) {
+	<div class="px-3 pt-1 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Workspaces</div>
+	for _, c := range choices {
+		<a href="/switch-workspace" class="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-slate-900 hover:bg-slate-50">
+			if c.ID == currentWorkspaceID {
+				@icon("check", "size-3.5 shrink-0 text-blue-600")
+			} else {
+				<span class="size-3.5 shrink-0"></span>
+			}
+			<span class="grow truncate">{ c.Name }</span>
+			<span class="shrink-0 text-xs text-slate-400">{ displayRole(c.Role) }</span>
+		</a>
+	}
+	<a href="/switch-workspace" class="block px-3 py-2 text-xs text-blue-600">Switch workspace →</a>
 }
 
 // appLauncher is the 9-dot menu at the head of the bar (redesigned 2026-09-20, by owner request,
@@ -782,7 +824,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 // for what the old mechanism cost. pageShell's own details.nav-group dropdown is untouched: that
 // stylesheet and that topbar are a separate system (capabilities.md, "Styling: two systems, on
 // purpose"), and changing it here would be a port nobody asked for.
-templ appLauncher(workspaceName, switchWorkspaceHref string, aboveBar bool) {
+templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, aboveBar bool) {
 	<div class="shrink-0">
 		<button
 			type="button"
@@ -799,6 +841,35 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, aboveBar bool) {
 			</a>
 			for _, app := range CurrentWorkspace(ctx).Applications {
 				@launcherAppCard(app)
+			}
+			// Administration (AppLauncher.dc.html, Flow 2 canvas re-audit -- ROADMAP.md,
+			// 2026-09-27): the same two rows workspaceMenu already offers behind the Workspace
+			// name, duplicated here because the board draws them in both dropdowns independently.
+			// Gated identically -- an admin-only destination offered to a plain member is exactly
+			// the code-review finding (2026-09-19) that emptied this launcher of Workspace-level
+			// items in the first place; the fix here is additive, not a reversal of that gate.
+			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
+				<div class="my-1 h-px bg-slate-100"></div>
+				<div class="px-3 pt-1 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase sm:px-2">Administration</div>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2">
+					<span class="text-slate-500">
+						@icon("settings", "size-4")
+					</span>
+					{ labelByID(ctx, "nav_workspace_settings") }
+				</a>
+				// METADATA CANNOT EXPRESS THIS YET, same exception workspaceMenu's own copy of
+				// this link already carries (CLAUDE.md, "Deciding whether a literal is a
+				// metadata-hardcoding violation" step 2): a Workspace-level action triggered from
+				// chrome, not a menu destination any navigation list could declare. Missing
+				// capability: 007 §12.3's ActionBar component, still unbuilt. Listed in
+				// internal/conformance's applicationSubScreens and writing-guide.md's own "What
+				// comes free vs. what's hardcoded today" table.
+				<a href="/new-application" class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2">
+					<span class="text-slate-500">
+						@icon("sparkle", "size-4")
+					</span>
+					New application
+				</a>
 			}
 			if switchWorkspaceHref != "" {
 				<a href={ templ.SafeURL(switchWorkspaceHref) } class="mt-1 block rounded-md p-3 text-xs font-medium text-blue-600 hover:bg-slate-50 sm:p-2">All Workspaces →</a>

@@ -2157,19 +2157,19 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   of them, this pass found four real gaps the original audit missed entirely -- none a product
   decision, all a straight port left unfinished:
 
-  1. **The App Launcher (9-dot) has no "ADMINISTRATION" section.** `AppLauncher.dc.html` draws one,
-     two rows -- "Workspace settings" ("Members, applications, security") and "New application"
-     ("Describe it, Menata builds a draft"). `appLauncher` (`internal/rendering/appshell.templ`,
-     the templ starting `templ appLauncher(...)`) renders only the Workspace header, one card per
-     Application, and "All Workspaces →" -- no Administration rows at all. Traced to a 2026-09-21
-     decision ("the launcher offers the Workspace's administration screens to nobody now," this
-     file's own history) made to close a plain-member-sees-a-403-link bug -- three days *before*
-     this canvas's own link was given to any session working on this repo (2026-09-24, this
-     session's memory). Not a deliberate divergence from the canvas; the canvas did not exist yet
-     as a checkable source when the call was made. The fix is additive, not a reversal: gate a new
-     Administration section the same `viewer.WorkspaceRole != member` way `workspaceMenu` already
-     gates its own Workspace settings/New application rows, so the bug the 2026-09-21 change fixed
-     stays fixed.
+  1. ~~**The App Launcher (9-dot) has no "ADMINISTRATION" section.**~~ **Shipped 2026-09-27.**
+     `AppLauncher.dc.html` drew one, two rows -- "Workspace settings" ("Members, applications,
+     security") and "New application" ("Describe it, Menata builds a draft") -- that `appLauncher`
+     (`internal/rendering/appshell.templ`) did not render at all, traced to a 2026-09-21 decision
+     ("the launcher offers the Workspace's administration screens to nobody now," this file's own
+     history) made three days *before* this canvas's own link reached any session working on this
+     repo (2026-09-24) -- not a deliberate divergence, the canvas simply did not exist yet as a
+     checkable source. `appLauncher` gained a fourth parameter, `viewer Viewer` (its one call site
+     is inside `appShell`, where `viewer` was already in scope), and the identical Administration
+     block `workspaceMenu` already carries, gated the same `viewer.WorkspaceRole != member` way --
+     additive, not a reversal of the 2026-09-21 fix. No new query, no new route. Verified live: both
+     rows render inside the launcher panel on `/home`, gated correctly, via a real authenticated
+     `curl` request against the running service (not just `go build`).
   2. **Edit Member has no "Remove from workspace" section at all.** `MemberEdit.dc.html` draws a
      red-bordered section with a "Deactivate member" button ("A deactivated member can no longer
      open Dokter Kecil. Documents they submitted and their approval history stay."). Grepped the
@@ -2188,16 +2188,35 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      zero hits. A session can already create a draft generated Application (Tahap 8,
      `aiassist`/`/new-application`) but it never appears back in the list it was started from, and
      the three example chips that make the empty input box concrete were never ported.
-  4. **The account (avatar) menu has no "WORKSPACES" section.** `AccountMenu.dc.html` draws a list
-     of every Workspace the identity belongs to, its role in each, and "Switch workspace →,"
-     inside the avatar dropdown itself. `accountMenu` (`internal/rendering/appshell.templ`) is
-     Profile / Security / Sign out only -- switching Workspace is reachable elsewhere in chrome
-     (the launcher's "All Workspaces," the workspace-name menu's "Switch workspace"), so this is a
-     structural gap against the mockup's own placement, not a missing capability.
+  4. ~~**The account (avatar) menu has no "WORKSPACES" section.**~~ **Shipped 2026-09-27.**
+     `AccountMenu.dc.html` drew a list of every Workspace the identity belongs to, its role in
+     each, and "Switch workspace →," inside the avatar dropdown itself; `accountMenu` was
+     Profile/Security/Sign out only. **Owner decision, confirmed before writing code**: `appShell`
+     renders on almost every authenticated page, and the list needs a real query
+     (`store.ListMemberships`, already `loadWorkspaceChoices`' own query for the Choose/Switch
+     Workspace pages) -- paying that eagerly on every page load for a menu most requests never open
+     would be exactly the query-budget cost `TestAuthenticatedPageQueryCost`/
+     `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed` exist to catch, so it loads lazily instead: a new
+     `GET /api/account-menu/workspaces` (`internal/web/accountmenu.go`, reusing
+     `currentUserEmail`/`loadWorkspaceChoices` rather than a third copy of either query), fetched by
+     a new `#account-menu-workspaces` placeholder with `hx-trigger="toggle once
+     from:#menata-account-menu"` -- `toggle` is the native Popover-API event `sheetPanel`'s own
+     popover div already dispatches on open/close (every menu in this chrome has been the Popover
+     API since 2026-09-24), `once` meaning the fetch happens at most once per page view, only if the
+     menu is actually opened. Archived Workspaces are dropped before rendering, matching the
+     mockup's own account menu (unlike the full Choose Workspace page's expandable Archived
+     section); the current Workspace gets a checkmark rather than a role pill, the other(s) get
+     their role via the already-shared `displayRole`. Verified live against the running service: the
+     new route returns 200 with the expected fragment (a real authenticated request against the
+     shared admin credential's placeholder identity, which has no membership row, correctly returns
+     an empty list plus "Switch workspace →" rather than erroring) and the placeholder's own
+     `hx-get`/`hx-trigger` attributes render correctly on `/home`.
 
-  None of these four block anything already shipped; all are additive ports, most of them small.
-  Not yet scheduled -- named here rather than left for the next re-audit to rediscover the same
-  way this one rediscovered the wizard-step-3 non-gap.
+  Two of the four -- **#1 and #4, above** -- are shipped. **#2 (Deactivate/Remove from workspace)
+  and #3 (draft-Application row + suggestion chips)** remain open: #2 is a real, unbuilt
+  capability, not a UI gap, and #3 needs a decision on whether the three example chips should be
+  literal or something more general before porting. Named here rather than left for the next
+  re-audit to rediscover, the same way this one rediscovered the wizard-step-3 non-gap.
 
 ## Planned
 

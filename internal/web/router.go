@@ -221,6 +221,9 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/account-security", showSecurity(d.Store, d.Cfg))
 		pr.Post("/account-security/change-password", submitChangePassword(d.Store, d.Cfg))
 		pr.Post("/account-security/sign-out-other-devices", submitSignOutOtherDevices(d.Store, d.Cfg))
+		// Account menu's own "Workspaces" section (Flow 2 canvas re-audit -- ROADMAP.md,
+		// 2026-09-27), fetched lazily by accountMenu's own hx-get, not on every appShell render.
+		pr.Get("/api/account-menu/workspaces", showAccountMenuWorkspaces(d.Store, d.Cfg))
 		pr.Get("/dashboard", showDashboard(d.Machines, d.Store, d.Cfg))
 		pr.Get("/my-tasks", showMyTasks(d.Machines, d.Store, d.Cfg))
 		pr.Get("/board-settings", showBoardSettings(d.Store, d.Cfg))
