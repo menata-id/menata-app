@@ -177,7 +177,7 @@ func showChooseWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc 
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.ChooseWorkspacePage(choices, "", "/choose-workspace", "/login", "Sign out", false))
+		render(req.Context(), w, rendering.ChooseWorkspacePage(choices, "", "/choose-workspace", "/login", "Sign out", false, email))
 	}
 }
 
@@ -250,7 +250,7 @@ func showSwitchWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc 
 				break
 			}
 		}
-		render(ctx, w, rendering.ChooseWorkspacePage(choices, "", "/switch-workspace", "/home", "Back to Menata", canCreate))
+		render(ctx, w, rendering.ChooseWorkspacePage(choices, "", "/switch-workspace", "/home", "Back to Menata", canCreate, email))
 	}
 }
 
@@ -350,7 +350,7 @@ func loadWorkspaceChoices(ctx context.Context, store *data.Store, email string) 
 		if m.Deactivated {
 			continue
 		}
-		choice := rendering.WorkspaceChoice{ID: m.WorkspaceID, Name: m.WorkspaceName, Role: m.WorkspaceRole, Archived: m.Archived}
+		choice := rendering.WorkspaceChoice{ID: m.WorkspaceID, Name: m.WorkspaceName, Slug: m.WorkspaceSlug, MemberCount: m.MemberCount, Role: m.WorkspaceRole, Archived: m.Archived}
 		if m.ArchivedAt != nil {
 			choice.ArchivedAt = m.ArchivedAt.Format("2 Jan 2006")
 		}

@@ -11,11 +11,15 @@ import (
 
 // submitArchiveWorkspace is the Danger Zone's Archive action (Flow 2 gap study Tahap 7) -- an
 // ordinary requireWorkspaceAdmin action on the *current* ctx-scoped Workspace, matching the
-// mockup's own "Archive from Workspace settings" (WorkspaceArchived.dc.html). Redirects to
-// /choose-workspace rather than /home: the Workspace this session was just sitting in is now
-// archived, and showChooseWorkspace itself has no membership-count skip (only completeLogin's
-// login-time fast path does), so this always renders the chooser with whatever else this identity
-// belongs to.
+// mockup's own "Archive from Workspace settings" (WorkspaceArchived.dc.html).
+//
+// Redirects to /switch-workspace, not /choose-workspace (bug, found and fixed 2026-09-27) -- the
+// Workspace this session was just sitting in is now archived, so the admin needs to be offered
+// whatever else this identity belongs to, but /choose-workspace resolves identity purely from the
+// pre-session pending_email cookie (authorization.PendingEmail), which an already-authenticated
+// admin never carries. That sent every in-session archive straight to /login, indistinguishable
+// from being signed out. /switch-workspace is the mid-session equivalent of the same screen
+// (showSwitchWorkspace) -- it resolves identity from the real session (currentUserEmail) instead.
 func submitArchiveWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
@@ -24,7 +28,7 @@ func submitArchiveWorkspace(store *data.Store, cfg config.Config) http.HandlerFu
 			serverError(w, err)
 			return
 		}
-		redirectTo(w, req, "/choose-workspace")
+		redirectTo(w, req, "/switch-workspace")
 	}
 }
 

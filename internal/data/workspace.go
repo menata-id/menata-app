@@ -147,6 +147,16 @@ type Membership struct {
 	// own state, not just the Workspace's.
 	Deactivated   bool
 	DeactivatedAt *time.Time
+	// WorkspaceSlug and MemberCount ride the same join as WorkspaceName/Archived -- filled by
+	// ListMemberships only, for Choose Workspace's own second line under a Workspace's name
+	// ("dokter-kecil · 24 members", ROADMAP.md, Flow 2 canvas re-audit gap, closed 2026-09-27).
+	// MemberCount excludes deactivated members (the same "not yours here anymore" reasoning
+	// loadWorkspaceChoices already applies when dropping a deactivated membership from the list
+	// entirely) via a correlated subquery -- one member count per row, still one query total, the
+	// same "computed once, not per row" discipline ListGroups already established for a Group's
+	// own MemberCount.
+	WorkspaceSlug string
+	MemberCount   int
 }
 
 // appRolesFor reads the per-Application roles of one member.
@@ -308,7 +318,9 @@ func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership
 	readLogFrom(ctx).record("memberships by email")
 	rows, err := s.pool.Query(ctx, `
 		SELECT wm.workspace_id, wm.user_record_id, wm.email, wm.workspace_role,
-		       COALESCE(wm.app_role, ''), w.name, w.archived, w.archived_at, wm.deactivated_at
+		       COALESCE(wm.app_role, ''), w.name, w.slug, w.archived, w.archived_at, wm.deactivated_at,
+		       (SELECT count(*) FROM workspace_members wm2
+		        WHERE wm2.workspace_id = wm.workspace_id AND wm2.deactivated_at IS NULL) AS member_count
 		FROM workspace_members wm
 		JOIN workspaces w ON w.id = wm.workspace_id
 		WHERE wm.email = $1
@@ -322,7 +334,7 @@ func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership
 	var memberships []Membership
 	for rows.Next() {
 		var m Membership
-		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole, &m.WorkspaceName, &m.Archived, &m.ArchivedAt, &m.DeactivatedAt); err != nil {
+		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole, &m.WorkspaceName, &m.WorkspaceSlug, &m.Archived, &m.ArchivedAt, &m.DeactivatedAt, &m.MemberCount); err != nil {
 			return nil, fmt.Errorf("scan membership: %w", err)
 		}
 		m.Deactivated = m.DeactivatedAt != nil

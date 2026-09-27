@@ -2433,7 +2433,29 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      chevron. This row just has no such stand-in text, so it reads as a plain, non-interactive
      label rather than something to click.
 
-- **Bug, found and diagnosed 2026-09-27, not fixed yet (owner instruction: note only): archiving
+  **All four shipped 2026-09-27.** (1) `data.Membership` gained `WorkspaceSlug`/`MemberCount`
+  (`internal/data/workspace.go`), `ListMemberships`' query gained `w.slug` and a correlated
+  `count(*) ... WHERE deactivated_at IS NULL` subquery -- still one `s.pool.Query` call, so
+  `TestSwitchWorkspaceCostIsFlatInWorkspaceCount` stays flat (confirmed live: 8 queries
+  regardless of workspace count). `rendering.WorkspaceChoice` carries both through to a live
+  row's new second line ("dokter-kecil · 24 members" shape). (2) `chooseworkspace.templ` gained
+  its own page-local `capitalizeRole`, deliberately not shared with `composition.capitalizeRole`
+  (plane boundary, `internal/rendering` cannot import `internal/composition`) or `displayRole`
+  (`workspacehome.templ`, which doesn't capitalize) -- exactly the "this page would need one, not
+  reuse one" call already made above. (3) `ChooseWorkspacePage` gained a `signedInEmail`
+  parameter; both callers already had the email in scope (`showChooseWorkspace` from
+  `PendingEmail`, `showSwitchWorkspace` from `currentUserEmail`), so this is plumbing, not a new
+  read. (4) The archived section's `<summary>` gained the same shared `chevron-right`
+  `@icon(...)` already used for this exact affordance elsewhere (`appsettings.templ`,
+  `appshell.templ`, `workspacehome.templ`), static rather than rotate-on-open -- this codebase
+  has no `group-open:` Tailwind usage anywhere yet, so adding the first one wasn't warranted for
+  a static disclosure marker. Verified: new/updated tests in `internal/rendering/
+  chooseworkspace_test.go`, `go test -race ./...` end to end, and live against the running
+  service with a minted session (a real Workspace, a real admin membership, no fixtures) --
+  `/switch-workspace`'s rendered HTML shows "live-verify-co · 1 member", the "Admin" badge, "Signed
+  in as ... · Back to Menata", and the chevron's own path data inside the archived section.
+
+- **Bug, found and diagnosed 2026-09-27, fixed the same day: archiving
   the Workspace you're currently in signs you out, and there is no legitimate reason for it --
   it is a wrong redirect target, not intended behaviour.** `submitArchiveWorkspace`
   (`internal/web/workspacesettings.go:19-29`) redirects the admin who just archived to
@@ -2446,15 +2468,23 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `/login` (`auth.go:171-174`) -- indistinguishable, from the admin's side, from being signed
   out.
 
-  **The fix is a one-line redirect change, not new plumbing**: this app already has the
+  **Fixed 2026-09-27: a one-line redirect change, not new plumbing.** This app already had the
   mid-session equivalent of this exact screen, `/switch-workspace`
   (`showSwitchWorkspace`, `internal/web/auth.go:229-254`), which resolves identity through
   `currentUserEmail` -- the real authenticated session -- and renders the identical
-  `ChooseWorkspacePage`. `submitArchiveWorkspace` should redirect there (or to `/home`, which
-  `blockWritesToArchivedWorkspace`'s own allowlist already treats as safe on an archived
-  Workspace) instead of `/choose-workspace`. Worth a regression test once fixed:
-  archive-while-authenticated must never depend on a pending-login cookie that only exists
-  before a session does.
+  `ChooseWorkspacePage`. `submitArchiveWorkspace` now redirects there instead of
+  `/choose-workspace` (`/home` was the other option named here; `/switch-workspace` was picked
+  since the admin's current Workspace is now read-only and they most likely want to pick another
+  one, not sit on its now-archived Home).
+
+  **Regression test**: `TestSubmitArchiveWorkspace_authenticatedAdminStaysSignedIn`
+  (`internal/web/archivedworkspace_test.go`) reproduces the exact failure shape -- a real session
+  cookie, no `pending_email` cookie anywhere -- archives, follows the `/switch-workspace`
+  redirect, and asserts 200 (not a bounce to `/login`). Verified live too: a minted admin session
+  against a real Workspace, `POST /workspace-settings/archive` returned `Location:
+  /switch-workspace`, and following it with the same session cookie (still no `pending_email`
+  cookie) returned 200 with the just-archived Workspace now listed under "Archived workspaces" --
+  the admin stayed signed in throughout, never touching `/login`.
 
 - **Question asked and answered 2026-09-27, not a gap: why does "Didn't get your verification
   email? Resend it" sit on `/login` rather than, say, `/reset-password`?** A real, functional

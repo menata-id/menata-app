@@ -97,7 +97,7 @@ func TestBlockWritesToArchivedWorkspace_allowsAllowlist(t *testing.T) {
 }
 
 // TestSubmitArchiveWorkspace covers the Danger Zone action end to end: it archives the ctx-scoped
-// Workspace and redirects to Choose Workspace, not /home, since the Workspace the request was
+// Workspace and redirects to /switch-workspace, not /home, since the Workspace the request was
 // sitting in is now the one that just became read-only.
 func TestSubmitArchiveWorkspace(t *testing.T) {
 	pool := authTestPool(t)
@@ -119,8 +119,8 @@ func TestSubmitArchiveWorkspace(t *testing.T) {
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("submitArchiveWorkspace status = %d, want 303; body=%s", rec.Code, rec.Body.String())
 	}
-	if got := rec.Header().Get("Location"); got != "/choose-workspace" {
-		t.Errorf("submitArchiveWorkspace redirected to %q, want /choose-workspace", got)
+	if got := rec.Header().Get("Location"); got != "/switch-workspace" {
+		t.Errorf("submitArchiveWorkspace redirected to %q, want /switch-workspace", got)
 	}
 	row, err := store.GetWorkspace(ctx, ws.ID)
 	if err != nil {
@@ -128,6 +128,63 @@ func TestSubmitArchiveWorkspace(t *testing.T) {
 	}
 	if !row.Archived {
 		t.Error("submitArchiveWorkspace did not archive the workspace")
+	}
+}
+
+// TestSubmitArchiveWorkspace_authenticatedAdminStaysSignedIn is the regression case for the bug
+// found and diagnosed 2026-09-27 (ROADMAP.md): archiving the Workspace you're currently in used to
+// redirect to /choose-workspace, a pre-session route that resolves identity purely from the
+// pending_email cookie -- one an already-authenticated admin never carries, so it bounced them to
+// /login, indistinguishable from being signed out. This proves the fix by reproducing exactly that
+// shape: a real session cookie, no pending_email cookie anywhere, archive, then follow the
+// redirect and confirm it renders (200), not /login.
+func TestSubmitArchiveWorkspace_authenticatedAdminStaysSignedIn(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	cfg := config.Config{SessionSecret: "submit-archive-stays-signed-in-secret", SecureCookies: false}
+	ctx := context.Background()
+	const email = "archive_stays_signed_in_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Archive Stays Signed In Test", "archive-stays-signed-in-test")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	user, err := store.CreateRecord(data.WithWorkspaceScope(ctx, ws.ID), "mch_user", map[string]any{"fld_name": "Archiving Admin", "fld_email": email})
+	if err != nil {
+		t.Fatalf("CreateRecord(user): %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "admin", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	sessionCookie := &http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user.ID, 0)}
+
+	req := httptest.NewRequest(http.MethodPost, "/workspace-settings/archive", nil)
+	req = req.WithContext(data.WithWorkspaceScope(req.Context(), ws.ID))
+	req.AddCookie(sessionCookie)
+	rec := httptest.NewRecorder()
+	submitArchiveWorkspace(store, cfg)(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("submitArchiveWorkspace status = %d, want 303; body=%s", rec.Code, rec.Body.String())
+	}
+	location := rec.Header().Get("Location")
+	if location != "/switch-workspace" {
+		t.Fatalf("submitArchiveWorkspace redirected to %q, want /switch-workspace", location)
+	}
+
+	// No pending_email cookie is ever set in this test -- only the real session cookie, which is
+	// exactly the state an already-authenticated admin is in. showChooseWorkspace would 303 this
+	// straight to /login (the bug); showSwitchWorkspace must render.
+	followReq := httptest.NewRequest(http.MethodGet, location, nil)
+	followReq = followReq.WithContext(data.WithWorkspaceScope(followReq.Context(), ws.ID))
+	followReq.AddCookie(sessionCookie)
+	followRec := httptest.NewRecorder()
+	showSwitchWorkspace(store, cfg)(followRec, followReq)
+
+	if followRec.Code != http.StatusOK {
+		t.Errorf("showSwitchWorkspace after archive = %d, want 200 (still signed in); body=%s", followRec.Code, followRec.Body.String())
 	}
 }
 

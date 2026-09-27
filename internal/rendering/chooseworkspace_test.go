@@ -37,7 +37,7 @@ func TestChooseWorkspacePage_archivedSectionOnlyForAdmin(t *testing.T) {
 		{ID: "ws_old", Name: "Old Co", Role: "admin", Archived: true, ArchivedAt: "12 Jul 2026"},
 	}
 	var buf bytes.Buffer
-	if err := ChooseWorkspacePage(adminChoices, "", "/switch-workspace", "/home", "Back to Menata", false).Render(context.Background(), &buf); err != nil {
+	if err := ChooseWorkspacePage(adminChoices, "", "/switch-workspace", "/home", "Back to Menata", false, "silvia@menata.id").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := buf.String()
@@ -56,13 +56,39 @@ func TestChooseWorkspacePage_archivedSectionOnlyForAdmin(t *testing.T) {
 		{ID: "ws_old", Name: "Old Co", Role: "member", Archived: true, ArchivedAt: "12 Jul 2026"},
 	}
 	buf.Reset()
-	if err := ChooseWorkspacePage(memberChoices, "", "/switch-workspace", "/home", "Back to Menata", false).Render(context.Background(), &buf); err != nil {
+	if err := ChooseWorkspacePage(memberChoices, "", "/switch-workspace", "/home", "Back to Menata", false, "silvia@menata.id").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	memberHTML := buf.String()
 	for _, unwanted := range []string{"Archived workspaces", "Old Co", "Restore"} {
 		if strings.Contains(memberHTML, unwanted) {
 			t.Errorf("member's rendered page unexpectedly contains %q -- an archived workspace must be hidden from a plain member entirely", unwanted)
+		}
+	}
+}
+
+// TestChooseWorkspacePage_chooseWorkspaceMockupGaps covers the four Choose Workspace gaps closed
+// 2026-09-27 (ROADMAP.md, Flow 2 canvas re-audit): a live row's slug/member-count line, the
+// capitalized role badge, the footer's "Signed in as ..." identity line, and the archived
+// section's disclosure chevron.
+func TestChooseWorkspacePage_chooseWorkspaceMockupGaps(t *testing.T) {
+	choices := []WorkspaceChoice{
+		{ID: "ws_live", Name: "Dokter Kecil", Slug: "dokter-kecil", MemberCount: 24, Role: "admin"},
+		{ID: "ws_old", Name: "Old Co", Role: "admin", Archived: true, ArchivedAt: "12 Jul 2026"},
+	}
+	var buf bytes.Buffer
+	if err := ChooseWorkspacePage(choices, "", "/switch-workspace", "/home", "Back to Menata", false, "silvia@menata.id").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	html := buf.String()
+	for _, want := range []string{
+		"dokter-kecil · 24 members",     // 2a: slug + member count line
+		"Admin",                         // 2b: capitalized role badge, not lower-case "admin"
+		"Signed in as silvia@menata.id", // 2c: footer identity line
+		"M9 6l6 6-6 6",                  // 2d: archived-section chevron-right icon's own path data
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("rendered page missing %q; html=%s", want, html)
 		}
 	}
 }

@@ -1,6 +1,9 @@
 package rendering
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // WorkspaceChoice is one row on the Choose Workspace screen: a Workspace this identity belongs to,
 // and the Workspace-level role it holds there.
@@ -13,11 +16,17 @@ import "fmt"
 // (internal/web.loadWorkspaceChoices), not raw, the same convention every other display date in
 // this app already follows.
 type WorkspaceChoice struct {
-	ID         string
-	Name       string
-	Role       string
-	Archived   bool
-	ArchivedAt string
+	ID   string
+	Name string
+	// Slug and MemberCount fill the board's own second line under a Workspace's name
+	// ("dokter-kecil · 24 members", Flow 2 canvas re-audit gap, closed 2026-09-27) -- both are
+	// data.Membership fields ListMemberships already joins/computes (internal/data/workspace.go),
+	// not invented here. Live rows only; see the row markup below.
+	Slug        string
+	MemberCount int
+	Role        string
+	Archived    bool
+	ArchivedAt  string
 }
 
 // ChooseWorkspacePage lists the Workspaces a signed-in identity belongs to, posting the pick to
@@ -29,11 +38,11 @@ type WorkspaceChoice struct {
 // way: "back to signing in" pre-session, "back to the Workspace" mid-session.
 //
 // Ported to ui-sample/case-03-flow1/02-choose-workspace.html (Fase 1, 2026-09-20). The board's
-// own rows carry a second line ("dokter-kecil · 24 members") that this app cannot fill yet: a
-// Workspace has no slug and no member count on domain.Workspace, and inventing either here would
-// be exactly the hardcoding CLAUDE.md's decision path rules out. The row therefore renders name +
-// role only, and the slug/count line arrives when those become real fields (ROADMAP.md, Fase 3 --
-// multi-application, which is when Workspace metadata grows anyway).
+// own rows carry a second line ("dokter-kecil · 24 members") -- closed 2026-09-27 (Flow 2 canvas
+// re-audit gap): Slug/MemberCount above are real data.Workspace/workspace_members values now,
+// not invented, so a live row renders it. Not a metadata-hardcoding violation under CLAUDE.md's
+// decision path for the same reason the role badge below isn't: neither a Workspace's slug nor
+// its member count is declared in any metadata/*.yaml.
 //
 // The "admin" comparison below is the board's own two-tone badge (blue for an Admin membership,
 // slate otherwise). It is a literal role value, but not a metadata-hardcoding violation under
@@ -42,6 +51,16 @@ type WorkspaceChoice struct {
 // no metadata/*.yaml declares roles at all -- "role" does not appear in 006 or 007 either. The
 // forward pointer step 2b asks for is ROADMAP.md's Case 03 phase 7, which makes roles a declared
 // runtime concept; when that lands, this branch should read the declaration instead of the column.
+// capitalizeRole (below) renders it the way a person reads it ("Admin"/"Member") -- deliberately
+// not shared with composition.capitalizeRole (internal/rendering cannot import
+// internal/composition, plane boundaries, CLAUDE.md) or with displayRole (workspacehome.templ,
+// which doesn't capitalize) -- a second real case in this package is the trigger to generalize,
+// not before.
+//
+// signedInEmail names who the footer's "Sign out"/"Back to Menata" link acts on ("Signed in as
+// silvia@menata.id · Sign out", the board's own footer copy, closed 2026-09-27) -- both callers
+// already resolve an email before calling this (showChooseWorkspace from the pending-login
+// cookie, showSwitchWorkspace from the real session), so this is plumbing, not a new read.
 //
 // canCreateWorkspace adds ui-sample/choose-workspace.html's dashed-border "Add workspace" row
 // (2026-09-21), linking to /create-workspace -- CreateWorkspacePage, a runtime-level screen like
@@ -50,7 +69,7 @@ type WorkspaceChoice struct {
 // the mid-session switcher call (showSwitchWorkspace) ever passes true; showChooseWorkspace's
 // pre-session, pending-email call always passes false, since that identity has no session yet for
 // /create-workspace's own auth-gated handler to act on.
-templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, backHref, backLabel string, canCreateWorkspace bool) {
+templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, backHref, backLabel string, canCreateWorkspace bool, signedInEmail string) {
 	{{ live, archived := splitWorkspaceChoices(choices) }}
 	@authShell("Choose a workspace", "Choose a workspace", "You have access to more than one workspace.") {
 		@authCard("max-w-112") {
@@ -64,13 +83,14 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 							type="submit"
 							class="flex w-full cursor-pointer items-center gap-3 rounded-md border border-slate-200 bg-white p-4 text-left hover:border-blue-300"
 						>
-							<span class="flex grow flex-col gap-2">
+							<span class="flex grow flex-col gap-1">
 								<span class="text-[15px] font-medium text-slate-900">{ c.Name }</span>
+								<span class="text-xs text-slate-400">{ c.Slug } · { fmt.Sprint(c.MemberCount) } member{ pluralS(c.MemberCount) }</span>
 							</span>
 							if c.Role == "admin" {
-								<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">{ c.Role }</span>
+								<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">{ capitalizeRole(c.Role) }</span>
 							} else {
-								<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{ c.Role }</span>
+								<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{ capitalizeRole(c.Role) }</span>
 							}
 						</button>
 					</form>
@@ -93,7 +113,10 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 		if len(archived) > 0 {
 			<div class="flex w-full max-w-112 flex-col gap-2">
 				<details class="flex flex-col gap-2">
-					<summary class="cursor-pointer list-none self-start text-xs text-slate-500 [&::-webkit-details-marker]:hidden">Archived workspaces ({ fmt.Sprint(len(archived)) })</summary>
+					<summary class="flex cursor-pointer list-none items-center gap-1 self-start text-xs text-slate-500 [&::-webkit-details-marker]:hidden">
+						Archived workspaces ({ fmt.Sprint(len(archived)) })
+						@icon("chevron-right", "size-3 shrink-0 text-slate-400")
+					</summary>
 					<div class="flex flex-col gap-2">
 						for _, c := range archived {
 							<div class="flex items-center gap-3 rounded-md border border-slate-200 bg-white p-3.5">
@@ -114,9 +137,22 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 			</div>
 		}
 		@authFooterNote() {
+			if signedInEmail != "" {
+				Signed in as { signedInEmail } ·
+			}
 			<a href={ templ.SafeURL(backHref) } class="text-slate-500 hover:text-slate-700">← { backLabel }</a>
 		}
 	}
+}
+
+// capitalizeRole renders a Workspace role the way a person reads it ("Admin"/"Member") -- see this
+// file's own doc comment above (ChooseWorkspacePage) for why it isn't shared with
+// composition.capitalizeRole or displayRole.
+func capitalizeRole(role string) string {
+	if role == "" {
+		return role
+	}
+	return strings.ToUpper(role[:1]) + role[1:]
 }
 
 // splitWorkspaceChoices separates the live Workspaces (rendered exactly as before) from the
