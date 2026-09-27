@@ -5,14 +5,19 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 
 	"menata.app/internal/aiassist"
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/rendering"
 )
 
 // createGeneratedSession is the fixture every draft-Application test below needs: a session that
@@ -212,5 +217,136 @@ func TestExistingStateFor_reservesOnlyThisWorkspacesIDs(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "mch_user") {
 		t.Errorf("Validate() error = %v, want it to name the colliding machine id", err)
+	}
+}
+
+// TestExistingStateFor_populatesApplicationsForExtend is the regression test for a bug that
+// predates this file's Workspace-isolation work: existingStateFor declared its Applications map
+// but never filled it in, so aiassist.Validate's extend_application path -- which looks up
+// existing.Applications[change.TargetAppID] -- rejected every extension with "application X is
+// not installed in this workspace" even when it plainly was. Found chasing a real conversation
+// where the assistant tried exactly this path and could never get past it.
+func TestExistingStateFor_populatesApplicationsForExtend(t *testing.T) {
+	ws := domain.Workspace{
+		Slug:       "dokter-kecil",
+		MachineIDs: []string{"mch_user", "mch_document"},
+		Machines: []*domain.Machine{
+			{ID: "mch_user"},
+			{ID: "mch_document", Fields: []domain.Field{
+				{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"Draft", "Under Review"}},
+			}},
+		},
+		Applications: []domain.Application{{
+			ID: "app_document_tracking", Name: "Document Tracking",
+			Roles: []string{"author", "reviewer"}, Machines: []string{"mch_document"},
+		}},
+	}
+
+	state := existingStateFor(ws)
+
+	target, ok := state.Applications["app_document_tracking"]
+	if !ok {
+		t.Fatal("existingStateFor() did not populate Applications[app_document_tracking] -- extend_application can never validate against an installed application")
+	}
+	if len(target.Roles) != 2 || target.Roles[0] != "author" {
+		t.Errorf("Applications[app_document_tracking].Roles = %v, want [author reviewer]", target.Roles)
+	}
+	if _, ok := target.Machines["mch_document"]; !ok {
+		t.Error("Applications[app_document_tracking].Machines is missing mch_document, which this Application claims")
+	}
+
+	extension := aiassist.GeneratedChange{
+		Kind: aiassist.KindExtendApplication, TargetAppID: "app_document_tracking",
+		Additions: []aiassist.MetadataAddition{{NewRole: "approver"}},
+	}
+	if err := aiassist.Validate(extension, state); err != nil {
+		t.Errorf("Validate(extend an installed application) = %v, want nil", err)
+	}
+}
+
+// TestPublishNewApplication_grantsThePublisherTheirChosenRole is the regression test for the other
+// half of the same 2026-09-27 incident: publishing a brand-new Application used to grant nobody
+// any role in it, including its own creator, so the redirect straight into
+// requireApplicationAccess landed on a 403 ("you have no role in <name>"). The conversation now
+// asks which of its own declared roles the publisher will hold (GeneratedApplication.
+// PublisherRole, validated to be one of Roles); publishing must act on that answer.
+func TestPublishNewApplication_grantsThePublisherTheirChosenRole(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "publish_role_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Publish Role Test", "publish-role-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	user, err := store.CreateRecord(wsCtx, domain.UserMachineID, map[string]any{"fld_email": email})
+	if err != nil {
+		t.Fatalf("CreateRecord(user): %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "admin", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	// A minimal real manifest for aiassist.Write to append into -- publishNewApplication reads
+	// cfg.MetadataPath/<slug>.yaml directly, so this has to exist on disk, not just in the DB.
+	metadataDir := t.TempDir()
+	manifestPath := filepath.Join(metadataDir, ws.Slug+".yaml")
+	if err := os.WriteFile(manifestPath, []byte("workspace: "+ws.Slug+"\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	change := aiassist.GeneratedChange{
+		Kind: aiassist.KindNewApplication,
+		Application: &aiassist.GeneratedApplication{
+			ID: "app_publish_role_test", Name: "Publish Role Test App",
+			Roles: []string{"author", "reviewer"}, PublisherRole: "reviewer",
+			Machines: []aiassist.GeneratedMachine{{
+				ID: "mch_publish_role_doc", Name: "Document",
+				Fields: []aiassist.GeneratedField{{ID: "fld_title", Name: "Title", Type: "text", Required: true}},
+			}},
+		},
+	}
+	reply := aiassist.Reply{Message: "Here is what I'll build.", Change: &change}
+	content, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateAISession(wsCtx, ws.ID, user.ID, aiassist.KindNewApplication)
+	if err != nil {
+		t.Fatalf("CreateAISession: %v", err)
+	}
+	if err := store.AppendAISessionTurn(wsCtx, session.ID, "model", string(content)); err != nil {
+		t.Fatalf("AppendAISessionTurn: %v", err)
+	}
+	if err := store.UpdateAISessionStatus(wsCtx, session.ID, data.AISessionStatusGenerated); err != nil {
+		t.Fatalf("UpdateAISessionStatus: %v", err)
+	}
+
+	cfg := config.Config{SessionSecret: "publish-role-test-secret", MetadataPath: metadataDir}
+	testWorkspace := domain.Workspace{Slug: ws.Slug, MachineIDs: []string{domain.UserMachineID}}
+	reqCtx := rendering.WithCurrentWorkspace(wsCtx, testWorkspace, "Publish Role Test", false)
+
+	r := chi.NewRouter()
+	r.Post("/new-application/{session}/publish", publishNewApplication(store, cfg, func() error { return nil }))
+	req := httptest.NewRequest(http.MethodPost, "/new-application/"+session.ID+"/publish", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user.ID, 0)})
+	req = req.WithContext(reqCtx)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("publish status = %d, want 303; body: %s", rec.Code, rec.Body.String())
+	}
+
+	_, direct, _, err := store.ActorMembership(ctx, ws.ID, user.ID)
+	if err != nil {
+		t.Fatalf("ActorMembership: %v", err)
+	}
+	if got := direct["app_publish_role_test"]; got != "reviewer" {
+		t.Errorf("direct app role = %q, want %q (the conversation's own publisher_role answer)", got, "reviewer")
 	}
 }

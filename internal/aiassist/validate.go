@@ -88,6 +88,17 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 		}
 		seenRole[r] = true
 	}
+	// PublisherRole is what lets the person who just built this Application actually open it
+	// (publishNewApplication grants it directly) -- required whenever there is a role vocabulary
+	// to hold one from at all. An Application declaring no roles gates nothing
+	// (requireApplicationAccess's own len(app.Roles) == 0 check), so nobody needs one there.
+	if len(app.Roles) > 0 {
+		if strings.TrimSpace(app.PublisherRole) == "" {
+			issues = append(issues, "publisher_role is required when the application declares roles -- ask which one the person will hold themselves")
+		} else if !seenRole[app.PublisherRole] {
+			issues = append(issues, fmt.Sprintf("publisher_role %q must be one of roles %v", app.PublisherRole, app.Roles))
+		}
+	}
 	if len(app.Machines) == 0 {
 		issues = append(issues, "an application needs at least one machine")
 	}

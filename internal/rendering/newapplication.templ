@@ -212,8 +212,10 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, works
 			</section>
 			<aside class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
 				<h2 class="m-0 text-sm font-medium">Before you publish</h2>
-				if change.Kind == aiassist.KindNewApplication {
-					<p class="m-0 text-xs text-slate-500">Only workspace admins can open it at first. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>
+				if change.Kind == aiassist.KindNewApplication && change.Application != nil && change.Application.PublisherRole != "" {
+					<p class="m-0 text-xs text-slate-500">You'll hold the "{ change.Application.PublisherRole }" role in it once published, so you can open it right away. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>
+				} else if change.Kind == aiassist.KindNewApplication {
+					<p class="m-0 text-xs text-slate-500">This application declares no roles, so nothing gates who can open it. Access for everyone is a Settings change, made after publishing, not part of this step.</p>
 				} else {
 					<p class="m-0 text-xs text-slate-500">This adds to an application that already has its own access rules -- nothing about who can use it changes.</p>
 				}

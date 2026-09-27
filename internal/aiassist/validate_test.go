@@ -11,9 +11,10 @@ func validLeaveRequestChange() GeneratedChange {
 	return GeneratedChange{
 		Kind: KindNewApplication,
 		Application: &GeneratedApplication{
-			ID:    "app_leave_requests",
-			Name:  "Leave Requests",
-			Roles: []string{"Employee", "Supervisor", "HR admin"},
+			ID:            "app_leave_requests",
+			Name:          "Leave Requests",
+			Roles:         []string{"Employee", "Supervisor", "HR admin"},
+			PublisherRole: "HR admin",
 			Machines: []GeneratedMachine{
 				{
 					ID:   "mch_leave_request",

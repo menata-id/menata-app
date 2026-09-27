@@ -51,8 +51,18 @@ type GeneratedApplication struct {
 	Color       string `json:"color"`
 	// Roles is this Application's own role vocabulary (domain.Application.Roles) -- e.g.
 	// ["Employee", "Supervisor", "HR admin"] for the mockup's own Leave Requests example.
-	Roles    []string           `json:"roles"`
-	Machines []GeneratedMachine `json:"machines"`
+	Roles []string `json:"roles"`
+	// PublisherRole is which of Roles the person publishing this conversation will hold
+	// themselves, once it goes live -- must be one of Roles (validate.go). Without this, nobody
+	// held any role in a brand-new Application the moment it was created, including its own
+	// creator: publishing redirected straight into a 403 ("you have no role in <name>"), found
+	// 2026-09-27 chasing a real conversation that hit exactly that. This runtime's own
+	// workspace_member_app_roles table holds one *direct* role per person per Application (its
+	// primary key is workspace/user/application, no room for a second row) -- a second role would
+	// need a Group, which this first increment does not create -- so the conversation must ask
+	// which one role the person wants, rather than the code guessing or granting all of them.
+	PublisherRole string             `json:"publisher_role"`
+	Machines      []GeneratedMachine `json:"machines"`
 }
 
 // GeneratedMachine is one Machine the Application exposes. Deliberately narrower than

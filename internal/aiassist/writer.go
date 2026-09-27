@@ -141,13 +141,24 @@ type eventDoc struct {
 }
 
 type applicationDoc struct {
-	ID          string   `yaml:"id"`
-	Name        string   `yaml:"name"`
-	Machines    []string `yaml:"machines"`
-	Roles       []string `yaml:"roles,omitempty"`
-	Description string   `yaml:"description,omitempty"`
-	Icon        string   `yaml:"icon,omitempty"`
-	Color       string   `yaml:"color,omitempty"`
+	ID          string       `yaml:"id"`
+	Name        string       `yaml:"name"`
+	Machines    []string     `yaml:"machines"`
+	Roles       []string     `yaml:"roles,omitempty"`
+	Description string       `yaml:"description,omitempty"`
+	Icon        string       `yaml:"icon,omitempty"`
+	Color       string       `yaml:"color,omitempty"`
+	Navigation  []navItemDoc `yaml:"navigation,omitempty"`
+}
+
+// navItemDoc mirrors internal/metadata's own (unexported) navItemDoc field-for-field, the same
+// reasoning machineDoc/applicationDoc above already carry -- only the fields writeNewApplication
+// ever sets are here, not the full shape a hand-written file may use.
+type navItemDoc struct {
+	ID       string `yaml:"id"`
+	Label    string `yaml:"label"`
+	Route    string `yaml:"route"`
+	HomeCard bool   `yaml:"home_card"`
 }
 
 func writeNewApplication(workspaceManifestPath string, change GeneratedChange) (string, error) {
@@ -201,6 +212,17 @@ func writeNewApplication(workspaceManifestPath string, change GeneratedChange) (
 	for _, m := range app.Machines {
 		appDoc.Machines = append(appDoc.Machines, m.ID)
 	}
+	// A generated Application otherwise declares no navigation: at all, and domain.Workspace.
+	// HomeRoute (see its own doc comment) is resolved from a home_card: true item or is empty --
+	// so its Workspace Home card had no destination and linked back to /home, found 2026-09-27
+	// alongside the missing publisher_role in the same conversation. One item, pointing at the
+	// first Machine's own generic list page (/machines/{id}, the one route this package can always
+	// name regardless of what the Application declares -- the same reasoning GeneratedNavItem's own
+	// doc comment already gives for extend_application), is enough to make the card go somewhere.
+	appDoc.Navigation = []navItemDoc{{
+		ID: "nav_" + app.ID[len("app_"):], Label: app.Name,
+		Route: "/machines/" + app.Machines[0].ID, HomeCard: true,
+	}}
 	appFilename := app.ID[len("app_"):] + ".yaml"
 	appAbsPath := filepath.Join(ownDir, "applications", appFilename)
 	if err := refuseIfExists(appAbsPath, "application "+app.ID); err != nil {

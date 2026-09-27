@@ -92,7 +92,7 @@ var generatedMachineSchema = geminiSchema{
 
 var generatedApplicationSchema = geminiSchema{
 	Type:     "OBJECT",
-	Required: []string{"id", "name", "machines"},
+	Required: []string{"id", "name", "machines", "publisher_role"},
 	Properties: map[string]geminiSchema{
 		"id":          {Type: "STRING", Description: "Must match ^app_[a-z][a-z0-9_]*$."},
 		"name":        stringSchema,
@@ -100,7 +100,11 @@ var generatedApplicationSchema = geminiSchema{
 		"icon":        {Type: "STRING", Description: "One of the known icon names named in the system prompt."},
 		"color":       {Type: "STRING", Enum: []string{"blue", "emerald", "amber", "slate"}},
 		"roles":       {Type: "ARRAY", Items: &stringSchema},
-		"machines":    {Type: "ARRAY", Items: &generatedMachineSchema},
+		"publisher_role": {
+			Type:        "STRING",
+			Description: "Must be one of roles. Which role the person you are talking to will hold themselves once this is published -- ask them plainly which one that is before setting \"change\"; never guess or pick one on their behalf.",
+		},
+		"machines": {Type: "ARRAY", Items: &generatedMachineSchema},
 	},
 }
 

@@ -84,7 +84,13 @@ any code.
    after this conversation.
 4. IDs you invent (machine ids, field ids, application ids, etc.) must be lowercase, use
    underscores, and follow the required prefix for that kind (mch_, fld_, prm_, trn_, evt_, app_) --
-   the review step will reject anything else.`)
+   the review step will reject anything else.
+5. For a brand-new application (kind "new_application") that declares any roles: [] at all, always
+   ask, in plain language, which one of those roles the person you are talking to will hold
+   themselves once it is published -- then set that answer as "publisher_role". Never guess or pick
+   one on their behalf, even if one role looks like the obvious "admin" of the two. Nobody holds any
+   role in a brand-new application the moment it exists, including its own creator, so without this
+   answer publishing would lock them out of what they just built.`)
 	return b.String()
 }
 

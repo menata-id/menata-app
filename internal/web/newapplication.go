@@ -283,6 +283,21 @@ func publishNewApplication(store *data.Store, cfg config.Config, reload func() e
 			return
 		}
 
+		// Grants the conversation's own answer to "which role will you hold yourself"
+		// (aiassist.GeneratedApplication.PublisherRole, validated to be one of the Application's
+		// own roles) -- without this, nobody held any role in a brand-new Application the moment
+		// it existed, including its own creator, and the redirect below sent them straight into
+		// requireApplicationAccess's 403 (found 2026-09-27 chasing a real conversation that hit
+		// exactly that). Skipped when the Application declares no roles at all, matching
+		// validateNewApplication's own reasoning: nothing gates on holding one there.
+		if newAppID != "" && change.Application != nil && change.Application.PublisherRole != "" {
+			actor := currentActor(req, store, cfg)
+			if err := store.SetMemberAppRole(ctx, workspaceID, actor.ID, newAppID, change.Application.PublisherRole); err != nil {
+				serverError(w, fmt.Errorf("metadata was published but granting your own role failed -- add it yourself from this application's Settings: %w", err))
+				return
+			}
+		}
+
 		if newAppID != "" {
 			redirectTo(w, req, "/machines/"+firstMachineOf(*change))
 			return
@@ -351,8 +366,26 @@ func existingStateFor(ws domain.Workspace) aiassist.ExistingState {
 	for _, id := range ws.MachineIDs {
 		state.MachineIDs[id] = true
 	}
+	byID := make(map[string]*domain.Machine, len(ws.Machines))
+	for _, m := range ws.Machines {
+		byID[m.ID] = m
+	}
 	for _, app := range ws.Applications {
 		state.ApplicationIDs[app.ID] = true
+		// Applications was declared but never populated here since this package's own first
+		// commit, which meant aiassist.Validate's extend_application path always failed --
+		// existing.Applications[change.TargetAppID] could never be found, so every extend request
+		// was rejected with "application X is not installed in this workspace" even when it plainly
+		// was. Found 2026-09-27 chasing a conversation where the assistant tried exactly that path
+		// (after a generated Application's own creator hit "you have no role in it" -- see
+		// publishNewApplication's own doc comment) and could not get past this.
+		claimed := make(map[string]*domain.Machine, len(app.Machines))
+		for _, mID := range app.Machines {
+			if m, ok := byID[mID]; ok {
+				claimed[mID] = m
+			}
+		}
+		state.Applications[app.ID] = aiassist.ExistingApplicationState{Roles: app.Roles, Machines: claimed}
 	}
 	return state
 }

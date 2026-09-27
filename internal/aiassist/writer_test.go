@@ -59,6 +59,15 @@ func TestWrite_newApplication_writesReloadableFiles(t *testing.T) {
 	if !strings.Contains(string(appBytes), "id: app_leave_requests") {
 		t.Errorf("application file missing its own id, got:\n%s", appBytes)
 	}
+	// Regression: a generated Application used to declare no navigation at all, so its Workspace
+	// Home card had no HomeRoute and linked back to /home -- found 2026-09-27 in the same
+	// conversation that also surfaced the missing publisher_role. One item, home_card: true,
+	// pointing at the generic page of the Application's own first Machine, is enough.
+	for _, want := range []string{"navigation:", "id: nav_leave_requests", "route: /machines/mch_leave_request", "home_card: true"} {
+		if !strings.Contains(string(appBytes), want) {
+			t.Errorf("application file missing generated navigation %q, got:\n%s", want, appBytes)
+		}
+	}
 
 	manifestAfter, err := os.ReadFile(manifestPath)
 	if err != nil {

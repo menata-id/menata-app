@@ -140,9 +140,10 @@ type Application struct {
 	ID   string
 	Name string
 	// WorkspaceSlug is the Workspace whose manifest installed this Application -- the slug, since
-	// that is what a manifest names (domain.Workspace.Slug). The same Application file may be
-	// installed by several Workspaces, so this says which installation produced *this* value, not
-	// something the Application file itself declares.
+	// that is what a manifest names (domain.Workspace.Slug). Several Workspaces may each install
+	// their own *copy* of the same template (metadata/applications/, 2026-09-27 Workspace
+	// isolation), so this says which installation produced *this* value, not something the
+	// Application file itself declares.
 	WorkspaceSlug string
 	// Machines are the ids this Application exposes, selected from its Workspace's own set. Not
 	// file paths: the Machines themselves are loaded once, at Workspace level.
