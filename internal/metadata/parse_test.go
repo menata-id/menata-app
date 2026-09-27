@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 )
 
 func TestParse(t *testing.T) {
@@ -305,5 +306,43 @@ events:
 	}
 	if e.On != "" || e.OnCreate {
 		t.Errorf("Events[0] = %+v, want On=\"\" and OnCreate=false alongside a Schedule", e)
+	}
+}
+
+func TestParse_blocksMemberRemoval(t *testing.T) {
+	yaml := []byte(`
+id: mch_approval_step
+name: Approval Step
+fields:
+  - id: fld_assignee
+    name: Assignee
+    type: person
+  - id: fld_decision
+    name: Decision
+    type: status
+    options: [pending, approved, rejected]
+blocks_member_removal:
+  - id: blk_step_pending
+    actor_field: fld_assignee
+    condition: { field: fld_decision, op: equals, value: pending }
+    reason: "has a pending approval step"
+`)
+
+	m, err := Parse(yaml)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(m.MemberRemovalBlocks) != 1 {
+		t.Fatalf("len(MemberRemovalBlocks) = %d, want 1", len(m.MemberRemovalBlocks))
+	}
+	b := m.MemberRemovalBlocks[0]
+	want := domain.MemberRemovalBlock{
+		ID:         "blk_step_pending",
+		ActorField: "fld_assignee",
+		Condition:  expression.Comparison{Field: "fld_decision", Op: expression.OpEquals, Value: "pending"},
+		Reason:     "has a pending approval step",
+	}
+	if b != want {
+		t.Errorf("MemberRemovalBlocks[0] = %+v, want %+v", b, want)
 	}
 }

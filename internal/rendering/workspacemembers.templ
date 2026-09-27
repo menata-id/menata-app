@@ -132,11 +132,17 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 							}
 						</span>
 					</div>
-					<div class="sm:w-32">
+					<div class="flex flex-wrap gap-1 sm:w-32">
 						if m.WorkspaceRole == "admin" {
 							<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">{ m.WorkspaceRole }</span>
 						} else {
 							<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{ displayRole(m.WorkspaceRole) }</span>
+						}
+						// Deactivated (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27): shown
+						// alongside the role badge, not in place of it -- unlike a pending invite,
+						// a deactivated member still holds the role, just cannot act on it here.
+						if m.Deactivated {
+							<span class="rounded-full bg-slate-200 px-2.5 py-1 text-xs text-slate-600">Deactivated</span>
 						}
 					</div>
 					<div class="flex flex-col gap-1 sm:w-44">
@@ -244,8 +250,43 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 				@authSubmit("Save changes")
 			</div>
 		</form>
+		@removeFromWorkspaceSection(m)
 		@effectiveAccessPanel(m, roleApps)
 	}
+}
+
+// removeFromWorkspaceSection is MemberEdit.dc.html's own "Remove from workspace" (Flow 2 canvas
+// re-audit, ROADMAP.md, 2026-09-27) -- symmetric, unlike the board itself, which draws only
+// "Deactivate member": Reactivate mirrors the identical Archive/Restore shape
+// workspacesettings.templ's own Danger zone already established for a Workspace, one level down,
+// by owner instruction (2026-09-27) even though the board draws just the one direction. A
+// deactivated member's own mch_user record, and everything it authored, is untouched -- only
+// their ability to open this Workspace again is what either action changes
+// (data.Store.DeactivateMember/ReactivateMember's own doc comment).
+templ removeFromWorkspaceSection(m data.Membership) {
+	<section class="flex flex-col gap-3 rounded-lg border border-red-200 p-5">
+		<div class="flex flex-col gap-1">
+			<h2 class="m-0 text-sm font-medium text-red-700">Remove from workspace</h2>
+			<p class="m-0 text-2xs text-slate-500">
+				if m.Deactivated {
+					This member cannot open this workspace. Their documents and approval history stay.
+				} else {
+					A deactivated member can no longer open this workspace. Documents they submitted and their approval history stay.
+				}
+			</p>
+		</div>
+		if m.Deactivated {
+			<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/reactivate") }>
+				@csrfHiddenInput()
+				<button type="submit" class="h-9 cursor-pointer rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">Reactivate member</button>
+			</form>
+		} else {
+			<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/deactivate") } hx-confirm="Deactivate this member? They will no longer be able to open this workspace.">
+				@csrfHiddenInput()
+				<button type="submit" class="h-9 cursor-pointer rounded-md border border-red-200 bg-white px-3 text-sm text-red-700 hover:bg-red-50">Deactivate member</button>
+			</form>
+		}
+	</section>
 }
 
 // workspaceRoleChoice is one radio card in the Workspace role fieldset: the value plus the

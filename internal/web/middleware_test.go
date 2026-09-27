@@ -197,3 +197,68 @@ func TestRequireApplicationAccess(t *testing.T) {
 		t.Errorf("reviewer: status = %d, want 200 -- a reviewer may look", got)
 	}
 }
+
+// TestRequireActiveMembership_deactivatedMemberIsRedirected is the live-session half of member
+// deactivation (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27): the mockup's own guarantee is
+// "can no longer open [this workspace]", present tense, so a deactivated member's very next
+// request must be refused, not merely their next login.
+func TestRequireActiveMembership_deactivatedMemberIsRedirected(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "require_active_membership_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Require Active Membership Test", "require-active-membership-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	member, err := store.CreateRecord(wsCtx, domain.UserMachineID, map[string]any{"fld_name": "Deactivated Viewer", "fld_email": email})
+	if err != nil {
+		t.Fatalf("CreateRecord(user): %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, member.ID, email, "member", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	cfg := config.Config{SessionSecret: "require-active-membership-test-secret"}
+
+	get := func(path string, htmx bool) *httptest.ResponseRecorder {
+		r := chi.NewRouter()
+		r.Use(requireActiveMembership(store, cfg))
+		r.Get(path, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, member.ID, 0)})
+		if htmx {
+			req.Header.Set("HX-Request", "true")
+		}
+		req = req.WithContext(wsCtx)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := get("/home", false); rec.Code != http.StatusOK {
+		t.Fatalf("while active: status = %d, want 200; body: %s", rec.Code, rec.Body.String())
+	}
+
+	if err := store.DeactivateMember(ctx, ws.ID, member.ID); err != nil {
+		t.Fatalf("DeactivateMember: %v", err)
+	}
+
+	if rec := get("/home", false); rec.Code != http.StatusSeeOther {
+		t.Errorf("full navigation after deactivation: status = %d, want 303 to /login; body: %s", rec.Code, rec.Body.String())
+	} else if got := rec.Header().Get("Location"); got != "/login" {
+		t.Errorf("full navigation after deactivation redirected to %q, want /login", got)
+	}
+	if rec := get("/home", true); rec.Code != http.StatusUnauthorized {
+		t.Errorf("HTMX request after deactivation: status = %d, want 401", rec.Code)
+	}
+	// The allowlisted badge path is exempt (query-budget discipline, TestNavBadgeQueryCost) --
+	// still reachable even once deactivated, at the cost of brief staleness rather than a query
+	// most page loads never need.
+	if rec := get("/api/approval-inbox/pending-count", false); rec.Code != http.StatusOK {
+		t.Errorf("allowlisted badge path after deactivation: status = %d, want 200 (named exception)", rec.Code)
+	}
+}

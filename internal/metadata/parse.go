@@ -23,6 +23,9 @@ type machineDoc struct {
 	Transitions []transitionDoc `yaml:"transitions"`
 	Datasets    []datasetDoc    `yaml:"datasets"`
 	Sequencing  *sequencingDoc  `yaml:"sequencing"`
+	// MemberRemovalBlocks -- see domain.MemberRemovalBlock's own doc comment for why this is not a
+	// second Constraint shape.
+	MemberRemovalBlocks []memberRemovalBlockDoc `yaml:"blocks_member_removal"`
 
 	// Machine-level display: how these records look wherever they appear, read on screens that
 	// select no View at all (the detail page, composition's bespoke cards).
@@ -78,6 +81,16 @@ type comparisonDoc struct {
 	Field string `yaml:"field"`
 	Op    string `yaml:"op"`
 	Value string `yaml:"value"`
+}
+
+// memberRemovalBlockDoc is the YAML serialization of a domain.MemberRemovalBlock. Condition
+// reuses comparisonDoc, the same shape constraintDoc's own block_if.condition and datasetDoc's
+// own measures[].where already declare, rather than a fourth copy of the identical three fields.
+type memberRemovalBlockDoc struct {
+	ID         string         `yaml:"id"`
+	ActorField string         `yaml:"actor_field"`
+	Condition  *comparisonDoc `yaml:"condition"`
+	Reason     string         `yaml:"reason"`
 }
 
 type viewDoc struct {
@@ -237,6 +250,17 @@ func Parse(data []byte) (*domain.Machine, error) {
 				},
 			},
 		})
+	}
+	for _, bd := range doc.MemberRemovalBlocks {
+		block := domain.MemberRemovalBlock{ID: bd.ID, ActorField: bd.ActorField, Reason: bd.Reason}
+		if bd.Condition != nil {
+			block.Condition = expression.Comparison{
+				Field: bd.Condition.Field,
+				Op:    expression.Op(bd.Condition.Op),
+				Value: bd.Condition.Value,
+			}
+		}
+		m.MemberRemovalBlocks = append(m.MemberRemovalBlocks, block)
 	}
 	for _, ed := range doc.Events {
 		then := domain.Service{

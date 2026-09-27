@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -223,6 +224,57 @@ func submitRevokeInvite(store *data.Store) http.HandlerFunc {
 		}
 		if err := store.DeletePendingInvite(ctx, workspaceID, email); err != nil {
 			serverError(w, err)
+			return
+		}
+		redirectTo(w, req, "/workspace-members")
+	}
+}
+
+// submitDeactivateMember gates userRecordID out of this Workspace (Flow 2 canvas re-audit,
+// ROADMAP.md, 2026-09-27) -- MemberEdit.dc.html's own "Deactivate member". Their own mch_user
+// record, and everything it authored, is untouched (store.DeactivateMember's own doc comment);
+// only their membership row's deactivated_at is set, checked fresh on every later request
+// (requireDeactivatedMemberSignedOut, middleware.go).
+//
+// composition.BlockingReasonsForMemberRemoval runs first: a member with an open pending Approval
+// Step would otherwise become permanently undecidable by anyone the moment they can no longer be
+// reached. A plain 422 with the reason(s), the same shape submitInviteMember's own "already a
+// member" refusal already takes, rather than a richer re-rendered page -- this file has no other
+// precedent for the latter.
+func submitDeactivateMember(store *data.Store, machines map[string]*domain.Machine) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		userRecordID := chi.URLParam(req, "userRecordID")
+
+		reasons, err := composition.BlockingReasonsForMemberRemoval(ctx, composition.NewLoader(store, machines), userRecordID)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		if len(reasons) > 0 {
+			http.Error(w, "cannot deactivate: "+strings.Join(reasons, "; "), http.StatusUnprocessableEntity)
+			return
+		}
+		if err := store.DeactivateMember(ctx, workspaceID, userRecordID); err != nil {
+			recordError(w, err)
+			return
+		}
+		redirectTo(w, req, "/workspace-members")
+	}
+}
+
+// submitReactivateMember reverses submitDeactivateMember. No guard of its own, symmetric to
+// store.ReactivateMember having none: undoing a restriction never needs the check imposing one
+// does.
+func submitReactivateMember(store *data.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		workspaceID, _ := data.WorkspaceScope(ctx)
+		userRecordID := chi.URLParam(req, "userRecordID")
+
+		if err := store.ReactivateMember(ctx, workspaceID, userRecordID); err != nil {
+			recordError(w, err)
 			return
 		}
 		redirectTo(w, req, "/workspace-members")

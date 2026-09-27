@@ -132,9 +132,21 @@ type Membership struct {
 	// what it replaced -- see ListMemberships' own doc comment.
 	WorkspaceName string
 	// Archived/ArchivedAt ride along the same join, for Choose Workspace's own live/archived split
-	// (Flow 2 gap study Tahap 7) -- filled by ListMemberships only, same as WorkspaceName.
+	// (Flow 2 gap study Tahap 7) -- filled by ListMemberships only, same as WorkspaceName. This is
+	// the *Workspace's* own archived state, not this membership's -- see Deactivated below for the
+	// membership-level counterpart.
 	Archived   bool
 	ArchivedAt *time.Time
+	// Deactivated/DeactivatedAt are this membership's own lifecycle (Flow 2 canvas re-audit,
+	// ROADMAP.md, 2026-09-27, migrations/016_member_deactivation.sql) -- the same shape
+	// Archived/ArchivedAt already establish for a Workspace, one level down: a deactivated member
+	// keeps their row (their own mch_user record, and everything it authored, is untouched -- only
+	// their ability to open this Workspace is gated), DeactivatedAt cleared on reactivate rather
+	// than historized. Filled by GetMembership, ListMemberships and ListMembersFrom alike, unlike
+	// Archived/WorkspaceName, because every one of those callers needs to know this membership's
+	// own state, not just the Workspace's.
+	Deactivated   bool
+	DeactivatedAt *time.Time
 }
 
 // appRolesFor reads the per-Application roles of one member.
@@ -250,10 +262,11 @@ func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID str
 	readLogFrom(ctx).record("membership")
 	m := &Membership{WorkspaceID: workspaceID, UserRecordID: userRecordID}
 	err := s.pool.QueryRow(ctx, `
-		SELECT email, workspace_role, COALESCE(app_role, '')
+		SELECT email, workspace_role, COALESCE(app_role, ''), deactivated_at
 		FROM workspace_members
 		WHERE workspace_id = $1 AND user_record_id = $2
-	`, workspaceID, userRecordID).Scan(&m.Email, &m.WorkspaceRole, &m.AppRole)
+	`, workspaceID, userRecordID).Scan(&m.Email, &m.WorkspaceRole, &m.AppRole, &m.DeactivatedAt)
+	m.Deactivated = m.DeactivatedAt != nil
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRecordNotFound
@@ -295,7 +308,7 @@ func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership
 	readLogFrom(ctx).record("memberships by email")
 	rows, err := s.pool.Query(ctx, `
 		SELECT wm.workspace_id, wm.user_record_id, wm.email, wm.workspace_role,
-		       COALESCE(wm.app_role, ''), w.name, w.archived, w.archived_at
+		       COALESCE(wm.app_role, ''), w.name, w.archived, w.archived_at, wm.deactivated_at
 		FROM workspace_members wm
 		JOIN workspaces w ON w.id = wm.workspace_id
 		WHERE wm.email = $1
@@ -309,9 +322,10 @@ func (s *Store) ListMemberships(ctx context.Context, email string) ([]Membership
 	var memberships []Membership
 	for rows.Next() {
 		var m Membership
-		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole, &m.WorkspaceName, &m.Archived, &m.ArchivedAt); err != nil {
+		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole, &m.WorkspaceName, &m.Archived, &m.ArchivedAt, &m.DeactivatedAt); err != nil {
 			return nil, fmt.Errorf("scan membership: %w", err)
 		}
+		m.Deactivated = m.DeactivatedAt != nil
 		memberships = append(memberships, m)
 	}
 	return memberships, rows.Err()
@@ -333,7 +347,7 @@ func (s *Store) ListMembers(ctx context.Context, workspaceID string) ([]Membersh
 func (s *Store) ListMembersFrom(ctx context.Context, workspaceID string, groups []Group) ([]Membership, error) {
 	readLogFrom(ctx).record("members")
 	rows, err := s.pool.Query(ctx, `
-		SELECT workspace_id, user_record_id, email, workspace_role, COALESCE(app_role, '')
+		SELECT workspace_id, user_record_id, email, workspace_role, COALESCE(app_role, ''), deactivated_at
 		FROM workspace_members
 		WHERE workspace_id = $1
 		ORDER BY email
@@ -346,9 +360,10 @@ func (s *Store) ListMembersFrom(ctx context.Context, workspaceID string, groups 
 	var memberships []Membership
 	for rows.Next() {
 		var m Membership
-		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole); err != nil {
+		if err := rows.Scan(&m.WorkspaceID, &m.UserRecordID, &m.Email, &m.WorkspaceRole, &m.AppRole, &m.DeactivatedAt); err != nil {
 			return nil, fmt.Errorf("scan membership: %w", err)
 		}
+		m.Deactivated = m.DeactivatedAt != nil
 		memberships = append(memberships, m)
 	}
 	if err := rows.Err(); err != nil {
@@ -383,6 +398,42 @@ func (s *Store) UpdateMemberRole(ctx context.Context, workspaceID, userRecordID,
 	`, workspaceID, userRecordID, workspaceRole, appRole)
 	if err != nil {
 		return fmt.Errorf("update member role: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrRecordNotFound
+	}
+	return nil
+}
+
+// DeactivateMember gates one identity out of one Workspace without touching anything they authored
+// (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- their own mch_user record, and every Document/
+// Approval Step/Activity row naming it, is untouched; only this join row's own deactivated_at is
+// set. The caller (submitDeactivateMember) is responsible for checking
+// composition.BlockingReasonsForMemberRemoval first -- this method has no knowledge of any other
+// Machine's records and enforces nothing about them.
+func (s *Store) DeactivateMember(ctx context.Context, workspaceID, userRecordID string) error {
+	ct, err := s.pool.Exec(ctx, `
+		UPDATE workspace_members SET deactivated_at = now()
+		WHERE workspace_id = $1 AND user_record_id = $2 AND deactivated_at IS NULL
+	`, workspaceID, userRecordID)
+	if err != nil {
+		return fmt.Errorf("deactivate member: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrRecordNotFound
+	}
+	return nil
+}
+
+// ReactivateMember reverses DeactivateMember. No guard of its own, symmetric to RestoreWorkspace
+// having none: undoing a restriction never needs the check that imposing one does.
+func (s *Store) ReactivateMember(ctx context.Context, workspaceID, userRecordID string) error {
+	ct, err := s.pool.Exec(ctx, `
+		UPDATE workspace_members SET deactivated_at = NULL
+		WHERE workspace_id = $1 AND user_record_id = $2 AND deactivated_at IS NOT NULL
+	`, workspaceID, userRecordID)
+	if err != nil {
+		return fmt.Errorf("reactivate member: %w", err)
 	}
 	if ct.RowsAffected() == 0 {
 		return ErrRecordNotFound

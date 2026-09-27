@@ -142,6 +142,19 @@ events:
       preference_key: assigned
       summary: "You have a new approval request"
 
+# Member deactivation guard (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- the first real
+# declaration of domain.MemberRemovalBlock, a general mechanism introduced on its first case
+# rather than its second by owner instruction (see the Machine's own doc comment): a pending step
+# names a real person who must still decide it, so deactivating them here would leave the step
+# permanently undecidable by anyone. A Group-held step (fld_assignee empty) never matches this --
+# there is no single person to block on, the same posture evt_step_created_notify already takes
+# for the identical gap.
+blocks_member_removal:
+  - id: blk_step_pending
+    actor_field: fld_assignee
+    condition: { field: fld_decision, op: equals, value: pending }
+    reason: "has a pending approval step"
+
 # Approval Steps are acted on in order when their Document says so (menata-runtime's
 # capability-registry.md CAP-A07 `activate_next`, admitted on Case 3 + WCP-1 Sequence, conformance
 # T22-23/T25 there). Replaces internal/action's own CanDecide, whose rule was already generic --

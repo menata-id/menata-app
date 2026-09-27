@@ -323,7 +323,11 @@ func resolveWorkspaceMembership(ctx context.Context, store *data.Store, email, w
 		return "", false, err
 	}
 	for _, m := range memberships {
-		if m.WorkspaceID == workspaceID {
+		// Deactivated (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) fails exactly like "no
+		// membership at all" here: picking a Workspace this identity has been deactivated in is
+		// refused the identical "not a member of that workspace" 403 a real non-member already
+		// gets, not a special case of its own.
+		if m.WorkspaceID == workspaceID && !m.Deactivated {
 			return m.UserRecordID, true, nil
 		}
 	}
@@ -340,6 +344,12 @@ func loadWorkspaceChoices(ctx context.Context, store *data.Store, email string) 
 	// the diagnostics because the identity it was measured with belonged to a single Workspace.
 	choices := make([]rendering.WorkspaceChoice, 0, len(memberships))
 	for _, m := range memberships {
+		// A deactivated membership is dropped entirely, not listed as read-only-and-yours the way
+		// an archived Workspace still is: deactivated means "not yours here anymore" (Flow 2
+		// canvas re-audit, ROADMAP.md, 2026-09-27), so there is nothing to choose or switch into.
+		if m.Deactivated {
+			continue
+		}
 		choice := rendering.WorkspaceChoice{ID: m.WorkspaceID, Name: m.WorkspaceName, Role: m.WorkspaceRole, Archived: m.Archived}
 		if m.ArchivedAt != nil {
 			choice.ArchivedAt = m.ArchivedAt.Format("2 Jan 2006")
@@ -362,7 +372,10 @@ func restoreWorkspaceIfAdmin(ctx context.Context, store *data.Store, email, work
 		return false, err
 	}
 	for _, m := range memberships {
-		if m.WorkspaceID == workspaceID && m.WorkspaceRole == "admin" {
+		// !m.Deactivated for the same reason resolveWorkspaceMembership checks it (Flow 2 canvas
+		// re-audit, ROADMAP.md, 2026-09-27): a deactivated admin may act on nothing in this
+		// Workspace, restoring it included.
+		if m.WorkspaceID == workspaceID && m.WorkspaceRole == "admin" && !m.Deactivated {
 			return true, store.RestoreWorkspace(ctx, workspaceID)
 		}
 	}

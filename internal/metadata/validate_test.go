@@ -377,6 +377,84 @@ func TestValidate_scheduleGuardEqualsNotAnOptionFails(t *testing.T) {
 	assertIssue(t, m, "schedule.guard_equals \"archived\" is not one of field \"fld_status\"'s options")
 }
 
+func machineWithAssignee() *domain.Machine {
+	m := validMachine()
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID})
+	return m
+}
+
+func validMemberRemovalBlock() domain.MemberRemovalBlock {
+	return domain.MemberRemovalBlock{
+		ID:         "blk_step_pending",
+		ActorField: "fld_assignee",
+		Condition:  expression.Comparison{Field: "fld_status", Op: expression.OpEquals, Value: "todo"},
+		Reason:     "has a pending approval step",
+	}
+}
+
+func TestValidate_memberRemovalBlockValid(t *testing.T) {
+	m := machineWithAssignee()
+	m.MemberRemovalBlocks = []domain.MemberRemovalBlock{validMemberRemovalBlock()}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_memberRemovalBlockBadID(t *testing.T) {
+	m := machineWithAssignee()
+	b := validMemberRemovalBlock()
+	b.ID = "step_pending"
+	m.MemberRemovalBlocks = []domain.MemberRemovalBlock{b}
+	assertIssue(t, m, "member removal block id")
+}
+
+func TestValidate_memberRemovalBlockDuplicateID(t *testing.T) {
+	m := machineWithAssignee()
+	b := validMemberRemovalBlock()
+	m.MemberRemovalBlocks = []domain.MemberRemovalBlock{b, b}
+	assertIssue(t, m, "member removal block id \"blk_step_pending\" is declared more than once")
+}
+
+func TestValidate_memberRemovalBlockActorFieldNotAField(t *testing.T) {
+	m := machineWithAssignee()
+	b := validMemberRemovalBlock()
+	b.ActorField = "fld_nope"
+	m.MemberRemovalBlocks = []domain.MemberRemovalBlock{b}
+	assertIssue(t, m, "actor_field \"fld_nope\" is not a field of machine")
+}
+
+func TestValidate_memberRemovalBlockActorFieldNotPerson(t *testing.T) {
+	m := machineWithAssignee()
+	b := validMemberRemovalBlock()
+	b.ActorField = "fld_status"
+	m.MemberRemovalBlocks = []domain.MemberRemovalBlock{b}
+	assertIssue(t, m, "actor_field \"fld_status\" must be type person, got \"status\"")
+}
+
+func TestValidate_memberRemovalBlockConditionFieldNotAField(t *testing.T) {
+	m := machineWithAssignee()
+	b := validMemberRemovalBlock()
+	b.Condition.Field = "fld_nope"
+	m.MemberRemovalBlocks = []domain.MemberRemovalBlock{b}
+	assertIssue(t, m, "condition.field \"fld_nope\" is not a field of machine")
+}
+
+func TestValidate_memberRemovalBlockUnknownOp(t *testing.T) {
+	m := machineWithAssignee()
+	b := validMemberRemovalBlock()
+	b.Condition.Op = "greater_than"
+	m.MemberRemovalBlocks = []domain.MemberRemovalBlock{b}
+	assertIssue(t, m, "condition.op \"greater_than\" is not a known operator")
+}
+
+func TestValidate_memberRemovalBlockMissingReason(t *testing.T) {
+	m := machineWithAssignee()
+	b := validMemberRemovalBlock()
+	b.Reason = ""
+	m.MemberRemovalBlocks = []domain.MemberRemovalBlock{b}
+	assertIssue(t, m, "reason is required")
+}
+
 func TestValidate_noViewsIsValid(t *testing.T) {
 	m := validMachine() // no views: at all -- one implicit table, as before views existed
 	if err := Validate(m); err != nil {

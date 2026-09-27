@@ -8,9 +8,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
+
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 )
@@ -167,5 +170,170 @@ func TestSubmitInviteMember_existingMemberIsRejected(t *testing.T) {
 	}
 	if len(invites) != 0 {
 		t.Errorf("want no invitation recorded for an existing member, got %d", len(invites))
+	}
+}
+
+// approvalStepMachineWithRemovalBlock mirrors metadata/approval_step.yaml's own
+// blocks_member_removal declaration -- a fixture rather than the real loaded metadata, the same
+// posture decideStepTestSetup's own testWorkspaceFor takes, so these tests do not depend on that
+// file's content.
+func approvalStepMachineWithRemovalBlock() map[string]*domain.Machine {
+	return map[string]*domain.Machine{
+		"mch_approval_step": {
+			ID: "mch_approval_step",
+			MemberRemovalBlocks: []domain.MemberRemovalBlock{{
+				ID:         "blk_step_pending",
+				ActorField: "fld_assignee",
+				Condition:  expression.Comparison{Field: "fld_decision", Op: expression.OpEquals, Value: "pending"},
+				Reason:     "has a pending approval step",
+			}},
+		},
+	}
+}
+
+func postDeactivate(t *testing.T, store *data.Store, machines map[string]*domain.Machine, workspaceID, userRecordID string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, "/workspace-members/"+userRecordID+"/deactivate", nil)
+	req = req.WithContext(data.WithWorkspaceScope(req.Context(), workspaceID))
+	r := chi.NewRouter()
+	r.Post("/workspace-members/{userRecordID}/deactivate", submitDeactivateMember(store, machines))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	return rec
+}
+
+// TestSubmitDeactivateMember_blockedByPendingApprovalStep is the general guard's own first real
+// case (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27): deactivating someone with an open,
+// undecided Approval Step assigned to them would leave that step permanently undecidable by
+// anyone, so it is refused rather than allowed silently.
+func TestSubmitDeactivateMember_blockedByPendingApprovalStep(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "deactivate_blocked_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Deactivate Blocked Test", "deactivate-blocked-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	user, err := store.CreateRecord(wsCtx, domain.UserMachineID, map[string]any{"fld_name": "Deactivate Blocked", "fld_email": email})
+	if err != nil {
+		t.Fatalf("CreateRecord(user): %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "member", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	if _, err := store.CreateRecord(wsCtx, "mch_approval_step", map[string]any{
+		"fld_assignee": user.ID, "fld_decision": "pending",
+	}); err != nil {
+		t.Fatalf("CreateRecord(step): %v", err)
+	}
+
+	rec := postDeactivate(t, store, approvalStepMachineWithRemovalBlock(), ws.ID, user.ID)
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusUnprocessableEntity, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "pending approval step") {
+		t.Errorf("body = %q, want it to name the pending approval step as the reason", rec.Body.String())
+	}
+	m, err := store.GetMembership(ctx, ws.ID, user.ID)
+	if err != nil {
+		t.Fatalf("GetMembership: %v", err)
+	}
+	if m.Deactivated {
+		t.Error("membership was deactivated despite the blocking pending step")
+	}
+}
+
+// TestSubmitDeactivateMember_succeedsWithNoPendingSteps is the same guard's negative case: a
+// member with no open work assigned to them may be deactivated.
+func TestSubmitDeactivateMember_succeedsWithNoPendingSteps(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "deactivate_allowed_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Deactivate Allowed Test", "deactivate-allowed-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	user, err := store.CreateRecord(wsCtx, domain.UserMachineID, map[string]any{"fld_name": "Deactivate Allowed", "fld_email": email})
+	if err != nil {
+		t.Fatalf("CreateRecord(user): %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "member", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	// A decided step must not block -- only a pending one does.
+	if _, err := store.CreateRecord(wsCtx, "mch_approval_step", map[string]any{
+		"fld_assignee": user.ID, "fld_decision": "approved",
+	}); err != nil {
+		t.Fatalf("CreateRecord(step): %v", err)
+	}
+
+	rec := postDeactivate(t, store, approvalStepMachineWithRemovalBlock(), ws.ID, user.ID)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusSeeOther, rec.Body.String())
+	}
+	m, err := store.GetMembership(ctx, ws.ID, user.ID)
+	if err != nil {
+		t.Fatalf("GetMembership: %v", err)
+	}
+	if !m.Deactivated {
+		t.Error("membership was not deactivated despite no blocking pending step")
+	}
+}
+
+// TestSubmitReactivateMember_reversesDeactivation is Reactivate's own proof -- owner instruction,
+// 2026-09-27: reversible, mirroring Workspace archive/restore, even though the mockup draws only
+// the one direction.
+func TestSubmitReactivateMember_reversesDeactivation(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "reactivate_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Reactivate Test", "reactivate-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	user, err := store.CreateRecord(wsCtx, domain.UserMachineID, map[string]any{"fld_name": "Reactivate", "fld_email": email})
+	if err != nil {
+		t.Fatalf("CreateRecord(user): %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "member", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+	if err := store.DeactivateMember(ctx, ws.ID, user.ID); err != nil {
+		t.Fatalf("DeactivateMember: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/workspace-members/"+user.ID+"/reactivate", nil)
+	req = req.WithContext(wsCtx)
+	r := chi.NewRouter()
+	r.Post("/workspace-members/{userRecordID}/reactivate", submitReactivateMember(store))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusSeeOther, rec.Body.String())
+	}
+	m, err := store.GetMembership(ctx, ws.ID, user.ID)
+	if err != nil {
+		t.Fatalf("GetMembership: %v", err)
+	}
+	if m.Deactivated {
+		t.Error("membership still deactivated after reactivate")
 	}
 }

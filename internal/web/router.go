@@ -184,6 +184,11 @@ func Routes(d Deps) http.Handler {
 		// before the three below, all of which consume what it resolves rather than querying
 		// again. It is the one place this request's Workspace row, membership and Actor are read.
 		pr.Use(resolveIdentity(d.Store, d.Cfg))
+		// Member deactivation (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- immediately
+		// after resolveIdentity, for the same zero-extra-query reason blockWritesToArchivedWorkspace
+		// sits where it does, and before every route below so a deactivated member reaches none of
+		// them, reads included.
+		pr.Use(requireActiveMembership(d.Store, d.Cfg))
 		// Workspace first, then Application: currentApplication reads the Workspace this
 		// resolves, and requireApplicationAccess reads the Application that resolves.
 		pr.Use(currentWorkspace(d.Store, d.Workspaces))
@@ -281,6 +286,9 @@ func Routes(d Deps) http.Handler {
 			ar.Post("/workspace-members/revoke-invite", submitRevokeInvite(d.Store))
 			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg))
 			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
+			// Member deactivation (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27).
+			ar.Post("/workspace-members/{userRecordID}/deactivate", submitDeactivateMember(d.Store, d.Machines))
+			ar.Post("/workspace-members/{userRecordID}/reactivate", submitReactivateMember(d.Store))
 
 			// Groups (Case 03 Fase 4) -- membership administration, so the same requireWorkspaceAdmin
 			// gate as the member routes above.

@@ -14,16 +14,17 @@ import (
 // "Stable Identity": identity must survive label/presentation/implementation changes, so it is
 // validated independently of Name.
 var (
-	machineIDPattern    = regexp.MustCompile(`^mch_[a-z][a-z0-9_]*$`)
-	fieldIDPattern      = regexp.MustCompile(`^fld_[a-z][a-z0-9_]*$`)
-	constraintIDPattern = regexp.MustCompile(`^cst_[a-z][a-z0-9_]*$`)
-	eventIDPattern      = regexp.MustCompile(`^evt_[a-z][a-z0-9_]*$`)
-	permissionIDPattern = regexp.MustCompile(`^prm_[a-z][a-z0-9_]*$`)
-	navItemIDPattern    = regexp.MustCompile(`^nav_[a-z][a-z0-9_]*$`)
-	datasetIDPattern    = regexp.MustCompile(`^ds_[a-z][a-z0-9_]*$`)
-	measureIDPattern    = regexp.MustCompile(`^msr_[a-z][a-z0-9_]*$`)
-	viewIDPattern       = regexp.MustCompile(`^vw_[a-z][a-z0-9_]*$`)
-	transitionIDPattern = regexp.MustCompile(`^trn_[a-z][a-z0-9_]*$`)
+	machineIDPattern     = regexp.MustCompile(`^mch_[a-z][a-z0-9_]*$`)
+	fieldIDPattern       = regexp.MustCompile(`^fld_[a-z][a-z0-9_]*$`)
+	constraintIDPattern  = regexp.MustCompile(`^cst_[a-z][a-z0-9_]*$`)
+	eventIDPattern       = regexp.MustCompile(`^evt_[a-z][a-z0-9_]*$`)
+	permissionIDPattern  = regexp.MustCompile(`^prm_[a-z][a-z0-9_]*$`)
+	navItemIDPattern     = regexp.MustCompile(`^nav_[a-z][a-z0-9_]*$`)
+	datasetIDPattern     = regexp.MustCompile(`^ds_[a-z][a-z0-9_]*$`)
+	measureIDPattern     = regexp.MustCompile(`^msr_[a-z][a-z0-9_]*$`)
+	viewIDPattern        = regexp.MustCompile(`^vw_[a-z][a-z0-9_]*$`)
+	transitionIDPattern  = regexp.MustCompile(`^trn_[a-z][a-z0-9_]*$`)
+	memberBlockIDPattern = regexp.MustCompile(`^blk_[a-z][a-z0-9_]*$`)
 )
 
 // validateNavigation checks the Application's own navigation: list (ROADMAP.md's "Navigation is
@@ -142,6 +143,11 @@ func Validate(m *domain.Machine) error {
 
 	for _, c := range m.Constraints {
 		issues = append(issues, validateConstraint(m, c, fieldsByID)...)
+	}
+
+	seenMemberBlocks := make(map[string]bool, len(m.MemberRemovalBlocks))
+	for _, b := range m.MemberRemovalBlocks {
+		issues = append(issues, validateMemberRemovalBlock(m, b, fieldsByID, seenMemberBlocks)...)
 	}
 
 	seenEvents := make(map[string]bool, len(m.Events))
@@ -290,6 +296,44 @@ func validateConstraint(m *domain.Machine, c domain.Constraint, fieldsByID map[s
 	}
 	if c.BlockIf.Condition.Value == "" {
 		issues = append(issues, fmt.Sprintf("constraint %q: block_if.condition.value is required", c.ID))
+	}
+
+	return issues
+}
+
+// validateMemberRemovalBlock checks one blocks_member_removal entry's own shape -- everything
+// checkable from this one Machine file, the same split validateConstraint already takes (no
+// cross-Machine pass needed here: actor_field and condition.field are both this Machine's own).
+func validateMemberRemovalBlock(m *domain.Machine, b domain.MemberRemovalBlock, fieldsByID map[string]domain.Field, seen map[string]bool) []string {
+	var issues []string
+
+	if !memberBlockIDPattern.MatchString(b.ID) {
+		issues = append(issues, fmt.Sprintf("member removal block id %q must match %s", b.ID, memberBlockIDPattern.String()))
+	}
+	if seen[b.ID] {
+		issues = append(issues, fmt.Sprintf("member removal block id %q is declared more than once", b.ID))
+	}
+	seen[b.ID] = true
+
+	actorField, ok := fieldsByID[b.ActorField]
+	if !ok {
+		issues = append(issues, fmt.Sprintf("member removal block %q: actor_field %q is not a field of machine %q", b.ID, b.ActorField, m.ID))
+	} else if actorField.Type != domain.FieldTypePerson {
+		issues = append(issues, fmt.Sprintf("member removal block %q: actor_field %q must be type person, got %q", b.ID, b.ActorField, actorField.Type))
+	}
+
+	if !fieldIDPattern.MatchString(b.Condition.Field) {
+		issues = append(issues, fmt.Sprintf("member removal block %q: condition.field %q must match %s", b.ID, b.Condition.Field, fieldIDPattern.String()))
+	} else if conditionField, ok := fieldsByID[b.Condition.Field]; !ok {
+		issues = append(issues, fmt.Sprintf("member removal block %q: condition.field %q is not a field of machine %q", b.ID, b.Condition.Field, m.ID))
+	} else if violatesOptions(conditionField, b.Condition.Value) {
+		issues = append(issues, fmt.Sprintf("member removal block %q: condition.value %q is not one of field %q's options %v", b.ID, b.Condition.Value, b.Condition.Field, conditionField.Options))
+	}
+	if !expression.KnownOps[b.Condition.Op] {
+		issues = append(issues, fmt.Sprintf("member removal block %q: condition.op %q is not a known operator", b.ID, b.Condition.Op))
+	}
+	if b.Reason == "" {
+		issues = append(issues, fmt.Sprintf("member removal block %q: reason is required -- it is the sentence a blocked deactivation attempt shows", b.ID))
 	}
 
 	return issues

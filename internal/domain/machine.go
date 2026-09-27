@@ -111,6 +111,30 @@ type RelationBlock struct {
 	Condition      expression.Comparison
 }
 
+// MemberRemovalBlock declares that a record naming a person in ActorField, currently matching
+// Condition, blocks *that person* from being deactivated out of the Workspace -- a platform
+// action (internal/data.Store.DeactivateMember), not a Field transition on this Machine, which is
+// why this is its own shape rather than a second Constraint (Constraint.BlockIf blocks a
+// transition on a record that exists; here there is no record and no transition being blocked at
+// all -- a person is).
+//
+// Introduced on its first real case (mch_approval_step's own pending-step guard, Flow 2 canvas
+// re-audit, ROADMAP.md, 2026-09-27) rather than its second -- a deliberate, named exception to
+// this repo's usual "wait for a second real case" discipline: the owner judged the shape general
+// on inspection (an actor-Field plus a business-state condition, the same two ingredients
+// Constraint.BlockIf and Schedule's own GuardField/GuardEquals already share), not assumed ahead
+// of a concrete second need.
+type MemberRemovalBlock struct {
+	ID string
+	// ActorField is a person-type Field on this Machine (validated at load,
+	// internal/metadata.validateMemberRemovalBlock) -- the record naming the person being checked.
+	ActorField string
+	Condition  expression.Comparison
+	// Reason is the sentence a blocked deactivation attempt shows -- CLAUDE.md's own posture on
+	// every gate that refuses something: say why, don't just refuse.
+	Reason string
+}
+
 // Event identifies something that already happened -- a write, or the passage of time -- and may
 // run one declared runtime Service in response (006-runtime-model.md "Event"/"Service";
 // Behavioral Model: Event -> Action -> Permission/Constraint -> Service/Data operation -> State
@@ -285,7 +309,11 @@ type Machine struct {
 	Fields        []Field
 	Constraints   []Constraint
 	Events        []Event
-	Permissions   []Permission
+	// MemberRemovalBlocks declare when a record naming a person blocks deactivating them out of
+	// the Workspace (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- see MemberRemovalBlock's
+	// own doc comment for why this is not a second Constraint shape.
+	MemberRemovalBlocks []MemberRemovalBlock
+	Permissions         []Permission
 	// Transitions are this Machine's own declared state model: which moves of a status Field
 	// exist, and which Action performs each (ROADMAP.md Case 03 Fase 7). Empty means every status
 	// Field on this Machine moves freely, the same opt-in posture Sequencing takes.

@@ -126,6 +126,69 @@ func requireWorkspaceAdmin(store *data.Store, cfg config.Config) func(http.Handl
 	}
 }
 
+// activeMembershipReadAllowlist is requireActiveMembership's own named exception, the same
+// discipline archivedWriteAllowlist below already documents: small, frequently-polled GET
+// fragments (a badge count, a lazily-fetched menu section) that would otherwise gain a query they
+// do not currently pay for just to recheck a state their own page's last real navigation already
+// checked (each is measured or will be, the same "budget rots, so it stays a threshold, not a
+// one-time check" reasoning TestNavBadgeQueryCost's own doc comment gives). A deactivated member
+// reaching one of these sees at most brief staleness -- a count or a menu list, never a record's
+// own content -- until their next real page load or write, both of which requireActiveMembership
+// still gates in full. Mutating routes are never eligible for this list, allowlisted or not.
+var activeMembershipReadAllowlist = map[string]bool{
+	"/api/approval-inbox/pending-count": true,
+	"/api/notifications/unread-count":   true,
+	"/api/account-menu/workspaces":      true,
+}
+
+// requireActiveMembership evicts a deactivated member (Flow 2 canvas re-audit, ROADMAP.md,
+// 2026-09-27) from every request, not just future logins -- the mockup's own guarantee is "can no
+// longer open [this workspace]", present tense. Registered immediately after resolveIdentity, the
+// same position blockWritesToArchivedWorkspace already takes and for the identical reason: it
+// reads what resolveIdentity already resolved (membershipFor, zero extra query on any route that
+// already needs membership for something else), and resolveIdentity re-fetches membership fresh on
+// every single request (requestIdentity.Membership, no cross-request cache) -- so an already-open
+// tab loses access on its very next real page load or write, not merely its next login, with no
+// separate revocation mechanism needed.
+//
+// Unlike blockWritesToArchivedWorkspace, this blocks every method on everything not allowlisted,
+// not just writes: an archived Workspace is deliberately still readable (its own "read-only"
+// framing), while a deactivated membership's own guarantee is that the person can no longer open
+// the Workspace at all.
+//
+// The shared admin credential's placeholder identity (cfg.AdminUserID) has no membership row --
+// membershipFor returns (nil, nil) for it, which this treats as active, the same fail-open-for-
+// exactly-that-one-identity posture requireWorkspaceAdmin already documents for the identical case.
+func requireActiveMembership(store *data.Store, cfg config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if req.Method == http.MethodGet && activeMembershipReadAllowlist[req.URL.Path] {
+				next.ServeHTTP(w, req)
+				return
+			}
+
+			ctx := req.Context()
+			userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
+			workspaceID, _ := data.WorkspaceScope(ctx)
+
+			membership, err := membershipFor(ctx, store, workspaceID, userID)
+			if err != nil && !errors.Is(err, data.ErrRecordNotFound) {
+				serverError(w, err)
+				return
+			}
+			if membership != nil && membership.Deactivated {
+				if req.Header.Get("HX-Request") == "true" || strings.HasPrefix(req.URL.Path, "/api/") {
+					http.Error(w, "unauthorized", http.StatusUnauthorized)
+					return
+				}
+				http.Redirect(w, req, "/login", http.StatusSeeOther)
+				return
+			}
+			next.ServeHTTP(w, req)
+		})
+	}
+}
+
 // archivedWriteAllowlist is the small, named exception to blockWritesToArchivedWorkspace below:
 // requests a member sitting inside an archived Workspace must still be able to make even though
 // every other write is refused. Each entry carries its own reason rather than being pooled into

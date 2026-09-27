@@ -2170,14 +2170,49 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      additive, not a reversal of the 2026-09-21 fix. No new query, no new route. Verified live: both
      rows render inside the launcher panel on `/home`, gated correctly, via a real authenticated
      `curl` request against the running service (not just `go build`).
-  2. **Edit Member has no "Remove from workspace" section at all.** `MemberEdit.dc.html` draws a
-     red-bordered section with a "Deactivate member" button ("A deactivated member can no longer
-     open Dokter Kecil. Documents they submitted and their approval history stay."). Grepped the
-     whole tree for "Deactivate"/"Remove from workspace": zero hits outside this sentence. The
-     capability to remove/deactivate a member from a Workspace does not exist anywhere in this
-     codebase yet -- `EditMemberPage` ends at Workspace role + per-Application role selects. (The
-     mockup's own per-Application access as an on/off toggle + "Manage in app →" link, versus the
-     shipped role-dropdown shape, is a second, smaller divergence on the same screen.)
+  2. ~~**Edit Member has no "Remove from workspace" section at all.**~~ **Shipped 2026-09-27.**
+     `MemberEdit.dc.html` drew a red-bordered section with a "Deactivate member" button ("A
+     deactivated member can no longer open Dokter Kecil. Documents they submitted and their
+     approval history stay."), and no such capability existed anywhere in this codebase.
+
+     **Three decisions locked in with the owner before writing code**, all reshaping the build from
+     a straight UI port into a real capability: (1) reversible -- a Reactivate action exists too,
+     mirroring `migrations/013`'s Workspace archive/restore shape exactly (`migrations/
+     016_member_deactivation.sql`: `workspace_members.deactivated_at`), even though the board draws
+     only the one direction; (2) still visible in the Members list with a "Deactivated" badge
+     beside the role badge, not a separate section or a hidden row; (3) **the guard against
+     deactivating someone with open work assigned to them had to be a general, metadata-declarable
+     mechanism, not a hardcoded Approval-Step check** -- the owner's own instruction, reasoning that
+     other capabilities may later want to gate the same action.
+
+     That third decision is what makes this a real new primitive, not a port: `domain.Event`'s
+     `Schedule` shape (shipped earlier this same day) got a sibling, `MemberRemovalBlock`
+     (`blocks_member_removal:` in YAML) -- a declared actor Field plus an `expression.Comparison`
+     condition, reusing the identical condition primitive `Constraint.BlockIf`/`Schedule`'s own
+     `GuardField` already share rather than a fourth copy. Introduced on its *first* real case
+     (`metadata/approval_step.yaml`'s own `blk_step_pending`, guarding a pending step's assignee)
+     rather than its second -- a deliberate, named exception to this repo's usual discipline,
+     because the owner judged the shape general on inspection. `internal/behavior.
+     MatchedMemberRemovalBlocks` (pure) and `internal/composition.BlockingReasonsForMemberRemoval`
+     (the read, sweeping every currently-loaded Machine that declares one) are the two new pieces;
+     a second Machine declaring its own block needs no Go code to be honored.
+
+     The live-session half turned out to matter as much as the data model: the mockup's own
+     guarantee ("can no longer open") is present tense, so `requireActiveMembership`
+     (`internal/web/middleware.go`) evicts a deactivated member on their *very next request*, not
+     merely their next login -- `resolveIdentity` already re-fetches membership fresh every
+     request, so this reads what is already there at zero extra query cost on every route that
+     already needed membership for something else. The one real cost this added was on the routes
+     that previously did *not* need membership at all: `TestNavBadgeQueryCost` caught
+     `/api/approval-inbox/pending-count` going from 8 queries to 9 immediately, which is exactly
+     what that test exists for. Fixed with a named allowlist (`activeMembershipReadAllowlist`, the
+     same discipline `archivedWriteAllowlist` already established) rather than a blanket `/api/`
+     exemption -- the JSON API's own mutating routes live under `/api/` too, and a blanket
+     exemption would have let a deactivated member keep writing through it.
+
+     (The mockup's own per-Application access as an on/off toggle + "Manage in app →" link, versus
+     the shipped role-dropdown shape, is a second, smaller, still-open divergence on the same
+     screen -- not addressed in this pass.)
   3. **The Applications list is missing the "draft/unpublished generated Application" row and the
      three suggestion chips.** `WorkspaceHome.dc.html`, `WorkspaceMenu.dc.html`, `AccountMenu.dc.html`
      and `AppLauncher.dc.html` all draw a third Applications-list row for a just-generated,
@@ -2212,9 +2247,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      an empty list plus "Switch workspace →" rather than erroring) and the placeholder's own
      `hx-get`/`hx-trigger` attributes render correctly on `/home`.
 
-  Two of the four -- **#1 and #4, above** -- are shipped. **#2 (Deactivate/Remove from workspace)
-  and #3 (draft-Application row + suggestion chips)** remain open: #2 is a real, unbuilt
-  capability, not a UI gap, and #3 needs a decision on whether the three example chips should be
+  Three of the four -- **#1, #2 and #4, above** -- are shipped. **#3 (draft-Application row +
+  suggestion chips)** remains open, needing a decision on whether the three example chips should be
   literal or something more general before porting. Named here rather than left for the next
   re-audit to rediscover, the same way this one rediscovered the wizard-step-3 non-gap.
 
