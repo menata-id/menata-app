@@ -2656,6 +2656,36 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   The four query-cost tests are **unmoved**, which is the assertion that matters most here: it
   proves Machines resolve in memory off the ctx Workspace and never from the database.
 
+  **A real cost of this design, found the same night, not yet fully paid: the Document Approval
+  and Project Management engines hardcode `machine.ID == action.DocumentMachineID`-shaped equality
+  checks in well over a dozen places** (`internal/composition`'s `ApprovalInbox`, `AssignedToMe`,
+  `ReviewStepForDocument`, `internal/execution`'s status rollup, a dozen more across
+  `internal/web`), all written when that id was process-wide unique and therefore a safe proxy for
+  "this is *the* Document Approval Document." Isolation makes a different Workspace's own,
+  unrelated Machine sharing that bare id legitimate everywhere else -- which is exactly what a
+  generated "Document Tracking" Application did the same night, and its own detail page panicked
+  twice reaching for `mch_approval_step`/`nav_approval_inbox`, neither of which that Workspace has.
+  Two call sites are patched (`loadSignaturePlacementData`'s nil guard, `detailBackLink`'s new
+  `hasNavItem` check, both 2026-09-27) -- enough for that Application's own most natural pages to
+  stop crashing -- and `aiassist.Validate` now refuses a *generated* Machine ever choosing one of
+  these reserved ids again (`reservedMachineIDs`, same commit), which closes the door going
+  forward. **The other dozen-plus call sites are not audited.** Most sit behind routes a
+  generated Application's own single auto-generated nav item never links to
+  (`/approval-inbox`, `/decide`, `/review`, ...), so the practical exposure today is narrow, but it
+  is real and unaudited, not merely theoretical.
+
+  **The durable fix, named rather than left implicit**: `domain.Machine` already carries
+  `ApplicationID`, stamped once at load time by `internal/metadata`'s own claim-then-stamp pass
+  (`application.go`, "a Machine's ApplicationID is only unambiguous once 'claimed by at most one
+  Application' has been established") -- and it is now correctly per-Workspace, the same as
+  everything else Stage 1 moved off the process-wide map. Every one of these call sites should
+  check `m.ApplicationID == "app_document_approval"` instead of `m.ID == action.DocumentMachineID`;
+  the two patched tonight did not take this route only because a narrower, faster patch was what
+  stopped the actual crash. Auditing and converting the rest is a bounded, mechanical piece of
+  follow-up work for a later session -- grep for `action.DocumentMachineID`/`action.StepMachineID`
+  across `internal/composition`/`internal/execution`/`internal/web` and it will fail exactly as
+  loudly as a hardcoded literal should.
+
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.
 - **Role-based Permission -- ~~planned~~ shipped 2026-09-21** (Case 03 Fase 7, above). This
