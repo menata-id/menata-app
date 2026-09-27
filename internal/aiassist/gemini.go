@@ -13,9 +13,14 @@ import (
 )
 
 // geminiModel is the specific Gemini model this package calls. Named once here rather than
-// scattered as a literal, so upgrading it is a one-line change. gemini-2.5-flash-lite by owner
-// choice, 2026-09-27 -- the cheapest tier in the 2.5 generation.
-const geminiModel = "gemini-2.5-flash-lite"
+// scattered as a literal, so upgrading it is a one-line change.
+//
+// gemini-2.5-flash-lite was tried first (owner choice, 2026-09-27, the cheapest tier in the 2.5
+// generation) and lasted under an hour in production: Google's own API refused it outright --
+// "This model models/gemini-2.5-flash-lite is no longer available to new users" (404, logged
+// 2026-09-27 15:06:31, /var/log/menata-app/app.log) -- and named this model as the replacement in
+// the same error message. Not a retirement date guess; a live API response.
+const geminiModel = "gemini-3.5-flash-lite"
 
 const geminiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/" + geminiModel + ":generateContent"
 
