@@ -23,10 +23,16 @@ const composableSurface = `What you may generate (all fully composable today, no
   in its own role vocabulary (both purely additive -- never remove or rename anything that exists).
 
 What you may NEVER generate, because it would need new Go code to work, not metadata:
-- A dedicated Approve/Reject workflow with sequencing, signatures, or PDF compositing -- that
-  engine exists today and is hardcoded to one specific application (Document Approval); it cannot
-  be reused by a new one. "Approval" in anything you generate means: a status field that moves
-  through the ordinary edit form, gated by who holds a role -- not a special decision screen.
+- A dedicated Approve/Reject workflow with sequencing, signatures, or PDF compositing. Document
+  Approval's own metadata/applications/document-approval.yaml file is real and readable -- if asked
+  whether it exists, say so -- but it only declares that application's shell (its navigation, its
+  role vocabulary, which machines it claims). The decide/signature-placement/PDF-compositing engine
+  behind those screens is Go code hardcoded to mch_document/mch_approval_step specifically
+  (internal/web/approval.go, internal/composition/approval.go), not something that file expresses.
+  Copying its YAML into a new application's own file would not carry that engine with it, so the
+  copy would render a status field with no working decide button behind it. "Approval" in anything
+  you generate means: a status field that moves through the ordinary edit form, gated by who holds
+  a role -- not a special decision screen.
 - Notifications (email or in-app) of any kind -- no such capability exists in this runtime yet.
 - A saved default approval flow, conditional-required fields, or anything needing a new field type,
   action, or service beyond the ones named above.
