@@ -8,7 +8,6 @@ import (
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
-	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
 )
 
@@ -16,9 +15,10 @@ import (
 // identity is the recipient of, newest first (composition.MyNotifications) -- a Workspace-level
 // runtime route (names no Application, same category as /dashboard and /account-profile),
 // reachable by any authenticated member regardless of which Applications they have access to.
-func showNotifications(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showNotifications(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		machines := machinesFor(ctx)
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 
 		rows, err := composition.MyNotifications(ctx, composition.NewLoader(store, machines), userID)
@@ -37,8 +37,9 @@ func showNotifications(machines map[string]*domain.Machine, store *data.Store, c
 
 // showUnreadNotificationCount is the bell badge's own endpoint -- mirrors showPendingCount
 // exactly: a bare integer, empty body when zero, meant for hx-get/hx-trigger=load.
-func showUnreadNotificationCount(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showUnreadNotificationCount(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		machines := machinesFor(req.Context())
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		count, err := composition.UnreadNotificationCount(req.Context(), composition.NewLoader(store, machines), userID)
 		if err != nil {
@@ -59,7 +60,7 @@ func showUnreadNotificationCount(machines map[string]*domain.Machine, store *dat
 // fld_message/fld_link (the exact carry-forward hazard signatureplacement.templ's own composed
 // placement view was built to avoid). Reading and rewriting each record's own full Values here,
 // in Go, has no such hazard.
-func submitMarkAllNotificationsRead(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func submitMarkAllNotificationsRead(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)

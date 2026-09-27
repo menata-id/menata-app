@@ -14,7 +14,7 @@ import (
 	"menata.app/internal/rendering"
 )
 
-func showMachineList(machines []*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showMachineList(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
@@ -22,32 +22,42 @@ func showMachineList(machines []*domain.Machine, store *data.Store, cfg config.C
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.MachineList(installedMachines(ctx, machines), workspaceName, viewer, switchHref))
+		render(ctx, w, rendering.MachineList(installedMachines(ctx), workspaceName, viewer, switchHref))
 	}
 }
 
-// installedMachines narrows the process-wide Machine list to the ones this request's Workspace
-// actually installed (2026-09-22). Declaration order is preserved: it filters the loaded slice
-// rather than rebuilding one from the id list, so a Workspace lists its Machines in the order its
-// own manifest names them.
+// installedMachines is this request's own Machines, in the order its Workspace's manifest names
+// them (2026-09-22). A Workspace with no manifest gets an empty list, which is the point -- before
+// that it got every Machine in the process, which made a freshly created Workspace look like it
+// already had an application's worth of data model in it.
 //
-// A Workspace with no manifest gets an empty list, which is the point -- before this it got every
-// Machine in the process, which is what made a freshly created Workspace look like it already had
-// an application's worth of data model in it.
-func installedMachines(ctx context.Context, machines []*domain.Machine) []*domain.Machine {
-	ws := rendering.CurrentWorkspace(ctx)
-	out := make([]*domain.Machine, 0, len(machines))
-	for _, m := range machines {
-		if ws.HasMachine(m.ID) {
-			out = append(out, m)
-		}
+// It read the process-wide list and filtered it by ws.HasMachine until 2026-09-27. There is no
+// process-wide list any more: the Workspace carries its own loaded Machines
+// (domain.Workspace.Machines), so filtering a union is exactly the step that disappeared.
+func installedMachines(ctx context.Context) []*domain.Machine {
+	return rendering.CurrentWorkspace(ctx).Machines
+}
+
+// machinesFor is installedMachines keyed by id -- the per-request replacement for what used to be
+// web.Deps' own process-wide map, built per call rather than held, since a Workspace has a dozen
+// Machines and the map dies with the request.
+//
+// Both of these resolve from the Workspace already on ctx (internal/web.currentWorkspace put it
+// there from an in-memory, slug-keyed lookup), so neither costs a query -- which is what keeps
+// TestAuthenticatedPageQueryCost and friends unmoved by any of this.
+func machinesFor(ctx context.Context) map[string]*domain.Machine {
+	list := installedMachines(ctx)
+	out := make(map[string]*domain.Machine, len(list))
+	for _, m := range list {
+		out[m.ID] = m
 	}
 	return out
 }
 
-func showMachinePage(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showMachinePage(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -155,16 +165,17 @@ func resolveView(w http.ResponseWriter, machine *domain.Machine, req *http.Reque
 	return v, true
 }
 
-func resolveMachine(w http.ResponseWriter, machines map[string]*domain.Machine, req *http.Request) (*domain.Machine, bool) {
+// resolveMachine answers "which Machine does this URL's machineID mean, here" -- resolved against
+// this request's own Workspace, so a Workspace that never installed it gets "unknown machine"
+// rather than one of somebody else's.
+//
+// It took the process-wide map and paired it with a separate ws.HasMachine gate until 2026-09-27
+// (the map alone said only that *some* Workspace had declared the id). The Workspace's own
+// Machines answer both halves at once, so the gate is the lookup now.
+func resolveMachine(w http.ResponseWriter, req *http.Request) (*domain.Machine, bool) {
 	id := chi.URLParam(req, "machineID")
-	m, ok := machines[id]
-	// Installed here, not merely loaded by this process (2026-09-22). Machines are shared objects
-	// -- one file produces one object however many Workspaces install it -- so the map alone says
-	// only that *some* Workspace declared it. A Workspace that never installed it must not serve
-	// its pages: the records would be empty, since they are workspace-scoped, but an empty page
-	// for a Machine this Workspace does not have is a different claim from "unknown machine", and
-	// the second one is the true one.
-	if !ok || !rendering.CurrentWorkspace(req.Context()).HasMachine(id) {
+	m, ok := machinesFor(req.Context())[id]
+	if !ok {
 		http.Error(w, "unknown machine", http.StatusNotFound)
 		return nil, false
 	}

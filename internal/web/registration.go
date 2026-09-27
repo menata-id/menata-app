@@ -28,7 +28,7 @@ func showRegistration(w http.ResponseWriter, req *http.Request) {
 // is exactly the gap that made self-service password reset worth doing carefully -- proving email
 // ownership has to happen somewhere, and registration is the one place a brand-new, unverified
 // identity is created. `CheckYourEmailPage` is rendered instead of a redirect to /home.
-func submitRegistration(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+func submitRegistration(userMachine *domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if err := req.ParseForm(); err != nil {
 			http.Error(w, "invalid form body", http.StatusBadRequest)
@@ -55,7 +55,6 @@ func submitRegistration(machines map[string]*domain.Machine, store *data.Store, 
 		// the new Workspace's own mch_user record, which carries only what is Workspace-scoped
 		// (metadata/user.yaml). The chain stays generic rather than being replaced by an empty
 		// map, so a Workspace-scoped Field added to that Machine later flows through unchanged.
-		userMachine := machines[domain.UserMachineID]
 		values := data.ValuesFromForm(userMachine, req.Form)
 		data.ApplyDefaults(userMachine, values)
 		if err := data.ValidateRecord(userMachine, values); err != nil {

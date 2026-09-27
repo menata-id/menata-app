@@ -45,7 +45,7 @@ func showCreateWorkspace(store *data.Store, cfg config.Config) http.HandlerFunc 
 // re-pointing the session cookie at the new Workspace's own mch_user record
 // (submitSwitchWorkspace's own last step) so the new Workspace opens immediately rather than
 // leaving the viewer on whichever one they started from.
-func submitCreateWorkspace(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func submitCreateWorkspace(userMachine *domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		email, ok := currentUserEmail(ctx, store, req, cfg)
@@ -75,7 +75,6 @@ func submitCreateWorkspace(machines map[string]*domain.Machine, store *data.Stor
 		// Nothing identity-shaped is collected or written here: the new Workspace's mch_user
 		// record carries only Workspace-scoped values (metadata/user.yaml), and this identity's
 		// name and email already exist on its credential.
-		userMachine := machines[domain.UserMachineID]
 		values := data.ValuesFromForm(userMachine, req.Form)
 		data.ApplyDefaults(userMachine, values)
 		if err := data.ValidateRecord(userMachine, values); err != nil {

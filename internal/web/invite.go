@@ -70,7 +70,7 @@ func showAcceptInvite(store *data.Store, cfg config.Config) http.HandlerFunc {
 // A brand-new identity states its own full name here, and it goes onto the credential rather than
 // into any Workspace's record (migration 010): this is the person's profile across every Menata
 // Workspace, so it is stated once, by its owner, and never again by an admin on their behalf.
-func submitAcceptInvite(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func submitAcceptInvite(userMachine *domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		if err := req.ParseForm(); err != nil {
@@ -109,7 +109,7 @@ func submitAcceptInvite(machines map[string]*domain.Machine, store *data.Store, 
 			return
 		}
 
-		if err := admitInvitedMember(ctx, machines, store, *invite); err != nil {
+		if err := admitInvitedMember(ctx, userMachine, store, *invite); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -178,10 +178,9 @@ func confirmInviteIdentity(ctx context.Context, store *data.Store, email, fullNa
 //
 // Split out of the handler rather than inlined to keep it inside internal/conformance's
 // TestHandlersStaySmall budget, the same reason applyPasswordChange (account.go) exists.
-func admitInvitedMember(ctx context.Context, machines map[string]*domain.Machine, store *data.Store, invite data.PendingInvite) error {
+func admitInvitedMember(ctx context.Context, userMachine *domain.Machine, store *data.Store, invite data.PendingInvite) error {
 	scoped := data.WithWorkspaceScope(ctx, invite.WorkspaceID)
 
-	userMachine := machines[domain.UserMachineID]
 	values := map[string]any{}
 	data.ApplyDefaults(userMachine, values)
 	if err := data.ValidateRecord(userMachine, values); err != nil {

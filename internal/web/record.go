@@ -24,9 +24,10 @@ import (
 	"menata.app/internal/storage"
 )
 
-func createRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -69,9 +70,10 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 // an HTMX request targeting the detail page's own container gets just that container's view
 // fragment (used by the detail page's own Cancel-from-edit); any other HTMX request (a table row
 // or board card's Cancel) gets the original RecordRow fragment, unchanged from Phase 1.
-func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
+func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -122,9 +124,10 @@ func showRecordRow(machines map[string]*domain.Machine, store *data.Store, files
 	}
 }
 
-func editRecordRow(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func editRecordRow(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -165,9 +168,10 @@ func editRecordRow(machines map[string]*domain.Machine, store *data.Store, cfg c
 // right -- one about file inputs, one about who may change a decision, one about Constraints --
 // and reading this handler should show the order they run in, which is itself the contract
 // (005-runtime-lifecycle.md "Security Ordering").
-func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+func updateRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -354,9 +358,9 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 	render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor))
 }
 
-func deleteRecord(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}

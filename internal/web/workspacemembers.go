@@ -241,9 +241,10 @@ func submitRevokeInvite(store *data.Store) http.HandlerFunc {
 // reached. A plain 422 with the reason(s), the same shape submitInviteMember's own "already a
 // member" refusal already takes, rather than a richer re-rendered page -- this file has no other
 // precedent for the latter.
-func submitDeactivateMember(store *data.Store, machines map[string]*domain.Machine) http.HandlerFunc {
+func submitDeactivateMember(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		machines := machinesFor(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		userRecordID := chi.URLParam(req, "userRecordID")
 

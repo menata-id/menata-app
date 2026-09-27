@@ -222,9 +222,9 @@ var placementFields = []string{
 // submitter to a screen where every marker was static and the write would have been refused
 // anyway. It is the bug the owner hit the first time they submitted a document after the role
 // rules landed.
-func updateSignaturePlacement(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func updateSignaturePlacement(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}

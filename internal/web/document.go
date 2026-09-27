@@ -80,9 +80,10 @@ func readWizardOptions(req *http.Request, machines map[string]*domain.Machine, s
 // added, and fld_mode's since Fase 6c-2 -- it was the last hardcoded pair in the wizard, two
 // <input type="radio" value="sequential|parallel"> literals sitting two sections below a select
 // that already did it correctly.
-func showDocumentSubmit(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showDocumentSubmit(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		machines := machinesFor(ctx)
 		opts, err := readWizardOptions(req, machines, store)
 		if err != nil {
 			serverError(w, err)
@@ -103,8 +104,9 @@ func showDocumentSubmit(machines map[string]*domain.Machine, store *data.Store, 
 // newApproverRow serves the wizard's own "+ Add approver" HTMX fragment -- a fresh
 // rendering.ApproverRow with the same real options as the wizard's initial row, never fabricated
 // data and never a different set.
-func newApproverRow(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+func newApproverRow(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		machines := machinesFor(req.Context())
 		opts, err := readWizardOptions(req, machines, store)
 		if err != nil {
 			serverError(w, err)
@@ -126,8 +128,9 @@ func newApproverRow(machines map[string]*domain.Machine, store *data.Store) http
 // makes reviewHref/SplitDrafts able to tell a Draft apart from the pre-existing "zero-step
 // Document the generic form can make" edge case: a Draft is the *only* status guaranteed to have
 // zero steps by construction.
-func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
+func submitDocumentWizard(store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		machines := machinesFor(req.Context())
 		docMachine := machines[action.DocumentMachineID]
 
 		values, _, ok := submittedValues(w, req, docMachine, files)
@@ -231,9 +234,10 @@ func navRouteByID(ctx context.Context, id string) string {
 // stored values; approver rows start empty exactly as a fresh wizard's do, because a Draft is
 // guaranteed to carry none (submitDocumentWizard's own draft branch creates no Approval Steps, and
 // reviseDocument deletes any that existed before moving a Document back to Draft).
-func showDocumentContinue(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showDocumentContinue(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -301,9 +305,10 @@ func showDocumentContinue(machines map[string]*domain.Machine, store *data.Store
 // Scope, stated once rather than left to be discovered: continuing a draft only ever finalizes it
 // into in_review here. There is no "save this edit, stay draft" loop on this form -- revisiting a
 // draft without submitting it is just leaving the page.
-func continueDocumentWizard(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
+func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -609,8 +614,9 @@ func saveApprovalFlowTemplate(ctx context.Context, store *data.Store, templateMa
 // fieldset; no saved template renders exactly a fresh wizard's own starting state (one blank row,
 // the Field's first declared mode) -- switching *away* from a type with a saved flow resets rather
 // than leaves stale rows from whatever was picked before.
-func showApprovalFlowTemplateRows(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+func showApprovalFlowTemplateRows(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		machines := machinesFor(req.Context())
 		opts, err := readWizardOptions(req, machines, store)
 		if err != nil {
 			serverError(w, err)
@@ -647,9 +653,10 @@ func showApprovalFlowTemplateRows(machines map[string]*domain.Machine, store *da
 // Step 4) -- a real rendered page of the Document's own PDF (Step 3's internal/pdf), one
 // draggable marker per Approval Step. Hardcoded to mch_document, same posture as decideStep: this
 // is Case 3's own screen, not a generic per-Machine feature.
-func showSignaturePlacement(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
+func showSignaturePlacement(store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -742,9 +749,9 @@ func documentSignaturePlacementView(ctx context.Context, store *data.Store, file
 // servePDFPreview rasterizes one page of a Document's own PDF to PNG (Step 3's internal/pdf),
 // for showSignaturePlacement's own <img> -- not exposed for any other Machine or file field, same
 // hardcoded scope as the rest of Case 3's Action/screen code.
-func servePDFPreview(machines map[string]*domain.Machine, store *data.Store, files *storage.Store) http.HandlerFunc {
+func servePDFPreview(store *data.Store, files *storage.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}

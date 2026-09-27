@@ -41,9 +41,10 @@ import (
 // every request would be the query-budget mistake ROADMAP.md's own performance audit already
 // found once on this exact screen (showPendingCount's doc comment tells that story); this avoids
 // repeating it on the tab that is new.
-func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showApprovalInbox(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		machines := machinesFor(ctx)
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		tab := req.URL.Query().Get("tab")
 		// q is My Documents' and Assigned to me's own search box (Flow 2 mockup) -- the Pending
@@ -157,8 +158,9 @@ func assignedTabContent(ctx context.Context, store *data.Store, machines map[str
 // the activity log and every member's name to build cards this endpoint discards, and wrote SLA
 // breach rows as a side effect -- on an endpoint that fires on a third of all requests. The two
 // still cannot disagree, because both select through composition's own pendingStepsFor.
-func showPendingCount(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showPendingCount(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		machines := machinesFor(req.Context())
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		pending, err := composition.PendingApprovalCount(req.Context(), composition.NewLoader(store, machines), userID, machines[action.StepMachineID])
 		if err != nil {
@@ -182,9 +184,9 @@ func showPendingCount(machines map[string]*domain.Machine, store *data.Store, cf
 // The order below is the contract, not a convenience: identity is checked before the Document is
 // even fetched (005-runtime-lifecycle.md "Security Ordering", 007 §20), and sequencing is checked
 // before anything is written.
-func decideStep(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -248,7 +250,7 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 
 		// Always true now: oldValues came from a read this handler already made and checked, so
 		// there is no second fetch left to fail.
-		execution.RunEvents(ctx, store, mailer, machines, machine, step, actor.ID, oldValues, true)
+		execution.RunEvents(ctx, store, mailer, machinesFor(ctx), machine, step, actor.ID, oldValues, true)
 
 		logActivity(ctx, store, action.DocumentMachineID, documentID, actor.ID,
 			fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
@@ -275,9 +277,9 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 // mch_activity, which is append-only -- only the structured step row itself (assignee, signature
 // image, decided-by-name) is traded away, and only for a step whose Document is about to be
 // resubmitted from scratch.
-func reviseDocument(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func reviseDocument(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}

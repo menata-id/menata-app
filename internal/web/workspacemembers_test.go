@@ -194,9 +194,12 @@ func approvalStepMachineWithRemovalBlock() map[string]*domain.Machine {
 func postDeactivate(t *testing.T, store *data.Store, machines map[string]*domain.Machine, workspaceID, userRecordID string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "/workspace-members/"+userRecordID+"/deactivate", nil)
-	req = req.WithContext(data.WithWorkspaceScope(req.Context(), workspaceID))
+	// The guard reads this Workspace's own Machines off ctx (it looks for a Constraint blocking
+	// the removal), which is what currentWorkspace installs in production.
+	req = req.WithContext(rendering.WithCurrentWorkspace(
+		data.WithWorkspaceScope(req.Context(), workspaceID), testWorkspaceFor(machines), "Test Workspace", false))
 	r := chi.NewRouter()
-	r.Post("/workspace-members/{userRecordID}/deactivate", submitDeactivateMember(store, machines))
+	r.Post("/workspace-members/{userRecordID}/deactivate", submitDeactivateMember(store))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec

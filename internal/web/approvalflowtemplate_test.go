@@ -71,7 +71,7 @@ func postWizard(t *testing.T, machines map[string]*domain.Machine, store *data.S
 		t.Fatalf("storage.NewStore: %v", err)
 	}
 	r := chi.NewRouter()
-	r.Post("/documents", submitDocumentWizard(machines, store, files, cfg))
+	r.Post("/documents", submitDocumentWizard(store, files, cfg))
 	req := httptest.NewRequest(http.MethodPost, "/documents", body)
 	req.Header.Set("Content-Type", contentType)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, submitterID, 0)})
@@ -255,7 +255,7 @@ func TestShowApprovalFlowTemplateRows_returnsSavedStepsAndMode(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/documents/new/approval-flow-template?fld_document_type=Kontrak", nil)
 	req = req.WithContext(wsCtx)
 	rec2 := httptest.NewRecorder()
-	showApprovalFlowTemplateRows(machines, store)(rec2, req)
+	showApprovalFlowTemplateRows(store)(rec2, req)
 	if rec2.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", rec2.Code, rec2.Body.String())
 	}
@@ -277,12 +277,12 @@ func TestShowApprovalFlowTemplateRows_returnsSavedStepsAndMode(t *testing.T) {
 // TestShowApprovalFlowTemplateRows_blankWhenNoTemplateSaved is the fragment's own negative case:
 // a Document Type with no saved template renders exactly a fresh wizard's own starting state.
 func TestShowApprovalFlowTemplateRows_blankWhenNoTemplateSaved(t *testing.T) {
-	store, wsCtx, machines, _, _, _ := approvalFlowTemplateTestFixture(t, "No Saved Flow", "no-saved-flow-workspace", "no_saved_flow@example.com")
+	store, wsCtx, _, _, _, _ := approvalFlowTemplateTestFixture(t, "No Saved Flow", "no-saved-flow-workspace", "no_saved_flow@example.com")
 
 	req := httptest.NewRequest(http.MethodGet, "/documents/new/approval-flow-template?fld_document_type=Lain-lain", nil)
 	req = req.WithContext(wsCtx)
 	rec := httptest.NewRecorder()
-	showApprovalFlowTemplateRows(machines, store)(rec, req)
+	showApprovalFlowTemplateRows(store)(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}

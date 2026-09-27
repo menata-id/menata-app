@@ -13,18 +13,16 @@ import (
 	"menata.app/internal/domain"
 )
 
-// inviteTestMachines is what admitInvitedMember needs to create the Workspace's own mch_user
+// inviteTestUserMachine is what admitInvitedMember needs to create the Workspace's own mch_user
 // record on acceptance. It declares no name or email Field, which is the point: since 2026-09-22
 // those live on the identity, and a record created for a new member carries only what is
 // Workspace-scoped.
-func inviteTestMachines() map[string]*domain.Machine {
-	return map[string]*domain.Machine{
-		domain.UserMachineID: {
-			ID:   domain.UserMachineID,
-			Name: "User",
-			Fields: []domain.Field{
-				{ID: "fld_weekly_capacity", Name: "Weekly Capacity (hours)", Type: domain.FieldTypeNumber},
-			},
+func inviteTestUserMachine() *domain.Machine {
+	return &domain.Machine{
+		ID:   domain.UserMachineID,
+		Name: "User",
+		Fields: []domain.Field{
+			{ID: "fld_weekly_capacity", Name: "Weekly Capacity (hours)", Type: domain.FieldTypeNumber},
 		},
 	}
 }
@@ -52,7 +50,7 @@ func postAcceptInvite(store *data.Store, cfg config.Config, body string) *httpte
 	req := httptest.NewRequest(http.MethodPost, "/accept-invite", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
-	submitAcceptInvite(inviteTestMachines(), store, cfg)(rec, req)
+	submitAcceptInvite(inviteTestUserMachine(), store, cfg)(rec, req)
 	return rec
 }
 

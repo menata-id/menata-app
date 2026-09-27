@@ -29,7 +29,7 @@ func putRecordAs(t *testing.T, s decideStepTestSetup, machineID, id, actorID str
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, actorID, 0)})
 
 	r := chi.NewRouter()
-	r.Put("/machines/{machineID}/records/{id}", updateRecordForm(s.machines, s.store, s.files, mail.LogMailer{}, s.cfg))
+	r.Put("/machines/{machineID}/records/{id}", updateRecordForm(s.store, s.files, mail.LogMailer{}, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec
@@ -43,7 +43,7 @@ func deleteRecordAs(t *testing.T, s decideStepTestSetup, machineID, id, actorID 
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, actorID, 0)})
 
 	r := chi.NewRouter()
-	r.Delete("/machines/{machineID}/records/{id}", deleteRecord(s.machines, s.store, s.cfg))
+	r.Delete("/machines/{machineID}/records/{id}", deleteRecord(s.store, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec

@@ -92,7 +92,7 @@ func switchWorkspaceQueries(t *testing.T, name string, workspaceCount int) (int,
 	}
 
 	h := Routes(Deps{
-		Machines:           machines,
+		UserMachine:        machines[domain.UserMachineID],
 		Store:              store,
 		Cfg:                cfg,
 		Workspaces:         workspaces,

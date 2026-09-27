@@ -19,15 +19,29 @@ type Workspace struct {
 	// manifest legitimately says is *which* Workspace it is for, and the slug is the only key a
 	// person can both read and type.
 	Slug string
-	// MachineIDs are the Machines this Workspace's manifest declares, in declaration order. The
-	// Machines themselves are loaded process-wide and shared (one file, one object, however many
-	// Workspaces install it); this is the per-Workspace *membership* list, which is what decides
-	// whether a Machine exists here at all.
+	// MachineIDs are the Machines this Workspace's manifest declares, in declaration order -- the
+	// membership list, which is what decides whether a Machine exists here at all.
 	//
 	// Without it a Workspace with nothing installed still listed every Machine in the process, and
 	// /machines/<id> served a page for one it had never installed -- empty, since records are
 	// workspace-scoped, but reachable and listed.
 	MachineIDs []string
+	// Machines are those same Machines, loaded -- this Workspace's own, in the same declaration
+	// order, and the authoritative answer to "which Machine does id X mean *here*".
+	//
+	// It sits on the Workspace because which Workspace a request is in is a per-request fact
+	// (CLAUDE.md, "One manifest per Workspace"), so what a Machine id means is one too. Until
+	// 2026-09-27 the Machines themselves were loaded process-wide and shared instead -- one file,
+	// one object, however many Workspaces installed it -- with cmd/server unioning every
+	// Workspace's Machines into a single id-keyed map and *deduping by id, first loaded wins*. Two
+	// Workspaces could therefore not hold different definitions under one id: the second silently
+	// got the first one's Machine. That is what this field exists to end (owner decision, same
+	// day: Workspaces are isolated, and installing a template copies it).
+	//
+	// Two Workspaces installing the same template file each get their own *domain.Machine value
+	// from it. Nothing compares Machines by pointer -- every lookup here is by id -- and that
+	// independence is the point, since either Workspace may later edit only its own copy.
+	Machines []*Machine
 	// Applications are the Applications declared inside this Workspace, in declaration order --
 	// which is the order the launcher and Workspace Home list them in.
 	Applications []Application

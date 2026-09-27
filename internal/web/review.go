@@ -33,10 +33,11 @@ import (
 // The handler is thin on purpose. Every derivation lives in composition.ReviewDocument, because
 // the .templ it renders may contain no field reads at all -- see rendering.ReviewView's own doc
 // comment for why that constraint exists and what it bought.
-func showReviewDocument(machines map[string]*domain.Machine, store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
+func showReviewDocument(store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(ctx)
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}

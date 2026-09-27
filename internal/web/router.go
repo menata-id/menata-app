@@ -20,10 +20,23 @@ import (
 // dependency does not touch the signature of every handler that does not use it, which is how a
 // route table this size stays reviewable.
 type Deps struct {
-	// Machines is the id-keyed lookup; MachineList preserves the declaration order metadata was
-	// written in, which the Machine list page and the automation page both render in that order.
-	Machines    map[string]*domain.Machine
-	MachineList []*domain.Machine
+	// UserMachine is mch_user, and it is deliberately the *only* Machine on Deps.
+	//
+	// Deps carried the whole process-wide Machine set here until 2026-09-27 (an id-keyed map plus
+	// a declaration-ordered list, unioned across every installed Workspace by cmd/server and
+	// deduped by id). That made "which Machine does id X mean" a process-level answer, when it is
+	// a per-Workspace one: two Workspaces could not hold different definitions under one id, the
+	// second silently getting the first's. A request's Machines now come from the Workspace
+	// already on its ctx -- machinesFor/installedMachines (machine.go) -- which is the same
+	// per-request discipline routeByID/labelByID already follow.
+	//
+	// mch_user survives as an explicit exception because it genuinely is cross-Workspace (owner,
+	// 2026-09-27: "hanya user aja yang bisa lintas workspace"): memberships point at user records,
+	// so one identity has one of these in every Workspace it belongs to. The three handlers that
+	// need it cannot ask a ctx Workspace for it anyway -- /register and /accept-invite run before
+	// any session exists, and /create-workspace is making the Workspace whose record it is about
+	// to write. Naming the one shared Machine is honest; holding all of them was not.
+	UserMachine *domain.Machine
 
 	Store  *data.Store
 	Files  *storage.Store
@@ -155,7 +168,7 @@ func Routes(d Deps) http.Handler {
 	r.Get("/login", showLogin)
 	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))
 	r.Get("/register", showRegistration)
-	r.Post("/register", rateLimitByAddress(registrationLimiter, "too many registration attempts -- try again later", submitRegistration(d.Machines, d.Store, d.Mailer, d.Cfg)))
+	r.Post("/register", rateLimitByAddress(registrationLimiter, "too many registration attempts -- try again later", submitRegistration(d.UserMachine, d.Store, d.Mailer, d.Cfg)))
 	r.Get("/verify-email", showVerifyEmail(d.Store, d.Cfg))
 	r.Get("/resend-verification", showResendVerification)
 	r.Post("/resend-verification", submitResendVerification(d.Store, d.Mailer, d.Cfg))
@@ -164,7 +177,7 @@ func Routes(d Deps) http.Handler {
 	r.Get("/reset-password", showResetPassword)
 	r.Post("/reset-password", submitResetPassword(d.Store, d.Cfg))
 	r.Get("/accept-invite", showAcceptInvite(d.Store, d.Cfg))
-	r.Post("/accept-invite", rateLimitByAddress(inviteAcceptLimiter, "too many attempts -- try again later", submitAcceptInvite(d.Machines, d.Store, d.Cfg)))
+	r.Post("/accept-invite", rateLimitByAddress(inviteAcceptLimiter, "too many attempts -- try again later", submitAcceptInvite(d.UserMachine, d.Store, d.Cfg)))
 	r.Get("/choose-workspace", showChooseWorkspace(d.Store, d.Cfg))
 	r.Post("/choose-workspace", submitChooseWorkspace(d.Store, d.Cfg))
 	// Restore (Flow 2 gap study Tahap 7) is reachable pre-session, the same way Choose Workspace
@@ -204,21 +217,21 @@ func Routes(d Deps) http.Handler {
 
 		pr.Post("/logout", logout(d.Store, d.Cfg))
 
-		pr.Get("/api/machines", listMachines(d.MachineList))
+		pr.Get("/api/machines", listMachines())
 		pr.Get("/api/machines/{machineID}/records", listRecords(d.Store))
-		pr.Post("/api/machines/{machineID}/records", createRecord(d.Machines, d.Store, d.Mailer, d.Cfg))
-		pr.Put("/api/machines/{machineID}/records/{id}", updateRecord(d.Machines, d.Store, d.Mailer, d.Cfg))
-		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Machines, d.Store, d.Cfg))
+		pr.Post("/api/machines/{machineID}/records", createRecord(d.Store, d.Mailer, d.Cfg))
+		pr.Put("/api/machines/{machineID}/records/{id}", updateRecord(d.Store, d.Mailer, d.Cfg))
+		pr.Delete("/api/machines/{machineID}/records/{id}", deleteRecordAPI(d.Store, d.Cfg))
 
-		pr.Get("/", showMachineList(d.MachineList, d.Store, d.Cfg))
-		pr.Get("/home", showWorkspaceHome(d.Machines, d.Store, d.Cfg))
+		pr.Get("/", showMachineList(d.Store, d.Cfg))
+		pr.Get("/home", showWorkspaceHome(d.Store, d.Cfg))
 		pr.Get("/switch-workspace", showSwitchWorkspace(d.Store, d.Cfg))
 		pr.Post("/switch-workspace", submitSwitchWorkspace(d.Store, d.Cfg))
 		// Restore's mid-session counterpart -- allow-listed in blockWritesToArchivedWorkspace since
 		// it is the one write an archived Workspace must accept (see that gate's own doc comment).
 		pr.Post("/switch-workspace/restore", submitRestoreWorkspaceFromSwitch(d.Store, d.Cfg))
 		pr.Get("/create-workspace", showCreateWorkspace(d.Store, d.Cfg))
-		pr.Post("/create-workspace", submitCreateWorkspace(d.Machines, d.Store, d.Cfg))
+		pr.Post("/create-workspace", submitCreateWorkspace(d.UserMachine, d.Store, d.Cfg))
 		pr.Get("/account-profile", showProfile(d.Store, d.Cfg))
 		pr.Post("/account-profile", submitProfile(d.Store, d.Cfg))
 		pr.Get("/account-notifications", showAccountNotifications(d.Store, d.Cfg))
@@ -229,52 +242,52 @@ func Routes(d Deps) http.Handler {
 		// Account menu's own "Workspaces" section (Flow 2 canvas re-audit -- ROADMAP.md,
 		// 2026-09-27), fetched lazily by accountMenu's own hx-get, not on every appShell render.
 		pr.Get("/api/account-menu/workspaces", showAccountMenuWorkspaces(d.Store, d.Cfg))
-		pr.Get("/dashboard", showDashboard(d.Machines, d.Store, d.Cfg))
-		pr.Get("/my-tasks", showMyTasks(d.Machines, d.Store, d.Cfg))
+		pr.Get("/dashboard", showDashboard(d.Store, d.Cfg))
+		pr.Get("/my-tasks", showMyTasks(d.Store, d.Cfg))
 		pr.Get("/board-settings", showBoardSettings(d.Store, d.Cfg))
-		pr.Get("/activity", showActivity(d.Machines, d.Store, d.Cfg))
+		pr.Get("/activity", showActivity(d.Store, d.Cfg))
 		// Notifications (Flow 2 gap study Tahap 6) -- Workspace-level runtime routes, same category
 		// as /dashboard and /account-profile: reachable by any authenticated member regardless of
 		// Application access, since a notification can concern any Application's own Machine.
-		pr.Get("/notifications", showNotifications(d.Machines, d.Store, d.Cfg))
-		pr.Post("/notifications/mark-all-read", submitMarkAllNotificationsRead(d.Machines, d.Store, d.Cfg))
-		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Machines, d.Store, d.Cfg))
-		pr.Get("/team-capacity", showTeamCapacity(d.Machines, d.Store, d.Cfg))
-		pr.Get("/automation", showAutomation(d.MachineList, d.Store, d.Cfg))
-		pr.Get("/calendar", showCalendar(d.Machines, d.Store, d.Cfg))
-		pr.Get("/sprint", showSprintDashboard(d.Machines, d.Store, d.Cfg))
-		pr.Get("/approval-inbox", showApprovalInbox(d.Machines, d.Store, d.Cfg))
-		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Machines, d.Store, d.Cfg))
-		pr.Get("/documents/new", showDocumentSubmit(d.Machines, d.Store, d.Cfg))
-		pr.Get("/documents/new/approver-row", newApproverRow(d.Machines, d.Store))
+		pr.Get("/notifications", showNotifications(d.Store, d.Cfg))
+		pr.Post("/notifications/mark-all-read", submitMarkAllNotificationsRead(d.Store, d.Cfg))
+		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Store, d.Cfg))
+		pr.Get("/team-capacity", showTeamCapacity(d.Store, d.Cfg))
+		pr.Get("/automation", showAutomation(d.Store, d.Cfg))
+		pr.Get("/calendar", showCalendar(d.Store, d.Cfg))
+		pr.Get("/sprint", showSprintDashboard(d.Store, d.Cfg))
+		pr.Get("/approval-inbox", showApprovalInbox(d.Store, d.Cfg))
+		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Store, d.Cfg))
+		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Cfg))
+		pr.Get("/documents/new/approver-row", newApproverRow(d.Store))
 		// CAP-V28 (ROADMAP.md, 2026-09-27): the doc_type <select>'s own htmx fragment, loading that
 		// Document Type's saved default approval flow, if one exists.
-		pr.Get("/documents/new/approval-flow-template", showApprovalFlowTemplateRows(d.Machines, d.Store))
-		pr.Post("/documents", submitDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}/continue-submit", showDocumentContinue(d.Machines, d.Store, d.Cfg))
-		pr.Post("/machines/{machineID}/records/{id}/continue-submit", continueDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Post("/machines/{machineID}/records/{id}/revise", reviseDocument(d.Machines, d.Store, d.Cfg))
+		pr.Get("/documents/new/approval-flow-template", showApprovalFlowTemplateRows(d.Store))
+		pr.Post("/documents", submitDocumentWizard(d.Store, d.Files, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}/continue-submit", showDocumentContinue(d.Store, d.Cfg))
+		pr.Post("/machines/{machineID}/records/{id}/continue-submit", continueDocumentWizard(d.Store, d.Files, d.Cfg))
+		pr.Post("/machines/{machineID}/records/{id}/revise", reviseDocument(d.Store, d.Cfg))
 		// nav_app_settings / nav_app_settings_permissions (metadata/applications/document-
 		// approval.yaml) -- the Application Settings hub and its Permissions sub-page
 		// (ROADMAP.md "Application Settings hub"), one handler factory for both. Gated by
 		// requireApplicationAccess above like every other Document Approval route, not
 		// requireWorkspaceAdmin: the page is read-only information for any member.
-		pr.Get("/document-approval/settings", showApplicationSettings("", d.MachineList, d.Store, d.Cfg))
-		pr.Get("/document-approval/settings/permissions", showApplicationSettings("permissions", d.MachineList, d.Store, d.Cfg))
-		pr.Get("/machines/{machineID}", showMachinePage(d.Machines, d.Store, d.Cfg))
-		pr.Post("/machines/{machineID}/records", createRecordForm(d.Machines, d.Store, d.Files, d.Mailer, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Machines, d.Store, d.Cfg))
-		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Machines, d.Store, d.Files, d.Mailer, d.Cfg))
-		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Machines, d.Store, d.Cfg))
-		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Machines, d.Store, d.Files, d.Mailer, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}/review", showReviewDocument(d.Machines, d.Store, d.Files, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Machines, d.Store, d.Files, d.Cfg))
+		pr.Get("/document-approval/settings", showApplicationSettings("", d.Store, d.Cfg))
+		pr.Get("/document-approval/settings/permissions", showApplicationSettings("permissions", d.Store, d.Cfg))
+		pr.Get("/machines/{machineID}", showMachinePage(d.Store, d.Cfg))
+		pr.Post("/machines/{machineID}/records", createRecordForm(d.Store, d.Files, d.Mailer, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Store, d.Files, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Store, d.Cfg))
+		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Store, d.Files, d.Mailer, d.Cfg))
+		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Store, d.Cfg))
+		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Store, d.Files, d.Mailer, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}/review", showReviewDocument(d.Store, d.Files, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Store, d.Files, d.Cfg))
 		// The write half, on its own route rather than the generic record one: this screen asks
 		// "may you place this signature", which is a different question from "may you edit this
 		// step" -- see composition.MayPlaceSignature.
-		pr.Put("/machines/{machineID}/records/{id}/signature-placement", updateSignaturePlacement(d.Machines, d.Store, d.Cfg))
-		pr.Get("/machines/{machineID}/records/{id}/pdf-preview", servePDFPreview(d.Machines, d.Store, d.Files))
+		pr.Put("/machines/{machineID}/records/{id}/signature-placement", updateSignaturePlacement(d.Store, d.Cfg))
+		pr.Get("/machines/{machineID}/records/{id}/pdf-preview", servePDFPreview(d.Store, d.Files))
 
 		pr.Group(func(ar chi.Router) {
 			ar.Use(requireWorkspaceAdmin(d.Store, d.Cfg))
@@ -290,7 +303,7 @@ func Routes(d Deps) http.Handler {
 			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg))
 			ar.Post("/workspace-members/{userRecordID}/edit", submitEditMember(d.Store))
 			// Member deactivation (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27).
-			ar.Post("/workspace-members/{userRecordID}/deactivate", submitDeactivateMember(d.Store, d.Machines))
+			ar.Post("/workspace-members/{userRecordID}/deactivate", submitDeactivateMember(d.Store))
 			ar.Post("/workspace-members/{userRecordID}/reactivate", submitReactivateMember(d.Store))
 
 			// Groups (Case 03 Fase 4) -- membership administration, so the same requireWorkspaceAdmin
@@ -306,10 +319,10 @@ func Routes(d Deps) http.Handler {
 			// applications" (the mockup's own words, M03b-WorkspaceMenu.dc.html), same gate as
 			// everything else in this group. Entry point itself is hidden from navigation when
 			// d.Cfg.GeminiAPIKey is unset (internal/rendering's own showNewApplicationEntry).
-			ar.Get("/new-application", showNewApplication(d.Machines, d.Store, d.AIClient, d.Cfg))
-			ar.Post("/new-application/message", postNewApplicationMessage(d.Machines, d.Store, d.AIClient, d.Cfg))
-			ar.Get("/new-application/{session}/review", showNewApplicationReview(d.Machines, d.Store, d.Cfg))
-			ar.Post("/new-application/{session}/publish", publishNewApplication(d.Machines, d.Store, d.Cfg, d.ReloadMetadata))
+			ar.Get("/new-application", showNewApplication(d.Store, d.AIClient, d.Cfg))
+			ar.Post("/new-application/message", postNewApplicationMessage(d.Store, d.AIClient, d.Cfg))
+			ar.Get("/new-application/{session}/review", showNewApplicationReview(d.Store, d.Cfg))
+			ar.Post("/new-application/{session}/publish", publishNewApplication(d.Store, d.Cfg, d.ReloadMetadata))
 			ar.Post("/new-application/{session}/discard", discardNewApplication(d.Store))
 			// Workspace Home's own "draft Application" row, fetched lazily (Flow 2 canvas
 			// re-audit, ROADMAP.md, 2026-09-27) -- same admin gate as the section that triggers it.

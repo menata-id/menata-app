@@ -37,7 +37,7 @@ import (
 // there is no chat-log precedent anywhere else in this app to extend, and a full round trip per
 // message is a reasonable, honest simplification for a screen an admin uses rarely and
 // deliberately, not one anyone is optimizing perceived latency on.
-func showNewApplication(machines map[string]*domain.Machine, store *data.Store, aiClient aiassist.Client, cfg config.Config) http.HandlerFunc {
+func showNewApplication(store *data.Store, aiClient aiassist.Client, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if cfg.GeminiAPIKey == "" {
 			// A clear, real page rather than a 403 or a broken conversation -- see appshell.templ's
@@ -94,8 +94,9 @@ func showNewApplication(machines map[string]*domain.Machine, store *data.Store, 
 // applications, so an extend_application request can be evaluated against what is actually real),
 // appends the assistant's reply, records a capability gap if the reply names one, and redirects
 // back to the conversation screen.
-func postNewApplicationMessage(machines map[string]*domain.Machine, store *data.Store, aiClient aiassist.Client, cfg config.Config) http.HandlerFunc {
+func postNewApplicationMessage(store *data.Store, aiClient aiassist.Client, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		machines := machinesFor(req.Context())
 		if err := req.ParseForm(); err != nil {
 			http.Error(w, "invalid form body", http.StatusBadRequest)
 			return
@@ -195,9 +196,10 @@ func runAssistantTurn(ctx context.Context, machines map[string]*domain.Machine, 
 // showNewApplicationReview renders NewAppReview.dc.html's shape once a session holds a validated
 // GeneratedChange -- re-validates rather than trusting the session's own "generated" status alone,
 // since this workspace's installed applications may have changed since that status was set.
-func showNewApplicationReview(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showNewApplicationReview(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		machines := machinesFor(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		sessionID := chi.URLParam(req, "session")
 
@@ -238,9 +240,10 @@ func showNewApplicationReview(machines map[string]*domain.Machine, store *data.S
 // (TestPlaneBoundaries). On any failure at any step nothing partial is left live: aiassist.Write's
 // own temp-file-then-rename discipline means a failed write leaves no half-written file, and a
 // failed reload leaves the previous route table serving traffic untouched.
-func publishNewApplication(machines map[string]*domain.Machine, store *data.Store, cfg config.Config, reload func() error) http.HandlerFunc {
+func publishNewApplication(store *data.Store, cfg config.Config, reload func() error) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		machines := machinesFor(ctx)
 		workspaceID, _ := data.WorkspaceScope(ctx)
 		sessionID := chi.URLParam(req, "session")
 

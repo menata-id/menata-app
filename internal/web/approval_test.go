@@ -263,7 +263,7 @@ func postDecideAs(t *testing.T, s decideStepTestSetup, stepID, actorID, decision
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, actorID, 0)})
 
 	r := chi.NewRouter()
-	r.Post("/machines/{machineID}/records/{id}/decide", decideStep(s.machines, s.store, s.files, mail.LogMailer{}, s.cfg))
+	r.Post("/machines/{machineID}/records/{id}/decide", decideStep(s.store, s.files, mail.LogMailer{}, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec

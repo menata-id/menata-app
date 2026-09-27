@@ -277,6 +277,11 @@ func LoadApplication(path string) (*App, error) {
 	if err := validateSequencingModes(app.Machines); err != nil {
 		return nil, err
 	}
+
+	// The Workspace carries its own loaded Machines, not only their ids: what a Machine id means
+	// is a per-Workspace fact (domain.Workspace.Machines). Assigned here, once everything above
+	// has finished building and stamping them, so the two can never be out of step.
+	app.Workspace.Machines = app.Machines
 	return app, nil
 }
 

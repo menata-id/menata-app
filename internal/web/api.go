@@ -9,17 +9,16 @@ import (
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
-	"menata.app/internal/domain"
 	"menata.app/internal/execution"
 	"menata.app/internal/mail"
 )
 
-func listMachines(machines []*domain.Machine) http.HandlerFunc {
+func listMachines() http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		// The JSON twin of All Machines, narrowed the same way: this Workspace's own Machines,
 		// not every Machine the process happens to have loaded.
-		writeJSON(w, installedMachines(req.Context(), machines))
+		writeJSON(w, installedMachines(req.Context()))
 	}
 }
 
@@ -36,9 +35,9 @@ func listRecords(store *data.Store) http.HandlerFunc {
 	}
 }
 
-func createRecord(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+func createRecord(store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -78,9 +77,10 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store, mailer
 // carry-forward files, then decision-change guard, then shape/relation/constraint checks), a JSON
 // body decoded straight into map[string]any needing no ValuesFromForm equivalent (createRecord
 // above already established this), and a JSON response instead of an HTML fragment.
-func updateRecord(machines map[string]*domain.Machine, store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+func updateRecord(store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}
@@ -121,9 +121,9 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, mailer
 	}
 }
 
-func deleteRecordAPI(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func deleteRecordAPI(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machine, ok := resolveMachine(w, machines, req)
+		machine, ok := resolveMachine(w, req)
 		if !ok {
 			return
 		}

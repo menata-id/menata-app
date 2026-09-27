@@ -233,9 +233,9 @@ func TestShowRecordRow_documentDetailIncludesInlineSignaturePlacement(t *testing
 		t.Fatalf("CreateRecord(step): %v", err)
 	}
 
-	machines, installed := loadRealMachines(t)
+	_, installed := loadRealMachines(t)
 	r := chi.NewRouter()
-	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, config.Config{}))
+	r.Get("/machines/{machineID}/records/{id}", showRecordRow(store, files, config.Config{}))
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, document.ID), nil)
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), ws.ID), installed, "Test Workspace", false))
@@ -280,9 +280,9 @@ func TestShowRecordRow_nonDocumentDetailHasNoSignaturePlacement(t *testing.T) {
 		t.Fatalf("CreateRecord(project): %v", err)
 	}
 
-	machines, installed := loadRealMachines(t)
+	_, installed := loadRealMachines(t)
 	r := chi.NewRouter()
-	r.Get("/machines/{machineID}/records/{id}", showRecordRow(machines, store, files, config.Config{}))
+	r.Get("/machines/{machineID}/records/{id}", showRecordRow(store, files, config.Config{}))
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/machines/mch_project/records/%s", project.ID), nil)
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), ws.ID), installed, "Test Workspace", false))
@@ -310,8 +310,9 @@ func realMachines(t *testing.T) map[string]*domain.Machine {
 // The narrowing itself is covered by its own tests; here it would only be scaffolding in the way.
 func testWorkspaceFor(machines map[string]*domain.Machine) domain.Workspace {
 	ws := domain.Workspace{Slug: "test"}
-	for id := range machines {
+	for id, m := range machines {
 		ws.MachineIDs = append(ws.MachineIDs, id)
+		ws.Machines = append(ws.Machines, m)
 	}
 	return ws
 }

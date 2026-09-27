@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -84,15 +85,18 @@ func runScheduler(ctx context.Context, dh *dynamicHandler, store *data.Store, in
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for range ticker.C {
-		machineList, workspaces := dh.metadataSnapshot()
-		for slug := range workspaces {
+		for slug, installed := range dh.metadataSnapshot() {
 			ws, err := store.WorkspaceBySlug(ctx, slug)
 			if err != nil {
 				log.Printf("scheduled events: resolving workspace %q: %v", slug, err)
 				continue
 			}
 			wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
-			if err := execution.RunScheduledEvents(wsCtx, store, dh.mailer, machineList, time.Now()); err != nil {
+			// That Workspace's own Machines, not every Machine in the process. Until 2026-09-27
+			// this passed the union, so each Workspace was evaluated against every other
+			// Workspace's Machines too -- harmless only because their records are ctx-scoped and
+			// so came back empty.
+			if err := execution.RunScheduledEvents(wsCtx, store, dh.mailer, installed.Machines, time.Now()); err != nil {
 				log.Printf("scheduled events: workspace %q: %v", slug, err)
 			}
 		}
@@ -130,21 +134,20 @@ type dynamicHandler struct {
 	defaultWorkspaceID string
 }
 
-// schedulerSnapshot is the slice of Reload()'s own state runScheduler needs -- every installed
-// Machine (to find schedule-shaped Events) and every installed Workspace (to scope a ctx per
-// Workspace, data.WithWorkspaceScope requiring an id, not a route, being the reason this is a
-// separate snapshot rather than a read off web.Deps, which the route table already owns).
+// schedulerSnapshot is the slice of Reload()'s own state runScheduler needs: every installed
+// Workspace, which carries both its own Machines (to find schedule-shaped Events) and the slug
+// needed to scope a ctx per Workspace -- data.WithWorkspaceScope requiring an id, not a route,
+// being the reason this is a separate snapshot rather than a read off web.Deps, which the route
+// table already owns.
 type schedulerSnapshot struct {
-	machineList []*domain.Machine
-	workspaces  map[string]domain.Workspace
+	workspaces map[string]domain.Workspace
 }
 
-// metadataSnapshot returns the currently-loaded Machines and Workspaces, for runScheduler's own
-// tick -- never nil after newDynamicHandler has returned successfully, since Reload() populates it
-// before this handler is ever handed to http.ListenAndServe.
-func (dh *dynamicHandler) metadataSnapshot() ([]*domain.Machine, map[string]domain.Workspace) {
-	snap := dh.schedulerState.Load()
-	return snap.machineList, snap.workspaces
+// metadataSnapshot returns the currently-loaded Workspaces, each carrying its own Machines, for
+// runScheduler's own tick -- never nil after newDynamicHandler has returned successfully, since
+// Reload() populates it before this handler is ever handed to http.ListenAndServe.
+func (dh *dynamicHandler) metadataSnapshot() map[string]domain.Workspace {
+	return dh.schedulerState.Load().workspaces
 }
 
 func newDynamicHandler(cfg config.Config, store *data.Store, files *storage.Store, defaultWorkspaceID string) (*dynamicHandler, error) {
@@ -182,14 +185,13 @@ func (dh *dynamicHandler) Reload() error {
 	dh.mu.Lock()
 	defer dh.mu.Unlock()
 
-	machines, machineList, workspaces, err := loadMetadataState(dh.cfg)
+	userMachine, workspaces, err := loadMetadataState(dh.cfg)
 	if err != nil {
 		return err
 	}
 
 	deps := web.Deps{
-		Machines:           machines,
-		MachineList:        machineList,
+		UserMachine:        userMachine,
 		Store:              dh.store,
 		Files:              dh.files,
 		Mailer:             dh.mailer,
@@ -201,34 +203,42 @@ func (dh *dynamicHandler) Reload() error {
 	}
 	handler := web.Routes(deps)
 	dh.current.Store(&handler)
-	dh.schedulerState.Store(&schedulerSnapshot{machineList: machineList, workspaces: workspaces})
+	dh.schedulerState.Store(&schedulerSnapshot{workspaces: workspaces})
 	return nil
 }
 
-// loadMetadataState is main()'s own original inline logic (unchanged), factored out so both the
-// first build and every later Reload share one implementation. Machines stay process-wide, unioned
-// across every installed Workspace, while Applications are per-Workspace -- see the long-standing
-// comment this carries forward: that split is deliberate and still not the finished shape (a
-// Workspace's *Machine set* is not yet per-Workspace, only which Applications it shows).
-func loadMetadataState(cfg config.Config) (machines map[string]*domain.Machine, machineList []*domain.Machine, workspaces map[string]domain.Workspace, err error) {
+// loadMetadataState loads every installed Workspace, for both the first build and every later
+// Reload. Each Workspace carries its own Machines (domain.Workspace.Machines) -- nothing is
+// unioned across Workspaces any more.
+//
+// It used to flatten them all into one process-wide id-keyed map, deduping by id so the first
+// Workspace loaded won, which meant two Workspaces could not hold different definitions under one
+// id. That is the whole thing this signature's shrinking is about; see web.Deps.UserMachine for
+// the single, named exception that survives it.
+//
+// userMachine is that exception, resolved here because every Workspace's manifest references the
+// same mch_user file. Absent, it is fatal rather than nil: /register would otherwise fail on the
+// first real sign-up rather than at boot, and a runtime that cannot create a person cannot do
+// anything else either.
+func loadMetadataState(cfg config.Config) (userMachine *domain.Machine, workspaces map[string]domain.Workspace, err error) {
 	installed, err := metadata.LoadWorkspaces(cfg.MetadataPath)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	workspaces = make(map[string]domain.Workspace, len(installed))
-	machines = map[string]*domain.Machine{}
 	for slug, ws := range installed {
 		workspaces[slug] = ws.Workspace
 		for _, m := range ws.Machines {
-			if _, seen := machines[m.ID]; seen {
-				continue
+			if m.ID == domain.UserMachineID && userMachine == nil {
+				userMachine = m
 			}
-			machines[m.ID] = m
-			machineList = append(machineList, m)
 		}
 	}
-	return machines, machineList, workspaces, nil
+	if userMachine == nil {
+		return nil, nil, fmt.Errorf("no installed Workspace declares %s -- every Workspace needs it, since a membership points at one of its records", domain.UserMachineID)
+	}
+	return userMachine, workspaces, nil
 }
 
 // defaultWorkspaceID resolves requireAuth's fallback Workspace: the one slugged "default".

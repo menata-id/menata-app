@@ -83,7 +83,7 @@ func putTaskStatus(t *testing.T, s eventTestSetup, newStatus string) *httptest.R
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()
-	r.Put("/machines/{machineID}/records/{id}", updateRecordForm(s.machines, s.store, nil, mail.LogMailer{}, s.cfg))
+	r.Put("/machines/{machineID}/records/{id}", updateRecordForm(s.store, nil, mail.LogMailer{}, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	return rec
@@ -167,7 +167,7 @@ func TestCreateRecordForm_taskCreationLogsActivity(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()
-	r.Post("/machines/{machineID}/records", createRecordForm(s.machines, s.store, nil, mail.LogMailer{}, s.cfg))
+	r.Post("/machines/{machineID}/records", createRecordForm(s.store, nil, mail.LogMailer{}, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -206,7 +206,7 @@ func TestCreateRecord_api_taskCreationLogsActivity(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()
-	r.Post("/api/machines/{machineID}/records", createRecord(s.machines, s.store, mail.LogMailer{}, s.cfg))
+	r.Post("/api/machines/{machineID}/records", createRecord(s.store, mail.LogMailer{}, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {

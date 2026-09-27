@@ -95,7 +95,7 @@ func TestSignaturePlacementPut_preservesApproverFields(t *testing.T) {
 	form.Set(action.FieldStepSignatureWidth, "25")
 
 	r := chi.NewRouter()
-	r.Put("/machines/{machineID}/records/{id}/signature-placement", updateSignaturePlacement(machines, store, cfg))
+	r.Put("/machines/{machineID}/records/{id}/signature-placement", updateSignaturePlacement(store, cfg))
 	req := httptest.NewRequest(http.MethodPut,
 		fmt.Sprintf("/machines/%s/records/%s/signature-placement", action.StepMachineID, step.ID),
 		strings.NewReader(form.Encode()))

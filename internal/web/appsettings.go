@@ -24,7 +24,7 @@ import (
 // that actually manage state (Members & roles, Groups) stay pointed at their already-admin-gated
 // destinations and are hidden rather than offered-then-403 (composition.ApplicationSettingsHub's
 // own ShowMembersAndGroups).
-func showApplicationSettings(activeSection string, machineList []*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
+func showApplicationSettings(activeSection string, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		app, ok := rendering.CurrentApplication(ctx)
@@ -46,7 +46,7 @@ func showApplicationSettings(activeSection string, machineList []*domain.Machine
 
 		render(ctx, w, rendering.ApplicationSettingsPage(
 			composition.ApplicationSettingsHub(app, isAdmin),
-			composition.RoleMatrixForApplication(app, machineList),
+			composition.RoleMatrixForApplication(app, installedMachines(ctx)),
 			activeSection, chrome.WorkspaceName, chrome.Viewer(), switchHref,
 		))
 	}

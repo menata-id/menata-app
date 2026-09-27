@@ -145,7 +145,7 @@ func TestShowNewApplication_prefillsIdeaWhenNoSessionYet(t *testing.T) {
 	req = req.WithContext(wsCtx)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, "usr_test_actor", 0)})
 	rec := httptest.NewRecorder()
-	showNewApplication(nil, store, nil, cfg)(rec, req)
+	showNewApplication(store, nil, cfg)(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body: %s", rec.Code, rec.Body.String())

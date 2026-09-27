@@ -19,6 +19,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
 
@@ -93,7 +94,10 @@ func TestSubmitDocumentWizard_writesBothApproverKinds(t *testing.T) {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}
 	cleanupAuthTest(t, pool, ws.ID, "wizard_approver_kinds@example.com")
-	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	// The installed Workspace on ctx is what the handler resolves its Machines from, exactly as
+	// internal/web.currentWorkspace does in production.
+	_, installed := loadRealMachines(t)
+	wsCtx := rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), installed, "Wizard Approver Kinds", false)
 
 	group, err := store.CreateGroup(wsCtx, ws.ID, "Legal Group")
 	if err != nil {
@@ -112,7 +116,6 @@ func TestSubmitDocumentWizard_writesBothApproverKinds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("storage.NewStore: %v", err)
 	}
-	machines, _ := loadRealMachines(t)
 
 	contentType, body := wizardForm(t, "Vendor Contract Q3", "Kontrak", "sequential", testPDF(t), []stepInput{
 		{name: "Finance Review", approverType: domain.ActorKindUser, assignee: rina.ID},
@@ -132,7 +135,7 @@ func TestSubmitDocumentWizard_writesBothApproverKinds(t *testing.T) {
 	}
 	cfg := config.Config{SessionSecret: "test-secret-for-document-wizard"}
 	r := chi.NewRouter()
-	r.Post("/documents", submitDocumentWizard(machines, store, files, cfg))
+	r.Post("/documents", submitDocumentWizard(store, files, cfg))
 	req := httptest.NewRequest(http.MethodPost, "/documents", body)
 	req.Header.Set("Content-Type", contentType)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, rina.ID, 0)})
@@ -203,7 +206,8 @@ func TestSubmitDocumentWizard_rejectsAGroupRowWithNoGroup(t *testing.T) {
 		t.Fatalf("CreateWorkspace: %v", err)
 	}
 	cleanupAuthTest(t, pool, ws.ID, "wizard_group_row_guard@example.com")
-	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	_, installed := loadRealMachines(t)
+	wsCtx := rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), installed, "Wizard Group Row Guard", false)
 
 	files, err := storage.NewStore(t.TempDir())
 	if err != nil {
@@ -214,7 +218,7 @@ func TestSubmitDocumentWizard_rejectsAGroupRowWithNoGroup(t *testing.T) {
 	}, false)
 
 	r := chi.NewRouter()
-	r.Post("/documents", submitDocumentWizard(realMachines(t), store, files, config.Config{}))
+	r.Post("/documents", submitDocumentWizard(store, files, config.Config{}))
 	req := httptest.NewRequest(http.MethodPost, "/documents", body)
 	req.Header.Set("Content-Type", contentType)
 	req = req.WithContext(wsCtx)

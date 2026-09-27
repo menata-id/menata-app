@@ -435,14 +435,8 @@ func newRouterTestSetup(t *testing.T, name string) (http.Handler, string) {
 		t.Fatalf("storage.NewStore: %v", err)
 	}
 
-	machineList := make([]*domain.Machine, 0, len(machines))
-	for _, m := range machines {
-		machineList = append(machineList, m)
-	}
-
 	h := Routes(Deps{
-		Machines:           machines,
-		MachineList:        machineList,
+		UserMachine:        machines[domain.UserMachineID],
 		Store:              store,
 		Files:              files,
 		Cfg:                cfg,
