@@ -1,5 +1,11 @@
 package aiassist
 
+import (
+	"sort"
+
+	"menata.app/internal/domain"
+)
+
 // geminiSchema is Gemini's own accepted subset of the OpenAPI 3.0 Schema Object
 // (https://ai.google.dev/gemini-api/docs/structured-output) -- a plain Go mirror of it, marshaled
 // straight to JSON as generationConfig.responseSchema. This is the mechanical half of "confirm
@@ -23,6 +29,22 @@ type geminiSchema struct {
 
 var stringSchema = geminiSchema{Type: "STRING"}
 var boolSchema = geminiSchema{Type: "BOOLEAN"}
+
+// declarableIconEnum builds icon's own Enum from domain.DeclarableIcons, sorted for a
+// deterministic request body rather than Go's randomized map order. An Enum, not a Description
+// merely claiming the set is closed: Gemini is contractually unable to return a value outside an
+// Enum, the same way it cannot return a "color" outside generatedApplicationSchema's own Enum
+// below -- icon's own field used a Description instead until 2026-09-27, and a real conversation
+// spent three straight turns inventing "Palette", "Sparkles" then "FileText", each rejected by
+// validate.go, because nothing had ever told the model what the real names were.
+func declarableIconEnum() []string {
+	names := make([]string, 0, len(domain.DeclarableIcons))
+	for name := range domain.DeclarableIcons {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
 
 var generatedFieldSchema = geminiSchema{
 	Type:     "OBJECT",
@@ -97,7 +119,7 @@ var generatedApplicationSchema = geminiSchema{
 		"id":          {Type: "STRING", Description: "Must match ^app_[a-z][a-z0-9_]*$."},
 		"name":        stringSchema,
 		"description": stringSchema,
-		"icon":        {Type: "STRING", Description: "One of the known icon names named in the system prompt."},
+		"icon":        {Type: "STRING", Enum: declarableIconEnum()},
 		"color":       {Type: "STRING", Enum: []string{"blue", "emerald", "amber", "slate"}},
 		"roles":       {Type: "ARRAY", Items: &stringSchema},
 		"publisher_role": {

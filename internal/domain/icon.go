@@ -27,8 +27,15 @@ package domain
 //
 // The drawings follow the Flow 2 mockup's own style, which is what makes them one set rather than
 // a collection: 24x24 viewBox, no fill, stroke: currentColor at 1.8, round caps and joins.
-var KnownIcons = map[string]bool{
-	// Declarable on an Application or a NavigationItem.
+// DeclarableIcons is the subset of KnownIcons a manifest -- or, since 2026-09-27, the AI Metadata
+// Assistant's own generated Application -- may actually name (Application.Icon,
+// NavigationItem.Icon). Split out from KnownIcons's own remaining chrome-only names so
+// aiassist/schema.go can build a Gemini Enum from exactly this set: an Enum is a structural
+// guarantee (the API cannot return a value outside it), unlike a value merely *described* as
+// closed, which is what icon's own schema field said until this line existed and Gemini could not
+// actually see the list -- found 2026-09-27 watching a real conversation invent "Palette",
+// "Sparkles" then "FileText" in three straight turns, each rejected, none from this set.
+var DeclarableIcons = map[string]bool{
 	"check":        true, // Document Approval's own mark
 	"board":        true, // Project Management: a column board
 	"inbox":        true,
@@ -45,19 +52,28 @@ var KnownIcons = map[string]bool{
 	// "check" alone (Document Approval's own mark) the way the two screens themselves are
 	// distinct: one is the Application, the other is "approval steps naming you".
 	"user-check": true,
+}
 
-	// Runtime chrome only -- appShell draws these; no manifest names them.
-	"home":          true,
-	"grid":          true,
-	"more":          true,
-	"chevron-right": true,
-	"chevron-down":  true,
-	"switch":        true,
+// chromeOnlyIcons are this runtime's own chrome, drawn by appShell -- no manifest, and nothing
+// generated, may declare one.
+var chromeOnlyIcons = []string{
+	"home", "grid", "more", "chevron-right", "chevron-down", "switch",
 	// sparkle: the Workspace menu's own "New application" link (AI Metadata Assistant, Flow 2 gap
 	// study Tahap 8) -- chrome, not a declarable Application/nav icon, the same posture "switch"
 	// already has.
-	"sparkle": true,
+	"sparkle",
 	// bell: the header's own notification badge button (Flow 2 gap study Tahap 6) -- chrome, the
 	// same posture "switch"/"sparkle" already have.
-	"bell": true,
+	"bell",
 }
+
+var KnownIcons = func() map[string]bool {
+	out := make(map[string]bool, len(DeclarableIcons)+len(chromeOnlyIcons))
+	for name := range DeclarableIcons {
+		out[name] = true
+	}
+	for _, name := range chromeOnlyIcons {
+		out[name] = true
+	}
+	return out
+}()
