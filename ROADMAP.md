@@ -2503,6 +2503,97 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 ## Planned
 
+- **Workspace isolation: a Workspace's metadata must be its own copy, not a shared file** (owner
+  decision, 2026-09-27, prompted by the data-loss incident below). **This is the next substantial
+  architectural piece, and it is written up here for a later session to pick up whole.**
+
+  **What the owner asked for, in their own framing**: a `*.yaml` is a **template**. Sharing it
+  between Workspaces means sharing its *contents* -- installing **copies** it into the target
+  Workspace, under names that make the copies distinct Applications. The reason is divergence:
+  a Workspace may install the same template another one already uses and then want to change its
+  own copy, and *"perubahan aplikasi di masing masing workspace tidak saling terkait."* Only
+  `mch_user` genuinely crosses Workspaces -- *"bisa dipakai di seluruh universe."*
+
+  **What the code does today is the opposite, and says so out loud.** Three places state the
+  shared model as a deliberate design, so this is a reversal to make explicitly, not a bug to
+  quietly patch:
+
+  - `metadata/workspaces/default.yaml`: *"An Application file itself names no Workspace -- it is a
+    reusable declaration, and several Workspaces may install the same one."* Manifests reference
+    Machine files by relative path (`../user.yaml`), so installing is *pointing at*, not copying.
+  - `domain.Workspace.MachineIDs`' own doc comment: *"The Machines themselves are loaded
+    process-wide and shared (one file, one object, however many Workspaces install it); this is
+    the per-Workspace membership list."*
+  - `cmd/server/main.go`'s `loadMetadataState` flattens every Workspace's Machines into one
+    id-keyed map and **dedupes by id, first loaded wins** (`if _, seen := machines[m.ID]; seen {
+    continue }`). Two Workspaces cannot hold different definitions under one id today: the second
+    silently gets the first one's Machine.
+
+  **What is already isolated** is records -- the `records` table keys on `machine_id` *and*
+  `workspace_id`, with indexes on the pair. It is the schema/definition layer that is shared.
+
+  **What surfaced it**: publishing an AI-generated Application into the empty "Dokter Kecil"
+  Workspace overwrote `metadata/document.yaml`, the real Document Approval Machine installed in
+  "default" -- 266 lines of Permissions, Transitions, Events, datasets and views replaced by a
+  generated 69-line one. A generated Machine's filename comes from its id alone into one flat
+  directory, so "different Workspace" and "different Application" were not different files. Two
+  guards shipped the same day (`aiassist.refuseIfExists`, and widening
+  `internal/web.existingStateFor` to treat machine ids as the global namespace they currently
+  are) -- but both are containment for the shared model, not this.
+
+  **Two candidate designs.** The second is the recommendation.
+
+  - **(A) Namespace the ids.** Copy the template, rewriting every id with a Workspace-derived
+    prefix (`mch_dokter_kecil_document`). The flat directory and the global map survive untouched,
+    so it is much the cheaper change. Its cost is that uniqueness lives in a string convention --
+    which is exactly what failed here, since nothing can enforce a convention -- and every
+    cross-reference inside a copied file (relation targets, `summary_machine`, an Application's own
+    `machines:`, a Permission's `actor_field`, navigation) must be rewritten consistently or the
+    copy is subtly broken.
+  - **(B) Namespace the storage, keep ids readable.** Copies live under the Workspace's own
+    directory and the runtime keys Machines by *(Workspace, id)* rather than id. This finishes a
+    migration this repo already started: CLAUDE.md's own rule is that **which Workspace a request
+    is in is a per-request fact** travelling on ctx (`rendering.WithCurrentWorkspace`), and
+    `web.Deps.Machines` -- captured once at router-build time and closed over by 41 call sites in
+    `router.go` -- is the last package-level contradiction of it. `metadata.LoadWorkspaces`
+    already returns per-Workspace `App{Workspace, Machines}` values; only `cmd/server`'s
+    flattening collapses them, so the loader needs no reshaping at all.
+
+  **Plan, in order:**
+
+  1. **Owner decides the copy's shape** -- (A) or (B) above, and for (B) where a Workspace's own
+     files live (`metadata/workspaces/<slug>/`, most likely). Everything below assumes (B); under
+     (A), steps 2 and 5 mostly fall away and step 3 grows an id-rewriting pass.
+  2. **Make Machines a per-request fact.** Remove the global flatten in `loadMetadataState`;
+     resolve a request's Machines from the Workspace already on ctx, the way `routeByID`/
+     `labelByID` already take `ctx`. This is the load-bearing step and the whole of the risk:
+     `Deps.Machines`/`Deps.MachineList` and their 41 `router.go` call sites are the blast radius.
+     Worth doing on its own, before any copying exists, so it can be reviewed as a pure refactor.
+  3. **Build "install" as a real operation.** Copying a template into a Workspace -- used by the
+     AI assistant's own publish path and by whatever UI installs a template later -- replacing
+     today's "append a relative path to the manifest". `aiassist.Write`'s new-Application path is
+     the closest existing shape to extend.
+  4. **Migrate the metadata already on disk.** "default" gets its own copies of the twelve Machine
+     files and two Application files it currently points at; "dokter-kecil" keeps `user`/`activity`.
+     Machine **ids must not change for an already-installed Workspace** -- `records.machine_id`
+     holds them and there is real data in "default" -- which is another point for (B), where ids
+     stay stable by construction.
+  5. **Lock it with conformance tests**, since prose is what got contradicted here: no
+     process-wide Machine map exists; two Workspaces can hold different definitions under one id;
+     editing one Workspace's copy provably does not change another's.
+  6. **Retire the statements this reverses.** `default.yaml`'s "several Workspaces may install the
+     same one", `domain.Workspace.MachineIDs`' "one file, one object", and CLAUDE.md's own
+     Machine-sharing wording all describe the old model. Also revisit
+     `internal/web.existingStateFor`'s global collision check: it is correct for today's flat
+     shared-file model and becomes **wrong** under isolation, where a new Workspace naming its own
+     `mch_document` is entirely legitimate. `aiassist.refuseIfExists` stays correct under both.
+
+  **The payoff worth naming**: once installing is copying, "build me a document approval app"
+  stops being a thing the AI assistant must refuse (`internal/aiassist/prompt.go`'s
+  `composableSurface`) and becomes *install the Document Approval template into this Workspace,
+  then diverge* -- which is the composable-runtime premise working as advertised rather than a
+  capability gap to apologize for.
+
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.
 - **Role-based Permission -- ~~planned~~ shipped 2026-09-21** (Case 03 Fase 7, above). This
