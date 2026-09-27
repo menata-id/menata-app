@@ -12,5 +12,7 @@ workspace: dokter-kecil
 machines:
   - ../user.yaml
   - ../activity.yaml
+  - dokter-kecil/document.yaml
 
-applications: []
+applications:
+  - dokter-kecil/applications/document_tracking.yaml

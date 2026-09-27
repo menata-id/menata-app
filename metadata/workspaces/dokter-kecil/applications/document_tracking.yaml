@@ -1,0 +1,18 @@
+id: app_document_tracking
+name: Document Tracking
+machines:
+  - mch_document
+roles:
+  - author
+  - reviewer
+description: Basic document tracking and status management application.
+icon: file-text
+color: blue
+# Added by hand, 2026-09-27: this Application was published before writeNewApplication started
+# generating one (see aiassist/writer.go's own doc comment) -- without it, its Workspace Home card
+# had no HomeRoute and linked back to /home.
+navigation:
+  - id: nav_document_tracking
+    label: Document Tracking
+    route: /machines/mch_document
+    home_card: true

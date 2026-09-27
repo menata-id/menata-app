@@ -1,0 +1,67 @@
+id: mch_document
+name: Document
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_description
+    name: Description
+    type: text
+  - id: fld_file
+    name: Document File
+    type: file
+    required: true
+  - id: fld_author
+    name: Author
+    type: person
+    required: true
+  - id: fld_submission_date
+    name: Submission Date
+    type: date
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options:
+      - Draft
+      - Under Review
+      - Approved
+      - Rejected
+permissions:
+  - id: prm_create_doc
+    action: create
+    roles:
+      - author
+      - reviewer
+  - id: prm_edit_doc
+    action: edit
+    roles:
+      - author
+      - reviewer
+transitions:
+  - id: trn_submit
+    name: Submit for Review
+    field: fld_status
+    from: Draft
+    to: Under Review
+    action: edit
+  - id: trn_approve
+    name: Approve Document
+    field: fld_status
+    from: Under Review
+    to: Approved
+    action: edit
+  - id: trn_reject
+    name: Reject Document
+    field: fld_status
+    from: Under Review
+    to: Rejected
+    action: edit
+events:
+  - id: evt_doc_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: Document created
