@@ -34,6 +34,8 @@ machines:
   - ../document.yaml
   - ../approval_step.yaml
   - ../signature.yaml
+  - ../approval_flow_template.yaml
+  - ../approval_flow_template_step.yaml
 
 # applications: which Applications are installed here. Paths are resolved relative to this file.
 # An Application file itself names no Workspace -- it is a reusable declaration, and several

@@ -92,7 +92,7 @@ func TestDocumentSubmitPage_offersBothApproverKinds(t *testing.T) {
 // makes it correct.
 func TestApproverRow_typePickerAlwaysSubmitsAValue(t *testing.T) {
 	var buf bytes.Buffer
-	if err := ApproverRow(nil, nil).Render(context.Background(), &buf); err != nil {
+	if err := ApproverRow(nil, nil, StepPrefill{}).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := buf.String()

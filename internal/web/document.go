@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -109,7 +110,7 @@ func newApproverRow(machines map[string]*domain.Machine, store *data.Store) http
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.ApproverRow(opts.approvers, opts.groups))
+		render(req.Context(), w, rendering.ApproverRow(opts.approvers, opts.groups, rendering.StepPrefill{}))
 	}
 }
 
@@ -184,11 +185,27 @@ func submitDocumentWizard(machines map[string]*domain.Machine, store *data.Store
 		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, rows) {
 			return
 		}
+		if req.FormValue("save_as_default_flow") != "" {
+			saveDefaultApprovalFlow(req.Context(), store, machines, values, rows)
+		}
 
 		logActivity(req.Context(), store, docMachine.ID, document.ID, actor.ID,
 			fmt.Sprintf("%q submitted", toDisplayString(document.Values["fld_title"])))
 
 		redirectTo(w, req, fmt.Sprintf("/machines/%s/records/%s/signature-placement", docMachine.ID, document.ID))
+	}
+}
+
+// saveDefaultApprovalFlow is CAP-V28's own call site shared by submitDocumentWizard and
+// continueDocumentWizard (ROADMAP.md, 2026-09-27): both build an identical values map (this
+// wizard's own four Fields) and an identical rows slice before this point, so one helper reads the
+// Document Type/Mode the submission just used and hands them to saveApprovalFlowTemplate. Its own
+// error is logged, never surfaced -- see saveApprovalFlowTemplate's doc comment for why.
+func saveDefaultApprovalFlow(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, values map[string]any, rows []stepInput) {
+	documentType := toDisplayString(values[action.FieldTemplateDocumentType])
+	mode := toDisplayString(values[action.FieldDocumentMode])
+	if err := saveApprovalFlowTemplate(ctx, store, machines[action.TemplateMachineID], machines[action.TemplateStepMachineID], documentType, mode, rows); err != nil {
+		log.Printf("save default approval flow for document type %q: %v", documentType, err)
 	}
 }
 
@@ -330,14 +347,7 @@ func continueDocumentWizard(machines map[string]*domain.Machine, store *data.Sto
 		if !ok {
 			return
 		}
-		for _, f := range machine.Fields {
-			if _, present := values[f.ID]; present {
-				continue
-			}
-			if v, ok := existing.Values[f.ID]; ok {
-				values[f.ID] = v
-			}
-		}
+		carryForwardMissingFields(machine, values, existing.Values)
 		values[action.FieldDocumentStatus] = action.DocumentStatusInReview
 		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
 			return
@@ -351,11 +361,31 @@ func continueDocumentWizard(machines map[string]*domain.Machine, store *data.Sto
 		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, rows) {
 			return
 		}
+		if req.FormValue("save_as_default_flow") != "" {
+			saveDefaultApprovalFlow(ctx, store, machines, values, rows)
+		}
 
 		logActivity(ctx, store, machine.ID, document.ID, actor.ID,
 			fmt.Sprintf("%q submitted", toDisplayString(document.Values["fld_title"])))
 
 		redirectTo(w, req, fmt.Sprintf("/machines/%s/records/%s/signature-placement", machine.ID, document.ID))
+	}
+}
+
+// carryForwardMissingFields fills every one of machine's own Fields that values doesn't mention
+// with existing's already-stored value -- continueDocumentWizard's own carry-forward step,
+// factored out so its handler stays under internal/conformance's TestHandlersStaySmall budget.
+// See continueDocumentWizard's doc comment for why this exists at all: its bespoke wizard form
+// only carries four of mch_document's eight Fields, so whatever it doesn't mention would otherwise
+// be silently erased by UpdateRecord's whole-record replace.
+func carryForwardMissingFields(machine *domain.Machine, values, existing map[string]any) {
+	for _, f := range machine.Fields {
+		if _, present := values[f.ID]; present {
+			continue
+		}
+		if v, ok := existing[f.ID]; ok {
+			values[f.ID] = v
+		}
 	}
 }
 
@@ -432,41 +462,50 @@ func hasApprover(rows []stepInput) bool {
 	return false
 }
 
-// createApprovalSteps writes one pending Approval Step per approver row.
+// stepRowValues is one approver row's Field values, keyed by whichever "which Document/Template
+// do I belong to" field name the caller passes -- shared by createApprovalSteps (fld_document) and
+// saveApprovalFlowTemplate (fld_template, CAP-V28, ROADMAP.md 2026-09-27), the second real caller
+// that is this split's own trigger (CLAUDE.md's decomposition-on-second-case rule).
 //
 // Sequence comes from the submitted order rather than a hidden input: a browser submits repeated
 // field names in DOM order, which is exactly the order the wizard's own reordering leaves the
 // <select>s in.
+//
+// fld_approver_type is written only when the row actually chose one. A row left on the default
+// stores nothing there, which is deliberate: an empty type is what makes authorization's own
+// fallback take over, so a wizard that stamped "User" on every row would opt every step into the
+// dynamic gate for no reason and make the fallback path untested in practice.
+func stepRowValues(parentField, parentID string, i int, row stepInput) map[string]any {
+	values := map[string]any{
+		parentField:              parentID,
+		action.FieldStepSequence: float64(i + 1),
+	}
+	if row.name != "" {
+		values[action.FieldStepName] = row.name
+	}
+	if row.approverType == domain.ActorKindGroup {
+		values[action.FieldStepApproverType] = domain.ActorKindGroup
+		values[action.FieldStepApproverGroup] = row.approverGroup
+	} else {
+		values[action.FieldStepAssignee] = row.assignee
+	}
+	return values
+}
+
+// createApprovalSteps writes one pending Approval Step per approver row.
 //
 // It is the position in the submitted list, so an empty slot leaves a gap -- an untouched row
 // before a filled one makes the filled one step 2, not step 1. That is the existing behaviour and
 // it is harmless, because action.CanDecide compares sequences relatively rather than expecting
 // 1..n. Left as it was: Phase 19 moved this code, it did not quietly renumber approvals, and
 // neither does Fase 6c-2.
-//
-// fld_approver_type is written only when the row actually chose one. A row left on the default
-// stores nothing there, which is deliberate: an empty type is what makes authorization's own
-// fallback take over, so a wizard that stamped "User" on every row would opt every step into the
-// dynamic gate for no reason and make the fallback path untested in practice.
 func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.Store, stepMachine *domain.Machine, documentID string, rows []stepInput) bool {
 	for i, row := range rows {
 		if row.assignee == "" && row.approverGroup == "" {
 			continue
 		}
-		values := map[string]any{
-			action.FieldStepDocument: documentID,
-			action.FieldStepSequence: float64(i + 1),
-			action.FieldStepDecision: action.DecisionPending,
-		}
-		if row.name != "" {
-			values[action.FieldStepName] = row.name
-		}
-		if row.approverType == domain.ActorKindGroup {
-			values[action.FieldStepApproverType] = domain.ActorKindGroup
-			values[action.FieldStepApproverGroup] = row.approverGroup
-		} else {
-			values[action.FieldStepAssignee] = row.assignee
-		}
+		values := stepRowValues(action.FieldStepDocument, documentID, i, row)
+		values[action.FieldStepDecision] = action.DecisionPending
 		data.ApplyDefaults(stepMachine, values)
 		if !validRecord(w, req, store, stepMachine, values) {
 			return false
@@ -477,6 +516,131 @@ func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.S
 		}
 	}
 	return true
+}
+
+// findApprovalFlowTemplate is CAP-V28's "find" half (ROADMAP.md, 2026-09-27): the saved default
+// approval flow for documentType, if one exists, and its own ordered steps. Returns
+// (nil, nil, nil) when none is saved yet -- not an error, the ordinary state for a Document Type
+// nobody has saved a flow for.
+//
+// At most one template exists per Document Type by construction (saveApprovalFlowTemplate always
+// finds-before-creating); this runtime has no uniqueness primitive to declare that at the metadata
+// level, so a duplicate created by hand through the generic create route would simply have its
+// first match (ListRecordsBy's own order) picked here and its rest ignored.
+func findApprovalFlowTemplate(ctx context.Context, store *data.Store, documentType string) (template *data.Record, steps []*data.Record, err error) {
+	templates, err := store.ListRecordsBy(ctx, action.TemplateMachineID, action.FieldTemplateDocumentType, documentType)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(templates) == 0 {
+		return nil, nil, nil
+	}
+	template = templates[0]
+	steps, err = store.ListRecordsBy(ctx, action.TemplateStepMachineID, action.FieldTemplateStepTemplate, template.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	sort.Slice(steps, func(i, j int) bool {
+		return toFloat(steps[i].Values[action.FieldTemplateStepSequence]) < toFloat(steps[j].Values[action.FieldTemplateStepSequence])
+	})
+	return template, steps, nil
+}
+
+// toFloat reads a stored fld_sequence value (always a float64 off JSONB) for findApprovalFlowTemplate's
+// own sort -- 0 for a record somehow missing it, sorting it first rather than panicking.
+func toFloat(v any) float64 {
+	f, _ := v.(float64)
+	return f
+}
+
+// saveApprovalFlowTemplate is CAP-V28's "save" half: find-or-create the Document Type's own
+// template, then replace its steps wholesale with rows -- never append, so resubmitting the same
+// Document Type with a different chain replaces the old default rather than accumulating two.
+//
+// Called after the real Document and its real Approval Steps are already committed
+// (submitDocumentWizard/continueDocumentWizard), and its own error is logged rather than failing
+// the request: at that point the document submission itself already succeeded, and surfacing a
+// template-save failure as "your submission failed" would be a worse lie than a quiet log line --
+// the same posture the logActivity calls immediately beside both callers already take.
+func saveApprovalFlowTemplate(ctx context.Context, store *data.Store, templateMachine, templateStepMachine *domain.Machine, documentType, mode string, rows []stepInput) error {
+	existing, steps, err := findApprovalFlowTemplate(ctx, store, documentType)
+	if err != nil {
+		return err
+	}
+	templateValues := map[string]any{
+		action.FieldTemplateDocumentType: documentType,
+		action.FieldTemplateMode:         mode,
+	}
+	var templateID string
+	if existing != nil {
+		templateID = existing.ID
+		if _, err := store.UpdateRecord(ctx, templateMachine.ID, templateID, templateValues); err != nil {
+			return err
+		}
+		for _, step := range steps {
+			if err := store.DeleteRecord(ctx, templateStepMachine.ID, step.ID); err != nil {
+				return err
+			}
+		}
+	} else {
+		data.ApplyDefaults(templateMachine, templateValues)
+		created, err := store.CreateRecord(ctx, templateMachine.ID, templateValues)
+		if err != nil {
+			return err
+		}
+		templateID = created.ID
+	}
+	for i, row := range rows {
+		if row.assignee == "" && row.approverGroup == "" {
+			continue
+		}
+		values := stepRowValues(action.FieldTemplateStepTemplate, templateID, i, row)
+		data.ApplyDefaults(templateStepMachine, values)
+		if _, err := store.CreateRecord(ctx, templateStepMachine.ID, values); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// showApprovalFlowTemplateRows serves the wizard's own "pick a Document Type" htmx fragment
+// (CAP-V28's "find" half rendered): GET /documents/new/approval-flow-template?fld_document_type=.
+// A saved template's steps become prefilled ApproverRows plus an out-of-band update to the mode
+// fieldset; no saved template renders exactly a fresh wizard's own starting state (one blank row,
+// the Field's first declared mode) -- switching *away* from a type with a saved flow resets rather
+// than leaves stale rows from whatever was picked before.
+func showApprovalFlowTemplateRows(machines map[string]*domain.Machine, store *data.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		opts, err := readWizardOptions(req, machines, store)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		documentType := req.URL.Query().Get(action.FieldTemplateDocumentType)
+		template, steps, err := findApprovalFlowTemplate(req.Context(), store, documentType)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		prefills := make([]rendering.StepPrefill, 0, len(steps))
+		for _, step := range steps {
+			prefills = append(prefills, rendering.StepPrefill{
+				Name:         toDisplayString(step.Values[action.FieldTemplateStepName]),
+				ApproverType: toDisplayString(step.Values[action.FieldTemplateStepApproverType]),
+				AssigneeID:   toDisplayString(step.Values[action.FieldTemplateStepAssignee]),
+				GroupID:      toDisplayString(step.Values[action.FieldTemplateStepApproverGroup]),
+			})
+		}
+		// "" is a deliberate valid value here, not an unhandled case: modeFieldset (documentsubmit.
+		// templ) treats an empty selected the same way DocumentSubmitPage's own fresh-wizard render
+		// already does -- the Field's first declared option checked, exactly the reset this
+		// fragment's own doc comment above promises for a Document Type with no saved template.
+		var selectedMode string
+		if template != nil {
+			selectedMode = toDisplayString(template.Values[action.FieldTemplateMode])
+		}
+		render(req.Context(), w, rendering.ApprovalFlowTemplateRows(opts.approvers, opts.groups, opts.mode, prefills, selectedMode))
+	}
 }
 
 // showSignaturePlacement is Case 3's signature-coordinate placement screen (ROADMAP.md Phase 15

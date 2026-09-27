@@ -27,7 +27,11 @@ import (
 //
 // It writes every row's every field, exactly as the rendered form does -- which is the property
 // under test. A helper that skipped empty values would hide the bug it exists to catch.
-func wizardForm(t *testing.T, title, docType, mode string, pdf []byte, rows []stepInput) (string, *bytes.Buffer) {
+//
+// saveDefault mirrors the "Save this as the default approval flow" checkbox (CAP-V28, ROADMAP.md,
+// 2026-09-27) -- unset (false) reproduces every call site this helper had before that checkbox
+// existed, since an unchecked box simply submits no field at all, not a "false" value.
+func wizardForm(t *testing.T, title, docType, mode string, pdf []byte, rows []stepInput, saveDefault bool) (string, *bytes.Buffer) {
 	t.Helper()
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
@@ -40,6 +44,9 @@ func wizardForm(t *testing.T, title, docType, mode string, pdf []byte, rows []st
 	write("fld_title", title)
 	write("fld_document_type", docType)
 	write(action.FieldDocumentMode, mode)
+	if saveDefault {
+		write("save_as_default_flow", "1")
+	}
 	for _, r := range rows {
 		write(action.FieldStepName, r.name)
 		write(action.FieldStepApproverType, r.approverType)
@@ -111,7 +118,7 @@ func TestSubmitDocumentWizard_writesBothApproverKinds(t *testing.T) {
 		{name: "Finance Review", approverType: domain.ActorKindUser, assignee: rina.ID},
 		{name: "Legal Review", approverType: domain.ActorKindGroup, approverGroup: group.ID},
 		{name: "Director", approverType: domain.ActorKindUser, assignee: maya.ID},
-	})
+	}, false)
 
 	// A real session, which this test did not carry before Fase 7's follow-up: mch_document now
 	// declares prm_create_own_document, and an unidentified caller satisfies no Permission at
@@ -204,7 +211,7 @@ func TestSubmitDocumentWizard_rejectsAGroupRowWithNoGroup(t *testing.T) {
 	}
 	contentType, body := wizardForm(t, "Bad Submission", "Kontrak", "sequential", testPDF(t), []stepInput{
 		{name: "Legal Review", approverType: domain.ActorKindGroup},
-	})
+	}, false)
 
 	r := chi.NewRouter()
 	r.Post("/documents", submitDocumentWizard(realMachines(t), store, files, config.Config{}))

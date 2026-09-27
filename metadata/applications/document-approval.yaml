@@ -65,6 +65,13 @@ machines:
   - mch_document
   - mch_approval_step
   - mch_signature
+  # CAP-V28 (ROADMAP.md, 2026-09-27): a saved default approval flow per Document Type. Claimed
+  # here but deliberately given no navigation: entry of their own -- the owner's own 2026-09-21
+  # instruction on this Application's menu ("dengan level 1, kebutuhanku sudah cukup") already
+  # closed it at exactly the two items below; both stay reachable generically from All Machines,
+  # the same as any claimed Machine with no menu entry of its own.
+  - mch_approval_flow_template
+  - mch_approval_flow_template_step
 
 # roles: this Application's own role vocabulary -- what a member may be assigned *in this
 # Application*, which is a different question from their Workspace role (admin/member).

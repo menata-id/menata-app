@@ -247,6 +247,9 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Machines, d.Store, d.Cfg))
 		pr.Get("/documents/new", showDocumentSubmit(d.Machines, d.Store, d.Cfg))
 		pr.Get("/documents/new/approver-row", newApproverRow(d.Machines, d.Store))
+		// CAP-V28 (ROADMAP.md, 2026-09-27): the doc_type <select>'s own htmx fragment, loading that
+		// Document Type's saved default approval flow, if one exists.
+		pr.Get("/documents/new/approval-flow-template", showApprovalFlowTemplateRows(d.Machines, d.Store))
 		pr.Post("/documents", submitDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/continue-submit", showDocumentContinue(d.Machines, d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/continue-submit", continueDocumentWizard(d.Machines, d.Store, d.Files, d.Cfg))

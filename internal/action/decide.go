@@ -75,6 +75,22 @@ const (
 	DocumentStatusInReview = "in_review"
 	DocumentStatusApproved = "approved"
 	DocumentStatusRejected = "rejected"
+
+	// CAP-V28 (ROADMAP.md, 2026-09-27): a saved default approval flow per Document Type.
+	// TemplateStepMachineID's own Field ids deliberately reuse StepMachineID's own strings --
+	// ids are Machine-scoped, so there is no collision, and it keeps the parallel between a real
+	// step and a template step legible.
+	TemplateMachineID     = "mch_approval_flow_template"
+	TemplateStepMachineID = "mch_approval_flow_template_step"
+
+	FieldTemplateDocumentType      = "fld_document_type"
+	FieldTemplateMode              = "fld_mode"
+	FieldTemplateStepTemplate      = "fld_template"
+	FieldTemplateStepSequence      = "fld_sequence"
+	FieldTemplateStepName          = "fld_step_name"
+	FieldTemplateStepApproverType  = "fld_approver_type"
+	FieldTemplateStepAssignee      = "fld_assignee"
+	FieldTemplateStepApproverGroup = "fld_approver_group"
 )
 
 // decisionOf reads a step's own decision value. Kept after CanDecide moved to
