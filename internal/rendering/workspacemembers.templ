@@ -66,11 +66,15 @@ func personInitials(name, email string) string {
 // resolved through the membership row rather than read off a Field, so it is the same name that
 // person carries in every Workspace.
 //
-// pending is the board's counterpart section: invitations sent and not yet accepted. They are
-// listed separately from members, and that separation is the model rather than a presentation
-// choice -- an unaccepted invitation holds no membership and no role, and cannot be picked as an
-// approver. It is also why an invited row shows no name: only its owner ever states one, when
-// they accept.
+// pending is rendered as rows appended to the same list as members, not a separate section --
+// corrected 2026-09-27 to match the artifact canvas's own Members.dc.html/M04-Members.dc.html
+// directly (an invited row sits inline with an amber "Invited" badge in place of the green
+// "Active" one), after an audit found the previous separate "Waiting to accept" block was a
+// presentation choice this comment had defended as the model. The model distinction still holds
+// underneath -- an unaccepted invitation holds no membership and no role, so it is a
+// data.PendingInvite, not a data.Membership, and cannot be picked as an approver -- it is just no
+// longer expressed as a second visual section. It is also why an invited row shows no name: only
+// its owner ever states one, when they accept.
 templ WorkspaceMembersPage(members []data.Membership, names map[string]string, pending []data.PendingInvite, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref, q string, totalMembers int) {
 	@appShell(labelByID(ctx, "nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -156,40 +160,32 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					</div>
 				</div>
 			}
-		</div>
-		if len(pending) > 0 {
-			<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-				<div class="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-					<span class="text-xs text-slate-600">Waiting to accept</span>
-					<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d invitation", len(pending)) }{ pluralS(len(pending)) }</span>
-				</div>
-				for _, inv := range pending {
-					<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
-						<div class="flex grow items-center gap-3">
-							<span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-2xs font-medium text-slate-400">{ personInitials("", inv.Email) }</span>
-							<span class="truncate text-sm text-slate-600">{ inv.Email }</span>
-						</div>
-						<div class="sm:w-32">
-							<span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">Invited</span>
-						</div>
-						<div class="flex flex-col gap-1 sm:w-44">
-							if len(roleApps) == 0 {
-								<span class="text-sm text-slate-400">—</span>
-							}
-							for _, app := range roleApps {
-								<span class="text-2xs text-slate-500">{ app.Name } · { displayRole(inv.AppRoles[app.ID]) }</span>
-							}
-						</div>
-						<div class="sm:w-36"></div>
-						<form method="POST" action="/workspace-members/revoke-invite" class="sm:w-16">
-							@csrfHiddenInput()
-							<input type="hidden" name="email" value={ inv.Email }/>
-							<button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-sm text-slate-500 hover:text-red-600">Revoke</button>
-						</form>
+			for _, inv := range pending {
+				<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
+					<div class="flex grow items-center gap-3">
+						<span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-2xs font-medium text-slate-400">{ personInitials("", inv.Email) }</span>
+						<span class="truncate text-sm text-slate-600">{ inv.Email }</span>
 					</div>
-				}
-			</div>
-		}
+					<div class="sm:w-32">
+						<span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">Invited</span>
+					</div>
+					<div class="flex flex-col gap-1 sm:w-44">
+						if len(roleApps) == 0 {
+							<span class="text-sm text-slate-400">—</span>
+						}
+						for _, app := range roleApps {
+							<span class="text-2xs text-slate-500">{ app.Name } · { displayRole(inv.AppRoles[app.ID]) }</span>
+						}
+					</div>
+					<div class="sm:w-36"></div>
+					<form method="POST" action="/workspace-members/revoke-invite" class="sm:w-16">
+						@csrfHiddenInput()
+						<input type="hidden" name="email" value={ inv.Email }/>
+						<button type="submit" class="cursor-pointer border-0 bg-transparent p-0 text-sm text-slate-500 hover:text-red-600">Revoke</button>
+					</form>
+				</div>
+			}
+		</div>
 	}
 }
 

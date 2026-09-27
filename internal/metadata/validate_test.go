@@ -249,7 +249,7 @@ func TestValidate_eventOnCreateWithOnFails(t *testing.T) {
 	e := validEvent() // On: "fld_status"
 	e.OnCreate = true
 	m.Events = []domain.Event{e}
-	assertIssue(t, m, "on_create and on must not both be set")
+	assertIssue(t, m, "on, on_create and schedule are mutually exclusive")
 }
 
 func TestValidate_eventOnCreateWithWhenEqualsFails(t *testing.T) {
@@ -269,7 +269,112 @@ func TestValidate_eventNeitherOnNorOnCreateFails(t *testing.T) {
 		ID:   "evt_task_created",
 		Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "created"},
 	}}
-	assertIssue(t, m, "exactly one of on or on_create is required")
+	assertIssue(t, m, "exactly one of on, on_create or schedule is required")
+}
+
+func machineWithDueDate() *domain.Machine {
+	m := validMachine()
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_due_date", Name: "Due Date", Type: domain.FieldTypeDate})
+	return m
+}
+
+func TestValidate_scheduleValid(t *testing.T) {
+	m := machineWithDueDate()
+	m.Events = []domain.Event{{
+		ID: "evt_task_overdue",
+		Schedule: &domain.Schedule{
+			DateField: "fld_due_date", When: domain.ScheduleWhenOverdue,
+			GuardField: "fld_status", GuardEquals: "done",
+		},
+		Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
+	}}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+func TestValidate_scheduleValidWithNoGuard(t *testing.T) {
+	m := machineWithDueDate()
+	m.Events = []domain.Event{{
+		ID:       "evt_task_overdue",
+		Schedule: &domain.Schedule{DateField: "fld_due_date", When: domain.ScheduleWhenOverdue},
+		Then:     domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
+	}}
+	if err := Validate(m); err != nil {
+		t.Fatalf("Validate() error = %v, want nil: guard_field/guard_equals are optional", err)
+	}
+}
+
+func TestValidate_scheduleAndOnFails(t *testing.T) {
+	m := machineWithDueDate()
+	e := validEvent() // On: "fld_status"
+	e.Schedule = &domain.Schedule{DateField: "fld_due_date", When: domain.ScheduleWhenOverdue}
+	m.Events = []domain.Event{e}
+	assertIssue(t, m, "on, on_create and schedule are mutually exclusive")
+}
+
+func TestValidate_scheduleWithWhenEqualsFails(t *testing.T) {
+	m := machineWithDueDate()
+	m.Events = []domain.Event{{
+		ID:         "evt_task_overdue",
+		Schedule:   &domain.Schedule{DateField: "fld_due_date", When: domain.ScheduleWhenOverdue},
+		WhenEquals: "done",
+		Then:       domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
+	}}
+	assertIssue(t, m, "when_equals is not meaningful with schedule")
+}
+
+func TestValidate_scheduleDateFieldNotAField(t *testing.T) {
+	m := machineWithDueDate()
+	m.Events = []domain.Event{{
+		ID:       "evt_task_overdue",
+		Schedule: &domain.Schedule{DateField: "fld_nope", When: domain.ScheduleWhenOverdue},
+		Then:     domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
+	}}
+	assertIssue(t, m, "schedule.date_field \"fld_nope\" is not a field")
+}
+
+func TestValidate_scheduleDateFieldWrongType(t *testing.T) {
+	m := machineWithDueDate()
+	m.Events = []domain.Event{{
+		ID:       "evt_task_overdue",
+		Schedule: &domain.Schedule{DateField: "fld_status", When: domain.ScheduleWhenOverdue},
+		Then:     domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
+	}}
+	assertIssue(t, m, "schedule.date_field \"fld_status\" must be type date")
+}
+
+func TestValidate_scheduleUnknownWhen(t *testing.T) {
+	m := machineWithDueDate()
+	m.Events = []domain.Event{{
+		ID:       "evt_task_overdue",
+		Schedule: &domain.Schedule{DateField: "fld_due_date", When: "due_yesterday"},
+		Then:     domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
+	}}
+	assertIssue(t, m, "schedule.when \"due_yesterday\" is not a comparison this runtime knows")
+}
+
+func TestValidate_scheduleGuardFieldWithoutGuardEqualsFails(t *testing.T) {
+	m := machineWithDueDate()
+	m.Events = []domain.Event{{
+		ID:       "evt_task_overdue",
+		Schedule: &domain.Schedule{DateField: "fld_due_date", When: domain.ScheduleWhenOverdue, GuardField: "fld_status"},
+		Then:     domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
+	}}
+	assertIssue(t, m, "schedule.guard_field and schedule.guard_equals must be set together")
+}
+
+func TestValidate_scheduleGuardEqualsNotAnOptionFails(t *testing.T) {
+	m := machineWithDueDate()
+	m.Events = []domain.Event{{
+		ID: "evt_task_overdue",
+		Schedule: &domain.Schedule{
+			DateField: "fld_due_date", When: domain.ScheduleWhenOverdue,
+			GuardField: "fld_status", GuardEquals: "archived",
+		},
+		Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
+	}}
+	assertIssue(t, m, "schedule.guard_equals \"archived\" is not one of field \"fld_status\"'s options")
 }
 
 func TestValidate_noViewsIsValid(t *testing.T) {

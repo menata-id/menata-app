@@ -17,6 +17,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/execution"
 	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
@@ -33,12 +34,13 @@ import (
 // the constant lives there and not here. tab=="" (no query at all) is Pending, the route's own
 // default and nav_approval_inbox's own declared route.
 //
-// Each tab composes only its own content, not all three: ApprovalInbox reads five record sets and
-// writes SLA-breach activity rows as a documented side effect (logSLABreaches), and AssignedToMe
-// reads a sixth (this identity's own Groups) that neither of the other two tabs needs. Composing
-// every tab on every request would be the query-budget mistake ROADMAP.md's own performance audit
-// already found once on this exact screen (showPendingCount's doc comment tells that story); this
-// avoids repeating it on the tab that is new.
+// Each tab composes only its own content, not all three: ApprovalInbox reads five record sets (a
+// pure read now -- SLA-breach detection moved off this path entirely onto
+// execution.RunScheduledEvents, Flow 2 canvas re-audit 2026-09-27), and AssignedToMe reads a sixth
+// (this identity's own Groups) that neither of the other two tabs needs. Composing every tab on
+// every request would be the query-budget mistake ROADMAP.md's own performance audit already
+// found once on this exact screen (showPendingCount's doc comment tells that story); this avoids
+// repeating it on the tab that is new.
 func showApprovalInbox(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
@@ -246,7 +248,7 @@ func decideStep(machines map[string]*domain.Machine, store *data.Store, files *s
 
 		// Always true now: oldValues came from a read this handler already made and checked, so
 		// there is no second fetch left to fail.
-		runEvents(ctx, store, mailer, machines, machine, step, actor.ID, oldValues, true)
+		execution.RunEvents(ctx, store, mailer, machines, machine, step, actor.ID, oldValues, true)
 
 		logActivity(ctx, store, action.DocumentMachineID, documentID, actor.ID,
 			fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))

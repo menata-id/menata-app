@@ -96,10 +96,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `on_create: true`, generalizing what was `internal/web`'s own hardcoded `logRecordCreated`
   switch (`mch_document`/`mch_task`/`mch_project` record-creation logging) -- a real third case
   proven before the shape was built, per `menata-app-document`'s
-  `workflow-behavior-decomposition-criteria.md`. The Document-approval decide cascade and
-  SLA-breach detection (which still fires on a page read, since there's no scheduler) remain
-  hardcoded, on purpose -- named next candidates once a real second need reaches them, not
-  converted speculatively.
+  `workflow-behavior-decomposition-criteria.md`. The Document-approval decide cascade remains
+  hardcoded, on purpose. SLA-breach detection, which used to fire on a page read for lack of a
+  scheduler, is the Event primitive's own third shape now (`schedule:`, 2026-09-27) -- see the
+  "SLA-breach reminder via a scheduler primitive" entry below.
 - **Metadata-hardcoding gate extended to `label:`, not just `route:`** -- a Page's own title
   (`pageShell(...)`, `<h1>`, card/back-link text) must now come from `rendering.labelByID(id)`
   (`internal/rendering/machine.templ`), the label-side counterpart of the existing `routeByID`,
@@ -1957,6 +1957,169 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   since neither has any shipped concept behind it at all. Verified live at
   `/document-approval/settings`, both mobile and desktop sections.
 
+- **The Flow 2 canvas re-audited end-to-end, board by artifact board, not from `ui-sample` --
+  2026-09-26, the same day Tahap 8 shipped.** Owner request: re-check all 39 boards on the live
+  canvas (`https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`) against the running app, since the
+  `ui-sample/` mirror is a static, possibly-stale export and every Tahap above was ported against
+  the canvas directly. All 19 distinct screens (mobile+desktop pair each) plus the two special
+  boards were walked; six "shipped" claims already in this file (`appshell.templ`'s bars/sheets,
+  `approvalinbox.templ`'s three worklists, `appsettings.templ`/`rolematrix.templ`'s Permissions
+  page, `workspacesettings.templ`'s hub, and the Tahap 6/7/8 routes in `router.go`) were re-read
+  against current code rather than trusted from prose, per the "verify before claiming untouched"
+  lesson -- none were stale.
+
+  **Result: the canvas is essentially fully ported.** Every screen from 01 through 16 (minus board
+  12, the Dashboard, which is titled "TIDAK DIPAKAI" on the board itself -- parked by the owner,
+  not a gap) resolves to a live route or in-page component that structurally matches its board.
+  What remains open is a short, already-named list, not a new backlog:
+
+  1. **The submit wizard has no step 3.** Boards 08/09 read "Step 1/2 of 2," but a Document is
+     already `in_review` at creation, before signatures are placed -- no board defines what a step
+     3 would show.
+  2. **"Save as default flow" (board 08) is unbuilt** -- this is CAP-V28 (the board 06 table
+     above), a saved default approval flow per Document Type, still an owner decision on whether
+     to build it at all.
+  3. **SLA is drawn in hours** ("breached 4h ago," boards 07/10) but `fld_due_date` is date-only --
+     no datetime Field type exists yet (007, Field Types table in `capabilities.md`).
+  4. **Uploaded file byte size** (board 10: "2.4 MB") is never captured, in storage or on the
+     record.
+  5. **One signature box for a Group-held step** (boards 08/09) -- whose signature renders is
+     undefined once a step's approver is a Group rather than a person.
+  6. **Notification triggers beyond the two Tahap 6 shipped (approval-needed, decision-made):
+     SLA-breach reminders and a per-Application admin notification policy.** This is the one item
+     the Tahap 6 entry above already flagged as still open, and this audit found nothing else at
+     that scale -- it is the largest remaining item in the whole study. Both halves need a
+     scheduler primitive this runtime has never built (something that fires on the *passage of
+     time*, not on a record write), which is why it has stayed open through six shipped Tahaps
+     rather than being a simple wiring gap like the others above.
+  7. **Orphan route, found rather than assumed away**: `/authorization-matrix`
+     (`rolematrix.templ`'s old role×stage-matrix idiom, Workspace-level) is still registered in
+     `router.go` but linked from no `navigation:` entry in any Workspace's metadata since the
+     Permissions page moved to `/document-approval/settings/permissions` (Tahap 5). Not
+     user-reachable, but dead weight -- worth deleting or, if kept intentionally, naming why per
+     the metadata-hardcoding exception convention (CLAUDE.md, "Deciding whether a literal is a
+     metadata-hardcoding violation," step 2).
+
+  **Two owner decisions this audit found still unresolved in this file's own text**, both cheap to
+  close (no engineering, just a confirmation) and both already asked once, above (the study's
+  §7 "four things wait on the owner" list): **Q1**, whether board-06-new (plain-language
+  Permissions) supersedes board-06-old (the role×stage matrix) -- the shipped screen already
+  renders the new shape, but this file never recorded that as a decision rather than an
+  implementation detail; confirming it closes six old deferral rows the table above still lists as
+  open. **Q3**, whether pending invitations belong merged into the Members table or stay a
+  separate section resolving to the same route (today's shape, and consistent with the identity
+  model's "an invitation is not a membership") -- still open as a display question, not answered by
+  anything shipped since. (The other two original questions are answered by what already shipped:
+  generated-Application timing by Tahap 8, Groups/Permissions moving into the Application by
+  Tahap 5.)
+
+- **Q1 and Q3 answered by the owner, 2026-09-27; Q3's answer shipped the same day.**
+  **Q1: board-06-new supersedes board-06-old.** The plain-language Permissions page
+  (`appsettings.templ` / `rolematrix.templ`, live at `/document-approval/settings/permissions`) is
+  now this file's recorded final shape; the six deferral rows above that were waiting on this
+  question (the "Board 06 presupposes an approval model this app does not have" row and its
+  siblings) are closed as "owner confirmed 2026-09-27, no further work" rather than left open.
+
+  **Q3: follow the artifact canvas, not the separate-section shape this file had defended as the
+  model.** Re-reading `Members.dc.html`/`M04-Members.dc.html` directly (not from memory) showed
+  invited people rendered as ordinary rows inside the same Members list -- an amber "Invited"
+  status dot in place of the green "Active" one, same columns, no second section -- with a
+  separate, undrawn "Invitations" nav destination beside it in the board's own sidebar. The
+  previous entry's defense of a separate "Waiting to accept" block as "the model rather than a
+  presentation choice" was itself the thing this audit corrected: the data model distinction
+  (`data.PendingInvite` holds no membership or role, per the identity model, and still cannot be
+  picked as an approver) does not require a second visual section to stay true.
+
+  **Shipped**: `WorkspaceMembersPage` (`internal/rendering/workspacemembers.templ`) now appends
+  `pending` invite rows to the same list container as `members`, immediately after the member rows,
+  instead of a separate bordered block with its own "Waiting to accept" header. The amber "Invited"
+  badge, dashed avatar (no identity exists yet to initial), and "Revoke" action are unchanged --
+  matching the board's status-dot distinction without adopting its literal "Edit →" label on an
+  invite row, since an unaccepted invitation has no membership to edit, only to revoke; named here
+  rather than silently deviating, per this file's own citation discipline. Regenerated
+  (`make generate`), built, and verified against the full suite: `internal/conformance` (routes/
+  label/ratchet gates unaffected), the Member/Invite tests in `internal/web`
+  (`TestSubmitInviteMember_*`, `TestSubmitAcceptInvite_*`), and `go test -race ./...` end to end,
+  all green.
+
+- **SLA-breach reminder via a scheduler primitive -- shipped 2026-09-27.** The one item the
+  Flow-2-canvas re-audit found still open across the entire gap study: `domain.Event`'s own doc
+  comment had named schedule/time-based triggers "the one deferred shape, waiting on their own
+  second real case" since Fase 6, and `internal/composition`'s `logSLABreaches` stood in for it --
+  a GET-triggered write, the only entry `internal/conformance`'s `readPathWriters` allowlist has
+  ever carried, its own comment saying outright "this app has no scheduler to do it any other way
+  yet."
+
+  **Owner decisions, confirmed before writing any code (2026-09-27)**: the reminder's recipient is
+  the Document's own submitter (`fld_submitted_by`), reusing `send_notification` exactly as the
+  Tahap 6 triggers already do rather than adding cross-record recipient resolution to reach a
+  pending step's assignee; the per-Application admin notification-policy screen stays out of this
+  pass, the same scope line Tahap 6 already drew; the scheduler is a `time.Ticker` goroutine inside
+  the existing `menata-app.service` process, not a second systemd unit.
+
+  **`domain.Event` gained its third, mutually exclusive trigger shape**: `Schedule` (`DateField`,
+  `When` -- only `"overdue"` today -- and an optional `GuardField`/`GuardEquals`, generalizing
+  `On`/`WhenEquals`'s own field-equality shape rather than inventing a second one).
+  `internal/metadata`'s `validateEvent`/new `validateSchedule` enforce exactly one of
+  `on`/`on_create`/`schedule`. `internal/behavior.MatchedScheduleEvents` is the pure matcher, same
+  shape as `MatchedEvents`/`MatchedCreateEvents`, reusing `experience.EvaluateSLA` for day-grain
+  truncation rather than reimplementing it.
+
+  **`internal/execution` -- empty since its own `doc.go` was written, reserved by `composition`'s
+  own boundary comment ("physical execution belongs to internal/data and internal/execution") --
+  is real code now.** The write-triggered dispatch logic (`sendNotification`, `notificationLinkFor`,
+  `rollUpParentStatus`, `renderEventSummary`, and the `RunEvents`/`RunCreateEvents` entry points)
+  moved out of `internal/web/helpers.go` into `internal/execution/events.go`, exported, so a
+  schedule-triggered caller could reuse it instead of duplicating it -- the second real caller
+  CLAUDE.md's own decomposition rule is written for. `internal/web`'s five call sites
+  (`record.go`, `api.go`, `approval.go`) now call `execution.RunEvents`/`RunCreateEvents`. New:
+  `execution.RunScheduledEvents(ctx, store, mailer, machines, now)`, called once per Workspace on
+  every tick. Its one dedup check per record -- an existing `mch_activity` row already carrying the
+  matched `log_activity` Event's own rendered summary -- generalizes the exact idempotency check
+  `logSLABreaches` used, rather than inventing a second one; it refuses to dispatch (and logs a
+  warning) if a Machine declares a `send_notification` schedule Event with no paired
+  `log_activity` one to dedupe against, rather than silently re-notifying on every tick.
+
+  **`metadata/document.yaml` declares two schedule Events sharing one condition** (`fld_due_date`
+  overdue AND `fld_status == in_review`) -- `evt_document_overdue_log` (`log_activity`, the dedup
+  marker) and `evt_document_overdue_notify` (`send_notification`, `recipient_field:
+  fld_submitted_by`, a new `sla_breach` preference key). `domain.KnownNotificationPreferenceKeys`
+  gained the third key; `migrations/015_notify_sla_breach_preference.sql` adds `credentials.
+  notify_sla_breach` (default true, same shape as migration 014's two); `data.Credential`/
+  `GetCredential`/`UpdateNotificationPreferences` extend to it; `AccountNotificationsPage`
+  (`internal/rendering/account.templ`) gains a third toggle, "My submitted document is overdue for
+  approval" -- the mockup's own "step overdue" row, unbuilt since Tahap 6 for exactly this missing
+  primitive.
+
+  **`cmd/server/main.go`**: `dynamicHandler` gained a second atomic snapshot
+  (`schedulerState` -- `machineList`/`workspaces`), swapped in the same `Reload()` call as the
+  route table, so a metadata hot-reload changes what the scheduler evaluates without a restart.
+  `runScheduler` ticks every `cfg.ScheduleIntervalMinutes` (env `SCHEDULE_INTERVAL_MINUTES`,
+  default 15), resolving each installed Workspace's real id via `store.WorkspaceBySlug` (the
+  `workspaces` map is keyed by slug -- `domain.Workspace` carries no id at all, by design) and
+  scoping a ctx per Workspace with `data.WithWorkspaceScope`, since every `data.Store` call needs
+  one and there is no HTTP request here to have set it.
+
+  **The `readPathWriters` allowlist is empty again**, closing the exception it was created to
+  hold: `logSLABreaches`/`SLABreach`/`slaBreachMarker`/`Inbox.NewBreaches` and their four dedicated
+  `buildInbox` tests are deleted from `internal/composition`, replaced by
+  `internal/execution`'s own DB-backed tests
+  (`TestRunScheduledEvents_detectsAndDedupesOverdueDocument`,
+  `TestRunScheduledEvents_skipsNotOverdueAndDecided`) plus `behavior`'s pure matcher tests
+  (`TestMatchedScheduleEvents_*`) and `metadata`'s parse/validate tests
+  (`TestParse_eventSchedule`, `TestValidate_schedule*`). Verified end to end against the real dev
+  database (not just fixtures): `make migrate-up`, `go test -race ./...` (all green), then
+  `systemctl restart menata-app` with the new binary -- process stayed healthy, no panic, `/login`
+  serving 200 immediately after.
+
+  **Scoped down from the mockup in one place, named rather than silently carried forward**: the
+  reminder notifies the submitter, not the currently-pending approver -- the mockup's own framing
+  ("breached 4h ago" on the Approval Inbox) reads as being for the approver, but resolving "the
+  step currently actionable on this Document" from a schedule Event declared on `mch_document`
+  would need the cross-record resolution `domain.Notify`'s own doc comment says no real case has
+  forced yet. A second schedule-shaped Event needing that reach is the trigger to add it, mirroring
+  `Rollup`'s own `ParentField` indirection, not before.
+
 ## Planned
 
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
@@ -1986,10 +2149,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   than on workspace admin, since that one cannot be expressed by a handler naming an id. That is
   the same way `Event` and `Permission` were both grown here: one real case earns code, the second
   earns the declaration. Not before.
-- Extending the Event primitive (shipped above) to its one remaining real candidate case: a
-  schedule/time trigger (for SLA-breach detection, currently read-triggered because there's no
-  scheduler) -- its own second-real-case generalization, not assumed ahead of a concrete need,
-  the same discipline that governed building the primitive itself (and its `on_create` shape).
+- **Extending the Event primitive to a schedule/time trigger -- ~~planned~~ shipped 2026-09-27**
+  (the SLA-breach reminder, "SLA-breach reminder via a scheduler primitive" entry below). Its own
+  second-real-case generalization, not assumed ahead of a concrete need, the same discipline that
+  governed building the primitive itself (and its `on_create` shape).
 - **A View composing other Views -- ~~planned~~ one real case shipped 2026-09-26** (`domain.ViewStepper`,
   the deferral table's "The approval stepper is five constants, not a declared View" row, above).
   The declared-View gate itself shipped 2026-09-20 (`views:` with ids, names and types; `?view=`
@@ -2055,8 +2218,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   without needing Filter/Projection/Aggregate pushdown first. Its own trigger arrives sooner than
   theirs — one list screen past ~200 rows, `capabilities.md`'s own volume-threshold harness
   (`make threshold`) is what would confirm it's been reached.
-- Background/scheduled jobs (e.g. SLA-breach notifications that don't depend on someone opening
-  the page).
+- **Background/scheduled jobs -- ~~planned~~ the first real case shipped 2026-09-27** (SLA-breach
+  notifications that don't depend on someone opening the page -- "SLA-breach reminder via a
+  scheduler primitive" entry below). A `time.Ticker` goroutine in `cmd/server/main.go` is the
+  mechanism; a second, unrelated background job is the trigger to reconsider whether that stays
+  sufficient (e.g. a dedicated worker process), not before.
 - Expanding beyond the first two applications into the wider portfolio of business cases this
   runtime is designed to support (HR, inventory, point of sale, e-commerce, helpdesk, and more).
 - **Closing the composition-layer decomposition gap**, in this order (full audit, with the

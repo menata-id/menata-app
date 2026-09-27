@@ -2,8 +2,11 @@ package behavior
 
 import (
 	"fmt"
+	"time"
 
+	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 )
 
 // MatchedEvents returns every field-change Event on m (domain.Event.OnCreate false) that fires
@@ -37,6 +40,39 @@ func MatchedCreateEvents(m *domain.Machine) []domain.Event {
 		if e.OnCreate {
 			out = append(out, e)
 		}
+	}
+	return out
+}
+
+// MatchedScheduleEvents returns every schedule-shaped Event on m whose condition record currently
+// satisfies, evaluated against now -- the third shape (domain.Event's own doc comment), fired on
+// the passage of time rather than on any write, so unlike MatchedEvents/MatchedCreateEvents there
+// is no old/new write to compare against at all; internal/execution.RunScheduledEvents is the only
+// caller, on a ticker. Pure: no I/O, same posture as the other two.
+//
+// A record with no value yet in Schedule.DateField (or one that fails to parse) never matches --
+// there is nothing to be overdue against. Reuses experience.EvaluateSLA rather than
+// reimplementing its day-truncation rule, the same convention every other date-field reader in
+// this codebase already follows.
+func MatchedScheduleEvents(m *domain.Machine, record *data.Record, now time.Time) []domain.Event {
+	var out []domain.Event
+	for _, e := range m.Events {
+		s := e.Schedule
+		if s == nil {
+			continue
+		}
+		due, err := time.Parse("2006-01-02", fmt.Sprint(record.Values[s.DateField]))
+		if err != nil {
+			continue
+		}
+		status, _ := experience.EvaluateSLA(due, now)
+		if s.When == domain.ScheduleWhenOverdue && status != experience.SLAOverdue {
+			continue
+		}
+		if s.GuardField != "" && fmt.Sprint(record.Values[s.GuardField]) != s.GuardEquals {
+			continue
+		}
+		out = append(out, e)
 	}
 	return out
 }

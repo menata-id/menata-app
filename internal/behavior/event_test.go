@@ -2,7 +2,9 @@ package behavior
 
 import (
 	"testing"
+	"time"
 
+	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
 
@@ -114,5 +116,67 @@ func TestMatchedCreateEvents_noCreateEventsDeclaredYieldsEmpty(t *testing.T) {
 
 	if got := MatchedCreateEvents(m); len(got) != 0 {
 		t.Errorf("MatchedCreateEvents() = %v, want none: this Machine declares no OnCreate Events", got)
+	}
+}
+
+func documentMachineWithScheduleEvent() *domain.Machine {
+	return &domain.Machine{
+		ID: "mch_document",
+		Events: []domain.Event{
+			{
+				ID: "evt_document_overdue_notify",
+				Schedule: &domain.Schedule{
+					DateField: "fld_due_date", When: domain.ScheduleWhenOverdue,
+					GuardField: "fld_status", GuardEquals: "in_review",
+				},
+				Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "overdue"},
+			},
+		},
+	}
+}
+
+func TestMatchedScheduleEvents_firesWhenOverdueAndGuardMatches(t *testing.T) {
+	m := documentMachineWithScheduleEvent()
+	record := &data.Record{ID: "doc_1", Values: map[string]any{"fld_due_date": "2026-09-01", "fld_status": "in_review"}}
+	now := time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC)
+
+	got := MatchedScheduleEvents(m, record, now)
+	if len(got) != 1 || got[0].ID != "evt_document_overdue_notify" {
+		t.Fatalf("MatchedScheduleEvents() = %v, want exactly evt_document_overdue_notify", got)
+	}
+}
+
+func TestMatchedScheduleEvents_skipsWhenNotYetDue(t *testing.T) {
+	m := documentMachineWithScheduleEvent()
+	record := &data.Record{ID: "doc_1", Values: map[string]any{"fld_due_date": "2026-09-30", "fld_status": "in_review"}}
+	now := time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC)
+
+	if got := MatchedScheduleEvents(m, record, now); len(got) != 0 {
+		t.Errorf("MatchedScheduleEvents() = %v, want none: fld_due_date has not passed yet", got)
+	}
+}
+
+func TestMatchedScheduleEvents_skipsWhenGuardFieldDoesNotMatch(t *testing.T) {
+	m := documentMachineWithScheduleEvent()
+	record := &data.Record{ID: "doc_1", Values: map[string]any{"fld_due_date": "2026-09-01", "fld_status": "approved"}}
+	now := time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC)
+
+	if got := MatchedScheduleEvents(m, record, now); len(got) != 0 {
+		t.Errorf("MatchedScheduleEvents() = %v, want none: fld_status is approved, guard requires in_review", got)
+	}
+}
+
+func TestMatchedScheduleEvents_skipsWhenDateFieldEmptyOrUnparseable(t *testing.T) {
+	m := documentMachineWithScheduleEvent()
+	now := time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC)
+
+	empty := &data.Record{ID: "doc_1", Values: map[string]any{"fld_status": "in_review"}}
+	if got := MatchedScheduleEvents(m, empty, now); len(got) != 0 {
+		t.Errorf("MatchedScheduleEvents(no due date) = %v, want none", got)
+	}
+
+	garbled := &data.Record{ID: "doc_2", Values: map[string]any{"fld_due_date": "not-a-date", "fld_status": "in_review"}}
+	if got := MatchedScheduleEvents(m, garbled, now); len(got) != 0 {
+		t.Errorf("MatchedScheduleEvents(unparseable due date) = %v, want none", got)
 	}
 }

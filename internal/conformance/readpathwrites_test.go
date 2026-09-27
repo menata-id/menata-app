@@ -22,29 +22,28 @@ var storeWriteMethods = map[string]bool{
 // readPathWriters are the functions allowed to write while serving a read, by name, with the
 // reason each is allowed.
 //
-// **There is exactly one**, and keeping it at one is the point of this gate. A GET that writes is
-// invisible in every other check this repo runs: it passes its tests, it renders correctly, and
-// the only trace it leaves is rows appearing in a table nobody was looking at. The 2026-09-22 log
-// review found one such endpoint by accident -- the nav badge composed the whole Approval Inbox
-// to print one integer, and ApprovalInbox writes SLA-breach rows through logSLABreaches, so a
-// third of all requests were GETs that could write. The badge was fixed; the shape that allowed
-// it was not gated until now.
+// **It is empty, and reaching empty is the point of this gate** -- the same shape
+// getSweepRatchet's own doc comment (internal/web) already established for its ratchet: an empty
+// map is an ordinary gate, not a retired one, so it stays declared. It held exactly one entry from
+// when this test was added until 2026-09-27: the 2026-09-22 log review found the nav badge
+// composing the whole Approval Inbox to print one integer, and ApprovalInbox wrote SLA-breach rows
+// through logSLABreaches (internal/composition) as a documented, narrow exception to "reads don't
+// write" -- this app had no scheduler to do it any other way. It now does
+// (execution.RunScheduledEvents, on a ticker, cmd/server/main.go), so logSLABreaches was deleted
+// rather than kept, and the exception went with it.
 //
 // Adding an entry here is allowed and is meant to be uncomfortable: per CLAUDE.md, an exception
-// needs a comment naming the missing capability and a forward-checkable pointer, which
-// logSLABreaches carries (it names the absent scheduler, and ROADMAP.md tracks when one becomes
-// forced). An entry that stops matching a real function fails this test rather than lingering.
-var readPathWriters = map[string]string{
-	"logSLABreaches": "SLA breach detection is read-triggered because this app has no scheduler yet -- " +
-		"see its own doc comment in internal/composition/approval.go and ROADMAP.md's scheduled-jobs entry",
-}
+// needs a comment naming the missing capability and a forward-checkable pointer. An entry that
+// stops matching a real function fails this test rather than lingering.
+var readPathWriters = map[string]string{}
 
 // TestGetRoutesDoNotWrite fails when a handler registered for GET can reach a Store write.
 //
 // It walks the call graph across internal/web and internal/composition rather than checking one
-// function body, because the write that prompted this was four calls deep: showPendingCount ->
-// ApprovalInbox -> logSLABreaches -> CreateRecord. A one-level check would have seen a handler
-// that only composes and called it clean.
+// function body, because the write that first prompted this was four calls deep: showPendingCount
+// -> ApprovalInbox -> logSLABreaches -> CreateRecord (since retired, 2026-09-27 -- see
+// readPathWriters' own doc comment). A one-level check would have seen a handler that only
+// composes and called it clean.
 func TestGetRoutesDoNotWrite(t *testing.T) {
 	funcs := map[string]*ast.FuncDecl{}
 	for _, pkg := range []string{"web", "composition"} {

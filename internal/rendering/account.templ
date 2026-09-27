@@ -56,12 +56,13 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 
 // AccountNotificationsPage is the signed-in identity's own email-notification preferences (Flow 2
 // gap study Tahap 6, ports ui-sample/account-notifications.html) -- identity-level, like Profile,
-// not per-Workspace. Only the two rows this pass actually built are real: the mockup's "step
-// overdue" row needs an SLA/schedule trigger this runtime has never built, and its separate
-// Workspace-level rows (weekly summary, new member) are a different, unbuilt trigger entirely --
-// both are dropped rather than rendered disabled, since a disabled toggle here would misrepresent
-// a capability this pass names as explicitly out of scope as if it were a state of this screen.
-templ AccountNotificationsPage(notifyAssigned, notifyDecided bool, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+// not per-Workspace. The mockup's own "step overdue" row is the third one here now (the Flow 2
+// canvas re-audit's SLA-breach reminder, 2026-09-27, domain.Event's schedule shape); its separate
+// Workspace-level rows (weekly summary, new member) are a different, still-unbuilt trigger
+// entirely -- dropped rather than rendered disabled, since a disabled toggle here would
+// misrepresent a capability this pass names as explicitly out of scope as if it were a state of
+// this screen.
+templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bool, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Notifications", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
 			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
@@ -75,6 +76,7 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided bool, workspaceName
 				<p class="m-0 mb-2 text-2xs text-slate-500">Emails about approvals you're involved in.</p>
 				@notificationToggle("notify_assigned", "A document is assigned to me for approval", notifyAssigned)
 				@notificationToggle("notify_decided", "My submitted document is approved or rejected", notifyDecided)
+				@notificationToggle("notify_sla_breach", "My submitted document is overdue for approval", notifySLABreach)
 			</section>
 			<div class="flex justify-end gap-2.5">
 				<a href="/home" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Cancel</a>

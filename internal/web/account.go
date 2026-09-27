@@ -100,17 +100,17 @@ func showAccountNotifications(store *data.Store, cfg config.Config) http.Handler
 			serverError(w, err)
 			return
 		}
-		notifyAssigned, notifyDecided := true, true
+		notifyAssigned, notifyDecided, notifySLABreach := true, true, true
 		if cred != nil {
-			notifyAssigned, notifyDecided = cred.NotifyAssigned, cred.NotifyDecided
+			notifyAssigned, notifyDecided, notifySLABreach = cred.NotifyAssigned, cred.NotifyDecided, cred.NotifySLABreach
 		}
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
-		render(ctx, w, rendering.AccountNotificationsPage(notifyAssigned, notifyDecided, chrome.WorkspaceName, chrome.Viewer(), switchHref))
+		render(ctx, w, rendering.AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach, chrome.WorkspaceName, chrome.Viewer(), switchHref))
 	}
 }
 
-// submitAccountNotifications saves the two toggles -- a plain checkbox pair, so an unchecked box
+// submitAccountNotifications saves the three toggles -- a plain checkbox set, so an unchecked box
 // simply never appears in the posted form (the same reason data.ValuesFromForm treats a boolean
 // Field this way elsewhere): form.Has, not form.Get, is what tells "off" apart from "missing".
 func submitAccountNotifications(store *data.Store, cfg config.Config) http.HandlerFunc {
@@ -127,7 +127,8 @@ func submitAccountNotifications(store *data.Store, cfg config.Config) http.Handl
 		}
 		assigned := req.Form.Has("notify_assigned")
 		decided := req.Form.Has("notify_decided")
-		if err := store.UpdateNotificationPreferences(ctx, email, assigned, decided); err != nil {
+		slaBreach := req.Form.Has("notify_sla_breach")
+		if err := store.UpdateNotificationPreferences(ctx, email, assigned, decided, slaBreach); err != nil {
 			serverError(w, err)
 			return
 		}

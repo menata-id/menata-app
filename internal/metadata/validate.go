@@ -299,9 +299,10 @@ func validateConstraint(m *domain.Machine, c domain.Constraint, fieldsByID map[s
 // is on the Machine itself, so there is no cross-Machine pass the way Constraint's block_if
 // needs. Unlike Constraint's when_equals, Event's WhenEquals is optional -- empty means "any
 // change fires it," a deliberate difference (Constraint gates a specific transition; Event
-// merely observes one). OnCreate is a second, mutually exclusive shape (domain.Event's own doc
-// comment): exactly one of On or OnCreate must be set, and WhenEquals is meaningless with
-// OnCreate (no prior value exists to compare against).
+// merely observes one). OnCreate and Schedule are the other two, mutually exclusive shapes
+// (domain.Event's own doc comment): exactly one of On, OnCreate or Schedule must be set, and
+// WhenEquals is meaningless with either of the other two (no prior value exists to compare
+// against, or there is no write at all).
 func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field, seen map[string]bool) []string {
 	var issues []string
 
@@ -313,14 +314,29 @@ func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]doma
 	}
 	seen[e.ID] = true
 
+	shapes := 0
+	if e.OnCreate {
+		shapes++
+	}
+	if e.On != "" {
+		shapes++
+	}
+	if e.Schedule != nil {
+		shapes++
+	}
+
 	switch {
-	case e.OnCreate && e.On != "":
-		issues = append(issues, fmt.Sprintf("event %q: on_create and on must not both be set", e.ID))
+	case shapes > 1:
+		issues = append(issues, fmt.Sprintf("event %q: on, on_create and schedule are mutually exclusive -- exactly one may be set", e.ID))
+	case shapes == 0:
+		issues = append(issues, fmt.Sprintf("event %q: exactly one of on, on_create or schedule is required", e.ID))
 	case e.OnCreate && e.WhenEquals != "":
 		issues = append(issues, fmt.Sprintf("event %q: when_equals is not meaningful with on_create (no prior value to compare)", e.ID))
-	case !e.OnCreate && e.On == "":
-		issues = append(issues, fmt.Sprintf("event %q: exactly one of on or on_create is required", e.ID))
-	case !e.OnCreate:
+	case e.Schedule != nil && e.WhenEquals != "":
+		issues = append(issues, fmt.Sprintf("event %q: when_equals is not meaningful with schedule (there is no write to compare a prior value against)", e.ID))
+	case e.Schedule != nil:
+		issues = append(issues, validateSchedule(m, e, fieldsByID)...)
+	case e.On != "":
 		onField, onExists := fieldsByID[e.On]
 		if !onExists {
 			issues = append(issues, fmt.Sprintf("event %q: on %q is not a field of machine %q", e.ID, e.On, m.ID))
@@ -386,6 +402,37 @@ func validateRollup(m *domain.Machine, e domain.Event, fieldsByID map[string]dom
 			if v.value != "" && violatesOptions(onField, v.value) {
 				issues = append(issues, fmt.Sprintf("event %q: then.%s %q is not one of field %q's options %v", e.ID, v.key, v.value, e.On, onField.Options))
 			}
+		}
+	}
+
+	return issues
+}
+
+// validateSchedule checks a schedule-shaped Event's own block: date_field must be a real "date"
+// Field of this Machine, when must be one of the closed vocabulary, and guard_field/guard_equals
+// (optional, but only together) must name a real Field and one of its options -- the same shape
+// On/WhenEquals validation above already takes for a field-change Event.
+func validateSchedule(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	s := *e.Schedule
+
+	dateField, ok := fieldsByID[s.DateField]
+	if !ok {
+		issues = append(issues, fmt.Sprintf("event %q: schedule.date_field %q is not a field of machine %q", e.ID, s.DateField, m.ID))
+	} else if dateField.Type != domain.FieldTypeDate {
+		issues = append(issues, fmt.Sprintf("event %q: schedule.date_field %q must be type date, got %q", e.ID, s.DateField, dateField.Type))
+	}
+	if !domain.KnownScheduleWhens[s.When] {
+		issues = append(issues, fmt.Sprintf("event %q: schedule.when %q is not a comparison this runtime knows", e.ID, s.When))
+	}
+	if (s.GuardField == "") != (s.GuardEquals == "") {
+		issues = append(issues, fmt.Sprintf("event %q: schedule.guard_field and schedule.guard_equals must be set together or not at all", e.ID))
+	} else if s.GuardField != "" {
+		guardField, ok := fieldsByID[s.GuardField]
+		if !ok {
+			issues = append(issues, fmt.Sprintf("event %q: schedule.guard_field %q is not a field of machine %q", e.ID, s.GuardField, m.ID))
+		} else if violatesOptions(guardField, s.GuardEquals) {
+			issues = append(issues, fmt.Sprintf("event %q: schedule.guard_equals %q is not one of field %q's options %v", e.ID, s.GuardEquals, s.GuardField, guardField.Options))
 		}
 	}
 

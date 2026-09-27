@@ -129,7 +129,15 @@ type eventDoc struct {
 	On         string `yaml:"on"`
 	WhenEquals string `yaml:"when_equals"`
 	OnCreate   bool   `yaml:"on_create"`
-	Then       struct {
+	// Schedule is the third trigger shape's own block (domain.Schedule) -- mutually exclusive with
+	// On/OnCreate above, enforced by validateEvent.
+	Schedule *struct {
+		DateField   string `yaml:"date_field"`
+		When        string `yaml:"when"`
+		GuardField  string `yaml:"guard_field"`
+		GuardEquals string `yaml:"guard_equals"`
+	} `yaml:"schedule"`
+	Then struct {
 		Service             string `yaml:"service"`
 		Summary             string `yaml:"summary"`
 		SummaryOverrideWhen string `yaml:"summary_override_when"`
@@ -257,11 +265,21 @@ func Parse(data []byte) (*domain.Machine, error) {
 				PreferenceKey:  ed.Then.PreferenceKey,
 			}
 		}
+		var schedule *domain.Schedule
+		if ed.Schedule != nil {
+			schedule = &domain.Schedule{
+				DateField:   ed.Schedule.DateField,
+				When:        ed.Schedule.When,
+				GuardField:  ed.Schedule.GuardField,
+				GuardEquals: ed.Schedule.GuardEquals,
+			}
+		}
 		m.Events = append(m.Events, domain.Event{
 			ID:         ed.ID,
 			On:         ed.On,
 			WhenEquals: ed.WhenEquals,
 			OnCreate:   ed.OnCreate,
+			Schedule:   schedule,
 			Then:       then,
 		})
 	}

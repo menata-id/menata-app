@@ -132,12 +132,13 @@ func ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorkspa
 
 // AccountNotificationsPage is the signed-in identity's own email-notification preferences (Flow 2
 // gap study Tahap 6, ports ui-sample/account-notifications.html) -- identity-level, like Profile,
-// not per-Workspace. Only the two rows this pass actually built are real: the mockup's "step
-// overdue" row needs an SLA/schedule trigger this runtime has never built, and its separate
-// Workspace-level rows (weekly summary, new member) are a different, unbuilt trigger entirely --
-// both are dropped rather than rendered disabled, since a disabled toggle here would misrepresent
-// a capability this pass names as explicitly out of scope as if it were a state of this screen.
-func AccountNotificationsPage(notifyAssigned, notifyDecided bool, workspaceName string, viewer Viewer, switchWorkspaceHref string) templ.Component {
+// not per-Workspace. The mockup's own "step overdue" row is the third one here now (the Flow 2
+// canvas re-audit's SLA-breach reminder, 2026-09-27, domain.Event's schedule shape); its separate
+// Workspace-level rows (weekly summary, new member) are a different, still-unbuilt trigger
+// entirely -- dropped rather than rendered disabled, since a disabled toggle here would
+// misrepresent a capability this pass names as explicitly out of scope as if it were a state of
+// this screen.
+func AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bool, workspaceName string, viewer Viewer, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -187,6 +188,10 @@ func AccountNotificationsPage(notifyAssigned, notifyDecided bool, workspaceName 
 				return templ_7745c5c3_Err
 			}
 			templ_7745c5c3_Err = notificationToggle("notify_decided", "My submitted document is approved or rejected", notifyDecided).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = notificationToggle("notify_sla_breach", "My submitted document is overdue for approval", notifySLABreach).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -240,7 +245,7 @@ func notificationToggle(name, label string, checked bool) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 89, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 91, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -253,7 +258,7 @@ func notificationToggle(name, label string, checked bool) templ.Component {
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 93, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 95, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
@@ -330,7 +335,7 @@ func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pass
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(passwordErr)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 126, Col: 84}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 128, Col: 84}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {
@@ -349,7 +354,7 @@ func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pass
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(passwordOK)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 129, Col: 91}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 131, Col: 91}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -400,7 +405,7 @@ func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pass
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(signOutOK)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 147, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/account.templ`, Line: 149, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 				if templ_7745c5c3_Err != nil {

@@ -261,3 +261,49 @@ events:
 		t.Errorf("Events[0].Then.Summary = %q, want %q", e.Then.Summary, `"{fld_title}" created`)
 	}
 }
+
+func TestParse_eventSchedule(t *testing.T) {
+	yaml := []byte(`
+id: mch_document
+name: Document
+fields:
+  - id: fld_due_date
+    name: Due Date
+    type: date
+  - id: fld_status
+    name: Status
+    type: status
+    options: [in_review, approved]
+events:
+  - id: evt_document_overdue_notify
+    schedule:
+      date_field: fld_due_date
+      when: overdue
+      guard_field: fld_status
+      guard_equals: in_review
+    then:
+      service: send_notification
+      recipient_field: fld_status
+      preference_key: sla_breach
+      summary: "overdue"
+`)
+
+	m, err := Parse(yaml)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(m.Events) != 1 {
+		t.Fatalf("len(Events) = %d, want 1", len(m.Events))
+	}
+	e := m.Events[0]
+	if e.Schedule == nil {
+		t.Fatalf("Events[0].Schedule = nil, want a parsed Schedule block")
+	}
+	want := domain.Schedule{DateField: "fld_due_date", When: "overdue", GuardField: "fld_status", GuardEquals: "in_review"}
+	if *e.Schedule != want {
+		t.Errorf("Events[0].Schedule = %+v, want %+v", *e.Schedule, want)
+	}
+	if e.On != "" || e.OnCreate {
+		t.Errorf("Events[0] = %+v, want On=\"\" and OnCreate=false alongside a Schedule", e)
+	}
+}

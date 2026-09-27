@@ -97,6 +97,37 @@ events:
       preference_key: decided
       summary: "Your document was rejected"
 
+  # SLA-breach reminder (Flow 2 canvas re-audit, 2026-09-27) -- domain.Event's third trigger shape,
+  # fired on the passage of time rather than a write (internal/execution.RunScheduledEvents, on a
+  # ticker started by cmd/server/main.go). Replaces internal/composition's own logSLABreaches, a
+  # GET-triggered write that stood in for a scheduler this runtime had never built.
+  #
+  # Two Events sharing one condition (overdue AND still in_review) rather than one: log_activity
+  # and send_notification are declared separately everywhere else in this file too (compare
+  # evt_document_submitted next to evt_document_approved_notify), and RunScheduledEvents' own
+  # dedup check needs the log_activity arm's rendered summary as its marker either way.
+  - id: evt_document_overdue_log
+    schedule:
+      date_field: fld_due_date
+      when: overdue
+      guard_field: fld_status
+      guard_equals: in_review
+    then:
+      service: log_activity
+      summary: "SLA breached: \"{fld_title}\" (due {fld_due_date})"
+
+  - id: evt_document_overdue_notify
+    schedule:
+      date_field: fld_due_date
+      when: overdue
+      guard_field: fld_status
+      guard_equals: in_review
+    then:
+      service: send_notification
+      recipient_field: fld_submitted_by
+      preference_key: sla_breach
+      summary: "Your submitted document is overdue for approval"
+
 # permissions: exactly one rule today, and the reason the obvious second one is absent is worth
 # reading before adding it.
 #

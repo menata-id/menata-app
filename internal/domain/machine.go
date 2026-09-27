@@ -111,27 +111,63 @@ type RelationBlock struct {
 	Condition      expression.Comparison
 }
 
-// Event identifies something that already happened on a write and may run one declared runtime
-// Service in response (006-runtime-model.md "Event"/"Service"; Behavioral Model:
-// Event -> Action -> Permission/Constraint -> Service/Data operation -> State change/Event).
+// Event identifies something that already happened -- a write, or the passage of time -- and may
+// run one declared runtime Service in response (006-runtime-model.md "Event"/"Service";
+// Behavioral Model: Event -> Action -> Permission/Constraint -> Service/Data operation -> State
+// change/Event).
 //
-// Supports two shapes, mutually exclusive (internal/metadata.validateEvent enforces exactly one):
-// field-change (On names a Field on this Machine; the Event fires after a successful update whose
-// new value for that Field differs from the old one, optionally narrowed to one target value --
-// WhenEquals empty means "any change") and creation (OnCreate true; the Event fires once, when
-// the record is first created -- On/WhenEquals are meaningless here, since there is no prior value
-// to compare against). The creation shape generalizes what was internal/web's own hardcoded
-// logRecordCreated switch (record-created Activity logging on mch_document/mch_task/mch_project --
-// workflow-behavior-decomposition-criteria.md's own B1-B5 worked example, a second/third real case
-// proven three times over before this was built, never assumed ahead of it). Schedule/time-based
-// triggers (the shape SLA-breach detection would still want) remain the one deferred shape,
-// waiting on their own second real case.
+// Supports three shapes, mutually exclusive (internal/metadata.validateEvent enforces exactly
+// one): field-change (On names a Field on this Machine; the Event fires after a successful update
+// whose new value for that Field differs from the old one, optionally narrowed to one target
+// value -- WhenEquals empty means "any change"), creation (OnCreate true; the Event fires once,
+// when the record is first created -- On/WhenEquals are meaningless here, since there is no prior
+// value to compare against), and schedule (Schedule non-nil; the Event fires on the passage of
+// time rather than on any write -- see Schedule). The creation shape generalizes what was
+// internal/web's own hardcoded logRecordCreated switch (record-created Activity logging on
+// mch_document/mch_task/mch_project -- workflow-behavior-decomposition-criteria.md's own B1-B5
+// worked example, a second/third real case proven three times over before this was built, never
+// assumed ahead of it). The schedule shape closes this comment's own long-standing note that it
+// was "the one deferred shape, waiting on their own second real case": the SLA-breach reminder
+// (ROADMAP.md, Flow 2 canvas re-audit, 2026-09-27) is that second case, replacing
+// internal/composition's own logSLABreaches -- a GET-triggered write that stood in for a
+// scheduler this runtime had never built.
 type Event struct {
 	ID         string
 	On         string
 	WhenEquals string
 	OnCreate   bool
-	Then       Service
+	// Schedule is the third trigger shape's own configuration, nil for the other two.
+	Schedule *Schedule
+	Then     Service
+}
+
+// Schedule is a schedule-shaped Event's own configuration: a condition evaluated periodically
+// against every record of the declaring Machine, independent of any write (internal/execution's
+// RunScheduledEvents is the only caller, on a ticker -- see cmd/server/main.go).
+type Schedule struct {
+	// DateField is a Field on this Machine, type "date", whose value is compared against now.
+	DateField string
+	// When is closed vocabulary for the comparison (internal/behavior.MatchedScheduleEvents); only
+	// "overdue" (DateField's value is before today, both truncated to midnight UTC, matching
+	// experience.EvaluateSLA's own day-granularity convention) is needed today. A string rather
+	// than a bool so a second value (e.g. "due_today") is additive later, the same posture
+	// Rollup's own three-outcome shape already takes.
+	When string
+	// GuardField/GuardEquals optionally require another Field on the same record to already hold
+	// a given value before the schedule condition counts -- generalizing On/WhenEquals's own
+	// field-equality shape rather than inventing a second one, so "overdue AND still in_review" is
+	// declarative rather than special-cased to one Machine.
+	GuardField  string
+	GuardEquals string
+}
+
+// ScheduleWhenOverdue is the only value Schedule.When accepts today.
+const ScheduleWhenOverdue = "overdue"
+
+// KnownScheduleWhens is the closed set of comparisons a Schedule.When may name, the same
+// static-seam discipline KnownServices/KnownNotificationPreferenceKeys already establish.
+var KnownScheduleWhens = map[string]bool{
+	ScheduleWhenOverdue: true,
 }
 
 // Service is one closed, runtime-owned side effect an Event may trigger (006-runtime-model.md:
@@ -207,10 +243,11 @@ var KnownServices = map[string]bool{
 
 // Notify is send_notification's own configuration. RecipientField is a Field on the record the
 // Event fired on -- no cross-record resolution built, unlike Rollup's own ParentField indirection:
-// both real notification triggers today (Tahap 6) read a Field on their own record ("assigned to
-// me" reads mch_approval_step's own fld_assignee; "my document was decided" reads mch_document's
-// own fld_submitted_by). A case that needs a parent lookup is the trigger to add that indirection
-// here, mirroring Rollup, not before.
+// all three real notification triggers today (Tahap 6, and the SLA-breach reminder above) read a
+// Field on their own record ("assigned to me" reads mch_approval_step's own fld_assignee; "my
+// document was decided"/"my document is overdue" both read mch_document's own fld_submitted_by).
+// A case that needs a parent lookup is the trigger to add that indirection here, mirroring
+// Rollup, not before.
 type Notify struct {
 	RecipientField string
 	// PreferenceKey selects which of the recipient's own notify_* preferences (credentials table)
@@ -222,8 +259,9 @@ type Notify struct {
 // KnownNotificationPreferenceKeys is the closed set of preference keys a Notify.PreferenceKey may
 // name, each corresponding to one boolean column on credentials.
 var KnownNotificationPreferenceKeys = map[string]bool{
-	"assigned": true,
-	"decided":  true,
+	"assigned":   true,
+	"decided":    true,
+	"sla_breach": true,
 }
 
 // Machine is the primary runtime realization unit for a business capability

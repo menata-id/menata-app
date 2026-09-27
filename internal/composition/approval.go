@@ -3,7 +3,6 @@ package composition
 import (
 	"context"
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,29 +46,7 @@ type Inbox struct {
 	// since on this list the submitter is always the viewer, and pendingApprovalCard omits the line
 	// entirely rather than rendering "Submitted by you".
 	Mine []rendering.PendingApprovalCard
-
-	// NewBreaches names every Document found newly overdue this render, not yet logged
-	// (ROADMAP.md Phase 21 round 2, Step G) -- a decision, not a write: buildInbox stays pure and
-	// testable without a database; ApprovalInbox (below) is what actually performs the logging,
-	// using this list.
-	NewBreaches []SLABreach
 }
-
-// SLABreach names one Document whose SLA has just been found overdue for the first time.
-type SLABreach struct {
-	DocumentID string
-	Summary    string
-}
-
-// slaBreachMarker prefixes every SLA-breach Activity entry's own summary -- both the real,
-// human-readable message (Legal Review SLA breached-style copy, document-approval.html) and the
-// idempotency check that stops it being logged twice. Checking the activity log itself rather
-// than adding a new Document Field sidesteps a real hazard: a boolean Field not present in the
-// generic edit form's own HTML would be silently reset to false by ValuesFromForm on the next
-// ordinary edit (ValuesFromForm always sets every boolean Field it knows about, present or not),
-// re-logging the same breach on every subsequent edit. The activity log is untouched by editing a
-// Document, so it is the one place this is genuinely stable.
-const slaBreachMarker = "SLA breached: "
 
 // Bucket values for Inbox.Buckets, matching the filter keys the inbox's own tabs submit.
 const (
@@ -115,29 +92,7 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 			return Inbox{}, err
 		}
 	}
-	inbox := buildInbox(steps, documents, activities, names, userID, now, stepMachine, relations)
-	logSLABreaches(ctx, l.store, inbox.NewBreaches)
-	return inbox, nil
-}
-
-// logSLABreaches writes one Activity record per newly-detected breach (ROADMAP.md Phase 21 round
-// 2, Step G) -- best-effort, the same posture internal/web's own logActivity already takes
-// elsewhere: a logging failure must not fail the page render it happened alongside, only get
-// logged itself. A deliberate, narrow exception to "reads don't write" (007 §20's own anti-pattern
-// is about *security scope* established before retrieval, not about *any* side effect from a GET);
-// this app has no scheduler to do it any other way yet (ROADMAP.md tracks the real criteria for
-// when one becomes forced).
-func logSLABreaches(ctx context.Context, store *data.Store, breaches []SLABreach) {
-	for _, b := range breaches {
-		values := map[string]any{
-			"fld_machine_id": action.DocumentMachineID,
-			"fld_record_id":  b.DocumentID,
-			"fld_summary":    b.Summary,
-		}
-		if _, err := store.CreateRecord(ctx, "mch_activity", values); err != nil {
-			log.Printf("failed to log SLA breach for document %s: %v", b.DocumentID, err)
-		}
-	}
+	return buildInbox(steps, documents, activities, names, userID, now, stepMachine, relations), nil
 }
 
 // pendingStepsFor selects the Approval Steps this viewer can act on right now: assigned to them,
@@ -177,15 +132,14 @@ func pendingStepsFor(steps []*data.Record, docByID map[string]*data.Record, step
 //
 // It exists because the badge used to obtain that integer by composing the entire Approval Inbox
 // (ApprovalInbox, via showPendingCount) -- which reads the activity log and every member's name to
-// build cards nobody renders, and, through logSLABreaches, *writes*. The badge fires on every page
-// carrying it: 463 times in the six hours of log reviewed on 2026-09-22, roughly a third of all
-// requests. Two reads and no write is what the number actually needs.
+// build cards nobody renders. The badge fires on every page carrying it: 463 times in the six
+// hours of log reviewed on 2026-09-22, roughly a third of all requests. Two reads is what the
+// number actually needs.
 //
 // It shares pendingStepsFor with the inbox itself, so the badge and the list it links to cannot
-// drift apart. It deliberately does NOT log SLA breaches: breach detection is the *inbox's*
-// read-triggered side effect (logSLABreaches' own doc comment explains why this app has nowhere
-// else to put it yet), and duplicating it onto a badge would mean a count endpoint racing the
-// page it decorates to write the same activity rows.
+// drift apart. SLA-breach detection is no longer anything either of these does at all: it moved
+// off the read path entirely, onto execution.RunScheduledEvents (Flow 2 canvas re-audit,
+// 2026-09-27) -- see this file's own history for the GET-triggered write it replaced.
 func PendingApprovalCount(ctx context.Context, l *Loader, userID string, stepMachine *domain.Machine) (int, error) {
 	steps, err := l.ListRecords(ctx, action.StepMachineID)
 	if err != nil {
@@ -401,28 +355,6 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 		})
 	}
 
-	alreadyLogged := make(map[string]bool, len(activities))
-	for _, a := range activities {
-		if strings.HasPrefix(DisplayString(a.Values["fld_summary"]), slaBreachMarker) {
-			alreadyLogged[DisplayString(a.Values["fld_record_id"])] = true
-		}
-	}
-	for _, d := range documents {
-		if alreadyLogged[d.ID] || DisplayString(d.Values[action.FieldDocumentStatus]) != action.DocumentStatusInReview {
-			continue
-		}
-		due, err := time.Parse("2006-01-02", DisplayString(d.Values["fld_due_date"]))
-		if err != nil {
-			continue
-		}
-		if status, _ := experience.EvaluateSLA(due, now); status != experience.SLAOverdue {
-			continue
-		}
-		inbox.NewBreaches = append(inbox.NewBreaches, SLABreach{
-			DocumentID: d.ID,
-			Summary:    fmt.Sprintf("%s%q (due %s)", slaBreachMarker, DisplayString(d.Values["fld_title"]), due.Format("2 Jan 2006")),
-		})
-	}
 	return inbox
 }
 

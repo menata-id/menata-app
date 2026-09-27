@@ -18,6 +18,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/execution"
 	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
@@ -57,7 +58,7 @@ func createRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			serverError(w, err)
 			return
 		}
-		runCreateEvents(req.Context(), store, mailer, machine, record, actor.ID)
+		execution.RunCreateEvents(req.Context(), store, mailer, machine, record, actor.ID)
 
 		renderMachineBody(w, req, machines, machine, store, actor)
 	}
@@ -202,7 +203,7 @@ func updateRecordForm(machines map[string]*domain.Machine, store *data.Store, fi
 			recordError(w, err)
 			return
 		}
-		runEvents(req.Context(), store, mailer, machines, machine, record, actor.ID, oldValues, oldValuesOK)
+		execution.RunEvents(req.Context(), store, mailer, machines, machine, record, actor.ID, oldValues, oldValuesOK)
 
 		renderRecord(w, req, machines, store, files, machine, record, actor)
 	}

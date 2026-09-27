@@ -2,7 +2,10 @@
 // or Runtime Metadata concerns — those belong to internal/metadata.
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 // Config holds process-level configuration.
 type Config struct {
@@ -49,28 +52,36 @@ type Config struct {
 	// hidden rather than offered-then-broken (internal/web, same "hide, don't 403" convention
 	// ShowMembersAndGroups already uses).
 	GeminiAPIKey string
+
+	// ScheduleIntervalMinutes is how often cmd/server's own ticker calls
+	// execution.RunScheduledEvents (the SLA-breach reminder, Flow 2 canvas re-audit 2026-09-27) --
+	// the first, and so far only, schedule-shaped Event this runtime evaluates. 15 minutes by
+	// default: frequent enough that "overdue" reads as roughly real-time, infrequent enough that
+	// it never competes meaningfully with request traffic for the pool.
+	ScheduleIntervalMinutes int
 }
 
 // Load reads Config from the environment, applying defaults where unset.
 func Load() Config {
 	port := getenv("PORT", "8080")
 	return Config{
-		Port:          port,
-		DatabaseURL:   getenv("DATABASE_URL", ""),
-		MetadataPath:  getenv("METADATA_PATH", "metadata/workspaces"),
-		AdminUsername: getenv("ADMIN_USERNAME", ""),
-		AdminPassword: getenv("ADMIN_PASSWORD", ""),
-		SessionSecret: getenv("SESSION_SECRET", ""),
-		AdminUserID:   getenv("ADMIN_USER_ID", "admin"),
-		SecureCookies: getenv("SECURE_COOKIES", "true") == "true",
-		UploadsDir:    getenv("UPLOADS_DIR", "uploads"),
-		SMTPHost:      getenv("SMTP_HOST", ""),
-		SMTPPort:      getenv("SMTP_PORT", "587"),
-		SMTPUsername:  getenv("SMTP_USERNAME", ""),
-		SMTPPassword:  getenv("SMTP_PASSWORD", ""),
-		SMTPFrom:      getenv("SMTP_FROM", ""),
-		AppBaseURL:    getenv("APP_BASE_URL", "http://localhost:"+port),
-		GeminiAPIKey:  getenv("GEMINI_API_KEY", ""),
+		Port:                    port,
+		DatabaseURL:             getenv("DATABASE_URL", ""),
+		MetadataPath:            getenv("METADATA_PATH", "metadata/workspaces"),
+		AdminUsername:           getenv("ADMIN_USERNAME", ""),
+		AdminPassword:           getenv("ADMIN_PASSWORD", ""),
+		SessionSecret:           getenv("SESSION_SECRET", ""),
+		AdminUserID:             getenv("ADMIN_USER_ID", "admin"),
+		SecureCookies:           getenv("SECURE_COOKIES", "true") == "true",
+		UploadsDir:              getenv("UPLOADS_DIR", "uploads"),
+		SMTPHost:                getenv("SMTP_HOST", ""),
+		SMTPPort:                getenv("SMTP_PORT", "587"),
+		SMTPUsername:            getenv("SMTP_USERNAME", ""),
+		SMTPPassword:            getenv("SMTP_PASSWORD", ""),
+		SMTPFrom:                getenv("SMTP_FROM", ""),
+		AppBaseURL:              getenv("APP_BASE_URL", "http://localhost:"+port),
+		GeminiAPIKey:            getenv("GEMINI_API_KEY", ""),
+		ScheduleIntervalMinutes: getenvInt("SCHEDULE_INTERVAL_MINUTES", 15),
 	}
 }
 
@@ -79,4 +90,16 @@ func getenv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getenvInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
 }

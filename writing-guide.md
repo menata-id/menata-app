@@ -643,9 +643,32 @@ what used to be `internal/web`'s own hardcoded `logRecordCreated` (a `switch mac
 `mch_document`/`mch_task`/`mch_project`) — three real cases already living as one Go switch
 statement before this shape existed, not a speculative addition.
 
-One trigger this still deliberately doesn't support, because no second real case has needed it
-yet: firing on a schedule/time threshold (the shape SLA-breach detection would actually want,
-still hardcoded and read-triggered — see `internal/composition/approval.go`).
+A third shape fires on the passage of time rather than a write — `schedule:` in place of
+`on`/`on_create`, evaluated periodically (`internal/execution.RunScheduledEvents`, on a ticker,
+not inside a request) against every record of the declaring Machine:
+
+```yaml
+events:
+  - id: evt_document_overdue_notify
+    schedule:
+      date_field: fld_due_date
+      when: overdue
+      guard_field: fld_status
+      guard_equals: in_review
+    then:
+      service: send_notification
+      recipient_field: fld_submitted_by
+      preference_key: sla_breach
+      summary: "Your submitted document is overdue for approval"
+```
+
+`date_field` must be a real `date` Field; `when` is closed vocabulary (only `overdue` exists
+today); `guard_field`/`guard_equals` are optional but must be set together, and generalize
+`on`/`when_equals`'s own field-equality shape rather than inventing a second one — "overdue AND
+still in_review" is declarative, not a special case for one Machine. This closed the shape's own
+long-standing note that it was "the one deferred shape, waiting on their own second real case"
+(the SLA-breach reminder, replacing `internal/composition`'s own read-triggered
+`logSLABreaches`, 2026-09-27).
 
 ## 11. Field defaults
 
@@ -1005,15 +1028,15 @@ similar-looking metadata for a *different* Machine does not activate it.
 | CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded, and *which decisions are legal at all* moved left in Fase 7 (`transitions:`, replacing `internal/web`'s own `allowsDecisionChange`) |
 | Relations, `person`, child collections, many-to-many | Document submission wizard |
 | Constraints (`equals`/`not_equals` shape) | Signature-coordinate placement screen |
-| Events (post-write field-change or record-creation → one Service) | PDF signature compositing |
+| Events (field-change, record-creation, or schedule/time-passing → one Service) | PDF signature compositing |
 | Role-based Permission (`roles:` on any Permission, any Machine an Application claims — CAP-P01, Fase 7) and a **declared transition model** (`transitions:`, any Machine's own status Fields), both enforced by the generic routes with no per-Machine code | **A rule that reads a field on a *related* record.** Every Permission arm reads the record being acted on, or the actor — none reaches a parent. Two real cases are Go for exactly this reason: who may place a Document's signature boxes (`composition.MayPlaceSignature` — its *submitter*, read off the parent Document, or the step's own approver) and who may add Approval Steps to a Document. Forward-checkable pointer: `ROADMAP.md`'s deferral table, "Only a Document's own submitter may add Approval Steps to it" |
 | Record-scoped `edit`/`delete` Permission (any Machine), and a **per-record User-or-Group actor gate** on any of them (CAP-F24) — declared on `decide`, `edit` and `delete` alike since 6c-3 | The Review Document screen (Fase 6b) — its Approve/Reject bar, signature canvas and placement panel are all `mch_approval_step`-shaped. What moved *left* with it: the generic record-detail page no longer special-cases deciding, and no longer runs a signature lookup for every Machine. (The Approval progress stepper UI itself moved left too, 2026-09-26 — see the Declared Views row) |
-| Field defaults | SLA-breach detection (still read-triggered, not a real Event yet) |
+| Field defaults | — |
 | — | **Conditional required** — "this Field is required only when a sibling Field holds a given value". `Constraint` has one shape (block a transition while a *related Machine* has a matching record), which cannot condition on a sibling Field of the same record. The one real case is `mch_approval_step`: `fld_assignee` is required when `fld_approver_type` is User and meaningless when it is Group, so the Field is declared optional and `internal/web`'s `parseStepInputs` enforces the pairing (Fase 6c-2). Upstream states the same rule as two conditional Constraints, so the shape is known — it is this runtime's Constraint that has to grow |
 | SLA badges (`sla_field`) | **A Page's own primary action** — the Approval Inbox's "+ New Document" button, and (2026-09-26) the Workspace menu's own "New application" link into the AI Metadata Assistant (Flow 2 gap study Tahap 8). `navigation:` declares menu *destinations*; it cannot say "this screen has a call to action pointing at that screen", nor can it declare a Workspace-level action that exists whether zero or ten Applications are installed. `nav_new_approval` was deleted on 2026-09-21 (owner instruction) precisely because declaring a submit form as a menu item was the wrong shape for it, which left the route and the label as literals in `approvalinbox.templ`/`documentsubmit.templ` and `appshell.templ`, and an entry each in `internal/conformance`'s `applicationSubScreens`. Forward-checkable pointer: 007 §12.3's `ActionBar` component, still unbuilt |
 | Declared Views (`views:` — `table`/`board`/`cards`/`stepper`) | A View composing *other* Views, rather than one Machine's own records, has one real case built (2026-09-26): `stepper` (`domain.ViewStepper`, menata-runtime's CAP-V20) renders a parent's own children as a sequential done/current/waiting progress indicator — `mch_approval_step`'s `vw_step_progress`, composed by `internal/rendering/detail.templ` via `domain.Machine.StepperView`, not selected by `?view=`. What's still hardcoded is the Review Document screen's own orchestration around it (Approve/Reject bar, signature canvas/placement) — see the row above |
 | Counting/summing a Machine's own records (`datasets:`) | Composed screens: Approval Inbox, My Tasks, Calendar, Automation, Board Settings. Dashboard, Sprint Dashboard and Team Capacity now get their *numbers* from declared `datasets:`, but their layout, which measure lands in which column, and any list of records they show (Pending, Attention) are still Go |
-| Notifications (`send_notification`, in-app + email, `domain.Notify`) — a declared Event writes an `mch_notification` record and, if the recipient's own preference allows it, emails them | **A notification's own link target.** `internal/web.notificationLinkFor` special-cases `mch_approval_step` → its `/review` route rather than the generic `/machines/{id}/records/{id}` detail page, which is explicitly "POC scaffolding no real approver should land on" (`detailBackLink`'s own reasoning). Every other Machine (`mch_document` today) gets the generic detail route. Forward-checkable pointer: a second notification-emitting Machine needing its own non-generic destination is the trigger to turn this into a declared Field rather than a per-Machine-id branch |
+| Notifications (`send_notification`, in-app + email, `domain.Notify`) — a declared Event writes an `mch_notification` record and, if the recipient's own preference allows it, emails them | **A notification's own link target.** `internal/execution.notificationLinkFor` special-cases `mch_approval_step` → its `/review` route rather than the generic `/machines/{id}/records/{id}` detail page, which is explicitly "POC scaffolding no real approver should land on" (`detailBackLink`'s own reasoning). Every other Machine (`mch_document` today) gets the generic detail route. Forward-checkable pointer: a second notification-emitting Machine needing its own non-generic destination is the trigger to turn this into a declared Field rather than a per-Machine-id branch |
 
 **The right column is a capability snapshot, not a permanent exemption list.** Each entry existed
 because metadata couldn't express it *when it was written* — `card_fields` (Projection) and
@@ -1057,8 +1080,12 @@ Honest current limits, not a roadmap — some of these may change over time:
   exist and which Action performs each (§8.1) — not "only when this other Field is set", not
   "and then notify". Those remain `constraints:` and `events:`, declared separately against the
   same Fields.
-- **Events fire on a field change or a record creation — not on a schedule.** See §10.
-  SLA-breach detection is still hardcoded, read-triggered Go for exactly that reason.
+- **A schedule Event's `when` supports exactly one comparison** (`overdue`) — no `due_today`, no
+  arbitrary offsets. See §10.
+- **A schedule Event's recipient reads a Field on its own record only**, same as any
+  `send_notification` Event (§10, `domain.Notify`'s own doc comment) — the SLA-breach reminder
+  notifies a Document's submitter, not whichever step is currently pending, because reaching the
+  latter needs cross-record resolution no case has forced yet.
 - **An Event's wording supports at most one override**, not arbitrary per-value branching (§10).
 - **Reads are whole-Machine.** There's no filtering, projection or pagination pushed to the
   database — a page fetches a Machine's full record set and reduces it in application code. This

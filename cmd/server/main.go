@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/joho/godotenv"
 
@@ -21,6 +22,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/db"
 	"menata.app/internal/domain"
+	"menata.app/internal/execution"
 	"menata.app/internal/mail"
 	"menata.app/internal/metadata"
 	"menata.app/internal/storage"
@@ -56,9 +58,44 @@ func main() {
 		log.Fatalf("failed to load metadata: %v", err)
 	}
 
+	go runScheduler(ctx, dh, store, time.Duration(cfg.ScheduleIntervalMinutes)*time.Minute)
+
 	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)
 	if err := http.ListenAndServe(":"+cfg.Port, dh); err != nil {
 		log.Fatal(err)
+	}
+}
+
+// runScheduler is domain.Event's third trigger shape (Schedule) made real: every interval, for
+// every installed Workspace, it asks execution.RunScheduledEvents to evaluate whatever
+// schedule-shaped Events the currently-loaded Machines declare (today, mch_document's SLA-breach
+// reminder -- Flow 2 canvas re-audit, 2026-09-27). It reads dh's own snapshot fresh on every tick
+// rather than once at startup, so a metadata hot-reload (the AI Metadata Assistant's publish path)
+// is picked up without restarting the process.
+//
+// A per-Workspace ctx (data.WithWorkspaceScope) is required because every data.Store read/write
+// this reaches is Workspace-scoped by ctx alone (internal/data's own doc comment) -- there is no
+// HTTP request here to have set it the way internal/web.currentWorkspace does. schedulerSnapshot's
+// own workspaces map is keyed by slug, not by id (domain.Workspace carries no id at all -- see its
+// own doc comment: "the ws_... id is generated when a Workspace is created through the UI"), so
+// each tick resolves the real id through store.WorkspaceBySlug, the same lookup
+// defaultWorkspaceID already makes once at startup for the "default" Workspace alone.
+func runScheduler(ctx context.Context, dh *dynamicHandler, store *data.Store, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for range ticker.C {
+		machineList, workspaces := dh.metadataSnapshot()
+		for slug := range workspaces {
+			ws, err := store.WorkspaceBySlug(ctx, slug)
+			if err != nil {
+				log.Printf("scheduled events: resolving workspace %q: %v", slug, err)
+				continue
+			}
+			wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+			if err := execution.RunScheduledEvents(wsCtx, store, dh.mailer, machineList, time.Now()); err != nil {
+				log.Printf("scheduled events: workspace %q: %v", slug, err)
+			}
+		}
 	}
 }
 
@@ -80,12 +117,34 @@ type dynamicHandler struct {
 	current atomic.Pointer[http.Handler]
 	mu      sync.Mutex // serializes concurrent reload attempts (mirrors hot-reload-safety.md §3.5)
 
+	// schedulerState is a second snapshot, swapped in the same Reload() call as current -- runScheduler
+	// reads it fresh on every tick so a metadata hot-reload changes what the scheduler evaluates
+	// without a process restart, the same property current already gives request handling.
+	schedulerState atomic.Pointer[schedulerSnapshot]
+
 	cfg                config.Config
 	store              *data.Store
 	files              *storage.Store
 	mailer             mail.Mailer
 	aiClient           aiassist.Client
 	defaultWorkspaceID string
+}
+
+// schedulerSnapshot is the slice of Reload()'s own state runScheduler needs -- every installed
+// Machine (to find schedule-shaped Events) and every installed Workspace (to scope a ctx per
+// Workspace, data.WithWorkspaceScope requiring an id, not a route, being the reason this is a
+// separate snapshot rather than a read off web.Deps, which the route table already owns).
+type schedulerSnapshot struct {
+	machineList []*domain.Machine
+	workspaces  map[string]domain.Workspace
+}
+
+// metadataSnapshot returns the currently-loaded Machines and Workspaces, for runScheduler's own
+// tick -- never nil after newDynamicHandler has returned successfully, since Reload() populates it
+// before this handler is ever handed to http.ListenAndServe.
+func (dh *dynamicHandler) metadataSnapshot() ([]*domain.Machine, map[string]domain.Workspace) {
+	snap := dh.schedulerState.Load()
+	return snap.machineList, snap.workspaces
 }
 
 func newDynamicHandler(cfg config.Config, store *data.Store, files *storage.Store, defaultWorkspaceID string) (*dynamicHandler, error) {
@@ -142,6 +201,7 @@ func (dh *dynamicHandler) Reload() error {
 	}
 	handler := web.Routes(deps)
 	dh.current.Store(&handler)
+	dh.schedulerState.Store(&schedulerSnapshot{machineList: machineList, workspaces: workspaces})
 	return nil
 }
 

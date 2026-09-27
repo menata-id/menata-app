@@ -10,6 +10,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/execution"
 	"menata.app/internal/mail"
 )
 
@@ -65,7 +66,7 @@ func createRecord(machines map[string]*domain.Machine, store *data.Store, mailer
 		// below: the JSON path had silently never logged Activity for a Document/Task/Project
 		// created through it, unlike its form-based sibling.
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		runCreateEvents(req.Context(), store, mailer, machine, record, actor)
+		execution.RunCreateEvents(req.Context(), store, mailer, machine, record, actor)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -113,7 +114,7 @@ func updateRecord(machines map[string]*domain.Machine, store *data.Store, mailer
 			recordError(w, err)
 			return
 		}
-		runEvents(req.Context(), store, mailer, machines, machine, record, actor.ID, oldValues, oldValuesOK)
+		execution.RunEvents(req.Context(), store, mailer, machines, machine, record, actor.ID, oldValues, oldValuesOK)
 
 		w.Header().Set("Content-Type", "application/json")
 		writeJSON(w, record)
