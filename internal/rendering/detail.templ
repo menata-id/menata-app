@@ -52,8 +52,17 @@ templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOpti
 // Every other
 // Machine (Task, Project, ...) has no bespoke flow of its own, so its generic page remains the
 // real destination.
+//
+// The id match alone stopped being enough to take that branch on 2026-09-27: Workspace isolation
+// lets a different Workspace's own, unrelated Machine share the bare id action.DocumentMachineID
+// (a real "Document Tracking" Application did exactly this), and that Workspace declares no
+// nav_approval_inbox at all -- routeByID's own panic-on-unknown-id is correct in general (a page
+// linking to its own sibling screen should fail loudly on a typo), but this call was never
+// actually linking to a sibling, only assuming one existed. hasNavItem checks first instead of
+// assuming, so that Application's own generic page remains its own real destination, same as any
+// other Machine with no bespoke flow.
 templ detailBackLink(m *domain.Machine) {
-	if m.ID == action.DocumentMachineID || m.ID == action.StepMachineID {
+	if (m.ID == action.DocumentMachineID || m.ID == action.StepMachineID) && hasNavItem(ctx, "nav_approval_inbox") {
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID(ctx, "nav_approval_inbox") }</a>
 	} else {
 		<a href={ templ.URL("/machines/" + m.ID) } class="text-xs text-blue-600 hover:text-blue-700">← { m.Name }</a>

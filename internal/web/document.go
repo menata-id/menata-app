@@ -708,8 +708,19 @@ func loadSignaturePlacementData(ctx context.Context, store *data.Store, files *s
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
+	stepMachine, ok := machines[action.StepMachineID]
+	if !ok {
+		// A Workspace whose own Machine happens to be named action.DocumentMachineID (mch_document)
+		// but is not actually Document Approval's -- aiassist.Validate now refuses a *generated*
+		// Machine choosing that reserved id, but this still guards any Workspace already in that
+		// state (found 2026-09-27: exactly this, a nil *domain.Machine reaching
+		// composition.Loader.RelationOptions and panicking). documentSignaturePlacementView's own
+		// doc comment already promises "fails open, not closed" for this whole function; a missing
+		// mch_approval_step is that same kind of failure, not a crash.
+		return nil, nil, nil, 0, fmt.Errorf("this workspace has no %s machine", action.StepMachineID)
+	}
 	ld := composition.NewLoader(store, machines)
-	relations, err := ld.RelationOptions(ctx, machines[action.StepMachineID])
+	relations, err := ld.RelationOptions(ctx, stepMachine)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}

@@ -104,6 +104,23 @@ func routeByID(ctx context.Context, id string) string {
 	panic("rendering: no navigation item with id " + id)
 }
 
+// hasNavItem reports whether id is declared in this Workspace's navigation, without routeByID's
+// own panic. For the rare caller that cannot assume "this id is my own sibling and therefore
+// exists" -- detailBackLink is the one so far: it gates on a Machine's bare id
+// (action.DocumentMachineID), which used to be a safe proxy for "this is Document Approval's own
+// Document" back when that id was process-wide unique. Workspace isolation (2026-09-27) made a
+// different Workspace's own, unrelated Machine sharing that same id legitimate, so the id alone no
+// longer implies nav_approval_inbox exists here -- found the same day, a real "Document Tracking"
+// Application's detail page panicking on exactly that assumption.
+func hasNavItem(ctx context.Context, id string) bool {
+	for _, item := range declaredNavigation(ctx) {
+		if item.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // runtimeScreenByID returns one of domain.RuntimeScreens whole, for the two places that need an
 // item rather than one of its fields (pageShell's topbar). Same panic-on-unknown-id posture as
 // routeByID.

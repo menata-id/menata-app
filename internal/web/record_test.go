@@ -297,6 +297,77 @@ func TestShowRecordRow_nonDocumentDetailHasNoSignaturePlacement(t *testing.T) {
 	}
 }
 
+// TestShowRecordRow_documentDetailWithoutApprovalStepMachineDoesNotPanic reproduces the
+// 2026-09-27 crash exactly: a Workspace whose own Machine happens to be named
+// action.DocumentMachineID (mch_document) but is not Document Approval's -- it has no
+// mch_approval_step at all, which is legitimate now that Workspace isolation lets a generated
+// Application choose that shape (aiassist.Validate refuses it going forward, but this guards any
+// Workspace already in that state, and any other way one could arise).
+// documentSignaturePlacementView's own gate matches on the bare id, tries to load the step
+// Machine, and used to pass the resulting nil *domain.Machine straight into
+// composition.Loader.RelationOptions, which panicked reaching for its Fields. The page must
+// render its ordinary detail view instead -- "fails open, not closed" is this code's own stated
+// intent, not a crash.
+func TestShowRecordRow_documentDetailWithoutApprovalStepMachineDoesNotPanic(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "sig_placement_no_step_machine_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "No Step Machine Test", "no-step-machine-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+
+	files, err := storage.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("storage.NewStore: %v", err)
+	}
+	pdfBytes, err := os.ReadFile(filepath.Join("..", "pdf", "testdata", "blank.pdf"))
+	if err != nil {
+		t.Fatalf("read testdata/blank.pdf: %v", err)
+	}
+	key, err := files.Save(action.DocumentMachineID, action.FieldDocumentFile, "contract.pdf", bytes.NewReader(pdfBytes))
+	if err != nil {
+		t.Fatalf("files.Save: %v", err)
+	}
+
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+	document, err := store.CreateRecord(wsCtx, action.DocumentMachineID, map[string]any{
+		"fld_title":              "Not A Real Approval Document",
+		action.FieldDocumentFile: key,
+	})
+	if err != nil {
+		t.Fatalf("CreateRecord(document): %v", err)
+	}
+
+	// This Workspace's own Machine set: mch_document, and nothing shaped like Document Approval's
+	// engine at all -- no mch_approval_step.
+	notDocumentApproval := domain.Workspace{
+		Slug:       ws.Slug,
+		MachineIDs: []string{action.DocumentMachineID},
+		Machines: []*domain.Machine{
+			{ID: action.DocumentMachineID, Name: "Document", Fields: []domain.Field{{ID: "fld_title", Type: domain.FieldTypeText}}},
+		},
+	}
+
+	r := chi.NewRouter()
+	r.Get("/machines/{machineID}/records/{id}", showRecordRow(store, files, config.Config{}))
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, document.ID), nil)
+	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), ws.ID), notDocumentApproval, "Test Workspace", false))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("showRecordRow(document detail, no approval-step machine) status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), `id="sig-body"`) {
+		t.Error("expected no inline signaturePlacementBlock when this Workspace has no mch_approval_step -- it has nothing to place a signature against")
+	}
+}
+
 // realMachines is loadRealMachines for the callers that want only the Machine set -- they render
 // no page whose links resolve through navigation, so they need no Workspace on ctx.
 func realMachines(t *testing.T) map[string]*domain.Machine {

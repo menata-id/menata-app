@@ -110,6 +110,15 @@ func RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptio
 // Every other
 // Machine (Task, Project, ...) has no bespoke flow of its own, so its generic page remains the
 // real destination.
+//
+// The id match alone stopped being enough to take that branch on 2026-09-27: Workspace isolation
+// lets a different Workspace's own, unrelated Machine share the bare id action.DocumentMachineID
+// (a real "Document Tracking" Application did exactly this), and that Workspace declares no
+// nav_approval_inbox at all -- routeByID's own panic-on-unknown-id is correct in general (a page
+// linking to its own sibling screen should fail loudly on a typo), but this call was never
+// actually linking to a sibling, only assuming one existed. hasNavItem checks first instead of
+// assuming, so that Application's own generic page remains its own real destination, same as any
+// other Machine with no bespoke flow.
 func detailBackLink(m *domain.Machine) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -131,7 +140,7 @@ func detailBackLink(m *domain.Machine) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if m.ID == action.DocumentMachineID || m.ID == action.StepMachineID {
+		if (m.ID == action.DocumentMachineID || m.ID == action.StepMachineID) && hasNavItem(ctx, "nav_approval_inbox") {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -139,7 +148,7 @@ func detailBackLink(m *domain.Machine) templ.Component {
 			var templ_7745c5c3_Var4 templ.SafeURL
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID(ctx, "nav_approval_inbox")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 57, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 66, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -152,7 +161,7 @@ func detailBackLink(m *domain.Machine) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(labelByID(ctx, "nav_approval_inbox"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 57, Col: 158}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 66, Col: 158}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -170,7 +179,7 @@ func detailBackLink(m *domain.Machine) templ.Component {
 			var templ_7745c5c3_Var6 templ.SafeURL
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL("/machines/" + m.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 59, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 68, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -183,7 +192,7 @@ func detailBackLink(m *domain.Machine) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(m.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 59, Col: 107}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 68, Col: 107}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -229,7 +238,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(recordTitle(m, r))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 69, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 78, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -247,7 +256,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(action.DocumentReference(r.SortOrder))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 71, Col: 91}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 80, Col: 91}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -265,7 +274,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(r.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 73, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 82, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -289,7 +298,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 79, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 88, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -323,7 +332,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 					var templ_7745c5c3_Var13 string
 					templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(RelationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 89, Col: 77}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 98, Col: 77}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 					if templ_7745c5c3_Err != nil {
@@ -333,7 +342,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(GroupLabel(groups, toString(r.Values[f.ID])))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 91, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 100, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 					if templ_7745c5c3_Err != nil {
@@ -343,7 +352,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 					var templ_7745c5c3_Var15 string
 					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(r.Values[f.ID]))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 93, Col: 35}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 102, Col: 35}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 					if templ_7745c5c3_Err != nil {
@@ -368,7 +377,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			var templ_7745c5c3_Var16 templ.SafeURL
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 107, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 116, Col: 81}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -397,7 +406,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			var templ_7745c5c3_Var18 templ.SafeURL
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 112, Col: 95}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 121, Col: 95}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -447,7 +456,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 117, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 126, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 			if templ_7745c5c3_Err != nil {
@@ -484,7 +493,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 125, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 134, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 			if templ_7745c5c3_Err != nil {
@@ -502,7 +511,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(blockedReason)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 130, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 139, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 			if templ_7745c5c3_Err != nil {
@@ -515,7 +524,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 			var templ_7745c5c3_Var27 string
 			templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(blockedReason)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 130, Col: 95}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 139, Col: 95}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 			if templ_7745c5c3_Err != nil {
@@ -604,7 +613,7 @@ func pdfThumbnail(machineID, recordID string) templ.Component {
 		var templ_7745c5c3_Var29 templ.SafeURL
 		templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(fmt.Sprintf("/machines/%s/records/%s/pdf-preview", machineID, recordID)))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 153, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 162, Col: 94}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 		if templ_7745c5c3_Err != nil {
@@ -617,7 +626,7 @@ func pdfThumbnail(machineID, recordID string) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=1", machineID, recordID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 154, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 163, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
@@ -692,7 +701,7 @@ func ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor) 
 			var templ_7745c5c3_Var34 string
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 169, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 178, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -768,7 +777,7 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 189, Col: 62}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 198, Col: 62}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 		if templ_7745c5c3_Err != nil {
@@ -781,7 +790,7 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(recordTitle(m, r))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 195, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 204, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 		if templ_7745c5c3_Err != nil {
@@ -794,7 +803,7 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(r.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 196, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 205, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {
@@ -812,7 +821,7 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 			var templ_7745c5c3_Var41 string
 			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 200, Col: 97}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 209, Col: 97}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 			if templ_7745c5c3_Err != nil {
@@ -882,7 +891,7 @@ func RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOptio
 		var templ_7745c5c3_Var46 string
 		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 211, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 220, Col: 64}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 		if templ_7745c5c3_Err != nil {
