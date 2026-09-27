@@ -1832,6 +1832,52 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   and (2) were each verified to fail against the pre-fix code. The one already-published casualty
   ("Document Tracking" in "dokter-kecil") was repaired by hand to match.
 
+  **A fourth, found by the owner asking the right question of the third.** The `icon:` field's own
+  schema described the set as closed ("one of the known icon names named in the system prompt")
+  while the prompt never named them, so a real conversation spent three straight turns inventing
+  `Palette`, `Sparkles`, `FileText`, each rejected by `domain.KnownIcons`, none of them real. It
+  is an `Enum` now, built from a new `domain.DeclarableIcons` (`KnownIcons` minus the chrome-only
+  names no manifest may declare) -- the Gemini API cannot return a value outside one, which is how
+  `color:` had been right all along. Verified against the live API with the exact prompt that
+  produced the loop: `"icon":"file-text"`.
+
+  **And a fifth, which is really the same lesson one level up: validate by loading, not by
+  copying the rules.** `aiassist.Validate` is a hand-maintained subset of the load-time
+  validators, so it drifts by construction -- a Permission naming a role its own Application does
+  not declare passed it, because the real check (`metadata.validatePermissionRoles`) is
+  cross-Machine, unexported, and runs only at load. Combined with `publishNewApplication` writing
+  files *before* reloading, with no rollback, any such miss left metadata on disk that the running
+  app refused to reload and the next restart would have refused to start from. That is precisely
+  what happened at 15:45 and had to be cleaned up by hand. `aiassist.Write` now runs the real
+  `metadata.LoadApplication` over the manifest once every file is in place, and `writeSet` undoes
+  every write if it does not load -- created files removed, edited files restored byte for byte.
+  Loading is not a copy of the rules, it *is* them. Writing that test found a second hole
+  immediately, which is the argument in miniature: `Validate` checks no navigation at all, while
+  the loader requires nav ids unique Workspace-wide, and since (3) above a generated Application
+  brings one derived from its own id. It also revealed three existing fixtures describing
+  Workspaces that had never actually loaded.
+
+  **Failed publishes go back to the conversation** (owner's own framing: *"bukannya harusnya
+  kembali ke layar chat dengan info kesalahan tersebut, dan metadata diperbaiki, sesuai dengan
+  capability"*). A proposal that stops validating, or metadata that will not load, is a *fixable*
+  problem -- and the only participant who can fix it is the assistant, since the person who
+  clicked Publish never wrote the metadata. `returnToConversation` records what went wrong as a
+  turn the assistant reads, runs its next turn so a corrected proposal is already waiting, and
+  redirects back to the chat; the session drops to `open` so the broken proposal stops being
+  offered as a draft. Safe only because `Write` rolls back first -- nothing is half-applied by the
+  time it runs. The two exits that stay hard errors are the ones no conversation can fix: no
+  reload hook configured, and a reload that failed after a write that succeeded.
+
+  **Verified end to end by the owner's own collision test** (2026-09-27, committed as
+  `metadata/workspaces/dokter-kecil/applications/document_review.yaml`): a second,
+  deliberately Document-Approval-like Application generated into a Workspace that already had one
+  built around `mch_document`. It named its own Machine `mch_document_item` rather than colliding
+  -- and had it not, `Validate` would have refused it, since a Workspace's own ids stay reserved
+  against itself, the half isolation never relaxed. One conversation exercised every fix above at
+  once: generated navigation, an enum icon, a publisher role that opens instead of 403ing, a write
+  into the Workspace's own namespace, and Machines told apart by Application. Zero errors in the
+  log across the whole flow.
+
 - **Flow 2's Tahap 7 is shipped (2026-09-26): Workspace lifecycle, archive/restore only.**
   `menata-app-document`'s own `audits/2026-09-23-kajian-gap-mockup-flow2.md` §5.2 and the mockup
   canvas's `Workspace`/`WorkspaceArchived`/`M02b-WorkspaceArchived` boards (read directly) are the

@@ -70,6 +70,20 @@ references, claimed by no Application. `internal/conformance`'s
 model whose own three comments described it accurately right up until a generated Application
 overwrote `metadata/document.yaml` and destroyed it.
 
+**So a Machine id no longer identifies a Machine — ask which Application claims it.** Use
+`action.IsDocument`/`action.IsStep` (which check `domain.Machine.ApplicationID` *and* the id),
+never `m.ID == action.DocumentMachineID`. Twenty-three call sites did the latter, correctly, while
+ids were unique across the process; the first Workspace to legitimately name its own
+`mch_document` made every one of them wrong, and two of them panicked before anyone noticed.
+`TestNoBareMachineIDIdentityChecks` holds this now. The same reasoning applies to any future
+hardcoded Case 19-style behavior: the id says *which Machine within an Application*, never *which
+Application*.
+
+**And a Workspace's own ids are still reserved against itself.** Isolation relaxed exactly one
+thing — the same name in a *different* Workspace. Two Machines under one id inside one Workspace
+stays a load-time error (`metadata.validateMachineIDsAreUnique`), and `aiassist.Validate` refuses
+it before a generated Application is ever written.
+
 Concretely, before adding any hardcoded `href`, label, or button to a page under
 `internal/rendering/`: check the installed Application's own `navigation:` list first. If the
 same route/label is already declared there, that's a signal the value belongs in metadata (or
@@ -246,6 +260,17 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 - `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —
   `capabilities.md`'s own Machines and Shared rendering components tables match the real
   `metadata/*.yaml` and `internal/rendering/*.templ`.
+- `TestInstalledApplicationsAreCopiesNotSharedFiles` / `TestTwoWorkspacesCanHoldDifferentMachinesUnderOneID`
+  — Workspace isolation, both halves. Every Application a Workspace installs, and every Machine
+  those Applications claim, must be that Workspace's own copy under `metadata/workspaces/<slug>/`,
+  with a short closed allowlist for the three runtime-level Machines that stay shared
+  (`mch_user`, `mch_activity`, `mch_notification`); and two Workspaces must be able to hold
+  *different* Machines under one id, asserted against the real loader.
+- `TestNoBareMachineIDIdentityChecks` — outside `internal/action`, no code may decide "is this
+  Document Approval's Machine" by comparing against `action.DocumentMachineID` and friends. Use
+  `action.IsDocument`/`IsStep`, which check which *Application* claims the Machine as well as
+  which Machine it is. Only comparisons are gated: building a URL from those constants, looking a
+  Machine up by id, or querying records by one all name a Machine rather than claim an identity.
 
 If you find yourself re-explaining the same architectural rule in a PR/commit twice, or adding a
 row to a `capabilities.md` table by hand, consider whether it should be (or already is) a

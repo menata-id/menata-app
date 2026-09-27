@@ -20,8 +20,9 @@ draws the line precisely, with the source lines that prove it.
 
 ## 1. A Machine is a YAML file
 
-Every Machine is one file under `metadata/`, referenced from a Workspace manifest's own
-`workspace.machines` list. The minimal shape:
+Every Machine is one file, referenced from a Workspace manifest's own `machines:` list --
+`metadata/*.yaml` holds the reusable templates, and a Workspace's own copies live under
+`metadata/workspaces/<slug>/`. The minimal shape:
 
 ```yaml
 id: mch_component
@@ -60,20 +61,27 @@ A Workspace manifest (`metadata/workspaces/<slug>.yaml`) declares the **Workspac
 single Application — and then names one file per Application:
 
 ```yaml
-workspace:
-  id: ws_default
-  name: Default Workspace
-  machines:
-    - component.yaml
-    - bug.yaml
-  navigation:
-    - id: nav_home
-      label: Home
-      route: /home
-      priority: 0
+# Which Workspace this installs into, by slug. Not an id: the `ws_...` id is generated when a
+# Workspace is created through the UI, so nobody can write it into a file by hand.
+workspace: default
+
+# This Workspace's own Machines. A path under <slug>/ is its own copy, made when an Application
+# was installed into it; a path outside is one of the three runtime-level Machines every Workspace
+# shares (the user Machine, the activity log, notifications).
+machines:
+  - default/component.yaml
+  - default/bug.yaml
+  - ../user.yaml
+
+# Navigation belonging to no single Application.
+navigation:
+  - id: nav_home
+    label: Home
+    route: /home
+    priority: 0
 
 applications:
-  - applications/bug-tracker.yaml
+  - default/applications/bug-tracker.yaml
 ```
 
 ```yaml
@@ -110,16 +118,22 @@ navigation:
     home_card: true
 ```
 
-**Machines are Workspace-level, declared once.** Several Applications genuinely share one (a user
-Machine is every Application's identity), so ownership per Application would load the same file
-twice and produce two Machine objects with one id. An Application *selects* from the Workspace's
-set by id.
+**Machines are Workspace-level, declared once *per Workspace*.** Several Applications inside one
+Workspace genuinely share a Machine (the user Machine is every Application's identity), so
+ownership per Application would load the same file twice and produce two Machine objects with one
+id. An Application *selects* from its Workspace's set by id.
 
-`workspace.id` matches `^ws_[a-z][a-z0-9_]*$`, an Application's `id` matches
-`^app_[a-z][a-z0-9_]*$`. Each entry in `workspace.machines:` is a path to a Machine file, and each
-entry in `applications:` a path to an Application file, both resolved relative to the manifest's own
-directory — order in `machines:` doesn't affect behavior, but keeping it alphabetical or grouped by
-Application area helps a human (or an agent) scanning the file. Order in `applications:` *is* the
+**Across Workspaces, the same name is free.** Installing an Application copies it into
+`metadata/workspaces/<slug>/`, so name your Machines after your own business without checking what
+anyone else called theirs -- two Workspaces may each hold an `mch_document` meaning entirely
+different things, and either may edit its own copy without touching the other's. Inside one
+Workspace an id is still unique, and the runtime tells same-named Machines apart by which
+Application claims them (`domain.Machine.ApplicationID`), never by the id alone.
+
+An Application's `id` matches `^app_[a-z][a-z0-9_]*$`. Each entry in `machines:` is a path to a
+Machine file, and each entry in `applications:` a path to an Application file, both resolved
+relative to the manifest's own directory — order in `machines:` doesn't affect behavior, but
+keeping it alphabetical or grouped by Application area helps a human (or an agent) scanning the file. Order in `applications:` *is* the
 order the launcher and Workspace Home list them in.
 
 Two Application-level keys worth knowing before you need them: `show_nav: false` suppresses this
@@ -368,10 +382,17 @@ runtime with no authorization check of any kind on any Machine.
 oversight — `internal/action/decide.go`'s own comment: *"This is hardcoded to
 mch_document/mch_approval_step's own field ids, not a generic [mechanism]."* The
 `POST /machines/{machineID}/records/{id}/decide` route exists for any Machine id path-wise, but
-the handler checks the Machine id and does nothing for any Machine other than
-`mch_approval_step`. Declaring `permissions: - action: decide` on your own new Machine does not
-give it an approval workflow — it declares a Permission the runtime cannot actually invoke for
-that Machine.
+the handler does nothing for any Machine other than Document Approval's own Approval Step.
+Declaring `permissions: - action: decide` on your own new Machine does not give it an approval
+workflow — it declares a Permission the runtime cannot actually invoke for that Machine.
+
+**Naming your own Machine `mch_approval_step` does not borrow that engine either**, and since
+2026-09-27 it does not break anything by trying: the handler asks `action.IsStep`, which checks
+which *Application* claims the Machine (`domain.Machine.ApplicationID`) as well as its id, so
+another Workspace's own Machine of the same name is simply not Document Approval's. It used to
+compare the bare id, which was sound only while ids were unique across the whole process — see
+CLAUDE.md's "One manifest per Workspace" and
+`internal/conformance.TestNoBareMachineIDIdentityChecks`.
 
 **What a Permission *can* do today:** gate `decide` (still one real Machine pair only), or gate
 `edit`/`delete` on the generic update/delete routes — **for any Machine, not just
@@ -708,9 +729,9 @@ dropping a file in *installs* its Applications into that Workspace. `application
 
 | Key | Value | Notes |
 |---|---|---|
-| `workspace.id` / `workspace.name` | string | One Workspace per process today |
-| `workspace.machines[]` | file paths | Load order; each file is one Machine. Workspace-level, shared by every Application |
-| `workspace.navigation[]` | list of items | Destinations belonging to no single Application (Home, All Machines, Members, Groups) |
+| `workspace` | slug string | Which Workspace this manifest installs into. A slug, not an id: the `ws_...` id is generated when the Workspace is created through the UI. The nested `workspace:` block this key replaced (carrying `id`/`name`/`machines`/`navigation`) stopped loading on 2026-09-22 |
+| `machines[]` | file paths | Load order; each file is one Machine, and this Workspace's own. A path under `<slug>/` is its own copy; a path outside is one of the three runtime-level Machines every Workspace shares |
+| `navigation[]` | list of items | Destinations belonging to no single Application (Home, All Machines, Members, Groups) |
 | `applications[]` | file paths | One file per Application; declaration order is launcher/Workspace Home order |
 | `suggested_applications[]` | list of `{label, prompt}` | Workspace Home's "Add an application" chips (2026-09-27); both required. Display text and a conversation-starter prompt for `/new-application?idea=`, not an identifier anything else references — a Workspace with none declared simply shows no chips |
 
@@ -1145,10 +1166,14 @@ Honest current limits, not a roadmap — some of these may change over time:
   existing data already stored under that field's id — it's simply no longer read.
 - **Constraints are intentionally limited.** Only `equals`/`not_equals` against a literal value,
   no boolean combinators, no cross-field arithmetic.
-- **~~Every Workspace shares one manifest.~~** Closed 2026-09-22: one manifest per Workspace, keyed by slug. A Workspace may run several Applications — its manifest
-  declares a list, and two are live (Document Approval, Project Management) — but the set of
-  Machines and Applications is process-wide: a second Workspace needing a genuinely different set
-  isn't supported yet. This bullet read "one Workspace runs one fixed Application" until
+- **~~Every Workspace shares one manifest.~~ ~~The set of Machines and Applications is
+  process-wide.~~** Both closed, and the pair is worth reading together because the first fix made
+  the second one's absence visible. 2026-09-22: one manifest per Workspace, keyed by slug, and a
+  Workspace may run several Applications. 2026-09-27: a Workspace's Machines are its *own* —
+  installing an Application copies it into `metadata/workspaces/<slug>/` rather than pointing at a
+  shared file, so two Workspaces may each hold an `mch_document` meaning different things and
+  either may diverge without touching the other. Only `mch_user`, `mch_activity` and
+  `mch_notification` stay shared. This bullet read "one Workspace runs one fixed Application" until
   2026-09-21, which stopped being true at Fase 3a when `applications:` became a list.
 
 If you hit one of these and it matters for what you're building, the numbered concept docs explain
