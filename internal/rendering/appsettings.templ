@@ -1,6 +1,10 @@
 package rendering
 
-import "context"
+import (
+	"context"
+
+	"menata.app/internal/action"
+)
 
 // pageTitle is the <title> tag ApplicationSettingsPage renders -- the hub's own title normally,
 // the Permissions page's own title while its content is what's showing, matching how every other
@@ -87,9 +91,9 @@ templ settingsAccessRows(hub SettingsHubView, showingDetail bool) {
 	}
 }
 
-// settingsStaticSections are Communication and Configuration. Document types and Approval flow
-// stay honest placeholders -- neither has a metadata shape to derive from at all yet
-// (`document_types:`/CAP-V28 are both still unbuilt, ROADMAP.md's own "Planned" section).
+// settingsStaticSections are Communication and Configuration. Document types stays an honest
+// placeholder -- `document_types:` has no metadata shape to derive from at all yet, ROADMAP.md's
+// own "Planned" section.
 //
 // Notifications is real since Tahap 6 (2026-09-26): the original gap study named this row's own
 // gap as "notifications (in-app and email, per user AND per Application)" -- the per-Application
@@ -100,6 +104,11 @@ templ settingsAccessRows(hub SettingsHubView, showingDetail bool) {
 // stays unbuilt. But the identity-level page already groups its content by Application ("Document
 // Approval" as of Tahap 6), which is the real, honest destination this row can point at today
 // rather than leaving it a dead "Not built yet" tag for a capability that partially exists.
+//
+// Approval flow is real since CAP-V28 (ROADMAP.md, 2026-09-27): a saved default approval flow per
+// Document Type. Points at the generic Machine list for mch_approval_flow_template -- deliberately
+// no bespoke screen, the same "no navigation entry of its own, still reachable as a plain literal"
+// shape /machines/mch_list and /machines/mch_label already have below (boardsettings.templ).
 templ settingsStaticSections() {
 	<div class="flex flex-col gap-0.5">
 		<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Communication</h2>
@@ -108,7 +117,7 @@ templ settingsStaticSections() {
 	<div class="flex flex-col gap-0.5">
 		<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Configuration</h2>
 		@settingsPlaceholderRow("Document types", "Contract, invoice, quotation...")
-		@settingsPlaceholderRow("Approval flow", "Default steps per document type.")
+		@settingsRow("/machines/"+action.TemplateMachineID, "Approval flow", "Default steps per document type.", false)
 	</div>
 }
 

@@ -2009,13 +2009,20 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      scheduler primitive this runtime has never built (something that fires on the *passage of
      time*, not on a record write), which is why it has stayed open through six shipped Tahaps
      rather than being a simple wiring gap like the others above.
-  7. **Orphan route, found rather than assumed away**: `/authorization-matrix`
-     (`rolematrix.templ`'s old role×stage-matrix idiom, Workspace-level) is still registered in
-     `router.go` but linked from no `navigation:` entry in any Workspace's metadata since the
-     Permissions page moved to `/document-approval/settings/permissions` (Tahap 5). Not
-     user-reachable, but dead weight -- worth deleting or, if kept intentionally, naming why per
-     the metadata-hardcoding exception convention (CLAUDE.md, "Deciding whether a literal is a
-     metadata-hardcoding violation," step 2).
+  7. ~~**Orphan route, found rather than assumed away**: `/authorization-matrix`~~ **Deleted
+     2026-09-27** -- see the dedicated entry below rather than repeated here.
+  8. **Desktop: the topbar's own content width doesn't match the page content's width** (found
+     2026-09-27, live on `/document-approval/settings` -- a wide sidebar+card layout makes it
+     obvious, but every page has the same mismatch). `appShell`'s `<header>`
+     (`internal/rendering/appshell.templ`, the `<div class="flex h-15 ...">` row carrying the
+     launcher/breadcrumb/application menu) has no `max-w-` at all -- just `px-4 sm:pr-7 sm:pl-9`
+     padding, so it runs edge to edge. `<main>` (same file, a few lines below) is capped at
+     `max-w-[1180px]` and centered (`mx-auto`). On any viewport wider than ~1180px plus padding,
+     the header's own content (the Application menu row, the account menu on the right) extends
+     further right than the page content ever does, which is what the screenshot on this finding
+     shows: the Settings hub's card stops well short of where "Inbox / My Doc / Assign Me /
+     Settings" reaches above it. Not fixed here -- noted per owner instruction, to be picked up
+     later.
 
   **Two owner decisions this audit found still unresolved in this file's own text**, both cheap to
   close (no engineering, just a confirmation) and both already asked once, above (the study's
@@ -2385,6 +2392,25 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   no bespoke code; `GET /documents/new/approval-flow-template?fld_document_type=Kontrak` against
   the real dev database (no template saved for it there) returns one blank row and the default
   mode, exactly the fragment's own documented empty case.
+
+- **Not fixed, only noted 2026-09-27 per owner instruction: Choose Workspace
+  (`ChooseWorkspacePage`, `internal/rendering/chooseworkspace.templ`) still doesn't match its own
+  artifact board** (`02-ChooseWorkspace.dc.html`), compared live via screenshot rather than
+  assumed. Three concrete gaps, not one:
+  1. **No member count or slug line under a workspace's name** ("dokter-kecil · 24 members") --
+     already named in this file's own top comment (lines 31-36) as blocked on `domain.Workspace`
+     having no slug/count field yet; still true, not a new finding.
+  2. **The role badge renders the raw stored value, lowercase** ("admin"/"member") **where the
+     board shows it capitalized** ("Admin"/"Member"). Checked against the rest of the codebase
+     rather than assumed fixable by reuse: `displayRole` (`workspacehome.templ`, this screen's own
+     candidate) does not capitalize either -- it only swaps an empty role for "—" -- and no
+     capitalize-a-role-for-display helper is applied anywhere this broadly (`rolematrix.go`'s
+     `capitalizeRole` is scoped to that one page). This page would need one, not reuse one.
+  3. **The footer is bare "← Sign out"** (`authFooterNote`, just `backLabel`) **where the board
+     reads "Signed in as `silvia@menata.id` · Sign out"** -- naming which identity is signed in
+     before offering to sign out of it. Nothing in `ChooseWorkspacePage`'s own props carries an
+     email today (`backHref`/`backLabel` only), so this needs a new parameter threaded from
+     `showChooseWorkspace`/`showSwitchWorkspace` (`internal/web/auth.go`), not a template-only fix.
 
 ## Planned
 
