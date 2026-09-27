@@ -111,6 +111,18 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 		knownFieldTargets[m.ID] = true
 	}
 	for _, m := range app.Machines {
+		// A Permission's roles must be words this Application actually declares. The real check is
+		// internal/metadata.validatePermissionRoles, which is cross-Machine and unexported, so it
+		// only runs at load -- Write's own load-verify is what makes a miss here safe rather than
+		// destructive (it rolls the whole write back). This copy exists purely so the assistant
+		// gets told mid-conversation, where it can still fix it, instead of after publishing.
+		for _, p := range m.Permissions {
+			for _, r := range p.Roles {
+				if !seenRole[r] {
+					issues = append(issues, fmt.Sprintf("machine %q permission %q names role %q, which this application does not declare in its roles %v -- nobody could hold it, so the permission would deny everyone while reading as a grant", m.ID, p.ID, r, app.Roles))
+				}
+			}
+		}
 		if existing.MachineIDs[m.ID] {
 			issues = append(issues, fmt.Sprintf("machine id %q already exists in this workspace", m.ID))
 		}

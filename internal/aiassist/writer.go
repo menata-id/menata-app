@@ -4,12 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"menata.app/internal/metadata"
 )
 
 // Write applies a validated GeneratedChange to disk: a brand-new Application into the target
@@ -30,14 +33,89 @@ import (
 // can therefore never leave a half-written or unparseable file for the caller's reload to trip
 // over. Returns the new Application's own id (for new_application) so the caller can redirect to
 // its HomeRoute once the reload picks it up.
+//
+// **Nothing survives a failure.** Once every file is in place this loads the whole manifest back
+// through metadata.LoadApplication -- the real loader, the same one the caller's reload is about
+// to run -- and undoes every write if it does not load (writeSet.rollback). That ordering is the
+// whole point: validation before writing can only ever check the rules someone remembered to
+// copy into Validate, and on 2026-09-27 one of them had not been (a Permission naming a role its
+// Application does not declare, which only validatePermissionRoles catches, and which is
+// unexported). The result was metadata written to disk that then failed to reload: the running
+// app kept serving its old route table, but the next process restart would have refused to load
+// that Workspace at all. Loading is not a copy of the rules -- it *is* them -- so this cannot
+// drift out of step the way a second list of checks always eventually does.
 func Write(workspaceManifestPath string, change GeneratedChange, resolve MachineFileResolver) (newAppID string, err error) {
+	written := &writeSet{original: map[string][]byte{}}
+	defer func() {
+		if err != nil {
+			written.rollback()
+		}
+	}()
+
 	switch change.Kind {
 	case KindNewApplication:
-		return writeNewApplication(workspaceManifestPath, change)
+		newAppID, err = writeNewApplication(written, workspaceManifestPath, change)
 	case KindExtendApplication:
-		return "", writeExtension(workspaceManifestPath, change, resolve)
+		err = writeExtension(written, workspaceManifestPath, change, resolve)
 	default:
-		return "", fmt.Errorf("unknown change kind %q", change.Kind)
+		err = fmt.Errorf("unknown change kind %q", change.Kind)
+	}
+	if err != nil {
+		return "", err
+	}
+
+	if _, err = metadata.LoadApplication(workspaceManifestPath); err != nil {
+		return "", fmt.Errorf("generated metadata was written but does not load, so it has been rolled back: %w", err)
+	}
+	return newAppID, nil
+}
+
+// writeSet remembers what Write touched so a failure can leave the tree exactly as it found it:
+// which paths it created (remove them) and what the ones it edited held before (put it back).
+//
+// note must be called for every path before it is written. A path noted twice keeps its *first*
+// recorded state, which is what makes a rollback correct when one file is edited more than once
+// in a single change -- the manifest, which gains a line per Machine plus one per Application.
+type writeSet struct {
+	created  []string
+	original map[string][]byte
+}
+
+func (w *writeSet) note(path string) error {
+	if _, seen := w.original[path]; seen {
+		return nil
+	}
+	for _, p := range w.created {
+		if p == path {
+			return nil
+		}
+	}
+	src, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			w.created = append(w.created, path)
+			return nil
+		}
+		return fmt.Errorf("read %s before writing it: %w", path, err)
+	}
+	w.original[path] = src
+	return nil
+}
+
+// rollback is best-effort by necessity -- it runs while another error is already being returned,
+// so there is nothing useful to do with a second one but say so. Each individual restore is still
+// atomic (writeFileStrict's own temp-then-rename), so a failure here leaves whichever files it
+// did reach correctly restored rather than half-written.
+func (w *writeSet) rollback() {
+	for path, src := range w.original {
+		if err := os.WriteFile(path, src, 0o644); err != nil {
+			log.Printf("aiassist: rolling back %s: %v", path, err)
+		}
+	}
+	for _, path := range w.created {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			log.Printf("aiassist: rolling back (removing) %s: %v", path, err)
+		}
 	}
 }
 
@@ -161,7 +239,7 @@ type navItemDoc struct {
 	HomeCard bool   `yaml:"home_card"`
 }
 
-func writeNewApplication(workspaceManifestPath string, change GeneratedChange) (string, error) {
+func writeNewApplication(written *writeSet, workspaceManifestPath string, change GeneratedChange) (string, error) {
 	app := change.Application
 	workspaceDir := filepath.Dir(workspaceManifestPath)
 	// This Workspace's own namespace: metadata/workspaces/<slug>/, named from its manifest rather
@@ -193,6 +271,9 @@ func writeNewApplication(workspaceManifestPath string, change GeneratedChange) (
 		filename := m.ID[len("mch_"):] + ".yaml"
 		absPath := filepath.Join(ownDir, filename)
 		if err := refuseIfExists(absPath, "machine "+m.ID); err != nil {
+			return "", err
+		}
+		if err := written.note(absPath); err != nil {
 			return "", err
 		}
 		if err := writeYAMLStrict(absPath, doc); err != nil {
@@ -228,6 +309,9 @@ func writeNewApplication(workspaceManifestPath string, change GeneratedChange) (
 	if err := refuseIfExists(appAbsPath, "application "+app.ID); err != nil {
 		return "", err
 	}
+	if err := written.note(appAbsPath); err != nil {
+		return "", err
+	}
 	if err := writeYAMLStrict(appAbsPath, appDoc); err != nil {
 		return "", fmt.Errorf("write application %s: %w", app.ID, err)
 	}
@@ -250,6 +334,9 @@ func writeNewApplication(workspaceManifestPath string, change GeneratedChange) (
 	updated, err = appendBlockListItem(updated, "applications:", toSlash(appRelToWorkspace))
 	if err != nil {
 		return "", fmt.Errorf("append application to workspace manifest: %w", err)
+	}
+	if err := written.note(workspaceManifestPath); err != nil {
+		return "", err
 	}
 	if err := writeFileStrict[workspaceManifestCheckDoc](workspaceManifestPath, updated); err != nil {
 		return "", fmt.Errorf("write workspace manifest: %w", err)
@@ -288,7 +375,7 @@ func refuseIfExists(path, what string) error {
 
 // --- extend_application ------------------------------------------------------------------------
 
-func writeExtension(workspaceManifestPath string, change GeneratedChange, resolve MachineFileResolver) error {
+func writeExtension(written *writeSet, workspaceManifestPath string, change GeneratedChange, resolve MachineFileResolver) error {
 	workspaceDir := filepath.Dir(workspaceManifestPath)
 
 	for _, add := range change.Additions {
@@ -307,6 +394,9 @@ func writeExtension(workspaceManifestPath string, change GeneratedChange, resolv
 			if err != nil {
 				return fmt.Errorf("append option to %s: %w", path, err)
 			}
+			if err := written.note(path); err != nil {
+				return err
+			}
 			if err := writeFileStrict[fullMachineCheckDoc](path, updated); err != nil {
 				return err
 			}
@@ -323,6 +413,9 @@ func writeExtension(workspaceManifestPath string, change GeneratedChange, resolv
 			updated, err := appendBlockListItem(src, "roles:", add.NewRole)
 			if err != nil {
 				return fmt.Errorf("append role to %s: %w", path, err)
+			}
+			if err := written.note(path); err != nil {
+				return err
 			}
 			if err := writeFileStrict[fullApplicationCheckDoc](path, updated); err != nil {
 				return err

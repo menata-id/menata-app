@@ -301,8 +301,15 @@ func TestPublishNewApplication_grantsThePublisherTheirChosenRole(t *testing.T) {
 	// A minimal real manifest for aiassist.Write to append into -- publishNewApplication reads
 	// cfg.MetadataPath/<slug>.yaml directly, so this has to exist on disk, not just in the DB.
 	metadataDir := t.TempDir()
+	// A real, loadable manifest: aiassist.Write load-verifies what it wrote through the actual
+	// metadata loader and rolls back if it does not load, so a fixture referencing a file that
+	// does not exist would (correctly) be refused.
+	if err := os.WriteFile(filepath.Join(metadataDir, "user.yaml"),
+		[]byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	manifestPath := filepath.Join(metadataDir, ws.Slug+".yaml")
-	if err := os.WriteFile(manifestPath, []byte("workspace: "+ws.Slug+"\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte("workspace: "+ws.Slug+"\nmachines:\n  - user.yaml\napplications: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

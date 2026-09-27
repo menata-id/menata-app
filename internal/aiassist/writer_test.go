@@ -27,6 +27,17 @@ func TestWrite_newApplication_writesReloadableFiles(t *testing.T) {
 	if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(dir, "applications"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "user.yaml"),
+		[]byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "applications", "document-approval.yaml"),
+		[]byte("id: app_document_approval\nname: Document Approval\nmachines:\n  - mch_user\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	manifestPath := filepath.Join(workspacesDir, "default.yaml")
 	original := "workspace: default\nmachines:\n  - ../user.yaml\napplications:\n  - ../applications/document-approval.yaml\n"
 	if err := os.WriteFile(manifestPath, []byte(original), 0o644); err != nil {
@@ -99,6 +110,7 @@ func TestWrite_extendApplication_appendsOptionPreservingComments(t *testing.T) {
 	machinePath := filepath.Join(dir, "document.yaml")
 	original := `# A hand-written comment that must survive.
 id: mch_document
+name: Document
 fields:
   - id: fld_document_type
     name: Document Type
@@ -122,7 +134,7 @@ fields:
 		t.Fatal(err)
 	}
 	manifestPath := filepath.Join(workspacesDir, "default.yaml")
-	if err := os.WriteFile(manifestPath, []byte("workspace: default\n"), 0o644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte("workspace: default\nmachines:\n  - ../document.yaml\napplications: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -300,5 +312,73 @@ func TestWrite_newApplication_refusesToOverwriteAnExistingApplicationFile(t *tes
 	}
 	if !strings.Contains(err.Error(), "already exists") {
 		t.Errorf("Write() error = %v, want it to name the collision", err)
+	}
+}
+
+// TestWrite_rollsBackWhenGeneratedMetadataDoesNotLoad is the guarantee Write's own doc comment
+// makes, exercised through a hole Validate genuinely still has: navigation ids. Validate checks no
+// navigation at all, while the loader requires them unique across the whole Workspace
+// (metadata.validateNavigationIDsAreUnique -- a duplicate would make routeByID resolve to
+// whichever loaded first). Since 2026-09-27 a generated Application brings one nav item of its
+// own, derived from its id, so a Workspace already using that id is a real collision nobody
+// checks before the write.
+//
+// That is the point of load-verifying rather than adding check number twelve: this hole was found
+// by writing the test, not before it, and the next one will be too. The assertion is about the
+// tree, not the error -- nothing created, nothing edited, byte for byte.
+func TestWrite_rollsBackWhenGeneratedMetadataDoesNotLoad(t *testing.T) {
+	dir := t.TempDir()
+	workspacesDir := filepath.Join(dir, "workspaces")
+	if err := os.MkdirAll(filepath.Join(dir, "applications"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "user.yaml"),
+		[]byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// An Application already installed here, holding the very navigation id the generated one will
+	// derive for itself ("app_leave_requests" -> "nav_leave_requests").
+	if err := os.WriteFile(filepath.Join(dir, "applications", "existing.yaml"),
+		[]byte("id: app_existing\nname: Existing\nmachines:\n  - mch_user\nnavigation:\n  - id: nav_leave_requests\n    label: Already Taken\n    route: /machines/mch_user\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(workspacesDir, "default.yaml")
+	originalManifest := "workspace: default\nmachines:\n  - ../user.yaml\napplications:\n  - ../applications/existing.yaml\n"
+	if err := os.WriteFile(manifestPath, []byte(originalManifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	change := validLeaveRequestChange()
+	if err := Validate(change, ExistingState{MachineIDs: map[string]bool{}, ApplicationIDs: map[string]bool{}}); err != nil {
+		t.Fatalf("precondition failed: Validate() = %v, want nil so this test exercises the load check", err)
+	}
+
+	if _, err := Write(manifestPath, change, nil); err == nil {
+		t.Fatal("Write() = nil error, want a refusal -- this metadata cannot load")
+	}
+
+	after, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != originalManifest {
+		t.Errorf("the workspace manifest was left modified after a failed write:\ngot:\n%s\nwant:\n%s", after, originalManifest)
+	}
+	for _, leftover := range []string{
+		filepath.Join(workspacesDir, "default", "leave_request.yaml"),
+		filepath.Join(workspacesDir, "default", "applications", "leave_requests.yaml"),
+	} {
+		if _, err := os.Stat(leftover); err == nil {
+			t.Errorf("%s survived a failed write -- the tree must be left exactly as it was found", leftover)
+		}
+	}
+
+	// And the whole thing still loads, which is the practical consequence: the next process
+	// restart reads a Workspace that works.
+	if _, err := metadata.LoadApplication(manifestPath); err != nil {
+		t.Errorf("the workspace no longer loads after a rolled-back write: %v", err)
 	}
 }
