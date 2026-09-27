@@ -71,9 +71,15 @@ func showNewApplication(machines map[string]*domain.Machine, store *data.Store, 
 			}
 		} else {
 			// Workspace Home's own "Add an application" box/chips (Flow 2 canvas re-audit,
-			// ROADMAP.md, 2026-09-27) -- a plain GET query param, never trusted for anything but
-			// pre-filling text the user still reviews and sends themselves; no session exists to
-			// prefill into once one has started.
+			// ROADMAP.md, 2026-09-27; auto-send reversal 2026-09-27) -- a plain GET query param.
+			// This handler itself still performs no write: PrefillIdea only pre-fills the message
+			// input. What sends it is client-side (rendering.NewApplicationPage's own form carries
+			// an "on load" hyperscript that calls requestSubmit() when the input already holds a
+			// value), so a fresh page load with ?idea= set turns into a real POST to
+			// postNewApplicationMessage moments later, without the person clicking Send. No session
+			// exists to prefill into once one has started, which is also what stops that auto-submit
+			// from firing a second time: the redirect back to this handler lands with a session id
+			// and an empty PrefillIdea.
 			view.PrefillIdea = req.URL.Query().Get("idea")
 		}
 		render(ctx, w, rendering.NewApplicationPage(view, chrome.WorkspaceName, chrome.Viewer(), switchHref))

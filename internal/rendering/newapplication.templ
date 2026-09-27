@@ -12,8 +12,10 @@ type ConversationView struct {
 	Summary       aiassist.GeneratedChange
 	// PrefillIdea pre-fills the first message when this conversation has not started yet (Workspace
 	// Home's own "Add an application" box/chips, Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) --
-	// a conversation starter the user still reviews and sends themselves, never set once len(Turns)
-	// > 0.
+	// never set once len(Turns) > 0. The conversation form below auto-submits itself on load
+	// whenever this is non-empty (owner reversal, 2026-09-27: the person typed or picked the idea
+	// already on Workspace Home, so asking them to press Send again on the very next screen was
+	// redundant), so in practice this both fills the box and starts the conversation.
 	PrefillIdea string
 }
 
@@ -46,7 +48,19 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 				for _, t := range view.Turns {
 					@conversationBubble(t)
 				}
-				<form method="post" action="/new-application/message" class="mt-auto flex gap-2 border-t border-slate-100 pt-4">
+				// Auto-submits itself when #msg already holds a value on load -- true only for a
+				// PrefillIdea'd first message (see that field's own doc comment), never for a
+				// redirect back into an existing conversation, since that always renders #msg empty.
+				// Client-side rather than server-side so showNewApplication's GET keeps performing no
+				// write of its own (internal/conformance's "GET never writes" discipline) -- the
+				// Gemini call still only ever happens from postNewApplicationMessage's POST, just
+				// triggered by the browser instead of a click.
+				<form
+					method="post"
+					action="/new-application/message"
+					class="mt-auto flex gap-2 border-t border-slate-100 pt-4"
+					_="on load if #msg's value is not '' then call me.requestSubmit()"
+				>
 					@csrfHiddenInput()
 					<input type="hidden" name="session" value={ view.SessionID }/>
 					<label for="msg" class="sr-only">Your answer</label>

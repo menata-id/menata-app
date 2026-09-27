@@ -46,8 +46,9 @@ type Workspace struct {
 
 // ApplicationSuggestion is one chip in Workspace Home's own "Add an application" box: Label is the
 // chip's own text, Prompt is what it pre-fills into the AI Metadata Assistant's first message
-// (internal/web.showNewApplication's own ?idea= handling) -- the user still reviews and sends it
-// themselves, so this is a conversation starter, not a write.
+// (internal/web.showNewApplication's own ?idea= handling), which the conversation screen then
+// auto-submits on load (rendering.NewApplicationPage) -- clicking a chip starts the conversation
+// in one step, not two.
 type ApplicationSuggestion struct {
 	Label  string
 	Prompt string

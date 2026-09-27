@@ -2260,6 +2260,18 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      a real admin session): the section, all three chips (correctly URL-encoded), and the lazy
      placeholder all render on `/home`, and `/api/home/draft-applications` returns 200. `/home`'s
      own query cost confirmed unchanged at 13 (`TestAuthenticatedPageQueryCost`).
+
+     **Reversed the same day.** The paragraph above ("the user still reviews and sends it
+     themselves") was the first cut; the owner found it redundant in practice -- typing the idea on
+     Workspace Home and then having to retype-by-clicking-Send on the very next screen is two steps
+     for one action, and "Start →" already reads as the start. `rendering.NewApplicationPage`'s
+     conversation form now carries a small hyperscript `on load` handler that calls
+     `requestSubmit()` on itself when its own `#msg` input already holds a value -- true only for a
+     PrefillIdea'd first message, since a redirect back into an existing session always renders
+     `#msg` empty (`ConversationView.PrefillIdea` is never set once a session exists). `GET
+     /new-application` still performs no write of its own -- "nothing is created by the GET" is
+     still accurate -- the Gemini call happens from the same `postNewApplicationMessage` POST it
+     always did, just fired by the browser instead of a click.
   4. ~~**The account (avatar) menu has no "WORKSPACES" section.**~~ **Shipped 2026-09-27.**
      `AccountMenu.dc.html` drew a list of every Workspace the identity belongs to, its role in
      each, and "Switch workspace →," inside the avatar dropdown itself; `accountMenu` was

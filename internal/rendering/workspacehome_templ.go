@@ -510,11 +510,13 @@ func WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, a
 
 // addApplicationSection is Workspace Home's own "Add an application" box (Flow 2 canvas re-audit,
 // ROADMAP.md, 2026-09-27) -- the description sentence verbatim from the board, an `idea` text
-// input that is a plain GET navigation (no write happens until the first real message,
-// internal/web.showNewApplication's own doc comment), and one chip per Workspace-declared
-// suggestion. suggestions comes from domain.Workspace.SuggestedApplications, not a literal here --
-// owner instruction, 2026-09-27: a Workspace whose business the mockup's own three examples don't
-// fit declares its own.
+// input that is a plain GET navigation, and one chip per Workspace-declared suggestion. The GET
+// itself still performs no write; landing on /new-application?idea=... starts the conversation
+// automatically from there (rendering.NewApplicationPage's own auto-submit, owner reversal
+// 2026-09-27) rather than requiring a second Send click, so "Start →" is genuinely a start.
+// suggestions comes from domain.Workspace.SuggestedApplications, not a literal here -- owner
+// instruction, 2026-09-27: a Workspace whose business the mockup's own three examples don't fit
+// declares its own.
 func addApplicationSection(suggestions []domain.ApplicationSuggestion) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -597,7 +599,7 @@ func addApplicationSection(suggestions []domain.ApplicationSuggestion) templ.Com
 				var templ_7745c5c3_Var28 templ.SafeURL
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 231, Col: 82}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 233, Col: 82}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -610,7 +612,7 @@ func addApplicationSection(suggestions []domain.ApplicationSuggestion) templ.Com
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(s.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 232, Col: 15}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 234, Col: 15}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 				if templ_7745c5c3_Err != nil {
@@ -682,7 +684,7 @@ func HomeDraftApplicationRows(rows []HomeDraftApplicationRow) templ.Component {
 			var templ_7745c5c3_Var31 templ.SafeURL
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(r.ReviewHref))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 259, Col: 39}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 261, Col: 39}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -703,7 +705,7 @@ func HomeDraftApplicationRows(rows []HomeDraftApplicationRow) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 264, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacehome.templ`, Line: 266, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
