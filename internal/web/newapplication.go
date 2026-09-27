@@ -93,7 +93,7 @@ func showNewApplication(machines map[string]*domain.Machine, store *data.Store, 
 // applications, so an extend_application request can be evaluated against what is actually real),
 // appends the assistant's reply, records a capability gap if the reply names one, and redirects
 // back to the conversation screen.
-func postNewApplicationMessage(store *data.Store, aiClient aiassist.Client, cfg config.Config) http.HandlerFunc {
+func postNewApplicationMessage(machines map[string]*domain.Machine, store *data.Store, aiClient aiassist.Client, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if err := req.ParseForm(); err != nil {
 			http.Error(w, "invalid form body", http.StatusBadRequest)
@@ -126,7 +126,7 @@ func postNewApplicationMessage(store *data.Store, aiClient aiassist.Client, cfg 
 		}
 		session.Turns = append(session.Turns, data.AISessionTurn{Role: "user", Content: message})
 
-		if err := runAssistantTurn(ctx, store, aiClient, workspaceID, session); err != nil {
+		if err := runAssistantTurn(ctx, machines, store, aiClient, workspaceID, session); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -141,7 +141,7 @@ func postNewApplicationMessage(store *data.Store, aiClient aiassist.Client, cfg 
 // back), records a capability gap if the reply names one, and marks the session "generated" only
 // once its own proposed change passes aiassist.Validate -- a change that fails is left as an
 // ordinary conversational turn, never surfaced to the review step.
-func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.Client, workspaceID string, session *data.AISession) error {
+func runAssistantTurn(ctx context.Context, machines map[string]*domain.Machine, store *data.Store, aiClient aiassist.Client, workspaceID string, session *data.AISession) error {
 	ws := rendering.CurrentWorkspace(ctx)
 	prompt := aiassist.SystemPromptFor(installedApplicationsFor(ws))
 	turns := make([]aiassist.Turn, 0, len(session.Turns))
@@ -166,7 +166,7 @@ func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.
 			return err
 		}
 	}
-	if reply.Change != nil && aiassist.Validate(*reply.Change, existingStateFor(ws)) == nil {
+	if reply.Change != nil && aiassist.Validate(*reply.Change, existingStateFor(ws, machines)) == nil {
 		if err := store.UpdateAISessionStatus(ctx, session.ID, data.AISessionStatusGenerated); err != nil {
 			return err
 		}
@@ -177,7 +177,7 @@ func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.
 // showNewApplicationReview renders NewAppReview.dc.html's shape once a session holds a validated
 // GeneratedChange -- re-validates rather than trusting the session's own "generated" status alone,
 // since this workspace's installed applications may have changed since that status was set.
-func showNewApplicationReview(store *data.Store, cfg config.Config) http.HandlerFunc {
+func showNewApplicationReview(machines map[string]*domain.Machine, store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -198,7 +198,7 @@ func showNewApplicationReview(store *data.Store, cfg config.Config) http.Handler
 			return
 		}
 		ws := rendering.CurrentWorkspace(ctx)
-		if err := aiassist.Validate(*change, existingStateFor(ws)); err != nil {
+		if err := aiassist.Validate(*change, existingStateFor(ws, machines)); err != nil {
 			http.Error(w, "this proposal is no longer valid: "+err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
@@ -241,7 +241,7 @@ func publishNewApplication(machines map[string]*domain.Machine, store *data.Stor
 			return
 		}
 		ws := rendering.CurrentWorkspace(ctx)
-		if err := aiassist.Validate(*change, existingStateFor(ws)); err != nil {
+		if err := aiassist.Validate(*change, existingStateFor(ws, machines)); err != nil {
 			http.Error(w, "this proposal is no longer valid: "+err.Error(), http.StatusUnprocessableEntity)
 			return
 		}
@@ -308,11 +308,31 @@ func installedApplicationsFor(ws domain.Workspace) []aiassist.InstalledApplicati
 	return out
 }
 
-func existingStateFor(ws domain.Workspace) aiassist.ExistingState {
+// existingStateFor builds what aiassist.Validate checks a proposal against. allMachines is the
+// process-wide Machine registry (web.Deps.Machines, built by cmd/server.loadMetadataState) and is
+// seeded into MachineIDs *alongside* this Workspace's own -- machine ids are a global namespace in
+// this runtime, not a per-Workspace one, for two independent reasons and the second one destroys
+// data:
+//
+//   - loadMetadataState itself dedupes machines by id across every Workspace it loads ("if _, seen
+//     := machines[m.ID]; seen { continue }"), so a second Workspace declaring an id another one
+//     already uses does not get its own Machine -- it silently gets the first one.
+//   - a generated Machine's file is named from its id alone, into one flat metadata/ directory
+//     (aiassist.writeNewApplication), so two Workspaces choosing the same id choose the same file.
+//
+// Seeded from ws.MachineIDs alone until 2026-09-27, which is how a generated Application for the
+// empty "Dokter Kecil" Workspace was allowed to name its Machine mch_document: that id was not in
+// *that* Workspace, so validation passed, and publishing overwrote the real Document Approval
+// Machine file installed in "default". aiassist.refuseIfExists is the backstop for the same class;
+// this is the half that fails early enough for the assistant to pick a different id and carry on.
+func existingStateFor(ws domain.Workspace, allMachines map[string]*domain.Machine) aiassist.ExistingState {
 	state := aiassist.ExistingState{
 		MachineIDs:     map[string]bool{},
 		ApplicationIDs: map[string]bool{},
 		Applications:   map[string]aiassist.ExistingApplicationState{},
+	}
+	for id := range allMachines {
+		state.MachineIDs[id] = true
 	}
 	for _, id := range ws.MachineIDs {
 		state.MachineIDs[id] = true

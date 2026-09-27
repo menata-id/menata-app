@@ -12,6 +12,7 @@ import (
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 // createGeneratedSession is the fixture every draft-Application test below needs: a session that
@@ -151,5 +152,51 @@ func TestShowNewApplication_prefillsIdeaWhenNoSessionYet(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `value="Leave requests"`) {
 		t.Errorf("body did not prefill the idea into the message input: %s", rec.Body.String())
+	}
+}
+
+// TestExistingStateFor_treatsMachineIDsAsGlobal is the validation half of the 2026-09-27 incident
+// (see existingStateFor's own doc comment). The Workspace being generated into is empty -- it
+// claims no mch_document -- but another Workspace's installed Application does, and both would be
+// written to the same metadata/document.yaml. A collision check scoped to this Workspace alone saw
+// nothing wrong and let the publish through.
+func TestExistingStateFor_treatsMachineIDsAsGlobal(t *testing.T) {
+	emptyWorkspace := domain.Workspace{
+		Slug:       "dokter-kecil",
+		MachineIDs: []string{"mch_user", "mch_activity"},
+	}
+	// What cmd/server.loadMetadataState builds: every Machine id this process knows, from every
+	// Workspace's manifest -- including the one installed somewhere else entirely.
+	allMachines := map[string]*domain.Machine{
+		"mch_user":     {ID: "mch_user"},
+		"mch_activity": {ID: "mch_activity"},
+		"mch_document": {ID: "mch_document"},
+	}
+
+	state := existingStateFor(emptyWorkspace, allMachines)
+
+	if !state.MachineIDs["mch_document"] {
+		t.Error("mch_document is installed in another workspace and shares one flat file namespace, so it must count as taken")
+	}
+	if !state.MachineIDs["mch_user"] {
+		t.Error("this workspace's own machine ids must still be present")
+	}
+
+	colliding := aiassist.GeneratedChange{
+		Kind: aiassist.KindNewApplication,
+		Application: &aiassist.GeneratedApplication{
+			ID: "app_doc_submission", Name: "Pengajuan Dokumen",
+			Machines: []aiassist.GeneratedMachine{{
+				ID: "mch_document", Name: "Dokumen",
+				Fields: []aiassist.GeneratedField{{ID: "fld_title", Name: "Judul", Type: "text", Required: true}},
+			}},
+		},
+	}
+	err := aiassist.Validate(colliding, state)
+	if err == nil {
+		t.Fatal("Validate() = nil, want a rejection of the mch_document collision")
+	}
+	if !strings.Contains(err.Error(), "mch_document") {
+		t.Errorf("Validate() error = %v, want it to name the colliding machine id", err)
 	}
 }

@@ -175,6 +175,9 @@ func writeNewApplication(metadataDir, workspaceManifestPath string, change Gener
 
 		filename := m.ID[len("mch_"):] + ".yaml"
 		absPath := filepath.Join(metadataDir, filename)
+		if err := refuseIfExists(absPath, "machine "+m.ID); err != nil {
+			return "", err
+		}
 		if err := writeYAMLStrict(absPath, doc); err != nil {
 			return "", fmt.Errorf("write machine %s: %w", m.ID, err)
 		}
@@ -194,6 +197,9 @@ func writeNewApplication(metadataDir, workspaceManifestPath string, change Gener
 	}
 	appFilename := app.ID[len("app_"):] + ".yaml"
 	appAbsPath := filepath.Join(metadataDir, "applications", appFilename)
+	if err := refuseIfExists(appAbsPath, "application "+app.ID); err != nil {
+		return "", err
+	}
 	if err := writeYAMLStrict(appAbsPath, appDoc); err != nil {
 		return "", fmt.Errorf("write application %s: %w", app.ID, err)
 	}
@@ -221,6 +227,35 @@ func writeNewApplication(metadataDir, workspaceManifestPath string, change Gener
 		return "", fmt.Errorf("write workspace manifest: %w", err)
 	}
 	return app.ID, nil
+}
+
+// refuseIfExists is the new_application path's own "refuse rather than corrupt" guard, and the one
+// thing standing between a colliding id and a destroyed file.
+//
+// A generated Machine's filename is derived from its id alone (mch_document -> document.yaml) into
+// one flat metadata/ directory -- there is no per-Workspace or per-Application subdirectory, so
+// "different Workspace" and "different Application" do not make a different path. On 2026-09-27 a
+// generated Application for the empty "Dokter Kecil" Workspace named its own Machine mch_document
+// and this function did not exist: writeFileStrict renamed straight over metadata/document.yaml,
+// the real Document Approval Machine installed in the "default" Workspace, replacing 266 lines of
+// Permissions, Transitions, Events, datasets and views with the 69-line generated one. Nothing
+// caught it before the write, because Validate is handed only the *current* Workspace's machine
+// ids (internal/web.existingStateFor, now widened) and mch_document genuinely was not one of them.
+//
+// So this check is deliberately not "is this id in some list the caller gave me" -- it is the file
+// system itself, asked at the last possible moment. Validate's own widened collision check is the
+// friendly half (it fails the conversation early, with something the assistant can act on); this is
+// the half that holds even when a future caller builds ExistingState wrong.
+//
+// Only new_application goes through here. writeExtension edits files that are *supposed* to already
+// exist, which is why it calls writeFileStrict directly.
+func refuseIfExists(path, what string) error {
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("refusing to write %s: %s already exists and this change would overwrite it -- generated metadata may only ever create new files", what, path)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("check %s before writing %s: %w", path, what, err)
+	}
+	return nil
 }
 
 // --- extend_application ------------------------------------------------------------------------

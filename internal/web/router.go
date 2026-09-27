@@ -307,8 +307,8 @@ func Routes(d Deps) http.Handler {
 			// everything else in this group. Entry point itself is hidden from navigation when
 			// d.Cfg.GeminiAPIKey is unset (internal/rendering's own showNewApplicationEntry).
 			ar.Get("/new-application", showNewApplication(d.Machines, d.Store, d.AIClient, d.Cfg))
-			ar.Post("/new-application/message", postNewApplicationMessage(d.Store, d.AIClient, d.Cfg))
-			ar.Get("/new-application/{session}/review", showNewApplicationReview(d.Store, d.Cfg))
+			ar.Post("/new-application/message", postNewApplicationMessage(d.Machines, d.Store, d.AIClient, d.Cfg))
+			ar.Get("/new-application/{session}/review", showNewApplicationReview(d.Machines, d.Store, d.Cfg))
 			ar.Post("/new-application/{session}/publish", publishNewApplication(d.Machines, d.Store, d.Cfg, d.ReloadMetadata))
 			ar.Post("/new-application/{session}/discard", discardNewApplication(d.Store))
 			// Workspace Home's own "draft Application" row, fetched lazily (Flow 2 canvas

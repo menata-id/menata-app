@@ -211,3 +211,80 @@ func TestAppendFlowListItemNearAnchor_missingAnchor(t *testing.T) {
 		t.Fatal("appendFlowListItemNearAnchor() = nil error, want one for a missing anchor")
 	}
 }
+
+// TestWrite_newApplication_refusesToOverwriteAnExistingMachineFile reproduces the 2026-09-27
+// incident exactly: a generated Machine whose id maps onto a file that already exists. The
+// generated filename comes from the id alone into one flat directory, so an id another Workspace's
+// Application already uses is the same path -- "different Workspace" and "different Application"
+// are not different files. Before refuseIfExists, this silently replaced metadata/document.yaml,
+// the real Document Approval Machine, with a generated 69-line one.
+func TestWrite_newApplication_refusesToOverwriteAnExistingMachineFile(t *testing.T) {
+	dir := t.TempDir()
+	workspacesDir := filepath.Join(dir, "workspaces")
+	if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(workspacesDir, "dokter-kecil.yaml")
+	if err := os.WriteFile(manifestPath, []byte("workspace: dokter-kecil\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	existing := "id: mch_leave_request\nname: Something Real Someone Else Installed\n"
+	existingPath := filepath.Join(dir, "leave_request.yaml")
+	if err := os.WriteFile(existingPath, []byte(existing), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Write(dir, manifestPath, validLeaveRequestChange(), nil)
+	if err == nil {
+		t.Fatal("Write() = nil error, want a refusal to overwrite an existing machine file")
+	}
+	if !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("Write() error = %v, want it to name the collision", err)
+	}
+
+	after, readErr := os.ReadFile(existingPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(after) != existing {
+		t.Errorf("the pre-existing machine file was modified:\ngot:\n%s\nwant:\n%s", after, existing)
+	}
+
+	manifestAfter, readErr := os.ReadFile(manifestPath)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if strings.Contains(string(manifestAfter), "leave_request") {
+		t.Errorf("the workspace manifest was modified by a refused write:\n%s", manifestAfter)
+	}
+}
+
+// TestWrite_newApplication_refusesToOverwriteAnExistingApplicationFile is the same guard on the
+// other file this path writes.
+func TestWrite_newApplication_refusesToOverwriteAnExistingApplicationFile(t *testing.T) {
+	dir := t.TempDir()
+	workspacesDir := filepath.Join(dir, "workspaces")
+	if err := os.MkdirAll(filepath.Join(dir, "applications"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(workspacesDir, "dokter-kecil.yaml")
+	if err := os.WriteFile(manifestPath, []byte("workspace: dokter-kecil\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	existingPath := filepath.Join(dir, "applications", "leave_requests.yaml")
+	if err := os.WriteFile(existingPath, []byte("id: app_leave_requests\nname: Already Installed\nmachines: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Write(dir, manifestPath, validLeaveRequestChange(), nil)
+	if err == nil {
+		t.Fatal("Write() = nil error, want a refusal to overwrite an existing application file")
+	}
+	if !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("Write() error = %v, want it to name the collision", err)
+	}
+}
