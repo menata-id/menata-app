@@ -72,7 +72,7 @@ func sendNotification(ctx context.Context, store *data.Store, mailer mail.Mailer
 	values := map[string]any{
 		"fld_recipient": recipientID,
 		"fld_message":   message,
-		"fld_link":      notificationLinkFor(machine.ID, record.ID),
+		"fld_link":      notificationLinkFor(machine, record.ID),
 	}
 	if _, err := store.CreateRecord(ctx, "mch_notification", values); err != nil {
 		log.Printf("failed to create notification for %s: %v", recipientID, err)
@@ -115,11 +115,11 @@ func sendNotification(ctx context.Context, store *data.Store, mailer mail.Mailer
 // same reasoning) -- its real screen is /review. Forward pointer: a second notification-emitting
 // Machine pair needing a non-generic destination is the trigger to generalize this into a declared
 // Field rather than a per-Machine-id branch.
-func notificationLinkFor(machineID, recordID string) string {
-	if machineID == action.StepMachineID {
-		return fmt.Sprintf("/machines/%s/records/%s/review", machineID, recordID)
+func notificationLinkFor(machine *domain.Machine, recordID string) string {
+	if action.IsStep(machine) {
+		return fmt.Sprintf("/machines/%s/records/%s/review", machine.ID, recordID)
 	}
-	return fmt.Sprintf("/machines/%s/records/%s", machineID, recordID)
+	return fmt.Sprintf("/machines/%s/records/%s", machine.ID, recordID)
 }
 
 // RunCreateEvents is RunEvents' own counterpart for the create path: every domain.Event a Machine
