@@ -1815,6 +1815,23 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `metadata-hot-reload-safety.md` describes, still unbuilt, and now with one real, narrower
   precedent next to it instead of zero.
 
+  **Three real bugs found and fixed 2026-09-27**, chasing one live conversation that tried to
+  build "Document Tracking": publishing it 403'd its own creator immediately on redirect, and the
+  assistant's own attempt to repair that via `extend_application` could never succeed either.
+  (1) `existingStateFor` declared its `Applications` map but never populated it, since this
+  package's first commit -- `extend_application` validation looks it up and had therefore rejected
+  every extension ever attempted, "not installed" even when it plainly was. (2) Publishing granted
+  nobody a role in a brand-new Application, including its own publisher; the schema holds one
+  direct role per person per Application (no room for "grant all of them" without adding a Group,
+  which this first increment does not do), so the conversation itself now asks which one role the
+  person will hold (`GeneratedApplication.PublisherRole`, required whenever roles are declared) and
+  `publishNewApplication` grants exactly that. (3) A generated Application declared no navigation
+  at all, so its Workspace Home card had no `HomeRoute` and linked back to `/home` -- closes the
+  "not built in this pass" line above for `new_application`: `writeNewApplication` now generates
+  one `home_card: true` item at the first Machine's generic page, itself. Regression tests for (1)
+  and (2) were each verified to fail against the pre-fix code. The one already-published casualty
+  ("Document Tracking" in "dokter-kecil") was repaired by hand to match.
+
 - **Flow 2's Tahap 7 is shipped (2026-09-26): Workspace lifecycle, archive/restore only.**
   `menata-app-document`'s own `audits/2026-09-23-kajian-gap-mockup-flow2.md` §5.2 and the mockup
   canvas's `Workspace`/`WorkspaceArchived`/`M02b-WorkspaceArchived` boards (read directly) are the
