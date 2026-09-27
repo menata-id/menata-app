@@ -849,6 +849,12 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   member**; a workspace **audit log**; and **notifications** (in-app and email, per user and per
   Application) — `internal/mail` serves invitations and verification only.
 
+  **Status as of 2026-09-27, read back against this list rather than left to age**: draft →
+  published shipped as Tahap 8 (AI Metadata Assistant); Workspace archive/restore shipped as
+  Tahap 7; notifications shipped as Tahap 6 (plus the SLA-breach reminder, 2026-09-27); deactivating
+  a member shipped 2026-09-27 (Flow 2 canvas re-audit gap #2). Only the workspace **audit log**
+  remains genuinely unbuilt of the five.
+
   **And one that is not a phase but a product:** boards 15/16 generate a whole Application from a
   natural-language description, review it, then publish it. It lands on the three deferrals this
   file already carries as "not urgent while the manifest ships with the binary" — runtime-writable
@@ -1513,8 +1519,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
        **All five phases of this entry are now shipped.** The Workspace-level half of the Flow 2
        mockup (`M04a-Settings.dc.html`: General/Applications/Invitations/Authentication/Audit
        log/Danger zone) remains explicitly out of scope, as stated when this entry was opened --
-       tied to Workspace concepts (archive/restore a Workspace, an audit log, deactivating a member)
-       with no phase of their own anywhere in this file yet.
+       tied to Workspace concepts that had no phase of their own anywhere in this file yet at the
+       time: archive/restore a Workspace (since shipped, Tahap 7) and deactivating a member (since
+       shipped, Flow 2 canvas re-audit gap #2, 2026-09-27) both have one now; only the workspace
+       audit log remains unbuilt.
 
 - **Search on Workspace Members, My Documents and Assigned to me — *shipped 2026-09-25*.**
   "Search, filtering and pagination on record lists" (below, "Planned") was checked against the

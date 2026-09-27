@@ -712,6 +712,7 @@ dropping a file in *installs* its Applications into that Workspace. `application
 | `workspace.machines[]` | file paths | Load order; each file is one Machine. Workspace-level, shared by every Application |
 | `workspace.navigation[]` | list of items | Destinations belonging to no single Application (Home, All Machines, Members, Groups) |
 | `applications[]` | file paths | One file per Application; declaration order is launcher/Workspace Home order |
+| `suggested_applications[]` | list of `{label, prompt}` | Workspace Home's "Add an application" chips (2026-09-27); both required. Display text and a conversation-starter prompt for `/new-application?idea=`, not an identifier anything else references — a Workspace with none declared simply shows no chips |
 
 **One Application file** (`applications/<name>.yaml`)
 
@@ -772,6 +773,7 @@ it a placeholder.
 | `name` | string | Required |
 | `fields[]` | list | See 12.3 |
 | `constraints[]` | list | See 12.4 |
+| `blocks_member_removal[]` | list | See 12.4a |
 | `events[]` | list | See 12.5 |
 | `permissions[]` | list | See 12.6 |
 | `view` | block | See 12.7. Omit it entirely and you get a table |
@@ -803,7 +805,27 @@ constraints:
 
 Reads as: *block setting `on` to `when_equals` while any related record matches `condition`.*
 
-### 12.5 `events[]` — two mutually exclusive shapes
+### 12.4a `blocks_member_removal[]` — the same shape, gating a person's removal instead of a field
+
+```yaml
+blocks_member_removal:
+  - id: blk_*
+    actor_field: fld_*         # a `person`-type field on THIS machine
+    condition: { field: fld_*, op: equals|not_equals, value: <string> }
+    reason: "..."               # required; shown to the admin attempting the deactivation
+```
+
+Reads as: *block deactivating `actor_field`'s person while any record of this Machine matches
+`condition`* — `internal/composition.BlockingReasonsForMemberRemoval` sweeps every Machine
+declaring this key before `submitDeactivateMember` (`internal/web/workspacemembers.go`) commits,
+the general primitive behind the Flow 2 canvas re-audit's member-deactivation gap (2026-09-27; see
+`metadata/approval_step.yaml`'s own `blk_step_pending` for the real declaration — a person cannot be
+deactivated while assigned a still-pending Approval Step). Declared once so far, but general by
+construction, not by a second-real-case generalization (CLAUDE.md's own decomposition-criteria
+rule, deliberately overridden here on owner instruction): any Machine with a `person`-type field can
+declare its own block using the same `condition` vocabulary `constraints[]` already uses.
+
+### 12.5 `events[]` — three mutually exclusive shapes
 
 ```yaml
 events:
@@ -815,10 +837,34 @@ events:
   - id: evt_*
     on_create: true        # shape B: record creation. Never combined with `on`
     then: { service: log_activity, summary: "..." }
+
+  - id: evt_*
+    schedule:                # shape C: the passage of time, not a write. Never combined with on/on_create
+      date_field: fld_*        # a real date Field
+      when: overdue             # closed vocabulary; only value today
+      guard_field: fld_*          # optional, must be set together with guard_equals
+      guard_equals: <value>
+    then: { service: send_notification, recipient_field: fld_*, preference_key: <value>, summary: "..." }
 ```
 
 `summary` placeholders: `{old}`, `{new}`, and any `fld_*` id in braces. Not a templating language —
-that is the whole list. At most one override.
+that is the whole list. At most one override. `{old}`/`{new}` are meaningless on `on_create` or
+`schedule` (no prior value to compare against); only `{field_id}` placeholders make sense there.
+`schedule:` is evaluated periodically (`internal/execution.RunScheduledEvents`, on a ticker, never
+inside a request) against every record of the declaring Machine — see `metadata/document.yaml`'s
+own `evt_document_overdue_notify` (§10).
+
+**The third Service, `send_notification`** (`domain.Notify`) — writes an in-app `mch_notification`
+record and, if the recipient's own preference allows it, an email. Usable from any of the three
+Event shapes above, not just `schedule:`:
+
+```yaml
+then:
+  service: send_notification
+  recipient_field: fld_*        # a Field on THIS record — no cross-record resolution
+  preference_key: assigned      # one of KnownNotificationPreferenceKeys (12.8)
+  summary: "..."
+```
 
 **The other Service, `rollup_parent_status`** — a child's own field change decides its parent's
 status. Declared on the child, because that is where the relation to the parent already is:
@@ -978,7 +1024,9 @@ numbers with no code edit.
 | Card field roles | `title` `person` `money` `status` `date` | `domain.KnownCardFieldRoles` |
 | Aggregates | `count` `sum` | `domain.KnownAggregates` |
 | Actions | `decide` `edit` `delete` | `domain.KnownActions` |
-| Services | `log_activity` `rollup_parent_status` | `domain.KnownServices` |
+| Services | `log_activity` `rollup_parent_status` `send_notification` | `domain.KnownServices` |
+| Schedule triggers | `overdue` | `domain.KnownScheduleWhens` |
+| Notification preference keys | `assigned` `decided` `sla_breach` | `domain.KnownNotificationPreferenceKeys` |
 | Comparison operators | `equals` `not_equals` | `expression.KnownOps` |
 | Navigation badges | `approval_inbox_pending` | `domain.KnownNavigationBadges` |
 
