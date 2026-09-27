@@ -1973,9 +1973,20 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   not a gap) resolves to a live route or in-page component that structurally matches its board.
   What remains open is a short, already-named list, not a new backlog:
 
-  1. **The submit wizard has no step 3.** Boards 08/09 read "Step 1/2 of 2," but a Document is
-     already `in_review` at creation, before signatures are placed -- no board defines what a step
-     3 would show.
+  1. ~~**The submit wizard has no step 3.**~~ **Not a gap -- corrected 2026-09-27.** This line
+     was wrong the moment it was written: it is a stale echo of the *old* `ui-sample` mockup's "OF
+     3" eyebrow, already checked and closed against this same canvas on 2026-09-23 (this file's own
+     "Flow 2 mockup" entry, above: "the wizard likewise drops to `Step 1 of 2` / `Step 2 of 2`,
+     closing 'the wizard's third step' by deletion"). Reading `SubmitDetails.dc.html`/
+     `SignaturePositions.dc.html` directly confirms it: both boards say "Step 1/2 **of 2**", the
+     first's own "Continue →" goes straight to the second, and the second's own "Save positions →"
+     is the wizard's real, final action -- no third board exists anywhere in the 39. The shipped
+     code (`documentsubmit.templ`/`signatureplacement.templ`) already matches this exactly, down to
+     a doc comment recording the same correction independently. What the earlier deferral row (this
+     file, "The wizard's third step (boards 08/09 both say 'OF 3')") was actually naming is a real,
+     separate, and still-true observation -- `submitDocumentWizard` sets `fld_status = in_review`
+     at creation, before any signature is placed -- but that is a fact about *when signing happens*
+     (per-step, later, via Review/decide), not a missing wizard screen.
   2. **"Save as default flow" (board 08) is unbuilt** -- this is CAP-V28 (the board 06 table
      above), a saved default approval flow per Document Type, still an owner decision on whether
      to build it at all.
@@ -2119,6 +2130,74 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   would need the cross-record resolution `domain.Notify`'s own doc comment says no real case has
   forced yet. A second schedule-shaped Event needing that reach is the trigger to add it, mirroring
   `Rollup`'s own `ParentField` indirection, not before.
+
+- **The Flow 2 canvas re-audit above was re-run by hand, 2026-09-27, after it produced one false
+  claim.** The 2026-09-26/27 re-audit entry (above) said the submit wizard "has no step 3" as if
+  that were an open gap. It is not, and re-reading `SubmitDetails.dc.html`/
+  `SignaturePositions.dc.html` directly confirms it: both boards read "Step 1/2 **of 2**", the
+  first's "Continue →" goes straight to the second, the second's "Save positions →" is the
+  wizard's real final action, and no third board exists anywhere in the 39 -- this was already
+  checked and closed once before, on 2026-09-23 (this file's own "Flow 2 mockup" entry: "the
+  wizard likewise drops to `Step 1 of 2` / `Step 2 of 2`, closing 'the wizard's third step' by
+  deletion"). The shipped code (`documentsubmit.templ`/`signatureplacement.templ`) already matches
+  the canvas exactly, down to a doc comment recording the same correction independently.
+
+  **Root cause, worth naming so it does not repeat**: the original re-audit was produced by a
+  forked subagent instructed to read every board directly, but its report on this one point
+  quietly substituted `ROADMAP.md`'s own historical deferral-table row (which itself cites the
+  *old* `ui-sample` mockup's "STEP 1 OF 3" wording as the context for a finding already closed
+  elsewhere in this same file) for the canvas board it was supposed to be reading. The coordinating
+  session relayed that line without re-opening the board itself to check it -- the identical
+  "verify against the source before claiming it" lapse the Workspace Members invite-merge entry
+  above was already caught making once this week, repeated instead of learned from.
+
+  **Redone by reading every remaining board's raw HTML directly** (`Main`, `Workspace`,
+  `WorkspaceArchived`, `WorkspaceHome`, `WorkspaceMenu`, `MemberEdit`, `AccountMenu`,
+  `AppLauncher`, `Inbox`, `RoleMatrix`, `Review`, `MyDocuments`) rather than a subagent's synthesis
+  of them, this pass found four real gaps the original audit missed entirely -- none a product
+  decision, all a straight port left unfinished:
+
+  1. **The App Launcher (9-dot) has no "ADMINISTRATION" section.** `AppLauncher.dc.html` draws one,
+     two rows -- "Workspace settings" ("Members, applications, security") and "New application"
+     ("Describe it, Menata builds a draft"). `appLauncher` (`internal/rendering/appshell.templ`,
+     the templ starting `templ appLauncher(...)`) renders only the Workspace header, one card per
+     Application, and "All Workspaces →" -- no Administration rows at all. Traced to a 2026-09-21
+     decision ("the launcher offers the Workspace's administration screens to nobody now," this
+     file's own history) made to close a plain-member-sees-a-403-link bug -- three days *before*
+     this canvas's own link was given to any session working on this repo (2026-09-24, this
+     session's memory). Not a deliberate divergence from the canvas; the canvas did not exist yet
+     as a checkable source when the call was made. The fix is additive, not a reversal: gate a new
+     Administration section the same `viewer.WorkspaceRole != member` way `workspaceMenu` already
+     gates its own Workspace settings/New application rows, so the bug the 2026-09-21 change fixed
+     stays fixed.
+  2. **Edit Member has no "Remove from workspace" section at all.** `MemberEdit.dc.html` draws a
+     red-bordered section with a "Deactivate member" button ("A deactivated member can no longer
+     open Dokter Kecil. Documents they submitted and their approval history stay."). Grepped the
+     whole tree for "Deactivate"/"Remove from workspace": zero hits outside this sentence. The
+     capability to remove/deactivate a member from a Workspace does not exist anywhere in this
+     codebase yet -- `EditMemberPage` ends at Workspace role + per-Application role selects. (The
+     mockup's own per-Application access as an on/off toggle + "Manage in app →" link, versus the
+     shipped role-dropdown shape, is a second, smaller divergence on the same screen.)
+  3. **The Applications list is missing the "draft/unpublished generated Application" row and the
+     three suggestion chips.** `WorkspaceHome.dc.html`, `WorkspaceMenu.dc.html`, `AccountMenu.dc.html`
+     and `AppLauncher.dc.html` all draw a third Applications-list row for a just-generated,
+     not-yet-published Application ("Leave Requests," an amber "Draft" badge, "Not published yet,"
+     linking to the review screen) sitting beside the real ones, plus three suggestion chips
+     ("Leave & permits," "Asset booking," "Petty cash claims") inside the "Add an application" box.
+     Grepped `workspacehome.templ`/`appshell.templ` for "Draft"/"Not published"/any chip text:
+     zero hits. A session can already create a draft generated Application (Tahap 8,
+     `aiassist`/`/new-application`) but it never appears back in the list it was started from, and
+     the three example chips that make the empty input box concrete were never ported.
+  4. **The account (avatar) menu has no "WORKSPACES" section.** `AccountMenu.dc.html` draws a list
+     of every Workspace the identity belongs to, its role in each, and "Switch workspace →,"
+     inside the avatar dropdown itself. `accountMenu` (`internal/rendering/appshell.templ`) is
+     Profile / Security / Sign out only -- switching Workspace is reachable elsewhere in chrome
+     (the launcher's "All Workspaces," the workspace-name menu's "Switch workspace"), so this is a
+     structural gap against the mockup's own placement, not a missing capability.
+
+  None of these four block anything already shipped; all are additive ports, most of them small.
+  Not yet scheduled -- named here rather than left for the next re-audit to rediscover the same
+  way this one rediscovered the wizard-step-3 non-gap.
 
 ## Planned
 
