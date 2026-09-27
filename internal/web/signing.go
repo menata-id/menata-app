@@ -179,7 +179,7 @@ func hasSavedSignature(ctx context.Context, store *data.Store, ownerID string) (
 // apply here". Until Fase 6b it was called on *every* Machine's detail page, mch_task included;
 // that is the call the review screen took away.
 func hasSignatureForGate(ctx context.Context, store *data.Store, machine *domain.Machine, actorID string) (bool, error) {
-	if machine.ID != action.StepMachineID {
+	if !action.IsStep(machine) {
 		return true, nil
 	}
 	return hasSavedSignature(ctx, store, actorID)
@@ -228,7 +228,7 @@ func updateSignaturePlacement(store *data.Store, cfg config.Config) http.Handler
 		if !ok {
 			return
 		}
-		if machine.ID != action.StepMachineID {
+		if !action.IsStep(machine) {
 			http.Error(w, "this machine has no signature placement", http.StatusNotFound)
 			return
 		}

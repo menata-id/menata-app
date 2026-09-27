@@ -16,9 +16,23 @@ import (
 	"fmt"
 
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 const (
+	// ApplicationID is the Application this whole package's hardcoded engine belongs to, and the
+	// half of "which Machine is this" that the Machine ids below stopped being able to answer on
+	// their own.
+	//
+	// Until Workspace isolation shipped (2026-09-27) a Machine id was unique across the whole
+	// process, so `m.ID == DocumentMachineID` really did mean "*the* Document Approval Document".
+	// Isolation makes a different Workspace's own, unrelated Machine sharing that id legitimate --
+	// which is the point of it, not a flaw -- and a generated "Document Tracking" Application did
+	// exactly that the same night, then panicked its way through code that had taken the id as
+	// proof of identity. IsDocument/IsStep below ask both questions: which Application claims this
+	// Machine, and which Machine within it.
+	ApplicationID = "app_document_approval"
+
 	DocumentMachineID = "mch_document"
 	StepMachineID     = "mch_approval_step"
 
@@ -92,6 +106,26 @@ const (
 	FieldTemplateStepAssignee      = "fld_assignee"
 	FieldTemplateStepApproverGroup = "fld_approver_group"
 )
+
+// IsDocument and IsStep answer "is this Machine one this package's hardcoded engine owns" -- the
+// question every generic screen and handler actually needs before opting into Document Approval
+// behaviour, and the one a bare id comparison silently got wrong once two Workspaces could each
+// hold their own Machine under one id (see ApplicationID above).
+//
+// Both halves matter. ApplicationID says which Application claims this Machine, so another
+// Workspace's own mch_document -- a perfectly legitimate name for its own business -- is not
+// mistaken for this one. The Machine id says which Machine within that Application, since
+// Document Approval claims five of them.
+//
+// A Machine claimed by no Application at all (mch_user, mch_activity -- Workspace-level, claimed
+// by none) has an empty ApplicationID and is correctly neither.
+func IsDocument(m *domain.Machine) bool {
+	return m != nil && m.ApplicationID == ApplicationID && m.ID == DocumentMachineID
+}
+
+func IsStep(m *domain.Machine) bool {
+	return m != nil && m.ApplicationID == ApplicationID && m.ID == StepMachineID
+}
 
 // decisionOf reads a step's own decision value. Kept after CanDecide moved to
 // behavior.CanAct (sequencing is declared metadata now) because delete.go still asks the same

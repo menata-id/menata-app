@@ -140,7 +140,7 @@ func detailBackLink(m *domain.Machine) templ.Component {
 			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if (m.ID == action.DocumentMachineID || m.ID == action.StepMachineID) && hasNavItem(ctx, "nav_approval_inbox") {
+		if (action.IsDocument(m) || action.IsStep(m)) && hasNavItem(ctx, "nav_approval_inbox") {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -248,7 +248,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if m.ID == action.DocumentMachineID {
+		if action.IsDocument(m) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<code class=\"font-mono text-2xs text-slate-400\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -322,7 +322,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					if m.ID == action.DocumentMachineID && f.ID == action.FieldDocumentFile {
+					if action.IsDocument(m) && f.ID == action.FieldDocumentFile {
 						templ_7745c5c3_Err = pdfThumbnail(m.ID, r.ID).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -369,7 +369,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if m.ID == action.StepMachineID {
+		if action.IsStep(m) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "       <a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -393,7 +393,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if m.ID == action.DocumentMachineID {
+		if action.IsDocument(m) {
 			var templ_7745c5c3_Var17 = []any{controlSecondary}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 			if templ_7745c5c3_Err != nil {
@@ -560,7 +560,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 				}
 			}
 		}
-		if m.ID == action.DocumentMachineID && sigPlacement != nil {
+		if action.IsDocument(m) && sigPlacement != nil {
 			templ_7745c5c3_Err = sectionHeaderRow("Signature Positions", "", "").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -929,7 +929,7 @@ func recordTitle(m *domain.Machine, r *data.Record) string {
 // primitive"). Forward-checkable pointer: ROADMAP.md's "A View composing other Views", the entry
 // that would give a detail screen a declared arrangement.
 func hiddenDetailField(m *domain.Machine, f domain.Field) bool {
-	if m.ID != action.StepMachineID {
+	if !action.IsStep(m) {
 		return false
 	}
 	switch f.ID {
@@ -951,7 +951,7 @@ func hiddenDetailField(m *domain.Machine, f domain.Field) bool {
 func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection, actor domain.Actor) (bool, string) {
 	var steps []*data.Record
 	for _, cc := range children {
-		if cc.Machine.ID == action.StepMachineID {
+		if action.IsStep(cc.Machine) {
 			steps = cc.Records
 		}
 	}

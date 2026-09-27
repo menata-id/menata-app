@@ -241,7 +241,7 @@ func showDocumentContinue(store *data.Store, cfg config.Config) http.HandlerFunc
 		if !ok {
 			return
 		}
-		if machine.ID != action.DocumentMachineID {
+		if !action.IsDocument(machine) {
 			http.Error(w, "this machine has no continue-submit screen", http.StatusNotFound)
 			return
 		}
@@ -312,7 +312,7 @@ func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.
 		if !ok {
 			return
 		}
-		if machine.ID != action.DocumentMachineID {
+		if !action.IsDocument(machine) {
 			http.Error(w, "this machine has no continue-submit screen", http.StatusNotFound)
 			return
 		}
@@ -660,7 +660,7 @@ func showSignaturePlacement(store *data.Store, files *storage.Store, cfg config.
 		if !ok {
 			return
 		}
-		if machine.ID != action.DocumentMachineID {
+		if !action.IsDocument(machine) {
 			http.Error(w, "signature placement only applies to a Document", http.StatusNotFound)
 			return
 		}
@@ -736,7 +736,7 @@ func loadSignaturePlacementData(ctx context.Context, store *data.Store, files *s
 // the same "best-effort, logged, never blocks the primary flow" posture already established for
 // PDF signature compositing (capabilities.md).
 func documentSignaturePlacementView(ctx context.Context, store *data.Store, files *storage.Store, machines map[string]*domain.Machine, machine *domain.Machine, recordID string, actor domain.Actor) *rendering.DocumentSignaturePlacement {
-	if machine.ID != action.DocumentMachineID {
+	if !action.IsDocument(machine) {
 		return nil
 	}
 	document, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, store, files, machines, recordID)
@@ -766,7 +766,7 @@ func servePDFPreview(store *data.Store, files *storage.Store) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		if machine.ID != action.DocumentMachineID {
+		if !action.IsDocument(machine) {
 			http.Error(w, "PDF preview only applies to a Document", http.StatusNotFound)
 			return
 		}

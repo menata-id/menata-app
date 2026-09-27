@@ -403,7 +403,7 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 	// stateGoverned/permissionGoverned decide, before any fetch, whether this Machine needs one
 	// at all -- the common case (neither) stays a zero-query no-op, same as the generic route
 	// always was.
-	stateGoverned := machine.ID == action.StepMachineID || machine.ID == action.DocumentMachineID
+	stateGoverned := action.IsStep(machine) || action.IsDocument(machine)
 	permissionGoverned := len(machine.PermissionsFor(domain.ActionDelete)) > 0
 	if !stateGoverned && !permissionGoverned {
 		return true, 0, "", nil
@@ -416,7 +416,7 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 
 	if stateGoverned {
 		var steps []*data.Record
-		if machine.ID == action.DocumentMachineID {
+		if action.IsDocument(machine) {
 			steps, err = store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, id)
 			if err != nil {
 				return false, 0, "", err

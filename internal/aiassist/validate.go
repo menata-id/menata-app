@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strings"
 
-	"menata.app/internal/action"
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
 )
@@ -16,41 +15,6 @@ import (
 // themselves unexported (loadApplicationFile is package-private). Machine-level validation does
 // not have this problem: metadata.Validate is already exported and reused as-is below.
 var applicationIDPattern = regexp.MustCompile(`^app_[a-z][a-z0-9_]*$`)
-
-// reservedMachineIDs are ids internal/action and internal/composition hardcode as *equality
-// checks* against a bare string, not merely ids some Workspace happens to have installed --
-// carrying special, code-level meaning process-wide, in every Workspace, regardless of Workspace
-// isolation. A generated Machine may never take one, even in a Workspace that has never installed
-// Document Approval or Project Management at all.
-//
-// Found 2026-09-27, the same day Workspace isolation shipped: a generated "Document Tracking"
-// Application in the empty "Dokter Kecil" Workspace named its own Machine mch_document -- a
-// perfectly reasonable name nobody told the assistant was already special -- and
-// internal/web.documentSignaturePlacementView's own gate (`machine.ID != action.DocumentMachineID`)
-// treated it as *the* Document Approval Document, not merely *a* document. It then looked up
-// mch_approval_step, which this Workspace does not have, and passed a nil *domain.Machine into
-// composition.Loader.RelationOptions, which panicked. This is a materially different risk from the
-// file-collision existingStateFor/refuseIfExists guard against: before isolation, this id
-// collision could never happen at all (ids were deduped process-wide, so a second Workspace's own
-// mch_document would have silently *become* the first Workspace's); isolation made it a real,
-// distinct Machine for the first time, and every hardcoded id check written under the old
-// assumption is a latent version of this same bug.
-//
-// internal/composition's own Case 19 constants (taskMachineID, projectMachineID) are unexported,
-// so their two ids are named here as literals rather than imported -- the same "duplicate a
-// curated, reviewed subset" posture prompt.go's own composableSurface already takes for
-// capabilities.md, for the identical reason: there is no exported, machine-readable form to read
-// from instead. Revisit this list at the same cadence CLAUDE.md already asks for Case 19 itself:
-// each new hardcoded Machine-id equality check anywhere in the engine belongs here too.
-var reservedMachineIDs = map[string]bool{
-	action.DocumentMachineID:     true,
-	action.StepMachineID:         true,
-	action.SignatureMachineID:    true,
-	action.TemplateMachineID:     true,
-	action.TemplateStepMachineID: true,
-	"mch_task":                   true, // internal/composition/pages.go's own taskMachineID
-	"mch_project":                true, // internal/composition/pages.go's own projectMachineID
-}
 
 // ExistingState is what a GeneratedChange must be checked against beyond its own internal
 // consistency: ids already in use workspace-wide (a generated Machine/Application id must be new),
@@ -147,9 +111,6 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 		knownFieldTargets[m.ID] = true
 	}
 	for _, m := range app.Machines {
-		if reservedMachineIDs[m.ID] {
-			issues = append(issues, fmt.Sprintf("machine id %q is reserved by this runtime's own hardcoded engine and may never be used by a generated machine, in any workspace", m.ID))
-		}
 		if existing.MachineIDs[m.ID] {
 			issues = append(issues, fmt.Sprintf("machine id %q already exists in this workspace", m.ID))
 		}

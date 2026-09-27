@@ -121,10 +121,10 @@ func reviewStep(ctx context.Context, w http.ResponseWriter, store *data.Store, m
 		recordError(w, err)
 		return nil, false
 	}
-	if machine.ID == action.StepMachineID {
+	if action.IsStep(machine) {
 		return record, true
 	}
-	if machine.ID != action.DocumentMachineID {
+	if !action.IsDocument(machine) {
 		http.Error(w, "not found", http.StatusNotFound)
 		return nil, false
 	}

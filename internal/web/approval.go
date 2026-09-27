@@ -190,7 +190,7 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 		if !ok {
 			return
 		}
-		if machine.ID != action.StepMachineID {
+		if !action.IsStep(machine) {
 			http.Error(w, "this machine has no decide action", http.StatusNotFound)
 			return
 		}
@@ -283,7 +283,7 @@ func reviseDocument(store *data.Store, cfg config.Config) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		if machine.ID != action.DocumentMachineID {
+		if !action.IsDocument(machine) {
 			http.Error(w, "this machine has no revise action", http.StatusNotFound)
 			return
 		}
