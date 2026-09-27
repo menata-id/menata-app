@@ -345,7 +345,7 @@ func TestPublishNewApplication_grantsThePublisherTheirChosenRole(t *testing.T) {
 	reqCtx := rendering.WithCurrentWorkspace(wsCtx, testWorkspace, "Publish Role Test", false)
 
 	r := chi.NewRouter()
-	r.Post("/new-application/{session}/publish", publishNewApplication(store, cfg, func() error { return nil }))
+	r.Post("/new-application/{session}/publish", publishNewApplication(store, nil, cfg, func() error { return nil }))
 	req := httptest.NewRequest(http.MethodPost, "/new-application/"+session.ID+"/publish", nil)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user.ID, 0)})
 	req = req.WithContext(reqCtx)
@@ -362,5 +362,116 @@ func TestPublishNewApplication_grantsThePublisherTheirChosenRole(t *testing.T) {
 	}
 	if got := direct["app_publish_role_test"]; got != "reviewer" {
 		t.Errorf("direct app role = %q, want %q (the conversation's own publisher_role answer)", got, "reviewer")
+	}
+}
+
+// recordingAIClient is a fake aiassist.Client that captures the history it was handed and returns
+// a fixed reply -- enough to assert what a failed publish tells the assistant.
+type recordingAIClient struct {
+	sawTurns []aiassist.Turn
+	reply    aiassist.Reply
+}
+
+func (c *recordingAIClient) Generate(_ context.Context, _ string, turns []aiassist.Turn) (aiassist.Reply, error) {
+	c.sawTurns = turns
+	return c.reply, nil
+}
+
+// TestPublishNewApplication_failureReturnsToTheConversation is the owner's own point (2026-09-27):
+// a publish that fails is almost always a *fixable* proposal, and the only participant who can fix
+// it is the assistant -- the person who clicked Publish never wrote the metadata. Ending on
+// http.Error(422, "1 issue(s): ...") made a dead end out of something the conversation was already
+// equipped to solve.
+//
+// The proposal here validates when generated and stops validating before publish, which is the
+// real shape of this: the Workspace gained the very Machine id it proposes in between.
+func TestPublishNewApplication_failureReturnsToTheConversation(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "publish_failure_test@example.com"
+
+	ws, err := store.CreateWorkspace(ctx, "Publish Failure Test", "publish-failure-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	user, err := store.CreateRecord(wsCtx, domain.UserMachineID, map[string]any{"fld_email": email})
+	if err != nil {
+		t.Fatalf("CreateRecord(user): %v", err)
+	}
+	if err := store.AddMember(ctx, ws.ID, user.ID, email, "admin", ""); err != nil {
+		t.Fatalf("AddMember: %v", err)
+	}
+
+	change := aiassist.GeneratedChange{
+		Kind: aiassist.KindNewApplication,
+		Application: &aiassist.GeneratedApplication{
+			ID: "app_publish_failure", Name: "Publish Failure App",
+			Machines: []aiassist.GeneratedMachine{{
+				ID: "mch_already_here", Name: "Thing",
+				Fields: []aiassist.GeneratedField{{ID: "fld_title", Name: "Title", Type: "text", Required: true}},
+			}},
+		},
+	}
+	content, err := json.Marshal(aiassist.Reply{Message: "Here it is.", Change: &change})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.CreateAISession(wsCtx, ws.ID, user.ID, aiassist.KindNewApplication)
+	if err != nil {
+		t.Fatalf("CreateAISession: %v", err)
+	}
+	if err := store.AppendAISessionTurn(wsCtx, session.ID, "model", string(content)); err != nil {
+		t.Fatalf("AppendAISessionTurn: %v", err)
+	}
+	if err := store.UpdateAISessionStatus(wsCtx, session.ID, data.AISessionStatusGenerated); err != nil {
+		t.Fatalf("UpdateAISessionStatus: %v", err)
+	}
+
+	// The Workspace now already has the Machine the proposal wants to create, so Validate refuses
+	// it at publish time even though it passed when generated.
+	occupied := domain.Workspace{Slug: ws.Slug, MachineIDs: []string{"mch_already_here"}}
+	cfg := config.Config{SessionSecret: "publish-failure-test-secret", MetadataPath: t.TempDir()}
+	ai := &recordingAIClient{reply: aiassist.Reply{Message: "Understood -- renaming it."}}
+
+	r := chi.NewRouter()
+	r.Post("/new-application/{session}/publish", publishNewApplication(store, ai, cfg, func() error { return nil }))
+	req := httptest.NewRequest(http.MethodPost, "/new-application/"+session.ID+"/publish", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user.ID, 0)})
+	req = req.WithContext(rendering.WithCurrentWorkspace(wsCtx, occupied, "Publish Failure Test", false))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("publish status = %d, want 303 back to the conversation; body: %s", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("Location"); got != "/new-application?session="+session.ID {
+		t.Errorf("Location = %q, want the conversation this proposal came from", got)
+	}
+
+	// The assistant must actually have been told, in its own history, what went wrong.
+	var reported string
+	for _, turn := range ai.sawTurns {
+		if turn.Role == "user" && strings.Contains(turn.Text, "mch_already_here") {
+			reported = turn.Text
+		}
+	}
+	if reported == "" {
+		t.Fatalf("the assistant was not told what failed; it saw %d turns", len(ai.sawTurns))
+	}
+	if !strings.Contains(reported, "Publishing this failed") {
+		t.Errorf("the reported turn does not say publishing failed: %q", reported)
+	}
+
+	// And the session is open again, so the broken proposal is no longer offered as a draft.
+	after, err := store.GetAISession(wsCtx, ws.ID, session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Status != data.AISessionStatusOpen {
+		t.Errorf("session status = %q, want %q -- the failed proposal must stop being offerable", after.Status, data.AISessionStatusOpen)
 	}
 }

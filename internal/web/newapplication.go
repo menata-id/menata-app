@@ -238,7 +238,7 @@ func showNewApplicationReview(store *data.Store, cfg config.Config) http.Handler
 // (TestPlaneBoundaries). On any failure at any step nothing partial is left live: aiassist.Write's
 // own temp-file-then-rename discipline means a failed write leaves no half-written file, and a
 // failed reload leaves the previous route table serving traffic untouched.
-func publishNewApplication(store *data.Store, cfg config.Config, reload func() error) http.HandlerFunc {
+func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg config.Config, reload func() error) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -260,14 +260,16 @@ func publishNewApplication(store *data.Store, cfg config.Config, reload func() e
 		}
 		ws := rendering.CurrentWorkspace(ctx)
 		if err := aiassist.Validate(*change, existingStateFor(ws)); err != nil {
-			http.Error(w, "this proposal is no longer valid: "+err.Error(), http.StatusUnprocessableEntity)
+			returnToConversation(ctx, w, req, store, aiClient, session, err)
 			return
 		}
 
 		manifestPath := filepath.Join(cfg.MetadataPath, ws.Slug+".yaml")
 		newAppID, err := aiassist.Write(manifestPath, *change, aiassist.FileMachineResolver{WorkspaceManifestPath: manifestPath})
 		if err != nil {
-			serverError(w, fmt.Errorf("write generated metadata: %w", err))
+			// aiassist.Write rolled its own writes back before returning, so the tree is untouched
+			// and this is safe to hand back to the assistant as an ordinary problem to fix.
+			returnToConversation(ctx, w, req, store, aiClient, session, err)
 			return
 		}
 		if reload == nil {
@@ -304,6 +306,45 @@ func publishNewApplication(store *data.Store, cfg config.Config, reload func() e
 		}
 		redirectTo(w, req, "/home")
 	}
+}
+
+// returnToConversation is what a failed publish does instead of a raw error page: it hands the
+// problem back to the conversation the proposal came from, as a turn the assistant can read, and
+// lets it answer with a corrected change.
+//
+// A publish failure is almost always a *fixable* one -- a proposal that stopped validating, or
+// metadata that would not load (aiassist.Write rolls its own writes back before returning either,
+// so nothing is half-applied by the time this runs). Those are exactly the things the assistant
+// can repair, and it is the only participant that knows how: the person who clicked Publish did
+// not write the metadata and has no way to correct it themselves. Showing them
+// `http.Error(422, "1 issue(s): ...")` made a dead end out of something the conversation was
+// already equipped to solve -- the same reasoning that made a Gemini timeout an ordinary
+// assistant turn earlier the same day (runAssistantTurn's own doc comment).
+//
+// The session drops back to "open": the proposal that just failed is no longer offerable, and
+// runAssistantTurn will mark it "generated" again if the assistant's next reply carries a change
+// that actually validates.
+func returnToConversation(ctx context.Context, w http.ResponseWriter, req *http.Request, store *data.Store, aiClient aiassist.Client, session *data.AISession, problem error) {
+	// Phrased as the person reporting it, because that is the role the model's own history format
+	// has for "here is what happened when we tried": a model turn would claim the assistant said
+	// it, and the schema has no third voice.
+	report := "Publishing this failed with:\n\n" + problem.Error() +
+		"\n\nPlease correct the metadata so it passes, staying inside what you can actually generate."
+	if err := store.AppendAISessionTurn(ctx, session.ID, "user", report); err != nil {
+		serverError(w, err)
+		return
+	}
+	session.Turns = append(session.Turns, data.AISessionTurn{Role: "user", Content: report})
+	if err := store.UpdateAISessionStatus(ctx, session.ID, data.AISessionStatusOpen); err != nil {
+		serverError(w, err)
+		return
+	}
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	if err := runAssistantTurn(ctx, store, aiClient, workspaceID, session); err != nil {
+		serverError(w, err)
+		return
+	}
+	redirectTo(w, req, "/new-application?session="+session.ID)
 }
 
 // discardNewApplication marks a session discarded. No file was ever written for a session that
