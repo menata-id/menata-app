@@ -169,3 +169,35 @@ func TestValidate_unknownKind(t *testing.T) {
 		t.Fatal("Validate() = nil, want an error for an unrecognized kind")
 	}
 }
+
+// TestValidateNewApplication_refusesReservedMachineIDs is the regression test for the 2026-09-27
+// crash: a generated "Document Tracking" Application named its own Machine mch_document, and
+// internal/web.documentSignaturePlacementView's own hardcoded gate (a bare machine.ID ==
+// action.DocumentMachineID check, written when ids were process-wide unique) treated it as the
+// real Document Approval Document, then panicked reaching for mch_approval_step, which that
+// Workspace never had. Workspace isolation made two Workspaces holding different Machines under
+// one id legitimate everywhere else; this is the one class of id where that is still wrong,
+// because the id itself carries hardcoded meaning in Go, not just in some other Workspace's
+// install.
+func TestValidateNewApplication_refusesReservedMachineIDs(t *testing.T) {
+	for _, id := range []string{"mch_document", "mch_approval_step", "mch_signature", "mch_task", "mch_project"} {
+		change := GeneratedChange{
+			Kind: KindNewApplication,
+			Application: &GeneratedApplication{
+				ID: "app_document_tracking", Name: "Document Tracking",
+				Machines: []GeneratedMachine{{
+					ID: id, Name: "Document",
+					Fields: []GeneratedField{{ID: "fld_title", Name: "Title", Type: "text", Required: true}},
+				}},
+			},
+		}
+		err := Validate(change, ExistingState{MachineIDs: map[string]bool{}, ApplicationIDs: map[string]bool{}})
+		if err == nil {
+			t.Errorf("Validate() with machine id %q = nil, want a rejection -- this id is reserved by hardcoded engine code", id)
+			continue
+		}
+		if !strings.Contains(err.Error(), id) {
+			t.Errorf("Validate() error for %q = %v, want it to name the reserved id", id, err)
+		}
+	}
+}

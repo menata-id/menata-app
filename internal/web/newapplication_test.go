@@ -181,24 +181,31 @@ func TestExistingStateFor_reservesOnlyThisWorkspacesIDs(t *testing.T) {
 	if !state.MachineIDs["mch_user"] {
 		t.Error("this Workspace's own machine ids must be reserved")
 	}
-	if state.MachineIDs["mch_document"] {
-		t.Error("mch_document is installed in another Workspace, which no longer makes it taken here -- that is what isolation means")
+	// mch_document specifically is not this test's example any more (see
+	// TestValidateNewApplication_refusesReservedMachineIDs): it is one of a short list a generated
+	// Machine may never take in *any* Workspace, because internal/web/internal/composition hardcode
+	// equality checks against it, not because some other Workspace happens to have installed it.
+	// This assertion is still exactly the property existingStateFor itself is responsible for,
+	// independent of that reserved-id list.
+	if state.MachineIDs["mch_pengajuan"] {
+		t.Error("mch_pengajuan is installed in another Workspace, which no longer makes it taken here -- that is what isolation means")
 	}
 
-	// The exact proposal the incident produced, now correct: this Workspace's own mch_document,
-	// written to metadata/workspaces/dokter-kecil/document.yaml, touching nobody else's.
+	// The shape the real incident's proposal had, minus the one reserved id it happened to pick:
+	// this Workspace's own machine, written to metadata/workspaces/dokter-kecil/pengajuan.yaml,
+	// touching nobody else's.
 	ownDocument := aiassist.GeneratedChange{
 		Kind: aiassist.KindNewApplication,
 		Application: &aiassist.GeneratedApplication{
 			ID: "app_doc_submission", Name: "Pengajuan Dokumen",
 			Machines: []aiassist.GeneratedMachine{{
-				ID: "mch_document", Name: "Dokumen",
+				ID: "mch_pengajuan", Name: "Pengajuan",
 				Fields: []aiassist.GeneratedField{{ID: "fld_title", Name: "Judul", Type: "text", Required: true}},
 			}},
 		},
 	}
 	if err := aiassist.Validate(ownDocument, state); err != nil {
-		t.Errorf("Validate() = %v, want nil -- a Workspace naming its own mch_document is legitimate now", err)
+		t.Errorf("Validate() = %v, want nil -- a Workspace naming its own machine after its own business is legitimate now", err)
 	}
 
 	// Its own ids are still reserved, which is the half that does not change: two Machines under

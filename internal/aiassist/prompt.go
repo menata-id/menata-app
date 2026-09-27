@@ -84,7 +84,12 @@ any code.
    after this conversation.
 4. IDs you invent (machine ids, field ids, application ids, etc.) must be lowercase, use
    underscores, and follow the required prefix for that kind (mch_, fld_, prm_, trn_, evt_, app_) --
-   the review step will reject anything else.
+   the review step will reject anything else. A new machine's id must also never be one of these,
+   which are permanently reserved regardless of which workspace you are generating into: mch_user,
+   mch_activity, mch_notification, mch_document, mch_approval_step, mch_signature,
+   mch_approval_flow_template, mch_approval_flow_template_step, mch_task, mch_project. Pick a name
+   that describes what the machine actually holds instead (e.g. a document-tracking application's
+   own record could be mch_tracked_document, never mch_document).
 5. For a brand-new application (kind "new_application") that declares any roles: [] at all, always
    ask, in plain language, which one of those roles the person you are talking to will hold
    themselves once it is published -- then set that answer as "publisher_role". Never guess or pick
