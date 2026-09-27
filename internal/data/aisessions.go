@@ -83,6 +83,36 @@ func (s *Store) GetAISession(ctx context.Context, workspaceID, id string) (*AISe
 	return &session, nil
 }
 
+// ListAISessionsByStatus returns every session in workspaceID matching target and status, turns
+// not included (GetAISession loads those, per id) -- Workspace Home's own draft-Application row
+// (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27), which needs to know a proposal exists and its
+// id, not its full conversation. target is a plain string rather than an aiassist.KindNewApplication
+// reference: internal/data must not import internal/aiassist (business logic), so the caller
+// supplies the value it already knows.
+func (s *Store) ListAISessionsByStatus(ctx context.Context, workspaceID, target, status string) ([]AISession, error) {
+	readLogFrom(ctx).record("ai sessions by status")
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, workspace_id, actor_user_id, target, status
+		FROM ai_sessions
+		WHERE workspace_id = $1 AND target = $2 AND status = $3
+		ORDER BY created_at
+	`, workspaceID, target, status)
+	if err != nil {
+		return nil, fmt.Errorf("list ai sessions by status: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []AISession
+	for rows.Next() {
+		var session AISession
+		if err := rows.Scan(&session.ID, &session.WorkspaceID, &session.ActorUserID, &session.Target, &session.Status); err != nil {
+			return nil, fmt.Errorf("scan ai session: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+	return sessions, rows.Err()
+}
+
 // AppendAISessionTurn adds one turn to an existing session -- append-only, matching
 // mch_activity's own discipline, enforced here at the Go layer since this table is not
 // Machine-governed (nothing routes it through domain.Machine.AppendOnly).

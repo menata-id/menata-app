@@ -55,6 +55,102 @@ machines:
 	}
 }
 
+// TestLoadApplication_suggestedApplications is Workspace Home's own "Add an application" chips
+// (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- declared per-Workspace, not a literal in
+// internal/rendering, so this is a manifest-level concern like Applications itself.
+func TestLoadApplication_suggestedApplications(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace: default
+machines:
+  - task.yaml
+suggested_applications:
+  - label: "Leave & permits"
+    prompt: "Leave requests approved by a supervisor, then HR"
+  - label: "Asset booking"
+    prompt: "Booking shared equipment, approved by whoever owns them"
+`)
+
+	app, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	want := []domain.ApplicationSuggestion{
+		{Label: "Leave & permits", Prompt: "Leave requests approved by a supervisor, then HR"},
+		{Label: "Asset booking", Prompt: "Booking shared equipment, approved by whoever owns them"},
+	}
+	got := app.Workspace.SuggestedApplications
+	if len(got) != len(want) {
+		t.Fatalf("SuggestedApplications = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("SuggestedApplications[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestLoadApplication_suggestedApplicationMissingLabelRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace: default
+machines:
+  - task.yaml
+suggested_applications:
+  - label: ""
+    prompt: "Leave requests approved by a supervisor, then HR"
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want an error for a suggestion with no label")
+	}
+}
+
+func TestLoadApplication_suggestedApplicationMissingPromptRejected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "task.yaml", `
+id: mch_task
+name: Task
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+`)
+	writeFile(t, dir, "app.yaml", `
+workspace: default
+machines:
+  - task.yaml
+suggested_applications:
+  - label: "Leave & permits"
+    prompt: ""
+`)
+
+	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
+	if err == nil {
+		t.Fatal("LoadApplication() error = nil, want an error for a suggestion with no prompt")
+	}
+}
+
 func TestLoadApplication_badWorkspaceSlug(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "task.yaml", `

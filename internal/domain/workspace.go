@@ -35,6 +35,22 @@ type Workspace struct {
 	// (Home, All Machines, Workspace Members). They stay reachable however many Applications
 	// exist, and they are what the launcher shows above the Application list.
 	Navigation []NavigationItem
+	// SuggestedApplications are Workspace Home's own "Add an application" chips (Flow 2 canvas
+	// re-audit, ROADMAP.md, 2026-09-27) -- example prompts for the AI Metadata Assistant, declared
+	// here rather than as literals in internal/rendering so a Workspace whose business the
+	// mockup's own three examples don't fit can declare its own. Empty is valid: a Workspace with
+	// no suggestions renders the input box alone, the chip row omitted, the same "empty list is a
+	// normal state" posture Applications itself already takes.
+	SuggestedApplications []ApplicationSuggestion
+}
+
+// ApplicationSuggestion is one chip in Workspace Home's own "Add an application" box: Label is the
+// chip's own text, Prompt is what it pre-fills into the AI Metadata Assistant's first message
+// (internal/web.showNewApplication's own ?idea= handling) -- the user still reviews and sends it
+// themselves, so this is a conversation starter, not a write.
+type ApplicationSuggestion struct {
+	Label  string
+	Prompt string
 }
 
 // ApplicationByID returns the Application with the given id. Applications are few and this is

@@ -41,3 +41,16 @@ machines:
 applications:
   - ../applications/document-approval.yaml
   - ../applications/project-management.yaml
+
+# suggested_applications: Workspace Home's own "Add an application" chips (Flow 2 canvas
+# re-audit, ROADMAP.md, 2026-09-27) -- example prompts for the AI Metadata Assistant, declared
+# per-Workspace rather than as literals in internal/rendering (owner instruction, 2026-09-27):
+# these three are the mockup's own examples, plausible defaults for any Workspace, not a fixed
+# global list -- a different Workspace's manifest may declare its own or none at all.
+suggested_applications:
+  - label: "Leave & permits"
+    prompt: "Leave requests approved by a supervisor, then HR"
+  - label: "Asset booking"
+    prompt: "Booking shared equipment and rooms, approved by whoever owns them"
+  - label: "Petty cash claims"
+    prompt: "Small reimbursement claims approved by a manager, then finance"

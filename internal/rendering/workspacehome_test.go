@@ -34,7 +34,7 @@ func workspaceHomeLinksTo(t *testing.T, workspaceRole, route string) bool {
 	var buf bytes.Buffer
 	c := WorkspaceHomePage("Acme", Viewer{Initials: "AN", WorkspaceRole: workspaceRole}, "", []ApplicationCard{
 		{Name: "Task Tracker", Initials: "TT", Role: "member", HomeRoute: "/approval-inbox"},
-	})
+	}, nil)
 	if err := c.Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}

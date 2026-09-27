@@ -2,6 +2,7 @@ package rendering
 
 import (
 	"fmt"
+	"net/url"
 
 	"menata.app/internal/domain"
 )
@@ -88,7 +89,7 @@ func appIconClasses(color string) string {
 	}
 }
 
-templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, apps []ApplicationCard) {
+templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, apps []ApplicationCard, suggestions []domain.ApplicationSuggestion) {
 	@appShell(labelByID(ctx, "nav_home"), workspaceName, viewer, switchHref) {
 		<div class="flex flex-col gap-1.5">
 			<h1 class="m-0 text-2xl font-medium">{ titleByID(ctx, "nav_home") }</h1>
@@ -155,6 +156,25 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 				}
 			</section>
 		}
+		// Draft-Application row (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- loaded lazily,
+		// not threaded through this page's own eager render: /home is already at this repo's hard
+		// query-cost ceiling (maxQueriesPerAuthenticatedPage, internal/web/querycount_test.go), so
+		// the ai_sessions read this needs is paid by the fragment endpoint instead, only if this
+		// section is even reachable (same admin gate as "Add an application" below -- a plain
+		// member never issues the request). hx-trigger="load", the same convention
+		// notificationBell/the nav-pending-badge already use for a fetch that should happen once,
+		// unconditionally, the moment the page renders -- unlike the Account menu's own Workspaces
+		// section (also 2026-09-27), this is not behind a popover, so there is no "opened" event to
+		// wait for.
+		if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
+			<div hx-get="/api/home/draft-applications" hx-trigger="load" hx-swap="outerHTML"></div>
+		}
+		// "Add an application" (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- gated identically
+		// to workspaceMenu/appLauncher's own Administration block: hide the whole section for a
+		// plain member rather than show a form that only ever 403s.
+		if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
+			@addApplicationSection(suggestions)
+		}
 		// Board 03's own closing row. The mockup reads "You manage Dokter Kecil · 24 members"; the
 		// member count is dropped for the reason recorded three times now -- it is not a field on
 		// domain.Workspace -- so the row states the role and the destination, which are both real.
@@ -181,6 +201,71 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 				</a>
 			</div>
 		}
+	}
+}
+
+// addApplicationSection is Workspace Home's own "Add an application" box (Flow 2 canvas re-audit,
+// ROADMAP.md, 2026-09-27) -- the description sentence verbatim from the board, an `idea` text
+// input that is a plain GET navigation (no write happens until the first real message,
+// internal/web.showNewApplication's own doc comment), and one chip per Workspace-declared
+// suggestion. suggestions comes from domain.Workspace.SuggestedApplications, not a literal here --
+// owner instruction, 2026-09-27: a Workspace whose business the mockup's own three examples don't
+// fit declares its own.
+templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
+	<section aria-labelledby="new-application-h" class="flex flex-col gap-3.5 rounded-lg border border-slate-200 bg-white p-5">
+		<div class="flex flex-col gap-1">
+			<h2 id="new-application-h" class="m-0 text-[15px] font-medium">Add an application</h2>
+			<span class="max-w-xl text-xs leading-5 text-slate-500">
+				Describe what your team needs. Menata asks a few questions, shows what it will build,
+				then generates it as a draft — nobody else sees it until you publish.
+			</span>
+		</div>
+		<form method="GET" action="/new-application" class="flex gap-2.5">
+			<label for="idea" class="sr-only">Describe the application you need</label>
+			<input id="idea" type="text" name="idea" placeholder="e.g. Leave requests approved by a supervisor, then HR" class={ controlField + " grow" }/>
+			<button type="submit" class={ controlPrimary }>Start →</button>
+		</form>
+		if len(suggestions) > 0 {
+			<div class="flex flex-wrap items-center gap-2">
+				for _, s := range suggestions {
+					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">
+						{ s.Label }
+					</a>
+				}
+				<span class="ml-auto text-2xs text-slate-400">Only workspace admins can add applications</span>
+			</div>
+		} else {
+			<span class="text-2xs text-slate-400">Only workspace admins can add applications</span>
+		}
+	</section>
+}
+
+// HomeDraftApplicationRow is one not-yet-published, AI-generated Application (Flow 2 canvas
+// re-audit, ROADMAP.md, 2026-09-27) -- resolved by internal/web.showHomeDraftApplications from an
+// ai_sessions row whose own status is "generated" (internal/web.latestChange, a pure decode of
+// already-stored turns, not a fresh AI call).
+type HomeDraftApplicationRow struct {
+	Name        string
+	Description string
+	ReviewHref  string
+}
+
+// HomeDraftApplicationRows is #api/home/draft-applications' own fragment (see the hx-get
+// placeholder in WorkspaceHomePage above) -- one row per draft, styled to match the real
+// Applications list it sits beside, or nothing at all when rows is empty (hx-swap="outerHTML"
+// then removes the placeholder entirely, leaving no visual trace).
+templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow) {
+	for _, r := range rows {
+		<a href={ templ.SafeURL(r.ReviewHref) } class="flex items-center gap-3 rounded-lg border border-dashed border-indigo-200 bg-white px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5">
+			<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
+				@icon("sparkle", "size-5")
+			</span>
+			<span class="flex min-w-0 grow flex-col gap-0.5">
+				<span class="text-[15px] font-medium">{ r.Name }</span>
+				<span class="text-xs leading-4.5 text-slate-500">Generated from your description. Review it before anyone else can open it.</span>
+			</span>
+			<span class="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs whitespace-nowrap text-amber-700">Draft</span>
+		</a>
 	}
 }
 

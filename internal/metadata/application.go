@@ -60,6 +60,14 @@ type workspaceDoc struct {
 	// list is a perfectly valid Workspace, which is exactly what one looks like the moment it is
 	// created through the UI.
 	Applications []string `yaml:"applications"`
+	// SuggestedApplications -- see domain.ApplicationSuggestion's own doc comment.
+	SuggestedApplications []suggestedApplicationDoc `yaml:"suggested_applications"`
+}
+
+// suggestedApplicationDoc is the YAML serialization of a domain.ApplicationSuggestion.
+type suggestedApplicationDoc struct {
+	Label  string `yaml:"label"`
+	Prompt string `yaml:"prompt"`
 }
 
 // applicationDoc is one Application's own file.
@@ -184,6 +192,14 @@ func LoadApplication(path string) (*App, error) {
 	// No "at least one application" check, deliberately, and this is the change that makes a
 	// Workspace installable rather than born fully formed: a Workspace with nothing installed is
 	// the normal state of one that was just created, not a broken manifest.
+	for i, s := range doc.SuggestedApplications {
+		if strings.TrimSpace(s.Label) == "" {
+			issues = append(issues, fmt.Sprintf("workspace %q: suggested_applications[%d]: label is required", doc.Workspace, i))
+		}
+		if strings.TrimSpace(s.Prompt) == "" {
+			issues = append(issues, fmt.Sprintf("workspace %q: suggested_applications[%d]: prompt is required", doc.Workspace, i))
+		}
+	}
 	if len(issues) > 0 {
 		return nil, &ValidationError{Issues: issues}
 	}
@@ -194,10 +210,15 @@ func LoadApplication(path string) (*App, error) {
 	}
 
 	dir := filepath.Dir(path)
+	suggestions := make([]domain.ApplicationSuggestion, 0, len(doc.SuggestedApplications))
+	for _, s := range doc.SuggestedApplications {
+		suggestions = append(suggestions, domain.ApplicationSuggestion{Label: s.Label, Prompt: s.Prompt})
+	}
 	app := &App{
 		Workspace: domain.Workspace{
-			Slug:       doc.Workspace,
-			Navigation: workspaceNav,
+			Slug:                  doc.Workspace,
+			Navigation:            workspaceNav,
+			SuggestedApplications: suggestions,
 		},
 	}
 

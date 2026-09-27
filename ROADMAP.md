@@ -2213,16 +2213,40 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      (The mockup's own per-Application access as an on/off toggle + "Manage in app →" link, versus
      the shipped role-dropdown shape, is a second, smaller, still-open divergence on the same
      screen -- not addressed in this pass.)
-  3. **The Applications list is missing the "draft/unpublished generated Application" row and the
-     three suggestion chips.** `WorkspaceHome.dc.html`, `WorkspaceMenu.dc.html`, `AccountMenu.dc.html`
-     and `AppLauncher.dc.html` all draw a third Applications-list row for a just-generated,
-     not-yet-published Application ("Leave Requests," an amber "Draft" badge, "Not published yet,"
-     linking to the review screen) sitting beside the real ones, plus three suggestion chips
-     ("Leave & permits," "Asset booking," "Petty cash claims") inside the "Add an application" box.
-     Grepped `workspacehome.templ`/`appshell.templ` for "Draft"/"Not published"/any chip text:
-     zero hits. A session can already create a draft generated Application (Tahap 8,
-     `aiassist`/`/new-application`) but it never appears back in the list it was started from, and
-     the three example chips that make the empty input box concrete were never ported.
+  3. ~~**The Applications list is missing the "draft/unpublished generated Application" row and
+     the three suggestion chips."**~~ **Shipped 2026-09-27, and mis-scoped in the original
+     finding, corrected before writing code.** The original wording named four boards
+     (`WorkspaceHome.dc.html`, `WorkspaceMenu.dc.html`, `AccountMenu.dc.html`,
+     `AppLauncher.dc.html`) as all drawing this row. Re-reading them closely at planning time found
+     that only `WorkspaceHome.dc.html` actually does -- the other three boards are screenshots of
+     *Home with one dropdown open on top of it*, and those dropdowns' own content (shipped as gap
+     #1, above) has no draft-row or chips inside it. This cut the real work from "four call sites"
+     to one.
+
+     **Two owner decisions, both reshaping the build**: (1) the suggestion chips are
+     metadata-driven, not literal strings -- `domain.Workspace.SuggestedApplications`
+     (`suggested_applications:` in a Workspace manifest, `internal/metadata/application.go`), so a
+     Workspace whose business the mockup's three examples don't fit declares its own;
+     `metadata/workspaces/default.yaml` declares the mockup's own three as a plausible default, not
+     a hardcoded global list. (2) the draft-Application row loads lazily
+     (`hx-get="/api/home/draft-applications" hx-trigger="load"`, the same convention
+     `notificationBell`/the nav-pending-badge already use for an unconditional once-per-render
+     fetch) rather than through `/home`'s own eager render, which was already at this repo's hard
+     13-query ceiling (`maxQueriesPerAuthenticatedPage`) with no room to spare.
+
+     `showHomeDraftApplications` (`internal/web/newapplication.go`) lists `ai_sessions` rows with
+     `status = 'generated'` (`Store.ListAISessionsByStatus`) and reuses `latestChange` -- the same
+     pure decode of already-stored turns `showNewApplicationReview` already uses, no Gemini call --
+     to name each draft and link to its own review screen. The whole "Add an application" section
+     (description, an `idea` GET-navigation input, the chip row) is gated identically to
+     `workspaceMenu`/`appLauncher`'s own Administration block (`viewer.WorkspaceRole != member`):
+     hidden for a plain member rather than a form that only ever 403s. A chip's `Prompt` reaches
+     the conversation as a plain `?idea=` query param, pre-filling `NewApplicationPage`'s own
+     message input (`ConversationView.PrefillIdea`) -- the user still reviews and sends it
+     themselves; nothing is created by the GET. Verified against the running service (curl through
+     a real admin session): the section, all three chips (correctly URL-encoded), and the lazy
+     placeholder all render on `/home`, and `/api/home/draft-applications` returns 200. `/home`'s
+     own query cost confirmed unchanged at 13 (`TestAuthenticatedPageQueryCost`).
   4. ~~**The account (avatar) menu has no "WORKSPACES" section.**~~ **Shipped 2026-09-27.**
      `AccountMenu.dc.html` drew a list of every Workspace the identity belongs to, its role in
      each, and "Switch workspace →," inside the avatar dropdown itself; `accountMenu` was
@@ -2247,10 +2271,10 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      an empty list plus "Switch workspace →" rather than erroring) and the placeholder's own
      `hx-get`/`hx-trigger` attributes render correctly on `/home`.
 
-  Three of the four -- **#1, #2 and #4, above** -- are shipped. **#3 (draft-Application row +
-  suggestion chips)** remains open, needing a decision on whether the three example chips should be
-  literal or something more general before porting. Named here rather than left for the next
-  re-audit to rediscover, the same way this one rediscovered the wizard-step-3 non-gap.
+  All four are shipped as of 2026-09-27. Named here anyway, and left in place rather than deleted,
+  because the process this section records -- rediscovering the wizard-step-3 non-gap, and #3's
+  own "four call sites" mis-scoping caught before writing code -- is worth a future re-audit
+  reading, not just the outcome.
 
 ## Planned
 

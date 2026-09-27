@@ -312,6 +312,9 @@ func Routes(d Deps) http.Handler {
 			ar.Get("/new-application/{session}/review", showNewApplicationReview(d.Store, d.Cfg))
 			ar.Post("/new-application/{session}/publish", publishNewApplication(d.Machines, d.Store, d.Cfg, d.ReloadMetadata))
 			ar.Post("/new-application/{session}/discard", discardNewApplication(d.Store))
+			// Workspace Home's own "draft Application" row, fetched lazily (Flow 2 canvas
+			// re-audit, ROADMAP.md, 2026-09-27) -- same admin gate as the section that triggers it.
+			ar.Get("/api/home/draft-applications", showHomeDraftApplications(d.Store))
 		})
 
 		pr.Get("/uploads/*", serveUpload(d.Store, d.Files))
