@@ -12,25 +12,28 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Write applies a validated GeneratedChange to disk: metadataDir/applications/ for a brand-new
-// Application, or a surgical append into an already-installed one's own files for an extension.
-// Every write is provably additive by construction (see this package's own doc comment) --
-// nothing here ever rewrites an existing value or removes a line.
+// Write applies a validated GeneratedChange to disk: a brand-new Application into the target
+// Workspace's **own** directory, or a surgical append into an already-installed one's own files
+// for an extension. Every write is provably additive by construction (see this package's own doc
+// comment) -- nothing here ever rewrites an existing value or removes a line.
 //
-// workspaceManifestPath is the target Workspace's own metadata/workspaces/<slug>.yaml.
-// applicationsDir is metadata/applications/ (new Application/Machine files land under
-// filepath.Dir(applicationsDir) for the Machines, matching the repo's own convention of Machine
-// files living beside metadata/, one directory above applications/).
+// workspaceManifestPath is the target Workspace's own metadata/workspaces/<slug>.yaml, and
+// everything a new Application brings is written beside it under metadata/workspaces/<slug>/ --
+// that Workspace's namespace, nobody else's. Until 2026-09-27 new files landed in the shared
+// metadata/ and metadata/applications/ directories instead, which is how a generated Application
+// naming its Machine mch_document came to overwrite the real Document Approval one another
+// Workspace had installed (ROADMAP.md). metadata/ still holds the *templates* an Application is
+// installed from; installing copies them, and a copy lives here.
 //
 // Every file this function touches is written to a temp file and renamed into place only after a
 // strict re-parse (KnownFields) succeeds on the freshly-written bytes -- a bug in this function
 // can therefore never leave a half-written or unparseable file for the caller's reload to trip
 // over. Returns the new Application's own id (for new_application) so the caller can redirect to
 // its HomeRoute once the reload picks it up.
-func Write(metadataDir, workspaceManifestPath string, change GeneratedChange, resolve MachineFileResolver) (newAppID string, err error) {
+func Write(workspaceManifestPath string, change GeneratedChange, resolve MachineFileResolver) (newAppID string, err error) {
 	switch change.Kind {
 	case KindNewApplication:
-		return writeNewApplication(metadataDir, workspaceManifestPath, change)
+		return writeNewApplication(workspaceManifestPath, change)
 	case KindExtendApplication:
 		return "", writeExtension(workspaceManifestPath, change, resolve)
 	default:
@@ -147,9 +150,12 @@ type applicationDoc struct {
 	Color       string   `yaml:"color,omitempty"`
 }
 
-func writeNewApplication(metadataDir, workspaceManifestPath string, change GeneratedChange) (string, error) {
+func writeNewApplication(workspaceManifestPath string, change GeneratedChange) (string, error) {
 	app := change.Application
 	workspaceDir := filepath.Dir(workspaceManifestPath)
+	// This Workspace's own namespace: metadata/workspaces/<slug>/, named from its manifest rather
+	// than passed in, so the two can never disagree about which Workspace is being written to.
+	ownDir := filepath.Join(workspaceDir, strings.TrimSuffix(filepath.Base(workspaceManifestPath), filepath.Ext(workspaceManifestPath)))
 
 	var machineRelPaths []string
 	for _, m := range app.Machines {
@@ -174,7 +180,7 @@ func writeNewApplication(metadataDir, workspaceManifestPath string, change Gener
 		}
 
 		filename := m.ID[len("mch_"):] + ".yaml"
-		absPath := filepath.Join(metadataDir, filename)
+		absPath := filepath.Join(ownDir, filename)
 		if err := refuseIfExists(absPath, "machine "+m.ID); err != nil {
 			return "", err
 		}
@@ -196,7 +202,7 @@ func writeNewApplication(metadataDir, workspaceManifestPath string, change Gener
 		appDoc.Machines = append(appDoc.Machines, m.ID)
 	}
 	appFilename := app.ID[len("app_"):] + ".yaml"
-	appAbsPath := filepath.Join(metadataDir, "applications", appFilename)
+	appAbsPath := filepath.Join(ownDir, "applications", appFilename)
 	if err := refuseIfExists(appAbsPath, "application "+app.ID); err != nil {
 		return "", err
 	}

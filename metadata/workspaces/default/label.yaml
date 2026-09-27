@@ -1,0 +1,11 @@
+id: mch_label
+name: Label
+fields:
+  - id: fld_name
+    name: Name
+    type: text
+    required: true
+  - id: fld_color
+    name: Color
+    type: text
+    required: true

@@ -34,7 +34,7 @@ func TestWrite_newApplication_writesReloadableFiles(t *testing.T) {
 	}
 
 	change := validLeaveRequestChange()
-	appID, err := Write(dir, manifestPath, change, nil)
+	appID, err := Write(manifestPath, change, nil)
 	if err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
@@ -42,7 +42,7 @@ func TestWrite_newApplication_writesReloadableFiles(t *testing.T) {
 		t.Errorf("Write() returned app id %q, want app_leave_requests", appID)
 	}
 
-	machineBytes, err := os.ReadFile(filepath.Join(dir, "leave_request.yaml"))
+	machineBytes, err := os.ReadFile(filepath.Join(workspacesDir, "default", "leave_request.yaml"))
 	if err != nil {
 		t.Fatalf("machine file was not written: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestWrite_newApplication_writesReloadableFiles(t *testing.T) {
 		}
 	}
 
-	appBytes, err := os.ReadFile(filepath.Join(dir, "applications", "leave_requests.yaml"))
+	appBytes, err := os.ReadFile(filepath.Join(workspacesDir, "default", "applications", "leave_requests.yaml"))
 	if err != nil {
 		t.Fatalf("application file was not written: %v", err)
 	}
@@ -68,13 +68,15 @@ func TestWrite_newApplication_writesReloadableFiles(t *testing.T) {
 	if !strings.Contains(text, "- ../user.yaml") {
 		t.Error("manifest lost its original machine entry")
 	}
-	if !strings.Contains(text, "- ../leave_request.yaml") {
+	// The appended paths are the Workspace's own namespace, not the shared template library --
+	// that is what makes this an install rather than a reference.
+	if !strings.Contains(text, "- default/leave_request.yaml") {
 		t.Errorf("manifest was not appended with the new machine, got:\n%s", text)
 	}
 	if !strings.Contains(text, "- ../applications/document-approval.yaml") {
 		t.Error("manifest lost its original application entry")
 	}
-	if !strings.Contains(text, "- ../applications/leave_requests.yaml") {
+	if !strings.Contains(text, "- default/applications/leave_requests.yaml") {
 		t.Errorf("manifest was not appended with the new application, got:\n%s", text)
 	}
 }
@@ -115,7 +117,7 @@ fields:
 		t.Fatal(err)
 	}
 
-	if _, err := Write(dir, manifestPath, change, resolver); err != nil {
+	if _, err := Write(manifestPath, change, resolver); err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
 
@@ -153,7 +155,7 @@ func TestWrite_newApplication_isLoadableByRealMetadataLoader(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := Write(dir, manifestPath, validLeaveRequestChange(), nil); err != nil {
+	if _, err := Write(manifestPath, validLeaveRequestChange(), nil); err != nil {
 		t.Fatalf("Write() error = %v", err)
 	}
 
@@ -230,12 +232,15 @@ func TestWrite_newApplication_refusesToOverwriteAnExistingMachineFile(t *testing
 	}
 
 	existing := "id: mch_leave_request\nname: Something Real Someone Else Installed\n"
-	existingPath := filepath.Join(dir, "leave_request.yaml")
+	if err := os.MkdirAll(filepath.Join(workspacesDir, "dokter-kecil"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	existingPath := filepath.Join(workspacesDir, "dokter-kecil", "leave_request.yaml")
 	if err := os.WriteFile(existingPath, []byte(existing), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := Write(dir, manifestPath, validLeaveRequestChange(), nil)
+	_, err := Write(manifestPath, validLeaveRequestChange(), nil)
 	if err == nil {
 		t.Fatal("Write() = nil error, want a refusal to overwrite an existing machine file")
 	}
@@ -265,7 +270,7 @@ func TestWrite_newApplication_refusesToOverwriteAnExistingMachineFile(t *testing
 func TestWrite_newApplication_refusesToOverwriteAnExistingApplicationFile(t *testing.T) {
 	dir := t.TempDir()
 	workspacesDir := filepath.Join(dir, "workspaces")
-	if err := os.MkdirAll(filepath.Join(dir, "applications"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "workspaces", "dokter-kecil", "applications"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
@@ -275,12 +280,12 @@ func TestWrite_newApplication_refusesToOverwriteAnExistingApplicationFile(t *tes
 	if err := os.WriteFile(manifestPath, []byte("workspace: dokter-kecil\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	existingPath := filepath.Join(dir, "applications", "leave_requests.yaml")
+	existingPath := filepath.Join(workspacesDir, "dokter-kecil", "applications", "leave_requests.yaml")
 	if err := os.WriteFile(existingPath, []byte("id: app_leave_requests\nname: Already Installed\nmachines: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := Write(dir, manifestPath, validLeaveRequestChange(), nil)
+	_, err := Write(manifestPath, validLeaveRequestChange(), nil)
 	if err == nil {
 		t.Fatal("Write() = nil error, want a refusal to overwrite an existing application file")
 	}

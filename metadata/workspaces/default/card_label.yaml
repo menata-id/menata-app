@@ -1,0 +1,16 @@
+# mch_card_label is a join Machine: each record pairs one mch_task with one mch_label. This is
+# the many-to-many relation shape (ROADMAP.md Phase 10) -- "a join collection, not a single field
+# value" -- built entirely by composing the existing Relation (Phase 3) and Child Collection
+# (Phase 9) mechanisms. No new engine code was needed for this Machine to work: it shows up as a
+# child collection on both mch_task's and mch_label's own detail pages, automatically.
+id: mch_card_label
+name: Card Label
+fields:
+  - id: fld_task
+    name: Task
+    type: relation
+    machine: mch_task
+  - id: fld_label
+    name: Label
+    type: relation
+    machine: mch_label

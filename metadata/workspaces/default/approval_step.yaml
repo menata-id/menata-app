@@ -1,0 +1,293 @@
+# A Document's own ordered approval steps (ROADMAP.md Phase 12), shown as a Phase 9 child
+# collection on the Document's detail page. fld_decision is never editable through the generic
+# update route (cmd/server's updateRecordForm blocks it) -- only /decide changes it, and only
+# internal/action.CanDecide decides whether that's currently allowed.
+id: mch_approval_step
+name: Approval Step
+fields:
+  - id: fld_document
+    name: Document
+    type: relation
+    machine: mch_document
+  - id: fld_sequence
+    name: Sequence
+    type: number
+    required: true
+  # What this step is *for*, independent of who happens to hold it -- "Finance Review", "Legal
+  # Review", "Director" (ui-sample/case-03-flow1/10-review-document.html, Fase 6b). Until this
+  # existed, every step's title on screen was its assignee's name, so a process could not say that
+  # step 2 is the legal check regardless of which lawyer is on it.
+  #
+  # Deliberately not required, and nothing writes it yet: the submission wizard that collects it is
+  # board 08, Fase 6c. composition.stepLabel falls back to the assignee's name while it is empty,
+  # which is exactly the old behaviour -- so declaring it early costs a reader nothing and means 6c
+  # fills a Field rather than changing a shape. See ROADMAP.md's deferral table.
+  - id: fld_step_name
+    name: Step Name
+    type: text
+  # Not required since Fase 6c-2, and the reason is a metadata capability that does not exist yet.
+  # A step held by a Group has no person to name here, so requiring it would make CAP-F24's own
+  # Group arm unwritable. What this really wants to say is "required when fld_approver_type is
+  # User", and this runtime's Constraint has exactly one shape -- block a field transition while a
+  # related Machine has a matching record (domain.Constraint) -- which cannot express a condition
+  # on a sibling Field of the same record.
+  #
+  # So the pairing is enforced in internal/web's own wizard instead (parseStepInputs), which is a
+  # hardcoding exception and carries the three things CLAUDE.md requires of one: this comment, a
+  # forward-checkable pointer, and a row in writing-guide.md's "what's hardcoded today" table.
+  # Forward pointer: ROADMAP.md's deferral row "Conditional required (a Field required only when a
+  # sibling Field holds a given value)". Upstream declares the same pairing as two conditional
+  # Constraints, so the shape is known -- it is this runtime's Constraint that has to grow.
+  - id: fld_assignee
+    name: Assignee
+    type: person
+  # CAP-F24 (Fase 6c-1): a step chooses, at submission, whether its approver gate is one named
+  # person or a whole Workspace Group -- board 08's own User/Group toggle, and the requirement
+  # board 09 states outright: "Approvers are supplied by Groups."
+  #
+  # Only two Fields, not the three upstream seeds. fld_assignee above IS the User half
+  # (actor_user_field below points at it), so there is no second person picker -- upstream added
+  # one alongside its legacy field and recorded the result in its own seed comment: "the new form
+  # originally showed BOTH ... two independent Approver pickers on one screen". Reusing the
+  # existing Field also makes the legacy fallback read the same column the User arm reads, so the
+  # two cannot disagree about who a step belongs to.
+  #
+  # Nothing writes either Field yet: the wizard that offers the toggle is board 08, Fase 6c-2.
+  # An existing step leaves fld_approver_type empty and is gated exactly as before -- see
+  # internal/authorization.allowsOne for the fallback that makes that true.
+  - id: fld_approver_type
+    name: Approver Type
+    type: status
+    options: [User, Group]
+  # No `machine:` here, and that is not an omission: a Group is a Workspace platform record
+  # (workspace_groups, Fase 4), not a Machine, so there is nothing to target. internal/metadata
+  # rejects a machine: on a group Field rather than ignoring one. See domain.FieldTypeGroup for
+  # why declaring a thin mch_group was considered and refused.
+  - id: fld_approver_group
+    name: Approver Group
+    type: group
+  - id: fld_decision
+    name: Decision
+    type: status
+    required: true
+    options: [pending, approved, rejected]
+  - id: fld_signature_page
+    name: Signature Page
+    type: number
+  - id: fld_signature_x
+    name: Signature X
+    type: number
+  - id: fld_signature_y
+    name: Signature Y
+    type: number
+  - id: fld_signature_width
+    name: Signature Width
+    type: number
+  # A one-time signature image captured at the moment this step's assignee clicked Approve
+  # (owner request, 2026-09-19), used only when they chose not to save it as their own reusable
+  # mch_signature. Step-scoped on purpose: it must not survive past this one Document, or "don't
+  # save" would silently become "save anyway" the next time this same person approves something
+  # else. internal/web/signing.go prefers this over the assignee's mch_signature when compositing.
+  - id: fld_signature_image
+    name: Signature Image
+    type: file
+  # Who signed this step, captured as text at the moment they decided it (owner decision,
+  # 2026-09-22). It is a *snapshot*, and deliberately the one place a person's name is copied
+  # rather than resolved: names now live on the identity, so a live lookup would silently rewrite
+  # the name printed on an already-signed PDF whenever that person later changed it. An invoice
+  # keeps the price it was issued at for the same reason.
+  #
+  # Written only by /decide (internal/web.decideStep). It is not a second source of truth for
+  # anyone's name -- nothing reads it to find out who someone is, only to reproduce what a
+  # particular signature said when it was made.
+  - id: fld_decided_by_name
+    name: Decided By
+    type: text
+
+# Only the step's own assignee may decide it (ROADMAP.md Phase 16). Until this existed, sequencing
+# was the only thing /decide enforced -- any authenticated user could approve or reject any step.
+#
+# edit/delete extend that same rule to the generic update/delete route (2026-09-19): until this
+# existed, any authenticated user could drag/reposition/resize any step's own signature marker
+# (internal/rendering/signatureplacement.templ PUTs through the generic route, same as a direct
+# edit) or delete a step outright, not just its own assignee.
+# A Document's own status follows its Approval Steps, declared rather than derived in Go
+# (menata-runtime's capability-registry.md CAP-A08 `aggregate_status`, admitted on Case 3 +
+# WCP-3/9/19/20, conformance T24/T26 there). Replaces internal/web's own recomputeDocumentStatus
+# and internal/action.DocumentStatus, which computed exactly this by hand for this one Machine
+# pair. Priority matters: one rejection decides the Document immediately, without waiting for the
+# remaining approvers, while approved needs every step -- see domain.Rollup's own doc comment.
+events:
+  - id: evt_step_decision_rollup
+    on: fld_decision
+    then:
+      service: rollup_parent_status
+      parent_field: fld_document
+      target_field: fld_status
+      any: { value: rejected, set: rejected }
+      all: { value: approved, set: approved }
+      default: in_review
+
+  # "A document is assigned to me for approval" (Flow 2 gap study Tahap 6). Fires once,
+  # unconditionally, when a step is created -- exactly evt_task_created/evt_document_submitted's own
+  # on_create shape. A Group-held step (fld_assignee empty, CAP-F24) has no single recipient to
+  # notify -- named and skipped (internal/web.sendNotification), not solved; the same posture the
+  # "One signature box for a Group-held step" deferral row (ROADMAP.md) already takes for the
+  # identical gap.
+  - id: evt_step_created_notify
+    on_create: true
+    then:
+      service: send_notification
+      recipient_field: fld_assignee
+      preference_key: assigned
+      summary: "You have a new approval request"
+
+# Member deactivation guard (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- the first real
+# declaration of domain.MemberRemovalBlock, a general mechanism introduced on its first case
+# rather than its second by owner instruction (see the Machine's own doc comment): a pending step
+# names a real person who must still decide it, so deactivating them here would leave the step
+# permanently undecidable by anyone. A Group-held step (fld_assignee empty) never matches this --
+# there is no single person to block on, the same posture evt_step_created_notify already takes
+# for the identical gap.
+blocks_member_removal:
+  - id: blk_step_pending
+    actor_field: fld_assignee
+    condition: { field: fld_decision, op: equals, value: pending }
+    reason: "has a pending approval step"
+
+# Approval Steps are acted on in order when their Document says so (menata-runtime's
+# capability-registry.md CAP-A07 `activate_next`, admitted on Case 3 + WCP-1 Sequence, conformance
+# T22-23/T25 there). Replaces internal/action's own CanDecide, whose rule was already generic --
+# "a sibling earlier in the order is still open" -- but whose field bindings were hardcoded to this
+# one Machine pair. mode_field is read from the parent Document, because whether ordering applies
+# is a property of the whole process: one Document runs sequential, the next parallel.
+sequencing:
+  parent_field: fld_document
+  mode_field: fld_mode
+  sequential_value: sequential
+  order_field: fld_sequence
+  state_field: fld_decision
+  open_value: pending
+
+# transitions: this Machine's own declared state model (ROADMAP.md Case 03 Fase 7) -- which moves
+# of fld_decision exist, and which Action performs each.
+#
+# This is `menata-runtime`'s Process Overlay `transitions[]` implemented rather than re-decided
+# (its shipped compiler turns exactly {name, from, to} into one guarded edge). What it replaces
+# here is internal/web's own allowsDecisionChange: a hand-written Go rule naming this one Machine
+# and this one Field to say "a decision moves only through POST .../decide, never through the
+# generic edit route". The two lines below say it, and the Approval Role Matrix draws its rows
+# from the same declaration -- so the screen listing who may approve and the guard refusing an
+# edit now read one statement instead of agreeing by coincidence.
+#
+# Nothing leaves `approved` or `rejected`: a decision is final. That is a real tightening, not a
+# restatement -- sequencing only ever locked a step behind an *earlier* one, and only on a
+# sequential Document, so on a parallel Document an already-approved step could be decided again
+# and re-run the rollup. There was no rule anywhere that said a decision is final; now there is.
+transitions:
+  - id: trn_step_approve
+    name: Approve
+    field: fld_decision
+    from: pending
+    to: approved
+    action: decide
+  - id: trn_step_reject
+    name: Reject
+    field: fld_decision
+    from: pending
+    to: rejected
+    action: decide
+
+permissions:
+  # roles: is CAP-P01, added in Fase 7 -- the first thing in this repo that gates on an
+  # Application role rather than on a record's own actor field. It ANDs with the actor arms below:
+  # "someone holding approver in app_document_approval, AND the person (or Group) this step
+  # names". Several roles on one Permission are alternatives; several Permissions on one Action
+  # stay requirements, which is AllowsAction's existing contract, unchanged.
+  #
+  # **approver only.** This read `[approver, reviewer]` until the owner decided the vocabulary
+  # outright (2026-09-21): *a reviewer can only look -- they cannot submit and they cannot
+  # approve.* That settles a question this file could not: until then approver and reviewer named
+  # the same grant everywhere they appeared, which made the two words indistinguishable to anyone
+  # reading the Members screen, and submitter named no grant at all. All three now mean something
+  # different, and the difference is declared rather than implied.
+  #
+  # The role vocabulary is declared in applications/document-approval.yaml and validated against
+  # it at load, so a typo here fails the boot rather than silently denying everyone.
+  #
+  # This is a real narrowing of who may act, and the Approval Role Matrix (/approval-role-matrix)
+  # is where it is now visible without reading this file: a member assigned as a step's approver
+  # who holds neither role in this Application can no longer decide, edit or delete it. Grant the
+  # role on Workspace Members, or through a Group -- an effective role reaches here either way
+  # (data.EffectiveRoles), which is CAP-O07's own rule.
+  #
+  # prm_decide_own_step carries both shapes at once, which is the adoption path rather than a
+  # redundancy: actor_field is the fallback, used whenever a record's own fld_approver_type is
+  # empty or holds something the runtime does not recognize. Every Approval Step written before
+  # Fase 6c-1 is exactly that case, so this gained the dynamic gate with no migration, no backfill
+  # and no rewritten test.
+  # Adding a step to a Document is part of submitting one, so it carries the same roles the
+  # Document's own create rule does -- and deliberately not `reviewer`, who may only look.
+  #
+  # Two honest limits, both recorded rather than papered over. It gates the *generic* create route
+  # only: the submit wizard writes its steps through internal/data directly
+  # (web.createApprovalSteps), so a submitter building their own chain is unaffected either way.
+  # And it cannot say the rule anyone actually wants -- "only THIS Document's submitter may add
+  # steps to it" -- because that reads a field on the parent record, which no Permission arm can
+  # reach (ROADMAP.md's deferral table).
+  - id: prm_create_step
+    action: create
+    roles: [approver, submitter]
+  - id: prm_decide_own_step
+    action: decide
+    roles: [approver]
+    actor_field: fld_assignee
+    actor_type_field: fld_approver_type
+    actor_user_field: fld_assignee
+    actor_group_field: fld_approver_group
+  # edit and delete carry the same gate as decide, added in Fase 6c-3 to close a bug Fase 6c-2
+  # created the moment its wizard could write a Group-held step: fld_assignee is empty on such a
+  # step, so a gate reading only actor_field returned false for *everyone*, and the signature
+  # marker on the one screen built for dragging it was draggable by nobody -- not the Group's own
+  # members, not the submitter, not an admin. Delete was impossible for the same reason.
+  #
+  # The rule these now state is the symmetric one, and it is worth being able to say out loud: if
+  # the Legal Group decides this step, a member of Legal Group may place its signature and remove
+  # it. Both move together on purpose -- one Permission with a dynamic arm and one without reads
+  # as a deliberate distinction that nobody intended.
+  #
+  # This is a real broadening of who may change a record, not a bug fix that restores a previous
+  # state: any member of the owning Group can now move that marker and delete that step. It is the
+  # intended rule (a Group holds the step, so the Group acts on it), and both directions are
+  # asserted in internal/authorization's tests rather than assumed.
+  - id: prm_edit_own_step
+    action: edit
+    roles: [approver]
+    actor_field: fld_assignee
+    actor_type_field: fld_approver_type
+    actor_user_field: fld_assignee
+    actor_group_field: fld_approver_group
+  - id: prm_delete_own_step
+    action: delete
+    roles: [approver]
+    actor_field: fld_assignee
+    actor_type_field: fld_approver_type
+    actor_user_field: fld_assignee
+    actor_group_field: fld_approver_group
+
+views:
+  - id: vw_approval_step_table
+    name: All Steps
+    type: table
+  # The Approval Progress stepper on a Document's own detail page (ROADMAP.md's Case 3, closing
+  # the last entry in internal/conformance's projectionRatchet) -- menata-runtime's
+  # capability-registry.md CAP-V20, "a View composing other Views". Declared here, on the child
+  # Machine, because sequencing: above already carries every field binding a stepper needs
+  # (order/state/open value) -- no new config. Not offered by vw_approval_step_table's own
+  # viewSwitcher above (internal/rendering/machine.templ skips ViewStepper there): this type
+  # renders a *parent's* children, which is meaningless as an alternate arrangement of this
+  # Machine's own flat list -- it is composed by internal/rendering/detail.templ's own
+  # child-collection rendering instead (domain.Machine.StepperView).
+  - id: vw_step_progress
+    name: Approval Progress
+    type: stepper

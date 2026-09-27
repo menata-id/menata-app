@@ -15,34 +15,47 @@
 # Workspace was created, and restating it here would be the duplication 001 Principle #8 rules out.
 workspace: default
 
-# machines: every Machine available in this Workspace, workspace-level and unique by id -- the same
-# arrangement app.yaml had, and for the same reason: mch_user and mch_activity are genuinely shared
-# by several Applications, so per-Application ownership would load one file twice and make
-# dataset-id uniqueness incoherent. An Application's own `machines:` selects from this set by id.
+# machines: every Machine available in this Workspace, unique by id here. An Application's own
+# `machines:` selects from this set by id.
 #
-# mch_user and mch_activity are listed explicitly rather than assumed by the runtime. Assuming them
-# would mean hardcoding two file paths in Go, and this is metadata's own question to answer.
+# Two kinds of path, and the split is the whole point (2026-09-27, Workspace isolation):
+#
+#   default/*.yaml  -- this Workspace's **own copies**, made when its Applications were installed.
+#                      They started byte-identical to the templates in metadata/, and editing one
+#                      changes this Workspace alone. That is what "installed into a Workspace"
+#                      means now: copied, not pointed at. Before this, every Workspace referenced
+#                      the same file, so a second Workspace installing Document Approval shared
+#                      one mch_document with this one -- and a generated Application that happened
+#                      to pick that id overwrote it outright (ROADMAP.md).
+#   ../*.yaml       -- the three runtime-level Machines, claimed by no Application and deliberately
+#                      still shared. mch_user is the one that genuinely crosses Workspaces (a
+#                      membership points at one of its records, so one identity has one per
+#                      Workspace it belongs to); mch_activity and mch_notification are runtime
+#                      chrome every Workspace has, whose records are already Workspace-scoped.
+#
+# All three are listed explicitly rather than assumed by the runtime. Assuming them would mean
+# hardcoding file paths in Go, and this is metadata's own question to answer.
 machines:
   - ../user.yaml
   - ../activity.yaml
   - ../notification.yaml
-  - ../project.yaml
-  - ../list.yaml
-  - ../label.yaml
-  - ../task.yaml
-  - ../card_label.yaml
-  - ../document.yaml
-  - ../approval_step.yaml
-  - ../signature.yaml
-  - ../approval_flow_template.yaml
-  - ../approval_flow_template_step.yaml
+  - default/project.yaml
+  - default/list.yaml
+  - default/label.yaml
+  - default/task.yaml
+  - default/card_label.yaml
+  - default/document.yaml
+  - default/approval_step.yaml
+  - default/signature.yaml
+  - default/approval_flow_template.yaml
+  - default/approval_flow_template_step.yaml
 
-# applications: which Applications are installed here. Paths are resolved relative to this file.
-# An Application file itself names no Workspace -- it is a reusable declaration, and several
-# Workspaces may install the same one.
+# applications: which Applications are installed here. Paths are resolved relative to this file,
+# and these are this Workspace's own copies too -- metadata/applications/ holds the templates they
+# were installed from, which several Workspaces may each install *a copy of*, never share.
 applications:
-  - ../applications/document-approval.yaml
-  - ../applications/project-management.yaml
+  - default/applications/document-approval.yaml
+  - default/applications/project-management.yaml
 
 # suggested_applications: Workspace Home's own "Add an application" chips (Flow 2 canvas
 # re-audit, ROADMAP.md, 2026-09-27) -- example prompts for the AI Metadata Assistant, declared

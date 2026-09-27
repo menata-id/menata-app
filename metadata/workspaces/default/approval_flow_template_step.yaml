@@ -1,0 +1,49 @@
+# One saved step of an Approval Flow Template (CAP-V28, ROADMAP.md, 2026-09-27) -- deliberately
+# the *subset* of mch_approval_step's own fields that describes a step's shape rather than one
+# Document's live decision on it: no fld_decision, no signature fields, no fld_decided_by_name. A
+# template step is never decided, only a pattern internal/web.saveApprovalFlowTemplate copies from
+# a real wizard submission and internal/web.findApprovalFlowTemplate copies back into a later one.
+id: mch_approval_flow_template_step
+name: Approval Flow Template Step
+fields:
+  - id: fld_template
+    name: Template
+    type: relation
+    machine: mch_approval_flow_template
+  - id: fld_sequence
+    name: Sequence
+    type: number
+    required: true
+  - id: fld_step_name
+    name: Step Name
+    type: text
+  - id: fld_approver_type
+    name: Approver Type
+    type: status
+    options: [User, Group]
+  - id: fld_assignee
+    name: Assignee
+    type: person
+  - id: fld_approver_group
+    name: Approver Group
+    type: group
+
+card_fields:
+  - { field: fld_step_name, role: title }
+  - { field: fld_sequence, role: status }
+
+views:
+  - id: vw_approval_flow_template_step_table
+    name: All Steps
+    type: table
+
+permissions:
+  - id: prm_create_approval_flow_template_step
+    action: create
+    roles: [approver, submitter]
+  - id: prm_edit_approval_flow_template_step
+    action: edit
+    roles: [approver, submitter]
+  - id: prm_delete_approval_flow_template_step
+    action: delete
+    roles: [approver, submitter]

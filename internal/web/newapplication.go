@@ -268,7 +268,7 @@ func publishNewApplication(store *data.Store, cfg config.Config, reload func() e
 		}
 
 		manifestPath := filepath.Join(cfg.MetadataPath, ws.Slug+".yaml")
-		newAppID, err := aiassist.Write(filepath.Dir(cfg.MetadataPath), manifestPath, *change, aiassist.FileMachineResolver{WorkspaceManifestPath: manifestPath})
+		newAppID, err := aiassist.Write(manifestPath, *change, aiassist.FileMachineResolver{WorkspaceManifestPath: manifestPath})
 		if err != nil {
 			serverError(w, fmt.Errorf("write generated metadata: %w", err))
 			return

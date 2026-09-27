@@ -1,0 +1,266 @@
+id: mch_document
+name: Document
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_document_type
+    name: Document Type
+    type: status
+    required: true
+    # Stored and displayed in exactly this casing -- a deliberate one-off departure from
+    # fld_status/fld_mode's lowercase convention below.
+    #
+    # Changed 2026-09-19 from [Contract, SOP, Policy, Report, Other] (document-submit.html's own
+    # five mockup labels, ROADMAP.md UI mockup conformance audit B1) to a local taxonomy, as a
+    # real test of the add-only/disable-not-delete discipline in menata-app-document's
+    # guides/metadata-hot-reload-safety.md §5/§7 -- hot-reload itself isn't built yet, so this was
+    # done by hand: edit here, migrate the one existing record's stored value (see git log for
+    # this line), then restart. The five old labels are dropped outright (not kept as
+    # inactive_options) because that mechanism doesn't exist in code yet either -- this is exactly
+    # the "no code path could ever produce a draft fld_status" posture two comments above, applied
+    # to this field: nothing in the running app could still reference the old English labels once
+    # the one real record referencing "Contract" is migrated below.
+    options: [Kontrak, Tagihan, Lain-lain]
+  - id: fld_file
+    name: File
+    type: file
+    required: true
+  - id: fld_mode
+    name: Mode
+    type: status
+    required: true
+    options: [sequential, parallel]
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    # draft added back 2026-09-25 (Flow 2 gap study Tahap 4) alongside the save-as-draft flow and
+    # the Rejected -> Draft ("Revise") move below -- both real code paths that can now produce it,
+    # closing the condition this Field's own comment used to name for leaving it out.
+    options: [draft, in_review, approved, rejected]
+  - id: fld_due_date
+    name: Due Date
+    type: date
+  - id: fld_signed_file
+    name: Signed File
+    type: file
+  # fld_submitted_by: who submitted this Document. Added 2026-09-21 by the authorization review,
+  # which found that a Document had no owner anywhere on the record -- so "only the submitter may
+  # delete their own document" was not a rule this runtime could express, and any authenticated
+  # member could delete anyone's in-review Document (the only guard was business state: not
+  # approved, no decided steps).
+  #
+  # Who submitted a Document *was* recoverable before this, by scanning the activity feed for its
+  # creation row (composition.submittersFromActivity) -- which is fine for rendering a byline and
+  # wrong as an authorization input: it depends on a log row still existing, on the same Machine
+  # that is now append_only precisely because it did not.
+  - id: fld_submitted_by
+    name: Submitted By
+    type: person
+
+# A Document logs its own submission to the Activity feed (ROADMAP.md Phase 21 round 2 Step I),
+# generalized here (2026-09-19) from internal/web's own hardcoded logRecordCreated switch into a
+# declared on_create Event -- workflow-behavior-decomposition-criteria.md's own B1-B5 worked
+# example (menata-app-document), a real third case alongside mch_task/mch_project below proving
+# the creation-trigger shape before it was built.
+events:
+  - id: evt_document_submitted
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" submitted"
+
+  # "My submitted document is approved/rejected" (Flow 2 gap study Tahap 6). Declared on this
+  # Machine's own *aggregate* fld_status, not on a step's fld_decision: a per-step Event would tell
+  # the submitter "approved" after the first of several sequential steps, before the rest have even
+  # acted. fld_status is written by internal/web's own rollUpParentStatus (evt_step_decision_rollup
+  # above), never by a handler directly -- rollUpParentStatus now dispatches this Machine's own
+  # Events after that write (closing the gap its own doc comment used to name), the same way any
+  # handler would.
+  - id: evt_document_approved_notify
+    on: fld_status
+    when_equals: approved
+    then:
+      service: send_notification
+      recipient_field: fld_submitted_by
+      preference_key: decided
+      summary: "Your document was approved"
+
+  - id: evt_document_rejected_notify
+    on: fld_status
+    when_equals: rejected
+    then:
+      service: send_notification
+      recipient_field: fld_submitted_by
+      preference_key: decided
+      summary: "Your document was rejected"
+
+  # SLA-breach reminder (Flow 2 canvas re-audit, 2026-09-27) -- domain.Event's third trigger shape,
+  # fired on the passage of time rather than a write (internal/execution.RunScheduledEvents, on a
+  # ticker started by cmd/server/main.go). Replaces internal/composition's own logSLABreaches, a
+  # GET-triggered write that stood in for a scheduler this runtime had never built.
+  #
+  # Two Events sharing one condition (overdue AND still in_review) rather than one: log_activity
+  # and send_notification are declared separately everywhere else in this file too (compare
+  # evt_document_submitted next to evt_document_approved_notify), and RunScheduledEvents' own
+  # dedup check needs the log_activity arm's rendered summary as its marker either way.
+  - id: evt_document_overdue_log
+    schedule:
+      date_field: fld_due_date
+      when: overdue
+      guard_field: fld_status
+      guard_equals: in_review
+    then:
+      service: log_activity
+      summary: "SLA breached: \"{fld_title}\" (due {fld_due_date})"
+
+  - id: evt_document_overdue_notify
+    schedule:
+      date_field: fld_due_date
+      when: overdue
+      guard_field: fld_status
+      guard_equals: in_review
+    then:
+      service: send_notification
+      recipient_field: fld_submitted_by
+      preference_key: sla_breach
+      summary: "Your submitted document is overdue for approval"
+
+# permissions: exactly one rule today, and the reason the obvious second one is absent is worth
+# reading before adding it.
+#
+# `create` with actor_field reads "you may only create a Document that names you as its
+# submitter" -- it restricts whose name you may submit under. Its `roles:` arm is the owner's own
+# decision of 2026-09-21: *a reviewer can only look -- they cannot submit and they cannot
+# approve*, so submitting is approver and submitter, never reviewer. The wizard fills the field
+# with the signed-in identity (internal/web.submitDocumentWizard).
+#
+# What is deliberately NOT declared: `edit`/`delete` with **actor_field: fld_submitted_by**, which
+# is the rule that would close "any member may delete anyone's in-review Document". The role half
+# of that IS declared below (a reviewer may not touch one at all); it is only the owner-scoped
+# half that waits. It cannot be
+# declared yet because the field is new and every Document written before it is empty -- and an
+# empty actor field satisfies nobody (authorization.isActor: an unassigned record is actionable by
+# no one, rather than by everyone), so declaring it would make every existing Document
+# permanently uneditable and undeletable by every person. Backfilling does not rescue it either:
+# checked against the real data, eight of nine existing Documents were created by the shared admin
+# credential's placeholder identity, which is not a real mch_user record, so the derived value
+# would match nobody. ROADMAP.md's deferral table carries the row and names the condition.
+permissions:
+  - id: prm_create_own_document
+    action: create
+    roles: [approver, submitter]
+    actor_field: fld_submitted_by
+  # Role-only, with no actor_field, and that is what makes them declarable today: they say nothing
+  # about *which* Document, only that a reviewer may not change one. The owner-scoped half -- only
+  # this Document's own submitter -- still waits on every existing Document having an owner (see
+  # the note above and ROADMAP.md's deferral table), and these do not block it: a second
+  # Permission on the same Action ANDs with this one, so adding it later narrows further rather
+  # than replacing anything.
+  - id: prm_edit_document_not_reviewer
+    action: edit
+    roles: [approver, submitter]
+  - id: prm_delete_document_not_reviewer
+    action: delete
+    roles: [approver, submitter]
+  # prm_revise_document: Flow 2 gap study Tahap 4, 2026-09-25 -- gates internal/web.reviseDocument
+  # (Rejected -> Draft, "Revise" on My Documents; not a declared Transition -- see the transitions:
+  # block's own note on why fld_status may declare none). Same scope as
+  # prm_edit_document_not_reviewer, deliberately: no actor_field yet, for the identical reason that
+  # one has none (ROADMAP.md's deferral table -- every Document written before fld_submitted_by
+  # existed has it empty, and an empty actor field satisfies nobody).
+  - id: prm_revise_document
+    action: revise
+    roles: [approver, submitter]
+
+# transitions: fld_status's own state model (ROADMAP.md Case 03 Fase 7).
+#
+# Every edge here declares no `action:`, and that is the substance of this block rather than an
+# omission: a Document's status is *derived* -- mch_approval_step's evt_step_decision_rollup
+# computes it fresh from that Document's own steps every time one is decided. No person sets it,
+# so no Action performs any of these moves, and the Approval Role Matrix renders all six as
+# "System" with no role able to grant them. internal/conformance.TestDocumentStatusIsDerivedNotSettable
+# holds this literally: not one fld_status edge, ever, may carry an Action.
+#
+# What declaring them buys is a hole that was open until now: the generic update route would
+# happily write fld_status straight from a form, so any member could set a Document to `approved`
+# without a single step being decided -- bypassing the entire approval flow, the sequencing rule
+# and the signature compositing at once. behavior.CheckTransitions refuses that now, because
+# `edit` is not the action any of these edges names.
+#
+# All six ordered pairs are listed because all six are genuinely reachable: the rollup recomputes
+# from scratch on every decision, so it can move the Document from any of the three values to any
+# other. Listing only the "expected" three would make a real rollup result look like an
+# undeclared transition the day a step is deleted and the next decision recomputes past it.
+#
+# Draft (2026-09-25, Tahap 4) deliberately gets no edges here at all, in either direction. Its two
+# moves (submit-a-draft-into-review, revise-a-rejected-document-back-to-draft) are person-performed,
+# which is exactly what this block's own invariant forbids declaring for fld_status -- so both stay
+# undeclared on purpose, which also means the *generic* edit route still can't move either value
+# (an undeclared transition refuses every Action, this one included). internal/web's
+# continueDocumentWizard/reviseDocument perform them directly, gated by a plain business-state check
+# (action.CanContinueDraft/CanReviseDocument, the same posture action.CanDeleteDocument already
+# takes for delete) plus a Permission (prm_revise_document, above, for Revise;
+# prm_edit_document_not_reviewer, already declared, for Continue) -- Permission and Transition are
+# separate mechanisms, and only the latter is what this invariant constrains.
+transitions:
+  - id: trn_document_approved
+    name: All steps approved
+    field: fld_status
+    from: in_review
+    to: approved
+  - id: trn_document_rejected
+    name: A step rejected
+    field: fld_status
+    from: in_review
+    to: rejected
+  - id: trn_document_reopened_from_approved
+    name: Reopened
+    field: fld_status
+    from: approved
+    to: in_review
+  - id: trn_document_reopened_from_rejected
+    name: Reopened
+    field: fld_status
+    from: rejected
+    to: in_review
+  - id: trn_document_rejected_after_approval
+    name: A step rejected
+    field: fld_status
+    from: approved
+    to: rejected
+  - id: trn_document_approved_after_rejection
+    name: All steps approved
+    field: fld_status
+    from: rejected
+    to: approved
+
+# The Dashboard's Document status tiles (007 §7.2-§7.4), generalized from what buildDashboard
+# used to count with a hardcoded `switch` over three literal status values. The switch's other
+# job -- collecting the in_review Documents themselves into a list -- is record *selection*, not
+# aggregation, so it stays code: selecting records by a predicate is 007 §8's Query Model, which
+# has no real forcing condition yet (menata-app-document's decomposition audit §7).
+datasets:
+  - id: ds_document_by_status
+    dimension: fld_status
+    measures:
+      - id: msr_total
+        aggregate: count
+
+# How a Document's records look wherever they appear -- the detail page selects no View, so
+# these are Machine-level rather than per-arrangement.
+sla_field: fld_due_date
+card_fields:
+  - { field: fld_document_type, role: status }
+  - { field: fld_status, role: status }
+  - { field: fld_due_date, role: date }
+
+views:
+  - id: vw_document_table
+    name: Table
+    type: table
+  - id: vw_document_cards
+    name: Cards
+    type: cards

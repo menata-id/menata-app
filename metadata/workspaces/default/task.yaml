@@ -1,0 +1,109 @@
+id: mch_task
+name: Task
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [todo, in_progress, done]
+    default: todo
+  - id: fld_assignee
+    name: Assignee
+    type: person
+  - id: fld_due_date
+    name: Due Date
+    type: date
+  - id: fld_priority
+    name: Priority
+    type: number
+  - id: fld_project
+    name: Project
+    type: relation
+    machine: mch_project
+  - id: fld_list
+    name: List
+    type: relation
+    machine: mch_list
+  - id: fld_attachment
+    name: Attachment
+    type: file
+
+# A Task's own status move gets logged to the Project Activity feed (ROADMAP.md Phase 14),
+# generalized here (2026-09-19) from what used to be hardcoded Go (internal/web's
+# currentTaskStatus/logTaskStatusMove) into the first real declared Event -- the second known
+# "write happened, log it" case (alongside record-created logging and the Document-approval
+# decide cascade) that justified building the primitive at all (007 §4.1 Composition over
+# Specialization). summary_override_when/summary_override reproduce the old code's one wording
+# exception (moving to "done" reads "completed", not "moved from X to Y") without generalizing
+# Service.Summary into a full templating language.
+events:
+  - id: evt_task_status_changed
+    on: fld_status
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" moved from {old} to {new}"
+      summary_override_when: done
+      summary_override: "\"{fld_title}\" completed"
+  # A Task logs its own creation (2026-09-19), generalized from internal/web's own hardcoded
+  # logRecordCreated switch into the same declared Event mechanism evt_task_status_changed above
+  # already proved -- the on_create shape's own worked example.
+  - id: evt_task_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" created"
+
+# Team Capacity's own workload numbers (007 §7.2 Dataset, §7.3 Dimension, §7.4 Measure),
+# generalized here from what internal/composition's buildCapacity used to count by hand in Go --
+# the decomposition audit's P1, with the same "count records, grouped by a field, optionally
+# filtered" shape found hand-written five separate times before the primitive was built (menata-
+# app-document's audits/2026-09-19-decomposition-maturity-audit.md §3.2, well past B1's second
+# real case). msr_total_open's own filter is an ordinary expression.Comparison, the same shape
+# cst_project_done_no_open_tasks's block_if.condition already uses -- no second filter syntax.
+datasets:
+  - id: ds_task_workload
+    dimension: fld_assignee
+    measures:
+      - id: msr_total
+        aggregate: count
+      - id: msr_total_open
+        aggregate: count
+        where:
+          field: fld_status
+          op: not_equals
+          value: done
+
+  # The Dashboard's Project rollup: the same two measures as ds_task_workload above, grouped by a
+  # different axis. Two Datasets rather than one Dataset with two dimensions on purpose -- 007
+  # §7.2's own example shows dimensions as a list, but a list means the cross-product (per
+  # assignee *and* project), and what these two screens each want is a separate breakdown. The
+  # singular `dimension` is the shape the real cases asked for.
+  - id: ds_task_by_project
+    dimension: fld_project
+    measures:
+      - id: msr_total
+        aggregate: count
+      - id: msr_total_open
+        aggregate: count
+        where:
+          field: fld_status
+          op: not_equals
+          value: done
+
+  # Sprint Dashboard's headline counts. No filtered measure: the breakdown *is* by status, so the
+  # per-status numbers come from the dimension rather than from a where clause.
+  - id: ds_task_by_status
+    dimension: fld_status
+    measures:
+      - id: msr_total
+        aggregate: count
+
+views:
+  - id: vw_task_board
+    name: Board
+    type: board
+    group_by: fld_list

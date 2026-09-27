@@ -1,0 +1,59 @@
+# A person's own reusable signature image (ROADMAP.md Phase 15 Step 5), the input Phase 17's
+# compositing Action burns onto a Document at each Approval Step's declared coordinates
+# (fld_signature_page/x/y on mch_approval_step). An ordinary Machine, reusing Phase 7's Person and
+# Phase 11's File primitives -- no identity-model change, no new Field type.
+id: mch_signature
+name: Signature
+fields:
+  - id: fld_owner
+    name: Owner
+    type: person
+    required: true
+  - id: fld_image
+    name: Image
+    type: file
+    required: true
+
+# permissions: a signature record names whose signature it is (fld_owner), and that value decides
+# whose image gets composited onto an approved PDF (internal/web.signatureImageFor looks
+# mch_signature up by exactly this field). Until 2026-09-21 this Machine declared nothing, which
+# in this runtime means unrestricted -- so any authenticated member could create a signature
+# record naming *someone else* as its owner, and that image would then be stamped onto a document
+# as that person's signature. Found by an authorization review, not by a case.
+#
+# actor_field on `create` is what closes it, and it needed no new concept: at creation the values
+# being checked are the ones being submitted, so this reads "you may only create a signature that
+# names you". edit and delete then say the same thing about a record that already exists.
+#
+# roles: [approver] -- owner decision, 2026-09-21. A signature exists to be composited onto a
+# document at the moment its holder approves a step (internal/web.signatureImageFor), and since
+# the same day only an approver decides anything. A submitter or a reviewer holding a signature
+# record is therefore a stored image nothing can ever use.
+#
+# This file argued the opposite for a few hours -- "keeping your own signature is not a privilege
+# an Application grants" -- and the owner overruled it. The argument was about signatures in
+# general; the rule is about *this* Application, where a signature has exactly one consumer and
+# exactly one role reaches it.
+#
+# The gate is on the ordinary CRUD routes only. Approve's own canvas modal writes through
+# internal/data directly (web.applyApprovalSignature), and it runs after the decide gate has
+# already established the actor is an approver -- so the capture flow is unaffected and cannot
+# become a way around this.
+#
+# One existing record predates the rule: a signature owned by a member who holds `submitter`. It
+# is left in place rather than deleted -- nothing reads it (its owner can no longer be a step's
+# approver either), and removing somebody's stored handwriting to satisfy a rule about who may
+# create one is not a migration this runtime should make on its own.
+permissions:
+  - id: prm_create_own_signature
+    action: create
+    roles: [approver]
+    actor_field: fld_owner
+  - id: prm_edit_own_signature
+    action: edit
+    roles: [approver]
+    actor_field: fld_owner
+  - id: prm_delete_own_signature
+    action: delete
+    roles: [approver]
+    actor_field: fld_owner

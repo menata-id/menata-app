@@ -1,0 +1,37 @@
+id: mch_project
+name: Project
+fields:
+  - id: fld_name
+    name: Name
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [planning, active, done]
+  - id: fld_owner
+    name: Owner
+    type: person
+
+constraints:
+  - id: cst_project_done_no_open_tasks
+    on: fld_status
+    when_equals: done
+    block_if:
+      related_machine: mch_task
+      related_field: fld_project
+      condition:
+        field: fld_status
+        op: not_equals
+        value: done
+
+# A Project logs its own creation (2026-09-19), generalized from internal/web's own hardcoded
+# logRecordCreated switch into a declared on_create Event, the same shape mch_document/mch_task
+# now declare. fld_name, not fld_title, is this Machine's own label field.
+events:
+  - id: evt_project_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_name}\" created"
