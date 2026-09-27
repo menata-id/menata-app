@@ -1,0 +1,15 @@
+id: app_document_review
+name: Document Review
+machines:
+  - mch_document_item
+roles:
+  - author
+  - reviewer
+description: A standard document review and tracking application.
+icon: file-text
+color: emerald
+navigation:
+  - id: nav_document_review
+    label: Document Review
+    route: /machines/mch_document_item
+    home_card: true

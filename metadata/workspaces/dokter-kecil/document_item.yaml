@@ -1,0 +1,59 @@
+id: mch_document_item
+name: Document Item
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_content
+    name: Content
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options:
+      - Draft
+      - Under Review
+      - Approved
+      - Rejected
+permissions:
+  - id: prm_doc_create
+    action: create
+    roles:
+      - author
+  - id: prm_doc_edit
+    action: edit
+    roles:
+      - author
+      - reviewer
+  - id: prm_doc_delete
+    action: delete
+    roles:
+      - author
+transitions:
+  - id: trn_submit
+    name: Submit for Review
+    field: fld_status
+    from: Draft
+    to: Under Review
+    action: edit
+  - id: trn_approve
+    name: Approve Document
+    field: fld_status
+    from: Under Review
+    to: Approved
+    action: edit
+  - id: trn_reject
+    name: Reject Document
+    field: fld_status
+    from: Under Review
+    to: Rejected
+    action: edit
+  - id: trn_reopen
+    name: Reopen to Draft
+    field: fld_status
+    from: Rejected
+    to: Draft
+    action: edit

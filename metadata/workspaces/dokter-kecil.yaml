@@ -13,6 +13,8 @@ machines:
   - ../user.yaml
   - ../activity.yaml
   - dokter-kecil/document.yaml
+  - dokter-kecil/document_item.yaml
 
 applications:
   - dokter-kecil/applications/document_tracking.yaml
+  - dokter-kecil/applications/document_review.yaml
