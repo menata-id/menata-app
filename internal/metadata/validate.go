@@ -405,6 +405,8 @@ func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]doma
 		issues = append(issues, validateRollup(m, e, fieldsByID)...)
 	case domain.ServiceSendNotification:
 		issues = append(issues, validateNotify(m, e, fieldsByID)...)
+	case domain.ServiceCompositeSignedDocument:
+		issues = append(issues, validateComposite(m, e, fieldsByID)...)
 	default:
 		issues = append(issues, fmt.Sprintf("event %q: then.service %q is not a service this runtime realizes", e.ID, e.Then.Name))
 	}
@@ -417,6 +419,40 @@ func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]doma
 // are really values the watched Field can hold. The other half -- that target_field exists on the
 // *parent* Machine and that set/default are among its options -- needs both Machines loaded, so it
 // lives in application.go beside validateRelationTargets.
+// validateComposite is composite_signed_document's own same-file half (Stage C, 2026-09-28): the three
+// Fields it names, and that the one on *this* Machine is a reference to the record being composited.
+//
+// Whether source_field and target_field exist at all is a cross-Machine question -- they live on the
+// parent -- so it is answered by validateCompositeTargets once every Machine is loaded, the same split
+// validateRollup/validateRollupTargets already uses for exactly the same reason.
+//
+// Each of these is silent at runtime if it loads: a missing parent_field composites nothing and logs a
+// line nobody reads, and a target_field naming no real Field stores a key on the parent that no screen
+// ever offers for download.
+func validateComposite(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field) []string {
+	if e.Then.Composite == nil {
+		return []string{fmt.Sprintf("event %q: then.service %q requires parent_field/source_field/target_field", e.ID, e.Then.Name)}
+	}
+	c := *e.Then.Composite
+
+	var issues []string
+	parentField, ok := fieldsByID[c.ParentField]
+	if !ok {
+		issues = append(issues, fmt.Sprintf("event %q: then.parent_field %q is not a field of machine %q", e.ID, c.ParentField, m.ID))
+	} else if !parentField.IsReference() {
+		issues = append(issues, fmt.Sprintf("event %q: then.parent_field %q must reference the machine being composited (a relation or person field), got %q", e.ID, c.ParentField, parentField.Type))
+	}
+	for _, f := range []struct{ key, value string }{{"source_field", c.SourceField}, {"target_field", c.TargetField}} {
+		if !fieldIDPattern.MatchString(f.value) {
+			issues = append(issues, fmt.Sprintf("event %q: then.%s %q must match %s", e.ID, f.key, f.value, fieldIDPattern.String()))
+		}
+	}
+	if c.SourceField != "" && c.SourceField == c.TargetField {
+		issues = append(issues, fmt.Sprintf("event %q: then.source_field and then.target_field are both %q -- compositing always starts from the original, so writing the result back over it would make every run composite onto the previous output", e.ID, c.SourceField))
+	}
+	return issues
+}
+
 func validateRollup(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field) []string {
 	var issues []string
 

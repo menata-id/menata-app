@@ -215,6 +215,29 @@ type Service struct {
 	Rollup *Rollup
 	// Notify is ServiceSendNotification's own configuration, nil for every other Service.
 	Notify *Notify
+	// Composite is ServiceCompositeSignedDocument's own configuration, nil for every other Service.
+	Composite *Composite
+}
+
+// Composite tells ServiceCompositeSignedDocument which records to work on: declared on the *child*
+// Machine whose change triggers it (an Approval Step's decision), naming the parent it composites onto
+// -- the same shape and the same reasoning as Rollup below, which is why it reuses parent_field and
+// target_field rather than inventing two names for one question (001 Principle #8).
+//
+// What it deliberately does not describe is *how*. The compositing itself is 178 lines of binary PDF
+// manipulation (internal/action/composite.go, banner.go) and stays runtime-owned, exactly as 002
+// intends ("physical strategies remain runtime-owned"); what became declarable is the **invocation** --
+// which decision causes a signed document, and which three Fields it reads and writes. Before this,
+// the one thing that made a signed PDF appear was a direct call from flow code, named by no metadata
+// anywhere, which is 001 #3 inverted.
+type Composite struct {
+	// ParentField is the reference Field on this Machine pointing at the record being composited.
+	ParentField string
+	// SourceField is the file Field on the *parent* holding the document to composite onto -- always
+	// the original, never a previous output, so every run recomposites from scratch.
+	SourceField string
+	// TargetField is the file Field on the parent where the result is stored.
+	TargetField string
 }
 
 // Rollup derives a parent record's own status from the values its children currently hold: the
@@ -255,14 +278,19 @@ const (
 	// preference allows it, sends an email (internal/web's sendNotification, Flow 2 gap study
 	// Tahap 6).
 	ServiceSendNotification = "send_notification"
+	// ServiceCompositeSignedDocument burns every approved step's signature and the approval status
+	// banner onto the parent document's PDF and stores the result (ROADMAP.md Stage C, 2026-09-28;
+	// the audit's Gap B). See Composite for what is declared and what deliberately stays Go.
+	ServiceCompositeSignedDocument = "composite_signed_document"
 )
 
 // KnownServices is the closed set of Service names a Service.Name may name, the same static-seam
 // discipline KnownActions already established for Action.
 var KnownServices = map[string]bool{
-	ServiceLogActivity:        true,
-	ServiceRollupParentStatus: true,
-	ServiceSendNotification:   true,
+	ServiceLogActivity:             true,
+	ServiceRollupParentStatus:      true,
+	ServiceCompositeSignedDocument: true,
+	ServiceSendNotification:        true,
 }
 
 // Notify is send_notification's own configuration. RecipientField is a Field on the record the

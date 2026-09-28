@@ -13,6 +13,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/mail"
+	"menata.app/internal/storage"
 )
 
 // displayString renders a stored field value as text -- a duplicate of composition.DisplayString,
@@ -122,6 +123,22 @@ func notificationLinkFor(machine *domain.Machine, recordID string) string {
 	return fmt.Sprintf("/machines/%s/records/%s", machine.ID, recordID)
 }
 
+// Services is what a declared Service may draw on to do its work: the record store, the mailer, and
+// (since Stage C, 2026-09-28) the file store a composited document is read from and written to.
+//
+// A struct rather than three more positional parameters, and it is the compositing Service that earned
+// it: RunEvents/RunCreateEvents have seven call sites plus one internal recursion, so every new
+// capability a Service needs would otherwise be a seven-file change to add an argument nothing else
+// reads. Named for what it is -- the same posture web.Deps takes for handlers, one level down.
+//
+// Files may be nil for a caller that dispatches no Service needing it; the compositing Service says so
+// and skips rather than panicking, the same best-effort posture every Service here already has.
+type Services struct {
+	Store  *data.Store
+	Mailer mail.Mailer
+	Files  *storage.Store
+}
+
 // RunCreateEvents is RunEvents' own counterpart for the create path: every domain.Event a Machine
 // declares OnCreate (behavior.MatchedCreateEvents) fires once, unconditionally, for the record
 // just created -- generalizing what used to be a hardcoded per-Machine switch (logRecordCreated,
@@ -129,13 +146,13 @@ func notificationLinkFor(machine *domain.Machine, recordID string) string {
 // established for field-change Events. renderEventSummary is reused as-is with oldValues nil: a
 // creation Event's own summary template only ever uses {field_id} placeholders, never
 // {old}/{new}, so nil resolves harmlessly.
-func RunCreateEvents(ctx context.Context, store *data.Store, mailer mail.Mailer, machine *domain.Machine, record *data.Record, actorID string) {
+func RunCreateEvents(ctx context.Context, svc Services, machine *domain.Machine, record *data.Record, actorID string) {
 	for _, e := range behavior.MatchedCreateEvents(machine) {
 		switch e.Then.Name {
 		case domain.ServiceLogActivity:
-			logActivity(ctx, store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, nil, record.Values))
+			logActivity(ctx, svc.Store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, nil, record.Values))
 		case domain.ServiceSendNotification:
-			sendNotification(ctx, store, mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, nil, record.Values))
+			sendNotification(ctx, svc.Store, svc.Mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, nil, record.Values))
 		}
 	}
 }
@@ -148,18 +165,20 @@ func RunCreateEvents(ctx context.Context, store *data.Store, mailer mail.Mailer,
 // machines is threaded through only so rollUpParentStatus can look up the *parent's* own Machine
 // (to dispatch its declared Events, Tahap 6) -- every other Service here still only ever touches
 // the one machine/record this call already names.
-func RunEvents(ctx context.Context, store *data.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, actorID string, oldValues map[string]any, oldValuesOK bool) {
+func RunEvents(ctx context.Context, svc Services, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, actorID string, oldValues map[string]any, oldValuesOK bool) {
 	if !oldValuesOK {
 		return
 	}
 	for _, e := range behavior.MatchedEvents(machine, oldValues, record.Values) {
 		switch e.Then.Name {
 		case domain.ServiceLogActivity:
-			logActivity(ctx, store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, oldValues, record.Values))
+			logActivity(ctx, svc.Store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, oldValues, record.Values))
 		case domain.ServiceRollupParentStatus:
-			rollUpParentStatus(ctx, store, mailer, machines, machine, record, actorID, e.On, *e.Then.Rollup)
+			rollUpParentStatus(ctx, svc, machines, machine, record, actorID, e.On, *e.Then.Rollup)
 		case domain.ServiceSendNotification:
-			sendNotification(ctx, store, mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, oldValues, record.Values))
+			sendNotification(ctx, svc.Store, svc.Mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, oldValues, record.Values))
+		case domain.ServiceCompositeSignedDocument:
+			compositeSignedDocument(ctx, svc, machines, machine, record, *e.Then.Composite)
 		}
 	}
 }
@@ -258,7 +277,9 @@ func activityExists(activities []*data.Record, recordID, marker string) bool {
 // Siblings are re-read rather than derived from the record in hand, so the rollup is always
 // computed from what is actually stored -- the same reasoning the hardcoded recomputeDocumentStatus
 // this replaced already used.
-func rollUpParentStatus(ctx context.Context, store *data.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, actorID, watchField string, r domain.Rollup) {
+func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, actorID, watchField string, r domain.Rollup) {
+	store, mailer := svc.Store, svc.Mailer
+	_ = mailer
 	parentID := fmt.Sprint(record.Values[r.ParentField])
 	if parentID == "" {
 		return
@@ -293,7 +314,7 @@ func rollUpParentStatus(ctx context.Context, store *data.Store, mailer mail.Mail
 		return
 	}
 	if parentMachine, ok := machines[parentField.RelatedMachine]; ok {
-		RunEvents(ctx, store, mailer, machines, parentMachine, parent, actorID, oldParentValues, true)
+		RunEvents(ctx, svc, machines, parentMachine, parent, actorID, oldParentValues, true)
 	}
 }
 

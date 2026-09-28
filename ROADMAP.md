@@ -2925,7 +2925,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `TestDocumentApprovalFieldCouplingOnlyShrinks`, on the same shrink-only terms. Extending the regex is
   what makes the claim checkable rather than asserted.
 
-  **Stage C -- the signature/PDF work becomes a named Service.** `KnownServices` is a closed
+  **Stage C -- the signature/PDF work becomes a named Service -- ~~planned~~ shipped 2026-09-28.** `KnownServices` is a closed
   registry with three members; PDF compositing is not one of them, so `signDocument` is called from
   flow code rather than named from `events:`. **Half this gap is not real and should not be
   worked**: the compositing itself (`action/composite.go`, `banner.go` -- 178 lines of binary PDF
@@ -2934,6 +2934,39 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   it without knowing anything about PDFs. The existing checklist rates CAP-F22 the lowest-value of
   its three behaviours to generalize, and that stays true of the implementation -- this entry only
   separates naming it from rewriting it.
+
+  **What shipped.** `domain.Composite` + `ServiceCompositeSignedDocument` in `KnownServices`,
+  `metadata.validateComposite` (same-file half) and `validateCompositeTargets` (the cross-Machine half,
+  beside `validateRollupTargets`, which is the identical shape), and `mch_approval_step`'s own
+  `evt_step_signed_document`. The operation moved from `internal/web/signing.go` into
+  `internal/execution`, which is the I/O dispatcher by charter, and still calls `internal/action`'s
+  compositing primitives unchanged -- 002 is the reason that half was never the work.
+
+  `execution.Services{Store, Mailer, Files}` replaced the positional parameter list on
+  `RunEvents`/`RunCreateEvents`: compositing needs a file store, and those have seven call sites plus
+  one internal recursion, so every future Service needing something new would otherwise be a
+  seven-file change to add an argument nothing else reads. The JSON API's own create/update twins gained
+  the file store in the same pass rather than being left with a Service they silently could not run.
+
+  Three Field ids stopped being hardcoded on the way: which relation reaches the parent, which Field
+  holds the PDF, which Field receives the result. The ones that remain inside -- a step's decision,
+  sequence, signature image and placement -- are the read side Stage B left, and are what
+  `documentApprovalFieldCoupling` measures.
+
+  **Verified, and one gate amended.** `TestDecideStep_signsDocumentAfterEveryApproval` and
+  `TestDecideStep_worksOverRenamedMachines` pass with no change to their assertions -- the trigger moved,
+  the behaviour did not -- and mutation-proving them (delete the Event from the fixture that mirrors the
+  manifest) makes both fail on the empty signed file, which is the assertion that was impossible while
+  the call was hardcoded. `TestApprovalStepDeclaresItsSignedDocumentEvent` keeps the real manifest honest
+  in the "absent, not malformed" family: without the Event, approvals stop producing a signed PDF while
+  every screen keeps rendering.
+
+  The amended gate is `documentApprovalFieldCoupling`, and the amendment is a message rather than a
+  loosening. A *relocation* adds a file to the population and subtracts from another, and the gate's "a
+  new file is not the way to pass" advice is exactly wrong for that -- so it now carries a total, and
+  when the total falls it says "this looks like a relocation: add this entry and lower the one it moved
+  out of". Every change to the population still fails until the map is updated. 129 across 13 files
+  became 126 across 14.
 
   **Order is load-bearing.** A before B because a declared binding is what lets a generalized
   `decide` know which Application it is acting for; B before C because the Service needs an Action

@@ -82,6 +82,14 @@ func approvalStepTestMachine(ids approvalIDs) *domain.Machine {
 		// handler, so these tests only exercise the real behaviour if the fixture declares it.
 		// internal/conformance.TestApprovalStepDeclaresStatusRollup is what keeps the two in step.
 		Events: []domain.Event{{
+			ID: "evt_step_signed_document",
+			On: ids.decision, WhenEquals: action.DecisionApproved,
+			Then: domain.Service{Name: domain.ServiceCompositeSignedDocument, Composite: &domain.Composite{
+				ParentField: action.FieldStepDocument,
+				SourceField: action.FieldDocumentFile,
+				TargetField: action.FieldDocumentSignedFile,
+			}},
+		}, {
 			ID: "evt_step_decision_rollup",
 			On: ids.decision,
 			Then: domain.Service{Name: domain.ServiceRollupParentStatus, Rollup: &domain.Rollup{
@@ -110,6 +118,7 @@ func documentTestMachine(ids approvalIDs) *domain.Machine {
 			{ID: action.FieldDocumentMode, Name: "Mode", Type: domain.FieldTypeStatus, Options: []string{"sequential", "parallel"}},
 			{ID: action.FieldDocumentStatus, Name: "Status", Type: domain.FieldTypeStatus, Options: []string{action.DocumentStatusInReview, action.DocumentStatusApproved, action.DocumentStatusRejected}},
 			{ID: action.FieldDocumentFile, Name: "File", Type: domain.FieldTypeFile},
+			{ID: action.FieldDocumentSignedFile, Name: "Signed File", Type: domain.FieldTypeFile},
 		},
 	}
 }

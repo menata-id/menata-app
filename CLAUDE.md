@@ -340,7 +340,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   second list to drift from.
 - `TestDocumentApprovalFieldCouplingOnlyShrinks` — the Field-side twin of the ratchet below, frozen at
   129 references across 13 files the day Stage B (2026-09-28) gave an Action a way to declare what it
-  writes (`actions:`, `domain.ActionEffect`). Same shrink-only terms. It exists because the Machine-id
+  writes, and 126 across 14 by that evening when Stage C moved the compositing operation out of
+  `internal/web`. Both ratchets carry a **total** as well as per-file numbers, for one reason: a
+  relocation adds a file and subtracts from another, and "a new file is not the way to pass" is exactly
+  the wrong advice for that. When the total falls the message says so and says what to do; the map is
+  still authoritative, so every change to the population fails until it is updated (`actions:`, `domain.ActionEffect`). Same shrink-only terms. It exists because the Machine-id
   ratchet could not see what Stage B removed, which made this repo's own prediction ("a stage that works
   makes the number drop") false as the gate stood — so the gate was extended rather than the claim
   restated. What would move it next is the *read* side: the signed-PDF compositing filters steps by

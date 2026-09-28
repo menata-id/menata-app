@@ -132,6 +132,17 @@ func IsStep(m *domain.Machine) bool {
 	return isWorkflowRole(m, domain.WorkflowRoleStep)
 }
 
+// IsSignatureStore reports whether m is the Machine its Application casts as the engine's reusable
+// signature store -- an optional role, so a Workspace whose approval Application casts none has no
+// Machine answering true, and the one-time image captured at decision time is the whole feature.
+//
+// Exported for internal/execution, which cannot read the Workspace off ctx (it must not import
+// internal/rendering) and so asks this package, which owns the binding predicates, over the machines
+// map it already receives.
+func IsSignatureStore(m *domain.Machine) bool {
+	return isWorkflowRole(m, domain.WorkflowRoleSignature)
+}
+
 func isWorkflowRole(m *domain.Machine, role string) bool {
 	return m != nil && m.WorkflowEngine == domain.WorkflowEngineDocumentApproval && m.WorkflowRole == role
 }

@@ -959,6 +959,32 @@ events:
       default: in_review              # everything else, including no children yet
 ```
 
+**The fourth Service, `composite_signed_document`** (`domain.Composite`, 2026-09-28) — burns every
+approved step's signature image, plus the approval-status banner, onto the parent document's PDF and
+stores the result. Declared on the child for the same reason a rollup is, and it reuses the same two
+keys:
+
+```yaml
+events:
+  - id: evt_*
+    on: fld_decision
+    when_equals: approved
+    then:
+      service: composite_signed_document
+      parent_field: fld_document      # a relation/person field on THIS machine
+      source_field: fld_file          # a file field on the PARENT — the original, composited onto
+      target_field: fld_signed_file   # a file field on the PARENT — where the result goes
+```
+
+Source and target must both be `file` Fields on the parent, and must differ: compositing always starts
+from the original, so writing the result back over it would make each run composite onto the previous
+output. It recomposites from scratch on every approval, which is why firing on each one is correct
+rather than merely tolerable.
+
+What this declares is *which records and Fields*, never how. The PDF work itself is runtime-owned
+(002) and reads a step's signature image and placement by their own ids, so a Machine you point this at
+still has to carry that vocabulary — the same read-side limit §8's own note describes.
+
 Priority is part of the rule: `any` is checked first, so a single rejection decides the parent
 without waiting for the remaining children. Declaring only one of `any`/`all` is fine; declaring
 neither leaves the parent permanently at `default`, which fails validation. `set` and `default`

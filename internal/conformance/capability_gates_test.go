@@ -195,7 +195,9 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // asserting the claim is what makes it checkable.
 //
 // Frozen 2026-09-28 at 129 references across 13 files, immediately after `decide`, `revise` and the
-// submit wizard's own writes became declared. **The numbers may only go down**, on the same terms as
+// submit wizard's own writes became declared -- **126 across 14 the same day**, when Stage C moved the
+// compositing operation out of internal/web (14 files for fewer references: a relocation adds a file and
+// subtracts from another, which is why the sweep below carries a total as well as per-file numbers). **The numbers may only go down**, on the same terms as
 // the map above: too high fails, too low fails, a new file fails, and comment lines are skipped.
 //
 // What would move it next is the *read* side, which Stage B deliberately did not touch: signing filters
@@ -208,6 +210,7 @@ var documentApprovalFieldCoupling = map[string]int{
 	"composition/pages.go":               1,
 	"composition/placement.go":           5,
 	"composition/review.go":              15,
+	"execution/composite.go":             8,
 	"rendering/detail.templ":             6,
 	"rendering/documentsubmit.templ":     4,
 	"rendering/signatureplacement.templ": 12,
@@ -215,7 +218,7 @@ var documentApprovalFieldCoupling = map[string]int{
 	"web/document.go":                    34,
 	"web/record.go":                      1,
 	"web/review.go":                      1,
-	"web/signing.go":                     17,
+	"web/signing.go":                     6,
 }
 
 var documentApprovalFieldConstant = regexp.MustCompile(`action\.Field[A-Za-z]+`)
@@ -230,6 +233,16 @@ func TestDocumentApprovalFieldCouplingOnlyShrinks(t *testing.T) {
 	assertCouplingOnlyShrinks(t, documentApprovalFieldConstant, documentApprovalFieldCoupling, "Field ids")
 }
 
+// assertCouplingOnlyShrinks is the shared sweep. The map is authoritative in both directions -- a count
+// that rose fails, a count that fell fails until it is lowered, a new file fails, a vanished file fails
+// -- so every change to the population is a change to this file, which is what "locked in rather than
+// left as room to regress" means.
+//
+// The **total** is carried alongside it for one reason, learned on 2026-09-28 when Stage C moved the
+// compositing operation from internal/web into internal/execution: a relocation adds a file and removes
+// references elsewhere, and the "a new file is not the way to pass" message is exactly wrong advice for
+// it. The gate is no laxer -- a relocation still fails until the map is updated -- but when the total
+// fell it says so, and says what to do. Growth still reads as growth.
 func assertCouplingOnlyShrinks(t *testing.T, pattern *regexp.Regexp, budget map[string]int, what string) {
 	t.Helper()
 	found := map[string]int{}
@@ -264,11 +277,22 @@ func assertCouplingOnlyShrinks(t *testing.T, pattern *regexp.Regexp, budget map[
 		}
 	}
 
+	foundTotal, budgetTotal := 0, 0
+	for _, n := range found {
+		foundTotal += n
+	}
+	for _, n := range budget {
+		budgetTotal += n
+	}
+	relocation := foundTotal < budgetTotal
+
 	for _, file := range sortedFileKeys(found) {
 		allowed, listed := budget[file]
 		switch {
+		case !listed && relocation:
+			t.Errorf("%s now names Document Approval's own %s %d time(s) and is not in the frozen population -- the total fell (%d -> %d), so this looks like a relocation rather than new coupling: add this entry and lower the one it moved out of, in this change", file, what, found[file], budgetTotal, foundTotal)
 		case !listed:
-			t.Errorf("%s now names Document Approval's own %s %d time(s) and is not in the frozen population -- adding an entry is not the way to pass this gate. A new capability coupled to one Application's declarations is the shape the audit's stages exist to remove", file, what, found[file])
+			t.Errorf("%s now names Document Approval's own %s %d time(s) and is not in the frozen population, and the total did not fall (%d -> %d) -- adding an entry is not the way to pass this gate. A new capability coupled to one Application's declarations is the shape the audit's stages exist to remove", file, what, found[file], budgetTotal, foundTotal)
 		case found[file] > allowed:
 			t.Errorf("%s names Document Approval's own %s %d time(s), up from %d -- this population may only shrink", file, what, found[file], allowed)
 		case found[file] < allowed:

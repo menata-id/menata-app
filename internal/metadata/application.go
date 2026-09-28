@@ -306,6 +306,9 @@ func LoadApplication(path string) (*App, error) {
 	if err := validateRollupTargets(app.Machines); err != nil {
 		return nil, err
 	}
+	if err := validateCompositeTargets(app.Machines); err != nil {
+		return nil, err
+	}
 	if err := validateSequencingModes(app.Machines); err != nil {
 		return nil, err
 	}
@@ -581,6 +584,54 @@ func validateRollupTargets(machines []*domain.Machine) error {
 				}
 				if len(target.Options) > 0 && !contains(target.Options, w.value) {
 					issues = append(issues, fmt.Sprintf("machine %q: event %q: then.%s %q is not one of parent field %q's options %v", m.ID, e.ID, w.key, w.value, r.TargetField, target.Options))
+				}
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
+// validateCompositeTargets is composite_signed_document's cross-Machine half, the exact shape
+// validateRollupTargets already has and for the identical reason: source_field and target_field live on
+// the *parent*, so whether they exist -- and whether they can hold a file at all -- can only be checked
+// once every Machine is loaded.
+//
+// Without it, a composite naming a Field the parent does not have would run, produce a correct PDF, and
+// store its key under a name nothing reads: the signed document would exist on disk and be unreachable
+// from every screen, with no error anywhere.
+func validateCompositeTargets(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+
+	var issues []string
+	for _, m := range machines {
+		for _, e := range m.Events {
+			if e.Then.Composite == nil {
+				continue
+			}
+			c := *e.Then.Composite
+			parentField, ok := m.FieldByID(c.ParentField)
+			if !ok {
+				continue // already reported by validateComposite
+			}
+			parent, ok := byID[parentField.RelatedMachine]
+			if !ok {
+				issues = append(issues, fmt.Sprintf("machine %q: event %q: then.parent_field %q points at machine %q, which this workspace does not declare", m.ID, e.ID, c.ParentField, parentField.RelatedMachine))
+				continue
+			}
+			for _, f := range []struct{ key, value string }{{"source_field", c.SourceField}, {"target_field", c.TargetField}} {
+				target, ok := parent.FieldByID(f.value)
+				if !ok {
+					issues = append(issues, fmt.Sprintf("machine %q: event %q: then.%s %q is not a field of parent machine %q", m.ID, e.ID, f.key, f.value, parent.ID))
+					continue
+				}
+				if target.Type != domain.FieldTypeFile {
+					issues = append(issues, fmt.Sprintf("machine %q: event %q: then.%s %q is a %q field on %q -- compositing reads and writes an uploaded document, so both must be file fields", m.ID, e.ID, f.key, f.value, target.Type, parent.ID))
 				}
 			}
 		}

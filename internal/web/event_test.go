@@ -206,7 +206,7 @@ func TestCreateRecord_api_taskCreationLogsActivity(t *testing.T) {
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.actor, 0)})
 
 	r := chi.NewRouter()
-	r.Post("/api/machines/{machineID}/records", createRecord(s.store, mail.LogMailer{}, s.cfg))
+	r.Post("/api/machines/{machineID}/records", createRecord(s.store, nil, mail.LogMailer{}, s.cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusCreated {

@@ -805,6 +805,42 @@ func fieldByID(m *domain.Machine, id string) (domain.Field, bool) {
 	return domain.Field{}, false
 }
 
+// TestApprovalStepDeclaresItsSignedDocumentEvent is the same "absent, not malformed" family (Stage C,
+// 2026-09-28): load-time validation refuses a composite naming a Field the parent does not have, and has
+// nothing to say about an Event that is simply missing.
+//
+// Missing is the whole feature disappearing quietly. Approvals still record, the status still rolls up,
+// every screen still renders -- and no signed PDF is ever produced again, which is the one outcome of
+// this Application anybody outside it sees. Before Stage C that could not happen (the call was
+// hardcoded) and could not be tested either; declaring it is what made both true at once.
+func TestApprovalStepDeclaresItsSignedDocumentEvent(t *testing.T) {
+	step := machineFromManifest(t, "mch_approval_step")
+
+	var found *domain.Event
+	for i, e := range step.Events {
+		if e.Then.Name == domain.ServiceCompositeSignedDocument {
+			found = &step.Events[i]
+			break
+		}
+	}
+	if found == nil {
+		t.Fatal("mch_approval_step declares no composite_signed_document event -- approvals would stop producing a signed PDF while every screen kept rendering")
+	}
+	if found.On != "fld_decision" || found.WhenEquals != "approved" {
+		t.Errorf("it fires on %q/%q, want fld_decision/approved -- a rejection must not recomposite, and every approval must", found.On, found.WhenEquals)
+	}
+	c := found.Then.Composite
+	if c == nil {
+		t.Fatal("the event declares no composite configuration")
+	}
+	if c.SourceField == c.TargetField {
+		t.Error("source_field and target_field are the same -- every run would composite onto the previous output instead of the original")
+	}
+	if c.SourceField != "fld_file" || c.TargetField != "fld_signed_file" {
+		t.Errorf("source/target = %q/%q, want the Document's own upload and signed-file Fields", c.SourceField, c.TargetField)
+	}
+}
+
 // TestApprovalStepDeclaresItsDecideEffect is the same "absent, not malformed" family as the three gates
 // below it (Stage B, 2026-09-28): load-time validation refuses an `actions:` block that names a Field
 // the Machine does not have, and has nothing to say about one that is simply missing.

@@ -251,7 +251,7 @@ func TestRollUpParentStatus_dispatchesParentEvents(t *testing.T) {
 		Default: "in_review",
 	}
 	spy := &spyMailer{}
-	rollUpParentStatus(wsCtx, store, spy, machines, stepMachine, step, submitter.ID, "fld_decision", rollup)
+	rollUpParentStatus(wsCtx, Services{Store: store, Mailer: spy}, machines, stepMachine, step, submitter.ID, "fld_decision", rollup)
 
 	updatedDocument, err := store.GetRecord(wsCtx, "mch_document_fixture", document.ID)
 	if err != nil {

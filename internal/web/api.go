@@ -11,6 +11,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/execution"
 	"menata.app/internal/mail"
+	"menata.app/internal/storage"
 )
 
 func listMachines() http.HandlerFunc {
@@ -35,7 +36,7 @@ func listRecords(store *data.Store) http.HandlerFunc {
 	}
 }
 
-func createRecord(store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+func createRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machine, ok := resolveMachine(w, req)
 		if !ok {
@@ -65,7 +66,7 @@ func createRecord(store *data.Store, mailer mail.Mailer, cfg config.Config) http
 		// below: the JSON path had silently never logged Activity for a Document/Task/Project
 		// created through it, unlike its form-based sibling.
 		actor, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		execution.RunCreateEvents(req.Context(), store, mailer, machine, record, actor)
+		execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machine, record, actor)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -77,7 +78,7 @@ func createRecord(store *data.Store, mailer mail.Mailer, cfg config.Config) http
 // carry-forward files, then decision-change guard, then shape/relation/constraint checks), a JSON
 // body decoded straight into map[string]any needing no ValuesFromForm equivalent (createRecord
 // above already established this), and a JSON response instead of an HTML fragment.
-func updateRecord(store *data.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+func updateRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machines := machinesFor(req.Context())
 		machine, ok := resolveMachine(w, req)
@@ -114,7 +115,7 @@ func updateRecord(store *data.Store, mailer mail.Mailer, cfg config.Config) http
 			recordError(w, err)
 			return
 		}
-		execution.RunEvents(req.Context(), store, mailer, machines, machine, record, actor.ID, oldValues, oldValuesOK)
+		execution.RunEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID, oldValues, oldValuesOK)
 
 		w.Header().Set("Content-Type", "application/json")
 		writeJSON(w, record)

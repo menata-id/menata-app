@@ -181,6 +181,10 @@ type eventDoc struct {
 		// send_notification's own keys (domain.Notify).
 		RecipientField string `yaml:"recipient_field"`
 		PreferenceKey  string `yaml:"preference_key"`
+
+		// composite_signed_document's own one new key (domain.Composite) -- parent_field and
+		// target_field above are shared with a rollup, same question, same answer.
+		SourceField string `yaml:"source_field"`
 	} `yaml:"then"`
 }
 
@@ -302,6 +306,13 @@ func Parse(data []byte) (*domain.Machine, error) {
 			then.Notify = &domain.Notify{
 				RecipientField: ed.Then.RecipientField,
 				PreferenceKey:  ed.Then.PreferenceKey,
+			}
+		}
+		if ed.Then.Service == domain.ServiceCompositeSignedDocument {
+			then.Composite = &domain.Composite{
+				ParentField: ed.Then.ParentField,
+				SourceField: ed.Then.SourceField,
+				TargetField: ed.Then.TargetField,
 			}
 		}
 		var schedule *domain.Schedule

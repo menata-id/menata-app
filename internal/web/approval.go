@@ -247,8 +247,7 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 		}
 
 		documentID, _ := step.Values[action.FieldStepDocument].(string)
-		document, ok := decidableDocument(w, ctx, store, machine, step, documentID)
-		if !ok {
+		if _, ok := decidableDocument(w, ctx, store, machine, step, documentID); !ok {
 			return
 		}
 
@@ -280,7 +279,7 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 			return
 		}
 
-		afterDecision(ctx, store, files, mailer, machine, step, document, documentID, decision, actor.ID, oldValues)
+		afterDecision(ctx, store, files, mailer, machine, step, documentID, decision, actor.ID, oldValues)
 		redirectTo(w, req, "/machines/"+approvalMachineID(ctx, domain.WorkflowRoleDocument)+"/records/"+documentID)
 	}
 }
@@ -290,19 +289,17 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 // none of it can fail the request: the decision is already saved, so each of the three is
 // best-effort in its own way.
 func afterDecision(ctx context.Context, store *data.Store, files *storage.Store, mailer mail.Mailer,
-	machine *domain.Machine, step, document *data.Record, documentID, decision, actorID string, oldValues map[string]any,
+	machine *domain.Machine, step *data.Record, documentID, decision, actorID string, oldValues map[string]any,
 ) {
-	if decision == action.DecisionApproved {
-		// Owner request, 2026-09-19: every approval, not just the one that completes the whole
-		// Document, should land in the PDF immediately -- signDocument recomposites every
-		// currently-approved step's stamp plus the growing status banner from scratch each time, so
-		// this is safe to call on every approval, not just the last.
-		signDocument(ctx, store, files, document, documentID)
-	}
-
-	// Always true: oldValues came from a read decideStep already made and checked, so there is no
-	// second fetch left to fail.
-	execution.RunEvents(ctx, store, mailer, machinesFor(ctx), machine, step, actorID, oldValues, true)
+	// Every declared Event this decision fires, including the one that produces the signed PDF: that
+	// was a direct signDocument call here until Stage C (2026-09-28), which made the single most
+	// visible outcome of an approval reachable only from Go. mch_approval_step declares it now
+	// (evt_step_signed_document), and it still recomposites from the original on every approval rather
+	// than only the last -- owner request, 2026-09-19 -- because that is what the Service does.
+	//
+	// oldValues came from a read decideStep already made and checked, so there is no second fetch
+	// left to fail.
+	execution.RunEvents(ctx, execution.Services{Store: store, Mailer: mailer, Files: files}, machinesFor(ctx), machine, step, actorID, oldValues, true)
 
 	logActivity(ctx, store, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID, actorID,
 		fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
@@ -516,6 +513,9 @@ func decodeSignatureDataURL(dataURL string) ([]byte, error) {
 
 // decidableDocument fetches the step's parent Document and refuses the decision if the Document's
 // mode says an earlier step has not been decided yet.
+//
+// Its record is no longer used for anything else: the signed PDF is produced by a declared Event that
+// reads its own parent (Stage C, 2026-09-28), so the sequencing check is all this fetch is for now.
 func decidableDocument(w http.ResponseWriter, ctx context.Context, store *data.Store, machine *domain.Machine, step *data.Record, documentID string) (*data.Record, bool) {
 	document, err := store.GetRecord(ctx, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID)
 	if err != nil {

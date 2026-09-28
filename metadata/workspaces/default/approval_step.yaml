@@ -142,6 +142,33 @@ events:
       preference_key: assigned
       summary: "You have a new approval request"
 
+  # evt_step_signed_document is what makes an approval visible in the document itself (ROADMAP.md
+  # Stage C, 2026-09-28): every approved step's signature, plus the growing approval-status banner,
+  # burned onto the parent's PDF and stored beside the original.
+  #
+  # Until this, the one thing that produced a signed PDF was a direct call from the decide handler,
+  # named by no metadata anywhere -- so the most visible outcome of an approval was reachable only
+  # from Go, which is 001 #3 inverted and the shape
+  # internal/conformance.TestClosedRegistryMembersAreActivatedByMetadata exists to catch.
+  #
+  # What is declared is which records and Fields, never how: parent_field is the relation reaching the
+  # Document, source_field is the original upload it composites onto, target_field is where the result
+  # goes. The compositing itself stays runtime-owned (internal/action/composite.go, banner.go -- 178
+  # lines of binary PDF work), exactly as 002 intends.
+  #
+  # It recomposites from source_field every time rather than from its own previous output, which is
+  # what makes firing on *each* approval correct rather than merely tolerable (owner request,
+  # 2026-09-19: every approval should land in the PDF immediately, not only the last one).
+  - id: evt_step_signed_document
+    on: fld_decision
+    when_equals: approved
+    then:
+      service: composite_signed_document
+      parent_field: fld_document
+      source_field: fld_file
+      target_field: fld_signed_file
+
+
 # Member deactivation guard (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- the first real
 # declaration of domain.MemberRemovalBlock, a general mechanism introduced on its first case
 # rather than its second by owner instruction (see the Machine's own doc comment): a pending step
@@ -168,6 +195,7 @@ sequencing:
   order_field: fld_sequence
   state_field: fld_decision
   open_value: pending
+
 
 # transitions: this Machine's own declared state model (ROADMAP.md Case 03 Fase 7) -- which moves
 # of fld_decision exist, and which Action performs each.
@@ -197,6 +225,7 @@ transitions:
     from: pending
     to: rejected
     action: decide
+
 
 # actions: what `decide` writes onto a step beyond the decision itself (domain.ActionEffect,
 # ROADMAP.md Stage B, 2026-09-28).
