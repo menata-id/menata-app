@@ -2664,6 +2664,35 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   to be triggered by. Each stage is independently shippable and independently verifiable against a
   real Workspace, the same way A07/A08 were verified by mutating YAML rather than by test alone.
 
+  **What is already gated, and what each stage will have to do about it** (added 2026-09-28, after
+  the gates below it landed -- read this before starting a stage, since two of them will fail on
+  correct work unless you also do the bookkeeping):
+
+  - `internal/conformance.TestDocumentApprovalCouplingOnlyShrinks` holds
+    `documentApprovalCoupling`, a per-file count of references to Document Approval's own
+    Machine-id constants, frozen at 66 across 18 files. **A stage that works will make counts
+    drop, and a count that drops *fails* until its entry is lowered** -- that is deliberate, so an
+    improvement is locked in rather than left as headroom. Lowering an entry (or deleting it when a
+    file reaches zero) is part of finishing the stage, not a workaround. It is also the honest
+    measure of whether a stage did what it claimed: **if the number does not move, the stage did
+    not.**
+  - `TestClosedRegistryMembersAreActivatedByMetadata` will fail Stage C the moment a
+    `composite_signature_pdf` (or whatever it is called) is added to `domain.KnownServices` without
+    an `events:` block naming it. That is the gate doing its job: the Service must arrive *with*
+    the declaration that activates it, never as a registry line plus another direct call from flow
+    code.
+  - `TestClosedRegistryMembersAreAcceptedByTheLoader` will fail the same addition if its validation
+    case is missing -- the registry and `internal/metadata`'s own switch are two lists that drift.
+  - `TestNoBareMachineIDIdentityChecks` already forbids the shape Stage A exists to remove, so
+    Stage A cannot regress into it while being written.
+
+  **Gap A is deliberately ungated, and must stay that way until Stage B lands.** A gate locks in
+  progress; it does not create it. Forbidding an Action's effect from being written in Go before
+  an Action can declare its effect would forbid the only way there is. Build the primitive,
+  migrate `decide`/`revise`/`continue-submit` onto it, *then* add the gate -- the same order
+  `TestNoBareMachineIDIdentityChecks` followed, which could only be written after all 23 call
+  sites were converted.
+
 - **Workspace isolation: a Workspace's metadata is its own copy, not a shared file -- ~~planned~~ shipped 2026-09-27** (owner
   decision, 2026-09-27, prompted by the data-loss incident below). **Written up here as a plan
   first, then built the same day; what actually shipped is recorded at the end of this entry.**
