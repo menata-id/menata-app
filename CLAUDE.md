@@ -271,6 +271,26 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `action.IsDocument`/`IsStep`, which check which *Application* claims the Machine as well as
   which Machine it is. Only comparisons are gated: building a URL from those constants, looking a
   Machine up by id, or querying records by one all name a Machine rather than claim an identity.
+- `TestClosedRegistryMembersAreAcceptedByTheLoader` / `...AreActivatedByMetadata` — a new
+  capability must arrive with its metadata seam, not just its Go. Every `domain.KnownActions`/
+  `KnownServices` member must be (a) accepted by `internal/metadata`'s own validation, since the
+  registry and that validation are two lists that drift, and (b) actually named by an installed
+  Workspace's metadata — a capability no manifest can start is one only Go can reach, which is
+  001 #3 inverted.
+- `TestDocumentApprovalCouplingOnlyShrinks` — the third *ratchet*. `documentApprovalCoupling`
+  freezes how many times each file outside `internal/action` names Document Approval's own
+  Machine-id constants (66 across 18 files, 2026-09-28 — read the numbers out of the map, not out
+  of this line). **It may only shrink**: a higher count fails, a new file fails, and a *lower*
+  count fails too, so an improvement is locked in rather than left as room to regress. Counted per
+  reference rather than per file, because a file that already couples is exactly where the next
+  one gets added.
+
+  **A gate locks in progress; it does not create it.** None of these forbids a shape whose
+  declarative alternative does not exist yet — `TestNoBareMachineIDIdentityChecks` could only be
+  written after all 23 call sites were converted, and the audit's Gap A (an Action cannot declare
+  which Fields it writes) is deliberately ungated until that primitive exists. Build the primitive,
+  migrate the uses, *then* gate. The reasoning and the plan are in `menata-app-document`'s
+  `audits/2026-09-28-kajian-metadata-based-document-approval.md` and this repo's `ROADMAP.md`.
 
 If you find yourself re-explaining the same architectural rule in a PR/commit twice, or adding a
 row to a `capabilities.md` table by hand, consider whether it should be (or already is) a
