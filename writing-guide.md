@@ -1153,6 +1153,42 @@ answer rather than a Machine that appears to work against the wrong Fields.
 and does nothing, the same way `sequencing:` on a Machine outside any engine simply orders its own
 records. What makes them run is the Application's `workflow:` binding.
 
+### 12.6e `flow_template` / `flow_template_step` — a remembered approval flow
+
+Two optional blocks per Machine, added 2026-09-29 (Stage E2), for the pair an approval Application
+casts in its `flow_template` and `flow_template_step` roles (§12.1). They are what lets a saved
+default flow work over Machines named anything: before them `internal/web` named all eight Field ids
+itself, so the roles resolved and the writes went to Fields the Machine might not have.
+
+```yaml
+# on the Machine cast in the `flow_template` role
+flow_template:
+  key_field: fld_document_type   # one saved flow per distinct value of this Field
+  mode_field: fld_mode           # the approval mode the saved flow remembers
+
+# on the Machine cast in `flow_template_step`
+flow_template_step:
+  template_field: fld_template          # relation back to the flow this row belongs to
+  order_field: fld_sequence             # number; lower runs first
+  name_field: fld_step_name             # what the step is for
+  actor_field: fld_assignee             # person
+  actor_type_field: fld_approver_type   # which kind of actor this row chose
+  actor_group_field: fld_approver_group # group
+```
+
+Each named Field must exist on the *declaring* Machine, and the order, actor and group entries must be
+`number`, `person` and `group`; `template_field` must be a reference. The key, mode, name and
+actor-kind entries only have to exist — a Machine may legitimately spell those as text or as a closed
+status set. An omitted entry means "this Machine declares no such Field", and a Machine cast in the
+role while declaring *no* shape is **refused** when a flow is saved rather than guessed at.
+
+**Why this is declared when a live step's equivalent is derived.** `sequencing:` says which Field
+orders an Approval Step's siblings and the `decide` Permission says which holds its actor — so for a
+live step the answer already exists and is read, never restated (§12.6a, §12.6). A template row has
+neither block, correctly: nothing decides a template. Deriving from them was tried and returns *every
+id empty*, which would write the rows under `""`. Six keys that look like a duplicate of the live
+step's are two different Machines each answering for itself.
+
 ### 12.7a `datasets[]` — named numbers over this Machine's records
 
 | Key | Value | Notes |

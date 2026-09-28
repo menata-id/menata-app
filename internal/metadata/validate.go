@@ -183,6 +183,12 @@ func Validate(m *domain.Machine) error {
 	if m.SignatureStore != nil {
 		issues = append(issues, validateSignatureStore(m, *m.SignatureStore, fieldsByID)...)
 	}
+	if m.FlowTemplate != nil {
+		issues = append(issues, validateFlowTemplate(m, *m.FlowTemplate, fieldsByID)...)
+	}
+	if m.FlowTemplateStep != nil {
+		issues = append(issues, validateFlowTemplateStep(m, *m.FlowTemplateStep, fieldsByID)...)
+	}
 
 	if m.SLAField != "" {
 		f, ok := fieldsByID[m.SLAField]
@@ -845,6 +851,57 @@ func signatureFieldOfType(m *domain.Machine, key, id string, want domain.FieldTy
 	}
 	if f.Type != want {
 		return []string{fmt.Sprintf("machine %q: %s %q must be a %s field, got %q", m.ID, key, id, want, f.Type)}
+	}
+	return nil
+}
+
+// validateFlowTemplate and validateFlowTemplateStep check that a saved-flow declaration names this
+// Machine's own Fields, with types that can hold what the capability puts in them (Stage E2,
+// 2026-09-29).
+//
+// Same posture as the signature blocks: an empty entry means "this Machine declares no such Field" and
+// every reader handles that explicitly, while a *named* Field that does not exist or cannot hold the
+// value is refused -- the mistake that would otherwise read as a feature quietly not working. Which
+// workflow role the Machine was cast in is deliberately not checked here; a block on a Machine playing
+// no role is inert rather than wrong, and requiring the cast would make load order matter for nothing.
+func validateFlowTemplate(m *domain.Machine, ft domain.FlowTemplate, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	// The key and the mode are both closed option sets in the template library, but neither has to be:
+	// what matters is that the Field exists, since a saved flow is found by *matching values* of it.
+	// So existence only, no type demand -- stated because the neighbours below do demand types.
+	issues = append(issues, signatureFieldExists(m, "flow_template.key_field", ft.KeyField, fieldsByID)...)
+	issues = append(issues, signatureFieldExists(m, "flow_template.mode_field", ft.ModeField, fieldsByID)...)
+	return issues
+}
+
+func validateFlowTemplateStep(m *domain.Machine, fs domain.FlowTemplateStep, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	issues = append(issues, signatureFieldOfType(m, "flow_template_step.order_field", fs.OrderField, domain.FieldTypeNumber, fieldsByID)...)
+	issues = append(issues, signatureFieldOfType(m, "flow_template_step.actor_field", fs.ActorField, domain.FieldTypePerson, fieldsByID)...)
+	issues = append(issues, signatureFieldOfType(m, "flow_template_step.actor_group_field", fs.ActorGroupField, domain.FieldTypeGroup, fieldsByID)...)
+	// The template link must reference something, and the name and actor-kind Fields only have to
+	// exist -- a Machine may spell "which kind of actor" as text or as a closed status set, and this
+	// runtime has no reason to prefer one.
+	if fs.TemplateField != "" {
+		if f, ok := fieldsByID[fs.TemplateField]; !ok {
+			issues = append(issues, fmt.Sprintf("machine %q: flow_template_step.template_field %q is not a field of this machine", m.ID, fs.TemplateField))
+		} else if !f.IsReference() {
+			issues = append(issues, fmt.Sprintf("machine %q: flow_template_step.template_field %q must reference the template machine, got %q", m.ID, fs.TemplateField, f.Type))
+		}
+	}
+	issues = append(issues, signatureFieldExists(m, "flow_template_step.name_field", fs.NameField, fieldsByID)...)
+	issues = append(issues, signatureFieldExists(m, "flow_template_step.actor_type_field", fs.ActorTypeField, fieldsByID)...)
+	return issues
+}
+
+// signatureFieldExists is signatureFieldOfType without the type demand, for the entries whose Field
+// may legitimately be spelled more than one way.
+func signatureFieldExists(m *domain.Machine, key, id string, fieldsByID map[string]domain.Field) []string {
+	if id == "" {
+		return nil
+	}
+	if _, ok := fieldsByID[id]; !ok {
+		return []string{fmt.Sprintf("machine %q: %s %q is not a field of this machine", m.ID, key, id)}
 	}
 	return nil
 }

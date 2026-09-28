@@ -369,6 +369,11 @@ type Machine struct {
 	// but the two an approval Application casts in its `step` and `signature` roles.
 	SignaturePlacement *SignaturePlacement
 	SignatureStore     *SignatureStore
+	// FlowTemplate and FlowTemplateStep declare the Fields of a saved approval flow (CAP-V28) -- see
+	// FlowTemplate's own doc comment for why these are declared rather than derived the way a live
+	// step's are. Nil for every Machine but the two cast in the `flow_template` roles.
+	FlowTemplate     *FlowTemplate
+	FlowTemplateStep *FlowTemplateStep
 	// SLAField is a date Field ID on this Machine; when set, that Field renders as an OVERDUE /
 	// "N day(s) left" badge instead of a plain date (ROADMAP.md Phase 13). Machine-level rather
 	// than per-View because the record detail page renders it too, and a detail page selects no

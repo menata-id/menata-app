@@ -28,6 +28,21 @@ fields:
     name: Approver Group
     type: group
 
+# Which Field of this template row plays which part of a step's shape (Stage E2, 2026-09-29).
+#
+# The six entries below answer the same questions `sequencing:` and the `decide` Permission answer for
+# mch_approval_step -- and that is not a second source of truth, it is a different Machine answering
+# for itself. A template is never decided, so it declares neither of those blocks, and Stage E1 proved
+# by probe that deriving from them here returns *every id empty*: the wizard would have written four
+# values under the empty key and saved a flow with no approvers.
+flow_template_step:
+  template_field: fld_template
+  order_field: fld_sequence
+  name_field: fld_step_name
+  actor_field: fld_assignee
+  actor_type_field: fld_approver_type
+  actor_group_field: fld_approver_group
+
 card_fields:
   - { field: fld_step_name, role: title }
   - { field: fld_sequence, role: status }

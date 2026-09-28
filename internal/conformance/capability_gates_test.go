@@ -238,9 +238,21 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // (`flow_template`/`flow_template_step`), the Fields they hold are declared nowhere. ROADMAP.md's
 // Stage E2.
 //
-// What is left is that gap (14 in web/document.go plus its own reads), a step's label
-// (`fld_step_name`, which nothing declares), and `documentsubmit.templ`'s four `name=` -- Binding,
-// whose general primitive is still unbuilt.
+// **11 across 7 files** since Stage E2 (2026-09-29), which closed exactly that gap:
+// `flow_template:`/`flow_template_step:` (domain.FlowTemplate) declare the Fields of a saved approval
+// flow, and `web/document.go` went 20 -> 2.
+//
+// **Its six row keys are not a second source of truth**, which is the stage's own lesson. They ask what
+// `sequencing:` and the `decide` Permission answer for the *live* step Machine -- but a template is
+// never decided, so it declares neither, and the probe above is why we know deriving from them returns
+// every id empty. Two Machines answering for themselves is not duplication; declaring `sequencing:` on
+// a template to make one derivation serve both would assert locking behaviour it does not have.
+//
+// What is left is one shape in three places, none of it a derivation away. `web/document.go` (2) and
+// `composition`/`rendering` (5) name a step's *label* or a Document's own file and status Field --
+// nothing declares a step's label at all. `rendering/documentsubmit.templ` (4) is a form's `name=`:
+// 007 §11.3 Binding, whose general primitive is still unbuilt and whose trigger is still a third
+// bespoke write screen.
 var documentApprovalFieldCoupling = map[string]int{
 	"composition/approval.go":        1,
 	"composition/pages.go":           1,
@@ -248,7 +260,7 @@ var documentApprovalFieldCoupling = map[string]int{
 	"composition/review.go":          1,
 	"rendering/detail.templ":         1,
 	"rendering/documentsubmit.templ": 4,
-	"web/document.go":                20,
+	"web/document.go":                2,
 }
 
 var documentApprovalFieldConstant = regexp.MustCompile(`action\.Field[A-Za-z]+`)

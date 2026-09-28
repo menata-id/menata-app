@@ -27,6 +27,9 @@ type machineDoc struct {
 	// domain.SignaturePlacement for why this is a declaration rather than a derivation.
 	SignaturePlacement *signaturePlacementDoc `yaml:"signature_placement"`
 	SignatureStore     *signatureStoreDoc     `yaml:"signature_store"`
+	// FlowTemplate/FlowTemplateStep -- the Fields of a saved approval flow (CAP-V28).
+	FlowTemplate     *flowTemplateDoc     `yaml:"flow_template"`
+	FlowTemplateStep *flowTemplateStepDoc `yaml:"flow_template_step"`
 	// MemberRemovalBlocks -- see domain.MemberRemovalBlock's own doc comment for why this is not a
 	// second Constraint shape.
 	MemberRemovalBlocks []memberRemovalBlockDoc `yaml:"blocks_member_removal"`
@@ -90,6 +93,22 @@ type signaturePlacementDoc struct {
 type signatureStoreDoc struct {
 	OwnerField string `yaml:"owner_field"`
 	ImageField string `yaml:"image_field"`
+}
+
+// flowTemplateDoc and flowTemplateStepDoc are the YAML serialization of a domain.FlowTemplate and
+// domain.FlowTemplateStep (Stage E2, 2026-09-29).
+type flowTemplateDoc struct {
+	KeyField  string `yaml:"key_field"`
+	ModeField string `yaml:"mode_field"`
+}
+
+type flowTemplateStepDoc struct {
+	TemplateField   string `yaml:"template_field"`
+	OrderField      string `yaml:"order_field"`
+	NameField       string `yaml:"name_field"`
+	ActorField      string `yaml:"actor_field"`
+	ActorTypeField  string `yaml:"actor_type_field"`
+	ActorGroupField string `yaml:"actor_group_field"`
 }
 
 // datasetDoc is the YAML serialization of a domain.Dataset (007 §7.2-§7.4). measures[].where
@@ -431,6 +450,22 @@ func Parse(data []byte) (*domain.Machine, error) {
 		m.SignatureStore = &domain.SignatureStore{
 			OwnerField: doc.SignatureStore.OwnerField,
 			ImageField: doc.SignatureStore.ImageField,
+		}
+	}
+	if doc.FlowTemplate != nil {
+		m.FlowTemplate = &domain.FlowTemplate{
+			KeyField:  doc.FlowTemplate.KeyField,
+			ModeField: doc.FlowTemplate.ModeField,
+		}
+	}
+	if doc.FlowTemplateStep != nil {
+		m.FlowTemplateStep = &domain.FlowTemplateStep{
+			TemplateField:   doc.FlowTemplateStep.TemplateField,
+			OrderField:      doc.FlowTemplateStep.OrderField,
+			NameField:       doc.FlowTemplateStep.NameField,
+			ActorField:      doc.FlowTemplateStep.ActorField,
+			ActorTypeField:  doc.FlowTemplateStep.ActorTypeField,
+			ActorGroupField: doc.FlowTemplateStep.ActorGroupField,
 		}
 	}
 

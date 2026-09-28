@@ -239,7 +239,11 @@ func saveDefaultApprovalFlow(ctx context.Context, store *data.Store, values map[
 	if template == nil || templateStep == nil {
 		return
 	}
-	documentType := toDisplayString(values[action.FieldTemplateDocumentType])
+	// The submitted Document's own Type and mode: the Type under the Field the *template* is keyed by
+	// (the two Machines deliberately share that Field's name and options -- see
+	// metadata/approval_flow_template.yaml's own note on the missing shared-enum primitive), the mode
+	// under the Field the step Machine's sequencing: names.
+	documentType := toDisplayString(values[action.FlowTemplateFields(template).KeyField])
 	mode := toDisplayString(values[modeFieldFor(approvalMachine(ctx, domain.WorkflowRoleStep))])
 	if err := saveApprovalFlowTemplate(ctx, store, template, templateStep, documentType, mode, rows); err != nil {
 		log.Printf("save default approval flow for document type %q: %v", documentType, err)
@@ -544,15 +548,18 @@ func hasApprover(rows []stepInput) bool {
 // dynamic gate for no reason and make the fallback path untested in practice.
 //
 // Which Field takes which value is the declaring Machine's own business (action.DeclaredFields), so
-// parentField is passed separately: a real step points at the Document through its own relation, a
-// template step at its template, and those are two different Machines' declarations.
-func stepRowValues(f action.EngineFields, parentField, parentID string, i int, row stepInput) map[string]any {
+// parentField and nameField are passed separately. The parent differs by Machine -- a real step points
+// at the Document through its own relation, a template row at its template. And the *label* is the one
+// part nothing declares for a live step (ROADMAP.md), so a live caller passes its own constant while a
+// template row passes the Field its flow_template_step: block names; an empty one writes no label
+// rather than writing under "".
+func stepRowValues(f action.EngineFields, nameField, parentField, parentID string, i int, row stepInput) map[string]any {
 	values := map[string]any{
 		parentField: parentID,
 		f.Order:     float64(i + 1),
 	}
-	if row.name != "" {
-		values[action.FieldStepName] = row.name
+	if row.name != "" && nameField != "" {
+		values[nameField] = row.name
 	}
 	if row.approverType == domain.ActorKindGroup {
 		values[f.ActorType] = domain.ActorKindGroup
@@ -561,16 +568,6 @@ func stepRowValues(f action.EngineFields, parentField, parentID string, i int, r
 		values[f.Actor] = row.assignee
 	}
 	return values
-}
-
-// templateStepFields is the saved approval flow template's own step shape, written out because
-// nothing declares it -- see the call site in saveApprovalFlowTemplate for why DeclaredFields cannot
-// answer here, and ROADMAP.md's Stage E2 for what would replace it.
-var templateStepFields = action.EngineFields{
-	Order:      action.FieldTemplateStepSequence,
-	Actor:      action.FieldTemplateStepAssignee,
-	ActorType:  action.FieldTemplateStepApproverType,
-	ActorGroup: action.FieldTemplateStepApproverGroup,
 }
 
 // createApprovalSteps writes one pending Approval Step per approver row.
@@ -589,7 +586,7 @@ func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.S
 		if row.assignee == "" && row.approverGroup == "" {
 			continue
 		}
-		values := stepRowValues(f, f.Parent, documentID, i, row)
+		values := stepRowValues(f, action.FieldStepName, f.Parent, documentID, i, row)
 		values[f.Decision] = action.DecisionPending
 		data.ApplyDefaults(stepMachine, values)
 		if !validRecord(w, req, store, stepMachine, values) {
@@ -619,7 +616,16 @@ func findApprovalFlowTemplate(ctx context.Context, store *data.Store, documentTy
 	if templateMachine == nil || stepMachine == nil {
 		return nil, nil, nil
 	}
-	templates, err := store.ListRecordsBy(ctx, templateMachine.ID, action.FieldTemplateDocumentType, documentType)
+	// Which Field a saved flow is keyed by, and which relation reaches its rows, come from the two
+	// Machines' own flow_template:/flow_template_step: blocks (Stage E2).
+	key := action.FlowTemplateFields(templateMachine).KeyField
+	row := action.FlowTemplateStepFields(stepMachine)
+	if key == "" || row.TemplateField == "" {
+		// Cast in the role but declaring no shape: there is no Field to look a flow up by, and reading
+		// with an empty one would match every record while looking like a real query.
+		return nil, nil, nil
+	}
+	templates, err := store.ListRecordsBy(ctx, templateMachine.ID, key, documentType)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -627,13 +633,17 @@ func findApprovalFlowTemplate(ctx context.Context, store *data.Store, documentTy
 		return nil, nil, nil
 	}
 	template = templates[0]
-	steps, err = store.ListRecordsBy(ctx, stepMachine.ID, action.FieldTemplateStepTemplate, template.ID)
+	steps, err = store.ListRecordsBy(ctx, stepMachine.ID, row.TemplateField, template.ID)
 	if err != nil {
 		return nil, nil, err
 	}
-	sort.Slice(steps, func(i, j int) bool {
-		return toFloat(steps[i].Values[action.FieldTemplateStepSequence]) < toFloat(steps[j].Values[action.FieldTemplateStepSequence])
-	})
+	// A Machine declaring no order has no declared order to sort by, so the store's own creation order
+	// stands -- the same posture the compositing Service takes for an unordered step Machine.
+	if row.OrderField != "" {
+		sort.Slice(steps, func(i, j int) bool {
+			return toFloat(steps[i].Values[row.OrderField]) < toFloat(steps[j].Values[row.OrderField])
+		})
+	}
 	return template, steps, nil
 }
 
@@ -658,9 +668,18 @@ func saveApprovalFlowTemplate(ctx context.Context, store *data.Store, templateMa
 	if err != nil {
 		return err
 	}
+	declared := action.FlowTemplateFields(templateMachine)
+	rowFields := action.FlowTemplateRowFields(templateStepMachine)
+	if declared.KeyField == "" || rowFields.Parent == "" {
+		// Cast in the role, declaring no shape: there is nowhere to put the key or to point the rows at.
+		// Refused here rather than left to record validation, which would reject the empty Field id with
+		// a message about an unknown field instead of about a missing declaration.
+		return fmt.Errorf("machines %q/%q are cast as a saved approval flow but declare no flow_template:/flow_template_step: shape",
+			templateMachine.ID, templateStepMachine.ID)
+	}
 	templateValues := map[string]any{
-		action.FieldTemplateDocumentType: documentType,
-		action.FieldTemplateMode:         mode,
+		declared.KeyField:  documentType,
+		declared.ModeField: mode,
 	}
 	var templateID string
 	if existing != nil {
@@ -685,16 +704,12 @@ func saveApprovalFlowTemplate(ctx context.Context, store *data.Store, templateMa
 		if row.assignee == "" && row.approverGroup == "" {
 			continue
 		}
-		// Constants, and NOT action.DeclaredFields, which is the honest half of this slice rather than an
-		// oversight. mch_approval_flow_template_step declares no `decide` Permission, no dynamic actor
-		// gate and no `sequencing:` -- it is a saved template, nothing decides it -- so every id that
-		// derivation returns is empty, and passing it here would write four values under the empty key
-		// and silently produce a flow template with no approvers. Checked rather than assumed.
-		//
-		// That is the flow-template shape gap: the roles (flow_template/flow_template_step) are cast,
-		// but the Fields they hold are declared nowhere, exactly as the signature Fields were before
-		// Stage D. Forward pointer: ROADMAP.md's Stage E2.
-		values := stepRowValues(templateStepFields, action.FieldTemplateStepTemplate, templateID, i, row)
+		// The row shape comes from this Machine's own flow_template_step: block (Stage E2), mapped onto
+		// the same EngineFields the live-step writer takes. Until that block existed this line named
+		// four constants: action.DeclaredFields cannot answer here, because a template declares no
+		// `decide` Permission, no actor gate and no `sequencing:` -- nothing decides a template -- so
+		// every id it returns is empty and the rows would have been written under the empty key.
+		values := stepRowValues(rowFields, action.FlowTemplateStepFields(templateStepMachine).NameField, rowFields.Parent, templateID, i, row)
 		data.ApplyDefaults(templateStepMachine, values)
 		if _, err := store.CreateRecord(ctx, templateStepMachine.ID, values); err != nil {
 			return err
@@ -717,19 +732,20 @@ func showApprovalFlowTemplateRows(store *data.Store) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-		documentType := req.URL.Query().Get(action.FieldTemplateDocumentType)
+		documentType := req.URL.Query().Get(action.FlowTemplateFields(approvalMachine(req.Context(), domain.WorkflowRoleFlowTemplate)).KeyField)
 		template, steps, err := findApprovalFlowTemplate(req.Context(), store, documentType)
 		if err != nil {
 			serverError(w, err)
 			return
 		}
+		row := action.FlowTemplateStepFields(approvalMachine(req.Context(), domain.WorkflowRoleFlowTemplateStep))
 		prefills := make([]rendering.StepPrefill, 0, len(steps))
 		for _, step := range steps {
 			prefills = append(prefills, rendering.StepPrefill{
-				Name:         toDisplayString(step.Values[action.FieldTemplateStepName]),
-				ApproverType: toDisplayString(step.Values[action.FieldTemplateStepApproverType]),
-				AssigneeID:   toDisplayString(step.Values[action.FieldTemplateStepAssignee]),
-				GroupID:      toDisplayString(step.Values[action.FieldTemplateStepApproverGroup]),
+				Name:         toDisplayString(step.Values[row.NameField]),
+				ApproverType: toDisplayString(step.Values[row.ActorTypeField]),
+				AssigneeID:   toDisplayString(step.Values[row.ActorField]),
+				GroupID:      toDisplayString(step.Values[row.ActorGroupField]),
 			})
 		}
 		// "" is a deliberate valid value here, not an unhandled case: modeFieldset (documentsubmit.
@@ -738,7 +754,7 @@ func showApprovalFlowTemplateRows(store *data.Store) http.HandlerFunc {
 		// fragment's own doc comment above promises for a Document Type with no saved template.
 		var selectedMode string
 		if template != nil {
-			selectedMode = toDisplayString(template.Values[action.FieldTemplateMode])
+			selectedMode = toDisplayString(template.Values[action.FlowTemplateFields(approvalMachine(req.Context(), domain.WorkflowRoleFlowTemplate)).ModeField])
 		}
 		render(req.Context(), w, rendering.ApprovalFlowTemplateRows(opts.approvers, opts.groups, opts.mode, prefills, selectedMode))
 	}

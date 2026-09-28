@@ -229,12 +229,16 @@ type FullMachineCheckDoc struct {
 	MemberRemovalBlocks []any `yaml:"blocks_member_removal"`
 	// SignaturePlacement/SignatureStore are Stage D's own blocks (domain.SignaturePlacement,
 	// 2026-09-28), added here in the same change for the same reason Actions above was.
-	SignaturePlacement any    `yaml:"signature_placement"`
-	SignatureStore     any    `yaml:"signature_store"`
-	SLAField           string `yaml:"sla_field"`
-	CardFields         []any  `yaml:"card_fields"`
-	Views              []any  `yaml:"views"`
-	AppendOnly         bool   `yaml:"append_only"`
+	SignaturePlacement any `yaml:"signature_placement"`
+	SignatureStore     any `yaml:"signature_store"`
+	// FlowTemplate/FlowTemplateStep are Stage E2's own blocks (domain.FlowTemplate, 2026-09-29) --
+	// added here in the same change for the fourth time this gate has asked for it.
+	FlowTemplate     any    `yaml:"flow_template"`
+	FlowTemplateStep any    `yaml:"flow_template_step"`
+	SLAField         string `yaml:"sla_field"`
+	CardFields       []any  `yaml:"card_fields"`
+	Views            []any  `yaml:"views"`
+	AppendOnly       bool   `yaml:"append_only"`
 }
 
 type FullApplicationCheckDoc struct {

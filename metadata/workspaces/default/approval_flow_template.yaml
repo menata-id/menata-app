@@ -24,6 +24,14 @@ fields:
     required: true
     options: [sequential, parallel]
 
+# Which Fields this saved flow is keyed by and what it remembers (Stage E2, 2026-09-29). Until this
+# block existed, internal/web named fld_document_type and fld_mode itself -- so an Application could
+# cast any Machine in the engine's `flow_template` role (Stage A) and saving a default flow would
+# still write to Fields that Machine might not have.
+flow_template:
+  key_field: fld_document_type
+  mode_field: fld_mode
+
 card_fields:
   - { field: fld_document_type, role: title }
   - { field: fld_mode, role: status }

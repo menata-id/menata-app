@@ -294,3 +294,152 @@ func TestShowApprovalFlowTemplateRows_blankWhenNoTemplateSaved(t *testing.T) {
 		t.Errorf("body leaked a step from a different Document Type's template: %s", html)
 	}
 }
+
+// TestApprovalFlowTemplate_overMachinesThatNameTheirFieldsDifferently is Stage E2's own property
+// (2026-09-29), and it is the assertion the stage exists to make possible: a saved approval flow works
+// over template Machines whose Fields are called anything, because both halves read the Machines' own
+// flow_template:/flow_template_step: declarations.
+//
+// Before those blocks, internal/web named fld_document_type, fld_mode, fld_template, fld_sequence,
+// fld_step_name, fld_assignee, fld_approver_type and fld_approver_group itself -- so Stage A's promise
+// (cast any Machine in the role, under any name) was only half true: the roles resolved and the writes
+// went to Fields the Machine might not have.
+//
+// Exercised through saveApprovalFlowTemplate and findApprovalFlowTemplate directly rather than the
+// wizard, because those two are the whole read/write pair and the wizard adds a Document it does not
+// need here.
+func TestApprovalFlowTemplate_overMachinesThatNameTheirFieldsDifferently(t *testing.T) {
+	store, wsCtx, _, _, submitter, group := approvalFlowTemplateTestFixture(t,
+		"Renamed Flow Template", "renamed-flow-template-workspace", "renamed_flow_template@example.com")
+
+	templateM, stepM := renamedFlowTemplateMachines()
+	ctx := rendering.WithCurrentWorkspace(wsCtx, workspaceCasting(templateM, stepM), "Renamed Flow Template", false)
+
+	rows := []stepInput{
+		{name: "Legal", assignee: submitter.ID},
+		{name: "Finance", approverType: domain.ActorKindGroup, approverGroup: group.ID},
+	}
+	if err := saveApprovalFlowTemplate(ctx, store, templateM, stepM, "Kontrak", "sequential", rows); err != nil {
+		t.Fatalf("saveApprovalFlowTemplate over renamed Machines: %v", err)
+	}
+
+	template, steps, err := findApprovalFlowTemplate(ctx, store, "Kontrak")
+	if err != nil {
+		t.Fatalf("findApprovalFlowTemplate: %v", err)
+	}
+	if template == nil {
+		t.Fatal("no saved flow was found -- the key Field this Machine declares was not the one written")
+	}
+	if got := toDisplayString(template.Values["fld_cara"]); got != "sequential" {
+		t.Errorf("fld_cara = %q, want sequential -- the mode Field this Machine declares", got)
+	}
+	if len(steps) != 2 {
+		t.Fatalf("got %d saved rows, want 2", len(steps))
+	}
+	// In declared order, by the Field this Machine calls its order -- not fld_sequence.
+	if got := toDisplayString(steps[0].Values["fld_nama"]); got != "Legal" {
+		t.Errorf("first row fld_nama = %q, want Legal", got)
+	}
+	if got := toDisplayString(steps[0].Values["fld_petugas"]); got != submitter.ID {
+		t.Errorf("first row fld_petugas = %q, want the submitter", got)
+	}
+	if got := toDisplayString(steps[1].Values["fld_grup"]); got != group.ID {
+		t.Errorf("second row fld_grup = %q, want the Group", got)
+	}
+	// And nothing was written under the template library's own ids, which is what would happen if any
+	// of this were still naming them.
+	for _, id := range []string{action.FieldTemplateDocumentType, action.FieldTemplateMode} {
+		if _, set := template.Values[id]; set {
+			t.Errorf("something wrote %s on a template Machine that does not declare it", id)
+		}
+	}
+	for _, id := range []string{action.FieldTemplateStepSequence, action.FieldTemplateStepAssignee, action.FieldStepName} {
+		if _, set := steps[0].Values[id]; set {
+			t.Errorf("something wrote %s on a template step Machine that does not declare it", id)
+		}
+	}
+}
+
+// TestApprovalFlowTemplate_undeclaredShapeIsRefusedNotGuessed holds the other half of the "empty means
+// undeclared, never assume the usual name" contract: a Machine cast in the role but declaring no shape
+// must refuse, not fall back to internal/action's constants.
+//
+// It is the assertion that would have caught Stage E1's near-miss before a probe did -- passing the
+// derived (and entirely empty) EngineFields into the row writer would have written four values under
+// the empty key and saved a flow with no approvers.
+func TestApprovalFlowTemplate_undeclaredShapeIsRefusedNotGuessed(t *testing.T) {
+	store, wsCtx, _, _, submitter, _ := approvalFlowTemplateTestFixture(t,
+		"Undeclared Flow Template", "undeclared-flow-template-workspace", "undeclared_flow_template@example.com")
+
+	templateM, stepM := renamedFlowTemplateMachines()
+	templateM.FlowTemplate, stepM.FlowTemplateStep = nil, nil
+	ctx := rendering.WithCurrentWorkspace(wsCtx, workspaceCasting(templateM, stepM), "Undeclared", false)
+
+	err := saveApprovalFlowTemplate(ctx, store, templateM, stepM, "Kontrak", "sequential",
+		[]stepInput{{name: "Legal", assignee: submitter.ID}})
+	if err == nil {
+		t.Error("saving a flow over Machines that declare no shape succeeded -- it must refuse rather than guess Field ids")
+	}
+
+	// And nothing was created: the refusal happens before any write, so there is no half-saved flow.
+	records, err := store.ListRecords(ctx, templateM.ID)
+	if err != nil {
+		t.Fatalf("ListRecords: %v", err)
+	}
+	if len(records) != 0 {
+		t.Errorf("got %d template record(s) after a refused save, want 0", len(records))
+	}
+}
+
+// renamedFlowTemplateMachines is the saved-flow pair under names this repo has never used, declaring
+// its shape through the Stage E2 blocks. The ids are Indonesian for the same reason
+// TestDecideStep_worksOverRenamedMachines' are: a name this codebase cannot have hardcoded anywhere.
+func renamedFlowTemplateMachines() (*domain.Machine, *domain.Machine) {
+	template := &domain.Machine{
+		ID:             "mch_pola_persetujuan",
+		Name:           "Pola Persetujuan",
+		ApplicationID:  "app_document_approval",
+		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
+		WorkflowRole:   domain.WorkflowRoleFlowTemplate,
+		Fields: []domain.Field{
+			{ID: "fld_jenis", Name: "Jenis", Type: domain.FieldTypeStatus, Required: true, Options: []string{"Kontrak", "Tagihan"}},
+			{ID: "fld_cara", Name: "Cara", Type: domain.FieldTypeStatus, Required: true, Options: []string{"sequential", "parallel"}},
+		},
+		FlowTemplate: &domain.FlowTemplate{KeyField: "fld_jenis", ModeField: "fld_cara"},
+	}
+	step := &domain.Machine{
+		ID:             "mch_baris_pola",
+		Name:           "Baris Pola",
+		ApplicationID:  "app_document_approval",
+		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
+		WorkflowRole:   domain.WorkflowRoleFlowTemplateStep,
+		Fields: []domain.Field{
+			{ID: "fld_induk", Name: "Induk", Type: domain.FieldTypeRelation, RelatedMachine: "mch_pola_persetujuan"},
+			{ID: "fld_urutan", Name: "Urutan", Type: domain.FieldTypeNumber, Required: true},
+			{ID: "fld_nama", Name: "Nama", Type: domain.FieldTypeText},
+			{ID: "fld_jenis_petugas", Name: "Jenis Petugas", Type: domain.FieldTypeStatus, Options: []string{"User", "Group"}},
+			{ID: "fld_petugas", Name: "Petugas", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
+			{ID: "fld_grup", Name: "Grup", Type: domain.FieldTypeGroup},
+		},
+		FlowTemplateStep: &domain.FlowTemplateStep{
+			TemplateField:   "fld_induk",
+			OrderField:      "fld_urutan",
+			NameField:       "fld_nama",
+			ActorField:      "fld_petugas",
+			ActorTypeField:  "fld_jenis_petugas",
+			ActorGroupField: "fld_grup",
+		},
+	}
+	return template, step
+}
+
+// workspaceCasting is a Workspace installing exactly these Machines, so approvalMachine(ctx, role)
+// resolves them the way a real request's does.
+func workspaceCasting(machines ...*domain.Machine) domain.Workspace {
+	ws := domain.Workspace{Slug: "renamed"}
+	for _, m := range machines {
+		ws.MachineIDs = append(ws.MachineIDs, m.ID)
+		ws.Machines = append(ws.Machines, m)
+	}
+	return ws
+}

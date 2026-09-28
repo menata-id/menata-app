@@ -111,6 +111,41 @@ func CompositeFields(stepMachine *domain.Machine) domain.Composite {
 	return domain.Composite{}
 }
 
+// FlowTemplateFields and FlowTemplateStepFields are the saved approval flow's own declared shape
+// (Stage E2, 2026-09-29) -- see domain.FlowTemplate for why this pair is declared where a live step's
+// equivalent is derived. Zero value when the Machine declares nothing, same contract as every other
+// accessor here.
+func FlowTemplateFields(templateMachine *domain.Machine) domain.FlowTemplate {
+	if templateMachine == nil || templateMachine.FlowTemplate == nil {
+		return domain.FlowTemplate{}
+	}
+	return *templateMachine.FlowTemplate
+}
+
+func FlowTemplateStepFields(stepMachine *domain.Machine) domain.FlowTemplateStep {
+	if stepMachine == nil || stepMachine.FlowTemplateStep == nil {
+		return domain.FlowTemplateStep{}
+	}
+	return *stepMachine.FlowTemplateStep
+}
+
+// FlowTemplateRowFields turns a saved-flow row declaration into the EngineFields the wizard's shared
+// row writer takes, so one function writes a live Approval Step and a template row alike.
+//
+// The mapping is the point: an EngineFields is "which Field holds the order, the actor, the actor's
+// kind, the actor's Group" -- and that question has two legitimate answers depending on the Machine,
+// derived for the live step and declared for the template. This is where the second one is expressed.
+func FlowTemplateRowFields(stepMachine *domain.Machine) EngineFields {
+	fs := FlowTemplateStepFields(stepMachine)
+	return EngineFields{
+		Order:      fs.OrderField,
+		Actor:      fs.ActorField,
+		ActorType:  fs.ActorTypeField,
+		ActorGroup: fs.ActorGroupField,
+		Parent:     fs.TemplateField,
+	}
+}
+
 // openValueFor is the single value actionName's declared edges all move *from* -- the state a record
 // sits in while nobody has acted. Empty when the edges disagree, which is no answer rather than a
 // guess, the same posture every accessor here takes.

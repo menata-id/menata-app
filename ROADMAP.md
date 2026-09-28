@@ -3234,6 +3234,46 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   pseudo-identity holds none. The write path is covered instead by six Postgres-backed wizard tests
   through the real handler, mutation-proved: breaking one derived id fails four of them.
 
+  **Stage E2 -- the saved approval flow's shape becomes a declaration -- shipped 2026-09-29.** The gap
+  Stage E1 named and left with a forward pointer, now closed: `flow_template:` (key + mode) and
+  `flow_template_step:` (template link, order, label, actor, actor kind, Group), two Machine-level
+  blocks on the pair an Application casts in the `flow_template` roles. `domain.FlowTemplate`/
+  `FlowTemplateStep`, validated against the declaring Machine's own Fields, mirrored into
+  `installer.FullMachineCheckDoc` in the same change -- the **fourth** time
+  `TestCheckDocsMirrorMetadatasOwnKeys` has asked for that, which is the argument for one commit rather
+  than two.
+
+  **The six row keys are not a second source of truth, and this is the stage's real content.** They ask
+  what `sequencing:` and the `decide` Permission answer for the *live* step Machine. But a template is
+  never decided, so it declares neither -- and Stage E1 established by probe, not by argument, that
+  deriving from them returns **every id empty**, which would write four values under the empty key and
+  save a flow with no approvers. Two Machines answering for themselves is not duplication. The
+  alternative -- declaring `sequencing:` on a template so one derivation serves both -- would assert
+  locking behaviour a template does not have, and was rejected for that reason rather than on taste.
+
+  `documentApprovalFieldCoupling`: **29 across 7 files -> 11**, `internal/web/document.go` **20 -> 2**,
+  exactly the prediction, re-measured. One design correction on the way: a first pass moved the row
+  *label* with a `relabelTemplateRow` helper, which added three references of its own -- passing the
+  label Field to `stepRowValues` as a parameter removed the helper and hit the predicted 2. The label is
+  the one part still a constant for a live step, because nothing declares a step's label.
+
+  **Verified, including live.** The eight existing flow-template tests pass **unchanged** over a changed
+  mechanism, the same proof Stage C used. Two new ones:
+  `TestApprovalFlowTemplate_overMachinesThatNameTheirFieldsDifferently` saves *and* reloads a flow over
+  `mch_pola_persetujuan`/`mch_baris_pola` and asserts nothing was written under the template library's
+  own ids, and `..._undeclaredShapeIsRefusedNotGuessed` holds the no-fallback half -- the assertion that
+  would have caught Stage E1's near-miss before the probe did. Mutation-proved: putting one constant
+  back fails the first; swapping the declaration for `DeclaredFields` fails the suite loudly.
+
+  **Live, and one of the two halves genuinely worked.** Renaming `fld_sequence` -> `fld_urutan` in the
+  `default` Workspace's own copy *without* updating the block made the running service refuse to load,
+  naming the dangling entry -- so the declaration really is read at load in production, not just in
+  tests. Renaming both loaded clean and served the wizard and its template fragment at 200. **What could
+  not be checked live**: saving a flow, because `POST /documents` returns 403 for the admin
+  pseudo-identity (`prm_create_own_document` needs an Application role it does not hold), and production
+  holds no saved template to reload. That half is the Postgres-backed tests', and the renamed-Machine
+  test is stronger than anything this session's identity can reach.
+
   **Order is load-bearing.** A before B because a declared binding is what lets a generalized
   `decide` know which Application it is acting for; B before C because the Service needs an Action
   to be triggered by; D after all three because it is the only one that had to *add* a declaration
