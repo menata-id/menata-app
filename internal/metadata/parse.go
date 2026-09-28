@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"gopkg.in/yaml.v3"
-
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
 )
@@ -220,7 +218,7 @@ type permissionDoc struct {
 // (schema) parsing only -- semantic validation happens in Validate.
 func Parse(data []byte) (*domain.Machine, error) {
 	var doc machineDoc
-	if err := yaml.Unmarshal(data, &doc); err != nil {
+	if err := decodeStrict(data, &doc, "a machine file"); err != nil {
 		return nil, fmt.Errorf("parse metadata: %w", err)
 	}
 

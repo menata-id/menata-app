@@ -3290,14 +3290,45 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Field type exists. `expression.Comparison`'s own doc comment asks for a second differently-shaped
   Constraint before growing the vocabulary; these two are that evidence arriving from the filter
   side instead.
-- **Reject unknown metadata keys at load** — `internal/metadata`'s three `yaml.Unmarshal` calls
-  decode without `KnownFields`, so a key the parser has no home for is dropped in silence and the
-  Machine loads clean. 005 Phase 3 says invalid metadata must not reach compilation; this is the
-  one validation hole that makes *documentation* drift dangerous rather than merely untidy — a
-  guide that still shows a retired key produces no error anywhere, which is how the pre-2026-09-20
-  singular `view:` block stayed in `writing-guide.md` §6/§12.7 unnoticed (verified by loading a
-  copy of `metadata/` that used it: no error, zero Views). Small change, real blast radius: every
-  existing manifest must be clean before it can be turned on.
+- **Reject unknown metadata keys at load -- ~~planned~~ shipped 2026-09-28.** `internal/metadata`'s
+  three `yaml.Unmarshal` calls decoded without `KnownFields`, so a key the parser had no home for was
+  dropped in silence and the Machine loaded clean. 005 Phase 3 says invalid metadata must not reach
+  compilation; this was the one validation hole that made *documentation* drift dangerous rather than
+  merely untidy — a guide that still showed a retired key produced no error anywhere, which is how the
+  pre-2026-09-20 singular `view:` block stayed in `writing-guide.md` §6/§12.7 unnoticed (verified by
+  loading a copy of `metadata/` that used it: no error, zero Views).
+
+  **The prerequisite this entry named — "every existing manifest must be clean before it can be turned
+  on" — was checked before any change, and was already satisfied**: 33 files, zero unknown top-level
+  keys; 94 distinct keys used across `metadata/` against 92 the loader knows, and the five that looked
+  unknown (`document`, `step`, `signature`, `flow_template`, `flow_template_step`) are `workflow.roles`
+  **map keys**, which `KnownFields` does not constrain. The inline YAML in tests was clean too. So this
+  was a three-line change plus the care around it, not a migration.
+
+  **What shipped.** `internal/metadata.decodeStrict`, used by all three sites, and an error rewritten
+  for the person who wrote the file rather than the person who wrote the struct: yaml's own
+  `field foo not found in type metadata.machineDoc` becomes `"foo" is not a key a machine file
+  declares`, keeping the line number, which is the useful half. That wording matters beyond taste --
+  on the assistant's path the message is handed straight back into the conversation as the thing to
+  correct (`returnToConversation`), and a Go type name there is worse than noise.
+  `TestMetadataDecodesStrictly` gates it: no bare `yaml.Unmarshal` in that package, because the lenient
+  way is the one the yaml package makes easiest.
+
+  **Why now, and one claim corrected while doing it.** The plan argued this mattered most for the AI
+  assistant -- that a key the model invented was dropped without a word. **That turned out to be wrong,
+  and checking beat assuming:** `aiassist` marshals from typed Go structs and appends list items to
+  existing files, so it has never been able to emit a key at all, let alone an unknown one. What this
+  protects is hand-written metadata, the template library, and any future writer. The error wording
+  still earns its place on the assistant's path, because `aiassist.Write` load-verifies and hands any
+  failure back to the conversation, where a Go type name is worse than noise. The real trigger was the
+  same failure shape showing up twice that day one level up -- `installer`'s strict-decode mirrors
+  drifting from the loader's own docs, which `TestCheckDocsMirrorMetadatasOwnKeys` closed. This is the
+  read side of that rule.
+
+  **The trade, named rather than discovered later:** a manifest written for a newer runtime now fails
+  hard on an older binary instead of loading with that key ignored. That is 005 Phase 3's own posture,
+  and it is free only while metadata and binary ship together (`capabilities.md`'s "metadata loads
+  once, at startup").
 - **Metadata hot reload and change classification** — tracked in `capabilities.md`'s limits as two
   separate deliberate deferrals (a `*.yaml` edit needs a restart; deleting a Field silently orphans
   its data in every record's JSONB) and in the companion repo's own

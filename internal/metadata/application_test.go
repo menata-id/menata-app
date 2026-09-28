@@ -1491,3 +1491,86 @@ func TestLoadApplication_optionalWorkflowRolesAreStillValidated(t *testing.T) {
 		})
 	}
 }
+
+// TestDecodeStrict_rejectsAnUnknownKey closes this runtime's last validation hole, in the three
+// document kinds it has (ROADMAP.md's "Reject unknown metadata keys at load").
+//
+// The Machine case is the 2026-09-20 finding turned into a test: a copy of metadata/ whose mch_document
+// used the pre-2026-09-20 singular `view:` block loaded with no error at all and simply had zero Views.
+// A retired or misspelled key was the one mistake that produced no error anywhere -- everything the
+// loader *knows* has been validated strictly for months, which is exactly what made this easy to miss.
+func TestDecodeStrict_rejectsAnUnknownKey(t *testing.T) {
+	tests := []struct {
+		name    string
+		build   func(t *testing.T) string
+		want    string
+		concept string
+	}{
+		{
+			name: "a machine file, using the retired singular view: block",
+			build: func(t *testing.T) string {
+				dir := t.TempDir()
+				writeFile(t, dir, "task.yaml", "id: mch_task\nname: Task\nview:\n  type: board\n")
+				writeFile(t, dir, "app.yaml", "workspace: default\nmachines:\n  - task.yaml\napplications: []\n")
+				return filepath.Join(dir, "app.yaml")
+			},
+			want:    `"view" is not a key`,
+			concept: "a machine file",
+		},
+		{
+			name: "an application file",
+			build: func(t *testing.T) string {
+				dir := t.TempDir()
+				writeFile(t, dir, "task.yaml", "id: mch_task\nname: Task\n")
+				writeFile(t, dir, "app.yaml", "workspace: default\nmachines:\n  - task.yaml\napplications:\n  - app-main.yaml\n")
+				writeFile(t, dir, "app-main.yaml", "id: app_task_tracker\nname: Task Tracker\nmachines:\n  - mch_task\nshow_navigation: false\n")
+				return filepath.Join(dir, "app.yaml")
+			},
+			want:    `"show_navigation" is not a key`,
+			concept: "an application file",
+		},
+		{
+			name: "a workspace manifest",
+			build: func(t *testing.T) string {
+				dir := t.TempDir()
+				writeFile(t, dir, "task.yaml", "id: mch_task\nname: Task\n")
+				writeFile(t, dir, "app.yaml", "workspace: default\nmachines:\n  - task.yaml\napplications: []\nsuggested_apps: []\n")
+				return filepath.Join(dir, "app.yaml")
+			},
+			want:    `"suggested_apps" is not a key`,
+			concept: "a workspace manifest",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := LoadApplication(tt.build(t))
+			if err == nil {
+				t.Fatalf("LoadApplication() error = nil, want one containing %q -- an unknown key used to load clean and silently drop the capability", tt.want)
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("error = %v\nwant it to name the key: %s", err, tt.want)
+			}
+			if !strings.Contains(err.Error(), tt.concept) {
+				t.Errorf("error = %v\nwant it to name the document kind (%q), not a Go type", err, tt.concept)
+			}
+			if !strings.Contains(err.Error(), "line ") {
+				t.Errorf("error = %v\nwant yaml's own line number kept -- that is the useful half", err)
+			}
+		})
+	}
+}
+
+// TestDecodeStrict_acceptsMapKeys is the property a later reader would most plausibly break while
+// "tidying" the strict decoder: KnownFields constrains struct fields, not map keys, so an Application's
+// own workflow.roles -- whose keys are role names, not schema -- stays exactly as legal as it was.
+//
+// Without this, adding a fifth role to an engine would look like a metadata error.
+func TestDecodeStrict_acceptsMapKeys(t *testing.T) {
+	app, err := LoadApplication(workflowManifest(t, validWorkflow+"    signature: mch_ttd\n"))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v -- workflow.roles keys are map keys, which strict decoding does not constrain", err)
+	}
+	if got := app.Workspace.Applications[0].Workflow.Roles[domain.WorkflowRoleSignature]; got != "mch_ttd" {
+		t.Errorf("roles[signature] = %q, want mch_ttd", got)
+	}
+}

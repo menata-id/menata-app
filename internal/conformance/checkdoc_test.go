@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -113,4 +114,50 @@ func contains(haystack []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+// TestMetadataDecodesStrictly is the lock on the hole closed 2026-09-28: every YAML this runtime reads
+// goes through internal/metadata's own decodeStrict, which rejects a key it has no home for.
+//
+// A bare yaml.Unmarshal is lenient, and its leniency is invisible -- the file loads, the Machine is
+// built, and the capability the misspelled key was meant to declare simply never appears. That was true
+// for months and cost a real investigation (a copy of metadata/ using the retired singular `view:` block
+// loaded with zero Views and no error). Nothing but this stops a fourth decode site being added the
+// lenient way, because the lenient way is the one the yaml package makes easiest.
+//
+// internal/aiassist and internal/installer decode strictly too, through installer.WriteFileStrict, and
+// are checked by TestCheckDocsMirrorMetadatasOwnKeys above -- this is the read side of the same rule.
+func TestMetadataDecodesStrictly(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "metadata")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read internal/metadata: %v", err)
+	}
+	scanned := 0
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		scanned++
+		for i, line := range strings.Split(string(src), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "//") {
+				continue // a comment may name the old shape while explaining it
+			}
+			if strings.Contains(line, "yaml.Unmarshal(") {
+				t.Errorf("internal/metadata/%s:%d decodes leniently:\n\t%s\n"+
+					"use decodeStrict, which rejects a key this runtime has no home for. A lenient decode "+
+					"drops a misspelled or retired key in silence, and the file then loads clean while the "+
+					"capability it was meant to declare never appears (005 Phase 3)",
+					name, i+1, strings.TrimSpace(line))
+			}
+		}
+	}
+	if scanned == 0 {
+		t.Fatal("no source files were scanned -- this gate would pass an empty tree silently")
+	}
 }

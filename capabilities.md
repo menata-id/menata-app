@@ -373,6 +373,21 @@ mockups show and this app does not build yet is tracked internally.
 
 ## Metadata validation
 
+
+**Unknown keys are refused, since 2026-09-28** (`internal/metadata.decodeStrict`, gated by
+`internal/conformance.TestMetadataDecodesStrictly`). This was the last validation hole and the only one
+where a wrong file looked exactly like a right one: everything the runtime *knows* has been validated
+strictly for months, so a **misspelled or retired** key was the single mistake that produced no error
+anywhere -- the Machine loaded clean and simply lacked the capability. Proved on 2026-09-20 by loading a
+copy of `metadata/` whose `mch_document` used the pre-2026-09-20 singular `view:` block: no error, zero
+Views. The error names the key, the document kind and yaml's own line number rather than a Go type, because any
+load failure is handed back to the AI assistant's conversation (`returnToConversation`) where a Go type
+name is worse than noise. **Who it protects, checked rather than assumed:** hand-written metadata, the
+template library and any future writer -- *not* the assistant's own publish path, which marshals from
+typed Go structs and appends list items, so it has never been able to emit a key at all.
+Map keys are untouched, which is load-bearing for `workflow.roles`. **The trade, named:** a manifest
+written for a newer runtime now fails hard on an older binary instead of loading with that key ignored
+-- 005 Phase 3's own posture, and free only while metadata and binary ship together.
 | Rule | Scope | Enforced by |
 |---|---|---|
 | Stable-identity ID patterns (`mch_*`, `fld_*`, `cst_*`, `evt_*`, `prm_*`, `ws_*`, `app_*`) | Every declaration | `internal/metadata.Validate`/`validateConstraint`/`validateEvent`/`validatePermission` |
@@ -537,7 +552,6 @@ a stated obligation in 001-007 is not met today.
 | Every read is a whole-Machine read (007 §21.1, §28) | `ListRecords`/`ListRecordsBy`/`GetRecord` only — no projection, filter pushdown, pagination or limit; pages reduce whole record sets in Go |
 | Metadata loads once, at startup (005 §Hot Reload) | A metadata change takes effect on restart. Principle #10 (no source regeneration) is met; hot reload is a deliberate, triggered deferral |
 | Navigation is not per-user/role-filtered (006 §Navigation, 007 §20) | Every Application's and the Workspace's own navigation is resolved once at process startup into package-level state (`internal/rendering.ConfigureWorkspace`), identical for every request/viewer; `domain.NavigationItem` has no role/permission field. **This row used to describe a viewer-level stand-in (`appShell`'s `hiddenNavIDs`, naming `nav_workspace_members` for a plain member) -- that parameter was deleted 2026-09-21 with the launcher's last caller of it (see "Navigation: one filter now, not two" above), so there is no stand-in left, declared or otherwise.** `nav_workspace_members` is a declared item pointing at a `requireWorkspaceAdmin`-gated route; the launcher no longer lists individual destinations at all (it lists Applications), so there is nothing there left to hide. Workspace Home's own "Manage members" link still keeps its own inline `workspaceRole != "member"` check (`workspacehome.templ`) -- one page-local condition, not the declared form. `requires_role:` on a navigation item stays unbuilt, waiting on a real case (ROADMAP.md, Planned) |
-| Unknown metadata keys are ignored, not rejected (005 Phase 3, "invalid metadata must not reach compilation") | The three `yaml.Unmarshal` call sites in `internal/metadata` decode without `KnownFields`, so a key the parser has no home for is dropped in silence. Everything the runtime *knows* is validated strictly (see "Metadata validation" above), which is what makes the hole easy to miss: a retired or misspelled key produces a Machine that loads cleanly and simply lacks the capability. Verified 2026-09-20 by loading a copy of `metadata/` whose `mch_document` used the pre-2026-09-20 singular `view:` block — `LoadApplication` returned no error and the Machine had zero Views |
 | Write-side Binding has no primitive (007 §11.3) | A form input's `name=` is a metadata id chosen by the page: `machine.templ` does it generically (`name={ f.ID }` over `m.Fields`), but the two bespoke Case 3 screens hardcode it — `signatureplacement.templ` twelve times, `documentsubmit.templ` six. `TestRenderingUsesProjectionNotRawValues` does not see this: it gates reads, not writes, so a file can leave the ratchet with every binding still hand-typed |
 | Design mockups ahead of the build | The `ui-sample/` mockups describe screens, data, and a platform shell this app does not fully have yet — a project workspace overview and per-project scoping, a richer task detail body (description/checklist/comments), board drag-and-drop, and the rest of the Workspace/Group/Role platform shell (Group-derived roles, per-Application role rows). Registration/login/Workspace, Application plurality and the cross-app launcher, the document-type field, and the one-screen worklist+detail layout for approvals are already built |
 | Security page has no session list or 2FA (Account menu port, 2026-09-21) | `/account-security` ships change-password and "sign out of other devices" only. `internal/authorization`'s session model is one signed cookie plus a generation counter per `mch_user` record — no per-device/browser/location tracking exists to back a real session list, and no 2FA primitive exists either; both stay marked "(planned)" rather than fabricated |

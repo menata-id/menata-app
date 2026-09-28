@@ -710,6 +710,12 @@ load time, not silently at runtime.
 
 ## 12. The complete grammar surface
 
+**A key that is not in these tables is refused at load, since 2026-09-28.** A misspelled or retired one
+(`view:` where `views:` is meant, `sla_filed:` for `sla_field:`) used to load without complaint and the
+capability simply never appeared -- the one failure shape that looked exactly like success. Now it fails
+with the key, the kind of document, and the line number. So these tables are the vocabulary, not a
+summary of it: if you need a key that is not here, the runtime cannot read it, and adding it is Go work.
+
 Sections 1–11 teach by example. This section is the index: **every key the parser accepts, and
 every value a closed vocabulary allows.** Anything not listed here either fails validation at
 startup or is silently ignored — there is no third outcome, and nothing is inferred from a key the
@@ -1242,13 +1248,7 @@ Honest current limits, not a roadmap — some of these may change over time:
   picks approved steps by `fld_decision`, and several composed screens project Fields by id — so a
   Machine you bind should still carry that vocabulary to be read correctly. See §8 — this is the limit
   most likely to matter for a new business process.
-- **Unknown metadata keys are ignored, not rejected.** A misspelled or retired key (`view:` where
-  `views:` is meant, `sla_filed:` for `sla_field:`) loads without complaint and the capability
-  simply never appears. Everything the runtime *does* know is validated strictly — unknown field
-  types, dangling relation targets, a `cards` View with no `card_fields` all fail startup — but a
-  key the parser has no home for is dropped in silence, which is the one failure shape that looks
-  exactly like success. Re-read §12's key tables against the version of this guide shipped with
-  your binary rather than trusting a remembered spelling.
+
 - **No field-level permissions.** Access control today is per-Machine and per-Action at best; you
   cannot hide or lock one Field from one role while leaving the rest editable. A `roles:` arm
   (§8) gates a whole Action, not a Field within it.

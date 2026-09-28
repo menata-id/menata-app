@@ -249,12 +249,15 @@ type FullApplicationCheckDoc struct {
 }
 
 // WriteFileStrict re-parses data into a fresh T with strict, unknown-key-rejecting decoding before
-// writing it anywhere -- the narrow, scoped strict-decode check this package adds (see this
-// package's own doc comment and ROADMAP.md's "Reject unknown metadata keys" entry): it catches a
-// hallucinated/misspelled key in bytes this package itself produced, without touching the leniency
-// internal/metadata's three existing yaml.Unmarshal call sites still rely on for every hand-written
-// file already in production. Writes to a temp file in the same directory and renames into place,
+// writing it anywhere: it catches a hallucinated or mistyped key in bytes this package itself produced,
+// *before* the file is renamed into place. Writes to a temp file in the same directory and renames,
 // so a crash mid-write can never leave a half-written file for the next reload to trip over.
+//
+// This was the only strict decoding in the repo until 2026-09-28, when internal/metadata's own loader
+// became strict too (decodeStrict, ROADMAP.md's "Reject unknown metadata keys at load"). It is not
+// redundant now -- it fails earlier, on this package's own output, rather than on the reload that
+// follows -- and TestCheckDocsMirrorMetadatasOwnKeys keeps the mirror types below in step with the
+// loader's own, which is the drift that broke the first template install.
 func WriteFileStrict[T any](path string, data []byte) error {
 	var check T
 	dec := yaml.NewDecoder(bytes.NewReader(data))

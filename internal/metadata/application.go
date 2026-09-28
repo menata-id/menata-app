@@ -9,8 +9,6 @@ import (
 	"slices"
 	"strings"
 
-	"gopkg.in/yaml.v3"
-
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
 )
@@ -209,7 +207,7 @@ func LoadApplication(path string) (*App, error) {
 	}
 
 	var doc workspaceDoc
-	if err := yaml.Unmarshal(data, &doc); err != nil {
+	if err := decodeStrict(data, &doc, "a workspace manifest"); err != nil {
 		return nil, fmt.Errorf("parse workspace manifest %s: %w", path, err)
 	}
 
@@ -327,7 +325,7 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 		return nil, fmt.Errorf("read application %s: %w", path, err)
 	}
 	var doc applicationDoc
-	if err := yaml.Unmarshal(data, &doc); err != nil {
+	if err := decodeStrict(data, &doc, "an application file"); err != nil {
 		return nil, fmt.Errorf("parse application %s: %w", path, err)
 	}
 
