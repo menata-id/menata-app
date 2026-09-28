@@ -128,7 +128,7 @@ func reviewStep(ctx context.Context, w http.ResponseWriter, store *data.Store, m
 		http.Error(w, "not found", http.StatusNotFound)
 		return nil, false
 	}
-	step, err := composition.ReviewStepForDocument(ctx, composition.NewLoader(store, machines), machineForStep(ctx), record, viewerID)
+	step, err := composition.ReviewStepForDocument(ctx, composition.NewLoader(store, machines), machineForStep(ctx), machineForDocument(ctx), record, viewerID)
 	if err != nil {
 		serverError(w, err)
 		return nil, false

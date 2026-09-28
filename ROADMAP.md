@@ -3106,6 +3106,24 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   that already existed. The lesson is the one this file keeps relearning -- a deferral reason that
   covers *part* of a population reads as if it covers all of it, and only counting tells you which.
 
+  **A live 404 shipped in the middle of this sequence, and how it hid is the part worth keeping.**
+  `14c9223` (the derivation slice) replaced `action.FieldStepDocument` with
+  `action.DeclaredFields(stepMachine, nil).Parent` inside `composition.ReviewStepForDocument`. That
+  Field is derived by *comparing* the step Machine's relations against the document Machine's id, so
+  nil meant no id to match, an empty Field name, a `ListRecordsBy` filtering on `""`, and zero rows --
+  every Document looked like a Document with no steps. **Which is a legitimate state with a legitimate
+  answer: 404.** So the screen failed in a shape it is supposed to have. Nothing logged an error,
+  nothing panicked, no test failed, and the whole signal was three 404s in an access log the owner
+  happened to hit.
+  Two things let it through, both fixable and both fixed: `ReviewStepForDocument` had **no test at
+  all** (it needs a Loader, so it never got a unit test and nobody wrote the integration one), and the
+  derivation was called with nil for a Machine the caller had in hand. `TestShowReviewDocument_*`
+  covers both arms of the route now -- by Document id and by Step id -- plus the genuine no-steps 404
+  beside them, so "make /review always return 200" cannot pass. Mutation-proved by restoring the nil.
+  **The general lesson for the derivation pattern**: `action.DeclaredFields(x, nil)` is a silent
+  half-answer, not a compile error. Where a caller has the second Machine, pass it; the one remaining
+  nil call site (`composition.buildPlacement`) reads no relation-derived Field and is now the only one.
+
   **Stage E1 -- the wizard's derivable half -- shipped 2026-09-28.** The Document's status Field from
   its own state model (`StatusField`), the ordering mode from the step Machine's `sequencing.mode_field`
   (it lives on the *parent* by design, which is why the child is where the pair is stated), the order,

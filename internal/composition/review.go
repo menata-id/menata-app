@@ -226,8 +226,15 @@ func canStillDecide(stepMachine *domain.Machine, decision string) bool {
 // exist without them (the generic create form makes one), and the caller decides what to do --
 // internal/web 404s, and internal/composition's own card falls back to the generic page rather
 // than linking a screen with nothing to render.
-func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine *domain.Machine, document *data.Record, viewerID string) (*data.Record, error) {
-	f := action.DeclaredFields(stepMachine, nil)
+//
+// **docMachine is required, and passing nil here was a live 404 for a day** (2026-09-28). The Field
+// reaching a step's parent is derived by *comparing* the step Machine's relations against the document
+// Machine's id (action.DeclaredFields), so with nil there is no id to match and f.Parent comes back
+// empty -- ListRecordsBy then filters on "" , matches no rows, and every Document looked like a
+// Document with no steps. The 404 that produced is the one branch below that is a legitimate answer,
+// which is exactly why nothing looked wrong: the screen failed in a shape it is supposed to have.
+func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine, docMachine *domain.Machine, document *data.Record, viewerID string) (*data.Record, error) {
+	f := action.DeclaredFields(stepMachine, docMachine)
 	steps, err := l.ListRecordsBy(ctx, stepMachine.ID, f.Parent, document.ID)
 	if err != nil {
 		return nil, err
@@ -235,7 +242,7 @@ func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine *domain.M
 	if len(steps) == 0 {
 		return nil, nil
 	}
-	ordered := orderedBySequence(steps, action.DeclaredFields(stepMachine, nil))
+	ordered := orderedBySequence(steps, f)
 
 	var seq *domain.Sequencing
 	if stepMachine != nil {
