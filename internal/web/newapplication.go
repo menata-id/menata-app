@@ -185,7 +185,7 @@ func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.
 		}
 	}
 	if reply.Change != nil && aiassist.Validate(*reply.Change, existingStateFor(ws)) == nil {
-		if err := store.UpdateAISessionStatus(ctx, session.ID, data.AISessionStatusGenerated); err != nil {
+		if err := store.UpdateAISessionStatus(ctx, workspaceID, session.ID, data.AISessionStatusGenerated); err != nil {
 			return err
 		}
 	}
@@ -280,7 +280,7 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			serverError(w, fmt.Errorf("metadata was written but the live reload failed -- a process restart will pick it up: %w", err))
 			return
 		}
-		if err := store.UpdateAISessionStatus(ctx, session.ID, data.AISessionStatusPublished); err != nil {
+		if err := store.UpdateAISessionStatus(ctx, workspaceID, session.ID, data.AISessionStatusPublished); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -335,11 +335,11 @@ func returnToConversation(ctx context.Context, w http.ResponseWriter, req *http.
 		return
 	}
 	session.Turns = append(session.Turns, data.AISessionTurn{Role: "user", Content: report})
-	if err := store.UpdateAISessionStatus(ctx, session.ID, data.AISessionStatusOpen); err != nil {
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	if err := store.UpdateAISessionStatus(ctx, workspaceID, session.ID, data.AISessionStatusOpen); err != nil {
 		serverError(w, err)
 		return
 	}
-	workspaceID, _ := data.WorkspaceScope(ctx)
 	if err := runAssistantTurn(ctx, store, aiClient, workspaceID, session); err != nil {
 		serverError(w, err)
 		return
@@ -353,8 +353,20 @@ func returnToConversation(ctx context.Context, w http.ResponseWriter, req *http.
 func discardNewApplication(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
-		sessionID := chi.URLParam(req, "session")
-		if err := store.UpdateAISessionStatus(ctx, sessionID, data.AISessionStatusDiscarded); err != nil {
+		workspaceID, _ := data.WorkspaceScope(ctx)
+
+		// Resolved through this Workspace's own scope first, exactly as every sibling handler here does
+		// (lines 63, 118, 204, 247). This one did not until 2026-09-29: it passed the URL parameter
+		// straight to UpdateAISessionStatus, whose statement had no Workspace predicate either, so a
+		// Workspace admin could discard *another* Workspace's draft Application by id. Both halves are
+		// fixed -- the store carries the predicate now -- and this stays because a handler that reads
+		// like its four siblings is how the next one gets written correctly.
+		session, err := store.GetAISession(ctx, workspaceID, chi.URLParam(req, "session"))
+		if err != nil {
+			recordError(w, err)
+			return
+		}
+		if err := store.UpdateAISessionStatus(ctx, workspaceID, session.ID, data.AISessionStatusDiscarded); err != nil {
 			recordError(w, err)
 			return
 		}

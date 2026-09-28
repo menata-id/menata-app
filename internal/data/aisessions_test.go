@@ -54,7 +54,7 @@ func TestStore_AISession_createAppendAndGet(t *testing.T) {
 		t.Errorf("turns out of order: %+v", got.Turns)
 	}
 
-	if err := store.UpdateAISessionStatus(ctx, session.ID, AISessionStatusPublished); err != nil {
+	if err := store.UpdateAISessionStatus(ctx, workspaceID, session.ID, AISessionStatusPublished); err != nil {
 		t.Fatalf("UpdateAISessionStatus: %v", err)
 	}
 	got, err = store.GetAISession(ctx, workspaceID, session.ID)

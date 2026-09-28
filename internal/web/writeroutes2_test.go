@@ -26,10 +26,10 @@ import (
 // in writeroutes_test.go, and mutation-proving each one against a handler that renders and writes
 // nothing is what makes the coverage worth its lines.
 //
-// Two routes are deliberately still uncovered and named rather than skipped: /new-application/message
-// and /new-application/{session}/discard need a stored assistant conversation with generated metadata
-// in it, the same fixture /new-application/{session}/review lacks in the per-record GET sweep. That is
-// its own slice.
+// The two /new-application routes this file once recorded as uncovered are covered in
+// newapplication_test.go (2026-09-29). The claim here that they "need a fixture of a different kind"
+// was wrong: createGeneratedSession already existed in that file and already drove publishNewApplication
+// twice -- it had simply never been pointed at them. Covering them found a cross-Workspace write.
 
 // --- account ---------------------------------------------------------------------------------------
 

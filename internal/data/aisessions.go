@@ -128,10 +128,17 @@ func (s *Store) AppendAISessionTurn(ctx context.Context, sessionID, role, conten
 
 // UpdateAISessionStatus moves a session to a new status (see the AISessionStatus* constants) and
 // touches updated_at.
-func (s *Store) UpdateAISessionStatus(ctx context.Context, id, status string) error {
+// **workspaceID is in the WHERE, not just in the caller.** Until 2026-09-29 this was `WHERE id = $1`,
+// and discardNewApplication passed the id straight from its URL with no GetAISession first -- so a
+// Workspace admin could discard another Workspace's draft Application by id. Its four sibling handlers
+// all resolved a scoped session first and were unaffected, which is exactly why the store is the right
+// place for the predicate: relying on every caller to scope is a rule that holds until one does not,
+// and one did not. Same posture installer.RefuseIfExists states for itself -- a guard that holds even
+// when a future caller is built wrong.
+func (s *Store) UpdateAISessionStatus(ctx context.Context, workspaceID, id, status string) error {
 	ct, err := s.pool.Exec(ctx, `
-		UPDATE ai_sessions SET status = $2, updated_at = NOW() WHERE id = $1
-	`, id, status)
+		UPDATE ai_sessions SET status = $3, updated_at = NOW() WHERE id = $2 AND workspace_id = $1
+	`, workspaceID, id, status)
 	if err != nil {
 		return fmt.Errorf("update ai session status: %w", err)
 	}

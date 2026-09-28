@@ -223,9 +223,10 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 	if f.uploaded != "" {
 		add("/uploads/*", "/uploads/"+f.uploaded, http.StatusOK, "a stored file is served back")
 	}
-	// /new-application/{session}/review is the AI assistant's own review screen. It needs a stored
-	// conversation with generated metadata in it, which is a fixture of a different kind -- named here
-	// rather than passed over, so the claimed-route check above fails until someone builds it.
+	// /new-application/{session}/review is the AI assistant's own review screen, and an unknown session
+	// is the case this sweep covers. Its happy path is covered by
+	// TestShowNewApplicationReview_rendersTheProposalAndRefusesAnotherWorkspaces, which reuses the
+	// fixture this comment once claimed did not exist (createGeneratedSession, newapplication_test.go).
 	add("/new-application/{session}/review", "/new-application/does-not-exist/review", http.StatusNotFound,
 		"an unknown assistant session is not found -- the happy path needs a seeded conversation, still unbuilt")
 	return out

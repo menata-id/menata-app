@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"menata.app/internal/aiassist"
 	"menata.app/internal/authorization"
@@ -19,6 +21,37 @@ import (
 	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
 )
+
+// validGeneratedChange is a proposal that **passes aiassist.Validate** -- mirroring
+// internal/aiassist's own validLeaveRequestChange, since that one is unexported.
+//
+// It was not valid until 2026-09-29, and that mattered: the change this fixture built had no Machines,
+// which Validate rejects ("an application needs at least one machine"). Every test using the fixture
+// still passed, because they read the session's *status* -- which the fixture sets directly -- and none
+// of them validated. So the review screen's own re-validation, the thing its doc comment says it exists
+// for, had never been exercised by anything. Found by the first test that called it.
+func validGeneratedChange(name string) *aiassist.GeneratedChange {
+	return &aiassist.GeneratedChange{
+		Kind: aiassist.KindNewApplication,
+		Application: &aiassist.GeneratedApplication{
+			ID: "app_leave_permits", Name: name, Description: "Generated from your description.",
+			Roles: []string{"Employee", "Supervisor"}, PublisherRole: "Supervisor",
+			Machines: []aiassist.GeneratedMachine{{
+				ID: "mch_leave_permit", Name: "Leave Permit",
+				Fields: []aiassist.GeneratedField{
+					{ID: "fld_title", Name: "Title", Type: "text", Required: true},
+					{ID: "fld_status", Name: "Status", Type: "status", Required: true, Options: []string{"submitted", "approved"}},
+				},
+				Permissions: []aiassist.GeneratedPermission{
+					{ID: "prm_create", Action: "create", Roles: []string{"Employee"}},
+				},
+				Transitions: []aiassist.GeneratedTransition{
+					{ID: "trn_approve", Name: "Approve", Field: "fld_status", From: "submitted", To: "approved"},
+				},
+			}},
+		},
+	}
+}
 
 // createGeneratedSession is the fixture every draft-Application test below needs: a session that
 // has reached "generated" status, with a stored model turn carrying the identical shape
@@ -29,15 +62,7 @@ func createGeneratedSession(t *testing.T, ctx context.Context, store *data.Store
 	if err != nil {
 		t.Fatalf("CreateAISession: %v", err)
 	}
-	reply := aiassist.Reply{
-		Message: "Here is what I'll build.",
-		Change: &aiassist.GeneratedChange{
-			Kind: aiassist.KindNewApplication,
-			Application: &aiassist.GeneratedApplication{
-				ID: "app_leave_permits", Name: name, Description: "Generated from your description.",
-			},
-		},
-	}
+	reply := aiassist.Reply{Message: "Here is what I'll build.", Change: validGeneratedChange(name)}
 	content, err := json.Marshal(reply)
 	if err != nil {
 		t.Fatalf("marshal reply: %v", err)
@@ -45,7 +70,7 @@ func createGeneratedSession(t *testing.T, ctx context.Context, store *data.Store
 	if err := store.AppendAISessionTurn(ctx, session.ID, "model", string(content)); err != nil {
 		t.Fatalf("AppendAISessionTurn: %v", err)
 	}
-	if err := store.UpdateAISessionStatus(ctx, session.ID, data.AISessionStatusGenerated); err != nil {
+	if err := store.UpdateAISessionStatus(ctx, workspaceID, session.ID, data.AISessionStatusGenerated); err != nil {
 		t.Fatalf("UpdateAISessionStatus: %v", err)
 	}
 	session.Status = data.AISessionStatusGenerated
@@ -107,11 +132,11 @@ func TestShowHomeDraftApplications_omitsOtherStatuses(t *testing.T) {
 		t.Fatalf("CreateAISession(open): %v", err)
 	}
 	published := createGeneratedSession(t, wsCtx, store, ws.ID, "Already Published")
-	if err := store.UpdateAISessionStatus(wsCtx, published.ID, data.AISessionStatusPublished); err != nil {
+	if err := store.UpdateAISessionStatus(wsCtx, ws.ID, published.ID, data.AISessionStatusPublished); err != nil {
 		t.Fatalf("UpdateAISessionStatus(published): %v", err)
 	}
 	discarded := createGeneratedSession(t, wsCtx, store, ws.ID, "Discarded Idea")
-	if err := store.UpdateAISessionStatus(wsCtx, discarded.ID, data.AISessionStatusDiscarded); err != nil {
+	if err := store.UpdateAISessionStatus(wsCtx, ws.ID, discarded.ID, data.AISessionStatusDiscarded); err != nil {
 		t.Fatalf("UpdateAISessionStatus(discarded): %v", err)
 	}
 
@@ -336,7 +361,7 @@ func TestPublishNewApplication_grantsThePublisherTheirChosenRole(t *testing.T) {
 	if err := store.AppendAISessionTurn(wsCtx, session.ID, "model", string(content)); err != nil {
 		t.Fatalf("AppendAISessionTurn: %v", err)
 	}
-	if err := store.UpdateAISessionStatus(wsCtx, session.ID, data.AISessionStatusGenerated); err != nil {
+	if err := store.UpdateAISessionStatus(wsCtx, ws.ID, session.ID, data.AISessionStatusGenerated); err != nil {
 		t.Fatalf("UpdateAISessionStatus: %v", err)
 	}
 
@@ -427,7 +452,7 @@ func TestPublishNewApplication_failureReturnsToTheConversation(t *testing.T) {
 	if err := store.AppendAISessionTurn(wsCtx, session.ID, "model", string(content)); err != nil {
 		t.Fatalf("AppendAISessionTurn: %v", err)
 	}
-	if err := store.UpdateAISessionStatus(wsCtx, session.ID, data.AISessionStatusGenerated); err != nil {
+	if err := store.UpdateAISessionStatus(wsCtx, ws.ID, session.ID, data.AISessionStatusGenerated); err != nil {
 		t.Fatalf("UpdateAISessionStatus: %v", err)
 	}
 
@@ -474,4 +499,233 @@ func TestPublishNewApplication_failureReturnsToTheConversation(t *testing.T) {
 	if after.Status != data.AISessionStatusOpen {
 		t.Errorf("session status = %q, want %q -- the failed proposal must stop being offerable", after.Status, data.AISessionStatusOpen)
 	}
+}
+
+// TestDiscardNewApplication_cannotReachAnotherWorkspacesSession is the defect this slice exists for,
+// and it was written before the fix so that it could be watched failing.
+//
+// Four of the five AI-session handlers resolve the session through GetAISession(ctx, workspaceID, id)
+// before touching it. discardNewApplication took the id straight from the URL and handed it to
+// UpdateAISessionStatus, whose own statement was `WHERE id = $1` with no Workspace predicate -- so a
+// Workspace admin could discard *another* Workspace's draft Application by id. The ids are random,
+// which is not scoping: this repo has rejected "hard to guess" as a guard before, and Workspace
+// scoping is the one invariant the whole data layer is built on.
+func TestDiscardNewApplication_cannotReachAnotherWorkspacesSession(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const mineEmail, theirsEmail = "discard_mine@example.com", "discard_theirs@example.com"
+
+	mine, err := store.CreateWorkspace(ctx, "Discard Mine", "discard-mine-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace(mine): %v", err)
+	}
+	cleanupAuthTest(t, pool, mine.ID, mineEmail)
+	theirs, err := store.CreateWorkspace(ctx, "Discard Theirs", "discard-theirs-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace(theirs): %v", err)
+	}
+	cleanupAuthTest(t, pool, theirs.ID, theirsEmail)
+
+	// The victim: a generated draft belonging to the *other* Workspace.
+	victim := createGeneratedSession(t, data.WithWorkspaceScope(ctx, theirs.ID), store, theirs.ID, "Their Draft")
+
+	// The attacker acts inside their own Workspace, as its admin, naming the other Workspace's id.
+	req := httptest.NewRequest(http.MethodPost, "/new-application/"+victim.ID+"/discard", nil)
+	req = req.WithContext(data.WithWorkspaceScope(ctx, mine.ID))
+	r := chi.NewRouter()
+	r.Post("/new-application/{session}/discard", discardNewApplication(store))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code == http.StatusSeeOther || rec.Code == http.StatusFound {
+		t.Errorf("discarding another Workspace's session returned %d -- it must be refused, not redirected", rec.Code)
+	}
+
+	// The assertion that matters is the state, not the status code: a handler that answered 404 after
+	// writing would pass the line above.
+	after, err := store.GetAISession(data.WithWorkspaceScope(ctx, theirs.ID), theirs.ID, victim.ID)
+	if err != nil {
+		t.Fatalf("GetAISession(victim): %v", err)
+	}
+	if after.Status != data.AISessionStatusGenerated {
+		t.Errorf("the other Workspace's session is now %q, want it untouched at %q -- a cross-Workspace write landed",
+			after.Status, data.AISessionStatusGenerated)
+	}
+}
+
+// fakeAIClient is the whole of what these tests need of aiassist.Client -- a one-method interface, so a
+// stub rather than a mock library. reply is returned verbatim; err, when set, is what the assistant
+// turn has to survive.
+type fakeAIClient struct {
+	reply  aiassist.Reply
+	err    error
+	prompt string
+	turns  int
+}
+
+func (f *fakeAIClient) Generate(_ context.Context, systemPrompt string, turns []aiassist.Turn) (aiassist.Reply, error) {
+	f.prompt, f.turns = systemPrompt, len(turns)
+	return f.reply, f.err
+}
+
+// TestPostNewApplicationMessage_storesBothTurnsAndReachesGenerated is the conversation's own write
+// path: the person's message and the assistant's reply are both appended, and a reply carrying a valid
+// change moves the session to "generated" -- which is what puts it on Workspace Home as a draft.
+func TestPostNewApplicationMessage_storesBothTurnsAndReachesGenerated(t *testing.T) {
+	s := newAssistantRouteSetup(t, "Assistant Message", "assistant-message-workspace", "assistant_message@example.com")
+
+	client := &fakeAIClient{reply: aiassist.Reply{
+		Message: "Here is what I'll build.",
+		Change:  validGeneratedChange("Leave Requests"),
+	}}
+
+	rec := s.postMessage(t, client, "", "I need leave requests with an approval")
+	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
+		t.Fatalf("post message = %d, want a redirect; body=%s", rec.Code, firstChars(rec.Body.String()))
+	}
+	if client.turns == 0 {
+		t.Error("the client was called with no turns -- the person's own message never reached it")
+	}
+
+	session := s.sessionFromRedirect(t, rec)
+	if len(session.Turns) != 2 {
+		t.Fatalf("session holds %d turn(s), want 2 (the person's and the assistant's)", len(session.Turns))
+	}
+	if session.Turns[0].Role != "user" || !strings.Contains(session.Turns[0].Content, "leave requests") {
+		t.Errorf("first turn = %+v, want the person's own message", session.Turns[0])
+	}
+	if session.Turns[1].Role != "model" {
+		t.Errorf("second turn role = %q, want model", session.Turns[1].Role)
+	}
+	if session.Status != data.AISessionStatusGenerated {
+		t.Errorf("status = %q, want generated -- a valid proposed change is what makes it a draft on Home", session.Status)
+	}
+}
+
+// TestPostNewApplicationMessage_aClientFailureKeepsTheConversation is the arm that matters when the
+// model is down: the person's message must not be lost, and they must be told to retry inside the
+// conversation rather than shown an error page (runAssistantTurn's own doc comment).
+func TestPostNewApplicationMessage_aClientFailureKeepsTheConversation(t *testing.T) {
+	s := newAssistantRouteSetup(t, "Assistant Down", "assistant-down-workspace", "assistant_down@example.com")
+
+	rec := s.postMessage(t, &fakeAIClient{err: context.DeadlineExceeded}, "", "I need leave requests")
+	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
+		t.Fatalf("post message with a failing client = %d, want a redirect back into the conversation; body=%s",
+			rec.Code, firstChars(rec.Body.String()))
+	}
+
+	session := s.sessionFromRedirect(t, rec)
+	if len(session.Turns) != 2 {
+		t.Fatalf("session holds %d turn(s), want 2 -- the person's message must survive a model failure", len(session.Turns))
+	}
+	if !strings.Contains(session.Turns[1].Content, "again") {
+		t.Errorf("the assistant's stored turn is %q, want a retry message", session.Turns[1].Content)
+	}
+	if session.Status == data.AISessionStatusGenerated {
+		t.Error("status reached generated on a failed turn -- there is no proposal to review")
+	}
+}
+
+// TestShowNewApplicationReview_rendersTheProposalAndRefusesAnotherWorkspaces covers the review screen's
+// two halves: the proposal it is for, and the scoping every one of these handlers depends on.
+func TestShowNewApplicationReview_rendersTheProposalAndRefusesAnotherWorkspaces(t *testing.T) {
+	s := newAssistantRouteSetup(t, "Assistant Review", "assistant-review-workspace", "assistant_review@example.com")
+	session := createGeneratedSession(t, s.wsCtx, s.store, s.workspaceID, "Leave Requests")
+
+	rec := s.getReview(t, session.ID)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("review = %d, want 200; body=%s", rec.Code, firstChars(rec.Body.String()))
+	}
+	if body := rec.Body.String(); !strings.Contains(body, "Leave Requests") {
+		t.Errorf("the review screen does not name the proposed Application")
+	}
+
+	// A session belonging to somebody else's Workspace is not found here, the same property the discard
+	// route was missing.
+	other, err := s.store.CreateWorkspace(context.Background(), "Review Theirs", "assistant-review-theirs")
+	if err != nil {
+		t.Fatalf("CreateWorkspace(other): %v", err)
+	}
+	cleanupAuthTest(t, s.pool, other.ID, "assistant_review_theirs@example.com")
+	theirs := createGeneratedSession(t, data.WithWorkspaceScope(context.Background(), other.ID), s.store, other.ID, "Their Draft")
+
+	if rec := s.getReview(t, theirs.ID); rec.Code != http.StatusNotFound {
+		t.Errorf("reviewing another Workspace's session = %d, want 404", rec.Code)
+	}
+}
+
+// --- assistant route fixture -----------------------------------------------------------------------
+
+type assistantRouteSetup struct {
+	pool        *pgxpool.Pool
+	store       *data.Store
+	cfg         config.Config
+	wsCtx       context.Context
+	workspaceID string
+}
+
+func newAssistantRouteSetup(t *testing.T, name, slug, email string) *assistantRouteSetup {
+	t.Helper()
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	ws, err := store.CreateWorkspace(ctx, name, slug)
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupAuthTest(t, pool, ws.ID, email)
+	_, installed := loadRealMachines(t)
+	wsCtx := rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), installed, name, false)
+	return &assistantRouteSetup{pool: pool, store: store,
+		cfg: config.Config{SessionSecret: slug + "-secret"}, wsCtx: wsCtx, workspaceID: ws.ID}
+}
+
+func (s *assistantRouteSetup) postMessage(t *testing.T, client aiassist.Client, sessionID, message string) *httptest.ResponseRecorder {
+	t.Helper()
+	form := url.Values{"message": {message}}
+	if sessionID != "" {
+		form.Set("session", sessionID)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/new-application/message", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(s.wsCtx)
+	r := chi.NewRouter()
+	r.Post("/new-application/message", postNewApplicationMessage(s.store, client, s.cfg))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	return rec
+}
+
+func (s *assistantRouteSetup) getReview(t *testing.T, sessionID string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/new-application/"+sessionID+"/review", nil)
+	req = req.WithContext(s.wsCtx)
+	r := chi.NewRouter()
+	r.Get("/new-application/{session}/review", showNewApplicationReview(s.store, s.cfg))
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	return rec
+}
+
+// sessionFromRedirect reads the session back through the id the handler itself redirected to
+// (/new-application?session=...), rather than searching the store for whatever is there. That is the
+// stronger direction: it asserts the handler told the browser about the same session it wrote, which a
+// store lookup would quietly paper over.
+func (s *assistantRouteSetup) sessionFromRedirect(t *testing.T, rec *httptest.ResponseRecorder) *data.AISession {
+	t.Helper()
+	location := rec.Header().Get("Location")
+	parsed, err := url.Parse(location)
+	if err != nil {
+		t.Fatalf("parse redirect %q: %v", location, err)
+	}
+	id := parsed.Query().Get("session")
+	if id == "" {
+		t.Fatalf("the redirect %q names no session -- the caller cannot get back to their conversation", location)
+	}
+	full, err := s.store.GetAISession(s.wsCtx, s.workspaceID, id)
+	if err != nil {
+		t.Fatalf("GetAISession(%s): %v", id, err)
+	}
+	return full
 }

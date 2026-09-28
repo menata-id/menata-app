@@ -680,6 +680,41 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   They are different statements; the repeat was in the label, not in the request. `CountRecords`
   now records `"<machine> count"`. Whether counting a Machine the page has *already listed* is
   itself waste is a real question this naming now makes askable.
+- **The three AI-session routes, and the cross-Workspace write one of them allowed** (2026-09-29).
+  `POST /new-application/message`, `GET /{session}/review` and `POST /{session}/discard` were the last
+  routes with no behaviour coverage. Covering them found a real defect, which is the reason the slice
+  was worth more than its coverage.
+
+  **`discardNewApplication` could discard another Workspace's draft Application.** Four of the five
+  AI-session handlers resolve the session through `GetAISession(ctx, workspaceID, id)` before touching
+  it; this one passed the URL parameter straight to `UpdateAISessionStatus`, whose statement was
+  `WHERE id = $1` with **no Workspace predicate**. A Workspace admin naming another Workspace's session
+  id discarded it. The ids are random, which is not scoping -- and Workspace scoping is the single
+  invariant the whole data layer is built on.
+
+  **Fixed in both places on purpose.** The handler now resolves first, like its four siblings, so it
+  reads the way the next one will be written; and the store carries the predicate, so a future caller
+  cannot reintroduce it -- the posture `installer.RefuseIfExists` states for itself ("a guard that holds
+  even when a future caller builds ExistingState wrong"). Relying on every caller to scope is a rule
+  that holds until one does not, and one did not.
+
+  **The test was written before the fix and watched failing** -- it reported the victim session as
+  `discarded` against today's code. A test written after a fix proves only that the fix is present.
+
+  **And the shared fixture's proposal had never been valid.** `createGeneratedSession` built a change
+  with no Machines, which `aiassist.Validate` rejects. Every existing test using it still passed,
+  because they read the session's *status* -- which the fixture sets directly -- and none of them
+  validated. So the review screen's own re-validation, the thing its doc comment says it exists for,
+  had been exercised by nothing. The first test to call it found that. Third fixture-faithfulness
+  finding in three days, all the same shape: a fixture that declares less than the real thing does not
+  fail, it passes against something looser.
+
+  **Live, and honestly partial.** The scoping is confirmed on the running service: another Workspace's
+  session is 404 from `default`, and an `open` session is 422 rather than a blank screen. **The review
+  screen itself could not be checked live** -- no `generated` session exists in any Workspace (all are
+  `open` or `published`), and one cannot be created without a real model call. The two Postgres-backed
+  tests are the whole of that coverage.
+
 - **What a composable runtime actually costs, measured against a conventional app** (owner
   request, 2026-09-22, immediately after the entry above; **study done, one item actionable, the
   rest trigger-gated**). Full method, evidence and repeatable benchmark scripts:
@@ -3175,9 +3210,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   assertions are the ones about scope rather than success: `mark-all-read` must leave *another* person's
   notifications unread, and `switch-workspace/restore` must refuse a Workspace you do not administer --
   the route takes the Workspace id straight from the form, so that guard is its whole security.
-  **Two remain uncovered and are named rather than skipped**: `/new-application/message` and
-  `/new-application/{session}/discard` need a stored assistant conversation, the same fixture
-  `/new-application/{session}/review` lacks in the GET sweep.
+  **Two remained uncovered**: `/new-application/message` and `/new-application/{session}/discard`,
+  recorded here as needing "a stored assistant conversation, a fixture of a different kind". **That was
+  overstated, and the correction is the start of the next slice** -- `createGeneratedSession` in
+  `newapplication_test.go` already built exactly that fixture and already drove `publishNewApplication`
+  twice. It had simply never been pointed at these routes. Covered 2026-09-29, below.
 
   **And the real dokter-kecil install now has its write half** (`TestInstall_intoTheRealDokterKecil-
   Workspace`). The plan half was already covered against the real manifest; nothing ran `Install` over a
