@@ -5,3 +5,8 @@ fields:
     name: Name
     type: text
     required: true
+
+# card_fields: a List's own name, for a screen that renders it without naming the Field (2026-09-28,
+# board settings). One role, because a List is one word -- see metadata/task.yaml for the fuller note.
+card_fields:
+  - { field: fld_name, role: title }

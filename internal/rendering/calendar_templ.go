@@ -111,9 +111,9 @@ func CalendarPage(days []CalendarDay, workspaceName string, viewer Viewer, switc
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var5 string
-						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(toString(t.Task.Values["fld_title"]))
+						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(t.Title)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/calendar.templ`, Line: 37, Col: 68}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/calendar.templ`, Line: 37, Col: 39}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 						if templ_7745c5c3_Err != nil {
@@ -124,9 +124,9 @@ func CalendarPage(days []CalendarDay, workspaceName string, viewer Viewer, switc
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var6 string
-						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(toString(t.Task.Values["fld_status"]))
+						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(t.Status)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/calendar.templ`, Line: 39, Col: 124}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/calendar.templ`, Line: 39, Col: 95}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 						if templ_7745c5c3_Err != nil {

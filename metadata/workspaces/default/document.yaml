@@ -284,6 +284,7 @@ datasets:
 # these are Machine-level rather than per-arrangement.
 sla_field: fld_due_date
 card_fields:
+  - { field: fld_title, role: title }
   - { field: fld_document_type, role: status }
   - { field: fld_status, role: status }
   - { field: fld_due_date, role: date }

@@ -14,9 +14,10 @@ import (
 // it does not reach into a record and pick fields out by name itself.
 //
 // This is a different kind of gate from the rest of internal/conformance, and deliberately so.
-// The others state an invariant that already holds everywhere. This one states an invariant that
-// does *not* hold yet -- ten .templ files violate it today -- so instead of failing the build it
-// freezes the violation set: the listed files are grandfathered, and the list may only shrink.
+// The others state an invariant that already holds everywhere. This one stated an invariant that
+// did *not* hold yet -- ten .templ files violated it the day it was written, one does today -- so
+// instead of failing the build it freezes the violation set: the listed files are grandfathered,
+// and the list may only shrink. Read the count out of projectionRatchet, not out of this line.
 // A new file reaching into raw values fails; a listed file that has been migrated and no longer
 // needs its entry also fails, so the list can't silently keep claiming debt that's already paid.
 //
@@ -44,6 +45,13 @@ import (
 // identical values on every card: metadata written to make a claim true rather than to serve a
 // screen. Projection gets a consumer that can say something when a Machine's records render as
 // cards generically (CAP-V02 Tier 2 upstream, admitted on Case 3's own inbox), not before.
+//
+// **That last paragraph was overtaken on 2026-09-28**, and its reasoning is kept because the
+// correction is instructive rather than embarrassing: it was right that Projection had no consumer
+// worth declaring *for mch_approval_step*, and wrong to generalise from that one Machine to the
+// primitive. The Case 19 screens were the consumer all along -- they render a Task's title, status
+// and due date, which are exactly three of the five roles -- and four of them now read a real
+// card_fields declaration. `grep -rn card_fields metadata/` no longer returns nothing.
 
 // rawFieldRead matches a Page picking one named field off a record: `Values["fld_title"]`, or the
 // same thing laundered through a Machine-specific Go constant, `Values[action.FieldStepDecision]`.
@@ -66,7 +74,7 @@ var rawFieldRead = regexp.MustCompile(`Values\[(?:"fld_|[a-z][A-Za-z]*\.Field[A-
 // so none of them is new or undocumented drift -- but the two groups differ in how soon they can
 // leave, which is why they're commented separately rather than pooled into one anonymous list.
 var projectionRatchet = map[string]string{
-	// Case 19's composed Project Management screens. These are ROADMAP.md's own named next step:
+	// Case 19's composed Project Management screens. These were ROADMAP.md's own named next step:
 	// Dataset + Dimension + Measure (007 §7.2-§7.4) resolves their data, Projection resolves their
 	// field shape, and each file leaves this list as it's migrated.
 	//
@@ -75,13 +83,28 @@ var projectionRatchet = map[string]string{
 	// to the identity (metadata/user.yaml, migration 010). composition now resolves it into
 	// rendering.MemberCapacity.Name. Worth naming plainly -- the debt was retired by a change to
 	// where a person's name lives, not by Projection arriving, so the count moving does not mean
-	// Projection adoption moved. "teamcapacity.templ" stays: it still reads fld_weekly_capacity,
-	// which is genuinely Workspace-scoped and still a Field.
-	"boardsettings.templ": "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
-	"calendar.templ":      "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
-	"dashboard.templ":     "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
-	"mytasks.templ":       "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
-	"teamcapacity.templ":  "Case 19 composed screen, migrates with Dataset/Projection (ROADMAP Planned)",
+	// Projection adoption moved.
+	//
+	// "mytasks.templ", "dashboard.templ", "calendar.templ" and "teamcapacity.templ" left on
+	// 2026-09-28, and those four *are* the migration this group was waiting for: mch_task,
+	// mch_project and mch_list declared card_fields for the first time (mch_document gained the
+	// title role it was missing), and each row's title/status/date now comes from that declaration
+	// through composition.ProjectedByRole. The comment above -- "the mechanism is wired end to end
+	// and has never once run" -- stopped being true that day.
+	//
+	// The one thing that migration deliberately did *not* do is move the read from the .templ into
+	// internal/composition and call it done. That passes this gate (it only scans .templ files)
+	// while relocating the coupling, which is gaming the gate rather than satisfying it. So the
+	// rule the slice held to: a value may move into Composition only if Composition *derives* it
+	// from a declaration. Title/status/date come from card_fields; teamcapacity's weekly number
+	// comes from ds_user_capacity's own `field:`, which already declared it (datasetMeasureField).
+	//
+	// "boardsettings.templ" stays, and its reason is now different from the group's rather than a
+	// copy of it: it renders a List's name and its fld_color, and the closed role set
+	// (title/person/money/status/date) has no role that describes a colour token. Inventing one for
+	// a single case is what this repo's Method forbids -- the trigger is a second case
+	// (CLAUDE.md's "Deciding whether a literal is a metadata-hardcoding violation", step 3).
+	"boardsettings.templ": "no card_fields role describes fld_color; waits for a second case to justify one (007 §7.6)",
 
 	// Case 3's bespoke Document Approval flow. These have a stronger claim to stay than the group
 	// above: the stepper and the signature canvas render an orchestration whose own logic is

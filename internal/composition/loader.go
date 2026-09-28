@@ -67,6 +67,16 @@ func NewLoader(store *data.Store, machines map[string]*domain.Machine) *Loader {
 func (l *Loader) Reads() int  { return l.reads }
 func (l *Loader) Served() int { return l.served }
 
+// Machine is one of this request's own installed Machines by id, or nil. It exists so a composed
+// screen can resolve a record's *declared* display shape (card_fields, 007 §7.6) without the caller
+// threading a second argument for a Machine this Loader was already handed.
+//
+// nil is a real answer: a Workspace that does not install that Machine has none, and every caller
+// renders nothing for it rather than failing.
+func (l *Loader) Machine(machineID string) *domain.Machine {
+	return l.machines[machineID]
+}
+
 // ListRecords returns every record of a Machine, reading it at most once per request.
 func (l *Loader) ListRecords(ctx context.Context, machineID string) ([]*data.Record, error) {
 	if cached, ok := l.listed[machineID]; ok {

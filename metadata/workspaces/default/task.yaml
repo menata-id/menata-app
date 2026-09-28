@@ -102,6 +102,19 @@ datasets:
       - id: msr_total
         aggregate: count
 
+# card_fields: what a Task's own records show wherever a screen renders them without picking
+# Fields itself (007 §7.6 Projection). Added 2026-09-28, when the Case 19 screens stopped reading
+# fld_title/fld_status/fld_due_date off the record in their own .templ files: My Tasks, Calendar and
+# the Dashboard render their own markup -- a row, a calendar cell, a table cell -- but the *shape*
+# they render is this declaration, resolved once by composition.ProjectCardFields.
+#
+# Three roles, from the closed set (domain.KnownCardFieldRoles): what to call it, what state it is
+# in, and when it is due. Nothing here says how any of them is drawn.
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_due_date, role: date }
+
 views:
   - id: vw_task_board
     name: Board

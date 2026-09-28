@@ -15,6 +15,19 @@ type ProjectSummary struct {
 	Project    *data.Record
 	OpenTasks  int
 	TotalTasks int
+	// Name and Status are this Project's own declared display shape (mch_project's card_fields,
+	// 007 §7.6), resolved by Composition -- the Page renders them in its own table and never picks a
+	// Field off the record (007 §4.4).
+	Name   string
+	Status string
+}
+
+// PendingDocument is one row of the Dashboard's "Pending Approval" table: a Document's declared title,
+// and the *stored* value of its declared date Field, which slaBadgePill parses itself.
+type PendingDocument struct {
+	Record *data.Record
+	Title  string
+	Due    any
 }
 
 // DocumentSummary counts Case 3's Documents by status, for the Dashboard's Summary section
@@ -38,7 +51,7 @@ type ActivityEntry struct {
 // loop, which is exactly the naive N+1 pattern that would need a planner. A handful of
 // whole-machine queries stay correct and cheap regardless of record counts, so this page does
 // not, on its own, force Phase 6 even with four sections composed.
-templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []*data.Record, activity []ActivityEntry, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []PendingDocument, activity []ActivityEntry, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(labelByID(ctx, "nav_dashboard"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-2">
 			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
@@ -60,8 +73,8 @@ templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []
 					<tbody>
 						for _, s := range summaries {
 							<tr class="border-b border-slate-100 text-sm last:border-b-0">
-								<td class="px-3 py-2.5">{ toString(s.Project.Values["fld_name"]) }</td>
-								<td class="px-3 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ toString(s.Project.Values["fld_status"]) }</span></td>
+								<td class="px-3 py-2.5">{ s.Name }</td>
+								<td class="px-3 py-2.5"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ s.Status }</span></td>
 								<td class="px-3 py-2.5">{ fmt.Sprint(s.OpenTasks) }</td>
 								<td class="px-3 py-2.5">{ fmt.Sprint(s.TotalTasks) }</td>
 							</tr>
@@ -99,8 +112,8 @@ templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []
 						<tbody>
 							for _, r := range pending {
 								<tr class="border-b border-slate-100 text-sm last:border-b-0">
-									<td class="px-3 py-2.5">{ toString(r.Values["fld_title"]) }</td>
-									<td class="px-3 py-2.5">@slaBadgePill(r.Values["fld_due_date"])</td>
+									<td class="px-3 py-2.5">{ r.Title }</td>
+									<td class="px-3 py-2.5">@slaBadgePill(r.Due)</td>
 								</tr>
 							}
 						</tbody>

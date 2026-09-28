@@ -20,6 +20,15 @@ type MyTasksSummary struct {
 type TaskRow struct {
 	Task        *data.Record
 	ProjectName string
+	// Title and Status are this Task's own declared display shape (mch_task's card_fields, 007 §7.6),
+	// resolved by composition.ProjectedByRole -- the Page renders them in its own markup and never
+	// picks a Field off the record itself (007 §4.4).
+	Title  string
+	Status string
+	// Due is the *stored* value of the Field declared in the date role, not its projected display:
+	// slaBadgePill parses it. Which Field that is comes from the declaration
+	// (composition.FieldForRole), which is the whole point -- the id is not written here.
+	Due any
 }
 
 // MyTasksPage is Case 19's personal work queue (ROADMAP.md Phase 14, project-my-tasks.html):
@@ -67,7 +76,7 @@ templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, 
 				<ul class="flex flex-col gap-2">
 					for _, t := range completed {
 						<li class="flex items-center gap-2 text-sm">
-							<span class="text-slate-400 line-through">{ toString(t.Task.Values["fld_title"]) }</span>
+							<span class="text-slate-400 line-through">{ t.Title }</span>
 							<span class="ml-auto text-xs text-slate-400">{ t.ProjectName }</span>
 						</li>
 					}
@@ -81,14 +90,14 @@ templ taskRowList(rows []TaskRow, sla bool) {
 	<ul class="flex flex-col gap-2">
 		for _, t := range rows {
 			<li class="flex flex-wrap items-center gap-2 text-sm">
-				<span>{ toString(t.Task.Values["fld_title"]) }</span>
-				<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ toString(t.Task.Values["fld_status"]) }</span>
+				<span>{ t.Title }</span>
+				<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ t.Status }</span>
 				<span class="text-xs text-slate-400">{ t.ProjectName }</span>
 				if sla {
 					<span class="ml-auto">
-						@slaBadgePill(t.Task.Values["fld_due_date"])
+						@slaBadgePill(t.Due)
 					</span>
-				} else if due := toString(t.Task.Values["fld_due_date"]); due != "" {
+				} else if due := toString(t.Due); due != "" {
 					<span class="ml-auto text-xs text-slate-400">{ due }</span>
 				}
 			</li>

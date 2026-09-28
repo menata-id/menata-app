@@ -69,3 +69,46 @@ func projectedFieldDisplay(f domain.Field, value any, relations rendering.Relati
 	}
 	return DisplayString(value)
 }
+
+// ProjectedByRole is ProjectCardFields keyed by role, for a screen that renders a record's own shape
+// in its *own* markup rather than as a card -- a table cell, a calendar entry, a list row.
+//
+// It exists because Projection and cards are not the same thing (007 §7.6 declares a record's display
+// shape; §12 governs how a Page arranges it). The Case 19 screens each render a bespoke layout matched
+// to a ui-sample mockup, and pushing them through a card component to stop them reading
+// Values["fld_title"] would have been a visual change disguised as a refactor. What they needed was
+// the *declaration* -- which Field is the title, which the status, which the date -- and their own
+// markup around it.
+//
+// A role a Machine declares more than once keeps its first entry, matching the order card_fields is
+// written in; a role it declares not at all is absent, and callers render nothing rather than a blank
+// they cannot explain.
+func ProjectedByRole(m *domain.Machine, r *data.Record, relations rendering.RelationOptions) map[string]string {
+	out := map[string]string{}
+	for _, pf := range ProjectCardFields(m, r, relations) {
+		if _, taken := out[pf.Role]; !taken {
+			out[pf.Role] = pf.Display
+		}
+	}
+	return out
+}
+
+// FieldForRole is the *id* of the Field a Machine declares in one card_fields role, for the caller
+// that needs the stored value rather than its display -- a date handed to an SLA badge, which parses
+// it, where the projected "2 Jan 2006" string would be the wrong input.
+//
+// Reading `record.Values[FieldForRole(m, "date")]` is generic access, the pattern
+// internal/conformance's own projection gate names as the target: the Field id comes from a
+// declaration, not from the caller. approvalstepper.templ left that ratchet the same way, taking its
+// sequence and decision from domain.Sequencing's own OrderField/StateField.
+//
+// Empty when the Machine declares no such role, and a caller reading Values[""] gets nil, which every
+// one of them already handles as "not set".
+func FieldForRole(m *domain.Machine, role domain.CardFieldRole) string {
+	for _, cf := range m.CardFields {
+		if cf.Role == role {
+			return cf.Field
+		}
+	}
+	return ""
+}

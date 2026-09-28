@@ -503,11 +503,14 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   (checklist, comments, attachments), and scoping views to one project at a time. **Its standing
   relative to the Document Approval scope decision is unsettled, and that matters more than it
   looks:** the 2026-09-20 decision narrowed the proof-of-concept to Document Approval, while this
-  line still reads as active work — and six of the seven files left in `projectionRatchet` are
-  Project Management screens whose stated exit is "migrates with Dataset/Projection". So the
-  ratchet's own path to empty runs through work whose scope is undecided. Either these screens are
-  in scope and the ratchet can drain, or they are parked and the ratchet's remaining entries are
-  parked with them; both are fine, being unsaid is not.
+  line still reads as active work — and the files left in `projectionRatchet` were, until
+  2026-09-28, all Project Management screens whose stated exit was "migrates with
+  Dataset/Projection". So the ratchet's own path to empty ran through work whose scope is
+  undecided. **That tension resolved itself the cheap way**: the migration turned out to need no
+  Project Management *feature* work at all — four `card_fields:` declarations and a derivation —
+  so the ratchet drained to one entry without the scope question being answered. The scope
+  question itself is still open for the rest of the line (project overview, task detail, per-
+  project view scoping); what is no longer true is that the ratchet is waiting on it.
 - ~~Two-level navigation for switching between applications inside a workspace~~ — *shipped*: the
   9-dot launcher (Fase 2) over real Applications (Fase 3a).
 - Accessibility and mobile/responsive polish across existing screens. The Case 03 port carries its
@@ -3376,6 +3379,35 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   migrated: its counts filter on the viewing identity (a per-request value, not a literal) and on
   a due date against now, neither of which `where:` can express -- both real gaps, neither with a
   second case yet (`PersonalTasks`' own doc comment states this).
+  **(3) is now done for the Case 19 group (2026-09-28).** `mch_task`, `mch_project` and `mch_list`
+  declared `card_fields:` for the first time (and `mch_document` gained the `title` role it was
+  missing), so My Tasks, the Calendar week, the Sprint dashboard's Attention list, the Dashboard's
+  Project summaries and pending-Document rows, and Team Capacity all render a shape Composition
+  resolved from a declaration. `projectionRatchet` went five entries -> one.
+  **The trap this avoided is worth more than the count**: the easy migration is to move each
+  `Values["fld_title"]` out of the `.templ` and into `internal/composition`, which passes the gate
+  (it only scans `.templ` files) while relocating the coupling -- gaming the gate rather than
+  satisfying it. The rule held to instead: a value may move into Composition only if Composition
+  *derives* it from a declaration. Title/status/date come from `card_fields` via
+  `composition.ProjectedByRole`; Team Capacity's weekly number comes from `ds_user_capacity`'s own
+  `field:` (`datasetMeasureField`), which already declared it.
+  **`boardsettings.templ` stays, and its reason changed rather than being repeated**: it renders a
+  List's `fld_color`, and the closed role set (title/person/money/status/date) has no role that
+  describes a colour token. Inventing one for a single case is what CLAUDE.md's step 3 forbids --
+  the trigger is a second case.
+  **Verified by before/after HTML, because no rendering test exists for any of these screens.**
+  The first capture proved almost nothing: the database holds zero `mch_task` and zero
+  `mch_project` records, so four of the five screens were comparing empty states. Seeded tasks, a
+  Project and two weekly capacities, built HEAD in a throwaway `git worktree` on port 4101, and
+  diffed the six pages (adding `/sprint`) against the post-change binary on 4000: **byte-identical
+  once the per-request CSRF token is normalised**, with real rows rendering -- task titles and
+  statuses in the Calendar, the Attention list's overdue/due-today rows, `40h/week` on Team
+  Capacity, the Dashboard's pending Documents. Seed rows deleted afterwards and the clean-state
+  pages re-diffed against the original baseline. One thing the live check could *not* cover: the
+  admin session's viewer id is the literal `admin`, which is not an `mch_user` record, so My Tasks
+  is empty for it by construction and the generic create route refuses `fld_assignee: admin`. Its
+  rows are covered by `composition`'s own unit tests and by the Calendar/Sprint, which share
+  `taskRowList`'s markup and the same `composition.taskRow` builder.
 - Re-evaluating `internal/composition/pages.go`'s Case 19 Machine-id/status-option constants
   (`taskMachineID`, the `todo`/`in_progress`/`done` switch) against the B1-B5 decomposition
   criteria now that `card_fields` (Projection) has shipped -- flagged, not decided, in

@@ -35,3 +35,10 @@ events:
     then:
       service: log_activity
       summary: "\"{fld_name}\" created"
+
+# card_fields: what a Project's records show wherever a screen renders them without picking Fields
+# itself (007 §7.6 Projection). Added 2026-09-28: the Dashboard's project rollup table renders these
+# two in its own markup rather than reading fld_name/fld_status off the record in dashboard.templ.
+card_fields:
+  - { field: fld_name, role: title }
+  - { field: fld_status, role: status }

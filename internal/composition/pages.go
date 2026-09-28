@@ -74,7 +74,7 @@ const (
 type Dashboard struct {
 	Projects  []rendering.ProjectSummary
 	Documents rendering.DocumentSummary
-	Pending   []*data.Record
+	Pending   []rendering.PendingDocument
 	Activity  []rendering.ActivityEntry
 }
 
@@ -111,7 +111,7 @@ func DashboardData(ctx context.Context, l *Loader, activityLimit int, docMachine
 		return Dashboard{}, err
 	}
 
-	d := buildDashboard(projects, documents, taskCounts, docCounts)
+	d := buildDashboard(projects, documents, taskCounts, docCounts, l.Machine(projectMachineID), docMachine)
 	d.Activity = activity
 	return d, nil
 }
@@ -121,15 +121,18 @@ func DashboardData(ctx context.Context, l *Loader, activityLimit int, docMachine
 // ds_document_by_status). Collecting the in_review Documents themselves is not counting but
 // selection, and stays here: picking records by a predicate is 007 §8's Query Model, which the
 // decomposition audit explicitly recommends against building until something forces it.
-func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Aggregation) Dashboard {
+func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Aggregation, projectMachine, docMachine *domain.Machine) Dashboard {
 	var d Dashboard
 	d.Projects = make([]rendering.ProjectSummary, 0, len(projects))
 	for _, p := range projects {
 		mine := taskCounts.ByDimension[p.ID]
+		shape := ProjectedByRole(projectMachine, p, nil)
 		d.Projects = append(d.Projects, rendering.ProjectSummary{
 			Project:    p,
 			OpenTasks:  int(mine[measureTotalOpen]),
 			TotalTasks: int(mine[measureTotal]),
+			Name:       shape[string(domain.CardFieldRoleTitle)],
+			Status:     shape[string(domain.CardFieldRoleStatus)],
 		})
 	}
 
@@ -138,10 +141,16 @@ func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Ag
 		Approved: int(docCounts.ByDimension[action.DocumentStatusApproved][measureTotal]),
 		Rejected: int(docCounts.ByDimension[action.DocumentStatusRejected][measureTotal]),
 	}
+	dueField := FieldForRole(docMachine, domain.CardFieldRoleDate)
 	for _, doc := range documents {
-		if DisplayString(doc.Values[action.FieldDocumentStatus]) == action.DocumentStatusInReview {
-			d.Pending = append(d.Pending, doc)
+		if DisplayString(doc.Values[action.FieldDocumentStatus]) != action.DocumentStatusInReview {
+			continue
 		}
+		d.Pending = append(d.Pending, rendering.PendingDocument{
+			Record: doc,
+			Title:  ProjectedByRole(docMachine, doc, nil)[string(domain.CardFieldRoleTitle)],
+			Due:    doc.Values[dueField],
+		})
 	}
 	return d
 }
@@ -215,16 +224,37 @@ func PersonalTasks(ctx context.Context, l *Loader, userID string, now time.Time)
 	if err != nil {
 		return MyTasks{}, err
 	}
-	return buildMyTasks(tasks, names, userID, now), nil
+	return buildMyTasks(tasks, names, userID, now, l.Machine(taskMachineID)), nil
 }
 
-func buildMyTasks(tasks []*data.Record, projects map[string]string, userID string, now time.Time) MyTasks {
+// taskRow resolves one Task row's display shape from the Machine's own card_fields declaration. All
+// three screens that render a Task row go through it -- My Tasks, the Sprint dashboard's Attention
+// list and the Calendar week, which share taskRowList's markup -- so none of them names fld_title,
+// fld_status or fld_due_date, and a Machine whose Fields are called something else still renders
+// (2026-09-28; this is what let mytasks.templ/calendar.templ stop reading Values["fld_title"]).
+//
+// Due stays the *raw* stored value rather than the projected display string: buildMyTasks parses it
+// as a date and mytasks.templ's own SLA pill does too, and Projection formats a date for reading
+// ("2 Jan 2006"), which neither can parse back.
+func taskRow(t *data.Record, projects map[string]string, taskMachine *domain.Machine) rendering.TaskRow {
+	shape := ProjectedByRole(taskMachine, t, nil)
+	return rendering.TaskRow{
+		Task:        t,
+		ProjectName: projects[DisplayString(t.Values["fld_project"])],
+		Title:       shape[string(domain.CardFieldRoleTitle)],
+		Status:      shape[string(domain.CardFieldRoleStatus)],
+		Due:         t.Values[FieldForRole(taskMachine, domain.CardFieldRoleDate)],
+	}
+}
+
+// taskMachine carries this Machine's own declared display shape (card_fields), read through taskRow.
+func buildMyTasks(tasks []*data.Record, projects map[string]string, userID string, now time.Time, taskMachine *domain.Machine) MyTasks {
 	var out MyTasks
 	for _, t := range tasks {
 		if DisplayString(t.Values["fld_assignee"]) != userID {
 			continue
 		}
-		row := rendering.TaskRow{Task: t, ProjectName: projects[DisplayString(t.Values["fld_project"])]}
+		row := taskRow(t, projects, taskMachine)
 
 		if DisplayString(t.Values["fld_status"]) == "done" {
 			out.Completed = append(out.Completed, row)
@@ -234,7 +264,7 @@ func buildMyTasks(tasks []*data.Record, projects map[string]string, userID strin
 
 		// A Task with no parseable due date is upcoming rather than dropped: "someday" is a
 		// real answer, and silently hiding the row would be worse than showing it undated.
-		due, err := time.Parse("2006-01-02", DisplayString(t.Values["fld_due_date"]))
+		due, err := time.Parse("2006-01-02", DisplayString(row.Due))
 		if err != nil {
 			out.Upcoming = append(out.Upcoming, row)
 			continue
@@ -289,7 +319,7 @@ func SprintDashboard(ctx context.Context, l *Loader, now time.Time) (Sprint, err
 	if err != nil {
 		return Sprint{}, err
 	}
-	return buildSprint(tasks, users, people, names, now, byStatus, workload), nil
+	return buildSprint(tasks, users, people, names, now, byStatus, workload, l.Machine(taskMachineID)), nil
 }
 
 // buildSprint reads two Datasets, and the second one is the point: ds_task_workload is the same
@@ -301,7 +331,7 @@ func SprintDashboard(ctx context.Context, l *Loader, now time.Time) (Sprint, err
 // The Attention list stays a loop for the same reason buildDashboard's Pending does: it selects
 // records rather than counting them, and its predicate is temporal (overdue or due today against
 // now), which the declared where: shape cannot express at all.
-func buildSprint(tasks, users []*data.Record, people, projects map[string]string, now time.Time, byStatus, workload Aggregation) Sprint {
+func buildSprint(tasks, users []*data.Record, people, projects map[string]string, now time.Time, byStatus, workload Aggregation, taskMachine *domain.Machine) Sprint {
 	var out Sprint
 
 	out.Summary.Total = int(byStatus.Total[measureTotal])
@@ -317,10 +347,7 @@ func buildSprint(tasks, users []*data.Record, people, projects map[string]string
 		}
 		if due, err := time.Parse("2006-01-02", DisplayString(t.Values["fld_due_date"])); err == nil {
 			if slaStatus, label := experience.EvaluateSLA(due, now); slaStatus == experience.SLAOverdue || label == "Due today" {
-				out.Attention = append(out.Attention, rendering.TaskRow{
-					Task:        t,
-					ProjectName: projects[DisplayString(t.Values["fld_project"])],
-				})
+				out.Attention = append(out.Attention, taskRow(t, projects, taskMachine))
 			}
 		}
 	}
@@ -363,7 +390,7 @@ func TeamCapacity(ctx context.Context, l *Loader) (Capacity, error) {
 	if err != nil {
 		return Capacity{}, err
 	}
-	return buildCapacity(users, people, workload, capacity), nil
+	return buildCapacity(users, people, workload, capacity, datasetMeasureField(l.Machine(userMachineID), userCapacityDataset, measureTotalCapacity)), nil
 }
 
 // buildCapacity is the first screen composed from declared Datasets rather than a hand-written
@@ -376,7 +403,10 @@ func TeamCapacity(ctx context.Context, l *Loader) (Capacity, error) {
 // Total: those two differ, and the difference is visible. Total counts every open Task including
 // ones assigned to nobody (or to a since-deleted identity), while the table below it lists only
 // real Users -- so using Total would print a header number the rows underneath can't add up to.
-func buildCapacity(users []*data.Record, people map[string]string, workload, capacity Aggregation) Capacity {
+// capacityField is the Field mch_user's own ds_user_capacity Dataset already names
+// (`measures[].field`), so "which Field holds weekly capacity" is read from that declaration rather
+// than written here -- the same move that let teamcapacity.templ stop reading it itself (2026-09-28).
+func buildCapacity(users []*data.Record, people map[string]string, workload, capacity Aggregation, capacityField string) Capacity {
 	out := Capacity{
 		Members:       make([]rendering.MemberCapacity, 0, len(users)),
 		TotalCapacity: int(capacity.Total[measureTotalCapacity]),
@@ -389,6 +419,7 @@ func buildCapacity(users []*data.Record, people map[string]string, workload, cap
 			Name:        people[u.ID],
 			ActiveCards: int(mine[measureTotalOpen]),
 			TotalCards:  int(mine[measureTotal]),
+			Weekly:      DisplayString(u.Values[capacityField]),
 		})
 	}
 	return out
@@ -405,20 +436,18 @@ func CalendarWeek(ctx context.Context, l *Loader, now time.Time) ([]rendering.Ca
 	if err != nil {
 		return nil, err
 	}
-	return buildCalendarWeek(tasks, names, now), nil
+	return buildCalendarWeek(tasks, names, now, l.Machine(taskMachineID)), nil
 }
 
-func buildCalendarWeek(tasks []*data.Record, projects map[string]string, now time.Time) []rendering.CalendarDay {
+func buildCalendarWeek(tasks []*data.Record, projects map[string]string, now time.Time, taskMachine *domain.Machine) []rendering.CalendarDay {
 	byDate := make(map[string][]rendering.TaskRow)
 	for _, t := range tasks {
-		due := DisplayString(t.Values["fld_due_date"])
+		row := taskRow(t, projects, taskMachine)
+		due := DisplayString(row.Due)
 		if due == "" {
 			continue
 		}
-		byDate[due] = append(byDate[due], rendering.TaskRow{
-			Task:        t,
-			ProjectName: projects[DisplayString(t.Values["fld_project"])],
-		})
+		byDate[due] = append(byDate[due], row)
 	}
 
 	// Go's Weekday starts the week on Sunday; this grid starts on Monday, so Sunday needs the
@@ -604,4 +633,27 @@ func SameDay(a, b time.Time) bool {
 	ay, am, ad := a.Date()
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd
+}
+
+// datasetMeasureField is the Field a declared Measure sums or counts -- "which Field holds weekly
+// capacity" answered by mch_user's own ds_user_capacity rather than by a constant here.
+//
+// It is the same reading-what-is-declared move as domain.Machine's own ActionField/OrderField
+// accessors (2026-09-28), applied to the one declaration that already names this Field. Empty when the
+// Machine or the Dataset is absent, and the caller then renders "not set", which is what a person with
+// no declared capacity should read as anyway.
+func datasetMeasureField(m *domain.Machine, datasetID, measureID string) string {
+	if m == nil {
+		return ""
+	}
+	ds, ok := m.DatasetByID(datasetID)
+	if !ok {
+		return ""
+	}
+	for _, msr := range ds.Measures {
+		if msr.ID == measureID {
+			return msr.Field
+		}
+	}
+	return ""
 }

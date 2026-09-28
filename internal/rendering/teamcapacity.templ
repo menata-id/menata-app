@@ -19,6 +19,11 @@ type MemberCapacity struct {
 	Name        string
 	ActiveCards int
 	TotalCards  int
+	// Weekly is this person's declared weekly capacity, resolved by Composition from the Field
+	// mch_user's own ds_user_capacity Dataset already names (`measures[].field`) -- so which Field
+	// holds capacity is read from a declaration rather than written here. Empty means not set, which
+	// the row below renders as such rather than as a zero.
+	Weekly string
 }
 
 // TeamCapacityPage is Case 19's workload/ownership view: People, weekly capacity (declared on
@@ -51,8 +56,8 @@ templ TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int,
 						<tr class="border-b border-slate-100 text-sm last:border-b-0">
 							<td class="px-4 py-3">{ m.Name }</td>
 							<td class="px-4 py-3">
-								if cap, ok := m.User.Values["fld_weekly_capacity"]; ok && toString(cap) != "" {
-									{ toString(cap) }h/week
+								if m.Weekly != "" {
+									{ m.Weekly }h/week
 								} else {
 									<span class="text-slate-400">not set</span>
 								}

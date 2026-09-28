@@ -34,9 +34,9 @@ templ CalendarPage(days []CalendarDay, workspaceName string, viewer Viewer, swit
 					} else {
 						for _, t := range d.Tasks {
 							<div class="flex flex-col gap-1 rounded-md bg-slate-50 p-2">
-								<span class="text-sm">{ toString(t.Task.Values["fld_title"]) }</span>
+								<span class="text-sm">{ t.Title }</span>
 								<div class="flex items-center gap-1.5">
-									<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ toString(t.Task.Values["fld_status"]) }</span>
+									<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ t.Status }</span>
 									<span class="text-2xs text-slate-400">{ t.ProjectName }</span>
 								</div>
 							</div>

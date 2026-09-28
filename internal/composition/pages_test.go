@@ -35,7 +35,7 @@ func TestBuildDashboard_ProjectRollups(t *testing.T) {
 		task("tsk_4", "prj_2", "usr_ana", "todo", ""),
 	}
 
-	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil))
+	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil), projectMachineForTest(), documentMachineForTest())
 	if len(got.Projects) != 2 {
 		t.Fatalf("want a summary per Project, got %d", len(got.Projects))
 	}
@@ -52,7 +52,7 @@ func TestBuildDashboard_OrphanTaskCountsAgainstNoProject(t *testing.T) {
 	projects := []*data.Record{rec("prj_1", map[string]any{"fld_name": "Apollo"})}
 	tasks := []*data.Record{task("tsk_orphan", "", "usr_ana", "todo", "")}
 
-	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil))
+	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil), projectMachineForTest(), documentMachineForTest())
 	if got.Projects[0].TotalTasks != 0 {
 		t.Errorf("orphan Task must not be counted against Apollo, got total %d", got.Projects[0].TotalTasks)
 	}
@@ -68,7 +68,7 @@ func TestBuildDashboard_DocumentStatusSplit(t *testing.T) {
 		rec("doc_6", map[string]any{"fld_status": "something_else"}),
 	}
 
-	got := buildDashboard(nil, documents, Aggregate(taskByProject(), nil), Aggregate(documentByStatus(), documents))
+	got := buildDashboard(nil, documents, Aggregate(taskByProject(), nil), Aggregate(documentByStatus(), documents), projectMachineForTest(), documentMachineForTest())
 	s := got.Documents
 	if s.InReview != 2 || s.Approved != 1 || s.Rejected != 1 {
 		t.Errorf("counts review/approved/rejected = %d/%d/%d, want 2/1/1", s.InReview, s.Approved, s.Rejected)
@@ -91,7 +91,7 @@ func TestBuildMyTasks_Buckets(t *testing.T) {
 		task("tsk_undated", "prj_2", "usr_ana", "todo", ""),
 	}
 
-	got := buildMyTasks(tasks, projectLabels, "usr_ana", at(10))
+	got := buildMyTasks(tasks, projectLabels, "usr_ana", at(10), taskMachineForTest())
 
 	if len(got.Completed) != 1 || got.Completed[0].Task.ID != "tsk_done" {
 		t.Errorf("Completed = %v, want just tsk_done", ids(got.Completed))
@@ -126,7 +126,7 @@ func TestBuildSprint_CountsAndAttention(t *testing.T) {
 		task("tsk_4", "prj_2", "usr_budi", "done", "2026-09-01"),       // done -> no workload
 	}
 
-	got := buildSprint(tasks, users, personNames, projectLabels, at(10), Aggregate(taskByStatus(), tasks), Aggregate(taskWorkload(), tasks))
+	got := buildSprint(tasks, users, personNames, projectLabels, at(10), Aggregate(taskByStatus(), tasks), Aggregate(taskWorkload(), tasks), taskMachineForTest())
 
 	s := got.Summary
 	if s.Total != 4 || s.Open != 2 || s.InProgress != 1 || s.Done != 1 {
@@ -157,7 +157,8 @@ func TestBuildCapacity(t *testing.T) {
 		task("tsk_3", "prj_1", "usr_budi", "todo", ""),
 	}
 
-	got := buildCapacity(users, personNames, Aggregate(taskWorkload(), tasks), Aggregate(userCapacity(), users))
+	got := buildCapacity(users, personNames, Aggregate(taskWorkload(), tasks), Aggregate(userCapacity(), users),
+		datasetMeasureField(userMachineForTest(), userCapacityDataset, measureTotalCapacity))
 
 	if got.TotalCapacity != 40 {
 		t.Errorf("TotalCapacity = %d, want 40 (a user with no declared capacity adds nothing)", got.TotalCapacity)
@@ -183,7 +184,7 @@ func TestBuildCalendarWeek_StartsOnMonday(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			days := buildCalendarWeek(nil, projectLabels, now)
+			days := buildCalendarWeek(nil, projectLabels, now, taskMachineForTest())
 			if len(days) != 7 {
 				t.Fatalf("want 7 days, got %d", len(days))
 			}
@@ -203,7 +204,7 @@ func TestBuildCalendarWeek_PlacesTasksAndMarksToday(t *testing.T) {
 		task("tsk_undated", "prj_1", "usr_ana", "todo", ""),
 	}
 
-	days := buildCalendarWeek(tasks, projectLabels, now)
+	days := buildCalendarWeek(tasks, projectLabels, now, taskMachineForTest())
 
 	todayCount := 0
 	for i, d := range days {
@@ -374,4 +375,62 @@ func equal(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// taskMachineForTest is mch_task reduced to the declaration My Tasks reads: its own card_fields, which
+// is where the title, the status and the due Field come from since 2026-09-28. A fixture without them
+// would exercise a Machine that declares less than the one that runs, and every row would come out
+// blank -- which is exactly what the screens did before the declaration existed.
+func taskMachineForTest() *domain.Machine {
+	return &domain.Machine{
+		ID: "mch_task",
+		Fields: []domain.Field{
+			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
+			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"todo", "in_progress", "done"}},
+			{ID: "fld_due_date", Name: "Due", Type: domain.FieldTypeDate},
+		},
+		CardFields: []domain.CardField{
+			{Field: "fld_title", Role: domain.CardFieldRoleTitle},
+			{Field: "fld_status", Role: domain.CardFieldRoleStatus},
+			{Field: "fld_due_date", Role: domain.CardFieldRoleDate},
+		},
+	}
+}
+
+// projectMachineForTest and documentMachineForTest are the same reduction as taskMachineForTest, for
+// the two Machines the dashboard composes: its Project summaries and its pending-Document list both
+// read a declared display shape now, not a Field id.
+func projectMachineForTest() *domain.Machine {
+	return &domain.Machine{
+		ID: "mch_project",
+		Fields: []domain.Field{
+			{ID: "fld_name", Name: "Name", Type: domain.FieldTypeText},
+			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"active", "archived"}},
+		},
+		CardFields: []domain.CardField{
+			{Field: "fld_name", Role: domain.CardFieldRoleTitle},
+			{Field: "fld_status", Role: domain.CardFieldRoleStatus},
+		},
+	}
+}
+
+func documentMachineForTest() *domain.Machine {
+	return &domain.Machine{
+		ID: "mch_document",
+		Fields: []domain.Field{
+			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
+			{ID: "fld_due_date", Name: "Due", Type: domain.FieldTypeDate},
+		},
+		CardFields: []domain.CardField{
+			{Field: "fld_title", Role: domain.CardFieldRoleTitle},
+			{Field: "fld_due_date", Role: domain.CardFieldRoleDate},
+		},
+	}
+}
+
+// userMachineForTest carries the Dataset Team Capacity reads the capacity Field out of -- the
+// derivation itself, so the test exercises datasetMeasureField rather than retyping the Field id the
+// way the screen used to.
+func userMachineForTest() *domain.Machine {
+	return &domain.Machine{ID: "mch_user", Datasets: []domain.Dataset{userCapacity()}}
 }
