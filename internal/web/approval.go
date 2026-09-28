@@ -221,7 +221,7 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 			http.Error(w, "this machine has no decide action", http.StatusNotFound)
 			return
 		}
-		decision, ok := submittedDecision(w, req)
+		decision, ok := submittedDecision(w, req, machine)
 		if !ok {
 			return
 		}
@@ -260,8 +260,21 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 			return
 		}
 
-		step.Values[action.FieldStepDecision] = decision
-		step.Values[action.FieldStepDecidedByName] = deciderName(ctx, store, actor.ID)
+		// What this Action writes is declared, not typed here (mch_approval_step's own actions: block,
+		// Stage B): the status move comes from the Transition that names `decide`, and the companion
+		// write -- the decider's name, snapshotted -- comes from the effect. Until 2026-09-28 these were
+		// two lines naming fld_decision and fld_decided_by_name, which is why the approval engine could
+		// only ever write a step shaped exactly like Document Approval's own.
+		if _, err := action.ApplyStatusMove(machine, domain.ActionDecide, step.Values, decision); err != nil {
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		}
+		if _, err := action.ApplyEffect(machine, domain.ActionDecide, step.Values, action.EffectInput{
+			Submitted: decision, ActorID: actor.ID, ActorName: deciderName(ctx, store, actor.ID),
+		}); err != nil {
+			serverError(w, err)
+			return
+		}
 		if _, err := store.UpdateRecord(ctx, machine.ID, id, step.Values); err != nil {
 			serverError(w, err)
 			return
@@ -347,7 +360,17 @@ func reviseDocument(store *data.Store, cfg config.Config) http.HandlerFunc {
 			return
 		}
 
-		document.Values[action.FieldDocumentStatus] = action.DocumentStatusDraft
+		// Declared, not typed here (mch_document's own actions: block, Stage B): `revise` writes this
+		// Machine's status Field back to the value the declaration names. The Field's state model
+		// deliberately declares no person-performed edge (see that block's own note), so this is a
+		// literal write rather than a Transition -- reachable only from this route and this Permission,
+		// never from the generic update route, which is what that invariant protects.
+		if _, err := action.ApplyEffect(machine, domain.ActionRevise, document.Values, action.EffectInput{
+			ActorID: actor.ID,
+		}); err != nil {
+			serverError(w, err)
+			return
+		}
 		if _, err := store.UpdateRecord(ctx, machine.ID, id, document.Values); err != nil {
 			serverError(w, err)
 			return
@@ -394,19 +417,30 @@ func declaredDecision(w http.ResponseWriter, machine *domain.Machine, step *data
 	return true
 }
 
-// submittedDecision reads the decision field, accepting only the two values an Approval Step can
-// actually move to -- "pending" is where it starts, never somewhere it is sent.
-func submittedDecision(w http.ResponseWriter, req *http.Request) (string, bool) {
+// submittedDecision reads the decision the form carried, accepting only a value this Machine's own
+// declared Transitions say `decide` may move its status Field to.
+//
+// It compared against the literals action.DecisionApproved/DecisionRejected until 2026-09-28 (Stage B).
+// Those two strings are exactly the `to:` values of the two edges declaring `action: decide`, so the
+// check was a copy of the declaration rather than a rule of its own -- and it meant any other Machine
+// bound to this engine had to use those same two words. The answer is now read from the Machine, which
+// is also what makes "a decision is never sent back to pending" a fact of the metadata rather than of
+// this function.
+func submittedDecision(w http.ResponseWriter, req *http.Request, machine *domain.Machine) (string, bool) {
 	if err := req.ParseForm(); err != nil {
 		http.Error(w, "invalid form body", http.StatusBadRequest)
 		return "", false
 	}
 	decision := req.FormValue("decision")
-	if decision != action.DecisionApproved && decision != action.DecisionRejected {
-		http.Error(w, "decision must be approved or rejected", http.StatusUnprocessableEntity)
-		return "", false
+	field := machine.ActionField(domain.ActionDecide)
+	targets := machine.ActionTargets(domain.ActionDecide, field)
+	for _, target := range targets {
+		if decision == target {
+			return decision, true
+		}
 	}
-	return decision, true
+	http.Error(w, fmt.Sprintf("decision must be one of %v", targets), http.StatusUnprocessableEntity)
+	return "", false
 }
 
 // applyApprovalSignature is Approve's own signature-capture gate (owner request, 2026-09-19): an

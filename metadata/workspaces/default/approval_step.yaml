@@ -198,6 +198,28 @@ transitions:
     to: rejected
     action: decide
 
+# actions: what `decide` writes onto a step beyond the decision itself (domain.ActionEffect,
+# ROADMAP.md Stage B, 2026-09-28).
+#
+# Until this block existed, two lines of Go in internal/web named these Field ids directly, so the
+# approval engine could only ever write a step shaped exactly like this one -- which is what kept the
+# `workflow:` binding from being useful to any Application but this Application's own copy.
+#
+# The decision value itself is deliberately *not* declared here. The transitions: above already say
+# which Field `decide` moves and which values it may move it to, so repeating that as a write would be
+# two sources for one answer (001 Principle #8); the runtime derives both (domain.Machine.ActionField /
+# ActionTargets, which is also what replaced internal/web's own hardcoded approved/rejected pair).
+# What a Transition cannot say is the companion write below.
+#
+# fld_decided_by_name is a snapshot and `from: actor_name` is what makes it one: a live lookup would
+# rewrite the name printed on an already-signed PDF whenever that person later changed theirs. See this
+# file's own note on the Field for the full reasoning.
+actions:
+  - action: decide
+    writes:
+      - field: fld_decided_by_name
+        from: actor_name
+
 permissions:
   # roles: is CAP-P01, added in Fase 7 -- the first thing in this repo that gates on an
   # Application role rather than on a record's own actor field. It ANDs with the actor arms below:

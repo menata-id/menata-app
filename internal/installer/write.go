@@ -217,6 +217,11 @@ type FullMachineCheckDoc struct {
 	Transitions []any  `yaml:"transitions"`
 	Datasets    []any  `yaml:"datasets"`
 	Sequencing  any    `yaml:"sequencing"`
+	// Actions is Stage B's own block (domain.ActionEffect, 2026-09-28) -- added here in the same change
+	// that introduced it, because TestCheckDocsMirrorMetadatasOwnKeys failed the moment it did not
+	// exist. That is the gate working: without it, installing Document Approval would have failed its
+	// own strict re-parse on a key the loader accepts.
+	Actions []any `yaml:"actions"`
 	// MemberRemovalBlocks was missing until 2026-09-28, and the first template install found it: the
 	// key landed on metadata's own machineDoc on 2026-09-27 (mch_approval_step's blk_step_pending) and
 	// this mirror was not updated, so copying that Machine verbatim failed its own strict re-parse.

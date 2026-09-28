@@ -789,12 +789,13 @@ approver draws a one-time signature per decision, and no default flow is offered
 `flow_template_step` are optional *together*; casting one without the other fails at load, since a
 template with no steps stores nothing.
 
-What the binding does **not** buy you: the engine still reads its Machines' Fields by hardcoded id
-(`fld_decision`, `fld_sequence`, `fld_assignee`, …), so a Machine you bind has to carry those Field
-ids for the mechanics to work. Naming the engine's *cast* is declared; naming its *fields* is not
-(ROADMAP.md, Stage B — "an Action may declare what it writes"). This is why the AI assistant is
-deliberately not told about `workflow:` yet: it could produce an Application that binds correctly and
-still does nothing.
+What the binding does **not** buy you, as of 2026-09-28: an Action now declares what it *writes*
+(`actions:`, §12.6c below), so a bound Machine may name those Fields anything — but the engine still
+*reads* several by id (`fld_decision` when it decides which steps are approved for the signed PDF,
+`fld_sequence`, `fld_assignee`). So a Machine you bind should still carry that vocabulary for the
+reading half to work. This is why the AI assistant is deliberately not told about `workflow:` yet: it
+could produce an Application that binds correctly, writes correctly, and still shows nothing on the
+screens that read those Fields.
 
 One consequence worth knowing if you install two approval Applications in one Workspace: the submit
 wizard's own routes (`/documents/new`, `POST /documents`) are named by no navigation item, so nothing
@@ -1008,6 +1009,32 @@ move that is not a declared edge — or is declared for a different `action:` th
 performing the write — is refused with `422`. Declaring the same `field`/`from`/`to` twice fails
 the load, since which action governed it would depend on declaration order.
 
+### 12.6c `actions[]` — what a named Action writes
+
+```yaml
+actions:
+  - action: decide
+    writes:
+      - field: fld_decided_by_name
+        from: actor_name
+```
+
+| Key | Value | Notes |
+|---|---|---|
+| `action` | one of `decide`, `create`, `edit`, `delete`, `revise` | At most one entry per Action per Machine |
+| `writes[].field` | `fld_*` | Must be a Field this Machine declares |
+| `writes[].from` | `submitted` \| `actor` \| `actor_name` | The value the request carried, the acting identity's record id, or their display name **as it stands now** (a snapshot — `fld_decided_by_name` is printed onto a signed PDF) |
+| `writes[].value` | string | A literal instead of a source. Mutually exclusive with `from`; validated against the Field's own `options:` |
+
+**The status move is not declared here.** A `transitions:` edge naming this Action already says which
+Field it moves and to what, and the runtime reads it from there — so an Action that moves a status
+needs no `writes:` entry for it, and the route accepts exactly the values those edges name. Declare a
+literal `value:` only for a Field whose state model deliberately declares no person-performed edge
+(`mch_document`'s `fld_status`, derived from its Approval Steps).
+
+There is no `now` source. Nothing in this repo writes a Field from the clock yet; the day a Machine
+declares such a Field is the day it earns one.
+
 ### 12.7 `views[]`, plus the two Machine-level keys that are *not* per-View
 
 `views[]` — zero or more arrangements of this Machine's own records, each addressable by id
@@ -1149,7 +1176,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 
 | Generic (any Machine, metadata only) | Hardcoded to specific Machines (real Go code required for a new one) |
 |---|---|
-| CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded, *which decisions are legal at all* moved left in Fase 7 (`transitions:`, replacing `internal/web`'s own `allowsDecisionChange`), and **which Machines it acts on** moved left on 2026-09-28 (`workflow:` — the engine no longer matches the ids `app_document_approval`/`mch_document`/`mch_approval_step`, it runs over whatever Machines an Application declares for its roles). What is still Go is the *Fields* it reads and writes |
+| CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded, *which decisions are legal at all* moved left in Fase 7 (`transitions:`), **which Machines it acts on** moved left on 2026-09-28 (`workflow:`), and **which Fields it writes** moved left the same day (`actions:`, §12.6c — with the status move itself derived from the Transition that names the Action, so it is declared once rather than twice). What is still Go is the *Fields it reads*: the signed-PDF compositing filters steps by `fld_decision`, and composed screens project Fields by id |
 | Relations, `person`, child collections, many-to-many | Document submission wizard |
 | Constraints (`equals`/`not_equals` shape) | Signature-coordinate placement screen |
 | Events (field-change, record-creation, or schedule/time-passing → one Service) | PDF signature compositing |
@@ -1182,13 +1209,13 @@ that will fail validation or silently do nothing.
 
 Honest current limits, not a roadmap — some of these may change over time:
 
-- **Three Actions, one of them hardcoded to a single Field vocabulary.** `decide`, `edit`, `delete`.
-  Since 2026-09-28 `decide` no longer runs only for the ids `mch_document`/`mch_approval_step`: an
-  Application declares which of its Machines play the engine's `document` and `step` roles
-  (`workflow:`, §12.1), under any names. What is still Go is one level down — the engine reads and
-  writes Fields by hardcoded id (`fld_decision`, `fld_sequence`, `fld_assignee`, …), so a Machine you
-  bind must carry that vocabulary. See §8 — this is the limit most likely to matter for a new
-  business process.
+- **Three Actions; what they write is declared, what the engine reads is not.** `decide`, `edit`,
+  `delete`. Since 2026-09-28 `decide` runs for whichever Machines an Application casts in the engine's
+  `document` and `step` roles (`workflow:`, §12.1), under any names, and writes whichever Fields that
+  Machine declares (`actions:`, §12.6c). What is still Go is the *reading*: the signed-PDF compositing
+  picks approved steps by `fld_decision`, and several composed screens project Fields by id — so a
+  Machine you bind should still carry that vocabulary to be read correctly. See §8 — this is the limit
+  most likely to matter for a new business process.
 - **Unknown metadata keys are ignored, not rejected.** A misspelled or retired key (`view:` where
   `views:` is meant, `sla_filed:` for `sla_field:`) loads without complaint and the capability
   simply never appears. Everything the runtime *does* know is validated strictly — unknown field

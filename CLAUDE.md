@@ -94,6 +94,15 @@ to know "is this one of mine", the Application has to declare it, and `workflow:
 example of how — a closed engine registry (`domain.KnownWorkflowEngines`) whose roles are validated at
 load against the Application's own `machines:`.
 
+**And what an Action writes is declared too (2026-09-28).** A Machine's `actions:` block says which
+Fields a named Action sets and where each value comes from (`submitted`, `actor`, `actor_name`, or a
+declared literal) — `domain.ActionEffect`, applied by `action.ApplyEffect`. Do not write
+`record.Values[action.FieldX] = ...` in a handler for an Action's own effect; declare it. Two things it
+deliberately does *not* cover, both named in place rather than left to be rediscovered: the status move
+itself (derived from the `transitions:` edge that names the Action — declaring it twice would be 001 #8),
+and the *read* side (the signed-PDF compositing still filters steps by `fld_decision`), which is what
+`TestDocumentApprovalFieldCouplingOnlyShrinks` now measures.
+
 **And a Workspace's own ids are still reserved against itself.** Isolation relaxed exactly one
 thing — the same name in a *different* Workspace. Two Machines under one id inside one Workspace
 stays a load-time error (`metadata.validateMachineIDsAreUnique`), and `aiassist.Validate` refuses
@@ -329,6 +338,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   001 #3 inverted. `domain.KnownWorkflowEngines` is held to (b) as well, and deliberately not to
   (a): its validator reads the registry itself rather than repeating it in a switch, so it has no
   second list to drift from.
+- `TestDocumentApprovalFieldCouplingOnlyShrinks` — the Field-side twin of the ratchet below, frozen at
+  129 references across 13 files the day Stage B (2026-09-28) gave an Action a way to declare what it
+  writes (`actions:`, `domain.ActionEffect`). Same shrink-only terms. It exists because the Machine-id
+  ratchet could not see what Stage B removed, which made this repo's own prediction ("a stage that works
+  makes the number drop") false as the gate stood — so the gate was extended rather than the claim
+  restated. What would move it next is the *read* side: the signed-PDF compositing filters steps by
+  `fld_decision`, and composed screens project Fields by id.
 - `TestDocumentApprovalCouplingOnlyShrinks` — the third *ratchet*. `documentApprovalCoupling`
   freezes how many times each file outside `internal/action` names Document Approval's own
   Machine-id constants — frozen at 67 across 18 files on 2026-09-28 and **emptied the same day**, by

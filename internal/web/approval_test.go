@@ -38,7 +38,7 @@ func approvalStepTestMachine(ids approvalIDs) *domain.Machine {
 			{ID: action.FieldStepDocument, Name: "Document", Type: domain.FieldTypeRelation, RelatedMachine: ids.document},
 			{ID: action.FieldStepSequence, Name: "Sequence", Type: domain.FieldTypeNumber, Required: true},
 			{ID: action.FieldStepAssignee, Name: "Assignee", Type: domain.FieldTypePerson, Required: true},
-			{ID: action.FieldStepDecision, Name: "Decision", Type: domain.FieldTypeStatus, Required: true, Options: []string{action.DecisionPending, action.DecisionApproved, action.DecisionRejected}},
+			{ID: ids.decision, Name: "Decision", Type: domain.FieldTypeStatus, Required: true, Options: []string{action.DecisionPending, action.DecisionApproved, action.DecisionRejected}},
 			{ID: action.FieldStepSignaturePage, Name: "Signature Page", Type: domain.FieldTypeNumber},
 			{ID: action.FieldStepSignatureX, Name: "Signature X", Type: domain.FieldTypeNumber},
 			{ID: action.FieldStepSignatureY, Name: "Signature Y", Type: domain.FieldTypeNumber},
@@ -65,9 +65,17 @@ func approvalStepTestMachine(ids approvalIDs) *domain.Machine {
 			{ID: "prm_edit_own_step", Action: domain.ActionEdit, Roles: approverOnly, ActorField: action.FieldStepAssignee},
 			{ID: "prm_delete_own_step", Action: domain.ActionDelete, Roles: approverOnly, ActorField: action.FieldStepAssignee},
 		},
+		// The declared effect, mirroring metadata/approval_step.yaml's own actions: block (Stage B): the
+		// decider's name is a companion write, and the decision value itself comes from the Transition.
+		// A fixture omitting it would leave these tests passing against a Machine that declares less than
+		// the one that runs, which is the same reason the rollup Event and the roles: arm are here.
+		ActionEffects: []domain.ActionEffect{{
+			Action: domain.ActionDecide,
+			Writes: []domain.FieldWrite{{Field: ids.decidedBy, From: domain.WriteFromActorName}},
+		}},
 		Transitions: []domain.Transition{
-			{ID: "trn_step_approve", Name: "Approve", Field: action.FieldStepDecision, From: action.DecisionPending, To: action.DecisionApproved, Action: domain.ActionDecide},
-			{ID: "trn_step_reject", Name: "Reject", Field: action.FieldStepDecision, From: action.DecisionPending, To: action.DecisionRejected, Action: domain.ActionDecide},
+			{ID: "trn_step_approve", Name: "Approve", Field: ids.decision, From: action.DecisionPending, To: action.DecisionApproved, Action: domain.ActionDecide},
+			{ID: "trn_step_reject", Name: "Reject", Field: ids.decision, From: action.DecisionPending, To: action.DecisionRejected, Action: domain.ActionDecide},
 		},
 		// Mirrors metadata/approval_step.yaml's own evt_step_decision_rollup -- the Document's
 		// status follows its steps by declaration now, not by a hardcoded recompute in the
@@ -75,7 +83,7 @@ func approvalStepTestMachine(ids approvalIDs) *domain.Machine {
 		// internal/conformance.TestApprovalStepDeclaresStatusRollup is what keeps the two in step.
 		Events: []domain.Event{{
 			ID: "evt_step_decision_rollup",
-			On: action.FieldStepDecision,
+			On: ids.decision,
 			Then: domain.Service{Name: domain.ServiceRollupParentStatus, Rollup: &domain.Rollup{
 				ParentField: action.FieldStepDocument,
 				TargetField: action.FieldDocumentStatus,
@@ -179,14 +187,40 @@ type decideStepTestSetup struct {
 // approvalIDs is what a Workspace happens to call the engine's Machines. templateLibraryIDs is what
 // metadata/*.yaml ships; renamedIDs is what an install into a Workspace already using those names
 // would have to produce, and nothing in a handler may care which it got.
-type approvalIDs struct{ document, step, signature string }
-
-func templateLibraryIDs() approvalIDs {
-	return approvalIDs{action.DocumentMachineID, action.StepMachineID, action.SignatureMachineID}
+type approvalIDs struct {
+	document, step, signature string
+	// decision and decidedBy are the two Fields `decide` writes. They are part of this set since Stage B
+	// (2026-09-28): what an Action writes is declared by the Machine now, so a run over Fields named
+	// something else is what proves the engine reads the declaration rather than action.Field* constants.
+	decision, decidedBy string
 }
 
+func templateLibraryIDs() approvalIDs {
+	return approvalIDs{
+		document: action.DocumentMachineID, step: action.StepMachineID, signature: action.SignatureMachineID,
+		decision: action.FieldStepDecision, decidedBy: action.FieldStepDecidedByName,
+	}
+}
+
+// renamedIDs renames the Machines only. Its Fields stay the template's, because the *read* side of this
+// engine still names them: action.decisionOf, CanDeleteApprovalStep and the signature compositing all
+// look for fld_decision, and Stage B declared what an Action *writes*, not what the engine reads. That
+// boundary is real and stated rather than papered over -- renamedFieldIDs below is what exercises the
+// half that is declared.
 func renamedIDs() approvalIDs {
-	return approvalIDs{"mch_surat", "mch_langkah", "mch_ttd"}
+	return approvalIDs{
+		document: "mch_surat", step: "mch_langkah", signature: "mch_ttd",
+		decision: action.FieldStepDecision, decidedBy: action.FieldStepDecidedByName,
+	}
+}
+
+// renamedFieldIDs renames the two Fields `decide` writes, on top of the renamed Machines. Everything the
+// decide route itself does is declared -- the Transition says which Field it moves and to what, the
+// actions: block says the companion write -- so this is what Stage B made possible.
+func renamedFieldIDs() approvalIDs {
+	ids := renamedIDs()
+	ids.decision, ids.decidedBy = "fld_putusan", "fld_diputus_oleh"
+	return ids
 }
 
 func newDecideStepTestSetup(t *testing.T, testName string) decideStepTestSetup {
@@ -256,7 +290,7 @@ func newDecideStepTestSetupWith(t *testing.T, testName string, ids approvalIDs) 
 		action.FieldStepDocument:       document.ID,
 		action.FieldStepSequence:       float64(1),
 		action.FieldStepAssignee:       assignee.ID,
-		action.FieldStepDecision:       action.DecisionPending,
+		ids.decision:                   action.DecisionPending,
 		action.FieldStepSignatureX:     float64(50),
 		action.FieldStepSignatureY:     float64(50),
 		action.FieldStepSignaturePage:  float64(1),
@@ -269,7 +303,7 @@ func newDecideStepTestSetupWith(t *testing.T, testName string, ids approvalIDs) 
 		action.FieldStepDocument:       document.ID,
 		action.FieldStepSequence:       float64(2),
 		action.FieldStepAssignee:       assignee2.ID,
-		action.FieldStepDecision:       action.DecisionPending,
+		ids.decision:                   action.DecisionPending,
 		action.FieldStepSignatureX:     float64(70),
 		action.FieldStepSignatureY:     float64(50),
 		action.FieldStepSignaturePage:  float64(1),
@@ -353,7 +387,7 @@ func TestDecideStep_approveRequiresSignatureWhenNoneOnFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRecord(step): %v", err)
 	}
-	if got := step.Values[action.FieldStepDecision]; got != action.DecisionPending {
+	if got := step.Values[s.ids.decision]; got != action.DecisionPending {
 		t.Errorf("step decision = %v, want still pending after a refused approve", got)
 	}
 }
@@ -375,7 +409,7 @@ func TestDecideStep_approveCapturesSignatureWithoutSavingByDefault(t *testing.T)
 	if err != nil {
 		t.Fatalf("GetRecord(step): %v", err)
 	}
-	if got := step.Values[action.FieldStepDecision]; got != action.DecisionApproved {
+	if got := step.Values[s.ids.decision]; got != action.DecisionApproved {
 		t.Errorf("step decision = %v, want approved", got)
 	}
 	if key, _ := step.Values[action.FieldStepSignatureImage].(string); key == "" {
@@ -435,7 +469,7 @@ func TestDecideStep_approveSkipsGateWhenAlreadySaved(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRecord(step): %v", err)
 	}
-	if got := step.Values[action.FieldStepDecision]; got != action.DecisionApproved {
+	if got := step.Values[s.ids.decision]; got != action.DecisionApproved {
 		t.Errorf("step decision = %v, want approved", got)
 	}
 }
@@ -565,7 +599,7 @@ func TestDecideStep_refusesRedecidingADecidedStep(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRecord(step): %v", err)
 	}
-	step.Values[action.FieldStepDecision] = action.DecisionApproved
+	step.Values[s.ids.decision] = action.DecisionApproved
 	if _, err := s.store.UpdateRecord(s.ctx, s.ids.step, s.stepID, step.Values); err != nil {
 		t.Fatalf("UpdateRecord(step): %v", err)
 	}
@@ -577,7 +611,7 @@ func TestDecideStep_refusesRedecidingADecidedStep(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRecord(step) after: %v", err)
 	}
-	if got := after.Values[action.FieldStepDecision]; got != action.DecisionApproved {
+	if got := after.Values[s.ids.decision]; got != action.DecisionApproved {
 		t.Errorf("step decision = %v, want still approved -- a decision is final", got)
 	}
 }
@@ -618,10 +652,10 @@ func TestDecideStep_worksOverRenamedMachines(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRecord(step): %v", err)
 	}
-	if got := step.Values[action.FieldStepDecision]; got != action.DecisionApproved {
+	if got := step.Values[s.ids.decision]; got != action.DecisionApproved {
 		t.Errorf("step fld_decision = %v, want approved -- the engine wrote to the renamed Machine", got)
 	}
-	if name, _ := step.Values[action.FieldStepDecidedByName].(string); name == "" {
+	if name, _ := step.Values[s.ids.decidedBy].(string); name == "" {
 		t.Error("step fld_decided_by_name is empty, want the decider's name snapshotted")
 	}
 
@@ -639,5 +673,46 @@ func TestDecideStep_worksOverRenamedMachines(t *testing.T) {
 	// And the signed PDF was composited onto the renamed Document's own record.
 	if key, _ := document.Values[action.FieldDocumentSignedFile].(string); key == "" {
 		t.Error("document fld_signed_file is empty, want the composited PDF -- signDocument resolves both Machines by role")
+	}
+}
+
+// TestDecideStep_writesTheFieldsTheMachineDeclares is Stage B's own proof, and the assertion no test
+// could make before 2026-09-28: the decide route writes a step whose decision Field is called
+// fld_putusan and whose decider-name Field is called fld_diputus_oleh, because the Machine says so.
+//
+// Both were literals in internal/web until this change -- `step.Values[action.FieldStepDecision] =
+// decision` -- so an Application binding the approval engine had to name its Fields exactly as Document
+// Approval does or the engine wrote nothing it could read. What is declared here is the whole effect:
+// the Transition says which Field `decide` moves and which values are legal (so the route no longer
+// compares against the literals "approved"/"rejected" either), and the actions: block says the companion.
+//
+// **What this deliberately does not assert** is the signed PDF. The compositing side still reads
+// fld_decision by id (action.decisionOf, StampFor) -- Stage B declared what an Action writes, not what
+// the engine reads, and claiming more here would make this test say something the change did not do.
+func TestDecideStep_writesTheFieldsTheMachineDeclares(t *testing.T) {
+	ids := renamedFieldIDs()
+	s := newDecideStepTestSetupWith(t, "decide_step_renamed_fields", ids)
+
+	rec := postDecide(t, s, action.DecisionApproved, map[string]string{
+		"signature_image": testSignaturePNGDataURL(t),
+	})
+	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
+		t.Fatalf("decide over renamed fields: status = %d, want a redirect; body=%s", rec.Code, rec.Body.String())
+	}
+
+	step, err := s.store.GetRecord(s.ctx, ids.step, s.stepID)
+	if err != nil {
+		t.Fatalf("GetRecord(step): %v", err)
+	}
+	if got := step.Values[ids.decision]; got != action.DecisionApproved {
+		t.Errorf("%s = %v, want approved -- the Field the declared Transition names", ids.decision, got)
+	}
+	if name, _ := step.Values[ids.decidedBy].(string); name == "" {
+		t.Errorf("%s is empty, want the decider's name -- the companion write the actions: block declares", ids.decidedBy)
+	}
+	// And nothing was written under the template's own Field ids, which is what would happen if any of
+	// this were still naming them.
+	if _, set := step.Values[action.FieldStepDecision]; set {
+		t.Errorf("something wrote %s on a Machine that does not declare it", action.FieldStepDecision)
 	}
 }

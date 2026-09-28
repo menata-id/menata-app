@@ -805,6 +805,48 @@ func fieldByID(m *domain.Machine, id string) (domain.Field, bool) {
 	return domain.Field{}, false
 }
 
+// TestApprovalStepDeclaresItsDecideEffect is the same "absent, not malformed" family as the three gates
+// below it (Stage B, 2026-09-28): load-time validation refuses an `actions:` block that names a Field
+// the Machine does not have, and has nothing to say about one that is simply missing.
+//
+// Missing is not cosmetic here. action.ApplyEffect writes what the Machine declares and nothing else, so
+// deleting these four lines means a decision is recorded with no decider's name -- and that name is what
+// the signed PDF prints. The step still saves, the redirect still works, the screens still render, and
+// the audit trail quietly loses who approved. That is the failure shape this repo least wants to be
+// silent about, and it would pass every other test here.
+func TestApprovalStepDeclaresItsDecideEffect(t *testing.T) {
+	step := machineFromManifest(t, "mch_approval_step")
+
+	effect, ok := step.EffectFor(domain.ActionDecide)
+	if !ok {
+		t.Fatal("mch_approval_step declares no actions: entry for decide -- a decision would be recorded with no decider's name, which is what the signed PDF prints")
+	}
+	found := false
+	for _, wr := range effect.Writes {
+		if wr.Field != "fld_decided_by_name" {
+			continue
+		}
+		found = true
+		if wr.From != domain.WriteFromActorName {
+			t.Errorf("fld_decided_by_name is written from %q, want %q -- the name as it stood at the decision, a snapshot, not a reference that would follow later changes", wr.From, domain.WriteFromActorName)
+		}
+	}
+	if !found {
+		t.Error("decide's declared writes do not include fld_decided_by_name")
+	}
+
+	// And the half that is *not* declared here, asserted so nobody adds it: the decision value itself
+	// comes from the transitions naming this Action, and declaring it twice would be 001 Principle #8.
+	for _, wr := range effect.Writes {
+		if wr.Field == "fld_decision" {
+			t.Error("decide declares a write for fld_decision -- that move is already declared by trn_step_approve/trn_step_reject, and the runtime derives it from there (domain.Machine.ActionField/ActionTargets)")
+		}
+	}
+	if got := step.ActionTargets(domain.ActionDecide, "fld_decision"); len(got) != 2 {
+		t.Errorf("decide's declared targets for fld_decision = %v, want the two the transitions name -- this is what the route accepts instead of a hardcoded pair", got)
+	}
+}
+
 // TestApprovalStepDeclaresItsTransitions checks the real manifest, not a fixture, for the same
 // reason TestDynamicActorGateIsDeclaredAndResolvable and TestApprovalStepDeclaresSequencing do:
 // load-time validation refuses a *malformed* declaration, and has nothing at all to say about one

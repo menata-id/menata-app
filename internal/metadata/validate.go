@@ -166,6 +166,8 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateTransition(m, t, fieldsByID, seenTransitions, seenEdges)...)
 	}
 
+	issues = append(issues, validateActionEffects(m, fieldsByID)...)
+
 	seenDatasets := make(map[string]bool, len(m.Datasets))
 	for _, ds := range m.Datasets {
 		issues = append(issues, validateDataset(m, ds, fieldsByID, seenDatasets)...)
@@ -913,6 +915,79 @@ func validateNavigationIDsAreUnique(ws domain.Workspace) error {
 		return &ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+// validateActionEffects closes every way an `actions:` block could declare a write the runtime cannot
+// perform, or can perform and should not (domain.ActionEffect; Stage B, 2026-09-28). Each of these is
+// silent at runtime if it loads, which is why they are all load-time errors (005 Phase 3):
+//
+//   - an Action outside KnownActions names no route, so the effect would never run;
+//   - two effects for one Action would make "what does decide write here" depend on declaration order;
+//   - a Field this Machine does not declare would write a value nothing reads -- and, because record
+//     values are JSONB, would not fail anywhere;
+//   - neither `from:` nor `value:`, or both, is a write with no value or two;
+//   - a `from:` outside KnownWriteSources would resolve to nothing and store an empty string;
+//   - a `value:` outside the Field's own declared options would store a status no screen can render,
+//     the same check validateTransition already applies to an edge's own From/To;
+//   - an Action naming edges on two different Fields, which would make the moved Field ambiguous
+//     (domain.Machine.ActionField returns "" rather than guessing, and this is what keeps that
+//     unreachable).
+//
+// It deliberately does *not* require an effect to exist for every permitted Action: `edit` and `delete`
+// write only what was submitted, and a Machine declaring no effect at all is the normal case.
+func validateActionEffects(m *domain.Machine, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	seen := map[string]bool{}
+	for _, e := range m.ActionEffects {
+		if !domain.KnownActions[e.Action] {
+			issues = append(issues, fmt.Sprintf("machine %q: actions entry names unknown action %q", m.ID, e.Action))
+			continue
+		}
+		if seen[e.Action] {
+			issues = append(issues, fmt.Sprintf("machine %q: action %q declares its writes twice -- one effect per action, or what it writes depends on declaration order", m.ID, e.Action))
+			continue
+		}
+		seen[e.Action] = true
+		if len(e.Writes) == 0 {
+			issues = append(issues, fmt.Sprintf("machine %q: action %q declares no writes -- omit the entry rather than declaring an effect that does nothing", m.ID, e.Action))
+		}
+		for _, wr := range e.Writes {
+			field, ok := fieldsByID[wr.Field]
+			if !ok {
+				issues = append(issues, fmt.Sprintf("machine %q: action %q writes field %q, which this machine does not declare", m.ID, e.Action, wr.Field))
+				continue
+			}
+			switch {
+			case wr.From == "" && wr.Value == "":
+				issues = append(issues, fmt.Sprintf("machine %q: action %q writes field %q with neither from: nor value:", m.ID, e.Action, wr.Field))
+			case wr.From != "" && wr.Value != "":
+				issues = append(issues, fmt.Sprintf("machine %q: action %q writes field %q with both from: %q and value: %q -- say one", m.ID, e.Action, wr.Field, wr.From, wr.Value))
+			case wr.From != "" && !domain.KnownWriteSources[wr.From]:
+				issues = append(issues, fmt.Sprintf("machine %q: action %q writes field %q from %q, which is not a source this runtime resolves -- see domain.KnownWriteSources", m.ID, e.Action, wr.Field, wr.From))
+			case wr.Value != "" && len(field.Options) > 0 && !contains(field.Options, wr.Value):
+				issues = append(issues, fmt.Sprintf("machine %q: action %q writes field %q the value %q, which is not one of its own options %v", m.ID, e.Action, wr.Field, wr.Value, field.Options))
+			}
+		}
+	}
+
+	// The derivation half: an Action whose declared edges disagree about which Field they move leaves
+	// the runtime with no answer, so it is refused here rather than resolved arbitrarily.
+	fields := map[string]map[string]bool{}
+	for _, t := range m.Transitions {
+		if t.Action == "" {
+			continue
+		}
+		if fields[t.Action] == nil {
+			fields[t.Action] = map[string]bool{}
+		}
+		fields[t.Action][t.Field] = true
+	}
+	for actionName, moved := range fields {
+		if len(moved) > 1 {
+			issues = append(issues, fmt.Sprintf("machine %q: action %q is declared on transitions moving %d different fields -- which field it moves has to be unambiguous", m.ID, actionName, len(moved)))
+		}
+	}
+	return issues
 }
 
 // stampApplicationIDs fills domain.Machine.ApplicationID from each Application's own `machines:`

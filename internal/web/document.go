@@ -153,20 +153,10 @@ func submitDocumentWizard(store *data.Store, files *storage.Store, cfg config.Co
 			http.Error(w, "at least one approver is required", http.StatusUnprocessableEntity)
 			return
 		}
-		data.ApplyDefaults(docMachine, values)
-		// The wizard's own explicit rule outranks any declared default here, the same way an
-		// INSERT's explicit column value outranks a SQL DEFAULT.
-		if isDraft {
-			values[action.FieldDocumentStatus] = action.DocumentStatusDraft
-		} else {
-			values[action.FieldDocumentStatus] = action.DocumentStatusInReview
-		}
-		// Who submitted this Document, stamped from the session rather than accepted from the
-		// form (2026-09-21). It is what mch_document's own prm_create_own_document checks, and
-		// what finally puts an owner on the record instead of leaving it recoverable only by
-		// scanning the activity feed.
 		actor := currentActor(req, store, cfg)
-		values[action.FieldDocumentSubmittedBy] = actor.ID
+		if !applySubmissionEffect(w, docMachine, values, actor.ID, isDraft) {
+			return
+		}
 		if !allowsRecordCreate(w, docMachine, values, actor) {
 			return
 		}
@@ -199,6 +189,30 @@ func submitDocumentWizard(store *data.Store, files *storage.Store, cfg config.Co
 
 		redirectTo(w, req, fmt.Sprintf("/machines/%s/records/%s/signature-placement", docMachine.ID, document.ID))
 	}
+}
+
+// applySubmissionEffect writes what a submission sets beyond the form's own values: the status it
+// starts in and who submitted it, both declared by mch_document's own actions: block (Stage B,
+// 2026-09-28) rather than typed here. Submitted-by is stamped from the session rather than accepted
+// from the form (2026-09-21), which is what prm_create_own_document checks.
+//
+// "Save as draft" is the one thing the declaration cannot say: one Action has one effect, and which of
+// the two outcomes this submission is, is what the button chose -- so it overrides afterwards, the same
+// way an INSERT's explicit column value outranks a SQL DEFAULT. continueDocumentWizard carries the same
+// shape a second time, for the same reason.
+//
+// Extracted from submitDocumentWizard rather than inlined: that handler sits at the 70-line budget
+// (internal/conformance.TestHandlersStaySmall), and the remedy that gate asks for is moving a
+// derivation out, never raising the number.
+func applySubmissionEffect(w http.ResponseWriter, docMachine *domain.Machine, values map[string]any, actorID string, isDraft bool) bool {
+	if _, err := action.ApplyEffect(docMachine, domain.ActionCreate, values, action.EffectInput{ActorID: actorID}); err != nil {
+		serverError(w, err)
+		return false
+	}
+	if isDraft {
+		values[action.FieldDocumentStatus] = action.DocumentStatusDraft
+	}
+	return true
 }
 
 // saveDefaultApprovalFlow is CAP-V28's own call site shared by submitDocumentWizard and
@@ -363,6 +377,9 @@ func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.
 			return
 		}
 		carryForwardMissingFields(machine, values, existing.Values)
+		// Still a literal, deliberately: "submit this draft" shares the `edit` Action with every
+		// ordinary field change, so declaring it as edit's effect would set in_review on every edit.
+		// See mch_document's own actions: block, and ROADMAP.md's Stage B note on what it leaves.
 		values[action.FieldDocumentStatus] = action.DocumentStatusInReview
 		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
 			return

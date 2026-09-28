@@ -329,7 +329,10 @@ type Machine struct {
 	// exist, and which Action performs each (ROADMAP.md Case 03 Fase 7). Empty means every status
 	// Field on this Machine moves freely, the same opt-in posture Sequencing takes.
 	Transitions []Transition
-	Datasets    []Dataset
+	// ActionEffects declare what a named Action writes onto the record beyond the submitted values --
+	// see ActionEffect. Empty is the normal case: `edit` and `delete` write only what was submitted.
+	ActionEffects []ActionEffect
+	Datasets      []Dataset
 	// Sequencing is set only by a Machine whose records are acted on in order; nil means every
 	// record is always actionable.
 	Sequencing *Sequencing

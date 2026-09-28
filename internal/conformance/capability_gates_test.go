@@ -185,7 +185,53 @@ var documentApprovalCoupling = map[string]int{}
 
 var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signature|Template|TemplateStep)MachineID`)
 
+// documentApprovalFieldCoupling is the second frozen population, and the one Stage B earned the right
+// to gate: how many times each file outside internal/action names one of Document Approval's own
+// *Field* ids.
+//
+// It exists because the map above could not see the thing Stage B removed. That one counts Machine-id
+// constants; an Action's effect is about Field ids, so "Stage B will make the ratchet drop" -- which
+// this repo's own ROADMAP claimed -- was false as the gate stood. Extending the regex instead of
+// asserting the claim is what makes it checkable.
+//
+// Frozen 2026-09-28 at 129 references across 13 files, immediately after `decide`, `revise` and the
+// submit wizard's own writes became declared. **The numbers may only go down**, on the same terms as
+// the map above: too high fails, too low fails, a new file fails, and comment lines are skipped.
+//
+// What would move it next is the *read* side, which Stage B deliberately did not touch: signing filters
+// steps by fld_decision, composition projects cards from named Fields, and both are the "a bound Machine
+// must carry this vocabulary" limit that survives this stage. Stage C is the next slice with a claim on
+// these numbers.
+var documentApprovalFieldCoupling = map[string]int{
+	"composition/approval.go":            15,
+	"composition/assigned.go":            8,
+	"composition/pages.go":               1,
+	"composition/placement.go":           5,
+	"composition/review.go":              15,
+	"rendering/detail.templ":             6,
+	"rendering/documentsubmit.templ":     4,
+	"rendering/signatureplacement.templ": 12,
+	"web/approval.go":                    10,
+	"web/document.go":                    34,
+	"web/record.go":                      1,
+	"web/review.go":                      1,
+	"web/signing.go":                     17,
+}
+
+var documentApprovalFieldConstant = regexp.MustCompile(`action\.Field[A-Za-z]+`)
+
 func TestDocumentApprovalCouplingOnlyShrinks(t *testing.T) {
+	assertCouplingOnlyShrinks(t, documentApprovalConstant, documentApprovalCoupling, "Machine ids")
+}
+
+// TestDocumentApprovalFieldCouplingOnlyShrinks is the Field-id half, gateable only since Stage B gave
+// an Action a way to declare what it writes -- build the primitive, migrate the uses, *then* gate.
+func TestDocumentApprovalFieldCouplingOnlyShrinks(t *testing.T) {
+	assertCouplingOnlyShrinks(t, documentApprovalFieldConstant, documentApprovalFieldCoupling, "Field ids")
+}
+
+func assertCouplingOnlyShrinks(t *testing.T, pattern *regexp.Regexp, budget map[string]int, what string) {
+	t.Helper()
 	found := map[string]int{}
 	for _, pkg := range []string{"internal/web", "internal/composition", "internal/rendering", "internal/execution"} {
 		dir := filepath.Join(repoRoot(), pkg)
@@ -210,7 +256,7 @@ func TestDocumentApprovalCouplingOnlyShrinks(t *testing.T) {
 				if strings.HasPrefix(strings.TrimSpace(line), "//") {
 					continue // a comment may name the old shape while explaining it
 				}
-				n += len(documentApprovalConstant.FindAllString(line, -1))
+				n += len(pattern.FindAllString(line, -1))
 			}
 			if n > 0 {
 				found[strings.TrimPrefix(pkg, "internal/")+"/"+name] = n
@@ -219,19 +265,19 @@ func TestDocumentApprovalCouplingOnlyShrinks(t *testing.T) {
 	}
 
 	for _, file := range sortedFileKeys(found) {
-		budget, listed := documentApprovalCoupling[file]
+		allowed, listed := budget[file]
 		switch {
 		case !listed:
-			t.Errorf("%s now names Document Approval's own Machine ids %d time(s) and is not in documentApprovalCoupling -- adding an entry is not the way to pass this gate. A new capability coupled to one Application's Machines is the shape the audit's three stages exist to remove", file, found[file])
-		case found[file] > budget:
-			t.Errorf("%s names Document Approval's own Machine ids %d time(s), up from %d -- this population may only shrink", file, found[file], budget)
-		case found[file] < budget:
-			t.Errorf("%s is down to %d reference(s) from %d -- lower its entry in documentApprovalCoupling so the improvement is locked in rather than left as room to regress", file, found[file], budget)
+			t.Errorf("%s now names Document Approval's own %s %d time(s) and is not in the frozen population -- adding an entry is not the way to pass this gate. A new capability coupled to one Application's declarations is the shape the audit's stages exist to remove", file, what, found[file])
+		case found[file] > allowed:
+			t.Errorf("%s names Document Approval's own %s %d time(s), up from %d -- this population may only shrink", file, what, found[file], allowed)
+		case found[file] < allowed:
+			t.Errorf("%s is down to %d reference(s) from %d -- lower its entry so the improvement is locked in rather than left as room to regress", file, found[file], allowed)
 		}
 	}
-	for _, file := range sortedIntKeys(documentApprovalCoupling) {
+	for _, file := range sortedIntKeys(budget) {
 		if _, still := found[file]; !still {
-			t.Errorf("%s no longer names any of Document Approval's Machine ids -- remove its entry from documentApprovalCoupling", file)
+			t.Errorf("%s no longer names any of Document Approval's %s -- remove its entry from the frozen population", file, what)
 		}
 	}
 }

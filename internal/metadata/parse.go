@@ -21,8 +21,10 @@ type machineDoc struct {
 	Events      []eventDoc      `yaml:"events"`
 	Permissions []permissionDoc `yaml:"permissions"`
 	Transitions []transitionDoc `yaml:"transitions"`
-	Datasets    []datasetDoc    `yaml:"datasets"`
-	Sequencing  *sequencingDoc  `yaml:"sequencing"`
+	// Actions are what a named Action writes beyond the submitted values -- see domain.ActionEffect.
+	Actions    []actionEffectDoc `yaml:"actions"`
+	Datasets   []datasetDoc      `yaml:"datasets"`
+	Sequencing *sequencingDoc    `yaml:"sequencing"`
 	// MemberRemovalBlocks -- see domain.MemberRemovalBlock's own doc comment for why this is not a
 	// second Constraint shape.
 	MemberRemovalBlocks []memberRemovalBlockDoc `yaml:"blocks_member_removal"`
@@ -48,6 +50,19 @@ type transitionDoc struct {
 	From   string `yaml:"from"`
 	To     string `yaml:"to"`
 	Action string `yaml:"action"`
+}
+
+// actionEffectDoc/fieldWriteDoc are the YAML serialization of a domain.ActionEffect (Stage B,
+// 2026-09-28).
+type actionEffectDoc struct {
+	Action string          `yaml:"action"`
+	Writes []fieldWriteDoc `yaml:"writes"`
+}
+
+type fieldWriteDoc struct {
+	Field string `yaml:"field"`
+	From  string `yaml:"from"`
+	Value string `yaml:"value"`
 }
 
 // sequencingDoc is the YAML serialization of a domain.Sequencing.
@@ -336,6 +351,13 @@ func Parse(data []byte) (*domain.Machine, error) {
 			To:     td.To,
 			Action: td.Action,
 		})
+	}
+	for _, ad := range doc.Actions {
+		effect := domain.ActionEffect{Action: ad.Action}
+		for _, wd := range ad.Writes {
+			effect.Writes = append(effect.Writes, domain.FieldWrite{Field: wd.Field, From: wd.From, Value: wd.Value})
+		}
+		m.ActionEffects = append(m.ActionEffects, effect)
 	}
 	for _, dd := range doc.Datasets {
 		ds := domain.Dataset{ID: dd.ID, Source: doc.ID, Dimension: dd.Dimension}

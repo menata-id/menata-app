@@ -2874,7 +2874,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   **Both are now answered, and the slice shipped the same day -- see "Resolve a Machine by the role
   its Application casts it in" below.** The ratchet is empty.
 
-  **Stage B -- an Action may declare what it writes.** 006 names Approve and Reject explicitly as
+  **Stage B -- an Action may declare what it writes -- ~~planned~~ shipped 2026-09-28.** 006 names Approve and Reject explicitly as
   Actions, and `decide` already exists here as a *name*: `domain.KnownActions` carries it,
   Permissions gate it (`prm_decide_own_step`), Transitions reference it (`action: decide`). What is
   missing is its *effect*. `decideStep` writes exactly two Fields -- `fld_decision` from the
@@ -2884,6 +2884,46 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   expression language. `revise` and the wizard's `continue-submit` have the identical shape and
   close with it rather than needing their own pass. This is what makes `decide` available to any
   Machine, which 007 §4.1 (Composition over Specialization) is the argument for.
+
+  **What shipped.** `domain.ActionEffect`/`FieldWrite`/`KnownWriteSources`,
+  `metadata.validateActionEffects`, `action.ApplyEffect`/`ApplyStatusMove`, and an `actions:` block on
+  `metadata/approval_step.yaml` and `metadata/document.yaml` (both copies). Three sources, each with two
+  real cases read off the call sites rather than from this entry's own sketch: the submitted value, the
+  acting identity's id (`fld_submitted_by`) and its display **name** (`fld_decided_by_name`, a snapshot);
+  plus a declared literal, for a Field whose state model deliberately declares no person-performed edge.
+
+  **`now` was in the sketch above and is not in the primitive.** Nothing in this repo writes a Field
+  from the clock -- there is no `fld_decided_at` -- so shipping it would have been generalizing on zero
+  cases. The day a Machine declares such a Field is the day it earns a line in `KnownWriteSources`.
+
+  **The status move is derived, not declared twice**, which the sketch missed and the files make obvious:
+  `trn_step_approve`/`trn_step_reject` already say field `fld_decision`, to `approved`/`rejected`, action
+  `decide`. So `Machine.ActionField`/`ActionTargets` read it from there, and `writes:` carries only the
+  companions. That also removed `submittedDecision`'s hardcoded approved/rejected pair -- those two
+  strings were a copy of the declaration, and the reason any other Machine bound to this engine had to
+  use the same two words.
+
+  **Proven by `internal/web.TestDecideStep_writesTheFieldsTheMachineDeclares`**: the real decide route
+  writing `fld_putusan` and `fld_diputus_oleh` on a Machine that declares them, plus an assertion that
+  nothing wrote the template's own Field ids. Mutation-proven (put the companion write back as a literal
+  and it fails). The existing decide/revise/wizard tests pass unchanged; the only test edit was the
+  fixture gaining the `actions:` block the real manifest declares, the same way it already carried the
+  rollup Event and the `roles:` arm.
+
+  **What Stage B deliberately did not close, stated because the boundary is real:** the *read* side. The
+  signed-PDF compositing picks approved steps by `fld_decision` (`action.decisionOf`, `StampFor`),
+  `CanDeleteApprovalStep` reads it too, and `internal/composition` projects named Fields onto cards --
+  129 references across 13 files. And one operation stays a literal in place: the wizard's "submit this
+  draft" writes `in_review` through the `edit` Action, which every ordinary field change also uses, so
+  declaring it as edit's effect would set `in_review` on every edit. It wants an Action of its own, and
+  inventing one on a single case is what this repo's Method forbids.
+
+  **The gate came after the migration, and corrected a claim this entry made.** The note below said
+  Stages B and C would make `documentApprovalCoupling` drop; they would not have -- that map counts
+  `action.*MachineID`, and Stage B removes *Field*-id coupling, which was uncounted. So a second frozen
+  population now exists, `documentApprovalFieldCoupling` (129 references, 13 files),
+  `TestDocumentApprovalFieldCouplingOnlyShrinks`, on the same shrink-only terms. Extending the regex is
+  what makes the claim checkable rather than asserted.
 
   **Stage C -- the signature/PDF work becomes a named Service.** `KnownServices` is a closed
   registry with three members; PDF compositing is not one of them, so `signDocument` is called from
@@ -2912,14 +2952,16 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     file reaches zero) is part of finishing the stage, not a workaround.
 
     It was also claimed here to be "the honest measure of whether a stage did what it claimed: if
-    the number does not move, the stage did not." **Stage A proved that too strong, and the
-    correction is worth more than the slogan.** This ratchet counts *naming* -- lookups, record
-    queries, URLs built from a Machine-id constant. Stage A removed *identity* coupling, which had
-    already been funnelled into `IsDocument`/`IsStep` on 2026-09-27 and is held by
-    `TestNoBareMachineIDIdentityChecks` instead, so there was never a reference here for it to
-    remove. Before starting a stage, ask which of the two kinds of coupling it addresses, and expect
-    this number to move only for the naming kind. Stages B and C are both naming-kind and should
-    still move it.
+    the number does not move, the stage did not." **Two stages have now shown that too strong, in two
+    different ways, and the corrections are worth more than the slogan.** Stage A removed *identity*
+    coupling, already funnelled into `IsDocument`/`IsStep` and held by
+    `TestNoBareMachineIDIdentityChecks`, so there was never a reference here for it to remove. Stage B
+    removed *Field*-id coupling, which this map does not count at all -- it matches
+    `action.*MachineID` only. So the answer was to extend the gate rather than restate the claim:
+    `documentApprovalFieldCoupling` (`TestDocumentApprovalFieldCouplingOnlyShrinks`, frozen at 129
+    references across 13 files) is the Field-side population, added the day Stage B made a declarative
+    alternative exist. Before starting a stage, ask which coupling it addresses and which population
+    counts it -- and if neither does, extend one rather than claim the number will move.
   - `TestClosedRegistryMembersAreActivatedByMetadata` will fail Stage C the moment a
     `composite_signature_pdf` (or whatever it is called) is added to `domain.KnownServices` without
     an `events:` block naming it. That is the gate doing its job: the Service must arrive *with*

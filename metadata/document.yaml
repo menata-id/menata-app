@@ -175,6 +175,37 @@ permissions:
     action: revise
     roles: [approver, submitter]
 
+# actions: what `revise` and `create` write onto a Document beyond the submitted values
+# (domain.ActionEffect, ROADMAP.md Stage B, 2026-09-28).
+#
+# Both were literals in internal/web until this block existed -- `values[FieldDocumentStatus] =
+# DocumentStatusDraft` and `values[FieldDocumentSubmittedBy] = actor.ID` -- which meant an Application
+# binding this engine had to name its own Fields exactly as this one does.
+#
+# **Why these are declared as writes while an Approval Step's decision is derived from a Transition:**
+# fld_status deliberately declares no person-performed edge at all (see the transitions: block below),
+# because a declared edge would make the status settable through the *generic* update route, and a
+# Document's status is derived from its steps. An Action's effect is reachable only from that Action's
+# own route and its own Permission, never from the generic PUT, so declaring the move here says what
+# actually happens without reopening what that invariant protects
+# (internal/conformance.TestDocumentStatusIsDerivedNotSettable is unchanged and still passes).
+#
+# `create` is the submit wizard: a Document starts in review, and records who submitted it from the
+# session rather than from the form -- which is what prm_create_own_document checks. The wizard's own
+# "Save as draft" writes draft instead, still in Go: one Action cannot declare two outcomes, and
+# choosing between them is what the button does. Named here rather than left silent.
+actions:
+  - action: revise
+    writes:
+      - field: fld_status
+        value: draft
+  - action: create
+    writes:
+      - field: fld_status
+        value: in_review
+      - field: fld_submitted_by
+        from: actor
+
 # transitions: fld_status's own state model (ROADMAP.md Case 03 Fase 7).
 #
 # Every edge here declares no `action:`, and that is the substance of this block rather than an
