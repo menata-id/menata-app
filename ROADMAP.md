@@ -2608,6 +2608,62 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 ## Planned
 
+- **Document Approval: closing the last three layers** (owner request, 2026-09-28: audit how
+  metadata-based the real Document Approval is against 001-007, then plan it). The audit is
+  `menata-app-document`'s `audits/2026-09-28-kajian-metadata-based-document-approval.md`; read it
+  first, since it carries the per-layer evidence and the normative citations this entry only
+  summarizes.
+
+  **Where it actually stands.** Nine layers, five already declarative -- data shape, access, state
+  model with its sequencing, reactions through the Service registry, aggregation and list
+  presentation. The measured ratio is 411 lines of YAML against 3,366 lines of Application-specific
+  Go and templ, but that ratio is **not** the target: 002 ("physical strategies remain
+  runtime-owned") keeps Service implementations in Go, and 007 §12 governs how screens are
+  *composed*, not what draws them. The three gaps below are what 001-007 actually asks for and this
+  runtime does not yet have. Screens stay with `case-03-composability-checklist.md` Stage 3/4 and
+  are deliberately not duplicated here.
+
+  Both new gaps (A and C) sit in the **Domain Plane**, so all three stages below can run without
+  touching the Experience-architecture decisions that make the screen work expensive -- the same
+  property that let Stage 0/1 go first in that checklist.
+
+  **Stage A -- declare the binding, stop matching a literal.** Smallest, and the only one that is
+  currently *wrong* rather than merely absent. `action.IsDocument`/`IsStep` match the literal
+  `app_document_approval`, so the engine runs for exactly one Application name: the app installs
+  and runs as-is, but cannot be renamed, varied, or reused behind a second, differently-named
+  approval Application. 001 #2 says application behavior belongs to the runtime, and an engine that
+  only wakes for one name is behavior owned by one application. Replace the literal with something
+  an Application declares about itself; the two predicates are already the single seam every call
+  site goes through (23 of them were converted to it on 2026-09-27), so this changes one function,
+  not the call sites. `TestNoBareMachineIDIdentityChecks` already forbids the shape this would
+  regress to.
+
+  **Stage B -- an Action may declare what it writes.** 006 names Approve and Reject explicitly as
+  Actions, and `decide` already exists here as a *name*: `domain.KnownActions` carries it,
+  Permissions gate it (`prm_decide_own_step`), Transitions reference it (`action: decide`). What is
+  missing is its *effect*. `decideStep` writes exactly two Fields -- `fld_decision` from the
+  submitted value, `fld_decided_by_name` from the actor -- and then dispatches Events that are
+  already declarative. So the primitive needed is narrow and nameable: **which Fields an Action
+  writes, and from which of three sources** (submitted value, acting identity, now). Not an
+  expression language. `revise` and the wizard's `continue-submit` have the identical shape and
+  close with it rather than needing their own pass. This is what makes `decide` available to any
+  Machine, which 007 §4.1 (Composition over Specialization) is the argument for.
+
+  **Stage C -- the signature/PDF work becomes a named Service.** `KnownServices` is a closed
+  registry with three members; PDF compositing is not one of them, so `signDocument` is called from
+  flow code rather than named from `events:`. **Half this gap is not real and should not be
+  worked**: the compositing itself (`action/composite.go`, `banner.go` -- 178 lines of binary PDF
+  manipulation) is a physical strategy and stays Go, exactly as 002 intends. What lands is the
+  *invocation*: a fourth member of a registry that already exists, so Stage B's Action can trigger
+  it without knowing anything about PDFs. The existing checklist rates CAP-F22 the lowest-value of
+  its three behaviours to generalize, and that stays true of the implementation -- this entry only
+  separates naming it from rewriting it.
+
+  **Order is load-bearing.** A before B because a declared binding is what lets a generalized
+  `decide` know which Application it is acting for; B before C because the Service needs an Action
+  to be triggered by. Each stage is independently shippable and independently verifiable against a
+  real Workspace, the same way A07/A08 were verified by mutating YAML rather than by test alone.
+
 - **Workspace isolation: a Workspace's metadata is its own copy, not a shared file -- ~~planned~~ shipped 2026-09-27** (owner
   decision, 2026-09-27, prompted by the data-loss incident below). **Written up here as a plan
   first, then built the same day; what actually shipped is recorded at the end of this entry.**
