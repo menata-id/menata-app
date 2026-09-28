@@ -2608,6 +2608,68 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 ## Planned
 
+- **Installing a template into a Workspace that already uses its ids** (owner, 2026-09-28:
+  *"bukannya harusnya bisa antisipasi jika tabrakan nama aplikasi bukan? ... komponen composable
+  harusnya siap untuk ini"*). Both halves of that are fair, and they need different answers.
+
+  **The anticipation half is done** (same day): the assistant's system prompt now carries every
+  Machine id already taken in the target Workspace, not only the ones an Application claims. It
+  had been told about Application-claimed Machines all along -- which is why the owner's own
+  collision test produced `mch_document_item` rather than a rejection -- but `mch_user`,
+  `mch_activity` and `mch_notification` are claimed by none, so validation knew more than the
+  assistant was told. Closing that asymmetry makes avoiding a collision by design rather than by
+  luck.
+
+  **The capability half is not, and there is no mechanism for it at all.** Installing a template
+  is copying it (Workspace isolation, 2026-09-27), and the only automated installer is the
+  assistant's own publish path. So a Workspace that already uses one of a template's ids simply
+  cannot take it: "dokter-kecil" holds `mch_document` for its generated Document Tracking, and
+  Document Approval's own `mch_document` collides -- within one Workspace, two Machines cannot
+  share an id, and nothing offers to resolve it.
+
+  **Resolution means renaming on install, and that became safe on 2026-09-27 -- reversing an
+  argument made here the day before.** Prefixing ids was rejected then, and *as the default it
+  stays rejected*: a renamed copy is no longer diffable against its template, which is what makes
+  "install then diverge" legible, and ids leak into `records.machine_id`. What was also argued --
+  that a rename risks a subtly broken copy, since a missed cross-reference would go unnoticed --
+  no longer holds. Every place a Machine id is referenced is load-validated: an Application's own
+  `machines:` (`validateApplicationClaims`), `summary_machine:`, relation targets
+  (`validateRelationTargets`), and nav ids (`validateNavigationIDsAreUnique`). A half-completed
+  rename **cannot load**, and since `aiassist.Write` load-verifies and rolls back, what cannot
+  load cannot be published. The machine now catches exactly the class the argument was about.
+
+  So: renaming as the *default* remains wrong; renaming as *collision resolution*, only for ids
+  actually taken in the target, is right and is now provably safe.
+
+  **Plan.**
+
+  1. **An install operation that takes a rename map.** Today `aiassist.Write` only creates from a
+     `GeneratedChange`. What is missing is "copy this template into this Workspace, renaming these
+     ids" -- the same temp-file/strict-parse/rollback discipline, applied to files read from
+     `metadata/` rather than built from a proposal.
+  2. **Compute the map, do not ask for it.** The collision set is known before any write:
+     `domain.Workspace.MachineIDs` against the template's declared ids. A taken id gets a suffix
+     derived from the target Workspace or the Application, and everything else is copied verbatim
+     -- so a Workspace with no collision gets a byte-identical copy and stays diffable, which is
+     the property the default-rename would have destroyed for everyone.
+  3. **Rewrite only the references the loader validates**, and let the loader prove it: `machines:`,
+     `summary_machine:`, relation `machine:` targets, nav ids, and the Application id itself if it
+     too is taken. Then load-verify. A missed reference fails the load and rolls the whole install
+     back, which is why this is worth attempting at all.
+  4. **Surface it.** There is no UI for installing a template even without collisions; the
+     assistant is the only installer, and it is forbidden from proposing Document Approval. A
+     plain "install this template here" path is the smaller half of this work but the reason any
+     of it is visible to a person.
+
+  **Verification, and the honest test of whether it worked**: install Document Approval into
+  "dokter-kecil", whose `mch_document` is taken, and confirm the copy loads, the renamed Machine
+  keeps its own records empty while Document Tracking's are untouched, and `action.IsDocument`
+  still engages for the copy -- which it will only do if the Application id survives the rename,
+  or if Stage A of the entry below has already made the binding declared. **Those two entries meet
+  here**: until the binding is declared, a Workspace that already has an `app_document_approval`
+  cannot take a second copy under a different name, so collision resolution for Applications is
+  capped by that gap rather than by this one.
+
 - **Document Approval: closing the last three layers** (owner request, 2026-09-28: audit how
   metadata-based the real Document Approval is against 001-007, then plan it). The audit is
   `menata-app-document`'s `audits/2026-09-28-kajian-metadata-based-document-approval.md`; read it
