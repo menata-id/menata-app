@@ -157,6 +157,20 @@ loader and rolled back if the result does not load, and the assistant's own publ
 collisions when generating (its prompt carries every Machine id already taken in the target Workspace,
 not only the Application-claimed ones).
 
+**A store method that takes an id takes the Workspace too (2026-09-29).** Workspace scoping is the one
+invariant this whole data layer rests on, and it is enforced *in the statement* --
+`records.workspace_id` on every read and write, `data.WorkspaceScope` on ctx. `Store.UpdateAISessionStatus`
+was the exception: `UPDATE ai_sessions ... WHERE id = $1`, relying on its callers to have resolved a
+scoped session first. Four of five did. The fifth (`discardNewApplication`) passed the raw URL parameter,
+so a Workspace admin could discard **another Workspace's** draft Application by id — random ids are not
+scoping, and this repo has rejected "hard to guess" as a guard before.
+
+So: **put the Workspace in the `WHERE`, not only in the caller.** Relying on every caller to scope is a
+rule that holds until one does not. The handler was made consistent with its siblings *as well*, because
+a handler that reads like its four neighbours is how the next one gets written correctly — but the store
+predicate is the half that survives a future caller being built wrong, which is the same reasoning
+`installer.RefuseIfExists` states for itself.
+
 Concretely, before adding any hardcoded `href`, label, or button to a page under
 `internal/rendering/`: check the installed Application's own `navigation:` list first. If the
 same route/label is already declared there, that's a signal the value belongs in metadata (or
