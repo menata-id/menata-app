@@ -3106,6 +3106,47 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   that already existed. The lesson is the one this file keeps relearning -- a deferral reason that
   covers *part* of a population reads as if it covers all of it, and only counting tells you which.
 
+  **Document Approval is installed in `dokter-kecil`** (2026-09-29, owner-authorised). The collision
+  resolved the way the plan test had predicted for two days: `mch_document` -> `mch_document_approval`,
+  the other four Machine ids free, `mch_notification` added as a shared reference. Six files under
+  `metadata/workspaces/dokter-kecil/`, the manifest six lines longer, the template library untouched.
+  **That Workspace now holds two Machines that were both `mch_document` in their own sources**, under
+  two ids, serving two Applications -- the isolation thesis on real data rather than in a fixture.
+  `default` verified unaffected: its own `mch_document` records still resolve and its Approval Inbox
+  still renders.
+
+  **Two things went wrong on the way, and both are worth more than the install.**
+
+  **1. The install left the Application unusable, and I reported it as complete.** I ran it through a
+  throwaway command calling `TemplateByID` -> `PlanInstall` -> `Install`, and described that as "the
+  same sequence /install-application runs". It is not: that handler then calls **`grantInstallerRole`**,
+  because an Application *role* is membership data (`workspace_member_app_roles`), not metadata, and
+  without one `requireApplicationAccess` answers 403 on the very first redirect. The owner hit exactly
+  that -- "you have no role at document approval" -- which is the trap `grantInstallerRole`'s own doc
+  comment says the AI publish path fell into on 2026-09-27. Fixed by granting the Workspace admin
+  `approver`, the same default that handler uses (the Application's first declared role). **The lesson
+  is about the claim, not the grant**: "runs the same sequence" was checkable and I did not check it.
+
+  **2. Two installer tests had to change, and the property that replaced them is better.** Both asserted
+  Document Approval *can* be installed into dokter-kecil; it now is, so a second install is refused --
+  on five routes, five screen ids and one Dataset id, the three things the installer will not rename
+  because Go still names them. `TestPlanInstall_refusesASecondInstallOfTheSameApplication` asserts that,
+  **checking the reasons rather than a bare `!OK()`** (mutation-proved: making the route check permissive
+  fails it). `TestInstall_intoTheRealDokterKecilWorkspace`, added hours earlier, was deleted rather than
+  rebased onto a reconstructed pre-install state -- a fixture describing a world that no longer exists is
+  the failure this repo keeps catching in stale prose, and `TestInstall_intoAWorkspaceWithACollision`
+  already covers install-with-rename against a Workspace built to dokter-kecil's exact shape.
+
+  **And the install exposed a gate that only ever watched one Workspace.**
+  `TestNavigationRoutesAreRegistered` read `default.yaml` alone, so dokter-kecil's five new routes were
+  checked by nothing. Widened to scan `metadata/workspaces/*.yaml`, the way the loader itself scans --
+  and it immediately failed on `/machines/mch_document_item`, a per-Machine screen whose handler is
+  registered under the `{machineID}` *pattern* rather than as a literal. That is precisely the decision
+  the gate's own comment said it wanted someone to look at instead of papering over, and the answer is a
+  **stronger** check: for a `/machines/<id>` route the id must be a Machine *that Workspace installs*,
+  because a nav item pointing at an absent Machine is the real failure and a literal-handler check could
+  never see it.
+
   **Three follow-ups, 2026-09-29, and the first one was thrown away on purpose.**
 
   **Discovering the fixture-gate population was built, measured and rejected.** The plan was a static

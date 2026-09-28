@@ -14,7 +14,14 @@ machines:
   - ../activity.yaml
   - dokter-kecil/document.yaml
   - dokter-kecil/document_item.yaml
+  - dokter-kecil/document_approval.yaml
+  - dokter-kecil/approval_step.yaml
+  - dokter-kecil/signature.yaml
+  - dokter-kecil/approval_flow_template.yaml
+  - dokter-kecil/approval_flow_template_step.yaml
+  - ../notification.yaml
 
 applications:
   - dokter-kecil/applications/document_tracking.yaml
   - dokter-kecil/applications/document_review.yaml
+  - dokter-kecil/applications/document-approval.yaml

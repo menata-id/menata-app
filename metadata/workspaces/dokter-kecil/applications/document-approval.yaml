@@ -1,0 +1,228 @@
+# Installed from metadata/applications/document-approval.yaml on 2026-09-28.
+# This is this Workspace's own copy: editing it changes nothing anywhere else, and the
+# template it came from is unchanged (internal/installer).
+#
+# Ids renamed on install, because this Workspace already used them:
+#   mch_document -> mch_document_approval
+# Comments below may still name the original ids -- only declarations were rewritten.
+
+# Document Approval -- the current proof-of-concept scope (ROADMAP.md). Formerly the
+# "Document Approval" navigation *group* inside the single app_task_tracker Application; Fase 3
+# (2026-09-20) promoted it to a real Application, which is what ui-sample/nav-metadata.js has
+# always called `case3`.
+id: app_document_approval
+name: Document Approval
+
+# description, icon and color are the Application's own card face on Workspace Home
+# (ui-sample/case-03-flow1 board 03), following the shape ui-sample/nav-metadata.js declares.
+#
+# icon and color are both closed sets (domain.KnownIcons, domain.KnownApplicationColors): a name
+# the runtime cannot realize fails at load rather than rendering nothing, the same posture as
+# field types and navigation badges.
+#
+# This line said `icon` was "deliberately a character, not an asset" until 2026-09-24, carrying
+# nav-metadata.js's own caveat that its glyphs were "placeholders standing in for a real SVG icon
+# set ... swapping to one is a separate, not-yet-scoped piece of work". That work is done: the icon
+# is a *name* now, drawn as inline stroke SVG by internal/rendering.icon. Still not an asset --
+# nothing is fetched, and metadata never says how an icon is drawn, only which one.
+description: Submit, review and approve controlled documents.
+icon: check
+color: blue
+
+# summary_machine: which Machine's record count this Application's card reports.
+#
+# Declared rather than derived, because the obvious derivation is wrong: summing every Machine an
+# Application claims counts its configuration and plumbing as work. Project Management's own
+# Machines sum to 13 -- 4 tasks and 2 projects, plus 3 lists, 2 labels and 2 join rows -- a number
+# that is true and useless. Naming one Machine makes the count mean something.
+#
+# Must be a Machine *this* Application claims (validated at load): pointing elsewhere would put
+# another Application's number on this card, which is the same misleading-number failure in a
+# different shape.
+#
+# The card prefers its pending-approval badge count where an Application declares both, since that
+# is the more specific statement.
+summary_machine: mch_document_approval
+
+# show_nav: false replaces what app.yaml expressed as `hidden_nav_groups: [Document Approval]`
+# (owner request, 2026-09-19). It is now sayable where it belongs -- on the Application itself,
+# exactly as ui-sample/nav-metadata.js declares it -- rather than as a group label filtered out of
+# a larger list.
+#
+# It suppresses this Application's persistent *menu* chrome only. Every route below stays a valid
+# destination, still reachable from its own contextual in-page links and from the launcher, which
+# is deliberately uniform and never reads this field (nav-metadata.js states that outright). That
+# is also why internal/rendering's routeByID/labelByID resolve against the *unfiltered*
+# navigation: a link into a screen whose menu is hidden must still resolve.
+show_nav: false
+
+# machines: ids selected from the Workspace's own set (app.yaml), not file paths -- the Machines
+# are loaded once at Workspace level.
+#
+# This is not decoration: it is the map that answers "which Application am I in" for the routes no
+# navigation item names -- /machines/{id}/records/{id}, /decide, /signature-placement,
+# /pdf-preview, which is most of this Application's real surface. Navigation is only the fallback,
+# for routes that name no Machine. A Machine may be claimed by at most one Application, or that
+# answer would be ambiguous; shared ones (mch_user, mch_activity) are claimed by none and stay
+# Workspace-level.
+#
+# Exposure is presentational and derivational only. It is *not* an access gate: Permission
+# (006 §Behavioral Model) remains the single authority on who may do what, and an exposure list
+# that quietly became a second authorization mechanism would look like security without being it.
+machines:
+  - mch_document_approval
+  - mch_approval_step
+  - mch_signature
+  # CAP-V28 (ROADMAP.md, 2026-09-27): a saved default approval flow per Document Type. Claimed
+  # here but deliberately given no navigation: entry of their own -- the owner's own 2026-09-21
+  # instruction on this Application's menu ("dengan level 1, kebutuhanku sudah cukup") already
+  # closed it at exactly the two items below; both stay reachable generically from All Machines,
+  # the same as any claimed Machine with no menu entry of its own.
+  - mch_approval_flow_template
+  - mch_approval_flow_template_step
+
+# workflow: which runtime workflow engine this Application runs on, and which of its own Machines
+# plays each role in it (domain.Workflow; ROADMAP.md "Document Approval: closing the last three
+# layers", Stage A).
+#
+# Until 2026-09-28 this was declared nowhere. internal/action decided "is this Machine the document"
+# by matching the literals app_document_approval + mch_document, so the approval engine woke for
+# exactly one Application name holding exactly two Machine names: renaming this Application, or
+# installing a second differently-named approval Application beside it, left every screen rendering
+# while no approval mechanics engaged at all. 001 Principle #2 puts application behavior in the
+# runtime, and an engine that recognises only one set of names is behavior owned by one application.
+# Saying it here is what makes the engine available to any Application that asks for it.
+#
+# engine is a closed set (domain.KnownWorkflowEngines), and its cast is validated at load: a required
+# role must be filled (an engine cannot run against a partial cast), each role must name one of this
+# Application's *own* machines above, and one Machine may hold only one role.
+workflow:
+  engine: document_approval
+  roles:
+    document: mch_document_approval
+    step: mch_approval_step
+    # The three below are optional roles (domain.WorkflowEngineSpec): the engine runs without them,
+    # smaller. signature is a person's own reusable signature image -- absent, an approver draws one
+    # per decision onto the step itself. flow_template/flow_template_step hold CAP-V28's saved
+    # default flow per document type, and are optional *together*: a template with no steps would
+    # store nothing, so casting one without the other fails at load.
+    signature: mch_signature
+    flow_template: mch_approval_flow_template
+    flow_template_step: mch_approval_flow_template_step
+
+# roles: this Application's own role vocabulary -- what a member may be assigned *in this
+# Application*, which is a different question from their Workspace role (admin/member).
+#
+# Declared per Application because the vocabularies genuinely differ: board 05 shows Approver /
+# Submitter here, Buyer / Reviewer for Procurement, Viewer for HR. Until Fase 3b this was one
+# hardcoded list in workspacemembers.templ whose own comment already conceded it was "this slice's
+# single-Application role vocabulary" -- true while one Application existed, wrong the moment a
+# second did, since Project Management has no "approver".
+#
+# What each role means here, decided by the owner 2026-09-21 and declared rather than implied:
+#
+#   approver  -- decides an approval step assigned to them (approve/reject), and may submit.
+#   submitter -- submits documents and builds their approval chain. Cannot decide.
+#   reviewer  -- **may only look.** Cannot submit, cannot approve, cannot change a document.
+#
+# Before that decision the vocabulary said nothing: approver and reviewer named the identical
+# grant everywhere they appeared, so the two words were indistinguishable to anyone reading the
+# Members screen, and submitter named no grant at all. The rules themselves live on the Machines
+# that own them (approval_step.yaml, document.yaml) -- this block is the vocabulary, not the
+# rules -- and /authorization-matrix renders the result.
+#
+# This line read "not yet an authorization input -- nothing gates on it" until Fase 7
+# (2026-09-21), which is when authorization.AllowsAction gained its roles: arm.
+#
+# An Application may declare none (project-management.yaml does), in which case it offers no role
+# select and shows no access row at all -- rather than inventing a vocabulary nobody has decided.
+roles:
+  - approver
+  - submitter
+  - reviewer
+
+# This Application's whole menu: two screens, and both are real destinations of their own -- there
+# is no second navigation level here (owner instruction, 2026-09-21: "dengan level 1, kebutuhanku
+# sudah cukup"). The strip the Approval Inbox draws across its top is a projection of exactly these
+# two items (rendering.applicationTabs), not a hand-written tab list.
+#
+# Two items this list no longer carries, and why:
+#
+#   nav_dashboard   -- moved to project-management.yaml, where its data actually lives. The page
+#                      renders Projects and Tasks; it had been declared here since before Document
+#                      Approval and Project Management were separate Applications.
+#   nav_new_approval -- deleted. /documents/new is reached from the "+ New Document" button on the
+#                      Approval Inbox, which is that screen's own chrome, not a menu destination --
+#                      the same category as the Review screen (/machines/.../review), which has
+#                      never had a navigation item either. The Approval Inbox *is* this
+#                      Application's home: what opens first, carrying the new-document button and
+#                      the list of documents awaiting this viewer.
+navigation:
+  - id: nav_approval_inbox
+    # label is what a *menu* says (the header strip, the mobile bottom bar); title is what the
+    # screen says about itself, and description the line under it. Three keys because the Flow 2
+    # mockup needs three strings: board 07 labels this tab "Inbox" and heads its page "Pending my
+    # approval". Until 2026-09-24 there was only `label`, so every heading in the app was whatever
+    # string also had to fit in a four-column bottom bar -- and the description was a literal in
+    # approvalinbox.templ, which carried one for each of these two items.
+    label: Inbox
+    title: Pending my approval
+    description: Documents where your decision is currently required.
+    route: /approval-inbox
+    priority: 1
+    badge: approval_inbox_pending
+    # home_card: the one item this Application's own card on Workspace Home links to -- at most
+    # one per Application (validated at load time).
+    home_card: true
+    icon: inbox
+  # A route carrying a query is still one destination, which is what makes this a level-1 item
+  # rather than the level-2 `tabs:` concept briefly drafted and rejected: /approval-inbox?tab=mine
+  # is where "My Documents" *is*. internal/web.showApprovalInbox reads ?tab= to decide which of the
+  # two lists it composes; internal/conformance's route gate matches a declared route against its
+  # handler by path, ignoring the query.
+  - id: nav_my_documents
+    label: My Doc
+    title: My documents
+    description: Everything you created, newest first.
+    route: /approval-inbox?tab=mine
+    priority: 2
+    icon: file-text
+  # Board 07b, the third tab this route carries -- same shape as nav_my_documents right above:
+  # one physical handler (showApprovalInbox), a ?tab= value deciding which of the three lists it
+  # composes. "Assign Me" is the label in the tab strip and the mobile bottom bar; the page's own
+  # heading (title:) stays the fuller "Assigned to me" board 07b actually draws.
+  - id: nav_assigned_to_me
+    label: Assign Me
+    title: Assigned to me
+    description: Every document that asked for your approval -- directly, or through a group you belong to. Newest request first.
+    route: /approval-inbox?tab=assigned
+    priority: 3
+    icon: user-check
+  # nav_app_settings / nav_app_settings_permissions -- the Settings hub (ROADMAP.md "In progress",
+  # "Application Settings hub"). settings_hub/settings_hub_member keep both out of the tab strip
+  # and mobile bottom bar above (appshell.templ's defaultAppMenu excludes any item carrying
+  # either) -- they are reached from the chrome's own dedicated "Settings" link, not this
+  # Application's main menu. No priority: neither renders in a Priority-ordered list.
+  #
+  # Declaring nav_app_settings_permissions here is what makes /document-approval/settings/
+  # permissions a real, addressable destination (this runtime resolves "which Application" a
+  # route belongs to by matching a declared route, the same reason nav_my_documents/
+  # nav_assigned_to_me are each declared despite sharing one physical handler with
+  # nav_approval_inbox) -- it is not what decides whether the hub's Access section actually shows
+  # a Permissions row. That is derived from this Application's own `roles:` above, by
+  # internal/composition/appsettings.go, the same "derived, not typed" rule
+  # internal/composition/rolematrix.go's own "Access" row already follows.
+  - id: nav_app_settings
+    label: Settings
+    title: Document Approval settings
+    description: Applies to this application only.
+    route: /document-approval/settings
+    icon: settings
+    settings_hub: true
+  - id: nav_app_settings_permissions
+    label: Permissions
+    title: Permissions
+    description: Who can do what in Document Approval.
+    route: /document-approval/settings/permissions
+    settings_hub_member: true
+    icon: settings

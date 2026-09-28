@@ -45,21 +45,62 @@ func TestAppManifestLoads(t *testing.T) {
 //
 // Unfiltered matters for the same reason routeByID/labelByID read AllNavigation: an Application
 // with show_nav: false still owns its routes and labels, so both gates must still cover them.
+// **Every installed Workspace, not just `default`.** It read default.yaml alone until 2026-09-29, and
+// installing Document Approval into dokter-kecil is what made that visible: that Workspace began
+// declaring /approval-inbox and four more routes, and nothing checked any of them had a handler. The
+// routes happened to be fine -- same declarations, same handlers -- but "happened to be fine" is not
+// what a gate is for, and the next install into a Workspace nobody is watching would not be. The
+// directory is scanned for the same reason the loader scans it: dropping a manifest in installs a
+// Workspace, so a gate reading one filename by hand covers whichever Workspace it was written for.
 func declaredNavItems(t *testing.T) []domain.NavigationItem {
 	t.Helper()
-	path := filepath.Join(repoRoot(), "metadata", "workspaces", "default.yaml")
-	app, err := metadata.LoadApplication(path)
-	if err != nil {
-		t.Fatalf("LoadApplication(%s): %v", path, err)
-	}
-	items := append([]domain.NavigationItem(nil), app.Workspace.Navigation...)
-	for _, a := range app.Workspace.Applications {
-		items = append(items, a.AllNavigation...)
+	var items []domain.NavigationItem
+	for _, w := range declaredWorkspaces(t) {
+		items = append(items, w.items...)
 	}
 	if len(items) == 0 {
-		t.Fatal("manifest declares no navigation items -- these gates would check nothing, which is how they silently stopped working once before")
+		t.Fatal("no manifest declares a navigation item -- these gates would check nothing, which is how they silently stopped working once before")
 	}
 	return items
+}
+
+// declaredWorkspace is one manifest's navigation plus the Machine ids that Workspace installs -- both
+// needed to judge a route, since a per-Machine screen's route names a Machine rather than a handler.
+type declaredWorkspace struct {
+	manifest string
+	items    []domain.NavigationItem
+	machines map[string]bool
+}
+
+// declaredWorkspaces loads every installed Workspace. The directory is scanned for the same reason the
+// loader scans it: dropping a manifest in installs a Workspace, so a gate naming one filename covers
+// whichever Workspace it happened to be written for.
+func declaredWorkspaces(t *testing.T) []declaredWorkspace {
+	t.Helper()
+	manifests, err := filepath.Glob(filepath.Join(repoRoot(), "metadata", "workspaces", "*.yaml"))
+	if err != nil {
+		t.Fatalf("scan metadata/workspaces: %v", err)
+	}
+	if len(manifests) == 0 {
+		t.Fatal("no Workspace manifests found -- these gates would check nothing")
+	}
+	var out []declaredWorkspace
+	for _, path := range manifests {
+		app, err := metadata.LoadApplication(path)
+		if err != nil {
+			t.Fatalf("LoadApplication(%s): %v", path, err)
+		}
+		w := declaredWorkspace{manifest: filepath.Base(path), machines: map[string]bool{}}
+		w.items = append(w.items, app.Workspace.Navigation...)
+		for _, a := range app.Workspace.Applications {
+			w.items = append(w.items, a.AllNavigation...)
+		}
+		for _, m := range app.Machines {
+			w.machines[m.ID] = true
+		}
+		out = append(out, w)
+	}
+	return out
 }
 
 func declaredNavRoutes(t *testing.T) []string {
@@ -93,14 +134,32 @@ func TestNavigationRoutesAreRegistered(t *testing.T) {
 		registered[m[1]] = true
 	}
 
-	for _, route := range declaredNavRoutes(t) {
-		// A declared route may carry a query (nav_my_documents is /approval-inbox?tab=mine): two
-		// navigation items pointing at one handler that reads the query to decide which of its two
-		// lists it composes. chi routes on path alone, so that is what this matches -- the query is
-		// the handler's input, not a second registration. A route whose *path* has no handler still
-		// fails exactly as before.
-		if path, _, _ := strings.Cut(route, "?"); !registered[path] {
-			t.Errorf("metadata/workspaces/default.yaml declares navigation route %q, but internal/web/router.go registers no GET handler for path %q", route, path)
+	for _, w := range declaredWorkspaces(t) {
+		for _, item := range w.items {
+			// A declared route may carry a query (nav_my_documents is /approval-inbox?tab=mine): two
+			// navigation items pointing at one handler that reads the query to decide which of its two
+			// lists it composes. chi routes on path alone, so that is what this matches -- the query is
+			// the handler's input, not a second registration.
+			path, _, _ := strings.Cut(item.Route, "?")
+
+			// A per-Machine screen is the one route shape whose handler is registered under a *pattern*
+			// (`/machines/{machineID}`), not as a literal. dokter-kecil's Document Tracking declares
+			// /machines/mch_document_item, and an exact-string match called that unregistered --
+			// which is the decision this test's own comment said it wanted someone to look at rather
+			// than paper over. The answer is a stronger check, not a looser one: the *Machine* must be
+			// one this Workspace installs, because a nav item pointing at a Machine that is not there
+			// is the real failure, and a literal-handler check could never have seen it.
+			if id, ok := strings.CutPrefix(path, "/machines/"); ok && !strings.Contains(id, "/") {
+				if !registered["/machines/{machineID}"] {
+					t.Errorf("%s declares %q, but router.go registers no /machines/{machineID} handler", w.manifest, item.Route)
+				} else if !w.machines[id] {
+					t.Errorf("%s declares navigation route %q, but that Workspace installs no Machine %q -- the screen would 404", w.manifest, item.Route, id)
+				}
+				continue
+			}
+			if !registered[path] {
+				t.Errorf("%s declares navigation route %q, but internal/web/router.go registers no GET handler for path %q", w.manifest, item.Route, path)
+			}
 		}
 	}
 }

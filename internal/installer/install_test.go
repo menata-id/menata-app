@@ -3,9 +3,7 @@ package installer
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 
@@ -440,14 +438,25 @@ func firstLines(s string, n int) string {
 	return strings.Join(lines, "\n")
 }
 
-// TestPlanInstall_againstTheRealDokterKecilManifest is the acceptance case asserted against the actual
-// Workspace it is about, not a fixture shaped like it -- read-only, so it writes nothing into the repo.
+// TestPlanInstall_refusesASecondInstallOfTheSameApplication is the real dokter-kecil case, and what it
+// asserts changed on 2026-09-29 when the install actually happened.
 //
-// It is the question the owner asked on 2026-09-27 ("aku ingin pakai di workspace lain"), which had no
+// Until then this test said "Document Approval *can* be installed into dokter-kecil", which was the
+// question the owner asked on 2026-09-27 ("aku ingin pakai di workspace lain") and which had had no
 // answer for two days: dokter-kecil holds mch_document for a generated Document Tracking, so Document
-// Approval's own mch_document collided and nothing offered to resolve it. This says what the resolution
-// now is, in one read, against the real file.
-func TestPlanInstall_againstTheRealDokterKecilManifest(t *testing.T) {
+// Approval's own collided and nothing offered to resolve it. The install resolved it --
+// mch_document -> mch_document_approval -- and that premise stopped being true the moment it did.
+//
+// **What is true now is worth more than what it replaced, and nothing asserted it.** Installing the
+// *same* Application into one Workspace twice must be **refused**, because navigation ids, navigation
+// routes and Dataset ids are the three things the installer will not rename -- Go still names those
+// (routeByID, Workspace.ApplicationForRoute, internal/composition's ds_* constants), so renaming them
+// would reintroduce exactly the coupling Stage A and the isolation work deleted. This is the case the
+// next person to click Install twice hits.
+//
+// The reasons are checked, not just the refusal: a bare !OK() would pass for any refusal at all,
+// including one for the wrong cause.
+func TestPlanInstall_refusesASecondInstallOfTheSameApplication(t *testing.T) {
 	manifest := filepath.Join(libraryDir(t), "workspaces", "dokter-kecil.yaml")
 	if _, err := os.Stat(manifest); os.IsNotExist(err) {
 		t.Skip("dokter-kecil is not installed in this checkout")
@@ -456,145 +465,20 @@ func TestPlanInstall_againstTheRealDokterKecilManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load the real dokter-kecil manifest: %v", err)
 	}
+	if !slices.ContainsFunc(loaded.Workspace.Applications, func(a domain.Application) bool {
+		return a.ID == "app_document_approval"
+	}) {
+		t.Skip("dokter-kecil does not have Document Approval installed -- this test is about the second install")
+	}
 
 	p := PlanInstall(documentApprovalTemplate(t), loaded.Workspace)
-	if !p.OK() {
-		t.Fatalf("Document Approval cannot be installed into dokter-kecil: %v", p.Refusals)
+	if p.OK() {
+		t.Fatal("a second install of Document Approval was accepted -- nav ids, routes and Dataset ids cannot be renamed, so it must be refused rather than duplicated")
 	}
-	if got, want := p.Renames["mch_document"], "mch_document_approval"; got != want {
-		t.Errorf("Renames[mch_document] = %q, want %q", got, want)
-	}
-	if len(p.Renames) != 1 {
-		t.Errorf("Renames = %v, want only the one collision -- the other four Machine ids are free there", p.Renames)
-	}
-	if got := p.AddShared; len(got) != 1 || got[0] != "mch_notification" {
-		t.Errorf("AddShared = %v, want [mch_notification] -- dokter-kecil has user and activity, and Document Approval sends notifications", got)
-	}
-}
-
-// TestInstall_intoTheRealDokterKecilWorkspace is the *write* half against metadata that really
-// collides. TestPlanInstall_againstTheRealDokterKecilManifest above covers the plan; nothing covered
-// the install itself running over a real Workspace's own files.
-//
-// The distinction matters because a plan is a map of intentions and an install is bytes on disk: the
-// rename has to reach every place the copied Machine's id appears, the Workspace's own copies have to
-// land under its own directory, the manifest has to gain a line per file, and the result has to load
-// through the real loader or roll back. TestInstall_intoAWorkspaceWithACollision asserts all of that
-// against a *synthetic* Workspace built to dokter-kecil's shape; this one asserts it against
-// dokter-kecil's actual metadata, which is where a real difference would hide.
-//
-// The repo's own tree is never written to: the manifest and its directory are copied into t.TempDir()
-// first, with the two shared-library references rewritten the way relLibrary already does for the
-// synthetic fixtures.
-func TestInstall_intoTheRealDokterKecilWorkspace(t *testing.T) {
-	library := libraryDir(t)
-	realManifest := filepath.Join(library, "workspaces", "dokter-kecil.yaml")
-	if _, err := os.Stat(realManifest); os.IsNotExist(err) {
-		t.Skip("dokter-kecil is not installed in this checkout")
-	}
-	before := librarySnapshot(t, library)
-
-	workspaces := t.TempDir()
-	manifestPath := copyWorkspaceForInstall(t, library, realManifest, workspaces, "dokter-kecil")
-
-	loaded, err := metadata.LoadApplication(manifestPath)
-	if err != nil {
-		t.Fatalf("the copied dokter-kecil must load before anything is installed into it: %v", err)
-	}
-	plan := PlanInstall(documentApprovalTemplate(t), loaded.Workspace)
-	if !plan.OK() {
-		t.Fatalf("PlanInstall refused: %v", plan.Refusals)
-	}
-	if _, err := Install(plan, library, manifestPath); err != nil {
-		t.Fatalf("Install into the real dokter-kecil shape: %v", err)
-	}
-
-	// The library is only ever read. This is the failure Workspace isolation exists to prevent -- a
-	// generated Application once overwrote metadata/document.yaml -- so it is asserted, not assumed.
-	if after := librarySnapshot(t, library); after != before {
-		t.Error("the template library changed -- an install may only ever read it")
-	}
-
-	after, err := metadata.LoadApplication(manifestPath)
-	if err != nil {
-		t.Fatalf("dokter-kecil no longer loads after the install: %v", err)
-	}
-
-	// The rename landed in the *bytes*, not just in the plan: the Workspace now holds two Machines that
-	// were both called mch_document in their own sources, under two ids.
-	ids := map[string]bool{}
-	for _, m := range after.Machines {
-		ids[m.ID] = true
-	}
-	for _, want := range []string{"mch_document", "mch_document_approval", "mch_approval_step", "mch_notification"} {
-		if !ids[want] {
-			t.Errorf("after the install dokter-kecil has no %s (has %v)", want, keysOf(ids))
+	reasons := strings.Join(p.Refusals, " | ")
+	for _, want := range []string{"/approval-inbox", "nav_approval_inbox", "ds_document_by_status"} {
+		if !strings.Contains(reasons, want) {
+			t.Errorf("the refusal does not mention %q -- a refusal for the wrong reason would pass a bare !OK() check.\n  got: %s", want, reasons)
 		}
 	}
-
-	// And the installed Application's own copies are the Workspace's, under its own directory -- the
-	// half TestInstalledApplicationsAreCopiesNotSharedFiles holds for `default`.
-	entries, err := os.ReadDir(filepath.Join(workspaces, "dokter-kecil"))
-	if err != nil {
-		t.Fatalf("read the Workspace's own directory: %v", err)
-	}
-	var copied []string
-	for _, e := range entries {
-		copied = append(copied, e.Name())
-	}
-	for _, want := range []string{"approval_step.yaml", "document_approval.yaml"} {
-		if !slices.Contains(copied, want) {
-			t.Errorf("the Workspace's own directory has no %s (has %v) -- an install copies, it does not point at the library", want, copied)
-		}
-	}
-}
-
-// copyWorkspaceForInstall copies one real manifest and its Workspace directory into a temp tree,
-// rewriting the `../name.yaml` shared-library references to reach the real library from there. Returns
-// the copied manifest's path.
-func copyWorkspaceForInstall(t *testing.T, library, manifest, workspaces, slug string) string {
-	t.Helper()
-	body, err := os.ReadFile(manifest)
-	if err != nil {
-		t.Fatalf("read %s: %v", manifest, err)
-	}
-	rewritten := regexp.MustCompile(`\.\./([a-z_]+\.yaml)`).ReplaceAllStringFunc(string(body), func(match string) string {
-		return relLibrary(t, workspaces, library, strings.TrimPrefix(match, "../"))
-	})
-	target := filepath.Join(workspaces, slug+".yaml")
-	write(t, target, rewritten)
-
-	source := filepath.Join(filepath.Dir(manifest), slug)
-	err = filepath.WalkDir(source, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, relErr := filepath.Rel(source, path)
-		if relErr != nil {
-			return relErr
-		}
-		dest := filepath.Join(workspaces, slug, rel)
-		if d.IsDir() {
-			return os.MkdirAll(dest, 0o755)
-		}
-		content, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		write(t, dest, string(content))
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("copy %s: %v", source, err)
-	}
-	return target
-}
-
-func keysOf(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
 }

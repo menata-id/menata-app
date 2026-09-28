@@ -1,0 +1,65 @@
+# Installed from metadata/approval_flow_template.yaml on 2026-09-28.
+# This is this Workspace's own copy: editing it changes nothing anywhere else, and the
+# template it came from is unchanged (internal/installer).
+#
+# Ids renamed on install, because this Workspace already used them:
+#   mch_document -> mch_document_approval
+# Comments below may still name the original ids -- only declarations were rewritten.
+
+# A saved default approval flow per Document Type (CAP-V28, Flow 2 canvas re-audit gap #1,
+# ROADMAP.md, 2026-09-27) -- board 08's own "Save this as the default approval flow for
+# **Contract** documents" checkbox, which had no template entity or write direction to point at
+# until now (documentsubmit.templ's own top comment named exactly this as the blocker).
+#
+# One record per Document Type: internal/web.saveApprovalFlowTemplate find-or-creates by
+# fld_document_type rather than this Field being declared unique -- this runtime has no
+# uniqueness primitive, the same posture every other status-typed Field already has.
+id: mch_approval_flow_template
+name: Approval Flow Template
+fields:
+  - id: fld_document_type
+    name: Document Type
+    type: status
+    required: true
+    # Kept in sync BY HAND with mch_document's own fld_document_type options -- this runtime has
+    # no "share this option list" primitive, the same duplication every other closed-status-set
+    # pairing in this codebase already accepts (e.g. domain.ActorKind* mirrored across this
+    # Machine's own fld_approver_type and mch_approval_step's).
+    options: [Kontrak, Tagihan, Lain-lain]
+  - id: fld_mode
+    name: Mode
+    type: status
+    required: true
+    options: [sequential, parallel]
+
+# Which Fields this saved flow is keyed by and what it remembers (Stage E2, 2026-09-29). Until this
+# block existed, internal/web named fld_document_type and fld_mode itself -- so an Application could
+# cast any Machine in the engine's `flow_template` role (Stage A) and saving a default flow would
+# still write to Fields that Machine might not have.
+flow_template:
+  key_field: fld_document_type
+  mode_field: fld_mode
+
+card_fields:
+  - { field: fld_document_type, role: title }
+  - { field: fld_mode, role: status }
+
+views:
+  - id: vw_approval_flow_template_table
+    name: All Templates
+    type: table
+
+# Same role vocabulary as mch_document/mch_approval_step (approver, submitter -- never reviewer),
+# no actor_field: a saved default flow is shared Application configuration, not one person's own
+# record, so it has no narrower gate than the role that may already build an approval chain by
+# hand in the wizard.
+permissions:
+  - id: prm_create_approval_flow_template
+    action: create
+    roles: [approver, submitter]
+  - id: prm_edit_approval_flow_template
+    action: edit
+    roles: [approver, submitter]
+  - id: prm_delete_approval_flow_template
+    action: delete
+    roles: [approver, submitter]
