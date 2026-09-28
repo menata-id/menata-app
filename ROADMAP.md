@@ -3106,6 +3106,41 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   that already existed. The lesson is the one this file keeps relearning -- a deferral reason that
   covers *part* of a population reads as if it covers all of it, and only counting tells you which.
 
+  **Three follow-ups, 2026-09-29, and the first one was thrown away on purpose.**
+
+  **Discovering the fixture-gate population was built, measured and rejected.** The plan was a static
+  gate parsing every `&domain.Machine{...}` in the repo's test files (68 of them), resolving the id
+  where it could, and requiring any literal naming a real Machine to declare that Machine's rule
+  blocks. Predicted: quiet except on real mirrors. Measured: **40 findings across 10 packages, and not
+  one was a real mirror** -- every fixture the named list already covers passed it. All forty were
+  narrow unit fixtures *borrowing* a real id: `internal/authorization`'s `stepMachine` calls itself
+  `mch_approval_step` while taking its Permissions as a parameter; `internal/behavior`'s
+  `projectMachine` calls itself `mch_project` to exercise one Constraint. Going green meant 40 sites of
+  irrelevant declarations -- a gate that gets deleted rather than obeyed. **The distinction it needed is
+  intent, which is exactly what the named list encodes.** Recorded in
+  `composition.TestFixturesMirrorTheRealMachines`' own comment so the next person does not rebuild it,
+  along with the one honest alternative: give unit fixtures ids no Workspace installs, a 40-site rename
+  and a judgement call rather than an oversight. Owner chose to record rather than rename.
+
+  **Nine of the eleven uncovered POST routes got behaviour coverage** (`writeroutes2_test.go`), each
+  asserting the *stored* consequence rather than the response, because a rendered screen is what a
+  silent no-op also produces. Six store writes mutation-proved in one batch; the two most interesting
+  assertions are the ones about scope rather than success: `mark-all-read` must leave *another* person's
+  notifications unread, and `switch-workspace/restore` must refuse a Workspace you do not administer --
+  the route takes the Workspace id straight from the form, so that guard is its whole security.
+  **Two remain uncovered and are named rather than skipped**: `/new-application/message` and
+  `/new-application/{session}/discard` need a stored assistant conversation, the same fixture
+  `/new-application/{session}/review` lacks in the GET sweep.
+
+  **And the real dokter-kecil install now has its write half** (`TestInstall_intoTheRealDokterKecil-
+  Workspace`). The plan half was already covered against the real manifest; nothing ran `Install` over a
+  real Workspace's own colliding files. A plan is a map of intentions, an install is bytes: the rename
+  has to reach every place the copied id appears, the copies have to land under the Workspace's own
+  directory, and the result has to load or roll back. Asserted against dokter-kecil's actual metadata,
+  copied into `t.TempDir()`, with the library snapshot unchanged and `git status` clean afterwards.
+  **Actually installing Document Approval there is still the owner's call** -- it changes what that
+  Workspace renders for its one member -- so it is not done.
+
   **The write side, measured for the first time** (2026-09-29). 14 of 29 POST routes were named by no
   test, and the one that mattered was `revise`: a declared-Action write path edited by `14c9223` -- the
   same commit that broke /review, by the same kind of edit (a literal Field id replaced with

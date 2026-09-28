@@ -637,6 +637,24 @@ func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
 // card_fields into a view-model builder and would be made worse by being forced to declare mch_task's
 // Events and Datasets too. A new fixture is therefore not covered until someone adds it here, the
 // same posture readPathWriters and the ratchets take.
+//
+// **Discovering the population instead was built, measured and thrown away on 2026-09-29 -- read this
+// before trying it again.** A static gate parsed every `&domain.Machine{...}` in the repo's test files
+// (68 of them), resolved the id where it could, and required any literal naming a real Machine to set
+// that Machine's declared rule blocks. The prediction was that it would be quiet except on real
+// mirrors. It produced **40 findings across 10 packages, and not one was a real mirror** -- every
+// fixture here and in internal/web passed it. All forty were narrow unit fixtures *borrowing* a real
+// Machine's id: internal/authorization's stepMachine calls itself mch_approval_step while taking its
+// Permissions as a parameter; internal/behavior's projectMachine calls itself mch_project to exercise
+// one Constraint.
+//
+// So the gate could not tell "stands in for this Machine" from "borrowed its id for readability", and
+// the only way to go green was 40 sites of irrelevant declarations -- a gate that would be deleted
+// rather than obeyed. **The distinction it needed is intent, which is what this named list already
+// encodes.** The honest alternative, if anyone wants it later, is the other direction: give unit
+// fixtures ids no Workspace installs (mch_step_probe), after which the static gate really would be
+// quiet. That is a 40-site rename and a judgement about whether borrowing a real id misleads a reader
+// enough to be worth it -- an open question, not an oversight.
 func TestFixturesMirrorTheRealMachines(t *testing.T) {
 	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "workspaces", "default.yaml"))
 	if err != nil {
