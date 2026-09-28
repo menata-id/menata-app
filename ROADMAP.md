@@ -2659,15 +2659,21 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
   **Verification.** `internal/web.TestInstallApplication_endToEndOverACollision` drives session, admin
   gate, CSRF, POST, install, reload hook and redirect against the real library.
-  `installer.TestPlanInstall_againstTheRealDokterKecilManifest` asserts the plan against the actual
-  Workspace the owner's question was about (one rename, four clean, `mch_notification` added).
+  `installer.TestPlanInstall_againstTheRealDokterKecilManifest` asserted the plan against the actual
+  Workspace the owner's question was about (one rename, four clean, `mch_notification` added) -- until
+  the install actually happened on 2026-09-29 and that premise stopped being true; it is
+  `TestPlanInstall_refusesASecondInstallOfTheSameApplication` now, see that entry.
   `TestInstall_rollsBackWhenTheResultWouldNotLoad` provokes a real unloadable result and confirms the
   tree is left as found. Live: the screen renders in `default`, where both templates are already
   installed, and correctly refuses both by naming every colliding id.
 
-  **Not done live in `dokter-kecil`.** Installing there needs a session in that Workspace, and the
-  shared admin credential holds no membership in it -- so the owner's own click is the last step. The
-  plan for it is asserted against the real manifest, so what that click will do is known.
+  **Not done live in `dokter-kecil`** at the time -- installing there needs a session in that
+  Workspace, and the shared admin credential holds no membership in it. **Done 2026-09-29** on the
+  owner's authorisation, through `PlanInstall`/`Install` directly rather than a session, which is where
+  the one real gap in that route turned up: `Install` writes metadata, and the *role* it takes to use
+  the Application is membership data the handler grants separately (`grantInstallerRole`). Skipping that
+  step left the Application installed and answering "you have no role" to its only member. See the
+  Stage E2 entry's own account.
 
   **The anticipation half is done** (same day): the assistant's system prompt now carries every
   Machine id already taken in the target Workspace, not only the ones an Application claims. It

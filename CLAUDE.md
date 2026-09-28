@@ -278,7 +278,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 - `TestHandlersStaySmall` — the `internal/web` handler-size budget.
 - `TestAppManifestLoads` — `metadata/workspaces/default.yaml` parses and validates.
 - `TestNavigationRoutesAreRegistered` — every declared `navigation:` route has a real
-  `internal/web/router.go` handler.
+  `internal/web/router.go` handler, across **every** installed Workspace (`metadata/workspaces/*.yaml`
+  is scanned, the way the loader scans it). It read `default.yaml` alone until 2026-09-29, so the five
+  routes the dokter-kecil install declared were checked by nothing. A `/machines/<id>` route is the one
+  shape judged differently and more strictly: its handler is registered under the `{machineID}`
+  *pattern*, so what is checked is that the id names a Machine **that Workspace installs** — a nav item
+  pointing at an absent Machine is the real failure, and a literal-handler check cannot see it.
 - `TestRenderingHasNoHardcodedApplicationRoute` / `TestHandlersHaveNoHardcodedApplicationRoute` —
   no `internal/rendering/*.templ` file and no `internal/web` handler (router.go excepted) may
   hardcode a route metadata already declares, except the small set of runtime-level routes that
