@@ -23,6 +23,7 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
 
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 )
 
 // Stamp is one signature image to burn onto one page of a Document's PDF, at a percentage
@@ -41,11 +42,19 @@ type Stamp struct {
 // StampFor builds one approved step's Stamp, or ok=false if the step has no placement yet or no
 // signature image was found -- both are silently skippable, not an error: Phase 17 composites
 // whatever is ready rather than blocking a real Approve on a placement someone forgot to make.
-func StampFor(step *data.Record, signatureImage []byte) (Stamp, bool) {
-	page, hasPage := step.Values[FieldStepSignaturePage].(float64)
-	x, hasX := step.Values[FieldStepSignatureX].(float64)
-	y, hasY := step.Values[FieldStepSignatureY].(float64)
-	width, hasWidth := step.Values[FieldStepSignatureWidth].(float64)
+//
+// It takes the Machine because the four Field ids come from that Machine's own declaration (Stage D,
+// signature_placement:), not from this package's constants. A Machine declaring none reads every
+// coordinate as absent and stamps nothing -- which is the right answer, and the reason this is the
+// one place worth fixing that internal/conformance structurally cannot see: the Field-coupling gate
+// excludes this package as the owner of those constants, so nothing but a reader would have caught
+// the engine still naming them here after Stage A made the Machine's own name free.
+func StampFor(machine *domain.Machine, step *data.Record, signatureImage []byte) (Stamp, bool) {
+	p := SignatureFields(machine)
+	page, hasPage := step.Values[p.PageField].(float64)
+	x, hasX := step.Values[p.XField].(float64)
+	y, hasY := step.Values[p.YField].(float64)
+	width, hasWidth := step.Values[p.WidthField].(float64)
 	if !hasPage || !hasX || !hasY || !hasWidth || width <= 0 || len(signatureImage) == 0 {
 		return Stamp{}, false
 	}

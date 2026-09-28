@@ -707,7 +707,7 @@ func showSignaturePlacement(store *data.Store, files *storage.Store, cfg config.
 		page := pageFromQuery(req, totalPages)
 		actor := currentActor(req, store, cfg)
 		view, err := composition.SignaturePlacement(ctx, composition.NewLoader(store, machines),
-			machineForStep(ctx), document, steps, relations, page, totalPages, actor)
+			machineForStep(ctx), machine, document, steps, relations, page, totalPages, actor)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -782,7 +782,7 @@ func documentSignaturePlacementView(ctx context.Context, store *data.Store, file
 	// placement happens, and giving the embed a pager would duplicate that screen inside a page
 	// that is already the generic record view.
 	view, err := composition.SignaturePlacement(ctx, composition.NewLoader(store, machines),
-		machineForStep(ctx), document, steps, relations, 1, totalPages, actor)
+		machineForStep(ctx), machine, document, steps, relations, 1, totalPages, actor)
 	if err != nil {
 		log.Printf("signature placement inline view for document %s: %v", recordID, err)
 		return nil

@@ -364,6 +364,11 @@ type Machine struct {
 	// Sequencing is set only by a Machine whose records are acted on in order; nil means every
 	// record is always actionable.
 	Sequencing *Sequencing
+	// SignaturePlacement and SignatureStore declare which Fields hold a signature and where it sits
+	// -- see their own doc comments. Nil means this Machine declares neither, which is every Machine
+	// but the two an approval Application casts in its `step` and `signature` roles.
+	SignaturePlacement *SignaturePlacement
+	SignatureStore     *SignatureStore
 	// SLAField is a date Field ID on this Machine; when set, that Field renders as an OVERDUE /
 	// "N day(s) left" badge instead of a plain date (ROADMAP.md Phase 13). Machine-level rather
 	// than per-View because the record detail page renders it too, and a detail page selects no

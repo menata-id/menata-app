@@ -3012,9 +3012,80 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   out of". Every change to the population still fails until the map is updated. 129 across 13 files
   became 126 across 14.
 
+  **Stage D -- the signature shape becomes a declaration -- shipped 2026-09-28.** This one was not in the
+  original A/B/C plan; the audit named it as what those three would leave behind, in words worth
+  quoting because they turned out to be the whole brief: *"the signature store's own shape (the four
+  placement Fields, `fld_owner`/`fld_image` on `mch_signature`), which nothing declares, so removing
+  those is a **capability question** rather than a reading one."*
+
+  **That distinction is the point.** Stages A-C removed literals by *deriving* them from declarations
+  that already existed -- the `transitions:` edges, the relation, `sequencing:`, the Permission, the
+  Service's own trigger config. Nothing in metadata said which Field holds a signature image or which
+  four numbers place a box on a page, so there was nothing to derive from: an Application could cast any
+  Machine in the `step` role under any name (Stage A) and the approval would still fail to composite
+  unless that Machine's Fields happened to be called `fld_signature_x`. Stage A's own promise was
+  therefore only half-true until this landed.
+
+  **What shipped.** Two Machine-level blocks beside `fields:`, following `sequencing:`'s precedent --
+  `signature_placement:` (image, page, x, y, width) on the `step` Machine, `signature_store:` (owner,
+  image) on the optional `signature` one. `domain.SignaturePlacement`/`SignatureStore`,
+  `metadata.validateSignaturePlacement`/`validateSignatureStore` (each named Field must be the
+  declaring Machine's own and hold the right type), `action.SignatureFields`/`StoreFields`, and
+  `installer.FullMachineCheckDoc` extended in the same change -- `TestCheckDocsMirrorMetadatasOwnKeys`
+  failed the moment it was not, which is the third time that gate has caught this exact class.
+
+  **Two blocks, not one**, because they answer different questions for different Machines: where a box
+  sits on *this* step, versus where a person's reusable image is kept. And *not* an extension of the
+  `composite:` Event config, although that already carries `parent_field`/`source_field`/`target_field`
+  -- the placement screen and the generic detail page read these Fields with no Event involved at all,
+  and a screen reaching into a Service's trigger config to know how to draw a box is the wrong
+  direction.
+
+  **The write side came too, by owner decision.** `signatureplacement.templ`'s twelve
+  `name={ action.Field... }` attributes now render ids Composition resolved (`rendering.PlacementFields`),
+  so board 09 submits under whatever its Machine calls them. **What that does and does not settle** is
+  stated in the deferral table's own Binding row rather than left implied: those particular names are
+  declared; the *general* primitive -- metadata declaring a form's Fields, 007 §11.3 -- is still unbuilt,
+  and its trigger is still a third bespoke write screen. A screen can still leave the ratchet with every
+  binding hand-typed, and `documentsubmit.templ`'s four still are.
+
+  **`StampFor` took the Machine too**, and that one is worth naming because no gate could see it:
+  `documentApprovalFieldCoupling` excludes `internal/action` as the owner of those constants, so the
+  function that actually reads the four coordinates named them itself, invisibly, right through Stages
+  A-C. Only reading the code found it. `TestStampFor_overAMachineThatNamesItsPlacementDifferently` and
+  `TestStampFor_undeclaredPlacementStampsNothing` are the cover, the second proving there is no silent
+  fallback: a Machine declaring nothing stamps nothing even when the record does hold the template
+  library's own ids.
+
+  **Verified.** `documentApprovalFieldCoupling` went **78 across 11 files to 43 across 7**, with five
+  files leaving entirely (`execution/composite.go`, `web/signing.go`, `web/approval.go`,
+  `rendering/signatureplacement.templ`, and `review.go`/`detail.templ`/`placement.go` down to one each) --
+  exactly the prediction the plan made, re-measured rather than asserted. Mutation-proved on four
+  separate guards: putting one constant back into `review.go` fails the ratchet; naming a Field that
+  does not exist, or one of the wrong type, fails `TestAppManifestLoads` with the message an author can
+  act on; an unknown key *inside* the new block is refused by `decodeStrict`; and reverting
+  `applyApprovalSignature` to the constant fails the new end-to-end assertion in
+  `TestDecideStep_writesTheFieldsTheMachineDeclares`, which approves over `fld_gambar_ttd` and checks
+  that nothing was written under `fld_signature_image`.
+
+  **Four test fixtures were declaring less than the Machines they mirror**, and every one of them was
+  found by this change rather than by a gate -- `approvalStepTestMachine`, `signatureTestMachine`,
+  `stepMachineForTest` and the placement tests. That is the same finding as the derivation slice two
+  changes earlier, and it has now happened twice: a fixture that omits a declaration does not fail, it
+  passes against a Machine looser than the one that runs. Worth a gate of its own eventually; recorded
+  here rather than guessed at.
+
+  **What is left, and what it is waiting for.** 34 of the remaining 43 are `internal/web/document.go`:
+  the submit wizard reading its own form by Field id. That is Binding on the read side, and it is
+  additionally blocked on `continue-submit` getting an Action of its own -- it shares the generic `edit`
+  Action with every ordinary edit today, which is exactly why Stage B could not reach it (audit §6).
+  The other nine are a step's label falling back to `fld_step_name`, a Document's own file and status
+  Fields in two composed screens, and `documentsubmit.templ`'s four bindings.
+
   **Order is load-bearing.** A before B because a declared binding is what lets a generalized
   `decide` know which Application it is acting for; B before C because the Service needs an Action
-  to be triggered by. Each stage is independently shippable and independently verifiable against a
+  to be triggered by; D after all three because it is the only one that had to *add* a declaration
+  rather than read one, and adding it earlier would have been shape-before-need. Each stage is independently shippable and independently verifiable against a
   real Workspace, the same way A07/A08 were verified by mutating YAML rather than by test alone.
 
   **What is already gated, and what each stage will have to do about it** (added 2026-09-28, after

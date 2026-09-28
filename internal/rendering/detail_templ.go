@@ -923,21 +923,28 @@ func recordTitle(m *domain.Machine, r *data.Record) string {
 // prose, moved with the decision bar in Fase 6b. This predicate stays because the fields are still
 // declared on the Machine and would still render as five raw numbers without it.
 //
-// It is a hardcoded list of five Field ids, which metadata cannot express today -- there is no
+// **Which** five Fields is no longer a list here: it is exactly the set this Machine's own
+// signature_placement: block declares (Stage D, 2026-09-28), asked through
+// domain.SignaturePlacement.Fields. So a step Machine naming its coordinates anything at all hides
+// the right ones, and this predicate cannot drift from the declaration the placement screen writes
+// through -- the two were separate lists until that block existed.
+//
+// What is still hardcoded is the *rule*, not the fields: "an Approval Step's placement Fields are
+// noise on a detail page" is a judgement metadata cannot express today, because there is no
 // per-Field "hide me on a detail page" declaration and 007 §12.4 says the answer is not a new
-// `detail` ViewType either ("a View MUST NOT be required as the universal composition
-// primitive"). Forward-checkable pointer: ROADMAP.md's "A View composing other Views", the entry
-// that would give a detail screen a declared arrangement.
+// `detail` ViewType either ("a View MUST NOT be required as the universal composition primitive").
+// Forward-checkable pointer: ROADMAP.md's "A View composing other Views", the entry that would give
+// a detail screen a declared arrangement.
 func hiddenDetailField(m *domain.Machine, f domain.Field) bool {
 	if !action.IsStep(m) {
 		return false
 	}
-	switch f.ID {
-	case action.FieldStepSignaturePage, action.FieldStepSignatureX, action.FieldStepSignatureY, action.FieldStepSignatureWidth, action.FieldStepSignatureImage:
-		return true
-	default:
-		return false
+	for _, id := range m.SignaturePlacement.Fields() {
+		if f.ID == id {
+			return true
+		}
 	}
+	return false
 }
 
 // canDeleteInView answers the same two questions internal/web's deleteAllowed enforces

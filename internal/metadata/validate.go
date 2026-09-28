@@ -177,6 +177,13 @@ func Validate(m *domain.Machine) error {
 		issues = append(issues, validateSequencing(m, *m.Sequencing, fieldsByID)...)
 	}
 
+	if m.SignaturePlacement != nil {
+		issues = append(issues, validateSignaturePlacement(m, *m.SignaturePlacement, fieldsByID)...)
+	}
+	if m.SignatureStore != nil {
+		issues = append(issues, validateSignatureStore(m, *m.SignatureStore, fieldsByID)...)
+	}
+
 	if m.SLAField != "" {
 		f, ok := fieldsByID[m.SLAField]
 		if !ok {
@@ -788,6 +795,58 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 	}
 
 	return issues
+}
+
+// validateSignaturePlacement and validateSignatureStore check that each declared Field is this
+// Machine's own and can hold what the capability puts in it (Stage D, 2026-09-28).
+//
+// Everything these two blocks name is a Field of the declaring Machine, so unlike Sequencing there is
+// no second half deferred to application.go. What is deliberately *not* checked here is which
+// workflow role the Machine was cast in: `signature_placement:` on a Machine playing no role is inert
+// rather than wrong, the same way a Machine declaring `sequencing:` outside any engine simply orders
+// its own records. Requiring the cast would make load order matter for no gain.
+//
+// An empty entry is allowed and means "this Machine declares no such Field" -- the readers all handle
+// an empty id explicitly (domain.SignaturePlacement's own doc comment). What is refused is a *named*
+// Field that does not exist or cannot hold the value, which is the mistake that would otherwise read
+// as a feature quietly not working.
+func validateSignaturePlacement(m *domain.Machine, s domain.SignaturePlacement, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	issues = append(issues, signatureFieldOfType(m, "signature_placement.image_field", s.ImageField, domain.FieldTypeFile, fieldsByID)...)
+	// A slice rather than a map, so the report comes out in declaration order every time: map
+	// iteration is random, and a validation message set that reshuffles between runs is unreadable.
+	for _, pair := range [][2]string{
+		{"signature_placement.page_field", s.PageField},
+		{"signature_placement.x_field", s.XField},
+		{"signature_placement.y_field", s.YField},
+		{"signature_placement.width_field", s.WidthField},
+	} {
+		issues = append(issues, signatureFieldOfType(m, pair[0], pair[1], domain.FieldTypeNumber, fieldsByID)...)
+	}
+	return issues
+}
+
+func validateSignatureStore(m *domain.Machine, s domain.SignatureStore, fieldsByID map[string]domain.Field) []string {
+	var issues []string
+	issues = append(issues, signatureFieldOfType(m, "signature_store.owner_field", s.OwnerField, domain.FieldTypePerson, fieldsByID)...)
+	issues = append(issues, signatureFieldOfType(m, "signature_store.image_field", s.ImageField, domain.FieldTypeFile, fieldsByID)...)
+	return issues
+}
+
+// signatureFieldOfType is the one check both blocks repeat: a named Field is this Machine's own and
+// holds the type the capability needs. An empty id is not an error -- see the doc comment above.
+func signatureFieldOfType(m *domain.Machine, key, id string, want domain.FieldType, fieldsByID map[string]domain.Field) []string {
+	if id == "" {
+		return nil
+	}
+	f, ok := fieldsByID[id]
+	if !ok {
+		return []string{fmt.Sprintf("machine %q: %s %q is not a field of this machine", m.ID, key, id)}
+	}
+	if f.Type != want {
+		return []string{fmt.Sprintf("machine %q: %s %q must be a %s field, got %q", m.ID, key, id, want, f.Type)}
+	}
+	return nil
 }
 
 // validateSequencing checks the half of a sequencing declaration this Machine can verify alone:

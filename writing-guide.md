@@ -988,8 +988,10 @@ output. It recomposites from scratch on every approval, which is why firing on e
 rather than merely tolerable.
 
 What this declares is *which records and Fields*, never how. The PDF work itself is runtime-owned
-(002) and reads a step's signature image and placement by their own ids, so a Machine you point this at
-still has to carry that vocabulary — the same read-side limit §8's own note describes.
+(002). It used to add an unstated requirement — a step's signature image and placement were read by
+their own ids, so a Machine pointed at this Service still had to name its Fields the way the template
+library does. Since §12.6d's `signature_placement:` that requirement is a declaration, and the Service
+reads whatever the step Machine says.
 
 Priority is part of the rule: `any` is checked first, so a single rejection decides the parent
 without waiting for the remaining children. Declaring only one of `any`/`all` is fine; declaring
@@ -1113,6 +1115,44 @@ Ordering is opt-in: a Machine with no `sequencing:` block never locks anything. 
 parent's `mode_field` holds any other value isn't locked either, which is how the same two Machines
 serve both a sequential and a parallel process without a second declaration.
 
+### 12.6d `signature_placement` / `signature_store` — where a signature lives
+
+Two optional blocks per Machine, added 2026-09-28 (Stage D). They are what let an approval
+Application cast *any* Machine in the engine's `step` and `signature` roles (§12.1 `workflow:`) and
+still have its signatures composited: before them, the five Field ids below were strings inside
+`internal/action`, so a Machine whose Fields were named anything else placed no boxes and stamped
+nothing, silently.
+
+On the Machine cast in the `step` role:
+
+```yaml
+signature_placement:
+  image_field: fld_signature_image   # file: the one-time image captured at Approve time
+  page_field:  fld_signature_page    # number: 1-based page; no page means no placement at all
+  x_field:     fld_signature_x       # number: the box's centre, % of the page, origin top-left
+  y_field:     fld_signature_y       # number: Y grows down
+  width_field: fld_signature_width   # number: % of page width; height comes from the image
+```
+
+On the Machine cast in the optional `signature` role — a person's own reusable image:
+
+```yaml
+signature_store:
+  owner_field: fld_owner   # person: whose signature this is
+  image_field: fld_image   # file
+```
+
+Each entry is optional and each named Field must exist on the *declaring* Machine with the right
+type; the loader refuses a name that does not, or a coordinate Field that is not a `number`. An
+omitted entry means "this Machine declares no such Field", and every reader handles that explicitly
+rather than falling back to the template library's own names — a Machine declaring no
+`signature_placement:` has no placement to read and nowhere to capture into, which is the honest
+answer rather than a Machine that appears to work against the wrong Fields.
+
+**These blocks are inert without a role.** Declaring them on a Machine no Application casts is legal
+and does nothing, the same way `sequencing:` on a Machine outside any engine simply orders its own
+records. What makes them run is the Application's `workflow:` binding.
+
 ### 12.7a `datasets[]` — named numbers over this Machine's records
 
 | Key | Value | Notes |
@@ -1210,8 +1250,8 @@ similar-looking metadata for a *different* Machine does not activate it.
 |---|---|
 | CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded, *which decisions are legal at all* moved left in Fase 7 (`transitions:`), **which Machines it acts on** moved left on 2026-09-28 (`workflow:`), and **which Fields it writes** moved left the same day (`actions:`, §12.6c — with the status move itself derived from the Transition that names the Action, so it is declared once rather than twice). What is still Go is the *Fields it reads*: the signed-PDF compositing filters steps by `fld_decision`, and composed screens project Fields by id |
 | Relations, `person`, child collections, many-to-many | Document submission wizard |
-| Constraints (`equals`/`not_equals` shape) | Signature-coordinate placement screen |
-| Events (field-change, record-creation, or schedule/time-passing → one Service) | PDF signature compositing |
+| Constraints (`equals`/`not_equals` shape) | The signature-placement *screen* — its canvas, drag maths and layout are bespoke Go/JS. Its four Field bindings are not: since Stage D they come from `signature_placement:` (§12.6d), read and written alike |
+| Events (field-change, record-creation, or schedule/time-passing → one Service), and since 2026-09-28 the **signature shape** a Machine holds (`signature_placement:`/`signature_store:`, §12.6d) — where a box sits, which Field takes the captured image, where a reusable one is kept | The PDF compositing *itself* (`internal/action/composite.go` manipulates binary PDF bytes; 002 keeps that runtime-owned, and rewriting it as metadata is not a target). What is no longer here: *which* Fields it reads |
 | Role-based Permission (`roles:` on any Permission, any Machine an Application claims — CAP-P01, Fase 7) and a **declared transition model** (`transitions:`, any Machine's own status Fields), both enforced by the generic routes with no per-Machine code | **A rule that reads a field on a *related* record.** Every Permission arm reads the record being acted on, or the actor — none reaches a parent. Two real cases are Go for exactly this reason: who may place a Document's signature boxes (`composition.MayPlaceSignature` — its *submitter*, read off the parent Document, or the step's own approver) and who may add Approval Steps to a Document. Forward-checkable pointer: `ROADMAP.md`'s deferral table, "Only a Document's own submitter may add Approval Steps to it" |
 | Record-scoped `edit`/`delete` Permission (any Machine), and a **per-record User-or-Group actor gate** on any of them (CAP-F24) — declared on `decide`, `edit` and `delete` alike since 6c-3 | The Review Document screen (Fase 6b) — its Approve/Reject bar, signature canvas and placement panel are all `mch_approval_step`-shaped. What moved *left* with it: the generic record-detail page no longer special-cases deciding, and no longer runs a signature lookup for every Machine. (The Approval progress stepper UI itself moved left too, 2026-09-26 — see the Declared Views row) |
 | Field defaults | — |
@@ -1241,13 +1281,21 @@ that will fail validation or silently do nothing.
 
 Honest current limits, not a roadmap — some of these may change over time:
 
-- **Three Actions; what they write is declared, what the engine reads is not.** `decide`, `edit`,
-  `delete`. Since 2026-09-28 `decide` runs for whichever Machines an Application casts in the engine's
-  `document` and `step` roles (`workflow:`, §12.1), under any names, and writes whichever Fields that
-  Machine declares (`actions:`, §12.6c). What is still Go is the *reading*: the signed-PDF compositing
-  picks approved steps by `fld_decision` — so a
-  Machine you bind should still carry that vocabulary to be read correctly. See §8 — this is the limit
-  most likely to matter for a new business process.
+- **Three Actions, and the approval engine no longer names any Field.** `decide`, `edit`, `delete`.
+  Since 2026-09-28 `decide` runs for whichever Machines an Application casts in the engine's
+  `document` and `step` roles (`workflow:`, §12.1), under any names; writes whichever Fields that
+  Machine declares (`actions:`, §12.6c); derives the ones it reads from declarations that already
+  existed (the decide `transitions:` edges give the decision Field and the still-open value, the
+  relation gives the parent, `sequencing:` gives the order, the Permission gives the actor); and,
+  since `signature_placement:`/`signature_store:` (§12.6d), places and composites signatures through
+  a declaration too. A Machine you bind therefore does **not** have to carry Document Approval's own
+  vocabulary — `composition.TestBuildInbox_overAMachineThatNamesItsFieldsDifferently` and
+  `web.TestDecideStep_writesTheFieldsTheMachineDeclares` are the assertions, not the claim.
+  What is still Go is narrower and worth naming exactly: the **submit wizard** reads its own form by
+  Field id (`internal/web/document.go`, and `documentsubmit.templ`'s four `name=` attributes), because
+  `continue-submit` shares the generic `edit` Action and has no Action of its own to declare effects
+  on; a step's *label* falls back to `fld_step_name`; and a Document's own file and status Fields are
+  named in two composed screens. See §8.
 
 - **No field-level permissions.** Access control today is per-Machine and per-Action at best; you
   cannot hide or lock one Field from one role while leaving the rest editable. A `roles:` arm

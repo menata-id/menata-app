@@ -69,6 +69,29 @@ func DeclaredFields(stepMachine, docMachine *domain.Machine) EngineFields {
 	return f
 }
 
+// SignatureFields is the step Machine's own declared signature shape, and StoreFields is the
+// signature store's (Stage D, 2026-09-28). Both return a zero value when the Machine declares
+// nothing, which callers handle explicitly -- the same "empty means undeclared, never assume the
+// usual name" contract DeclaredFields above states at length.
+//
+// They exist as functions here rather than as bare field reads so every caller in every plane asks
+// the same question in the same words, the way DeclaredFields already unified the Stage B side. A
+// nil Machine is a real input: a Workspace whose Application casts no signature store gets one, and
+// the one-time image on the step is then the whole feature.
+func SignatureFields(stepMachine *domain.Machine) domain.SignaturePlacement {
+	if stepMachine == nil || stepMachine.SignaturePlacement == nil {
+		return domain.SignaturePlacement{}
+	}
+	return *stepMachine.SignaturePlacement
+}
+
+func StoreFields(storeMachine *domain.Machine) domain.SignatureStore {
+	if storeMachine == nil || storeMachine.SignatureStore == nil {
+		return domain.SignatureStore{}
+	}
+	return *storeMachine.SignatureStore
+}
+
 // openValueFor is the single value actionName's declared edges all move *from* -- the state a record
 // sits in while nobody has acted. Empty when the edges disagree, which is no answer rather than a
 // guess, the same posture every accessor here takes.

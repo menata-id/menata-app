@@ -43,7 +43,18 @@ func approvalStepTestMachine(ids approvalIDs) *domain.Machine {
 			{ID: action.FieldStepSignatureX, Name: "Signature X", Type: domain.FieldTypeNumber},
 			{ID: action.FieldStepSignatureY, Name: "Signature Y", Type: domain.FieldTypeNumber},
 			{ID: action.FieldStepSignatureWidth, Name: "Signature Width", Type: domain.FieldTypeNumber},
-			{ID: action.FieldStepSignatureImage, Name: "Signature Image", Type: domain.FieldTypeFile},
+			{ID: ids.signatureImage, Name: "Signature Image", Type: domain.FieldTypeFile},
+		},
+		// Mirrors metadata/approval_step.yaml's own signature_placement: block (Stage D). Without it
+		// this fixture is a Machine that declares no signature shape at all, and the capture gate
+		// correctly refuses to write an image into a Field nothing named -- which is what these tests
+		// would otherwise be asserting.
+		SignaturePlacement: &domain.SignaturePlacement{
+			ImageField: ids.signatureImage,
+			PageField:  action.FieldStepSignaturePage,
+			XField:     action.FieldStepSignatureX,
+			YField:     action.FieldStepSignatureY,
+			WidthField: action.FieldStepSignatureWidth,
 		},
 		// ApplicationID, the workflow binding, the roles: arm and the transitions below all mirror
 		// metadata/approval_step.yaml and its Application as of Fase 7, for the same reason the
@@ -141,6 +152,14 @@ func signatureTestMachine(ids approvalIDs) *domain.Machine {
 			{ID: action.FieldSignatureOwner, Name: "Owner", Type: domain.FieldTypePerson},
 			{ID: action.FieldSignatureImage, Name: "Image", Type: domain.FieldTypeFile},
 		},
+		// Mirrors metadata/signature.yaml's own signature_store: block (Stage D) -- which Fields say
+		// whose signature this is and where the image lives. A store declaring neither is skipped
+		// rather than queried under a guessed name, so a fixture omitting this would make every
+		// "already has a saved signature" assertion pass for the wrong reason.
+		SignatureStore: &domain.SignatureStore{
+			OwnerField: action.FieldSignatureOwner,
+			ImageField: action.FieldSignatureImage,
+		},
 	}
 }
 
@@ -202,12 +221,17 @@ type approvalIDs struct {
 	// (2026-09-28): what an Action writes is declared by the Machine now, so a run over Fields named
 	// something else is what proves the engine reads the declaration rather than action.Field* constants.
 	decision, decidedBy string
+	// signatureImage is the Field a captured signature lands in, and it joined this set the same day for
+	// the same reason (Stage D): the Machine's own signature_placement: block declares it, so a run over
+	// a Field called something else proves the capture reads that declaration.
+	signatureImage string
 }
 
 func templateLibraryIDs() approvalIDs {
 	return approvalIDs{
 		document: action.DocumentMachineID, step: action.StepMachineID, signature: action.SignatureMachineID,
 		decision: action.FieldStepDecision, decidedBy: action.FieldStepDecidedByName,
+		signatureImage: action.FieldStepSignatureImage,
 	}
 }
 
@@ -220,6 +244,7 @@ func renamedIDs() approvalIDs {
 	return approvalIDs{
 		document: "mch_surat", step: "mch_langkah", signature: "mch_ttd",
 		decision: action.FieldStepDecision, decidedBy: action.FieldStepDecidedByName,
+		signatureImage: action.FieldStepSignatureImage,
 	}
 }
 
@@ -229,6 +254,9 @@ func renamedIDs() approvalIDs {
 func renamedFieldIDs() approvalIDs {
 	ids := renamedIDs()
 	ids.decision, ids.decidedBy = "fld_putusan", "fld_diputus_oleh"
+	// And the signature Field, declared since Stage D -- so this fixture now renames every Field the
+	// decide route writes, not only the two Stage B reached.
+	ids.signatureImage = "fld_gambar_ttd"
 	return ids
 }
 
@@ -719,9 +747,17 @@ func TestDecideStep_writesTheFieldsTheMachineDeclares(t *testing.T) {
 	if name, _ := step.Values[ids.decidedBy].(string); name == "" {
 		t.Errorf("%s is empty, want the decider's name -- the companion write the actions: block declares", ids.decidedBy)
 	}
+	// The captured signature lands in the Field signature_placement: names (Stage D) -- the third
+	// Field this route writes, and the one Stage B could not reach because it is not an Action effect
+	// but a capture the handler performs before the decision is applied.
+	if key, _ := step.Values[ids.signatureImage].(string); key == "" {
+		t.Errorf("%s is empty, want the captured image's storage key -- the Field signature_placement: declares", ids.signatureImage)
+	}
 	// And nothing was written under the template's own Field ids, which is what would happen if any of
 	// this were still naming them.
-	if _, set := step.Values[action.FieldStepDecision]; set {
-		t.Errorf("something wrote %s on a Machine that does not declare it", action.FieldStepDecision)
+	for _, id := range []string{action.FieldStepDecision, action.FieldStepSignatureImage} {
+		if _, set := step.Values[id]; set {
+			t.Errorf("something wrote %s on a Machine that does not declare it", id)
+		}
 	}
 }

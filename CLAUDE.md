@@ -103,6 +103,20 @@ itself (derived from the `transitions:` edge that names the Action — declaring
 and the *read* side (the signed-PDF compositing still filters steps by `fld_decision`), which is what
 `TestDocumentApprovalFieldCouplingOnlyShrinks` now measures.
 
+**And where a signature lives is declared, not named (2026-09-28, Stage D).** Two Machine-level
+blocks beside `fields:` — `signature_placement:` (image/page/x/y/width) on whichever Machine an
+Application casts in the `step` role, `signature_store:` (owner/image) on the optional `signature`
+one. Read them through `action.SignatureFields`/`StoreFields`, never `action.FieldStepSignatureX`.
+
+This one was **added rather than derived**, and that is the distinction to carry forward: every
+earlier stage removed a literal by finding a declaration that already answered its question. Nothing
+answered "which Field holds a signature", so Stage A's promise — cast any Machine in the `step` role,
+under any name — was only half-true until the capability existed. When a gate cannot shrink because
+no declaration exists, building the declaration *is* the work; do not derive from the nearest-looking
+block instead. Note the gate's own blind spot this exposed: `internal/action` is excluded from
+`documentApprovalFieldCoupling` as the owner of those constants, so `StampFor` named all four
+coordinates itself, invisibly, through three stages. Only reading it found that.
+
 **And a Workspace's own ids are still reserved against itself.** Isolation relaxed exactly one
 thing — the same name in a *different* Workspace. Two Machines under one id inside one Workspace
 stays a load-time error (`metadata.validateMachineIDsAreUnique`), and `aiassist.Validate` refuses
@@ -268,9 +282,10 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 - `TestRenderingUsesProjectionNotRawValues` — the one *ratchet* in this suite: a `.templ` file may
   not read a named field off a record (`Values["fld_..."]`, or the same laundered through a
   `action.Field*` constant) — Composition resolves the shape, a Page renders it (007 §4.4, §7.6).
-  Seven files are grandfathered in `projectionRatchet` (ten when it was written) and **the list
-  may only shrink**: adding an entry is not the way to pass, and an entry left behind after a file
-  is migrated fails too. Read the count out of the test, not out of this line. Use
+  One file is grandfathered in `projectionRatchet` (ten when it was written, seven for most of its
+  life, one since 2026-09-28) and **the list may only shrink**: adding an entry is not the way to
+  pass, and an entry left behind after a file is migrated fails too. Read the count out of the test,
+  not out of this line. Use
   `composition.ProjectCardFields`/`card_fields`; generic access (`Values[f.ID]` from ranging
   over `m.Fields`, as `machine.templ`/`detail.templ` do) is the target pattern, not a violation.
   It gates *reads only* — an input's `name=` is 007 §11.3 Binding, ungated, so leaving this list

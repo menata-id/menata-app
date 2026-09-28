@@ -182,6 +182,24 @@ blocks_member_removal:
     condition: { field: fld_decision, op: equals, value: pending }
     reason: "has a pending approval step"
 
+# Which Fields hold this step's signature, and where it sits on the Document's page (Stage D,
+# 2026-09-28). Until this block existed the five ids below were strings in internal/action and
+# nowhere else: an Application could cast any Machine in the engine's `step` role, under any names
+# (Stage A), and the approval would still fail to composite unless that Machine's Fields happened to
+# be called exactly these. That is the difference between this block and `sequencing:` above --
+# sequencing names Fields a reader could otherwise guess wrong, this one names Fields a reader could
+# not have found at all.
+#
+# Every reader goes through it: the placement screen's own form inputs, the detail page's hidden
+# list, the review panel, the placement route's write set, and the compositing Service.
+signature_placement:
+  image_field: fld_signature_image
+  page_field: fld_signature_page
+  x_field: fld_signature_x
+  y_field: fld_signature_y
+  width_field: fld_signature_width
+
+
 # Approval Steps are acted on in order when their Document says so (menata-runtime's
 # capability-registry.md CAP-A07 `activate_next`, admitted on Case 3 + WCP-1 Sequence, conformance
 # T22-23/T25 there). Replaces internal/action's own CanDecide, whose rule was already generic --

@@ -5,7 +5,6 @@ import (
 
 	"fmt"
 
-	"menata.app/internal/action"
 	"menata.app/internal/domain"
 )
 
@@ -48,6 +47,27 @@ type PlacementStep struct {
 	// STEP 2 OF 3 of the submit wizard, so the person laying the boxes out is the one submitting,
 	// and gating on "may edit this step" sent them to a screen where every marker was static.
 	Editable bool
+	// Fields are the form-input names this step's three forms submit under, resolved by Composition
+	// from the Machine's own signature_placement: declaration (Stage D, 2026-09-28) instead of typed
+	// here as action.FieldStepSignatureX and friends.
+	//
+	// They are the same for every step in a view, and carried per step anyway: placementMarker,
+	// placeStepForm and widthControl each receive a PlacementStep and nothing else, so putting them
+	// on PlacementView would mean threading a second parameter through three components and six call
+	// sites to avoid repeating four strings.
+	Fields PlacementFields
+}
+
+// PlacementFields are the four Field ids the placement screen writes -- the *write* side of 007
+// §11.3 Binding, which had no primitive when this screen was built and still has no general one.
+// What changed is narrower and worth stating exactly: these particular names now come from a
+// declaration rather than from Go. A form Field declared in metadata (the general primitive) is
+// still unbuilt, and its trigger is still a third bespoke write screen (ROADMAP.md's deferral table).
+type PlacementFields struct {
+	Page  string
+	X     string
+	Y     string
+	Width string
 }
 
 // SignaturePlacementPage is board 09 (ui-sample/case-03-flow1/09-signature-positions.html,
@@ -169,10 +189,10 @@ templ placementMarker(s PlacementStep, tailwind bool) {
 	if s.Editable {
 		<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", approvalMachineID(ctx, domain.WorkflowRoleStep), s.StepID) } hx-swap="none">
 			@csrfHiddenInput()
-			<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(s.Page) }/>
-			<input type="hidden" class="sig-x-input" name={ action.FieldStepSignatureX } value={ fmt.Sprintf("%.1f", s.X) }/>
-			<input type="hidden" class="sig-y-input" name={ action.FieldStepSignatureY } value={ fmt.Sprintf("%.1f", s.Y) }/>
-			<input type="hidden" name={ action.FieldStepSignatureWidth } value={ fmt.Sprintf("%.0f", s.Width) }/>
+			<input type="hidden" name={ s.Fields.Page } value={ fmt.Sprint(s.Page) }/>
+			<input type="hidden" class="sig-x-input" name={ s.Fields.X } value={ fmt.Sprintf("%.1f", s.X) }/>
+			<input type="hidden" class="sig-y-input" name={ s.Fields.Y } value={ fmt.Sprintf("%.1f", s.Y) }/>
+			<input type="hidden" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) }/>
 			<button
 				type="button"
 				class={ "sig-marker", templ.KV("absolute flex size-7 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-full border-2 border-white bg-blue-600 text-3xs font-medium text-white shadow", tailwind) }
@@ -244,10 +264,10 @@ func placementSubline(s PlacementStep) string {
 templ placeStepForm(s PlacementStep, page int) {
 	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", approvalMachineID(ctx, domain.WorkflowRoleStep), s.StepID) } hx-swap="none">
 		@csrfHiddenInput()
-		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(page) }/>
-		<input type="hidden" name={ action.FieldStepSignatureX } value="50"/>
-		<input type="hidden" name={ action.FieldStepSignatureY } value="50"/>
-		<input type="hidden" name={ action.FieldStepSignatureWidth } value={ fmt.Sprintf("%.0f", s.Width) }/>
+		<input type="hidden" name={ s.Fields.Page } value={ fmt.Sprint(page) }/>
+		<input type="hidden" name={ s.Fields.X } value="50"/>
+		<input type="hidden" name={ s.Fields.Y } value="50"/>
+		<input type="hidden" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) }/>
 		<button type="submit" class="cursor-pointer text-xs text-blue-600 hover:text-blue-700">
 			if s.Placed && s.Page == page {
 				Re-centre on this page
@@ -263,12 +283,12 @@ templ placeStepForm(s PlacementStep, page int) {
 templ widthControl(s PlacementStep, page int) {
 	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", approvalMachineID(ctx, domain.WorkflowRoleStep), s.StepID) } hx-trigger="change" hx-swap="none">
 		@csrfHiddenInput()
-		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(placementPageOrCurrent(s, page)) }/>
-		<input type="hidden" name={ action.FieldStepSignatureX } value={ fmt.Sprintf("%.1f", s.X) }/>
-		<input type="hidden" name={ action.FieldStepSignatureY } value={ fmt.Sprintf("%.1f", s.Y) }/>
+		<input type="hidden" name={ s.Fields.Page } value={ fmt.Sprint(placementPageOrCurrent(s, page)) }/>
+		<input type="hidden" name={ s.Fields.X } value={ fmt.Sprintf("%.1f", s.X) }/>
+		<input type="hidden" name={ s.Fields.Y } value={ fmt.Sprintf("%.1f", s.Y) }/>
 		<label class="sig-width-label flex items-center gap-1.5 text-2xs text-slate-500">
 			Width
-			<input type="number" name={ action.FieldStepSignatureWidth } value={ fmt.Sprintf("%.0f", s.Width) } min="5" max="100" step="1" class="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-2xs"/>
+			<input type="number" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) } min="5" max="100" step="1" class="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-2xs"/>
 			%
 		</label>
 	</form>

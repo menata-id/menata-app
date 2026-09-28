@@ -107,6 +107,16 @@ func stepMachineForTest() *domain.Machine {
 			StateField:      action.FieldStepDecision,
 			OpenValue:       action.DecisionPending,
 		},
+		// And the signature shape, declared since Stage D (2026-09-28) for exactly the reason the
+		// Fields above are: a fixture declaring no signature_placement: has no placement Fields at
+		// all, so every placement test would read nothing and pass for the wrong reason.
+		SignaturePlacement: &domain.SignaturePlacement{
+			ImageField: action.FieldStepSignatureImage,
+			PageField:  action.FieldStepSignaturePage,
+			XField:     action.FieldStepSignatureX,
+			YField:     action.FieldStepSignatureY,
+			WidthField: action.FieldStepSignatureWidth,
+		},
 	}
 }
 

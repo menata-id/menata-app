@@ -11,6 +11,7 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 	"menata.app/internal/pdf"
 )
 
@@ -45,7 +46,7 @@ func TestStampFor_completePlacement(t *testing.T) {
 		FieldStepSignatureY:     float64(70),
 		FieldStepSignatureWidth: float64(25),
 	}}
-	stamp, ok := StampFor(s, []byte("fake-image-bytes"))
+	stamp, ok := StampFor(stepMachineForStamp(), s, []byte("fake-image-bytes"))
 	if !ok {
 		t.Fatal("StampFor() ok = false, want true")
 	}
@@ -56,7 +57,7 @@ func TestStampFor_completePlacement(t *testing.T) {
 
 func TestStampFor_missingPlacement(t *testing.T) {
 	s := &data.Record{Values: map[string]any{}}
-	if _, ok := StampFor(s, []byte("img")); ok {
+	if _, ok := StampFor(stepMachineForStamp(), s, []byte("img")); ok {
 		t.Error("StampFor() ok = true, want false: no placement fields set")
 	}
 }
@@ -68,7 +69,7 @@ func TestStampFor_missingImage(t *testing.T) {
 		FieldStepSignatureY:     float64(50),
 		FieldStepSignatureWidth: float64(20),
 	}}
-	if _, ok := StampFor(s, nil); ok {
+	if _, ok := StampFor(stepMachineForStamp(), s, nil); ok {
 		t.Error("StampFor() ok = true, want false: no signature image")
 	}
 }
@@ -80,7 +81,7 @@ func TestStampFor_zeroWidthSkipped(t *testing.T) {
 		FieldStepSignatureY:     float64(50),
 		FieldStepSignatureWidth: float64(0),
 	}}
-	if _, ok := StampFor(s, []byte("img")); ok {
+	if _, ok := StampFor(stepMachineForStamp(), s, []byte("img")); ok {
 		t.Error("StampFor() ok = true, want false: zero width is not a real placement")
 	}
 }
@@ -186,4 +187,64 @@ func redBoundingBox(t *testing.T, pngBytes []byte) (minX, minY, maxX, maxY, w, h
 		t.Fatal("no red pixels found in rendered output -- stamp did not render")
 	}
 	return minX, minY, maxX, maxY, w, h
+}
+
+// stepMachineForStamp is a step Machine declaring the template library's own signature_placement:
+// block -- the declaration StampFor reads its four Field ids out of since Stage D (2026-09-28).
+func stepMachineForStamp() *domain.Machine {
+	return &domain.Machine{
+		ID: StepMachineID,
+		SignaturePlacement: &domain.SignaturePlacement{
+			ImageField: FieldStepSignatureImage,
+			PageField:  FieldStepSignaturePage,
+			XField:     FieldStepSignatureX,
+			YField:     FieldStepSignatureY,
+			WidthField: FieldStepSignatureWidth,
+		},
+	}
+}
+
+// TestStampFor_overAMachineThatNamesItsPlacementDifferently is the point of Stage D, asserted rather
+// than described: a step Machine whose coordinates are called fld_hal/fld_x/fld_y/fld_lebar stamps
+// exactly where it says, with none of Document Approval's own Field ids anywhere in the record.
+//
+// It lives here because internal/conformance structurally cannot: the Field-coupling gate excludes
+// this package as the owner of those constants, so this function naming them was invisible to every
+// gate right up until it was read.
+func TestStampFor_overAMachineThatNamesItsPlacementDifferently(t *testing.T) {
+	m := &domain.Machine{
+		ID: "mch_langkah",
+		SignaturePlacement: &domain.SignaturePlacement{
+			ImageField: "fld_gambar",
+			PageField:  "fld_hal",
+			XField:     "fld_x",
+			YField:     "fld_y",
+			WidthField: "fld_lebar",
+		},
+	}
+	s := &data.Record{Values: map[string]any{
+		"fld_hal": float64(3), "fld_x": float64(12), "fld_y": float64(80), "fld_lebar": float64(18),
+	}}
+	stamp, ok := StampFor(m, s, []byte("img"))
+	if !ok {
+		t.Fatal("StampFor() ok = false: a Machine declaring its own placement Fields must stamp")
+	}
+	if stamp.Page != 3 || stamp.X != 12 || stamp.Y != 80 || stamp.Width != 18 {
+		t.Errorf("StampFor() = %+v, want page 3 at 12/80 width 18", stamp)
+	}
+}
+
+// A Machine declaring no placement at all stamps nothing, rather than falling back to this package's
+// own constants -- the "empty means undeclared, never assume the usual name" contract. Proved with a
+// record that *does* hold the template library's ids, so a fallback would visibly succeed.
+func TestStampFor_undeclaredPlacementStampsNothing(t *testing.T) {
+	s := &data.Record{Values: map[string]any{
+		FieldStepSignaturePage:  float64(1),
+		FieldStepSignatureX:     float64(50),
+		FieldStepSignatureY:     float64(50),
+		FieldStepSignatureWidth: float64(20),
+	}}
+	if _, ok := StampFor(&domain.Machine{ID: "mch_no_declaration"}, s, []byte("img")); ok {
+		t.Error("StampFor() ok = true: a Machine declaring no signature_placement must not fall back to this package's constants")
+	}
 }

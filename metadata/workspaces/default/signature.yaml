@@ -14,6 +14,15 @@ fields:
     type: file
     required: true
 
+# Which Fields hold a person's reusable signature (Stage D, 2026-09-28) -- the counterpart of
+# mch_approval_step's own signature_placement:. This Machine is the one an Application casts in the
+# engine's optional `signature` role, and until this block existed the compositing found an
+# approver's saved image by naming fld_owner/fld_image itself.
+signature_store:
+  owner_field: fld_owner
+  image_field: fld_image
+
+
 # permissions: a signature record names whose signature it is (fld_owner), and that value decides
 # whose image gets composited onto an approved PDF (internal/web.signatureImageFor looks
 # mch_signature up by exactly this field). Until 2026-09-21 this Machine declared nothing, which

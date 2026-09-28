@@ -201,32 +201,37 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // behaviour planes stopped naming Fields that metadata already declares elsewhere and started deriving
 // them (action.DeclaredFields).
 //
-// What is left is two shapes, and neither is a derivation away:
+// **43 across 7 files** since Stage D the same day, which closed the second of the two shapes this
+// comment listed as "not a derivation away". That entry read: *the signature store's own shape (the
+// placement Fields, fld_owner/fld_image on mch_signature) -- nothing declares these, so removing them
+// is a capability question rather than a reading one.* It was right, and the answer was to build the
+// capability: `signature_placement:` and `signature_store:` (domain.SignaturePlacement), two
+// Machine-level blocks naming which Fields hold a signature and where it sits. Five files left the map
+// entirely.
 //
-//   - internal/rendering (22) and internal/web/document.go (34) -- a form input's name= and a template
-//     reading a record's Field. That is 007 §11.3 Binding, which has no primitive at all, and §7.6
-//     Projection, whose own ratchet (TestRenderingUsesProjectionNotRawValues) already tracks it.
-//   - the signature store's own shape (the placement Fields, fld_owner/fld_image on mch_signature).
-//     Nothing declares these, so removing them is a capability question rather than a reading one. **The numbers may only go down**, on the same terms as
+// **Stage D also moved 12 write-side bindings**, which is worth stating precisely because the other
+// shape above is still open. `signatureplacement.templ`'s four `name={ action.Field… }` attributes now
+// render ids Composition resolved from that declaration -- so those particular names are declared. The
+// *general* primitive is not built: a form Field declared in metadata (007 §11.3 Binding) still does
+// not exist, and its trigger is still a third bespoke write screen (ROADMAP.md's deferral table). A
+// screen can still leave this map with every binding hand-typed, which is exactly what the remaining
+// entries are.
 //
-// the map above: too high fails, too low fails, a new file fails, and comment lines are skipped.
+// **The numbers may only go down**, on the same terms as the map above: too high fails, too low fails,
+// a new file fails, and comment lines are skipped.
 //
-// What would move it next is the *read* side, which Stage B deliberately did not touch: signing filters
-// steps by fld_decision, composition projects cards from named Fields, and both are the "a bound Machine
-// must carry this vocabulary" limit that survives this stage. Stage C is the next slice with a claim on
-// these numbers.
+// What is left is one shape, in two places. internal/web/document.go (34) is the submit wizard reading
+// its own form; rendering/documentsubmit.templ (4) is that form's own `name=`. Both are Binding, and
+// the wizard additionally waits on `continue-submit` getting an Action of its own -- it shares `edit`
+// with every ordinary edit today, which is why Stage B could not reach it (audit §6).
 var documentApprovalFieldCoupling = map[string]int{
-	"composition/approval.go":            1,
-	"composition/pages.go":               1,
-	"composition/placement.go":           2,
-	"composition/review.go":              5,
-	"execution/composite.go":             3,
-	"rendering/detail.templ":             6,
-	"rendering/documentsubmit.templ":     4,
-	"rendering/signatureplacement.templ": 12,
-	"web/approval.go":                    4,
-	"web/document.go":                    34,
-	"web/signing.go":                     6,
+	"composition/approval.go":        1,
+	"composition/pages.go":           1,
+	"composition/placement.go":       1,
+	"composition/review.go":          1,
+	"rendering/detail.templ":         1,
+	"rendering/documentsubmit.templ": 4,
+	"web/document.go":                34,
 }
 
 var documentApprovalFieldConstant = regexp.MustCompile(`action\.Field[A-Za-z]+`)

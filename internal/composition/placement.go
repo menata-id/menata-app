@@ -19,18 +19,23 @@ import (
 // parameter for the same reason pdfPages does there -- counting a PDF's pages is a storage read
 // the transport layer already performs, and giving this plane a second route to the filesystem is
 // what that boundary exists to prevent.
-func SignaturePlacement(ctx context.Context, l *Loader, stepMachine *domain.Machine, document *data.Record, steps []*data.Record, relations rendering.RelationOptions, page, totalPages int, viewer domain.Actor) (rendering.PlacementView, error) {
+func SignaturePlacement(ctx context.Context, l *Loader, stepMachine, docMachine *domain.Machine, document *data.Record, steps []*data.Record, relations rendering.RelationOptions, page, totalPages int, viewer domain.Actor) (rendering.PlacementView, error) {
 	groups, err := l.GroupOptions(ctx, stepMachine)
 	if err != nil {
 		return rendering.PlacementView{}, err
 	}
-	return buildPlacement(stepMachine, document, steps, relations, groups, page, totalPages, viewer), nil
+	return buildPlacement(stepMachine, docMachine, document, steps, relations, groups, page, totalPages, viewer), nil
 }
 
 // buildPlacement is the whole derivation, over records someone else already fetched.
-func buildPlacement(stepMachine *domain.Machine, document *data.Record, steps []*data.Record, relations rendering.RelationOptions, groups rendering.GroupOptions, page, totalPages int, viewer domain.Actor) rendering.PlacementView {
+func buildPlacement(stepMachine, docMachine *domain.Machine, document *data.Record, steps []*data.Record, relations rendering.RelationOptions, groups rendering.GroupOptions, page, totalPages int, viewer domain.Actor) rendering.PlacementView {
 	// See buildInbox: the Field ids this screen reads come from the step Machine's own declarations.
 	f := action.DeclaredFields(stepMachine, nil)
+	// And so do the ones it *writes*: the four form-input names each step's forms submit under, from
+	// signature_placement: (Stage D). Resolved here rather than in the .templ for the same reason
+	// every read on this screen already is -- Composition decides the shape, the Page renders it.
+	declared := action.SignatureFields(stepMachine)
+	fields := rendering.PlacementFields{Page: declared.PageField, X: declared.XField, Y: declared.YField, Width: declared.WidthField}
 	v := rendering.PlacementView{
 		DocumentID:    document.ID,
 		DocumentTitle: DisplayString(document.Values["fld_title"]),
@@ -46,10 +51,11 @@ func buildPlacement(stepMachine *domain.Machine, document *data.Record, steps []
 			// decide whether to render a draggable marker or a static one. Presentation, never
 			// protection -- and since Fase 6c-3 it resolves a Group-held step through its Group,
 			// which is the whole reason such a step's marker is draggable at all.
-			Editable: MayPlaceSignature(stepMachine, document, s, viewer),
+			Editable: MayPlaceSignature(stepMachine, docMachine, document, s, viewer),
+			Fields:   fields,
 		}
 		step.ApproverKind, step.Approver = approverOf(s, relations, groups, f)
-		if p, x, y, width, ok := placementOf(s); ok {
+		if p, x, y, width, ok := placementOf(stepMachine, s); ok {
 			step.Placed, step.Page, step.X, step.Y, step.Width = true, p, x, y, width
 		} else {
 			// The defaults the place/width controls offer, resolved here so the .templ renders a
@@ -107,13 +113,22 @@ func PlacementPreviewHref(docMachineID, documentID string, page int) string {
 // and it lives in ONE function so the screen that draws a draggable marker and the route that
 // accepts the drag cannot disagree, which is the property authorization.AllowsAction's own doc
 // comment describes for buttons and POSTs.
-func MayPlaceSignature(stepMachine *domain.Machine, document, step *data.Record, actor domain.Actor) bool {
+//
+// Which Field on the parent holds "who submitted this" is *not* hardcoded here even though the rule
+// is: it is the actor Field the Document Machine's own create Permission already checks
+// (prm_create_own_document's `actor_field`, read through ActorFieldFor). So what stays in Go is the
+// cross-record *reach* the Permission model cannot express, not the Field name -- and a Machine whose
+// submitter Field is called something else gets this arm for free. A Document Machine declaring no
+// such Permission contributes no submitter arm, leaving the approver arm below as the whole rule.
+func MayPlaceSignature(stepMachine, docMachine *domain.Machine, document, step *data.Record, actor domain.Actor) bool {
 	if stepMachine == nil || actor.ID == "" {
 		return false
 	}
-	if document != nil {
-		if submitter, ok := document.Values[action.FieldDocumentSubmittedBy].(string); ok && submitter != "" && submitter == actor.ID {
-			return true
+	if document != nil && docMachine != nil {
+		if field := docMachine.ActorFieldFor(domain.ActionCreate); field != "" {
+			if submitter, ok := document.Values[field].(string); ok && submitter != "" && submitter == actor.ID {
+				return true
+			}
 		}
 	}
 	return authorization.AllowsAction(stepMachine, domain.ActionEdit, step.Values, actor)

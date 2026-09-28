@@ -226,11 +226,15 @@ type FullMachineCheckDoc struct {
 	// key landed on metadata's own machineDoc on 2026-09-27 (mch_approval_step's blk_step_pending) and
 	// this mirror was not updated, so copying that Machine verbatim failed its own strict re-parse.
 	// TestCheckDocsMirrorMetadatasOwnKeys is what turns "two lists that drift" into a build failure.
-	MemberRemovalBlocks []any  `yaml:"blocks_member_removal"`
-	SLAField            string `yaml:"sla_field"`
-	CardFields          []any  `yaml:"card_fields"`
-	Views               []any  `yaml:"views"`
-	AppendOnly          bool   `yaml:"append_only"`
+	MemberRemovalBlocks []any `yaml:"blocks_member_removal"`
+	// SignaturePlacement/SignatureStore are Stage D's own blocks (domain.SignaturePlacement,
+	// 2026-09-28), added here in the same change for the same reason Actions above was.
+	SignaturePlacement any    `yaml:"signature_placement"`
+	SignatureStore     any    `yaml:"signature_store"`
+	SLAField           string `yaml:"sla_field"`
+	CardFields         []any  `yaml:"card_fields"`
+	Views              []any  `yaml:"views"`
+	AppendOnly         bool   `yaml:"append_only"`
 }
 
 type FullApplicationCheckDoc struct {

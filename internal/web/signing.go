@@ -29,7 +29,14 @@ func hasSavedSignature(ctx context.Context, store *data.Store, ownerID string) (
 	if signatures == nil {
 		return false, nil // no signature store cast here -- see signatureImageFor
 	}
-	sigs, err := store.ListRecordsBy(ctx, signatures.ID, action.FieldSignatureOwner, ownerID)
+	// Which Field says whose signature this is comes from that Machine's own signature_store:
+	// declaration (Stage D). Undeclared means the question cannot be asked of it at all -- listing by
+	// an empty Field id would return every signature in the store and answer "yes" for everyone.
+	owner := action.StoreFields(signatures).OwnerField
+	if owner == "" {
+		return false, nil
+	}
+	sigs, err := store.ListRecordsBy(ctx, signatures.ID, owner, ownerID)
 	if err != nil {
 		return false, err
 	}
@@ -51,22 +58,6 @@ func hasSignatureForGate(ctx context.Context, store *data.Store, machine *domain
 		return true, nil
 	}
 	return hasSavedSignature(ctx, store, actorID)
-}
-
-// placementFields are the only Fields the signature-placement screen writes: where a step's
-// signature box sits, and how wide it is.
-//
-// Naming them here is what makes this route safe in the way the generic update route was not. That
-// route rewrites a whole record from whatever the form submits, so the screen had to echo every
-// other Field back as a hidden input or lose it -- a list that silently forgot four Fields once and
-// erased a one-time signature on the next drag (ROADMAP.md Fase 6c-2/6c-3). A route that writes
-// four named Fields and touches nothing else cannot have that bug at all, so the echo is gone
-// rather than merely correct.
-var placementFields = []string{
-	action.FieldStepSignaturePage,
-	action.FieldStepSignatureX,
-	action.FieldStepSignatureY,
-	action.FieldStepSignatureWidth,
 }
 
 // updateSignaturePlacement moves or resizes one step's signature box (board 09).
@@ -98,13 +89,16 @@ func updateSignaturePlacement(store *data.Store, cfg config.Config) http.Handler
 			recordError(w, err)
 			return
 		}
-		documentID, _ := step.Values[action.FieldStepDocument].(string)
+		documentMachine := approvalMachine(ctx, domain.WorkflowRoleDocument)
+		// The relation reaching the parent is derived, not named -- the same DeclaredFields every
+		// other reader in this engine already uses (Stage B).
+		documentID, _ := step.Values[action.DeclaredFields(machine, documentMachine).Parent].(string)
 		document, err := store.GetRecord(ctx, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		if !composition.MayPlaceSignature(machine, document, step, currentActor(req, store, cfg)) {
+		if !composition.MayPlaceSignature(machine, documentMachine, document, step, currentActor(req, store, cfg)) {
 			http.Error(w, "only this document's submitter, or this step's own approver, may place its signature", http.StatusForbidden)
 			return
 		}
@@ -113,10 +107,20 @@ func updateSignaturePlacement(store *data.Store, cfg config.Config) http.Handler
 			http.Error(w, "invalid form body", http.StatusBadRequest)
 			return
 		}
+		// The only Fields this screen writes: where a step's signature box sits and how wide it is,
+		// read from this Machine's own signature_placement: declaration (Stage D) -- deliberately
+		// PlacementFields rather than Fields, so moving a box can never touch the image a decision
+		// already captured.
+		//
+		// Writing a named set is what makes this route safe in the way the generic update route was
+		// not. That route rewrites a whole record from whatever the form submits, so the screen had to
+		// echo every other Field back as a hidden input or lose it -- a list that silently forgot four
+		// Fields once and erased a one-time signature on the next drag (ROADMAP.md Fase 6c-2/6c-3). A
+		// route that writes only these and touches nothing else cannot have that bug at all.
 		values := data.ValuesFromForm(machine, req.Form)
-		for _, id := range placementFields {
-			// Only the four, and only when the form actually sent them -- a form that omits one
-			// leaves the stored value alone rather than clearing it.
+		for _, id := range machine.SignaturePlacement.PlacementFields() {
+			// Only when the form actually sent one -- a form that omits a Field leaves the stored
+			// value alone rather than clearing it.
 			if _, sent := req.Form[id]; sent {
 				step.Values[id] = values[id]
 			}

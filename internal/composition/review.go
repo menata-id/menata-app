@@ -127,7 +127,7 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 		}
 	}
 
-	if page, x, y, width, ok := placementOf(step); ok {
+	if page, x, y, width, ok := placementOf(stepMachine, step); ok {
 		v.Placement = &rendering.ReviewPlacement{
 			// Named only when it is somebody else's -- the panel switches to the third person on
 			// a non-empty Approver, and the viewer's own signature should never be labelled with
@@ -146,21 +146,26 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 	return v
 }
 
-// placementOf reads a step's own signature-placement coordinates, reporting ok only when a page
-// was actually chosen -- the same "fld_signature_page decides whether a placement exists" rule
+// placementOf reads a step's own signature-placement coordinates, reporting ok only when a page was
+// actually chosen -- the same "the page Field decides whether a placement exists" rule
 // signatureplacement.templ's signaturePlaced has always used, restated here because that helper is
 // unexported to the rendering package and this plane is where raw reads now belong.
-func placementOf(s *data.Record) (page int, x, y, width float64, ok bool) {
-	page = int(numberValue(s, action.FieldStepSignaturePage))
+//
+// Which four Fields those are comes from the step Machine's own signature_placement: declaration
+// (Stage D). A Machine declaring none reads every coordinate as zero and therefore has no placement,
+// which is the right answer rather than a special case.
+func placementOf(stepMachine *domain.Machine, s *data.Record) (page int, x, y, width float64, ok bool) {
+	p := action.SignatureFields(stepMachine)
+	page = int(numberValue(s, p.PageField))
 	if page < 1 {
 		return 0, 0, 0, 0, false
 	}
-	width = numberValue(s, action.FieldStepSignatureWidth)
+	width = numberValue(s, p.WidthField)
 	if width <= 0 {
 		// The same default widthControl offers when a step has coordinates but no explicit width.
 		width = 20
 	}
-	return page, numberValue(s, action.FieldStepSignatureX), numberValue(s, action.FieldStepSignatureY), width, true
+	return page, numberValue(s, p.XField), numberValue(s, p.YField), width, true
 }
 
 func numberValue(s *data.Record, fieldID string) float64 {

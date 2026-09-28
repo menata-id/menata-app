@@ -23,6 +23,10 @@ type machineDoc struct {
 	Actions    []actionEffectDoc `yaml:"actions"`
 	Datasets   []datasetDoc      `yaml:"datasets"`
 	Sequencing *sequencingDoc    `yaml:"sequencing"`
+	// SignaturePlacement/SignatureStore -- which Fields hold a signature and where it sits. See
+	// domain.SignaturePlacement for why this is a declaration rather than a derivation.
+	SignaturePlacement *signaturePlacementDoc `yaml:"signature_placement"`
+	SignatureStore     *signatureStoreDoc     `yaml:"signature_store"`
 	// MemberRemovalBlocks -- see domain.MemberRemovalBlock's own doc comment for why this is not a
 	// second Constraint shape.
 	MemberRemovalBlocks []memberRemovalBlockDoc `yaml:"blocks_member_removal"`
@@ -71,6 +75,21 @@ type sequencingDoc struct {
 	OrderField      string `yaml:"order_field"`
 	StateField      string `yaml:"state_field"`
 	OpenValue       string `yaml:"open_value"`
+}
+
+// signaturePlacementDoc and signatureStoreDoc are the YAML serialization of a
+// domain.SignaturePlacement and domain.SignatureStore (Stage D, 2026-09-28).
+type signaturePlacementDoc struct {
+	ImageField string `yaml:"image_field"`
+	PageField  string `yaml:"page_field"`
+	XField     string `yaml:"x_field"`
+	YField     string `yaml:"y_field"`
+	WidthField string `yaml:"width_field"`
+}
+
+type signatureStoreDoc struct {
+	OwnerField string `yaml:"owner_field"`
+	ImageField string `yaml:"image_field"`
 }
 
 // datasetDoc is the YAML serialization of a domain.Dataset (007 §7.2-§7.4). measures[].where
@@ -396,6 +415,22 @@ func Parse(data []byte) (*domain.Machine, error) {
 			OrderField:      doc.Sequencing.OrderField,
 			StateField:      doc.Sequencing.StateField,
 			OpenValue:       doc.Sequencing.OpenValue,
+		}
+	}
+
+	if doc.SignaturePlacement != nil {
+		m.SignaturePlacement = &domain.SignaturePlacement{
+			ImageField: doc.SignaturePlacement.ImageField,
+			PageField:  doc.SignaturePlacement.PageField,
+			XField:     doc.SignaturePlacement.XField,
+			YField:     doc.SignaturePlacement.YField,
+			WidthField: doc.SignaturePlacement.WidthField,
+		}
+	}
+	if doc.SignatureStore != nil {
+		m.SignatureStore = &domain.SignatureStore{
+			OwnerField: doc.SignatureStore.OwnerField,
+			ImageField: doc.SignatureStore.ImageField,
 		}
 	}
 

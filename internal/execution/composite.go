@@ -79,12 +79,12 @@ func compositeSignedDocument(ctx context.Context, svc Services, machines map[str
 			ApproverName: approverName(ctx, svc.Store, step, machine, f),
 			ApprovedAt:   step.UpdatedAt,
 		})
-		image, err := signatureImageForStep(ctx, svc, machines, step, f)
+		image, err := signatureImageForStep(ctx, svc, machines, machine, step, f)
 		if err != nil {
 			log.Printf("composite signed document for %s: signature image for step %s: %v", parentID, step.ID, err)
 			continue
 		}
-		if stamp, ok := action.StampFor(step, image); ok {
+		if stamp, ok := action.StampFor(machine, step, image); ok {
 			stamps = append(stamps, stamp)
 		}
 	}
@@ -167,21 +167,31 @@ func approverName(ctx context.Context, store *data.Store, step *data.Record, mac
 // Workspace off ctx -- but the machines map it already receives carries the answer, and action owns the
 // predicates that read a declared workflow binding. An Application casting no signature store is normal
 // (an optional role), and then the step's own image is the whole feature.
-func signatureImageForStep(ctx context.Context, svc Services, machines map[string]*domain.Machine, step *data.Record, f action.EngineFields) ([]byte, error) {
-	if key := displayString(step.Values[action.FieldStepSignatureImage]); key != "" {
-		return readStoredFile(svc, key)
+//
+// Which Field holds each image comes from the two Machines' own declarations (Stage D,
+// signature_placement:/signature_store:). A store declaring neither is skipped rather than queried by a
+// guessed name -- an empty Field id would otherwise list every record in it.
+func signatureImageForStep(ctx context.Context, svc Services, machines map[string]*domain.Machine, machine *domain.Machine, step *data.Record, f action.EngineFields) ([]byte, error) {
+	if image := action.SignatureFields(machine).ImageField; image != "" {
+		if key := displayString(step.Values[image]); key != "" {
+			return readStoredFile(svc, key)
+		}
 	}
 	owner := displayString(step.Values[f.Actor])
 	for _, m := range machines {
 		if !action.IsSignatureStore(m) {
 			continue
 		}
-		sigs, err := svc.Store.ListRecordsBy(ctx, m.ID, action.FieldSignatureOwner, owner)
+		store := action.StoreFields(m)
+		if store.OwnerField == "" || store.ImageField == "" {
+			continue
+		}
+		sigs, err := svc.Store.ListRecordsBy(ctx, m.ID, store.OwnerField, owner)
 		if err != nil {
 			return nil, err
 		}
 		if len(sigs) > 0 {
-			return readStoredFile(svc, displayString(sigs[0].Values[action.FieldSignatureImage]))
+			return readStoredFile(svc, displayString(sigs[0].Values[store.ImageField]))
 		}
 	}
 	return nil, os.ErrNotExist

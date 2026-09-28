@@ -463,33 +463,62 @@ func applyApprovalSignature(w http.ResponseWriter, req *http.Request, ctx contex
 		return true
 	}
 
+	// Which Field holds the one-time image is this Machine's own declaration (Stage D). A step
+	// Machine declaring none has nowhere to put a captured signature, so the capture is refused
+	// rather than written to an empty key -- the explicit handling "empty means undeclared" asks for.
+	imageField := action.SignatureFields(stepMachine).ImageField
+	if imageField == "" {
+		http.Error(w, "this machine declares no signature field to capture into", http.StatusUnprocessableEntity)
+		return false
+	}
 	image, err := decodeSignatureDataURL(req.PostFormValue("signature_image"))
 	if err != nil {
 		http.Error(w, "a signature is required to approve: "+err.Error(), http.StatusUnprocessableEntity)
 		return false
 	}
-	key, err := files.Save(stepMachine.ID, action.FieldStepSignatureImage, "signature.png", bytes.NewReader(image))
+	key, err := files.Save(stepMachine.ID, imageField, "signature.png", bytes.NewReader(image))
 	if err != nil {
 		serverError(w, err)
 		return false
 	}
-	step.Values[action.FieldStepSignatureImage] = key
+	step.Values[imageField] = key
 
 	// "Save this signature for next time" is only offerable where the Application casts a Machine
 	// in the signature role -- an optional one (domain.WorkflowEngineSpec). Where it casts none, the
 	// one-time image written onto the step above is the whole feature, and there is nowhere to keep a
-	// reusable copy; the checkbox is not rendered either (reviewdocument.templ's own gate).
-	if signatures := approvalMachine(ctx, domain.WorkflowRoleSignature); signatures != nil && req.PostFormValue("save_signature") != "" {
-		values := map[string]any{
-			action.FieldSignatureOwner: actor,
-			action.FieldSignatureImage: key,
-		}
-		if _, err := store.CreateRecord(ctx, signatures.ID, values); err != nil {
+	// reusable copy; the checkbox is not rendered either (reviewdocument.templ's own gate). A store
+	// declaring no signature_store: block is the same case for the same reason.
+	if req.PostFormValue("save_signature") != "" {
+		if err := saveReusableSignature(ctx, store, actor, key); err != nil {
 			serverError(w, err)
 			return false
 		}
 	}
 	return true
+}
+
+// saveReusableSignature keeps this actor's captured image as their own reusable signature, where the
+// Application casts a Machine in the optional signature role and that Machine says which Fields hold
+// an owner and an image (signature_store:, Stage D).
+//
+// Doing nothing is the correct outcome for either absence, and both are ordinary rather than
+// exceptional: casting no store means the feature was not installed, and declaring no block means the
+// Machine cast is not shaped like a signature store. Writing under an empty Field id instead would
+// produce a record nothing can ever find by owner.
+func saveReusableSignature(ctx context.Context, store *data.Store, actor, key string) error {
+	signatures := approvalMachine(ctx, domain.WorkflowRoleSignature)
+	if signatures == nil {
+		return nil
+	}
+	declared := action.StoreFields(signatures)
+	if declared.OwnerField == "" || declared.ImageField == "" {
+		return nil
+	}
+	_, err := store.CreateRecord(ctx, signatures.ID, map[string]any{
+		declared.OwnerField: actor,
+		declared.ImageField: key,
+	})
+	return err
 }
 
 // decodeSignatureDataURL decodes the canvas's own `data:image/png;base64,...` payload and
