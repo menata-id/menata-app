@@ -35,6 +35,25 @@ func docMachineForTest() *domain.Machine {
 		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
 		WorkflowRole:   domain.WorkflowRoleDocument,
 		SLAField:       "fld_due_date",
+		// The rule blocks metadata/document.yaml declares, added when
+		// TestFixturesMirrorTheRealMachines was written (2026-09-28). This fixture is otherwise a
+		// deliberate reduction -- it carries no Fields, Views, Datasets or card_fields, and the gate
+		// does not ask it to: structure and presentation are where a reduction is legitimate. A
+		// missing *rule* is not, because MayPlaceSignature already reads one of these (the create
+		// Permission's actor_field, since Stage D) and buildReview would answer differently without it.
+		Permissions: []domain.Permission{
+			{ID: "prm_create_own_document", Action: domain.ActionCreate, Roles: []string{"approver", "submitter"}, ActorField: action.FieldDocumentSubmittedBy},
+			{ID: "prm_edit_document_not_reviewer", Action: domain.ActionEdit, Roles: []string{"approver", "submitter"}},
+			{ID: "prm_delete_document_not_reviewer", Action: domain.ActionDelete, Roles: []string{"approver", "submitter"}},
+		},
+		ActionEffects: []domain.ActionEffect{
+			{Action: domain.ActionRevise, Writes: []domain.FieldWrite{{Field: action.FieldDocumentStatus, Value: action.DocumentStatusDraft}}},
+			{Action: domain.ActionCreate, Writes: []domain.FieldWrite{{Field: action.FieldDocumentStatus, Value: action.DocumentStatusInReview}}},
+		},
+		Events: []domain.Event{{
+			ID: "evt_document_submitted", OnCreate: true,
+			Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "\"{fld_title}\" submitted"},
+		}},
 	}
 }
 

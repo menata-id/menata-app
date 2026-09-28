@@ -345,6 +345,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   called `app_persetujuan` over `mch_surat`/`mch_langkah` engages the approval engine because it
   *declares* the binding, and every Machine whose Application declares none — including
   "dokter-kecil"'s own unbound `mch_document`, the one that panicked two pages — engages nothing.
+- `TestFixturesMirrorTheRealMachines` (`internal/web` and `internal/composition`) — a test fixture
+  standing in for a real Machine may not declare fewer *rule* blocks than it
+  (`domain.Machine.DeclaredRuleBlocks`: permissions, transitions, actions, events, sequencing,
+  constraints, the two signature blocks, `blocks_member_removal`, `append_only`). A fixture missing one
+  does not fail — it passes against a Machine looser than the one that runs. Presence, not equality:
+  fixtures are deliberately smaller and deliberately renamed, and structure/presentation blocks are
+  excluded so a reduction stays a reduction. When you add a block to a Machine, add it to the mirror in
+  the same change. The population is a named list per package, so a *new* fixture is uncovered until
+  someone adds it there.
 - `TestClosedRegistryMembersAreAcceptedByTheLoader` / `...AreActivatedByMetadata` — a new
   capability must arrive with its metadata seam, not just its Go. Every `domain.KnownActions`/
   `KnownServices` member must be (a) accepted by `internal/metadata`'s own validation, since the

@@ -92,6 +92,25 @@ func StoreFields(storeMachine *domain.Machine) domain.SignatureStore {
 	return *storeMachine.SignatureStore
 }
 
+// CompositeFields is the already-declared answer to "which Field on the parent holds the document
+// itself" -- `source_field` on whichever Event triggers the compositing Service (Stage C).
+//
+// It is asked of the *step* Machine because that is where the Event is declared, while the caller
+// usually holds the document: a screen wanting to link a Document's own PDF is asking the same
+// question the Service answers, so it reads the same declaration instead of naming fld_file. Zero
+// value when no such Event exists, same contract as its two neighbours.
+func CompositeFields(stepMachine *domain.Machine) domain.Composite {
+	if stepMachine == nil {
+		return domain.Composite{}
+	}
+	for _, e := range stepMachine.Events {
+		if e.Then.Name == domain.ServiceCompositeSignedDocument && e.Then.Composite != nil {
+			return *e.Then.Composite
+		}
+	}
+	return domain.Composite{}
+}
+
 // openValueFor is the single value actionName's declared edges all move *from* -- the state a record
 // sits in while nobody has acted. Empty when the edges disagree, which is no answer rather than a
 // guess, the same posture every accessor here takes.

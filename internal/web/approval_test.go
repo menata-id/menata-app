@@ -21,6 +21,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 	"menata.app/internal/mail"
 	"menata.app/internal/pdf"
 	"menata.app/internal/rendering"
@@ -44,6 +45,28 @@ func approvalStepTestMachine(ids approvalIDs) *domain.Machine {
 			{ID: action.FieldStepSignatureY, Name: "Signature Y", Type: domain.FieldTypeNumber},
 			{ID: action.FieldStepSignatureWidth, Name: "Signature Width", Type: domain.FieldTypeNumber},
 			{ID: ids.signatureImage, Name: "Signature Image", Type: domain.FieldTypeFile},
+		},
+		// Sequencing, the removal guard and the two Views all mirror metadata/approval_step.yaml as
+		// well, and all three were missing until TestFixturesMirrorTheRealMachines was written below
+		// (2026-09-28) -- which is the gate earning its place on its first run. Sequencing is the one
+		// that mattered: decideStep reaches behavior.CanAct, so without it these tests never exercised
+		// ordering at all, and a step locked behind an earlier one would have decided cleanly here.
+		Sequencing: &domain.Sequencing{
+			ParentField:     action.FieldStepDocument,
+			ModeField:       action.FieldDocumentMode,
+			SequentialValue: "sequential",
+			OrderField:      action.FieldStepSequence,
+			StateField:      ids.decision,
+			OpenValue:       action.DecisionPending,
+		},
+		MemberRemovalBlocks: []domain.MemberRemovalBlock{{
+			ID: "blk_step_pending", ActorField: action.FieldStepAssignee,
+			Condition: expression.Comparison{Field: ids.decision, Op: expression.OpEquals, Value: action.DecisionPending},
+			Reason:    "has a pending approval step",
+		}},
+		Views: []domain.View{
+			{ID: "vw_approval_step_table", Name: "All Steps", Type: domain.ViewTable},
+			{ID: "vw_step_progress", Name: "Approval Progress", Type: domain.ViewStepper},
 		},
 		// Mirrors metadata/approval_step.yaml's own signature_placement: block (Stage D). Without it
 		// this fixture is a Machine that declares no signature shape at all, and the capture gate
@@ -151,6 +174,15 @@ func signatureTestMachine(ids approvalIDs) *domain.Machine {
 		Fields: []domain.Field{
 			{ID: action.FieldSignatureOwner, Name: "Owner", Type: domain.FieldTypePerson},
 			{ID: action.FieldSignatureImage, Name: "Image", Type: domain.FieldTypeFile},
+		},
+		// prm_create/edit/delete_own_signature, as metadata/signature.yaml declares them: only an
+		// approver may keep a signature, and only their own. Missing until the fixture gate below was
+		// written -- the capture path writes through internal/data directly so no test failed, but the
+		// fixture was a store anyone could write anything into.
+		Permissions: []domain.Permission{
+			{ID: "prm_create_own_signature", Action: domain.ActionCreate, Roles: approverOnly, ActorField: action.FieldSignatureOwner},
+			{ID: "prm_edit_own_signature", Action: domain.ActionEdit, Roles: approverOnly, ActorField: action.FieldSignatureOwner},
+			{ID: "prm_delete_own_signature", Action: domain.ActionDelete, Roles: approverOnly, ActorField: action.FieldSignatureOwner},
 		},
 		// Mirrors metadata/signature.yaml's own signature_store: block (Stage D) -- which Fields say
 		// whose signature this is and where the image lives. A store declaring neither is skipped
@@ -758,6 +790,45 @@ func TestDecideStep_writesTheFieldsTheMachineDeclares(t *testing.T) {
 	for _, id := range []string{action.FieldStepDecision, action.FieldStepSignatureImage} {
 		if _, set := step.Values[id]; set {
 			t.Errorf("something wrote %s on a Machine that does not declare it", id)
+		}
+	}
+}
+
+// TestFixturesMirrorTheRealMachines closes a hole that has now been found by hand twice and by a gate
+// never: a test fixture that declares *less* than the Machine it mirrors does not fail. It passes,
+// against a Machine looser than the one that runs, and the test goes on reading as though it covered
+// the rule.
+//
+// The first occurrence is recorded in composition's own stepMachineForTest comment -- its `decide`
+// Permission was missing for a whole phase and "nothing noticed", because the screen under test ANDed
+// an equivalent check in Go. Stage D (2026-09-28) found four more in one afternoon, including this
+// file's two: neither declared signature_placement:/signature_store:, so every signature assertion
+// here was about to start passing for the wrong reason.
+//
+// It compares **presence, not equality** (domain.Machine.MissingBlocksFrom). These fixtures are
+// deliberately smaller than the real Machines, and deliberately renamed in the tests that prove this
+// runtime does not depend on Document Approval's own names -- what must not differ is which blocks
+// exist at all. Checked against templateLibraryIDs, since a renamed fixture is the same shape under
+// other names.
+func TestFixturesMirrorTheRealMachines(t *testing.T) {
+	real, _ := loadRealMachines(t)
+	ids := templateLibraryIDs()
+
+	for _, c := range []struct {
+		name    string
+		id      string
+		fixture *domain.Machine
+	}{
+		{"approvalStepTestMachine", ids.step, approvalStepTestMachine(ids)},
+		{"signatureTestMachine", ids.signature, signatureTestMachine(ids)},
+	} {
+		want, ok := real[c.id]
+		if !ok {
+			t.Fatalf("%s mirrors %s, which the default Workspace no longer installs -- the fixture is describing a Machine that is gone", c.name, c.id)
+		}
+		if missing := c.fixture.MissingBlocksFrom(want); len(missing) > 0 {
+			t.Errorf("%s declares no %v, which the real %s does -- every test using this fixture is currently passing against a Machine looser than the one that runs. Add the block (mirroring metadata/workspaces/default/), do not delete this check",
+				c.name, missing, c.id)
 		}
 	}
 }

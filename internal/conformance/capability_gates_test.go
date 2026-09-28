@@ -220,10 +220,27 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // **The numbers may only go down**, on the same terms as the map above: too high fails, too low fails,
 // a new file fails, and comment lines are skipped.
 //
-// What is left is one shape, in two places. internal/web/document.go (34) is the submit wizard reading
-// its own form; rendering/documentsubmit.templ (4) is that form's own `name=`. Both are Binding, and
-// the wizard additionally waits on `continue-submit` getting an Action of its own -- it shares `edit`
-// with every ordinary edit today, which is why Stage B could not reach it (audit §6).
+// **29 across 7 files** since Stage E1 the same day, which took the derivable half of the submit
+// wizard: the Document's status Field from its own state model, the ordering mode from the step
+// Machine's `sequencing:`, the actor and its gate from the Permission, the relation from
+// DeclaredFields, the PDF from the compositing Event's `source_field`.
+//
+// **The prediction was 16 and the measurement is 20**, and the four are the interesting part. The
+// wizard shares stepRowValues between a real Approval Step and a *saved flow template* step, and
+// mch_approval_flow_template_step declares no `decide` Permission, no actor gate and no `sequencing:`
+// -- it is a template, nothing decides it -- so DeclaredFields returns every id empty for it. Passing
+// that through would have written four values under the empty key and produced a flow template with no
+// approvers; checked with a probe rather than reasoned about. So the template path now names its own
+// Fields explicitly (`templateStepFields`) where it used to borrow the real step's constants by
+// coincidence -- four references that did not exist before, and a more honest file.
+//
+// That is the flow-template shape gap, and it is Stage D's exactly: the roles are cast
+// (`flow_template`/`flow_template_step`), the Fields they hold are declared nowhere. ROADMAP.md's
+// Stage E2.
+//
+// What is left is that gap (14 in web/document.go plus its own reads), a step's label
+// (`fld_step_name`, which nothing declares), and `documentsubmit.templ`'s four `name=` -- Binding,
+// whose general primitive is still unbuilt.
 var documentApprovalFieldCoupling = map[string]int{
 	"composition/approval.go":        1,
 	"composition/pages.go":           1,
@@ -231,7 +248,7 @@ var documentApprovalFieldCoupling = map[string]int{
 	"composition/review.go":          1,
 	"rendering/detail.templ":         1,
 	"rendering/documentsubmit.templ": 4,
-	"web/document.go":                34,
+	"web/document.go":                20,
 }
 
 var documentApprovalFieldConstant = regexp.MustCompile(`action\.Field[A-Za-z]+`)

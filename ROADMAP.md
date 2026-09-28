@@ -3072,8 +3072,26 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   found by this change rather than by a gate -- `approvalStepTestMachine`, `signatureTestMachine`,
   `stepMachineForTest` and the placement tests. That is the same finding as the derivation slice two
   changes earlier, and it has now happened twice: a fixture that omits a declaration does not fail, it
-  passes against a Machine looser than the one that runs. Worth a gate of its own eventually; recorded
-  here rather than guessed at.
+  passes against a Machine looser than the one that runs.
+
+  **That gate now exists** (`TestFixturesMirrorTheRealMachines`, one copy in `internal/web` and one in
+  `internal/composition`, over `domain.Machine.DeclaredRuleBlocks`). It compares **presence, not
+  equality**, because a fixture is deliberately smaller and deliberately renamed in the tests that
+  prove this runtime does not depend on the template library's own names -- what must not differ is
+  which *rule* blocks exist. Structure and presentation (fields, views, card_fields, datasets) are
+  excluded on purpose: forcing a reduction to copy the manifest would bury what its test is about.
+
+  **It found four more drifts on its first run**, which is the argument for it:
+  `approvalStepTestMachine` had no `sequencing:` -- so every `decideStep` test in `internal/web` was
+  running with ordering switched off, and a step locked behind an earlier one would have decided
+  cleanly; `signatureTestMachine` had no Permissions at all; `docMachineForTest` had no Events,
+  Permissions or Action effects; and `stepMachineForTest`'s own doc comment **claimed** a rollup Event
+  "is here" while the fixture declared none. A comment asserting a block that is not there is exactly
+  the failure this gate is for.
+
+  **Its limit, stated rather than discovered later**: the population is a named list per package, not
+  a sweep, so a new fixture is uncovered until someone adds it -- the same posture `readPathWriters`
+  and the ratchets take.
 
   **What is left, and what it is waiting for.** 34 of the remaining 43 are `internal/web/document.go`:
   the submit wizard reading its own form by Field id. That is Binding on the read side, and it is
@@ -3081,6 +3099,44 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Action with every ordinary edit today, which is exactly why Stage B could not reach it (audit §6).
   The other nine are a step's label falling back to `fld_step_name`, a Document's own file and status
   Fields in two composed screens, and `documentsubmit.templ`'s four bindings.
+
+  **That paragraph was half wrong, and Stage E1 below is the correction.** "Blocked on
+  `continue-submit` getting an Action" is true of the wizard's *write effects* and was wrong as a
+  reason to defer the file: counting it found **18 of the 34 derivable that day**, from declarations
+  that already existed. The lesson is the one this file keeps relearning -- a deferral reason that
+  covers *part* of a population reads as if it covers all of it, and only counting tells you which.
+
+  **Stage E1 -- the wizard's derivable half -- shipped 2026-09-28.** The Document's status Field from
+  its own state model (`StatusField`), the ordering mode from the step Machine's `sequencing.mode_field`
+  (it lives on the *parent* by design, which is why the child is where the pair is stated), the order,
+  actor and actor gate from the Permission and `sequencing:`, the relation from `DeclaredFields`, and
+  the PDF from the compositing Event's already-declared `source_field` (`action.CompositeFields`).
+
+  **The prediction was 16 remaining and the measurement is 20**, and the four are the finding rather
+  than a rounding error. `stepRowValues` is shared between a real Approval Step and a *saved flow
+  template* step, and `mch_approval_flow_template_step` declares no `decide` Permission, no actor gate
+  and no `sequencing:` -- nothing decides a template -- so `DeclaredFields` returns every id empty for
+  it. Passing that through would have written four values under the empty key and produced a saved flow
+  with no approvers at all. **Checked with a probe rather than reasoned about**, which is the only
+  reason it was caught before the commit. So the template path now names its own Fields explicitly
+  (`templateStepFields`) where it previously borrowed the real step's constants and was correct only
+  because the two Machines happen to use identical strings -- four references that did not exist
+  before, and a file that no longer relies on that coincidence.
+
+  That is **Stage E2**, unstarted: the roles are cast (`flow_template`/`flow_template_step`, Stage A)
+  but the Fields they hold are declared nowhere -- Stage D's gap exactly, one layer out.
+
+  `continueDocumentWizard` crossed the 70-line budget on the way and was fixed the way that gate asks
+  for, by extracting `approverRows` (a pair both wizard POSTs perform identically), never by raising
+  `maxHandlerLines`.
+
+  **The live check falsified its own plan, and that is worth recording.** The plan said the wizard
+  "is reachable by the admin session (unlike My Tasks), so this one can genuinely be exercised end to
+  end". Rendering is: `/documents/new` returns 200 with `fld_mode` resolved through the new derivation,
+  which is itself the proof that `modeFieldFor` reads `sequencing:`. **Writing is not** -- `POST
+  /documents` returns 403, because `prm_create_own_document` requires an Application role and the admin
+  pseudo-identity holds none. The write path is covered instead by six Postgres-backed wizard tests
+  through the real handler, mutation-proved: breaking one derived id fails four of them.
 
   **Order is load-bearing.** A before B because a declared binding is what lets a generalized
   `decide` know which Application it is acting for; B before C because the Service needs an Action

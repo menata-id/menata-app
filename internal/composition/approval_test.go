@@ -1,6 +1,7 @@
 package composition
 
 import (
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -9,6 +10,8 @@ import (
 	"menata.app/internal/action"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
+	"menata.app/internal/metadata"
 	"menata.app/internal/rendering"
 )
 
@@ -107,6 +110,33 @@ func stepMachineForTest() *domain.Machine {
 			StateField:      action.FieldStepDecision,
 			OpenValue:       action.DecisionPending,
 		},
+		// The rollup Event and the decide effect, both of which this fixture's own comment above has
+		// *claimed* since Stage B while declaring neither -- found by TestFixturesMirrorTheRealMachines
+		// below on its first run (2026-09-28). A comment asserting a block that is not there is the
+		// exact failure that gate exists for, and it went unnoticed because nothing in this package
+		// dispatches an Event, so the omission cost nothing until it would have.
+		Events: []domain.Event{{
+			ID: "evt_step_decision_rollup",
+			On: action.FieldStepDecision,
+			Then: domain.Service{Name: domain.ServiceRollupParentStatus, Rollup: &domain.Rollup{
+				ParentField: action.FieldStepDocument,
+				TargetField: action.FieldDocumentStatus,
+				AnyValue:    action.DecisionRejected,
+				AnySet:      action.DocumentStatusRejected,
+				AllValue:    action.DecisionApproved,
+				AllSet:      action.DocumentStatusApproved,
+				Default:     action.DocumentStatusInReview,
+			}},
+		}},
+		ActionEffects: []domain.ActionEffect{{
+			Action: domain.ActionDecide,
+			Writes: []domain.FieldWrite{{Field: action.FieldStepDecidedByName, From: domain.WriteFromActorName}},
+		}},
+		MemberRemovalBlocks: []domain.MemberRemovalBlock{{
+			ID: "blk_step_pending", ActorField: action.FieldStepAssignee,
+			Condition: expression.Comparison{Field: action.FieldStepDecision, Op: expression.OpEquals, Value: action.DecisionPending},
+			Reason:    "has a pending approval step",
+		}},
 		// And the signature shape, declared since Stage D (2026-09-28) for exactly the reason the
 		// Fields above are: a fixture declaring no signature_placement: has no placement Fields at
 		// all, so every placement test would read nothing and pass for the wrong reason.
@@ -593,5 +623,45 @@ func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
 	steps[0].Values["fld_putusan"] = "setuju"
 	if got := buildInbox(steps, docs, nil, nil, "usr_ana", at(10), stepMachine, docMachine, nil); len(got.Pending) != 0 {
 		t.Errorf("a decided step still appears as pending: %d card(s)", len(got.Pending))
+	}
+}
+
+// TestFixturesMirrorTheRealMachines is the composition half of the fixture-drift gate -- see
+// internal/web/approval_test.go's copy for the failure it exists to catch, and
+// domain.Machine.DeclaredBlocks for why the comparison is presence rather than equality.
+//
+// **The population is named rather than swept, and that is a real limit worth stating.** It covers
+// the fixtures that stand in for a Machine whose *declared rules this package executes* -- a
+// Permission is asked, a Transition is walked, Sequencing locks a sibling. It deliberately does not
+// cover a reduction like pages_test.go's taskMachineForTest, which exists to carry one Machine's
+// card_fields into a view-model builder and would be made worse by being forced to declare mch_task's
+// Events and Datasets too. A new fixture is therefore not covered until someone adds it here, the
+// same posture readPathWriters and the ratchets take.
+func TestFixturesMirrorTheRealMachines(t *testing.T) {
+	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "workspaces", "default.yaml"))
+	if err != nil {
+		t.Fatalf("LoadApplication: %v", err)
+	}
+	real := map[string]*domain.Machine{}
+	for _, m := range app.Machines {
+		real[m.ID] = m
+	}
+
+	for _, c := range []struct {
+		name    string
+		id      string
+		fixture *domain.Machine
+	}{
+		{"stepMachineForTest", action.StepMachineID, stepMachineForTest()},
+		{"docMachineForTest", action.DocumentMachineID, docMachineForTest()},
+	} {
+		want, ok := real[c.id]
+		if !ok {
+			t.Fatalf("%s mirrors %s, which the default Workspace no longer installs", c.name, c.id)
+		}
+		if missing := c.fixture.MissingBlocksFrom(want); len(missing) > 0 {
+			t.Errorf("%s declares no %v, which the real %s does -- every test using this fixture is currently passing against a Machine looser than the one that runs. Add the block (mirroring metadata/workspaces/default/), do not delete this check",
+				c.name, missing, c.id)
+		}
 	}
 }

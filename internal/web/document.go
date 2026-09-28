@@ -70,8 +70,23 @@ func readWizardOptions(req *http.Request, machines map[string]*domain.Machine, s
 	}
 	docMachine := machineForDocument(req.Context())
 	documentType, _ := docMachine.FieldByID("fld_document_type")
-	mode, _ := docMachine.FieldByID(action.FieldDocumentMode)
+	// Which Field on the Document decides whether its steps run in order is declared by the step
+	// Machine's own `sequencing:` block (mode_field), not named here -- that binding is the one place
+	// the pair is already stated, and reading it is what lets a Machine call it anything.
+	mode, _ := docMachine.FieldByID(modeFieldFor(stepMachine))
 	return wizardOptions{documentType: documentType, mode: mode, approvers: approvers, groups: groups}, nil
+}
+
+// modeFieldFor is the Document Field that decides whether its steps run in order -- declared once, on
+// the step Machine, as `sequencing.mode_field`. It lives on the *parent* by design (one Document runs
+// sequential, the next parallel), which is why the step Machine is where the pair is stated and why
+// this asks it rather than naming fld_mode. Empty when the Machine declares no ordering, and then the
+// wizard simply offers no mode choice.
+func modeFieldFor(stepMachine *domain.Machine) string {
+	if stepMachine == nil || stepMachine.Sequencing == nil {
+		return ""
+	}
+	return stepMachine.Sequencing.ModeField
 }
 
 // showDocumentSubmit serves board 08 (ui-sample/case-03-flow1/08-submit-document.html).
@@ -139,18 +154,9 @@ func submitDocumentWizard(store *data.Store, files *storage.Store, cfg config.Co
 		if !ok {
 			return
 		}
-		rows, problem := parseStepInputs(req)
-		if problem != "" {
-			http.Error(w, problem, http.StatusUnprocessableEntity)
-			return
-		}
 		isDraft := req.FormValue("intent") == "draft"
-		if !isDraft && !hasApprover(rows) {
-			// Without this, createApprovalSteps below silently skips every empty slot and
-			// returns success -- a Document would be created with zero Approval Steps, and
-			// nothing could ever decide it. Checked before CreateRecord so a rejected submission
-			// never creates an orphaned Document that would then need cleaning up.
-			http.Error(w, "at least one approver is required", http.StatusUnprocessableEntity)
+		rows, haveRows := approverRows(w, req, docMachine, !isDraft)
+		if !haveRows {
 			return
 		}
 		actor := currentActor(req, store, cfg)
@@ -210,7 +216,11 @@ func applySubmissionEffect(w http.ResponseWriter, docMachine *domain.Machine, va
 		return false
 	}
 	if isDraft {
-		values[action.FieldDocumentStatus] = action.DocumentStatusDraft
+		// The Field comes from the Machine's own state model (StatusField, the Field its transitions
+		// move); the *value* does not, and cannot -- those edges name no Action, so nothing declares
+		// which value "save as draft" means. That asymmetry is why one is derived here and one stays a
+		// constant (ROADMAP.md's `draft` deferral row).
+		values[docMachine.StatusField()] = action.DocumentStatusDraft
 	}
 	return true
 }
@@ -230,7 +240,7 @@ func saveDefaultApprovalFlow(ctx context.Context, store *data.Store, values map[
 		return
 	}
 	documentType := toDisplayString(values[action.FieldTemplateDocumentType])
-	mode := toDisplayString(values[action.FieldDocumentMode])
+	mode := toDisplayString(values[modeFieldFor(approvalMachine(ctx, domain.WorkflowRoleStep))])
 	if err := saveApprovalFlowTemplate(ctx, store, template, templateStep, documentType, mode, rows); err != nil {
 		log.Printf("save default approval flow for document type %q: %v", documentType, err)
 	}
@@ -276,7 +286,7 @@ func showDocumentContinue(store *data.Store, cfg config.Config) http.HandlerFunc
 			recordError(w, err)
 			return
 		}
-		if ok, reason := action.CanContinueDraft(toDisplayString(document.Values[action.FieldDocumentStatus])); !ok {
+		if ok, reason := action.CanContinueDraft(toDisplayString(document.Values[machine.StatusField()])); !ok {
 			http.Error(w, reason, http.StatusUnprocessableEntity)
 			return
 		}
@@ -297,7 +307,7 @@ func showDocumentContinue(store *data.Store, cfg config.Config) http.HandlerFunc
 			ID:           document.ID,
 			Title:        toDisplayString(document.Values["fld_title"]),
 			DocumentType: toDisplayString(document.Values["fld_document_type"]),
-			Mode:         toDisplayString(document.Values[action.FieldDocumentMode]),
+			Mode:         toDisplayString(document.Values[modeFieldFor(machineForStep(ctx))]),
 			FileName:     storage.DisplayName(toDisplayString(document.Values["fld_file"])),
 		}
 		render(ctx, w, rendering.DocumentSubmitPage(opts.documentType, opts.mode, opts.approvers, opts.groups,
@@ -357,18 +367,13 @@ func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.
 		// in_review included), so this move is gated by a plain business-state check instead
 		// (action.CanContinueDraft), the same posture action.CanDeleteDocument already takes for
 		// delete.
-		if ok, reason := action.CanContinueDraft(toDisplayString(existing.Values[action.FieldDocumentStatus])); !ok {
+		if ok, reason := action.CanContinueDraft(toDisplayString(existing.Values[machine.StatusField()])); !ok {
 			http.Error(w, reason, http.StatusUnprocessableEntity)
 			return
 		}
 
-		rows, problem := parseStepInputs(req)
-		if problem != "" {
-			http.Error(w, problem, http.StatusUnprocessableEntity)
-			return
-		}
-		if !hasApprover(rows) {
-			http.Error(w, "at least one approver is required", http.StatusUnprocessableEntity)
+		rows, haveRows := approverRows(w, req, machine, true)
+		if !haveRows {
 			return
 		}
 
@@ -377,10 +382,11 @@ func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.
 			return
 		}
 		carryForwardMissingFields(machine, values, existing.Values)
-		// Still a literal, deliberately: "submit this draft" shares the `edit` Action with every
-		// ordinary field change, so declaring it as edit's effect would set in_review on every edit.
-		// See mch_document's own actions: block, and ROADMAP.md's Stage B note on what it leaves.
-		values[action.FieldDocumentStatus] = action.DocumentStatusInReview
+		// The *value* is still a literal, deliberately: "submit this draft" shares the `edit` Action
+		// with every ordinary field change, so declaring it as edit's effect would set in_review on
+		// every edit. See mch_document's own actions: block, and ROADMAP.md's Stage B note on what it
+		// leaves. The Field it goes in is the Machine's own, same as the draft path above.
+		values[machine.StatusField()] = action.DocumentStatusInReview
 		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
 			return
 		}
@@ -436,6 +442,29 @@ type stepInput struct {
 	approverGroup string
 }
 
+// approverRows reads and validates the wizard's approver rows -- the identical pair both wizard POSTs
+// perform, extracted because continueDocumentWizard crossed the 70-line budget
+// (internal/conformance.TestHandlersStaySmall) and the remedy that gate asks for is moving work out,
+// never raising the number.
+//
+// requireApprover is false for exactly one caller: a Draft has not gone anywhere yet, so it may have
+// zero approvers. For every other submission the check matters, because createApprovalSteps silently
+// skips an empty slot and returns success -- without this a Document would be created with zero
+// Approval Steps and nothing could ever decide it. Checked before any CreateRecord, so a rejected
+// submission never leaves an orphaned Document behind.
+func approverRows(w http.ResponseWriter, req *http.Request, docMachine *domain.Machine, requireApprover bool) ([]stepInput, bool) {
+	rows, problem := parseStepInputs(req, action.DeclaredFields(machineForStep(req.Context()), docMachine))
+	if problem != "" {
+		http.Error(w, problem, http.StatusUnprocessableEntity)
+		return nil, false
+	}
+	if requireApprover && !hasApprover(rows) {
+		http.Error(w, "at least one approver is required", http.StatusUnprocessableEntity)
+		return nil, false
+	}
+	return rows, true
+}
+
 // parseStepInputs reads the approver rows out of the submitted form and rejects a row that names
 // no approver of the kind it claims.
 //
@@ -449,11 +478,17 @@ type stepInput struct {
 //
 // An entirely blank row is skipped rather than rejected: the wizard renders one empty row to start
 // with, and "+ Add approver" can leave a spare.
-func parseStepInputs(req *http.Request) ([]stepInput, string) {
+//
+// The four input names come from the step Machine's own declarations (action.DeclaredFields): the
+// Permission governing `decide` says which Field holds the actor and, through its dynamic gate, which
+// hold the actor's kind and Group. Only the step *name* is still this package's own constant -- nothing
+// declares a step's label (ROADMAP.md). documentsubmit.templ renders the same resolved ids, so the
+// form's two ends read one declaration rather than agreeing by coincidence.
+func parseStepInputs(req *http.Request, f action.EngineFields) ([]stepInput, string) {
 	names := req.Form[action.FieldStepName]
-	assignees := req.Form[action.FieldStepAssignee]
-	types := req.Form[action.FieldStepApproverType]
-	groups := req.Form[action.FieldStepApproverGroup]
+	assignees := req.Form[f.Actor]
+	types := req.Form[f.ActorType]
+	groups := req.Form[f.ActorGroup]
 
 	rows := make([]stepInput, 0, len(assignees))
 	for i := range assignees {
@@ -507,21 +542,35 @@ func hasApprover(rows []stepInput) bool {
 // stores nothing there, which is deliberate: an empty type is what makes authorization's own
 // fallback take over, so a wizard that stamped "User" on every row would opt every step into the
 // dynamic gate for no reason and make the fallback path untested in practice.
-func stepRowValues(parentField, parentID string, i int, row stepInput) map[string]any {
+//
+// Which Field takes which value is the declaring Machine's own business (action.DeclaredFields), so
+// parentField is passed separately: a real step points at the Document through its own relation, a
+// template step at its template, and those are two different Machines' declarations.
+func stepRowValues(f action.EngineFields, parentField, parentID string, i int, row stepInput) map[string]any {
 	values := map[string]any{
-		parentField:              parentID,
-		action.FieldStepSequence: float64(i + 1),
+		parentField: parentID,
+		f.Order:     float64(i + 1),
 	}
 	if row.name != "" {
 		values[action.FieldStepName] = row.name
 	}
 	if row.approverType == domain.ActorKindGroup {
-		values[action.FieldStepApproverType] = domain.ActorKindGroup
-		values[action.FieldStepApproverGroup] = row.approverGroup
+		values[f.ActorType] = domain.ActorKindGroup
+		values[f.ActorGroup] = row.approverGroup
 	} else {
-		values[action.FieldStepAssignee] = row.assignee
+		values[f.Actor] = row.assignee
 	}
 	return values
+}
+
+// templateStepFields is the saved approval flow template's own step shape, written out because
+// nothing declares it -- see the call site in saveApprovalFlowTemplate for why DeclaredFields cannot
+// answer here, and ROADMAP.md's Stage E2 for what would replace it.
+var templateStepFields = action.EngineFields{
+	Order:      action.FieldTemplateStepSequence,
+	Actor:      action.FieldTemplateStepAssignee,
+	ActorType:  action.FieldTemplateStepApproverType,
+	ActorGroup: action.FieldTemplateStepApproverGroup,
 }
 
 // createApprovalSteps writes one pending Approval Step per approver row.
@@ -532,12 +581,16 @@ func stepRowValues(parentField, parentID string, i int, row stepInput) map[strin
 // 1..n. Left as it was: Phase 19 moved this code, it did not quietly renumber approvals, and
 // neither does Fase 6c-2.
 func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.Store, stepMachine *domain.Machine, documentID string, rows []stepInput) bool {
+	// One derivation for every Field this writes -- the relation reaching the Document, the order, the
+	// actor and its gate, and the Field `decide` will later move. Same shape internal/composition and
+	// internal/execution already use (action.DeclaredFields).
+	f := action.DeclaredFields(stepMachine, machineForDocument(req.Context()))
 	for i, row := range rows {
 		if row.assignee == "" && row.approverGroup == "" {
 			continue
 		}
-		values := stepRowValues(action.FieldStepDocument, documentID, i, row)
-		values[action.FieldStepDecision] = action.DecisionPending
+		values := stepRowValues(f, f.Parent, documentID, i, row)
+		values[f.Decision] = action.DecisionPending
 		data.ApplyDefaults(stepMachine, values)
 		if !validRecord(w, req, store, stepMachine, values) {
 			return false
@@ -632,7 +685,16 @@ func saveApprovalFlowTemplate(ctx context.Context, store *data.Store, templateMa
 		if row.assignee == "" && row.approverGroup == "" {
 			continue
 		}
-		values := stepRowValues(action.FieldTemplateStepTemplate, templateID, i, row)
+		// Constants, and NOT action.DeclaredFields, which is the honest half of this slice rather than an
+		// oversight. mch_approval_flow_template_step declares no `decide` Permission, no dynamic actor
+		// gate and no `sequencing:` -- it is a saved template, nothing decides it -- so every id that
+		// derivation returns is empty, and passing it here would write four values under the empty key
+		// and silently produce a flow template with no approvers. Checked rather than assumed.
+		//
+		// That is the flow-template shape gap: the roles (flow_template/flow_template_step) are cast,
+		// but the Fields they hold are declared nowhere, exactly as the signature Fields were before
+		// Stage D. Forward pointer: ROADMAP.md's Stage E2.
+		values := stepRowValues(templateStepFields, action.FieldTemplateStepTemplate, templateID, i, row)
 		data.ApplyDefaults(templateStepMachine, values)
 		if _, err := store.CreateRecord(ctx, templateStepMachine.ID, values); err != nil {
 			return err
@@ -748,7 +810,7 @@ func loadSignaturePlacementData(ctx context.Context, store *data.Store, files *s
 	if stepMachine == nil {
 		return nil, nil, nil, 0, fmt.Errorf("this workspace has no approval step machine")
 	}
-	steps, err := store.ListRecordsBy(ctx, stepMachine.ID, action.FieldStepDocument, documentID)
+	steps, err := store.ListRecordsBy(ctx, stepMachine.ID, action.DeclaredFields(stepMachine, machines[approvalMachineID(ctx, domain.WorkflowRoleDocument)]).Parent, documentID)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
@@ -835,7 +897,7 @@ func loadDocumentPDF(ctx context.Context, store *data.Store, files *storage.Stor
 	if err != nil {
 		return nil, nil, err
 	}
-	key := toDisplayString(document.Values[action.FieldDocumentFile])
+	key := toDisplayString(document.Values[action.CompositeFields(machineForStep(ctx)).SourceField])
 	if key == "" {
 		return document, nil, fmt.Errorf("document has no file uploaded")
 	}
