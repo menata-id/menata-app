@@ -258,11 +258,28 @@ func sweptRoute(route string, skipped []string) bool {
 	return false
 }
 
-// authenticatedGetRoutes returns the literal paths of every GET route registered inside
-// router.go's authenticated group, excluding those taking a path parameter or wildcard (which
-// would need a seeded record this fixture does not create) and the badge endpoint (covered above
-// with its own budget).
+// authenticatedGetRoutes returns the literal paths of every GET route registered inside router.go's
+// authenticated group that takes **no** path parameter -- the ones this fixture can request as they
+// stand.
+//
+// perRecordGetRoutes returns the complement: the `{...}` and `*` paths, which need a seeded record
+// before they mean anything. They were simply dropped here until 2026-09-28, with that reason stated
+// in place, and dropping them is how a live 404 on /machines/{machineID}/records/{id}/review survived
+// a day in production -- twelve routes that no test exercised at all. TestPerRecordGetRoutes
+// (routesweep_test.go) is what exercises them now, and it shares this parse so a route added tomorrow
+// lands in one list or the other rather than in neither.
 func authenticatedGetRoutes(t *testing.T) []string {
+	t.Helper()
+	return routerGetRoutes(t, false)
+}
+
+func perRecordGetRoutes(t *testing.T) []string {
+	t.Helper()
+	return routerGetRoutes(t, true)
+}
+
+// routerGetRoutes is the one parse of router.go both lists come from. withParams selects which half.
+func routerGetRoutes(t *testing.T, withParams bool) []string {
 	t.Helper()
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "router.go", nil, 0)
@@ -291,7 +308,7 @@ func authenticatedGetRoutes(t *testing.T) []string {
 			return true
 		}
 		path := strings.Trim(lit.Value, `"`)
-		if strings.ContainsAny(path, "{*") {
+		if strings.ContainsAny(path, "{*") != withParams {
 			return true
 		}
 		routes = append(routes, path)
@@ -389,6 +406,16 @@ func tracedTestPool(t *testing.T) *pgxpool.Pool {
 // cookie for a member of that Workspace.
 func newRouterTestSetup(t *testing.T, name string) (http.Handler, string) {
 	t.Helper()
+	h, cookie, _, _, _, _, _ := routerSetupParts(t, name)
+	return h, cookie
+}
+
+// routerSetupParts is the same fixture with its pieces returned, for the per-record sweep, which has
+// to seed records into the very Workspace and store this builds (routesweep_test.go). Split rather
+// than copied: two fixtures claiming to be "a real authenticated request" that drift apart is the
+// same two-lists-that-drift failure this package already gates elsewhere.
+func routerSetupParts(t *testing.T, name string) (http.Handler, string, context.Context, *data.Store, *storage.Store, domain.Workspace, string) {
+	t.Helper()
 	pool := tracedTestPool(t)
 	store := data.NewStore(pool)
 	cfg := config.Config{SessionSecret: name + "-secret", SecureCookies: false}
@@ -443,5 +470,5 @@ func newRouterTestSetup(t *testing.T, name string) (http.Handler, string) {
 		Workspaces:         map[string]domain.Workspace{ws.Slug: installed},
 		DefaultWorkspaceID: ws.ID,
 	})
-	return h, sessionCookieValueForTest(t, cfg, actor.ID, 0)
+	return h, sessionCookieValueForTest(t, cfg, actor.ID, 0), wsCtx, store, files, installed, actor.ID
 }

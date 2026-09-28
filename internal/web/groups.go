@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"menata.app/internal/authorization"
+	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/rendering"
@@ -40,15 +41,19 @@ func showGroupDetail(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		ws := rendering.CurrentWorkspace(ctx)
-		workspaceID, _ := data.WorkspaceScope(ctx)
 		groupID := chi.URLParam(req, "groupID")
 
-		group, err := store.GetGroup(ctx, workspaceID, groupID)
+		// Through the Loader's memoized Groups list rather than store.GetGroup: something else on this
+		// request already lists this Workspace's Groups, and each listing re-reads their role grants
+		// -- so asking for one Group by id read the same grants a second time (the per-record route
+		// sweep measured `group grants x2` for the same Workspace, 2026-09-28). Same data, one read.
+		ld := composition.NewLoader(store, machinesFor(ctx))
+		group, err := groupFromListing(ctx, ld, groupID)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		choices, err := groupMemberChoices(ctx, store, workspaceID, groupID)
+		choices, err := groupMemberChoices(ctx, ld, store, groupID)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -64,10 +69,30 @@ func showGroupDetail(store *data.Store, cfg config.Config) http.HandlerFunc {
 	}
 }
 
+// groupFromListing picks one Group out of the Workspace's own listing, reporting the same
+// ErrRecordNotFound store.GetGroup would for an id that is not there -- so the route still 404s
+// rather than rendering an empty screen.
+func groupFromListing(ctx context.Context, ld *composition.Loader, groupID string) (*data.Group, error) {
+	groups, err := ld.Groups(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range groups {
+		if groups[i].ID == groupID {
+			return &groups[i], nil
+		}
+	}
+	return nil, data.ErrRecordNotFound
+}
+
 // groupMemberChoices lists every Workspace member with whether they are currently in this Group --
 // what the detail screen's checkbox list renders.
-func groupMemberChoices(ctx context.Context, store *data.Store, workspaceID, groupID string) ([]rendering.GroupMemberChoice, error) {
-	members, err := store.ListMembers(ctx, workspaceID)
+func groupMemberChoices(ctx context.Context, ld *composition.Loader, store *data.Store, groupID string) ([]rendering.GroupMemberChoice, error) {
+	// Through the Loader, not store.ListMembers: that call reaches ListGroups itself (for each
+	// member's own Groups), so a screen that also lists Groups read them -- and their role grants --
+	// twice. Loader.Members already feeds ListMembersFrom its memoized Group list; this screen simply
+	// was not asking the Loader.
+	members, err := ld.Members(ctx)
 	if err != nil {
 		return nil, err
 	}

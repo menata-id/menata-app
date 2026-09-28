@@ -42,7 +42,12 @@ func showReviewDocument(store *data.Store, files *storage.Store, cfg config.Conf
 			return
 		}
 		actor := currentActor(req, store, cfg)
-		step, ok := reviewStep(ctx, w, store, machines, machine, chi.URLParam(req, "id"), actor.ID)
+		// One Loader for the whole request: ReviewDocument and the page count both read this Step's
+		// own Document, and resolving which Step to open on lists the very steps ReviewDocument then
+		// lists again. Two Loaders would each read all of it afresh -- measured at three reads of one
+		// Document before this (the per-record route sweep, 2026-09-28).
+		ld := composition.NewLoader(store, machines)
+		step, ok := reviewStep(ctx, w, ld, machine, chi.URLParam(req, "id"), actor.ID)
 		if !ok {
 			return
 		}
@@ -54,9 +59,9 @@ func showReviewDocument(store *data.Store, files *storage.Store, cfg config.Conf
 			serverError(w, err)
 			return
 		}
-		view, err := composition.ReviewDocument(ctx, composition.NewLoader(store, machines),
+		view, err := composition.ReviewDocument(ctx, ld,
 			machineForStep(ctx), machineForDocument(ctx), step, actor,
-			documentPageCount(ctx, store, files, step), hasSignature, time.Now())
+			documentPageCount(ctx, ld, files, step), hasSignature, time.Now())
 		if err != nil {
 			serverError(w, err)
 			return
@@ -78,12 +83,12 @@ func showReviewDocument(store *data.Store, files *storage.Store, cfg config.Conf
 // Fails open, the same posture documentSignaturePlacementView already takes for the same file: a
 // Document with no PDF attached, or one whose bytes are unreadable, is a page that renders without
 // a page count -- never a 500. Reviewing a document must not depend on rasterizing it.
-func documentPageCount(ctx context.Context, store *data.Store, files *storage.Store, step *data.Record) int {
+func documentPageCount(ctx context.Context, ld *composition.Loader, files *storage.Store, step *data.Record) int {
 	documentID := composition.DisplayString(step.Values[action.DeclaredFields(machineForStep(ctx), machineForDocument(ctx)).Parent])
 	if documentID == "" {
 		return 0
 	}
-	_, fileBytes, err := loadDocumentPDF(ctx, store, files, documentID)
+	_, fileBytes, err := loadDocumentPDF(ctx, ld, files, documentID)
 	if err != nil {
 		log.Printf("review page count for document %s: %v", documentID, err)
 		return 0
@@ -115,8 +120,8 @@ func documentPageCount(ctx context.Context, store *data.Store, files *storage.St
 // A Document with no steps 404s: the screen's whole subject is a step's decision, and there is
 // none to show. Nothing in the app links there -- the card falls back to the generic page in that
 // one case -- so this is the hand-typed-URL path.
-func reviewStep(ctx context.Context, w http.ResponseWriter, store *data.Store, machines map[string]*domain.Machine, machine *domain.Machine, id, viewerID string) (*data.Record, bool) {
-	record, err := store.GetRecord(ctx, machine.ID, id)
+func reviewStep(ctx context.Context, w http.ResponseWriter, ld *composition.Loader, machine *domain.Machine, id, viewerID string) (*data.Record, bool) {
+	record, err := ld.Record(ctx, machine.ID, id)
 	if err != nil {
 		recordError(w, err)
 		return nil, false
@@ -128,7 +133,7 @@ func reviewStep(ctx context.Context, w http.ResponseWriter, store *data.Store, m
 		http.Error(w, "not found", http.StatusNotFound)
 		return nil, false
 	}
-	step, err := composition.ReviewStepForDocument(ctx, composition.NewLoader(store, machines), machineForStep(ctx), machineForDocument(ctx), record, viewerID)
+	step, err := composition.ReviewStepForDocument(ctx, ld, machineForStep(ctx), machineForDocument(ctx), record, viewerID)
 	if err != nil {
 		serverError(w, err)
 		return nil, false

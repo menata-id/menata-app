@@ -77,12 +77,14 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 		if !ok {
 			return
 		}
-		record, err := store.GetRecord(req.Context(), machine.ID, chi.URLParam(req, "id"))
+		// The Loader first, and the record through it: the signature-placement embed below reads this
+		// same Document again, and a direct store read leaves nothing to memoize against.
+		ld := composition.NewLoader(store, machines)
+		record, err := ld.Record(req.Context(), machine.ID, chi.URLParam(req, "id"))
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		ld := composition.NewLoader(store, machines)
 		relations, err := ld.RelationOptions(req.Context(), machine)
 		if err != nil {
 			serverError(w, err)
@@ -101,7 +103,7 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				serverError(w, err)
 				return
 			}
-			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID, actor)
+			sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
 			workspaceName, viewer, switchHref, err := pageChrome(req.Context(), req, store, cfg)
 			if err != nil {
 				serverError(w, err)
@@ -116,7 +118,7 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				serverError(w, err)
 				return
 			}
-			sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID, actor)
+			sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
 			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement))
 			return
 		}
@@ -351,7 +353,7 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 			serverError(w, err)
 			return
 		}
-		sigPlacement := documentSignaturePlacementView(req.Context(), store, files, machines, machine, record.ID, actor)
+		sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
 		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement))
 		return
 	}

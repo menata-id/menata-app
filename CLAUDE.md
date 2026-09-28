@@ -345,6 +345,14 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   called `app_persetujuan` over `mch_surat`/`mch_langkah` engages the approval engine because it
   *declares* the binding, and every Machine whose Application declares none — including
   "dokter-kecil"'s own unbound `mch_document`, the one that panicked two pages — engages nothing.
+- `TestPerRecordGetRoutes` (`internal/web`, needs `DATABASE_URL`) — the *other half* of the route
+  table. The sweep above covers GET routes with no path parameter; this one seeds a record per
+  installed Machine and covers the 12 that take one, both directions: a route valid for this Machine
+  must render, and a Machine in no workflow role must still 404. A per-record route with no case
+  fails, so a new one lands in one sweep or the other rather than in neither. It exists because
+  `/review` 404'd on every Document for a day in production while failing in a shape it is supposed
+  to have — nothing logged, nothing panicked, no test failed. Resolve a role-gated route's Machine
+  with `MachineInWorkflowRole`, never by naming `mch_document`.
 - `TestFixturesMirrorTheRealMachines` (`internal/web` and `internal/composition`) — a test fixture
   standing in for a real Machine may not declare fewer *rule* blocks than it
   (`domain.Machine.DeclaredRuleBlocks`: permissions, transitions, actions, events, sequencing,

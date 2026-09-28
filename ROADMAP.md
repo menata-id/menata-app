@@ -3106,6 +3106,47 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   that already existed. The lesson is the one this file keeps relearning -- a deferral reason that
   covers *part* of a population reads as if it covers all of it, and only counting tells you which.
 
+  **The blind spot that let it ship is now closed** (2026-09-28, `TestPerRecordGetRoutes`). The 404
+  lived in a gap a gate already declared: `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed` parses
+  router.go precisely so a new route is covered without anyone remembering -- and then dropped every
+  `{...}` path, saying why in place ("would need a seeded record this fixture does not create").
+  **33 routes swept, 12 exercised by nothing at all**, including the one that broke.
+
+  The new sweep seeds one record per installed Machine, built from each Machine's own declared Fields
+  in dependency order rather than from a hand-written table, and requests all twelve -- **60 route
+  instances across 12 patterns**. It asserts *both* directions, which is the part that matters: a
+  route valid for this Machine renders, and a Machine cast in no workflow role still 404s. Only the
+  first half would have been satisfied by "make /review always return 200"; the second is the branch
+  the real bug hid behind. Role-gated routes ask `MachineInWorkflowRole` rather than naming
+  `mch_document`. Mutation-proved three ways: restoring the original `nil` fails it, making /review
+  always succeed fails it, and dropping a route from the case list fails it.
+
+  **What the query invariants found, and what fixing them cost.** Owner chose to fix rather than
+  ratchet, and all five were real:
+
+  | route | before | cause |
+  |---|---|---|
+  | `/machines/{m}/records/{id}` | `repeated=5`, 19 queries | the detail page, its signature-placement embed and the PDF page count each built their *own* `composition.Loader`, so there was nothing to memoize against |
+  | `/review` (Document) | `repeated=3` | same, plus resolving which Step to open on listed the steps `ReviewDocument` then listed again |
+  | `/review` (Step) | `repeated=1` | one Document read twice |
+  | `/workspace-members/{id}/edit` | `repeated=3` | **not a bug** -- see below |
+  | `/workspace-groups/{id}` | `repeated=1` | `ListMembers` reaches `ListGroups` itself, so a screen that also lists Groups read them, and their grants, twice |
+
+  Fixes: `composition.Loader` gained `Record` (a single-record memo -- it had `ListRecords` and
+  `ListRecordsBy` but no per-id one, which is why three reads of one Document were invisible to it);
+  one Loader per request on the detail and review routes instead of two or three; and the Group detail
+  screen now reads through `Loader.Members`/`Groups`, which already feed `ListMembersFrom` a memoized
+  Group list. All five routes are at `repeated=0`, and the detail page dropped from 19 queries to 15.
+
+  **One of the five was the metric being wrong, and proving that mattered more than fixing it.**
+  `/workspace-members/{id}/edit` reported `membership x2` -- but an admin editing another member
+  legitimately reads two memberships, theirs and the viewer's, and `ReadLog.record` counts by target
+  *name* with no subject. Rather than assume either way, the fixture was changed to edit a *different*
+  member: the repeat persisted, which proved the metric under-specified rather than the screen wrong.
+  `recordFor(target, subject)` now names the subject for the five per-subject reads, so two reads
+  about two people stop reading as a repeat. A diagnostic that cries wolf is worse than one that says
+  less.
+
   **A live 404 shipped in the middle of this sequence, and how it hid is the part worth keeping.**
   `14c9223` (the derivation slice) replaced `action.FieldStepDocument` with
   `action.DeclaredFields(stepMachine, nil).Parent` inside `composition.ReviewStepForDocument`. That

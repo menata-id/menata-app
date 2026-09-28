@@ -50,6 +50,36 @@ func (l *ReadLog) Queries() int {
 	return l.queries
 }
 
+// recordFor names one read that is *about a particular subject* -- a membership, a person's app
+// roles, one Group's grants.
+//
+// It exists because `repeated` counts by target name alone, and for these reads that was a false
+// positive rather than a finding: an admin editing another member legitimately reads two
+// memberships, theirs and the viewer's, and the diagnostic reported "membership x2" as a repeat.
+// Measured directly on 2026-09-28 -- the per-record route sweep still reported repeated=3 after the
+// fixture was changed to edit a *different* member, which is what proved the metric wrong rather
+// than the screen.
+//
+// Only reads keyed by a subject take this. A whole-Machine list has no subject to name, and giving
+// it a synthetic one would make every such read look distinct and hide the repeats that are real.
+func (l *ReadLog) recordFor(target, subject string) {
+	if subject == "" {
+		l.record(target)
+		return
+	}
+	l.record(target + " " + shortSubject(subject))
+}
+
+// shortSubject keeps a diagnostic line readable: ids here are 28 characters and the line already
+// carries a dozen targets. The last six are enough to tell two subjects apart, which is the only
+// thing this needs to do.
+func shortSubject(id string) string {
+	if len(id) <= 6 {
+		return "(" + id + ")"
+	}
+	return "(…" + id[len(id)-6:] + ")"
+}
+
 // Target names one read: the Machine, plus the field a child-collection read filtered on.
 func (l *ReadLog) record(target string) {
 	if l == nil {

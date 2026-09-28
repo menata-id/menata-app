@@ -33,6 +33,11 @@ type Loader struct {
 
 	listed   map[string][]*data.Record
 	listedBy map[string][]*data.Record
+	// record memoizes single-record reads by (Machine, id). Added 2026-09-28 when the per-record
+	// route sweep measured one Document read three times in one request: the detail page, the
+	// signature-placement embed and the PDF page count each fetched it through *store* rather than
+	// through this type, so there was nothing to memoize with.
+	record map[string]*data.Record
 
 	// personNames memoizes PersonNames for this request; nil means "not read yet", which is
 	// distinguishable from an empty Workspace because MemberNames always returns a non-nil map.
@@ -57,6 +62,7 @@ func NewLoader(store *data.Store, machines map[string]*domain.Machine) *Loader {
 		machines: machines,
 		listed:   map[string][]*data.Record{},
 		listedBy: map[string][]*data.Record{},
+		record:   map[string]*data.Record{},
 	}
 }
 
@@ -107,6 +113,31 @@ func (l *Loader) ListRecordsBy(ctx context.Context, machineID, fieldID, value st
 	l.reads++
 	l.listedBy[key] = records
 	return records, nil
+}
+
+// Record returns one record, reading each (Machine, id) at most once per request.
+//
+// It is the single-record counterpart of ListRecords/ListRecordsBy, and it exists for the same
+// reason they do: a screen that shows a record and then composes something *about* that record
+// (its child collections, its signature placement, its page count) asked the store for it again
+// each time. The per-record route sweep measured a Document read three times on one Review request
+// and twice on one detail request.
+//
+// The same request-scoped contract applies as to the rest of this type: a Loader must not span a
+// write, because a memo would then serve the pre-write state.
+func (l *Loader) Record(ctx context.Context, machineID, id string) (*data.Record, error) {
+	key := machineID + "\x00" + id
+	if cached, ok := l.record[key]; ok {
+		l.served++
+		return cached, nil
+	}
+	record, err := l.store.GetRecord(ctx, machineID, id)
+	if err != nil {
+		return nil, err
+	}
+	l.reads++
+	l.record[key] = record
+	return record, nil
 }
 
 // PersonNames maps every mch_user record id in this request's Workspace to the display name of

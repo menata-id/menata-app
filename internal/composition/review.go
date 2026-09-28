@@ -37,7 +37,7 @@ import (
 func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *domain.Machine, step *data.Record, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) (rendering.ReviewView, error) {
 	f := action.DeclaredFields(stepMachine, docMachine)
 	documentID := DisplayString(step.Values[f.Parent])
-	document, err := l.store.GetRecord(ctx, docMachine.ID, documentID)
+	document, err := l.Record(ctx, docMachine.ID, documentID)
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}

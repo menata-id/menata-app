@@ -161,7 +161,7 @@ type Membership struct {
 
 // appRolesFor reads the per-Application roles of one member.
 func (s *Store) appRolesFor(ctx context.Context, workspaceID, userRecordID string) (map[string]string, error) {
-	readLogFrom(ctx).record("member app roles")
+	readLogFrom(ctx).recordFor("member app roles", userRecordID)
 	rows, err := s.pool.Query(ctx, `
 		SELECT application_id, role FROM workspace_member_app_roles
 		WHERE workspace_id = $1 AND user_record_id = $2
@@ -269,7 +269,7 @@ func (s *Store) AddMember(ctx context.Context, workspaceID, userRecordID, email,
 // userRecordID rather than an email (the caller usually only has the former, from an already-
 // resolved session).
 func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID string) (*Membership, error) {
-	readLogFrom(ctx).record("membership")
+	readLogFrom(ctx).recordFor("membership", userRecordID)
 	m := &Membership{WorkspaceID: workspaceID, UserRecordID: userRecordID}
 	err := s.pool.QueryRow(ctx, `
 		SELECT email, workspace_role, COALESCE(app_role, ''), deactivated_at

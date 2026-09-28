@@ -94,7 +94,7 @@ func (s *Store) attachGrants(ctx context.Context, workspaceID string, groups []G
 	if len(groups) == 0 {
 		return groups, nil
 	}
-	readLogFrom(ctx).record("group grants")
+	readLogFrom(ctx).recordFor("group grants", workspaceID)
 	rows, err := s.pool.Query(ctx, `
 		SELECT r.group_id, r.application_id, r.role
 		FROM workspace_group_app_roles r
@@ -236,7 +236,7 @@ func (s *Store) GroupsForMember(ctx context.Context, workspaceID, userRecordID s
 	if userRecordID == "" {
 		return nil, nil
 	}
-	readLogFrom(ctx).record("groups for member")
+	readLogFrom(ctx).recordFor("groups for member", userRecordID)
 	rows, err := s.pool.Query(ctx, `
 		SELECT g.id, g.name, r.application_id, r.role
 		FROM workspace_group_members m
@@ -427,7 +427,7 @@ func (s *Store) ActorMembership(ctx context.Context, workspaceID, userRecordID s
 	// membership row is "" rather than an error: an identity with no membership -- the shared
 	// admin credential's placeholder -- holds no Workspace role, and "" satisfies no Permission
 	// that asks for one, which is the fail-closed direction.
-	readLogFrom(ctx).record("membership")
+	readLogFrom(ctx).recordFor("membership", userRecordID)
 	var workspaceRole string
 	err = s.pool.QueryRow(ctx, `
 		SELECT workspace_role FROM workspace_members

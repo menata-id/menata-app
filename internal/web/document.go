@@ -761,14 +761,15 @@ func showSignaturePlacement(store *data.Store, files *storage.Store, cfg config.
 		}
 		ctx := req.Context()
 		documentID := chi.URLParam(req, "id")
-		document, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, store, files, machines, documentID)
+		ld := composition.NewLoader(store, machines)
+		document, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, ld, files, machines, documentID)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
 		page := pageFromQuery(req, totalPages)
 		actor := currentActor(req, store, cfg)
-		view, err := composition.SignaturePlacement(ctx, composition.NewLoader(store, machines),
+		view, err := composition.SignaturePlacement(ctx, ld,
 			machineForStep(ctx), machine, document, steps, relations, page, totalPages, actor)
 		if err != nil {
 			serverError(w, err)
@@ -790,8 +791,8 @@ func showSignaturePlacement(store *data.Store, files *storage.Store, cfg config.
 // showSignaturePlacement, extracted so documentSignaturePlacementView below doesn't duplicate it.
 // It does not take a page number: totalPages is an output (the caller decides which page to show,
 // or -- for the inline embed -- always shows page 1), not an input this loading step needs.
-func loadSignaturePlacementData(ctx context.Context, store *data.Store, files *storage.Store, machines map[string]*domain.Machine, documentID string) (*data.Record, []*data.Record, rendering.RelationOptions, int, error) {
-	document, fileData, err := loadDocumentPDF(ctx, store, files, documentID)
+func loadSignaturePlacementData(ctx context.Context, ld *composition.Loader, files *storage.Store, machines map[string]*domain.Machine, documentID string) (*data.Record, []*data.Record, rendering.RelationOptions, int, error) {
+	document, fileData, err := loadDocumentPDF(ctx, ld, files, documentID)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
@@ -810,11 +811,14 @@ func loadSignaturePlacementData(ctx context.Context, store *data.Store, files *s
 	if stepMachine == nil {
 		return nil, nil, nil, 0, fmt.Errorf("this workspace has no approval step machine")
 	}
-	steps, err := store.ListRecordsBy(ctx, stepMachine.ID, action.DeclaredFields(stepMachine, machines[approvalMachineID(ctx, domain.WorkflowRoleDocument)]).Parent, documentID)
+	// Through the request's own Loader, not a second one built here: this function is called from a
+	// page that has already listed these very steps as a child collection, and a fresh Loader has an
+	// empty memo, so the duplicate was structural rather than accidental. Measured by the per-record
+	// route sweep, 2026-09-28.
+	steps, err := ld.ListRecordsBy(ctx, stepMachine.ID, action.DeclaredFields(stepMachine, machines[approvalMachineID(ctx, domain.WorkflowRoleDocument)]).Parent, documentID)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
-	ld := composition.NewLoader(store, machines)
 	relations, err := ld.RelationOptions(ctx, stepMachine)
 	if err != nil {
 		return nil, nil, nil, 0, err
@@ -830,11 +834,11 @@ func loadSignaturePlacementData(ctx context.Context, store *data.Store, files *s
 // here is logged and treated as "nothing to show inline", not a reason to 500 the whole page --
 // the same "best-effort, logged, never blocks the primary flow" posture already established for
 // PDF signature compositing (capabilities.md).
-func documentSignaturePlacementView(ctx context.Context, store *data.Store, files *storage.Store, machines map[string]*domain.Machine, machine *domain.Machine, recordID string, actor domain.Actor) *rendering.DocumentSignaturePlacement {
+func documentSignaturePlacementView(ctx context.Context, ld *composition.Loader, files *storage.Store, machines map[string]*domain.Machine, machine *domain.Machine, recordID string, actor domain.Actor) *rendering.DocumentSignaturePlacement {
 	if !action.IsDocument(machine) {
 		return nil
 	}
-	document, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, store, files, machines, recordID)
+	document, steps, relations, totalPages, err := loadSignaturePlacementData(ctx, ld, files, machines, recordID)
 	if err != nil {
 		log.Printf("signature placement inline view for document %s: %v", recordID, err)
 		return nil
@@ -843,7 +847,7 @@ func documentSignaturePlacementView(ctx context.Context, store *data.Store, file
 	// rendered here but not its marker. Named rather than fixed: the dedicated screen is where
 	// placement happens, and giving the embed a pager would duplicate that screen inside a page
 	// that is already the generic record view.
-	view, err := composition.SignaturePlacement(ctx, composition.NewLoader(store, machines),
+	view, err := composition.SignaturePlacement(ctx, ld,
 		machineForStep(ctx), machine, document, steps, relations, 1, totalPages, actor)
 	if err != nil {
 		log.Printf("signature placement inline view for document %s: %v", recordID, err)
@@ -865,7 +869,7 @@ func servePDFPreview(store *data.Store, files *storage.Store) http.HandlerFunc {
 			http.Error(w, "PDF preview only applies to a Document", http.StatusNotFound)
 			return
 		}
-		_, fileData, err := loadDocumentPDF(req.Context(), store, files, chi.URLParam(req, "id"))
+		_, fileData, err := loadDocumentPDF(req.Context(), composition.NewLoader(store, machinesFor(req.Context())), files, chi.URLParam(req, "id"))
 		if err != nil {
 			recordError(w, err)
 			return
@@ -892,8 +896,8 @@ func servePDFPreview(store *data.Store, files *storage.Store) http.HandlerFunc {
 // loadDocumentPDF fetches document's own fld_file upload and reads it off local disk, for both
 // showSignaturePlacement and servePDFPreview -- the one place either handler needs the raw PDF
 // bytes.
-func loadDocumentPDF(ctx context.Context, store *data.Store, files *storage.Store, documentID string) (*data.Record, []byte, error) {
-	document, err := store.GetRecord(ctx, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID)
+func loadDocumentPDF(ctx context.Context, ld *composition.Loader, files *storage.Store, documentID string) (*data.Record, []byte, error) {
+	document, err := ld.Record(ctx, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID)
 	if err != nil {
 		return nil, nil, err
 	}
