@@ -123,6 +123,48 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   the upstream capability registry already carries them as admitted, built, conformance-tested
   rows, so the work is to implement those capabilities rather than to re-decide them. Breakdown
   and running order: `menata-app-document`'s `case-03-composability-checklist.md`.
+
+  **Composability is layered here, and measuring it as a yes/no gets the answer wrong** (owner,
+  2026-09-28, correcting exactly that mistake made in this session: *"bukannya ini juga sudah
+  composable juga? hanya level composable nya memang bisa beberapa lapis bukan?"*). Asked whether
+  the real Document Approval could be reused in another Workspace, the first answer given was
+  "no, it is not metadata-based" -- demonstrated by renaming the Application id and watching the
+  engine stop engaging. That demonstration proved something real but much narrower than claimed,
+  and the owner's framing is the accurate one. Measured layer by layer against the actual files:
+
+  | Layer | Status | Where |
+  |---|---|---|
+  | Data shape -- Machines, Fields, relations | **metadata** | `fields:` across `document`/`approval_step`/`signature.yaml` |
+  | Access -- who may do what | **metadata** | `permissions:` + `actor_field:`, an Application's own `roles:` |
+  | State model -- which moves exist, and their gating | **metadata** | `transitions:`, `sequencing:` |
+  | Reactions -- rollup, notification, activity log | **metadata** | `events:` → `service:`, from `domain.KnownServices` |
+  | Aggregation and list presentation | **metadata** | `datasets:`, `views:`, `card_fields:`, `sla_field:` |
+  | Bespoke screens | Go | `approvalinbox`/`documentsubmit`/`reviewdocument`/`signatureplacement.templ` |
+  | Action *effect* -- which Fields `decide` writes | Go | `internal/web.decideStep` |
+  | Domain service -- signature capture, PDF compositing | Go | `internal/web.signDocument`, absent from `KnownServices` |
+  | Binding -- how the Go engine finds "its" Machines | Go | `action.IsDocument`/`IsStep`, matching a literal Application id |
+
+  Five layers are fully declarative and four are not, so the honest statement is **"composable,
+  and the remaining work is deepening and widening the metadata"** -- not "not metadata-based".
+  The app genuinely installs from its metadata and runs: a copy into a fresh Workspace loads and
+  the engine engages (verified against the real loader, 2026-09-28).
+
+  **What that narrower demonstration did prove** is worth keeping, correctly sized: the *binding*
+  layer is itself hardcoded. The engine finds its Machines by matching the literal
+  `app_document_approval`, so the app can be installed and run as-is but cannot be renamed, varied,
+  or used as the engine behind a second, differently-named approval Application. That is one of
+  the four remaining layers, not evidence against the other five.
+
+  **Each remaining layer already has the mechanism waiting for it**, which is why this is
+  deepening rather than a rewrite: `KnownServices` is a closed registry with three members and
+  needs a fourth for signatures/PDF; `KnownActions` already carries `decide` as a *name* that
+  Permissions gate and Transitions reference, and what is missing is a way to declare an Action's
+  *effect* (`decideStep` writes exactly two Fields -- `fld_decision` from the submitted value,
+  `fld_decided_by_name` from the actor -- then dispatches Events that are already declarative);
+  007 §12 already defines Page/Layout/Component/Slot for the screens; and the binding could be
+  declared by the Application rather than matched by literal. Measured against 001 #2 ("Application
+  behavior belongs to the runtime") and 006's own Action definition (which names Approve and Reject
+  explicitly), those four are the distance left to close.
 - **Porting the Case 03 Flow 1 design** (owner mockup, 2026-09-20, unpacked into
   `ui-sample/case-03-flow1/` — twelve desktop boards at 1280px, ten mobile at 390px, two of them
   marked TIDAK DIPAKAI). The gap study behind the sequence below found three things worth
