@@ -45,13 +45,21 @@ func approvalStepTestMachine() *domain.Machine {
 			{ID: action.FieldStepSignatureWidth, Name: "Signature Width", Type: domain.FieldTypeNumber},
 			{ID: action.FieldStepSignatureImage, Name: "Signature Image", Type: domain.FieldTypeFile},
 		},
-		// ApplicationID, the roles: arm and the transitions below all mirror
-		// metadata/approval_step.yaml as of Fase 7, for the same reason the rollup Event does: a
-		// fixture that omits them lets these tests pass against a Machine looser than the one that
-		// actually runs. internal/conformance.TestApprovalStepPermissionsCarryRoles and
+		// ApplicationID, the workflow binding, the roles: arm and the transitions below all mirror
+		// metadata/approval_step.yaml and its Application as of Fase 7, for the same reason the
+		// rollup Event does: a fixture that omits them lets these tests pass against a Machine
+		// looser than the one that actually runs.
+		// internal/conformance.TestApprovalStepPermissionsCarryRoles and
 		// TestApprovalStepDeclaresItsTransitions are what keep the real manifest honest; this is
 		// what keeps the fixture honest about the manifest.
-		ApplicationID: "app_document_approval",
+		//
+		// WorkflowEngine/WorkflowRole are what the loader stamps from the Application's own
+		// `workflow:` block (2026-09-28), and what action.IsStep reads. Omitting them is how this
+		// fixture reads as "some Workspace's Machine called mch_approval_step" rather than as an
+		// approval step, which is exactly the distinction the binding exists to make.
+		ApplicationID:  "app_document_approval",
+		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
+		WorkflowRole:   domain.WorkflowRoleStep,
 		Permissions: []domain.Permission{
 			{ID: "prm_decide_own_step", Action: domain.ActionDecide, Roles: approverOnly, ActorField: action.FieldStepAssignee},
 			{ID: "prm_edit_own_step", Action: domain.ActionEdit, Roles: approverOnly, ActorField: action.FieldStepAssignee},

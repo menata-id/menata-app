@@ -203,6 +203,11 @@ type Application struct {
 	// Application's own card on Workspace Home links to. Decided at the same point and for the
 	// same reason as PrimaryNavGroup. Empty when no navigation item declares home_card: true.
 	HomeRoute string
+	// Workflow is the runtime workflow engine this Application runs on, and which of its own
+	// Machines plays each role in it -- nil for an Application that runs on none, which is every
+	// plain CRUD Application. See Workflow's own doc comment for why the binding is declared here
+	// rather than matched as a literal in Go.
+	Workflow *Workflow
 	// AllNavigation is the full declared navigation list, before ShowNav suppresses anything --
 	// unlike Navigation, it is never emptied.
 	//

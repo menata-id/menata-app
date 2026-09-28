@@ -20,19 +20,20 @@ import (
 )
 
 const (
-	// ApplicationID is the Application this whole package's hardcoded engine belongs to, and the
-	// half of "which Machine is this" that the Machine ids below stopped being able to answer on
-	// their own.
+	// DocumentMachineID and StepMachineID are the ids the template library's own Document Approval
+	// gives these two Machines (metadata/document.yaml, metadata/approval_step.yaml). They are what
+	// this package's callers use to *name* a Machine -- look one up, query its records, build a URL
+	// -- and deliberately no longer how anything decides whether a Machine is this engine's: that
+	// question is IsDocument/IsStep below, which read the Application's own declared binding.
 	//
-	// Until Workspace isolation shipped (2026-09-27) a Machine id was unique across the whole
-	// process, so `m.ID == DocumentMachineID` really did mean "*the* Document Approval Document".
-	// Isolation makes a different Workspace's own, unrelated Machine sharing that id legitimate --
-	// which is the point of it, not a flaw -- and a generated "Document Tracking" Application did
-	// exactly that the same night, then panicked its way through code that had taken the id as
-	// proof of identity. IsDocument/IsStep below ask both questions: which Application claims this
-	// Machine, and which Machine within it.
-	ApplicationID = "app_document_approval"
-
+	// Two corrections are worth keeping in view here, because each one removed an identity claim
+	// these constants were carrying. Until Workspace isolation (2026-09-27) a Machine id was unique
+	// across the process, so `m.ID == DocumentMachineID` really did mean "*the* Document Approval
+	// Document" -- until a generated "Document Tracking" Application took the name the same night
+	// and panicked its way through code that had taken the id as proof. The fix added the
+	// Application id to the comparison, which held only while the Application was named
+	// app_document_approval: renaming it, or installing a second approval Application beside it,
+	// stopped the engine waking at all (audit Gap C). domain.Workflow is what answers both.
 	DocumentMachineID = "mch_document"
 	StepMachineID     = "mch_approval_step"
 
@@ -107,24 +108,32 @@ const (
 	FieldTemplateStepApproverGroup = "fld_approver_group"
 )
 
-// IsDocument and IsStep answer "is this Machine one this package's hardcoded engine owns" -- the
-// question every generic screen and handler actually needs before opting into Document Approval
-// behaviour, and the one a bare id comparison silently got wrong once two Workspaces could each
-// hold their own Machine under one id (see ApplicationID above).
+// IsDocument and IsStep answer "is this Machine one this engine acts on, and in which role" -- the
+// question every generic screen and handler needs before opting into approval behaviour, and the
+// single seam all 29 of those call sites go through, which is why the answer could be rewritten
+// here without touching one of them.
 //
-// Both halves matter. ApplicationID says which Application claims this Machine, so another
-// Workspace's own mch_document -- a perfectly legitimate name for its own business -- is not
-// mistaken for this one. The Machine id says which Machine within that Application, since
-// Document Approval claims five of them.
+// What they read is the Application's own declaration (domain.Workflow, stamped onto the Machine at
+// load): this Machine's Application says it runs the document_approval engine, and says this
+// Machine is its document, or its step. Nothing here matches a name. An approval Application may
+// therefore be called anything, its Machines may be called anything, and a Workspace may install a
+// second one beside the first -- all three of which were impossible while these predicates matched
+// the literals `app_document_approval` / `mch_document` / `mch_approval_step` (ROADMAP.md
+// "Document Approval: closing the last three layers", Stage A).
 //
-// A Machine claimed by no Application at all (mch_user, mch_activity -- Workspace-level, claimed
-// by none) has an empty ApplicationID and is correctly neither.
+// A Machine whose Application binds no engine -- every plain CRUD Application, and the
+// Workspace-level mch_user/mch_activity/mch_notification that no Application claims at all -- has
+// both fields empty and is correctly neither.
 func IsDocument(m *domain.Machine) bool {
-	return m != nil && m.ApplicationID == ApplicationID && m.ID == DocumentMachineID
+	return isWorkflowRole(m, domain.WorkflowRoleDocument)
 }
 
 func IsStep(m *domain.Machine) bool {
-	return m != nil && m.ApplicationID == ApplicationID && m.ID == StepMachineID
+	return isWorkflowRole(m, domain.WorkflowRoleStep)
+}
+
+func isWorkflowRole(m *domain.Machine, role string) bool {
+	return m != nil && m.WorkflowEngine == domain.WorkflowEngineDocumentApproval && m.WorkflowRole == role
 }
 
 // decisionOf reads a step's own decision value. Kept after CanDecide moved to

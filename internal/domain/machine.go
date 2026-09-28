@@ -306,9 +306,20 @@ type Machine struct {
 	// carry a role-bearing Permission, which internal/metadata refuses at load rather than
 	// letting it silently deny everyone.
 	ApplicationID string
-	Fields        []Field
-	Constraints   []Constraint
-	Events        []Event
+	// WorkflowEngine and WorkflowRole are this Machine's part in its Application's declared
+	// workflow binding (Application.Workflow), resolved once at load time from that one
+	// declaration (internal/metadata.stampWorkflowRoles) rather than declared here -- the same
+	// derive-don't-retype reasoning as ApplicationID above.
+	//
+	// Both empty for a Machine whose Application binds no engine, or one it binds but gives no
+	// role. They are what internal/action's IsDocument/IsStep ask, in place of the Application-id
+	// and Machine-id literals those predicates used to match: the engine now wakes for whichever
+	// Machines an Application *says* play its roles, under any names.
+	WorkflowEngine string
+	WorkflowRole   string
+	Fields         []Field
+	Constraints    []Constraint
+	Events         []Event
 	// MemberRemovalBlocks declare when a record naming a person blocks deactivating them out of
 	// the Workspace (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27) -- see MemberRemovalBlock's
 	// own doc comment for why this is not a second Constraint shape.

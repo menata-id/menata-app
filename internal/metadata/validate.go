@@ -938,6 +938,33 @@ func stampApplicationIDs(applications []domain.Application, machines []*domain.M
 	}
 }
 
+// stampWorkflowRoles fills domain.Machine.WorkflowEngine/WorkflowRole from each Application's own
+// `workflow:` block, the same derive-don't-retype relationship stampApplicationIDs has with
+// `machines:` (001 Principle #8): the binding is declared once, on the Application, and this is the
+// per-Machine index over it.
+//
+// It runs after validateWorkflowBinding has already established that every role names a Machine
+// this Application claims and that no Machine holds two roles, so there is nothing ambiguous left
+// to resolve here. A Machine whose Application binds no engine, or binds one without naming it,
+// keeps both fields empty -- which is what action.IsDocument/IsStep read as "not mine".
+func stampWorkflowRoles(applications []domain.Application, machines []*domain.Machine) {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	for _, app := range applications {
+		if app.Workflow == nil {
+			continue
+		}
+		for role, machineID := range app.Workflow.Roles {
+			if m, ok := byID[machineID]; ok {
+				m.WorkflowEngine = app.Workflow.Engine
+				m.WorkflowRole = role
+			}
+		}
+	}
+}
+
 // validatePermissionRoles is CAP-P01's cross-Machine half: a Permission's `roles:` name words
 // from the vocabulary of the Application that claims its Machine, and that Application has to
 // both exist and declare them.

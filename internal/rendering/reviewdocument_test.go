@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"menata.app/internal/action"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 )
@@ -74,14 +73,16 @@ func TestReviewDecisionBar_opensTheSignatureModalOnlyWithoutOneOnFile(t *testing
 // control here would silently recreate two renderings of one decision and put that entry back, so
 // this asserts the link is what an Approval Step's detail page offers now.
 func TestRecordDetailView_noLongerCarriesTheDecisionBar(t *testing.T) {
-	// ApplicationID as well as the id: since Workspace isolation (2026-09-27) another Workspace may
-	// legitimately have its own Machine named mch_approval_step, so action.IsStep asks which
-	// Application claims it -- a fixture declaring only the id is no longer Document Approval's.
+	// The workflow binding, not the id: action.IsStep asks which engine this Machine's Application
+	// declared and which role it gave this Machine (domain.Workflow, 2026-09-28), so a fixture
+	// naming only mch_approval_step is any Workspace's Machine of that name, not an approval step.
 	m := &domain.Machine{
-		ID:            "mch_approval_step",
-		ApplicationID: action.ApplicationID,
-		Name:          "Approval Step",
-		Fields:        []domain.Field{{ID: "fld_sequence", Name: "Sequence", Type: domain.FieldTypeNumber}},
+		ID:             "mch_approval_step",
+		ApplicationID:  "app_document_approval",
+		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
+		WorkflowRole:   domain.WorkflowRoleStep,
+		Name:           "Approval Step",
+		Fields:         []domain.Field{{ID: "fld_sequence", Name: "Sequence", Type: domain.FieldTypeNumber}},
 	}
 	r := &data.Record{ID: "stp_1", Values: map[string]any{"fld_sequence": float64(1)}}
 

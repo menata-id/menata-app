@@ -51,6 +51,11 @@ import (
 // each member and confirm the loader does not reject it *for being unknown*. Other complaints
 // (a Service's own required keys) are expected and ignored -- this gate is about recognition, not
 // configuration.
+//
+// domain.KnownWorkflowEngines is deliberately absent, because it cannot have this failure: its
+// validator (internal/metadata.validateWorkflowBinding) reads the registry itself rather than
+// repeating its members in a switch, so there is no second list to drift from. That is the shape
+// KnownActions/KnownServices would have to take to retire their half of this gate.
 func TestClosedRegistryMembersAreAcceptedByTheLoader(t *testing.T) {
 	for service := range domain.KnownServices {
 		m := &domain.Machine{
@@ -88,6 +93,11 @@ func TestClosedRegistryMembersAreAcceptedByTheLoader(t *testing.T) {
 // by the loader, and yet appears in no manifest anywhere is a capability only Go can start, which
 // is 001 #3 inverted: the application would be evolving by changing source, not metadata.
 //
+// domain.KnownWorkflowEngines joined the two original registries on 2026-09-28 (Stage A), and is the
+// clearest case of what this gate is for: the approval engine existed for weeks with *no* metadata
+// seam at all -- it selected its own Machines by matching literals -- so there was nothing a manifest
+// could have named. An engine back in that state would pass every other test in this repo.
+//
 // The audit's Gap B is exactly this shape caught early: signature/PDF compositing is invoked from
 // flow code and named by no `events:` block, so when it becomes a Service it must arrive with the
 // declaration that activates it rather than a fourth registry line and another direct call.
@@ -113,6 +123,20 @@ func TestClosedRegistryMembersAreActivatedByMetadata(t *testing.T) {
 			for _, e := range m.Events {
 				usedServices[e.Then.Name] = true
 			}
+		}
+	}
+
+	usedEngines := map[string]bool{}
+	for _, ws := range installed {
+		for _, app := range ws.Workspace.Applications {
+			if app.Workflow != nil {
+				usedEngines[app.Workflow.Engine] = true
+			}
+		}
+	}
+	for engine := range domain.KnownWorkflowEngines {
+		if !usedEngines[engine] {
+			t.Errorf("domain.KnownWorkflowEngines declares %q, but no installed Workspace's Application binds it in a workflow: block -- an engine no Application can name is one only Go can start, which is the shape Stage A removed (see workflow_binding_test.go). Declare the binding where the engine is meant to run, or remove it", engine)
 		}
 	}
 

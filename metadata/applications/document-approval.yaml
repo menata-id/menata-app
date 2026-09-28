@@ -73,6 +73,27 @@ machines:
   - mch_approval_flow_template
   - mch_approval_flow_template_step
 
+# workflow: which runtime workflow engine this Application runs on, and which of its own Machines
+# plays each role in it (domain.Workflow; ROADMAP.md "Document Approval: closing the last three
+# layers", Stage A).
+#
+# Until 2026-09-28 this was declared nowhere. internal/action decided "is this Machine the document"
+# by matching the literals app_document_approval + mch_document, so the approval engine woke for
+# exactly one Application name holding exactly two Machine names: renaming this Application, or
+# installing a second differently-named approval Application beside it, left every screen rendering
+# while no approval mechanics engaged at all. 001 Principle #2 puts application behavior in the
+# runtime, and an engine that recognises only one set of names is behavior owned by one application.
+# Saying it here is what makes the engine available to any Application that asks for it.
+#
+# engine is a closed set (domain.KnownWorkflowEngines), and its roles are required and validated at
+# load: an engine cannot run against a partial cast, each role must name one of this Application's
+# *own* machines above, and one Machine may hold only one role.
+workflow:
+  engine: document_approval
+  roles:
+    document: mch_document
+    step: mch_approval_step
+
 # roles: this Application's own role vocabulary -- what a member may be assigned *in this
 # Application*, which is a different question from their Workspace role (admin/member).
 #

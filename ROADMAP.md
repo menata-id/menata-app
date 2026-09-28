@@ -2664,11 +2664,23 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   **Verification, and the honest test of whether it worked**: install Document Approval into
   "dokter-kecil", whose `mch_document` is taken, and confirm the copy loads, the renamed Machine
   keeps its own records empty while Document Tracking's are untouched, and `action.IsDocument`
-  still engages for the copy -- which it will only do if the Application id survives the rename,
-  or if Stage A of the entry below has already made the binding declared. **Those two entries meet
-  here**: until the binding is declared, a Workspace that already has an `app_document_approval`
-  cannot take a second copy under a different name, so collision resolution for Applications is
-  capped by that gap rather than by this one.
+  still engages for the copy.
+
+  **The Application half of that is now unblocked** (Stage A of the entry below, shipped
+  2026-09-28): the engine reads a declared `workflow:` binding instead of matching
+  `app_document_approval`, so a renamed Application -- or a second one installed beside the first --
+  engages exactly as the original does. This paragraph used to end "capped by that gap rather than by
+  this one"; the cap is gone.
+
+  **What the same change exposed as the real remaining obstacle is the Machine half, and it is
+  bigger than the rename.** 66 references across 18 files still ask for a Machine by its literal id
+  (`machines[action.StepMachineID]`, `store.ListRecordsBy(ctx, action.StepMachineID, ...)`,
+  `fmt.Sprintf("/machines/%s/...", action.DocumentMachineID)`) -- all legal, none an identity claim,
+  and all wrong the moment an install renames `mch_document`. So step 3 above is not only about
+  rewriting references *inside* the copied metadata: the runtime has to be able to ask "which Machine
+  plays the step role here" instead of naming one. The binding makes that answerable for the first
+  time; doing it is what would finally move `documentApprovalCoupling`, which Stage A did not (see
+  its own entry for why that is correct rather than a shortfall).
 
 - **Document Approval: closing the last three layers** (owner request, 2026-09-28: audit how
   metadata-based the real Document Approval is against 001-007, then plan it). The audit is
@@ -2689,16 +2701,72 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   touching the Experience-architecture decisions that make the screen work expensive -- the same
   property that let Stage 0/1 go first in that checklist.
 
-  **Stage A -- declare the binding, stop matching a literal.** Smallest, and the only one that is
-  currently *wrong* rather than merely absent. `action.IsDocument`/`IsStep` match the literal
-  `app_document_approval`, so the engine runs for exactly one Application name: the app installs
-  and runs as-is, but cannot be renamed, varied, or reused behind a second, differently-named
-  approval Application. 001 #2 says application behavior belongs to the runtime, and an engine that
-  only wakes for one name is behavior owned by one application. Replace the literal with something
-  an Application declares about itself; the two predicates are already the single seam every call
-  site goes through (23 of them were converted to it on 2026-09-27), so this changes one function,
-  not the call sites. `TestNoBareMachineIDIdentityChecks` already forbids the shape this would
-  regress to.
+  **Stage A -- declare the binding, stop matching a literal -- ~~planned~~ shipped 2026-09-28.**
+  Smallest, and the only one that was *wrong* rather than merely absent. `action.IsDocument`/`IsStep`
+  matched the literal `app_document_approval`, so the engine ran for exactly one Application name:
+  the app installed and ran as-is, but could not be renamed, varied, or reused behind a second,
+  differently-named approval Application. 001 #2 says application behavior belongs to the runtime,
+  and an engine that only wakes for one name is behavior owned by one application. The two
+  predicates were already the single seam every call site goes through (23 of them were converted to
+  it on 2026-09-27), so this changed one function, not the call sites.
+
+  **What shipped.** An Application declares the binding on itself:
+
+  ```yaml
+  workflow:
+    engine: document_approval
+    roles:
+      document: mch_document
+      step: mch_approval_step
+  ```
+
+  `domain.Workflow` + `KnownWorkflowEngines` (a closed registry mapping each engine to the roles it
+  requires -- the same static-seam discipline `KnownActions`/`KnownServices` already follow),
+  `metadata.validateWorkflowBinding` (unknown engine, missing role, misspelled role, a role naming a
+  Machine this Application does not claim, one Machine in two roles -- all load-time errors, since
+  every one of them is silent at runtime), `metadata.stampWorkflowRoles` (the per-Machine index over
+  that one declaration, exactly as `stampApplicationIDs` is over `machines:`), and
+  `domain.Machine.WorkflowEngine`/`WorkflowRole`, which is what the two predicates now read.
+  `action.ApplicationID` is deleted -- nothing needs it, which is the proof the literal is gone.
+
+  **Verified, in the order that matters.** The property first, through the real loader rather than a
+  hand-stamped fixture: an Application called `app_persetujuan` over `mch_surat`/`mch_langkah`
+  engages both predicates, a third Machine it claims but casts in no role engages neither
+  (`TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames`). Every name in that test would have
+  failed the day before. Then the control over the real installed Workspaces
+  (`TestUnboundMachinesAreNotTheEngines`), where "dokter-kecil"'s own unbound `mch_document` -- the
+  Machine whose arrival panicked two pages on 2026-09-27 -- is correctly nothing to the engine. Then
+  three mutations, each watched to fail: reverting the predicates to matching literals (the property
+  test *and* the new `TestNoApplicationIDIdentityChecks`), deleting the `workflow:` block from the
+  installed Application (the activation gate, plus two live web tests), and removing the stamping
+  call (five tests across three packages). Then live, against `localhost:4000` with a real admin
+  session: a Document's detail page still reads `mch_approval_step by fld_document` and still renders
+  its signature-placement block, which is `IsDocument` engaging through the declaration.
+
+  **Two gates landed with it**, in the order this repo requires (build, migrate, *then* gate):
+  `TestNoApplicationIDIdentityChecks`, which forbids comparing an id against an `"app_..."` literal
+  and deliberately covers `internal/action` too, since that is the one place the shape ever actually
+  appeared; and `domain.KnownWorkflowEngines` joining `TestClosedRegistryMembersAreActivatedByMetadata`,
+  so an engine no manifest binds fails the build. That second one is the clearest case yet of what
+  that gate is for: this engine ran for weeks with *no* metadata seam at all, selecting its own
+  Machines by matching literals, so there was nothing a manifest could have named.
+
+  **The one prediction this entry got wrong, recorded rather than quietly dropped:** the note below
+  says a stage that works will make `documentApprovalCoupling` drop, and "if the number does not
+  move, the stage did not." It did not move -- 66 across 18 files, unchanged -- and the stage was
+  still correct. The ratchet counts references to the Machine-id *constants*, and every one of those
+  66 is a lookup, a record query or a URL built from an id; the identity coupling Stage A removed was
+  already funnelled through `IsDocument`/`IsStep`, which the ratchet cannot see by design (it is
+  `TestNoBareMachineIDIdentityChecks` that holds that shape). So the ratchet measures *naming*
+  coupling, not identity coupling, and Stage A was never going to move it. What will: resolving those
+  lookups **by role** rather than by id -- `machines[action.StepMachineID]` becoming "this Workspace's
+  Machine playing the step role", which the binding now makes possible for the first time. That is
+  also the missing piece for the install-collision entry above: renaming a colliding `mch_document`
+  on install produces a copy that loads, binds and engages, while all 66 of those lookups still ask
+  for the old id. Two open questions come with it, neither mechanical: whether the engine's declared
+  cast extends to `mch_signature`/`mch_approval_flow_template`/`..._step` (20-odd of the 66 name
+  those, and they hold no role today), and where the resolver lives for `internal/composition` and
+  `.templ` callers that hold a Loader or a ctx rather than a Machine map.
 
   **Stage B -- an Action may declare what it writes.** 006 names Approve and Reject explicitly as
   Actions, and `decide` already exists here as a *name*: `domain.KnownActions` carries it,
@@ -2735,9 +2803,17 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     Machine-id constants, frozen at 66 across 18 files. **A stage that works will make counts
     drop, and a count that drops *fails* until its entry is lowered** -- that is deliberate, so an
     improvement is locked in rather than left as headroom. Lowering an entry (or deleting it when a
-    file reaches zero) is part of finishing the stage, not a workaround. It is also the honest
-    measure of whether a stage did what it claimed: **if the number does not move, the stage did
-    not.**
+    file reaches zero) is part of finishing the stage, not a workaround.
+
+    It was also claimed here to be "the honest measure of whether a stage did what it claimed: if
+    the number does not move, the stage did not." **Stage A proved that too strong, and the
+    correction is worth more than the slogan.** This ratchet counts *naming* -- lookups, record
+    queries, URLs built from a Machine-id constant. Stage A removed *identity* coupling, which had
+    already been funnelled into `IsDocument`/`IsStep` on 2026-09-27 and is held by
+    `TestNoBareMachineIDIdentityChecks` instead, so there was never a reference here for it to
+    remove. Before starting a stage, ask which of the two kinds of coupling it addresses, and expect
+    this number to move only for the naming kind. Stages B and C are both naming-kind and should
+    still move it.
   - `TestClosedRegistryMembersAreActivatedByMetadata` will fail Stage C the moment a
     `composite_signature_pdf` (or whatever it is called) is added to `domain.KnownServices` without
     an `events:` block naming it. That is the gate doing its job: the Service must arrive *with*

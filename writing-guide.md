@@ -746,6 +746,39 @@ dropping a file in *installs* its Applications into that Workspace. `application
 | `machines[]` | `mch_*` ids | Selected from the Workspace's set, never file paths. At most one Application may claim a given Machine |
 | `roles[]` | strings | This Application's own role vocabulary; optional. Captions the Members list — not yet an authorization input |
 | `navigation[]` | list of items | This Application's own menu |
+| `workflow` | `{engine, roles{}}` | Optional — which runtime workflow engine this Application runs on, and which of its own Machines plays each role in it (2026-09-28). See below |
+
+**`workflow:` — binding a runtime engine to your own Machines**
+
+```yaml
+workflow:
+  engine: document_approval
+  roles:
+    document: mch_document
+    step: mch_approval_step
+```
+
+`engine` is a closed set (`domain.KnownWorkflowEngines`) with one member today,
+`document_approval`: the sequential/parallel multi-step approval engine in `internal/action`. Its
+required roles are `document` (what is being approved) and `step` (one approval decision each). Both
+are required — an engine cannot run against a partial cast — and each must name a Machine **this**
+Application claims in its own `machines:` above. One Machine may hold only one role. Every one of
+those is a load-time error.
+
+What the binding buys you: the engine engages because you *declared* it, not because anything is
+named a particular way. Before 2026-09-28 `internal/action` matched the literals
+`app_document_approval` + `mch_document` / `mch_approval_step`, so an approval Application had to
+carry those exact three ids or the engine silently never woke — the screens rendered and nothing
+approved. With the binding, `app_persetujuan` over `mch_surat`/`mch_langkah` works identically
+(`internal/conformance.TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames` is that exact
+case).
+
+What it does **not** yet buy you: the engine still reads its Machines' Fields by hardcoded id
+(`fld_decision`, `fld_sequence`, `fld_assignee`, …), so a Machine you bind has to carry those Field
+ids for the mechanics to work. Naming the engine's *cast* is declared; naming its *fields* is not
+(ROADMAP.md, Stage B — "an Action may declare what it writes"). This is why the AI assistant is
+deliberately not told about `workflow:` yet: it could produce an Application that binds correctly and
+still does nothing.
 
 There is no `application:` singular block and no `hidden_nav_groups:` any more — the first became
 `applications:`, the second became per-Application `show_nav:` (2026-09-20).
@@ -1094,7 +1127,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 
 | Generic (any Machine, metadata only) | Hardcoded to specific Machines (real Go code required for a new one) |
 |---|---|
-| CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded, and *which decisions are legal at all* moved left in Fase 7 (`transitions:`, replacing `internal/web`'s own `allowsDecisionChange`) |
+| CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded, *which decisions are legal at all* moved left in Fase 7 (`transitions:`, replacing `internal/web`'s own `allowsDecisionChange`), and **which Machines it acts on** moved left on 2026-09-28 (`workflow:` — the engine no longer matches the ids `app_document_approval`/`mch_document`/`mch_approval_step`, it runs over whatever Machines an Application declares for its roles). What is still Go is the *Fields* it reads and writes |
 | Relations, `person`, child collections, many-to-many | Document submission wizard |
 | Constraints (`equals`/`not_equals` shape) | Signature-coordinate placement screen |
 | Events (field-change, record-creation, or schedule/time-passing → one Service) | PDF signature compositing |
@@ -1127,9 +1160,13 @@ that will fail validation or silently do nothing.
 
 Honest current limits, not a roadmap — some of these may change over time:
 
-- **Three Actions, one of them hardcoded to a single Machine pair.** `decide`, `edit`, `delete` —
-  and `decide` only ever runs for `mch_document`/`mch_approval_step`. See §8 — this is the limit
-  most likely to matter for a new business process.
+- **Three Actions, one of them hardcoded to a single Field vocabulary.** `decide`, `edit`, `delete`.
+  Since 2026-09-28 `decide` no longer runs only for the ids `mch_document`/`mch_approval_step`: an
+  Application declares which of its Machines play the engine's `document` and `step` roles
+  (`workflow:`, §12.1), under any names. What is still Go is one level down — the engine reads and
+  writes Fields by hardcoded id (`fld_decision`, `fld_sequence`, `fld_assignee`, …), so a Machine you
+  bind must carry that vocabulary. See §8 — this is the limit most likely to matter for a new
+  business process.
 - **Unknown metadata keys are ignored, not rejected.** A misspelled or retired key (`view:` where
   `views:` is meant, `sla_filed:` for `sla_field:`) loads without complaint and the capability
   simply never appears. Everything the runtime *does* know is validated strictly — unknown field

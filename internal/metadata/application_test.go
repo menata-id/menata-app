@@ -3,6 +3,7 @@ package metadata
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"menata.app/internal/domain"
@@ -1277,5 +1278,148 @@ roles:
 `)
 	if _, err := LoadApplication(filepath.Join(dir, "app.yaml")); err == nil {
 		t.Error("LoadApplication() = nil, want an error -- a role-bearing permission on a machine no application claims can never be satisfied")
+	}
+}
+
+// workflowManifest writes a Workspace holding one Application over two Machines, with whatever
+// `workflow:` block a case wants to test. The Machine ids are deliberately *not* the template
+// library's mch_document/mch_approval_step: the binding must work by what the Application declares,
+// not by what anything is called, so a fixture using the familiar names could not tell the
+// difference (ROADMAP.md Stage A).
+func workflowManifest(t *testing.T, workflow string) string {
+	t.Helper()
+	dir := t.TempDir()
+	writeFile(t, dir, "surat.yaml", "id: mch_surat\nname: Surat\n")
+	writeFile(t, dir, "langkah.yaml", "id: mch_langkah\nname: Langkah\n")
+	writeFile(t, dir, "lain.yaml", "id: mch_lain\nname: Lain\n")
+	writeFile(t, dir, "app.yaml", `
+workspace: default
+machines:
+  - surat.yaml
+  - langkah.yaml
+  - lain.yaml
+applications:
+  - app-main.yaml
+  - app-other.yaml
+`)
+	writeFile(t, dir, "app-main.yaml", `
+id: app_persetujuan
+name: Persetujuan
+machines:
+  - mch_surat
+  - mch_langkah
+`+workflow)
+	writeFile(t, dir, "app-other.yaml", "id: app_lain\nname: Lain\nmachines:\n  - mch_lain\n")
+	return filepath.Join(dir, "app.yaml")
+}
+
+const validWorkflow = `workflow:
+  engine: document_approval
+  roles:
+    document: mch_surat
+    step: mch_langkah
+`
+
+// The binding is declared once, on the Application, and stamped onto each Machine it names -- the
+// same derive-don't-retype relationship ApplicationID has with `machines:`. A Machine the binding
+// does not name keeps both fields empty, which is what action.IsDocument/IsStep read as "not mine".
+func TestLoadApplication_stampsWorkflowRoles(t *testing.T) {
+	app, err := LoadApplication(workflowManifest(t, validWorkflow))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+
+	want := map[string][2]string{
+		"mch_surat":   {domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument},
+		"mch_langkah": {domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleStep},
+		"mch_lain":    {"", ""}, // another Application's Machine, bound to nothing
+	}
+	for _, m := range app.Machines {
+		got := [2]string{m.WorkflowEngine, m.WorkflowRole}
+		if got != want[m.ID] {
+			t.Errorf("%s: engine/role = %v, want %v", m.ID, got, want[m.ID])
+		}
+	}
+
+	// And the declaration itself survives on the Application, since that is what an installer has
+	// to rewrite when a collision forces a rename (ROADMAP.md "Installing a template into a
+	// Workspace that already uses its ids").
+	binding := app.Workspace.Applications[0].Workflow
+	if binding.MachineForRole(domain.WorkflowRoleDocument) != "mch_surat" {
+		t.Errorf("Workflow.MachineForRole(document) = %q, want mch_surat", binding.MachineForRole(domain.WorkflowRoleDocument))
+	}
+	if app.Workspace.Applications[1].Workflow != nil {
+		t.Error("an Application declaring no workflow: must load with a nil binding, not an empty one -- nil is what \"runs on no engine\" means")
+	}
+}
+
+// Every one of these is silent if it loads: the Application renders its screens while the engine
+// either never engages or engages over the wrong records. See validateWorkflowBinding.
+func TestLoadApplication_workflowBindingMustBeRealizable(t *testing.T) {
+	tests := []struct {
+		name     string
+		workflow string
+		want     string
+	}{
+		{
+			name: "unknown engine",
+			workflow: `workflow:
+  engine: persetujuan_berlapis
+  roles:
+    document: mch_surat
+    step: mch_langkah
+`,
+			want: "not an engine this runtime realizes",
+		},
+		{
+			name: "missing role",
+			workflow: `workflow:
+  engine: document_approval
+  roles:
+    document: mch_surat
+`,
+			want: "requires a machine for role \"step\"",
+		},
+		{
+			name: "misspelled role, reported as itself and not only as the missing one",
+			workflow: `workflow:
+  engine: document_approval
+  roles:
+    document: mch_surat
+    steps: mch_langkah
+`,
+			want: "declares no role \"steps\"",
+		},
+		{
+			name: "role naming a machine this application does not claim",
+			workflow: `workflow:
+  engine: document_approval
+  roles:
+    document: mch_surat
+    step: mch_lain
+`,
+			want: "not one of this application's own machines",
+		},
+		{
+			name: "one machine in two roles",
+			workflow: `workflow:
+  engine: document_approval
+  roles:
+    document: mch_surat
+    step: mch_surat
+`,
+			want: "declared for both workflow roles",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := LoadApplication(workflowManifest(t, tt.workflow))
+			if err == nil {
+				t.Fatalf("LoadApplication() error = nil, want one containing %q", tt.want)
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("LoadApplication() error = %v, want it to contain %q", err, tt.want)
+			}
+		})
 	}
 }

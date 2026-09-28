@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -90,6 +91,19 @@ type applicationDoc struct {
 	// to false and silently suppress every Application's menu.
 	ShowNav    *bool        `yaml:"show_nav"`
 	Navigation []navItemDoc `yaml:"navigation"`
+	// Workflow binds this Application to a runtime workflow engine and says which of its own
+	// Machines plays each role -- see domain.Workflow. Optional: a plain CRUD Application declares
+	// none, which is the normal case.
+	Workflow *workflowDoc `yaml:"workflow"`
+}
+
+type workflowDoc struct {
+	Engine string `yaml:"engine"`
+	// Roles maps a role name the engine requires to a Machine id, e.g. `document: mch_document`.
+	// A map rather than named keys per role, so an engine's cast is declared by
+	// domain.KnownWorkflowEngines and validated against it, instead of every engine's roles
+	// needing their own struct field here.
+	Roles map[string]string `yaml:"roles"`
 }
 
 type navItemDoc struct {
@@ -250,6 +264,7 @@ func LoadApplication(path string) (*App, error) {
 	// Machine's ApplicationID is only unambiguous once "claimed by at most one Application" has
 	// been established.
 	stampApplicationIDs(app.Workspace.Applications, app.Machines)
+	stampWorkflowRoles(app.Workspace.Applications, app.Machines)
 	if err := validatePermissionRoles(app.Workspace.Applications, app.Machines); err != nil {
 		return nil, err
 	}
@@ -329,6 +344,7 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 	if doc.SummaryMachine != "" && !slices.Contains(doc.Machines, doc.SummaryMachine) {
 		issues = append(issues, fmt.Sprintf("application %q: summary_machine %q is not one of this application's own machines -- a card must report its own count, not another application's", doc.ID, doc.SummaryMachine))
 	}
+	issues = append(issues, validateWorkflowBinding(doc)...)
 	if len(issues) > 0 {
 		return nil, &ValidationError{Issues: issues}
 	}
@@ -361,6 +377,15 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 		navigation = nil
 	}
 
+	var workflow *domain.Workflow
+	if doc.Workflow != nil {
+		roles := make(map[string]string, len(doc.Workflow.Roles))
+		for role, machineID := range doc.Workflow.Roles {
+			roles[role] = machineID
+		}
+		workflow = &domain.Workflow{Engine: doc.Workflow.Engine, Roles: roles}
+	}
+
 	return &domain.Application{
 		ID:              doc.ID,
 		Name:            doc.Name,
@@ -376,7 +401,57 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 		PrimaryNavGroup: primaryNavGroup,
 		HomeRoute:       homeRoute,
 		AllNavigation:   allNavigation,
+		Workflow:        workflow,
 	}, nil
+}
+
+// validateWorkflowBinding closes every way a `workflow:` block could name something the runtime
+// cannot realize. Each of these failures is silent at runtime if it loads, which is why they are
+// all load-time errors (005 Phase 3: invalid metadata must not enter execution):
+//
+//   - an unknown engine would bind to nothing, and the Application would render its screens while
+//     no approval mechanics ever engaged;
+//   - a missing role would leave the engine half-cast, failing on the first request rather than at
+//     load -- engines require their whole cast, see domain.KnownWorkflowEngines;
+//   - an unknown role name is almost always a misspelled required one, which without this check
+//     reports as "missing" *and* leaves the typo unexplained;
+//   - a role naming a Machine this Application does not claim would hand the engine records
+//     belonging to another Application, past the claim boundary Machine.ApplicationID establishes;
+//   - two roles naming one Machine would make IsDocument and IsStep both true for it, and every
+//     caller that branches on the pair would take whichever branch it happens to test first.
+func validateWorkflowBinding(doc applicationDoc) []string {
+	w := doc.Workflow
+	if w == nil {
+		return nil
+	}
+
+	var issues []string
+	required, known := domain.KnownWorkflowEngines[w.Engine]
+	if !known {
+		return []string{fmt.Sprintf("application %q: workflow.engine %q is not an engine this runtime realizes -- see domain.KnownWorkflowEngines", doc.ID, w.Engine)}
+	}
+	for _, role := range required {
+		if strings.TrimSpace(w.Roles[role]) == "" {
+			issues = append(issues, fmt.Sprintf("application %q: workflow engine %q requires a machine for role %q -- an engine cannot run against a partial cast", doc.ID, w.Engine, role))
+		}
+	}
+	byMachine := make(map[string]string, len(w.Roles))
+	for _, role := range slices.Sorted(maps.Keys(w.Roles)) {
+		machineID := w.Roles[role]
+		if !slices.Contains(required, role) {
+			issues = append(issues, fmt.Sprintf("application %q: workflow engine %q declares no role %q -- its roles are %v", doc.ID, w.Engine, role, required))
+			continue
+		}
+		if !slices.Contains(doc.Machines, machineID) {
+			issues = append(issues, fmt.Sprintf("application %q: workflow role %q names machine %q, which is not one of this application's own machines -- an engine may only act on the records its application claims", doc.ID, role, machineID))
+		}
+		if earlier, taken := byMachine[machineID]; taken {
+			issues = append(issues, fmt.Sprintf("application %q: machine %q is declared for both workflow roles %q and %q -- one Machine plays one role", doc.ID, machineID, earlier, role))
+			continue
+		}
+		byMachine[machineID] = role
+	}
+	return issues
 }
 
 func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {

@@ -70,14 +70,29 @@ references, claimed by no Application. `internal/conformance`'s
 model whose own three comments described it accurately right up until a generated Application
 overwrote `metadata/document.yaml` and destroyed it.
 
-**So a Machine id no longer identifies a Machine — ask which Application claims it.** Use
-`action.IsDocument`/`action.IsStep` (which check `domain.Machine.ApplicationID` *and* the id),
-never `m.ID == action.DocumentMachineID`. Twenty-three call sites did the latter, correctly, while
-ids were unique across the process; the first Workspace to legitimately name its own
-`mch_document` made every one of them wrong, and two of them panicked before anyone noticed.
-`TestNoBareMachineIDIdentityChecks` holds this now. The same reasoning applies to any future
-hardcoded Case 19-style behavior: the id says *which Machine within an Application*, never *which
-Application*.
+**So a Machine id no longer identifies a Machine — and neither does an Application's name (2026-09-28).**
+Use `action.IsDocument`/`action.IsStep`, never `m.ID == action.DocumentMachineID`. Twenty-three call
+sites did the latter, correctly, while ids were unique across the process; the first Workspace to
+legitimately name its own `mch_document` made every one of them wrong, and two of them panicked
+before anyone noticed. `TestNoBareMachineIDIdentityChecks` holds this now.
+
+The fix that day put `m.ApplicationID == "app_document_approval"` inside those predicates, which was
+right about the question and wrong about the answer: it identified the Application *by its name*, so
+the approval engine woke for exactly one Application name — renaming Document Approval, or installing
+a second approval Application beside it, silently disengaged every approval mechanic while the
+screens kept rendering. What the predicates read now is what the Application **declares about
+itself**: `workflow: {engine: document_approval, roles: {document: ..., step: ...}}`, resolved at load
+onto `domain.Machine.WorkflowEngine`/`WorkflowRole` (`domain.Workflow`, `metadata.stampWorkflowRoles`).
+`TestNoApplicationIDIdentityChecks` forbids the literal coming back, and
+`TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames` proves an `app_persetujuan` over
+`mch_surat`/`mch_langkah` engages identically.
+
+The general rule, and it applies to any future hardcoded Case 19-style behavior: **a name is never an
+identity the runtime may branch on.** The Machine id says *which Machine within an Application*, never
+which Application; the Application id says *which installation*, never which behavior. If code needs
+to know "is this one of mine", the Application has to declare it, and `workflow:` is the worked
+example of how — a closed engine registry (`domain.KnownWorkflowEngines`) whose roles are validated at
+load against the Application's own `machines:`.
 
 **And a Workspace's own ids are still reserved against itself.** Isolation relaxed exactly one
 thing — the same name in a *different* Workspace. Two Machines under one id inside one Workspace
@@ -275,17 +290,28 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   with a short closed allowlist for the three runtime-level Machines that stay shared
   (`mch_user`, `mch_activity`, `mch_notification`); and two Workspaces must be able to hold
   *different* Machines under one id, asserted against the real loader.
-- `TestNoBareMachineIDIdentityChecks` — outside `internal/action`, no code may decide "is this
-  Document Approval's Machine" by comparing against `action.DocumentMachineID` and friends. Use
-  `action.IsDocument`/`IsStep`, which check which *Application* claims the Machine as well as
-  which Machine it is. Only comparisons are gated: building a URL from those constants, looking a
-  Machine up by id, or querying records by one all name a Machine rather than claim an identity.
+- `TestNoBareMachineIDIdentityChecks` / `TestNoApplicationIDIdentityChecks` — the two halves of "a
+  name is not an identity". No code outside `internal/action` may decide "is this Document
+  Approval's Machine" by comparing against `action.DocumentMachineID` and friends; and no code —
+  `internal/action` **included**, since that is where it lived — may compare an id against an
+  `"app_..."` literal. Use `action.IsDocument`/`IsStep`, which read the Application's own declared
+  `workflow:` binding. Only comparisons are gated: building a URL from those constants, looking a
+  Machine up by id, querying records by one, or using an `app_...` string as a map key or column
+  value all name something rather than claim an identity (`internal/web.legacyAppRoleApplicationID`
+  is the documented case of the last one).
+- `TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames` / `TestUnboundMachinesAreNotTheEngines`
+  — the property those two gates exist to protect, asserted through the real loader: an Application
+  called `app_persetujuan` over `mch_surat`/`mch_langkah` engages the approval engine because it
+  *declares* the binding, and every Machine whose Application declares none — including
+  "dokter-kecil"'s own unbound `mch_document`, the one that panicked two pages — engages nothing.
 - `TestClosedRegistryMembersAreAcceptedByTheLoader` / `...AreActivatedByMetadata` — a new
   capability must arrive with its metadata seam, not just its Go. Every `domain.KnownActions`/
   `KnownServices` member must be (a) accepted by `internal/metadata`'s own validation, since the
   registry and that validation are two lists that drift, and (b) actually named by an installed
   Workspace's metadata — a capability no manifest can start is one only Go can reach, which is
-  001 #3 inverted.
+  001 #3 inverted. `domain.KnownWorkflowEngines` is held to (b) as well, and deliberately not to
+  (a): its validator reads the registry itself rather than repeating it in a switch, so it has no
+  second list to drift from.
 - `TestDocumentApprovalCouplingOnlyShrinks` — the third *ratchet*. `documentApprovalCoupling`
   freezes how many times each file outside `internal/action` names Document Approval's own
   Machine-id constants (66 across 18 files, 2026-09-28 — read the numbers out of the map, not out
