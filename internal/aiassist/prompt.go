@@ -47,7 +47,7 @@ what was asked and does not.`
 // surface boundary above, this workspace's own current installed applications (so an
 // extend_application request can be grounded in what's real), and the two-mode/confirm-until-
 // complete instructions.
-func SystemPromptFor(installed []InstalledApplication) string {
+func SystemPromptFor(installed []InstalledApplication, takenMachineIDs []string) string {
 	var b strings.Builder
 	b.WriteString(`You are the Menata Runtime's AI Metadata Assistant. A Workspace admin is describing either a
 brand-new business application, or a change to one already installed. Your job is to turn that
@@ -67,6 +67,18 @@ any code.
 				app.Name, app.ID, app.Description, strings.Join(app.Roles, ", "), strings.Join(app.MachineSummaries, "; ")))
 		}
 		b.WriteString("\n")
+	}
+
+	// Every machine id already taken in this Workspace, not only the ones an Application claims.
+	// mch_user/mch_activity/mch_notification are claimed by none, so listing Applications alone
+	// under-reported what is taken: internal/web.existingStateFor validates against all of them, so
+	// the assistant could propose one, be rejected, and never have been told the id was in use
+	// (found 2026-09-28 -- the owner's own "AI bisa antisipasi ini bukan?"). Telling it what
+	// validation already knows is what makes anticipating a collision possible rather than lucky.
+	if len(takenMachineIDs) > 0 {
+		b.WriteString("Machine ids already taken in this workspace -- a new machine may not reuse one: ")
+		b.WriteString(strings.Join(takenMachineIDs, ", "))
+		b.WriteString(".\nAnother workspace having a machine by the same name is fine; this list is only about this one.\n\n")
 	}
 
 	b.WriteString(`How to run the conversation:

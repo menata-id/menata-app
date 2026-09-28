@@ -144,7 +144,7 @@ func postNewApplicationMessage(store *data.Store, aiClient aiassist.Client, cfg 
 // ordinary conversational turn, never surfaced to the review step.
 func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.Client, workspaceID string, session *data.AISession) error {
 	ws := rendering.CurrentWorkspace(ctx)
-	prompt := aiassist.SystemPromptFor(installedApplicationsFor(ws))
+	prompt := aiassist.SystemPromptFor(installedApplicationsFor(ws), ws.MachineIDs)
 	turns := make([]aiassist.Turn, 0, len(session.Turns))
 	for _, t := range session.Turns {
 		turns = append(turns, aiassist.Turn{Role: t.Role, Text: t.Content})
