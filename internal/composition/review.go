@@ -35,12 +35,13 @@ import (
 // Composition plane a second, parallel way to reach the filesystem. Pass 0 when it is unknown; the
 // page renders without the page count rather than failing.
 func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *domain.Machine, step *data.Record, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) (rendering.ReviewView, error) {
-	documentID := DisplayString(step.Values[action.FieldStepDocument])
+	f := action.DeclaredFields(stepMachine, docMachine)
+	documentID := DisplayString(step.Values[f.Parent])
 	document, err := l.store.GetRecord(ctx, docMachine.ID, documentID)
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
-	siblings, err := l.ListRecordsBy(ctx, stepMachine.ID, action.FieldStepDocument, documentID)
+	siblings, err := l.ListRecordsBy(ctx, stepMachine.ID, f.Parent, documentID)
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
@@ -60,12 +61,14 @@ func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *dom
 // actionable, which approver is you, whether a signature placement exists) need related record
 // sets and a fixed clock, not a database.
 func buildReview(step, document *data.Record, siblings, activities []*data.Record, names map[string]string, stepMachine, docMachine *domain.Machine, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) rendering.ReviewView {
+	// One derivation for every Field id this screen reads (action.DeclaredFields) -- see buildInbox.
+	f := action.DeclaredFields(stepMachine, docMachine)
 
 	var seq *domain.Sequencing
 	if stepMachine != nil {
 		seq = stepMachine.Sequencing
 	}
-	decision := DisplayString(step.Values[action.FieldStepDecision])
+	decision := DisplayString(step.Values[f.Decision])
 
 	v := rendering.ReviewView{
 		StepID:       step.ID,
@@ -73,9 +76,9 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 		Reference:    action.DocumentReference(document.SortOrder),
 		Title:        DisplayString(document.Values["fld_title"]),
 		DocumentType: DisplayString(document.Values["fld_document_type"]),
-		Status:       DisplayString(document.Values[action.FieldDocumentStatus]),
-		Steps:        stepStates(seq, document, siblings, names, viewer.ID),
-		StepLabel:    stepLabel(step, names[DisplayString(step.Values[action.FieldStepAssignee])]),
+		Status:       DisplayString(document.Values[f.DocumentStatus]),
+		Steps:        stepStates(seq, document, siblings, names, viewer.ID, f),
+		StepLabel:    stepLabel(step, names[DisplayString(step.Values[f.Actor])]),
 		Decision:     decision,
 		PDFPages:     pdfPages,
 		HasSignature: hasSignature,
@@ -129,7 +132,7 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 			// Named only when it is somebody else's -- the panel switches to the third person on
 			// a non-empty Approver, and the viewer's own signature should never be labelled with
 			// their own name back at them.
-			Approver: placementApprover(step, names, viewer.ID),
+			Approver: placementApprover(step, names, viewer.ID, f),
 			Page:     page,
 			X:        x,
 			Y:        y,
@@ -186,7 +189,7 @@ func canStillDecide(stepMachine *domain.Machine, decision string) bool {
 	if len(stepMachine.Transitions) == 0 {
 		return true
 	}
-	for _, t := range stepMachine.TransitionsFrom(action.FieldStepDecision, decision) {
+	for _, t := range stepMachine.TransitionsFrom(stepMachine.ActionField(domain.ActionDecide), decision) {
 		if t.Action == domain.ActionDecide {
 			return true
 		}
@@ -219,14 +222,15 @@ func canStillDecide(stepMachine *domain.Machine, decision string) bool {
 // internal/web 404s, and internal/composition's own card falls back to the generic page rather
 // than linking a screen with nothing to render.
 func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine *domain.Machine, document *data.Record, viewerID string) (*data.Record, error) {
-	steps, err := l.ListRecordsBy(ctx, stepMachine.ID, action.FieldStepDocument, document.ID)
+	f := action.DeclaredFields(stepMachine, nil)
+	steps, err := l.ListRecordsBy(ctx, stepMachine.ID, f.Parent, document.ID)
 	if err != nil {
 		return nil, err
 	}
 	if len(steps) == 0 {
 		return nil, nil
 	}
-	ordered := orderedBySequence(steps)
+	ordered := orderedBySequence(steps, action.DeclaredFields(stepMachine, nil))
 
 	var seq *domain.Sequencing
 	if stepMachine != nil {
@@ -235,7 +239,7 @@ func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine *domain.M
 
 	var firstPending, waitingOn *data.Record
 	for _, s := range ordered {
-		if !canStillDecide(stepMachine, DisplayString(s.Values[action.FieldStepDecision])) {
+		if !canStillDecide(stepMachine, DisplayString(s.Values[f.Decision])) {
 			continue
 		}
 		if firstPending == nil {
@@ -248,7 +252,7 @@ func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine *domain.M
 			waitingOn = s
 		}
 		// The viewer's own actionable step wins outright, wherever it sits in the order.
-		if viewerID != "" && DisplayString(s.Values[action.FieldStepAssignee]) == viewerID {
+		if viewerID != "" && DisplayString(s.Values[f.Actor]) == viewerID {
 			return s, nil
 		}
 	}
@@ -265,8 +269,8 @@ func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine *domain.M
 // placementApprover names whose signature a placement belongs to, or "" when it is the viewer's
 // own. A step held by a Group has no one person's name to give, so it falls back to the step's own
 // label -- which is what the approval progress list already calls it.
-func placementApprover(step *data.Record, names map[string]string, viewerID string) string {
-	assignee := DisplayString(step.Values[action.FieldStepAssignee])
+func placementApprover(step *data.Record, names map[string]string, viewerID string, f action.EngineFields) string {
+	assignee := DisplayString(step.Values[f.Actor])
 	if assignee != "" && assignee == viewerID {
 		return ""
 	}

@@ -112,3 +112,99 @@ func (m *Machine) ActionField(actionName string) string {
 	}
 	return field
 }
+
+// --- reading what is already declared ------------------------------------------------------------
+//
+// The five accessors below answer "which Field holds X on this Machine" from declarations that
+// already exist, so code stops naming a Field id that metadata states elsewhere (001 Principle #8;
+// criterion B3 in menata-app-document's workflow-behavior-decomposition-criteria.md -- the existing
+// primitive already fits, so this reads it rather than building anything).
+//
+// **Each one takes the declaration that answers its own question**, which is the discipline that makes
+// them correct rather than merely convenient. The tempting source for "which Field holds the decision"
+// is sequencing.state_field -- it really is fld_decision in the manifest -- and it is wrong: Sequencing
+// declares how records are *ordered and locked*, so a Machine that orders nothing would have no
+// decision Field for no reason. That question belongs to the Transitions naming the Action
+// (ActionField above), which is independent of ordering.
+
+// ReferenceFieldTo is the Field on this Machine pointing at machineID -- how a child names its parent
+// without the caller knowing what that Field is called.
+//
+// Returns false when two Fields point at the same Machine: that is a real shape (a Machine may hold
+// two references to one target) and no answer is better than picking the first, the same posture
+// ActionField takes for an ambiguous Action.
+func (m *Machine) ReferenceFieldTo(machineID string) (Field, bool) {
+	var found Field
+	seen := 0
+	for _, f := range m.Fields {
+		if f.RelatedMachine == machineID {
+			found, seen = f, seen+1
+		}
+	}
+	if seen != 1 {
+		return Field{}, false
+	}
+	return found, true
+}
+
+// ActorFieldFor is the Field naming who may perform actionName, read from the Permission governing it
+// -- `prm_decide_own_step`'s own actor_field, rather than the id repeated in Go.
+//
+// The dynamic gate's actor_user_field wins where a Permission declares one, since that is the Field a
+// User-gated record actually names (CAP-F24); actor_field is the fallback every Permission has.
+func (m *Machine) ActorFieldFor(actionName string) string {
+	for _, p := range m.PermissionsFor(actionName) {
+		if p.DynamicActor != nil && p.DynamicActor.ActorUserField != "" {
+			return p.DynamicActor.ActorUserField
+		}
+		if p.ActorField != "" {
+			return p.ActorField
+		}
+	}
+	return ""
+}
+
+// ActorGateFor is the dynamic actor gate governing actionName, or nil where the Permission declares a
+// plain actor_field -- the two Fields a record uses to say *which kind* of actor gates it.
+func (m *Machine) ActorGateFor(actionName string) *DynamicActorGate {
+	for _, p := range m.PermissionsFor(actionName) {
+		if p.DynamicActor != nil {
+			return p.DynamicActor
+		}
+	}
+	return nil
+}
+
+// StatusField is the Field this Machine's own Transitions move -- its state model's subject, whoever
+// performs the moves.
+//
+// Empty when its edges move more than one Field, for the same reason ActionField is: two answers is no
+// answer, and a caller guessing between them would read a different Field than the one the author
+// meant. mch_document's six fld_status edges are the case this exists for, and none of them names an
+// Action at all (its status is derived), which is precisely why ActionField cannot answer it.
+func (m *Machine) StatusField() string {
+	field := ""
+	for _, t := range m.Transitions {
+		if field != "" && field != t.Field {
+			return ""
+		}
+		field = t.Field
+	}
+	return field
+}
+
+// OrderField and OpenValue are nil-safe reads of Sequencing, so a caller need not know whether this
+// Machine orders its records at all before asking. Empty means it does not.
+func (m *Machine) OrderField() string {
+	if m.Sequencing == nil {
+		return ""
+	}
+	return m.Sequencing.OrderField
+}
+
+func (m *Machine) OpenValue() string {
+	if m.Sequencing == nil {
+		return ""
+	}
+	return m.Sequencing.OpenValue
+}

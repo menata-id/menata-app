@@ -195,9 +195,20 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // asserting the claim is what makes it checkable.
 //
 // Frozen 2026-09-28 at 129 references across 13 files, immediately after `decide`, `revise` and the
-// submit wizard's own writes became declared -- **126 across 14 the same day**, when Stage C moved the
-// compositing operation out of internal/web (14 files for fewer references: a relocation adds a file and
-// subtracts from another, which is why the sweep below carries a total as well as per-file numbers). **The numbers may only go down**, on the same terms as
+// submit wizard's own writes became declared; 126 across 14 when Stage C moved the compositing operation
+// out of internal/web (a relocation adds a file and subtracts from another, which is why the sweep below
+// carries a total as well as per-file numbers); and **78 across 11 by the end of that day**, when the
+// behaviour planes stopped naming Fields that metadata already declares elsewhere and started deriving
+// them (action.DeclaredFields).
+//
+// What is left is two shapes, and neither is a derivation away:
+//
+//   - internal/rendering (22) and internal/web/document.go (34) -- a form input's name= and a template
+//     reading a record's Field. That is 007 §11.3 Binding, which has no primitive at all, and §7.6
+//     Projection, whose own ratchet (TestRenderingUsesProjectionNotRawValues) already tracks it.
+//   - the signature store's own shape (the placement Fields, fld_owner/fld_image on mch_signature).
+//     Nothing declares these, so removing them is a capability question rather than a reading one. **The numbers may only go down**, on the same terms as
+//
 // the map above: too high fails, too low fails, a new file fails, and comment lines are skipped.
 //
 // What would move it next is the *read* side, which Stage B deliberately did not touch: signing filters
@@ -205,19 +216,16 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // must carry this vocabulary" limit that survives this stage. Stage C is the next slice with a claim on
 // these numbers.
 var documentApprovalFieldCoupling = map[string]int{
-	"composition/approval.go":            15,
-	"composition/assigned.go":            8,
+	"composition/approval.go":            1,
 	"composition/pages.go":               1,
-	"composition/placement.go":           5,
-	"composition/review.go":              15,
-	"execution/composite.go":             8,
+	"composition/placement.go":           2,
+	"composition/review.go":              5,
+	"execution/composite.go":             3,
 	"rendering/detail.templ":             6,
 	"rendering/documentsubmit.templ":     4,
 	"rendering/signatureplacement.templ": 12,
-	"web/approval.go":                    10,
+	"web/approval.go":                    4,
 	"web/document.go":                    34,
-	"web/record.go":                      1,
-	"web/review.go":                      1,
 	"web/signing.go":                     6,
 }
 

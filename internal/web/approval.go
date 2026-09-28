@@ -246,7 +246,8 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 			return
 		}
 
-		documentID, _ := step.Values[action.FieldStepDocument].(string)
+		f := action.DeclaredFields(machine, machineForDocument(ctx))
+		documentID, _ := step.Values[f.Parent].(string)
 		if _, ok := decidableDocument(w, ctx, store, machine, step, documentID); !ok {
 			return
 		}
@@ -302,7 +303,7 @@ func afterDecision(ctx context.Context, store *data.Store, files *storage.Store,
 	execution.RunEvents(ctx, execution.Services{Store: store, Mailer: mailer, Files: files}, machinesFor(ctx), machine, step, actorID, oldValues, true)
 
 	logActivity(ctx, store, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID, actorID,
-		fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
+		fmt.Sprintf("Step %v %s", toDisplayString(step.Values[machine.OrderField()]), decision))
 }
 
 // reviseDocument is Rejected -> Draft (Flow 2 gap study Tahap 4, 2026-09-25): "Revise" on a
@@ -352,7 +353,7 @@ func reviseDocument(store *data.Store, cfg config.Config) http.HandlerFunc {
 		// holds that no mch_document transition on fld_status may declare an Action, so this move is
 		// gated by a plain business-state check instead (action.CanReviseDocument), the same posture
 		// action.CanDeleteDocument already takes for delete.
-		if ok, reason := action.CanReviseDocument(toDisplayString(document.Values[action.FieldDocumentStatus])); !ok {
+		if ok, reason := action.CanReviseDocument(toDisplayString(document.Values[machine.StatusField()])); !ok {
 			http.Error(w, reason, http.StatusUnprocessableEntity)
 			return
 		}
@@ -374,7 +375,7 @@ func reviseDocument(store *data.Store, cfg config.Config) http.HandlerFunc {
 		}
 
 		stepMachineID := approvalMachineID(ctx, domain.WorkflowRoleStep)
-		steps, err := store.ListRecordsBy(ctx, stepMachineID, action.FieldStepDocument, id)
+		steps, err := store.ListRecordsBy(ctx, stepMachineID, action.DeclaredFields(machineForStep(ctx), machine).Parent, id)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -407,7 +408,7 @@ func reviseDocument(store *data.Store, cfg config.Config) http.HandlerFunc {
 // transitions do, by declaring no edge that leaves `approved` or `rejected`.
 func declaredDecision(w http.ResponseWriter, machine *domain.Machine, step *data.Record, decision string) bool {
 	if err := behavior.CheckTransitions(machine, domain.ActionDecide, step.Values,
-		map[string]any{action.FieldStepDecision: decision}); err != nil {
+		map[string]any{machine.ActionField(domain.ActionDecide): decision}); err != nil {
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		return false
 	}
@@ -522,7 +523,7 @@ func decidableDocument(w http.ResponseWriter, ctx context.Context, store *data.S
 		recordError(w, err)
 		return nil, false
 	}
-	siblings, err := store.ListRecordsBy(ctx, machine.ID, action.FieldStepDocument, documentID)
+	siblings, err := store.ListRecordsBy(ctx, machine.ID, action.DeclaredFields(machine, approvalMachine(ctx, domain.WorkflowRoleDocument)).Parent, documentID)
 	if err != nil {
 		serverError(w, err)
 		return nil, false

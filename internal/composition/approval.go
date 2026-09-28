@@ -112,16 +112,19 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 // PendingApprovalCount, which only counts them for the nav badge. A badge reporting a different
 // number from the list it links to is the kind of defect nobody reports and everybody distrusts,
 // and the way to make it impossible is one predicate, not two that currently match.
-func pendingStepsFor(steps []*data.Record, docByID map[string]*data.Record, stepsByDoc map[string][]*data.Record, userID string, seq *domain.Sequencing) []*data.Record {
+// f carries the Field ids this engine reads, derived from the two Machines' own declarations
+// (action.DeclaredFields) rather than named here -- so the same predicate serves a Machine whose
+// decision Field is called something else entirely.
+func pendingStepsFor(steps []*data.Record, docByID map[string]*data.Record, stepsByDoc map[string][]*data.Record, userID string, seq *domain.Sequencing, f action.EngineFields) []*data.Record {
 	var selected []*data.Record
 	for _, s := range steps {
-		if DisplayString(s.Values[action.FieldStepAssignee]) != userID {
+		if DisplayString(s.Values[f.Actor]) != userID {
 			continue
 		}
-		if DisplayString(s.Values[action.FieldStepDecision]) != action.DecisionPending {
+		if DisplayString(s.Values[f.Decision]) != f.Open {
 			continue
 		}
-		docID := DisplayString(s.Values[action.FieldStepDocument])
+		docID := DisplayString(s.Values[f.Parent])
 		doc := docByID[docID]
 		if doc == nil {
 			continue
@@ -159,20 +162,21 @@ func PendingApprovalCount(ctx context.Context, l *Loader, userID string, stepMac
 	if err != nil {
 		return 0, err
 	}
+	f := action.DeclaredFields(stepMachine, docMachine)
 	docByID := make(map[string]*data.Record, len(documents))
 	for _, d := range documents {
 		docByID[d.ID] = d
 	}
 	stepsByDoc := make(map[string][]*data.Record, len(documents))
 	for _, s := range steps {
-		stepsByDoc[DisplayString(s.Values[action.FieldStepDocument])] = append(
-			stepsByDoc[DisplayString(s.Values[action.FieldStepDocument])], s)
+		stepsByDoc[DisplayString(s.Values[f.Parent])] = append(
+			stepsByDoc[DisplayString(s.Values[f.Parent])], s)
 	}
 	var seq *domain.Sequencing
 	if stepMachine != nil {
 		seq = stepMachine.Sequencing
 	}
-	return len(pendingStepsFor(steps, docByID, stepsByDoc, userID, seq)), nil
+	return len(pendingStepsFor(steps, docByID, stepsByDoc, userID, seq, f)), nil
 }
 
 // MineFilters is My Documents' own status chip row (Flow 2 mockup, My Documents' "All / Draft /
@@ -249,13 +253,17 @@ func SearchCards(cards []rendering.PendingApprovalCard, q string) []rendering.Pe
 // Keeping it free of I/O is what makes the sequencing, bucketing and submitter-resolution rules
 // testable at all: they need four related record sets and a fixed clock, not a database.
 func buildInbox(steps, documents, activities []*data.Record, names map[string]string, userID string, now time.Time, stepMachine, docMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
+	// Every Field id this function reads comes from the two Machines' own declarations, once
+	// (action.DeclaredFields) -- 001 Principle #8, and what lets the inbox compose a Machine whose
+	// decision Field is called anything.
+	f := action.DeclaredFields(stepMachine, docMachine)
 	docByID := make(map[string]*data.Record, len(documents))
 	for _, d := range documents {
 		docByID[d.ID] = d
 	}
 	stepsByDoc := make(map[string][]*data.Record, len(documents))
 	for _, s := range steps {
-		docID := DisplayString(s.Values[action.FieldStepDocument])
+		docID := DisplayString(s.Values[f.Parent])
 		stepsByDoc[docID] = append(stepsByDoc[docID], s)
 	}
 	submissions := submittersFromActivity(activities)
@@ -268,11 +276,11 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 	}
 
 	var inbox Inbox
-	for _, s := range pendingStepsFor(steps, docByID, stepsByDoc, userID, seq) {
-		docID := DisplayString(s.Values[action.FieldStepDocument])
+	for _, s := range pendingStepsFor(steps, docByID, stepsByDoc, userID, seq, f) {
+		docID := DisplayString(s.Values[f.Parent])
 		doc := docByID[docID]
 
-		approved := approvedCount(stepsByDoc[docID])
+		approved := approvedCount(stepsByDoc[docID], f)
 		sub := submissions[docID]
 		submitter := names[sub.actor]
 		if submitter == "" {
@@ -307,9 +315,9 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 			TotalSteps:   len(stepsByDoc[docID]),
 			Submitter:    submitter,
 			SubmittedAt:  submittedAt,
-			Status:       DisplayString(doc.Values[action.FieldDocumentStatus]),
+			Status:       DisplayString(doc.Values[f.DocumentStatus]),
 			SLADue:       doc.Values["fld_due_date"],
-			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names, ""),
+			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names, "", f),
 			Href:         fmt.Sprintf("/machines/%s/records/%s/review", stepMachine.ID, s.ID),
 			CardFields:   cardFields,
 		})
@@ -344,7 +352,7 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 		// step that opens on). The fallback below is the one case that screen cannot render: a
 		// Document with no steps at all, which the generic create form can make and the wizard
 		// never does.
-		status := DisplayString(d.Values[action.FieldDocumentStatus])
+		status := DisplayString(d.Values[f.DocumentStatus])
 		mineSubmittedAt := ""
 		if at := submissions[d.ID].at; !at.IsZero() {
 			mineSubmittedAt = at.Format("2 Jan 2006")
@@ -355,12 +363,12 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 			Title:        DisplayString(d.Values["fld_title"]),
 			DocumentType: DisplayString(d.Values["fld_document_type"]),
 			Mode:         behavior.SequencingMode(seq, d),
-			Approved:     approvedCount(stepsByDoc[d.ID]),
+			Approved:     approvedCount(stepsByDoc[d.ID], f),
 			TotalSteps:   len(stepsByDoc[d.ID]),
 			SubmittedAt:  mineSubmittedAt,
 			Status:       status,
 			SLADue:       d.Values["fld_due_date"],
-			Approvers:    stepStates(seq, d, stepsByDoc[d.ID], names, userID),
+			Approvers:    stepStates(seq, d, stepsByDoc[d.ID], names, userID, f),
 			Href:         reviewHref(docMachine.ID, d.ID, len(stepsByDoc[d.ID]), status),
 		})
 	}
@@ -371,10 +379,10 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 // approvedCount is how many of a Document's own Approval Steps are already approved -- shared by
 // both the "pending my approval" and "my documents" cards, which both need it for the same
 // "N/M approved" progress text.
-func approvedCount(steps []*data.Record) int {
+func approvedCount(steps []*data.Record, f action.EngineFields) int {
 	approved := 0
 	for _, s := range steps {
-		if DisplayString(s.Values[action.FieldStepDecision]) == action.DecisionApproved {
+		if DisplayString(s.Values[f.Decision]) == action.DecisionApproved {
 			approved++
 		}
 	}
@@ -426,12 +434,12 @@ func submittersFromActivity(activities []*data.Record) map[string]submission {
 //
 // viewer is the actor whose own step gets StepApprover.IsYou; pass "" when nobody is viewing in
 // particular, as the inbox does -- every card there is already the viewer's own.
-func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, names map[string]string, viewer string) []rendering.StepApprover {
-	ordered := orderedBySequence(steps)
+func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Record, names map[string]string, viewer string, f action.EngineFields) []rendering.StepApprover {
+	ordered := orderedBySequence(steps, f)
 	approvers := make([]rendering.StepApprover, len(ordered))
 	for i, s := range ordered {
 		state := "waiting"
-		switch DisplayString(s.Values[action.FieldStepDecision]) {
+		switch DisplayString(s.Values[f.Decision]) {
 		case action.DecisionApproved:
 			state = "done"
 		case action.DecisionRejected:
@@ -445,7 +453,7 @@ func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Recor
 		// avatar, so board 07's approver list costs no extra query -- it was in hand and simply
 		// not carried onto the card. An assignee with no resolvable record degrades to an empty
 		// name, which the card renders as initials-only rather than as a blank row.
-		assignee := DisplayString(s.Values[action.FieldStepAssignee])
+		assignee := DisplayString(s.Values[f.Actor])
 		name := names[assignee]
 		// Only a decided step has a time worth showing; a pending one's UpdatedAt is whenever its
 		// signature marker was last dragged, which would read as a decision that never happened.
@@ -501,12 +509,12 @@ func Initials(name string) string {
 // answer "which step is this Document waiting on". Two copies of a sort that decides which
 // approver a screen names first is the kind of duplication that reads identical until one of them
 // gains a tiebreak.
-func orderedBySequence(steps []*data.Record) []*data.Record {
+func orderedBySequence(steps []*data.Record, f action.EngineFields) []*data.Record {
 	ordered := make([]*data.Record, len(steps))
 	copy(ordered, steps)
 	sort.Slice(ordered, func(i, j int) bool {
-		a, _ := strconv.Atoi(DisplayString(ordered[i].Values[action.FieldStepSequence]))
-		b, _ := strconv.Atoi(DisplayString(ordered[j].Values[action.FieldStepSequence]))
+		a, _ := strconv.Atoi(DisplayString(ordered[i].Values[f.Order]))
+		b, _ := strconv.Atoi(DisplayString(ordered[j].Values[f.Order]))
 		return a < b
 	})
 	return ordered

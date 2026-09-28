@@ -2726,6 +2726,47 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   both, step 3 is only about rewriting references inside the copied metadata -- which is what it says,
   and was not true when it was written.
 
+- **Read what is already declared -- shipped 2026-09-28**, the first slice of the audit's read side and
+  the one that needed no new primitive at all.
+
+  **Why it was available.** After Stage B the remaining coupling was 126 references where Go names one
+  of Document Approval's Field ids. Reading them showed most were not a missing capability: they name a
+  Field metadata already declares somewhere else. `internal/composition/review.go`'s `canStillDecide`
+  was the shape in miniature -- it already read `TransitionsFrom` and still passed
+  `action.FieldStepDecision` as the Field to read them on.
+
+  **What shipped.** Six accessors on `domain.Machine` (`ActorFieldFor`, `ActorGateFor`, `StatusField`,
+  `ReferenceFieldTo`, `OrderField`, `OpenValue`) and `action.DeclaredFields`, which derives the whole
+  set once per composition and is then read like any other value. Migrated across
+  `internal/composition` (the four composed screens), `internal/execution` (the compositing) and the
+  `internal/web` handlers. **No new metadata key, no new registry member** -- criterion B3, the existing
+  primitive already fits.
+
+  **Each id takes the declaration that answers its own question**, which is the discipline that makes
+  this correct rather than merely convenient: the decision Field from the `transitions:` edges naming
+  `decide`, "still open" from those edges' own `from:`, the parent from the relation, the order from
+  `sequencing:`, the actor from the Permission, a Document's status Field from its own edges.
+  `sequencing.state_field` names the same Field as the first of those and is **deliberately refused**:
+  Sequencing declares how records are ordered and locked, so a Machine that orders nothing would have no
+  decision Field for no reason. Mutation-proven by pointing it there and watching the inbox go empty.
+
+  **126 -> 78 references across 11 files.** Proven by
+  `composition.TestBuildInbox_overAMachineThatNamesItsFieldsDifferently`: the Approval Inbox composing a
+  Machine whose Fields are `fld_putusan`/`fld_urutan`/`fld_petugas`/`fld_surat`, with none of Document
+  Approval's own ids anywhere.
+
+  **One prediction this entry got wrong, recorded rather than quietly fixed:** the plan said every
+  existing test would pass unchanged. Three needed editing, and not because behaviour moved -- the
+  composition fixtures declared *no Fields at all*, relying on the constants the code used to name. That
+  is a fixture looser than the Machine that runs, the same class this repo already names elsewhere, and
+  the fix was to declare what the manifest declares.
+
+  **What is left is not a derivation away**, which is why this is a first slice rather than the whole
+  read side: `internal/rendering` (22) and `internal/web/document.go` (34) are Binding (007 §11.3, no
+  primitive at all) and Projection (§7.6, its own ratchet), and the signature store's own shape -- the
+  four placement Fields, `fld_owner`/`fld_image` -- is declared nowhere, so removing it is a capability
+  question rather than a reading one. That is the next slice's subject.
+
 - **Resolve a Machine by the role its Application casts it in, not by its id -- shipped 2026-09-28**,
   the slice immediately after Stage A and the one that made the binding load-bearing rather than
   decorative.

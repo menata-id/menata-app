@@ -110,13 +110,15 @@ func SearchAssignedRows(rows []rendering.AssignedRow, q string) []rendering.Assi
 // the same split buildInbox uses, and for the same reason: which of the four states a step is in,
 // and which Document it belongs to, is worth testing without a database.
 func buildAssigned(steps, documents, activities []*data.Record, names, myGroupNames map[string]string, viewerID string, now time.Time, stepMachine, docMachine *domain.Machine) Assigned {
+	// See buildInbox: one derivation for every Field id this screen reads.
+	f := action.DeclaredFields(stepMachine, docMachine)
 	docByID := make(map[string]*data.Record, len(documents))
 	for _, d := range documents {
 		docByID[d.ID] = d
 	}
 	stepsByDoc := make(map[string][]*data.Record, len(documents))
 	for _, s := range steps {
-		docID := DisplayString(s.Values[action.FieldStepDocument])
+		docID := DisplayString(s.Values[f.Parent])
 		stepsByDoc[docID] = append(stepsByDoc[docID], s)
 	}
 	submissions := submittersFromActivity(activities)
@@ -129,11 +131,11 @@ func buildAssigned(steps, documents, activities []*data.Record, names, myGroupNa
 	var out Assigned
 	var built []assignedRow
 	for _, s := range steps {
-		via, mine := stepBelongsTo(s, viewerID, myGroupNames)
+		via, mine := stepBelongsTo(s, viewerID, myGroupNames, f)
 		if !mine {
 			continue
 		}
-		docID := DisplayString(s.Values[action.FieldStepDocument])
+		docID := DisplayString(s.Values[f.Parent])
 		doc := docByID[docID]
 		if doc == nil {
 			continue
@@ -150,7 +152,7 @@ func buildAssigned(steps, documents, activities []*data.Record, names, myGroupNa
 			requestedAt = sub.at.Format("2 Jan 2006")
 		}
 
-		key, label := assignedDecision(seq, doc, s, siblings, via)
+		key, label := assignedDecision(seq, doc, s, siblings, via, f)
 		switch key {
 		case AssignedWaiting:
 			out.WaitingCount++
@@ -170,7 +172,7 @@ func buildAssigned(steps, documents, activities []*data.Record, names, myGroupNa
 				DocumentType:  DisplayString(doc.Values["fld_document_type"]),
 				From:          from,
 				RequestedAt:   requestedAt,
-				Status:        DisplayString(doc.Values[action.FieldDocumentStatus]),
+				Status:        DisplayString(doc.Values[f.DocumentStatus]),
 				DecisionKey:   key,
 				DecisionLabel: label,
 				// The Review screen, not this Document's generic record page -- the same
@@ -203,23 +205,23 @@ type assignedRow struct {
 // they belong to (CAP-F24's two-armed shape, the same one authorization.AllowsAction's dynamic
 // gate evaluates for decide/edit/delete). via names the Group when it is that arm, "" when it is
 // the direct one -- assignedDecision's own "· via {group}" clause reads it.
-func stepBelongsTo(s *data.Record, viewerID string, myGroups map[string]string) (via string, mine bool) {
-	if DisplayString(s.Values[action.FieldStepApproverType]) == "Group" {
-		group := DisplayString(s.Values[action.FieldStepApproverGroup])
+func stepBelongsTo(s *data.Record, viewerID string, myGroups map[string]string, f action.EngineFields) (via string, mine bool) {
+	if DisplayString(s.Values[f.ActorType]) == "Group" {
+		group := DisplayString(s.Values[f.ActorGroup])
 		if name, ok := myGroups[group]; ok {
 			return name, true
 		}
 		return "", false
 	}
-	return "", DisplayString(s.Values[action.FieldStepAssignee]) == viewerID
+	return "", DisplayString(s.Values[f.Actor]) == viewerID
 }
 
 // assignedDecision is the YOUR DECISION column: which of the four states s is in, and the sentence
 // naming it. Approved/rejected read the step's own fld_decision directly; a still-pending step
 // asks the same question the Inbox's own decision bar asks (behavior.CanAct) to tell "waiting for
 // you" from "waiting on someone earlier in the chain".
-func assignedDecision(seq *domain.Sequencing, doc, step *data.Record, siblings []*data.Record, via string) (key, label string) {
-	switch DisplayString(step.Values[action.FieldStepDecision]) {
+func assignedDecision(seq *domain.Sequencing, doc, step *data.Record, siblings []*data.Record, via string, f action.EngineFields) (key, label string) {
+	switch DisplayString(step.Values[f.Decision]) {
 	case action.DecisionApproved:
 		if at := step.UpdatedAt; !at.IsZero() {
 			return AssignedApproved, "You approved " + at.Format("2 Jan 2006")
@@ -234,7 +236,7 @@ func assignedDecision(seq *domain.Sequencing, doc, step *data.Record, siblings [
 	if behavior.CanAct(seq, doc, step, siblings) {
 		return AssignedWaiting, "Waiting for your decision"
 	}
-	seqLabel := DisplayString(step.Values[action.FieldStepSequence])
+	seqLabel := DisplayString(step.Values[f.Order])
 	label = fmt.Sprintf("Not yet your turn — step %s of %d", seqLabel, len(siblings))
 	if via != "" {
 		label += " · via " + via

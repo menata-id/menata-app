@@ -417,7 +417,8 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 	if stateGoverned {
 		var steps []*data.Record
 		if action.IsDocument(machine) {
-			steps, err = store.ListRecordsBy(ctx, approvalMachineID(ctx, domain.WorkflowRoleStep), action.FieldStepDocument, id)
+			stepMachine := approvalMachine(ctx, domain.WorkflowRoleStep)
+			steps, err = store.ListRecordsBy(ctx, stepMachine.ID, action.DeclaredFields(stepMachine, machine).Parent, id)
 			if err != nil {
 				return false, 0, "", err
 			}

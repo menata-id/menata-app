@@ -29,6 +29,8 @@ func SignaturePlacement(ctx context.Context, l *Loader, stepMachine *domain.Mach
 
 // buildPlacement is the whole derivation, over records someone else already fetched.
 func buildPlacement(stepMachine *domain.Machine, document *data.Record, steps []*data.Record, relations rendering.RelationOptions, groups rendering.GroupOptions, page, totalPages int, viewer domain.Actor) rendering.PlacementView {
+	// See buildInbox: the Field ids this screen reads come from the step Machine's own declarations.
+	f := action.DeclaredFields(stepMachine, nil)
 	v := rendering.PlacementView{
 		DocumentID:    document.ID,
 		DocumentTitle: DisplayString(document.Values["fld_title"]),
@@ -46,7 +48,7 @@ func buildPlacement(stepMachine *domain.Machine, document *data.Record, steps []
 			// which is the whole reason such a step's marker is draggable at all.
 			Editable: MayPlaceSignature(stepMachine, document, s, viewer),
 		}
-		step.ApproverKind, step.Approver = approverOf(s, relations, groups)
+		step.ApproverKind, step.Approver = approverOf(s, relations, groups, f)
 		if p, x, y, width, ok := placementOf(s); ok {
 			step.Placed, step.Page, step.X, step.Y, step.Width = true, p, x, y, width
 		} else {
@@ -67,11 +69,11 @@ func buildPlacement(stepMachine *domain.Machine, document *data.Record, steps []
 // read as a Group. An unset fld_approver_type means the person arm, which is every step written
 // before CAP-F24 and every User row the wizard writes (it deliberately stores no type there, so
 // authorization's fallback stays the live path).
-func approverOf(s *data.Record, relations rendering.RelationOptions, groups rendering.GroupOptions) (kind, label string) {
-	if DisplayString(s.Values[action.FieldStepApproverType]) == domain.ActorKindGroup {
-		return domain.ActorKindGroup, rendering.GroupLabel(groups, DisplayString(s.Values[action.FieldStepApproverGroup]))
+func approverOf(s *data.Record, relations rendering.RelationOptions, groups rendering.GroupOptions, f action.EngineFields) (kind, label string) {
+	if DisplayString(s.Values[f.ActorType]) == domain.ActorKindGroup {
+		return domain.ActorKindGroup, rendering.GroupLabel(groups, DisplayString(s.Values[f.ActorGroup]))
 	}
-	return domain.ActorKindUser, rendering.RelationLabel(relations, domain.UserMachineID, DisplayString(s.Values[action.FieldStepAssignee]))
+	return domain.ActorKindUser, rendering.RelationLabel(relations, domain.UserMachineID, DisplayString(s.Values[f.Actor]))
 }
 
 // PlacementPageHref and PlacementPreviewHref are the two routes board 09 links: another page of

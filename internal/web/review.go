@@ -79,7 +79,7 @@ func showReviewDocument(store *data.Store, files *storage.Store, cfg config.Conf
 // Document with no PDF attached, or one whose bytes are unreadable, is a page that renders without
 // a page count -- never a 500. Reviewing a document must not depend on rasterizing it.
 func documentPageCount(ctx context.Context, store *data.Store, files *storage.Store, step *data.Record) int {
-	documentID := composition.DisplayString(step.Values[action.FieldStepDocument])
+	documentID := composition.DisplayString(step.Values[action.DeclaredFields(machineForStep(ctx), machineForDocument(ctx)).Parent])
 	if documentID == "" {
 		return 0
 	}

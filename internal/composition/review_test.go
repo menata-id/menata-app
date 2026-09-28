@@ -23,7 +23,14 @@ func reviewDoc() *data.Record {
 // engine's document.
 func docMachineForTest() *domain.Machine {
 	return &domain.Machine{
-		ID:             action.DocumentMachineID,
+		ID: action.DocumentMachineID,
+		// Its own state model, so StatusField can answer which Field a Document's status lives in --
+		// the six edges name no Action (that status is derived from its steps), which is exactly why
+		// ActionField cannot answer it and this fixture has to carry them.
+		Transitions: []domain.Transition{
+			{ID: "trn_document_approved", Name: "Approved", Field: action.FieldDocumentStatus, From: action.DocumentStatusInReview, To: action.DocumentStatusApproved},
+			{ID: "trn_document_rejected", Name: "Rejected", Field: action.FieldDocumentStatus, From: action.DocumentStatusInReview, To: action.DocumentStatusRejected},
+		},
 		ApplicationID:  "app_document_approval",
 		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
 		WorkflowRole:   domain.WorkflowRoleDocument,

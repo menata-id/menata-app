@@ -178,7 +178,7 @@ func RunEvents(ctx context.Context, svc Services, machines map[string]*domain.Ma
 		case domain.ServiceSendNotification:
 			sendNotification(ctx, svc.Store, svc.Mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, oldValues, record.Values))
 		case domain.ServiceCompositeSignedDocument:
-			compositeSignedDocument(ctx, svc, machines, machine, record, *e.Then.Composite)
+			compositeSignedDocument(ctx, svc, machines, machine, record, *e.Then.Composite, e.WhenEquals)
 		}
 	}
 }

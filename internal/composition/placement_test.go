@@ -61,8 +61,11 @@ func TestApproverOf_resolvesEitherArm(t *testing.T) {
 	relations := rendering.RelationOptions{domain.UserMachineID: {{ID: "usr_rina", Label: "Rina Nur"}}}
 	groups := rendering.GroupOptions{{ID: "grp_legal", Label: "Legal Group"}}
 
+	// The Field ids come from the step Machine's own Permission, the way the real screen derives them.
+	f := action.DeclaredFields(stepMachineForTest(), nil)
+
 	person := &data.Record{Values: map[string]any{action.FieldStepAssignee: "usr_rina"}}
-	if kind, label := approverOf(person, relations, groups); kind != domain.ActorKindUser || label != "Rina Nur" {
+	if kind, label := approverOf(person, relations, groups, f); kind != domain.ActorKindUser || label != "Rina Nur" {
 		t.Errorf("person arm = %q/%q, want User/Rina Nur", kind, label)
 	}
 
@@ -70,12 +73,12 @@ func TestApproverOf_resolvesEitherArm(t *testing.T) {
 		action.FieldStepApproverType:  domain.ActorKindGroup,
 		action.FieldStepApproverGroup: "grp_legal",
 	}}
-	if kind, label := approverOf(group, relations, groups); kind != domain.ActorKindGroup || label != "Legal Group" {
+	if kind, label := approverOf(group, relations, groups, f); kind != domain.ActorKindGroup || label != "Legal Group" {
 		t.Errorf("group arm = %q/%q, want Group/Legal Group", kind, label)
 	}
 
 	// A step with no approver at all is still the person arm, with an empty name -- not a Group.
-	if kind, _ := approverOf(&data.Record{Values: map[string]any{}}, relations, groups); kind != domain.ActorKindUser {
+	if kind, _ := approverOf(&data.Record{Values: map[string]any{}}, relations, groups, f); kind != domain.ActorKindUser {
 		t.Errorf("an unassigned step's kind = %q, want User -- absence must not read as a Group", kind)
 	}
 }

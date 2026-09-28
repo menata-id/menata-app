@@ -2,6 +2,7 @@ package composition
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,6 +56,18 @@ func doc(id, title, mode, due string) *data.Record {
 func stepMachineForTest() *domain.Machine {
 	return &domain.Machine{
 		ID: action.StepMachineID,
+		// Fields, declared since 2026-09-28: the screens derive which Field holds the decision, the
+		// order, the actor and the parent from this Machine's own declarations now
+		// (action.DeclaredFields), so a fixture declaring none was a Machine looser than the one that
+		// runs -- the same reason the roles: arm, the rollup Event and the transitions below are here.
+		Fields: []domain.Field{
+			{ID: action.FieldStepDocument, Name: "Document", Type: domain.FieldTypeRelation, RelatedMachine: action.DocumentMachineID},
+			{ID: action.FieldStepSequence, Name: "Sequence", Type: domain.FieldTypeNumber},
+			{ID: action.FieldStepAssignee, Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
+			{ID: action.FieldStepDecision, Name: "Decision", Type: domain.FieldTypeStatus, Options: []string{action.DecisionPending, action.DecisionApproved, action.DecisionRejected}},
+			{ID: action.FieldStepApproverType, Name: "Approver Type", Type: domain.FieldTypeText},
+			{ID: action.FieldStepApproverGroup, Name: "Approver Group", Type: domain.FieldTypeGroup},
+		},
 		// prm_decide_own_step, as metadata/approval_step.yaml really declares it. It was missing
 		// here until Fase 6c-1, and nothing noticed: buildReview used to AND an explicit
 		// `assignee == viewer` check in front of authorization.AllowsAction, so the screen's gate
@@ -341,15 +354,11 @@ func TestSubmittersFromActivity_DoesNotReorderCallersSlice(t *testing.T) {
 func TestBuildInbox_ProjectsCardFields(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "sequential", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
-	stepMachine := &domain.Machine{
-		ID: action.StepMachineID,
-		Fields: []domain.Field{
-			{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
-		},
-		CardFields: []domain.CardField{
-			{Field: "fld_assignee", Role: domain.CardFieldRolePerson},
-		},
-	}
+	// The real fixture plus one opted-in card field: this test is about Projection, and a Machine
+	// declaring only fld_assignee would also be declaring no state model, no actor Permission and no
+	// parent relation -- which the inbox now derives its Field ids from, so nothing would be pending.
+	stepMachine := stepMachineForTest()
+	stepMachine.CardFields = []domain.CardField{{Field: action.FieldStepAssignee, Role: domain.CardFieldRolePerson}}
 	relations := rendering.RelationOptions{
 		"mch_user": {{ID: "usr_ana", Label: "Ana Putri"}, {ID: "usr_budi", Label: "Budi"}},
 	}
@@ -514,4 +523,65 @@ func TestInitials(t *testing.T) {
 // it was not written to ask about.
 func approverActor(id string) domain.Actor {
 	return domain.Actor{ID: id, Roles: map[string][]string{"app_document_approval": {"approver"}}}
+}
+
+// TestBuildInbox_overAMachineThatNamesItsFieldsDifferently is what the derivation is for, and the
+// assertion no test in this package could make before 2026-09-28: the Approval Inbox composes a step
+// Machine whose decision Field is `fld_putusan`, whose order Field is `fld_urutan`, whose actor Field is
+// `fld_petugas` and whose parent relation is `fld_surat` -- none of Document Approval's own Field ids
+// anywhere, and every one of them declared rather than passed in.
+//
+// Each id is read from the declaration that answers its own question (action.DeclaredFields): the
+// decision from the transitions naming `decide`, the open value from those same edges' `from:`, the
+// order from sequencing, the actor from the Permission, the parent from the relation. Until this, every
+// one of them was `action.Field*` in the composition code, so an Application binding this engine had to
+// name its Fields exactly as Document Approval does or its inbox silently listed nothing.
+func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
+	docMachine := &domain.Machine{
+		ID: "mch_surat", Name: "Surat",
+		Transitions: []domain.Transition{
+			{ID: "trn_selesai", Name: "Selesai", Field: "fld_keadaan", From: "diproses", To: "selesai"},
+		},
+	}
+	stepMachine := &domain.Machine{
+		ID: "mch_langkah", Name: "Langkah",
+		Fields: []domain.Field{
+			{ID: "fld_surat", Name: "Surat", Type: domain.FieldTypeRelation, RelatedMachine: "mch_surat"},
+			{ID: "fld_urutan", Name: "Urutan", Type: domain.FieldTypeNumber},
+			{ID: "fld_petugas", Name: "Petugas", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
+			{ID: "fld_putusan", Name: "Putusan", Type: domain.FieldTypeStatus, Options: []string{"menunggu", "setuju", "tolak"}},
+		},
+		Permissions: []domain.Permission{{
+			ID: "prm_putuskan", Action: domain.ActionDecide, ActorField: "fld_petugas",
+		}},
+		Transitions: []domain.Transition{
+			{ID: "trn_setuju", Name: "Setuju", Field: "fld_putusan", From: "menunggu", To: "setuju", Action: domain.ActionDecide},
+			{ID: "trn_tolak", Name: "Tolak", Field: "fld_putusan", From: "menunggu", To: "tolak", Action: domain.ActionDecide},
+		},
+	}
+
+	docs := []*data.Record{{ID: "srt_1", Values: map[string]any{"fld_keadaan": "diproses", "fld_title": "Kontrak"}}}
+	steps := []*data.Record{
+		{ID: "lkh_1", Values: map[string]any{"fld_surat": "srt_1", "fld_petugas": "usr_ana", "fld_putusan": "menunggu", "fld_urutan": float64(1)}},
+		{ID: "lkh_2", Values: map[string]any{"fld_surat": "srt_1", "fld_petugas": "usr_budi", "fld_putusan": "menunggu", "fld_urutan": float64(2)}},
+	}
+
+	got := buildInbox(steps, docs, nil, map[string]string{"usr_ana": "Ana Putri"}, "usr_ana", at(10), stepMachine, docMachine, nil)
+	if len(got.Pending) != 1 {
+		t.Fatalf("len(Pending) = %d, want 1 -- Ana's own undecided step, found through declarations alone", len(got.Pending))
+	}
+	// A pending card is identified by the document it is about; its Href carries the step being decided.
+	if got.Pending[0].ID != "srt_1" || !strings.Contains(got.Pending[0].Href, "lkh_1") {
+		t.Errorf("Pending[0] = %q href %q, want the document srt_1 and a link to step lkh_1", got.Pending[0].ID, got.Pending[0].Href)
+	}
+	if got.Pending[0].Status != "diproses" {
+		t.Errorf("Status = %q, want diproses -- read through the document Machine's own declared state model", got.Pending[0].Status)
+	}
+
+	// And a decided step drops out, which is the open value being read from the edges' own `from:`
+	// rather than compared against the literal "pending".
+	steps[0].Values["fld_putusan"] = "setuju"
+	if got := buildInbox(steps, docs, nil, nil, "usr_ana", at(10), stepMachine, docMachine, nil); len(got.Pending) != 0 {
+		t.Errorf("a decided step still appears as pending: %d card(s)", len(got.Pending))
+	}
 }
