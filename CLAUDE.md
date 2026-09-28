@@ -117,6 +117,22 @@ block instead. Note the gate's own blind spot this exposed: `internal/action` is
 `documentApprovalFieldCoupling` as the owner of those constants, so `StampFor` named all four
 coordinates itself, invisibly, through three stages. Only reading it found that.
 
+**And so does a saved approval flow (2026-09-29, Stage E2).** `flow_template:` (which Field a saved
+flow is keyed by, which holds its mode) and `flow_template_step:` (the template link, order, label,
+actor, actor kind, Group), on the Machines an Application casts in the `flow_template` roles. Read them
+through `action.FlowTemplateFields`/`FlowTemplateStepFields`/`FlowTemplateRowFields`.
+
+**This pair is where the "derive or declare" rule gets its sharpest edge, so read it before adding
+either kind.** A *live* Approval Step's shape is derivable — `sequencing:` gives the order, the `decide`
+Permission gives the actor and its gate — so deriving is right and restating would be 001 #8. A
+*template* row's is not, because nothing decides a template and so it declares neither block. Stage E1
+tried the derivation anyway and a **probe** showed every id coming back empty: the wizard would have
+written four values under the empty key and saved a flow with no approvers. So six keys that look like a
+duplicate of the live step's are two Machines each answering for itself. The tempting "fix" —
+declaring `sequencing:` on the template so one derivation serves both — would assert locking behaviour
+a template does not have, and is wrong for that reason rather than on taste. **When a derivation returns
+empty, check whether the Machine can legitimately answer before making it.**
+
 **And a Workspace's own ids are still reserved against itself.** Isolation relaxed exactly one
 thing — the same name in a *different* Workspace. Two Machines under one id inside one Workspace
 stays a load-time error (`metadata.validateMachineIDsAreUnique`), and `aiassist.Validate` refuses
@@ -387,8 +403,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   still authoritative, so every change to the population fails until it is updated (`actions:`, `domain.ActionEffect`). Same shrink-only terms. It exists because the Machine-id
   ratchet could not see what Stage B removed, which made this repo's own prediction ("a stage that works
   makes the number drop") false as the gate stood — so the gate was extended rather than the claim
-  restated. What would move it next is the *read* side: the signed-PDF compositing filters steps by
-  `fld_decision`, and composed screens project Fields by id.
+  restated. **Read the current numbers out of the map, not out of this line** — the trajectory since is
+  129 → 126 → 78 (Stage D's derivations) → 43 (the signature shape) → 29 (Stage E1's wizard
+  derivations) → **11** (Stage E2's flow-template shape). What is left is one shape in three places,
+  and none of it is a derivation away: a step's *label*, which nothing declares at all, and a form
+  input's `name=`, which is 007 §11.3 Binding with no primitive yet.
 - `TestDocumentApprovalCouplingOnlyShrinks` — the third *ratchet*. `documentApprovalCoupling`
   freezes how many times each file outside `internal/action` names Document Approval's own
   Machine-id constants — frozen at 67 across 18 files on 2026-09-28 and **emptied the same day**, by
