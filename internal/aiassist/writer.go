@@ -1,10 +1,7 @@
 package aiassist
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,6 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"menata.app/internal/installer"
 	"menata.app/internal/metadata"
 )
 
@@ -36,7 +34,7 @@ import (
 //
 // **Nothing survives a failure.** Once every file is in place this loads the whole manifest back
 // through metadata.LoadApplication -- the real loader, the same one the caller's reload is about
-// to run -- and undoes every write if it does not load (writeSet.rollback). That ordering is the
+// to run -- and undoes every write if it does not load (installer.WriteSet.rollback). That ordering is the
 // whole point: validation before writing can only ever check the rules someone remembered to
 // copy into Validate, and on 2026-09-27 one of them had not been (a Permission naming a role its
 // Application does not declare, which only validatePermissionRoles catches, and which is
@@ -45,10 +43,10 @@ import (
 // that Workspace at all. Loading is not a copy of the rules -- it *is* them -- so this cannot
 // drift out of step the way a second list of checks always eventually does.
 func Write(workspaceManifestPath string, change GeneratedChange, resolve MachineFileResolver) (newAppID string, err error) {
-	written := &writeSet{original: map[string][]byte{}}
+	written := installer.NewWriteSet()
 	defer func() {
 		if err != nil {
-			written.rollback()
+			written.Rollback()
 		}
 	}()
 
@@ -68,55 +66,6 @@ func Write(workspaceManifestPath string, change GeneratedChange, resolve Machine
 		return "", fmt.Errorf("generated metadata was written but does not load, so it has been rolled back: %w", err)
 	}
 	return newAppID, nil
-}
-
-// writeSet remembers what Write touched so a failure can leave the tree exactly as it found it:
-// which paths it created (remove them) and what the ones it edited held before (put it back).
-//
-// note must be called for every path before it is written. A path noted twice keeps its *first*
-// recorded state, which is what makes a rollback correct when one file is edited more than once
-// in a single change -- the manifest, which gains a line per Machine plus one per Application.
-type writeSet struct {
-	created  []string
-	original map[string][]byte
-}
-
-func (w *writeSet) note(path string) error {
-	if _, seen := w.original[path]; seen {
-		return nil
-	}
-	for _, p := range w.created {
-		if p == path {
-			return nil
-		}
-	}
-	src, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			w.created = append(w.created, path)
-			return nil
-		}
-		return fmt.Errorf("read %s before writing it: %w", path, err)
-	}
-	w.original[path] = src
-	return nil
-}
-
-// rollback is best-effort by necessity -- it runs while another error is already being returned,
-// so there is nothing useful to do with a second one but say so. Each individual restore is still
-// atomic (writeFileStrict's own temp-then-rename), so a failure here leaves whichever files it
-// did reach correctly restored rather than half-written.
-func (w *writeSet) rollback() {
-	for path, src := range w.original {
-		if err := os.WriteFile(path, src, 0o644); err != nil {
-			log.Printf("aiassist: rolling back %s: %v", path, err)
-		}
-	}
-	for _, path := range w.created {
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			log.Printf("aiassist: rolling back (removing) %s: %v", path, err)
-		}
-	}
 }
 
 // MachineFileResolver answers "which file declares this machine id", relative to the workspace
@@ -239,7 +188,7 @@ type navItemDoc struct {
 	HomeCard bool   `yaml:"home_card"`
 }
 
-func writeNewApplication(written *writeSet, workspaceManifestPath string, change GeneratedChange) (string, error) {
+func writeNewApplication(written *installer.WriteSet, workspaceManifestPath string, change GeneratedChange) (string, error) {
 	app := change.Application
 	workspaceDir := filepath.Dir(workspaceManifestPath)
 	// This Workspace's own namespace: metadata/workspaces/<slug>/, named from its manifest rather
@@ -270,13 +219,13 @@ func writeNewApplication(written *writeSet, workspaceManifestPath string, change
 
 		filename := m.ID[len("mch_"):] + ".yaml"
 		absPath := filepath.Join(ownDir, filename)
-		if err := refuseIfExists(absPath, "machine "+m.ID); err != nil {
+		if err := installer.RefuseIfExists(absPath, "machine "+m.ID); err != nil {
 			return "", err
 		}
-		if err := written.note(absPath); err != nil {
+		if err := written.Note(absPath); err != nil {
 			return "", err
 		}
-		if err := writeYAMLStrict(absPath, doc); err != nil {
+		if err := installer.WriteYAMLStrict(absPath, doc); err != nil {
 			return "", fmt.Errorf("write machine %s: %w", m.ID, err)
 		}
 		relToWorkspace, err := filepath.Rel(workspaceDir, absPath)
@@ -306,13 +255,13 @@ func writeNewApplication(written *writeSet, workspaceManifestPath string, change
 	}}
 	appFilename := app.ID[len("app_"):] + ".yaml"
 	appAbsPath := filepath.Join(ownDir, "applications", appFilename)
-	if err := refuseIfExists(appAbsPath, "application "+app.ID); err != nil {
+	if err := installer.RefuseIfExists(appAbsPath, "application "+app.ID); err != nil {
 		return "", err
 	}
-	if err := written.note(appAbsPath); err != nil {
+	if err := written.Note(appAbsPath); err != nil {
 		return "", err
 	}
-	if err := writeYAMLStrict(appAbsPath, appDoc); err != nil {
+	if err := installer.WriteYAMLStrict(appAbsPath, appDoc); err != nil {
 		return "", fmt.Errorf("write application %s: %w", app.ID, err)
 	}
 	appRelToWorkspace, err := filepath.Rel(workspaceDir, appAbsPath)
@@ -326,56 +275,27 @@ func writeNewApplication(written *writeSet, workspaceManifestPath string, change
 	}
 	updated := manifest
 	for _, rel := range machineRelPaths {
-		updated, err = appendBlockListItem(updated, "machines:", toSlash(rel))
+		updated, err = installer.AppendBlockListItem(updated, "machines:", toSlash(rel))
 		if err != nil {
 			return "", fmt.Errorf("append machine to workspace manifest: %w", err)
 		}
 	}
-	updated, err = appendBlockListItem(updated, "applications:", toSlash(appRelToWorkspace))
+	updated, err = installer.AppendBlockListItem(updated, "applications:", toSlash(appRelToWorkspace))
 	if err != nil {
 		return "", fmt.Errorf("append application to workspace manifest: %w", err)
 	}
-	if err := written.note(workspaceManifestPath); err != nil {
+	if err := written.Note(workspaceManifestPath); err != nil {
 		return "", err
 	}
-	if err := writeFileStrict[workspaceManifestCheckDoc](workspaceManifestPath, updated); err != nil {
+	if err := installer.WriteFileStrict[installer.WorkspaceManifestCheckDoc](workspaceManifestPath, updated); err != nil {
 		return "", fmt.Errorf("write workspace manifest: %w", err)
 	}
 	return app.ID, nil
 }
 
-// refuseIfExists is the new_application path's own "refuse rather than corrupt" guard, and the one
-// thing standing between a colliding id and a destroyed file.
-//
-// A generated Machine's filename is derived from its id alone (mch_document -> document.yaml) into
-// one flat metadata/ directory -- there is no per-Workspace or per-Application subdirectory, so
-// "different Workspace" and "different Application" do not make a different path. On 2026-09-27 a
-// generated Application for the empty "Dokter Kecil" Workspace named its own Machine mch_document
-// and this function did not exist: writeFileStrict renamed straight over metadata/document.yaml,
-// the real Document Approval Machine installed in the "default" Workspace, replacing 266 lines of
-// Permissions, Transitions, Events, datasets and views with the 69-line generated one. Nothing
-// caught it before the write, because Validate is handed only the *current* Workspace's machine
-// ids (internal/web.existingStateFor, now widened) and mch_document genuinely was not one of them.
-//
-// So this check is deliberately not "is this id in some list the caller gave me" -- it is the file
-// system itself, asked at the last possible moment. Validate's own widened collision check is the
-// friendly half (it fails the conversation early, with something the assistant can act on); this is
-// the half that holds even when a future caller builds ExistingState wrong.
-//
-// Only new_application goes through here. writeExtension edits files that are *supposed* to already
-// exist, which is why it calls writeFileStrict directly.
-func refuseIfExists(path, what string) error {
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("refusing to write %s: %s already exists and this change would overwrite it -- generated metadata may only ever create new files", what, path)
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("check %s before writing %s: %w", path, what, err)
-	}
-	return nil
-}
-
 // --- extend_application ------------------------------------------------------------------------
 
-func writeExtension(written *writeSet, workspaceManifestPath string, change GeneratedChange, resolve MachineFileResolver) error {
+func writeExtension(written *installer.WriteSet, workspaceManifestPath string, change GeneratedChange, resolve MachineFileResolver) error {
 	workspaceDir := filepath.Dir(workspaceManifestPath)
 
 	for _, add := range change.Additions {
@@ -394,10 +314,10 @@ func writeExtension(written *writeSet, workspaceManifestPath string, change Gene
 			if err != nil {
 				return fmt.Errorf("append option to %s: %w", path, err)
 			}
-			if err := written.note(path); err != nil {
+			if err := written.Note(path); err != nil {
 				return err
 			}
-			if err := writeFileStrict[fullMachineCheckDoc](path, updated); err != nil {
+			if err := installer.WriteFileStrict[installer.FullMachineCheckDoc](path, updated); err != nil {
 				return err
 			}
 		case add.NewRole != "":
@@ -410,14 +330,14 @@ func writeExtension(written *writeSet, workspaceManifestPath string, change Gene
 			if err != nil {
 				return fmt.Errorf("read application file %s: %w", path, err)
 			}
-			updated, err := appendBlockListItem(src, "roles:", add.NewRole)
+			updated, err := installer.AppendBlockListItem(src, "roles:", add.NewRole)
 			if err != nil {
 				return fmt.Errorf("append role to %s: %w", path, err)
 			}
-			if err := written.note(path); err != nil {
+			if err := written.Note(path); err != nil {
 				return err
 			}
-			if err := writeFileStrict[fullApplicationCheckDoc](path, updated); err != nil {
+			if err := installer.WriteFileStrict[installer.FullApplicationCheckDoc](path, updated); err != nil {
 				return err
 			}
 		case add.NewNavItem != nil:
@@ -463,71 +383,6 @@ func resolveApplicationFile(workspaceManifestPath, targetAppID string) (string, 
 
 // --- surgical YAML text edits -------------------------------------------------------------------
 
-// appendBlockListItem finds "key:" at any indentation, then the last consecutive "- item" line
-// directly under it (matching that block's own indentation), and inserts a new line with the same
-// indentation and list-marker style right after it. Refuses (clear error, no partial edit) rather
-// than guess if the key is missing or is not declared in block style -- exactly the "refuse rather
-// than corrupt" posture this package's own doc comment promises.
-func appendBlockListItem(src []byte, key, newItem string) ([]byte, error) {
-	lines := strings.Split(string(src), "\n")
-	keyLine := -1
-	var keyIndent string
-	for i, line := range lines {
-		trimmed := strings.TrimLeft(line, " ")
-		if trimmed == key || strings.HasPrefix(trimmed, key+" ") {
-			keyLine = i
-			keyIndent = line[:len(line)-len(trimmed)]
-			break
-		}
-	}
-	if keyLine == -1 {
-		return nil, fmt.Errorf("no %q key found", key)
-	}
-
-	// "key: []" (or "key: [ ]") is a real, common, documented shape -- CLAUDE.md's own words: "An
-	// empty applications: [] is valid and normal... what a Workspace looks like the moment it is
-	// created". Rewriting that one line into block form ("key:" plus one indented "- item" line)
-	// is still a single-line replacement, not a rewrite of anything else in the file.
-	emptyFlow := regexp.MustCompile(`^\[\s*\]\s*$`)
-	if rest := strings.TrimSpace(strings.TrimPrefix(strings.TrimLeft(lines[keyLine], " "), key)); emptyFlow.MatchString(rest) {
-		lines[keyLine] = keyIndent + key
-		itemIndent := keyIndent + "  "
-		out := make([]string, 0, len(lines)+1)
-		out = append(out, lines[:keyLine+1]...)
-		out = append(out, itemIndent+"- "+newItem)
-		out = append(out, lines[keyLine+1:]...)
-		return []byte(strings.Join(out, "\n")), nil
-	}
-
-	itemPattern := regexp.MustCompile(`^(\s*)-\s`)
-	lastItem := -1
-	var itemIndent string
-	for i := keyLine + 1; i < len(lines); i++ {
-		m := itemPattern.FindStringSubmatch(lines[i])
-		if m == nil {
-			if strings.TrimSpace(lines[i]) == "" || strings.HasPrefix(strings.TrimSpace(lines[i]), "#") {
-				continue // blank line or comment inside the block -- keep scanning
-			}
-			break
-		}
-		if lastItem == -1 {
-			itemIndent = m[1]
-		}
-		lastItem = i
-	}
-	if lastItem == -1 {
-		return nil, fmt.Errorf("%q has no block-style (\"- item\") entries to append after -- refusing rather than guessing a shape", key)
-	}
-	_ = keyIndent
-
-	newLine := itemIndent + "- " + newItem
-	out := make([]string, 0, len(lines)+1)
-	out = append(out, lines[:lastItem+1]...)
-	out = append(out, newLine)
-	out = append(out, lines[lastItem+1:]...)
-	return []byte(strings.Join(out, "\n")), nil
-}
-
 // appendFlowListItemNearAnchor finds anchor (e.g. "id: fld_status") to scope the search, then the
 // next "key: [...]" line after it (e.g. "options: [...]"), and inserts newItem before the closing
 // bracket. Scoped to the anchor rather than the first match in the whole file, since a Machine
@@ -553,111 +408,4 @@ func appendFlowListItemNearAnchor(src []byte, anchor, key, newItem string) ([]by
 
 func toSlash(p string) string {
 	return filepath.ToSlash(p)
-}
-
-// writeYAMLStrict marshals v (of concrete type T) and writes it through writeFileStrict[T], so the
-// strict re-parse below decodes into the exact same shape it was just encoded from -- genuinely
-// proving round-trip fidelity, not merely that the bytes parse as *some* YAML.
-func writeYAMLStrict[T any](path string, v T) error {
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(v); err != nil {
-		return err
-	}
-	if err := enc.Close(); err != nil {
-		return err
-	}
-	return writeFileStrict[T](path, buf.Bytes())
-}
-
-// workspaceManifestCheckDoc is writeFileStrict's own strict-decode target for the workspace
-// manifest specifically -- every key internal/metadata's real workspaceDoc declares, so
-// KnownFields(true) only ever rejects a genuinely unrecognized key, never one of the manifest's
-// own four.
-type workspaceManifestCheckDoc struct {
-	Workspace    string   `yaml:"workspace"`
-	Machines     []string `yaml:"machines"`
-	Navigation   []any    `yaml:"navigation"`
-	Applications []string `yaml:"applications"`
-}
-
-// fullMachineCheckDoc/fullApplicationCheckDoc mirror internal/metadata's own real machineDoc/
-// applicationDoc *completely* (every field parse.go/application.go declare, not just the narrower
-// generator-only subset above) -- the strict-decode target for a surgical edit to an *existing*
-// file, which may carry Constraints/Datasets/Views/CardFields/Sequencing/AppendOnly/ShowNav/
-// SummaryMachine/Navigation that this package's own generator never writes but must not corrupt or
-// reject as "unknown". Using the narrower machineDoc/applicationDoc above for this check would
-// reject any real file that uses one of those fields, which is not this check's job -- it exists
-// only to catch a genuinely hallucinated key the surgical text edit might have introduced, never to
-// second-guess a shape internal/metadata's own Validate already accepts.
-type fullMachineCheckDoc struct {
-	ID          string `yaml:"id"`
-	Name        string `yaml:"name"`
-	Fields      []any  `yaml:"fields"`
-	Constraints []any  `yaml:"constraints"`
-	Events      []any  `yaml:"events"`
-	Permissions []any  `yaml:"permissions"`
-	Transitions []any  `yaml:"transitions"`
-	Datasets    []any  `yaml:"datasets"`
-	Sequencing  any    `yaml:"sequencing"`
-	SLAField    string `yaml:"sla_field"`
-	CardFields  []any  `yaml:"card_fields"`
-	Views       []any  `yaml:"views"`
-	AppendOnly  bool   `yaml:"append_only"`
-}
-
-type fullApplicationCheckDoc struct {
-	ID             string   `yaml:"id"`
-	Name           string   `yaml:"name"`
-	Machines       []string `yaml:"machines"`
-	Roles          []string `yaml:"roles"`
-	Description    string   `yaml:"description"`
-	Icon           string   `yaml:"icon"`
-	Color          string   `yaml:"color"`
-	SummaryMachine string   `yaml:"summary_machine"`
-	ShowNav        *bool    `yaml:"show_nav"`
-	Navigation     []any    `yaml:"navigation"`
-}
-
-// writeFileStrict re-parses data into a fresh T with strict, unknown-key-rejecting decoding before
-// writing it anywhere -- the narrow, scoped strict-decode check this package adds (see this
-// package's own doc comment and ROADMAP.md's "Reject unknown metadata keys" entry): it catches a
-// hallucinated/misspelled key in bytes this package itself produced, without touching the leniency
-// internal/metadata's three existing yaml.Unmarshal call sites still rely on for every hand-written
-// file already in production. Writes to a temp file in the same directory and renames into place,
-// so a crash mid-write can never leave a half-written file for the next reload to trip over.
-func writeFileStrict[T any](path string, data []byte) error {
-	var check T
-	dec := yaml.NewDecoder(bytes.NewReader(data))
-	dec.KnownFields(true)
-	if err := dec.Decode(&check); err != nil {
-		return fmt.Errorf("internal error: freshly-written metadata does not parse strictly: %w", err)
-	}
-
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, ".aiassist-*.yaml.tmp")
-	if err != nil {
-		return err
-	}
-	tmpPath := tmp.Name()
-	w := bufio.NewWriter(tmp)
-	if _, err := w.Write(data); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	if err := w.Flush(); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-	return os.Rename(tmpPath, path)
 }

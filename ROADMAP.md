@@ -2608,9 +2608,63 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 ## Planned
 
-- **Installing a template into a Workspace that already uses its ids** (owner, 2026-09-28:
-  *"bukannya harusnya bisa antisipasi jika tabrakan nama aplikasi bukan? ... komponen composable
-  harusnya siap untuk ini"*). Both halves of that are fair, and they need different answers.
+- **Installing a template into a Workspace that already uses its ids -- ~~planned~~ shipped 2026-09-28**
+  (owner, 2026-09-28: *"bukannya harusnya bisa antisipasi jika tabrakan nama aplikasi bukan? ...
+  komponen composable harusnya siap untuk ini"*). Both halves of that were fair, and they needed
+  different answers.
+
+  **What shipped.** `internal/installer` -- `Templates` (the library as data), `PlanInstall` (every
+  rename, addition and refusal, decided before anything is written) and `Install` (copy, rewrite,
+  append to the manifest, load-verify, roll back). `GET/POST /install-application` behind the same
+  workspace-admin gate as `/new-application`, a `domain.RuntimeScreens` entry so the page reads its own
+  route and heading by id, `rendering.InstallApplicationPage`, one link in Workspace Home's existing
+  "Add an application" section, and `cfg.TemplatePath` (`TEMPLATE_PATH`, default `metadata`).
+
+  The write primitives moved out of `internal/aiassist` rather than being copied: `WriteSet`,
+  `WriteFileStrict`, `AppendBlockListItem`, `RefuseIfExists` and the strict-decode targets are now
+  `internal/installer`'s, and `aiassist` imports them. That package's charter is "proposes Runtime
+  Metadata and calls an external AI API"; a hand-written template install is neither, and forking the
+  one piece of code whose whole job is not corrupting metadata on disk would have been the worse of the
+  two options. `internal/installer` has its own `TestEveryPackageHasARule` entry.
+
+  **What it renames, and what it refuses.** Machine ids and an Application's own id are renamed on
+  collision -- `mch_document` becomes `mch_document_approval`, the Application's own last name segment,
+  falling through to `_2`/`_3` -- and that is safe only because Stage A and the role-resolution slice
+  had already removed every Go-side meaning of both. A colliding **navigation id**, **navigation route**
+  or **Dataset id** is refused with the id named, because `routeByID("nav_...")`,
+  `Workspace.ApplicationForRoute` and `internal/composition`'s five `ds_*` constants still name those
+  from Go; renaming one would recreate exactly the coupling the two slices before this deleted. The
+  route refusal earns its keep twice: it makes two copies of one Application in a single Workspace
+  impossible, which is the state that would otherwise expose the submit wizard's own ambiguity
+  (`/documents/new` belongs to no Application -- `domain.MachineInWorkflowRole`).
+
+  **Byte-identical when nothing collides**, asserted by comparing bytes, because that is what keeps
+  "install then diverge" readable as a diff; a copy that did rename carries a provenance header naming
+  its template, the date and every rename, since the prose below it still names the original ids. The
+  library is only ever read -- also asserted by comparing bytes, since writing into it is the incident
+  that motivated Workspace isolation. A runtime-level Machine the template implies and the Workspace
+  lacks is added as a *reference* (`mch_notification` when the template declares `send_notification`),
+  derived from the template's own metadata rather than listed per template.
+
+  **Two live bugs fell out of it**, both of the "two lists that drift" shape and both now gated by
+  `TestCheckDocsMirrorMetadatasOwnKeys`: `installer`'s `FullMachineCheckDoc` was missing
+  `blocks_member_removal` (added to the real loader 2026-09-27), so copying `mch_approval_step` failed
+  its own strict re-parse -- a file the loader is perfectly happy with. Writing the gate then found
+  `WorkspaceManifestCheckDoc` missing `suggested_applications`, which `metadata/workspaces/default.yaml`
+  declares: **every AI publish into that Workspace would have failed and rolled back**, with an error
+  about a key nothing was wrong with. Neither was reachable before something tried to write those files.
+
+  **Verification.** `internal/web.TestInstallApplication_endToEndOverACollision` drives session, admin
+  gate, CSRF, POST, install, reload hook and redirect against the real library.
+  `installer.TestPlanInstall_againstTheRealDokterKecilManifest` asserts the plan against the actual
+  Workspace the owner's question was about (one rename, four clean, `mch_notification` added).
+  `TestInstall_rollsBackWhenTheResultWouldNotLoad` provokes a real unloadable result and confirms the
+  tree is left as found. Live: the screen renders in `default`, where both templates are already
+  installed, and correctly refuses both by naming every colliding id.
+
+  **Not done live in `dokter-kecil`.** Installing there needs a session in that Workspace, and the
+  shared admin credential holds no membership in it -- so the owner's own click is the last step. The
+  plan for it is asserted against the real manifest, so what that click will do is known.
 
   **The anticipation half is done** (same day): the assistant's system prompt now carries every
   Machine id already taken in the target Workspace, not only the ones an Application claims. It
@@ -2641,7 +2695,12 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   So: renaming as the *default* remains wrong; renaming as *collision resolution*, only for ids
   actually taken in the target, is right and is now provably safe.
 
-  **Plan.**
+  **The plan as written before it was built**, kept because its reasoning is this entry's substance --
+  step 3's "let the loader prove it" is the whole reason attempting a rewrite was reasonable, and step
+  2's byte-identical-when-clean is the property the shipped version asserts by comparing bytes. Step 2's
+  suffix landed as the Application's own last name segment (`mch_document_approval`) rather than the
+  Workspace's, and step 3 gained one site it did not anticipate: `workflow:`'s own `roles:`, which only
+  came to exist that morning.
 
   1. **An install operation that takes a rename map.** Today `aiassist.Write` only creates from a
      `GeneratedChange`. What is missing is "copy this template into this Workspace, renaming these
@@ -2661,29 +2720,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
      plain "install this template here" path is the smaller half of this work but the reason any
      of it is visible to a person.
 
-  **Verification, and the honest test of whether it worked**: install Document Approval into
-  "dokter-kecil", whose `mch_document` is taken, and confirm the copy loads, the renamed Machine
-  keeps its own records empty while Document Tracking's are untouched, and `action.IsDocument`
-  still engages for the copy.
-
-  **The Application half of that is now unblocked** (Stage A of the entry below, shipped
-  2026-09-28): the engine reads a declared `workflow:` binding instead of matching
-  `app_document_approval`, so a renamed Application -- or a second one installed beside the first --
-  engages exactly as the original does. This paragraph used to end "capped by that gap rather than by
-  this one"; the cap is gone.
-
-  **The Machine half is unblocked too, as of the same day** ("Resolve a Machine by the role its
-  Application casts it in", below). 67 references across 18 files used to ask for a Machine by its
-  literal id -- all legal, none an identity claim, and all wrong the moment an install renames
-  `mch_document`. They now ask which Machine plays a role, proven end to end by a decide flow driven
-  over `mch_surat`/`mch_langkah`. So step 3 above is back to what it says on the tin: rewrite the
-  references *inside* the copied metadata and let the loader prove it.
-
-  **What is left for this entry, then, is genuinely only its own four steps** -- the install operation,
-  the computed rename map, the in-metadata rewrite, and a UI to reach it. One caveat inherited from
-  below: a Workspace that ends up with *two* approval Applications leaves `/documents/new` ambiguous,
-  since that route names no Application. Renaming on install is what would create that state, so this
-  entry is where that limitation stops being theoretical.
+  **What the two blocking entries below contributed**, recorded because this entry was capped by both
+  for two days: Stage A made a renamed *Application* engage the approval engine at all, and the
+  role-resolution slice made a renamed *Machine* reachable by every handler, composition and Page. With
+  both, step 3 is only about rewriting references inside the copied metadata -- which is what it says,
+  and was not true when it was written.
 
 - **Resolve a Machine by the role its Application casts it in, not by its id -- shipped 2026-09-28**,
   the slice immediately after Stage A and the one that made the binding load-bearing rather than

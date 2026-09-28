@@ -208,27 +208,6 @@ func TestWrite_newApplication_isLoadableByRealMetadataLoader(t *testing.T) {
 	}
 }
 
-func TestAppendBlockListItem_missingKey(t *testing.T) {
-	if _, err := appendBlockListItem([]byte("workspace: default\n"), "applications:", "x.yaml"); err == nil {
-		t.Fatal("appendBlockListItem() = nil error, want one for a missing key")
-	}
-}
-
-// TestAppendBlockListItem_emptyFlowList covers the real, documented shape of a brand-new
-// Workspace's own manifest (CLAUDE.md: "An empty applications: [] is valid and normal") --
-// converting it to block style in place rather than refusing it.
-func TestAppendBlockListItem_emptyFlowList(t *testing.T) {
-	src := "workspace: default\nmachines:\n  - ../user.yaml\napplications: []\n"
-	got, err := appendBlockListItem([]byte(src), "applications:", "../applications/leave_requests.yaml")
-	if err != nil {
-		t.Fatalf("appendBlockListItem() error = %v", err)
-	}
-	want := "workspace: default\nmachines:\n  - ../user.yaml\napplications:\n  - ../applications/leave_requests.yaml\n"
-	if string(got) != want {
-		t.Errorf("appendBlockListItem() =\n%s\nwant\n%s", got, want)
-	}
-}
-
 func TestAppendFlowListItemNearAnchor_missingAnchor(t *testing.T) {
 	if _, err := appendFlowListItemNearAnchor([]byte("id: fld_other\noptions: [a, b]\n"), "id: fld_missing", "options:", "c"); err == nil {
 		t.Fatal("appendFlowListItemNearAnchor() = nil error, want one for a missing anchor")

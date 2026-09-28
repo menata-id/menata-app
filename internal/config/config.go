@@ -12,6 +12,12 @@ type Config struct {
 	Port         string
 	DatabaseURL  string
 	MetadataPath string
+	// TemplatePath is the template library root: the *.yaml Machine files an Application is installed
+	// from, plus applications/ beside them (internal/installer). Separate from MetadataPath, which is
+	// where installations land, because the two are genuinely different directories with different
+	// rules -- one is only ever read, the other is written per Workspace. Deriving one from the other
+	// (the library is MetadataPath's parent today) would be true only for the default layout.
+	TemplatePath string
 
 	// AdminUsername/AdminPassword and SessionSecret gate writes and reads behind a session
 	// cookie (internal/authorization). Phase 2 (ROADMAP.md): one shared admin credential, no
@@ -68,6 +74,7 @@ func Load() Config {
 		Port:                    port,
 		DatabaseURL:             getenv("DATABASE_URL", ""),
 		MetadataPath:            getenv("METADATA_PATH", "metadata/workspaces"),
+		TemplatePath:            getenv("TEMPLATE_PATH", "metadata"),
 		AdminUsername:           getenv("ADMIN_USERNAME", ""),
 		AdminPassword:           getenv("ADMIN_PASSWORD", ""),
 		SessionSecret:           getenv("SESSION_SECRET", ""),

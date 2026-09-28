@@ -327,6 +327,14 @@ func Routes(d Deps) http.Handler {
 			// Workspace Home's own "draft Application" row, fetched lazily (Flow 2 canvas
 			// re-audit, ROADMAP.md, 2026-09-27) -- same admin gate as the section that triggers it.
 			ar.Get("/api/home/draft-applications", showHomeDraftApplications(d.Store))
+
+			// Installing a ready-made Application from the template library (2026-09-28) -- the
+			// non-AI half of "add an application", and the first thing that can install
+			// metadata/applications/*.yaml at all. Same admin gate for the same stated reason:
+			// only workspace admins add applications. POST for the write, so the listing stays a
+			// read (TestGetRoutesDoNotWrite).
+			ar.Get("/install-application", showInstallApplication(d.Store, d.Cfg))
+			ar.Post("/install-application", submitInstallApplication(d.Store, d.Cfg, d.ReloadMetadata))
 		})
 
 		pr.Get("/uploads/*", serveUpload(d.Store, d.Files))

@@ -153,6 +153,14 @@ var rules = []rule{
 		because:   "internal/aiassist doc.go: proposes Runtime Metadata and calls an external AI API; it holds no pool, renders nothing, and never touches internal/data directly -- internal/web owns persistence and hands this package only the state it needs",
 	},
 	{
+		pkg: "installer",
+		// internal/metadata is allowed, one-way and for one reason: an install is only finished when
+		// the real loader accepts the result (installer doc.go, "nothing survives a failure"). A
+		// second list of checks here would be the drift this repo has already paid for once.
+		forbidden: []string{postgres, sqlPkg, httpPkg, templ, internalPkg("data"), internalPkg("db"), internalPkg("rendering"), internalPkg("web")},
+		because:   "internal/installer doc.go: it copies Runtime Metadata into a Workspace's own directory and load-verifies the result; it holds no pool, renders nothing, and speaks no HTTP -- internal/web hands it two paths and reloads the route table itself",
+	},
+	{
 		pkg:       "conformance",
 		forbidden: []string{postgres, sqlPkg, httpPkg, templ, module + "/internal"},
 		because:   "these checks must not depend on the code they police",

@@ -239,6 +239,17 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 		} else {
 			<span class="text-2xs text-slate-400">Only workspace admins can add applications</span>
 		}
+		// The other way to add one: install a ready-made Application from the template library instead
+		// of describing a new one (2026-09-28). **Not on the mockup's board** -- it draws no
+		// install-from-library concept, because nothing could install one when it was drawn -- so this
+		// is one declared line inside the section that already exists rather than a second section
+		// competing with it. Route and label come from its own runtime screen, never retyped.
+		<span class="text-xs text-slate-500">
+			Already know what you need?
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_install_application")) } class="text-blue-600 hover:text-blue-700">
+				{ labelByID(ctx, "nav_install_application") } →
+			</a>
+		</span>
 	</section>
 }
 

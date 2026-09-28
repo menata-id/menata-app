@@ -50,6 +50,17 @@ var RuntimeScreens = []NavigationItem{
 	// (nav_app_settings, metadata/applications/*.yaml). A runtime screen like the two above it,
 	// not an Application concept, for the identical reason: it exists in a Workspace with any
 	// number of Applications or none.
+	// nav_install_application (2026-09-28): the template library, and the one screen that turns
+	// metadata/applications/*.yaml from a directory nothing could reach into something a person can
+	// install. A runtime screen by the same test the four above pass -- it exists identically in a
+	// Workspace with zero Applications or ten, and what it lists is the library, not this Workspace.
+	{
+		ID:          "nav_install_application",
+		Label:       "Install an application",
+		Route:       "/install-application",
+		Title:       "Ready-made applications",
+		Description: "Install one of these into this workspace. Only workspace admins can.",
+	},
 	{
 		ID:          "nav_workspace_settings",
 		Label:       "Workspace settings",

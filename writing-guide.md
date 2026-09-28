@@ -748,6 +748,15 @@ dropping a file in *installs* its Applications into that Workspace. `application
 | `navigation[]` | list of items | This Application's own menu |
 | `workflow` | `{engine, roles{}}` | Optional — which runtime workflow engine this Application runs on, and which of its own Machines plays each role in it (2026-09-28). See below |
 
+**Installing one of these instead of writing it** (2026-09-28): `metadata/applications/*.yaml` is a
+template library, and `/install-application` (workspace admins only) copies one into a Workspace. A
+Machine id or Application id the Workspace already uses is **renamed** on the way in
+(`mch_document` → `mch_document_approval`); a navigation id, a route or a Dataset id that collides is
+**refused**, because Go still names those. With no collision the copy is byte-identical to the
+template, so `diff`ing your Workspace's file against the library shows exactly what you have changed
+since. Each copy carries a header saying where it came from and what was renamed — the comments below
+that header still name the template's original ids.
+
 **`workflow:` — binding a runtime engine to your own Machines**
 
 ```yaml

@@ -99,14 +99,24 @@ thing — the same name in a *different* Workspace. Two Machines under one id in
 stays a load-time error (`metadata.validateMachineIDsAreUnique`), and `aiassist.Validate` refuses
 it before a generated Application is ever written.
 
-That has a consequence worth knowing before you promise anyone an install: **a Workspace that
-already uses one of a template's ids cannot take that template at all**, and nothing resolves it —
-there is no install path except the assistant's own publish, and no rename-on-collision anywhere.
-"dokter-kecil" holds `mch_document` for its generated Document Tracking, so Document Approval
-cannot go in beside it today. The assistant *anticipates* collisions when generating (its prompt
-carries every taken Machine id in the target Workspace, not only the Application-claimed ones),
-but anticipation is not resolution. Planned: `ROADMAP.md`, "Installing a template into a Workspace
-that already uses its ids".
+**Installing a template resolves an id collision by renaming it (2026-09-28).** `internal/installer`
+copies a library template into a Workspace's own directory, renaming any **Machine id** or
+**Application id** that Workspace already uses — `mch_document` becomes `mch_document_approval` — and a
+Workspace with no collision gets a **byte-identical copy**, which is what keeps "install then diverge"
+readable as a diff. Reached from `/install-application` (workspace-admin only), or from
+`installer.PlanInstall`/`Install` directly. Renaming is safe only because the two changes above removed
+every Go-side meaning of both kinds of id; **a collision on a navigation id, a navigation route or a
+Dataset id is refused with a reason instead**, because `routeByID("nav_...")`,
+`Workspace.ApplicationForRoute` and `internal/composition`'s `ds_*` constants still name those from Go.
+Do not "fix" one of those refusals by renaming — that reintroduces exactly the coupling the two slices
+above deleted.
+
+This paragraph used to say a Workspace already using one of a template's ids "cannot take that template
+at all", and that was true for two days. What is still true: the library (`metadata/*.yaml`,
+`metadata/applications/*.yaml`) is **only ever read**, an install is load-verified through the real
+loader and rolled back if the result does not load, and the assistant's own publish path anticipates
+collisions when generating (its prompt carries every Machine id already taken in the target Workspace,
+not only the Application-claimed ones).
 
 Concretely, before adding any hardcoded `href`, label, or button to a page under
 `internal/rendering/`: check the installed Application's own `navigation:` list first. If the
@@ -281,6 +291,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   assertion that catches those — same request, more rows, same cost. `TestAuthenticatedPageQueryCost`/`TestNavBadgeQueryCost` sit beside
   it with per-route *budgets* — kept to two on purpose, since a budget is a threshold that rots
   while the two invariants above do not.
+- `TestCheckDocsMirrorMetadatasOwnKeys` — `internal/installer`'s strict-decode targets
+  (`FullMachineCheckDoc` and friends) are hand-mirrors of `internal/metadata`'s own unexported
+  `machineDoc`/`applicationDoc`/`workspaceDoc`, and every metadata write goes through one. A key added
+  to the real doc and not the mirror makes the write reject a file the *loader* accepts. Not
+  hypothetical twice over: `blocks_member_removal` (2026-09-27) broke the first template install, and
+  writing this gate immediately found `suggested_applications` missing too — which would have failed
+  every AI publish into `default`.
 - `TestCapabilitiesMachinesTableMatchesMetadata` / `...ComponentsTableMatchesTempl` —
   `capabilities.md`'s own Machines and Shared rendering components tables match the real
   `metadata/*.yaml` and `internal/rendering/*.templ`.

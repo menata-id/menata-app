@@ -178,6 +178,23 @@ func LoadWorkspaces(dir string) (Workspaces, error) {
 	return loaded, nil
 }
 
+// LoadApplicationFile reads and validates one Application file on its own, outside any Workspace --
+// what the template library holds (metadata/applications/*.yaml) before anything installs it.
+//
+// It is loadApplicationFile with no Workspace slug, exported for internal/installer, which has to
+// know what a template declares (its id, its card face, the Machines it claims, the workflow it
+// binds) before it can plan a copy. Exported rather than letting that package parse the file itself:
+// an Application's shape is declared once, here, and a second reader would be the two-lists drift
+// this repo has already paid for.
+//
+// Every check loadApplicationFile makes runs, and every check it cannot make still cannot be made --
+// summary_machine is verified against this Application's own machines:, but whether those Machines
+// exist at all is a Workspace-level question (validateApplicationClaims), which is exactly what
+// installer's own load-verify after the copy is for.
+func LoadApplicationFile(path string) (*domain.Application, error) {
+	return loadApplicationFile(path, "")
+}
+
 // LoadApplication reads a Workspace manifest: its own Machine files and navigation, then every
 // Application file it references (all paths resolved relative to the manifest's own directory),
 // validating each in turn (005-runtime-lifecycle.md Phase 3-4: invalid metadata must not enter
