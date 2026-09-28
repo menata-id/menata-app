@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -270,16 +271,47 @@ func sweptRoute(route string, skipped []string) bool {
 // lands in one list or the other rather than in neither.
 func authenticatedGetRoutes(t *testing.T) []string {
 	t.Helper()
-	return routerGetRoutes(t, false)
+	return routerRoutes(t, "Get", false)
 }
 
 func perRecordGetRoutes(t *testing.T) []string {
 	t.Helper()
-	return routerGetRoutes(t, true)
+	return routerRoutes(t, "Get", true)
 }
 
-// routerGetRoutes is the one parse of router.go both lists come from. withParams selects which half.
-func routerGetRoutes(t *testing.T, withParams bool) []string {
+// postRoutesByGroup is **every** POST router.go registers, mapped to the router it was registered on
+// -- "pr"/"ar" for the authenticated groups, "r" for the public one.
+//
+// The receiver is returned rather than filtered on, and that is the whole design. A first attempt at
+// the write-side sweep discovered only pr/ar routes, so moving a POST to the public router did not
+// fail it -- the route simply left the population, which is the failure mode the sweep exists to
+// catch. Mutation-testing found that on the first try. Returning every route and asserting *which*
+// group each belongs in is what makes the move visible (routesweep_test.go).
+func postRoutesByGroup(t *testing.T) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, recv := range []string{"pr", "ar", "r"} {
+		for _, path := range routerRoutesOn(t, "Post", recv) {
+			out[path] = recv
+		}
+	}
+	return out
+}
+
+// routerRoutes is the one parse of router.go every list comes from. method is the chi method name and
+// withParams selects paths with or without a `{...}`/`*` segment.
+func routerRoutes(t *testing.T, method string, withParams bool) []string {
+	t.Helper()
+	return routerRoutesMatching(t, method, withParams, true, "pr", "ar")
+}
+
+// routerRoutesOn returns one receiver's routes of one method, both parameterised and not.
+func routerRoutesOn(t *testing.T, method, recv string) []string {
+	t.Helper()
+	return routerRoutesMatching(t, method, false, false, recv)
+}
+
+func routerRoutesMatching(t *testing.T, method string, withParams, filterParams bool, receivers ...string) []string {
 	t.Helper()
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "router.go", nil, 0)
@@ -294,13 +326,14 @@ func routerGetRoutes(t *testing.T, withParams bool) []string {
 			return true
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "Get" || len(call.Args) != 2 {
+		if !ok || sel.Sel.Name != method || len(call.Args) != 2 {
 			return true
 		}
-		// pr and ar are the authenticated group and its admin subgroup; r is the public router,
-		// whose routes carry no session and so no identity cost to measure.
+		// pr and ar are the authenticated group and its admin subgroup; r is the public router, whose
+		// routes carry no session and so no identity cost to measure. Which of them a caller wants is
+		// the caller's business -- the query sweeps want pr/ar, the POST sweep wants each in turn.
 		recv, ok := sel.X.(*ast.Ident)
-		if !ok || (recv.Name != "pr" && recv.Name != "ar") {
+		if !ok || !slices.Contains(receivers, recv.Name) {
 			return true
 		}
 		lit, ok := call.Args[0].(*ast.BasicLit)
@@ -308,7 +341,7 @@ func routerGetRoutes(t *testing.T, withParams bool) []string {
 			return true
 		}
 		path := strings.Trim(lit.Value, `"`)
-		if strings.ContainsAny(path, "{*") != withParams {
+		if filterParams && strings.ContainsAny(path, "{*") != withParams {
 			return true
 		}
 		routes = append(routes, path)

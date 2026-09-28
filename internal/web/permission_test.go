@@ -133,11 +133,16 @@ func TestDeleteRecord_allowsAssigneeDelete(t *testing.T) {
 	}
 }
 
-// TestUpdateRecordForm_unrestrictedMachineAllowsAnyAuthenticatedUser is the regression guard: a
-// Machine declaring no edit Permission (mch_document here, same as every Machine other than
-// mch_approval_step) must behave exactly as before this change -- any authenticated Workspace
-// member may still edit it, not just some declared actor.
-func TestUpdateRecordForm_unrestrictedMachineAllowsAnyAuthenticatedUser(t *testing.T) {
+// TestUpdateRecordForm_recordScopedPermissionDoesNotGateAnotherMachine is the regression guard for
+// mch_approval_step's record-scoped edit rule not leaking onto other Machines: a member who is not
+// this Document's own anything may still edit it.
+//
+// **Its name and comment used to say "unrestricted Machine ... declaring no edit Permission", and that
+// stopped being true on 2026-09-21** when prm_edit_document_not_reviewer landed -- the *fixture* was
+// what still said so, by declaring no Permissions at all. Corrected 2026-09-29 when
+// documentTestMachine was made to mirror the real Machine. What the test demonstrates now is the role
+// arm passing (assignee2 holds approver) with no actor arm to satisfy, which is the real rule.
+func TestUpdateRecordForm_recordScopedPermissionDoesNotGateAnotherMachine(t *testing.T) {
 	s := newDecideStepTestSetup(t, "update_unrestricted_machine")
 
 	rec := putRecordAs(t, s, action.DocumentMachineID, s.documentID, s.assignee2, map[string]string{
@@ -145,6 +150,6 @@ func TestUpdateRecordForm_unrestrictedMachineAllowsAnyAuthenticatedUser(t *testi
 		action.FieldDocumentStatus: action.DocumentStatusInReview,
 	})
 	if rec.Code != http.StatusOK {
-		t.Fatalf("updateRecordForm(unrestricted Machine, non-owner) status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+		t.Fatalf("updateRecordForm(other Machine, non-owner) status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
 }

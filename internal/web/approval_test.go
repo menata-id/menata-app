@@ -150,10 +150,37 @@ func documentTestMachine(ids approvalIDs) *domain.Machine {
 		WorkflowRole:   domain.WorkflowRoleDocument,
 		Fields: []domain.Field{
 			{ID: action.FieldDocumentMode, Name: "Mode", Type: domain.FieldTypeStatus, Options: []string{"sequential", "parallel"}},
-			{ID: action.FieldDocumentStatus, Name: "Status", Type: domain.FieldTypeStatus, Options: []string{action.DocumentStatusInReview, action.DocumentStatusApproved, action.DocumentStatusRejected}},
+			{ID: action.FieldDocumentStatus, Name: "Status", Type: domain.FieldTypeStatus, Options: []string{action.DocumentStatusDraft, action.DocumentStatusInReview, action.DocumentStatusApproved, action.DocumentStatusRejected}},
 			{ID: action.FieldDocumentFile, Name: "File", Type: domain.FieldTypeFile},
 			{ID: action.FieldDocumentSignedFile, Name: "Signed File", Type: domain.FieldTypeFile},
+			{ID: action.FieldDocumentSubmittedBy, Name: "Submitted By", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
 		},
+		// The rule blocks metadata/document.yaml declares, and every one of them was missing until the
+		// first test of the revise route went looking (2026-09-29). The consequence was specific: with
+		// no Transitions this Machine has no StatusField(), so the derivation reviseDocument and
+		// continueDocumentWizard read their status Field through returned "" -- and the decide tests
+		// still passed, because the rollup Event's own config names fld_status literally. A fixture can
+		// be wrong in a way that only a *new* test notices, which is the argument for the fixture gate
+		// rather than for trusting the next reader.
+		Transitions: []domain.Transition{
+			{ID: "trn_document_approved", Name: "Approved", Field: action.FieldDocumentStatus, From: action.DocumentStatusInReview, To: action.DocumentStatusApproved},
+			{ID: "trn_document_rejected", Name: "Rejected", Field: action.FieldDocumentStatus, From: action.DocumentStatusInReview, To: action.DocumentStatusRejected},
+			{ID: "trn_document_reopened_from_rejected", Name: "Reopened", Field: action.FieldDocumentStatus, From: action.DocumentStatusRejected, To: action.DocumentStatusInReview},
+		},
+		ActionEffects: []domain.ActionEffect{
+			{Action: domain.ActionRevise, Writes: []domain.FieldWrite{{Field: action.FieldDocumentStatus, Value: action.DocumentStatusDraft}}},
+			{Action: domain.ActionCreate, Writes: []domain.FieldWrite{{Field: action.FieldDocumentStatus, Value: action.DocumentStatusInReview}}},
+		},
+		Permissions: []domain.Permission{
+			{ID: "prm_create_own_document", Action: domain.ActionCreate, Roles: []string{"approver", "submitter"}, ActorField: action.FieldDocumentSubmittedBy},
+			{ID: "prm_edit_document_not_reviewer", Action: domain.ActionEdit, Roles: []string{"approver", "submitter"}},
+			{ID: "prm_delete_document_not_reviewer", Action: domain.ActionDelete, Roles: []string{"approver", "submitter"}},
+			{ID: "prm_revise_document", Action: domain.ActionRevise, Roles: []string{"approver", "submitter"}},
+		},
+		Events: []domain.Event{{
+			ID: "evt_document_submitted", OnCreate: true,
+			Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "\"{fld_title}\" submitted"},
+		}},
 	}
 }
 
@@ -347,10 +374,23 @@ func newDecideStepTestSetupWith(t *testing.T, testName string, ids approvalIDs) 
 		t.Fatalf("Save(document PDF): %v", err)
 	}
 
-	document, err := store.CreateRecord(wsCtx, ids.document, map[string]any{
+	// The status the Machine's own `create` effect declares, not a literal and not nothing. Left empty
+	// until 2026-09-29, when the revise tests found it: a Document with no status has no *current*
+	// state, so any declared transition refuses to move it and machine.StatusField() reads blank. In
+	// production the wizard never makes one -- create's effect fills it -- so an empty status was a
+	// state only this fixture could produce.
+	docValues := map[string]any{
 		action.FieldDocumentMode: "sequential",
 		action.FieldDocumentFile: docKey,
-	})
+	}
+	if effect, ok := documentTestMachine(ids).EffectFor(domain.ActionCreate); ok {
+		for _, wr := range effect.Writes {
+			if wr.Value != "" {
+				docValues[wr.Field] = wr.Value
+			}
+		}
+	}
+	document, err := store.CreateRecord(wsCtx, ids.document, docValues)
 	if err != nil {
 		t.Fatalf("CreateRecord(document): %v", err)
 	}
@@ -820,6 +860,7 @@ func TestFixturesMirrorTheRealMachines(t *testing.T) {
 		fixture *domain.Machine
 	}{
 		{"approvalStepTestMachine", ids.step, approvalStepTestMachine(ids)},
+		{"documentTestMachine", ids.document, documentTestMachine(ids)},
 		{"signatureTestMachine", ids.signature, signatureTestMachine(ids)},
 	} {
 		want, ok := real[c.id]

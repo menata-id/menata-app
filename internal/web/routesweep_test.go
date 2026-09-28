@@ -439,3 +439,173 @@ const onePagePDF = "%PDF-1.4\n" +
 	"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
 	"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n" +
 	"trailer<</Root 1 0 R>>\n"
+
+// TestPostRoutesRefuseUnauthenticatedAndUnCSRFed is the write side's structural sweep: every POST in
+// router.go's authenticated groups must refuse a request carrying no session, and refuse one carrying
+// no CSRF token.
+//
+// **It is the third population this repo has measured rather than guessed at**, after the fixture
+// mirrors and the per-record GET routes -- and the write side had never been measured at all. 14 of
+// 29 POST routes are named by no test, and one of them (`revise`) is a declared-Action write path
+// edited by the very commit that broke /review, by the same kind of edit, with nothing proving it.
+//
+// **What this sweep does not do, said here so a green run is not misread.** Refusing correctly is not
+// behaviour coverage: these routes stay untested *as writes* after this test passes. What it holds is
+// two things that fail **invisibly at runtime** -- the same reason TestQueryDiagnosticsRunsBeforeAuth
+// exists:
+//
+//   - a route registered on the public router instead of pr/ar would serve anonymous writes, and look
+//     completely normal to anyone signed in;
+//   - csrfProtect is global today (router.go's own r.Use), so the CSRF half passes everywhere. Its
+//     value is a future refactor that moves that middleware failing here rather than in production.
+//
+// Behaviour coverage for the three routes where a silent no-op matters most is separate and named:
+// revise (revise_test.go), group role grants, and the password change.
+func TestPostRoutesRefuseUnauthenticatedAndUnCSRFed(t *testing.T) {
+	h, cookie, fx := newPerRecordSweepSetup(t, "postsweep")
+
+	routes := postRoutesByGroup(t)
+	if len(routes) < minSweptPostRoutes {
+		t.Fatalf("found %d POST routes (want >= %d) -- the parse stopped seeing them and this sweep is measuring nothing",
+			len(routes), minSweptPostRoutes)
+	}
+
+	paths := make([]string, 0, len(routes))
+	for path := range routes {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	for _, route := range paths {
+		if routes[route] == "r" {
+			switch {
+			case preIdentityPostRoutes[route]:
+				// Nothing to assert about identity: there is none yet by definition.
+			case pendingIdentityPostRoutes[route]:
+				// These run on the half-identity login creates before a Workspace is chosen, so the
+				// claim "this is safe outside pr" is checkable: without that cookie they must send the
+				// caller to /login rather than act. Asserting it is what makes this an allowlist with
+				// a guarantee behind it instead of a way to be excused from the sweep.
+				rec := httptest.NewRecorder()
+				req := httptest.NewRequest(http.MethodPost, fx.concrete(route), nil)
+				token := csrfTokenFor(t, h, route)
+				req.Header.Set("X-CSRF-Token", token.value)
+				req.AddCookie(token.cookie)
+				h.ServeHTTP(rec, req)
+				if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/login" {
+					t.Errorf("POST %s with no pending identity = %d %q, want 303 to /login -- it is outside the authenticated group on the promise that it checks the pending identity itself",
+						route, rec.Code, rec.Header().Get("Location"))
+				}
+			default:
+				t.Errorf("POST %s is registered on the public router but is in neither declared set -- an authenticated write served anonymously looks completely normal to anyone signed in. Move it to pr/ar, or add it to one of the sets with a reason", route)
+			}
+			continue
+		}
+		url := fx.concrete(route)
+
+		// No session at all. A CSRF token is supplied so the refusal can only be about identity --
+		// otherwise csrfProtect would answer first and this would prove nothing about the route group.
+		token := csrfTokenFor(t, h, route)
+		anon := httptest.NewRequest(http.MethodPost, url, nil)
+		anon.Header.Set("X-CSRF-Token", token.value)
+		anon.AddCookie(token.cookie)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, anon)
+		if rec.Code == http.StatusOK || rec.Code == http.StatusNoContent {
+			t.Errorf("POST %s with no session = %d -- an authenticated route must refuse an anonymous write. Is it registered on the public router instead of pr/ar?",
+				route, rec.Code)
+		}
+
+		// A real session, no CSRF token.
+		noToken := httptest.NewRequest(http.MethodPost, url, nil)
+		noToken.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec = httptest.NewRecorder()
+		h.ServeHTTP(rec, noToken)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("POST %s with a session but no CSRF token = %d, want 403 -- csrfProtect must cover every write",
+				route, rec.Code)
+		}
+	}
+	// A stale allowlist entry protects nothing and hides that the route it named is gone -- the same
+	// terms every ratchet in this repo carries.
+	for _, set := range []map[string]bool{preIdentityPostRoutes, pendingIdentityPostRoutes} {
+		for route := range set {
+			if _, exists := routes[route]; !exists {
+				t.Errorf("%s is allowlisted as a public POST but router.go registers no such route -- remove the entry", route)
+			}
+		}
+	}
+	t.Logf("swept %d POST routes for the two refusal invariants", len(routes))
+}
+
+// preIdentityPostRoutes and pendingIdentityPostRoutes are the two closed sets of writes that
+// legitimately sit outside the authenticated group. Everything else there is a finding.
+//
+// Closed allowlists rather than a filter, for the same reason internal/conformance's
+// runtimeLevelRoutes is one: the interesting failure is a route arriving here that nobody decided
+// should be public, and a filter cannot notice that. A stale entry fails too (below), the same terms
+// this repo's ratchets carry.
+//
+// **The split is a real distinction the sweep surfaced rather than one written in advance.** The first
+// allowlist lumped them together as "pre-session"; /choose-workspace is not -- it runs after login, on
+// the pending-email half-identity, and verifies it itself (authorization.PendingEmail). Writing them
+// as one set would have recorded something false about two of them.
+var preIdentityPostRoutes = map[string]bool{
+	"/login":               true, // creates the session
+	"/register":            true, // creates the identity
+	"/resend-verification": true, // the identity exists but cannot sign in yet
+	"/accept-invite":       true, // the invitation *is* the credential
+	"/forgot-password":     true,
+	"/reset-password":      true,
+}
+
+// pendingIdentityPostRoutes run between "signed in" and "Workspace chosen". Each is asserted to
+// refuse without that pending identity, above.
+var pendingIdentityPostRoutes = map[string]bool{
+	"/choose-workspace":         true,
+	"/choose-workspace/restore": true,
+}
+
+// minSweptPostRoutes is the floor, matching minSweptRoutes and minPerRecordCases: a parse that stops
+// finding routes must fail rather than pass quietly.
+const minSweptPostRoutes = 25
+
+// concrete substitutes a seeded id for every path parameter, so a `{...}` POST is addressable rather
+// than skipped -- the exclusion that left the GET routes unswept for months.
+//
+// The values only have to make the router match and the handler get far enough to refuse; this sweep
+// never asserts a successful write, which is what lets one substitution table serve every route.
+func (f perRecordFixture) concrete(route string) string {
+	doc := f.ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	url := route
+	if doc != nil {
+		url = strings.ReplaceAll(url, "{machineID}", doc.ID)
+		url = strings.ReplaceAll(url, "{id}", f.records[doc.ID])
+	}
+	url = strings.ReplaceAll(url, "{userRecordID}", f.memberID)
+	url = strings.ReplaceAll(url, "{groupID}", f.groupID)
+	url = strings.ReplaceAll(url, "{session}", "no-such-session")
+	url = strings.ReplaceAll(url, "{slug}", "no-such-workspace")
+	return url
+}
+
+// csrfTokenFor gets a real CSRF cookie/token pair out of the app itself, by making the GET any page
+// makes. Minting one in the test would be testing this test's copy of the scheme rather than the
+// app's.
+type csrfPair struct {
+	value  string
+	cookie *http.Cookie
+}
+
+func csrfTokenFor(t *testing.T, h http.Handler, path string) csrfPair {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/login", nil))
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == authorization.CSRFCookieName {
+			return csrfPair{value: c.Value, cookie: c}
+		}
+	}
+	t.Fatalf("no CSRF cookie was issued for %s -- csrfProtect is not in the chain", path)
+	return csrfPair{}
+}

@@ -3106,6 +3106,43 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   that already existed. The lesson is the one this file keeps relearning -- a deferral reason that
   covers *part* of a population reads as if it covers all of it, and only counting tells you which.
 
+  **The write side, measured for the first time** (2026-09-29). 14 of 29 POST routes were named by no
+  test, and the one that mattered was `revise`: a declared-Action write path edited by `14c9223` -- the
+  same commit that broke /review, by the same kind of edit (a literal Field id replaced with
+  `machine.StatusField()`). The change was correct; nothing proved it, which is exactly where /review
+  stood the day before.
+
+  `TestPostRoutesRefuseUnauthenticatedAndUnCSRFed` sweeps all 37 POSTs, and **its first design was
+  wrong in a way mutation-testing caught immediately**: discovering only `pr`/`ar` routes meant moving
+  a POST to the *public* router did not fail it -- the route left the population instead. So the
+  receiver is asserted rather than filtered on, and a public POST must be in one of two closed sets.
+  The split between them is itself a finding: `/choose-workspace` is not a pre-session flow, it runs on
+  login's half-identity and verifies it itself, so its allowlist entry carries a *checked* claim (it
+  must redirect to /login without that cookie) rather than an excuse.
+
+  **Live, and the limit is the same one the wizard had.** `revise` cannot be exercised through the
+  running service from this session: `POST .../revise` returns 403 because `prm_revise_document`
+  requires an approver or submitter role and the admin pseudo-identity holds none -- checked, not
+  assumed. Production also holds no rejected Document to revise. So the live check confirms the route
+  is wired and refusing correctly, and the behaviour is covered by the Postgres-backed tests through
+  the real handler, mutation-proved.
+
+  **What it deliberately does not do**: refusing correctly is not behaviour coverage. Eleven routes
+  still have none. Behaviour tests were written for the three where a silent no-op is an authorization,
+  credential or workflow failure -- `revise`, group role grants, the password change -- all three
+  mutation-proved against a handler that renders and writes nothing.
+
+  **And the fixture gate's stated limit bit immediately, which is the useful part.** Its population is
+  a named list, and `documentTestMachine` was not on it -- so that fixture declared no Transitions, no
+  Permissions and no Action effects. Consequence, found by the first test of `revise` rather than by a
+  gate: with no Transitions the Machine has no `StatusField()`, so the derivation `reviseDocument` and
+  `continueDocumentWizard` read their status Field through returned `""`, while the decide tests kept
+  passing because the rollup Event's own config names `fld_status` literally. Two more stale claims
+  fell out of fixing it: the fixture created its Document with **no status at all** (production's
+  `create` effect always sets one), and `TestUpdateRecordForm_unrestrictedMachineAllowsAnyAuthenticated-
+  User`'s own name and comment described mch_document as "declaring no edit Permission", which stopped
+  being true on 2026-09-21 -- the fixture was what still said so. Renamed and corrected.
+
   **The blind spot that let it ship is now closed** (2026-09-28, `TestPerRecordGetRoutes`). The 404
   lived in a gap a gate already declared: `TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed` parses
   router.go precisely so a new route is covered without anyone remembering -- and then dropped every

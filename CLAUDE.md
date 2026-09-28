@@ -345,6 +345,14 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   called `app_persetujuan` over `mch_surat`/`mch_langkah` engages the approval engine because it
   *declares* the binding, and every Machine whose Application declares none — including
   "dokter-kecil"'s own unbound `mch_document`, the one that panicked two pages — engages nothing.
+- `TestPostRoutesRefuseUnauthenticatedAndUnCSRFed` (`internal/web`, needs `DATABASE_URL`) — the write
+  side's structural sweep, over **every** POST including the public ones. An authenticated POST must
+  refuse a request with no session and 403 one with no CSRF token; a POST on the public router must be
+  in `preIdentityPostRoutes` or `pendingIdentityPostRoutes`, both closed, both failing on a stale
+  entry. The receiver is *asserted*, not filtered on — a version that discovered only `pr`/`ar` routes
+  could not see a write moved to the public router, because the route just left the population. It is
+  a middleware-wiring guarantee, **not** behaviour coverage; say so rather than reading a green run as
+  "the write side is tested".
 - `TestPerRecordGetRoutes` (`internal/web`, needs `DATABASE_URL`) — the *other half* of the route
   table. The sweep above covers GET routes with no path parameter; this one seeds a record per
   installed Machine and covers the 12 that take one, both directions: a route valid for this Machine
