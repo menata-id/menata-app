@@ -276,7 +276,7 @@ func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection,
 			steps = cc.Records
 		}
 	}
-	ok, reason := action.CanDelete(m.ID, r.Values, steps)
+	ok, reason := action.CanDelete(m, r.Values, steps)
 	if ok && !authorization.AllowsAction(m, domain.ActionDelete, r.Values, actor) {
 		return false, "not allowed"
 	}

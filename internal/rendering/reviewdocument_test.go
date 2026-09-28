@@ -16,7 +16,10 @@ import (
 func renderDecisionBar(t *testing.T, v ReviewView) string {
 	t.Helper()
 	var buf bytes.Buffer
-	if err := reviewDecisionBar(v).Render(context.Background(), &buf); err != nil {
+	// The decide form's target names the step Machine by the role its Application cast it in
+	// (2026-09-28), so this render needs a Workspace on ctx the way a real request has one.
+	ctx := approvalWorkspaceCtx(stepMachineBound(&domain.Machine{ID: "mch_approval_step", Name: "Approval Step"}))
+	if err := reviewDecisionBar(v).Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return buf.String()

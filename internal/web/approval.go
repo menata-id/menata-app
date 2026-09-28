@@ -95,7 +95,7 @@ func showApprovalInbox(store *data.Store, cfg config.Config) http.HandlerFunc {
 // 2026-09-25) -- so an active status chip still narrows what lands in either half, e.g. the Draft
 // chip active leaves mine (Submitted) empty.
 func pendingTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, filterKey, mineStatusKey, q string) (pending, drafts, mine []rendering.PendingApprovalCard, filters, mineFilters []rendering.FilterChip, err error) {
-	inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
+	inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machineForStep(ctx), machineForDocument(ctx))
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -124,7 +124,7 @@ func pendingTabContent(ctx context.Context, store *data.Store, machines map[stri
 // ?status= the same way pendingTabContent reduces Pending by ?filter=, then by ?q= within whichever
 // status chip is active.
 func assignedTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, statusKey, q string) (rows []rendering.AssignedRow, filters []rendering.FilterChip, err error) {
-	assigned, err := composition.AssignedToMe(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
+	assigned, err := composition.AssignedToMe(ctx, composition.NewLoader(store, machines), userID, time.Now(), machineForStep(ctx), machineForDocument(ctx))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -160,9 +160,8 @@ func assignedTabContent(ctx context.Context, store *data.Store, machines map[str
 // still cannot disagree, because both select through composition's own pendingStepsFor.
 func showPendingCount(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machines := machinesFor(req.Context())
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-		pending, err := composition.PendingApprovalCount(req.Context(), composition.NewLoader(store, machines), userID, machines[action.StepMachineID])
+		pending, err := pendingApprovalTotal(req.Context(), store, userID)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -172,6 +171,34 @@ func showPendingCount(store *data.Store, cfg config.Config) http.HandlerFunc {
 		}
 		_, _ = fmt.Fprintf(w, "%d", pending)
 	}
+}
+
+// pendingApprovalTotal is the badge's and Workspace Home's own number: how many decisions this
+// identity owes, across **every** approval Application installed in this Workspace.
+//
+// Both callers sit outside any Application -- the badge renders on a third of all requests, on
+// whatever page, and Workspace Home belongs to the Workspace -- so neither can resolve "the" step
+// Machine the way an Application's own screen does. Until 2026-09-28 both simply read
+// machines[action.StepMachineID], which assumed exactly one approval Application and one name for
+// it; Workspace isolation made "zero, one, or several" the real range, and a Workspace with two
+// would have counted only whichever one happened to own that id.
+//
+// One Loader across the loop on purpose: two Applications sharing a Machine is impossible, so there
+// is nothing to dedupe between iterations, but the Loader also memoizes mch_activity and the member
+// names both compositions want.
+func pendingApprovalTotal(ctx context.Context, store *data.Store, userID string) (int, error) {
+	ws := rendering.CurrentWorkspace(ctx)
+	l := composition.NewLoader(store, machinesFor(ctx))
+	total := 0
+	for _, steps := range ws.MachinesInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleStep) {
+		documents := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, steps.ApplicationID)
+		n, err := composition.PendingApprovalCount(ctx, l, userID, steps, documents)
+		if err != nil {
+			return 0, err
+		}
+		total += n
+	}
+	return total, nil
 }
 
 // decideStep is Case 3's core Action (ROADMAP.md Phase 12): Approve or Reject one Approval Step,
@@ -229,7 +256,7 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 		// before/after pair -- see snapshotValues for why this is a copy rather than a re-read.
 		oldValues := snapshotValues(step.Values)
 
-		if !applyApprovalSignature(w, req, ctx, store, files, actor.ID, step, decision) {
+		if !applyApprovalSignature(w, req, ctx, store, files, machine, actor.ID, step, decision) {
 			return
 		}
 
@@ -240,23 +267,32 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 			return
 		}
 
-		if decision == action.DecisionApproved {
-			// Owner request, 2026-09-19: every approval, not just the one that completes the
-			// whole Document, should land in the PDF immediately -- signDocument recomposites
-			// every currently-approved step's stamp plus the growing status banner from
-			// scratch each time, so this is safe to call on every approval, not just the last.
-			signDocument(ctx, store, files, document, documentID)
-		}
-
-		// Always true now: oldValues came from a read this handler already made and checked, so
-		// there is no second fetch left to fail.
-		execution.RunEvents(ctx, store, mailer, machinesFor(ctx), machine, step, actor.ID, oldValues, true)
-
-		logActivity(ctx, store, action.DocumentMachineID, documentID, actor.ID,
-			fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
-
-		redirectTo(w, req, "/machines/"+action.DocumentMachineID+"/records/"+documentID)
+		afterDecision(ctx, store, files, mailer, machine, step, document, documentID, decision, actor.ID, oldValues)
+		redirectTo(w, req, "/machines/"+approvalMachineID(ctx, domain.WorkflowRoleDocument)+"/records/"+documentID)
 	}
+}
+
+// afterDecision is everything a recorded decision sets in motion, extracted from decideStep so the
+// handler stays inside its own budget (internal/conformance.TestHandlersStaySmall) -- and because
+// none of it can fail the request: the decision is already saved, so each of the three is
+// best-effort in its own way.
+func afterDecision(ctx context.Context, store *data.Store, files *storage.Store, mailer mail.Mailer,
+	machine *domain.Machine, step, document *data.Record, documentID, decision, actorID string, oldValues map[string]any,
+) {
+	if decision == action.DecisionApproved {
+		// Owner request, 2026-09-19: every approval, not just the one that completes the whole
+		// Document, should land in the PDF immediately -- signDocument recomposites every
+		// currently-approved step's stamp plus the growing status banner from scratch each time, so
+		// this is safe to call on every approval, not just the last.
+		signDocument(ctx, store, files, document, documentID)
+	}
+
+	// Always true: oldValues came from a read decideStep already made and checked, so there is no
+	// second fetch left to fail.
+	execution.RunEvents(ctx, store, mailer, machinesFor(ctx), machine, step, actorID, oldValues, true)
+
+	logActivity(ctx, store, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID, actorID,
+		fmt.Sprintf("Step %v %s", toDisplayString(step.Values[action.FieldStepSequence]), decision))
 }
 
 // reviseDocument is Rejected -> Draft (Flow 2 gap study Tahap 4, 2026-09-25): "Revise" on a
@@ -317,13 +353,14 @@ func reviseDocument(store *data.Store, cfg config.Config) http.HandlerFunc {
 			return
 		}
 
-		steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, id)
+		stepMachineID := approvalMachineID(ctx, domain.WorkflowRoleStep)
+		steps, err := store.ListRecordsBy(ctx, stepMachineID, action.FieldStepDocument, id)
 		if err != nil {
 			serverError(w, err)
 			return
 		}
 		for _, s := range steps {
-			if err := store.DeleteRecord(ctx, action.StepMachineID, s.ID); err != nil {
+			if err := store.DeleteRecord(ctx, stepMachineID, s.ID); err != nil {
 				serverError(w, err)
 				return
 			}
@@ -381,7 +418,7 @@ func submittedDecision(w http.ResponseWriter, req *http.Request) (string, bool) 
 // This is the write-time half of the gate; hasSavedSignature threaded into decideButtons is the
 // render-time half deciding whether the modal shows up in the first place. Both check the same
 // thing so a client that bypasses the modal (or has JS disabled) still can't approve without one.
-func applyApprovalSignature(w http.ResponseWriter, req *http.Request, ctx context.Context, store *data.Store, files *storage.Store, actor string, step *data.Record, decision string) bool {
+func applyApprovalSignature(w http.ResponseWriter, req *http.Request, ctx context.Context, store *data.Store, files *storage.Store, stepMachine *domain.Machine, actor string, step *data.Record, decision string) bool {
 	if decision != action.DecisionApproved {
 		return true
 	}
@@ -399,19 +436,23 @@ func applyApprovalSignature(w http.ResponseWriter, req *http.Request, ctx contex
 		http.Error(w, "a signature is required to approve: "+err.Error(), http.StatusUnprocessableEntity)
 		return false
 	}
-	key, err := files.Save(action.StepMachineID, action.FieldStepSignatureImage, "signature.png", bytes.NewReader(image))
+	key, err := files.Save(stepMachine.ID, action.FieldStepSignatureImage, "signature.png", bytes.NewReader(image))
 	if err != nil {
 		serverError(w, err)
 		return false
 	}
 	step.Values[action.FieldStepSignatureImage] = key
 
-	if req.PostFormValue("save_signature") != "" {
+	// "Save this signature for next time" is only offerable where the Application casts a Machine
+	// in the signature role -- an optional one (domain.WorkflowEngineSpec). Where it casts none, the
+	// one-time image written onto the step above is the whole feature, and there is nowhere to keep a
+	// reusable copy; the checkbox is not rendered either (reviewdocument.templ's own gate).
+	if signatures := approvalMachine(ctx, domain.WorkflowRoleSignature); signatures != nil && req.PostFormValue("save_signature") != "" {
 		values := map[string]any{
 			action.FieldSignatureOwner: actor,
 			action.FieldSignatureImage: key,
 		}
-		if _, err := store.CreateRecord(ctx, action.SignatureMachineID, values); err != nil {
+		if _, err := store.CreateRecord(ctx, signatures.ID, values); err != nil {
 			serverError(w, err)
 			return false
 		}
@@ -442,7 +483,7 @@ func decodeSignatureDataURL(dataURL string) ([]byte, error) {
 // decidableDocument fetches the step's parent Document and refuses the decision if the Document's
 // mode says an earlier step has not been decided yet.
 func decidableDocument(w http.ResponseWriter, ctx context.Context, store *data.Store, machine *domain.Machine, step *data.Record, documentID string) (*data.Record, bool) {
-	document, err := store.GetRecord(ctx, action.DocumentMachineID, documentID)
+	document, err := store.GetRecord(ctx, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID)
 	if err != nil {
 		recordError(w, err)
 		return nil, false

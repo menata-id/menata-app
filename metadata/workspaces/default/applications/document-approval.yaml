@@ -85,14 +85,22 @@ machines:
 # runtime, and an engine that recognises only one set of names is behavior owned by one application.
 # Saying it here is what makes the engine available to any Application that asks for it.
 #
-# engine is a closed set (domain.KnownWorkflowEngines), and its roles are required and validated at
-# load: an engine cannot run against a partial cast, each role must name one of this Application's
-# *own* machines above, and one Machine may hold only one role.
+# engine is a closed set (domain.KnownWorkflowEngines), and its cast is validated at load: a required
+# role must be filled (an engine cannot run against a partial cast), each role must name one of this
+# Application's *own* machines above, and one Machine may hold only one role.
 workflow:
   engine: document_approval
   roles:
     document: mch_document
     step: mch_approval_step
+    # The three below are optional roles (domain.WorkflowEngineSpec): the engine runs without them,
+    # smaller. signature is a person's own reusable signature image -- absent, an approver draws one
+    # per decision onto the step itself. flow_template/flow_template_step hold CAP-V28's saved
+    # default flow per document type, and are optional *together*: a template with no steps would
+    # store nothing, so casting one without the other fails at load.
+    signature: mch_signature
+    flow_template: mch_approval_flow_template
+    flow_template_step: mch_approval_flow_template_step
 
 # roles: this Application's own role vocabulary -- what a member may be assigned *in this
 # Application*, which is a different question from their Workspace role (admin/member).

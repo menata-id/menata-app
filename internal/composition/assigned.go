@@ -54,15 +54,18 @@ type Assigned struct {
 // composition.ApprovalInbox already is, not a filtered list -- so it follows the identical shape:
 // an I/O wrapper here, the actual derivation in a pure function (buildAssigned) that a test can
 // call without a database.
-func AssignedToMe(ctx context.Context, l *Loader, viewerID string, now time.Time, stepMachine *domain.Machine) (Assigned, error) {
+func AssignedToMe(ctx context.Context, l *Loader, viewerID string, now time.Time, stepMachine, docMachine *domain.Machine) (Assigned, error) {
 	if viewerID == "" {
 		return Assigned{}, nil
 	}
-	steps, err := l.ListRecords(ctx, action.StepMachineID)
+	if stepMachine == nil || docMachine == nil {
+		return Assigned{}, nil // no approval Application here -- see ApprovalInbox's own note
+	}
+	steps, err := l.ListRecords(ctx, stepMachine.ID)
 	if err != nil {
 		return Assigned{}, err
 	}
-	documents, err := l.ListRecords(ctx, action.DocumentMachineID)
+	documents, err := l.ListRecords(ctx, docMachine.ID)
 	if err != nil {
 		return Assigned{}, err
 	}
@@ -83,7 +86,7 @@ func AssignedToMe(ctx context.Context, l *Loader, viewerID string, now time.Time
 	for _, g := range myGroups {
 		myGroupNames[g.ID] = g.Name
 	}
-	return buildAssigned(steps, documents, activities, names, myGroupNames, viewerID, now, stepMachine), nil
+	return buildAssigned(steps, documents, activities, names, myGroupNames, viewerID, now, stepMachine, docMachine), nil
 }
 
 // SearchAssignedRows is composition.SearchCards' own counterpart for this screen's row shape
@@ -106,7 +109,7 @@ func SearchAssignedRows(rows []rendering.AssignedRow, q string) []rendering.Assi
 // buildAssigned is AssignedToMe's whole derivation, over records someone else already fetched --
 // the same split buildInbox uses, and for the same reason: which of the four states a step is in,
 // and which Document it belongs to, is worth testing without a database.
-func buildAssigned(steps, documents, activities []*data.Record, names, myGroupNames map[string]string, viewerID string, now time.Time, stepMachine *domain.Machine) Assigned {
+func buildAssigned(steps, documents, activities []*data.Record, names, myGroupNames map[string]string, viewerID string, now time.Time, stepMachine, docMachine *domain.Machine) Assigned {
 	docByID := make(map[string]*data.Record, len(documents))
 	for _, d := range documents {
 		docByID[d.ID] = d
@@ -174,7 +177,7 @@ func buildAssigned(steps, documents, activities []*data.Record, names, myGroupNa
 				// destination My Documents links since 2026-09-24, and for the same reason
 				// (rendering.detailBackLink): composition.ReviewStepForDocument resolves which
 				// step it opens on, so a viewer with their own step here lands on exactly that one.
-				Href: fmt.Sprintf("/machines/%s/records/%s/review", action.DocumentMachineID, doc.ID),
+				Href: fmt.Sprintf("/machines/%s/records/%s/review", docMachine.ID, doc.ID),
 			},
 		})
 	}

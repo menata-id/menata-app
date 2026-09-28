@@ -99,30 +99,41 @@ func TestUnboundMachinesAreNotTheEngines(t *testing.T) {
 
 	bound, checked := 0, 0
 	for slug, ws := range installed {
-		engines := map[string]string{} // machine id -> the engine its Application bound
+		// machine id -> the role its Application cast it in, for the document_approval engine only.
+		// Asserted per *role* rather than per binding, because a cast is wider than the two
+		// predicates: an engine may name Machines it merely uses (a signature store, a saved flow
+		// template) and those are correctly neither the document nor a step.
+		roles := map[string]string{}
 		for _, app := range ws.Workspace.Applications {
-			if app.Workflow == nil {
+			if app.Workflow == nil || app.Workflow.Engine != domain.WorkflowEngineDocumentApproval {
 				continue
 			}
-			for _, machineID := range app.Workflow.Roles {
-				engines[machineID] = app.Workflow.Engine
+			for role, machineID := range app.Workflow.Roles {
+				roles[machineID] = role
 			}
 		}
 		for _, m := range ws.Workspace.Machines {
 			checked++
-			isEngines := action.IsDocument(m) || action.IsStep(m)
-			if engines[m.ID] == "" && isEngines {
-				t.Errorf("%s: action.IsDocument/IsStep(%s) = true, but no Application in this Workspace binds it to an engine -- the predicates must read the declaration, not a name", slug, m.ID)
+			var want string
+			switch {
+			case action.IsDocument(m):
+				want = domain.WorkflowRoleDocument
+			case action.IsStep(m):
+				want = domain.WorkflowRoleStep
 			}
-			if engines[m.ID] == domain.WorkflowEngineDocumentApproval {
+			got := roles[m.ID]
+			if got == domain.WorkflowRoleDocument || got == domain.WorkflowRoleStep {
 				bound++
-				if !isEngines {
-					t.Errorf("%s: %s is declared in the document_approval binding, but neither predicate recognises it", slug, m.ID)
-				}
+			} else {
+				got = "" // every other role, and no role at all, must answer neither
+			}
+			if want != got {
+				t.Errorf("%s: %s is cast as %q by its Application, but the predicates say %q -- they must read the declaration, not a name, and only the document/step roles are what they answer for",
+					slug, m.ID, roles[m.ID], want)
 			}
 		}
 	}
 	if checked == 0 || bound == 0 {
-		t.Fatalf("checked %d Machines, %d of them bound -- with nothing bound this gate passes on an empty tree, and the installed metadata is expected to carry at least one binding", checked, bound)
+		t.Fatalf("checked %d Machines, %d of them cast as document or step -- with nothing bound this gate passes on an empty tree, and the installed metadata is expected to carry at least one binding", checked, bound)
 	}
 }

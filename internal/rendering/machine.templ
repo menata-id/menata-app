@@ -121,6 +121,29 @@ func hasNavItem(ctx context.Context, id string) bool {
 	return false
 }
 
+// approvalMachineID is how a Page building a link into one of the approval engine's own screens
+// asks which Machine to name: by the role its Application cast it in, never by retyping
+// `action.DocumentMachineID` (2026-09-28, the slice after ROADMAP.md's Stage A).
+//
+// It is routeByID's sibling in intent. routeByID exists because a *route* declared in metadata must
+// not be retyped in a template; this exists because a *Machine id* that appears in a route is the
+// same kind of value -- one an installation decides, not the template. A Workspace that renames a
+// colliding mch_document on install keeps every screen working only if the ids in these hrefs come
+// from the declaration.
+//
+// Returns "" when this Application casts nobody in the role, and callers render nothing rather than
+// a link to /machines//records/... -- a Page for a feature this Workspace did not install.
+//
+// No panic, unlike routeByID: a missing navigation id is a template naming its own sibling wrongly,
+// which is a bug in the template, while an uncast role is a legitimate smaller installation.
+func approvalMachineID(ctx context.Context, role string) string {
+	app, _ := CurrentApplication(ctx)
+	if m := CurrentWorkspace(ctx).MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, role, app.ID); m != nil {
+		return m.ID
+	}
+	return ""
+}
+
 // runtimeScreenByID returns one of domain.RuntimeScreens whole, for the two places that need an
 // item rather than one of its fields (pageShell's topbar). Same panic-on-unknown-id posture as
 // routeByID.
@@ -525,7 +548,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 					hx-swap="outerHTML"
 				>Edit</button>
 			}
-			{{ deletable, _ := action.CanDelete(m.ID, r.Values, nil) }}
+			{{ deletable, _ := action.CanDelete(m, r.Values, nil) }}
 			if deletable && authorization.AllowsAction(m, domain.ActionDelete, r.Values, actor) {
 				<button
 					class={ controlSecondary }

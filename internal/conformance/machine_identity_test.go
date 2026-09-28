@@ -157,3 +157,52 @@ func TestNoApplicationIDIdentityChecks(t *testing.T) {
 		t.Fatal("no source files were scanned -- this gate would pass an empty tree silently")
 	}
 }
+
+// actionMachineIDSwitch matches the shape that slipped through both gates above for a whole day:
+// a switch *inside* internal/action keyed on the Machine-id constants.
+//
+// internal/action is excluded from the Machine-id gate because it legitimately owns those constants,
+// and that exclusion is correct for naming a Machine -- but a `case StepMachineID:` is not naming
+// one, it is claiming that any Machine called that is this engine's. action.CanDelete did exactly
+// that until 2026-09-28, and all three of its callers passed machine.ID, so a Workspace holding its
+// own unrelated mch_approval_step had this engine's delete rule applied to its records. The gate that
+// should have caught it could not see inside the one package it does not scan.
+//
+// Now that IsDocument/IsStep read a declaration, the declarative alternative exists, so this can be
+// gated -- the same build-migrate-then-gate order every other ratchet here followed.
+var actionMachineIDSwitch = regexp.MustCompile(`case\s+(Document|Step|Signature|Template|TemplateStep)MachineID\s*[,:]`)
+
+func TestActionDoesNotSwitchOnItsOwnMachineIDs(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "action")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read internal/action: %v", err)
+	}
+	scanned := 0
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		scanned++
+		for i, line := range strings.Split(string(src), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "//") {
+				continue
+			}
+			if actionMachineIDSwitch.MatchString(line) {
+				t.Errorf("internal/action/%s:%d branches on a bare Machine id:\n\t%s\n"+
+					"take the *domain.Machine and ask IsDocument/IsStep, which read the Application's own "+
+					"declared workflow: binding. A Machine merely named this is some other Workspace's, and "+
+					"this engine has no rule about it",
+					name, i+1, strings.TrimSpace(line))
+			}
+		}
+	}
+	if scanned == 0 {
+		t.Fatal("no source files were scanned -- this gate would pass an empty tree silently")
+	}
+}

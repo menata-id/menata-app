@@ -16,8 +16,19 @@ func reviewDoc() *data.Record {
 
 // docMachineForTest is mch_document reduced to what buildReview reads: which Field carries the
 // SLA. Declared rather than assumed, the same posture stepMachineForTest takes for sequencing.
+//
+// It carries the workflow binding for the same reason stepMachineForTest does (2026-09-28): the
+// loader stamps WorkflowEngine/WorkflowRole from the Application's own workflow: block, and a
+// fixture naming only the id would be some Workspace's Machine of that name rather than an approval
+// engine's document.
 func docMachineForTest() *domain.Machine {
-	return &domain.Machine{ID: action.DocumentMachineID, SLAField: "fld_due_date"}
+	return &domain.Machine{
+		ID:             action.DocumentMachineID,
+		ApplicationID:  "app_document_approval",
+		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
+		WorkflowRole:   domain.WorkflowRoleDocument,
+		SLAField:       "fld_due_date",
+	}
 }
 
 // The decision bar is offered to exactly one person: this step's own assignee, on a step that is

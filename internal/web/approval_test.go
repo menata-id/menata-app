@@ -30,12 +30,12 @@ import (
 // approvalStepTestMachine mirrors metadata/approval_step.yaml's real shape closely enough for
 // decideStep's own logic (fields it reads/writes, and prm_decide_own_step) without loading YAML,
 // the same posture record_test.go's fileFieldMachine already takes.
-func approvalStepTestMachine() *domain.Machine {
+func approvalStepTestMachine(ids approvalIDs) *domain.Machine {
 	return &domain.Machine{
-		ID:   action.StepMachineID,
+		ID:   ids.step,
 		Name: "Approval Step",
 		Fields: []domain.Field{
-			{ID: action.FieldStepDocument, Name: "Document", Type: domain.FieldTypeRelation, RelatedMachine: action.DocumentMachineID},
+			{ID: action.FieldStepDocument, Name: "Document", Type: domain.FieldTypeRelation, RelatedMachine: ids.document},
 			{ID: action.FieldStepSequence, Name: "Sequence", Type: domain.FieldTypeNumber, Required: true},
 			{ID: action.FieldStepAssignee, Name: "Assignee", Type: domain.FieldTypePerson, Required: true},
 			{ID: action.FieldStepDecision, Name: "Decision", Type: domain.FieldTypeStatus, Required: true, Options: []string{action.DecisionPending, action.DecisionApproved, action.DecisionRejected}},
@@ -87,14 +87,42 @@ func approvalStepTestMachine() *domain.Machine {
 	}
 }
 
-func documentTestMachine() *domain.Machine {
+func documentTestMachine(ids approvalIDs) *domain.Machine {
 	return &domain.Machine{
-		ID:   action.DocumentMachineID,
+		ID:   ids.document,
 		Name: "Document",
+		// The workflow binding, for the same reason approvalStepTestMachine carries it: the loader
+		// stamps these from the Application's own workflow: block, and every handler resolves its
+		// Machines by role now (2026-09-28). A fixture declaring only the id is some Workspace's
+		// Machine of that name, which is exactly what the engine must *not* act on.
+		ApplicationID:  "app_document_approval",
+		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
+		WorkflowRole:   domain.WorkflowRoleDocument,
 		Fields: []domain.Field{
 			{ID: action.FieldDocumentMode, Name: "Mode", Type: domain.FieldTypeStatus, Options: []string{"sequential", "parallel"}},
 			{ID: action.FieldDocumentStatus, Name: "Status", Type: domain.FieldTypeStatus, Options: []string{action.DocumentStatusInReview, action.DocumentStatusApproved, action.DocumentStatusRejected}},
 			{ID: action.FieldDocumentFile, Name: "File", Type: domain.FieldTypeFile},
+		},
+	}
+}
+
+// signatureTestMachine is mch_signature, cast in the engine's optional `signature` role -- the store
+// for an approver's own reusable signature image.
+//
+// The fixture needs it declared because the role is what decides whether "save this signature for
+// next time" does anything at all (2026-09-28). A Workspace casting nobody in it keeps the one-time
+// image on the step and stores no reusable copy, which is correct behaviour and not what these tests
+// are about.
+func signatureTestMachine(ids approvalIDs) *domain.Machine {
+	return &domain.Machine{
+		ID:             ids.signature,
+		Name:           "Signature",
+		ApplicationID:  "app_document_approval",
+		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
+		WorkflowRole:   domain.WorkflowRoleSignature,
+		Fields: []domain.Field{
+			{ID: action.FieldSignatureOwner, Name: "Owner", Type: domain.FieldTypePerson},
+			{ID: action.FieldSignatureImage, Name: "Image", Type: domain.FieldTypeFile},
 		},
 	}
 }
@@ -130,10 +158,15 @@ func testDocumentPDFBytes(t *testing.T) []byte {
 // (pdfcpu-parseable) Document PDF, a two-step sequential Approval flow, and the two distinct
 // assignee identities for those steps.
 type decideStepTestSetup struct {
-	store       *data.Store
-	files       *storage.Store
-	cfg         config.Config
+	store *data.Store
+	files *storage.Store
+	cfg   config.Config
+	// machines and ids: the Machine set this fixture installed, and the ids it gave them. The ids are
+	// a field rather than the action.* constants because approvalIDs below runs the identical flow
+	// over *renamed* Machines -- which is the whole point of resolving a Machine by the role its
+	// Application casts it in (2026-09-28).
 	machines    map[string]*domain.Machine
+	ids         approvalIDs
 	ctx         context.Context
 	workspaceID string
 	documentID  string
@@ -143,7 +176,25 @@ type decideStepTestSetup struct {
 	step2ID     string
 }
 
+// approvalIDs is what a Workspace happens to call the engine's Machines. templateLibraryIDs is what
+// metadata/*.yaml ships; renamedIDs is what an install into a Workspace already using those names
+// would have to produce, and nothing in a handler may care which it got.
+type approvalIDs struct{ document, step, signature string }
+
+func templateLibraryIDs() approvalIDs {
+	return approvalIDs{action.DocumentMachineID, action.StepMachineID, action.SignatureMachineID}
+}
+
+func renamedIDs() approvalIDs {
+	return approvalIDs{"mch_surat", "mch_langkah", "mch_ttd"}
+}
+
 func newDecideStepTestSetup(t *testing.T, testName string) decideStepTestSetup {
+	t.Helper()
+	return newDecideStepTestSetupWith(t, testName, templateLibraryIDs())
+}
+
+func newDecideStepTestSetupWith(t *testing.T, testName string, ids approvalIDs) decideStepTestSetup {
 	t.Helper()
 	pool := authTestPool(t)
 	store := data.NewStore(pool)
@@ -188,12 +239,12 @@ func newDecideStepTestSetup(t *testing.T, testName string) decideStepTestSetup {
 	if err != nil {
 		t.Fatalf("storage.NewStore: %v", err)
 	}
-	docKey, err := files.Save(action.DocumentMachineID, action.FieldDocumentFile, "contract.pdf", bytes.NewReader(testDocumentPDFBytes(t)))
+	docKey, err := files.Save(ids.document, action.FieldDocumentFile, "contract.pdf", bytes.NewReader(testDocumentPDFBytes(t)))
 	if err != nil {
 		t.Fatalf("Save(document PDF): %v", err)
 	}
 
-	document, err := store.CreateRecord(wsCtx, action.DocumentMachineID, map[string]any{
+	document, err := store.CreateRecord(wsCtx, ids.document, map[string]any{
 		action.FieldDocumentMode: "sequential",
 		action.FieldDocumentFile: docKey,
 	})
@@ -201,7 +252,7 @@ func newDecideStepTestSetup(t *testing.T, testName string) decideStepTestSetup {
 		t.Fatalf("CreateRecord(document): %v", err)
 	}
 
-	step, err := store.CreateRecord(wsCtx, action.StepMachineID, map[string]any{
+	step, err := store.CreateRecord(wsCtx, ids.step, map[string]any{
 		action.FieldStepDocument:       document.ID,
 		action.FieldStepSequence:       float64(1),
 		action.FieldStepAssignee:       assignee.ID,
@@ -214,7 +265,7 @@ func newDecideStepTestSetup(t *testing.T, testName string) decideStepTestSetup {
 	if err != nil {
 		t.Fatalf("CreateRecord(step): %v", err)
 	}
-	step2, err := store.CreateRecord(wsCtx, action.StepMachineID, map[string]any{
+	step2, err := store.CreateRecord(wsCtx, ids.step, map[string]any{
 		action.FieldStepDocument:       document.ID,
 		action.FieldStepSequence:       float64(2),
 		action.FieldStepAssignee:       assignee2.ID,
@@ -228,15 +279,24 @@ func newDecideStepTestSetup(t *testing.T, testName string) decideStepTestSetup {
 		t.Fatalf("CreateRecord(step2): %v", err)
 	}
 
+	machines := map[string]*domain.Machine{
+		ids.document:  documentTestMachine(ids),
+		ids.step:      approvalStepTestMachine(ids),
+		ids.signature: signatureTestMachine(ids),
+	}
+	// The installed Workspace goes on the setup's own ctx too, not only on each request's: the
+	// assertions call the same role-resolving helpers the handlers do (hasSavedSignature reads which
+	// Machine this Application casts as its signature store, 2026-09-28), so a bare
+	// WithWorkspaceScope ctx would make them answer "no such feature" rather than test it.
+	setupCtx := rendering.WithCurrentWorkspace(wsCtx, testWorkspaceFor(machines), "Test Workspace", false)
+
 	return decideStepTestSetup{
-		store: store,
-		files: files,
-		cfg:   cfg,
-		machines: map[string]*domain.Machine{
-			action.DocumentMachineID: documentTestMachine(),
-			action.StepMachineID:     approvalStepTestMachine(),
-		},
-		ctx:         wsCtx,
+		store:       store,
+		files:       files,
+		cfg:         cfg,
+		machines:    machines,
+		ids:         ids,
+		ctx:         setupCtx,
 		workspaceID: ws.ID,
 		documentID:  document.ID,
 		assignee:    assignee.ID,
@@ -265,7 +325,7 @@ func postDecideAs(t *testing.T, s decideStepTestSetup, stepID, actorID, decision
 	for k, v := range extra {
 		form.Set(k, v)
 	}
-	req := httptest.NewRequest(http.MethodPost, "/machines/"+action.StepMachineID+"/records/"+stepID+"/decide", strings.NewReader(form.Encode()))
+	req := httptest.NewRequest(http.MethodPost, "/machines/"+s.ids.step+"/records/"+stepID+"/decide", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req = req.WithContext(rendering.WithCurrentWorkspace(data.WithWorkspaceScope(req.Context(), s.workspaceID), testWorkspaceFor(s.machines), "Test Workspace", false))
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, actorID, 0)})
@@ -289,7 +349,7 @@ func TestDecideStep_approveRequiresSignatureWhenNoneOnFile(t *testing.T) {
 		t.Fatalf("decideStep(approve, no signature) status = %d, want 422; body=%s", rec.Code, rec.Body.String())
 	}
 
-	step, err := s.store.GetRecord(s.ctx, action.StepMachineID, s.stepID)
+	step, err := s.store.GetRecord(s.ctx, s.ids.step, s.stepID)
 	if err != nil {
 		t.Fatalf("GetRecord(step): %v", err)
 	}
@@ -311,7 +371,7 @@ func TestDecideStep_approveCapturesSignatureWithoutSavingByDefault(t *testing.T)
 		t.Fatalf("decideStep(approve, drawn signature) status = %d, want a redirect; body=%s", rec.Code, rec.Body.String())
 	}
 
-	step, err := s.store.GetRecord(s.ctx, action.StepMachineID, s.stepID)
+	step, err := s.store.GetRecord(s.ctx, s.ids.step, s.stepID)
 	if err != nil {
 		t.Fatalf("GetRecord(step): %v", err)
 	}
@@ -359,7 +419,7 @@ func TestDecideStep_approveSavesSignatureWhenRequested(t *testing.T) {
 func TestDecideStep_approveSkipsGateWhenAlreadySaved(t *testing.T) {
 	s := newDecideStepTestSetup(t, "decide_step_skips_gate")
 
-	if _, err := s.store.CreateRecord(s.ctx, action.SignatureMachineID, map[string]any{
+	if _, err := s.store.CreateRecord(s.ctx, s.ids.signature, map[string]any{
 		action.FieldSignatureOwner: s.assignee,
 		action.FieldSignatureImage: "sig_test/fld_image/pre-existing.png",
 	}); err != nil {
@@ -371,7 +431,7 @@ func TestDecideStep_approveSkipsGateWhenAlreadySaved(t *testing.T) {
 		t.Fatalf("decideStep(approve, already saved) status = %d, want a redirect; body=%s", rec.Code, rec.Body.String())
 	}
 
-	step, err := s.store.GetRecord(s.ctx, action.StepMachineID, s.stepID)
+	step, err := s.store.GetRecord(s.ctx, s.ids.step, s.stepID)
 	if err != nil {
 		t.Fatalf("GetRecord(step): %v", err)
 	}
@@ -395,7 +455,7 @@ func TestDecideStep_signsDocumentAfterEveryApproval(t *testing.T) {
 		t.Fatalf("decideStep(step 1 approve) status = %d, want a redirect; body=%s", rec.Code, rec.Body.String())
 	}
 
-	document, err := s.store.GetRecord(s.ctx, action.DocumentMachineID, s.documentID)
+	document, err := s.store.GetRecord(s.ctx, s.ids.document, s.documentID)
 	if err != nil {
 		t.Fatalf("GetRecord(document): %v", err)
 	}
@@ -437,7 +497,7 @@ func TestDecideStep_signsDocumentAfterEveryApproval(t *testing.T) {
 	if rec2.Code != http.StatusSeeOther && rec2.Code != http.StatusFound {
 		t.Fatalf("decideStep(step 2 approve) status = %d, want a redirect; body=%s", rec2.Code, rec2.Body.String())
 	}
-	document2, err := s.store.GetRecord(s.ctx, action.DocumentMachineID, s.documentID)
+	document2, err := s.store.GetRecord(s.ctx, s.ids.document, s.documentID)
 	if err != nil {
 		t.Fatalf("GetRecord(document) after step 2: %v", err)
 	}
@@ -501,23 +561,83 @@ func TestDecideStep_refusesAnActorWithoutTheRole(t *testing.T) {
 func TestDecideStep_refusesRedecidingADecidedStep(t *testing.T) {
 	s := newDecideStepTestSetup(t, "decide_step_redecide")
 
-	step, err := s.store.GetRecord(s.ctx, action.StepMachineID, s.stepID)
+	step, err := s.store.GetRecord(s.ctx, s.ids.step, s.stepID)
 	if err != nil {
 		t.Fatalf("GetRecord(step): %v", err)
 	}
 	step.Values[action.FieldStepDecision] = action.DecisionApproved
-	if _, err := s.store.UpdateRecord(s.ctx, action.StepMachineID, s.stepID, step.Values); err != nil {
+	if _, err := s.store.UpdateRecord(s.ctx, s.ids.step, s.stepID, step.Values); err != nil {
 		t.Fatalf("UpdateRecord(step): %v", err)
 	}
 
 	if rec := postDecide(t, s, action.DecisionRejected, nil); rec.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("decideStep re-deciding an approved step: status = %d, want 422; body=%s", rec.Code, rec.Body.String())
 	}
-	after, err := s.store.GetRecord(s.ctx, action.StepMachineID, s.stepID)
+	after, err := s.store.GetRecord(s.ctx, s.ids.step, s.stepID)
 	if err != nil {
 		t.Fatalf("GetRecord(step) after: %v", err)
 	}
 	if got := after.Values[action.FieldStepDecision]; got != action.DecisionApproved {
 		t.Errorf("step decision = %v, want still approved -- a decision is final", got)
+	}
+}
+
+// TestDecideStep_worksOverRenamedMachines is the assertion the whole "resolve by role" slice exists
+// for, and the one no test could make before it (2026-09-28).
+//
+// Every Machine here has a name this repo has never used -- mch_surat, mch_langkah, mch_ttd -- and
+// the flow is the real one, driven through the real handler: a sequential two-step approval where
+// step 2 is locked behind step 1, approve step 1, watch the Document's own status follow through the
+// declared rollup, and confirm the redirect names the Workspace's *own* document Machine.
+//
+// It matters because an install into a Workspace that already uses `mch_document` has to rename, and
+// until this slice every handler asked for the old id by name: the copy would load, bind, engage --
+// and then read nothing. `machines[action.StepMachineID]` is legal Go against any Workspace, which is
+// exactly why only a test running the flow under different names can tell the difference.
+//
+// Sequencing is deliberately not asserted here: this fixture's step Machine declares none (the
+// sequencing rule has its own tests against the real manifest), and adding it would change what every
+// other test in this file exercises.
+func TestDecideStep_worksOverRenamedMachines(t *testing.T) {
+	ids := renamedIDs()
+	s := newDecideStepTestSetupWith(t, "decide_step_renamed_machines", ids)
+
+	rec := postDecide(t, s, action.DecisionApproved, map[string]string{
+		"signature_image": testSignaturePNGDataURL(t),
+	})
+	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
+		t.Fatalf("decide over renamed machines: status = %d, want a redirect; body=%s", rec.Code, rec.Body.String())
+	}
+	// The redirect is built from the role, so it names this Workspace's own document Machine. A
+	// handler still holding action.DocumentMachineID would send the browser to /machines/mch_document.
+	if got := rec.Header().Get("Location"); got != "/machines/"+ids.document+"/records/"+s.documentID {
+		t.Errorf("redirect = %q, want it to name this Workspace's own document machine %q", got, ids.document)
+	}
+
+	step, err := s.store.GetRecord(s.ctx, ids.step, s.stepID)
+	if err != nil {
+		t.Fatalf("GetRecord(step): %v", err)
+	}
+	if got := step.Values[action.FieldStepDecision]; got != action.DecisionApproved {
+		t.Errorf("step fld_decision = %v, want approved -- the engine wrote to the renamed Machine", got)
+	}
+	if name, _ := step.Values[action.FieldStepDecidedByName].(string); name == "" {
+		t.Error("step fld_decided_by_name is empty, want the decider's name snapshotted")
+	}
+
+	// The declared rollup fired too: one of two steps approved leaves the Document in review, which
+	// is mch_approval_step's own evt_step_decision_rollup acting on a parent it reached by relation,
+	// not by name.
+	document, err := s.store.GetRecord(s.ctx, ids.document, s.documentID)
+	if err != nil {
+		t.Fatalf("GetRecord(document): %v", err)
+	}
+	if got := document.Values[action.FieldDocumentStatus]; got != action.DocumentStatusInReview {
+		t.Errorf("document fld_status = %v, want in_review after the first of two approvals", got)
+	}
+
+	// And the signed PDF was composited onto the renamed Document's own record.
+	if key, _ := document.Values[action.FieldDocumentSignedFile].(string); key == "" {
+		t.Error("document fld_signed_file is empty, want the composited PDF -- signDocument resolves both Machines by role")
 	}
 }

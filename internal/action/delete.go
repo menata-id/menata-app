@@ -1,6 +1,9 @@
 package action
 
-import "menata.app/internal/data"
+import (
+	"menata.app/internal/data"
+	"menata.app/internal/domain"
+)
 
 // CanDeleteApprovalStep reports whether an Approval Step may still be deleted through the
 // generic delete route. A decided step (approved or rejected) is the audit trail Phase 16
@@ -43,11 +46,17 @@ func CanDeleteDocument(status string, steps []*data.Record) (ok bool, reason str
 // the server would then reject). steps may be nil -- CanDeleteDocument degrades to a
 // status-only check, the same fallback detail.templ's canDeleteInView already used when no child
 // collection carried the steps.
-func CanDelete(machineID string, values map[string]any, steps []*data.Record) (ok bool, reason string) {
-	switch machineID {
-	case StepMachineID:
+//
+// It takes the Machine, not its id, since 2026-09-28 -- and that is a fix, not a signature tidy-up.
+// This switched on the bare ids, and all three callers passed machine.ID, so *any* Workspace's own
+// Machine named mch_approval_step had this engine's step-delete rule applied to its records. The
+// 2026-09-27 conversion to IsStep/IsDocument missed it because internal/action is precisely the
+// package TestNoBareMachineIDIdentityChecks excludes, so nothing was watching this file.
+func CanDelete(m *domain.Machine, values map[string]any, steps []*data.Record) (ok bool, reason string) {
+	switch {
+	case IsStep(m):
 		return CanDeleteApprovalStep(values)
-	case DocumentMachineID:
+	case IsDocument(m):
 		status, _ := values[FieldDocumentStatus].(string)
 		return CanDeleteDocument(status, steps)
 	default:

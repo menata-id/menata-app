@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"menata.app/internal/action"
+	"menata.app/internal/domain"
 )
 
 // ReviewView is board 10's whole content, resolved by composition.ReviewDocument before this file
@@ -344,7 +345,7 @@ templ reviewDecisionBar(v ReviewView) {
 			}
 		</span>
 		if v.CanDecide {
-			<form hx-post={ fmt.Sprintf("/machines/%s/records/%s/decide", action.StepMachineID, v.StepID) } class="flex gap-2">
+			<form hx-post={ fmt.Sprintf("/machines/%s/records/%s/decide", approvalMachineID(ctx, domain.WorkflowRoleStep), v.StepID) } class="flex gap-2">
 				<button type="submit" name="decision" value={ action.DecisionRejected } class={ controlDanger }>Reject</button>
 				if v.HasSignature {
 					<button type="submit" name="decision" value={ action.DecisionApproved } class={ controlPrimary }>Approve</button>

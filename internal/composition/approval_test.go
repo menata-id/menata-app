@@ -65,7 +65,9 @@ func stepMachineForTest() *domain.Machine {
 		// ApplicationID and Roles are part of that same faithfulness, added in Fase 7: the role
 		// arm resolves against the Application claiming the Machine, so a fixture that stamped
 		// neither would exercise the un-roled path forever while the real manifest gates on one.
-		ApplicationID: "app_document_approval",
+		ApplicationID:  "app_document_approval",
+		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
+		WorkflowRole:   domain.WorkflowRoleStep,
 		Permissions: []domain.Permission{{
 			ID:         "prm_decide_own_step",
 			Action:     domain.ActionDecide,
@@ -113,14 +115,14 @@ func TestBuildInbox_SequentialLocksLaterSteps(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 	}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("step 2 is locked behind step 1, so it must not appear as pending; got %d card(s)", len(got.Pending))
 	}
 
 	// Same records, parallel mode: nothing is waiting on anything.
 	docs[0].Values[action.FieldDocumentMode] = "parallel"
-	got = buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+	got = buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("parallel mode makes every pending step actionable; got %d card(s)", len(got.Pending))
 	}
@@ -134,7 +136,7 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 		step("stp_mine", "doc_1", "usr_ana", action.DecisionPending, 3),
 	}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want only my own still-pending step, got %d", len(got.Pending))
 	}
@@ -196,7 +198,7 @@ func TestBuildInbox_BucketsByDay(t *testing.T) {
 			docs := []*data.Record{doc("doc_1", "Contract", "parallel", tc.due)}
 			steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-			got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+			got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 			if len(got.Buckets) != 1 {
 				t.Fatalf("want one card, got %d", len(got.Buckets))
 			}
@@ -219,7 +221,7 @@ func TestBuildInbox_CountsMatchBuckets(t *testing.T) {
 		step("stp_3", "doc_later", "usr_ana", action.DecisionPending, 1),
 	}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if got.OverdueCount != 1 || got.TodayCount != 1 {
 		t.Errorf("OverdueCount/TodayCount = %d/%d, want 1/1", got.OverdueCount, got.TodayCount)
 	}
@@ -239,7 +241,7 @@ func TestBuildInbox_SubmitterFromEarliestEvent(t *testing.T) {
 		event("doc_1", "usr_budi", at(8)), // the actual submission, logged first
 	}
 
-	got := buildInbox(steps, docs, activities, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+	got := buildInbox(steps, docs, activities, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want one card, got %d", len(got.Pending))
 	}
@@ -255,7 +257,7 @@ func TestBuildInbox_UnknownSubmitterFallsBack(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if got.Pending[0].Submitter != "someone" {
 		t.Errorf("Submitter = %q, want %q", got.Pending[0].Submitter, "someone")
 	}
@@ -276,7 +278,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 		event("doc_theirs", "usr_budi", at(8)),
 	}
 
-	got := buildInbox(nil, docs, activities, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+	got := buildInbox(nil, docs, activities, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Mine) != 1 {
 		t.Fatalf("want one submitted Document, got %d", len(got.Mine))
 	}
@@ -305,7 +307,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 func TestBuildInbox_OrphanStepIsSkipped(t *testing.T) {
 	steps := []*data.Record{step("stp_1", "doc_gone", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, nil, nil, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+	got := buildInbox(steps, nil, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("a step pointing at a missing Document must be skipped, got %d card(s)", len(got.Pending))
 	}
@@ -352,7 +354,7 @@ func TestBuildInbox_ProjectsCardFields(t *testing.T) {
 		"mch_user": {{ID: "usr_ana", Label: "Ana Putri"}, {ID: "usr_budi", Label: "Budi"}},
 	}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachine, relations)
+	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachine, docMachineForTest(), relations)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
 	}
@@ -369,7 +371,7 @@ func TestBuildInbox_NilStepMachineProjectsNothing(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "sequential", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), nil)
+	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
 	}

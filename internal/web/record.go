@@ -417,7 +417,7 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 	if stateGoverned {
 		var steps []*data.Record
 		if action.IsDocument(machine) {
-			steps, err = store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, id)
+			steps, err = store.ListRecordsBy(ctx, approvalMachineID(ctx, domain.WorkflowRoleStep), action.FieldStepDocument, id)
 			if err != nil {
 				return false, 0, "", err
 			}
@@ -427,7 +427,7 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 		// the exact same function to decide whether to offer the Delete button in the first
 		// place, so all three can't drift out of sync with each other (code-review finding,
 		// 2026-09-19).
-		if ok, reason := action.CanDelete(machine.ID, existing.Values, steps); !ok {
+		if ok, reason := action.CanDelete(machine, existing.Values, steps); !ok {
 			return false, http.StatusUnprocessableEntity, reason, nil
 		}
 	}

@@ -411,14 +411,18 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 //
 //   - an unknown engine would bind to nothing, and the Application would render its screens while
 //     no approval mechanics ever engaged;
-//   - a missing role would leave the engine half-cast, failing on the first request rather than at
-//     load -- engines require their whole cast, see domain.KnownWorkflowEngines;
-//   - an unknown role name is almost always a misspelled required one, which without this check
-//     reports as "missing" *and* leaves the typo unexplained;
+//   - a missing *required* role would leave the engine half-cast, failing on the first request
+//     rather than at load (an optional one is a legitimate smaller installation -- see
+//     domain.WorkflowEngineSpec for where that distinction is drawn);
+//   - an unknown role name is almost always a misspelled real one, which without this check reports
+//     as "missing" *and* leaves the typo unexplained;
 //   - a role naming a Machine this Application does not claim would hand the engine records
 //     belonging to another Application, past the claim boundary Machine.ApplicationID establishes;
-//   - two roles naming one Machine would make IsDocument and IsStep both true for it, and every
-//     caller that branches on the pair would take whichever branch it happens to test first.
+//   - two roles naming one Machine would make two of the engine's predicates true for it, and every
+//     caller that branches on them would take whichever branch it happens to test first;
+//   - half a saved approval flow (a template Machine with no template-step Machine, or the reverse)
+//     is the one pair whose halves are useless apart -- CAP-V28 writes both records or neither, so a
+//     one-sided cast would be a feature that silently stores nothing.
 func validateWorkflowBinding(doc applicationDoc) []string {
 	w := doc.Workflow
 	if w == nil {
@@ -426,11 +430,11 @@ func validateWorkflowBinding(doc applicationDoc) []string {
 	}
 
 	var issues []string
-	required, known := domain.KnownWorkflowEngines[w.Engine]
+	spec, known := domain.KnownWorkflowEngines[w.Engine]
 	if !known {
 		return []string{fmt.Sprintf("application %q: workflow.engine %q is not an engine this runtime realizes -- see domain.KnownWorkflowEngines", doc.ID, w.Engine)}
 	}
-	for _, role := range required {
+	for _, role := range spec.Required {
 		if strings.TrimSpace(w.Roles[role]) == "" {
 			issues = append(issues, fmt.Sprintf("application %q: workflow engine %q requires a machine for role %q -- an engine cannot run against a partial cast", doc.ID, w.Engine, role))
 		}
@@ -438,8 +442,8 @@ func validateWorkflowBinding(doc applicationDoc) []string {
 	byMachine := make(map[string]string, len(w.Roles))
 	for _, role := range slices.Sorted(maps.Keys(w.Roles)) {
 		machineID := w.Roles[role]
-		if !slices.Contains(required, role) {
-			issues = append(issues, fmt.Sprintf("application %q: workflow engine %q declares no role %q -- its roles are %v", doc.ID, w.Engine, role, required))
+		if !slices.Contains(spec.Roles(), role) {
+			issues = append(issues, fmt.Sprintf("application %q: workflow engine %q declares no role %q -- its roles are %v", doc.ID, w.Engine, role, spec.Roles()))
 			continue
 		}
 		if !slices.Contains(doc.Machines, machineID) {
@@ -450,6 +454,9 @@ func validateWorkflowBinding(doc applicationDoc) []string {
 			continue
 		}
 		byMachine[machineID] = role
+	}
+	if template, step := w.Roles[domain.WorkflowRoleFlowTemplate] != "", w.Roles[domain.WorkflowRoleFlowTemplateStep] != ""; template != step {
+		issues = append(issues, fmt.Sprintf("application %q: workflow roles %q and %q are optional but inseparable -- a saved approval flow is a template *and* its steps, so casting one without the other declares a feature that stores nothing", doc.ID, domain.WorkflowRoleFlowTemplate, domain.WorkflowRoleFlowTemplateStep))
 	}
 	return issues
 }

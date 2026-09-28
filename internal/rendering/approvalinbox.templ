@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"time"
 
-	"menata.app/internal/action"
+	"menata.app/internal/domain"
 	"menata.app/internal/experience"
 )
 
@@ -440,7 +440,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 		// exception to action.CanDeleteApprovalStep's rule rather than an oversight.
 		if c.Status == "rejected" {
 			<form
-				hx-post={ fmt.Sprintf("/machines/%s/records/%s/revise", action.DocumentMachineID, c.ID) }
+				hx-post={ fmt.Sprintf("/machines/%s/records/%s/revise", approvalMachineID(ctx, domain.WorkflowRoleDocument), c.ID) }
 				hx-confirm="Move this document back to Draft? Its approval steps will be cleared."
 				class="self-start"
 			>

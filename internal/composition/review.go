@@ -36,11 +36,11 @@ import (
 // page renders without the page count rather than failing.
 func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *domain.Machine, step *data.Record, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) (rendering.ReviewView, error) {
 	documentID := DisplayString(step.Values[action.FieldStepDocument])
-	document, err := l.store.GetRecord(ctx, action.DocumentMachineID, documentID)
+	document, err := l.store.GetRecord(ctx, docMachine.ID, documentID)
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
-	siblings, err := l.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, documentID)
+	siblings, err := l.ListRecordsBy(ctx, stepMachine.ID, action.FieldStepDocument, documentID)
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
@@ -137,7 +137,7 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 			// The page image the signature-placement screen already serves. Reusing that route
 			// rather than adding a per-step one keeps this screen additive: it introduces no
 			// rendering capability the app did not already have, only a read-only framing of it.
-			PreviewHref: fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=%d", action.DocumentMachineID, document.ID, page),
+			PreviewHref: fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=%d", docMachine.ID, document.ID, page),
 		}
 	}
 	return v
@@ -219,7 +219,7 @@ func canStillDecide(stepMachine *domain.Machine, decision string) bool {
 // internal/web 404s, and internal/composition's own card falls back to the generic page rather
 // than linking a screen with nothing to render.
 func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine *domain.Machine, document *data.Record, viewerID string) (*data.Record, error) {
-	steps, err := l.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, document.ID)
+	steps, err := l.ListRecordsBy(ctx, stepMachine.ID, action.FieldStepDocument, document.ID)
 	if err != nil {
 		return nil, err
 	}

@@ -68,12 +68,19 @@ const (
 // card. relations is only computed when stepMachine actually declares card_fields -- zero added
 // cost while no metadata opts in, the same "pay only for what you declare" posture SLAField/
 // GroupBy already established.
-func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time, stepMachine *domain.Machine) (Inbox, error) {
-	steps, err := l.ListRecords(ctx, action.StepMachineID)
+func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time, stepMachine, docMachine *domain.Machine) (Inbox, error) {
+	// Either Machine nil means this Workspace has no approval Application to compose an inbox from
+	// (or two, with nothing to say which -- see domain.MachineInWorkflowRole). An empty Inbox is the
+	// correct content for that screen, and putting the check here rather than at each caller keeps
+	// four handlers from each having to remember it.
+	if stepMachine == nil || docMachine == nil {
+		return Inbox{}, nil
+	}
+	steps, err := l.ListRecords(ctx, stepMachine.ID)
 	if err != nil {
 		return Inbox{}, err
 	}
-	documents, err := l.ListRecords(ctx, action.DocumentMachineID)
+	documents, err := l.ListRecords(ctx, docMachine.ID)
 	if err != nil {
 		return Inbox{}, err
 	}
@@ -92,7 +99,7 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 			return Inbox{}, err
 		}
 	}
-	return buildInbox(steps, documents, activities, names, userID, now, stepMachine, relations), nil
+	return buildInbox(steps, documents, activities, names, userID, now, stepMachine, docMachine, relations), nil
 }
 
 // pendingStepsFor selects the Approval Steps this viewer can act on right now: assigned to them,
@@ -140,12 +147,15 @@ func pendingStepsFor(steps []*data.Record, docByID map[string]*data.Record, step
 // drift apart. SLA-breach detection is no longer anything either of these does at all: it moved
 // off the read path entirely, onto execution.RunScheduledEvents (Flow 2 canvas re-audit,
 // 2026-09-27) -- see this file's own history for the GET-triggered write it replaced.
-func PendingApprovalCount(ctx context.Context, l *Loader, userID string, stepMachine *domain.Machine) (int, error) {
-	steps, err := l.ListRecords(ctx, action.StepMachineID)
+func PendingApprovalCount(ctx context.Context, l *Loader, userID string, stepMachine, docMachine *domain.Machine) (int, error) {
+	if stepMachine == nil || docMachine == nil {
+		return 0, nil // no approval Application here -- see ApprovalInbox's own note
+	}
+	steps, err := l.ListRecords(ctx, stepMachine.ID)
 	if err != nil {
 		return 0, err
 	}
-	documents, err := l.ListRecords(ctx, action.DocumentMachineID)
+	documents, err := l.ListRecords(ctx, docMachine.ID)
 	if err != nil {
 		return 0, err
 	}
@@ -238,7 +248,7 @@ func SearchCards(cards []rendering.PendingApprovalCard, q string) []rendering.Pe
 // buildInbox is the whole of the inbox's derivation, over records someone else already fetched.
 // Keeping it free of I/O is what makes the sequencing, bucketing and submitter-resolution rules
 // testable at all: they need four related record sets and a fixed clock, not a database.
-func buildInbox(steps, documents, activities []*data.Record, names map[string]string, userID string, now time.Time, stepMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
+func buildInbox(steps, documents, activities []*data.Record, names map[string]string, userID string, now time.Time, stepMachine, docMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
 	docByID := make(map[string]*data.Record, len(documents))
 	for _, d := range documents {
 		docByID[d.ID] = d
@@ -300,7 +310,7 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 			Status:       DisplayString(doc.Values[action.FieldDocumentStatus]),
 			SLADue:       doc.Values["fld_due_date"],
 			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names, ""),
-			Href:         fmt.Sprintf("/machines/%s/records/%s/review", action.StepMachineID, s.ID),
+			Href:         fmt.Sprintf("/machines/%s/records/%s/review", stepMachine.ID, s.ID),
 			CardFields:   cardFields,
 		})
 		inbox.Buckets = append(inbox.Buckets, bucket)
@@ -351,7 +361,7 @@ func buildInbox(steps, documents, activities []*data.Record, names map[string]st
 			Status:       status,
 			SLADue:       d.Values["fld_due_date"],
 			Approvers:    stepStates(seq, d, stepsByDoc[d.ID], names, userID),
-			Href:         reviewHref(d.ID, len(stepsByDoc[d.ID]), status),
+			Href:         reviewHref(docMachine.ID, d.ID, len(stepsByDoc[d.ID]), status),
 		})
 	}
 
@@ -508,12 +518,12 @@ func orderedBySequence(steps []*data.Record) []*data.Record {
 // construction (2026-09-25, Tahap 4) and has its own real destination -- the submit wizard,
 // reopened on this draft -- so it takes priority over the zero-steps fallback rather than landing
 // on the generic record page like the other, pre-existing zero-step edge case still does.
-func reviewHref(documentID string, steps int, status string) string {
+func reviewHref(docMachineID, documentID string, steps int, status string) string {
 	if status == action.DocumentStatusDraft {
-		return fmt.Sprintf("/machines/%s/records/%s/continue-submit", action.DocumentMachineID, documentID)
+		return fmt.Sprintf("/machines/%s/records/%s/continue-submit", docMachineID, documentID)
 	}
 	if steps == 0 {
-		return fmt.Sprintf("/machines/%s/records/%s", action.DocumentMachineID, documentID)
+		return fmt.Sprintf("/machines/%s/records/%s", docMachineID, documentID)
 	}
-	return fmt.Sprintf("/machines/%s/records/%s/review", action.DocumentMachineID, documentID)
+	return fmt.Sprintf("/machines/%s/records/%s/review", docMachineID, documentID)
 }

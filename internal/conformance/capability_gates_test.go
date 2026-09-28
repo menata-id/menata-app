@@ -165,31 +165,23 @@ func TestClosedRegistryMembersAreActivatedByMetadata(t *testing.T) {
 // new hardcoded reference added to a file that already had one -- which is how this kind of
 // coupling actually grows.
 //
-// Frozen 2026-09-28 at 66 references across 18 files, the same day the audit measured 411 lines of
-// metadata against 3,366 of Application-specific Go and templ. The audit's three stages each
-// predict a drop here: closing Gap C removes the identity coupling, Gap A the per-Machine decide
-// handling, Gap B the direct signature calls. If a stage lands and this number does not move,
-// the stage did not do what it claimed.
-var documentApprovalCoupling = map[string]int{
-	"composition/approval.go":            8,
-	"composition/assigned.go":            3,
-	"composition/pages.go":               1,
-	"composition/placement.go":           2,
-	"composition/review.go":              4,
-	"rendering/approvalinbox.templ":      1,
-	"rendering/appsettings.templ":        1,
-	"rendering/detail.templ":             1,
-	"rendering/documentsubmit.templ":     1,
-	"rendering/machine.templ":            1,
-	"rendering/reviewdocument.templ":     1,
-	"rendering/signatureplacement.templ": 6,
-	"web/approval.go":                    10,
-	"web/document.go":                    16,
-	"web/record.go":                      1,
-	"web/review.go":                      3,
-	"web/signing.go":                     6,
-	"web/workspacehome.go":               1,
-}
+// Frozen 2026-09-28 at 67 references across 18 files, the same day the audit measured 411 lines of
+// metadata against 3,366 of Application-specific Go and templ -- **and emptied the same day**, by
+// the slice after Stage A that made a Machine resolvable by the role its Application casts it in.
+// The map stays declared, because an empty ratchet is an ordinary gate rather than a retired one:
+// the next file to name one of these constants fails, which is the whole point.
+//
+// Two lessons from that emptying, both worth keeping:
+//
+// Comment lines are skipped (as TestNoBareMachineIDIdentityChecks already does). Five references
+// survive in comments that explain the shape they replaced -- exactly what CLAUDE.md asks an author
+// to leave behind -- and counting those would have made the gate reward deleting the explanation.
+//
+// It measures *naming* coupling, not identity coupling. Stage A removed the latter and moved this
+// number not at all, which is correct: identity had already been funnelled into IsDocument/IsStep on
+// 2026-09-27, where a different gate holds it. Ask which kind a change addresses before predicting
+// this number.
+var documentApprovalCoupling = map[string]int{}
 
 var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signature|Template|TemplateStep)MachineID`)
 
@@ -213,7 +205,14 @@ func TestDocumentApprovalCouplingOnlyShrinks(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read %s/%s: %v", pkg, name, err)
 			}
-			if n := len(documentApprovalConstant.FindAll(src, -1)); n > 0 {
+			n := 0
+			for _, line := range strings.Split(string(src), "\n") {
+				if strings.HasPrefix(strings.TrimSpace(line), "//") {
+					continue // a comment may name the old shape while explaining it
+				}
+				n += len(documentApprovalConstant.FindAllString(line, -1))
+			}
+			if n > 0 {
 				found[strings.TrimPrefix(pkg, "internal/")+"/"+name] = n
 			}
 		}

@@ -314,11 +314,28 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   second list to drift from.
 - `TestDocumentApprovalCouplingOnlyShrinks` — the third *ratchet*. `documentApprovalCoupling`
   freezes how many times each file outside `internal/action` names Document Approval's own
-  Machine-id constants (66 across 18 files, 2026-09-28 — read the numbers out of the map, not out
-  of this line). **It may only shrink**: a higher count fails, a new file fails, and a *lower*
-  count fails too, so an improvement is locked in rather than left as room to regress. Counted per
-  reference rather than per file, because a file that already couples is exactly where the next
-  one gets added.
+  Machine-id constants — frozen at 67 across 18 files on 2026-09-28 and **emptied the same day**, by
+  the slice that made a Machine resolvable by the role its Application casts it in. Read the numbers
+  out of the map, not out of this line. **It may only shrink**: a higher count fails, a new file
+  fails, and a *lower* count fails too, so an improvement is locked in rather than left as room to
+  regress. Comment lines are skipped, so explaining the shape a file used to have does not count
+  against it. An empty map is an ordinary gate rather than a retired one — the next file to name one
+  of these constants fails, which is the whole point of leaving it declared.
+
+  Ask a Machine for its **role**, not its id: `internal/web.machineForStep`/`machineForDocument`
+  (and `approvalMachine(ctx, role)` for the rest), `composition`'s own parameters, and
+  `rendering.approvalMachineID(ctx, role)` in a `.templ`. All three read
+  `domain.Workspace.MachineInWorkflowRole`, whose doc comment carries the precedence — the request's
+  Application first, then the Workspace's sole binding, then nil for "this Workspace has no such
+  screen". A nil is a real answer: an optional role (a signature store, a saved approval flow) is
+  uncast whenever that feature was simply not installed.
+
+- `TestActionDoesNotSwitchOnItsOwnMachineIDs` — the fourth of the identity family, and the one that
+  exists because the other three could not see the place it mattered. `internal/action` is excluded
+  from the Machine-id gate as the owner of those constants, and `action.CanDelete` used that
+  exclusion to `switch machineID` for a whole day: all three callers passed `machine.ID`, so any
+  Workspace's own Machine named `mch_approval_step` had this engine's delete rule applied to it.
+  Take the `*domain.Machine` and ask `IsStep`/`IsDocument`.
 
   **A gate locks in progress; it does not create it.** None of these forbids a shape whose
   declarative alternative does not exist yet — `TestNoBareMachineIDIdentityChecks` could only be

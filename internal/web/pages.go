@@ -46,7 +46,7 @@ func showDashboard(store *data.Store, cfg config.Config) http.HandlerFunc {
 		ctx := req.Context()
 		machines := machinesFor(ctx)
 
-		d, err := composition.DashboardData(ctx, composition.NewLoader(store, machines), dashboardActivityLimit)
+		d, err := composition.DashboardData(ctx, composition.NewLoader(store, machines), dashboardActivityLimit, machineForDocument(ctx))
 		if err != nil {
 			serverError(w, err)
 			return

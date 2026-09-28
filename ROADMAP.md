@@ -2672,15 +2672,77 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   engages exactly as the original does. This paragraph used to end "capped by that gap rather than by
   this one"; the cap is gone.
 
-  **What the same change exposed as the real remaining obstacle is the Machine half, and it is
-  bigger than the rename.** 66 references across 18 files still ask for a Machine by its literal id
-  (`machines[action.StepMachineID]`, `store.ListRecordsBy(ctx, action.StepMachineID, ...)`,
-  `fmt.Sprintf("/machines/%s/...", action.DocumentMachineID)`) -- all legal, none an identity claim,
-  and all wrong the moment an install renames `mch_document`. So step 3 above is not only about
-  rewriting references *inside* the copied metadata: the runtime has to be able to ask "which Machine
-  plays the step role here" instead of naming one. The binding makes that answerable for the first
-  time; doing it is what would finally move `documentApprovalCoupling`, which Stage A did not (see
-  its own entry for why that is correct rather than a shortfall).
+  **The Machine half is unblocked too, as of the same day** ("Resolve a Machine by the role its
+  Application casts it in", below). 67 references across 18 files used to ask for a Machine by its
+  literal id -- all legal, none an identity claim, and all wrong the moment an install renames
+  `mch_document`. They now ask which Machine plays a role, proven end to end by a decide flow driven
+  over `mch_surat`/`mch_langkah`. So step 3 above is back to what it says on the tin: rewrite the
+  references *inside* the copied metadata and let the loader prove it.
+
+  **What is left for this entry, then, is genuinely only its own four steps** -- the install operation,
+  the computed rename map, the in-metadata rewrite, and a UI to reach it. One caveat inherited from
+  below: a Workspace that ends up with *two* approval Applications leaves `/documents/new` ambiguous,
+  since that route names no Application. Renaming on install is what would create that state, so this
+  entry is where that limitation stops being theoretical.
+
+- **Resolve a Machine by the role its Application casts it in, not by its id -- shipped 2026-09-28**,
+  the slice immediately after Stage A and the one that made the binding load-bearing rather than
+  decorative.
+
+  **Why it was needed.** Stage A stopped the engine *identifying* its Machines by name; it did not stop
+  67 references across 18 files from *naming* them -- `machines[action.StepMachineID]`,
+  `store.ListRecordsBy(ctx, action.StepMachineID, ...)`,
+  `fmt.Sprintf("/machines/%s/...", action.DocumentMachineID)`. All legal under
+  `TestNoBareMachineIDIdentityChecks`, since each names a Machine rather than claiming an identity --
+  and all wrong the moment an install renames a colliding Machine, which is the entry above this one.
+  A renamed copy would have loaded, bound, engaged, and then read nothing.
+
+  **What shipped.** `domain.Workspace.MachineInWorkflowRole(engine, role, applicationID)` with an
+  explicit precedence -- the request's Application when it binds the engine, else the Workspace's sole
+  binding, else nil -- and `MachinesInWorkflowRole` for every binding. Reached through
+  `internal/web.machineForStep`/`machineForDocument`/`approvalMachine(ctx, role)`,
+  `internal/composition`'s own parameters (that plane takes what it needs rather than reading ctx, and
+  still does), and `rendering.approvalMachineID(ctx, role)` for a `.templ`. The engine is named once
+  per package rather than 67 times in total.
+
+  The engine's cast grew to carry it: `mch_signature`, `mch_approval_flow_template` and
+  `..._step` are now **optional** roles (`domain.WorkflowEngineSpec` splits required from optional), so
+  an approval Application may cast neither reusable signatures nor saved flows and still run. The
+  flow-template pair is optional *together* -- half a saved flow stores nothing, so a one-sided cast
+  fails at load.
+
+  **Three real defects fell out of the conversion, none of them the point of it:**
+
+  1. `action.CanDelete` switched on the bare Machine id, and all three callers passed `machine.ID`. So
+     *any* Workspace's own Machine named `mch_approval_step` had this engine's decided-step delete rule
+     applied to its records -- and since that rule *refuses*, the leak blocked real deletions rather
+     than allowing them. It survived 2026-09-27's conversion because `internal/action` is precisely the
+     package `TestNoBareMachineIDIdentityChecks` excludes, so nothing was watching the one file where
+     the shape still lived. It now takes the `*domain.Machine`, and
+     `TestActionDoesNotSwitchOnItsOwnMachineIDs` closes the hole.
+  2. `saveDefaultApprovalFlow` dereferenced `machines[action.TemplateMachineID].ID`, so a Workspace
+     that installed Document Approval without the two flow-template Machines panicked on document
+     submit. Optional roles make that state expressible, and the guard explicit.
+  3. Workspace Home and the navigation badge -- both outside any Application -- assumed exactly one
+     approval Application and one name for it. They now sum across every binding
+     (`pendingApprovalTotal`). Workspace Home got cheaper as a side effect: it was composing the whole
+     Inbox to take its length, and /home fell from 13 reads to 11.
+
+  **Verification.** `internal/web.TestDecideStep_worksOverRenamedMachines` drives the real decide
+  handler over `mch_surat`/`mch_langkah`/`mch_ttd` -- redirect, decision write, decided-by-name
+  snapshot, the declared rollup on the parent, and the composited signed PDF -- names this repo has
+  never used, and an assertion no test could make before. Mutation-proven: putting one lookup back to
+  `action.DocumentMachineID` fails that test with "record not found" while every template-id test still
+  passes, which is exactly the discrimination the slice exists for.
+  `domain.TestMachineInWorkflowRole_precedence` covers all three branches plus the fall-through
+  `/dashboard` depends on (an Application that binds *no* engine is not a scope, so it falls through
+  rather than answering nil). Query budgets unmoved or better; the ratchet is empty.
+
+  **The one named limitation.** Two approval Applications in one Workspace leave `/documents/new` and
+  `POST /documents` ambiguous: those routes are named by no navigation item (`nav_new_approval` was
+  deleted 2026-09-21 on owner instruction), so nothing resolves an Application for them, and they
+  answer 404 rather than guessing. The honest fix is a route that says which Application it belongs to
+  -- not a guess in the resolver -- and it is out of scope until a Workspace actually installs two.
 
 - **Document Approval: closing the last three layers** (owner request, 2026-09-28: audit how
   metadata-based the real Document Approval is against 001-007, then plan it). The audit is
@@ -2753,7 +2815,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
   **The one prediction this entry got wrong, recorded rather than quietly dropped:** the note below
   says a stage that works will make `documentApprovalCoupling` drop, and "if the number does not
-  move, the stage did not." It did not move -- 66 across 18 files, unchanged -- and the stage was
+  move, the stage did not." It did not move -- 67 across 18 files, unchanged -- and the stage was
   still correct. The ratchet counts references to the Machine-id *constants*, and every one of those
   66 is a lookup, a record query or a URL built from an id; the identity coupling Stage A removed was
   already funnelled through `IsDocument`/`IsStep`, which the ratchet cannot see by design (it is
@@ -2763,10 +2825,13 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Machine playing the step role", which the binding now makes possible for the first time. That is
   also the missing piece for the install-collision entry above: renaming a colliding `mch_document`
   on install produces a copy that loads, binds and engages, while all 66 of those lookups still ask
-  for the old id. Two open questions come with it, neither mechanical: whether the engine's declared
-  cast extends to `mch_signature`/`mch_approval_flow_template`/`..._step` (20-odd of the 66 name
-  those, and they hold no role today), and where the resolver lives for `internal/composition` and
-  `.templ` callers that hold a Loader or a ctx rather than a Machine map.
+  for the old id. Two open questions came with it, neither mechanical: whether the engine's declared
+  cast extends to `mch_signature`/`mch_approval_flow_template`/`..._step` (8 of the 67 name those, and
+  they held no role), and where the resolver lives for `internal/composition` and `.templ` callers that
+  hold a Loader or a ctx rather than a Machine map.
+
+  **Both are now answered, and the slice shipped the same day -- see "Resolve a Machine by the role
+  its Application casts it in" below.** The ratchet is empty.
 
   **Stage B -- an Action may declare what it writes.** 006 names Approve and Reject explicitly as
   Actions, and `decide` already exists here as a *name*: `domain.KnownActions` carries it,

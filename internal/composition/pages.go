@@ -80,14 +80,22 @@ type Dashboard struct {
 
 // DashboardData composes the dashboard. Each Machine is read once for the whole page -- three
 // reads plus the activity feed's two, not one per Project.
-func DashboardData(ctx context.Context, l *Loader, activityLimit int) (Dashboard, error) {
+//
+// docMachine is whichever Machine this Workspace's approval Application casts as its document
+// (2026-09-28), and **nil is a real argument**: a Workspace with no approval Application installed
+// has no documents to summarise, and the status tiles correctly read zero. Before the roles existed
+// this read the literal mch_document, which in such a Workspace would have counted whatever else
+// happened to be named that -- a plain CRUD Machine's records presented as documents in review.
+func DashboardData(ctx context.Context, l *Loader, activityLimit int, docMachine *domain.Machine) (Dashboard, error) {
 	projects, err := l.ListRecords(ctx, projectMachineID)
 	if err != nil {
 		return Dashboard{}, err
 	}
-	documents, err := l.ListRecords(ctx, action.DocumentMachineID)
-	if err != nil {
-		return Dashboard{}, err
+	var documents []*data.Record
+	if docMachine != nil {
+		if documents, err = l.ListRecords(ctx, docMachine.ID); err != nil {
+			return Dashboard{}, err
+		}
 	}
 	activity, err := RecentActivity(ctx, l, activityLimit)
 	if err != nil {

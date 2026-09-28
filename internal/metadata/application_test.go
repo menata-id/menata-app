@@ -1291,12 +1291,14 @@ func workflowManifest(t *testing.T, workflow string) string {
 	dir := t.TempDir()
 	writeFile(t, dir, "surat.yaml", "id: mch_surat\nname: Surat\n")
 	writeFile(t, dir, "langkah.yaml", "id: mch_langkah\nname: Langkah\n")
+	writeFile(t, dir, "ttd.yaml", "id: mch_ttd\nname: Tanda Tangan\n")
 	writeFile(t, dir, "lain.yaml", "id: mch_lain\nname: Lain\n")
 	writeFile(t, dir, "app.yaml", `
 workspace: default
 machines:
   - surat.yaml
   - langkah.yaml
+  - ttd.yaml
   - lain.yaml
 applications:
   - app-main.yaml
@@ -1308,6 +1310,7 @@ name: Persetujuan
 machines:
   - mch_surat
   - mch_langkah
+  - mch_ttd
 `+workflow)
 	writeFile(t, dir, "app-other.yaml", "id: app_lain\nname: Lain\nmachines:\n  - mch_lain\n")
 	return filepath.Join(dir, "app.yaml")
@@ -1409,6 +1412,71 @@ func TestLoadApplication_workflowBindingMustBeRealizable(t *testing.T) {
     step: mch_surat
 `,
 			want: "declared for both workflow roles",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := LoadApplication(workflowManifest(t, tt.workflow))
+			if err == nil {
+				t.Fatalf("LoadApplication() error = nil, want one containing %q", tt.want)
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("LoadApplication() error = %v, want it to contain %q", err, tt.want)
+			}
+		})
+	}
+}
+
+// An optional role omitted is a smaller installation, not an error: this Application runs the
+// approval engine without reusable signatures and without saved default flows (see
+// domain.WorkflowEngineSpec). The Machine it does not cast stays unstamped, which is what every
+// role-resolving caller reads as "this Workspace has no such feature".
+func TestLoadApplication_optionalWorkflowRolesMayBeOmitted(t *testing.T) {
+	app, err := LoadApplication(workflowManifest(t, validWorkflow))
+	if err != nil {
+		t.Fatalf("LoadApplication() error = %v", err)
+	}
+	for _, m := range app.Machines {
+		if m.ID == "mch_ttd" && (m.WorkflowEngine != "" || m.WorkflowRole != "") {
+			t.Errorf("mch_ttd is cast in no role but was stamped %q/%q", m.WorkflowEngine, m.WorkflowRole)
+		}
+	}
+
+	// And casting it is equally valid -- the same Application, one role wider.
+	withSignature := validWorkflow + "    signature: mch_ttd\n"
+	app, err = LoadApplication(workflowManifest(t, withSignature))
+	if err != nil {
+		t.Fatalf("LoadApplication() with an optional role error = %v", err)
+	}
+	for _, m := range app.Machines {
+		if m.ID == "mch_ttd" && m.WorkflowRole != domain.WorkflowRoleSignature {
+			t.Errorf("mch_ttd.WorkflowRole = %q, want %q", m.WorkflowRole, domain.WorkflowRoleSignature)
+		}
+	}
+}
+
+// An optional role is optional about being *declared*, never about being declared correctly, and the
+// flow-template pair is optional only together -- half a saved flow stores nothing.
+func TestLoadApplication_optionalWorkflowRolesAreStillValidated(t *testing.T) {
+	tests := []struct {
+		name     string
+		workflow string
+		want     string
+	}{
+		{
+			name:     "optional role naming a machine this application does not claim",
+			workflow: validWorkflow + "    signature: mch_lain\n",
+			want:     "not one of this application's own machines",
+		},
+		{
+			name:     "optional role reusing a machine another role already holds",
+			workflow: validWorkflow + "    signature: mch_surat\n",
+			want:     "declared for both workflow roles",
+		},
+		{
+			name:     "half a saved approval flow",
+			workflow: validWorkflow + "    flow_template: mch_ttd\n",
+			want:     "optional but inseparable",
 		},
 	}
 	for _, tt := range tests {

@@ -1,6 +1,8 @@
 package rendering
 
 import (
+	"context"
+
 	"fmt"
 
 	"menata.app/internal/action"
@@ -71,7 +73,7 @@ type PlacementStep struct {
 // width control, and an honest "Not placed yet" state -- every step on the board is pre-placed.
 templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Signature positions", workspaceName, viewer, switchWorkspaceHref) {
-		<a href={ templ.URL("/machines/" + action.DocumentMachineID + "/records/" + v.DocumentID) } class="text-xs text-blue-600 hover:text-blue-700">
+		<a href={ templ.URL("/machines/" + approvalMachineID(ctx, domain.WorkflowRoleDocument) + "/records/" + v.DocumentID) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { v.DocumentTitle }
 		</a>
 		<div class="flex flex-col gap-2">
@@ -86,7 +88,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 			class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_316px]"
 			id="sig-body"
 			hx-trigger="htmx:afterRequest[detail.successful]"
-			hx-get={ placementPageHref(v.DocumentID, v.Page) }
+			hx-get={ placementPageHref(ctx, v.DocumentID, v.Page) }
 			hx-select="#sig-body"
 			hx-swap="outerHTML"
 		>
@@ -95,10 +97,10 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 					<h2 class="m-0 text-sm font-medium">{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</h2>
 					<span class="flex items-center gap-3 text-xs">
 						if v.Page > 1 {
-							<a href={ templ.URL(placementPageHref(v.DocumentID, v.Page-1)) } class="text-blue-600 hover:text-blue-700">← Prev</a>
+							<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page-1)) } class="text-blue-600 hover:text-blue-700">← Prev</a>
 						}
 						if v.Page < v.TotalPages {
-							<a href={ templ.URL(placementPageHref(v.DocumentID, v.Page+1)) } class="text-blue-600 hover:text-blue-700">Next →</a>
+							<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page+1)) } class="text-blue-600 hover:text-blue-700">Next →</a>
 						}
 					</span>
 				</div>
@@ -136,7 +138,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 templ placementCanvas(v PlacementView, tailwind bool) {
 	<div class={ "sig-canvas", templ.KV("relative inline-block w-full max-w-[480px]", tailwind) }>
 		<img
-			src={ placementPreviewHref(v.DocumentID, v.Page) }
+			src={ placementPreviewHref(ctx, v.DocumentID, v.Page) }
 			alt={ fmt.Sprintf("Page %d of the document", v.Page) }
 			class={ templ.KV("block w-full rounded-md border border-slate-200", tailwind) }
 		/>
@@ -165,7 +167,7 @@ templ placementCanvas(v PlacementView, tailwind bool) {
 // around this centre.
 templ placementMarker(s PlacementStep, tailwind bool) {
 	if s.Editable {
-		<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", action.StepMachineID, s.StepID) } hx-swap="none">
+		<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", approvalMachineID(ctx, domain.WorkflowRoleStep), s.StepID) } hx-swap="none">
 			@csrfHiddenInput()
 			<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(s.Page) }/>
 			<input type="hidden" class="sig-x-input" name={ action.FieldStepSignatureX } value={ fmt.Sprintf("%.1f", s.X) }/>
@@ -240,7 +242,7 @@ func placementSubline(s PlacementStep) string {
 // placeStepForm puts an unplaced step's marker on the page being viewed, or re-centres a placed
 // one -- the no-JavaScript path to the same result the drag gives.
 templ placeStepForm(s PlacementStep, page int) {
-	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", action.StepMachineID, s.StepID) } hx-swap="none">
+	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", approvalMachineID(ctx, domain.WorkflowRoleStep), s.StepID) } hx-swap="none">
 		@csrfHiddenInput()
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(page) }/>
 		<input type="hidden" name={ action.FieldStepSignatureX } value="50"/>
@@ -259,7 +261,7 @@ templ placeStepForm(s PlacementStep, page int) {
 // widthControl resizes a marker without moving it: the placement's own page and coordinates are
 // carried forward unchanged, so a width-only edit never relocates the signature.
 templ widthControl(s PlacementStep, page int) {
-	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", action.StepMachineID, s.StepID) } hx-trigger="change" hx-swap="none">
+	<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", approvalMachineID(ctx, domain.WorkflowRoleStep), s.StepID) } hx-trigger="change" hx-swap="none">
 		@csrfHiddenInput()
 		<input type="hidden" name={ action.FieldStepSignaturePage } value={ fmt.Sprint(placementPageOrCurrent(s, page)) }/>
 		<input type="hidden" name={ action.FieldStepSignatureX } value={ fmt.Sprintf("%.1f", s.X) }/>
@@ -341,7 +343,7 @@ templ signaturePlacementBlock(v PlacementView) {
 		class="sig-layout"
 		id="sig-body"
 		hx-trigger="htmx:afterRequest[detail.successful]"
-		hx-get={ placementPageHref(v.DocumentID, v.Page) }
+		hx-get={ placementPageHref(ctx, v.DocumentID, v.Page) }
 		hx-select="#sig-body"
 		hx-swap="outerHTML"
 	>
@@ -350,10 +352,10 @@ templ signaturePlacementBlock(v PlacementView) {
 				<strong>{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</strong>
 				<span>
 					if v.Page > 1 {
-						<a href={ templ.URL(placementPageHref(v.DocumentID, v.Page-1)) }>← Prev</a>
+						<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page-1)) }>← Prev</a>
 					}
 					if v.Page < v.TotalPages {
-						<a href={ templ.URL(placementPageHref(v.DocumentID, v.Page+1)) }>Next →</a>
+						<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page+1)) }>Next →</a>
 					}
 				</span>
 			</div>
@@ -388,10 +390,10 @@ func placementPageOrCurrent(s PlacementStep, currentPage int) int {
 // placementPageHref and placementPreviewHref mirror composition's own helpers of the same name.
 // They are duplicated rather than imported because internal/rendering must not import
 // internal/composition -- the dependency runs the other way (007 §5).
-func placementPageHref(documentID string, page int) string {
-	return fmt.Sprintf("/machines/%s/records/%s/signature-placement?page=%d", action.DocumentMachineID, documentID, page)
+func placementPageHref(ctx context.Context, documentID string, page int) string {
+	return fmt.Sprintf("/machines/%s/records/%s/signature-placement?page=%d", approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID, page)
 }
 
-func placementPreviewHref(documentID string, page int) string {
-	return fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=%d", action.DocumentMachineID, documentID, page)
+func placementPreviewHref(ctx context.Context, documentID string, page int) string {
+	return fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=%d", approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID, page)
 }

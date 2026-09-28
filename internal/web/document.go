@@ -47,7 +47,7 @@ type wizardOptions struct {
 // read itself. The group list is keyed on mch_approval_step, not mch_document: GroupOptions
 // short-circuits on a Machine declaring no group Field, and only the step Machine declares one.
 func readWizardOptions(req *http.Request, machines map[string]*domain.Machine, store *data.Store) (wizardOptions, error) {
-	stepMachine := machines[action.StepMachineID]
+	stepMachine := machineForStep(req.Context())
 	ld := composition.NewLoader(store, machines)
 	approvers, err := ld.RelationOptions(req.Context(), stepMachine)
 	if err != nil {
@@ -68,7 +68,7 @@ func readWizardOptions(req *http.Request, machines map[string]*domain.Machine, s
 	if err != nil {
 		return wizardOptions{}, err
 	}
-	docMachine := machines[action.DocumentMachineID]
+	docMachine := machineForDocument(req.Context())
 	documentType, _ := docMachine.FieldByID("fld_document_type")
 	mode, _ := docMachine.FieldByID(action.FieldDocumentMode)
 	return wizardOptions{documentType: documentType, mode: mode, approvers: approvers, groups: groups}, nil
@@ -130,8 +130,10 @@ func newApproverRow(store *data.Store) http.HandlerFunc {
 // zero steps by construction.
 func submitDocumentWizard(store *data.Store, files *storage.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		machines := machinesFor(req.Context())
-		docMachine := machines[action.DocumentMachineID]
+		docMachine, ok := requireMachineForDocument(w, req.Context())
+		if !ok {
+			return
+		}
 
 		values, _, ok := submittedValues(w, req, docMachine, files)
 		if !ok {
@@ -185,11 +187,11 @@ func submitDocumentWizard(store *data.Store, files *storage.Store, cfg config.Co
 			return
 		}
 
-		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, rows) {
+		if !createApprovalSteps(w, req, store, machineForStep(req.Context()), document.ID, rows) {
 			return
 		}
 		if req.FormValue("save_as_default_flow") != "" {
-			saveDefaultApprovalFlow(req.Context(), store, machines, values, rows)
+			saveDefaultApprovalFlow(req.Context(), store, values, rows)
 		}
 
 		logActivity(req.Context(), store, docMachine.ID, document.ID, actor.ID,
@@ -204,10 +206,18 @@ func submitDocumentWizard(store *data.Store, files *storage.Store, cfg config.Co
 // wizard's own four Fields) and an identical rows slice before this point, so one helper reads the
 // Document Type/Mode the submission just used and hands them to saveApprovalFlowTemplate. Its own
 // error is logged, never surfaced -- see saveApprovalFlowTemplate's doc comment for why.
-func saveDefaultApprovalFlow(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, values map[string]any, rows []stepInput) {
+func saveDefaultApprovalFlow(ctx context.Context, store *data.Store, values map[string]any, rows []stepInput) {
+	// flow_template/flow_template_step are optional roles (domain.WorkflowEngineSpec): an approval
+	// Application may cast neither, and then there is nowhere to save a default flow. This guard is
+	// also a real bug fix -- saveApprovalFlowTemplate dereferences both Machines, so before the roles
+	// existed a Workspace that installed Document Approval without them panicked on submit.
+	template, templateStep := approvalMachine(ctx, domain.WorkflowRoleFlowTemplate), approvalMachine(ctx, domain.WorkflowRoleFlowTemplateStep)
+	if template == nil || templateStep == nil {
+		return
+	}
 	documentType := toDisplayString(values[action.FieldTemplateDocumentType])
 	mode := toDisplayString(values[action.FieldDocumentMode])
-	if err := saveApprovalFlowTemplate(ctx, store, machines[action.TemplateMachineID], machines[action.TemplateStepMachineID], documentType, mode, rows); err != nil {
+	if err := saveApprovalFlowTemplate(ctx, store, template, templateStep, documentType, mode, rows); err != nil {
 		log.Printf("save default approval flow for document type %q: %v", documentType, err)
 	}
 }
@@ -363,11 +373,11 @@ func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.
 			recordError(w, err)
 			return
 		}
-		if !createApprovalSteps(w, req, store, machines[action.StepMachineID], document.ID, rows) {
+		if !createApprovalSteps(w, req, store, machineForStep(req.Context()), document.ID, rows) {
 			return
 		}
 		if req.FormValue("save_as_default_flow") != "" {
-			saveDefaultApprovalFlow(ctx, store, machines, values, rows)
+			saveDefaultApprovalFlow(ctx, store, values, rows)
 		}
 
 		logActivity(ctx, store, machine.ID, document.ID, actor.ID,
@@ -533,7 +543,13 @@ func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.S
 // level, so a duplicate created by hand through the generic create route would simply have its
 // first match (ListRecordsBy's own order) picked here and its rest ignored.
 func findApprovalFlowTemplate(ctx context.Context, store *data.Store, documentType string) (template *data.Record, steps []*data.Record, err error) {
-	templates, err := store.ListRecordsBy(ctx, action.TemplateMachineID, action.FieldTemplateDocumentType, documentType)
+	// Uncast optional roles mean this Application saves no default flows at all, so there is nothing
+	// to find -- and querying an empty Machine id would read nothing while looking like a real read.
+	templateMachine, stepMachine := approvalMachine(ctx, domain.WorkflowRoleFlowTemplate), approvalMachine(ctx, domain.WorkflowRoleFlowTemplateStep)
+	if templateMachine == nil || stepMachine == nil {
+		return nil, nil, nil
+	}
+	templates, err := store.ListRecordsBy(ctx, templateMachine.ID, action.FieldTemplateDocumentType, documentType)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -541,7 +557,7 @@ func findApprovalFlowTemplate(ctx context.Context, store *data.Store, documentTy
 		return nil, nil, nil
 	}
 	template = templates[0]
-	steps, err = store.ListRecordsBy(ctx, action.TemplateStepMachineID, action.FieldTemplateStepTemplate, template.ID)
+	steps, err = store.ListRecordsBy(ctx, stepMachine.ID, action.FieldTemplateStepTemplate, template.ID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -674,7 +690,7 @@ func showSignaturePlacement(store *data.Store, files *storage.Store, cfg config.
 		page := pageFromQuery(req, totalPages)
 		actor := currentActor(req, store, cfg)
 		view, err := composition.SignaturePlacement(ctx, composition.NewLoader(store, machines),
-			machines[action.StepMachineID], document, steps, relations, page, totalPages, actor)
+			machineForStep(ctx), document, steps, relations, page, totalPages, actor)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -704,20 +720,20 @@ func loadSignaturePlacementData(ctx context.Context, store *data.Store, files *s
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
-	steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, documentID)
+	// This guard predates the roles and was written for the failure they remove: a Workspace holding
+	// its own, unrelated Machine named mch_document reached here and panicked on a nil
+	// *domain.Machine inside composition.Loader.RelationOptions (found 2026-09-27). Asking which
+	// Machine this Application cast as its step answers that by construction -- an Application that
+	// casts none has no placement screen -- and the guard stays because "no approval Application
+	// here" is still a reachable state. documentSignaturePlacementView's own doc comment promises
+	// "fails open, not closed" for this whole function, and that is what an error does.
+	stepMachine := machineForStep(ctx)
+	if stepMachine == nil {
+		return nil, nil, nil, 0, fmt.Errorf("this workspace has no approval step machine")
+	}
+	steps, err := store.ListRecordsBy(ctx, stepMachine.ID, action.FieldStepDocument, documentID)
 	if err != nil {
 		return nil, nil, nil, 0, err
-	}
-	stepMachine, ok := machines[action.StepMachineID]
-	if !ok {
-		// A Workspace whose own Machine happens to be named action.DocumentMachineID (mch_document)
-		// but is not actually Document Approval's -- aiassist.Validate now refuses a *generated*
-		// Machine choosing that reserved id, but this still guards any Workspace already in that
-		// state (found 2026-09-27: exactly this, a nil *domain.Machine reaching
-		// composition.Loader.RelationOptions and panicking). documentSignaturePlacementView's own
-		// doc comment already promises "fails open, not closed" for this whole function; a missing
-		// mch_approval_step is that same kind of failure, not a crash.
-		return nil, nil, nil, 0, fmt.Errorf("this workspace has no %s machine", action.StepMachineID)
 	}
 	ld := composition.NewLoader(store, machines)
 	relations, err := ld.RelationOptions(ctx, stepMachine)
@@ -749,7 +765,7 @@ func documentSignaturePlacementView(ctx context.Context, store *data.Store, file
 	// placement happens, and giving the embed a pager would duplicate that screen inside a page
 	// that is already the generic record view.
 	view, err := composition.SignaturePlacement(ctx, composition.NewLoader(store, machines),
-		machines[action.StepMachineID], document, steps, relations, 1, totalPages, actor)
+		machineForStep(ctx), document, steps, relations, 1, totalPages, actor)
 	if err != nil {
 		log.Printf("signature placement inline view for document %s: %v", recordID, err)
 		return nil
@@ -798,7 +814,7 @@ func servePDFPreview(store *data.Store, files *storage.Store) http.HandlerFunc {
 // showSignaturePlacement and servePDFPreview -- the one place either handler needs the raw PDF
 // bytes.
 func loadDocumentPDF(ctx context.Context, store *data.Store, files *storage.Store, documentID string) (*data.Record, []byte, error) {
-	document, err := store.GetRecord(ctx, action.DocumentMachineID, documentID)
+	document, err := store.GetRecord(ctx, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID)
 	if err != nil {
 		return nil, nil, err
 	}

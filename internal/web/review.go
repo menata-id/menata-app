@@ -55,7 +55,7 @@ func showReviewDocument(store *data.Store, files *storage.Store, cfg config.Conf
 			return
 		}
 		view, err := composition.ReviewDocument(ctx, composition.NewLoader(store, machines),
-			machines[action.StepMachineID], machines[action.DocumentMachineID], step, actor,
+			machineForStep(ctx), machineForDocument(ctx), step, actor,
 			documentPageCount(ctx, store, files, step), hasSignature, time.Now())
 		if err != nil {
 			serverError(w, err)
@@ -128,7 +128,7 @@ func reviewStep(ctx context.Context, w http.ResponseWriter, store *data.Store, m
 		http.Error(w, "not found", http.StatusNotFound)
 		return nil, false
 	}
-	step, err := composition.ReviewStepForDocument(ctx, composition.NewLoader(store, machines), machines[action.StepMachineID], record, viewerID)
+	step, err := composition.ReviewStepForDocument(ctx, composition.NewLoader(store, machines), machineForStep(ctx), record, viewerID)
 	if err != nil {
 		serverError(w, err)
 		return nil, false

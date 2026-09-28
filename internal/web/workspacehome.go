@@ -5,9 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"time"
 
-	"menata.app/internal/action"
 	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
@@ -48,7 +46,11 @@ func showWorkspaceHome(store *data.Store, cfg config.Config) http.HandlerFunc {
 			membership = &data.Membership{}
 		}
 
-		inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machines[action.StepMachineID])
+		// Across every approval Application installed here, not one named Machine's worth -- see
+		// pendingApprovalTotal. It also replaces composing the whole Inbox for its length, which read
+		// the activity log, every member's name and the card projections to produce one integer, the
+		// same waste showPendingCount's own doc comment already records.
+		pending, err := pendingApprovalTotal(ctx, store, userID)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -65,7 +67,7 @@ func showWorkspaceHome(store *data.Store, cfg config.Config) http.HandlerFunc {
 
 		render(ctx, w, rendering.WorkspaceHomePage(
 			chrome.WorkspaceName, chrome.Viewer(), switchHref,
-			applicationCards(ctx, store, machines, ws, membership, len(inbox.Pending)),
+			applicationCards(ctx, store, machines, ws, membership, pending),
 			ws.SuggestedApplications,
 		))
 	}

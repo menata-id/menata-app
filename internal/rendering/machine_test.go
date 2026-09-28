@@ -17,16 +17,46 @@ import (
 // Document) -- detail.templ's canDeleteInView already enforced both, so a decided step reached
 // via the generic list/board (or a Document's own child-collection view, which reuses RecordRow)
 // offered a Delete button internal/web's deleteAllowed would then reject server-side.
+// approvalWorkspaceCtx is the ctx a real request carries, reduced to what these tests need: an
+// installed Workspace whose Machines are stamped with the approval engine's roles, exactly as the
+// loader stamps them from an Application's own workflow: block.
+//
+// Rendering tests need it since 2026-09-28, because a Page asks which Machine plays a role rather
+// than naming one (approvalMachineID) -- on a bare context.Background() every such href resolves to
+// "", which is correct for "no approval Application installed here" and useless as a fixture.
+func approvalWorkspaceCtx(machines ...*domain.Machine) context.Context {
+	ws := domain.Workspace{Slug: "test"}
+	for _, m := range machines {
+		ws.Machines = append(ws.Machines, m)
+		ws.MachineIDs = append(ws.MachineIDs, m.ID)
+	}
+	return WithCurrentWorkspace(context.Background(), ws, "Test Workspace", false)
+}
+
+// stepMachineBound and docMachineBound are those Machines as an Application casts them. The
+// Application is deliberately unnamed here: resolution falls back to the Workspace's sole Machine in
+// a role when no Application is on ctx (domain.MachineInWorkflowRole), which is the same path the
+// Workspace-level screens take.
+func stepMachineBound(m *domain.Machine) *domain.Machine {
+	m.WorkflowEngine, m.WorkflowRole = domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleStep
+	return m
+}
+
 func TestRecordRow_deleteRespectsBusinessState(t *testing.T) {
 	m := &domain.Machine{
-		ID:   action.StepMachineID,
-		Name: "Approval Step",
+		ID:             action.StepMachineID,
+		Name:           "Approval Step",
+		WorkflowEngine: domain.WorkflowEngineDocumentApproval,
+		WorkflowRole:   domain.WorkflowRoleStep,
 		Fields: []domain.Field{
 			{ID: action.FieldStepAssignee, Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
 			{ID: action.FieldStepDecision, Name: "Decision", Type: domain.FieldTypeStatus, Options: []string{action.DecisionPending, action.DecisionApproved, action.DecisionRejected}},
 		},
 		// No declared Permission -- AllowsAction(ActionDelete) is unconditionally true, isolating
-		// this test to action.CanDelete's own business-state check.
+		// this test to action.CanDelete's own business-state check. The workflow binding above is
+		// what makes CanDelete recognise it as an approval step at all (2026-09-28): without it this
+		// is just some Workspace's Machine named mch_approval_step, which this engine has no rule
+		// about -- and that distinction is the bug the binding fixed.
 	}
 	r := &data.Record{
 		ID: "rec_step1",
@@ -37,7 +67,7 @@ func TestRecordRow_deleteRespectsBusinessState(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := RecordRow(m, r, nil, nil, domain.Actor{ID: "rec_user1"}).Render(context.Background(), &buf); err != nil {
+	if err := RecordRow(m, r, nil, nil, domain.Actor{ID: "rec_user1"}).Render(approvalWorkspaceCtx(m), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if strings.Contains(buf.String(), "hx-delete") {

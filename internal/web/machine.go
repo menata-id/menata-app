@@ -54,6 +54,66 @@ func machinesFor(ctx context.Context) map[string]*domain.Machine {
 	return out
 }
 
+// approvalMachine is how a handler asks for one of the approval engine's Machines: by the role its
+// Application cast it in, never by its id (2026-09-28, the slice after ROADMAP.md's Stage A).
+//
+// `machines[action.StepMachineID]` was the old form, and it is wrong for a reason no test could see
+// until the binding existed: it asks for a *name*. A Workspace that installs Document Approval
+// alongside an Application already using `mch_document` has to rename one of them on install, and
+// every one of those lookups would then ask for an id that Workspace no longer has -- the copy would
+// load, bind, engage, and fail at the first read.
+//
+// Returns nil for a Workspace whose Application casts nobody in this role, which is a real answer
+// (see domain.MachineInWorkflowRole for the precedence and for when several Applications make the
+// question ambiguous). An optional role -- a signature store, a saved flow template -- is nil
+// whenever that feature was simply not installed, so every caller of those has to say what it does
+// without one rather than dereferencing and panicking.
+//
+// This is the one place in internal/web that names the engine. A second engine means passing it in,
+// not copying this.
+func approvalMachine(ctx context.Context, role string) *domain.Machine {
+	app, _ := rendering.CurrentApplication(ctx)
+	return rendering.CurrentWorkspace(ctx).MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, role, app.ID)
+}
+
+// approvalMachineID is approvalMachine for the callers that need the id itself -- a record query, or
+// a /machines/{id}/... URL. Empty string when the role is uncast, which those callers must check:
+// querying an empty Machine id would silently read nothing.
+func approvalMachineID(ctx context.Context, role string) string {
+	if m := approvalMachine(ctx, role); m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+// machineForDocument and machineForStep are the two roles asked for often enough to name. Named
+// this way round rather than documentMachine/stepMachine because internal/web is full of locals and
+// parameters called exactly that, and a helper that silently disappears behind a local is worse than
+// a slightly longer name.
+func machineForDocument(ctx context.Context) *domain.Machine {
+	return approvalMachine(ctx, domain.WorkflowRoleDocument)
+}
+
+func machineForStep(ctx context.Context) *domain.Machine {
+	return approvalMachine(ctx, domain.WorkflowRoleStep)
+}
+
+// requireMachineForDocument is machineForDocument for the handlers that cannot continue without it,
+// answering 404 itself -- the same shape resolveMachine already has, and for the same reason: the
+// alternative is the identical eight-line guard at every such call site.
+//
+// It exists for the Workspace-level routes in particular (POST /documents, /documents/new): they are
+// named by no navigation item, so nothing resolves an Application for them, and "this Workspace has
+// no approval Application" or "it has two" is genuinely a missing page rather than an error.
+func requireMachineForDocument(w http.ResponseWriter, ctx context.Context) (*domain.Machine, bool) {
+	m := machineForDocument(ctx)
+	if m == nil {
+		http.Error(w, "this workspace has no document approval application", http.StatusNotFound)
+		return nil, false
+	}
+	return m, true
+}
+
 func showMachinePage(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		machines := machinesFor(req.Context())

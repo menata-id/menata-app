@@ -773,12 +773,25 @@ approved. With the binding, `app_persetujuan` over `mch_surat`/`mch_langkah` wor
 (`internal/conformance.TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames` is that exact
 case).
 
-What it does **not** yet buy you: the engine still reads its Machines' Fields by hardcoded id
+The cast can be wider than the two required roles. `signature` (a person's own reusable signature
+image), `flow_template` and `flow_template_step` (a saved default approval flow per document type) are
+**optional**: cast them and the feature exists, leave them out and the engine runs without it — an
+approver draws a one-time signature per decision, and no default flow is offered. `flow_template` and
+`flow_template_step` are optional *together*; casting one without the other fails at load, since a
+template with no steps stores nothing.
+
+What the binding does **not** buy you: the engine still reads its Machines' Fields by hardcoded id
 (`fld_decision`, `fld_sequence`, `fld_assignee`, …), so a Machine you bind has to carry those Field
 ids for the mechanics to work. Naming the engine's *cast* is declared; naming its *fields* is not
 (ROADMAP.md, Stage B — "an Action may declare what it writes"). This is why the AI assistant is
 deliberately not told about `workflow:` yet: it could produce an Application that binds correctly and
 still does nothing.
+
+One consequence worth knowing if you install two approval Applications in one Workspace: the submit
+wizard's own routes (`/documents/new`, `POST /documents`) are named by no navigation item, so nothing
+tells them which Application they belong to, and they answer 404 rather than guessing. Every screen
+*inside* an Application resolves its own Machines correctly, and so does the Workspace-level chrome
+(Home's pending count and the navigation badge sum across every approval Application installed).
 
 There is no `application:` singular block and no `hidden_nav_groups:` any more — the first became
 `applications:`, the second became per-Application `show_nav:` (2026-09-20).

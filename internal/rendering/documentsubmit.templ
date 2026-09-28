@@ -1,6 +1,8 @@
 package rendering
 
 import (
+	"context"
+
 	"menata.app/internal/action"
 	"menata.app/internal/domain"
 )
@@ -50,7 +52,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			<div class="text-sm text-slate-500">Submit a document for approval.</div>
 		</div>
 		<form
-			hx-post={ documentSubmitAction(draft) }
+			hx-post={ documentSubmitAction(ctx, draft) }
 			hx-encoding="multipart/form-data"
 			class="flex flex-col gap-4"
 		>
@@ -143,11 +145,11 @@ type DraftPrefill struct {
 // documentSubmitAction is this form's own POST target -- computed rather than hardcoded twice
 // (once here, once as a literal), since the two routes it switches between are themselves internal
 // routing detail, not metadata.
-func documentSubmitAction(draft DraftPrefill) string {
+func documentSubmitAction(ctx context.Context, draft DraftPrefill) string {
 	if draft.ID == "" {
 		return "/documents"
 	}
-	return "/machines/" + action.DocumentMachineID + "/records/" + draft.ID + "/continue-submit"
+	return "/machines/" + approvalMachineID(ctx, domain.WorkflowRoleDocument) + "/records/" + draft.ID + "/continue-submit"
 }
 
 // modeChecked marks opt as the radio the browser should pre-check: the draft's own stored fld_mode

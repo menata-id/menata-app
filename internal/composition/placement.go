@@ -78,12 +78,12 @@ func approverOf(s *data.Record, relations rendering.RelationOptions, groups rend
 // the same screen, and the rendered image of one page. Both live here rather than in the .templ so
 // the page renders strings it was handed -- the same posture ReviewPlacement's own PreviewHref
 // already takes.
-func PlacementPageHref(documentID string, page int) string {
-	return fmt.Sprintf("/machines/%s/records/%s/signature-placement?page=%d", action.DocumentMachineID, documentID, page)
+func PlacementPageHref(docMachineID, documentID string, page int) string {
+	return fmt.Sprintf("/machines/%s/records/%s/signature-placement?page=%d", docMachineID, documentID, page)
 }
 
-func PlacementPreviewHref(documentID string, page int) string {
-	return fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=%d", action.DocumentMachineID, documentID, page)
+func PlacementPreviewHref(docMachineID, documentID string, page int) string {
+	return fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=%d", docMachineID, documentID, page)
 }
 
 // MayPlaceSignature answers who can move a signature box on this screen, and it is deliberately a

@@ -31,7 +31,8 @@ import (
 // signature on file is silently skipped (action.StampFor), not an error -- this composites
 // whatever is ready rather than blocking a real Approve on a placement someone forgot to make.
 func signDocument(ctx context.Context, store *data.Store, files *storage.Store, document *data.Record, documentID string) {
-	steps, err := store.ListRecordsBy(ctx, action.StepMachineID, action.FieldStepDocument, documentID)
+	documentMachineID := approvalMachineID(ctx, domain.WorkflowRoleDocument)
+	steps, err := store.ListRecordsBy(ctx, approvalMachineID(ctx, domain.WorkflowRoleStep), action.FieldStepDocument, documentID)
 	if err != nil {
 		log.Printf("sign document %s: list steps: %v", documentID, err)
 		return
@@ -84,13 +85,13 @@ func signDocument(ctx context.Context, store *data.Store, files *storage.Store, 
 		return
 	}
 
-	key, err := files.Save(action.DocumentMachineID, action.FieldDocumentSignedFile, "signed.pdf", bytes.NewReader(signed))
+	key, err := files.Save(documentMachineID, action.FieldDocumentSignedFile, "signed.pdf", bytes.NewReader(signed))
 	if err != nil {
 		log.Printf("sign document %s: save signed file: %v", documentID, err)
 		return
 	}
 	document.Values[action.FieldDocumentSignedFile] = key
-	if _, err := store.UpdateRecord(ctx, action.DocumentMachineID, documentID, document.Values); err != nil {
+	if _, err := store.UpdateRecord(ctx, documentMachineID, documentID, document.Values); err != nil {
 		log.Printf("sign document %s: save fld_signed_file: %v", documentID, err)
 	}
 }
@@ -145,7 +146,13 @@ func signatureImageForStep(ctx context.Context, store *data.Store, files *storag
 // mch_signature, an ordinary Machine). The first match is used if more than one exists -- no case
 // needs choosing between several yet.
 func signatureImageFor(ctx context.Context, store *data.Store, files *storage.Store, ownerID string) ([]byte, error) {
-	sigs, err := store.ListRecordsBy(ctx, action.SignatureMachineID, action.FieldSignatureOwner, ownerID)
+	signatures := approvalMachine(ctx, domain.WorkflowRoleSignature)
+	if signatures == nil {
+		// This Application casts no signature store (an optional role, domain.WorkflowEngineSpec):
+		// nobody can have one on file, and the step's own one-time image is the whole feature.
+		return nil, fmt.Errorf("no signature on file")
+	}
+	sigs, err := store.ListRecordsBy(ctx, signatures.ID, action.FieldSignatureOwner, ownerID)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +168,11 @@ func signatureImageFor(ctx context.Context, store *data.Store, files *storage.St
 // Threaded into the review screen's decision bar (rendering/reviewdocument.templ) as the
 // render-time half of the signature-capture gate; decideStep is the write-time half.
 func hasSavedSignature(ctx context.Context, store *data.Store, ownerID string) (bool, error) {
-	sigs, err := store.ListRecordsBy(ctx, action.SignatureMachineID, action.FieldSignatureOwner, ownerID)
+	signatures := approvalMachine(ctx, domain.WorkflowRoleSignature)
+	if signatures == nil {
+		return false, nil // no signature store cast here -- see signatureImageFor
+	}
+	sigs, err := store.ListRecordsBy(ctx, signatures.ID, action.FieldSignatureOwner, ownerID)
 	if err != nil {
 		return false, err
 	}
@@ -239,7 +250,7 @@ func updateSignaturePlacement(store *data.Store, cfg config.Config) http.Handler
 			return
 		}
 		documentID, _ := step.Values[action.FieldStepDocument].(string)
-		document, err := store.GetRecord(ctx, action.DocumentMachineID, documentID)
+		document, err := store.GetRecord(ctx, approvalMachineID(ctx, domain.WorkflowRoleDocument), documentID)
 		if err != nil {
 			recordError(w, err)
 			return
