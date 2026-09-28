@@ -1162,6 +1162,14 @@ Honest current limits, not a roadmap — some of these may change over time:
   ten and fifty thousand.
 - **Metadata loads once, at process startup.** Editing a `*.yaml` file requires a restart to take
   effect — there's no hot reload.
+- **A Workspace cannot install a template whose ids it already uses.** Installing an Application
+  copies its metadata into the Workspace's own directory, and two Machines cannot share an id
+  inside one Workspace — so if your Workspace already has an `mch_document`, it cannot also take a
+  template that declares one, and nothing offers to rename either. This is the one collision the
+  isolation model does *not* relax: the same name in a **different** Workspace is always fine. The
+  AI Metadata Assistant avoids the problem when it generates (it is told every id already taken in
+  your Workspace), but installing a hand-written template gets no such help. Planned:
+  `ROADMAP.md`, "Installing a template into a Workspace that already uses its ids".
 - **No metadata versioning.** Removing a Field from a Machine's YAML doesn't migrate or warn about
   existing data already stored under that field's id — it's simply no longer read.
 - **Constraints are intentionally limited.** Only `equals`/`not_equals` against a literal value,

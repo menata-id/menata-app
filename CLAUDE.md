@@ -84,6 +84,15 @@ thing — the same name in a *different* Workspace. Two Machines under one id in
 stays a load-time error (`metadata.validateMachineIDsAreUnique`), and `aiassist.Validate` refuses
 it before a generated Application is ever written.
 
+That has a consequence worth knowing before you promise anyone an install: **a Workspace that
+already uses one of a template's ids cannot take that template at all**, and nothing resolves it —
+there is no install path except the assistant's own publish, and no rename-on-collision anywhere.
+"dokter-kecil" holds `mch_document` for its generated Document Tracking, so Document Approval
+cannot go in beside it today. The assistant *anticipates* collisions when generating (its prompt
+carries every taken Machine id in the target Workspace, not only the Application-claimed ones),
+but anticipation is not resolution. Planned: `ROADMAP.md`, "Installing a template into a Workspace
+that already uses its ids".
+
 Concretely, before adding any hardcoded `href`, label, or button to a page under
 `internal/rendering/`: check the installed Application's own `navigation:` list first. If the
 same route/label is already declared there, that's a signal the value belongs in metadata (or
