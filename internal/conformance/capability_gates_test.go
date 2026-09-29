@@ -248,16 +248,30 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // every id empty. Two Machines answering for themselves is not duplication; declaring `sequencing:` on
 // a template to make one derivation serve both would assert locking behaviour it does not have.
 //
-// What is left is one shape in three places, none of it a derivation away. `web/document.go` (2) and
-// `composition`/`rendering` (5) name a step's *label* or a Document's own file and status Field --
-// nothing declares a step's label at all. `rendering/documentsubmit.templ` (4) is a form's `name=`:
-// 007 §11.3 Binding, whose general primitive is still unbuilt and whose trigger is still a third
-// bespoke write screen.
+// **9 across 5 files since 2026-09-29**, and the drop is worth reading carefully because an earlier
+// version of this comment was wrong about what held the number.
+//
+// It claimed the three hand-written steps-by-document correlations were holding it, and predicted the
+// Relation primitive would move it. Relation shipped (007 §7.5, all three sites) and the number did
+// **not** move: the correlations were never Field-id coupling. Measured properly, the 11 were a step's
+// label (5), a Document's file (2) and status (1), and three form bindings.
+//
+// What moved it was two accessors that already existed. `composition/review.go` reads the Document's
+// file Field from the compositing Event's own `source_field` (action.CompositeFields) and
+// `composition/pages.go` reads its status Field from the Machine's own transitions
+// (docMachine.StatusField()) -- both derivations available for a week, neither used here. **Finding a
+// declaration that already answers the question beat building a new primitive**, which is the order 001
+// #8 asks for and the order this entry got backwards.
+//
+// What is left: a step's *label* (5 references) which nothing declares at all -- `card_fields` could
+// carry it as a `title` role, but two consumers gate on `len(CardFields) > 0` and would silently gain
+// a query and a chip row, so declaring it means fixing that conflation first (007 §12.3). A Document's
+// file in `rendering/detail.templ` (1), which needs the derived Field threaded into an already
+// ten-parameter page signature. And `rendering/documentsubmit.templ` (3) is a form's `name=`: 007 §11.3
+// Binding, primitive unbuilt, trigger still a third bespoke write screen.
 var documentApprovalFieldCoupling = map[string]int{
 	"composition/approval.go":        1,
-	"composition/pages.go":           1,
 	"composition/placement.go":       1,
-	"composition/review.go":          1,
 	"rendering/detail.templ":         1,
 	"rendering/documentsubmit.templ": 4,
 	"web/document.go":                2,

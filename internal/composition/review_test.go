@@ -270,3 +270,41 @@ func TestBuildReview_FileCardHandlesAMissingFile(t *testing.T) {
 		t.Errorf("FileHref = %q, want empty when no file is attached", got.FileHref)
 	}
 }
+
+// TestBuildReview_resolvesTheFileFieldFromTheCompositeDeclaration is the renamed-Machine case for the
+// one Field the review screen reads off the Document.
+//
+// Before 2026-09-29 that Field was action.FieldDocumentFile, a constant -- so a Workspace whose
+// Document calls its upload anything else showed no file at all, silently, on a screen whose whole
+// subject is the document. The declaration answering it already existed: the compositing Event's
+// `source_field` (action.CompositeFields), which is asked of the *step* Machine because that is where
+// the Event lives while the caller holds the Document -- exactly what that accessor's own comment says
+// it is for.
+func TestBuildReview_resolvesTheFileFieldFromTheCompositeDeclaration(t *testing.T) {
+	stepMachine := stepMachineForTest()
+	// Replaced, not appended: CompositeFields returns the first matching Event, so appending would have
+	// left the fixture's own fld_file winning and this test asserting nothing. Caught by it failing.
+	stepMachine.Events = []domain.Event{{
+		ID: "evt_composite", On: "fld_decision",
+		Then: domain.Service{
+			Name:      domain.ServiceCompositeSignedDocument,
+			Composite: &domain.Composite{SourceField: "fld_berkas", TargetField: "fld_signed"},
+		},
+	}}
+
+	document := doc("doc_1", "Kontrak", "sequential", "2026-09-20")
+	// The upload lives under a name this engine's own constants do not know.
+	document.Values["fld_berkas"] = "xyz789__kontrak.pdf"
+
+	steps := []*data.Record{step("stp_1", "doc_1", "usr_budi", "pending", 1)}
+	got := buildReview(steps[0], document, steps, nil, personNames, stepMachine, docMachineForTest(), approverActor("usr_budi"), 6, true, at(10), nil)
+
+	if got.FileName == "" {
+		t.Error("the review screen resolved no file: the Field was read from a constant rather than " +
+			"from the compositing Event's own source_field, so a Document naming its upload anything " +
+			"else shows nothing -- silently, on the screen whose subject is the document")
+	}
+	if got.FileHref != "/uploads/xyz789__kontrak.pdf" {
+		t.Errorf("FileHref = %q, want the declared Field's value", got.FileHref)
+	}
+}

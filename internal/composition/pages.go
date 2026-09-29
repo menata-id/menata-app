@@ -152,7 +152,11 @@ func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Ag
 	}
 	dueField := FieldForRole(docMachine, domain.CardFieldRoleDate)
 	for _, doc := range documents {
-		if DisplayString(doc.Values[action.FieldDocumentStatus]) != action.DocumentStatusInReview {
+		// The status *Field* is derived from the Document Machine's own transitions
+		// (docMachine.StatusField(), 2026-09-29). The status *value* is still a literal, and that is a
+		// different variation point deliberately left alone: semantic meaning for an option value is
+		// the decomposition audit's P3, the least mature of the six it mapped, with no second case.
+		if DisplayString(doc.Values[docMachine.StatusField()]) != action.DocumentStatusInReview {
 			continue
 		}
 		d.Pending = append(d.Pending, rendering.PendingDocument{

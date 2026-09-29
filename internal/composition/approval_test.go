@@ -136,6 +136,25 @@ func stepMachineForTest() *domain.Machine {
 				AllSet:      action.DocumentStatusApproved,
 				Default:     action.DocumentStatusInReview,
 			}},
+		}, {
+			// The compositing Event, added 2026-09-29 when the review screen stopped reading
+			// action.FieldDocumentFile and started deriving it from this Event's own source_field.
+			//
+			// **The fixture was looser than the real Machine and the mirror gate correctly passed it**:
+			// TestFixturesMirrorTheRealMachines checks *presence* of an `events:` block, not equality, so
+			// declaring the rollup satisfied it while the composite one was missing. That limit is
+			// documented; this is what it looks like when it bites -- the derivation resolved to "" and
+			// an existing assertion caught it, which is the order that works.
+			ID: "evt_composite_signed_document",
+			On: action.FieldStepDecision,
+			Then: domain.Service{
+				Name: domain.ServiceCompositeSignedDocument,
+				Composite: &domain.Composite{
+					ParentField: action.FieldStepDocument,
+					SourceField: action.FieldDocumentFile,
+					TargetField: "fld_signed_file",
+				},
+			},
 		}},
 		ActionEffects: []domain.ActionEffect{{
 			Action: domain.ActionDecide,

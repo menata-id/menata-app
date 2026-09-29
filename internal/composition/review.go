@@ -150,7 +150,11 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 		v.CanDecide = authorization.AllowsAction(stepMachine, domain.ActionDecide, step.Values, viewer)
 	}
 
-	if key := DisplayString(document.Values[action.FieldDocumentFile]); key != "" {
+	// The Field holding the upload comes from the compositing Event's own `source_field` rather than
+	// from a constant (action.CompositeFields, 2026-09-29): it is the declaration that already answers
+	// "which Field is the document", and reading a constant meant a Workspace naming its upload
+	// anything else showed no file at all -- silently, on the screen whose subject is the document.
+	if key := DisplayString(document.Values[action.CompositeFields(stepMachine).SourceField]); key != "" {
 		v.FileName = storage.DisplayName(key)
 		v.FileHref = "/uploads/" + key
 	}

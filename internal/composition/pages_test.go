@@ -426,6 +426,26 @@ func documentMachineForTest() *domain.Machine {
 		Fields: []domain.Field{
 			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
 			{ID: "fld_due_date", Name: "Due", Type: domain.FieldTypeDate},
+			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus,
+				Options: []string{"draft", "in_review", "approved", "rejected"}},
+		},
+		// The transitions are what make StatusField() answer, and the Dashboard needs it since
+		// 2026-09-29: its Pending list derives the status Field from this Machine's own edges rather
+		// than naming action.FieldDocumentStatus. The fixture had neither the Field nor an edge, so the
+		// derivation resolved to "" and every Document looked not-in-review -- caught by the existing
+		// assertion, which is the order that works.
+		//
+		// A second fixture looser than the real Machine in one slice, after stepMachineForTest's missing
+		// compositing Event. TestFixturesMirrorTheRealMachines checks *presence* of a `transitions:`
+		// block, not equality, and this fixture declared none at all -- but it is also not in that
+		// gate's named population, which is the limit that comment already states.
+		// ids and names are required -- TestMachineFixturesPassProductionValidation caught their absence
+		// immediately, which is that gate doing exactly its job: a fixture the real validator rejects is
+		// not a smaller Machine but an impossible one.
+		Transitions: []domain.Transition{
+			{ID: "trn_doc_submit", Name: "Submit", Field: "fld_status", From: "draft", To: "in_review"},
+			{ID: "trn_doc_approve", Name: "Approve", Field: "fld_status", From: "in_review", To: "approved"},
+			{ID: "trn_doc_reject", Name: "Reject", Field: "fld_status", From: "in_review", To: "rejected"},
 		},
 		CardFields: []domain.CardField{
 			{Field: "fld_title", Role: domain.CardFieldRoleTitle},
