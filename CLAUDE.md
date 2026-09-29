@@ -471,6 +471,22 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   stale entry fails, and so does one naming a function that *is* now explained. **When adding a
   derivation, add its `Derivation*` constant, the role that owes it in `Answers`, and its branch in
   `explain.go`'s `valueOf`/`sourceOf` — all three, or one of these three gates fails.**
+- `TestWholeMachineReadsOnlyShrink` / `TestPerViewerDatasetsScopeByIdentity` — the record-selection
+  pair (2026-09-29). The first is a **ratchet** over `internal/composition`: how many times each file
+  reads an entire Machine, shrink-only on the usual terms (a higher count fails, a *lower* one fails
+  until the entry is lowered, a new file fails). It measures what 007 objects to in three places —
+  §28 invariant 4, §4.4, and §20, which names the shape with the word *never*. **A falling number is
+  not a composable Data Plane**: ten of the remaining reads correlate two Machines and wait on 007
+  §7.5 Relation, four legitimately read everything.
+  The second guards a class that became *silent* when it became declarative: a Dataset whose whole
+  purpose is showing one identity its own records must declare a `$current_user` predicate. That
+  scoping used to be a line in Go where deleting it failed a unit test; deleting it from metadata
+  leaves the Dataset loading, the screen rendering, and every viewer seeing everyone's records —
+  measured, the whole suite stayed green. A named list (`perViewerDatasets`), because "is this
+  per-viewer" is a judgement no scan can make.
+  **When declaring `select: records`**: `limit:` is required (007 §7.9), `where:` values may name only
+  `$current_user` or `$parameters.<name>` (§9.2 — anything else is a load error, on purpose), and
+  `sort:` may name a Field or a record column (`created_at`, `updated_at`, `sort_order`).
 - `TestActionDoesNotSwitchOnItsOwnMachineIDs` — the fourth of the identity family, and the one that
   exists because the other three could not see the place it mattered. `internal/action` is excluded
   from the Machine-id gate as the owner of those constants, and `action.CanDelete` used that

@@ -3058,6 +3058,33 @@ forcing conditions, verification steps -- is tracked in a private companion repo
       runtime decision affecting **data access**, the first category 001 #6 names, so it belongs on the
       diagnostics surface — or this work adds back the debt the last three slices just paid off.
 
+    **Shipped 2026-09-29, in three commits.** Slice A (`select: records` + `sort:` + `limit:`,
+    `recentEvents`), conjunction on its own, then the merged B/C/D (expression context, `where:`,
+    `PersonalTasks`, two gates). Ratchet 19 → 17; `dashboardActivityLimit`, `activityFeedLimit` and
+    the Go-side assignee filter all left Go.
+
+    **B, C and D merged, and the reason is the rule this entry used against option (a).** Landing the
+    expression context alone would have added a registry member no manifest names — exactly what
+    `TestClosedRegistryMembersAreActivatedByMetadata` exists to reject. Conjunction went separately
+    *because* it adds no member, which is the same test applied in the other direction.
+
+    **Four claims of mine failed on contact, and the fourth changed the slice.** This entry predicted
+    `PersonalTasks` would be the first consumer of conjunction, needing `assignee == me AND status !=
+    done`. The code says otherwise: `done` is a **bucket**, not a filter — completed Tasks still
+    render in their own section, so pushing that predicate down would empty it. Only the identity
+    predicate moved, and **conjunction ships with no consumer**. Recorded rather than papered over by
+    inventing one; the next candidate is the aggregate side (`Measure.Where` gaining the same
+    Predicate and sentinel resolution), which `UnreadNotificationCount` would use.
+
+    **Two measured details worth keeping.** `op: not_equals` compiles to `IS DISTINCT FROM`, not
+    `!=`: a missing JSONB path is NULL, `NULL != 'done'` drops the row, and `expression.Comparison`
+    in Go keeps it — different queries, differing only on records that never declared the Field. And
+    `EXPLAIN` shows the scan still touching every row: a `LIMIT` without a matching index saves the
+    **decode**, not the scan, which sharpens Slice A's own commit message. The index audit measured
+    that decode is the expensive half anyway, and its refusal of new indexes was explicitly
+    conditional on the read-all-then-filter pattern this work removes — so 007 §21.4 becomes live at
+    the 50,000-row threshold, not now.
+
     **The existing read diagnostic cannot see this improvement, and that must be stated rather than
     discovered.** It counts *statements*, not rows: `mch_activity` with `LIMIT 10` is still one
     statement, so `queries`/`reads` will not move. Reading that as "no improvement" would be wrong, and
