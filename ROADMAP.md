@@ -2821,6 +2821,44 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   "which role owes this answer" may simply not be the right question for it. That is a finding to
   reach honestly, not a shape to assume.
 
+  **Next slice, measured but not yet built: a drift gate over the derivation accessors themselves.**
+  `TestEveryDerivationIsOwedBySomeRole` guards the `Derivation*` constants against `Answers`. What
+  nothing guards is the other direction — **a new accessor added to `internal/domain/actioneffect.go`
+  or `internal/action/fields.go` that never reaches `Explain` becomes an inference the runtime makes
+  and nothing can explain, silently.** That is the two-lists-that-drift shape this repo has already
+  paid for three times (the `checkDocs` mirrors, the closed-registry members, `Answers` itself).
+
+  **The population was measured before designing the gate, and the measurement says a naive gate must
+  not be built.** Of 16 exported accessors across those two files, 12 are reached by `explain.go` and
+  4 are not — but the four are four *different* things, so "every accessor must appear in `Explain`"
+  would be right about one and a half of them:
+
+  | Accessor | Real callers | Verdict |
+  |---|---|---|
+  | `ActionTargets` | 2 | **A real gap.** Its own doc comment says "the check is a derivation rather than a list" — the derived status move, read from `transitions[action].to`, explained by nothing |
+  | `EffectFor` | 2 | **A judgement call**, flagged rather than decided here. It reads `actions:` verbatim, so it is arguably a read and not an inference — but `TestMachineFixturesPassProductionValidation` found *five* fixtures declaring `actions:` over Fields their Machine did not have, so "which Fields does `decide` write" is demonstrably a question that goes wrong quietly |
+  | `FlowTemplateRowFields` | 1 | **Legitimately absent.** A remapping of `flow_template_step:`, which is already explained; explaining it again would be 001 #8 |
+  | `OpenValue` | **0** | **Dead, and a trap** — see below |
+
+  A ~50% false-or-arguable rate is precisely the shape of the static fixture-discovery gate that was
+  built, measured at 40 false findings across 10 packages, and deleted. So the gate cannot ask "is this
+  called by `explain.go`". It has to ask "is there a derivation the runtime trusts that no `Resolution`
+  reports", and that needs judgement — which this repo already has a pattern for: a **closed map with a
+  stated reason per entry, failing on a stale one**, exactly as `readPathWriters` and
+  `applicationSubScreens` do. The judgement is recorded once and reviewed, never embedded in the sweep.
+
+  **One finding is worth fixing whether or not the gate gets built.** `domain.Machine.OpenValue()` has
+  **zero callers, tests included**. It is not merely dead: it reads `sequencing.open_value`, which
+  `action.EngineFields.Open`'s own doc comment names as *the wrong source* for this question ("it
+  belongs to ordering, and a Machine that orders nothing still has open records"). `action.openValueFor`
+  reads `transitions[action].from` instead, deliberately. So what is sitting there is an unused accessor
+  that would hand its next caller the source the engine explicitly rejected — a trap rather than
+  clutter, and the argument is for deleting it rather than documenting it.
+
+  Order within this: fix the two real findings first (delete `OpenValue`, give `ActionTargets` its
+  `Resolution`), *then* gate — the repo's standing rule, and here it also keeps the allowlist from being
+  born pre-loaded with known debt.
+
   **Finding 2 — the identity-filter trigger was met six cases ago, and two comments in one file said
   so and denied it simultaneously.** Seven exported `internal/composition` functions take a viewing
   identity and filter records in Go after reading them all: `ApprovalInbox`, `PendingApprovalCount`,
