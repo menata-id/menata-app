@@ -266,12 +266,11 @@ func Parse(data []byte) (*domain.Machine, error) {
 	}
 	for _, fd := range doc.Fields {
 		fieldType := domain.FieldType(fd.Type)
+		// The person -> mch_user binding is not applied here any more: it is an *inference*, and
+		// Normalize (normalize.go) is where inferences live so that a Machine built any other way gets
+		// them too. 005's Phase 4 is the reasoning; a hand-built fixture failing validation over a
+		// correct `person` Field is what found it.
 		relatedMachine := fd.Machine
-		if fieldType == domain.FieldTypePerson {
-			// Person always references a real mch_user record -- authors never write
-			// `machine: mch_user` by hand (ROADMAP.md Phase 7).
-			relatedMachine = domain.UserMachineID
-		}
 		var def any
 		if fd.Default != "" {
 			var err error
@@ -486,7 +485,10 @@ func Parse(data []byte) (*domain.Machine, error) {
 		})
 	}
 
-	return m, nil
+	// Phase 4 (005-runtime-lifecycle.md): the inferences a Machine carries however it was built. Kept as
+	// the last step so everything above reads as a faithful transcription of the document, and the
+	// conveniences the runtime expands are all in one place.
+	return Normalize(m), nil
 }
 
 // coerceDefault converts a Field's raw YAML default string into the same in-memory type

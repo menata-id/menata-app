@@ -383,7 +383,7 @@ func equal(a, b []string) bool {
 // blank -- which is exactly what the screens did before the declaration existed.
 func taskMachineForTest() *domain.Machine {
 	return &domain.Machine{
-		ID: "mch_task",
+		ID: "mch_task", Name: "Task",
 		Fields: []domain.Field{
 			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
 			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"todo", "in_progress", "done"}},
@@ -402,7 +402,7 @@ func taskMachineForTest() *domain.Machine {
 // read a declared display shape now, not a Field id.
 func projectMachineForTest() *domain.Machine {
 	return &domain.Machine{
-		ID: "mch_project",
+		ID: "mch_project", Name: "Project",
 		Fields: []domain.Field{
 			{ID: "fld_name", Name: "Name", Type: domain.FieldTypeText},
 			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"active", "archived"}},
@@ -416,7 +416,7 @@ func projectMachineForTest() *domain.Machine {
 
 func documentMachineForTest() *domain.Machine {
 	return &domain.Machine{
-		ID: "mch_document",
+		ID: "mch_document", Name: "Document",
 		Fields: []domain.Field{
 			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
 			{ID: "fld_due_date", Name: "Due", Type: domain.FieldTypeDate},
@@ -432,5 +432,12 @@ func documentMachineForTest() *domain.Machine {
 // derivation itself, so the test exercises datasetMeasureField rather than retyping the Field id the
 // way the screen used to.
 func userMachineForTest() *domain.Machine {
-	return &domain.Machine{ID: "mch_user", Datasets: []domain.Dataset{userCapacity()}}
+	// The capacity Field the Dataset sums over, and a Name: a Dataset measuring a Field this Machine
+	// does not declare is a Machine the loader refuses, which running this fixture through
+	// metadata.Validate said out loud (2026-09-29).
+	return &domain.Machine{
+		ID: "mch_user", Name: "User",
+		Fields:   []domain.Field{{ID: "fld_weekly_capacity", Name: "Weekly Capacity", Type: domain.FieldTypeNumber}},
+		Datasets: []domain.Dataset{userCapacity()},
+	}
 }

@@ -380,6 +380,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   called `app_persetujuan` over `mch_surat`/`mch_langkah` engages the approval engine because it
   *declares* the binding, and every Machine whose Application declares none — including
   "dokter-kecil"'s own unbound `mch_document`, the one that panicked two pages — engages nothing.
+- `TestMachineFixturesPassProductionValidation` (`internal/web`, `composition`, `action`, `behavior`,
+  `authorization`) — every Machine fixture goes through `metadata.Normalize` + `Validate`, the loader's
+  own pipeline, so a fixture cannot describe a Machine the runtime would refuse to load. **Normalize
+  first**: the `person` → `mch_user` binding is an inference (001 #6, 005 Phase 4), so asking a fixture
+  to hand-write `RelatedMachine` inverts the principle — call `metadata.Normalize`. This is a *sweep*
+  where the mirror gate is a named list, because validity needs no judgement and mirroring does; it does
+  **not** catch a fixture that is merely looser than the real Machine.
 - `TestPostRoutesRefuseUnauthenticatedAndUnCSRFed` (`internal/web`, needs `DATABASE_URL`) — the write
   side's structural sweep, over **every** POST including the public ones. An authenticated POST must
   refuse a request with no session and 403 one with no CSRF token; a POST on the public router must be

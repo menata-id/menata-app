@@ -14,14 +14,14 @@ import (
 // status Field in the manifest the moment a single Machine declared a transition.
 func stepMachine() *domain.Machine {
 	return &domain.Machine{
-		ID: "mch_approval_step",
+		ID: "mch_approval_step", Name: "Approval Step",
 		Fields: []domain.Field{
 			{ID: "fld_decision", Type: domain.FieldTypeStatus, Options: []string{"pending", "approved", "rejected"}},
 			{ID: "fld_approver_type", Type: domain.FieldTypeStatus, Options: []string{"User", "Group"}},
 		},
 		Transitions: []domain.Transition{
-			{ID: "trn_step_approve", Field: "fld_decision", From: "pending", To: "approved", Action: domain.ActionDecide},
-			{ID: "trn_step_reject", Field: "fld_decision", From: "pending", To: "rejected", Action: domain.ActionDecide},
+			{ID: "trn_step_approve", Name: "Approve", Field: "fld_decision", From: "pending", To: "approved", Action: domain.ActionDecide},
+			{ID: "trn_step_reject", Name: "Reject", Field: "fld_decision", From: "pending", To: "rejected", Action: domain.ActionDecide},
 		},
 	}
 }

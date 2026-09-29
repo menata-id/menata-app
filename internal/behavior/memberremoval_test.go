@@ -10,7 +10,13 @@ import (
 
 func stepMachineWithRemovalBlock() *domain.Machine {
 	return &domain.Machine{
-		ID: "mch_approval_step",
+		ID: "mch_approval_step", Name: "Approval Step",
+		// The Fields the removal block below names. A block gating on Fields the Machine does not declare
+		// is one the loader refuses -- found by running this fixture through metadata.Validate (2026-09-29).
+		Fields: []domain.Field{
+			{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson},
+			{ID: "fld_decision", Name: "Decision", Type: domain.FieldTypeStatus, Options: []string{"pending", "approved", "rejected"}},
+		},
 		MemberRemovalBlocks: []domain.MemberRemovalBlock{
 			{
 				ID:         "blk_step_pending",

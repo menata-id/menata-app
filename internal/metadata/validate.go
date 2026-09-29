@@ -596,7 +596,7 @@ func validatePermission(m *domain.Machine, p domain.Permission, fieldsByID map[s
 		if !ok {
 			issues = append(issues, fmt.Sprintf("permission %q: actor_field %q is not a field of machine %q", p.ID, p.ActorField, m.ID))
 		} else if !actorField.IsReference() {
-			issues = append(issues, fmt.Sprintf("permission %q: actor_field %q must reference an identity (a person or relation field), got %q", p.ID, p.ActorField, actorField.Type))
+			issues = append(issues, unboundActorField(p.ID, "actor_field", p.ActorField, actorField))
 		}
 	}
 
@@ -713,7 +713,7 @@ func validateDynamicActor(m *domain.Machine, p domain.Permission, fieldsByID map
 	case !ok:
 		issues = append(issues, fmt.Sprintf("permission %q: actor_user_field %q is not a field of machine %q", p.ID, da.ActorUserField, m.ID))
 	case !userField.IsReference():
-		issues = append(issues, fmt.Sprintf("permission %q: actor_user_field %q must reference an identity (a person or relation field), got %q", p.ID, da.ActorUserField, userField.Type))
+		issues = append(issues, unboundActorField(p.ID, "actor_user_field", da.ActorUserField, userField))
 	}
 
 	groupField, ok := fieldsByID[da.ActorGroupField]
@@ -801,6 +801,42 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 	}
 
 	return issues
+}
+
+// unboundActorField is the message both actor-field checks share, and it says what is actually wrong.
+//
+// Both used to read `must reference an identity (a person or relation field), got "person"` -- which
+// contradicts itself in one line, since a person field is exactly what is being asked for. The check is
+// Field.IsReference(), which reads RelatedMachine, so the real fault is a *missing target*, never the
+// type:
+//
+//   - a `relation` field whose `machine:` is absent -- the only way a hand-written manifest reaches
+//     here, and the old wording answered `got "relation"`, equally unhelpful;
+//   - a person field built in Go without RelatedMachine -- Parse fills that in for YAML (its own
+//     "authors never write `machine: mch_user` by hand"), so only a hand-built *domain.Machine can be
+//     in this state. Two test fixtures were, which is how this was found.
+//
+// So the answer is three branches, not one rewording: a relation field is missing a *target*, a
+// non-reference type can never have one and naming the type is the whole answer (which is what the old
+// message got right), and a person field here means the Machine skipped normalisation -- unreachable
+// through the loader, and the message says so instead of blaming the type.
+func unboundActorField(permissionID, key, fieldID string, f domain.Field) string {
+	switch f.Type {
+	case domain.FieldTypeRelation:
+		// The one case a hand-written manifest reaches: the type is right and the target is missing.
+		return fmt.Sprintf("permission %q: %s %q is a relation field with no `machine:` target, so it names no identity -- point it at a machine",
+			permissionID, key, fieldID)
+	case domain.FieldTypePerson:
+		// Unreachable through the loader, since Normalize binds every person Field to mch_user. Reaching
+		// it means a *domain.Machine was built in Go and validated without being normalised -- so the
+		// message says that, rather than blaming a type that is already correct.
+		return fmt.Sprintf("permission %q: %s %q is a person field with no related machine -- this Machine was not normalised (metadata.Normalize binds person to %s; the loader does it for you)",
+			permissionID, key, fieldID, domain.UserMachineID)
+	default:
+		// text, number, status and the rest: no target is possible, so naming the type is the answer.
+		return fmt.Sprintf("permission %q: %s %q is a %s field, which cannot name an identity -- use a person or relation field",
+			permissionID, key, fieldID, f.Type)
+	}
 }
 
 // validateSignaturePlacement and validateSignatureStore check that each declared Field is this

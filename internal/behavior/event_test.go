@@ -12,6 +12,8 @@ func taskMachineWithEvent() *domain.Machine {
 	return &domain.Machine{
 		ID:   "mch_task",
 		Name: "Task",
+		// The Field the Event below watches. Absent until 2026-09-29 (metadata.Validate).
+		Fields: []domain.Field{{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"todo", "done"}}},
 		Events: []domain.Event{
 			{
 				ID: "evt_task_status_changed",
@@ -94,6 +96,8 @@ func taskMachineWithCreateEvent() *domain.Machine {
 	return &domain.Machine{
 		ID:   "mch_task",
 		Name: "Task",
+		// The Field the Event below watches. Absent until 2026-09-29 (metadata.Validate).
+		Fields: []domain.Field{{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"todo", "done"}}},
 		Events: []domain.Event{
 			{ID: "evt_task_status_changed", On: "fld_status", Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "moved"}},
 			{ID: "evt_task_created", OnCreate: true, Then: domain.Service{Name: domain.ServiceLogActivity, Summary: "created"}},
@@ -121,7 +125,13 @@ func TestMatchedCreateEvents_noCreateEventsDeclaredYieldsEmpty(t *testing.T) {
 
 func documentMachineWithScheduleEvent() *domain.Machine {
 	return &domain.Machine{
-		ID: "mch_document",
+		ID: "mch_document", Name: "Document",
+		// The two Fields the schedule Event below reads -- its date and its guard (metadata.Validate,
+		// 2026-09-29).
+		Fields: []domain.Field{
+			{ID: "fld_due_date", Name: "Due", Type: domain.FieldTypeDate},
+			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"in_review", "approved"}},
+		},
 		Events: []domain.Event{
 			{
 				ID: "evt_document_overdue_notify",

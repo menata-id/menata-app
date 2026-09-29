@@ -23,7 +23,15 @@ func reviewDoc() *data.Record {
 // engine's document.
 func docMachineForTest() *domain.Machine {
 	return &domain.Machine{
-		ID: action.DocumentMachineID,
+		ID: action.DocumentMachineID, Name: "Document",
+		// The Fields its own transitions, sla_field and actions: block name. Absent until 2026-09-29,
+		// when this fixture was run through metadata.Validate: declaring behaviour over Fields the
+		// Machine does not have describes something the loader would refuse to load.
+		Fields: []domain.Field{
+			{ID: action.FieldDocumentStatus, Name: "Status", Type: domain.FieldTypeStatus, Options: []string{action.DocumentStatusDraft, action.DocumentStatusInReview, action.DocumentStatusApproved, action.DocumentStatusRejected}},
+			{ID: action.FieldDocumentSubmittedBy, Name: "Submitted By", Type: domain.FieldTypePerson},
+			{ID: "fld_due_date", Name: "Due", Type: domain.FieldTypeDate},
+		},
 		// Its own state model, so StatusField can answer which Field a Document's status lives in --
 		// the six edges name no Action (that status is derived from its steps), which is exactly why
 		// ActionField cannot answer it and this fixture has to carry them.

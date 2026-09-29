@@ -615,10 +615,40 @@ func TestValidate_permissionUnknownActorField(t *testing.T) {
 	assertIssue(t, m, "is not a field of machine")
 }
 
+// The three branches of unboundActorField (validate.go), one test each, because the message used to be
+// one sentence for all three and was wrong in two of them: it read "must reference an identity (a person
+// or relation field), got %q" and answered `got "person"` for a person field -- contradicting itself on
+// one line. What is actually missing differs by type, and so does what an author should do about it.
 func TestValidate_permissionActorFieldIsNotAReference(t *testing.T) {
 	m := permissionMachine()
 	m.Permissions[0].ActorField = "fld_title"
-	assertIssue(t, m, "must reference an identity")
+	// A text field can never carry a target, so naming the type *is* the answer -- the one case the old
+	// wording got right.
+	assertIssue(t, m, "cannot name an identity")
+}
+
+func TestValidate_permissionActorFieldIsARelationWithNoTarget(t *testing.T) {
+	m := permissionMachine()
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_owner", Name: "Owner", Type: domain.FieldTypeRelation})
+	m.Permissions[0].ActorField = "fld_owner"
+	// The one case a hand-written manifest reaches: the type is right and `machine:` is missing, so the
+	// message must point at the target rather than the type.
+	assertIssue(t, m, "no `machine:` target")
+}
+
+// TestValidate_permissionActorFieldIsAnUnnormalisedPerson is the branch that only a Machine built in Go
+// can reach: Normalize binds every person Field to mch_user, so through the loader this is impossible.
+// Two test fixtures were in exactly this state on 2026-09-29, and the old message blamed the type.
+func TestValidate_permissionActorFieldIsAnUnnormalisedPerson(t *testing.T) {
+	m := permissionMachine()
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_owner", Name: "Owner", Type: domain.FieldTypePerson})
+	m.Permissions[0].ActorField = "fld_owner"
+	assertIssue(t, m, "was not normalised")
+
+	// And Normalize is what makes it valid -- the inference, not a hand-written RelatedMachine.
+	if err := Validate(Normalize(m)); err != nil {
+		t.Errorf("Validate(Normalize(m)) = %v, want nil -- normalising binds person to mch_user", err)
+	}
 }
 
 func assertIssue(t *testing.T, m *domain.Machine, substr string) {

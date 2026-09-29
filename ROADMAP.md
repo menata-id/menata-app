@@ -680,6 +680,45 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   They are different statements; the repeat was in the label, not in the request. `CountRecords`
   now records `"<machine> count"`. Whether counting a Machine the page has *already listed* is
   itself waste is a real question this naming now makes askable.
+- **Fixtures run through the production validator, and the inference that was locked inside Parse**
+  (2026-09-29). Re-reading 001-007 on the owner's instruction is what turned this from a test chore into
+  a design fix, so the order matters.
+
+  **The design changed because 005 says it should.** `005-runtime-lifecycle.md` separates Phase 3 (Parse
+  and Validation) from Phase 4 (Normalization and Resolution, which may "expand authoring conveniences"),
+  and binding a `person` Field to `mch_user` is exactly such a convenience -- 001 Principle #6 ("Infer
+  Before Configure") is *why* an author never writes `machine: mch_user`. That inference lived inside
+  `Parse`, so it reached YAML and nothing else. A Machine built in Go with a perfectly correct `person`
+  Field therefore failed validation, with a message blaming its type.
+  My first fix was to make the fixtures write `RelatedMachine` by hand. **That was backwards** -- it asks
+  every test to configure what the runtime infers, inverting 001 #6. `metadata.Normalize` is the fix:
+  the inference, reachable by anything holding a `*domain.Machine`, called by `Parse` as its last step.
+
+  **The validator's message was wrong in two of its three cases.** It read `must reference an identity (a
+  person or relation field), got %q` and answered `got "person"` for a person field -- contradicting
+  itself on one line. What is missing differs by type, so it is three branches now: a `relation` field is
+  missing a `machine:` **target**; a `text` field can never have one and naming the type is the whole
+  answer (the case the old wording got right); and a `person` field here means the Machine skipped
+  normalisation, which is unreachable through the loader and now says so. Each has its own test.
+
+  **Then the gate.** `TestMachineFixturesPassProductionValidation`, one per package, running every fixture
+  through `Normalize` + `Validate`. **It is a sweep where the mirror gate is a named list**, and the
+  difference is judgement: mirroring asks whether a fixture declares what the real Machine declares, which
+  a narrow unit fixture legitimately does not -- a static gate for *that* measured 40 false findings and
+  was rejected two days ago. Validity asks whether the fixture is coherent, and `Validate` tolerates
+  minimal while rejecting impossible.
+
+  **Measured, and the measurement changed the scope mid-slice.** The plan called the yield beyond
+  `internal/web` unmeasured; probing found **five packages, ~25 findings**, split into ~11 missing display
+  names and ~14 genuine incoherences: `signature_placement:` over Fields the Machine did not declare,
+  `actions:` writing an absent Field, Events and Constraints gating on absent Fields, a Dataset summing
+  one, `actor_type_field` typed `text` where the real Machine declares `status`. Owner chose to fix all
+  five rather than land `internal/web` alone.
+
+  **Where it stops, said so it is not read as closing the class.** A fixture that is merely *looser* than
+  the real Machine is valid: `documentTestMachine` with no Transitions passes this gate, and that is the
+  one that cost a real miss (`StatusField()` returning `""`). Mirroring is still the named list's job.
+
 - **The three AI-session routes, and the cross-Workspace write one of them allowed** (2026-09-29).
   `POST /new-application/message`, `GET /{session}/review` and `POST /{session}/discard` were the last
   routes with no behaviour coverage. Covering them found a real defect, which is the reason the slice

@@ -45,6 +45,10 @@ func approvalStepTestMachine(ids approvalIDs) *domain.Machine {
 			{ID: action.FieldStepSignatureY, Name: "Signature Y", Type: domain.FieldTypeNumber},
 			{ID: action.FieldStepSignatureWidth, Name: "Signature Width", Type: domain.FieldTypeNumber},
 			{ID: ids.signatureImage, Name: "Signature Image", Type: domain.FieldTypeFile},
+			// The Field the declared decide effect writes. Absent until 2026-09-29, when running this
+			// fixture through metadata.Validate said so: an actions: block naming a Field the Machine
+			// does not declare is a Machine the runtime would refuse to load.
+			{ID: ids.decidedBy, Name: "Decided By Name", Type: domain.FieldTypeText},
 		},
 		// Sequencing, the removal guard and the two Views all mirror metadata/approval_step.yaml as
 		// well, and all three were missing until TestFixturesMirrorTheRealMachines was written below

@@ -58,7 +58,7 @@ func doc(id, title, mode, due string) *data.Record {
 // supplying it costs the parallel cases nothing.
 func stepMachineForTest() *domain.Machine {
 	return &domain.Machine{
-		ID: action.StepMachineID,
+		ID: action.StepMachineID, Name: "Approval Step",
 		// Fields, declared since 2026-09-28: the screens derive which Field holds the decision, the
 		// order, the actor and the parent from this Machine's own declarations now
 		// (action.DeclaredFields), so a fixture declaring none was a Machine looser than the one that
@@ -68,8 +68,17 @@ func stepMachineForTest() *domain.Machine {
 			{ID: action.FieldStepSequence, Name: "Sequence", Type: domain.FieldTypeNumber},
 			{ID: action.FieldStepAssignee, Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
 			{ID: action.FieldStepDecision, Name: "Decision", Type: domain.FieldTypeStatus, Options: []string{action.DecisionPending, action.DecisionApproved, action.DecisionRejected}},
-			{ID: action.FieldStepApproverType, Name: "Approver Type", Type: domain.FieldTypeText},
+			{ID: action.FieldStepApproverType, Name: "Approver Type", Type: domain.FieldTypeStatus, Options: []string{domain.ActorKindUser, domain.ActorKindGroup}},
 			{ID: action.FieldStepApproverGroup, Name: "Approver Group", Type: domain.FieldTypeGroup},
+			// The Fields the actions: and signature_placement: blocks below name. Absent until
+			// 2026-09-29, when running this fixture through metadata.Validate said so: a Machine
+			// declaring a placement over Fields it does not have is one the loader refuses.
+			{ID: action.FieldStepDecidedByName, Name: "Decided By Name", Type: domain.FieldTypeText},
+			{ID: action.FieldStepSignatureImage, Name: "Signature Image", Type: domain.FieldTypeFile},
+			{ID: action.FieldStepSignaturePage, Name: "Signature Page", Type: domain.FieldTypeNumber},
+			{ID: action.FieldStepSignatureX, Name: "Signature X", Type: domain.FieldTypeNumber},
+			{ID: action.FieldStepSignatureY, Name: "Signature Y", Type: domain.FieldTypeNumber},
+			{ID: action.FieldStepSignatureWidth, Name: "Signature Width", Type: domain.FieldTypeNumber},
 		},
 		// prm_decide_own_step, as metadata/approval_step.yaml really declares it. It was missing
 		// here until Fase 6c-1, and nothing noticed: buildReview used to AND an explicit
@@ -638,8 +647,19 @@ func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
 // Events and Datasets too. A new fixture is therefore not covered until someone adds it here, the
 // same posture readPathWriters and the ratchets take.
 //
-// **Discovering the population instead was built, measured and thrown away on 2026-09-29 -- read this
-// before trying it again.** A static gate parsed every `&domain.Machine{...}` in the repo's test files
+// **A second, different gate now covers part of this, and the boundary matters.**
+// TestMachineFixturesPassProductionValidation (each package's own fixturevalidity_test.go) runs every
+// fixture through metadata.Normalize + Validate, so a fixture cannot describe a Machine the *loader*
+// would refuse -- a Permission gating on an absent Field, an actions: block writing one, a
+// signature_placement: over Fields that are not there. It found real incoherence in five packages.
+//
+// It does **not** replace this test, and saying where it stops is the point: docMachineForTest with no
+// Transitions was perfectly *valid*, just looser than the real Machine -- and that is the one that cost
+// a real miss (machine.StatusField() returning ""). Validity is checkable without judgement; mirroring
+// is not, which is why one is a sweep and this one is a named list.
+//
+// **Discovering the population of *this* test instead was built, measured and thrown away on 2026-09-29
+// -- read this before trying it again.** A static gate parsed every `&domain.Machine{...}` in the repo's test files
 // (68 of them), resolved the id where it could, and required any literal naming a real Machine to set
 // that Machine's declared rule blocks. The prediction was that it would be quiet except on real
 // mirrors. It produced **40 findings across 10 packages, and not one was a real mirror** -- every

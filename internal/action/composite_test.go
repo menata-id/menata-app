@@ -193,7 +193,16 @@ func redBoundingBox(t *testing.T, pngBytes []byte) (minX, minY, maxX, maxY, w, h
 // block -- the declaration StampFor reads its four Field ids out of since Stage D (2026-09-28).
 func stepMachineForStamp() *domain.Machine {
 	return &domain.Machine{
-		ID: StepMachineID,
+		ID: StepMachineID, Name: "Approval Step",
+		// The Fields the block below names -- a placement over Fields the Machine does not declare is one
+		// the loader refuses (found by running this fixture through metadata.Validate, 2026-09-29).
+		Fields: []domain.Field{
+			{ID: FieldStepSignatureImage, Name: "Signature Image", Type: domain.FieldTypeFile},
+			{ID: FieldStepSignaturePage, Name: "Signature Page", Type: domain.FieldTypeNumber},
+			{ID: FieldStepSignatureX, Name: "Signature X", Type: domain.FieldTypeNumber},
+			{ID: FieldStepSignatureY, Name: "Signature Y", Type: domain.FieldTypeNumber},
+			{ID: FieldStepSignatureWidth, Name: "Signature Width", Type: domain.FieldTypeNumber},
+		},
 		SignaturePlacement: &domain.SignaturePlacement{
 			ImageField: FieldStepSignatureImage,
 			PageField:  FieldStepSignaturePage,

@@ -13,6 +13,8 @@ func projectMachine() *domain.Machine {
 	return &domain.Machine{
 		ID:   "mch_project",
 		Name: "Project",
+		// The Field the Constraint below gates on. Absent until 2026-09-29 (metadata.Validate).
+		Fields: []domain.Field{{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"active", "done"}}},
 		Constraints: []domain.Constraint{
 			{
 				ID:         "cst_project_done_no_open_tasks",
