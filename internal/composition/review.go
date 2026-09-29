@@ -345,12 +345,28 @@ func canStillDecide(stepMachine *domain.Machine, decision string) bool {
 //
 // The order is what a person opening a Document actually wants to see first:
 //
+//  0. their own step, if they have already decided it -- returned outright, before anything else
+//     is even considered. Without this, an approver who already approved (or rejected) and then
+//     reopens the Document from a link -- My Documents, an activity entry, a bookmark -- got
+//     silently handed *whichever other sibling the Document is waiting on instead*, and the
+//     screen's footer then read as if nobody's decision had landed ("Awaiting its own assignee's
+//     decision") with no mention that the viewer's own already had. Found on a real parallel,
+//     two-approver Document (2026-09-29): the first approver, revisiting after approving, saw the
+//     second approver's still-pending step and read the page as "you haven't signed" even though
+//     the Approval Progress list beside it already said otherwise -- two panels answering the same
+//     question two different ways because only one of them was asked about the viewer's own step.
 //  1. their own step, if they have one still to decide -- an approver who reaches this screen from
 //     a Document link gets the same screen the Inbox would have given them;
 //  2. the step the Document is waiting on, which is "where this is now";
 //  3. the first undecided step, if none is actionable yet (a parallel flow locked behind nothing
 //     still has one);
 //  4. the last step by sequence, for a Document already finished -- the decision that closed it.
+//
+// Step 0 is deliberately not folded into step 1's own loop: step 1 only matches a step that is
+// both undecided *and* currently actionable (CanAct), which is right for it -- a sequential
+// approver whose own step is still locked behind an earlier one should see what it is waiting on,
+// not their own unreachable step. A *decided* step carries no such nuance; there is nothing left to
+// wait on, so it always wins.
 //
 // nil, with no error, when the Document has no steps at all. That is not a failure: a Document can
 // exist without them (the generic create form makes one), and the caller decides what to do --
@@ -373,6 +389,16 @@ func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine, docMachi
 		return nil, nil
 	}
 	ordered := orderedBySequence(steps, f)
+
+	// Step 0 (see doc comment above): a step the viewer already decided always wins, before the
+	// "what is this Document waiting on" question below is even asked.
+	if viewerID != "" {
+		for _, s := range ordered {
+			if DisplayString(s.Values[f.Actor]) == viewerID && !canStillDecide(stepMachine, DisplayString(s.Values[f.Decision])) {
+				return s, nil
+			}
+		}
+	}
 
 	var seq *domain.Sequencing
 	if stepMachine != nil {
