@@ -81,9 +81,15 @@ func TestBuildDashboard_DocumentStatusSplit(t *testing.T) {
 // My Tasks buckets by day and by status: done is Completed regardless of date, overdue and
 // due-today share the Today column but count separately, and an unparseable date is Upcoming
 // rather than dropped.
+//
+// **It no longer receives another identity's Tasks, because it no longer filters** (2026-09-29): the
+// assignee predicate moved into ds_my_tasks and runs in the database. That property did not stop
+// mattering, so it did not stop being tested -- TestPersonalTasks_returnsOnlyTheViewersTasks in
+// select_test.go asserts it end to end against a real database, which is where it now lives.
+// Leaving tsk_theirs in this fixture would assert that buildMyTasks still filters, which is the
+// opposite of what the migration did.
 func TestBuildMyTasks_Buckets(t *testing.T) {
 	tasks := []*data.Record{
-		task("tsk_theirs", "prj_1", "usr_budi", "todo", "2026-09-09"),
 		task("tsk_done", "prj_1", "usr_ana", "done", "2026-09-01"),
 		task("tsk_overdue", "prj_1", "usr_ana", "todo", "2026-09-09"),
 		task("tsk_today", "prj_1", "usr_ana", "in_progress", "2026-09-10"),

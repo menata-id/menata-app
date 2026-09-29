@@ -65,6 +65,29 @@ events:
 # real case). msr_total_open's own filter is an ordinary expression.Comparison, the same shape
 # cst_project_done_no_open_tasks's block_if.condition already uses -- no second filter syntax.
 datasets:
+  # My Tasks' own selection (007 §7.7 Filter, ROADMAP.md "(c)" Slice B/C/D, 2026-09-29).
+  #
+  # **Only the assignee is a filter here.** buildMyTasks also reads fld_status, but `done` is a
+  # *bucket* -- completed Tasks still render, in their own section -- so pushing `status != done`
+  # into the query would empty that section. The plan for this slice predicted this Dataset would
+  # need a conjunction and the code says otherwise; bucketing is not filtering.
+  #
+  # `limit: 200` is the cost of requiring a bound (domain.Dataset.Limit's own comment). This list had
+  # none: it showed every Task assigned to you. Two hundred is chosen as a number past which a
+  # personal worklist has a different problem than pagination, and it is declared rather than
+  # implied so the day it truncates someone's list, the number is findable.
+  #
+  # No `sort:`, deliberately -- that keeps the Store's own sort_order ordering, which is what this
+  # screen showed before. Declaring an ordering here would be a change of behaviour wearing the
+  # clothes of a migration.
+  - id: ds_my_tasks
+    select: records
+    where:
+      field: fld_assignee
+      op: equals
+      value: $current_user
+    limit: 200
+
   - id: ds_task_workload
     dimension: fld_assignee
     measures:

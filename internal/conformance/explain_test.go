@@ -6,12 +6,14 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
 
 	"menata.app/internal/action"
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 	"menata.app/internal/metadata"
 )
 
@@ -290,4 +292,137 @@ func readFile(t *testing.T, path string) string {
 		t.Fatalf("read %s: %v", path, err)
 	}
 	return string(b)
+}
+
+// perViewerDatasets are `select: records` Datasets whose whole purpose is showing one identity its
+// own records, mapped to the reason. Each must declare a $current_user predicate.
+//
+// **This exists because the scoping became declarative, and a declaration can be deleted.** Before
+// 2026-09-29, composition.buildMyTasks filtered `fld_assignee != userID` in Go, where removing it
+// would have failed a unit test. The predicate now lives in metadata/task.yaml's ds_my_tasks, and
+// deleting it there is silent: the Dataset still loads, the screen still renders, and every viewer
+// sees every assignee's Tasks bounded only by `limit: 200`. Measured by removing it -- the whole
+// suite stayed green.
+//
+// A named list rather than a sweep, because "is this Dataset per-viewer" is a judgement about what a
+// screen is for, which no scan can make. Same shape as readPathWriters and
+// unexplainedDerivationAccessors: the judgement is recorded once and reviewed.
+var perViewerDatasets = map[string]string{
+	"ds_my_tasks": "My Tasks shows one identity its own assigned work; without the predicate every " +
+		"viewer sees every assignee's Tasks",
+}
+
+func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+
+	found := map[string]bool{}
+	for slug, app := range wss {
+		for _, m := range app.Machines {
+			for _, ds := range m.Datasets {
+				reason, watched := perViewerDatasets[ds.ID]
+				if !watched {
+					continue
+				}
+				found[ds.ID] = true
+
+				scoped := false
+				for _, c := range ds.Where.Comparisons() {
+					if c.Value == expression.SentinelCurrentUser {
+						scoped = true
+					}
+				}
+				if !scoped {
+					t.Errorf("workspace %q: dataset %s declares no %s predicate.\n  %s.\n"+
+						"  Its scoping is metadata now, so deleting the predicate is silent: the Dataset "+
+						"still loads and the screen still renders.",
+						slug, ds.ID, expression.SentinelCurrentUser, reason)
+				}
+			}
+		}
+	}
+
+	for id := range perViewerDatasets {
+		if !found[id] {
+			t.Errorf("perViewerDatasets names %s, which no installed Workspace declares -- the entry "+
+				"protects nothing", id)
+		}
+	}
+}
+
+// wholeMachineReadRatchet freezes how many times each file in internal/composition reads an entire
+// Machine, and **it may only shrink** -- a higher count fails, a lower one fails too, and a new file
+// fails, the same terms documentApprovalCoupling and projectionRatchet already carry.
+//
+// It measures the one thing declared record selection exists to fix. 007 objects to this shape in
+// three places: §28 invariant 4 ("No full-record-by-default rule"), §4.4 ("avoid loading entire
+// records when only a small projection is required") and §20, which names it with the word *never* --
+// "query all data -> render -> trim unauthorized rows".
+//
+// **Measured 2026-09-29, after the first two migrations rather than before them.** It started at 19;
+// recentEvents took it to 18 and PersonalTasks to 17. A ratchet locks in a pattern and one migration
+// is not a pattern, which is why this landed here and not with Slice A.
+//
+// **What it deliberately does not say**: a low count is not a composable Data Plane. Ten of the
+// remaining reads correlate two Machines (the approval screens' steps-by-document joins) and cannot
+// shrink until 007 §7.5 Relation exists; four legitimately read everything, because a lookup map of
+// every Project is every Project. Reading this number falling as "the work is nearly done" would be
+// the same mistake as reading a green sweep as behaviour coverage.
+var wholeMachineReadRatchet = map[string]int{
+	"approval.go": 5,
+	"assigned.go": 3,
+	"pages.go":    7,
+	"review.go":   2,
+}
+
+var wholeMachineRead = regexp.MustCompile(`l\.ListRecords\(ctx`)
+
+func TestWholeMachineReadsOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "composition")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+
+	found := map[string]int{}
+	for _, e := range entries {
+		name := e.Name()
+		// loader.go is the plumbing these calls go through, not a site that reads a Machine whole;
+		// counting it would make the memo's own implementation look like four violations.
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || name == "loader.go" {
+			continue
+		}
+		n := len(wholeMachineRead.FindAllString(readFile(t, filepath.Join(dir, name)), -1))
+		if n > 0 {
+			found[name] = n
+		}
+	}
+
+	total, budgetTotal := 0, 0
+	for name, n := range found {
+		total += n
+		budget, listed := wholeMachineReadRatchet[name]
+		switch {
+		case !listed:
+			t.Errorf("%s reads whole Machines %d times and is not in wholeMachineReadRatchet -- a new "+
+				"file is not the way to pass. Declare a `select: records` Dataset instead (007 §7.7).", name, n)
+		case n > budget:
+			t.Errorf("%s: %d whole-Machine reads, up from %d. This ratchet only shrinks.", name, n, budget)
+		case n < budget:
+			t.Errorf("%s: %d whole-Machine reads, down from %d -- lower the entry to %d so the "+
+				"improvement is locked in rather than left as room to regress.", name, n, budget, n)
+		}
+	}
+	for name := range wholeMachineReadRatchet {
+		if _, ok := found[name]; !ok {
+			t.Errorf("wholeMachineReadRatchet names %s, which reads no Machine whole any more -- remove the entry", name)
+		}
+		budgetTotal += wholeMachineReadRatchet[name]
+	}
+	if total != budgetTotal {
+		t.Errorf("total whole-Machine reads = %d, budgeted %d", total, budgetTotal)
+	}
+	t.Logf("whole-Machine reads: %d across %d files", total, len(found))
 }

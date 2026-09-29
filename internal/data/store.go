@@ -163,6 +163,21 @@ func (s *Store) ListRecordsBy(ctx context.Context, machineID, fieldID, value str
 // `sort:` entry into either a JSONB path or a real column is internal/composition's job -- this
 // package receives the result, which keeps the Domain Plane's vocabulary out of the storage layer
 // (boundary_test.go: internal/data owns the connection and has no Runtime Metadata semantics).
+// FieldPredicate is one resolved filter for ListRecordsSelect: a JSONB path the caller has already
+// built from a validated Field id, an operator, and the value to compare -- with any runtime context
+// value (007 §9.2's `current_user`, `parameters`) already resolved into a literal by the caller.
+//
+// internal/data receives resolved values for the same reason it receives resolved sort columns: it
+// owns the connection and has no Runtime Metadata semantics (boundary_test.go). Resolving a sentinel
+// here would put the Domain Plane's vocabulary in the storage layer.
+type FieldPredicate struct {
+	// Field is a validated Field id; the query builds data->>'<id>' from it. Never user input.
+	Field string
+	// Negate inverts the comparison (`op: not_equals`).
+	Negate bool
+	Value  string
+}
+
 type SortKey struct {
 	// Column is a validated SQL fragment: either a bare column name from a closed set, or a
 	// data->>'fld_x' expression built from a validated Field id. Never user input.
@@ -184,7 +199,7 @@ type SortKey struct {
 //
 // sort may be empty, which falls back to the same default order the other reads use, so a Dataset
 // that declares no ordering is not silently reordered.
-func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID string, sort []SortKey, limit int) ([]*Record, error) {
+func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID string, where []FieldPredicate, sort []SortKey, limit int) ([]*Record, error) {
 	workspaceID, ok := workspaceScopeFrom(ctx)
 	if !ok {
 		return nil, errNotScoped
@@ -193,6 +208,23 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 	// same Machine may be read whole on the same request, and a diagnostic that called both
 	// "mch_activity" would report a repeat where there are two genuinely different statements.
 	readLogFrom(ctx).record(machineID + " select " + datasetID)
+
+	// Predicates are appended as bind parameters; only the JSONB path is built, and it is built from
+	// an id metadata validation already accepted. 007 §21.2 is the reason this is here at all --
+	// "Filters should execute in PostgreSQL whenever safe and beneficial" -- and §22 is why a path
+	// expression is an acceptable realisation: "A logical field may be physically realized as: JSONB
+	// value, expression index, stored column, generated column, materialized aggregate", and the
+	// runtime may change that without touching metadata.
+	args := []any{machineID, workspaceID}
+	filter := ""
+	for _, p := range where {
+		args = append(args, p.Value)
+		op := "="
+		if p.Negate {
+			op = "IS DISTINCT FROM"
+		}
+		filter += fmt.Sprintf(" AND data->>'%s' %s $%d", p.Field, op, len(args))
+	}
 
 	orderBy := "sort_order ASC, created_at ASC"
 	if len(sort) > 0 {
@@ -210,14 +242,15 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 	// #nosec G201 -- orderBy is assembled from validated identifiers only (a closed set of column
 	// names, or a data->>'fld_x' path over a load-validated Field id); every value stays a bind
 	// parameter. A placeholder cannot carry an ORDER BY expression, which is why this one is built.
-	query := `
+	args = append(args, limit)
+	query := fmt.Sprintf(`
 		SELECT id, machine_id, workspace_id, data, sort_order, created_at, updated_at
 		FROM records
-		WHERE machine_id = $1 AND workspace_id = $2
-		ORDER BY ` + orderBy + `
-		LIMIT $3
-	`
-	return s.queryRecords(ctx, query, machineID, workspaceID, limit)
+		WHERE machine_id = $1 AND workspace_id = $2%s
+		ORDER BY %s
+		LIMIT $%d
+	`, filter, orderBy, len(args))
+	return s.queryRecords(ctx, query, args...)
 }
 
 func (s *Store) queryRecords(ctx context.Context, query string, args ...any) ([]*Record, error) {

@@ -393,7 +393,7 @@ func TestStore_ListRecordsSelectBoundsAndOrdersInTheDatabase(t *testing.T) {
 	}
 
 	newestFirst := []SortKey{{Column: "sort_order", Descending: true}}
-	got, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", newestFirst, 10)
+	got, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, newestFirst, 10)
 	if err != nil {
 		t.Fatalf("ListRecordsSelect: %v", err)
 	}
@@ -405,7 +405,7 @@ func TestStore_ListRecordsSelectBoundsAndOrdersInTheDatabase(t *testing.T) {
 	}
 
 	// Ascending is the other direction, asserted rather than assumed symmetric.
-	asc, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", []SortKey{{Column: "sort_order"}}, 3)
+	asc, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, []SortKey{{Column: "sort_order"}}, 3)
 	if err != nil {
 		t.Fatalf("ListRecordsSelect ascending: %v", err)
 	}
@@ -415,7 +415,7 @@ func TestStore_ListRecordsSelectBoundsAndOrdersInTheDatabase(t *testing.T) {
 
 	// No sort declared falls back to the same default order the Machine's other reads use, so a
 	// Dataset that declares only a limit is not silently reordered.
-	none, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, 2)
+	none, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, nil, 2)
 	if err != nil {
 		t.Fatalf("ListRecordsSelect unsorted: %v", err)
 	}
@@ -437,11 +437,68 @@ func TestStore_ListRecordsSelectStaysWorkspaceScoped(t *testing.T) {
 	}
 
 	other := WithWorkspaceScope(context.Background(), "ws_store_test_other")
-	got, err := store.ListRecordsSelect(other, storeTestMachine, "ds_test", nil, 10)
+	got, err := store.ListRecordsSelect(other, storeTestMachine, "ds_test", nil, nil, 10)
 	if err != nil {
 		t.Fatalf("ListRecordsSelect: %v", err)
 	}
 	if len(got) != 0 {
 		t.Errorf("another Workspace's select returned %d records -- the scope is not in the statement", len(got))
+	}
+}
+
+// TestStore_ListRecordsSelectFiltersInTheDatabase covers the predicate half, and its second case is
+// the one worth having.
+//
+// `op: not_equals` cannot be `data->>'x' != $n` in SQL: when the Field is absent the JSONB path is
+// NULL, `NULL != 'done'` is NULL, and the row is dropped. expression.Comparison in Go treats a
+// missing Field as "" -- which is not "done", so it *keeps* the row. Those are different queries,
+// and the difference only shows on records that do not declare the Field at all. IS DISTINCT FROM is
+// what makes the pushed-down filter mean what the in-Go one means.
+func TestStore_ListRecordsSelectFiltersInTheDatabase(t *testing.T) {
+	pool := storePool(t)
+	cleanupStoreTest(t, pool)
+	store := NewStore(pool)
+	ctx := storeTestContext()
+
+	seed := []map[string]any{
+		{"fld_name": "mine-todo", "fld_assignee": "usr_1", "fld_status": "todo"},
+		{"fld_name": "mine-done", "fld_assignee": "usr_1", "fld_status": "done"},
+		{"fld_name": "theirs", "fld_assignee": "usr_2", "fld_status": "todo"},
+		{"fld_name": "mine-nostatus", "fld_assignee": "usr_1"}, // fld_status absent entirely
+	}
+	for _, v := range seed {
+		if _, err := store.CreateRecord(ctx, storeTestMachine, v); err != nil {
+			t.Fatalf("seed %v: %v", v, err)
+		}
+	}
+
+	got, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", []FieldPredicate{
+		{Field: "fld_assignee", Value: "usr_1"},
+		{Field: "fld_status", Negate: true, Value: "done"},
+	}, nil, 50)
+	if err != nil {
+		t.Fatalf("ListRecordsSelect: %v", err)
+	}
+
+	names := map[string]bool{}
+	for _, r := range got {
+		names[r.Values["fld_name"].(string)] = true
+	}
+	if !names["mine-todo"] {
+		t.Error("mine-todo is missing: the conjunction dropped a row that satisfies both predicates")
+	}
+	if names["mine-done"] {
+		t.Error("mine-done is present: `not_equals done` did not reach the query")
+	}
+	if names["theirs"] {
+		t.Error("theirs is present: the identity predicate did not reach the query")
+	}
+	if !names["mine-nostatus"] {
+		t.Error("mine-nostatus is missing -- a record that declares no fld_status at all must still " +
+			"satisfy `not_equals done`, the way expression.Comparison treats an absent Field as \"\". " +
+			"This is the IS DISTINCT FROM case; plain != drops it silently.")
+	}
+	if len(got) != 2 {
+		t.Errorf("got %d records, want 2", len(got))
 	}
 }

@@ -76,6 +76,11 @@ type Dataset struct {
 	// different questions -- "how many, grouped how" versus "which rows, in what order" -- and a
 	// Dataset trying to be both would leave every consumer asking which half it got.
 	Select string
+	// Where is the record-selection filter, applied by the database rather than after retrieval
+	// (007 §7.7 Filter, §21.2 "Filters should execute in PostgreSQL whenever safe and beneficial").
+	// Nil selects everything. Only meaningful with SelectRecords -- an aggregating Dataset filters
+	// per Measure, which is a different question and stays where it is.
+	Where *expression.Predicate
 	// Sort is the declared ordering, applied by the database rather than after retrieval (007 §7.8:
 	// "Sort describes logical ordering. Physical execution determines whether an index, database
 	// sort, or another strategy is used"). Empty falls back to the Store's own default.

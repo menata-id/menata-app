@@ -9,6 +9,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
+	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 )
 
@@ -112,7 +113,7 @@ func (l *Loader) ListRecords(ctx context.Context, machineID string) ([]*data.Rec
 // It refuses an aggregating Dataset rather than falling back to reading the Machine whole: the two
 // modes answer different questions, and a caller that asked for rows and silently received every
 // row of the Machine is the unbounded retrieval this method exists to replace.
-func (l *Loader) SelectDataset(ctx context.Context, datasetID string) ([]*data.Record, error) {
+func (l *Loader) SelectDataset(ctx context.Context, datasetID string, where expression.Context) ([]*data.Record, error) {
 	ds, ok := l.Dataset(datasetID)
 	if !ok {
 		return nil, fmt.Errorf("composition: no machine declares dataset %s", datasetID)
@@ -129,13 +130,41 @@ func (l *Loader) SelectDataset(ctx context.Context, datasetID string) ([]*data.R
 	if err != nil {
 		return nil, err
 	}
-	records, err := l.store.ListRecordsSelect(ctx, ds.Source, ds.ID, sort, ds.Limit)
+	predicates, err := predicatesFor(ds, where)
+	if err != nil {
+		return nil, err
+	}
+	records, err := l.store.ListRecordsSelect(ctx, ds.Source, ds.ID, predicates, sort, ds.Limit)
 	if err != nil {
 		return nil, err
 	}
 	l.reads++
 	l.selected[datasetID] = records
 	return records, nil
+}
+
+// predicatesFor resolves a declared `where:` into the literals internal/data compares against.
+//
+// **An unresolvable sentinel is an error, not an empty filter.** `$current_user` with no viewer
+// cannot mean "everyone" -- a personal worklist silently listing every record is a data exposure,
+// not a degraded screen -- and it cannot mean `= ”` either, which would match records whose Field
+// is absent. 007 §9.2's "must fail closed" is about the load-time check; this is the same rule at
+// the one moment the value is actually needed.
+func predicatesFor(ds domain.Dataset, ctx expression.Context) ([]data.FieldPredicate, error) {
+	comparisons := ds.Where.Comparisons()
+	out := make([]data.FieldPredicate, 0, len(comparisons))
+	for _, c := range comparisons {
+		value, ok := ctx.Resolve(c.Value)
+		if !ok {
+			return nil, fmt.Errorf("composition: dataset %s filters on %s, which this request cannot resolve", ds.ID, c.Value)
+		}
+		out = append(out, data.FieldPredicate{
+			Field:  c.Field,
+			Negate: c.Op == expression.OpNotEquals,
+			Value:  value,
+		})
+	}
+	return out, nil
 }
 
 // sortKeysFor turns a declared `sort:` into the column expressions internal/data takes.

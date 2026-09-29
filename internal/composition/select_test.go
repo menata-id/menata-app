@@ -10,6 +10,7 @@ import (
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 )
 
 // Each loader gets its own Machine id: cleanup runs at test end, so two loaders sharing an id would
@@ -71,7 +72,7 @@ func TestSelectDataset_doesNotPoisonTheWholeMachineMemo(t *testing.T) {
 	l, ctx := selectTestLoader(t, "memo", 30)
 	machineID := selectTestMachineID(t, "memo")
 
-	selected, err := l.SelectDataset(ctx, "ds_select_test")
+	selected, err := l.SelectDataset(ctx, "ds_select_test", expression.Context{})
 	if err != nil {
 		t.Fatalf("SelectDataset: %v", err)
 	}
@@ -103,7 +104,7 @@ func TestSelectDataset_doesNotPoisonTheWholeMachineMemo(t *testing.T) {
 	if first, err := l2.ListRecords(ctx2, machineID2); err != nil || len(first) != 30 {
 		t.Fatalf("ListRecords first = %d rows (err %v), want 30", len(first), err)
 	}
-	after, err := l2.SelectDataset(ctx2, "ds_select_test")
+	after, err := l2.SelectDataset(ctx2, "ds_select_test", expression.Context{})
 	if err != nil {
 		t.Fatalf("SelectDataset after ListRecords: %v", err)
 	}
@@ -120,7 +121,7 @@ func TestSelectDataset_readsEachDatasetOnce(t *testing.T) {
 	l, ctx := selectTestLoader(t, "once", 12)
 
 	for range 3 {
-		if _, err := l.SelectDataset(ctx, "ds_select_test"); err != nil {
+		if _, err := l.SelectDataset(ctx, "ds_select_test", expression.Context{}); err != nil {
 			t.Fatalf("SelectDataset: %v", err)
 		}
 	}
@@ -142,8 +143,96 @@ func TestSelectDataset_refusesAnAggregatingDataset(t *testing.T) {
 		ID: "ds_counts", Source: machineID, Measures: []domain.Measure{{ID: "msr_total", Aggregate: domain.AggregateCount}},
 	})
 
-	if _, err := l.SelectDataset(ctx, "ds_counts"); err == nil {
+	if _, err := l.SelectDataset(ctx, "ds_counts", expression.Context{}); err == nil {
 		t.Error("SelectDataset accepted an aggregating Dataset -- it must refuse rather than fall back " +
 			"to reading the Machine whole")
+	}
+}
+
+// TestPersonalTasks_returnsOnlyTheViewersTasks is where "another identity's Tasks never appear in my
+// list" lives now. It used to be a line in buildMyTasks and a fixture row in its unit test; the
+// predicate moved into ds_my_tasks and the database, so the assertion moved with it rather than
+// being quietly dropped.
+//
+// Asserted against a real database precisely because the filter is now SQL: a Go-level test would
+// prove nothing about the query that actually runs.
+func TestPersonalTasks_returnsOnlyTheViewersTasks(t *testing.T) {
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		t.Skip("set DATABASE_URL to run the personal-tasks selection test")
+	}
+	pool, err := pgxpool.New(context.Background(), url)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(pool.Close)
+
+	const machineID = "mch_task"
+	store := data.NewStore(pool)
+	ctx := data.WithWorkspaceScope(context.Background(), "ws_mytasks_test")
+	t.Cleanup(func() {
+		if _, err := pool.Exec(context.Background(), `DELETE FROM records WHERE workspace_id = $1`, "ws_mytasks_test"); err != nil {
+			t.Errorf("cleanup: %v", err)
+		}
+	})
+
+	for _, v := range []map[string]any{
+		{"fld_title": "mine-1", "fld_assignee": "usr_ana", "fld_status": "todo"},
+		{"fld_title": "mine-done", "fld_assignee": "usr_ana", "fld_status": "done"},
+		{"fld_title": "theirs", "fld_assignee": "usr_budi", "fld_status": "todo"},
+	} {
+		if _, err := store.CreateRecord(ctx, machineID, v); err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+	}
+
+	machine := &domain.Machine{
+		ID: machineID,
+		Fields: []domain.Field{
+			{ID: "fld_title", Type: domain.FieldTypeText},
+			{ID: "fld_assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
+			{ID: "fld_status", Type: domain.FieldTypeStatus},
+		},
+		Datasets: []domain.Dataset{{
+			ID: myTasksDataset, Source: machineID, Select: domain.SelectRecords, Limit: 200,
+			Where: &expression.Predicate{All: []expression.Comparison{
+				{Field: "fld_assignee", Op: expression.OpEquals, Value: expression.SentinelCurrentUser},
+			}},
+		}},
+	}
+	l := NewLoader(store, map[string]*domain.Machine{machineID: machine})
+
+	got, err := l.SelectDataset(ctx, myTasksDataset, expression.Context{CurrentUser: "usr_ana"})
+	if err != nil {
+		t.Fatalf("SelectDataset: %v", err)
+	}
+	titles := map[string]bool{}
+	for _, r := range got {
+		titles[DisplayString(r.Values["fld_title"])] = true
+	}
+	if titles["theirs"] {
+		t.Error("another identity's Task appeared in the viewer's selection -- the $current_user " +
+			"predicate did not reach the query")
+	}
+	// Completed Tasks must still come back: `done` is a bucket in buildMyTasks, not a filter, and
+	// pushing it into the query would empty the Completed section.
+	if !titles["mine-done"] || !titles["mine-1"] {
+		t.Errorf("viewer's own Tasks are missing: %v", titles)
+	}
+}
+
+// TestSelectDataset_refusesAnUnresolvableSentinel: `$current_user` with no viewer cannot mean
+// "everyone". A personal worklist silently listing every record is a data exposure, not a degraded
+// screen -- and it cannot mean `= ”` either, which matches records whose Field is absent.
+func TestSelectDataset_refusesAnUnresolvableSentinel(t *testing.T) {
+	l, ctx := selectTestLoader(t, "sentinel", 3)
+	machineID := selectTestMachineID(t, "sentinel")
+	l.machines[machineID].Datasets[0].Where = &expression.Predicate{All: []expression.Comparison{
+		{Field: "fld_name", Op: expression.OpEquals, Value: expression.SentinelCurrentUser},
+	}}
+
+	if _, err := l.SelectDataset(ctx, "ds_select_test", expression.Context{}); err == nil {
+		t.Error("SelectDataset resolved $current_user with no viewer -- it must refuse rather than " +
+			"filter on the empty string or select everything")
 	}
 }

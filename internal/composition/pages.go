@@ -10,6 +10,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
+	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 )
 
@@ -39,6 +40,7 @@ const (
 	// Dashboard's tail and the dedicated feed declare different bounds -- see metadata/activity.yaml.
 	recentActivityDataset = "ds_recent_activity"
 	activityFeedDataset   = "ds_activity_feed"
+	myTasksDataset        = "ds_my_tasks"
 
 	// Measure ids follow one shape: msr_total is the aggregate, and anything after it is the
 	// qualifier narrowing what got aggregated. So the family reads as variations of one thing
@@ -252,7 +254,11 @@ func UnreadNotificationCount(ctx context.Context, l *Loader, viewerID string) (i
 // between them, so godoc fused the two and PersonalTasks itself had no documentation at all -- and
 // the text it fused into was one of the cases contradicting it.
 func PersonalTasks(ctx context.Context, l *Loader, userID string, now time.Time) (MyTasks, error) {
-	tasks, err := l.ListRecords(ctx, taskMachineID)
+	// The assignee filter is declared now (ds_my_tasks) and runs in the database, so this no longer
+	// reads every Task in the Workspace to keep the viewer's own. What did *not* move is the status
+	// bucketing below: `done` sends a Task to the Completed section rather than dropping it, so it is
+	// not a filter and pushing it down would empty that section.
+	tasks, err := l.SelectDataset(ctx, myTasksDataset, expression.Context{CurrentUser: userID})
 	if err != nil {
 		return MyTasks{}, err
 	}
@@ -287,9 +293,6 @@ func taskRow(t *data.Record, projects map[string]string, taskMachine *domain.Mac
 func buildMyTasks(tasks []*data.Record, projects map[string]string, userID string, now time.Time, taskMachine *domain.Machine) MyTasks {
 	var out MyTasks
 	for _, t := range tasks {
-		if DisplayString(t.Values["fld_assignee"]) != userID {
-			continue
-		}
 		row := taskRow(t, projects, taskMachine)
 
 		if DisplayString(t.Values["fld_status"]) == "done" {
@@ -573,7 +576,8 @@ func RecentActivity(ctx context.Context, l *Loader) ([]rendering.ActivityEntry, 
 // bounds, and the Loader memoises the *selection* under its Dataset id rather than the Machine's, so
 // a whole-Machine read on the same request still sees every row in the Machine's own order.
 func activityRows(ctx context.Context, l *Loader, datasetID string) ([]*data.Record, map[string]string, error) {
-	events, err := l.SelectDataset(ctx, datasetID)
+	// No context needed: neither activity Dataset declares a filter.
+	events, err := l.SelectDataset(ctx, datasetID, expression.Context{})
 	if err != nil {
 		return nil, nil, err
 	}

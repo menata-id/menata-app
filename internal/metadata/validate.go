@@ -774,7 +774,25 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 		if ds.Limit <= 0 {
 			issues = append(issues, fmt.Sprintf("dataset %q: `select: records` requires a positive `limit:` -- an unbounded record selection is the unbounded retrieval 007 §7.9 asks the runtime to prevent", ds.ID))
 		}
+		for _, c := range ds.Where.Comparisons() {
+			if _, ok := fieldsByID[c.Field]; !ok {
+				issues = append(issues, fmt.Sprintf("dataset %q: where field %q is not a field of machine %q", ds.ID, c.Field, m.ID))
+			}
+			if !expression.KnownOps[c.Op] {
+				issues = append(issues, fmt.Sprintf("dataset %q: where op %q is not a known operator", ds.ID, c.Op))
+			}
+			// 007 §9.2: "Access outside this context must fail closed." A sentinel the runtime cannot
+			// resolve must be refused here, because at runtime it would become a literal -- a filter
+			// comparing a Field against the string "$current_usr" matches nothing, renders an empty
+			// list, and is indistinguishable from a screen that legitimately has no rows.
+			if expression.IsSentinel(c.Value) && !expression.KnownSentinel(c.Value) {
+				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelParameterPrefix))
+			}
+		}
 	} else {
+		if ds.Where != nil {
+			issues = append(issues, fmt.Sprintf("dataset %q: `where:` selects records; an aggregating Dataset filters per measure instead", ds.ID))
+		}
 		if len(ds.Measures) == 0 {
 			issues = append(issues, fmt.Sprintf("dataset %q: at least one measure is required", ds.ID))
 		}

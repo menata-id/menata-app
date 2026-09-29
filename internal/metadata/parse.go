@@ -120,9 +120,40 @@ type datasetDoc struct {
 	Measures  []measureDoc `yaml:"measures"`
 	// Select/Sort/Limit are the record-selection half (007 §7.7-§7.9), added 2026-09-29. A Dataset
 	// declares either these or dimension/measures, never both -- validateDataset refuses the mix.
-	Select string    `yaml:"select"`
-	Sort   []sortDoc `yaml:"sort"`
-	Limit  int       `yaml:"limit"`
+	Select string        `yaml:"select"`
+	Where  *predicateDoc `yaml:"where"`
+	Sort   []sortDoc     `yaml:"sort"`
+	Limit  int           `yaml:"limit"`
+}
+
+// predicateDoc is the YAML serialization of an expression.Predicate. It accepts both shapes on
+// purpose: a bare field/op/value, which is what every filter in this repo already writes and what
+// 007 §7.7 keeps valid as syntax sugar, or an `all:` list when more than one must hold.
+type predicateDoc struct {
+	comparisonDoc `yaml:",inline"`
+	All           []comparisonDoc `yaml:"all"`
+}
+
+// predicate lowers the doc into the one representation, so a single comparison and a one-element
+// `all:` are indistinguishable downstream -- the "compile to the common expression representation"
+// half of §7.7.
+func (d *predicateDoc) predicate() *expression.Predicate {
+	if d == nil {
+		return nil
+	}
+	if len(d.All) > 0 {
+		out := &expression.Predicate{}
+		for _, c := range d.All {
+			out.All = append(out.All, expression.Comparison{Field: c.Field, Op: expression.Op(c.Op), Value: c.Value})
+		}
+		return out
+	}
+	if d.Field == "" && d.Op == "" && d.Value == "" {
+		return nil
+	}
+	return &expression.Predicate{All: []expression.Comparison{
+		{Field: d.Field, Op: expression.Op(d.Op), Value: d.Value},
+	}}
 }
 
 // sortDoc is the YAML serialization of a domain.SortKey. `direction` rather than a bool, because
@@ -420,7 +451,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 	for _, dd := range doc.Datasets {
 		ds := domain.Dataset{
 			ID: dd.ID, Source: doc.ID, Dimension: dd.Dimension,
-			Select: dd.Select, Limit: dd.Limit,
+			Select: dd.Select, Limit: dd.Limit, Where: dd.Where.predicate(),
 		}
 		for _, sd := range dd.Sort {
 			// The declared direction is carried through unreduced so validateDataset can reject an
