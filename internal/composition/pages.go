@@ -228,6 +228,22 @@ func UnreadNotificationCount(ctx context.Context, l *Loader, viewerID string) (i
 // B5 still refuses it. Whoever builds the identity filter should not take the date one along for
 // the ride on the strength of this comment.
 //
+// **And "seven cases" is right about the coupling and wrong as a forcing case -- measured 2026-09-29,
+// after this comment had already carried the number through three answers unchecked.** All seven do
+// filter by identity in Go. **None of them is closed by an identity-aware `where:` alone.** Four
+// (ApprovalInbox, AssignedToMe, MyNotifications, ReviewStepForDocument) need record *selection*,
+// which a Dataset cannot do -- it produces numbers. PendingApprovalCount reads a *sibling*
+// (behavior.CanAct) and can never be a Dataset at all. UnreadNotificationCount and this screen need
+// a second predicate, and Measure.Where is a single expression.Comparison with no conjunction. So
+// the sentinel on its own would have landed with zero consumers, which is the premature declaration
+// B5 refuses -- the very rule this comment invokes two paragraphs up.
+//
+// The lesson is the one about numbers, not about filters: a count of *sites sharing a shape* is not a
+// count of *cases a primitive would close*, and the two were conflated here until someone checked
+// each site against the thing being built. ROADMAP.md's "(c)" entry carries the per-site
+// classification, and the work that follows from it is `select: records` (007 §7.7-§7.9), not the
+// sentinel alone.
+//
 // It was also **detached**: this block sat above MyNotifications' comment with no blank line
 // between them, so godoc fused the two and PersonalTasks itself had no documentation at all -- and
 // the text it fused into was one of the cases contradicting it.

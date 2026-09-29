@@ -2910,6 +2910,82 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   (`lt`/`gt` in `internal/expression`, 2 ops today) has about two cases and stays parked; B5 still
   refuses it.
 
+  **Superseded 2026-09-29 by measurement, and the correction is about arithmetic rather than filters.**
+  The paragraph above is kept as written because the reasoning it records is sound and the conclusion it
+  draws is not. "Seven cases" is right about the **coupling shape** — seven exported functions do filter
+  by identity in Go — and wrong as a **forcing case**, because the number was never checked against the
+  primitive it was being used to justify. Checked site by site: **none of the seven is closed by an
+  identity-aware `where:` alone.** Four (`ApprovalInbox`, `AssignedToMe`, `MyNotifications`,
+  `ReviewStepForDocument`) need record *selection*, and a Dataset produces numbers.
+  `PendingApprovalCount` reads a *sibling* through `behavior.CanAct` and can never be a Dataset at all —
+  which the paragraph above already says, without noticing it removes a case from its own count.
+  `UnreadNotificationCount` and `PersonalTasks` need a second predicate, and `Measure.Where` is a single
+  `expression.Comparison` with no conjunction.
+
+  So the sentinel on its own would have shipped with **zero consumers** — the premature declaration B5
+  refuses, and the rule this very entry invokes. **A count of sites sharing a shape is not a count of
+  cases a primitive would close**, and this file conflated the two across three separate answers before
+  anyone checked. `internal/composition/pages.go`'s own comment carried the same error and is corrected
+  in place.
+
+  What the measurement replaced it with is the "(c)" entry below.
+
+  - **Declared record selection — `select: records` (007 §7.7 Filter, §7.8 Sort, §7.9 Pagination).**
+    Chosen 2026-09-29 over two narrower options after comparing what each makes writable in YAML.
+    **(a)** an identity sentinel alone adds one token, closes nothing, and would be rejected by this
+    repo's own activation gate (`TestClosedRegistryMembersAreActivatedByMetadata`: "a capability no
+    manifest can start is one only Go can reach, which is 001 #3 inverted"). **(b)** sentinel plus
+    conjunction closes one case, the notification badge, and still returns only numbers — `views:`
+    changes by not one line, because a number cannot be rendered as a list. **(c)** adds
+    `select: records`, `sort:` and `limit:`, and is the only one of the three where a View gains a
+    `dataset:` line — the Experience Plane consuming the Data Plane, which is what 007 §4.3 asks for.
+
+    **And it is the only one that changes what is actually read.** Under (a) and (b) the runtime still
+    loads the whole Machine and discards in Go, so §28 invariant 4, §4.4 and §20's "never: query all
+    data → render → trim" all stay violated while the metadata merely gets more expressive.
+
+    **Per-site classification, which is what the plan is scoped to** (24 real read sites in
+    `internal/composition`, excluding the Loader's own 4 plumbing calls):
+
+    | | Sites | Needs |
+    |---|---|---|
+    | Single-Machine `select: records` | **8** | `where`/`sort`/`limit`, `$current_user`, `$parameters.x` |
+    | Join / sibling correlation | **10** | 007 §7.5 Relation — a separate primitive, **not** in this plan |
+    | Legitimately reads everything | 4 | nothing (`projectNames`, `TeamCapacity`) |
+    | Date comparison | 2 | `lt`/`gt`, still ~2 cases, still parked |
+
+    The ten join sites are the approval screens — the ones carrying the most Go. **`select: records`
+    does not close them**, and saying so here is the point: the earlier framing of "33 read sites" as
+    the prize was a third unchecked number.
+
+    **Design inputs 007 hands over rather than leaving to taste**: §9.2 names the expression context
+    (`record`, `old`, `current_user`, `today`, `now`, `parameters`) and requires that access outside it
+    **fail closed** — so an unknown `$sentinel` is a load error, not a literal. §9 requires one shared
+    expression model across constraints, event conditions, view filters, Dataset filters and action
+    values, so conjunction extends `expression.Comparison` rather than forking it. §7.7 keeps the
+    existing `field`/`op`/`value` form valid as syntax sugar, so nothing already declared changes.
+    §9.3 sanctions in-process evaluation; §8.3's preference for SQL is noted and not followed, because
+    the largest Machine holds 28 records.
+
+    **What stays refused**: §8.2 normalization, §8.3 general pushdown, §8.4 cost classes. The
+    decomposition audit's §7 refused those for want of a forcing condition and that is still true.
+
+    **Gates to build with it**, planned rather than discovered later:
+    1. `KnownContextValues` joins `TestClosedRegistryMembersAreAcceptedByTheLoader` /
+       `...AreActivatedByMetadata`. This is the gate that would have rejected option (a), and it is
+       the reason to write it *with* the primitive rather than after.
+    2. **A whole-Machine-read ratchet**, shrink-only, in the shape `documentApprovalCoupling` and
+       `projectionRatchet` already use. Baseline measured 2026-09-29: **19** `Loader.ListRecords`
+       calls across 4 files (`approval.go` 5, `assigned.go` 3, `pages.go` 9, `review.go` 2), beside 5
+       already-filtered `ListRecordsBy` calls. It measures the thing (c) exists to fix, a lower count
+       fails as well as a higher one, and — like every ratchet here — it can only be written *after*
+       the primitive exists, never before.
+    3. The migrated routes stay under the existing GET sweep's two invariants (`queries == reads`,
+       `repeated == 0`), which needs no new gate, only the discipline of not adding a ratchet entry.
+    4. `internal/installer`'s `FullMachineCheckDoc` mirror — not a new gate, but
+       `TestCheckDocsMirrorMetadatasOwnKeys` **will** fire when `select:`/`where:`/`sort:`/`limit:`
+       reach `machineDoc`, and it has caught this exact class twice before.
+
   **Finding 3 — a lesson recorded on 2026-09-20 was re-failed on 2026-09-29. Ranked second, because it
   is an hour's work and one of the two is a debt owed.** `development-history.md:3038` already wrote,
   nine days earlier, that verifying a deploy means matching `bin/server` against `/proc/$PID/exe` **with
