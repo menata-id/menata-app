@@ -546,9 +546,19 @@ var composedScreenDatasets = map[string]map[string][]string{
 		"ds_task_workload":   {"msr_total", "msr_total_open"}, // Team Capacity, and Sprint Dashboard's workload column
 		"ds_task_by_project": {"msr_total", "msr_total_open"}, // Dashboard's Project rollup
 		"ds_task_by_status":  {"msr_total"},                   // Sprint Dashboard's headline counts
+		// My Tasks' record selection. Its *predicate* is separately gated by
+		// TestPerViewerDatasetsScopeByIdentity, which also fails if it stops existing -- but that gate
+		// is about identity scoping, and this one is about the id resolving at all. Both, on purpose.
+		"ds_my_tasks": {},
 	},
 	"user.yaml":     {"ds_user_capacity": {"msr_total_capacity"}},
 	"document.yaml": {"ds_document_by_status": {"msr_total"}},
+	// The `select: records` Datasets (2026-09-29). They declare no measures, so the inner check is
+	// vacuous and the *existence* check is the whole point -- which is exactly what this table was
+	// written for. They were added to metadata and read by internal/composition without being listed
+	// here, so for three commits renaming ds_recent_activity in YAML would have compiled, passed every
+	// test, and 500'd /dashboard the next time someone opened it.
+	"activity.yaml": {"ds_recent_activity": {}, "ds_activity_feed": {}},
 }
 
 func TestComposedScreenDatasetsAreDeclared(t *testing.T) {
