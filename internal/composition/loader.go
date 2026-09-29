@@ -46,6 +46,9 @@ type Loader struct {
 	// selection over the same Machine. Without it two consumers of one Dataset in one request would
 	// each issue the child query, which the GET sweep's repeated==0 invariant forbids.
 	related map[string]map[string]map[string][]*data.Record
+	// truncated rides with `selected`: a memoised selection has to carry whether it was cut short, or
+	// the second consumer in a request sees a complete-looking set.
+	truncated map[string]bool
 	// record memoizes single-record reads by (Machine, id). Added 2026-09-28 when the per-record
 	// route sweep measured one Document read three times in one request: the detail page, the
 	// signature-placement embed and the PDF page count each fetched it through *store* rather than
@@ -71,13 +74,14 @@ type Loader struct {
 // NewLoader returns a Loader for one request.
 func NewLoader(store *data.Store, machines map[string]*domain.Machine) *Loader {
 	return &Loader{
-		store:    store,
-		machines: machines,
-		listed:   map[string][]*data.Record{},
-		listedBy: map[string][]*data.Record{},
-		selected: map[string][]*data.Record{},
-		related:  map[string]map[string]map[string][]*data.Record{},
-		record:   map[string]*data.Record{},
+		store:     store,
+		machines:  machines,
+		listed:    map[string][]*data.Record{},
+		listedBy:  map[string][]*data.Record{},
+		selected:  map[string][]*data.Record{},
+		related:   map[string]map[string]map[string][]*data.Record{},
+		truncated: map[string]bool{},
+		record:    map[string]*data.Record{},
 	}
 }
 
@@ -127,7 +131,31 @@ func (l *Loader) ListRecords(ctx context.Context, machineID string) ([]*data.Rec
 // should get nothing rather than a nil-map panic.
 type Selection struct {
 	Records []*data.Record
-	related map[string]map[string][]*data.Record
+	// Truncated reports that the Dataset's `limit:` cut the result short -- more records matched than
+	// came back.
+	//
+	// 007 §21.9 requires a composed experience exceeding its budget to "fail clearly or degrade through
+	// an explicit runtime policy", and the inverse of "must not silently produce unbounded work" is
+	// just as binding: a bound that silently drops rows is the same class of failure. A screen showing
+	// 500 of 700 Documents with no indication is indistinguishable from a Workspace that has 500 --
+	// and at 13 Documents that is invisible, which is exactly how it would have shipped.
+	//
+	// **No screen renders it yet**, and saying so is the point: the signal exists and is asserted, and
+	// wiring it into each list's own chrome is its own slice. What is closed here is the runtime being
+	// unable to tell.
+	Truncated bool
+	related   map[string]map[string][]*data.Record
+}
+
+// NewSelection builds a Selection from already-correlated parts. It exists for tests, which have to
+// express the correlation *somehow* to exercise a builder that no longer performs it -- putting the
+// grouping in a fixture is honest; leaving it in production code would mean the migration only moved
+// where the reads came from.
+func NewSelection(records []*data.Record, relationID string, byParent map[string][]*data.Record) Selection {
+	return Selection{
+		Records: records,
+		related: map[string]map[string][]*data.Record{relationID: byParent},
+	}
 }
 
 // Related returns one parent's children for one declared relation, or nil.
@@ -147,17 +175,17 @@ func (l *Loader) SelectDataset(ctx context.Context, datasetID string, where expr
 
 // SelectRelated is SelectDataset plus the children its Relations declare (007 §7.5).
 func (l *Loader) SelectRelated(ctx context.Context, datasetID string, where expression.Context) (Selection, error) {
-	records, err := l.selectRecords(ctx, datasetID, where)
+	records, truncated, err := l.selectRecords(ctx, datasetID, where)
 	if err != nil {
 		return Selection{}, err
 	}
 	ds, _ := l.Dataset(datasetID)
 	if len(ds.Relations) == 0 {
-		return Selection{Records: records}, nil
+		return Selection{Records: records, Truncated: truncated}, nil
 	}
 	if cached, ok := l.related[datasetID]; ok {
 		l.served++
-		return Selection{Records: records, related: cached}, nil
+		return Selection{Records: records, Truncated: truncated, related: cached}, nil
 	}
 
 	ids := make([]string, 0, len(records))
@@ -165,7 +193,7 @@ func (l *Loader) SelectRelated(ctx context.Context, datasetID string, where expr
 		ids = append(ids, r.ID)
 	}
 
-	sel := Selection{Records: records, related: map[string]map[string][]*data.Record{}}
+	sel := Selection{Records: records, Truncated: truncated, related: map[string]map[string][]*data.Record{}}
 	for _, rel := range ds.Relations {
 		children, err := l.store.ListRecordsByAny(ctx, rel.Machine, ds.ID, rel.Via, ids)
 		if err != nil {
@@ -182,34 +210,37 @@ func (l *Loader) SelectRelated(ctx context.Context, datasetID string, where expr
 	return sel, nil
 }
 
-func (l *Loader) selectRecords(ctx context.Context, datasetID string, where expression.Context) ([]*data.Record, error) {
+func (l *Loader) selectRecords(ctx context.Context, datasetID string, where expression.Context) ([]*data.Record, bool, error) {
 	ds, ok := l.Dataset(datasetID)
 	if !ok {
-		return nil, fmt.Errorf("composition: no machine declares dataset %s", datasetID)
+		return nil, false, fmt.Errorf("composition: no machine declares dataset %s", datasetID)
 	}
 	if ds.Select != domain.SelectRecords {
-		return nil, fmt.Errorf("composition: dataset %s aggregates; SelectDataset needs `select: records`", datasetID)
+		return nil, false, fmt.Errorf("composition: dataset %s aggregates; SelectDataset needs `select: records`", datasetID)
 	}
 	if cached, ok := l.selected[datasetID]; ok {
 		l.served++
-		return cached, nil
+		return cached, l.truncated[datasetID], nil
 	}
 
 	sort, err := sortKeysFor(l.Machine(ds.Source), ds.Sort)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	predicates, err := predicatesFor(ds, where)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	records, err := l.store.ListRecordsSelect(ctx, ds.Source, ds.ID, predicates, sort, ds.Limit)
+	records, truncated, err := l.store.ListRecordsSelect(ctx, ds.Source, ds.ID, predicates, sort, ds.Limit)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	l.reads++
 	l.selected[datasetID] = records
-	return records, nil
+	// Memoised beside the records: a second consumer in the same request must be told the same truth
+	// about truncation, not silently handed a complete-looking set.
+	l.truncated[datasetID] = truncated
+	return records, truncated, nil
 }
 
 // predicatesFor resolves a declared `where:` into the literals internal/data compares against.

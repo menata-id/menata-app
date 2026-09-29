@@ -177,14 +177,14 @@ func TestBuildInbox_SequentialLocksLaterSteps(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 	}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("step 2 is locked behind step 1, so it must not appear as pending; got %d card(s)", len(got.Pending))
 	}
 
 	// Same records, parallel mode: nothing is waiting on anything.
 	docs[0].Values[action.FieldDocumentMode] = "parallel"
-	got = buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got = buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("parallel mode makes every pending step actionable; got %d card(s)", len(got.Pending))
 	}
@@ -198,7 +198,7 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 		step("stp_mine", "doc_1", "usr_ana", action.DecisionPending, 3),
 	}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want only my own still-pending step, got %d", len(got.Pending))
 	}
@@ -260,7 +260,7 @@ func TestBuildInbox_BucketsByDay(t *testing.T) {
 			docs := []*data.Record{doc("doc_1", "Contract", "parallel", tc.due)}
 			steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-			got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+			got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 			if len(got.Buckets) != 1 {
 				t.Fatalf("want one card, got %d", len(got.Buckets))
 			}
@@ -283,7 +283,7 @@ func TestBuildInbox_CountsMatchBuckets(t *testing.T) {
 		step("stp_3", "doc_later", "usr_ana", action.DecisionPending, 1),
 	}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if got.OverdueCount != 1 || got.TodayCount != 1 {
 		t.Errorf("OverdueCount/TodayCount = %d/%d, want 1/1", got.OverdueCount, got.TodayCount)
 	}
@@ -303,7 +303,7 @@ func TestBuildInbox_SubmitterFromEarliestEvent(t *testing.T) {
 		event("doc_1", "usr_budi", at(8)), // the actual submission, logged first
 	}
 
-	got := buildInbox(steps, docs, activities, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), activities, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want one card, got %d", len(got.Pending))
 	}
@@ -319,7 +319,7 @@ func TestBuildInbox_UnknownSubmitterFallsBack(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if got.Pending[0].Submitter != "someone" {
 		t.Errorf("Submitter = %q, want %q", got.Pending[0].Submitter, "someone")
 	}
@@ -340,7 +340,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 		event("doc_theirs", "usr_budi", at(8)),
 	}
 
-	got := buildInbox(nil, docs, activities, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, nil), activities, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Mine) != 1 {
 		t.Fatalf("want one submitted Document, got %d", len(got.Mine))
 	}
@@ -369,7 +369,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 func TestBuildInbox_OrphanStepIsSkipped(t *testing.T) {
 	steps := []*data.Record{step("stp_1", "doc_gone", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, nil, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(nil, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("a step pointing at a missing Document must be skipped, got %d card(s)", len(got.Pending))
 	}
@@ -412,7 +412,7 @@ func TestBuildInbox_ProjectsCardFields(t *testing.T) {
 		"mch_user": {{ID: "usr_ana", Label: "Ana Putri"}, {ID: "usr_budi", Label: "Budi"}},
 	}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachine, docMachineForTest(), relations)
+	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachine, docMachineForTest(), relations)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
 	}
@@ -429,7 +429,7 @@ func TestBuildInbox_NilStepMachineProjectsNothing(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "sequential", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(steps, docs, nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
 	}
@@ -615,7 +615,7 @@ func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
 		{ID: "lkh_2", Values: map[string]any{"fld_surat": "srt_1", "fld_petugas": "usr_budi", "fld_putusan": "menunggu", "fld_urutan": float64(2)}},
 	}
 
-	got := buildInbox(steps, docs, nil, map[string]string{"usr_ana": "Ana Putri"}, "usr_ana", at(10), stepMachine, docMachine, nil)
+	got := buildInbox(inboxFixtureOver(docs, steps, stepMachine, docMachine), nil, map[string]string{"usr_ana": "Ana Putri"}, "usr_ana", at(10), stepMachine, docMachine, nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1 -- Ana's own undecided step, found through declarations alone", len(got.Pending))
 	}
@@ -630,7 +630,7 @@ func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
 	// And a decided step drops out, which is the open value being read from the edges' own `from:`
 	// rather than compared against the literal "pending".
 	steps[0].Values["fld_putusan"] = "setuju"
-	if got := buildInbox(steps, docs, nil, nil, "usr_ana", at(10), stepMachine, docMachine, nil); len(got.Pending) != 0 {
+	if got := buildInbox(inboxFixture(docs, steps), nil, nil, "usr_ana", at(10), stepMachine, docMachine, nil); len(got.Pending) != 0 {
 		t.Errorf("a decided step still appears as pending: %d card(s)", len(got.Pending))
 	}
 }
@@ -702,4 +702,33 @@ func TestFixturesMirrorTheRealMachines(t *testing.T) {
 				c.name, missing, c.id)
 		}
 	}
+}
+
+// inboxFixture expresses the parent↔child correlation the builders no longer perform.
+//
+// It exists because buildInbox and buildAssigned stopped indexing one record set against the other
+// (007 §7.5, ds_documents_with_steps): the Loader does it now, so a unit test has to state the
+// correlation itself. Putting it in a fixture is honest -- leaving it in production code would have
+// meant the migration only changed where the reads came from, which is the "gaming the gate rather
+// than satisfying it" shape this repo already names about the projection ratchet.
+//
+// The parent Field is read from the step Machine's own declaration rather than typed here, so a
+// fixture renaming fld_document keeps working -- the same reason the builders use
+// action.DeclaredFields.
+func inboxFixture(docs, steps []*data.Record) Selection {
+	return inboxFixtureOver(docs, steps, stepMachineForTest(), docMachineForTest())
+}
+
+// inboxFixtureOver is the same for a pair of *renamed* Machines, which
+// TestBuildInbox_overAMachineThatNamesItsFieldsDifferently needs: the whole point of that test is that
+// no id is Document Approval's own, so a fixture reading the default Machines' parent Field would
+// group by a Field those records do not have -- and the first version of this helper did exactly that,
+// silently producing an empty inbox and failing the one test that proves renaming works.
+func inboxFixtureOver(docs, steps []*data.Record, stepMachine, docMachine *domain.Machine) Selection {
+	f := action.DeclaredFields(stepMachine, docMachine)
+	byParent := map[string][]*data.Record{}
+	for _, s := range steps {
+		byParent[DisplayString(s.Values[f.Parent])] = append(byParent[DisplayString(s.Values[f.Parent])], s)
+	}
+	return NewSelection(docs, documentStepsRelation, byParent)
 }

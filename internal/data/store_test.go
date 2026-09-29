@@ -393,7 +393,7 @@ func TestStore_ListRecordsSelectBoundsAndOrdersInTheDatabase(t *testing.T) {
 	}
 
 	newestFirst := []SortKey{{Column: "sort_order", Descending: true}}
-	got, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, newestFirst, 10)
+	got, _, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, newestFirst, 10)
 	if err != nil {
 		t.Fatalf("ListRecordsSelect: %v", err)
 	}
@@ -405,7 +405,7 @@ func TestStore_ListRecordsSelectBoundsAndOrdersInTheDatabase(t *testing.T) {
 	}
 
 	// Ascending is the other direction, asserted rather than assumed symmetric.
-	asc, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, []SortKey{{Column: "sort_order"}}, 3)
+	asc, _, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, []SortKey{{Column: "sort_order"}}, 3)
 	if err != nil {
 		t.Fatalf("ListRecordsSelect ascending: %v", err)
 	}
@@ -415,7 +415,7 @@ func TestStore_ListRecordsSelectBoundsAndOrdersInTheDatabase(t *testing.T) {
 
 	// No sort declared falls back to the same default order the Machine's other reads use, so a
 	// Dataset that declares only a limit is not silently reordered.
-	none, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, nil, 2)
+	none, _, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, nil, 2)
 	if err != nil {
 		t.Fatalf("ListRecordsSelect unsorted: %v", err)
 	}
@@ -437,7 +437,7 @@ func TestStore_ListRecordsSelectStaysWorkspaceScoped(t *testing.T) {
 	}
 
 	other := WithWorkspaceScope(context.Background(), "ws_store_test_other")
-	got, err := store.ListRecordsSelect(other, storeTestMachine, "ds_test", nil, nil, 10)
+	got, _, err := store.ListRecordsSelect(other, storeTestMachine, "ds_test", nil, nil, 10)
 	if err != nil {
 		t.Fatalf("ListRecordsSelect: %v", err)
 	}
@@ -472,7 +472,7 @@ func TestStore_ListRecordsSelectFiltersInTheDatabase(t *testing.T) {
 		}
 	}
 
-	got, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", []FieldPredicate{
+	got, _, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", []FieldPredicate{
 		{Field: "fld_assignee", Value: "usr_1"},
 		{Field: "fld_status", Negate: true, Value: "done"},
 	}, nil, 50)
@@ -500,5 +500,49 @@ func TestStore_ListRecordsSelectFiltersInTheDatabase(t *testing.T) {
 	}
 	if len(got) != 2 {
 		t.Errorf("got %d records, want 2", len(got))
+	}
+}
+
+// TestStore_ListRecordsSelectReportsTruncation is 007 §21.9's requirement applied to the bound rather
+// than to the work: "a composed experience that exceeds configured budgets should fail clearly or
+// degrade through an explicit runtime policy". A limit that silently drops rows is the same class of
+// failure as one that silently reads everything -- a screen showing 500 of 700 Documents with no
+// indication is indistinguishable from a Workspace that has 500, and at 13 Documents that is invisible.
+//
+// Exactly-at-the-limit is the case worth having: it must report NOT truncated, which is why the query
+// asks for limit+1 rather than comparing len(records) == limit.
+func TestStore_ListRecordsSelectReportsTruncation(t *testing.T) {
+	pool := storePool(t)
+	cleanupStoreTest(t, pool)
+	store := NewStore(pool)
+	ctx := storeTestContext()
+
+	for i := range 5 {
+		if _, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": fmt.Sprintf("r%d", i)}); err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+	}
+
+	cases := []struct {
+		limit     int
+		wantLen   int
+		wantTrunc bool
+		why       string
+	}{
+		{3, 3, true, "3 of 5 came back, so more matched"},
+		{5, 5, false, "exactly the limit is not truncation -- nothing was dropped"},
+		{9, 5, false, "fewer rows than the limit"},
+	}
+	for _, c := range cases {
+		got, truncated, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, nil, c.limit)
+		if err != nil {
+			t.Fatalf("limit %d: %v", c.limit, err)
+		}
+		if len(got) != c.wantLen {
+			t.Errorf("limit %d returned %d records, want %d", c.limit, len(got), c.wantLen)
+		}
+		if truncated != c.wantTrunc {
+			t.Errorf("limit %d reported truncated=%v, want %v -- %s", c.limit, truncated, c.wantTrunc, c.why)
+		}
 	}
 }

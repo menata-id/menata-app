@@ -382,7 +382,8 @@ func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
 //
 // **Measured 2026-09-29, after the first migrations rather than before them.** It started at 19;
 // recentEvents took it to 18, PersonalTasks to 17, and the first declared Relation
-// (ds_documents_with_steps, 007 §7.5) took PendingApprovalCount's two reads to 15. A ratchet locks in a pattern and one migration
+// (ds_documents_with_steps, 007 §7.5) took all three approval screens' correlations to 11 -- the
+// three sites Step 0 measured as one shape. A ratchet locks in a pattern and one migration
 // is not a pattern, which is why this landed here and not with Slice A.
 //
 // **What it deliberately does not say**: a low count is not a composable Data Plane. Ten of the
@@ -391,8 +392,8 @@ func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
 // every Project is every Project. Reading this number falling as "the work is nearly done" would be
 // the same mistake as reading a green sweep as behaviour coverage.
 var wholeMachineReadRatchet = map[string]int{
-	"approval.go": 3,
-	"assigned.go": 3,
+	"approval.go": 1,
+	"assigned.go": 1,
 	"pages.go":    7,
 	"review.go":   2,
 }

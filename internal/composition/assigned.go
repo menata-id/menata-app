@@ -11,6 +11,7 @@ import (
 	"menata.app/internal/behavior"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 )
 
@@ -61,11 +62,8 @@ func AssignedToMe(ctx context.Context, l *Loader, viewerID string, now time.Time
 	if stepMachine == nil || docMachine == nil {
 		return Assigned{}, nil // no approval Application here -- see ApprovalInbox's own note
 	}
-	steps, err := l.ListRecords(ctx, stepMachine.ID)
-	if err != nil {
-		return Assigned{}, err
-	}
-	documents, err := l.ListRecords(ctx, docMachine.ID)
+	// Declared correlation (ds_documents_with_steps, 007 §7.5), same as the Inbox's.
+	sel, err := l.SelectRelated(ctx, documentsWithStepsDataset, expression.Context{})
 	if err != nil {
 		return Assigned{}, err
 	}
@@ -86,7 +84,7 @@ func AssignedToMe(ctx context.Context, l *Loader, viewerID string, now time.Time
 	for _, g := range myGroups {
 		myGroupNames[g.ID] = g.Name
 	}
-	return buildAssigned(steps, documents, activities, names, myGroupNames, viewerID, now, stepMachine, docMachine), nil
+	return buildAssigned(sel, activities, names, myGroupNames, viewerID, now, stepMachine, docMachine), nil
 }
 
 // SearchAssignedRows is composition.SearchCards' own counterpart for this screen's row shape
@@ -109,17 +107,19 @@ func SearchAssignedRows(rows []rendering.AssignedRow, q string) []rendering.Assi
 // buildAssigned is AssignedToMe's whole derivation, over records someone else already fetched --
 // the same split buildInbox uses, and for the same reason: which of the four states a step is in,
 // and which Document it belongs to, is worth testing without a database.
-func buildAssigned(steps, documents, activities []*data.Record, names, myGroupNames map[string]string, viewerID string, now time.Time, stepMachine, docMachine *domain.Machine) Assigned {
+func buildAssigned(sel Selection, activities []*data.Record, names, myGroupNames map[string]string, viewerID string, now time.Time, stepMachine, docMachine *domain.Machine) Assigned {
+	documents := sel.Records
 	// See buildInbox: one derivation for every Field id this screen reads.
 	f := action.DeclaredFields(stepMachine, docMachine)
+	// See buildInbox: docByID is a lookup over one set, stepsByDoc is the correlation and is declared.
 	docByID := make(map[string]*data.Record, len(documents))
+	stepsByDoc := make(map[string][]*data.Record, len(documents))
+	var steps []*data.Record
 	for _, d := range documents {
 		docByID[d.ID] = d
-	}
-	stepsByDoc := make(map[string][]*data.Record, len(documents))
-	for _, s := range steps {
-		docID := DisplayString(s.Values[f.Parent])
-		stepsByDoc[docID] = append(stepsByDoc[docID], s)
+		children := sel.Related(documentStepsRelation, d.ID)
+		stepsByDoc[d.ID] = children
+		steps = append(steps, children...)
 	}
 	submissions := submittersFromActivity(activities)
 

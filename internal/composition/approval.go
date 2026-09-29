@@ -77,11 +77,9 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 	if stepMachine == nil || docMachine == nil {
 		return Inbox{}, nil
 	}
-	steps, err := l.ListRecords(ctx, stepMachine.ID)
-	if err != nil {
-		return Inbox{}, err
-	}
-	documents, err := l.ListRecords(ctx, docMachine.ID)
+	// Documents with their own Steps attached, declared (ds_documents_with_steps, 007 §7.5) rather than
+	// indexed against each other here.
+	sel, err := l.SelectRelated(ctx, documentsWithStepsDataset, expression.Context{})
 	if err != nil {
 		return Inbox{}, err
 	}
@@ -100,7 +98,7 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 			return Inbox{}, err
 		}
 	}
-	return buildInbox(steps, documents, activities, names, userID, now, stepMachine, docMachine, relations), nil
+	return buildInbox(sel, activities, names, userID, now, stepMachine, docMachine, relations), nil
 }
 
 // pendingStepsFor selects the Approval Steps this viewer can act on right now: assigned to them,
@@ -251,19 +249,22 @@ func SearchCards(cards []rendering.PendingApprovalCard, q string) []rendering.Pe
 // buildInbox is the whole of the inbox's derivation, over records someone else already fetched.
 // Keeping it free of I/O is what makes the sequencing, bucketing and submitter-resolution rules
 // testable at all: they need four related record sets and a fixed clock, not a database.
-func buildInbox(steps, documents, activities []*data.Record, names map[string]string, userID string, now time.Time, stepMachine, docMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
+func buildInbox(sel Selection, activities []*data.Record, names map[string]string, userID string, now time.Time, stepMachine, docMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
+	documents := sel.Records
 	// Every Field id this function reads comes from the two Machines' own declarations, once
 	// (action.DeclaredFields) -- 001 Principle #8, and what lets the inbox compose a Machine whose
 	// decision Field is called anything.
 	f := action.DeclaredFields(stepMachine, docMachine)
+	// docByID indexes one set by its own id, which is a lookup rather than a correlation; stepsByDoc is
+	// the correlation, and it is declared now.
 	docByID := make(map[string]*data.Record, len(documents))
+	stepsByDoc := make(map[string][]*data.Record, len(documents))
+	var steps []*data.Record
 	for _, d := range documents {
 		docByID[d.ID] = d
-	}
-	stepsByDoc := make(map[string][]*data.Record, len(documents))
-	for _, s := range steps {
-		docID := DisplayString(s.Values[f.Parent])
-		stepsByDoc[docID] = append(stepsByDoc[docID], s)
+		children := sel.Related(documentStepsRelation, d.ID)
+		stepsByDoc[d.ID] = children
+		steps = append(steps, children...)
 	}
 	submissions := submittersFromActivity(activities)
 

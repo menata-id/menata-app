@@ -199,10 +199,21 @@ type SortKey struct {
 //
 // sort may be empty, which falls back to the same default order the other reads use, so a Dataset
 // that declares no ordering is not silently reordered.
-func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID string, where []FieldPredicate, sort []SortKey, limit int) ([]*Record, error) {
+// ListRecordsSelect returns at most limit records, and reports whether more matched.
+//
+// **truncated is not a convenience.** 007 §21.9 requires that a composed experience exceeding its
+// budget "fail clearly or degrade through an explicit runtime policy" and "must not silently produce
+// unbounded work" -- and the inverse is just as true: a bound that silently drops rows is the same
+// class of failure as one that silently reads everything. A screen showing 500 of 700 Documents with
+// no indication is indistinguishable from a Workspace that has 500.
+//
+// It is measured rather than inferred: the query asks for limit+1 and the extra row, if it arrives, is
+// the answer. Comparing len(records) == limit would report truncation for a set that happens to be
+// exactly the limit, which is a lie in the other direction.
+func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID string, where []FieldPredicate, sort []SortKey, limit int) (records []*Record, truncated bool, err error) {
 	workspaceID, ok := workspaceScopeFrom(ctx)
 	if !ok {
-		return nil, errNotScoped
+		return nil, false, errNotScoped
 	}
 	// Named after the Dataset rather than the Machine, because that is what distinguishes it: the
 	// same Machine may be read whole on the same request, and a diagnostic that called both
@@ -242,7 +253,7 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 	// #nosec G201 -- orderBy is assembled from validated identifiers only (a closed set of column
 	// names, or a data->>'fld_x' path over a load-validated Field id); every value stays a bind
 	// parameter. A placeholder cannot carry an ORDER BY expression, which is why this one is built.
-	args = append(args, limit)
+	args = append(args, limit+1)
 	query := fmt.Sprintf(`
 		SELECT id, machine_id, workspace_id, data, sort_order, created_at, updated_at
 		FROM records
@@ -250,7 +261,14 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 		ORDER BY %s
 		LIMIT $%d
 	`, filter, orderBy, len(args))
-	return s.queryRecords(ctx, query, args...)
+	rows, err := s.queryRecords(ctx, query, args...)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(rows) > limit {
+		return rows[:limit], true, nil
+	}
+	return rows, false, nil
 }
 
 // ListRecordsByAny returns every Record of machineID whose fieldID value is one of ids -- the child

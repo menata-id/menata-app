@@ -2875,6 +2875,49 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   retrieved" worth its hazard; neither exists today.
 
 
+  **Tahap A shipped 2026-09-29.** `relations:` on a `select: records` Dataset, over an existing
+  reference Field, with `via:` required rather than derived (a child may declare two Fields pointing at
+  one parent, and picking one would depend on declaration order — 007 §4.6). All three sites Step 0
+  measured are migrated: `PendingApprovalCount`, `buildInbox`, `buildAssigned`. The whole-Machine-read
+  ratchet went **19 → 11**, and the ratchet is what demanded each drop be locked in rather than left as
+  room to regress.
+
+  **Query count did not change, and that was the prediction.** `/approval-inbox` reads 8 before and
+  after; what the diagnostic now says is `mch_document select ds_documents_with_steps` and
+  `mch_approval_step related ds_documents_with_steps`. The criterion for this work was "less Go", not
+  "fewer queries", and the ratchet is the measure of it.
+
+  **The builders' signatures changed rather than their insides**, deliberately: keeping the correlation
+  inside `buildInbox` would have dropped the ratchet while the Go stayed, which is the "gaming the gate
+  rather than satisfying it" shape this repo already names about the projection ratchet. The unit tests
+  now state the correlation in a fixture, which is honest — a test exercising a builder that no longer
+  correlates has to express it somehow.
+
+  **A 001–007 re-check before the last two migrations found a gap in what had already shipped.** 007
+  §21.9: "A composed experience that exceeds configured budgets should **fail clearly or degrade through
+  an explicit runtime policy**. It must not silently produce unbounded work." The inverse is just as
+  binding, and `limit:` was violating it: a bound that silently drops rows is the same class of failure
+  as one that silently reads everything. A screen showing 500 of 700 Documents with no indication is
+  indistinguishable from a Workspace that has 500 — and at 13 Documents it is invisible, which is
+  exactly how it would have shipped. `ds_my_tasks` (limit 200) had carried that gap since the morning.
+
+  Closed by measuring it: the query asks for `limit+1` and the extra row is the answer, so
+  exactly-at-the-limit correctly reports *not* truncated — `len(records) == limit` would have lied in
+  the other direction. `Selection.Truncated` carries it, memoised beside the records so a second
+  consumer in one request is told the same truth. **No screen renders it yet**, and that is stated
+  rather than implied: what is closed is the runtime being unable to tell.
+
+  **One behaviour change, asserted**: a Step whose parent Document no longer exists used to reach
+  `pendingStepsFor` with a nil doc and now does not appear at all. An orphaned Step is not actionable by
+  anyone, so dropping it is correct.
+
+  **Not verified live**: a non-empty inbox. The shared admin credential's pseudo-identity holds no
+  `mch_user` record, so it is assigned no Step and submitted no Document — an empty inbox is the correct
+  content for it, confirmed against the data (7 pending Steps belong to one member, 4 to another; 5
+  Documents to a third) rather than assumed. The builders' behaviour is covered by the unit tests,
+  including the renamed-Machine one.
+
+
   **§7.5 Relation — Step 0, measured 2026-09-29, and it cut "ten sites" to three.**
 
   The ten was a count of *reads*, not of *correlations*, and nobody had checked the difference.
