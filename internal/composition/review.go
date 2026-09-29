@@ -34,7 +34,13 @@ import (
 // (internal/web's loadSignaturePlacementData), and pushing a storage read down here would give the
 // Composition plane a second, parallel way to reach the filesystem. Pass 0 when it is unknown; the
 // page renders without the page count rather than failing.
-func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *domain.Machine, step *data.Record, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) (rendering.ReviewView, error) {
+// signatureMachine is the Machine an Application casts in the optional `signature` role
+// (domain.WorkflowRoleSignature) -- a person's own reusable signature, looked up when a "done"
+// step captured no one-time image of its own because its approver chose to save a reusable one
+// instead (action.SignatureFields' own ImageField doc comment). nil when the Application casts no
+// such role, which is normal: the map savedSignatureImages returns is then empty, and every such
+// box falls back to a plain checkmark.
+func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine, signatureMachine *domain.Machine, step *data.Record, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) (rendering.ReviewView, error) {
 	f := action.DeclaredFields(stepMachine, docMachine)
 	documentID := DisplayString(step.Values[f.Parent])
 	document, err := l.Record(ctx, docMachine.ID, documentID)
@@ -53,14 +59,52 @@ func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine *dom
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
-	return buildReview(step, document, siblings, activities, names, stepMachine, docMachine, viewer, pdfPages, hasSignature, now), nil
+	savedSignatures, err := savedSignatureImages(ctx, l, signatureMachine)
+	if err != nil {
+		return rendering.ReviewView{}, err
+	}
+	return buildReview(step, document, siblings, activities, names, stepMachine, docMachine, viewer, pdfPages, hasSignature, now, savedSignatures), nil
+}
+
+// savedSignatureImages maps a person's own id to their reusable signature's stored image key
+// (signature_store:'s own OwnerField/ImageField, Stage D) -- the Signature positions panel's
+// fallback for a "done" step whose one-time image (signature_placement:'s ImageField) is empty.
+// A store declaring either Field empty, or no signature Machine cast at all, answers nil rather
+// than guessing a name -- the same "undeclared means skip it" contract every reader of these two
+// blocks already takes. Only the first signature found per owner is kept, which is the same
+// "most recently saved wins nothing in particular, just pick one" posture hasSavedSignature (its
+// own existence check) already takes by not caring how many there are.
+func savedSignatureImages(ctx context.Context, l *Loader, signatureMachine *domain.Machine) (map[string]string, error) {
+	if signatureMachine == nil {
+		return nil, nil
+	}
+	fields := action.StoreFields(signatureMachine)
+	if fields.OwnerField == "" || fields.ImageField == "" {
+		return nil, nil
+	}
+	records, err := l.ListRecords(ctx, signatureMachine.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]string, len(records))
+	for _, r := range records {
+		owner := DisplayString(r.Values[fields.OwnerField])
+		if owner == "" {
+			continue
+		}
+		if _, exists := out[owner]; exists {
+			continue
+		}
+		out[owner] = DisplayString(r.Values[fields.ImageField])
+	}
+	return out, nil
 }
 
 // buildReview is the whole derivation, over records someone else already fetched -- the same
 // split buildInbox uses, and for the same reason: the rules worth testing (whose step is
 // actionable, which approver is you, whether a signature placement exists) need related record
 // sets and a fixed clock, not a database.
-func buildReview(step, document *data.Record, siblings, activities []*data.Record, names map[string]string, stepMachine, docMachine *domain.Machine, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time) rendering.ReviewView {
+func buildReview(step, document *data.Record, siblings, activities []*data.Record, names map[string]string, stepMachine, docMachine *domain.Machine, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time, savedSignatures map[string]string) rendering.ReviewView {
 	// One derivation for every Field id this screen reads (action.DeclaredFields) -- see buildInbox.
 	f := action.DeclaredFields(stepMachine, docMachine)
 
@@ -127,23 +171,109 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 		}
 	}
 
-	if page, x, y, width, ok := placementOf(stepMachine, step); ok {
-		v.Placement = &rendering.ReviewPlacement{
-			// Named only when it is somebody else's -- the panel switches to the third person on
-			// a non-empty Approver, and the viewer's own signature should never be labelled with
-			// their own name back at them.
-			Approver: placementApprover(step, names, viewer.ID, f),
-			Page:     page,
-			X:        x,
-			Y:        y,
-			Width:    width,
-			// The page image the signature-placement screen already serves. Reusing that route
-			// rather than adding a per-step one keeps this screen additive: it introduces no
-			// rendering capability the app did not already have, only a read-only framing of it.
-			PreviewHref: fmt.Sprintf("/machines/%s/records/%s/pdf-preview?page=%d", docMachine.ID, document.ID, page),
-		}
+	// The Signature positions panel (2026-09-29 redesign): every sibling's own marker on whichever
+	// page they share, not only the viewer's own. ordered is derived the same way stepStates
+	// derived v.Steps above (orderedBySequence over the same siblings), so the two slices line up
+	// index for index -- signatureBoxes relies on that rather than re-deriving it a second time.
+	ordered := orderedBySequence(siblings, f)
+	boxes, page, signed, total := signatureBoxes(ordered, v.Steps, stepMachine, f, savedSignatures)
+	v.SignatureBoxes = boxes
+	v.SignatureSignedCount = signed
+	v.SignatureStepCount = total
+	if page > 0 {
+		v.SignaturePage = page
+		// Both routes the signature-placement screen (board 09) already serves -- reusing them
+		// keeps this screen additive: it introduces no rendering capability the app did not
+		// already have, only a read-only framing of it, and it means this panel's "See all
+		// positions" link can never drift from that screen's own URL shape.
+		v.SignaturePreviewHref = PlacementPreviewHref(docMachine.ID, document.ID, page)
+		v.AllPositionsHref = PlacementPageHref(docMachine.ID, document.ID, page)
 	}
 	return v
+}
+
+// signatureBoxes derives the Signature positions panel's own markers: every sibling Approval
+// Step's own signature-placement box, paired to the same done/current/waiting state
+// reviewProgress's own []StepApprover already carries (approvers), so the panel and the progress
+// list can never disagree about who has signed. ordered and approvers must be the same length and
+// the same order -- buildReview guarantees that by deriving both from orderedBySequence.
+//
+// The reference page is the viewer's own placement's page when they have placed one, else the
+// first sibling's (in sequence order) that has -- so the panel centres on a page somebody actually
+// chose rather than defaulting to page 1. A sibling placed on a *different* page is left out of
+// this panel rather than force-projected onto a page it is not on; "See all positions" is where it
+// is.
+//
+// A "signed" box's own ImageHref prefers the step's one-time captured image
+// (action.SignatureFields' ImageField) and falls back to savedSignatures[assignee] -- the same
+// precedence internal/execution's signatureImageForStep already composites onto the PDF with,
+// restated here so the panel shows the same ink it burned onto the document rather than a second,
+// possibly-disagreeing guess.
+func signatureBoxes(ordered []*data.Record, approvers []rendering.StepApprover, stepMachine *domain.Machine, f action.EngineFields, savedSignatures map[string]string) (boxes []rendering.ReviewSignatureBox, page, signed, total int) {
+	total = len(ordered)
+	for _, a := range approvers {
+		if a.State == "done" {
+			signed++
+		}
+	}
+	for i, s := range ordered {
+		if p, _, _, _, ok := placementOf(stepMachine, s); ok && approvers[i].IsYou {
+			page = p
+			break
+		}
+	}
+	if page == 0 {
+		for _, s := range ordered {
+			if p, _, _, _, ok := placementOf(stepMachine, s); ok {
+				page = p
+				break
+			}
+		}
+	}
+	if page == 0 {
+		return nil, 0, signed, total
+	}
+	for i, s := range ordered {
+		p, x, y, width, ok := placementOf(stepMachine, s)
+		if !ok || p != page {
+			continue
+		}
+		a := approvers[i]
+		kind := "waiting"
+		switch {
+		case a.State == "done":
+			kind = "signed"
+		case a.State == "current" && a.IsYou:
+			kind = "yours"
+		}
+		label := a.Name
+		if label == "" {
+			label = "Unassigned"
+		}
+		if a.IsYou {
+			label += " (You)"
+		}
+		imageHref := ""
+		if kind == "signed" {
+			imageKey := DisplayString(s.Values[action.SignatureFields(stepMachine).ImageField])
+			if imageKey == "" {
+				imageKey = savedSignatures[DisplayString(s.Values[f.Actor])]
+			}
+			if imageKey != "" {
+				imageHref = "/uploads/" + imageKey
+			}
+		}
+		boxes = append(boxes, rendering.ReviewSignatureBox{
+			Index:     i + 1,
+			Label:     label,
+			Kind:      kind,
+			ImageHref: imageHref,
+			X:         x,
+			Y:         y,
+			Width:     width,
+		})
+	}
+	return boxes, page, signed, total
 }
 
 // placementOf reads a step's own signature-placement coordinates, reporting ok only when a page was
@@ -276,18 +406,4 @@ func ReviewStepForDocument(ctx context.Context, l *Loader, stepMachine, docMachi
 	default:
 		return ordered[len(ordered)-1], nil
 	}
-}
-
-// placementApprover names whose signature a placement belongs to, or "" when it is the viewer's
-// own. A step held by a Group has no one person's name to give, so it falls back to the step's own
-// label -- which is what the approval progress list already calls it.
-func placementApprover(step *data.Record, names map[string]string, viewerID string, f action.EngineFields) string {
-	assignee := DisplayString(step.Values[f.Actor])
-	if assignee != "" && assignee == viewerID {
-		return ""
-	}
-	if name := names[assignee]; name != "" {
-		return name
-	}
-	return stepLabel(step, "")
 }

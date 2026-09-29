@@ -54,29 +54,44 @@ type ReviewView struct {
 	// of a gate whose write-time half is decideStep's own applyApprovalSignature. It needs storage
 	// I/O this plane cannot do (007 §20), so internal/web computes it.
 	HasSignature bool
-	// Placement is where this viewer's signature will land, or nil when they have not placed one.
-	Placement *ReviewPlacement
+	// SignaturePage/SignaturePreviewHref/SignatureBoxes are the "Signature positions" panel
+	// (2026-09-29 redesign): every sibling Approval Step's own signature marker overlaid on the one
+	// page they share, not only the viewer's own -- the panel's previous shape. SignaturePage is 0
+	// when no step has placed a marker at all, which the panel renders as an explicit prompt rather
+	// than an empty page image with nothing on it.
+	SignaturePage       int
+	SignaturePreviewHref string
+	SignatureBoxes       []ReviewSignatureBox
+	// SignatureSignedCount/SignatureStepCount feed the panel's own "N of M signed" badge --
+	// "signed" meaning a StepApprover.State of "done", exactly what reviewProgress already colours
+	// green, so the badge and the progress list can never disagree.
+	SignatureSignedCount int
+	SignatureStepCount   int
+	// AllPositionsHref is board 09's own screen (SignaturePlacementPage) -- "See all positions"
+	// reuses that route rather than adding a second one.
+	AllPositionsHref string
 }
 
-// ReviewPlacement is the viewer's own signature position, drawn over the real page image rather
-// than described in a sentence.
+// ReviewSignatureBox is one Approval Step's own marker in the Signature positions panel: its
+// numbered badge, where it sits on the shared page image, and how it renders.
 //
-// The app used to render this as text ("stamped on page N at X%, Y%") because the Document detail
-// page's inline placement block shows *every* step's marker and is pinned to page 1 -- neither of
-// which answers "where does mine go". X/Y/Width are percentages of the rendered page, the same
-// units the placement screen's own drag handler writes.
-type ReviewPlacement struct {
-	// Approver is whose signature will land here, or "" when it is the viewer's own. It decides
-	// the panel's wording, and it exists because this screen stopped being an approver-only screen
-	// on 2026-09-24: My Documents opens it for the *submitter*, who was then told "your saved
-	// signature image is stamped here automatically when you approve" about somebody else's
-	// signature, on a document they cannot approve at all.
-	Approver    string
-	Page        int
+// Kind is already resolved to exactly the three states the panel's own legend names --
+// "signed" (State == "done"), "yours" (State == "current" and this is the viewer's own step) or
+// "waiting" (everything else) -- from the same []StepApprover reviewProgress renders, so the two
+// panels can never disagree about who has signed. It is a plain string, not a typed enum, matching
+// StepApprover.State's own convention in this file.
+type ReviewSignatureBox struct {
+	Index int
+	Label string
+	Kind  string
+	// ImageHref is the actual captured signature image, set only for a "signed" box that has one
+	// (composition.signatureBoxes) -- rendered instead of the generic checkmark, the same posture
+	// the Document card takes for its own file (an honest absence renders the checkmark, never a
+	// broken <img>).
+	ImageHref   string
 	X           float64
 	Y           float64
 	Width       float64
-	PreviewHref string
 }
 
 // ReviewDocumentPage is board 10 (ui-sample/case-03-flow1/10-review-document.html, Fase 6b): the
@@ -123,7 +138,7 @@ templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, swit
 				@reviewDocumentCard(v)
 				@reviewProgress(v.Steps)
 			</div>
-			@reviewSignaturePanel(v.Placement, v.CanDecide)
+			@reviewSignaturePanel(v)
 		</div>
 		@reviewDecisionBar(v)
 	}
@@ -264,67 +279,159 @@ func reviewStepStatusLine(s StepApprover) string {
 	}
 }
 
-// reviewSignaturePanel is the board's right column: where this viewer's own signature will land,
-// drawn over the real page rather than described.
+// reviewSignaturePanel is the board's right column: every sibling Approval Step's own signature
+// marker, drawn over the real page rather than described, plus a legend and a link to board 09's
+// own full list -- the panel's shape since the 2026-09-29 redesign ("Signature positions").
 //
 // It reuses the pdf-preview route the signature-placement screen already serves, so this screen
-// adds no rendering capability -- only a read-only framing of one the app had. The marker's width
-// is the placement's own percentage; its height is left to the aspect ratio rather than stored,
-// matching what the placement screen writes (a width and a position, no height).
-// reviewSignaturePanel draws where a signature will land on the page.
+// adds no rendering capability -- only a read-only framing of one the app had. Each marker's width
+// is that step's own placed percentage; height is a fixed Tailwind size rather than the aspect
+// ratio, because a marker now carries content (an icon, a line of text) that must stay legible
+// regardless of how tall the rendered page is.
 //
-// It speaks in the second person only when the signature is the viewer's own. Since 2026-09-24
-// this screen is also reached from My Documents, where the viewer is the *submitter*: telling them
-// "your saved signature image is stamped here automatically when you approve", about an approver's
-// signature on a document they cannot approve, was wrong in every clause. Placement.Approver
-// carries whose it is, and the panel says so instead.
-//
-// The empty case is only ever the viewer's own -- there is nothing to draw for somebody else's
-// unplaced signature, so composition leaves Placement nil and this renders the prompt only when
-// the viewer could act on it.
-templ reviewSignaturePanel(p *ReviewPlacement, yours bool) {
+// Nobody has placed a marker at all when SignaturePage is 0 (composition.signatureBoxes' own zero
+// value), which renders as an explicit prompt rather than an empty page image with nothing on it --
+// the same posture the panel's previous single-marker shape took.
+templ reviewSignaturePanel(v ReviewView) {
 	<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
-		if p != nil && p.Approver != "" {
-			<h2 class="m-0 text-sm font-medium">Signature Position</h2>
-		} else {
-			<h2 class="m-0 text-sm font-medium">Your Signature Position</h2>
-		}
-		if p == nil {
-			if yours {
-				<p class="m-0 text-2xs text-slate-500">
-					You haven't placed your signature for this document yet. It will be stamped wherever you place it.
-				</p>
-			} else {
-				<p class="m-0 text-2xs text-slate-500">No signature position has been placed for this document yet.</p>
+		<div class="flex flex-wrap items-center justify-between gap-3">
+			<h2 class="m-0 text-sm font-medium">Signature positions</h2>
+			if v.SignatureStepCount > 0 {
+				<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs whitespace-nowrap text-slate-600">
+					{ fmt.Sprintf("%d of %d signed", v.SignatureSignedCount, v.SignatureStepCount) }
+				</span>
 			}
+		</div>
+		if v.SignaturePage == 0 {
+			<p class="m-0 text-2xs text-slate-500">No signature position has been placed for this document yet.</p>
 		} else {
 			<div class="relative overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-				<img src={ p.PreviewHref } alt={ fmt.Sprintf("Page %d of the document", p.Page) } class="block w-full"/>
-				<span
-					style={ reviewMarkerStyle(p) }
-					class="absolute flex items-center justify-center rounded border-2 border-dashed border-blue-500 bg-blue-500/10 text-3xs text-blue-700"
-				>
-					SIGNATURE
-				</span>
+				<img src={ v.SignaturePreviewHref } alt={ fmt.Sprintf("Page %d of the document", v.SignaturePage) } class="block w-full"/>
+				for _, b := range v.SignatureBoxes {
+					@reviewSignatureBox(b)
+				}
 			</div>
-			if p.Approver != "" {
-				<p class="m-0 text-2xs text-slate-500">
-					{ fmt.Sprintf("Signature · page %d", p.Page) } — { p.Approver }'s signature is stamped here when they approve.
-				</p>
-			} else {
-				<p class="m-0 text-2xs text-slate-500">
-					{ fmt.Sprintf("Signature · page %d", p.Page) } — your saved signature image is stamped here automatically when you approve.
-				</p>
-			}
+			<div class="text-right text-3xs text-slate-400">{ reviewSignaturePageLabel(v) }</div>
+			@reviewSignatureLegend()
+			<p class="m-0 text-2xs leading-5 text-slate-500">
+				Numbers match the approval steps on the left. Boxes sit where the submitter placed them.
+				<a href={ templ.SafeURL(v.AllPositionsHref) } class="text-blue-600 hover:text-blue-700">See all positions →</a>
+			</p>
 		}
 	</aside>
 }
 
-// reviewMarkerStyle positions the marker as an inline style rather than a class, for the same
-// reason approvalProgress's own bar does: the numbers are per-record, so any class name built from
-// them would be invisible to Tailwind's source scanner and would simply not exist in app.css.
-func reviewMarkerStyle(p *ReviewPlacement) string {
-	return fmt.Sprintf("left:%.2f%%;top:%.2f%%;width:%.2f%%;height:4%%;transform:translate(-50%%,-50%%)", p.X, p.Y, p.Width)
+func reviewSignaturePageLabel(v ReviewView) string {
+	if v.PDFPages > 0 {
+		return fmt.Sprintf("Page %d of %d", v.SignaturePage, v.PDFPages)
+	}
+	return fmt.Sprintf("Page %d", v.SignaturePage)
+}
+
+// reviewSignatureBox is one marker: a numbered badge, a kind badge (check/pencil/clock, matching
+// the legend below), and its content -- the actual captured signature image for a signed step
+// that has one, a plain checkmark for a signed step that does not (composition.signatureBoxes
+// leaves ImageHref empty rather than guess), "stamped when you approve" for the viewer's own
+// still-pending step, or an empty dashed placeholder for anyone else's still-pending step.
+// Positioned by percentage (the same convention the predecessor marker used) so it stays aligned
+// as the page image scales; sized by a fixed Tailwind height rather than a page-relative one,
+// because its content (an image or icon, a line of text) needs to stay legible regardless of how
+// tall the rendered page is.
+templ reviewSignatureBox(b ReviewSignatureBox) {
+	<div style={ reviewSignatureBoxStyle(b) } class="absolute w-[90px] -translate-x-1/2 -translate-y-1/2 text-center">
+		<div
+			class={ "relative flex h-14 items-center justify-center rounded border",
+				templ.KV("border-emerald-300 bg-emerald-50", b.Kind == "signed"),
+				templ.KV("border-dashed border-blue-400 bg-blue-50 ring-2 ring-blue-100", b.Kind == "yours"),
+				templ.KV("border-dashed border-slate-300 bg-slate-50", b.Kind == "waiting") }
+		>
+			switch {
+				case b.Kind == "signed" && b.ImageHref != "":
+					<img src={ b.ImageHref } alt={ fmt.Sprintf("%s's signature", b.Label) } class="h-9 max-w-[80%] object-contain"/>
+				case b.Kind == "signed":
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+				case b.Kind == "yours":
+					<span class="px-1 text-3xs leading-tight text-blue-700">stamped when you approve</span>
+				default:
+					<span aria-hidden="true" class="h-px w-2/3 border-t border-dotted border-slate-300"></span>
+			}
+			<span
+				aria-hidden="true"
+				class={ "absolute -top-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full border bg-white text-3xs font-medium",
+					templ.KV("border-emerald-500 text-emerald-600", b.Kind == "signed"),
+					templ.KV("border-blue-500 text-blue-600", b.Kind == "yours"),
+					templ.KV("border-slate-400 text-slate-500", b.Kind == "waiting") }
+			>{ fmt.Sprint(b.Index) }</span>
+			<span
+				role="img"
+				aria-label={ fmt.Sprintf("Step %d: %s", b.Index, reviewSignatureKindLabel(b.Kind)) }
+				class={ "absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full border border-white",
+					templ.KV("bg-emerald-500", b.Kind == "signed"),
+					templ.KV("bg-blue-600", b.Kind == "yours"),
+					templ.KV("bg-slate-400", b.Kind == "waiting") }
+			>
+				@reviewSignatureKindIcon(b.Kind)
+			</span>
+		</div>
+		<div
+			class={ "mt-1 truncate text-3xs",
+				templ.KV("text-emerald-700", b.Kind == "signed"),
+				templ.KV("text-blue-700", b.Kind == "yours"),
+				templ.KV("text-slate-400", b.Kind == "waiting") }
+		>{ b.Label }</div>
+	</div>
+}
+
+// reviewSignatureBoxStyle positions a box the same way the predecessor marker did: X/Y as the
+// box's own centre point, Width as a percentage of the page's own width -- composition.
+// signatureBoxes reads all three from the step's own signature_placement: Fields, the same ones
+// the placement screen writes.
+func reviewSignatureBoxStyle(b ReviewSignatureBox) string {
+	return fmt.Sprintf("left:%.2f%%;top:%.2f%%;width:%.2f%%", b.X, b.Y, b.Width)
+}
+
+// reviewSignatureKindLabel/reviewSignatureKindIcon/reviewSignatureLegend share one vocabulary --
+// signed/yours/waiting -- between a box's own corner badge and the panel's legend, so the two
+// cannot silently drift into describing the same three states differently.
+func reviewSignatureKindLabel(kind string) string {
+	switch kind {
+	case "signed":
+		return "Signed"
+	case "yours":
+		return "Yours — not yet"
+	default:
+		return "Not signed"
+	}
+}
+
+templ reviewSignatureKindIcon(kind string) {
+	switch kind {
+		case "signed":
+			<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+		case "yours":
+			<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.5 2.5 0 0 0-3.5-3.5L4.5 16.5z"></path><path d="M14.5 6.5 17.5 9.5"></path></svg>
+		default:
+			<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4.5l3 1.5"></path></svg>
+	}
+}
+
+templ reviewSignatureLegend() {
+	<div class="flex flex-wrap gap-3.5 text-3xs text-slate-600">
+		for _, kind := range []string{"signed", "yours", "waiting"} {
+			<span class="flex items-center gap-1.5">
+				<span
+					aria-hidden="true"
+					class={ "flex size-3.5 items-center justify-center rounded-full",
+						templ.KV("bg-emerald-500", kind == "signed"),
+						templ.KV("bg-blue-600", kind == "yours"),
+						templ.KV("bg-slate-400", kind == "waiting") }
+				>
+					@reviewSignatureKindIcon(kind)
+				</span>
+				{ reviewSignatureKindLabel(kind) }
+			</span>
+		}
+	</div>
 }
 
 // reviewDecisionBar is board 10's footer: the SLA on the left, Approve/Reject on the right.

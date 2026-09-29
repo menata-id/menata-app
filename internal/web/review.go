@@ -60,7 +60,7 @@ func showReviewDocument(store *data.Store, files *storage.Store, cfg config.Conf
 			return
 		}
 		view, err := composition.ReviewDocument(ctx, ld,
-			machineForStep(ctx), machineForDocument(ctx), step, actor,
+			machineForStep(ctx), machineForDocument(ctx), approvalMachine(ctx, domain.WorkflowRoleSignature), step, actor,
 			documentPageCount(ctx, ld, files, step), hasSignature, time.Now())
 		if err != nil {
 			serverError(w, err)

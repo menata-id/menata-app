@@ -103,7 +103,7 @@ func TestRecordDetailView_noLongerCarriesTheDecisionBar(t *testing.T) {
 }
 
 // TestReviewDocumentPage_rendersEndToEnd is a smoke test for the whole board, not one panel: it
-// catches a nil Placement, an empty Steps slice or a missing nav fixture panicking at render time,
+// catches a zero SignaturePage, an empty Steps slice or a missing nav fixture panicking at render time,
 // which the per-component tests above cannot. It asserts the elements a reviewer actually needs to
 // see rather than exact markup, so restyling the board does not break it.
 func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
@@ -125,7 +125,15 @@ func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
 		},
 		StepLabel: "Legal Review", Decision: "pending",
 		SLALabel: "OVERDUE", SLAOverdue: true, CanDecide: true, HasSignature: true,
-		Placement: &ReviewPlacement{Page: 6, X: 50, Y: 84, Width: 20, PreviewHref: "/machines/mch_document/records/doc_1/pdf-preview?page=6"},
+		SignaturePage:        6,
+		SignaturePreviewHref: "/machines/mch_document/records/doc_1/pdf-preview?page=6",
+		SignatureBoxes: []ReviewSignatureBox{
+			{Index: 1, Label: "Rina Nur", Kind: "signed", ImageHref: "/uploads/mch_approval_step/fld_signature_image/k__sig.png", X: 20, Y: 84, Width: 20},
+			{Index: 2, Label: "Ana Putri (You)", Kind: "yours", X: 50, Y: 84, Width: 20},
+			{Index: 3, Label: "Maya Puspita", Kind: "waiting", X: 80, Y: 84, Width: 20},
+		},
+		SignatureSignedCount: 1, SignatureStepCount: 3,
+		AllPositionsHref: "/machines/mch_document/records/doc_1/signature-placement?page=6",
 	}
 
 	var buf bytes.Buffer
@@ -139,8 +147,12 @@ func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
 		"Rina Nur · Approved · 10:42",                   // the sub-line carries the person
 		">You<",                                         // the viewer's own row is badged
 		"vendor-contract-q3.pdf", "6 pages", "download", // the file card
-		"pdf-preview?page=6",          // the placement panel draws the real page
-		"OVERDUE", `value="approved"`, // the footer
+		"pdf-preview?page=6",             // the signature panel draws the real page
+		"1 of 3 signed",                  // the panel's own signed-count badge
+		"Ana Putri (You)",                // the viewer's own box is labelled
+		"See all positions",              // the link to board 09's own full list
+		"fld_signature_image/k__sig.png", // a signed box with an image renders the actual capture
+		"OVERDUE", `value="approved"`,    // the footer
 		"/approval-inbox", // back to the inbox, via routeByID
 	} {
 		if !strings.Contains(html, want) {
@@ -148,13 +160,15 @@ func TestReviewDocumentPage_rendersEndToEnd(t *testing.T) {
 		}
 	}
 
-	// A step with no placement renders the prompt instead of an <img> with an empty src.
-	v.Placement = nil
+	// No step has placed a marker at all: the panel renders the prompt instead of an <img> with an
+	// empty src.
+	v.SignaturePage = 0
+	v.SignatureBoxes = nil
 	buf.Reset()
 	if err := ReviewDocumentPage(v, "Dokter Kecil", Viewer{Initials: "AP"}, "").Render(ctx, &buf); err != nil {
-		t.Fatalf("Render() without a placement error = %v", err)
+		t.Fatalf("Render() with no signature page error = %v", err)
 	}
-	if !strings.Contains(buf.String(), "haven't placed your signature") {
-		t.Error("a reviewer with no placement must be told so, not shown an empty preview")
+	if !strings.Contains(buf.String(), "No signature position has been placed") {
+		t.Error("a reviewer must be told nobody has placed one yet, not shown an empty preview")
 	}
 }

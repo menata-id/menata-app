@@ -77,24 +77,24 @@ func TestBuildReview_DecisionBarIsOfferedToItsOwnAssigneeOnly(t *testing.T) {
 	document := reviewDoc()
 
 	// usr_budi holds step 1 and nothing is ahead of it.
-	got := buildReview(steps[0], document, steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_budi"), 6, true, at(10))
+	got := buildReview(steps[0], document, steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_budi"), 6, true, at(10), nil)
 	if !got.CanDecide {
 		t.Error("step 1's own assignee must be offered the decision bar")
 	}
 
 	// usr_ana holds step 2, which sequential mode locks behind step 1.
-	if got := buildReview(steps[1], document, steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10)); got.CanDecide {
+	if got := buildReview(steps[1], document, steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10), nil); got.CanDecide {
 		t.Error("a step locked behind an earlier one must not be offered the bar; the server would refuse the POST")
 	}
 
 	// Somebody else entirely, looking at step 1.
-	if got := buildReview(steps[0], document, steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10)); got.CanDecide {
+	if got := buildReview(steps[0], document, steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10), nil); got.CanDecide {
 		t.Error("a viewer who is not this step's assignee must not be offered the bar")
 	}
 
 	// Already decided: there is nothing left to offer, whoever is looking.
 	decided := step("stp_1", "doc_1", "usr_budi", action.DecisionApproved, 1)
-	if got := buildReview(decided, document, []*data.Record{decided}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_budi"), 6, true, at(10)); got.CanDecide {
+	if got := buildReview(decided, document, []*data.Record{decided}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_budi"), 6, true, at(10), nil); got.CanDecide {
 		t.Error("a decided step must not offer the bar again -- action.CanDecide's semantics are one-way")
 	}
 }
@@ -104,13 +104,13 @@ func TestBuildReview_DecisionBarIsOfferedToItsOwnAssigneeOnly(t *testing.T) {
 // assignee, exactly as approvalStepRow has always titled it.
 func TestBuildReview_StepLabelFallsBackToAssignee(t *testing.T) {
 	s := step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)
-	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
+	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10), nil)
 	if got.StepLabel != "Ana Putri" {
 		t.Errorf("StepLabel = %q, want the assignee's name while fld_step_name is empty", got.StepLabel)
 	}
 
 	s.Values[action.FieldStepName] = "Legal Review"
-	got = buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
+	got = buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10), nil)
 	if got.StepLabel != "Legal Review" {
 		t.Errorf("StepLabel = %q, want the declared fld_step_name once it exists", got.StepLabel)
 	}
@@ -128,7 +128,7 @@ func TestBuildReview_MarksOnlyTheViewersOwnStep(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 		step("stp_3", "doc_1", "", action.DecisionPending, 3),
 	}
-	got := buildReview(steps[1], reviewDoc(), steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
+	got := buildReview(steps[1], reviewDoc(), steps, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10), nil)
 	if len(got.Steps) != 3 {
 		t.Fatalf("want one row per step, got %d", len(got.Steps))
 	}
@@ -138,7 +138,7 @@ func TestBuildReview_MarksOnlyTheViewersOwnStep(t *testing.T) {
 	}
 
 	// An anonymous viewer marks nothing -- including the unassigned step 3.
-	got = buildReview(steps[1], reviewDoc(), steps, nil, personNames, stepMachineForTest(), docMachineForTest(), domain.Actor{}, 0, true, at(10))
+	got = buildReview(steps[1], reviewDoc(), steps, nil, personNames, stepMachineForTest(), docMachineForTest(), domain.Actor{}, 0, true, at(10), nil)
 	for i, s := range got.Steps {
 		if s.IsYou {
 			t.Errorf("step %d marked IsYou for an empty viewer; an unassigned step is not everyone's", i+1)
@@ -146,30 +146,84 @@ func TestBuildReview_MarksOnlyTheViewersOwnStep(t *testing.T) {
 	}
 }
 
-// A placement exists only when a page was chosen. Board 10's right column is the difference
-// between "here is where your signature lands" and "you haven't placed one yet", so reading a
-// half-written step as placed would draw a marker at 0,0 over page 0.
-func TestBuildReview_PlacementNeedsAPage(t *testing.T) {
+// A signature box exists only when a page was chosen. The Signature positions panel's difference
+// between "here is where your signature lands" and "you haven't placed one yet" is SignaturePage
+// being 0, so reading a half-written step as placed would draw a marker at 0,0 over page 0.
+func TestBuildReview_SignatureBoxNeedsAPage(t *testing.T) {
 	s := step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)
-	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10))
-	if got.Placement != nil {
-		t.Error("a step with no fld_signature_page has no placement to draw")
+	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10), nil)
+	if got.SignaturePage != 0 || len(got.SignatureBoxes) != 0 {
+		t.Errorf("SignaturePage/SignatureBoxes = %d/%+v, want no page and no boxes when no step has placed one",
+			got.SignaturePage, got.SignatureBoxes)
 	}
 
 	s.Values[action.FieldStepSignaturePage] = float64(6)
 	s.Values[action.FieldStepSignatureX] = float64(50)
 	s.Values[action.FieldStepSignatureY] = float64(84)
-	got = buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10))
-	if got.Placement == nil {
-		t.Fatal("a step with a page has a placement")
+	got = buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10), nil)
+	if got.SignaturePage != 6 {
+		t.Fatalf("SignaturePage = %d, want 6 once a step has placed one", got.SignaturePage)
 	}
-	if got.Placement.Page != 6 || got.Placement.X != 50 || got.Placement.Y != 84 {
-		t.Errorf("Placement = %+v, want page 6 at 50,84", got.Placement)
+	if len(got.SignatureBoxes) != 1 {
+		t.Fatalf("SignatureBoxes = %+v, want the one placed step's own box", got.SignatureBoxes)
+	}
+	box := got.SignatureBoxes[0]
+	if box.X != 50 || box.Y != 84 {
+		t.Errorf("box = %+v, want 50,84", box)
 	}
 	// The width default matches what widthControl offers, so a step placed before widths existed
 	// renders at the same size the placement screen would show it.
-	if got.Placement.Width != 20 {
-		t.Errorf("Placement.Width = %v, want the same 20%% default the placement screen uses", got.Placement.Width)
+	if box.Width != 20 {
+		t.Errorf("box.Width = %v, want the same 20%% default the placement screen uses", box.Width)
+	}
+	// The lone step is this viewer's own and still pending: "yours", the panel's own vocabulary
+	// for "not yet, but it will be stamped here when you approve".
+	if box.Kind != "yours" {
+		t.Errorf("box.Kind = %q, want %q for the viewer's own still-pending step", box.Kind, "yours")
+	}
+	if got.SignaturePreviewHref != "/machines/mch_document/records/doc_1/pdf-preview?page=6" {
+		t.Errorf("SignaturePreviewHref = %q, want the pdf-preview route board 09 already serves", got.SignaturePreviewHref)
+	}
+	if got.AllPositionsHref != "/machines/mch_document/records/doc_1/signature-placement?page=6" {
+		t.Errorf("AllPositionsHref = %q, want board 09's own screen", got.AllPositionsHref)
+	}
+}
+
+// A "signed" box's own ImageHref prefers the step's one-time captured image and falls back to the
+// approver's saved reusable signature only when that one-time image is empty -- the same
+// precedence internal/execution.signatureImageForStep already composites onto the PDF with. Every
+// other kind never shows an image at all, on file or not: "yours"/"waiting" describe a decision
+// that has not happened yet, so there is nothing captured to show.
+func TestBuildReview_SignatureBoxImagePrefersOneTimeThenSavedSignature(t *testing.T) {
+	approved := step("stp_1", "doc_1", "usr_budi", action.DecisionApproved, 1)
+	approved.Values[action.FieldStepSignaturePage] = float64(6)
+	approved.Values[action.FieldStepSignatureX] = float64(50)
+	approved.Values[action.FieldStepSignatureY] = float64(84)
+
+	// No one-time image and no saved signature on file: the box still renders, just with nothing
+	// to show but the plain checkmark.
+	got := buildReview(approved, reviewDoc(), []*data.Record{approved}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10), nil)
+	if len(got.SignatureBoxes) != 1 || got.SignatureBoxes[0].Kind != "signed" {
+		t.Fatalf("SignatureBoxes = %+v, want one signed box", got.SignatureBoxes)
+	}
+	if got.SignatureBoxes[0].ImageHref != "" {
+		t.Errorf("ImageHref = %q, want empty when neither image exists", got.SignatureBoxes[0].ImageHref)
+	}
+
+	// A saved reusable signature on file for this step's own assignee: the fallback.
+	got = buildReview(approved, reviewDoc(), []*data.Record{approved}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10),
+		map[string]string{"usr_budi": "mch_signature/fld_image/saved__sig.png"})
+	if want := "/uploads/mch_signature/fld_image/saved__sig.png"; got.SignatureBoxes[0].ImageHref != want {
+		t.Errorf("ImageHref = %q, want the saved signature's own upload URL %q", got.SignatureBoxes[0].ImageHref, want)
+	}
+
+	// The step's own one-time image, once it has one, wins over the saved fallback -- it is what
+	// was actually captured at the moment this step was decided.
+	approved.Values[action.FieldStepSignatureImage] = "mch_approval_step/fld_signature_image/one_time__sig.png"
+	got = buildReview(approved, reviewDoc(), []*data.Record{approved}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10),
+		map[string]string{"usr_budi": "mch_signature/fld_image/saved__sig.png"})
+	if want := "/uploads/mch_approval_step/fld_signature_image/one_time__sig.png"; got.SignatureBoxes[0].ImageHref != want {
+		t.Errorf("ImageHref = %q, want the one-time image to win over the saved fallback", got.SignatureBoxes[0].ImageHref)
 	}
 }
 
@@ -190,7 +244,7 @@ func TestBuildReview_SLAIsDayScale(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			document := reviewDoc()
 			document.Values["fld_due_date"] = tc.due
-			got := buildReview(s, document, []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10))
+			got := buildReview(s, document, []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10), nil)
 			if got.SLALabel != tc.wantLabel || got.SLAOverdue != tc.wantOverdue {
 				t.Errorf("SLA = %q/%v, want %q/%v", got.SLALabel, got.SLAOverdue, tc.wantLabel, tc.wantOverdue)
 			}
@@ -202,7 +256,7 @@ func TestBuildReview_SLAIsDayScale(t *testing.T) {
 // attached renders an explicit absence rather than an href to /uploads/.
 func TestBuildReview_FileCardHandlesAMissingFile(t *testing.T) {
 	s := step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)
-	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10))
+	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 6, true, at(10), nil)
 	if got.FileName != "vendor-contract-q3.pdf" || got.FileHref != "/uploads/abc123__vendor-contract-q3.pdf" {
 		t.Errorf("File = %q / %q, want the stored key's display name and its upload URL", got.FileName, got.FileHref)
 	}
@@ -212,7 +266,7 @@ func TestBuildReview_FileCardHandlesAMissingFile(t *testing.T) {
 
 	bare := reviewDoc()
 	delete(bare.Values, "fld_file")
-	if got := buildReview(s, bare, []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10)); got.FileHref != "" {
+	if got := buildReview(s, bare, []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10), nil); got.FileHref != "" {
 		t.Errorf("FileHref = %q, want empty when no file is attached", got.FileHref)
 	}
 }
