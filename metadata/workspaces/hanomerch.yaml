@@ -1,0 +1,23 @@
+# Hanomerch -- created through the UI, installed with nothing yet. This is what an empty
+# Workspace's manifest looks like: it exists, it has the two Machines every Workspace has, and its
+# Home page shows no Applications at all.
+#
+# Adding a path under `applications:` below is what makes an Application appear here.
+workspace: hanomerch
+
+# mch_user is not optional: a Workspace's members each have a record in it (that is what a
+# membership row points at), so it is present before any Application is. mch_activity is the same
+# -- every Application writes to it, and the activity feed is a runtime screen, not an
+# Application's.
+machines:
+  - ../user.yaml
+  - ../activity.yaml
+  - hanomerch/document.yaml
+  - hanomerch/approval_step.yaml
+  - hanomerch/signature.yaml
+  - hanomerch/approval_flow_template.yaml
+  - hanomerch/approval_flow_template_step.yaml
+  - ../notification.yaml
+
+applications:
+  - hanomerch/applications/document-approval.yaml
