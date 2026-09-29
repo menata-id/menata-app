@@ -137,6 +137,64 @@ const (
 type WorkflowEngineSpec struct {
 	Required []string
 	Optional []string
+	// Answers maps each role to the derivations that role is responsible for answering (the
+	// Derivation* constants in resolution.go), each marked required or feature-dependent. It is what
+	// makes an empty derivation triageable, and it was added because measurement showed nothing else
+	// could be.
+	//
+	// **Measured 2026-09-29, and it refuted two framings before this one.** Probing every derivation
+	// over every Machine in both installed Workspaces gave 173 empties out of 308 -- useless, since
+	// mch_user legitimately declares no `decide` transition. Narrowing to Machines *cast in a role*
+	// gave 38 of 50 still empty -- also useless, and for a reason worth keeping: a Document is not
+	// decided (its steps are), a signature store has no state model, and nothing decides a flow
+	// template. Every one of those 38 is a derivation belonging to a *different* role. Meanwhile the
+	// Machine cast as `step` resolved all five of its own, in both Workspaces.
+	//
+	// So the discriminator is neither "is it empty" nor "is the Machine cast" but "does this role owe
+	// this answer" -- and no declaration stated that. This field is that statement. Without it, the
+	// 38 correct empties and Stage E1's genuinely-broken ones are the same observation, which is
+	// precisely why no gate over these numbers could be written before.
+	Answers map[string][]RoleAnswer
+}
+
+// RoleAnswer is one derivation a role is responsible for, and whether the whole feature it belongs to
+// is optional.
+//
+// **The distinction was found by mutation, not designed in.** The first version of Answers listed
+// nine flat derivations for the `step` role, read off what the real Machine resolved -- which
+// conflated "declares it" with "owes it". Deleting `signature_placement:` from the real
+// approval_step.yaml showed the file still *loads*: a step Machine with no signature block is an
+// approval Application that captures no signatures, a legitimate smaller installation exactly like an
+// uncast optional role. Reporting it as a defect would be the same over-reporting StatusNotApplicable
+// exists to prevent, one level up.
+//
+// So Optional does not mean "may be half-declared". A feature entirely absent is NotApplicable; a
+// feature *partly* declared is still Undeclared, because a signature placement with an image Field
+// and no coordinates would stamp at (0,0). Absent is a choice, partial is a bug.
+//
+// Everything not marked Optional is already enforced at load -- removing `order_field` from the real
+// file is refused by validateSequencing rather than reaching this surface -- so the required entries
+// here are a second line, not the only one.
+type RoleAnswer struct {
+	Derivation string
+	Optional   bool
+}
+
+// AnswersFor returns the derivations role owes an answer for, or nil for a role this engine does not
+// know. A nil result and an empty one are the same to callers on purpose: a role that owes nothing
+// and a role that does not exist both mean "expect no derivations here".
+func (s WorkflowEngineSpec) AnswersFor(role string) []RoleAnswer { return s.Answers[role] }
+
+// Owes reports whether role is responsible for derivation, and whether that responsibility is
+// feature-dependent. Explain asks it to choose between StatusUndeclared (owed and missing) and
+// StatusNotApplicable (never owed, or an optional feature not installed).
+func (s WorkflowEngineSpec) Owes(role, derivation string) (owes, optional bool) {
+	for _, a := range s.Answers[role] {
+		if a.Derivation == derivation {
+			return true, a.Optional
+		}
+	}
+	return false, false
 }
 
 // Roles is every role this engine knows, required first -- for the "declares no role %q" message,
@@ -166,5 +224,35 @@ var KnownWorkflowEngines = map[string]WorkflowEngineSpec{
 	WorkflowEngineDocumentApproval: {
 		Required: []string{WorkflowRoleDocument, WorkflowRoleStep},
 		Optional: []string{WorkflowRoleSignature, WorkflowRoleFlowTemplate, WorkflowRoleFlowTemplateStep},
+		// Read off the real Machines rather than composed from this engine's wish list: each entry is
+		// a derivation that Machine's role actually resolved in both installed Workspaces, or -- for
+		// the optional roles -- the block that role's own accessor reads.
+		//
+		// `step` owes parent and composite_source as well as its own five, because it is where the
+		// relation to the Document and the compositing Event are declared; `document` owes only its
+		// status Field, which is why four of its five probes are correctly empty.
+		Answers: map[string][]RoleAnswer{
+			WorkflowRoleStep: {
+				{Derivation: DerivationDecision},
+				{Derivation: DerivationOpenValue},
+				{Derivation: DerivationOrder},
+				{Derivation: DerivationActor},
+				{Derivation: DerivationActorType},
+				{Derivation: DerivationActorGroup},
+				{Derivation: DerivationParent},
+				// Both features rather than requirements, proven by deleting each from the real
+				// approval_step.yaml and watching it still load: an approval Application may capture no
+				// signatures, and may composite no PDF.
+				{Derivation: DerivationSignaturePlacement, Optional: true},
+				{Derivation: DerivationCompositeSource, Optional: true},
+			},
+			WorkflowRoleDocument: {{Derivation: DerivationDocumentStatus}},
+			// Each optional role's own block is optional *within* the role too: a Workspace that casts
+			// the role at all is installing the feature, but the cast and the block are two separate
+			// declarations and a Machine can be cast before it is finished.
+			WorkflowRoleSignature:        {{Derivation: DerivationSignatureStore}},
+			WorkflowRoleFlowTemplate:     {{Derivation: DerivationFlowTemplate}},
+			WorkflowRoleFlowTemplateStep: {{Derivation: DerivationFlowTemplateStep}},
+		},
 	},
 }

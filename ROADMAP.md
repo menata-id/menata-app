@@ -2726,6 +2726,45 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Phase 4 a named callable function, and the 16 derivation accessors are already concentrated in two
   files.
 
+  **Shipped 2026-09-29, Go level: `domain.Resolution` + `action.ExplainCast`.** For each role in an
+  engine's cast, every derivation now reports its resolved value, **the declaration it was read from**,
+  and a **status** — `resolved`, `undeclared`, `not applicable`, `input unavailable`. The status is the
+  substance: the two defects above both resolved to `""`, and nothing could tell them apart.
+  `input unavailable` is the `/review` 404 (the Field *is* declared; the caller had no document
+  Machine), `undeclared` is Stage E1 (the role is cast and declares nothing it owes). Gated by
+  `internal/conformance.TestInstalledCastsExplainWithoutDefects` over every installed Workspace plus
+  `TestEveryDerivationIsOwedBySomeRole`; five unit cases in `internal/action`, each mutation-proved by
+  deleting the branch and watching the intended message appear.
+
+  **Step 1 was "measure the population first", and it overturned this entry's own framing twice —
+  recorded because the plan promised not to predict.** A throwaway probe over both installed
+  Workspaces gave **173 empty of 308**, which is useless: `mch_user` declares no `decide` transition
+  and never should. Narrowing to Machines *cast in a role* still gave **38 of 50 empty** — also
+  useless, and for the reason that became the design: a Document is not decided (its steps are), a
+  signature store has no state model, nothing decides a flow template. Every one of those 38 is a
+  derivation belonging to a *different role*, while the Machine cast as `step` resolved all nine of its
+  own in both Workspaces. So the discriminator is neither "is it empty" nor "is the Machine cast" but
+  **"does this role owe this answer"** — and no declaration said so. `domain.WorkflowEngineSpec.Answers`
+  is that declaration, and it is why a gate over these numbers is possible now and was not before.
+
+  **A third correction came from mutation, not design.** The first `Answers` listed nine flat
+  derivations for `step`, read off what the real Machine resolved — which conflated *declares it* with
+  *owes it*. Deleting `signature_placement:` from the real `approval_step.yaml` showed the file still
+  **loads**: a step with no signature block is an approval Application that captures no signatures, a
+  legitimate smaller installation. Marking it a defect would repeat, one level up, exactly the
+  over-reporting `not applicable` exists to prevent. So `RoleAnswer.Optional` distinguishes a feature
+  *absent* (a choice) from *partly declared* (a bug — a placement with an image Field and no
+  coordinates stamps at (0,0)). Both halves re-verified against the real metadata: removing the whole
+  block passes and moves the count 13→12 resolved, removing three of its five Fields fails.
+
+  **What is not built: the screen**, which is the half this entry's own recommendation named. 001 #6
+  says "through diagnostics or equivalent tooling" and 004 names "diagnostics, testing, and
+  debugging" — the testing/debugging half is met, the human-facing half is next, as
+  `/inference` (a runtime screen by the same test `nav_install_application` passes: it exists
+  identically in a Workspace with zero Applications or ten). Also still unexplained by anything: the
+  four inferences *outside* the workflow engine — `person`→`mch_user`, child collections, board
+  columns, the default table Layout — since `ExplainCast` covers the engine's cast and nothing else.
+
   **Finding 2 — the identity-filter trigger was met six cases ago, and two comments in one file said
   so and denied it simultaneously.** Seven exported `internal/composition` functions take a viewing
   identity and filter records in Go after reading them all: `ApprovalInbox`, `PendingApprovalCount`,
