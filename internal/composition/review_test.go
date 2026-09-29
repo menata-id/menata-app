@@ -99,22 +99,20 @@ func TestBuildReview_DecisionBarIsOfferedToItsOwnAssigneeOnly(t *testing.T) {
 	}
 }
 
-// Fase 6b declared fld_step_name but nothing writes it until board 08's wizard (6c), so the
-// fallback is the live path, not the edge case: a step with no declared name is titled with its
-// assignee, exactly as approvalStepRow has always titled it.
-func TestBuildReview_StepLabelFallsBackToAssignee(t *testing.T) {
+// TestBuildReview_StepLabelIsTheAssignee: a step is identified by who holds it.
+//
+// This test used to assert a fallback -- the assignee's name "while fld_step_name is empty", then the
+// declared name once set. That Field was deleted on 2026-09-29: board 08's own model is "each step is
+// one person or a whole group", nothing filled the Field in 23 records, and what boards 09 and 10 draw
+// in its place is the approver's job title, which is identity data rather than a Field on a step. So
+// there is no fallback any more -- there is one answer.
+func TestBuildReview_StepLabelIsTheAssignee(t *testing.T) {
 	s := step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)
 	got := buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10), nil)
 	if got.StepLabel != "Ana Putri" {
-		t.Errorf("StepLabel = %q, want the assignee's name while fld_step_name is empty", got.StepLabel)
+		t.Errorf("StepLabel = %q, want the assignee's name", got.StepLabel)
 	}
-
-	s.Values[action.FieldStepName] = "Legal Review"
-	got = buildReview(s, reviewDoc(), []*data.Record{s}, nil, personNames, stepMachineForTest(), docMachineForTest(), approverActor("usr_ana"), 0, true, at(10), nil)
-	if got.StepLabel != "Legal Review" {
-		t.Errorf("StepLabel = %q, want the declared fld_step_name once it exists", got.StepLabel)
-	}
-	if got.Steps[0].Label != "Legal Review" {
+	if got.Steps[0].Label != "Ana Putri" {
 		t.Errorf("Steps[0].Label = %q, want the same label the progress list renders", got.Steps[0].Label)
 	}
 }

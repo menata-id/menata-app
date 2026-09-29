@@ -465,26 +465,12 @@ func stepStates(seq *domain.Sequencing, parent *data.Record, steps []*data.Recor
 			Name:     name,
 			Initials: Initials(name),
 			State:    state,
-			Label:    stepLabel(s, name),
+			Label:    name,
 			Decided:  decided,
 			IsYou:    viewer != "" && assignee == viewer,
 		}
 	}
 	return approvers
-}
-
-// stepLabel is what a step is for: its declared fld_step_name, or the assignee's own name while
-// that Field is empty.
-//
-// The fallback is not a placeholder, it is the behaviour every screen had before fld_step_name
-// existed (approvalStepRow still titles each row with the assignee). Nothing writes the Field until
-// board 08's wizard collects it in Fase 6c, so a Document submitted today reads exactly as it did
-// yesterday, and one submitted after 6c gains the process-level title board 10 draws.
-func stepLabel(s *data.Record, assigneeName string) string {
-	if declared := strings.TrimSpace(DisplayString(s.Values[action.FieldStepName])); declared != "" {
-		return declared
-	}
-	return assigneeName
 }
 
 // Initials is a person's display initials for a SummaryCard's avatar (Study 38's Avatar cluster)

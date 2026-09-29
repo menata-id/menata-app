@@ -75,7 +75,6 @@ func TestDocumentSubmitPage_offersBothApproverKinds(t *testing.T) {
 		`name="fld_approver_type"`, `value="User"`, `value="Group"`,
 		`name="fld_assignee"`, "Rina Nur",
 		`name="fld_approver_group"`, "grp_legal", "Legal Group",
-		`name="fld_step_name"`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("rendered approver row is missing %q", want)

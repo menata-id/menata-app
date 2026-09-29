@@ -14,9 +14,6 @@ fields:
     name: Sequence
     type: number
     required: true
-  - id: fld_step_name
-    name: Step Name
-    type: text
   - id: fld_approver_type
     name: Approver Type
     type: status
@@ -38,13 +35,16 @@ fields:
 flow_template_step:
   template_field: fld_template
   order_field: fld_sequence
-  name_field: fld_step_name
   actor_field: fld_assignee
   actor_type_field: fld_approver_type
   actor_group_field: fld_approver_group
 
+# A template row's projection. Its `title` was fld_step_name until 2026-09-29, when that Field was
+# deleted -- the wizard input that was its only source is gone, and it was empty in every record.
+# So this card has no title role now, deliberately rather than by oversight: what a template step
+# should be titled by is the same open question the live step's label is, and picking fld_assignee
+# here would be answering it by assumption.
 card_fields:
-  - { field: fld_step_name, role: title }
   - { field: fld_sequence, role: status }
 
 views:

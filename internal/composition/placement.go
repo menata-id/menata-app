@@ -44,9 +44,8 @@ func buildPlacement(stepMachine, docMachine *domain.Machine, document *data.Reco
 	}
 	for i, s := range steps {
 		step := rendering.PlacementStep{
-			StepID:   s.ID,
-			Index:    i + 1,
-			StepName: DisplayString(s.Values[action.FieldStepName]),
+			StepID: s.ID,
+			Index:  i + 1,
 			// The same declared Permission the generic PUT route enforces, asked here only to
 			// decide whether to render a draggable marker or a static one. Presentation, never
 			// protection -- and since Fase 6c-3 it resolves a Group-held step through its Group,

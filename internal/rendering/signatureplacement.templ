@@ -26,9 +26,6 @@ type PlacementView struct {
 type PlacementStep struct {
 	StepID string
 	Index  int
-	// StepName is what the step is *for* (fld_step_name, "Legal Review"). Board 09 puts it under
-	// the approver's name; empty until board 08's wizard collected one.
-	StepName string
 	// Approver is whoever holds the step, and ApproverKind says which sort they are --
 	// domain.ActorKindUser or ActorKindGroup. The kind is carried rather than inferred from which
 	// name is non-empty, because board 09 badges them differently and a person whose record has
@@ -245,16 +242,21 @@ templ approverKindBadge(kind string) {
 	}
 }
 
-// placementSubline is the card's second line: what the step is for, and where its marker is.
-// Board 09 puts a department here ("Finance · Page 6"); no Field holds one, so this uses the step's
-// own declared name instead and falls back to the placement alone.
+// placementSubline is the card's second line: where this step's marker is.
+//
+// **Board 09 puts a department here** ("Finance · Page 6", "Director · Page 6", "4 members · Page 6")
+// -- the approver's own job title, or a Group's size. Until 2026-09-29 this substituted
+// mch_approval_step's fld_step_name for it, a free-text field the wizard offered as "(optional)" and
+// which nobody ever filled: 0 of 23 records carried the key. That field is deleted; the substitution
+// went with it, and the line now renders only what it can actually answer.
+//
+// What board 09 wants is still unmet, and naming it is the point: a person's title is identity data
+// (mch_user), and a Group's size is a membership count. Neither is a Field on a step, which is why
+// inventing one there produced a field nobody filled.
 func placementSubline(s PlacementStep) string {
 	where := "Not placed yet"
 	if s.Placed {
 		where = fmt.Sprintf("Page %d · %.0f%% · %.0f%% · %.0f%% wide", s.Page, s.X, s.Y, s.Width)
-	}
-	if s.StepName != "" {
-		return s.StepName + " · " + where
 	}
 	return where
 }

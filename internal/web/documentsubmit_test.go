@@ -49,7 +49,6 @@ func wizardForm(t *testing.T, title, docType, mode string, pdf []byte, rows []st
 		write("save_as_default_flow", "1")
 	}
 	for _, r := range rows {
-		write(action.FieldStepName, r.name)
 		write(action.FieldStepApproverType, r.approverType)
 		write(action.FieldStepAssignee, r.assignee)
 		write(action.FieldStepApproverGroup, r.approverGroup)
@@ -118,9 +117,9 @@ func TestSubmitDocumentWizard_writesBothApproverKinds(t *testing.T) {
 	}
 
 	contentType, body := wizardForm(t, "Vendor Contract Q3", "Kontrak", "sequential", testPDF(t), []stepInput{
-		{name: "Finance Review", approverType: domain.ActorKindUser, assignee: rina.ID},
-		{name: "Legal Review", approverType: domain.ActorKindGroup, approverGroup: group.ID},
-		{name: "Director", approverType: domain.ActorKindUser, assignee: maya.ID},
+		{approverType: domain.ActorKindUser, assignee: rina.ID},
+		{approverType: domain.ActorKindGroup, approverGroup: group.ID},
+		{approverType: domain.ActorKindUser, assignee: maya.ID},
 	}, false)
 
 	// A real session, which this test did not carry before Fase 7's follow-up: mch_document now
@@ -175,9 +174,6 @@ func TestSubmitDocumentWizard_writesBothApproverKinds(t *testing.T) {
 	if got := fmt.Sprint(two.Values[action.FieldStepAssignee]); got != "" && got != "<nil>" {
 		t.Errorf("step 2 assignee = %q, want empty -- a Group-held step names no person", got)
 	}
-	if got := fmt.Sprint(two.Values[action.FieldStepName]); got != "Legal Review" {
-		t.Errorf("step 2 name = %q, want %q -- fld_step_name was declared in 6b and had no writer until now", got, "Legal Review")
-	}
 
 	// The User rows either side must still be theirs. This is the alignment assertion.
 	if got := fmt.Sprint(bySeq[1].Values[action.FieldStepAssignee]); got != rina.ID {
@@ -214,7 +210,7 @@ func TestSubmitDocumentWizard_rejectsAGroupRowWithNoGroup(t *testing.T) {
 		t.Fatalf("storage.NewStore: %v", err)
 	}
 	contentType, body := wizardForm(t, "Bad Submission", "Kontrak", "sequential", testPDF(t), []stepInput{
-		{name: "Legal Review", approverType: domain.ActorKindGroup},
+		{approverType: domain.ActorKindGroup},
 	}, false)
 
 	r := chi.NewRouter()

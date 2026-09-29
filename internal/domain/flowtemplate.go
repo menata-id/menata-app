@@ -42,8 +42,6 @@ type FlowTemplateStep struct {
 	TemplateField string
 	// OrderField is the number Field ordering the rows; lower runs first.
 	OrderField string
-	// NameField is what the step is for ("Legal Review"), independent of who holds it.
-	NameField string
 	// ActorField, ActorTypeField and ActorGroupField are the same three-way shape a live step's
 	// dynamic actor gate has (CAP-F24): which person, which kind of actor the row chose, and which
 	// Group when it chose one.

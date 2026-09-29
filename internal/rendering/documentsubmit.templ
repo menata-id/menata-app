@@ -240,7 +240,6 @@ func firstOption(f domain.Field) string {
 // row unchanged -- every existing caller (DocumentSubmitPage's initial row, newApproverRow's own
 // "+ Add approver" fragment) passes it.
 type StepPrefill struct {
-	Name         string
 	ApproverType string
 	AssigneeID   string
 	GroupID      string
@@ -276,14 +275,6 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPr
 			aria-hidden="true"
 			class="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-3xs font-medium text-white before:[content:counter(approver-step)]"
 		></span>
-		<input
-			type="text"
-			name={ action.FieldStepName }
-			placeholder="Step name (optional)"
-			aria-label="Step name"
-			value={ prefill.Name }
-			class={ controlField + " w-36" }
-		/>
 		<select
 			name={ action.FieldStepApproverType }
 			aria-label="Approver type"

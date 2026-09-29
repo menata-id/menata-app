@@ -122,7 +122,7 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 		DocumentType: DisplayString(document.Values["fld_document_type"]),
 		Status:       DisplayString(document.Values[f.DocumentStatus]),
 		Steps:        stepStates(seq, document, siblings, names, viewer.ID, f),
-		StepLabel:    stepLabel(step, names[DisplayString(step.Values[f.Actor])]),
+		StepLabel:    names[DisplayString(step.Values[f.Actor])],
 		Decision:     decision,
 		PDFPages:     pdfPages,
 		HasSignature: hasSignature,

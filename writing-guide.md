@@ -1170,7 +1170,6 @@ flow_template:
 flow_template_step:
   template_field: fld_template          # relation back to the flow this row belongs to
   order_field: fld_sequence             # number; lower runs first
-  name_field: fld_step_name             # what the step is for
   actor_field: fld_assignee             # person
   actor_type_field: fld_approver_type   # which kind of actor this row chose
   actor_group_field: fld_approver_group # group
@@ -1330,7 +1329,7 @@ Honest current limits, not a roadmap — some of these may change over time:
   What is still Go is narrower and worth naming exactly: the **submit wizard** reads its own form by
   Field id (`internal/web/document.go`, and `documentsubmit.templ`'s four `name=` attributes), because
   `continue-submit` shares the generic `edit` Action and has no Action of its own to declare effects
-  on; a step's *label* falls back to `fld_step_name`; and a Document's own file and status Fields are
+  on; and a Document's own file and status Fields are
   named in two composed screens. See §8.
 
 - **No field-level permissions.** Access control today is per-Machine and per-Action at best; you

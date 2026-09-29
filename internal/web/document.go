@@ -440,7 +440,6 @@ func carryForwardMissingFields(machine *domain.Machine, values, existing map[str
 // wizard's type picker is a <select> rather than the board's segmented buttons: an unchecked radio
 // submits nothing at all, which is exactly how a slice loses an element.
 type stepInput struct {
-	name          string
 	assignee      string
 	approverType  string
 	approverGroup string
@@ -483,13 +482,16 @@ func approverRows(w http.ResponseWriter, req *http.Request, docMachine *domain.M
 // An entirely blank row is skipped rather than rejected: the wizard renders one empty row to start
 // with, and "+ Add approver" can leave a spare.
 //
-// The four input names come from the step Machine's own declarations (action.DeclaredFields): the
-// Permission governing `decide` says which Field holds the actor and, through its dynamic gate, which
-// hold the actor's kind and Group. Only the step *name* is still this package's own constant -- nothing
-// declares a step's label (ROADMAP.md). documentsubmit.templ renders the same resolved ids, so the
-// form's two ends read one declaration rather than agreeing by coincidence.
+// **Every** input name comes from the step Machine's own declarations (action.DeclaredFields) since
+// 2026-09-29: the Permission governing `decide` says which Field holds the actor and, through its
+// dynamic gate, which hold the actor's kind and Group. documentsubmit.templ renders the same resolved
+// ids, so the form's two ends read one declaration rather than agreeing by coincidence.
+//
+// A fifth input used to be here -- fld_step_name, "Step name (optional)" -- and it was this package's
+// own constant because nothing declared a step's label. It is deleted: board 08's own model is "each
+// step is one person or a whole group", the field was never filled once in 23 records, and what boards
+// 09 and 10 actually draw in its place is the approver's job title, which is identity data.
 func parseStepInputs(req *http.Request, f action.EngineFields) ([]stepInput, string) {
-	names := req.Form[action.FieldStepName]
 	assignees := req.Form[f.Actor]
 	types := req.Form[f.ActorType]
 	groups := req.Form[f.ActorGroup]
@@ -497,7 +499,6 @@ func parseStepInputs(req *http.Request, f action.EngineFields) ([]stepInput, str
 	rows := make([]stepInput, 0, len(assignees))
 	for i := range assignees {
 		row := stepInput{
-			name:          at(names, i),
 			assignee:      assignees[i],
 			approverType:  at(types, i),
 			approverGroup: at(groups, i),
@@ -553,13 +554,10 @@ func hasApprover(rows []stepInput) bool {
 // part nothing declares for a live step (ROADMAP.md), so a live caller passes its own constant while a
 // template row passes the Field its flow_template_step: block names; an empty one writes no label
 // rather than writing under "".
-func stepRowValues(f action.EngineFields, nameField, parentField, parentID string, i int, row stepInput) map[string]any {
+func stepRowValues(f action.EngineFields, parentField, parentID string, i int, row stepInput) map[string]any {
 	values := map[string]any{
 		parentField: parentID,
 		f.Order:     float64(i + 1),
-	}
-	if row.name != "" && nameField != "" {
-		values[nameField] = row.name
 	}
 	if row.approverType == domain.ActorKindGroup {
 		values[f.ActorType] = domain.ActorKindGroup
@@ -586,7 +584,7 @@ func createApprovalSteps(w http.ResponseWriter, req *http.Request, store *data.S
 		if row.assignee == "" && row.approverGroup == "" {
 			continue
 		}
-		values := stepRowValues(f, action.FieldStepName, f.Parent, documentID, i, row)
+		values := stepRowValues(f, f.Parent, documentID, i, row)
 		values[f.Decision] = action.DecisionPending
 		data.ApplyDefaults(stepMachine, values)
 		if !validRecord(w, req, store, stepMachine, values) {
@@ -709,7 +707,7 @@ func saveApprovalFlowTemplate(ctx context.Context, store *data.Store, templateMa
 		// four constants: action.DeclaredFields cannot answer here, because a template declares no
 		// `decide` Permission, no actor gate and no `sequencing:` -- nothing decides a template -- so
 		// every id it returns is empty and the rows would have been written under the empty key.
-		values := stepRowValues(rowFields, action.FlowTemplateStepFields(templateStepMachine).NameField, rowFields.Parent, templateID, i, row)
+		values := stepRowValues(rowFields, rowFields.Parent, templateID, i, row)
 		data.ApplyDefaults(templateStepMachine, values)
 		if _, err := store.CreateRecord(ctx, templateStepMachine.ID, values); err != nil {
 			return err
@@ -742,7 +740,6 @@ func showApprovalFlowTemplateRows(store *data.Store) http.HandlerFunc {
 		prefills := make([]rendering.StepPrefill, 0, len(steps))
 		for _, step := range steps {
 			prefills = append(prefills, rendering.StepPrefill{
-				Name:         toDisplayString(step.Values[row.NameField]),
 				ApproverType: toDisplayString(step.Values[row.ActorTypeField]),
 				AssigneeID:   toDisplayString(step.Values[row.ActorField]),
 				GroupID:      toDisplayString(step.Values[row.ActorGroupField]),

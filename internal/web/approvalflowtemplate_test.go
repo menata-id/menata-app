@@ -88,8 +88,8 @@ func TestSubmitDocumentWizard_savesDefaultApprovalFlowWhenChecked(t *testing.T) 
 	store, wsCtx, machines, cfg, submitter, group := approvalFlowTemplateTestFixture(t, "Save Default Flow", "save-default-flow-workspace", "save_default_flow@example.com")
 
 	contentType, body := wizardForm(t, "Vendor Contract", "Kontrak", "sequential", testPDF(t), []stepInput{
-		{name: "Finance Review", approverType: domain.ActorKindUser, assignee: submitter.ID},
-		{name: "Legal Review", approverType: domain.ActorKindGroup, approverGroup: group.ID},
+		{approverType: domain.ActorKindUser, assignee: submitter.ID},
+		{approverType: domain.ActorKindGroup, approverGroup: group.ID},
 	}, true)
 	rec := postWizard(t, machines, store, cfg, submitter.ID, wsCtx, contentType, body)
 	if rec.Code >= 400 {
@@ -125,9 +125,6 @@ func TestSubmitDocumentWizard_savesDefaultApprovalFlowWhenChecked(t *testing.T) 
 	if got := fmt.Sprint(bySeq[2].Values[action.FieldTemplateStepApproverGroup]); got != group.ID {
 		t.Errorf("step 2 approver group = %q, want %q", got, group.ID)
 	}
-	if got := fmt.Sprint(bySeq[2].Values[action.FieldTemplateStepName]); got != "Legal Review" {
-		t.Errorf("step 2 name = %q, want %q", got, "Legal Review")
-	}
 }
 
 // TestSubmitDocumentWizard_doesNotSaveDefaultApprovalFlowWhenUnchecked is the checkbox's negative
@@ -136,7 +133,7 @@ func TestSubmitDocumentWizard_doesNotSaveDefaultApprovalFlowWhenUnchecked(t *tes
 	store, wsCtx, machines, cfg, submitter, _ := approvalFlowTemplateTestFixture(t, "No Default Flow", "no-default-flow-workspace", "no_default_flow@example.com")
 
 	contentType, body := wizardForm(t, "Vendor Contract", "Tagihan", "sequential", testPDF(t), []stepInput{
-		{name: "Finance Review", approverType: domain.ActorKindUser, assignee: submitter.ID},
+		{approverType: domain.ActorKindUser, assignee: submitter.ID},
 	}, false)
 	rec := postWizard(t, machines, store, cfg, submitter.ID, wsCtx, contentType, body)
 	if rec.Code >= 400 {
@@ -159,7 +156,7 @@ func TestSubmitDocumentWizard_resavingDefaultApprovalFlowReplacesSteps(t *testin
 	store, wsCtx, machines, cfg, submitter, group := approvalFlowTemplateTestFixture(t, "Resave Default Flow", "resave-default-flow-workspace", "resave_default_flow@example.com")
 
 	first, firstBody := wizardForm(t, "First Contract", "Kontrak", "sequential", testPDF(t), []stepInput{
-		{name: "Finance Review", approverType: domain.ActorKindUser, assignee: submitter.ID},
+		{approverType: domain.ActorKindUser, assignee: submitter.ID},
 	}, true)
 	rec := postWizard(t, machines, store, cfg, submitter.ID, wsCtx, first, firstBody)
 	if rec.Code >= 400 {
@@ -167,8 +164,8 @@ func TestSubmitDocumentWizard_resavingDefaultApprovalFlowReplacesSteps(t *testin
 	}
 
 	second, secondBody := wizardForm(t, "Second Contract", "Kontrak", "parallel", testPDF(t), []stepInput{
-		{name: "Legal Review", approverType: domain.ActorKindGroup, approverGroup: group.ID},
-		{name: "Finance Review", approverType: domain.ActorKindUser, assignee: submitter.ID},
+		{approverType: domain.ActorKindGroup, approverGroup: group.ID},
+		{approverType: domain.ActorKindUser, assignee: submitter.ID},
 	}, true)
 	rec = postWizard(t, machines, store, cfg, submitter.ID, wsCtx, second, secondBody)
 	if rec.Code >= 400 {
@@ -245,7 +242,7 @@ func TestShowApprovalFlowTemplateRows_returnsSavedStepsAndMode(t *testing.T) {
 	store, wsCtx, machines, cfg, submitter, group := approvalFlowTemplateTestFixture(t, "Load Default Flow", "load-default-flow-workspace", "load_default_flow@example.com")
 
 	contentType, body := wizardForm(t, "Vendor Contract", "Kontrak", "parallel", testPDF(t), []stepInput{
-		{name: "Legal Review", approverType: domain.ActorKindGroup, approverGroup: group.ID},
+		{approverType: domain.ActorKindGroup, approverGroup: group.ID},
 	}, true)
 	rec := postWizard(t, machines, store, cfg, submitter.ID, wsCtx, contentType, body)
 	if rec.Code >= 400 {
@@ -260,9 +257,6 @@ func TestShowApprovalFlowTemplateRows_returnsSavedStepsAndMode(t *testing.T) {
 		t.Fatalf("status = %d, want 200; body=%s", rec2.Code, rec2.Body.String())
 	}
 	html := rec2.Body.String()
-	if !strings.Contains(html, "Legal Review") {
-		t.Errorf("body missing the saved step's name: %s", html)
-	}
 	if !strings.Contains(html, `value="`+group.ID+`" selected`) {
 		t.Errorf("body missing the saved step's selected group: %s", html)
 	}
@@ -290,8 +284,14 @@ func TestShowApprovalFlowTemplateRows_blankWhenNoTemplateSaved(t *testing.T) {
 	if strings.Count(html, "approver-row") == 0 {
 		t.Errorf("body has no blank approver row: %s", html)
 	}
-	if strings.Contains(html, "Legal Review") {
-		t.Errorf("body leaked a step from a different Document Type's template: %s", html)
+	// The leak is asserted on the group id rather than on a step name: fld_step_name was deleted on
+	// 2026-09-29, and "no saved step came back" is what the blank row above already establishes. A
+	// selected group would be the leak.
+	// A fresh row means the User arm is the default and nothing was restored. Asserted on that rather
+	// than on a step name: fld_step_name was deleted 2026-09-29, and this test saves no template at all,
+	// so there was never anything to "leak" -- what it really checks is the starting state.
+	if strings.Contains(html, `value="Group" selected`) {
+		t.Errorf("a Document Type with no saved template returned a Group-held step: %s", html)
 	}
 }
 
@@ -301,7 +301,7 @@ func TestShowApprovalFlowTemplateRows_blankWhenNoTemplateSaved(t *testing.T) {
 // flow_template:/flow_template_step: declarations.
 //
 // Before those blocks, internal/web named fld_document_type, fld_mode, fld_template, fld_sequence,
-// fld_step_name, fld_assignee, fld_approver_type and fld_approver_group itself -- so Stage A's promise
+// fld_assignee, fld_approver_type and fld_approver_group itself -- so Stage A's promise
 // (cast any Machine in the role, under any name) was only half true: the roles resolved and the writes
 // went to Fields the Machine might not have.
 //
@@ -316,8 +316,8 @@ func TestApprovalFlowTemplate_overMachinesThatNameTheirFieldsDifferently(t *test
 	ctx := rendering.WithCurrentWorkspace(wsCtx, workspaceCasting(templateM, stepM), "Renamed Flow Template", false)
 
 	rows := []stepInput{
-		{name: "Legal", assignee: submitter.ID},
-		{name: "Finance", approverType: domain.ActorKindGroup, approverGroup: group.ID},
+		{assignee: submitter.ID},
+		{approverType: domain.ActorKindGroup, approverGroup: group.ID},
 	}
 	if err := saveApprovalFlowTemplate(ctx, store, templateM, stepM, "Kontrak", "sequential", rows); err != nil {
 		t.Fatalf("saveApprovalFlowTemplate over renamed Machines: %v", err)
@@ -337,9 +337,6 @@ func TestApprovalFlowTemplate_overMachinesThatNameTheirFieldsDifferently(t *test
 		t.Fatalf("got %d saved rows, want 2", len(steps))
 	}
 	// In declared order, by the Field this Machine calls its order -- not fld_sequence.
-	if got := toDisplayString(steps[0].Values["fld_nama"]); got != "Legal" {
-		t.Errorf("first row fld_nama = %q, want Legal", got)
-	}
 	if got := toDisplayString(steps[0].Values["fld_petugas"]); got != submitter.ID {
 		t.Errorf("first row fld_petugas = %q, want the submitter", got)
 	}
@@ -353,7 +350,7 @@ func TestApprovalFlowTemplate_overMachinesThatNameTheirFieldsDifferently(t *test
 			t.Errorf("something wrote %s on a template Machine that does not declare it", id)
 		}
 	}
-	for _, id := range []string{action.FieldTemplateStepSequence, action.FieldTemplateStepAssignee, action.FieldStepName} {
+	for _, id := range []string{action.FieldTemplateStepSequence, action.FieldTemplateStepAssignee} {
 		if _, set := steps[0].Values[id]; set {
 			t.Errorf("something wrote %s on a template step Machine that does not declare it", id)
 		}
@@ -376,7 +373,7 @@ func TestApprovalFlowTemplate_undeclaredShapeIsRefusedNotGuessed(t *testing.T) {
 	ctx := rendering.WithCurrentWorkspace(wsCtx, workspaceCasting(templateM, stepM), "Undeclared", false)
 
 	err := saveApprovalFlowTemplate(ctx, store, templateM, stepM, "Kontrak", "sequential",
-		[]stepInput{{name: "Legal", assignee: submitter.ID}})
+		[]stepInput{{assignee: submitter.ID}})
 	if err == nil {
 		t.Error("saving a flow over Machines that declare no shape succeeded -- it must refuse rather than guess Field ids")
 	}
@@ -416,7 +413,6 @@ func renamedFlowTemplateMachines() (*domain.Machine, *domain.Machine) {
 		Fields: []domain.Field{
 			{ID: "fld_induk", Name: "Induk", Type: domain.FieldTypeRelation, RelatedMachine: "mch_pola_persetujuan"},
 			{ID: "fld_urutan", Name: "Urutan", Type: domain.FieldTypeNumber, Required: true},
-			{ID: "fld_nama", Name: "Nama", Type: domain.FieldTypeText},
 			{ID: "fld_jenis_petugas", Name: "Jenis Petugas", Type: domain.FieldTypeStatus, Options: []string{"User", "Group"}},
 			{ID: "fld_petugas", Name: "Petugas", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
 			{ID: "fld_grup", Name: "Grup", Type: domain.FieldTypeGroup},
@@ -424,7 +420,6 @@ func renamedFlowTemplateMachines() (*domain.Machine, *domain.Machine) {
 		FlowTemplateStep: &domain.FlowTemplateStep{
 			TemplateField:   "fld_induk",
 			OrderField:      "fld_urutan",
-			NameField:       "fld_nama",
 			ActorField:      "fld_petugas",
 			ActorTypeField:  "fld_jenis_petugas",
 			ActorGroupField: "fld_grup",

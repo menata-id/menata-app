@@ -1003,7 +1003,6 @@ func validateFlowTemplateStep(m *domain.Machine, fs domain.FlowTemplateStep, fie
 			issues = append(issues, fmt.Sprintf("machine %q: flow_template_step.template_field %q must reference the template machine, got %q", m.ID, fs.TemplateField, f.Type))
 		}
 	}
-	issues = append(issues, signatureFieldExists(m, "flow_template_step.name_field", fs.NameField, fieldsByID)...)
 	issues = append(issues, signatureFieldExists(m, "flow_template_step.actor_type_field", fs.ActorTypeField, fieldsByID)...)
 	return issues
 }

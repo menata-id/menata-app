@@ -15,8 +15,7 @@ func placementFixture(editable bool) PlacementView {
 	return PlacementView{
 		DocumentID: "doc_1", DocumentTitle: "Vendor Contract Q3", Page: 1, TotalPages: 6,
 		Steps: []PlacementStep{{
-			StepID: "stp_2", Index: 2, StepName: "Legal Review",
-			Approver: "Legal Group", ApproverKind: domain.ActorKindGroup,
+			StepID: "stp_2", Index: 2, Approver: "Legal Group", ApproverKind: domain.ActorKindGroup,
 			Placed: true, Page: 1, X: 20, Y: 84, Width: 25,
 			Editable: editable,
 		}},

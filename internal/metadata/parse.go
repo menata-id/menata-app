@@ -105,7 +105,6 @@ type flowTemplateDoc struct {
 type flowTemplateStepDoc struct {
 	TemplateField   string `yaml:"template_field"`
 	OrderField      string `yaml:"order_field"`
-	NameField       string `yaml:"name_field"`
 	ActorField      string `yaml:"actor_field"`
 	ActorTypeField  string `yaml:"actor_type_field"`
 	ActorGroupField string `yaml:"actor_group_field"`
@@ -524,7 +523,6 @@ func Parse(data []byte) (*domain.Machine, error) {
 		m.FlowTemplateStep = &domain.FlowTemplateStep{
 			TemplateField:   doc.FlowTemplateStep.TemplateField,
 			OrderField:      doc.FlowTemplateStep.OrderField,
-			NameField:       doc.FlowTemplateStep.NameField,
 			ActorField:      doc.FlowTemplateStep.ActorField,
 			ActorTypeField:  doc.FlowTemplateStep.ActorTypeField,
 			ActorGroupField: doc.FlowTemplateStep.ActorGroupField,

@@ -52,7 +52,6 @@ func TestSignaturePlacementPut_preservesApproverFields(t *testing.T) {
 	step, err := store.CreateRecord(wsCtx, action.StepMachineID, map[string]any{
 		action.FieldStepDocument:       document.ID,
 		action.FieldStepSequence:       float64(1),
-		action.FieldStepName:           "Legal Review",
 		action.FieldStepApproverType:   domain.ActorKindGroup,
 		action.FieldStepApproverGroup:  group.ID,
 		action.FieldStepDecision:       action.DecisionPending,
@@ -114,7 +113,6 @@ func TestSignaturePlacementPut_preservesApproverFields(t *testing.T) {
 		t.Fatalf("GetRecord: %v", err)
 	}
 	for field, want := range map[string]string{
-		action.FieldStepName:           "Legal Review",
 		action.FieldStepApproverType:   domain.ActorKindGroup,
 		action.FieldStepApproverGroup:  group.ID,
 		action.FieldStepSignatureImage: "sig_one_time_key",

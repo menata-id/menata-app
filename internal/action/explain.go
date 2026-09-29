@@ -184,7 +184,7 @@ func valueOf(derivation string, m, doc *domain.Machine) string {
 		return join([]string{f.KeyField, f.ModeField})
 	case domain.DerivationFlowTemplateStep:
 		f := FlowTemplateStepFields(m)
-		return join([]string{f.TemplateField, f.OrderField, f.NameField, f.ActorField, f.ActorTypeField, f.ActorGroupField})
+		return join([]string{f.TemplateField, f.OrderField, f.ActorField, f.ActorTypeField, f.ActorGroupField})
 	}
 	return ""
 }
