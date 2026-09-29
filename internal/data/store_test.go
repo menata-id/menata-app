@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -362,5 +363,85 @@ func TestStore_GetCredential_notFound(t *testing.T) {
 	_, err := store.GetCredential(context.Background(), "no-such-user@example.com")
 	if !errors.Is(err, ErrCredentialNotFound) {
 		t.Errorf("GetCredential(missing) error = %v, want ErrCredentialNotFound", err)
+	}
+}
+
+// TestStore_ListRecordsSelectBoundsAndOrdersInTheDatabase is the proof that a declared
+// `select: records` narrows *retrieval* rather than filtering afterwards.
+//
+// **The read diagnostic cannot see this**, which is why the assertion is here rather than left to
+// the GET sweep: that sweep counts statements, and thirty rows or ten, this is one statement. Its
+// `queries`/`reads` numbers do not move, and reading that as "nothing improved" would be wrong --
+// the same blind spot already recorded against it for N+1.
+//
+// What is asserted instead: the row count comes back bounded, and the ordering is the database's.
+// Together they are the difference between 007 §20's "never: query all data -> render -> trim" and a
+// declaration that reached the query.
+func TestStore_ListRecordsSelectBoundsAndOrdersInTheDatabase(t *testing.T) {
+	pool := storePool(t)
+	cleanupStoreTest(t, pool)
+	store := NewStore(pool)
+	ctx := storeTestContext()
+
+	const total = 30
+	for i := range total {
+		if _, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{
+			"fld_name": fmt.Sprintf("row-%02d", i),
+		}); err != nil {
+			t.Fatalf("seed %d: %v", i, err)
+		}
+	}
+
+	newestFirst := []SortKey{{Column: "sort_order", Descending: true}}
+	got, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", newestFirst, 10)
+	if err != nil {
+		t.Fatalf("ListRecordsSelect: %v", err)
+	}
+	if len(got) != 10 {
+		t.Fatalf("got %d records from a limit of 10 over %d rows -- the LIMIT did not reach the query", len(got), total)
+	}
+	if name := got[0].Values["fld_name"]; name != "row-29" {
+		t.Errorf("first record is %v, want row-29: the ORDER BY did not reach the query", name)
+	}
+
+	// Ascending is the other direction, asserted rather than assumed symmetric.
+	asc, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", []SortKey{{Column: "sort_order"}}, 3)
+	if err != nil {
+		t.Fatalf("ListRecordsSelect ascending: %v", err)
+	}
+	if len(asc) != 3 || asc[0].Values["fld_name"] != "row-00" {
+		t.Errorf("ascending select = %d records starting %v, want 3 starting row-00", len(asc), asc[0].Values["fld_name"])
+	}
+
+	// No sort declared falls back to the same default order the Machine's other reads use, so a
+	// Dataset that declares only a limit is not silently reordered.
+	none, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", nil, 2)
+	if err != nil {
+		t.Fatalf("ListRecordsSelect unsorted: %v", err)
+	}
+	if len(none) != 2 || none[0].Values["fld_name"] != "row-00" {
+		t.Errorf("unsorted select = %d records starting %v, want 2 starting row-00 (sort_order ASC)", len(none), none[0].Values["fld_name"])
+	}
+}
+
+// TestStore_ListRecordsSelectStaysWorkspaceScoped: 007 §20 puts security scope before retrieval, and
+// a new read path is exactly where that gets forgotten. Asserted directly rather than trusted to the
+// shape of the SQL.
+func TestStore_ListRecordsSelectStaysWorkspaceScoped(t *testing.T) {
+	pool := storePool(t)
+	cleanupStoreTest(t, pool)
+	store := NewStore(pool)
+
+	if _, err := store.CreateRecord(storeTestContext(), storeTestMachine, map[string]any{"fld_name": "ours"}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	other := WithWorkspaceScope(context.Background(), "ws_store_test_other")
+	got, err := store.ListRecordsSelect(other, storeTestMachine, "ds_test", nil, 10)
+	if err != nil {
+		t.Fatalf("ListRecordsSelect: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("another Workspace's select returned %d records -- the scope is not in the statement", len(got))
 	}
 }

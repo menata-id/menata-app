@@ -16,12 +16,11 @@ import (
 // internal/composition for the page's content, render it. The joins, rollups and SLA bucketing
 // they used to perform inline now live beside their own tests (ROADMAP.md Phase 19 Step 3).
 
-// dashboardActivityLimit is how many recent events the dashboard's tail shows; /activity has its
-// own, larger limit because a dedicated feed can afford more than a summary card can.
-const (
-	dashboardActivityLimit = 10
-	activityFeedLimit      = 50
-)
+// The two activity limits used to live here as dashboardActivityLimit (10) and activityFeedLimit
+// (50), with a comment explaining why a summary card shows fewer events than a dedicated feed.
+// Both are declared now -- ds_recent_activity and ds_activity_feed in metadata/activity.yaml -- and
+// the comment explaining the difference moved with them. How many rows a screen shows is application
+// behaviour, which 001 Principle #3 puts in metadata (ROADMAP.md "(c)" Slice A, 2026-09-29).
 
 // pageChrome resolves the three values every appShell-based screen in this file threads down to
 // its own rendering.XxxPage call -- workspace name, viewer, and the launcher's switch-workspace
@@ -46,7 +45,7 @@ func showDashboard(store *data.Store, cfg config.Config) http.HandlerFunc {
 		ctx := req.Context()
 		machines := machinesFor(ctx)
 
-		d, err := composition.DashboardData(ctx, composition.NewLoader(store, machines), dashboardActivityLimit, machineForDocument(ctx))
+		d, err := composition.DashboardData(ctx, composition.NewLoader(store, machines), machineForDocument(ctx))
 		if err != nil {
 			serverError(w, err)
 			return
@@ -91,7 +90,7 @@ func showActivity(store *data.Store, cfg config.Config) http.HandlerFunc {
 		ctx := req.Context()
 		machines := machinesFor(ctx)
 
-		feed, err := composition.GroupedActivity(ctx, composition.NewLoader(store, machines), activityFeedLimit, time.Now())
+		feed, err := composition.GroupedActivity(ctx, composition.NewLoader(store, machines), time.Now())
 		if err != nil {
 			serverError(w, err)
 			return

@@ -118,6 +118,18 @@ type datasetDoc struct {
 	ID        string       `yaml:"id"`
 	Dimension string       `yaml:"dimension"`
 	Measures  []measureDoc `yaml:"measures"`
+	// Select/Sort/Limit are the record-selection half (007 §7.7-§7.9), added 2026-09-29. A Dataset
+	// declares either these or dimension/measures, never both -- validateDataset refuses the mix.
+	Select string    `yaml:"select"`
+	Sort   []sortDoc `yaml:"sort"`
+	Limit  int       `yaml:"limit"`
+}
+
+// sortDoc is the YAML serialization of a domain.SortKey. `direction` rather than a bool, because
+// `direction: desc` is what an author writes and `descending: true` is what a struct holds.
+type sortDoc struct {
+	Field     string `yaml:"field"`
+	Direction string `yaml:"direction"`
 }
 
 type measureDoc struct {
@@ -406,7 +418,16 @@ func Parse(data []byte) (*domain.Machine, error) {
 		m.ActionEffects = append(m.ActionEffects, effect)
 	}
 	for _, dd := range doc.Datasets {
-		ds := domain.Dataset{ID: dd.ID, Source: doc.ID, Dimension: dd.Dimension}
+		ds := domain.Dataset{
+			ID: dd.ID, Source: doc.ID, Dimension: dd.Dimension,
+			Select: dd.Select, Limit: dd.Limit,
+		}
+		for _, sd := range dd.Sort {
+			// The declared direction is carried through unreduced so validateDataset can reject an
+			// unknown one; collapsing it here would make `direction: descending` sort ascending in
+			// silence.
+			ds.Sort = append(ds.Sort, domain.SortKey{Field: sd.Field, Direction: sd.Direction})
+		}
 		for _, md := range dd.Measures {
 			ms := domain.Measure{
 				ID:        md.ID,

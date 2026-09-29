@@ -35,6 +35,10 @@ const (
 	taskByStatusDataset   = "ds_task_by_status"
 	userCapacityDataset   = "ds_user_capacity"
 	documentStatusDataset = "ds_document_by_status"
+	// The two activity selections (007 §7.7-§7.9, Slice A). Two rather than one because the
+	// Dashboard's tail and the dedicated feed declare different bounds -- see metadata/activity.yaml.
+	recentActivityDataset = "ds_recent_activity"
+	activityFeedDataset   = "ds_activity_feed"
 
 	// Measure ids follow one shape: msr_total is the aggregate, and anything after it is the
 	// qualifier narrowing what got aggregated. So the family reads as variations of one thing
@@ -86,7 +90,7 @@ type Dashboard struct {
 // has no documents to summarise, and the status tiles correctly read zero. Before the roles existed
 // this read the literal mch_document, which in such a Workspace would have counted whatever else
 // happened to be named that -- a plain CRUD Machine's records presented as documents in review.
-func DashboardData(ctx context.Context, l *Loader, activityLimit int, docMachine *domain.Machine) (Dashboard, error) {
+func DashboardData(ctx context.Context, l *Loader, docMachine *domain.Machine) (Dashboard, error) {
 	projects, err := l.ListRecords(ctx, projectMachineID)
 	if err != nil {
 		return Dashboard{}, err
@@ -97,7 +101,7 @@ func DashboardData(ctx context.Context, l *Loader, activityLimit int, docMachine
 			return Dashboard{}, err
 		}
 	}
-	activity, err := RecentActivity(ctx, l, activityLimit)
+	activity, err := RecentActivity(ctx, l)
 	if err != nil {
 		return Dashboard{}, err
 	}
@@ -510,8 +514,8 @@ type ActivityFeed struct {
 	Earlier   []rendering.ActivityEntry
 }
 
-func GroupedActivity(ctx context.Context, l *Loader, limit int, now time.Time) (ActivityFeed, error) {
-	events, names, err := recentEvents(ctx, l, limit)
+func GroupedActivity(ctx context.Context, l *Loader, now time.Time) (ActivityFeed, error) {
+	events, names, err := activityRows(ctx, l, activityFeedDataset)
 	if err != nil {
 		return ActivityFeed{}, err
 	}
@@ -543,8 +547,8 @@ func buildActivityFeed(events []*data.Record, names map[string]string, now time.
 }
 
 // RecentActivity is the dashboard's flat newest-first tail of the same events.
-func RecentActivity(ctx context.Context, l *Loader, limit int) ([]rendering.ActivityEntry, error) {
-	events, names, err := recentEvents(ctx, l, limit)
+func RecentActivity(ctx context.Context, l *Loader) ([]rendering.ActivityEntry, error) {
+	events, names, err := activityRows(ctx, l, recentActivityDataset)
 	if err != nil {
 		return nil, err
 	}
@@ -559,23 +563,19 @@ func RecentActivity(ctx context.Context, l *Loader, limit int) ([]rendering.Acti
 	return entries, nil
 }
 
-// recentEvents returns mch_activity newest-first (capped at limit, or all when limit is 0) plus
-// an actor-id -> display-name map: the shared read behind both activity shapes.
+// activityRows returns one activity Dataset's records plus an actor-id -> display-name map: the
+// shared read behind both activity shapes.
 //
-// The sort runs over a copy. The Loader hands back its cached slice, so sorting in place would
-// reorder mch_activity for every later reader in the same request.
-func recentEvents(ctx context.Context, l *Loader, limit int) ([]*data.Record, map[string]string, error) {
-	cached, err := l.ListRecords(ctx, activityMachineID)
+// **Newest-first and the cap are both declared now** (metadata/activity.yaml, 2026-09-29). This used
+// to read every mch_activity row, copy the slice, sort it in Go and reslice the first N -- and the
+// copy was load-bearing, because sorting the Loader's cached slice in place reordered mch_activity
+// for every later reader in the same request. None of that is here any more: the database orders and
+// bounds, and the Loader memoises the *selection* under its Dataset id rather than the Machine's, so
+// a whole-Machine read on the same request still sees every row in the Machine's own order.
+func activityRows(ctx context.Context, l *Loader, datasetID string) ([]*data.Record, map[string]string, error) {
+	events, err := l.SelectDataset(ctx, datasetID)
 	if err != nil {
 		return nil, nil, err
-	}
-	events := make([]*data.Record, len(cached))
-	copy(events, cached)
-	sort.Slice(events, func(i, j int) bool {
-		return events[i].CreatedAt.After(events[j].CreatedAt)
-	})
-	if limit > 0 && len(events) > limit {
-		events = events[:limit]
 	}
 
 	names, err := l.PersonNames(ctx)

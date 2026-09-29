@@ -755,8 +755,45 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 		}
 	}
 
-	if len(ds.Measures) == 0 {
-		issues = append(issues, fmt.Sprintf("dataset %q: at least one measure is required", ds.ID))
+	// The two modes, and the refusal to mix them. A Dataset answers either "how many, grouped how"
+	// or "which rows, in what order"; one trying to be both leaves every consumer asking which half
+	// it got, so the mix is a load error rather than a precedence rule.
+	if ds.Select != "" && ds.Select != domain.SelectRecords {
+		issues = append(issues, fmt.Sprintf("dataset %q: select %q is not a known mode (the only one is %q)", ds.ID, ds.Select, domain.SelectRecords))
+	}
+	if ds.Select == domain.SelectRecords {
+		if len(ds.Measures) > 0 {
+			issues = append(issues, fmt.Sprintf("dataset %q: `select: records` returns records, so it declares no measures", ds.ID))
+		}
+		if ds.Dimension != "" {
+			issues = append(issues, fmt.Sprintf("dataset %q: `select: records` returns records, so it declares no dimension -- a dimension groups aggregates", ds.ID))
+		}
+		// 007 §7.9 puts pagination in the Data Plane because "it determines how much data is
+		// retrieved", and asks the runtime to "preserve the current capability that prevents
+		// unbounded list retrieval". An unbounded `select: records` is that retrieval.
+		if ds.Limit <= 0 {
+			issues = append(issues, fmt.Sprintf("dataset %q: `select: records` requires a positive `limit:` -- an unbounded record selection is the unbounded retrieval 007 §7.9 asks the runtime to prevent", ds.ID))
+		}
+	} else {
+		if len(ds.Measures) == 0 {
+			issues = append(issues, fmt.Sprintf("dataset %q: at least one measure is required", ds.ID))
+		}
+		if len(ds.Sort) > 0 {
+			issues = append(issues, fmt.Sprintf("dataset %q: `sort:` orders selected records and has no meaning for aggregates -- declare `select: records` or drop it", ds.ID))
+		}
+		if ds.Limit != 0 {
+			issues = append(issues, fmt.Sprintf("dataset %q: `limit:` bounds selected records and has no meaning for aggregates -- declare `select: records` or drop it", ds.ID))
+		}
+	}
+
+	for _, k := range ds.Sort {
+		_, isColumn := domain.SortableColumns[k.Field]
+		if _, isField := fieldsByID[k.Field]; !isField && !isColumn {
+			issues = append(issues, fmt.Sprintf("dataset %q: sort field %q is neither a field of machine %q nor a record column (%s)", ds.ID, k.Field, m.ID, sortableColumnList()))
+		}
+		if k.Direction != "" && !domain.KnownSortDirections[k.Direction] {
+			issues = append(issues, fmt.Sprintf("dataset %q: sort direction %q is not %q or %q", ds.ID, k.Direction, domain.SortAscending, domain.SortDescending))
+		}
 	}
 
 	seenMeasures := make(map[string]bool, len(ds.Measures))
@@ -1277,4 +1314,16 @@ func validatePermissionRoles(applications []domain.Application, machines []*doma
 		return &ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+// sortableColumnList renders domain.SortableColumns for an error message, sorted so the text is
+// stable rather than map-ordered (007 §4.6 applies to diagnostics too: a message that reshuffles
+// between runs is one nobody can diff).
+func sortableColumnList() string {
+	names := make([]string, 0, len(domain.SortableColumns))
+	for name := range domain.SortableColumns {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return strings.Join(names, ", ")
 }

@@ -67,4 +67,71 @@ type Dataset struct {
 	Source    string
 	Dimension string
 	Measures  []Measure
+
+	// Select is what this Dataset produces: "" (the default) aggregates its records into Measures,
+	// and SelectRecords returns the records themselves (007 §7.7 Filter, §7.8 Sort, §7.9 Pagination).
+	//
+	// **The two modes are mutually exclusive**, enforced at load: a Dataset with `select: records`
+	// declares no measures and no dimension, and one without it declares no sort or limit. They answer
+	// different questions -- "how many, grouped how" versus "which rows, in what order" -- and a
+	// Dataset trying to be both would leave every consumer asking which half it got.
+	Select string
+	// Sort is the declared ordering, applied by the database rather than after retrieval (007 §7.8:
+	// "Sort describes logical ordering. Physical execution determines whether an index, database
+	// sort, or another strategy is used"). Empty falls back to the Store's own default.
+	Sort []SortKey
+	// Limit bounds how many records come back, and is **required** when Select is SelectRecords.
+	//
+	// Required rather than optional because 007 §7.9 puts pagination in the Data Plane for a stated
+	// reason -- "it determines how much data is retrieved, not how it is visually presented" -- and
+	// asks the runtime to "preserve the current capability that prevents unbounded list retrieval".
+	// An unbounded `select: records` is that retrieval. The cost of the choice is real and worth
+	// naming: a screen that genuinely wants every matching row has to name a number anyway. That is
+	// the safer direction to be wrong in, since a required bound can be loosened later while an
+	// optional one has to be imposed on existing declarations.
+	Limit int
+}
+
+// SelectRecords is the one value Dataset.Select may take besides "". A closed vocabulary rather than
+// a bool, so a later mode (007 §7.6's Projection is the obvious candidate) is an added constant
+// rather than a second flag contradicting the first.
+const SelectRecords = "records"
+
+// SortKey is one declared ordering step.
+type SortKey struct {
+	// Field is either a Field id on this Dataset's Machine, or one of SortableColumns below.
+	Field string
+	// Direction is one of KnownSortDirections, or "" for ascending.
+	//
+	// Carried as the declared string rather than reduced to a bool at parse time, following
+	// expression.Op's own precedent: collapsing it early would turn `direction: descending` into a
+	// silent ascending sort, and an ordering that quietly does the opposite of what it says is worse
+	// than one that refuses to load. The validator sees the raw value and rejects it.
+	Direction string
+}
+
+const (
+	SortAscending  = "asc"
+	SortDescending = "desc"
+)
+
+// KnownSortDirections is the closed set a `direction:` may name. "" is accepted separately and means
+// ascending, so an author writing no direction gets the Store's own default order.
+var KnownSortDirections = map[string]bool{SortAscending: true, SortDescending: true}
+
+// Descending reports whether this key sorts downwards.
+func (k SortKey) Descending() bool { return k.Direction == SortDescending }
+
+// SortableColumns are the record-level columns a `sort:` may name besides a Field id, mapped to their
+// real column names.
+//
+// They exist because the first real case needs one: mch_activity declares no timestamp Field at all
+// and is ordered by the record's own created_at, so without these its Dataset could not be written.
+// Closed and validated -- a sort naming neither a Field nor one of these is a load error, never a
+// silently ignored ordering, since an ordering that quietly does nothing is indistinguishable from
+// one that worked.
+var SortableColumns = map[string]string{
+	"created_at": "created_at",
+	"updated_at": "updated_at",
+	"sort_order": "sort_order",
 }

@@ -33,6 +33,13 @@ type Loader struct {
 
 	listed   map[string][]*data.Record
 	listedBy map[string][]*data.Record
+	// selected memoizes a `select: records` Dataset's rows, **keyed by Dataset id and never by
+	// Machine id**. That distinction is a correctness requirement rather than a naming preference: a
+	// selection is a *different set of rows for the same Machine* -- ordered and bounded -- so
+	// storing it under machineID would poison `listed` above and hand the next whole-Machine reader
+	// ten activity rows where it needs all of them. The bug would be silent and would break a
+	// different screen than the one being changed.
+	selected map[string][]*data.Record
 	// record memoizes single-record reads by (Machine, id). Added 2026-09-28 when the per-record
 	// route sweep measured one Document read three times in one request: the detail page, the
 	// signature-placement embed and the PDF page count each fetched it through *store* rather than
@@ -62,6 +69,7 @@ func NewLoader(store *data.Store, machines map[string]*domain.Machine) *Loader {
 		machines: machines,
 		listed:   map[string][]*data.Record{},
 		listedBy: map[string][]*data.Record{},
+		selected: map[string][]*data.Record{},
 		record:   map[string]*data.Record{},
 	}
 }
@@ -96,6 +104,62 @@ func (l *Loader) ListRecords(ctx context.Context, machineID string) ([]*data.Rec
 	l.reads++
 	l.listed[machineID] = records
 	return records, nil
+}
+
+// SelectDataset resolves a `select: records` Dataset into its rows, reading each Dataset at most
+// once per request (007 §7.7-§7.9).
+//
+// It refuses an aggregating Dataset rather than falling back to reading the Machine whole: the two
+// modes answer different questions, and a caller that asked for rows and silently received every
+// row of the Machine is the unbounded retrieval this method exists to replace.
+func (l *Loader) SelectDataset(ctx context.Context, datasetID string) ([]*data.Record, error) {
+	ds, ok := l.Dataset(datasetID)
+	if !ok {
+		return nil, fmt.Errorf("composition: no machine declares dataset %s", datasetID)
+	}
+	if ds.Select != domain.SelectRecords {
+		return nil, fmt.Errorf("composition: dataset %s aggregates; SelectDataset needs `select: records`", datasetID)
+	}
+	if cached, ok := l.selected[datasetID]; ok {
+		l.served++
+		return cached, nil
+	}
+
+	sort, err := sortKeysFor(l.Machine(ds.Source), ds.Sort)
+	if err != nil {
+		return nil, err
+	}
+	records, err := l.store.ListRecordsSelect(ctx, ds.Source, ds.ID, sort, ds.Limit)
+	if err != nil {
+		return nil, err
+	}
+	l.reads++
+	l.selected[datasetID] = records
+	return records, nil
+}
+
+// sortKeysFor turns a declared `sort:` into the column expressions internal/data takes.
+//
+// The resolution lives here, in Composition, because internal/data does not know what a Field is --
+// and because this is where a Field id becomes a JSONB path, which is the one place the two
+// vocabularies meet. Every id reaching this point was validated at load against the Machine's own
+// fields or domain.SortableColumns, so the fragments it builds are never user input.
+func sortKeysFor(m *domain.Machine, keys []domain.SortKey) ([]data.SortKey, error) {
+	out := make([]data.SortKey, 0, len(keys))
+	for _, k := range keys {
+		column, isColumn := domain.SortableColumns[k.Field]
+		if !isColumn {
+			if m == nil {
+				return nil, fmt.Errorf("composition: sort field %q needs its machine, which this Workspace does not install", k.Field)
+			}
+			if _, ok := m.FieldByID(k.Field); !ok {
+				return nil, fmt.Errorf("composition: sort field %q is not a field of machine %s", k.Field, m.ID)
+			}
+			column = "data->>'" + k.Field + "'"
+		}
+		out = append(out, data.SortKey{Column: column, Descending: k.Descending()})
+	}
+	return out, nil
 }
 
 // ListRecordsBy returns a child collection's records, reading each distinct (Machine, Field,

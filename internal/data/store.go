@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -155,6 +156,68 @@ func (s *Store) ListRecordsBy(ctx context.Context, machineID, fieldID, value str
 		WHERE machine_id = $1 AND data->>$2 = $3 AND workspace_id = $4
 		ORDER BY sort_order ASC, created_at ASC
 	`, machineID, fieldID, value, workspaceID)
+}
+
+// SortKey is one ordering step for ListRecordsSelect: a column expression already resolved by the
+// caller, plus its direction. internal/data does not know what a Field is, so resolving a declared
+// `sort:` entry into either a JSONB path or a real column is internal/composition's job -- this
+// package receives the result, which keeps the Domain Plane's vocabulary out of the storage layer
+// (boundary_test.go: internal/data owns the connection and has no Runtime Metadata semantics).
+type SortKey struct {
+	// Column is a validated SQL fragment: either a bare column name from a closed set, or a
+	// data->>'fld_x' expression built from a validated Field id. Never user input.
+	Column     string
+	Descending bool
+}
+
+// ListRecordsSelect returns records of machineID in this Store's Workspace, ordered and bounded as
+// the caller asks (007 §7.8 Sort, §7.9 Pagination).
+//
+// **This is the statement that makes a declared `select: records` mean something.** Its siblings
+// return every row of a Machine and let Go reduce them, which is the shape 007 §20 names with the
+// word never ("query all data -> render -> trim") and §28 invariant 4 forbids by default. Here the
+// ORDER BY and LIMIT are the database's, so a Dataset declaring `limit: 10` causes ten rows to be
+// fetched rather than ten to be kept.
+//
+// Workspace scope stays *in the statement*, exactly as every other read here: 007 §20 puts security
+// scope before retrieval, never as a filter applied after it.
+//
+// sort may be empty, which falls back to the same default order the other reads use, so a Dataset
+// that declares no ordering is not silently reordered.
+func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID string, sort []SortKey, limit int) ([]*Record, error) {
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return nil, errNotScoped
+	}
+	// Named after the Dataset rather than the Machine, because that is what distinguishes it: the
+	// same Machine may be read whole on the same request, and a diagnostic that called both
+	// "mch_activity" would report a repeat where there are two genuinely different statements.
+	readLogFrom(ctx).record(machineID + " select " + datasetID)
+
+	orderBy := "sort_order ASC, created_at ASC"
+	if len(sort) > 0 {
+		parts := make([]string, 0, len(sort))
+		for _, k := range sort {
+			direction := "ASC"
+			if k.Descending {
+				direction = "DESC"
+			}
+			parts = append(parts, k.Column+" "+direction)
+		}
+		orderBy = strings.Join(parts, ", ")
+	}
+
+	// #nosec G201 -- orderBy is assembled from validated identifiers only (a closed set of column
+	// names, or a data->>'fld_x' path over a load-validated Field id); every value stays a bind
+	// parameter. A placeholder cannot carry an ORDER BY expression, which is why this one is built.
+	query := `
+		SELECT id, machine_id, workspace_id, data, sort_order, created_at, updated_at
+		FROM records
+		WHERE machine_id = $1 AND workspace_id = $2
+		ORDER BY ` + orderBy + `
+		LIMIT $3
+	`
+	return s.queryRecords(ctx, query, machineID, workspaceID, limit)
 }
 
 func (s *Store) queryRecords(ctx context.Context, query string, args ...any) ([]*Record, error) {

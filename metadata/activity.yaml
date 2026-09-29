@@ -41,3 +41,38 @@ fields:
 # because creation is what the runtime itself does here (internal/web.logActivity and every
 # declared log_activity Event).
 append_only: true
+
+# The Dashboard's activity feed, declared rather than computed (007 §7.7-§7.9, ROADMAP.md's "(c)"
+# Slice A, 2026-09-29).
+#
+# **This Dataset declares no filter, and that is why it was the first one built.** It proves the
+# retrieval-bounding half -- `sort:` and `limit:` reaching the database -- with no expression context
+# and no conjunction involved, so a mistake in the shape could only be a mistake in that half.
+#
+# Before this, composition.recentEvents read every mch_activity row, sorted them in Go and sliced the
+# first ten, with the ten itself living in internal/web as `dashboardActivityLimit`. Both the ordering
+# and the bound are application behaviour, which 001 Principle #3 puts in metadata.
+#
+# `field: created_at` is a **record column**, not a Field: mch_activity declares no timestamp of its
+# own, which is exactly the case that made domain.SortableColumns necessary (see its comment).
+# **Two Datasets rather than one with a parameter**, which is the same call ds_task_workload and
+# ds_task_by_project already made for the same reason: these are two screens' genuinely different
+# data requirements, not one requirement configured twice. The Dashboard's card can afford a tail of
+# ten; the dedicated feed can afford fifty. Those two numbers lived in internal/web as
+# `dashboardActivityLimit` and `activityFeedLimit`, with a comment explaining the difference -- the
+# distinction was always metadata, it was just written in Go.
+#
+# Parameterising the limit instead would have kept one Dataset and moved the bound back out of
+# metadata, which is the half 007 §7.9 puts in the Data Plane on purpose.
+datasets:
+  - id: ds_recent_activity
+    select: records
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 10
+
+  - id: ds_activity_feed
+    select: records
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 50
