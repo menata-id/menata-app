@@ -41,6 +41,11 @@ type Loader struct {
 	// ten activity rows where it needs all of them. The bug would be silent and would break a
 	// different screen than the one being changed.
 	selected map[string][]*data.Record
+	// related memoizes a Dataset's relation results, keyed by Dataset id like `selected` above and for
+	// the same reason: the children of *this* Dataset's parents are not the children of any other
+	// selection over the same Machine. Without it two consumers of one Dataset in one request would
+	// each issue the child query, which the GET sweep's repeated==0 invariant forbids.
+	related map[string]map[string]map[string][]*data.Record
 	// record memoizes single-record reads by (Machine, id). Added 2026-09-28 when the per-record
 	// route sweep measured one Document read three times in one request: the detail page, the
 	// signature-placement embed and the PDF page count each fetched it through *store* rather than
@@ -71,6 +76,7 @@ func NewLoader(store *data.Store, machines map[string]*domain.Machine) *Loader {
 		listed:   map[string][]*data.Record{},
 		listedBy: map[string][]*data.Record{},
 		selected: map[string][]*data.Record{},
+		related:  map[string]map[string]map[string][]*data.Record{},
 		record:   map[string]*data.Record{},
 	}
 }
@@ -113,7 +119,70 @@ func (l *Loader) ListRecords(ctx context.Context, machineID string) ([]*data.Rec
 // It refuses an aggregating Dataset rather than falling back to reading the Machine whole: the two
 // modes answer different questions, and a caller that asked for rows and silently received every
 // row of the Machine is the unbounded retrieval this method exists to replace.
+// Selection is a `select: records` Dataset's result: the records, plus whatever its declared Relations
+// attached to them.
+//
+// Related is a method rather than an exported map because the key shape (relation id, then parent id)
+// is this type's business, and because a caller asking for a relation the Dataset does not declare
+// should get nothing rather than a nil-map panic.
+type Selection struct {
+	Records []*data.Record
+	related map[string]map[string][]*data.Record
+}
+
+// Related returns one parent's children for one declared relation, or nil.
+func (s Selection) Related(relationID, parentID string) []*data.Record {
+	return s.related[relationID][parentID]
+}
+
+// SelectDataset resolves a `select: records` Dataset into its rows. Kept for callers that declare no
+// relations, so the common case reads as a list rather than as a Selection with an unused half.
 func (l *Loader) SelectDataset(ctx context.Context, datasetID string, where expression.Context) ([]*data.Record, error) {
+	sel, err := l.SelectRelated(ctx, datasetID, where)
+	if err != nil {
+		return nil, err
+	}
+	return sel.Records, nil
+}
+
+// SelectRelated is SelectDataset plus the children its Relations declare (007 §7.5).
+func (l *Loader) SelectRelated(ctx context.Context, datasetID string, where expression.Context) (Selection, error) {
+	records, err := l.selectRecords(ctx, datasetID, where)
+	if err != nil {
+		return Selection{}, err
+	}
+	ds, _ := l.Dataset(datasetID)
+	if len(ds.Relations) == 0 {
+		return Selection{Records: records}, nil
+	}
+	if cached, ok := l.related[datasetID]; ok {
+		l.served++
+		return Selection{Records: records, related: cached}, nil
+	}
+
+	ids := make([]string, 0, len(records))
+	for _, r := range records {
+		ids = append(ids, r.ID)
+	}
+
+	sel := Selection{Records: records, related: map[string]map[string][]*data.Record{}}
+	for _, rel := range ds.Relations {
+		children, err := l.store.ListRecordsByAny(ctx, rel.Machine, ds.ID, rel.Via, ids)
+		if err != nil {
+			return Selection{}, err
+		}
+		l.reads++
+		byParent := make(map[string][]*data.Record, len(records))
+		for _, c := range children {
+			byParent[DisplayString(c.Values[rel.Via])] = append(byParent[DisplayString(c.Values[rel.Via])], c)
+		}
+		sel.related[rel.ID] = byParent
+	}
+	l.related[datasetID] = sel.related
+	return sel, nil
+}
+
+func (l *Loader) selectRecords(ctx context.Context, datasetID string, where expression.Context) ([]*data.Record, error) {
 	ds, ok := l.Dataset(datasetID)
 	if !ok {
 		return nil, fmt.Errorf("composition: no machine declares dataset %s", datasetID)

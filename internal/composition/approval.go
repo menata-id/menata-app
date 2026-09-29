@@ -13,6 +13,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
+	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 )
 
@@ -154,29 +155,27 @@ func PendingApprovalCount(ctx context.Context, l *Loader, userID string, stepMac
 	if stepMachine == nil || docMachine == nil {
 		return 0, nil // no approval Application here -- see ApprovalInbox's own note
 	}
-	steps, err := l.ListRecords(ctx, stepMachine.ID)
-	if err != nil {
-		return 0, err
-	}
-	documents, err := l.ListRecords(ctx, docMachine.ID)
+	// The correlation is declared now (ds_documents_with_steps, 007 §7.5): Documents come back bounded
+	// and their Steps attached, so this no longer indexes one set against the other by hand. What that
+	// changes, and it is a change rather than a refactor: a Step whose parent Document no longer exists
+	// used to reach pendingStepsFor with a nil doc, and now does not appear at all. An orphaned Step is
+	// not actionable by anyone, so dropping it is the correct behaviour -- but it is asserted rather
+	// than assumed (TestPendingApprovalCount_ignoresAnOrphanedStep).
+	sel, err := l.SelectRelated(ctx, documentsWithStepsDataset, expression.Context{})
 	if err != nil {
 		return 0, err
 	}
 	f := action.DeclaredFields(stepMachine, docMachine)
-	docByID := make(map[string]*data.Record, len(documents))
-	for _, d := range documents {
+	docByID := make(map[string]*data.Record, len(sel.Records))
+	stepsByDoc := make(map[string][]*data.Record, len(sel.Records))
+	var steps []*data.Record
+	for _, d := range sel.Records {
 		docByID[d.ID] = d
+		children := sel.Related(documentStepsRelation, d.ID)
+		stepsByDoc[d.ID] = children
+		steps = append(steps, children...)
 	}
-	stepsByDoc := make(map[string][]*data.Record, len(documents))
-	for _, s := range steps {
-		stepsByDoc[DisplayString(s.Values[f.Parent])] = append(
-			stepsByDoc[DisplayString(s.Values[f.Parent])], s)
-	}
-	var seq *domain.Sequencing
-	if stepMachine != nil {
-		seq = stepMachine.Sequencing
-	}
-	return len(pendingStepsFor(steps, docByID, stepsByDoc, userID, seq, f)), nil
+	return len(pendingStepsFor(steps, docByID, stepsByDoc, userID, stepMachine.Sequencing, f)), nil
 }
 
 // MineFilters is My Documents' own status chip row (Flow 2 mockup, My Documents' "All / Draft /

@@ -81,6 +81,9 @@ type Dataset struct {
 	// Nil selects everything. Only meaningful with SelectRecords -- an aggregating Dataset filters
 	// per Measure, which is a different question and stays where it is.
 	Where *expression.Predicate
+	// Relations are the associations this Dataset follows (007 §7.5). Only meaningful with
+	// SelectRecords: an aggregate has no rows to attach children to.
+	Relations []Relation
 	// Sort is the declared ordering, applied by the database rather than after retrieval (007 §7.8:
 	// "Sort describes logical ordering. Physical execution determines whether an index, database
 	// sort, or another strategy is used"). Empty falls back to the Store's own default.
@@ -139,4 +142,39 @@ var SortableColumns = map[string]string{
 	"created_at": "created_at",
 	"updated_at": "updated_at",
 	"sort_order": "sort_order",
+}
+
+// Relation is one declared association a `select: records` Dataset follows -- 007 §7.5, whose two
+// sentences settle most of this type's design.
+//
+// *"Relations should reuse existing Machine reference semantics rather than inventing a second
+// relationship identity."* So a Relation names an existing reference **Field**; it does not describe
+// the association itself. Validation refuses a Via that is not a reference Field on Machine pointing
+// back at the declaring Machine, which is what makes "reuse" checkable rather than aspirational.
+//
+// *"A relation may be compiled to a join, semi-join, lookup, or other physical strategy."* The runtime
+// picks. Today it is a **lookup** -- one bounded query for the parents, one for their children keyed
+// by the parents' ids -- because at 13 Documents and 23 Steps two indexed queries beat a join, and
+// because §7.5 names lookup as a legitimate compilation rather than a fallback. That choice is
+// invisible to metadata and may change (§22).
+//
+// **Via is required rather than derived**, and that is a deliberate exception to 001 #6.
+// domain.FindChildCollections already derives "which Machines point here" for the detail page, so
+// deriving was available -- but a child Machine may declare two Fields pointing at the same parent
+// (mch_card_label declares two relation Fields), and picking one would depend on declaration order,
+// which 007 §4.6 forbids ("Plan construction must not depend on map iteration order, incidental
+// database ordering..."). Requiring one line of YAML adds no inference; deriving would add a fourth
+// one to explain.
+type Relation struct {
+	// ID is this association's own stable identity (rel_*), so a consumer asks for it by name rather
+	// than by position (004 §Stable Identity).
+	ID string
+	// Machine is the id of the Machine holding the children. A Machine id names something here rather
+	// than claiming an identity, which is the distinction CLAUDE.md draws -- and internal/installer's
+	// rewriteIDs is line-based and generic, so a renamed Machine's id is rewritten here without that
+	// function needing to know this key exists (its own comment says enumerating keys "would be a list
+	// to keep in step with every future key that can hold an id").
+	Machine string
+	// Via is the reference Field on Machine whose value is the declaring Machine's record id.
+	Via string
 }

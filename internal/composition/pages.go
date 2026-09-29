@@ -41,6 +41,9 @@ const (
 	recentActivityDataset = "ds_recent_activity"
 	activityFeedDataset   = "ds_activity_feed"
 	myTasksDataset        = "ds_my_tasks"
+	// The one declared Relation (007 §7.5, Tahap A) and its id.
+	documentsWithStepsDataset = "ds_documents_with_steps"
+	documentStepsRelation     = "rel_steps"
 
 	// Measure ids follow one shape: msr_total is the aggregate, and anything after it is the
 	// qualifier narrowing what got aggregated. So the family reads as variations of one thing

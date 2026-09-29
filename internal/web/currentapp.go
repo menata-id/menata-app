@@ -157,10 +157,35 @@ func requireApplicationAccess(store *data.Store, cfg config.Config) func(http.Ha
 				return
 			}
 			if len(actor.Roles[app.ID]) == 0 {
-				http.Error(w, "you have no role in "+app.Name, http.StatusForbidden)
+				http.Error(w, noRoleMessage(app, actor), http.StatusForbidden)
 				return
 			}
 			next.ServeHTTP(w, req)
 		})
 	}
+}
+
+// noRoleMessage says what to do about a missing Application role, which the bare
+// "you have no role in X" it replaced did not.
+//
+// **It exists because the same install gap has now produced this 403 three times**, and each time the
+// person hitting it could not tell a broken install from a deliberate exclusion. An Application's
+// metadata is installed by internal/installer, which is forbidden from reaching the database at all
+// (boundary_test.go) -- so the role grant is necessarily a separate step, grantInstallerRole, and any
+// install that does not go through POST /install-application skips it. That happened for the
+// dokter-kecil Workspace and then, a day later, for hanomerch: metadata complete, zero rows in
+// workspace_member_app_roles, and every screen answering 403 to the Workspace's only member.
+//
+// The plane boundary means this cannot be *prevented* here, so the goal is a message that ends the
+// guessing: a workspace admin is told they can fix it themselves and where, and a member is told who
+// to ask. Distinguishing them costs nothing -- domain.Actor already carries WorkspaceRole, resolved
+// once per request.
+func noRoleMessage(app domain.Application, actor domain.Actor) string {
+	if actor.WorkspaceRole == "admin" {
+		return "No one in this workspace has been given a role in " + app.Name + " yet, so nobody can open it." +
+			" Assign one at " + domain.RuntimeScreenRoute("nav_workspace_members") + " -- including to yourself." +
+			" (An application installed without a role grant looks exactly like this.)"
+	}
+	return "You have no role in " + app.Name + "." +
+		" Ask a workspace admin to give you one at " + domain.RuntimeScreenRoute("nav_workspace_members") + "."
 }

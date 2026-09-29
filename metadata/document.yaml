@@ -274,6 +274,28 @@ transitions:
 # aggregation, so it stays code: selecting records by a predicate is 007 §8's Query Model, which
 # has no real forcing condition yet (menata-app-document's decomposition audit §7).
 datasets:
+  # Documents with their own Approval Steps attached (007 §7.5 Relation, Tahap A, 2026-09-29).
+  #
+  # Three composed functions built this correlation by hand -- buildInbox, PendingApprovalCount and
+  # buildAssigned each indexed Documents by id and grouped Steps by fld_document. One shape, three
+  # times, which is what earned the primitive.
+  #
+  # `via: fld_document` names an **existing** reference Field rather than describing an association of
+  # its own, which is 007 §7.5's requirement ("reuse existing Machine reference semantics rather than
+  # inventing a second relationship identity") and what the loader checks: it refuses a via that is not
+  # a reference Field on that Machine pointing back here.
+  #
+  # Physically this is a *lookup* -- one bounded query for Documents, one for their Steps keyed by the
+  # Document ids -- which §7.5 names as a legitimate compilation alongside a join. At this volume two
+  # indexed statements beat one join, and metadata says nothing about which is used (§22).
+  - id: ds_documents_with_steps
+    select: records
+    limit: 500
+    relations:
+      - id: rel_steps
+        machine: mch_approval_step
+        via: fld_document
+
   - id: ds_document_by_status
     dimension: fld_status
     measures:

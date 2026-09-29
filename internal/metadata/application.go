@@ -292,6 +292,9 @@ func LoadApplication(path string) (*App, error) {
 	// (mch_user, mch_activity) has exactly one declaration, so a per-Application scope would ask
 	// the same question twice and make dataset-id uniqueness incoherent -- the same declaration
 	// living in two scopes at once. See validateDatasetIDsAreUnique's own doc comment.
+	if err := validateDatasetRelations(app.Machines); err != nil {
+		return nil, err
+	}
 	if err := validateRelationTargets(app.Machines); err != nil {
 		return nil, err
 	}
@@ -686,6 +689,51 @@ func validateDatasetIDsAreUnique(machines []*domain.Machine) error {
 // Machines -- a single Machine file can't know this on its own, since it only sees its own
 // declaration (006-runtime-model.md "Relation": reusable, grounded in existing Machine/reference
 // semantics).
+// validateDatasetRelations is the Workspace-level half of a Dataset's `relations:` check: whether the
+// Machine it names exists, and whether `via:` really is a reference Field on that Machine pointing back
+// at the declaring one.
+//
+// It lives here rather than in validateDataset for the same reason validateRelationTargets below does:
+// a Machine file is validated alone and cannot see its siblings, while this question is about two
+// Machines. And it is the check that makes 007 §7.5's "reuse existing Machine reference semantics
+// rather than inventing a second relationship identity" enforceable -- without it, `relations:` would
+// be free to describe an association no Field expresses, which is precisely a second identity.
+func validateDatasetRelations(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+
+	var issues []string
+	for _, m := range machines {
+		for _, ds := range m.Datasets {
+			for _, rel := range ds.Relations {
+				child, ok := byID[rel.Machine]
+				if !ok {
+					issues = append(issues, fmt.Sprintf("machine %q dataset %q relation %q: machine %q is not installed in this workspace", m.ID, ds.ID, rel.ID, rel.Machine))
+					continue
+				}
+				f, ok := child.FieldByID(rel.Via)
+				if !ok {
+					issues = append(issues, fmt.Sprintf("machine %q dataset %q relation %q: %q has no field %q", m.ID, ds.ID, rel.ID, rel.Machine, rel.Via))
+					continue
+				}
+				if !f.IsReference() {
+					issues = append(issues, fmt.Sprintf("machine %q dataset %q relation %q: %s.%s is a %s field, not a reference -- a relation reuses an existing reference field (007 §7.5) rather than describing an association of its own", m.ID, ds.ID, rel.ID, rel.Machine, rel.Via, f.Type))
+					continue
+				}
+				if f.RelatedMachine != m.ID {
+					issues = append(issues, fmt.Sprintf("machine %q dataset %q relation %q: %s.%s references %q, not %q -- a relation follows a field that points back at the declaring machine", m.ID, ds.ID, rel.ID, rel.Machine, rel.Via, f.RelatedMachine, m.ID))
+				}
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
 func validateRelationTargets(machines []*domain.Machine) error {
 	known := make(map[string]bool, len(machines))
 	for _, m := range machines {

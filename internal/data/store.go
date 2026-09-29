@@ -253,6 +253,35 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 	return s.queryRecords(ctx, query, args...)
 }
 
+// ListRecordsByAny returns every Record of machineID whose fieldID value is one of ids -- the child
+// half of a declared Relation, fetched as **one** query rather than one per parent.
+//
+// 007 §7.5 leaves the physical strategy open ("a join, semi-join, lookup, or other physical
+// strategy") and this is the lookup: the parents come back bounded from ListRecordsSelect, their ids
+// become this query's parameter, and correlation happens in memory. Two indexed statements at 13
+// parents and 23 children beat a join, and the choice is invisible to metadata -- §22's whole point.
+//
+// **Not one query per parent**, which is the shape this exists to avoid: the GET sweep's own doc
+// comment names an N+1 as its blind spot, since a per-row loop repeats nothing when there is one row.
+// An empty ids slice returns nothing without querying, because `= ANY('{}')` is a round trip to learn
+// what the caller already knows.
+func (s *Store) ListRecordsByAny(ctx context.Context, machineID, datasetID, fieldID string, ids []string) ([]*Record, error) {
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return nil, errNotScoped
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	readLogFrom(ctx).record(machineID + " related " + datasetID)
+	return s.queryRecords(ctx, `
+		SELECT id, machine_id, workspace_id, data, sort_order, created_at, updated_at
+		FROM records
+		WHERE machine_id = $1 AND workspace_id = $2 AND data->>$3 = ANY($4)
+		ORDER BY sort_order ASC, created_at ASC
+	`, machineID, workspaceID, fieldID, ids)
+}
+
 func (s *Store) queryRecords(ctx context.Context, query string, args ...any) ([]*Record, error) {
 	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {

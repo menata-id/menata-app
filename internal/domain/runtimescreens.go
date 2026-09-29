@@ -105,3 +105,18 @@ func IsRuntimeScreenID(id string) bool {
 	}
 	return false
 }
+
+// RuntimeScreenRoute is one runtime screen's route by id, or "" for an unknown id.
+//
+// The handler-side counterpart of rendering.routeByID, added 2026-09-29 so a Go-side message can point
+// at a runtime screen without retyping its route. /workspace-members happens to sit in
+// internal/conformance's runtimeLevelRoutes exemption, so a literal would have passed the gate -- but
+// the exemption exists for router.go's own registrations, and a message body is not one of those.
+func RuntimeScreenRoute(id string) string {
+	for _, s := range RuntimeScreens {
+		if s.ID == id {
+			return s.Route
+		}
+	}
+	return ""
+}

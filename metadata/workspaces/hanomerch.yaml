@@ -1,8 +1,11 @@
-# Hanomerch -- created through the UI, installed with nothing yet. This is what an empty
-# Workspace's manifest looks like: it exists, it has the two Machines every Workspace has, and its
-# Home page shows no Applications at all.
+# Hanomerch -- created through the UI, and Document Approval installed into it on 2026-09-29.
 #
-# Adding a path under `applications:` below is what makes an Application appear here.
+# **This comment described an empty Workspace until 2026-09-29**, three files after that stopped being
+# true: the install added five Machines and an `applications:` entry and left the prose saying "its
+# Home page shows no Applications at all". The same install also skipped the role grant
+# (internal/web.grantInstallerRole), so the Workspace's only member held no role in the Application
+# that was now installed and every screen answered 403. Both halves are fixed; the second one is why
+# internal/web.noRoleMessage exists.
 workspace: hanomerch
 
 # mch_user is not optional: a Workspace's members each have a record in it (that is what a

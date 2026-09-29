@@ -21,6 +21,7 @@ var (
 	permissionIDPattern  = regexp.MustCompile(`^prm_[a-z][a-z0-9_]*$`)
 	navItemIDPattern     = regexp.MustCompile(`^nav_[a-z][a-z0-9_]*$`)
 	datasetIDPattern     = regexp.MustCompile(`^ds_[a-z][a-z0-9_]*$`)
+	relationIDPattern    = regexp.MustCompile(`^rel_[a-z][a-z0-9_]*$`)
 	measureIDPattern     = regexp.MustCompile(`^msr_[a-z][a-z0-9_]*$`)
 	viewIDPattern        = regexp.MustCompile(`^vw_[a-z][a-z0-9_]*$`)
 	transitionIDPattern  = regexp.MustCompile(`^trn_[a-z][a-z0-9_]*$`)
@@ -774,6 +775,25 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 		if ds.Limit <= 0 {
 			issues = append(issues, fmt.Sprintf("dataset %q: `select: records` requires a positive `limit:` -- an unbounded record selection is the unbounded retrieval 007 §7.9 asks the runtime to prevent", ds.ID))
 		}
+		seenRelations := map[string]bool{}
+		for _, rel := range ds.Relations {
+			if !relationIDPattern.MatchString(rel.ID) {
+				issues = append(issues, fmt.Sprintf("dataset %q: relation id %q must match %s", ds.ID, rel.ID, relationIDPattern.String()))
+			}
+			if seenRelations[rel.ID] {
+				issues = append(issues, fmt.Sprintf("dataset %q: relation id %q is declared more than once", ds.ID, rel.ID))
+			}
+			seenRelations[rel.ID] = true
+			if rel.Machine == "" {
+				issues = append(issues, fmt.Sprintf("dataset %q: relation %q declares no `machine:`", ds.ID, rel.ID))
+			}
+			// Required rather than derived, deliberately -- see domain.Relation's own comment: a child
+			// may declare two Fields pointing at one parent, and picking one would depend on declaration
+			// order, which 007 §4.6 forbids.
+			if rel.Via == "" {
+				issues = append(issues, fmt.Sprintf("dataset %q: relation %q declares no `via:` -- name the reference field on %q that points back at %q", ds.ID, rel.ID, rel.Machine, m.ID))
+			}
+		}
 		for _, c := range ds.Where.Comparisons() {
 			if _, ok := fieldsByID[c.Field]; !ok {
 				issues = append(issues, fmt.Sprintf("dataset %q: where field %q is not a field of machine %q", ds.ID, c.Field, m.ID))
@@ -792,6 +812,9 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 	} else {
 		if ds.Where != nil {
 			issues = append(issues, fmt.Sprintf("dataset %q: `where:` selects records; an aggregating Dataset filters per measure instead", ds.ID))
+		}
+		if len(ds.Relations) > 0 {
+			issues = append(issues, fmt.Sprintf("dataset %q: `relations:` attach children to selected records; an aggregate has no rows to attach them to", ds.ID))
 		}
 		if len(ds.Measures) == 0 {
 			issues = append(issues, fmt.Sprintf("dataset %q: at least one measure is required", ds.ID))

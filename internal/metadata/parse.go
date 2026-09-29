@@ -120,10 +120,18 @@ type datasetDoc struct {
 	Measures  []measureDoc `yaml:"measures"`
 	// Select/Sort/Limit are the record-selection half (007 §7.7-§7.9), added 2026-09-29. A Dataset
 	// declares either these or dimension/measures, never both -- validateDataset refuses the mix.
-	Select string        `yaml:"select"`
-	Where  *predicateDoc `yaml:"where"`
-	Sort   []sortDoc     `yaml:"sort"`
-	Limit  int           `yaml:"limit"`
+	Select    string        `yaml:"select"`
+	Relations []relationDoc `yaml:"relations"`
+	Where     *predicateDoc `yaml:"where"`
+	Sort      []sortDoc     `yaml:"sort"`
+	Limit     int           `yaml:"limit"`
+}
+
+// relationDoc is the YAML serialization of a domain.Relation (007 §7.5).
+type relationDoc struct {
+	ID      string `yaml:"id"`
+	Machine string `yaml:"machine"`
+	Via     string `yaml:"via"`
 }
 
 // predicateDoc is the YAML serialization of an expression.Predicate. It accepts both shapes on
@@ -452,6 +460,9 @@ func Parse(data []byte) (*domain.Machine, error) {
 		ds := domain.Dataset{
 			ID: dd.ID, Source: doc.ID, Dimension: dd.Dimension,
 			Select: dd.Select, Limit: dd.Limit, Where: dd.Where.predicate(),
+		}
+		for _, rd := range dd.Relations {
+			ds.Relations = append(ds.Relations, domain.Relation{ID: rd.ID, Machine: rd.Machine, Via: rd.Via})
 		}
 		for _, sd := range dd.Sort {
 			// The declared direction is carried through unreduced so validateDataset can reject an
