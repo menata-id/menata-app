@@ -2821,6 +2821,51 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   "which role owes this answer" may simply not be the right question for it. That is a finding to
   reach honestly, not a shape to assume.
 
+  **Planned 2026-09-29 after a 007 re-check, which corrected the population and the shape.**
+
+  **Three, not four.** Board columns are not an inference: `View.GroupBy` is *declared* (`group_by:`)
+  and the columns are that Field's own declared `options:`. Two declarations read together is a
+  derivation, and a per-View one on the rendering side rather than a Phase 4 normalization — 007 §7.3
+  Dimension is its home when the Data Plane grows one. `capabilities.md` corrected.
+
+  **No conflict with 007's own layering, checked rather than assumed.** §15.1's pipeline is
+  `Parse → Validate → Resolve references → Normalize → Build UI IR`, and all three remaining
+  derivations sit left of "Build UI IR". §15.2 does list "layout relationships" as a UI IR
+  responsibility, and UI IR is PROPOSED — but `DefaultView()` is a Machine-level *safe default*
+  (005 Phase 4's own words), not a layout relationship in §15's sense. Nothing blocks.
+
+  **Measured before planning**: 21 `person`→`mch_user` inferences, 31 child collections, 18 Machines
+  falling back to the default table View (13 declare their own), across the three installed
+  Workspaces. About 70 derivations — more than the engine cast's 65, so this is not a token slice.
+
+  **The shape that does not transfer, now concrete.** A child collection is a property of a *pair* of
+  Machines, so `metadata.Explain` takes the Machine **set** rather than one Machine, and
+  `Resolution.Name` identifies the pair (`children: mch_task.fld_project`). That was the doubt this
+  entry recorded above; it turned out justified.
+
+  **And the four statuses do apply, which the measurement settled rather than symmetry**: a Machine
+  that declares its own `views:` is `NotApplicable` for the default-Layout derivation (13 of 31), and
+  a Machine nothing references is `NotApplicable` for child collections. A person Field whose
+  `RelatedMachine` is empty after normalization is a **defect** — the exact failure that produced
+  `metadata.Normalize`.
+
+  **One dependency worth surfacing on the page itself**: `FindChildCollections` filters on
+  `Field.IsReference()`, which reads `RelatedMachine`, which `Normalize` fills in for person Fields.
+  If normalization does not run, `mch_user` loses every child collection — silently. One inference
+  feeding another is exactly what an inspection surface should make visible.
+
+  Out of scope: board columns (corrected in documentation, not explained here), UI IR (§15, PROPOSED),
+  and §7.5 Relation.
+
+  **A side-finding from the same re-read, recorded because nobody planned it.** 007 §16 lists Data
+  IR's components as `Source, Projection, Filter, Relation, GroupBy, Measure, Sort, Parameters,
+  Security Scope`. `domain.Dataset` now satisfies **seven of the nine** — everything but Projection
+  and Relation — having arrived there one forcing case at a time rather than by anyone building
+  toward §16. The claim matrix still marks Data IR **PROPOSED**, and that is still the right label:
+  nothing *lowers* into an IR, the Dataset is consumed directly. But the vocabulary converged on its
+  own, which is worth knowing before someone proposes building Data IR from scratch — and it makes
+  Projection (§7.6) and Relation (§7.5) the two named gaps rather than an open-ended list.
+
   **Shipped 2026-09-29: the drift gate over the derivation accessors themselves.**
   `TestEveryDerivationIsOwedBySomeRole` guards the `Derivation*` constants against `Answers`. What
   nothing guards is the other direction — **a new accessor added to `internal/domain/actioneffect.go`
