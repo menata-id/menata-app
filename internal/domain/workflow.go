@@ -240,6 +240,11 @@ var KnownWorkflowEngines = map[string]WorkflowEngineSpec{
 				{Derivation: DerivationActorType},
 				{Derivation: DerivationActorGroup},
 				{Derivation: DerivationParent},
+				{Derivation: DerivationStatusTargets},
+				// Optional: an Action whose whole effect is the status move its own transitions already
+				// declare writes no companion Fields, which is a complete Action rather than a broken one.
+				// Two of the installed Machines are exactly that.
+				{Derivation: DerivationActionWrites, Optional: true},
 				// Both features rather than requirements, proven by deleting each from the real
 				// approval_step.yaml and watching it still load: an approval Application may capture no
 				// signatures, and may composite no PDF.

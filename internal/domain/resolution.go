@@ -93,4 +93,19 @@ const (
 	DerivationCompositeSource    = "composite_source"
 	DerivationFlowTemplate       = "flow_template"
 	DerivationFlowTemplateStep   = "flow_template_step"
+	// DerivationStatusTargets and DerivationActionWrites were added 2026-09-29, by the measurement
+	// that preceded the accessor drift gate: both are derivations the runtime acts on that nothing
+	// reported.
+	//
+	// StatusTargets is Machine.ActionTargets -- the values the Action may move its Field *to*, read
+	// off the `to:` of the edges naming it. internal/web gates a submitted decision on exactly this
+	// list, so a Machine whose edges say something unexpected changes what the runtime accepts.
+	//
+	// ActionWrites is EffectFor. It reads `actions:` verbatim rather than inferring, which is the one
+	// argument for leaving it out -- but every other verbatim block here is explained
+	// (signature_placement, signature_store, and both flow-template blocks), so excluding this one
+	// would be the inconsistency. And it is demonstrably a question that goes wrong quietly: five
+	// fixtures declared `actions:` over Fields their Machine did not have.
+	DerivationStatusTargets = "status_targets"
+	DerivationActionWrites  = "action_writes"
 )

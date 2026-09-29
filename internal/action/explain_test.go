@@ -265,3 +265,65 @@ func TestExplainCast_isDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// TestExplainCast_explainsTheDerivedStatusMoveAndTheActionsWrites covers the two derivations the
+// 2026-09-29 accessor measurement found unexplained (ROADMAP.md).
+//
+// **status_targets** is domain.Machine.ActionTargets -- the values `decide` may move fld_decision to,
+// read off the `to:` of the edges naming that Action. Its own doc comment already called it "a
+// derivation rather than a list", and internal/web/approval.go gates a submitted decision on it, so a
+// Machine whose edges say something unexpected changes what the runtime will accept. Nothing reported
+// it.
+//
+// **action_writes** is EffectFor: which Fields `decide` writes and from where. It reads `actions:`
+// verbatim rather than inferring, which is the argument for leaving it out -- but every other verbatim
+// block here is explained (signature_placement, signature_store, flow_template, flow_template_step), so
+// excluding this one would be the inconsistency, not including it. And it is demonstrably a question
+// that goes wrong quietly: TestMachineFixturesPassProductionValidation found five fixtures declaring
+// `actions:` over Fields their Machine did not have.
+func TestExplainCast_explainsTheDerivedStatusMoveAndTheActionsWrites(t *testing.T) {
+	step, doc := explainFixtures()
+	step.ActionEffects = []domain.ActionEffect{{
+		Action: domain.ActionDecide,
+		Writes: []domain.FieldWrite{
+			{Field: "fld_putusan", From: domain.WriteFromSubmitted},
+			{Field: "fld_petugas", From: domain.WriteFromActor},
+		},
+	}}
+
+	got := ExplainCast(explainWorkspace(step, doc), domain.WorkflowEngineDocumentApproval, "app_persetujuan")
+
+	targets := find(t, got, "step.status_targets")
+	if targets.Status != domain.StatusResolved {
+		t.Errorf("step.status_targets = %q (%s), want the decide edges' own `to:` values resolved",
+			targets.Value, targets.Status)
+	}
+	for _, want := range []string{"disetujui", "ditolak"} {
+		if !strings.Contains(targets.Value, want) {
+			t.Errorf("step.status_targets = %q, missing the declared target %q", targets.Value, want)
+		}
+	}
+
+	writes := find(t, got, "step.action_writes")
+	if writes.Status != domain.StatusResolved {
+		t.Errorf("step.action_writes = %q (%s), want the declared writes resolved", writes.Value, writes.Status)
+	}
+	if !strings.Contains(writes.Value, "fld_putusan") || !strings.Contains(writes.Value, "fld_petugas") {
+		t.Errorf("step.action_writes = %q, want both declared Fields named", writes.Value)
+	}
+}
+
+// TestExplainCast_anActionDeclaringNoWritesIsNotADefect: `actions:` is optional -- an Action whose
+// whole effect is the status move its transitions already declare writes no companion Fields, and two
+// of the installed Machines are exactly that. Reporting them as undeclared would be the over-reporting
+// this surface exists to avoid.
+func TestExplainCast_anActionDeclaringNoWritesIsNotADefect(t *testing.T) {
+	step, doc := explainFixtures() // declares no ActionEffects
+	got := ExplainCast(explainWorkspace(step, doc), domain.WorkflowEngineDocumentApproval, "app_persetujuan")
+
+	writes := find(t, got, "step.action_writes")
+	if writes.IsDefect() {
+		t.Errorf("step.action_writes is a defect (%s) on a Machine declaring no `actions:` block -- "+
+			"an Action whose only effect is its declared status move is complete, not broken", writes.Status)
+	}
+}

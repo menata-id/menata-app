@@ -2821,7 +2821,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   "which role owes this answer" may simply not be the right question for it. That is a finding to
   reach honestly, not a shape to assume.
 
-  **Next slice, measured but not yet built: a drift gate over the derivation accessors themselves.**
+  **Shipped 2026-09-29: the drift gate over the derivation accessors themselves.**
   `TestEveryDerivationIsOwedBySomeRole` guards the `Derivation*` constants against `Answers`. What
   nothing guards is the other direction — **a new accessor added to `internal/domain/actioneffect.go`
   or `internal/action/fields.go` that never reaches `Explain` becomes an inference the runtime makes
@@ -2855,9 +2855,37 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   that would hand its next caller the source the engine explicitly rejected — a trap rather than
   clutter, and the argument is for deleting it rather than documenting it.
 
-  Order within this: fix the two real findings first (delete `OpenValue`, give `ActionTargets` its
-  `Resolution`), *then* gate — the repo's standing rule, and here it also keeps the allowlist from being
-  born pre-loaded with known debt.
+  Order held: the real findings were fixed first, *then* the gate — the repo's standing rule, and here
+  it also kept the allowlist from being born pre-loaded with known debt.
+
+  **What shipped.** `Machine.OpenValue()` deleted (the full suite stayed green without it, which is the
+  proof it was dead). `DerivationStatusTargets` and `DerivationActionWrites` added, owed by the `step`
+  role — the second `Optional`, since an Action whose whole effect is the status move its own
+  transitions declare writes no companion Fields and two installed Machines are exactly that. The
+  installed corpus went `resolved=13` → `resolved=15` in all three Workspaces.
+  `TestEveryDerivationAccessorIsExplainedOrExcused` scans both files by AST and requires every exported
+  accessor taking or receiving a Machine to be reached by `explain.go` or carry a reason in
+  `unexplainedDerivationAccessors`.
+
+  **`EffectFor` was the one judgement call this entry left open, and it is decided: explained.** The
+  argument for leaving it out — it reads `actions:` verbatim rather than inferring — is real, but every
+  *other* verbatim block on this surface is explained (`signature_placement`, `signature_store`, both
+  flow-template blocks), so excluding this one would have been the inconsistency rather than the
+  principle.
+
+  **Three things this build got wrong and the gates caught**, worth recording because two were caught by
+  the gates being built:
+
+  - `TestEveryDerivationIsOwedBySomeRole` failed the moment the two constants were added — complaining
+    that `status_targets` and `action_writes` were "not a `domain.Derivation*` constant", about two
+    constants that are exactly that. Its list was hand-maintained: **a gate against drift keeping its
+    own third copy of the list.** Now read out of `resolution.go` by AST.
+  - The accessor gate rejected its own first allowlist on its first run: `ReferenceFieldTo` was excused
+    as "a generic lookup", which it is — but `explain.go` calls it to resolve `step.parent`, so the
+    excuse was false about the only thing the gate asks. The stale-entry arm earned its keep before the
+    gate was committed.
+  - Mutation-proved three ways after that: a new unexplained accessor, an entry naming a function that
+    does not exist, and removing a legitimate entry. All three fail with the intended message.
 
   **Finding 2 — the identity-filter trigger was met six cases ago, and two comments in one file said
   so and denied it simultaneously.** Seven exported `internal/composition` functions take a viewing

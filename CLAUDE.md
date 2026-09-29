@@ -452,6 +452,25 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   screen". A nil is a real answer: an optional role (a signature store, a saved approval flow) is
   uncast whenever that feature was simply not installed.
 
+- `TestInstalledCastsExplainWithoutDefects` / `TestEveryDerivationIsOwedBySomeRole` /
+  `TestEveryDerivationAccessorIsExplainedOrExcused` — the inference-inspection family (001 #6's second
+  clause: *"**Inference must be inspectable.** … Hidden inference that cannot be explained is not an
+  acceptable substitute for explicit configuration"*). The first runs `action.ExplainCast` over every
+  installed Workspace and fails on a **defect**, which is exactly two of the four statuses: `undeclared`
+  (a Machine declares nothing for a question its role owes) and `input unavailable` (the declaration
+  exists, the caller supplied nothing to resolve it against — the `/review` 404's own shape).
+  `not applicable` is **not** a defect and must never be treated as one: it is the majority, and the
+  reason the other two are visible at all.
+  The second holds `domain.Derivation*` against `WorkflowEngineSpec.Answers`, reading the constants out
+  of the source rather than retyping them. The third holds the *accessors*: a new exported function in
+  `internal/domain/actioneffect.go` or `internal/action/fields.go` that `explain.go` never reaches
+  becomes an inference nothing can explain, silently. It is a closed map with a reason per entry
+  (`unexplainedDerivationAccessors`, `readPathWriters`' shape) rather than a sweep, and the map was
+  chosen by **measurement**: a naive "every accessor must be explained" gate produced 4 findings of
+  which ~1.5 were real, the same ~50% false rate that got the static fixture-discovery gate deleted. A
+  stale entry fails, and so does one naming a function that *is* now explained. **When adding a
+  derivation, add its `Derivation*` constant, the role that owes it in `Answers`, and its branch in
+  `explain.go`'s `valueOf`/`sourceOf` — all three, or one of these three gates fails.**
 - `TestActionDoesNotSwitchOnItsOwnMachineIDs` — the fourth of the identity family, and the one that
   exists because the other three could not see the place it mattered. `internal/action` is excluded
   from the Machine-id gate as the owner of those constants, and `action.CanDelete` used that

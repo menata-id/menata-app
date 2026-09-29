@@ -202,9 +202,17 @@ func (m *Machine) OrderField() string {
 	return m.Sequencing.OrderField
 }
 
-func (m *Machine) OpenValue() string {
-	if m.Sequencing == nil {
-		return ""
-	}
-	return m.Sequencing.OpenValue
-}
+// OpenValue was deleted on 2026-09-29, and the reason is worth leaving here because the method looked
+// entirely reasonable: it read sequencing.open_value, which really is "the value a record holds while
+// nobody has acted" -- in the template library.
+//
+// It had **zero callers, tests included**, and that was not an accident. action.EngineFields.Open
+// answers the same question from transitions[action].from instead, and its own doc comment says why
+// sequencing is the wrong source for it: "it belongs to ordering, and a Machine that orders nothing
+// still has open records." So what sat here was an unused accessor that would have handed its next
+// caller exactly the source the engine deliberately rejected -- a trap rather than clutter, which is
+// why it was deleted rather than documented.
+//
+// Sequencing.OpenValue the *field* is untouched and still read where ordering is genuinely the
+// subject (internal/metadata's validation, rendering/approvalstepper.templ). The field is fine; a
+// second accessor competing with openValueFor was not.

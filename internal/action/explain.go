@@ -47,7 +47,8 @@ func ExplainCast(ws domain.Workspace, engine, applicationID string) []domain.Res
 var allDerivations = []string{
 	domain.DerivationDecision, domain.DerivationOpenValue, domain.DerivationOrder,
 	domain.DerivationActor, domain.DerivationActorType, domain.DerivationActorGroup,
-	domain.DerivationParent, domain.DerivationSignaturePlacement, domain.DerivationCompositeSource,
+	domain.DerivationParent, domain.DerivationStatusTargets, domain.DerivationActionWrites,
+	domain.DerivationSignaturePlacement, domain.DerivationCompositeSource,
 	domain.DerivationDocumentStatus, domain.DerivationSignatureStore,
 	domain.DerivationFlowTemplate, domain.DerivationFlowTemplateStep,
 }
@@ -109,6 +110,12 @@ func blockAbsent(derivation string, m *domain.Machine) bool {
 		return m.SignaturePlacement == nil
 	case domain.DerivationCompositeSource:
 		return CompositeFields(m).SourceField == "" && !declaresCompositeEvent(m)
+	case domain.DerivationActionWrites:
+		// No `actions:` entry for this Action at all -- its whole effect is the status move its own
+		// transitions declare, which is complete rather than missing. An entry that *exists* and writes
+		// nothing falls through to Undeclared, since declaring an empty effect says nothing.
+		_, ok := m.EffectFor(domain.ActionDecide)
+		return !ok
 	}
 	return false
 }
@@ -148,6 +155,16 @@ func valueOf(derivation string, m, doc *domain.Machine) string {
 	case domain.DerivationParent:
 		if f, ok := m.ReferenceFieldTo(doc.ID); ok {
 			return f.ID
+		}
+	case domain.DerivationStatusTargets:
+		// The Field first, because ActionTargets is asked per Field: the Action's own declared Field is
+		// the only one it can move, so asking about any other would be a question nobody posed.
+		if field := m.ActionField(domain.ActionDecide); field != "" {
+			return join(m.ActionTargets(domain.ActionDecide, field))
+		}
+	case domain.DerivationActionWrites:
+		if eff, ok := m.EffectFor(domain.ActionDecide); ok {
+			return joinWrites(eff.Writes)
 		}
 	case domain.DerivationDocumentStatus:
 		return m.StatusField()
@@ -191,6 +208,10 @@ func sourceOf(derivation string) string {
 		return "permissions[decide] dynamic actor gate .actor_group_field"
 	case domain.DerivationParent:
 		return "the relation Field pointing at the document Machine"
+	case domain.DerivationStatusTargets:
+		return "transitions[action=decide].to"
+	case domain.DerivationActionWrites:
+		return "actions[decide].writes"
 	case domain.DerivationDocumentStatus:
 		return "transitions[].field -- the Field this Machine's own edges move"
 	case domain.DerivationSignaturePlacement:
@@ -205,6 +226,27 @@ func sourceOf(derivation string) string {
 		return "flow_template_step:"
 	}
 	return ""
+}
+
+// joinWrites renders a declared effect as "field <- source" pairs, so the page shows not just which
+// Fields an Action sets but where each value comes from -- the half that makes a wrong declaration
+// legible rather than merely present. A literal is shown quoted, to distinguish `fld_status <- "draft"`
+// from a Field fed by the request.
+func joinWrites(writes []domain.FieldWrite) string {
+	parts := make([]string, 0, len(writes))
+	for _, w := range writes {
+		switch {
+		case w.From != "":
+			parts = append(parts, w.Field+" <- "+w.From)
+		case w.Value != "":
+			parts = append(parts, w.Field+` <- "`+w.Value+`"`)
+		default:
+			// Neither source nor literal: validateActionEffects refuses this at load, so reaching it
+			// means something was built in Go. Reported rather than hidden.
+			parts = append(parts, w.Field+" <- ???")
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 // join renders a multi-Field block as one value, and returns "" if *any* of its Fields is missing.
