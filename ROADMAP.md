@@ -2970,6 +2970,50 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     **What stays refused**: §8.2 normalization, §8.3 general pushdown, §8.4 cost classes. The
     decomposition audit's §7 refused those for want of a forcing condition and that is still true.
 
+    **Step 0 — baseline, measured 2026-09-29 before any code. It corrected the case for (c) twice,
+    and the corrections matter more than the numbers.**
+
+    *Volume* (`make threshold`, which seeds its own rows since this app has no users):
+
+    | records | whole-Machine read | |
+    |---|---|---|
+    | 100 | 900µs | within budget |
+    | 1,000 | 4.2ms | within budget |
+    | 10,000 | 38ms | within budget |
+    | 50,000 | **222ms** | over the 100ms interactive budget |
+    | 100,000 | 667ms | over |
+
+    The largest real Machine holds **30 records**. So the volume forcing condition is roughly
+    **1,700× away**, and **(c) must not be argued for on performance grounds.** Its case is §20,
+    §4.4 and §28 as *architectural* invariants and the metadata-basis 001 #3 asks for — not speed.
+    Saying otherwise would be a claim this baseline refutes.
+
+    *Per-route reads* (the existing diagnostic, real admin session, `repeated=0` everywhere):
+    `/home` 8, `/dashboard` 9, `/approval-inbox` 8, `/my-tasks` 6, `/notifications` 5,
+    `/api/notifications/unread-count` 4, `/api/approval-inbox/pending-count` 5.
+
+    **Correction 1 — five of the eight "expressible" sites are already filtered in SQL.**
+    `MyNotifications`, `UnreadNotificationCount`, `ReviewStepForDocument`, `ReviewDocument`'s
+    siblings and `BlockingReasonsForMemberRemoval` all go through `ListRecordsBy`, which the
+    diagnostic confirms (`mch_notification by fld_recipient`). Migrating them to `select: records`
+    moves the *declaration* from Go into YAML — which is the point of (c) — but changes **nothing**
+    about what is read. Only about three whole-Machine sites would actually see a read shrink.
+
+    **Correction 2 — `/dashboard` would get *worse* before it gets better.** Its single
+    `mch_document` read serves two consumers through the Loader memo: `buildDashboard` filters it to
+    `in_review` for the Pending list, and `AggregateDataset(ds_document_by_status)` needs all of it.
+    Declaring the Pending list as a filtered Dataset produces **two** reads where there is now one,
+    unless the aggregate pushes its filter down as well. So a migration that looks like an
+    improvement per-site can raise a page's read count, and the GET sweep would not catch it — the
+    sweep holds `queries == reads` and `repeated == 0`, and two legitimately different reads violate
+    neither.
+
+    **What Step 0 therefore changes in the plan**: the first migration target is **not**
+    `MyNotifications` (already filtered, nothing to prove) but a whole-Machine site whose read
+    actually drops; `/dashboard` is explicitly *not* first, because it needs the aggregate story
+    settled in the same slice; and the per-route numbers above are the before-figures every later
+    claim is checked against.
+
     **Gates to build with it**, planned rather than discovered later:
     1. `KnownContextValues` joins `TestClosedRegistryMembersAreAcceptedByTheLoader` /
        `...AreActivatedByMetadata`. This is the gate that would have rejected option (a), and it is
