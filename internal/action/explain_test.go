@@ -226,3 +226,42 @@ func TestExplainCast_unknownEngineExplainsNothing(t *testing.T) {
 		t.Errorf("ExplainCast over an unknown engine returned %d resolutions, want none", len(got))
 	}
 }
+
+// TestExplainCast_isDeterministic holds 007 §4.6, which states it as a MUST: "Plan construction must
+// not depend on map iteration order, incidental database ordering, renderer side effects, or
+// non-deterministic capability discovery."
+//
+// ExplainCast satisfies it *by construction* -- its output order comes from two slices,
+// WorkflowEngineSpec.Roles() and allDerivations -- and until this test nothing held that. Both
+// KnownWorkflowEngines and WorkflowEngineSpec.Answers are maps, so one refactor that ranges over
+// either to build the output would pass every other test here while making a diagnostics page
+// reorder itself between refreshes. On a surface whose entire job is being compared against itself
+// (before a change, after a change, one Workspace against another) that is not cosmetic: a reader
+// diffing two runs would see noise and stop trusting it.
+func TestExplainCast_isDeterministic(t *testing.T) {
+	step, doc := explainFixtures()
+	ws := explainWorkspace(step, doc)
+
+	first := ExplainCast(ws, domain.WorkflowEngineDocumentApproval, "app_persetujuan")
+	if len(first) == 0 {
+		t.Fatal("ExplainCast returned nothing -- this test would pass by measuring an empty slice")
+	}
+
+	// Repeated rather than compared against a frozen list: a hardcoded expectation would have to be
+	// edited every time a derivation is added, and would then be testing the edit rather than the
+	// property. Go randomizes map iteration per range, so a map-ordered implementation fails this
+	// within a few rounds.
+	for round := 0; round < 50; round++ {
+		again := ExplainCast(ws, domain.WorkflowEngineDocumentApproval, "app_persetujuan")
+		if len(again) != len(first) {
+			t.Fatalf("round %d returned %d resolutions, first returned %d", round, len(again), len(first))
+		}
+		for i := range first {
+			if again[i] != first[i] {
+				t.Fatalf("round %d differs at index %d:\n  first: %+v\n  again: %+v\n"+
+					"  007 §4.6 makes deterministic construction a MUST -- something here ranges over a map",
+					round, i, first[i], again[i])
+			}
+		}
+	}
+}

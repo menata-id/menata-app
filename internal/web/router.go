@@ -335,6 +335,13 @@ func Routes(d Deps) http.Handler {
 			// read (TestGetRoutesDoNotWrite).
 			ar.Get("/install-application", showInstallApplication(d.Store, d.Cfg))
 			ar.Post("/install-application", submitInstallApplication(d.Store, d.Cfg, d.ReloadMetadata))
+
+			// What the runtime inferred (2026-09-29): 001 #6's second clause, "Inference must be
+			// inspectable". Admin-gated for the same stated reason as the two lines above -- it
+			// describes how this Workspace is assembled. A GET with no path parameter, so
+			// TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed sweeps it automatically; it issues no query
+			// of its own, which is the whole of its 007 §33 fan-out answer.
+			ar.Get("/inference", showInference(d.Store, d.Cfg))
 		})
 
 		pr.Get("/uploads/*", serveUpload(d.Store, d.Files))

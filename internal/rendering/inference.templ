@@ -1,0 +1,163 @@
+package rendering
+
+import "strconv"
+
+// InferenceView is the diagnostics screen's own shape: every derivation the runtime makes over this
+// Workspace's installed engines, grouped by the role that owes it.
+//
+// It carries no *domain.Machine and no record. The page's whole subject is what the runtime resolved,
+// which is a runtime-internal artifact rather than application data (007 §18.13, 001 #17) -- see
+// domain.RuntimeScreens' nav_inference comment for why that makes this a runtime screen rather than an
+// Application's declared View.
+type InferenceView struct {
+	Engines []InferenceEngine
+	// Defects is the whole page's count of rows a reader should act on, so the header can say "nothing
+	// to act on" without the reader scanning 65 rows to establish it.
+	Defects int
+}
+
+type InferenceEngine struct {
+	Engine  string
+	Roles   []InferenceRole
+	Defects int
+}
+
+type InferenceRole struct {
+	Role string
+	// MachineID is "" when this Workspace casts nobody in the role -- rendered as "uncast", not blank.
+	MachineID string
+	Required  bool
+	Rows      []InferenceRow
+	Defects   int
+}
+
+type InferenceRow struct {
+	Derivation string
+	// Value is rendered *as empty* when it is empty. That is the one presentation rule this screen
+	// cannot compromise on: an invented placeholder is exactly what made the /review 404 invisible for
+	// a day, since an empty derivation rendered as an ordinary-looking screen.
+	Value    string
+	From     string
+	Status   string
+	Tone     PillTone
+	IsDefect bool
+}
+
+// InferencePage renders what the runtime inferred. Admin-only at the route
+// (internal/web/router.go's ar group), for the same stated reason /install-application is: it
+// describes how this Workspace is put together.
+templ InferencePage(v InferenceView, workspaceName string, viewer Viewer, switchHref string) {
+	@appShell(titleByID(ctx, "nav_inference"), workspaceName, viewer, switchHref) {
+		<div class="flex flex-col gap-5">
+			<p class="m-0 max-w-prose text-sm text-slate-500">{ descriptionByID(ctx, "nav_inference") }</p>
+			@inferenceSummary(v)
+			if len(v.Engines) == 0 {
+				<p class="m-0 text-sm text-slate-500">
+					No workflow engine is installed in this workspace, so the runtime is inferring nothing for one. That is a complete answer, not a missing page.
+				</p>
+			}
+			for _, e := range v.Engines {
+				@inferenceEngineBlock(e)
+			}
+		</div>
+	}
+}
+
+// inferenceSummary states the one thing a reader wants before reading anything: is there something to
+// act on. Two statuses count as defects (undeclared, input unavailable) and two do not.
+templ inferenceSummary(v InferenceView) {
+	<section class="rounded-lg border border-slate-200 bg-white p-5">
+		if v.Defects == 0 {
+			<div class="flex items-center gap-2 text-sm">
+				@statusPill("nothing to act on", PillGood)
+				<span class="text-slate-500">Every derivation either resolved, or is correctly not this role's question.</span>
+			</div>
+		} else {
+			<div class="flex items-center gap-2 text-sm">
+				@statusPill("needs attention", PillBad)
+				<span class="text-slate-700">
+					{ pluralRows(v.Defects) } the runtime relies on and cannot explain.
+				</span>
+			</div>
+		}
+		<p class="m-0 mt-3 max-w-prose text-xs text-slate-500">
+			<strong>undeclared</strong> means a machine declares nothing for a question its role owes.
+			<strong>input unavailable</strong> means the declaration exists but the caller had nothing to resolve it against.
+			<strong>not applicable</strong> is correct and the most common: the question belongs to a different role, or the feature is not installed here.
+		</p>
+	</section>
+}
+
+templ inferenceEngineBlock(e InferenceEngine) {
+	<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+		<div class="flex flex-wrap items-center gap-2">
+			<h2 class="m-0 text-sm font-medium">{ e.Engine }</h2>
+			if e.Defects > 0 {
+				@statusPill(pluralRows(e.Defects)+" to act on", PillBad)
+			}
+		</div>
+		for _, r := range e.Roles {
+			@inferenceRoleBlock(r)
+		}
+	</section>
+}
+
+templ inferenceRoleBlock(r InferenceRole) {
+	<div class="flex flex-col gap-2">
+		<div class="flex flex-wrap items-baseline gap-2 border-b border-slate-100 pb-1.5">
+			<h3 class="m-0 text-xs font-semibold tracking-wide text-slate-600">{ r.Role }</h3>
+			if r.MachineID != "" {
+				<code class="text-2xs text-slate-500">{ r.MachineID }</code>
+			} else {
+				@statusPill("uncast", PillMuted)
+			}
+			if !r.Required {
+				<span class="text-2xs text-slate-400">optional role</span>
+			}
+		</div>
+		<div class="overflow-x-auto">
+			<table class="w-full min-w-[560px] border-collapse text-xs">
+				<thead>
+					<tr class="text-left text-slate-500">
+						<th class="py-1 pr-3 font-medium">Derivation</th>
+						<th class="py-1 pr-3 font-medium">Resolved to</th>
+						<th class="py-1 pr-3 font-medium">Read from</th>
+						<th class="py-1 font-medium">Status</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, row := range r.Rows {
+						<tr
+							class={ "border-t border-slate-100 align-top",
+								templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }
+						>
+							<td class="py-1.5 pr-3"><code>{ row.Derivation }</code></td>
+							<td class="py-1.5 pr-3">
+								if row.Value != "" {
+									<code class="text-slate-700">{ row.Value }</code>
+								} else {
+									// Rendered as a visible dash, never a guessed default: an empty
+									// derivation that looks ordinary is precisely the /review 404.
+									<span class="text-slate-400">&mdash;</span>
+								}
+							</td>
+							<td class="py-1.5 pr-3 text-slate-500">{ row.From }</td>
+							<td class="py-1.5">
+								@statusPill(row.Status, row.Tone)
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	</div>
+}
+
+// pluralRows keeps "1 derivation" from reading as "1 derivations". Local to this file because it is
+// this page's own sentence, not a shared helper.
+func pluralRows(n int) string {
+	if n == 1 {
+		return "1 derivation"
+	}
+	return strconv.Itoa(n) + " derivations"
+}

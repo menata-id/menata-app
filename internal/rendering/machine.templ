@@ -253,6 +253,51 @@ templ csrfHiddenInput() {
 	<input type="hidden" name="csrf_token" value={ authorization.CSRFTokenFromContext(ctx) }/>
 }
 
+// PillTone is the closed set of tones statusPill knows. Closed rather than a class string, so a
+// caller cannot reach through the component and style arbitrary things -- 007 §12.3's boundedness
+// rule ("A Component MUST expose a bounded semantic contract. It MUST NOT become 'generic' merely by
+// accepting arbitrary properties").
+type PillTone string
+
+const (
+	PillNeutral PillTone = "neutral"
+	PillInfo    PillTone = "info"
+	PillGood    PillTone = "good"
+	PillBad     PillTone = "bad"
+	PillWarn    PillTone = "warn"
+	// PillMuted is for a value that is correct and uninteresting, and it exists because of a measured
+	// need rather than for symmetry: on the inference page 52 of 65 rows are "not applicable", all of
+	// them right, and rendering them at the same weight as the two that mean something would bury the
+	// signal in its own correctness.
+	PillMuted PillTone = "muted"
+)
+
+// statusPill is the shared pill shape -- 007 §12.3 lists `StatusBadge` as a Component by name, and
+// this is it at the level this runtime actually needs.
+//
+// **The component owns presentation; the caller owns vocabulary.** That split is the whole point of
+// extracting it. reviewStatusPill below mapped three fld_status values to colours *and* drew the pill;
+// the inference page needs the same pill over a completely different closed set (resolved /
+// undeclared / not applicable / input unavailable). Generalising the mapping too would have produced
+// a component that has to know every vocabulary in the app, which is the unbounded escape hatch §12.3
+// forbids. So each caller maps its own values to a tone, and neither knows the other's words.
+//
+// Extracted on its second case rather than its first (CLAUDE.md's "Deciding whether a literal is a
+// metadata-hardcoding violation", step 3): one pill was a screen's own detail, two is a shape.
+templ statusPill(label string, tone PillTone) {
+	<span
+		class={ "inline-flex items-center rounded-full px-2.5 py-1 text-2xs whitespace-nowrap",
+			templ.KV("bg-slate-100 text-slate-600", tone == PillNeutral),
+			templ.KV("bg-blue-50 text-blue-700", tone == PillInfo),
+			templ.KV("bg-emerald-50 text-emerald-700", tone == PillGood),
+			templ.KV("bg-red-50 text-red-700", tone == PillBad),
+			templ.KV("bg-amber-50 text-amber-800", tone == PillWarn),
+			templ.KV("bg-slate-50 text-slate-400", tone == PillMuted) }
+	>
+		{ label }
+	</span>
+}
+
 // pageShell, pageHead, pageStyles and navLink were deleted on 2026-09-24, with their last two
 // callers. They were the app's *other* stylesheet -- a 122-line hand-written <style> block and a
 // topbar that projected navigation as plain text links -- and capabilities.md carried a whole

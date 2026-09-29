@@ -68,6 +68,32 @@ var RuntimeScreens = []NavigationItem{
 		Title:       "Workspace settings",
 		Description: "Applies to everyone in this workspace. Only workspace admins can see it.",
 	},
+	// nav_inference (2026-09-29): the diagnostics surface 001 Principle #6's second clause requires --
+	// "**Inference must be inspectable.** … the runtime should be able to expose the resolved result
+	// through diagnostics or equivalent tooling", restated by 004 §Inference and 005 Phase 4.
+	//
+	// A runtime screen by the same test the five above pass, and the test is not a formality here: what
+	// it shows is *how the runtime resolved* an Application's declarations, which is a fact about the
+	// runtime rather than about any Application. It exists identically in a Workspace with zero
+	// Applications or ten -- with nothing to explain in the first case, which is itself a true answer.
+	//
+	// **It deliberately is not, and must not become, an Application's own declared View.** 007 §18.13
+	// ("Execution plans are physical runtime artifacts. They MUST NOT become user-authored metadata")
+	// and 001 #17 say so directly, and 002's Runtime Boundary adds that those internal stages "must not
+	// leak physical implementation choices back into metadata". A domain.Resolution describes the output
+	// of Phase 4 normalisation; declaring a Dataset over it would couple an Application's metadata to a
+	// runtime-internal shape. 007 §7.1's DataSource kinds confirm it from the other side -- Machine
+	// records, another Dataset, a declared relation, or "a runtime service source where explicitly
+	// supported" -- and a resolution is none of the first three. That last clause plus 007 §31's own
+	// open question, "how to expose execution diagnostics without coupling metadata to physical plans",
+	// are the forward-checkable pointers for whoever revisits this (CLAUDE.md step 2b).
+	{
+		ID:          "nav_inference",
+		Label:       "Inference",
+		Route:       "/inference",
+		Title:       "What the runtime inferred",
+		Description: "Every derivation this workspace's applications rely on, and the declaration each one was read from. Only workspace admins can see it.",
+	},
 }
 
 // IsRuntimeScreenID reports whether id names one of RuntimeScreens.

@@ -2757,13 +2757,69 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   coordinates stamps at (0,0)). Both halves re-verified against the real metadata: removing the whole
   block passes and moves the count 13→12 resolved, removing three of its five Fields fails.
 
-  **What is not built: the screen**, which is the half this entry's own recommendation named. 001 #6
-  says "through diagnostics or equivalent tooling" and 004 names "diagnostics, testing, and
-  debugging" — the testing/debugging half is met, the human-facing half is next, as
-  `/inference` (a runtime screen by the same test `nav_install_application` passes: it exists
-  identically in a Workspace with zero Applications or ten). Also still unexplained by anything: the
-  four inferences *outside* the workflow engine — `person`→`mch_user`, child collections, board
-  columns, the default table Layout — since `ExplainCast` covers the engine's cast and nothing else.
+  **The screen shipped the same day: `/inference`**, `nav_inference` in `domain.RuntimeScreens`,
+  **workspace-admin only** (owner decision). Grouped by role, four statuses toned so the 52 correct
+  empties stay quiet, empty values rendered as a visible dash rather than a blank cell — because a
+  blank cell reads as "no problem here", which is how the `/review` 404 stayed invisible. Tests:
+  two at the route (200 with real resolved values *and* their sources; a demoted member is refused),
+  three at the page, five in Composition.
+
+  **A re-read of 001–007 before building it changed three things, and it is worth recording which**,
+  because two of them were corrections to this entry's own plan rather than additions:
+
+  1. **The bespoke Go screen is required, not tolerated — the plan had it right for the wrong reason.**
+     It was chosen as the pragmatic path without checking whether it was the correct one. 007 §18.13
+     ("Execution plans are physical runtime artifacts. They MUST NOT become user-authored metadata"),
+     001 #17 and 002's Runtime Boundary ("those stages must not leak physical implementation choices
+     back into metadata") make declaring this as an Application's View over a Dataset a *prohibition*:
+     a `domain.Resolution` describes the output of Phase 4 normalisation. 007 §7.1 confirms it from the
+     other side — its DataSource kinds are Machine records, another Dataset, a declared relation, or "a
+     runtime service source where explicitly supported", and a resolution is none of the first three.
+     And 007 §31 lists *"how to expose execution diagnostics without coupling metadata to physical
+     plans"* as an **open research question**, so this is unsettled ground with a named constraint
+     rather than doctrine that was ignored. Those two citations are the forward-checkable pointers
+     CLAUDE.md step 2b requires, and they are in the `nav_inference` comment.
+  2. **007 §27's Capability Admission Gate had been skipped entirely**, and §33's performance
+     extension with it. Answered: no existing primitive can express it (§7.1); one new generic
+     primitive *would* unlock it and other cases (a "runtime service source" DataSource kind) but
+     building that for one case is what B5 refuses, so it is admitted "at the lowest useful abstraction
+     level" as §27's own closing line prescribes; it introduces no business-specific UI primitive and
+     no query mini-language; and its fan-out is **zero** — `composition.Inference` is pure, issues no
+     query, adds no logical dependency and generates no DAG node, which also satisfies §28 invariant 4
+     and is why the GET sweep's two invariants hold for the route without it having to be careful.
+  3. **007 §4.6 states deterministic construction as a MUST, and nothing held it.** `ExplainCast`'s
+     output order comes from two slices, so it was correct by construction — but
+     `KnownWorkflowEngines` and `Answers` are both maps, and one refactor ranging over either would
+     have passed every test while making a diagnostics page reorder itself between refreshes. On a
+     surface whose whole job is being compared against itself, that is not cosmetic.
+     `TestExplainCast_isDeterministic` now holds it, mutation-proved.
+
+  **Mutation testing found two assertions that did not exist**, and the honest note is that the first
+  round of tests *passed* both mutations: colouring `not applicable` with the loudest tone (it is 52 of
+  65 rows, all correct) and rendering an empty value as a blank cell. The rendering tests injected
+  `Tone` directly and so never exercised `toneFor`, and Composition had no test at all. Both closed;
+  `internal/composition/inference_test.go` says in its own header why it exists. A third mutation —
+  restoring the `&block.Roles[len-1]` pointer-into-a-slice that the first draft was written with and
+  that the next `append` invalidates — now fails three tests; on a page whose only job is showing what
+  is missing, rows silently going missing would have been a memorable way to fail.
+
+  **`statusPill` was extracted rather than duplicated** (007 §4.1, §12.3's `StatusBadge`): the
+  component owns the pill, each caller owns its vocabulary, so `reviewStatusPill` keeps mapping
+  `fld_status` and this page maps resolution statuses without either knowing the other's words.
+  Second case, not first — CLAUDE.md's decision path, step 3.
+
+  **Still unexplained by anything, and re-reading 001 #6 raised it rather than confirming it as a
+  footnote**: the four inferences *outside* the workflow engine. #6's own scope is "when inference
+  materially affects data access, **composition**, **authorization**, **rendering**, or execution
+  planning" — child collections affect composition, board columns and the default table Layout affect
+  rendering, and `person`→`mch_user` affects authorization, being the inference that makes
+  `actor_field` resolve to an identity at all (the validation failure that produced
+  `metadata.Normalize`). So they sit in the same clause as what just shipped, not a lesser one, and the
+  plan's original ordering — which put them last with a shrug about likely small yield — was wrong
+  about their standing. Measure the population first, as the engine half did; the model may not
+  transfer, since a child collection is a property of a *pair* of Machines rather than of one, and
+  "which role owes this answer" may simply not be the right question for it. That is a finding to
+  reach honestly, not a shape to assume.
 
   **Finding 2 — the identity-filter trigger was met six cases ago, and two comments in one file said
   so and denied it simultaneously.** Seven exported `internal/composition` functions take a viewing

@@ -147,16 +147,29 @@ templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, swit
 // reviewStatusPill renders fld_status's own value. The three known values get their own colour and
 // anything else falls through to neutral grey rather than being hidden -- a status this screen has
 // not been taught about is still a fact about the Document.
+//
+// It draws no pill of its own since 2026-09-29: statusPill (machine.templ) owns the shape, and this
+// function is now only the part that is genuinely this screen's -- which of *fld_status's* values
+// means what. The pill's second caller is the inference diagnostics page, over an unrelated closed
+// vocabulary, and keeping the mapping here is what lets both exist without either knowing the other's
+// words (007 §12.3's boundedness rule).
 templ reviewStatusPill(status string) {
-	<span
-		class={ "rounded-full px-2.5 py-1 text-2xs",
-			templ.KV("bg-blue-50 text-blue-700", status == "in_review"),
-			templ.KV("bg-emerald-50 text-emerald-700", status == "approved"),
-			templ.KV("bg-red-50 text-red-700", status == "rejected"),
-			templ.KV("bg-slate-100 text-slate-600", status != "in_review" && status != "approved" && status != "rejected") }
-	>
-		{ status }
-	</span>
+	@statusPill(status, reviewStatusTone(status))
+}
+
+// reviewStatusTone maps a Document's status to a tone. Unknown values fall through to neutral rather
+// than being hidden -- a status this screen has not been taught about is still a fact about the
+// Document, which was this function's own original reasoning and is unchanged.
+func reviewStatusTone(status string) PillTone {
+	switch status {
+	case "in_review":
+		return PillInfo
+	case "approved":
+		return PillGood
+	case "rejected":
+		return PillBad
+	}
+	return PillNeutral
 }
 
 // reviewDocumentCard is the board's "Document" panel: the file, its page count, and the two ways
