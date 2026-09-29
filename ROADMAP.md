@@ -3014,6 +3014,57 @@ forcing conditions, verification steps -- is tracked in a private companion repo
     settled in the same slice; and the per-route numbers above are the before-figures every later
     claim is checked against.
 
+    **Stage 1, broken into five committable slices.** Ordering follows from Step 0 rather than from
+    convenience: the first target must be a whole-Machine site whose retrieval actually narrows, and it
+    must not drag the expression work in with it.
+
+    - **Slice A — `select: records` + `sort:` + `limit:`, no expression work at all.** Target:
+      `recentEvents`, chosen because it has **no filter whatsoever** — it reads every `mch_activity`
+      row, sorts by `CreatedAt` in Go and truncates. So it proves the retrieval-bounding primitive in
+      isolation; if the shape is wrong, it is wrong in one place with nothing else mixed in. Its
+      checkable outcome is a literal leaving Go: `dashboardActivityLimit = 10` and the `activityLimit`
+      parameter both disappear.
+
+      Three design decisions the target forced, and one left open:
+
+      1. **`sort:` must accept record-level columns** (`created_at`, `updated_at`, `sort_order`), not
+         only Field ids — `mch_activity` declares no timestamp Field, so without this its Dataset
+         cannot be written at all. Closed set, validated.
+      2. **`limit:` required for `select: records`**, grounded in §7.9 ("preserve the current
+         capability that prevents unbounded list retrieval"). *Open to reversal*: it means a site
+         wanting "all of mine" must name an arbitrary number. A safe default is easier to loosen later
+         than to impose afterwards.
+      3. **The Loader memo must key on the Dataset id, not the Machine id.** A correctness trap rather
+         than a style point: a `select: records` result is a *different set for the same Machine*, so
+         memoising it under `machineID` would poison the whole-Machine memo and hand `/dashboard` ten
+         activity rows where it needs all of them. Its mutation test is the most important one in the
+         slice, because that bug is silent and breaks a different screen than the one being changed.
+      4. The Store signature stays minimal (`ListRecordsSelect(ctx, machineID, sort, limit)`) and Slice
+         C widens it. Stated as a choice rather than left implicit: adding a predicate parameter now
+         would be a parameter with no caller.
+
+    - **Slice B — the expression context, fail-closed.** `$current_user`, `$parameters.<name>`, a
+      closed `KnownContextValues`. The content is the *refusal*: an unknown `$sentinel` is a load
+      error, never a literal (§9.2). `today`/`now` are named by §9.2 and deliberately not built — two
+      cases, B5.
+    - **Slice C — conjunction.** `expression.Predicate{All []Comparison}` wraps the existing leaf, so
+      the four current users of `Comparison` change by not one line and a single comparison still
+      parses as it does today (§7.7 keeps the old form valid as syntax sugar).
+    - **Slice D — second migration plus the ratchet.** `PersonalTasks` (`fld_assignee ==
+      $current_user` **and** `fld_status != done`), the first site needing B and C together. The
+      whole-Machine-read ratchet lands *here*, not after Slice A: a ratchet locks in a pattern, and one
+      migration is not yet a pattern.
+    - **Slice E — `/inference` and the documentation.** A `where:` resolving `$current_user` is a
+      runtime decision affecting **data access**, the first category 001 #6 names, so it belongs on the
+      diagnostics surface — or this work adds back the debt the last three slices just paid off.
+
+    **The existing read diagnostic cannot see this improvement, and that must be stated rather than
+    discovered.** It counts *statements*, not rows: `mch_activity` with `LIMIT 10` is still one
+    statement, so `queries`/`reads` will not move. Reading that as "no improvement" would be wrong, and
+    it is the same shape as the N+1 blind spot already recorded against that sweep. Proof is structural
+    and behavioural instead — a Store test against the real database asserting 10 rows come back from
+    30, and a mutation removing `limit:` from the YAML to confirm the declaration is what bounded it.
+
     **Gates to build with it**, planned rather than discovered later:
     1. `KnownContextValues` joins `TestClosedRegistryMembersAreAcceptedByTheLoader` /
        `...AreActivatedByMetadata`. This is the gate that would have rejected option (a), and it is
