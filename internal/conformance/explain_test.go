@@ -110,10 +110,29 @@ func TestEveryDerivationIsOwedBySomeRole(t *testing.T) {
 		}
 	}
 
+	// Every constant found by AST must be claimed by exactly one side of the partition. That is what
+	// keeps the drift guard alive across the split: a new Derivation* in neither list fails here,
+	// before either of the checks below can quietly skip it.
 	for _, d := range all {
-		if len(owed[d]) == 0 {
-			t.Errorf("derivation %q is owed by no role in any engine -- it can only ever report "+
+		engine := contains(domain.EngineDerivations, d)
+		normalization := contains(domain.NormalizationDerivations, d)
+		switch {
+		case engine && normalization:
+			t.Errorf("derivation %q is in both EngineDerivations and NormalizationDerivations", d)
+		case !engine && !normalization:
+			t.Errorf("derivation %q is in neither EngineDerivations nor NormalizationDerivations -- "+
+				"nothing decides which check applies to it, so it would be verified by neither", d)
+		case engine && len(owed[d]) == 0:
+			t.Errorf("engine derivation %q is owed by no role in any engine -- it can only ever report "+
 				"not-applicable, which makes it a question nothing answers and nobody sees", d)
+		}
+	}
+
+	// And the reverse for the normalization half: an entry there that no role owes is correct, but one
+	// that a role *does* owe is filed on the wrong side.
+	for _, d := range domain.NormalizationDerivations {
+		if len(owed[d]) > 0 {
+			t.Errorf("normalization derivation %q is owed by %v -- it belongs in EngineDerivations", d, owed[d])
 		}
 	}
 }
@@ -425,4 +444,80 @@ func TestWholeMachineReadsOnlyShrink(t *testing.T) {
 		t.Errorf("total whole-Machine reads = %d, budgeted %d", total, budgetTotal)
 	}
 	t.Logf("whole-Machine reads: %d across %d files", total, len(found))
+}
+
+// TestInstalledMachinesExplainTheirNormalization is the corpus control for the Phase 4 half, the
+// counterpart of TestInstalledCastsExplainWithoutDefects for the engine half.
+//
+// Its one defect status is StatusUndeclared on a person target, which means normalization did not run
+// for that Machine -- the failure that produced metadata.Normalize in the first place.
+//
+// **That arm is unreachable through the loader, and mutation testing is how that was established
+// rather than assumed.** Disabling Normalize in Parse does not produce an undeclared person target
+// here: internal/metadata's own validation refuses the Machine first, with the three-branch message
+// added 2026-09-29 ("is a person field with no related machine -- this Machine was not normalised").
+// So for that derivation this gate is a second line behind a check that already holds, and the real
+// coverage is metadata.TestExplain_anUnnormalisedPersonFieldIsADefect over a hand-built Machine --
+// which is the only way the state can arise, since it cannot be loaded. Worth stating plainly: a
+// green run here is not evidence that arm works.
+//
+// **StatusNotApplicable is the majority here too and must never be treated as a defect**: measured
+// 2026-09-29, 18 of 31 installed Machines are referenced by nothing and 13 declare their own views:.
+// Both are ordinary, correct states.
+func TestInstalledMachinesExplainTheirNormalization(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+	if len(wss) == 0 {
+		t.Fatal("no Workspace manifests found -- this gate would pass by measuring nothing")
+	}
+
+	slugs := make([]string, 0, len(wss))
+	for slug := range wss {
+		slugs = append(slugs, slug)
+	}
+	sort.Strings(slugs)
+
+	for _, slug := range slugs {
+		counts := map[domain.ResolutionStatus]int{}
+		explained := metadata.Explain(wss[slug].Machines)
+		if len(explained) == 0 {
+			t.Errorf("workspace %q explains no normalization at all", slug)
+		}
+		for _, r := range explained {
+			counts[r.Status]++
+			if r.IsDefect() {
+				t.Errorf("workspace %q: %s is %s\n  read from: %s\n"+
+					"  a normalization the runtime performs and cannot explain is 001 #6's own failure mode",
+					slug, r.Name, r.Status, r.From)
+			}
+		}
+		t.Logf("%-14s resolved=%d not-applicable=%d undeclared=%d",
+			slug, counts[domain.StatusResolved], counts[domain.StatusNotApplicable], counts[domain.StatusUndeclared])
+	}
+}
+
+// TestEveryNormalizationDerivationIsProduced is the other direction, and it is the one that would
+// catch a constant declared and then never emitted -- a question nothing answers, which is exactly
+// what the engine half's own gate exists to prevent on its side.
+func TestEveryNormalizationDerivationIsProduced(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+
+	seen := map[string]bool{}
+	for _, app := range wss {
+		for _, r := range metadata.Explain(app.Machines) {
+			name, _, _ := strings.Cut(r.Name, ":")
+			seen[strings.TrimSpace(name)] = true
+		}
+	}
+	for _, d := range domain.NormalizationDerivations {
+		if !seen[d] {
+			t.Errorf("normalization derivation %q is declared but metadata.Explain never emits it over "+
+				"any installed Workspace -- a question nothing answers and nobody sees", d)
+		}
+	}
 }

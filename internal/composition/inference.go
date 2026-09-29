@@ -6,6 +6,7 @@ import (
 
 	"menata.app/internal/action"
 	"menata.app/internal/domain"
+	"menata.app/internal/metadata"
 	"menata.app/internal/rendering"
 )
 
@@ -72,7 +73,49 @@ func Inference(ws domain.Workspace) rendering.InferenceView {
 		}
 		view.Engines = append(view.Engines, block)
 	}
+
+	view.Normalization = normalizationSteps(ws, &view)
 	return view
+}
+
+// normalizationSteps groups metadata.Explain's answers by the 005 Phase 4 step that produced them.
+//
+// Ordered by the step list rather than by map iteration (007 §4.6 again), and a step with no rows is
+// dropped: a Workspace whose Machines declare no person Field has nothing to say about that step, and
+// an empty table saying so is the noise the status vocabulary exists to avoid.
+func normalizationSteps(ws domain.Workspace, view *rendering.InferenceView) []rendering.InferenceStep {
+	at := map[string]int{}
+	var steps []rendering.InferenceStep
+
+	for _, r := range metadata.Explain(ws.Machines) {
+		// From carries "<step> -- <detail>"; the step is the grouping key and the detail stays on the row.
+		step, detail, found := strings.Cut(r.From, " -- ")
+		if !found {
+			// A row whose From names no step still has to appear -- an unnormalised person Field's From
+			// deliberately describes the failure instead, and dropping it would hide the one defect
+			// this surface exists to catch.
+			step, detail = "Other normalization decisions", r.From
+		}
+		i, seen := at[step]
+		if !seen {
+			steps = append(steps, rendering.InferenceStep{Step: step})
+			i = len(steps) - 1
+			at[step] = i
+		}
+		steps[i].Rows = append(steps[i].Rows, rendering.InferenceRow{
+			Derivation: r.Name,
+			Value:      r.Value,
+			From:       detail,
+			Status:     string(r.Status),
+			Tone:       toneFor(r.Status),
+			IsDefect:   r.IsDefect(),
+		})
+		if r.IsDefect() {
+			steps[i].Defects++
+			view.Defects++
+		}
+	}
+	return steps
 }
 
 // toneFor maps a resolution status to the shared pill's own closed tone set. It lives here, in

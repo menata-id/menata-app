@@ -108,4 +108,50 @@ const (
 	// fixtures declared `actions:` over Fields their Machine did not have.
 	DerivationStatusTargets = "status_targets"
 	DerivationActionWrites  = "action_writes"
+
+	// The Phase 4 normalization derivations (005-runtime-lifecycle.md), added 2026-09-29. These are
+	// not the workflow engine's -- they apply to every Machine in every Workspace, engine or not,
+	// which is why metadata.Explain answers for them and action.ExplainCast does not.
+	//
+	// **Board columns are deliberately absent from this list**, and the omission is a correction:
+	// they were called an inference for weeks, but View.GroupBy is declared and the columns are that
+	// Field's own declared options:. Two declarations read together is a derivation, and a per-View
+	// one on the rendering side (007 §7.3 Dimension is its home when the Data Plane grows one).
+	DerivationPersonTarget    = "person_target"
+	DerivationChildCollection = "child_collection"
+	DerivationDefaultView     = "default_view"
+)
+
+// NormalizationSteps are the 005 Phase 4 steps these derivations belong to, used as Resolution.From's
+// prefix so a reader can see *which* normalization produced an answer rather than only what it was.
+//
+// Phase 4 lists six: "resolve references, apply safe defaults, infer semantic roles, expand authoring
+// conveniences, canonicalize equivalent declarations, resolve component and renderer contracts". Three
+// are realised here; the rest have nothing to explain yet, and naming them would be inventing work.
+const (
+	StepExpandConveniences = "Phase 4: expand authoring conveniences"
+	StepResolveReferences  = "Phase 4: resolve references"
+	StepApplyDefaults      = "Phase 4: apply safe defaults"
+)
+
+// EngineDerivations and NormalizationDerivations partition every Derivation* constant by who answers
+// for it: a workflow engine's cast (action.ExplainCast) or Phase 4 normalization (metadata.Explain).
+//
+// The partition is declared rather than inferred from the names because the two are checked against
+// *different* things -- an engine derivation must be owed by a role in KnownWorkflowEngines.Answers,
+// a normalization one must actually be produced over the installed Machines -- and a gate cannot
+// guess which check applies. `TestEveryDerivationIsOwedBySomeRole` verifies that every constant it
+// finds by AST appears in exactly one of these, so a new one added to neither still fails: the drift
+// guard survives the split.
+var (
+	EngineDerivations = []string{
+		DerivationDecision, DerivationOpenValue, DerivationOrder, DerivationActor,
+		DerivationActorType, DerivationActorGroup, DerivationParent, DerivationDocumentStatus,
+		DerivationSignaturePlacement, DerivationSignatureStore, DerivationCompositeSource,
+		DerivationFlowTemplate, DerivationFlowTemplateStep, DerivationStatusTargets,
+		DerivationActionWrites,
+	}
+	NormalizationDerivations = []string{
+		DerivationPersonTarget, DerivationChildCollection, DerivationDefaultView,
+	}
 )

@@ -11,8 +11,20 @@ import "strconv"
 // Application's declared View.
 type InferenceView struct {
 	Engines []InferenceEngine
+	// Normalization is the Phase 4 half (005): what the runtime resolved for every Machine, engine or
+	// not. A separate section rather than more rows in Engines because the subjects differ -- an engine
+	// derivation belongs to a role, a normalization one belongs to a Machine or to a *pair* of them.
+	Normalization []InferenceStep
 	// Defects is the whole page's count of rows a reader should act on, so the header can say "nothing
 	// to act on" without the reader scanning 65 rows to establish it.
+	Defects int
+}
+
+// InferenceStep groups normalization answers by the 005 Phase 4 step that produced them, so a reader
+// sees *which* normalization decided something rather than only what it decided.
+type InferenceStep struct {
+	Step    string
+	Rows    []InferenceRow
 	Defects int
 }
 
@@ -59,6 +71,9 @@ templ InferencePage(v InferenceView, workspaceName string, viewer Viewer, switch
 			for _, e := range v.Engines {
 				@inferenceEngineBlock(e)
 			}
+			for _, n := range v.Normalization {
+				@inferenceStepBlock(n)
+			}
 		</div>
 	}
 }
@@ -99,6 +114,53 @@ templ inferenceEngineBlock(e InferenceEngine) {
 		for _, r := range e.Roles {
 			@inferenceRoleBlock(r)
 		}
+	</section>
+}
+
+// inferenceStepBlock renders one Phase 4 step. These apply to every Machine in the Workspace, so the
+// section exists even when no workflow engine is installed -- which is also why the page's own empty
+// state above speaks only about engines.
+templ inferenceStepBlock(n InferenceStep) {
+	<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+		<div class="flex flex-wrap items-center gap-2">
+			<h2 class="m-0 text-sm font-medium">{ n.Step }</h2>
+			if n.Defects > 0 {
+				@statusPill(pluralRows(n.Defects)+" to act on", PillBad)
+			}
+		</div>
+		<div class="overflow-x-auto">
+			<table class="w-full min-w-[560px] border-collapse text-xs">
+				<thead>
+					<tr class="text-left text-slate-500">
+						<th class="py-1 pr-3 font-medium">What was resolved</th>
+						<th class="py-1 pr-3 font-medium">Resolved to</th>
+						<th class="py-1 pr-3 font-medium">Read from</th>
+						<th class="py-1 font-medium">Status</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, row := range n.Rows {
+						<tr
+							class={ "border-t border-slate-100 align-top",
+								templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }
+						>
+							<td class="py-1.5 pr-3"><code>{ row.Derivation }</code></td>
+							<td class="py-1.5 pr-3">
+								if row.Value != "" {
+									<code class="text-slate-700">{ row.Value }</code>
+								} else {
+									<span class="text-slate-400">&mdash;</span>
+								}
+							</td>
+							<td class="py-1.5 pr-3 text-slate-500">{ row.From }</td>
+							<td class="py-1.5">
+								@statusPill(row.Status, row.Tone)
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
 	</section>
 }
 
