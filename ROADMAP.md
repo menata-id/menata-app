@@ -2918,6 +2918,49 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   including the renamed-Machine one.
 
 
+  **The Field-coupling ratchet, 11 → 9, and one investigation that ended in "no" (2026-09-29).**
+
+  **What moved it was not what this file predicted.** The ratchet's own comment claimed the three
+  hand-written steps-by-document correlations held the number and that Relation would move it. Relation
+  shipped over all three sites and the number did not move: those correlations were never Field-id
+  coupling. Measured properly, the 11 were a step's label (5), a Document's file (2) and status (1), and
+  three form bindings. What moved it was **two accessors that had existed for a week and were not used
+  here** — `action.CompositeFields` for the Document's file Field (the compositing Event's own
+  `source_field`) and `docMachine.StatusField()` for its status. Finding a declaration that already
+  answers the question beat building a new primitive, which is the order 001 #8 asks for.
+
+  `pages.go` is half and says so: the status *Field* is derived, the status *value* is still a literal —
+  the decomposition audit's P3, least mature of its six variation points, no second case.
+
+  **Two fixtures were looser than the real Machine, and the derivations exposed both**:
+  `stepMachineForTest` declared no compositing Event, `documentMachineForTest` no transitions at all, so
+  both derivations resolved to `""` and existing assertions caught it.
+  `TestFixturesMirrorTheRealMachines` correctly passed both — it checks *presence* of a block, not
+  equality, and the second fixture is not in its named population. Both limits were already written
+  down; this is what they look like when they bite.
+
+  **A step's label was investigated as the next target and the answer is no**, recorded because the
+  first two framings of it were both wrong. 007 §7.6 makes `title` the right *vocabulary*. What kills it
+  is that this runtime's `card_fields` is wired to a chip renderer, and the label is **already rendered**
+  — `composition.stepLabel` feeds `StepApprover.Label` on the same pending card and `StepLabel` on the
+  review screen. Declaring the role would duplicate it on screen.
+
+  And the conflation is not the one first suspected. `RelationOptions` being fetched when
+  `len(CardFields) > 0` is a *correct* dependency — `ProjectCardFields` needs it to resolve reference
+  Fields — over-broad only in fetching when no card field is a reference. The real conflation is that
+  `card_fields` fuses "what role does this Field play" with "render it as a chip", which 007 §7.6
+  separates: "Projection is not just a field selection. It establishes a stable semantic contract
+  between Data execution and presentation." The contract is the roles; which a screen draws is the
+  screen's business. Deciding what the pending card draws is a presentation question, so it is not
+  settled by declaring metadata.
+
+  **What is left at 9**: a step's label (5, no declaration and `card_fields` is not it),
+  `rendering/detail.templ`'s file-Field comparison (1, which needs the derived Field threaded into an
+  already ten-parameter page signature — an eleventh parameter added in passing is how signatures become
+  unreadable), and three form `name=` bindings (007 §11.3, primitive unbuilt, trigger still a third
+  bespoke write screen).
+
+
   **§7.5 Relation — Step 0, measured 2026-09-29, and it cut "ten sites" to three.**
 
   The ten was a count of *reads*, not of *correlations*, and nobody had checked the difference.

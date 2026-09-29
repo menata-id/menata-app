@@ -263,9 +263,28 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // declaration that already answers the question beat building a new primitive**, which is the order 001
 // #8 asks for and the order this entry got backwards.
 //
-// What is left: a step's *label* (5 references) which nothing declares at all -- `card_fields` could
-// carry it as a `title` role, but two consumers gate on `len(CardFields) > 0` and would silently gain
-// a query and a chip row, so declaring it means fixing that conflation first (007 §12.3). A Document's
+// What is left: a step's *label* (5 references) which nothing declares at all.
+//
+// **`card_fields` was investigated as its home on 2026-09-29 and rejected, with a reason worth keeping
+// because the first two framings of it were both wrong.** 007 §7.6 does make `title` the right
+// *vocabulary* -- Projection "may assign semantic roles such as title, identifier, status" -- so the
+// declaration would read correctly. What kills it is what this runtime's `card_fields` is wired to:
+// `approvalinbox.templ` renders *every* projected field as a chip, and a step's label is **already
+// rendered**, by `composition.stepLabel` into `StepApprover.Label` on the same pending card and into
+// `StepLabel` on the review screen. Declaring the role would duplicate it on screen.
+//
+// So the conflation is real but it is not the one first suspected. It is not that two consumers gate on
+// `len(CardFields) > 0` and would gain a query -- `RelationOptions` is fetched *because*
+// `ProjectCardFields` needs it to resolve reference Fields, which is a correct dependency, over-broad
+// only in that it fetches when no card field is a reference. The actual conflation is that
+// `card_fields` fuses "what semantic role does this Field play" with "render it as a chip", and 007
+// §7.6 separates them: "Projection is not just a field selection. It establishes a stable semantic
+// contract between Data execution and presentation." The contract is the roles; which of them a given
+// screen draws is that screen's business.
+//
+// Deciding what the pending card should draw is a presentation question, not a metadata one, so it is
+// not settled here. **The claim that nothing declares a step's label stays accurate, and now carries
+// the reason `card_fields` is not the answer.** A Document's
 // file in `rendering/detail.templ` (1), which needs the derived Field threaded into an already
 // ten-parameter page signature. And `rendering/documentsubmit.templ` (3) is a form's `name=`: 007 §11.3
 // Binding, primitive unbuilt, trigger still a third bespoke write screen.
