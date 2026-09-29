@@ -163,17 +163,6 @@ type MyTasks struct {
 	Completed []rendering.TaskRow
 }
 
-// PersonalTasks composes My Tasks for one identity. Bucketing reuses experience.EvaluateSLA
-// (Phase 13) rather than re-deriving day-truncation logic.
-//
-// This is the one screen of the five the decomposition audit counted that a declared Dataset
-// cannot express, and the reason is worth stating rather than leaving as an apparent oversight.
-// Its counts are filtered by the viewing identity (assignee == userID), and a declared where: is
-// a comparison against a literal, not against a value supplied per request -- so a Dataset would
-// need parameterized filters. Its other two counts (Overdue, DueToday) compare a due date against
-// now, which the equals/not_equals vocabulary cannot express at any level. Both are real gaps,
-// neither has a second case yet, and inventing either one for this single screen is the premature
-// declaration B5 exists to refuse.
 // MyNotifications lists the viewer's own mch_notification records, newest first (Flow 2 gap study
 // Tahap 6) -- the same "filter by identity in Go" shape PersonalTasks/PendingApprovalCount already
 // are (007 §20's named, accepted pattern for this class of per-viewer worklist), keyed by the
@@ -215,6 +204,33 @@ func UnreadNotificationCount(ctx context.Context, l *Loader, viewerID string) (i
 	return count, nil
 }
 
+// PersonalTasks composes My Tasks for one identity. Bucketing reuses experience.EvaluateSLA
+// (Phase 13) rather than re-deriving day-truncation logic.
+//
+// This is the one screen of the five the decomposition audit counted that a declared Dataset
+// cannot express. Its counts are filtered by the viewing identity (assignee == userID), and a
+// declared where: is a comparison against a literal, not against a value supplied per request --
+// so a Dataset would need parameterized filters. Its other two counts (Overdue, DueToday) compare
+// a due date against now, which the equals/not_equals vocabulary cannot express at any level.
+//
+// **This comment used to end "neither has a second case yet", and that was already false when it
+// was written** (kajian 2026-09-29, ROADMAP.md). Seven exported functions in this package take a
+// viewing identity and then filter records in Go after reading them all: ApprovalInbox,
+// PendingApprovalCount, AssignedToMe, MyNotifications, UnreadNotificationCount, PersonalTasks and
+// ReviewStepForDocument. MyNotifications' own comment, forty lines up, says so in as many words --
+// "the same 'filter by identity in Go' shape PersonalTasks/PendingApprovalCount already are". Two
+// comments in one file contradicting each other is how a met trigger stays invisible: CLAUDE.md's
+// step 3 fires on the *second* case of a shape, and this is the seventh.
+//
+// **The two halves are not equally ripe, which is why only one moved.** The identity half's trigger
+// is met seven times over. The date half has roughly two cases (this screen and
+// experience.EvaluateSLA's own day truncation), so `lt`/`gt` in internal/expression stays parked --
+// B5 still refuses it. Whoever builds the identity filter should not take the date one along for
+// the ride on the strength of this comment.
+//
+// It was also **detached**: this block sat above MyNotifications' comment with no blank line
+// between them, so godoc fused the two and PersonalTasks itself had no documentation at all -- and
+// the text it fused into was one of the cases contradicting it.
 func PersonalTasks(ctx context.Context, l *Loader, userID string, now time.Time) (MyTasks, error) {
 	tasks, err := l.ListRecords(ctx, taskMachineID)
 	if err != nil {

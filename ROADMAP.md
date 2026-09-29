@@ -2685,6 +2685,117 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 
 ## Planned
 
+- **Kajian: what is left, and in what order (owner request, 2026-09-29: *"masih ada pekerjaan apa aja
+  saat ini? ... pelajari kembali untuk konsep 001 - 007, dan lakukan kajian terhadap pekerjaan yang
+  belum, untuk prioritaskan"*). Read this entry before the ones below it — it is what orders them.**
+  Full version, with the per-finding evidence, is `menata-app-document`'s
+  `audits/2026-09-29-kajian-pekerjaan-tersisa-dan-prioritas.md`.
+
+  **Why a fresh kajian rather than reading further down this file.** The five gaps the 2026-09-28
+  Document Approval audit named (A–E) are all closed, and the ratchets say so: `documentApprovalCoupling`
+  **empty**, `documentApprovalFieldCoupling` **11 across 7 files** (from 129), `projectionRatchet` **1**,
+  `getSweepRatchet` **empty** — read those out of the maps, not out of this line. That matters for
+  planning rather than as a milestone: the method those stages used, *remove a literal by finding the
+  declaration that already answers its question*, is **exhausted**. None of the 11 survivors is a
+  derivation away (4 are a form's `name=`, 007 §11.3 Binding with no primitive; the rest name a step's
+  label, which nothing declares at all). So the next priority could not come from continuing that
+  program, and had to be measured against 001–007 directly.
+
+  **Finding 1 — 001 #6 is built on one of its two clauses, and the missing one is its safety clause.
+  Ranked first.** Principle #6 authorises inference (*"Inference is preferred over explicit
+  configuration"*) and then constrains it: *"**Inference must be inspectable.** … Hidden inference that
+  cannot be explained is not an acceptable substitute for explicit configuration."* 004 §Inference and
+  005 Phase 4 state the same obligation in their own words — three documents, one of them a `must`. This
+  runtime has **no** mechanism for it: no diagnostics route, no `--explain`, no normalized-Application
+  dump. The one diagnostic that exists counts queries, not inferences.
+
+  The first clause is the entire method of Stages B through E2, so the surface needing explanation
+  roughly tripled in two days: 9 derivation methods on `internal/domain/actioneffect.go`, 7 accessors in
+  `internal/action/fields.go` (`DeclaredFields` deriving 8 ids by itself), `metadata.Normalize` — none of
+  which existed before Stage B — on top of the four older inferences `capabilities.md` has listed as
+  uninspectable for weeks. **The cost is demonstrated twice this week, which is why this outranks every
+  other unbuilt capability**: `/review` 404'd on every Document for a day because a derivation returned
+  `""` and the screen rendered a legitimate-looking empty result (nothing logged, nothing panicked, no
+  test failed); and Stage E1 was one probe away from writing four values under an empty key and saving
+  an approval flow with no approvers. **Both were caught by throwaway hand-written probes** — an
+  inspection surface is that probe made permanent. The smallest honest shape: for one Machine, show each
+  derivation's resolved result *and which declaration it was read from*, and show an empty result **as**
+  an empty result, since that is precisely what went unnoticed.
+
+  It is also the one item whose seam landed on its own: `metadata.Normalize` (`cd340fd`) made 005's
+  Phase 4 a named callable function, and the 16 derivation accessors are already concentrated in two
+  files.
+
+  **Finding 2 — the identity-filter trigger was met six cases ago, and two comments in one file said
+  so and denied it simultaneously.** Seven exported `internal/composition` functions take a viewing
+  identity and filter records in Go after reading them all: `ApprovalInbox`, `PendingApprovalCount`,
+  `AssignedToMe`, `MyNotifications`, `UnreadNotificationCount`, `PersonalTasks`,
+  `ReviewStepForDocument`. `PersonalTasks`' doc comment read *"neither has a second case yet"* while
+  `MyNotifications`', forty lines above it, read *"the same 'filter by identity in Go' shape
+  PersonalTasks/PendingApprovalCount already are"*. CLAUDE.md's step 3 fires on the **second** case;
+  this is the seventh. Corrected in place (`internal/composition/pages.go`), where the reading also
+  found the comment **detached** — it sat above `MyNotifications`' comment with no blank line, so godoc
+  fused the two and `PersonalTasks` had no documentation at all, having its own refutation rendered as
+  someone else's.
+
+  Ranked **third**, after Finding 1 rather than before it, and the reason is not scheduling: a
+  per-request filter is another inference that will need explaining, so building it first adds to
+  exactly the debt Finding 1 is about. **Scope discipline**: what is earned is a `where:` that can name
+  the viewing identity — *not* 007 §8's Query Model, which the decomposition audit's §7 explicitly
+  refuses ("Jangan bangun Query Model penuh (007 §8) sekarang"), and which measured data volume does not
+  pressure either (largest Machine: 28 records). `case-03`'s Stage 0 deferral stays **correct on its own
+  terms** — the badge really cannot be a Dataset, because it filters on `behavior.CanAct`, which reads a
+  *sibling* record. What changed is that six consumers appeared that need no sibling. The date half
+  (`lt`/`gt` in `internal/expression`, 2 ops today) has about two cases and stays parked; B5 still
+  refuses it.
+
+  **Finding 3 — a lesson recorded on 2026-09-20 was re-failed on 2026-09-29. Ranked second, because it
+  is an hour's work and one of the two is a debt owed.** `development-history.md:3038` already wrote,
+  nine days earlier, that verifying a deploy means matching `bin/server` against `/proc/$PID/exe` **with
+  no `(deleted)` marker**, citing `audits/2026-09-20-written-claim-vs-actual-state.md`. On 2026-09-29
+  `cd340fd`'s own commit message claimed *"The service was restarted to confirm the binary still boots"*
+  — **which was untrue when written**: only `systemctl is-active` had been run, and the owner's question
+  ("sudah rebuild restart?") revealed the running process was on a **deleted, stale binary**, meaning
+  production had been serving pre-`Parse`/`Validate`-change code. It was rebuilt, restarted and verified
+  by `cmp bin/server /proc/$PID/exe` plus a five-route smoke test the same day; `cd340fd`'s message is
+  pushed and stays wrong, and this paragraph is the correction rather than a rewritten history. The
+  general form is this repo's own rule (CLAUDE.md: *"If you find yourself re-explaining the same
+  architectural rule … twice, consider whether it should be … a conformance test instead"*): the deploy
+  check is prose, and prose got skimmed. It should be a `make` target that builds, restarts, `cmp`s and
+  smoke-tests, so it cannot be claimed without being run.
+
+  **Finding 4 — `development-history.md` states it is the authoritative record and stopped 2026-09-22.**
+  Seven days and roughly twelve commits missing — Stages D, E1, E2, Workspace isolation, the
+  dokter-kecil install. Exactly the class `audits/2026-09-20-written-claim-vs-actual-state.md` exists to
+  catch, in the file that carries Finding 3's own lesson. The open question (asked, unanswered) is
+  whether it is still the living log or has been superseded by this file plus `audits/*`; **a staleness
+  header now says which parts are current rather than leaving the claim standing**, so the file no
+  longer overstates itself whichever way that is answered.
+
+  **Finding 5 — still no holistic fitness function**, and it waits on Finding 1 structurally. Every gate
+  in `internal/conformance` is atomic (one dimension); the product thesis — *"a new Machine added to a
+  manifest renders on every generic screen with no Go change"* — is proven by none of them
+  (`audits/2026-09-19-decomposition-maturity-audit.md` §5). Part of it landed 2026-09-28
+  (`TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames`). The full version has to assert on
+  *resolved* results, which is the surface Finding 1 builds, so it is fourth by dependency and not by
+  preference.
+
+  **What this kajian deliberately does not propose**, listed so it cannot be read as "generalize
+  everything" — each parked with a written reason that still holds: the full Query Model, Data IR, UI IR
+  and the CEP (007 §34's own instruction, *"Build it against real forcing cases, not speculatively"*;
+  `internal/ir`, `internal/planner` and `internal/registry` are deliberately `doc.go` boundaries and
+  nothing else); metadata versioning and change classification (no case); hot reload (a deliberate
+  triggered deferral); `requires_role:` on a navigation item and a `color` card_fields role — the last
+  `projectionRatchet` entry — (both waiting on a second case); the write-side Binding primitive and a
+  step's label (trigger is a third bespoke write screen, and a second case, respectively); signature
+  placement as a View type (`Q3` justifies it staying page-internal); and generalizing `decide.go`
+  (already assessed as failing B4, in writing).
+
+  **One thing in this ordering is judgement, not measurement, and is flagged as such**: Finding 1 changes
+  nothing a user sees, while Finding 2 does. It is still ranked first because it is the safety clause on
+  the mechanism this runtime now leans on hardest — but that is a call, and the measurements above are
+  what to re-argue it against.
+
 - **Installing a template into a Workspace that already uses its ids -- ~~planned~~ shipped 2026-09-28**
   (owner, 2026-09-28: *"bukannya harusnya bisa antisipasi jika tabrakan nama aplikasi bukan? ...
   komponen composable harusnya siap untuk ini"*). Both halves of that were fair, and they needed
