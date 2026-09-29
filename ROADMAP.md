@@ -2857,6 +2857,61 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Out of scope: board columns (corrected in documentation, not explained here), UI IR (§15, PROPOSED),
   and §7.5 Relation.
 
+  **§7.6 Projection is deliberately *not* next, reversing a recommendation made an hour earlier in the
+  same session.** The argument for it was that it targets the measured cost centre — the index audit
+  established that `json.Unmarshal`, not the scan, is the expensive half. That is true about *what* the
+  cost centre is and false about whether there is any cost to target: the largest Machine averages
+  **297 bytes** of JSONB over 13 rows, so projecting two of eight Fields saves about 6 KB in total.
+
+  Against that, Projection introduces a **new silent-failure class**. `Record.Values` is a
+  `map[string]any`; a projected record makes an unfetched Field read as `nil`, indistinguishable from a
+  Field that is genuinely empty. That is the same shape as the `/review` 404, in a session that has
+  spent days removing exactly it. 007 §27's question 5 asks what a capability's generic form costs, and
+  here the answer is a silent failure mode for no measured gain.
+
+  **Triggered deferral, so it can be re-checked rather than forgotten**: the 50,000-row threshold
+  `make threshold` already measures, or the first Machine with a large Field (an attachment, a long
+  text) that some screen does not need. Either makes §21.1's "only requested fields should be
+  retrieved" worth its hazard; neither exists today.
+
+
+  **§7.5 Relation — Step 0, measured 2026-09-29, and it cut "ten sites" to three.**
+
+  The ten was a count of *reads*, not of *correlations*, and nobody had checked the difference.
+  Measured by finding every place two record sets are indexed against each other:
+
+  | Function | Correlation |
+  |---|---|
+  | `approval.go buildInbox` | `docByID` + `stepsByDoc` |
+  | `approval.go PendingApprovalCount` | `docByID` + `stepsByDoc` |
+  | `assigned.go buildAssigned` | `docByID` + `stepsByDoc` |
+
+  **One shape, three times** — index Documents by id, group Steps by the derived parent Field. Well
+  past the second-case trigger, and far narrower than a general join model.
+
+  **Three things were miscounted as joins**, each a different shape. `buildSprint` reads two Machines
+  but correlates neither: `ds_task_workload`'s `dimension: fld_assignee` already does that work
+  declaratively, and reading two Machines is not the same as joining them. `buildCalendarWeek` groups
+  by a *Field value*, which is §7.3 Dimension. And `projectNames` / `savedSignatureImages` /
+  `PersonNames` are id→scalar label lookups, a third and simpler shape. **Fifth time in this session a
+  carried number failed on measurement**, and the first time it made the work smaller.
+
+  **007 §7.5 settles the design rather than leaving it to taste**, which is why the re-read came before
+  planning. "Relations should reuse existing Machine reference semantics rather than inventing a second
+  relationship identity" — the declared relation Field is the grounding, and
+  `domain.FindChildCollections` already answers which Machines point where. And "a relation may be
+  compiled to a join, semi-join, **lookup**, or other physical strategy" **explicitly sanctions two
+  queries plus correlation**, so choosing it is a compilation decision rather than a shortcut. At 23
+  Steps and 13 Documents it is almost certainly the faster one.
+
+  **So the criterion is not "fewer queries" but "less Go".** A different test from Stage 1's, and the
+  honest one here: what a Relation removes is three hand-written correlations, which is also what holds
+  `documentApprovalFieldCoupling` at 11.
+
+  **Not closed by it, stated up front**: `buildInbox` also reads `mch_activity` for submitters (the
+  lookup shape, not a join), and the four "legitimately reads everything" sites are untouched.
+
+
   **A side-finding from the same re-read, recorded because nobody planned it.** 007 §16 lists Data
   IR's components as `Source, Projection, Filter, Relation, GroupBy, Measure, Sort, Parameters,
   Security Scope`. `domain.Dataset` now satisfies **seven of the nine** — everything but Projection
