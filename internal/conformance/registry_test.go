@@ -128,11 +128,20 @@ func TestRegistryDependsOnDomainOnly(t *testing.T) {
 // TestDomainHoldsVocabularyAndRegistryHoldsDispatch is the line the Services and workflow-engine moves
 // drew, enforced so the next capability lands on the right side of it without anyone remembering which.
 //
-// **The rule is mechanical, which is why it is gateable at all.** A closed set whose value is `bool` is
-// *vocabulary* -- it answers "is this string legal", nothing more, and that is a declaration question, so
-// it belongs in internal/domain. A closed set whose value carries **structure** (a validator func, a cast,
-// a contract) is a *dispatch seam*: something reads it to decide what to run, which is
-// 007 §14's subject and belongs in internal/registry.
+// **The rule the concepts state, and the proxy this gate actually tests -- they are not the same thing,
+// and reading 001-007 the same day found the difference.** 007 §14 defines the registry as the seam for
+// "discovering how a component type is **implemented**", running `contract → validator → resolver →
+// renderer`. So the real question is *does something read this to decide what to run*. What this gate can
+// cheaply test is whether the value carries structure at all: `bool` means the set only says which strings
+// are legal, which is a declaration question and belongs in internal/domain.
+//
+// The proxy is right for both registries moved so far (Services carries a validator func;
+// KnownWorkflowEngines carries a cast plus the derivations each role owes -- §14's "contract" stage). **It
+// would be wrong for a structured *domain fact***: 004 puts Field in the Domain Plane and 005 Phase 4 makes
+// resolving a canonical representation a load-time normalization step, so a `map[FieldType]something`
+// describing what a type *is* would fail this gate while belonging exactly where it sits. If that lands,
+// widen the rule rather than move the fact -- and the failure message says so, so the next person hitting
+// it is not left guessing which side to obey.
 //
 // Measured when written (2026-09-30): eleven vocabulary maps in domain, all `→ bool`, and two structured
 // ones in registry -- `Services` (`map[string]Service`, carrying Validate) and `KnownWorkflowEngines`
@@ -150,7 +159,7 @@ func TestDomainHoldsVocabularyAndRegistryHoldsDispatch(t *testing.T) {
 	}
 	for _, name := range sortedKeys(domainMaps) {
 		if domainMaps[name] != "bool" {
-			t.Errorf("internal/domain declares %s with value type %q -- a closed set whose value carries structure is a dispatch seam (007 §14) and belongs in internal/registry, beside Services and KnownWorkflowEngines. A `bool` map is vocabulary and is right where it is",
+			t.Errorf("internal/domain declares %s with value type %q. Ask the question 007 §14 asks: does something read this to decide *what to run* (a validator, resolver or renderer)? If yes it is a dispatch seam and belongs in internal/registry, beside Services and KnownWorkflowEngines. **If it is instead a fact about what the type *is*** -- 004 puts Field in the Domain Plane, and 005 Phase 4 makes canonical representation a load-time concern -- then it belongs here and this gate's `bool` test is too crude: widen the rule in registry_test.go rather than moving the fact",
 				name, domainMaps[name])
 		}
 	}
