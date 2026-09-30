@@ -1,7 +1,7 @@
 package aiassist
 
 import (
-	"fmt"
+	"encoding/json"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -49,10 +49,13 @@ func composableSurface() string {
 - Transitions: a status field moving from one declared option to another, always performed through
   the ordinary edit form (never a dedicated approve/reject button).
 - Events: log an activity-feed entry when a record is created, or when a field reaches one value.
-- On an application that already exists (kind "extend_application", one entry in "additions" per
-  change): a new option on one of its status fields; a new role; a whole new machine; a new menu item
-  opening one of its machines; a new display name for the application; a new label for one of its
-  menu items; a new order for its menu. Its id and its menu items' ids never change.
+- A change to an application that already exists (kind "update_application"): return the whole
+  application as it should be afterwards, starting from its current definition below. You may add
+  anything (roles, machines, fields, options, permissions, status moves, activity entries, menu items),
+  change any name, label, description, icon or color, reorder or drop menu items, change which roles a
+  permission names, and make a field required, optional or computed. Keep every id exactly as it is:
+  ids are how the update is matched to what exists. Change only what the person asked for: every
+  other value, including an empty one, stays exactly as the current definition shows it.
 
 What you may NEVER generate, because it would need new Go code to work, not metadata:
 - A dedicated Approve/Reject workflow with sequencing, signatures, or PDF compositing. That engine is
@@ -73,8 +76,10 @@ What you may NEVER generate, because it would need new Go code to work, not meta
   approval engine above: its screens are Go routes your metadata cannot add.
 - Conditional-required fields, or anything needing a new field type, action, or service beyond the ones
   named above.
-- Removing anything from an installed application, or changing an existing machine's fields,
-  permissions or transitions -- those already hold records and behaviour.
+- Removing or retyping what already holds records or grants access: a machine, a field, a status
+  option, a role, a permission, a status move or an activity entry, or pointing a relation field at a
+  different machine. Leaving one out of an update is read as removing it and is refused, so repeat
+  everything you are not changing.
 
 If a request needs something from the second list, say so plainly in your reply's own message, and
 set capability_gap -- do not approximate it with something from the first list and call it the
@@ -108,10 +113,15 @@ any code.
 	if len(installed) == 0 {
 		b.WriteString("This workspace has no applications installed yet, so only kind=\"new_application\" is possible.\n\n")
 	} else {
-		b.WriteString("Applications already installed in this workspace (extend_application may target one of these):\n")
+		b.WriteString("Applications already installed in this workspace, each as its current definition -- an update_application starts from one of these. A menu item without machine_id opens a runtime screen; keep it by its id.\n")
 		for _, app := range installed {
-			b.WriteString(fmt.Sprintf("- %s (id: %s): %s. Roles: %s. Machines: %s. Menu, in order: %s.\n",
-				app.Name, app.ID, app.Description, strings.Join(app.Roles, ", "), strings.Join(app.MachineSummaries, "; "), strings.Join(app.NavItems, "; ")))
+			current, err := json.Marshal(app.Current)
+			if err != nil {
+				current = []byte(`{}`)
+			}
+			b.WriteString("- ")
+			b.Write(current)
+			b.WriteString("\n")
 		}
 		b.WriteString("\n")
 	}
@@ -161,9 +171,9 @@ any code.
    belongs in it. The first entry is where the application opens from Workspace Home.
 7. When you add a machine to an application that already exists, ask the same question for it:
    should it get a menu item, and what should it say? Add the item only if they say so.
-8. A reply that says a change is ready must carry that whole change in "change" -- every addition you
-   describe, as its own entry. Never say you have prepared something the "change" does not contain.
-   Before saying something cannot be done, check the lists above; when it is on the first list, do it.`)
+8. A reply that says a change is ready must carry the whole change in "change". Never say you have
+   prepared something the "change" does not contain. Before saying something cannot be done, check
+   the lists above; when it is on the first list, do it.`)
 	return b.String()
 }
 
@@ -171,10 +181,7 @@ any code.
 // already has -- built by internal/web's own handler from the live domain.Workspace, so this
 // package never reads metadata or the database itself (matches ExistingState's own posture).
 type InstalledApplication struct {
-	ID               string
-	Name             string
-	Description      string
-	Roles            []string
-	MachineSummaries []string // e.g. "mch_cabang Cabang (fld_nama_cabang Nama Cabang: text)"
-	NavItems         []string // e.g. "nav_cabang: Cabang -> mch_cabang"
+	// Current is the Application as DescribeApplication projects it: the exact shape an update
+	// returns, so the model edits it rather than reconstructing it.
+	Current GeneratedApplication
 }

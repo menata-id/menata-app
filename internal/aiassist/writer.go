@@ -52,8 +52,8 @@ func Write(workspaceManifestPath string, change GeneratedChange, resolve Machine
 	switch change.Kind {
 	case KindNewApplication:
 		newAppID, err = writeNewApplication(written, workspaceManifestPath, change)
-	case KindExtendApplication:
-		err = writeExtension(written, workspaceManifestPath, change, resolve)
+	case KindUpdateApplication:
+		err = writeUpdate(written, workspaceManifestPath, change, resolve)
 	default:
 		err = installer.Rejected(fmt.Errorf("unknown change kind %q", change.Kind))
 	}

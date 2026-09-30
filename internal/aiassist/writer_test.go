@@ -103,60 +103,6 @@ func TestWrite_newApplication_writesReloadableFiles(t *testing.T) {
 	}
 }
 
-func TestWrite_extendApplication_appendsOptionPreservingComments(t *testing.T) {
-	dir := t.TempDir()
-	// document.yaml lives one level up from metadata/workspaces/, exactly like the real repo
-	// layout (metadata/workspaces/default.yaml's own "../document.yaml" entries) -- the resolver
-	// below returns that same relative path, which writeExtension joins against the workspace
-	// manifest's own directory.
-	machinePath := filepath.Join(dir, "document.yaml")
-	original := `# A hand-written comment that must survive.
-id: mch_document
-name: Document
-fields:
-  - id: fld_document_type
-    name: Document Type
-    type: status
-    options: [Kontrak, Tagihan, Lain-lain]
-`
-	if err := os.WriteFile(machinePath, []byte(original), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	change := GeneratedChange{
-		Kind:        KindExtendApplication,
-		TargetAppID: "app_document_approval",
-		Additions: []MetadataAddition{
-			{MachineID: "mch_document", FieldID: "fld_document_type", NewOption: "Nota Dinas"},
-		},
-	}
-	resolver := fixedResolver{"mch_document": "../document.yaml"}
-	workspacesDir := filepath.Join(dir, "workspaces")
-	if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	manifestPath := filepath.Join(workspacesDir, "default.yaml")
-	if err := os.WriteFile(manifestPath, []byte("workspace: default\nmachines:\n  - ../document.yaml\napplications: []\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := Write(manifestPath, change, resolver); err != nil {
-		t.Fatalf("Write() error = %v", err)
-	}
-
-	updated, err := os.ReadFile(machinePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(updated)
-	if !strings.Contains(text, "# A hand-written comment that must survive.") {
-		t.Error("surgical edit lost the file's own comment")
-	}
-	if !strings.Contains(text, "options: [Kontrak, Tagihan, Lain-lain, Nota Dinas]") {
-		t.Errorf("option was not appended in place, got:\n%s", text)
-	}
-}
-
 // TestWrite_newApplication_isLoadableByRealMetadataLoader is the one test that matters most for
 // this package's own central promise: the bytes it writes are not merely well-formed YAML, they
 // are a file the *real*, unmodified internal/metadata.LoadWorkspaces accepts and turns into a

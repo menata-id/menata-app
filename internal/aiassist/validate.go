@@ -37,17 +37,64 @@ type ExistingState struct {
 // ExistingApplicationState is the slice of one installed Application's current metadata that
 // extend_application validation reads.
 type ExistingApplicationState struct {
-	Name     string
-	Roles    []string
-	Machines map[string]*domain.Machine // keyed by machine id, this Application's own claimed Machines only
+	Name        string
+	Description string
+	Icon        string
+	Color       string
+	Roles       []string
+	Machines    map[string]*domain.Machine // keyed by machine id, this Application's own claimed Machines only
+	// MachineOrder is the Application's machines: list in declared order, which Machines cannot keep.
+	MachineOrder []string
 	// Navigation is this Application's own menu, in declared order (domain.Application.AllNavigation).
 	Navigation []ExistingNavItem
 }
 
-// ExistingNavItem is one navigation item as a presentation change needs it: its id and its label.
+// ExistingNavItem is one navigation item: its id, label and route.
 type ExistingNavItem struct {
 	ID    string
 	Label string
+	Route string
+}
+
+// ExistingStateFrom is the one way to build an ExistingState from a loaded Workspace, used by
+// internal/web for validation and by Write for computing an update's plan against the files it is
+// about to edit, so the two can never describe the Workspace differently.
+func ExistingStateFrom(ws domain.Workspace) ExistingState {
+	state := ExistingState{
+		MachineIDs:     map[string]bool{},
+		ApplicationIDs: map[string]bool{},
+		Applications:   map[string]ExistingApplicationState{},
+		NavIDs:         map[string]bool{},
+	}
+	for _, id := range ws.MachineIDs {
+		state.MachineIDs[id] = true
+	}
+	for _, n := range ws.Navigation {
+		state.NavIDs[n.ID] = true
+	}
+	byID := make(map[string]*domain.Machine, len(ws.Machines))
+	for _, m := range ws.Machines {
+		byID[m.ID] = m
+	}
+	for _, app := range ws.Applications {
+		state.ApplicationIDs[app.ID] = true
+		claimed := make(map[string]*domain.Machine, len(app.Machines))
+		for _, mID := range app.Machines {
+			if m, ok := byID[mID]; ok {
+				claimed[mID] = m
+			}
+		}
+		nav := make([]ExistingNavItem, 0, len(app.AllNavigation))
+		for _, n := range app.AllNavigation {
+			nav = append(nav, ExistingNavItem{ID: n.ID, Label: n.Label, Route: n.Route})
+			state.NavIDs[n.ID] = true
+		}
+		state.Applications[app.ID] = ExistingApplicationState{
+			Name: app.Name, Description: app.Description, Icon: app.Icon, Color: app.Color,
+			Roles: app.Roles, Machines: claimed, MachineOrder: app.Machines, Navigation: nav,
+		}
+	}
+	return state
 }
 
 // Validate checks a GeneratedChange for internal consistency (real domain.Machine/
@@ -60,8 +107,8 @@ func Validate(change GeneratedChange, existing ExistingState) error {
 	switch change.Kind {
 	case KindNewApplication:
 		return validateNewApplication(change, existing)
-	case KindExtendApplication:
-		return validateExtendApplication(change, existing)
+	case KindUpdateApplication:
+		return validateUpdateApplication(change, existing)
 	default:
 		return fmt.Errorf("unknown change kind %q", change.Kind)
 	}

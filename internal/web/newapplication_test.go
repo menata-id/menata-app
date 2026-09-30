@@ -254,20 +254,21 @@ func TestExistingStateFor_reservesOnlyThisWorkspacesIDs(t *testing.T) {
 	}
 }
 
-// TestExistingStateFor_populatesApplicationsForExtend is the regression test for a bug that
+// TestExistingStateFor_populatesApplicationsForUpdate is the regression test for a bug that
 // predates this file's Workspace-isolation work: existingStateFor declared its Applications map
-// but never filled it in, so aiassist.Validate's extend_application path -- which looks up
+// but never filled it in, so aiassist.Validate's path for changing an installed Application (then
+// extend_application, now update_application) -- which looks up
 // existing.Applications[change.TargetAppID] -- rejected every extension with "application X is
 // not installed in this workspace" even when it plainly was. Found chasing a real conversation
 // where the assistant tried exactly this path and could never get past it.
-func TestExistingStateFor_populatesApplicationsForExtend(t *testing.T) {
+func TestExistingStateFor_populatesApplicationsForUpdate(t *testing.T) {
 	ws := domain.Workspace{
 		Slug:       "dokter-kecil",
 		MachineIDs: []string{"mch_user", "mch_document"},
 		Machines: []*domain.Machine{
 			{ID: "mch_user"},
-			{ID: "mch_document", Fields: []domain.Field{
-				{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"Draft", "Under Review"}},
+			{ID: "mch_document", Name: "Document", Fields: []domain.Field{
+				{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"Draft", "Under Review"}},
 			}},
 		},
 		Applications: []domain.Application{{
@@ -280,7 +281,7 @@ func TestExistingStateFor_populatesApplicationsForExtend(t *testing.T) {
 
 	target, ok := state.Applications["app_document_tracking"]
 	if !ok {
-		t.Fatal("existingStateFor() did not populate Applications[app_document_tracking] -- extend_application can never validate against an installed application")
+		t.Fatal("existingStateFor() did not populate Applications[app_document_tracking] -- update_application can never validate against an installed application")
 	}
 	if len(target.Roles) != 2 || target.Roles[0] != "author" {
 		t.Errorf("Applications[app_document_tracking].Roles = %v, want [author reviewer]", target.Roles)
@@ -289,12 +290,11 @@ func TestExistingStateFor_populatesApplicationsForExtend(t *testing.T) {
 		t.Error("Applications[app_document_tracking].Machines is missing mch_document, which this Application claims")
 	}
 
-	extension := aiassist.GeneratedChange{
-		Kind: aiassist.KindExtendApplication, TargetAppID: "app_document_tracking",
-		Additions: []aiassist.MetadataAddition{{NewRole: "approver"}},
-	}
-	if err := aiassist.Validate(extension, state); err != nil {
-		t.Errorf("Validate(extend an installed application) = %v, want nil", err)
+	desired := aiassist.DescribeApplication("app_document_tracking", target)
+	desired.Roles = append(desired.Roles, "approver")
+	updated := aiassist.GeneratedChange{Kind: aiassist.KindUpdateApplication, TargetAppID: "app_document_tracking", Application: &desired}
+	if err := aiassist.Validate(updated, state); err != nil {
+		t.Errorf("Validate(update an installed application) = %v, want nil", err)
 	}
 }
 
@@ -763,7 +763,7 @@ func (c *sequenceAIClient) Generate(_ context.Context, _ string, turns []aiassis
 // no Review button appeared, and nobody told the model why. Now it is told once and answers again.
 func TestPostNewApplicationMessage_anInvalidChangeGetsOneCorrectionRound(t *testing.T) {
 	s := newAssistantRouteSetup(t, "Assistant Correction", "assistant-correction-workspace", "assistant_correction@example.com")
-	empty := &aiassist.GeneratedChange{Kind: aiassist.KindExtendApplication, TargetAppID: "app_nope"}
+	empty := &aiassist.GeneratedChange{Kind: aiassist.KindUpdateApplication, TargetAppID: "app_nope"}
 
 	t.Run("corrected on the second answer", func(t *testing.T) {
 		client := &sequenceAIClient{replies: []aiassist.Reply{

@@ -1,10 +1,6 @@
 package rendering
 
-import (
-	"strings"
-
-	"menata.app/internal/aiassist"
-)
+import "menata.app/internal/aiassist"
 
 // ConversationView is one render of the AI Metadata Assistant's own conversation screen
 // (NewApp.dc.html/M03c-NewApp.dc.html, Flow 2 gap study Tahap 8) -- built by internal/web from a
@@ -175,52 +171,61 @@ templ changeSummary(change aiassist.GeneratedChange) {
 				</div>
 			}
 		</div>
-	} else if change.Kind == aiassist.KindExtendApplication {
-		<div class="flex flex-col gap-2 text-sm">
-			<div class="flex flex-col gap-1">
-				<span class="text-3xs text-slate-400 uppercase">Extends</span>
-				<span>{ change.TargetAppID }</span>
-			</div>
-			<ul class="m-0 flex flex-col gap-1 pl-4 text-slate-700">
-				for _, add := range change.Additions {
-					<li>{ additionSummary(add) }</li>
-				}
-			</ul>
+	} else if change.Kind == aiassist.KindUpdateApplication && change.Application != nil {
+		<div class="flex flex-col gap-1 text-sm">
+			<span class="text-3xs text-slate-400 uppercase">Updates</span>
+			<span>{ change.Application.Name }</span>
 		</div>
 	}
 }
 
-func additionSummary(add aiassist.MetadataAddition) string {
-	switch {
-	case add.NewOption != "":
-		return "Add \"" + add.NewOption + "\" as a new option on " + add.FieldID
-	case add.NewRole != "":
-		return "Add \"" + add.NewRole + "\" as a new role"
-	case add.NewNavItem != nil:
-		return "Add a \"" + add.NewNavItem.Label + "\" menu item, opening " + add.NewNavItem.MachineID
-	case add.NewMachine != nil:
-		names := make([]string, 0, len(add.NewMachine.Fields))
-		for _, f := range add.NewMachine.Fields {
-			names = append(names, f.Name)
-		}
-		return "Add \"" + add.NewMachine.Name + "\" (" + strings.Join(names, ", ") + ")"
-	case add.RenameApplication != "":
-		return "Rename the application to \"" + add.RenameApplication + "\""
-	case add.RelabelNavItem != nil:
-		return "Change menu item " + add.RelabelNavItem.NavID + " to \"" + add.RelabelNavItem.Label + "\""
-	case len(add.ReorderNavigation) > 0:
-		return "Reorder the menu: " + strings.Join(add.ReorderNavigation, ", ")
+// planOpLabel is the heading a plan item is grouped under on the review page.
+func planOpLabel(op string) string {
+	switch op {
+	case "add":
+		return "Added"
+	case "remove":
+		return "Removed"
 	default:
-		return "(unrecognized addition)"
+		return "Changed"
 	}
+}
+
+// planItemsFor is the plan's items for one op, in plan order.
+func planItemsFor(plan aiassist.Plan, op string) []string {
+	var out []string
+	for _, item := range plan.Items {
+		if item.Op == op {
+			out = append(out, item.What)
+		}
+	}
+	return out
+}
+
+// updatePlan is an update's review: what it adds, changes and removes, computed by
+// aiassist.PlanUpdate from the installed Application and the one the conversation proposes -- the
+// same plan the writer recomputes before it touches a file.
+templ updatePlan(plan aiassist.Plan) {
+	<div class="flex flex-col gap-4 text-sm">
+		for _, op := range []string{"add", "change", "remove"} {
+			if items := planItemsFor(plan, op); len(items) > 0 {
+				<div class="flex flex-col gap-1">
+					<span class="text-3xs text-slate-400 uppercase">{ planOpLabel(op) }</span>
+					<ul class="m-0 flex flex-col gap-1 pl-4 text-slate-700">
+						for _, what := range items {
+							<li>{ what }</li>
+						}
+					</ul>
+				</div>
+			}
+		}
+	</div>
 }
 
 // NewApplicationReviewPage is NewAppReview.dc.html's shape: what will be built, and -- for
 // new_application only, the mockup's own scope -- who gets access before publishing. An
-// extend_application review has no access question (it changes an application that already has
-// one) and is rendered with the same changeSummary the conversation screen's own preview uses,
-// framed as a plain diff rather than a full card face.
-templ NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+// update_application review shows its plan instead: what is added, changed and removed.
+templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Plan, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Review new application", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL("/new-application?session=" + sessionID) } class="text-xs text-blue-600 hover:text-blue-700">← Back to conversation</a>
 		<div class="flex flex-col gap-2">
@@ -228,13 +233,17 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, works
 			if change.Kind == aiassist.KindNewApplication && change.Application != nil {
 				<h1 class="m-0 text-xl font-medium">{ change.Application.Name }</h1>
 			} else {
-				<h1 class="m-0 text-xl font-medium">Extend { change.TargetAppID }</h1>
+				<h1 class="m-0 text-xl font-medium">Update { change.TargetAppID }</h1>
 			}
 			<div class="text-sm text-slate-500">Look it over before it becomes real. Generating does not publish anything by itself.</div>
 		</div>
 		<div class="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]">
 			<section class="rounded-lg border border-slate-200 bg-white p-5">
-				@changeSummary(change)
+				if change.Kind == aiassist.KindUpdateApplication {
+					@updatePlan(plan)
+				} else {
+					@changeSummary(change)
+				}
 			</section>
 			<aside class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
 				<h2 class="m-0 text-sm font-medium">Before you publish</h2>
@@ -243,7 +252,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, sessionID, works
 				} else if change.Kind == aiassist.KindNewApplication {
 					<p class="m-0 text-xs text-slate-500">This application declares no roles, so nothing gates who can open it. Access for everyone is a Settings change, made after publishing, not part of this step.</p>
 				} else {
-					<p class="m-0 text-xs text-slate-500">This adds to an application that already has its own access rules -- nothing about who can use it changes.</p>
+					<p class="m-0 text-xs text-slate-500">Nothing that holds records is removed: machines, fields, options, roles and permissions can only be added or relabelled. Who holds which role does not change.</p>
 				}
 				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/publish") } class="flex flex-col gap-2">
 					@csrfHiddenInput()

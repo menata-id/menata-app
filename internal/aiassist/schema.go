@@ -146,17 +146,17 @@ var generatedMachineSchema = geminiSchema{
 var generatedApplicationSchema = geminiSchema{
 	PropertyOrdering: []string{"id", "name", "description", "icon", "color", "roles", "publisher_role", "machines", "navigation"},
 	Type:             "OBJECT",
-	Required:         []string{"id", "name", "machines", "publisher_role", "navigation"},
+	Required:         []string{"id", "name", "machines", "navigation"},
 	Properties: map[string]geminiSchema{
 		"id":          {Type: "STRING", Description: "Must match ^app_[a-z][a-z0-9_]*$."},
 		"name":        stringSchema,
 		"description": stringSchema,
-		"icon":        {Type: "STRING", Enum: declarableIconEnum()},
-		"color":       {Type: "STRING", Enum: []string{"blue", "emerald", "amber", "slate"}},
+		"icon":        {Type: "STRING", Enum: declarableIconEnum(), Description: "In an update, leave out unless the person asked for an icon."},
+		"color":       {Type: "STRING", Enum: []string{"blue", "emerald", "amber", "slate"}, Description: "In an update, leave out unless the person asked for a color."},
 		"roles":       {Type: "ARRAY", Items: &stringSchema},
 		"publisher_role": {
 			Type:        "STRING",
-			Description: "Must be one of roles. Which role the person you are talking to will hold themselves once this is published -- ask them plainly which one that is before setting \"change\"; never guess or pick one on their behalf.",
+			Description: "new_application only; leave empty for an update. Must be one of roles. Which role the person you are talking to will hold themselves once this is published -- ask them plainly which one that is before setting \"change\"; never guess or pick one on their behalf.",
 		},
 		"machines": {Type: "ARRAY", Items: &generatedMachineSchema},
 		"navigation": {
@@ -168,69 +168,25 @@ var generatedApplicationSchema = geminiSchema{
 }
 
 var generatedMenuItemSchema = geminiSchema{
-	PropertyOrdering: []string{"label", "machine_id"},
+	PropertyOrdering: []string{"id", "label", "machine_id"},
 	Type:             "OBJECT",
-	Required:         []string{"label", "machine_id"},
+	Required:         []string{"label"},
 	Properties: map[string]geminiSchema{
+		"id":         {Type: "STRING", Description: "Only for a menu item that already exists: keep its id exactly, so it keeps where it leads. Leave empty for a new item."},
 		"label":      {Type: "STRING", Description: "What the menu entry says, in the person's own language."},
-		"machine_id": {Type: "STRING", Description: "One of this application's own machine ids; the entry opens that machine's list."},
+		"machine_id": {Type: "STRING", Description: "Required for a new item: one of this application's own machine ids; the entry opens that machine's list."},
 	},
-}
-
-var metadataAdditionSchema = geminiSchema{
-	PropertyOrdering: []string{"machine_id", "field_id", "new_option", "new_role", "new_machine", "new_nav_item", "rename_application", "relabel_nav_item", "reorder_navigation"},
-	Type:             "OBJECT",
-	Properties: map[string]geminiSchema{
-		"machine_id": stringSchema,
-		"field_id":   stringSchema,
-		"new_option": {Type: "STRING", Description: "Set together with machine_id/field_id to add one option to an existing status field."},
-		"new_role":   {Type: "STRING", Description: "Set alone to add one role to the target application's own vocabulary."},
-		"new_machine": withDescription(generatedMachineSchema,
-			"Set alone to add a whole new machine to the target application. Its relation fields may point at any machine already in this workspace."),
-		"new_nav_item": {
-			Type:             "OBJECT",
-			Description:      "Set alone to add one menu item to the target application, opening one of its machines (including one this same change adds). Ask the person for the label first.",
-			Required:         []string{"id", "label", "machine_id"},
-			PropertyOrdering: []string{"id", "label", "machine_id", "title", "description", "icon"},
-			Properties: map[string]geminiSchema{
-				"id":          {Type: "STRING", Description: "Must match ^nav_[a-z][a-z0-9_]*$ and not be used anywhere in this workspace."},
-				"label":       stringSchema,
-				"title":       stringSchema,
-				"description": stringSchema,
-				"machine_id":  stringSchema,
-				"icon":        {Type: "STRING", Enum: declarableIconEnum()},
-			},
-		},
-		"rename_application": {Type: "STRING", Description: "Set alone to give the target application a new display name. Its id does not change."},
-		"relabel_nav_item": {
-			Type:             "OBJECT",
-			Description:      "Set alone to change the label of one of the target application's existing menu items, by its nav id.",
-			Required:         []string{"nav_id", "label"},
-			PropertyOrdering: []string{"nav_id", "label"},
-			Properties:       map[string]geminiSchema{"nav_id": stringSchema, "label": stringSchema},
-		},
-		"reorder_navigation": {
-			Type:        "ARRAY",
-			Items:       &stringSchema,
-			Description: "Set alone to reorder the target application's menu: every one of its menu item ids, including ones this change adds, in the new order.",
-		},
-	},
-}
-
-func withDescription(s geminiSchema, d string) geminiSchema {
-	s.Description = d
-	return s
 }
 
 var generatedChangeSchema = geminiSchema{
-	PropertyOrdering: []string{"kind", "target_app_id", "application", "additions"},
+	PropertyOrdering: []string{"kind", "target_app_id", "application"},
 	Type:             "OBJECT",
-	Required:         []string{"kind"},
+	Required:         []string{"kind", "application"},
 	Properties: map[string]geminiSchema{
-		"kind":          {Type: "STRING", Enum: []string{KindNewApplication, KindExtendApplication}},
-		"target_app_id": {Type: "STRING", Description: "Required when kind is \"extend_application\": the id of the already-installed application being extended."},
-		"application":   generatedApplicationSchema,
-		"additions":     {Type: "ARRAY", Items: &metadataAdditionSchema},
+		"kind":          {Type: "STRING", Enum: []string{KindNewApplication, KindUpdateApplication}},
+		"target_app_id": {Type: "STRING", Description: "Required when kind is \"update_application\": the id of the installed application being updated."},
+		"application": withDescription(generatedApplicationSchema,
+			"The whole application. For update_application: start from its current definition, keep every id, change what was asked, and leave everything else exactly as it is -- anything left out is read as a removal."),
 	},
 }
 
@@ -256,4 +212,9 @@ var replySchema = geminiSchema{
 		"change":         generatedChangeSchema,
 		"capability_gap": capabilityGapSchema,
 	},
+}
+
+func withDescription(s geminiSchema, d string) geminiSchema {
+	s.Description = d
+	return s
 }

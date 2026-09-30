@@ -36,14 +36,14 @@ func TestEveryObjectSchemaDeclaresItsPropertyOrder(t *testing.T) {
 	walk("reply", replySchema)
 }
 
-// TestReplyWritesItsMessageFirstAndItsTargetBeforeItsAdditions pins the two orders the incident was
+// TestReplyWritesItsMessageFirstAndItsTargetBeforeTheApplication pins the two orders the incident was
 // about, so a later edit cannot satisfy the gate above with the wrong order.
-func TestReplyWritesItsMessageFirstAndItsTargetBeforeItsAdditions(t *testing.T) {
+func TestReplyWritesItsMessageFirstAndItsTargetBeforeTheApplication(t *testing.T) {
 	if replySchema.PropertyOrdering[0] != "message" {
 		t.Errorf("reply order = %v, want message first", replySchema.PropertyOrdering)
 	}
 	o := generatedChangeSchema.PropertyOrdering
-	if slices.Index(o, "kind") > slices.Index(o, "additions") || slices.Index(o, "target_app_id") > slices.Index(o, "additions") {
-		t.Errorf("change order = %v, want kind and target_app_id before additions", o)
+	if slices.Index(o, "kind") > slices.Index(o, "application") || slices.Index(o, "target_app_id") > slices.Index(o, "application") {
+		t.Errorf("change order = %v, want kind and target_app_id before the application", o)
 	}
 }

@@ -258,7 +258,7 @@ func showNewApplicationReview(store *data.Store, cfg config.Config) http.Handler
 		}
 		actorID := currentActor(req, store, cfg).ID
 		_, switchHref := viewerWorkspaceContext(ctx, store, actorID)
-		render(ctx, w, rendering.NewApplicationReviewPage(*change, session.ID, chrome.WorkspaceName, chrome.Viewer(), switchHref))
+		render(ctx, w, rendering.NewApplicationReviewPage(*change, reviewPlan(*change, ws), session.ID, chrome.WorkspaceName, chrome.Viewer(), switchHref))
 	}
 }
 
@@ -433,41 +433,26 @@ func discardNewApplication(store *data.Store) http.HandlerFunc {
 
 // --- shared helpers ------------------------------------------------------------------------------
 
-// installedApplicationsFor is what the model is told about each installed Application: every
-// Machine with its Fields (so a new relation or computed field can name real ids), and the menu in
-// order with each item's id (so a relabel or reorder can name one). It used to pass bare Machine ids
-// and no menu, which left the model unable to relate to an existing Machine's data or to name a menu
-// item -- and it told the person both were impossible.
+// installedApplicationsFor is what the model is told about each installed Application: its current
+// definition in the exact shape an update returns (aiassist.DescribeApplication), so updating is
+// editing what it was shown rather than reconstructing it from a summary.
 func installedApplicationsFor(ws domain.Workspace) []aiassist.InstalledApplication {
-	byID := make(map[string]*domain.Machine, len(ws.Machines))
-	for _, m := range ws.Machines {
-		byID[m.ID] = m
-	}
+	state := existingStateFor(ws)
 	out := make([]aiassist.InstalledApplication, 0, len(ws.Applications))
 	for _, app := range ws.Applications {
-		var machineSummaries []string
-		for _, mID := range app.Machines {
-			m, ok := byID[mID]
-			if !ok {
-				machineSummaries = append(machineSummaries, mID)
-				continue
-			}
-			fields := make([]string, 0, len(m.Fields))
-			for _, f := range m.Fields {
-				fields = append(fields, fmt.Sprintf("%s %s: %s", f.ID, f.Name, f.Type))
-			}
-			machineSummaries = append(machineSummaries, fmt.Sprintf("%s %s (%s)", m.ID, m.Name, strings.Join(fields, ", ")))
-		}
-		navItems := make([]string, 0, len(app.AllNavigation))
-		for _, n := range app.AllNavigation {
-			navItems = append(navItems, fmt.Sprintf("%s: %s -> %s", n.ID, n.Label, n.Route))
-		}
-		out = append(out, aiassist.InstalledApplication{
-			ID: app.ID, Name: app.Name, Description: app.Description,
-			Roles: app.Roles, MachineSummaries: machineSummaries, NavItems: navItems,
-		})
+		out = append(out, aiassist.InstalledApplication{Current: aiassist.DescribeApplication(app.ID, state.Applications[app.ID])})
 	}
 	return out
+}
+
+// reviewPlan is an update's plan against the installed Application, for the review page; empty for
+// a new Application, whose review shows the Application itself.
+func reviewPlan(change aiassist.GeneratedChange, ws domain.Workspace) aiassist.Plan {
+	if change.Kind != aiassist.KindUpdateApplication || change.Application == nil {
+		return aiassist.Plan{}
+	}
+	current := existingStateFor(ws).Applications[change.TargetAppID]
+	return aiassist.PlanUpdate(aiassist.DescribeApplication(change.TargetAppID, current), *change.Application)
 }
 
 // existingStateFor builds what aiassist.Validate checks a proposal against: the ids already taken
@@ -487,45 +472,7 @@ func installedApplicationsFor(ws domain.Workspace) []aiassist.InstalledApplicati
 // under either model: whatever the caller believed about collisions, no write may land on a file
 // that already exists.
 func existingStateFor(ws domain.Workspace) aiassist.ExistingState {
-	state := aiassist.ExistingState{
-		MachineIDs:     map[string]bool{},
-		ApplicationIDs: map[string]bool{},
-		Applications:   map[string]aiassist.ExistingApplicationState{},
-		NavIDs:         map[string]bool{},
-	}
-	for _, n := range ws.Navigation {
-		state.NavIDs[n.ID] = true
-	}
-	for _, id := range ws.MachineIDs {
-		state.MachineIDs[id] = true
-	}
-	byID := make(map[string]*domain.Machine, len(ws.Machines))
-	for _, m := range ws.Machines {
-		byID[m.ID] = m
-	}
-	for _, app := range ws.Applications {
-		state.ApplicationIDs[app.ID] = true
-		// Applications was declared but never populated here since this package's own first
-		// commit, which meant aiassist.Validate's extend_application path always failed --
-		// existing.Applications[change.TargetAppID] could never be found, so every extend request
-		// was rejected with "application X is not installed in this workspace" even when it plainly
-		// was. Found 2026-09-27 chasing a conversation where the assistant tried exactly that path
-		// (after a generated Application's own creator hit "you have no role in it" -- see
-		// publishNewApplication's own doc comment) and could not get past this.
-		claimed := make(map[string]*domain.Machine, len(app.Machines))
-		for _, mID := range app.Machines {
-			if m, ok := byID[mID]; ok {
-				claimed[mID] = m
-			}
-		}
-		nav := make([]aiassist.ExistingNavItem, 0, len(app.AllNavigation))
-		for _, n := range app.AllNavigation {
-			nav = append(nav, aiassist.ExistingNavItem{ID: n.ID, Label: n.Label})
-			state.NavIDs[n.ID] = true
-		}
-		state.Applications[app.ID] = aiassist.ExistingApplicationState{Name: app.Name, Roles: app.Roles, Machines: claimed, Navigation: nav}
-	}
-	return state
+	return aiassist.ExistingStateFrom(ws)
 }
 
 // buildConversationView decodes every stored turn for display: a user turn renders as-is; a model

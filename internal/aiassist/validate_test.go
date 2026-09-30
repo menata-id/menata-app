@@ -103,63 +103,58 @@ func TestValidate_newApplication_relationMustStayWithinChange(t *testing.T) {
 	}
 }
 
-func TestValidate_extendApplication_newOption(t *testing.T) {
-	existing := ExistingState{
+func documentApprovalState() ExistingState {
+	doc := &domain.Machine{ID: "mch_document", Name: "Document", Fields: []domain.Field{
+		{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
+		{ID: "fld_document_type", Name: "Type", Type: domain.FieldTypeStatus, Options: []string{"Kontrak", "Tagihan"}},
+	}}
+	return ExistingState{
+		MachineIDs:     map[string]bool{"mch_document": true},
+		ApplicationIDs: map[string]bool{"app_document_approval": true},
+		NavIDs:         map[string]bool{"nav_documents": true},
 		Applications: map[string]ExistingApplicationState{
 			"app_document_approval": {
-				Roles: []string{"approver", "submitter"},
-				Machines: map[string]*domain.Machine{
-					"mch_document": {
-						ID: "mch_document",
-						Fields: []domain.Field{
-							{ID: "fld_document_type", Type: domain.FieldTypeStatus, Options: []string{"Kontrak", "Tagihan"}},
-						},
-					},
-				},
+				Name: "Document Approval", Roles: []string{"approver", "submitter"},
+				Machines: map[string]*domain.Machine{"mch_document": doc}, MachineOrder: []string{"mch_document"},
+				Navigation: []ExistingNavItem{{ID: "nav_documents", Label: "Documents", Route: "/machines/mch_document"}},
 			},
 		},
 	}
-	change := GeneratedChange{
-		Kind:        KindExtendApplication,
-		TargetAppID: "app_document_approval",
-		Additions: []MetadataAddition{
-			{MachineID: "mch_document", FieldID: "fld_document_type", NewOption: "Nota Dinas"},
-		},
-	}
-	if err := Validate(change, existing); err != nil {
+}
+
+func documentApprovalUpdate(edit func(a *GeneratedApplication)) GeneratedChange {
+	state := documentApprovalState()
+	desired := DescribeApplication("app_document_approval", state.Applications["app_document_approval"])
+	edit(&desired)
+	return GeneratedChange{Kind: KindUpdateApplication, TargetAppID: "app_document_approval", Application: &desired}
+}
+
+func TestValidate_updateApplication_addsAnOption(t *testing.T) {
+	change := documentApprovalUpdate(func(a *GeneratedApplication) {
+		a.Machines[0].Fields[1].Options = append(a.Machines[0].Fields[1].Options, "Nota Dinas")
+	})
+	if err := Validate(change, documentApprovalState()); err != nil {
 		t.Fatalf("Validate() = %v, want nil", err)
 	}
 }
 
-func TestValidate_extendApplication_optionAlreadyExists(t *testing.T) {
-	existing := ExistingState{
-		Applications: map[string]ExistingApplicationState{
-			"app_document_approval": {
-				Machines: map[string]*domain.Machine{
-					"mch_document": {
-						ID: "mch_document",
-						Fields: []domain.Field{
-							{ID: "fld_document_type", Type: domain.FieldTypeStatus, Options: []string{"Kontrak", "Tagihan"}},
-						},
-					},
-				},
-			},
-		},
-	}
-	change := GeneratedChange{
-		Kind:        KindExtendApplication,
-		TargetAppID: "app_document_approval",
-		Additions: []MetadataAddition{
-			{MachineID: "mch_document", FieldID: "fld_document_type", NewOption: "Kontrak"},
-		},
-	}
-	if err := Validate(change, existing); err == nil {
-		t.Fatal("Validate() = nil, want an error for an option that's already declared")
+func TestValidate_updateApplication_refusesRemovingAnOption(t *testing.T) {
+	change := documentApprovalUpdate(func(a *GeneratedApplication) {
+		a.Machines[0].Fields[1].Options = []string{"Kontrak"}
+	})
+	if err := Validate(change, documentApprovalState()); err == nil || !strings.Contains(err.Error(), "cannot be removed") {
+		t.Fatalf("Validate() = %v, want a refusal to remove an option", err)
 	}
 }
 
-func TestValidate_extendApplication_unknownTarget(t *testing.T) {
-	change := GeneratedChange{Kind: KindExtendApplication, TargetAppID: "app_ghost", Additions: []MetadataAddition{{NewRole: "X"}}}
+func TestValidate_updateApplication_refusesNoChange(t *testing.T) {
+	if err := Validate(documentApprovalUpdate(func(*GeneratedApplication) {}), documentApprovalState()); err == nil || !strings.Contains(err.Error(), "nothing would change") {
+		t.Fatalf("Validate() = %v, want a refusal of an unchanged application", err)
+	}
+}
+
+func TestValidate_updateApplication_unknownTarget(t *testing.T) {
+	change := GeneratedChange{Kind: KindUpdateApplication, TargetAppID: "app_ghost", Application: &GeneratedApplication{ID: "app_ghost", Name: "Ghost"}}
 	if err := Validate(change, ExistingState{}); err == nil {
 		t.Fatal("Validate() = nil, want an error for an application not installed in this workspace")
 	}
