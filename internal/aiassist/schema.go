@@ -25,6 +25,13 @@ type geminiSchema struct {
 	// model reliably honours a constraint stated right next to the field more than one stated only
 	// in a long system prompt paragraph).
 	Description string `json:"description,omitempty"`
+	// PropertyOrdering is the order the model writes an object's properties in. Without it Gemini
+	// uses alphabetical order, and the model writes forward only: "additions" came before "kind" and
+	// "target_app_id", so it had to decide what to add before it had said what it was changing, and
+	// skipped it; "change" came before "message", so it built the change before saying what it was.
+	// Found 2026-09-30 when the model, unable to go back, wrote its additions *inside* the
+	// target_app_id string. TestEveryObjectSchemaDeclaresItsPropertyOrder holds every object to it.
+	PropertyOrdering []string `json:"propertyOrdering,omitempty"`
 }
 
 var stringSchema = geminiSchema{Type: "STRING"}
@@ -47,13 +54,14 @@ func declarableIconEnum() []string {
 }
 
 var generatedFieldSchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"id", "name", "type", "required"},
+	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute"},
+	Type:             "OBJECT",
+	Required:         []string{"id", "name", "type", "required"},
 	Properties: map[string]geminiSchema{
 		"id":       stringSchema,
 		"name":     stringSchema,
 		"type":     {Type: "STRING", Enum: []string{"text", "number", "boolean", "date", "status", "person", "money", "relation", "file", "group"}},
-		"required": boolSchema,
+		"required": {Type: "BOOLEAN", Description: "Always false for a field with \"compute\": nobody enters it."},
 		"options": {
 			Type: "ARRAY", Items: &stringSchema,
 			Description: "Required, and non-empty, when type is \"status\".",
@@ -63,9 +71,10 @@ var generatedFieldSchema = geminiSchema{
 			Description: "Required when type is \"relation\": the id of a machine in this same change, or of any machine already installed in this workspace -- including one another application owns.",
 		},
 		"compute": {
-			Type:        "OBJECT",
-			Description: "Only on a number field that should be calculated rather than entered, e.g. a total. It is never shown as an input; it is calculated every time the record is saved.",
-			Required:    []string{"op", "fields"},
+			Type:             "OBJECT",
+			Description:      "Only on a number field that should be calculated rather than entered, e.g. a total. It is never shown as an input; it is calculated every time the record is saved.",
+			Required:         []string{"op", "fields"},
+			PropertyOrdering: []string{"op", "fields"},
 			Properties: map[string]geminiSchema{
 				"op":     {Type: "STRING", Enum: computeOpEnum()},
 				"fields": {Type: "ARRAY", Items: &stringSchema, Description: "Ids of number fields of this same machine that are not computed themselves."},
@@ -84,8 +93,9 @@ func computeOpEnum() []string {
 }
 
 var generatedPermissionSchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"id", "action", "roles"},
+	PropertyOrdering: []string{"id", "action", "roles"},
+	Type:             "OBJECT",
+	Required:         []string{"id", "action", "roles"},
 	Properties: map[string]geminiSchema{
 		"id":     stringSchema,
 		"action": {Type: "STRING", Enum: []string{"create", "edit", "delete"}, Description: "Never \"decide\" or \"revise\" -- those are hardcoded workflow actions this machine cannot reach."},
@@ -94,8 +104,9 @@ var generatedPermissionSchema = geminiSchema{
 }
 
 var generatedTransitionSchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"id", "name", "field", "from", "to"},
+	PropertyOrdering: []string{"id", "name", "field", "from", "to"},
+	Type:             "OBJECT",
+	Required:         []string{"id", "name", "field", "from", "to"},
 	Properties: map[string]geminiSchema{
 		"id":    stringSchema,
 		"name":  stringSchema,
@@ -106,8 +117,9 @@ var generatedTransitionSchema = geminiSchema{
 }
 
 var generatedEventSchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"id", "summary"},
+	PropertyOrdering: []string{"id", "on_create", "on", "when_equals", "summary"},
+	Type:             "OBJECT",
+	Required:         []string{"id", "summary"},
 	Properties: map[string]geminiSchema{
 		"id":          stringSchema,
 		"on":          {Type: "STRING", Description: "A field id this event fires when it changes. Omit if on_create is true."},
@@ -118,8 +130,9 @@ var generatedEventSchema = geminiSchema{
 }
 
 var generatedMachineSchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"id", "name", "fields"},
+	PropertyOrdering: []string{"id", "name", "fields", "permissions", "transitions", "events"},
+	Type:             "OBJECT",
+	Required:         []string{"id", "name", "fields"},
 	Properties: map[string]geminiSchema{
 		"id":          {Type: "STRING", Description: "Must match ^mch_[a-z][a-z0-9_]*$."},
 		"name":        stringSchema,
@@ -131,8 +144,9 @@ var generatedMachineSchema = geminiSchema{
 }
 
 var generatedApplicationSchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"id", "name", "machines", "publisher_role", "navigation"},
+	PropertyOrdering: []string{"id", "name", "description", "icon", "color", "roles", "publisher_role", "machines", "navigation"},
+	Type:             "OBJECT",
+	Required:         []string{"id", "name", "machines", "publisher_role", "navigation"},
 	Properties: map[string]geminiSchema{
 		"id":          {Type: "STRING", Description: "Must match ^app_[a-z][a-z0-9_]*$."},
 		"name":        stringSchema,
@@ -154,8 +168,9 @@ var generatedApplicationSchema = geminiSchema{
 }
 
 var generatedMenuItemSchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"label", "machine_id"},
+	PropertyOrdering: []string{"label", "machine_id"},
+	Type:             "OBJECT",
+	Required:         []string{"label", "machine_id"},
 	Properties: map[string]geminiSchema{
 		"label":      {Type: "STRING", Description: "What the menu entry says, in the person's own language."},
 		"machine_id": {Type: "STRING", Description: "One of this application's own machine ids; the entry opens that machine's list."},
@@ -163,7 +178,8 @@ var generatedMenuItemSchema = geminiSchema{
 }
 
 var metadataAdditionSchema = geminiSchema{
-	Type: "OBJECT",
+	PropertyOrdering: []string{"machine_id", "field_id", "new_option", "new_role", "new_machine", "new_nav_item", "rename_application", "relabel_nav_item", "reorder_navigation"},
+	Type:             "OBJECT",
 	Properties: map[string]geminiSchema{
 		"machine_id": stringSchema,
 		"field_id":   stringSchema,
@@ -172,9 +188,10 @@ var metadataAdditionSchema = geminiSchema{
 		"new_machine": withDescription(generatedMachineSchema,
 			"Set alone to add a whole new machine to the target application. Its relation fields may point at any machine already in this workspace."),
 		"new_nav_item": {
-			Type:        "OBJECT",
-			Description: "Set alone to add one menu item to the target application, opening one of its machines (including one this same change adds). Ask the person for the label first.",
-			Required:    []string{"id", "label", "machine_id"},
+			Type:             "OBJECT",
+			Description:      "Set alone to add one menu item to the target application, opening one of its machines (including one this same change adds). Ask the person for the label first.",
+			Required:         []string{"id", "label", "machine_id"},
+			PropertyOrdering: []string{"id", "label", "machine_id", "title", "description", "icon"},
 			Properties: map[string]geminiSchema{
 				"id":          {Type: "STRING", Description: "Must match ^nav_[a-z][a-z0-9_]*$ and not be used anywhere in this workspace."},
 				"label":       stringSchema,
@@ -186,10 +203,11 @@ var metadataAdditionSchema = geminiSchema{
 		},
 		"rename_application": {Type: "STRING", Description: "Set alone to give the target application a new display name. Its id does not change."},
 		"relabel_nav_item": {
-			Type:        "OBJECT",
-			Description: "Set alone to change the label of one of the target application's existing menu items, by its nav id.",
-			Required:    []string{"nav_id", "label"},
-			Properties:  map[string]geminiSchema{"nav_id": stringSchema, "label": stringSchema},
+			Type:             "OBJECT",
+			Description:      "Set alone to change the label of one of the target application's existing menu items, by its nav id.",
+			Required:         []string{"nav_id", "label"},
+			PropertyOrdering: []string{"nav_id", "label"},
+			Properties:       map[string]geminiSchema{"nav_id": stringSchema, "label": stringSchema},
 		},
 		"reorder_navigation": {
 			Type:        "ARRAY",
@@ -205,8 +223,9 @@ func withDescription(s geminiSchema, d string) geminiSchema {
 }
 
 var generatedChangeSchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"kind"},
+	PropertyOrdering: []string{"kind", "target_app_id", "application", "additions"},
+	Type:             "OBJECT",
+	Required:         []string{"kind"},
 	Properties: map[string]geminiSchema{
 		"kind":          {Type: "STRING", Enum: []string{KindNewApplication, KindExtendApplication}},
 		"target_app_id": {Type: "STRING", Description: "Required when kind is \"extend_application\": the id of the already-installed application being extended."},
@@ -216,8 +235,9 @@ var generatedChangeSchema = geminiSchema{
 }
 
 var capabilityGapSchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"requested", "note"},
+	PropertyOrdering: []string{"requested", "note"},
+	Type:             "OBJECT",
+	Required:         []string{"requested", "note"},
 	Properties: map[string]geminiSchema{
 		"requested": {Type: "STRING", Description: "A short name for the missing capability, e.g. \"multi-person voting approval\" -- stable enough that the same request from different conversations names the same thing, so gaps can be counted."},
 		"note":      {Type: "STRING", Description: "One sentence of context: what the user actually asked for."},
@@ -228,8 +248,9 @@ var capabilityGapSchema = geminiSchema{
 // capability_gap are each optional and mutually exclusive in practice (the system prompt says so;
 // the schema cannot express "at most one of").
 var replySchema = geminiSchema{
-	Type:     "OBJECT",
-	Required: []string{"message"},
+	PropertyOrdering: []string{"message", "capability_gap", "change"},
+	Type:             "OBJECT",
+	Required:         []string{"message"},
 	Properties: map[string]geminiSchema{
 		"message":        stringSchema,
 		"change":         generatedChangeSchema,

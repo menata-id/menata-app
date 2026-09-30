@@ -551,7 +551,10 @@ func buildConversationView(session *data.AISession) (rendering.ConversationView,
 	if err != nil {
 		return rendering.ConversationView{}, err
 	}
-	view.ReadyToReview = hasChange
+	// Only a change that validated (runAssistantTurn sets "generated" for exactly that) is offered for
+	// review. hasChange alone put a Review button under a change the automatic check had just refused,
+	// and the review page then answered 422 (2026-09-30).
+	view.ReadyToReview = hasChange && session.Status == data.AISessionStatusGenerated
 	if change != nil {
 		view.Summary = *change
 	}

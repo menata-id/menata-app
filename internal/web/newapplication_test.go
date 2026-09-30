@@ -813,3 +813,21 @@ func (s *assistantRouteSetup) latestSession(t *testing.T) *data.AISession {
 	}
 	return session
 }
+
+// TestBuildConversationView_offersReviewOnlyForAValidatedChange: a change the automatic check refused
+// stays in the conversation but gets no Review button; the review page would only answer 422.
+func TestBuildConversationView_offersReviewOnlyForAValidatedChange(t *testing.T) {
+	content, err := json.Marshal(aiassist.Reply{Message: "Ready.", Change: validGeneratedChange("Leave")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for status, want := range map[string]bool{data.AISessionStatusOpen: false, data.AISessionStatusGenerated: true} {
+		view, err := buildConversationView(&data.AISession{ID: "aise_x", Status: status, Turns: []data.AISessionTurn{{Role: "model", Content: string(content)}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if view.ReadyToReview != want {
+			t.Errorf("status %q: ReadyToReview = %v, want %v", status, view.ReadyToReview, want)
+		}
+	}
+}
