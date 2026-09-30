@@ -11,7 +11,6 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"context"
 
-	"menata.app/internal/action"
 	"menata.app/internal/domain"
 )
 
@@ -44,7 +43,7 @@ import (
 // Tahap 4, 2026-09-25) -- see DraftPrefill's own doc comment for what each half of this page does
 // differently. Approver rows are never prefilled either way: a Draft is guaranteed to carry none
 // (see internal/web.continueDocumentWizard's own doc comment).
-func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName string, viewer Viewer, switchWorkspaceHref string, draft DraftPrefill) templ.Component {
+func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, fields StepFields, workspaceName string, viewer Viewer, switchWorkspaceHref string, draft DraftPrefill) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -84,7 +83,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 			var templ_7745c5c3_Var3 templ.SafeURL
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(routeByID(ctx, "nav_approval_inbox")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 46, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 45, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -97,7 +96,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(labelByID(ctx, "nav_approval_inbox"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 47, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 46, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -110,7 +109,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(documentSubmitAction(ctx, draft))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 55, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 54, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
@@ -152,7 +151,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(draft.Title)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 63, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 62, Col: 75}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 				if templ_7745c5c3_Err != nil {
@@ -205,7 +204,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(documentType.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 68, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 67, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 				if templ_7745c5c3_Err != nil {
@@ -231,7 +230,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs("")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 77, Col: 27}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 76, Col: 27}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
@@ -249,7 +248,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 					var templ_7745c5c3_Var15 string
 					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 79, Col: 26}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 78, Col: 26}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 					if templ_7745c5c3_Err != nil {
@@ -272,7 +271,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 					var templ_7745c5c3_Var16 string
 					templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(opt)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 79, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 78, Col: 74}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 					if templ_7745c5c3_Err != nil {
@@ -327,7 +326,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(draft.FileName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 86, Col: 75}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 85, Col: 75}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -359,7 +358,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(mode.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 105, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 104, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -372,7 +371,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(firstOption(mode))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 105, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 104, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -382,7 +381,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ApproverRow(approvers, groups, StepPrefill{}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ApproverRow(approvers, groups, fields, StepPrefill{}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -599,7 +598,7 @@ func modeFieldsetContent(mode domain.Field, selected string) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(mode.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 190, Col: 53}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 189, Col: 53}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -617,7 +616,7 @@ func modeFieldsetContent(mode domain.Field, selected string) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(mode.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 197, Col: 37}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 196, Col: 37}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
 			if templ_7745c5c3_Err != nil {
@@ -630,7 +629,7 @@ func modeFieldsetContent(mode domain.Field, selected string) templ.Component {
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 197, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 196, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 			if templ_7745c5c3_Err != nil {
@@ -653,7 +652,7 @@ func modeFieldsetContent(mode domain.Field, selected string) templ.Component {
 			var templ_7745c5c3_Var31 string
 			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(opt)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 198, Col: 8}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 197, Col: 8}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -699,7 +698,7 @@ func wizardField(id, label string) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 208, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 207, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 		if templ_7745c5c3_Err != nil {
@@ -712,7 +711,7 @@ func wizardField(id, label string) templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 208, Col: 55}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 207, Col: 55}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -772,7 +771,7 @@ func wizardSelect(id, name string, options []string, placeholder, selected strin
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 219, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 218, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 		if templ_7745c5c3_Err != nil {
@@ -785,7 +784,7 @@ func wizardSelect(id, name string, options []string, placeholder, selected strin
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 219, Col: 30}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 218, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 		if templ_7745c5c3_Err != nil {
@@ -811,7 +810,7 @@ func wizardSelect(id, name string, options []string, placeholder, selected strin
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(placeholder)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 220, Col: 32}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 219, Col: 32}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {
@@ -829,7 +828,7 @@ func wizardSelect(id, name string, options []string, placeholder, selected strin
 			var templ_7745c5c3_Var41 string
 			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 222, Col: 22}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 221, Col: 22}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 			if templ_7745c5c3_Err != nil {
@@ -852,7 +851,7 @@ func wizardSelect(id, name string, options []string, placeholder, selected strin
 			var templ_7745c5c3_Var42 string
 			templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(opt)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 222, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 221, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 			if templ_7745c5c3_Err != nil {
@@ -886,6 +885,23 @@ func firstOption(f domain.Field) string {
 // stored Document Fields back into this page. The zero value renders ApproverRow's original blank
 // row unchanged -- every existing caller (DocumentSubmitPage's initial row, newApproverRow's own
 // "+ Add approver" fragment) passes it.
+
+// StepFields are the form input names one approver row writes under, resolved from the step Machine's
+// own declarations (action.DeclaredFields) and handed in -- the same shape PlacementFields already
+// takes for board 09, and for the same reason.
+//
+// **The read side derived these from the moment they existed; this side did not.** parseStepInputs has
+// always read req.Form[f.ActorType] and friends, while these three attributes were
+// action.FieldStep* constants -- so the two ends of one form agreed by coincidence rather than by
+// reading one declaration. A comment in internal/web claimed otherwise, including after an edit on
+// 2026-09-29 that strengthened it to "**Every** input name comes from the step Machine's own
+// declarations". That was false until this struct existed.
+type StepFields struct {
+	ApproverType  string
+	Assignee      string
+	ApproverGroup string
+}
+
 type StepPrefill struct {
 	ApproverType string
 	AssigneeID   string
@@ -916,7 +932,7 @@ type StepPrefill struct {
 // decided here, server-side, at render time -- the hyperscript toggle above only reacts to a
 // future change event, so a row rendered already-Group needs the right starting classes, not just
 // the right starting <select> value.
-func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPrefill) templ.Component {
+func ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFields, prefill StepPrefill) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -951,9 +967,9 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var45 string
-		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepApproverType)
+		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(fields.ApproverType)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 279, Col: 38}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 295, Col: 29}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
 		if templ_7745c5c3_Err != nil {
@@ -979,7 +995,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 		var templ_7745c5c3_Var47 string
 		templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(domain.ActorKindUser)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 284, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 300, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 		if templ_7745c5c3_Err != nil {
@@ -1002,7 +1018,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 		var templ_7745c5c3_Var48 string
 		templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(domain.ActorKindUser)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 284, Col: 124}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 300, Col: 124}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 		if templ_7745c5c3_Err != nil {
@@ -1015,7 +1031,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 		var templ_7745c5c3_Var49 string
 		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(domain.ActorKindGroup)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 285, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 301, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 		if templ_7745c5c3_Err != nil {
@@ -1038,7 +1054,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 		var templ_7745c5c3_Var50 string
 		templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(domain.ActorKindGroup)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 285, Col: 126}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 301, Col: 126}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 		if templ_7745c5c3_Err != nil {
@@ -1058,9 +1074,9 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var52 string
-		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepAssignee)
+		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue(fields.Assignee)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 288, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 304, Col: 25}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 		if templ_7745c5c3_Err != nil {
@@ -1091,7 +1107,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 			var templ_7745c5c3_Var54 string
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 294, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 310, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 			if templ_7745c5c3_Err != nil {
@@ -1114,7 +1130,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(opt.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 294, Col: 83}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 310, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {
@@ -1139,9 +1155,9 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var57 string
-		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(action.FieldStepApproverGroup)
+		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(fields.ApproverGroup)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 298, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 314, Col: 30}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 		if templ_7745c5c3_Err != nil {
@@ -1172,7 +1188,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 			var templ_7745c5c3_Var59 string
 			templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue(opt.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 304, Col: 26}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 320, Col: 26}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 			if templ_7745c5c3_Err != nil {
@@ -1195,7 +1211,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPre
 			var templ_7745c5c3_Var60 string
 			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(opt.Label)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 304, Col: 80}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 320, Col: 80}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 			if templ_7745c5c3_Err != nil {
@@ -1240,7 +1256,7 @@ func approverGroupClass(hide bool) string {
 // #approver-rows' own innerHTML, plus modeFieldsetOOB updating the Mode picker independently --
 // the response is two sibling fragments, not one, because the hx-target/hx-swap on the doc_type
 // <select> can only ever point at one of them.
-func ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, mode domain.Field, steps []StepPrefill, selectedMode string) templ.Component {
+func ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, fields StepFields, mode domain.Field, steps []StepPrefill, selectedMode string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1262,13 +1278,13 @@ func ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, mo
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(steps) == 0 {
-			templ_7745c5c3_Err = ApproverRow(approvers, groups, StepPrefill{}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ApproverRow(approvers, groups, fields, StepPrefill{}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
 			for _, s := range steps {
-				templ_7745c5c3_Err = ApproverRow(approvers, groups, s).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = ApproverRow(approvers, groups, fields, s).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

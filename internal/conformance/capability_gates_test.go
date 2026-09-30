@@ -280,14 +280,30 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // was already rendered. That investigation is what led to measuring the Field, which is the order that
 // worked: **the declaration nobody could place turned out to be a Field nobody filled.**
 //
-// What is left is one shape in two places, and neither is a derivation away.
-// `rendering/detail.templ` (1) compares a Field id to decide whether to draw a page thumbnail, and the
-// derived Field would have to be threaded into an already ten-parameter page signature.
-// `rendering/documentsubmit.templ` (3) is a form's `name=`: 007 §11.3 Binding, primitive unbuilt,
-// trigger still a third bespoke write screen.
+// **1 in 1 file since 2026-09-29**, and the 3 that left were the entry above being wrong about them.
+//
+// It called `documentsubmit.templ`'s three `name=` attributes "007 §11.3 Binding, primitive unbuilt",
+// which read as a fair deferral and was not: the *read* side of that same form
+// (`internal/web.parseStepInputs`) had derived those three names from `action.DeclaredFields` since the
+// day it was written, and `composition.buildPlacement` was already handing board 09 its four written
+// names as `rendering.PlacementFields`. So the primitive existed, twice, and the shape to copy was in
+// the neighbouring file -- what was missing was a `StepFields` struct and a parameter.
+//
+// Worse than a stale deferral: a comment in `internal/web/document.go` asserted the two ends of this
+// form read one declaration, and an edit that same morning strengthened it to "**Every** input name".
+// Both were false while three attributes were `action.FieldStep*` literals, and the gate could not see
+// it because a `.templ` naming a constant is what this map *counts*, not what it forbids. The number
+// being frozen is what made the prose look settled.
+//
+// **A deferral is a measurement with an expiry date.** "Primitive unbuilt" is checkable -- grep for the
+// accessor -- and this one was checked only when someone asked whether the remainder could be finished.
+//
+// What is left is `rendering/detail.templ` (1): it compares a Field id to decide whether to draw a page
+// thumbnail, and the derived Field would have to be threaded into an already ten-parameter page
+// signature. That is a props decision, not a missing primitive -- said that way so the next reader does
+// not inherit the same "unbuilt" framing this entry just had to retract.
 var documentApprovalFieldCoupling = map[string]int{
-	"rendering/detail.templ":         1,
-	"rendering/documentsubmit.templ": 3,
+	"rendering/detail.templ": 1,
 }
 
 var documentApprovalFieldConstant = regexp.MustCompile(`action\.Field[A-Za-z]+`)

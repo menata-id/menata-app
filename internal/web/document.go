@@ -36,6 +36,10 @@ type wizardOptions struct {
 	mode         domain.Field
 	approvers    rendering.RelationOptions
 	groups       rendering.GroupOptions
+	// stepFields are the form input names an approver row writes under, derived from the step Machine
+	// exactly as parseStepInputs derives the names it reads. Resolved here so both ends of the form
+	// read one declaration instead of agreeing by coincidence -- which they did until 2026-09-29.
+	stepFields rendering.StepFields
 }
 
 // readWizardOptions resolves them once.
@@ -64,6 +68,7 @@ func readWizardOptions(req *http.Request, machines map[string]*domain.Machine, s
 		return wizardOptions{}, err
 	}
 	approvers = composition.ApproverOptions(approvers, stepMachine, members)
+	f := action.DeclaredFields(stepMachine, machineForDocument(req.Context()))
 	groups, err := ld.GroupOptions(req.Context(), stepMachine)
 	if err != nil {
 		return wizardOptions{}, err
@@ -74,7 +79,13 @@ func readWizardOptions(req *http.Request, machines map[string]*domain.Machine, s
 	// Machine's own `sequencing:` block (mode_field), not named here -- that binding is the one place
 	// the pair is already stated, and reading it is what lets a Machine call it anything.
 	mode, _ := docMachine.FieldByID(modeFieldFor(stepMachine))
-	return wizardOptions{documentType: documentType, mode: mode, approvers: approvers, groups: groups}, nil
+	return wizardOptions{
+		documentType: documentType,
+		mode:         mode,
+		approvers:    approvers,
+		groups:       groups,
+		stepFields:   rendering.StepFields{ApproverType: f.ActorType, Assignee: f.Actor, ApproverGroup: f.ActorGroup},
+	}, nil
 }
 
 // modeFieldFor is the Document Field that decides whether its steps run in order -- declared once, on
@@ -111,7 +122,7 @@ func showDocumentSubmit(store *data.Store, cfg config.Config) http.HandlerFunc {
 		}
 		actor := currentActor(req, store, cfg)
 		_, switchHref := viewerWorkspaceContext(ctx, store, actor.ID)
-		render(ctx, w, rendering.DocumentSubmitPage(opts.documentType, opts.mode, opts.approvers, opts.groups,
+		render(ctx, w, rendering.DocumentSubmitPage(opts.documentType, opts.mode, opts.approvers, opts.groups, opts.stepFields,
 			chrome.WorkspaceName, chrome.Viewer(), switchHref, rendering.DraftPrefill{}))
 	}
 }
@@ -127,7 +138,7 @@ func newApproverRow(store *data.Store) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.ApproverRow(opts.approvers, opts.groups, rendering.StepPrefill{}))
+		render(req.Context(), w, rendering.ApproverRow(opts.approvers, opts.groups, opts.stepFields, rendering.StepPrefill{}))
 	}
 }
 
@@ -314,7 +325,7 @@ func showDocumentContinue(store *data.Store, cfg config.Config) http.HandlerFunc
 			Mode:         toDisplayString(document.Values[modeFieldFor(machineForStep(ctx))]),
 			FileName:     storage.DisplayName(toDisplayString(document.Values["fld_file"])),
 		}
-		render(ctx, w, rendering.DocumentSubmitPage(opts.documentType, opts.mode, opts.approvers, opts.groups,
+		render(ctx, w, rendering.DocumentSubmitPage(opts.documentType, opts.mode, opts.approvers, opts.groups, opts.stepFields,
 			chrome.WorkspaceName, chrome.Viewer(), switchHref, draft))
 	}
 }
@@ -482,10 +493,15 @@ func approverRows(w http.ResponseWriter, req *http.Request, docMachine *domain.M
 // An entirely blank row is skipped rather than rejected: the wizard renders one empty row to start
 // with, and "+ Add approver" can leave a spare.
 //
-// **Every** input name comes from the step Machine's own declarations (action.DeclaredFields) since
-// 2026-09-29: the Permission governing `decide` says which Field holds the actor and, through its
-// dynamic gate, which hold the actor's kind and Group. documentsubmit.templ renders the same resolved
-// ids, so the form's two ends read one declaration rather than agreeing by coincidence.
+// Every input name comes from the step Machine's own declarations (action.DeclaredFields): the
+// Permission governing `decide` says which Field holds the actor and, through its dynamic gate, which
+// hold the actor's kind and Group.
+//
+// **Both ends of the form read that declaration only since 2026-09-29.** This side always did;
+// documentsubmit.templ hardcoded action.FieldStep* for its three `name=` attributes, so the two agreed
+// by coincidence. An earlier version of this comment asserted otherwise -- and an edit that same day
+// strengthened it to "**Every** input name", which made a false claim worse. rendering.StepFields is
+// what made it true.
 //
 // A fifth input used to be here -- fld_step_name, "Step name (optional)" -- and it was this package's
 // own constant because nothing declared a step's label. It is deleted: board 08's own model is "each
@@ -753,7 +769,7 @@ func showApprovalFlowTemplateRows(store *data.Store) http.HandlerFunc {
 		if template != nil {
 			selectedMode = toDisplayString(template.Values[action.FlowTemplateFields(approvalMachine(req.Context(), domain.WorkflowRoleFlowTemplate)).ModeField])
 		}
-		render(req.Context(), w, rendering.ApprovalFlowTemplateRows(opts.approvers, opts.groups, opts.mode, prefills, selectedMode))
+		render(req.Context(), w, rendering.ApprovalFlowTemplateRows(opts.approvers, opts.groups, opts.stepFields, opts.mode, prefills, selectedMode))
 	}
 }
 

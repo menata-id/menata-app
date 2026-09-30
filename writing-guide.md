@@ -1326,11 +1326,14 @@ Honest current limits, not a roadmap — some of these may change over time:
   a declaration too. A Machine you bind therefore does **not** have to carry Document Approval's own
   vocabulary — `composition.TestBuildInbox_overAMachineThatNamesItsFieldsDifferently` and
   `web.TestDecideStep_writesTheFieldsTheMachineDeclares` are the assertions, not the claim.
-  What is still Go is narrower and worth naming exactly: the **submit wizard** reads its own form by
-  Field id (`internal/web/document.go`, and `documentsubmit.templ`'s four `name=` attributes), because
-  `continue-submit` shares the generic `edit` Action and has no Action of its own to declare effects
-  on; and a Document's own file and status Fields are
-  named in two composed screens. See §8.
+  What is still Go is narrower and worth naming exactly: the **submit wizard** reads the *Document's*
+  own Fields by id (`fld_title`, `fld_document_type`, `fld_file` in `internal/web/document.go`), because
+  `continue-submit` shares the generic `edit` Action and has no Action of its own to declare effects on;
+  and a Document's file Field is named in one composed screen (`detail.templ`, to decide whether to draw
+  a page thumbnail). The approver row's three `name=` attributes are **no longer** among them: since
+  2026-09-29 `documentsubmit.templ` renders `rendering.StepFields`, resolved once in `readWizardOptions`
+  from the same `action.DeclaredFields` the form's *read* side always used -- so the two ends of that
+  form read one declaration instead of agreeing because both happened to type `fld_assignee`. See §8.
 
 - **No field-level permissions.** Access control today is per-Machine and per-Action at best; you
   cannot hide or lock one Field from one role while leaving the rest editable. A `roles:` arm

@@ -3,7 +3,6 @@ package rendering
 import (
 	"context"
 
-	"menata.app/internal/action"
 	"menata.app/internal/domain"
 )
 
@@ -36,7 +35,7 @@ import (
 // Tahap 4, 2026-09-25) -- see DraftPrefill's own doc comment for what each half of this page does
 // differently. Approver rows are never prefilled either way: a Draft is guaranteed to carry none
 // (see internal/web.continueDocumentWizard's own doc comment).
-templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, workspaceName string, viewer Viewer, switchWorkspaceHref string, draft DraftPrefill) {
+templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptions, groups GroupOptions, fields StepFields, workspaceName string, viewer Viewer, switchWorkspaceHref string, draft DraftPrefill) {
 	// "New Document" is a literal for the same reason the button that opens this screen is -- see
 	// approvalinbox.templ's own comment: nav_new_approval was deleted on 2026-09-21 because a submit
 	// form is not a menu destination, and no Page-level title/action primitive exists yet (007
@@ -105,7 +104,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 						{ mode.Name } is { firstOption(mode) } — use ▲/▼ to reorder.
 					</p>
 					<div id="approver-rows" class="flex flex-col gap-2.5 [counter-reset:approver-step]">
-						@ApproverRow(approvers, groups, StepPrefill{})
+						@ApproverRow(approvers, groups, fields, StepPrefill{})
 					</div>
 				</section>
 			</div>
@@ -239,6 +238,23 @@ func firstOption(f domain.Field) string {
 // stored Document Fields back into this page. The zero value renders ApproverRow's original blank
 // row unchanged -- every existing caller (DocumentSubmitPage's initial row, newApproverRow's own
 // "+ Add approver" fragment) passes it.
+
+// StepFields are the form input names one approver row writes under, resolved from the step Machine's
+// own declarations (action.DeclaredFields) and handed in -- the same shape PlacementFields already
+// takes for board 09, and for the same reason.
+//
+// **The read side derived these from the moment they existed; this side did not.** parseStepInputs has
+// always read req.Form[f.ActorType] and friends, while these three attributes were
+// action.FieldStep* constants -- so the two ends of one form agreed by coincidence rather than by
+// reading one declaration. A comment in internal/web claimed otherwise, including after an edit on
+// 2026-09-29 that strengthened it to "**Every** input name comes from the step Machine's own
+// declarations". That was false until this struct existed.
+type StepFields struct {
+	ApproverType  string
+	Assignee      string
+	ApproverGroup string
+}
+
 type StepPrefill struct {
 	ApproverType string
 	AssigneeID   string
@@ -269,14 +285,14 @@ type StepPrefill struct {
 // decided here, server-side, at render time -- the hyperscript toggle above only reacts to a
 // future change event, so a row rendered already-Group needs the right starting classes, not just
 // the right starting <select> value.
-templ ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPrefill) {
+templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFields, prefill StepPrefill) {
 	<div class="approver-row flex flex-wrap items-center gap-2 rounded-md border border-slate-200 p-2.5 [counter-increment:approver-step]">
 		<span
 			aria-hidden="true"
 			class="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-3xs font-medium text-white before:[content:counter(approver-step)]"
 		></span>
 		<select
-			name={ action.FieldStepApproverType }
+			name={ fields.ApproverType }
 			aria-label="Approver type"
 			class={ "approver-type px-2 " + controlField }
 			_="on change if my value is 'Group' then remove .hidden from the next <.approver-group/> then add .hidden to the next <.approver-user/> else add .hidden to the next <.approver-group/> then remove .hidden from the next <.approver-user/> end"
@@ -285,7 +301,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPr
 			<option value={ domain.ActorKindGroup } selected?={ prefill.ApproverType == domain.ActorKindGroup }>{ domain.ActorKindGroup }</option>
 		</select>
 		<select
-			name={ action.FieldStepAssignee }
+			name={ fields.Assignee }
 			aria-label="Approver"
 			class={ approverUserClass(prefill.ApproverType == domain.ActorKindGroup) }
 		>
@@ -295,7 +311,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, prefill StepPr
 			}
 		</select>
 		<select
-			name={ action.FieldStepApproverGroup }
+			name={ fields.ApproverGroup }
 			aria-label="Approver group"
 			class={ approverGroupClass(prefill.ApproverType != domain.ActorKindGroup) }
 		>
@@ -338,12 +354,12 @@ func approverGroupClass(hide bool) string {
 // #approver-rows' own innerHTML, plus modeFieldsetOOB updating the Mode picker independently --
 // the response is two sibling fragments, not one, because the hx-target/hx-swap on the doc_type
 // <select> can only ever point at one of them.
-templ ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, mode domain.Field, steps []StepPrefill, selectedMode string) {
+templ ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, fields StepFields, mode domain.Field, steps []StepPrefill, selectedMode string) {
 	if len(steps) == 0 {
-		@ApproverRow(approvers, groups, StepPrefill{})
+		@ApproverRow(approvers, groups, fields, StepPrefill{})
 	} else {
 		for _, s := range steps {
-			@ApproverRow(approvers, groups, s)
+			@ApproverRow(approvers, groups, fields, s)
 		}
 	}
 	@modeFieldsetOOB(mode, selectedMode)

@@ -494,7 +494,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | Saved default approval flow (board 08: "Save this as the default approval flow for **Contract** documents", checked by default) | **shipped 2026-09-27** | See below -- CAP-V28, two companion Machines (one template per Document Type, plus its own ordered steps) with a find-or-create write path, exactly as this row's own prior text described the blocker rather than a fix |
   | One signature box for a Group-held step (boards 08/09) | **no phase yet** — **named, not solved** | Board 09 places exactly one signature box for `Legal Group · 4 members`, and nothing on either board says whose signature image lands in it, or what happens when two of the four act. Upstream has the identical gap on its own compositing capability, recorded there in the same words. Worth holding here rather than discovering it during 6c-2's port |
   | Member search box (board 04) | **closed 2026-09-25** | See this file's "In progress" section, "Search on Workspace Members, My Documents and Assigned to me" |
-  | Write-side Binding: a form input's `name=` hardcoded to a Field id (007 §11.3) | **no phase yet** — **and it is the gap a shrinking ratchet hides** | `signatureplacement.templ` carries twelve `name={ action.Field… }`, `documentsubmit.templ` four (this read "six" until it was counted, 2026-09-21), while `machine.templ` already does it generically (`name={ f.ID }` over `m.Fields`). `TestRenderingUsesProjectionNotRawValues` gates *reads*, never writes, so both files could leave `projectionRatchet` with every binding still hand-typed — which is exactly what happened in 6c-2 and 6c-3. Recorded here so the ratchet count is not read as a composability score. Trigger: a third bespoke write screen, or the generic update route stopping its whole-record rewrite (the same route that forced 6c-3's carry-forward list). **Half of that trigger arrived 2026-09-21, and the count did not move at all** -- which is the useful part. Board 09's forms left the generic route for one that writes four named Fields, so the carry-forward echo is gone; the twelve hand-typed bindings are exactly as hand-typed as before. The first guess while writing this row said the count would drop to four, and checking the file said twelve: the echo rendered `name={ f.Name }` from a derived list, never `action.Field*`, so it was never part of this number. The whole-record rewrite was the reason the *echo* existed; it was never the reason the *bindings* are literal, and removing it changes nothing here. The other half of the trigger -- a third bespoke write screen -- is still the one to watch |
+  | Write-side Binding: a form input's `name=` hardcoded to a Field id (007 §11.3) | **no phase yet** — **and it is the gap a shrinking ratchet hides** | `signatureplacement.templ` carries twelve `name={ action.Field… }`, `documentsubmit.templ` four (this read "six" until it was counted, 2026-09-21), while `machine.templ` already does it generically (`name={ f.ID }` over `m.Fields`). `TestRenderingUsesProjectionNotRawValues` gates *reads*, never writes, so both files could leave `projectionRatchet` with every binding still hand-typed — which is exactly what happened in 6c-2 and 6c-3. Recorded here so the ratchet count is not read as a composability score. Trigger: a third bespoke write screen, or the generic update route stopping its whole-record rewrite (the same route that forced 6c-3's carry-forward list). **Half of that trigger arrived 2026-09-21, and the count did not move at all** -- which is the useful part. Board 09's forms left the generic route for one that writes four named Fields, so the carry-forward echo is gone; the twelve hand-typed bindings are exactly as hand-typed as before. The first guess while writing this row said the count would drop to four, and checking the file said twelve: the echo rendered `name={ f.Name }` from a derived list, never `action.Field*`, so it was never part of this number. The whole-record rewrite was the reason the *echo* existed; it was never the reason the *bindings* are literal, and removing it changes nothing here. The other half of the trigger -- a third bespoke write screen -- is still the one to watch. **And `documentsubmit.templ`'s are gone as of 2026-09-29, without that trigger arriving**: Stage D's `rendering.PlacementFields` was the shape, and this row's own "primitive unbuilt" was stale from the day Stage D shipped -- the read side of that same form had derived the ids all along. So the row now covers `signatureplacement.templ`'s twelve alone, for a narrower reason than it used to state: those twelve *are* declared (`signature_placement:`), they are simply named as constants inside `internal/action` rather than threaded as a resolved shape. **Re-measure this row whenever a stage ships a primitive**, not only when its own trigger fires |
   | `NavBadgeApprovalInboxPending` still resolved in the Domain Plane | **no phase yet** | `domain.NavigationItem.Badge` names one live count the runtime special-cases end to end (`domain/navigation.go`, `web/workspacehome.go`, `appshell.templ`, `machine.templ`). It cannot become an ordinary Dataset: the count filters on assignee **and** on `behavior.CanAct`, which reads a *sibling* record, while a Measure's `where:` is evaluated per record against its own values. So the blocker is record selection (007 §8), not the identity sentinel below — a point the companion repo's Stage 0 first got wrong in the other direction |
   | PDF signature compositing is hand-written Go (upstream CAP-F22) | **no phase yet** | The third of the three Case 3 behaviours named above; the other two (`activate_next`, `aggregate_status`) landed 2026-09-20 and this one did not, so it should stop riding on their line. `internal/action/composite.go`/`banner.go` manipulate a binary PDF rather than express a rule, which is the lowest generalization value of the three — but "lowest value" is a ranking, not a deferral reason, and it had neither a phase nor a row until now |
   | ~~The approval stepper is five constants, not a declared View~~ (upstream CAP-V20 ✅) | **done 2026-09-26**: `domain.ViewStepper` — "a View composing other Views" (this file's own Planned entry) implemented as the narrow real case it always was | `mch_approval_step` declares `vw_step_progress` (`type: stepper`), validated to require `sequencing:` (`internal/metadata.validateView`, mirroring the existing `cards`/`card_fields` requirement). `internal/rendering/detail.templ` composes it via `domain.Machine.StepperView()`, replacing the `m.ID == action.DocumentMachineID && cc.Machine.ID == action.StepMachineID` check with a declared-View lookup any future Sequencing-declaring Machine pair gets for free. `approvalstepper.templ` reads `Sequencing.OrderField`/`StateField` (dynamic field names) and the Machine's first `person` Field generically instead of `action.Field*` constants — closing `approvalstepper.templ`, the **last Case 3 entry**, out of `internal/conformance`'s `projectionRatchet` (five Case 19 screens remain). Matches upstream's own admitted CAP-V20 shape exactly (done/current/pending, three states) rather than keeping the hardcoded version's extra red/green approved-vs-rejected split — the outcome still reads from the decided step's own text label. Deliberately did **not** reuse `card_fields`/Projection for the assignee: `mch_approval_step`'s own dormant `card_fields` wiring already serves the Approval Inbox's pending-card list, where every value would be constant ("pending", "me") — declaring `card_fields` to feed the stepper would have silently activated that unrelated screen's own chip rendering too, checked directly before ruling it out |
@@ -4087,6 +4087,49 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   pseudo-identity (`prm_create_own_document` needs an Application role it does not hold), and production
   holds no saved template to reload. That half is the Postgres-backed tests', and the renamed-Machine
   test is stronger than anything this session's identity can reach.
+
+  **Stage E3 -- the wizard's own `name=` attributes -- shipped 2026-09-29, and it was never blocked.**
+  `documentApprovalFieldCoupling` went **4 across 2 files -> 1 in 1 file**. The three that left were
+  `documentsubmit.templ`'s approver-row bindings, which every entry above (and the deferral table's own
+  Binding row, and `capabilities.md`, and `writing-guide.md`) described as "007 §11.3 Binding, primitive
+  unbuilt, trigger a third bespoke write screen".
+
+  **That deferral was false the day it was written.** The *read* side of the same form
+  (`internal/web.parseStepInputs`) had resolved those three names from `action.DeclaredFields` since it
+  was written, and `composition.buildPlacement` was already handing board 09 its four *written* names
+  through `rendering.PlacementFields` -- the exact shape, in the neighbouring file, shipped as Stage D.
+  So the primitive existed twice over; what was missing was a `rendering.StepFields` struct and one
+  parameter on three templ functions. `readWizardOptions` resolves it once beside the option lists it
+  already resolves, which is where the rest of this screen's metadata-derived values already live.
+
+  **A comment asserted the opposite, and an edit made it worse.** `parseStepInputs`' doc comment claimed
+  both ends of the form read one declaration; an edit earlier the same day strengthened it to "**Every**
+  input name comes from the step Machine's own declarations". Both were false while three attributes were
+  `action.FieldStep*` literals twenty lines away in a different package. No gate could see it: the
+  Field-id ratchet *counts* a `.templ` naming those constants, and a frozen count reads as a settled
+  question rather than an open one.
+
+  **The generalizable rule: a deferral is a measurement with an expiry date.** "Primitive unbuilt" is
+  checkable by grepping for the accessor, and takes a minute. This one survived three stages and four
+  documents because nobody re-ran it -- the same failure mode as Stage E1's "blocked on
+  `continue-submit`", which covered part of a population and read as covering all of it. When a stage
+  ships a primitive (D shipped `PlacementFields`), re-measure every deferral phrased as "no primitive
+  exists", not only the ones the stage names.
+
+  **The test fixture was part of the problem.** `TestDocumentSubmitPage_offersBothApproverKinds` asserted
+  `name="fld_approver_type"` and passed either way, because the real Machine declares that id. It now
+  renders through `stepFieldsForTest()` -- `fld_kind`/`fld_petugas`/`fld_regu` -- the same trick
+  `modeField()` has always used in that file (`berurutan`/`serentak`, options no template would guess).
+  Mutation-proved one attribute at a time: each literal restored fails by name.
+
+  **What is left is one reference, and it is not a primitive gap.** `rendering/detail.templ` compares a
+  Field id to decide whether to draw a page thumbnail; the derived Field would have to be threaded into
+  an already ten-parameter page signature. That is a props decision. Recorded that way so the next
+  reader does not inherit the framing this stage just had to retract.
+
+  **Not verified live beyond rendering.** `/documents/new` serves 200 with the derived names in its
+  markup; `POST /documents` is still 403 for the admin pseudo-identity, so the round trip is the
+  Postgres-backed wizard tests' as before.
 
   **Order is load-bearing.** A before B because a declared binding is what lets a generalized
   `decide` know which Application it is acting for; B before C because the Service needs an Action

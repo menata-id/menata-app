@@ -35,6 +35,15 @@ func documentTypeField() domain.Field {
 		Options: []string{"Kontrak", "Tagihan"}}
 }
 
+// stepFieldsForTest are the three form input names one approver row writes under. They are
+// deliberately NOT mch_approval_step's own ids, for exactly the reason modeField()'s options are not
+// the ones the old hardcoded template used: until 2026-09-29 these three attributes were
+// action.FieldStep* constants, so a test asserting the real ids passed whether the page read the
+// declaration or retyped it. Renamed ids make the assertions below fail if it ever retypes them again.
+func stepFieldsForTest() StepFields {
+	return StepFields{ApproverType: "fld_kind", Assignee: "fld_petugas", ApproverGroup: "fld_regu"}
+}
+
 func renderSubmitPage(t *testing.T) string {
 	t.Helper()
 	ctx := submitNavFixture(t)
@@ -42,7 +51,7 @@ func renderSubmitPage(t *testing.T) string {
 	groups := GroupOptions{{ID: "grp_legal", Label: "Legal Group"}}
 
 	var buf bytes.Buffer
-	c := DocumentSubmitPage(documentTypeField(), modeField(), approvers, groups, "Dokter Kecil", Viewer{Initials: "AP"}, "", DraftPrefill{})
+	c := DocumentSubmitPage(documentTypeField(), modeField(), approvers, groups, stepFieldsForTest(), "Dokter Kecil", Viewer{Initials: "AP"}, "", DraftPrefill{})
 	if err := c.Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
@@ -72,9 +81,9 @@ func TestDocumentSubmitPage_optionsComeFromMetadata(t *testing.T) {
 func TestDocumentSubmitPage_offersBothApproverKinds(t *testing.T) {
 	html := renderSubmitPage(t)
 	for _, want := range []string{
-		`name="fld_approver_type"`, `value="User"`, `value="Group"`,
-		`name="fld_assignee"`, "Rina Nur",
-		`name="fld_approver_group"`, "grp_legal", "Legal Group",
+		`name="fld_kind"`, `value="User"`, `value="Group"`,
+		`name="fld_petugas"`, "Rina Nur",
+		`name="fld_regu"`, "grp_legal", "Legal Group",
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("rendered approver row is missing %q", want)
@@ -91,15 +100,15 @@ func TestDocumentSubmitPage_offersBothApproverKinds(t *testing.T) {
 // makes it correct.
 func TestApproverRow_typePickerAlwaysSubmitsAValue(t *testing.T) {
 	var buf bytes.Buffer
-	if err := ApproverRow(nil, nil, StepPrefill{}).Render(context.Background(), &buf); err != nil {
+	if err := ApproverRow(nil, nil, stepFieldsForTest(), StepPrefill{}).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := buf.String()
-	if strings.Contains(html, `type="radio" name="fld_approver_type"`) {
-		t.Error("fld_approver_type must not be a radio group: an unchecked radio submits nothing, which desynchronizes the parallel row slices")
+	if strings.Contains(html, `type="radio" name="fld_kind"`) {
+		t.Error("the approver-type input must not be a radio group: an unchecked radio submits nothing, which desynchronizes the parallel row slices")
 	}
-	if !strings.Contains(html, `<select`) || !strings.Contains(html, `name="fld_approver_type"`) {
-		t.Error("fld_approver_type must be a select, so every row submits exactly one value")
+	if !strings.Contains(html, `<select`) || !strings.Contains(html, `name="fld_kind"`) {
+		t.Error("the approver-type input must be a select, so every row submits exactly one value")
 	}
 	// The step number is a CSS counter, not a Go-passed index: rows are reordered client-side.
 	if !strings.Contains(html, "counter-increment:approver-step") {
