@@ -561,6 +561,33 @@ If you find yourself re-explaining the same architectural rule in a PR/commit tw
 row to a `capabilities.md` table by hand, consider whether it should be (or already is) a
 conformance test instead.
 
+## Where a write-up goes: this repo vs. the companion doc repo
+
+The split is already defined, in `menata-app-document`'s own README, and **using it consistently is
+the part that has failed** — measured 2026-09-30: `development-history.md` stopped at 2026-09-22 with
+3,229 lines while this repo's `ROADMAP.md` grew to 4,599, of which `## In progress` + `## Planned` are
+~4,480 lines of exactly the content the README assigns to the companion repo. Seven days and about
+twelve commits of design rationale went into the wrong file, by me, including on the day I put a
+staleness header on the right one.
+
+| file | holds | shape |
+|---|---|---|
+| `menata-app/ROADMAP.md` | what is shipped / in progress / planned | **short, feature-level, forward-looking, public** — the `## Shipped` bullets are the model |
+| `menata-app/capabilities.md` | what the runtime can do right now | current-state tables |
+| `menata-app-document/development-history.md` | phases, forcing conditions, design rationale, verification steps | append-only detailed history, private |
+| `menata-app-document/audits/` | one-off dated findings citing commits/lines | review records |
+| `menata-app-document/guides/` | methodology proven reused ≥2× on genuinely different cases | standing practice |
+
+**The operational rule, before you write:** a finding's narrative — what forced it, what you measured,
+what the mutation proved, what could not be checked live — goes to `development-history.md`.
+`ROADMAP.md` gets a feature-level line plus a pointer to it. A paragraph containing a commit hash,
+"measured", "mutation-proved" or "probe" is a history entry; if you are about to put one in
+`ROADMAP.md`, that is the signal it belongs in the other repo.
+
+`TestRoadmapStaysAReleasePlan` holds the flow shrink-only (below). It cannot judge whether *one*
+paragraph belongs here or there — it counts vocabulary and volume, not fit — so a green run means the
+file stopped growing, never that the split is right.
+
 ## Commands
 
 - `make generate` — regenerate `*_templ.go` from `*.templ` (needed after any `.templ` edit).

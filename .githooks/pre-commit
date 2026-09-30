@@ -28,4 +28,33 @@ go vet ./...
 echo "==> pre-commit: composable-runtime conformance"
 make conformance
 
+# The cross-repo doc-split check, and it is deliberately NOT a gate.
+#
+# menata-app-document holds the detailed history (development-history.md) that this repo's ROADMAP.md
+# must not accumulate -- internal/conformance.TestRoadmapStaysAReleasePlan holds ROADMAP's own side of
+# that, shrink-only. This step is the other side, and it cannot be a test: .github/workflows/ci.yml
+# checks out menata-app alone and the companion repo is private with no submodule, so a Go test reading
+# it would t.Skip in CI, guarded by nothing exactly where it matters.
+#
+# So it warns and never blocks. A blocker that only exists on one machine is a rule that applies to one
+# person. And it says out loud when it skips, because "skipped" must not read as "passed" -- that
+# confusion is what let five declared routes go unchecked for days (TestNavigationRoutesAreRegistered).
+echo "==> pre-commit: doc split (warn only)"
+doc_repo="$(git rev-parse --show-toplevel)/../menata-app-document"
+if [ ! -d "$doc_repo" ]; then
+	echo "    companion repo not present here -- CHECK SKIPPED, not passed ($doc_repo)"
+elif ! git diff --cached --name-only --diff-filter=ACM | grep -q '^ROADMAP\.md$'; then
+	echo "    ROADMAP.md not staged, nothing to compare"
+else
+	newest_roadmap=$(grep -ohE '20[0-9]{2}-[01][0-9]-[0-3][0-9]' ROADMAP.md | sort | tail -1)
+	newest_history=$(grep -ohE '20[0-9]{2}-[01][0-9]-[0-3][0-9]' "$doc_repo/development-history.md" | sort | tail -1)
+	echo "    ROADMAP.md newest date: ${newest_roadmap:-none}; development-history.md: ${newest_history:-none}"
+	if [ -n "$newest_roadmap" ] && [ -n "$newest_history" ] && [ "$newest_roadmap" \> "$newest_history" ]; then
+		echo "    WARNING: ROADMAP.md reaches a later date than development-history.md."
+		echo "    A finding's narrative (forcing condition, measurements, what the mutation proved,"
+		echo "    what could not be checked live) belongs in development-history.md; ROADMAP.md gets a"
+		echo "    feature-level line plus a pointer. See CLAUDE.md, \"Where a write-up goes\"."
+	fi
+fi
+
 echo "==> pre-commit: all checks passed"
