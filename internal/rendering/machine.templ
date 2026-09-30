@@ -284,6 +284,34 @@ const (
 //
 // Extracted on its second case rather than its first (CLAUDE.md's "Deciding whether a literal is a
 // metadata-hardcoding violation", step 3): one pill was a screen's own detail, two is a shape.
+// Truncation is what a bounded list tells its reader when the bound actually bit (007 §21.9: a
+// composed experience exceeding its budget must "fail clearly or degrade through an explicit runtime
+// policy" -- degrading in silence is neither).
+//
+// Limit is carried so the notice can name the bound rather than say "some rows were dropped", which
+// tells a reader nothing actionable. It comes from composition.Selection, which reads it off the
+// Dataset's own `limit:` -- never retyped here.
+//
+// **Only lists that claim completeness pass a filled Truncation.** A Dataset whose bound *is* its
+// meaning -- `ds_recent_activity` at 10, `ds_activity_feed` at 50 -- is not truncated in any sense a
+// reader cares about, and mch_activity holds 30 records today, so rendering this on the Dashboard's
+// activity tail would state something false. See composition.Selection.Limit for why that distinction
+// is the screen's to make and not yet a declaration.
+type Truncation struct {
+	Limit int
+	Hit   bool
+}
+
+// truncationNotice renders nothing at all when the bound did not bite, so a caller may pass its
+// Truncation unconditionally and the common case costs no markup.
+templ truncationNotice(t Truncation) {
+	if t.Hit && t.Limit > 0 {
+		<p class="m-0 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-2xs text-amber-800">
+			Showing the first { fmt.Sprint(t.Limit) } only — more match than fit on this page.
+		</p>
+	}
+}
+
 templ statusPill(label string, tone PillTone) {
 	<span
 		class={ "inline-flex items-center rounded-full px-2.5 py-1 text-2xs whitespace-nowrap",

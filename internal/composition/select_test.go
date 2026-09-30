@@ -114,6 +114,45 @@ func TestSelectDataset_doesNotPoisonTheWholeMachineMemo(t *testing.T) {
 	}
 }
 
+// TestSelectDataset_reportsTheBoundItApplied is the Loader's own half of the truncation chain, and it
+// needed Postgres because it is the only part that reads the Dataset rather than being handed a struct.
+//
+// A mutation found the gap: replacing `Limit: ds.Limit` with `Limit: 0` in SelectRelated left every
+// unit test green, because the composition and rendering tests both construct their own Truncation.
+// Three links, each covered, and two of the joins were not -- which is the same shape that let
+// Selection.Truncated ship with zero readers.
+//
+// The fixture declares 10 and seeds 12, so both halves are real: the bound bit, and the number reported
+// is the declared one rather than the row count or a constant.
+func TestSelectDataset_reportsTheBoundItApplied(t *testing.T) {
+	l, ctx := selectTestLoader(t, "bound", 12)
+
+	sel, err := l.SelectRelated(ctx, "ds_select_test", expression.Context{})
+	if err != nil {
+		t.Fatalf("SelectRelated: %v", err)
+	}
+	if !sel.Truncated {
+		t.Error("12 rows against a limit of 10 reported no truncation")
+	}
+	if sel.Limit != 10 {
+		t.Errorf("Selection.Limit = %d, want the Dataset's declared 10 -- a screen cannot name a bound the Loader did not carry", sel.Limit)
+	}
+
+	// Exactly at the limit is NOT truncated: selectRecords fetches limit+1 to tell the difference, and a
+	// list of exactly 10 reporting "showing the first 10" would be a false claim on a complete list.
+	atLimit, ctxAt := selectTestLoader(t, "atbound", 10)
+	exact, err := atLimit.SelectRelated(ctxAt, "ds_select_test", expression.Context{})
+	if err != nil {
+		t.Fatalf("SelectRelated at limit: %v", err)
+	}
+	if exact.Truncated {
+		t.Error("exactly 10 rows against a limit of 10 reported truncation")
+	}
+	if exact.Limit != 10 {
+		t.Errorf("Selection.Limit = %d on an untruncated read, want 10 -- the bound is a property of the Dataset, not of whether it bit", exact.Limit)
+	}
+}
+
 // TestSelectDataset_readsEachDatasetOnce: the memo's ordinary job. Two selections of the same Dataset
 // in one request are one read, the same guarantee ListRecords gives, and what keeps the GET sweep's
 // repeated==0 invariant true for a screen that composes the same feed twice.

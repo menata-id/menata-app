@@ -55,12 +55,13 @@ func showApprovalInbox(store *data.Store, cfg config.Config) http.HandlerFunc {
 			filters, mineFilters, assignedFilters []rendering.FilterChip
 			pending, drafts, mine                 []rendering.PendingApprovalCard
 			assignedRows                          []rendering.AssignedRow
+			truncated                             rendering.Truncation
 			err                                   error
 		)
 		if tab == rendering.TabAssigned {
-			assignedRows, assignedFilters, err = assignedTabContent(ctx, store, machines, userID, req.URL.Query().Get("status"), q)
+			assignedRows, assignedFilters, truncated, err = assignedTabContent(ctx, store, machines, userID, req.URL.Query().Get("status"), q)
 		} else {
-			pending, drafts, mine, filters, mineFilters, err = pendingTabContent(ctx, store, machines, userID, req.URL.Query().Get("filter"), req.URL.Query().Get("status"), q)
+			pending, drafts, mine, filters, mineFilters, truncated, err = pendingTabContent(ctx, store, machines, userID, req.URL.Query().Get("filter"), req.URL.Query().Get("status"), q)
 		}
 		if err != nil {
 			serverError(w, err)
@@ -78,7 +79,7 @@ func showApprovalInbox(store *data.Store, cfg config.Config) http.HandlerFunc {
 		// 2026-09-21, so there is no Workspace destination on it left to hide.
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
 		render(ctx, w, rendering.ApprovalInboxPage(
-			filters, pending, drafts, mine, mineFilters, assignedRows, assignedFilters, tab, q,
+			filters, pending, drafts, mine, mineFilters, assignedRows, assignedFilters, truncated, tab, q,
 			chrome.WorkspaceName, chrome.Viewer(), switchHref,
 		))
 	}
@@ -94,10 +95,10 @@ func showApprovalInbox(store *data.Store, cfg config.Config) http.HandlerFunc {
 // composition.SplitDrafts' own partition of that narrowed list (Flow 2 gap study Tahap 4,
 // 2026-09-25) -- so an active status chip still narrows what lands in either half, e.g. the Draft
 // chip active leaves mine (Submitted) empty.
-func pendingTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, filterKey, mineStatusKey, q string) (pending, drafts, mine []rendering.PendingApprovalCard, filters, mineFilters []rendering.FilterChip, err error) {
+func pendingTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, filterKey, mineStatusKey, q string) (pending, drafts, mine []rendering.PendingApprovalCard, filters, mineFilters []rendering.FilterChip, truncated rendering.Truncation, err error) {
 	inbox, err := composition.ApprovalInbox(ctx, composition.NewLoader(store, machines), userID, time.Now(), machineForStep(ctx), machineForDocument(ctx))
 	if err != nil {
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, rendering.Truncation{}, err
 	}
 	filters = []rendering.FilterChip{
 		{Key: "all", Label: "All", Count: len(inbox.Pending), Active: filterKey == "" || filterKey == "all"},
@@ -116,17 +117,20 @@ func pendingTabContent(ctx context.Context, store *data.Store, machines map[stri
 	mineFilters = composition.MineFilters(inbox.Mine, mineStatusKey)
 	narrowedMine := composition.SearchCards(composition.FilterCardsByStatus(inbox.Mine, mineStatusKey), q)
 	drafts, mine = composition.SplitDrafts(narrowedMine)
-	return pending, drafts, mine, filters, mineFilters, nil
+	// The bound applies to the Document set all three tabs are built from, so it travels with whichever
+	// tab ran rather than being a per-tab fact. ?filter=/?status=/?q= narrowing happens *after* it and
+	// cannot clear it: a list narrowed from a capped set is still capped.
+	return pending, drafts, mine, filters, mineFilters, inbox.Truncated, nil
 }
 
 // assignedTabContent composes the Assigned to me tab: composition.AssignedToMe's own reads (a
 // sixth record set, this identity's Groups, that neither sibling tab touches), reduced by
 // ?status= the same way pendingTabContent reduces Pending by ?filter=, then by ?q= within whichever
 // status chip is active.
-func assignedTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, statusKey, q string) (rows []rendering.AssignedRow, filters []rendering.FilterChip, err error) {
+func assignedTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, statusKey, q string) (rows []rendering.AssignedRow, filters []rendering.FilterChip, truncated rendering.Truncation, err error) {
 	assigned, err := composition.AssignedToMe(ctx, composition.NewLoader(store, machines), userID, time.Now(), machineForStep(ctx), machineForDocument(ctx))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, rendering.Truncation{}, err
 	}
 	filters = []rendering.FilterChip{
 		{Key: "all", Label: "All", Count: len(assigned.Rows), Active: statusKey == "" || statusKey == "all"},
@@ -145,7 +149,7 @@ func assignedTabContent(ctx context.Context, store *data.Store, machines map[str
 		}
 	}
 	rows = composition.SearchAssignedRows(rows, q)
-	return rows, filters, nil
+	return rows, filters, assigned.Truncated, nil
 }
 
 // showPendingCount serves pageShell's own nav badge (ROADMAP.md Phase 21 round 2, Step J) -- the

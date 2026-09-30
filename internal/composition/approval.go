@@ -33,6 +33,11 @@ type Inbox struct {
 	Pending []rendering.PendingApprovalCard
 	Buckets []string
 
+	// Truncated is ds_documents_with_steps' own bound having bitten. Carried to the page because this
+	// list claims to be every Document waiting on this identity, so a silent cap makes it lie --
+	// rendering.Truncation and 007 §21.9.
+	Truncated rendering.Truncation
+
 	OverdueCount int
 	TodayCount   int
 
@@ -276,6 +281,9 @@ func buildInbox(sel Selection, activities []*data.Record, names map[string]strin
 	}
 
 	var inbox Inbox
+	// Set from the Selection rather than recomputed: the bound and whether it bit are the Data Plane's
+	// answer, and a Page renders what Composition decided (007 §4.4).
+	inbox.Truncated = rendering.Truncation{Limit: sel.Limit, Hit: sel.Truncated}
 	for _, s := range pendingStepsFor(steps, docByID, stepsByDoc, userID, seq, f) {
 		docID := DisplayString(s.Values[f.Parent])
 		doc := docByID[docID]

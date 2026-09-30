@@ -32,7 +32,10 @@ const (
 // Inbox.OverdueCount does: the filter chips need them before any status filter narrows the list,
 // so they are counted once here rather than recounted per chip in the handler.
 type Assigned struct {
-	Rows          []rendering.AssignedRow
+	Rows []rendering.AssignedRow
+	// Same bound, same reason as Inbox.Truncated: board 07b says "every document that asked for your
+	// approval", and a capped list saying that is wrong rather than merely incomplete.
+	Truncated     rendering.Truncation
 	WaitingCount  int
 	NotYetCount   int
 	ApprovedCount int
@@ -129,6 +132,8 @@ func buildAssigned(sel Selection, activities []*data.Record, names, myGroupNames
 	}
 
 	var out Assigned
+	// See Inbox.Truncated: the Data Plane's answer, carried, not recomputed.
+	out.Truncated = rendering.Truncation{Limit: sel.Limit, Hit: sel.Truncated}
 	var built []assignedRow
 	for _, s := range steps {
 		via, mine := stepBelongsTo(s, viewerID, myGroupNames, f)

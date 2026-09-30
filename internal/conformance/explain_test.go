@@ -386,11 +386,40 @@ func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
 // three sites Step 0 measured as one shape. A ratchet locks in a pattern and one migration
 // is not a pattern, which is why this landed here and not with Slice A.
 //
-// **What it deliberately does not say**: a low count is not a composable Data Plane. Ten of the
-// remaining reads correlate two Machines (the approval screens' steps-by-document joins) and cannot
-// shrink until 007 §7.5 Relation exists; four legitimately read everything, because a lookup map of
-// every Project is every Project. Reading this number falling as "the work is nearly done" would be
-// the same mistake as reading a green sweep as behaviour coverage.
+// **What it deliberately does not say**: a low count is not a composable Data Plane. Reading this
+// number falling as "the work is nearly done" would be the same mistake as reading a green sweep as
+// behaviour coverage.
+//
+// **This paragraph used to end "Ten of the remaining reads correlate two Machines ... and cannot shrink
+// until 007 §7.5 Relation exists", and every clause of that was wrong by the time it was read
+// (retracted 2026-09-30).** Relation had shipped -- the paragraph directly above says so, and says it
+// took the count to 11 -- and `capabilities.md`'s own whole-Machine-read row had already corrected
+// "ten join sites" to three by measurement. Two documents contradicted each other and the one wired to
+// a gate held the stale half. That is 001 #8 in prose: the same number stated in two places is the same
+// number gone stale in one.
+//
+// **What the remaining 11 actually are**, measured 2026-09-30 rather than inferred from the shape of
+// the last sentence:
+//
+//   - 3 read the whole of mch_activity (approval.go, assigned.go, review.go), all feeding
+//     submittersFromActivity;
+//   - 1 reads the whole signature store to build an owner->image lookup (review.go, savedSignatureImages);
+//   - 7 are id->scalar lookup maps over Projects, Tasks and Users (pages.go).
+//
+// None is a correlation, so none is Relation's to fix.
+//
+// **And the activity three are blocked by a declaration that is deliberately polymorphic**, which is the
+// part worth carrying. submittersFromActivity needs two things: `fld_record_id IN (the Documents on
+// screen)` -- set membership, where `where:` offers only equals/not_equals against a single value -- and
+// the *earliest* event per record, which nothing expresses. Set membership exists in the store
+// (ListRecordsByAny) but the only declarative route to it is `relations:`, and `relations:` requires
+// `via` to be a reference Field pointing back, while mch_activity.fld_record_id is `text` **on purpose**:
+// one Machine logs events for every Machine. Making it a `relation` is exactly what 007 §7.5 forbids --
+// "reuse existing Machine reference semantics rather than inventing a second relationship identity".
+//
+// So: **this number will not fall again without a new primitive.** The map stays a gate against
+// regression, and is not a target. `capabilities.md`'s whole-Machine-read row carries the same figures
+// once; it is referenced here rather than restated, which is the lesson the retraction above cost.
 var wholeMachineReadRatchet = map[string]int{
 	"approval.go": 1,
 	"assigned.go": 1,

@@ -136,7 +136,7 @@ type AssignedRow struct {
 // type built to satisfy one label, which is the shape-before-need this repo refuses. Same class as
 // board 03's Procurement/HR cards and board 06's ProcessEdge: the board draws something the app
 // has no data for. Recorded in ROADMAP.md's deferral table with that as its real blocker.
-templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, drafts []PendingApprovalCard, mine []PendingApprovalCard, mineFilters []FilterChip, assigned []AssignedRow, assignedFilters []FilterChip, tab, q string, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, drafts []PendingApprovalCard, mine []PendingApprovalCard, mineFilters []FilterChip, assigned []AssignedRow, assignedFilters []FilterChip, truncated Truncation, tab, q string, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	// The "Approval Inbox" / "My Documents" / "Assigned to me" section strip used to be this
 	// Page's own nav here (inboxTabs, deleted with this change): appShell now renders the current
 	// Application's own menu itself -- a second header row on desktop, a bottom bar on mobile --
@@ -187,6 +187,10 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 				</a>
 			}
 		</div>
+		// Once, above the tabs, because the bound cut the Document set all three are built from -- not
+		// per tab, and not per filter chip: a list narrowed from a capped set is still capped. Renders
+		// nothing when the bound did not bite (truncationNotice).
+		@truncationNotice(truncated)
 		switch tab {
 			case TabMine:
 				{{ mineChipPrefix := routeByID(ctx, "nav_my_documents") + "&status=" }}

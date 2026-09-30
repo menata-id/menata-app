@@ -140,11 +140,28 @@ type Selection struct {
 	// 500 of 700 Documents with no indication is indistinguishable from a Workspace that has 500 --
 	// and at 13 Documents that is invisible, which is exactly how it would have shipped.
 	//
-	// **No screen renders it yet**, and saying so is the point: the signal exists and is asserted, and
-	// wiring it into each list's own chrome is its own slice. What is closed here is the runtime being
-	// unable to tell.
+	// **Rendered since 2026-09-30, but only by the lists a bound would lie to** -- see Limit below.
 	Truncated bool
-	related   map[string]map[string][]*data.Record
+	// Limit is the bound that produced Truncated, carried so a screen can name it ("the first 500")
+	// without looking the Dataset up a second time (001 #8).
+	//
+	// **It is also the whole reason Truncated is not rendered everywhere, which measuring found and the
+	// plan for this slice had missed.** `limit:` means two different things in the four Datasets that
+	// declare it. For `ds_documents_with_steps` (500) and `ds_my_tasks` (200) it is a *safety cap* on a
+	// list that means to show everything, so a bound that bites makes the screen lie. For
+	// `ds_recent_activity` (10) and `ds_activity_feed` (50) it is the list's *meaning* -- "recent" is
+	// defined by the bound -- and mch_activity holds 30 records today, so a naive pass of this slice
+	// would have shipped a "results were truncated" warning onto the Dashboard's activity tail, where it
+	// is simply false.
+	//
+	// **Nothing declares which kind a limit is**, so the screen decides: a list claiming completeness
+	// renders the notice, a list whose bound is its definition does not. That is 2 cases of each, which
+	// is past the repetition trigger (CLAUDE.md step 3) -- so the distinction is named here rather than
+	// inferred, and a `limit:` that says which kind it is (007 §21.9's "explicit runtime policy") is
+	// recorded as the next step rather than invented for this slice. Deriving it from `sort:` or from a
+	// Dataset's *name* would be guessing from a coincidence, and a name is never an identity here.
+	Limit   int
+	related map[string]map[string][]*data.Record
 }
 
 // NewSelection builds a Selection from already-correlated parts. It exists for tests, which have to
@@ -170,6 +187,16 @@ func (l *Loader) SelectDataset(ctx context.Context, datasetID string, where expr
 	if err != nil {
 		return nil, err
 	}
+	// **This drops Selection.Truncated, and that is the reason My Tasks does not render the notice the
+	// approval inbox does (2026-09-30).** ds_my_tasks' limit of 200 is a safety cap in exactly the same
+	// sense as ds_documents_with_steps' 500, so the screen has the same claim to make -- it just calls
+	// the convenience wrapper, which throws the signal away at the boundary. **A wrapper that discards a
+	// diagnostic is how the diagnostic stays unread**, which is the shape TestPoolInstallsQueryTracer
+	// exists over: the app works and the log quietly reports less.
+	//
+	// Not fixed here because fixing it means changing this signature and its two callers, and this slice
+	// is the notice, not the plumbing. The second case is on record; the trigger for widening it is a
+	// third caller wanting the bound.
 	return sel.Records, nil
 }
 
@@ -181,11 +208,11 @@ func (l *Loader) SelectRelated(ctx context.Context, datasetID string, where expr
 	}
 	ds, _ := l.Dataset(datasetID)
 	if len(ds.Relations) == 0 {
-		return Selection{Records: records, Truncated: truncated}, nil
+		return Selection{Records: records, Truncated: truncated, Limit: ds.Limit}, nil
 	}
 	if cached, ok := l.related[datasetID]; ok {
 		l.served++
-		return Selection{Records: records, Truncated: truncated, related: cached}, nil
+		return Selection{Records: records, Truncated: truncated, Limit: ds.Limit, related: cached}, nil
 	}
 
 	ids := make([]string, 0, len(records))
@@ -193,7 +220,7 @@ func (l *Loader) SelectRelated(ctx context.Context, datasetID string, where expr
 		ids = append(ids, r.ID)
 	}
 
-	sel := Selection{Records: records, Truncated: truncated, related: map[string]map[string][]*data.Record{}}
+	sel := Selection{Records: records, Truncated: truncated, Limit: ds.Limit, related: map[string]map[string][]*data.Record{}}
 	for _, rel := range ds.Relations {
 		children, err := l.store.ListRecordsByAny(ctx, rel.Machine, ds.ID, rel.Via, ids)
 		if err != nil {
