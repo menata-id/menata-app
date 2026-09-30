@@ -732,6 +732,8 @@ resolved and checked at load time, not at first use.
 
 Since 2026-09-22 there is one per Workspace, named by slug, discovered by scanning the directory:
 dropping a file in *installs* its Applications into that Workspace. `applications: []` is valid.
+Creating a Workspace through the UI writes this file for you, with the three shared Machines and
+`applications: []` (2026-09-30); a Workspace missing one is given it on its first install or publish.
 
 | Key | Value | Notes |
 |---|---|---|
@@ -1295,6 +1297,24 @@ similar-looking metadata for a *different* Machine does not activate it.
 | Declared Views (`views:` — `table`/`board`/`cards`/`stepper`) | A View composing *other* Views, rather than one Machine's own records, has one real case built (2026-09-26): `stepper` (`domain.ViewStepper`, menata-runtime's CAP-V20) renders a parent's own children as a sequential done/current/waiting progress indicator — `mch_approval_step`'s `vw_step_progress`, composed by `internal/rendering/detail.templ` via `domain.Machine.StepperView`, not selected by `?view=`. What's still hardcoded is the Review Document screen's own orchestration around it (Approve/Reject bar, signature canvas/placement) — see the row above |
 | Counting/summing a Machine's own records (`datasets:`), and — since 2026-09-28 — **which Field a composed screen shows in a row** (`card_fields:`, §7.1): My Tasks, the Calendar, the Sprint Attention list and the Dashboard's Project/pending-Document rows resolve title/status/date through Projection, and Team Capacity reads its weekly number out of `ds_user_capacity`'s own `field:` | Composed screens: Approval Inbox, Automation, Board Settings. What stays Go on the four migrated screens is their *layout* — which measure lands in which column, how rows are bucketed (overdue/today/upcoming), and the temporal predicate that selects the Pending and Attention lists, which `where:` cannot express. Board Settings also still reads `fld_color` raw: no `card_fields` role describes a colour token (`internal/conformance`'s `projectionRatchet`, now one entry) |
 | Notifications (`send_notification`, in-app + email, `domain.Notify`) — a declared Event writes an `mch_notification` record and, if the recipient's own preference allows it, emails them | **A notification's own link target.** `internal/execution.notificationLinkFor` special-cases `mch_approval_step` → its `/review` route rather than the generic `/machines/{id}/records/{id}` detail page, which is explicitly "POC scaffolding no real approver should land on" (`detailBackLink`'s own reasoning). Every other Machine (`mch_document` today) gets the generic detail route. Forward-checkable pointer: a second notification-emitting Machine needing its own non-generic destination is the trigger to turn this into a declared Field rather than a per-Machine-id branch |
+
+**A Page's own layout is the next row to move, and the plan for it is written** (2026-09-30):
+`menata-app-document`'s `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`
+carries the staged plan, the farthest capability 001-007 authorises, and its boundary. Today a Page's
+arrangement is Go: 36 of 38 navigation items point at a bespoke route, which 007 §12.4 forbids
+normatively. What will move is the *arrangement* (Layout §12.2, Static Content §12.6, then bounded
+Components §12.3) -- **not** styling, which stays Theme (006) and must not arrive through composition,
+and not the eight identity/lifecycle screens, which 001 #9 keeps in the runtime.
+
+**One measured gap this surfaced, worth writing here because a metadata author hits it directly:** a
+navigation item may declare `title:` and `description:` as well as `label:`, and **18 of 38 declare
+neither**. Where they are absent the screen's own subtitle is a literal in its `.templ` --
+`activity.templ`'s "A cross-project feed of business events." is one -- and
+`TestRenderingHasNoHardcodedPageHeading` cannot see it, because that gate matches a *declared* string
+verbatim and there is nothing declared to match. So the page header is already almost entirely
+derivable (eyebrow from the Application's name, heading from `label:`/`title:`, subtitle from
+`description:`); what is missing is the declaration, not the mechanism. Declaring `description:` on a
+nav item is the cheapest real step toward the row above.
 
 **The right column is a capability snapshot, not a permanent exemption list.** Each entry existed
 because metadata couldn't express it *when it was written* — `card_fields` (Projection) and

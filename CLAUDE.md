@@ -21,6 +21,45 @@ isn't a pure bugfix. They are short, numbered, and load fast; do this even if th
 "just" a UI or handler change. `writing-guide.md` and `capabilities.md` are the practical/current-
 state companions once you've read the principles.
 
+**Read them as a destination first, and only then as a constraint list.** That ordering is not a
+style preference — reversing it produced three phases in a row whose outcome was "don't" or "less", and
+the owner had to correct the frame twice before the pattern was visible (2026-09-30; the full record is
+`menata-app-document`'s `audits/2026-09-30-kajian-arah-pengembangan-dan-protokol-kolaborasi-agen.md`).
+
+The distinction that went wrong, and it is worth carrying exactly:
+
+| question | the tool for it | where it comes from |
+|---|---|---|
+| "Should a **new** capability be added?" | the admission test (A1–A5), the second-case rule, the ratchets | `capability-lifecycle.md` §2; 007 §27, whose own words are *"Before adding a **new capability**"* |
+| "How do we execute architecture that is **already agreed**?" | sequencing and design; gates **lock** each step afterwards | 001–007 as the normative target |
+
+Most of what is unbuilt in this runtime is the second row, not the first. UI IR, Data IR, the planner,
+the Experience Plane's primitives — those are 005 Phase 5 and 007 §12/§15/§16, already decided. Asking
+them to pass an admission test is asking agreed architecture to re-prove itself as a proposal.
+
+And **007 §40's `PROPOSED` is not a veto.** Its own sentence is *"A PROPOSED row is not admitted by
+appearing here"* — an anti-overclaim device, stopping you from treating the document's mention as proof
+the thing exists. It does not withhold permission to build. Read as a veto, it stalls everything §40
+lists.
+
+Two corollaries the same day produced:
+
+- **007 §27 read as a design checklist argues *for* building.** Its Q3 — *"Would one new generic
+  primitive unlock this and other cases?"* — is the question a genuine substrate passes most strongly.
+  A review that never asks Q3 is using the gate list to decline rather than to design.
+- **The second-case rule governs *semantics*, not *structure*.** It guards against inventing meaning
+  nobody needs (a colour role for one Machine). It was never meant to guard against adopting a
+  structural vocabulary that 007 already closes, that Bootstrap/Tailwind/CSS Grid settled long ago, and
+  that this tree already uses — `flex flex-col gap-N` (007 §12.2's `stack`) appears **61 times** across
+  38 screens. Proposing to "create a second case" for that was a miscount, and §12.2 forbids the
+  incremental version of it outright (*"should not require separate layout concepts such as
+  `DashboardLayout`…"*).
+
+**Gates preserve what has been achieved; the vision directs the next step.** Both are needed and
+neither may take the other's job. Keep the execution order the repo already uses — build the primitive,
+migrate the uses, *then* gate — because a gate installed first tests failure classes that do not exist
+yet, which 007 §15.3 demonstrates about itself.
+
 The two that most often get violated by an unreviewed edit:
 
 - **001 Principle #3, Metadata First** — "Application evolution should primarily occur by
@@ -39,6 +78,17 @@ id is generated when a Workspace is created through the UI, so nobody can write 
 which Machines exist there, and which Applications are installed. The directory is *scanned*, so
 dropping a file in installs; deleting it uninstalls. An empty `applications: []` is valid and
 normal — it is what a Workspace looks like the moment it is created.
+
+**That sentence was only true on paper until 2026-09-30.** Creating a Workspace wrote a `workspaces`
+row and no file; every manifest was hand-written. Reading tolerated it (no manifest resolves to the
+zero Workspace), but publish and install built their path from that zero Workspace's empty slug, so
+the first write into any UI-created Workspace aimed at `metadata/workspaces/.yaml`. Creation now
+writes the empty manifest (`installer.EnsureWorkspaceManifest`, deliberately without a reload, since
+reloading resets `/register`'s rate limiter), and a handler writing into a Workspace goes through
+`internal/web.workspaceInstallation`: slug from the row, installation from disk, missing manifest
+healed. **Never build a manifest path from `rendering.CurrentWorkspace(ctx).Slug`.** A failed write
+that no proposal can fix is not handed to the AI assistant either; only an `installer.RejectedError`
+is. Audit: `menata-app-document`'s `audits/2026-09-30-kajian-workspace-baru-tanpa-manifest.md`.
 
 This replaced a single process-wide `metadata/app.yaml` loaded once at startup, which made every
 Workspace render the same Applications no matter which one you were in: a `workspaces` row scoped
@@ -631,6 +681,38 @@ what the mutation proved, what could not be checked live — goes to `developmen
 `TestRoadmapStaysAReleasePlan` holds the flow shrink-only (below). It cannot judge whether *one*
 paragraph belongs here or there — it counts vocabulary and volume, not fit — so a green run means the
 file stopped growing, never that the split is right.
+
+## Working with other agent sessions
+
+Other sessions use this same checkout, and the handoff mechanism that works is already proven: a dated
+file in `menata-app-document/audits/` written **as a work list for another session** — each item naming
+*where* (a path), *why* (a document citation), *what done means* (testable), and *what blocks it*. One
+session wrote `audits/2026-09-30-kajian-pemutusan-dari-menata-runtime.md` that way; another picked it
+up the same night, did part of it, and found two of its numbers wrong by measuring.
+
+**That last part is the protocol, not a complaint: re-measure every number you inherit.** Six carried
+figures failed on measurement in one session — "ten join sites" (three), "8 dangling citations" (18),
+"68 field-type sites" (zero that were a seam), `stack` "needs a second case" (61 uses), "notifications
+are generatable" (no — the generated shape has no service slot), "correlations hold the ratchet at 11"
+(Relation shipped and the number moved zero). Re-measuring is part of the work, not distrust of the
+author.
+
+Mechanics, each learned the hard way in one session:
+
+- **Never `git add -A`** — it swallowed 7 files belonging to another session, and the push failed on
+  their uncommitted generated output.
+- **Never `git checkout` to restore during mutation testing** — it discarded in-progress edits three
+  times. Copy to the scratchpad instead.
+- An **untracked file that is not yours**: do not commit it, ask. The session that wrote one committed
+  it itself an hour later.
+- Verify a mutation actually applied (`grep -c`) **before** trusting a green run. A no-op mutation
+  reads exactly like a gate that does not bite.
+- Watch for a gate whose own text sits inside the data it reads — **four** were found in one session,
+  each passing when it should have failed.
+
+The gates are what make this safe: they are the shared contract that lets one session change code
+another wrote. Breaking someone else's gate is a conversation, not a wall — lower the number if it is
+an improvement, or fix the code.
 
 ## Commands
 
