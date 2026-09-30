@@ -240,7 +240,7 @@ func (s WorkflowEngineSpec) IsRequired(role string) bool {
 }
 
 // KnownWorkflowEngines is the closed set of engines a Workflow may name, mapped to the cast each one
-// takes -- the same static-seam discipline KnownActions/KnownServices already establish (007 §14),
+// takes -- the same static-seam discipline KnownActions and registry.Services already establish (007 §14),
 // and for the same reason: an engine name the runtime cannot realize must fail at load rather than
 // leaving a screen that quietly offers nothing.
 //

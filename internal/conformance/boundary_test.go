@@ -119,8 +119,8 @@ var rules = []rule{
 	},
 	{
 		pkg:       "registry",
-		forbidden: []string{postgres, sqlPkg, httpPkg},
-		because:   "007 §14: a static compile-time dispatch seam, not a loader -- it needs neither a database nor a network",
+		forbidden: []string{postgres, sqlPkg, httpPkg, templ, internalPkg("data"), internalPkg("db"), internalPkg("rendering"), internalPkg("metadata"), internalPkg("execution")},
+		because:   "007 §14: registry is the static dispatch seam, and it must stay importable from *both* sides -- internal/metadata validates through it and is forbidden from internal/data; internal/execution dispatches through it and is forbidden from internal/metadata. Depending on either makes it un-importable by the other (TestRegistryDependsOnDomainOnly states the same rule positively)",
 	},
 	{
 		pkg:       "storage",

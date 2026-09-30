@@ -139,6 +139,74 @@ type Services struct {
 	Files  *storage.Store
 }
 
+// serviceInput is everything any Service executor may need, so one table can serve all three dispatch
+// paths (create, field-change, schedule) instead of three switches that drifted independently.
+//
+// **Two summary fields rather than one, and that is a real per-caller difference, not redundancy.**
+// RunScheduledEvents hands log_activity its dedup *marker* while handing send_notification the rendered
+// summary -- so the summary differs per Service within one call, which a single field cannot express. A
+// version that unified them would silently change the schedule path's dedup key, which is the one thing
+// idempotency there rests on.
+type serviceInput struct {
+	svc       Services
+	machines  map[string]*domain.Machine
+	machine   *domain.Machine
+	record    *data.Record
+	actorID   string
+	event     domain.Event
+	oldValues map[string]any
+	// summary is the rendered message for Services that send one; activitySummary is what log_activity
+	// writes, which is the same text except on the schedule path.
+	summary         string
+	activitySummary string
+}
+
+// serviceExecutors is the execution half of the Service seam (internal/registry holds the names and their
+// load-time contracts; see registry.Service for why one package cannot hold both).
+//
+// Keyed by the same domain.Service* constants the registry is, and
+// conformance.TestServiceRegistryAndExecutorsAgree asserts the two sets match -- which is what makes this
+// one seam rather than two lists. Before 2026-09-30 there was no table at all: three `switch e.Then.Name`
+// statements, each covering the subset its path happened to need, with nothing checking that a new
+// Service reached all of them.
+//
+// **Which paths a Service may legitimately appear on is still the Event's own business, not this table's.**
+// A schedule Event declaring composite_signed_document would find an executor here and do nothing useful;
+// what makes that impossible is metadata validation, and this table deliberately does not re-litigate it.
+// Assigned in init rather than as a var initializer, and the reason is a real property of the seam
+// rather than a Go quirk to route around: **rollup_parent_status re-enters the dispatcher.** It calls
+// RunEvents for the *parent* Machine so the parent's own declared Events fire (Tahap 6), so the
+// dependency runs serviceExecutors -> rollUpParentStatus -> RunEvents -> runService -> serviceExecutors.
+// Go refuses that as an initialization cycle for a var expression; init bodies are exempt, and the
+// recursion itself is correct and intended.
+var serviceExecutors map[string]func(ctx context.Context, in serviceInput)
+
+func init() {
+	serviceExecutors = map[string]func(ctx context.Context, in serviceInput){
+		domain.ServiceLogActivity: func(ctx context.Context, in serviceInput) {
+			logActivity(ctx, in.svc.Store, in.machine.ID, in.record.ID, in.actorID, in.activitySummary)
+		},
+		domain.ServiceSendNotification: func(ctx context.Context, in serviceInput) {
+			sendNotification(ctx, in.svc.Store, in.svc.Mailer, in.machine, in.record, *in.event.Then.Notify, in.summary)
+		},
+		domain.ServiceRollupParentStatus: func(ctx context.Context, in serviceInput) {
+			rollUpParentStatus(ctx, in.svc, in.machines, in.machine, in.record, in.actorID, in.event.On, *in.event.Then.Rollup)
+		},
+		domain.ServiceCompositeSignedDocument: func(ctx context.Context, in serviceInput) {
+			compositeSignedDocument(ctx, in.svc, in.machines, in.machine, in.record, *in.event.Then.Composite, in.event.WhenEquals)
+		},
+	}
+}
+
+// runService dispatches one matched Event. An unknown name is a no-op rather than a panic: metadata
+// validation refuses it at load (registry.ValidateService), so reaching here with one means the loader was
+// bypassed -- and a write is not the place to crash over it.
+func runService(ctx context.Context, in serviceInput) {
+	if run, ok := serviceExecutors[in.event.Then.Name]; ok {
+		run(ctx, in)
+	}
+}
+
 // RunCreateEvents is RunEvents' own counterpart for the create path: every domain.Event a Machine
 // declares OnCreate (behavior.MatchedCreateEvents) fires once, unconditionally, for the record
 // just created -- generalizing what used to be a hardcoded per-Machine switch (logRecordCreated,
@@ -148,12 +216,11 @@ type Services struct {
 // {old}/{new}, so nil resolves harmlessly.
 func RunCreateEvents(ctx context.Context, svc Services, machine *domain.Machine, record *data.Record, actorID string) {
 	for _, e := range behavior.MatchedCreateEvents(machine) {
-		switch e.Then.Name {
-		case domain.ServiceLogActivity:
-			logActivity(ctx, svc.Store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, nil, record.Values))
-		case domain.ServiceSendNotification:
-			sendNotification(ctx, svc.Store, svc.Mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, nil, record.Values))
-		}
+		summary := renderEventSummary(e, machine, nil, record.Values)
+		runService(ctx, serviceInput{
+			svc: svc, machine: machine, record: record, actorID: actorID, event: e,
+			summary: summary, activitySummary: summary,
+		})
 	}
 }
 
@@ -170,16 +237,11 @@ func RunEvents(ctx context.Context, svc Services, machines map[string]*domain.Ma
 		return
 	}
 	for _, e := range behavior.MatchedEvents(machine, oldValues, record.Values) {
-		switch e.Then.Name {
-		case domain.ServiceLogActivity:
-			logActivity(ctx, svc.Store, machine.ID, record.ID, actorID, renderEventSummary(e, machine, oldValues, record.Values))
-		case domain.ServiceRollupParentStatus:
-			rollUpParentStatus(ctx, svc, machines, machine, record, actorID, e.On, *e.Then.Rollup)
-		case domain.ServiceSendNotification:
-			sendNotification(ctx, svc.Store, svc.Mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, oldValues, record.Values))
-		case domain.ServiceCompositeSignedDocument:
-			compositeSignedDocument(ctx, svc, machines, machine, record, *e.Then.Composite, e.WhenEquals)
-		}
+		summary := renderEventSummary(e, machine, oldValues, record.Values)
+		runService(ctx, serviceInput{
+			svc: svc, machines: machines, machine: machine, record: record, actorID: actorID, event: e,
+			oldValues: oldValues, summary: summary, activitySummary: summary,
+		})
 	}
 }
 
@@ -230,12 +292,12 @@ func RunScheduledEvents(ctx context.Context, store *data.Store, mailer mail.Mail
 				continue
 			}
 			for _, e := range matched {
-				switch e.Then.Name {
-				case domain.ServiceLogActivity:
-					logActivity(ctx, store, machine.ID, record.ID, "", marker)
-				case domain.ServiceSendNotification:
-					sendNotification(ctx, store, mailer, machine, record, *e.Then.Notify, renderEventSummary(e, machine, nil, record.Values))
-				}
+				// activitySummary is the *marker*, not the rendered summary: it is this path's dedup
+				// key (see scheduleMarker), and the two differ here and nowhere else.
+				runService(ctx, serviceInput{
+					svc: Services{Store: store, Mailer: mailer}, machine: machine, record: record, event: e,
+					summary: renderEventSummary(e, machine, nil, record.Values), activitySummary: marker,
+				})
 			}
 		}
 	}

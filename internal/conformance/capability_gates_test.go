@@ -10,6 +10,7 @@ import (
 
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
+	"menata.app/internal/registry"
 )
 
 // Package capability_gates_test.go holds the three gates that keep a *new* capability from
@@ -41,37 +42,30 @@ import (
 // TestClosedRegistryMembersAreAcceptedByTheLoader: every Action and Service the runtime declares
 // must be one the loader actually accepts in metadata.
 //
-// These are two lists that can drift apart silently. domain.KnownServices is the registry; what
-// validates a declared `service:` is a switch in internal/metadata with a `default` that rejects
-// the unknown -- it never consults the registry. So adding a fourth member to KnownServices
-// without adding its case leaves the runtime advertising a Service the loader refuses, and the
-// failure surfaces only when someone writes it into a manifest. Same shape for KnownActions.
+// These are two lists that can drift apart silently: a registry of names, and a `switch` in
+// internal/metadata with a `default` that rejects the unknown and never consults that registry. Adding a
+// member without adding its case leaves the runtime advertising something the loader refuses, and the
+// failure surfaces only when someone writes it into a manifest.
 //
 // Asserted behaviourally rather than by reading source: build the smallest metadata that names
 // each member and confirm the loader does not reject it *for being unknown*. Other complaints
-// (a Service's own required keys) are expected and ignored -- this gate is about recognition, not
+// (a member's own required keys) are expected and ignored -- this gate is about recognition, not
 // configuration.
 //
 // domain.KnownWorkflowEngines is deliberately absent, because it cannot have this failure: its
 // validator (internal/metadata.validateWorkflowBinding) reads the registry itself rather than
-// repeating its members in a switch, so there is no second list to drift from. That is the shape
-// KnownActions/KnownServices would have to take to retire their half of this gate.
+// repeating its members in a switch, so there is no second list to drift from.
+//
+// **Services left this gate on 2026-09-30 by taking exactly that shape, which the paragraph above used to
+// name as the condition for retiring their half.** internal/registry.Services now maps each Service name
+// to its own validator and internal/metadata calls registry.ValidateService, so the registry *is* the
+// validation -- there is no second list, and a probe asserting the loader accepts what the registry
+// declares would be asserting that a map contains its own keys. domain.KnownServices is deleted.
+//
+// What remains here is KnownActions, which still has the two-list shape. The gate's own prediction coming
+// true is the useful part: a gate that names the condition for its own retirement can be retired on
+// evidence instead of on taste.
 func TestClosedRegistryMembersAreAcceptedByTheLoader(t *testing.T) {
-	for service := range domain.KnownServices {
-		m := &domain.Machine{
-			ID: "mch_gate_probe", Name: "Gate Probe",
-			Fields: []domain.Field{{ID: "fld_probe", Name: "Probe", Type: domain.FieldTypeText}},
-			Events: []domain.Event{{
-				ID: "evt_probe", OnCreate: true,
-				Then: domain.Service{Name: service},
-			}},
-		}
-		err := metadata.Validate(m)
-		if err != nil && strings.Contains(err.Error(), "is not a service this runtime realizes") {
-			t.Errorf("domain.KnownServices declares %q, but the loader rejects it as unknown -- the registry and internal/metadata's own validation have drifted apart; add its case where the other services are handled", service)
-		}
-	}
-
 	for action := range domain.KnownActions {
 		m := &domain.Machine{
 			ID: "mch_gate_probe", Name: "Gate Probe",
@@ -145,9 +139,9 @@ func TestClosedRegistryMembersAreActivatedByMetadata(t *testing.T) {
 			t.Errorf("domain.KnownActions declares %q, but no installed Workspace's metadata names it in a permission or transition -- a capability only Go can reach is not activated by metadata (001 #3). Declare it where it is meant to be used, or remove it", action)
 		}
 	}
-	for service := range domain.KnownServices {
+	for service := range registry.Services {
 		if !usedServices[service] {
-			t.Errorf("domain.KnownServices declares %q, but no installed Workspace's metadata names it in an event -- a Service invoked only from flow code is not a declared Service (006 Behavioral Model). Declare the event that triggers it, or remove it", service)
+			t.Errorf("registry.Services declares %q, but no installed Workspace's metadata names it in an event -- a Service invoked only from flow code is not a declared Service (006 Behavioral Model). Declare the event that triggers it, or remove it", service)
 		}
 	}
 }

@@ -54,7 +54,7 @@ const (
 )
 
 // KnownWriteSources is the closed set a FieldWrite's From may name -- the same static-seam discipline
-// KnownActions/KnownServices/KnownWorkflowEngines follow (007 §14), and for the same reason: a source
+// KnownActions/KnownWorkflowEngines and registry.Services follow (007 §14), and for the same reason: a source
 // the runtime cannot resolve would write an empty value and look like it worked.
 //
 // `now` is deliberately absent. The audit's own sketch named it as a third source, and nothing in this

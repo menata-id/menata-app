@@ -8,14 +8,14 @@ import (
 
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
+	"menata.app/internal/registry"
 )
 
-// machineIDPattern, fieldIDPattern, and constraintIDPattern enforce 004-runtime-metadata.md
+// machineIDPattern and constraintIDPattern enforce 004-runtime-metadata.md
 // "Stable Identity": identity must survive label/presentation/implementation changes, so it is
 // validated independently of Name.
 var (
 	machineIDPattern     = regexp.MustCompile(`^mch_[a-z][a-z0-9_]*$`)
-	fieldIDPattern       = regexp.MustCompile(`^fld_[a-z][a-z0-9_]*$`)
 	constraintIDPattern  = regexp.MustCompile(`^cst_[a-z][a-z0-9_]*$`)
 	eventIDPattern       = regexp.MustCompile(`^evt_[a-z][a-z0-9_]*$`)
 	permissionIDPattern  = regexp.MustCompile(`^prm_[a-z][a-z0-9_]*$`)
@@ -111,8 +111,8 @@ func Validate(m *domain.Machine) error {
 	seen := make(map[string]bool, len(m.Fields))
 	fieldsByID := make(map[string]domain.Field, len(m.Fields))
 	for _, f := range m.Fields {
-		if !fieldIDPattern.MatchString(f.ID) {
-			issues = append(issues, fmt.Sprintf("field id %q must match %s", f.ID, fieldIDPattern.String()))
+		if !domain.FieldIDPattern.MatchString(f.ID) {
+			issues = append(issues, fmt.Sprintf("field id %q must match %s", f.ID, domain.FieldIDPattern.String()))
 			continue
 		}
 		if seen[f.ID] {
@@ -137,7 +137,7 @@ func Validate(m *domain.Machine) error {
 		if f.Type == domain.FieldTypeGroup && f.RelatedMachine != "" {
 			issues = append(issues, fmt.Sprintf("field %q: type group takes no machine: -- a Group is a Workspace platform record, not a Machine (got %q)", f.ID, f.RelatedMachine))
 		}
-		if f.Default != nil && violatesOptions(f, fmt.Sprint(f.Default)) {
+		if f.Default != nil && f.ViolatesOptions(fmt.Sprint(f.Default)) {
 			issues = append(issues, fmt.Sprintf("field %q: default %q is not one of its own options %v", f.ID, f.Default, f.Options))
 		}
 	}
@@ -291,7 +291,7 @@ func validateConstraint(m *domain.Machine, c domain.Constraint, fieldsByID map[s
 	onField, onExists := fieldsByID[c.On]
 	if !onExists {
 		issues = append(issues, fmt.Sprintf("constraint %q: on %q is not a field of machine %q", c.ID, c.On, m.ID))
-	} else if violatesOptions(onField, c.WhenEquals) {
+	} else if onField.ViolatesOptions(c.WhenEquals) {
 		issues = append(issues, fmt.Sprintf("constraint %q: when_equals %q is not one of field %q's options %v", c.ID, c.WhenEquals, c.On, onField.Options))
 	}
 	if c.WhenEquals == "" {
@@ -301,11 +301,11 @@ func validateConstraint(m *domain.Machine, c domain.Constraint, fieldsByID map[s
 	if !machineIDPattern.MatchString(c.BlockIf.RelatedMachine) {
 		issues = append(issues, fmt.Sprintf("constraint %q: block_if.related_machine %q must match %s", c.ID, c.BlockIf.RelatedMachine, machineIDPattern.String()))
 	}
-	if !fieldIDPattern.MatchString(c.BlockIf.RelatedField) {
-		issues = append(issues, fmt.Sprintf("constraint %q: block_if.related_field %q must match %s", c.ID, c.BlockIf.RelatedField, fieldIDPattern.String()))
+	if !domain.FieldIDPattern.MatchString(c.BlockIf.RelatedField) {
+		issues = append(issues, fmt.Sprintf("constraint %q: block_if.related_field %q must match %s", c.ID, c.BlockIf.RelatedField, domain.FieldIDPattern.String()))
 	}
-	if !fieldIDPattern.MatchString(c.BlockIf.Condition.Field) {
-		issues = append(issues, fmt.Sprintf("constraint %q: block_if.condition.field %q must match %s", c.ID, c.BlockIf.Condition.Field, fieldIDPattern.String()))
+	if !domain.FieldIDPattern.MatchString(c.BlockIf.Condition.Field) {
+		issues = append(issues, fmt.Sprintf("constraint %q: block_if.condition.field %q must match %s", c.ID, c.BlockIf.Condition.Field, domain.FieldIDPattern.String()))
 	}
 	if !expression.KnownOps[c.BlockIf.Condition.Op] {
 		issues = append(issues, fmt.Sprintf("constraint %q: block_if.condition.op %q is not a known operator", c.ID, c.BlockIf.Condition.Op))
@@ -338,11 +338,11 @@ func validateMemberRemovalBlock(m *domain.Machine, b domain.MemberRemovalBlock, 
 		issues = append(issues, fmt.Sprintf("member removal block %q: actor_field %q must be type person, got %q", b.ID, b.ActorField, actorField.Type))
 	}
 
-	if !fieldIDPattern.MatchString(b.Condition.Field) {
-		issues = append(issues, fmt.Sprintf("member removal block %q: condition.field %q must match %s", b.ID, b.Condition.Field, fieldIDPattern.String()))
+	if !domain.FieldIDPattern.MatchString(b.Condition.Field) {
+		issues = append(issues, fmt.Sprintf("member removal block %q: condition.field %q must match %s", b.ID, b.Condition.Field, domain.FieldIDPattern.String()))
 	} else if conditionField, ok := fieldsByID[b.Condition.Field]; !ok {
 		issues = append(issues, fmt.Sprintf("member removal block %q: condition.field %q is not a field of machine %q", b.ID, b.Condition.Field, m.ID))
-	} else if violatesOptions(conditionField, b.Condition.Value) {
+	} else if conditionField.ViolatesOptions(b.Condition.Value) {
 		issues = append(issues, fmt.Sprintf("member removal block %q: condition.value %q is not one of field %q's options %v", b.ID, b.Condition.Value, b.Condition.Field, conditionField.Options))
 	}
 	if !expression.KnownOps[b.Condition.Op] {
@@ -400,106 +400,16 @@ func validateEvent(m *domain.Machine, e domain.Event, fieldsByID map[string]doma
 		onField, onExists := fieldsByID[e.On]
 		if !onExists {
 			issues = append(issues, fmt.Sprintf("event %q: on %q is not a field of machine %q", e.ID, e.On, m.ID))
-		} else if e.WhenEquals != "" && violatesOptions(onField, e.WhenEquals) {
+		} else if e.WhenEquals != "" && onField.ViolatesOptions(e.WhenEquals) {
 			issues = append(issues, fmt.Sprintf("event %q: when_equals %q is not one of field %q's options %v", e.ID, e.WhenEquals, e.On, onField.Options))
 		}
 	}
 
-	// Each Service owns its own required keys: summary is log_activity's message, and means
-	// nothing to a rollup, which writes a field rather than a sentence.
-	switch e.Then.Name {
-	case domain.ServiceLogActivity:
-		if e.Then.Summary == "" {
-			issues = append(issues, fmt.Sprintf("event %q: then.summary is required", e.ID))
-		}
-		if (e.Then.SummaryOverrideWhen == "") != (e.Then.SummaryOverride == "") {
-			issues = append(issues, fmt.Sprintf("event %q: then.summary_override_when and then.summary_override must be set together or not at all", e.ID))
-		}
-	case domain.ServiceRollupParentStatus:
-		issues = append(issues, validateRollup(m, e, fieldsByID)...)
-	case domain.ServiceSendNotification:
-		issues = append(issues, validateNotify(m, e, fieldsByID)...)
-	case domain.ServiceCompositeSignedDocument:
-		issues = append(issues, validateComposite(m, e, fieldsByID)...)
-	default:
-		issues = append(issues, fmt.Sprintf("event %q: then.service %q is not a service this runtime realizes", e.ID, e.Then.Name))
-	}
-
-	return issues
-}
-
-// validateRollup checks everything a rollup declaration can be checked against from inside its own
-// Machine file: the parent reference it writes through, and that the child values it watches for
-// are really values the watched Field can hold. The other half -- that target_field exists on the
-// *parent* Machine and that set/default are among its options -- needs both Machines loaded, so it
-// lives in application.go beside validateRelationTargets.
-// validateComposite is composite_signed_document's own same-file half (Stage C, 2026-09-28): the three
-// Fields it names, and that the one on *this* Machine is a reference to the record being composited.
-//
-// Whether source_field and target_field exist at all is a cross-Machine question -- they live on the
-// parent -- so it is answered by validateCompositeTargets once every Machine is loaded, the same split
-// validateRollup/validateRollupTargets already uses for exactly the same reason.
-//
-// Each of these is silent at runtime if it loads: a missing parent_field composites nothing and logs a
-// line nobody reads, and a target_field naming no real Field stores a key on the parent that no screen
-// ever offers for download.
-func validateComposite(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field) []string {
-	if e.Then.Composite == nil {
-		return []string{fmt.Sprintf("event %q: then.service %q requires parent_field/source_field/target_field", e.ID, e.Then.Name)}
-	}
-	c := *e.Then.Composite
-
-	var issues []string
-	parentField, ok := fieldsByID[c.ParentField]
-	if !ok {
-		issues = append(issues, fmt.Sprintf("event %q: then.parent_field %q is not a field of machine %q", e.ID, c.ParentField, m.ID))
-	} else if !parentField.IsReference() {
-		issues = append(issues, fmt.Sprintf("event %q: then.parent_field %q must reference the machine being composited (a relation or person field), got %q", e.ID, c.ParentField, parentField.Type))
-	}
-	for _, f := range []struct{ key, value string }{{"source_field", c.SourceField}, {"target_field", c.TargetField}} {
-		if !fieldIDPattern.MatchString(f.value) {
-			issues = append(issues, fmt.Sprintf("event %q: then.%s %q must match %s", e.ID, f.key, f.value, fieldIDPattern.String()))
-		}
-	}
-	if c.SourceField != "" && c.SourceField == c.TargetField {
-		issues = append(issues, fmt.Sprintf("event %q: then.source_field and then.target_field are both %q -- compositing always starts from the original, so writing the result back over it would make every run composite onto the previous output", e.ID, c.SourceField))
-	}
-	return issues
-}
-
-func validateRollup(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field) []string {
-	var issues []string
-
-	if e.Then.Rollup == nil {
-		return append(issues, fmt.Sprintf("event %q: then.service %q requires parent_field/target_field", e.ID, e.Then.Name))
-	}
-	r := *e.Then.Rollup
-
-	parentField, ok := fieldsByID[r.ParentField]
-	if !ok {
-		issues = append(issues, fmt.Sprintf("event %q: then.parent_field %q is not a field of machine %q", e.ID, r.ParentField, m.ID))
-	} else if !parentField.IsReference() {
-		issues = append(issues, fmt.Sprintf("event %q: then.parent_field %q must reference the parent machine (a relation or person field), got %q", e.ID, r.ParentField, parentField.Type))
-	}
-	if !fieldIDPattern.MatchString(r.TargetField) {
-		issues = append(issues, fmt.Sprintf("event %q: then.target_field %q must match %s", e.ID, r.TargetField, fieldIDPattern.String()))
-	}
-	if r.Default == "" {
-		issues = append(issues, fmt.Sprintf("event %q: then.default is required -- it is what the parent becomes when neither rule fires, including when it has no children yet", e.ID))
-	}
-	if r.AnyValue == "" && r.AllValue == "" {
-		issues = append(issues, fmt.Sprintf("event %q: a rollup declaring neither any nor all can only ever write then.default", e.ID))
-	}
-
-	// The values watched for are values of the Event's own on: field -- that is the field whose
-	// change triggers this rollup, and whose value every sibling is then read for.
-	if onField, onExists := fieldsByID[e.On]; onExists {
-		for _, v := range []struct{ key, value string }{{"any.value", r.AnyValue}, {"all.value", r.AllValue}} {
-			if v.value != "" && violatesOptions(onField, v.value) {
-				issues = append(issues, fmt.Sprintf("event %q: then.%s %q is not one of field %q's options %v", e.ID, v.key, v.value, e.On, onField.Options))
-			}
-		}
-	}
+	// Each Service owns its own required keys, and since 2026-09-30 it owns them *in one place*:
+	// internal/registry.Services maps the name to the contract, so a new Service arrives with its
+	// validator attached instead of as a fifth arm here and a sixth somewhere else. An unknown name is
+	// a lookup miss, which is the same load error the `default:` arm reported.
+	issues = append(issues, registry.ValidateService(m, e, fieldsByID)...)
 
 	return issues
 }
@@ -527,31 +437,9 @@ func validateSchedule(m *domain.Machine, e domain.Event, fieldsByID map[string]d
 		guardField, ok := fieldsByID[s.GuardField]
 		if !ok {
 			issues = append(issues, fmt.Sprintf("event %q: schedule.guard_field %q is not a field of machine %q", e.ID, s.GuardField, m.ID))
-		} else if violatesOptions(guardField, s.GuardEquals) {
+		} else if guardField.ViolatesOptions(s.GuardEquals) {
 			issues = append(issues, fmt.Sprintf("event %q: schedule.guard_equals %q is not one of field %q's options %v", e.ID, s.GuardEquals, s.GuardField, guardField.Options))
 		}
-	}
-
-	return issues
-}
-
-// validateNotify checks a send_notification declaration (Flow 2 gap study Tahap 6): recipient_field
-// must be a real Field of this Machine -- no cross-record resolution exists yet (domain.Notify's
-// own doc comment), so unlike validateRollup there is no second, cross-Machine pass here -- and
-// preference_key must be one of the closed set, each naming a real column on credentials.
-func validateNotify(m *domain.Machine, e domain.Event, fieldsByID map[string]domain.Field) []string {
-	var issues []string
-
-	if e.Then.Notify == nil {
-		return append(issues, fmt.Sprintf("event %q: then.service %q requires recipient_field/preference_key", e.ID, e.Then.Name))
-	}
-	n := *e.Then.Notify
-
-	if _, ok := fieldsByID[n.RecipientField]; !ok {
-		issues = append(issues, fmt.Sprintf("event %q: then.recipient_field %q is not a field of machine %q", e.ID, n.RecipientField, m.ID))
-	}
-	if !domain.KnownNotificationPreferenceKeys[n.PreferenceKey] {
-		issues = append(issues, fmt.Sprintf("event %q: then.preference_key %q is not a preference this runtime knows", e.ID, n.PreferenceKey))
 	}
 
 	return issues
@@ -869,7 +757,7 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			whereField, ok := fieldsByID[ms.Where.Field]
 			if !ok {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.field %q is not a field of machine %q", ds.ID, ms.ID, ms.Where.Field, m.ID))
-			} else if violatesOptions(whereField, ms.Where.Value) {
+			} else if whereField.ViolatesOptions(ms.Where.Value) {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q is not one of field %q's options %v", ds.ID, ms.ID, ms.Where.Value, ms.Where.Field, whereField.Options))
 			}
 			if !expression.KnownOps[ms.Where.Op] {
@@ -1037,7 +925,7 @@ func validateSequencing(m *domain.Machine, s domain.Sequencing, fieldsByID map[s
 	stateField, ok := fieldsByID[s.StateField]
 	if !ok {
 		issues = append(issues, fmt.Sprintf("machine %q: sequencing.state_field %q is not a field of this machine", m.ID, s.StateField))
-	} else if violatesOptions(stateField, s.OpenValue) {
+	} else if stateField.ViolatesOptions(s.OpenValue) {
 		issues = append(issues, fmt.Sprintf("machine %q: sequencing.open_value %q is not one of field %q's options %v", m.ID, s.OpenValue, s.StateField, stateField.Options))
 	}
 	if s.OpenValue == "" {
@@ -1056,22 +944,6 @@ func validateSequencing(m *domain.Machine, s domain.Sequencing, fieldsByID map[s
 	}
 
 	return issues
-}
-
-// violatesOptions reports whether f constrains its values to a declared option list and value is
-// not one of them.
-//
-// The question is deliberately asked of the *property* (does this Field declare options?) rather
-// than of the type (is this Field a status?). Those happen to be the same set today only because
-// validateField below requires a status to declare options and nothing else declares any -- a
-// coincidence held up by one rule, not a property of the model. Branching on the type would make
-// `status` a fused name meaning "text that has options", the way a `string_cap_header` type would
-// fuse a string with its capitalisation instead of letting capitalisation be a property of
-// string. domain.Field.IsReference() already draws this line correctly for relation/person, and
-// its own doc comment says why: so a future reference-shaped type doesn't need adding in five
-// places at once. This is the same fix for options.
-func violatesOptions(f domain.Field, value string) bool {
-	return len(f.Options) > 0 && !contains(f.Options, value)
 }
 
 func contains(options []string, v string) bool {

@@ -1,6 +1,10 @@
 package domain
 
-import "menata.app/internal/expression"
+import (
+	"regexp"
+
+	"menata.app/internal/expression"
+)
 
 // FieldType is the semantic type of a Field, per 006-runtime-model.md "Field": metadata should
 // prefer a semantic type over a renderer-specific widget.
@@ -189,7 +193,7 @@ type Schedule struct {
 const ScheduleWhenOverdue = "overdue"
 
 // KnownScheduleWhens is the closed set of comparisons a Schedule.When may name, the same
-// static-seam discipline KnownServices/KnownNotificationPreferenceKeys already establish.
+// static-seam discipline registry.Services/KnownNotificationPreferenceKeys already establish.
 var KnownScheduleWhens = map[string]bool{
 	ScheduleWhenOverdue: true,
 }
@@ -284,13 +288,38 @@ const (
 	ServiceCompositeSignedDocument = "composite_signed_document"
 )
 
-// KnownServices is the closed set of Service names a Service.Name may name, the same static-seam
-// discipline KnownActions already established for Action.
-var KnownServices = map[string]bool{
-	ServiceLogActivity:             true,
-	ServiceRollupParentStatus:      true,
-	ServiceCompositeSignedDocument: true,
-	ServiceSendNotification:        true,
+// FieldIDPattern is the shape a Field id must have, from 004-runtime-metadata.md's own naming rule.
+//
+// Exported from domain rather than kept in the loader because two planes now check it:
+// internal/metadata (ten call sites, over Fields, Constraints and member-removal blocks) and
+// internal/registry (four, inside the rollup and notify contracts). A regexp copied across a plane
+// boundary is 001 #8 over a naming rule that belongs to the thing being named.
+//
+// It is the whole *regexp.Regexp rather than a bool helper so a caller can print `.String()` in its own
+// error message, which is what keeps those messages byte-identical to the ones this move replaced.
+//
+// **Its two siblings stay in internal/metadata**, and the asymmetry is deliberate rather than an
+// oversight: machineIDPattern and constraintIDPattern have no second plane asking about them, and moving
+// them "for consistency" would be shape-before-need.
+var FieldIDPattern = regexp.MustCompile(`^fld_[a-z][a-z0-9_]*$`)
+
+// ViolatesOptions reports whether f constrains its values to a declared option list and value is not
+// on it. A Field's own question, answered by the Field, because two planes now ask it:
+// internal/metadata's validators (eight call sites) and internal/registry's per-Service ones. It was an
+// unexported two-line helper in metadata until 2026-09-30; copying it across the plane boundary would
+// have been 001 #8 over a predicate that is purely a property of the Field.
+//
+// An empty option list means the Field constrains nothing, so nothing can violate it.
+func (f Field) ViolatesOptions(value string) bool {
+	if len(f.Options) == 0 {
+		return false
+	}
+	for _, o := range f.Options {
+		if o == value {
+			return false
+		}
+	}
+	return true
 }
 
 // Notify is send_notification's own configuration. RecipientField is a Field on the record the

@@ -40,7 +40,7 @@ var KnownViewKinds = map[ViewKind]bool{
 // (Projection): the card's renderer picks markup by role, not by the Field's own storage type, so
 // the same role works whether the underlying Field happens to be a plain string or a relation.
 // Closed set, extended deliberately, not inferred (007 §14's static-registry seam), the same
-// discipline KnownFieldTypes/KnownActions/KnownServices already follow.
+// discipline KnownFieldTypes/KnownActions and registry.Services already follow.
 type CardFieldRole string
 
 const (

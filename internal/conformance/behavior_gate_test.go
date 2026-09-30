@@ -11,6 +11,7 @@ import (
 
 	"menata.app/internal/authorization"
 	"menata.app/internal/domain"
+	"menata.app/internal/registry"
 )
 
 // Package behavior_gate_test.go holds the executable half of two disciplines this session
@@ -104,7 +105,7 @@ func funcBodyCallsIdent(f *ast.File, funcName, ident string) bool {
 }
 
 // TestCapabilitiesDocumentsKnownActionsAndServices keeps capabilities.md honest against
-// domain.KnownActions/domain.KnownServices the same way TestCapabilitiesComponentsTableMatchesTempl
+// domain.KnownActions/registry.Services the same way TestCapabilitiesComponentsTableMatchesTempl
 // already does for Shared rendering components: both are closed, static seams (007 §14) --
 // declaring a new Action or Service is a real Go change, not a metadata one, so it's exactly the
 // kind of addition a commit can make without anyone remembering to also write it down. This only
@@ -124,9 +125,9 @@ func TestCapabilitiesDocumentsKnownActionsAndServices(t *testing.T) {
 			t.Errorf("domain.KnownActions declares %q, but capabilities.md never mentions it -- document the new Action or its removal", action)
 		}
 	}
-	for service := range domain.KnownServices {
+	for service := range registry.Services {
 		if !strings.Contains(text, service) {
-			t.Errorf("domain.KnownServices declares %q, but capabilities.md never mentions it -- document the new Service or its removal", service)
+			t.Errorf("registry.Services declares %q, but capabilities.md never mentions it -- document the new Service or its removal", service)
 		}
 	}
 }
