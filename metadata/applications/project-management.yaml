@@ -32,6 +32,7 @@ navigation:
     priority: 1
     home_card: true
     icon: check-square
+    description: Tasks assigned to you, projected across all projects.
   # Moved here from document-approval.yaml (2026-09-21): the page composes Projects, Tasks and
   # their Activity -- this Application's Machines -- and had only ever been declared over there
   # because both Applications were one before Fase 3 split them.
@@ -45,28 +46,35 @@ navigation:
     route: /calendar
     priority: 2
     icon: calendar
+    description: Tasks due this week, across all Projects.
   - id: nav_sprint
     label: Sprint Dashboard
     route: /sprint
     priority: 2
     icon: timer
+    description: A composed analytics view over real Task data -- no fabricated points or burndown.
   - id: nav_team_capacity
     label: Team Capacity
     route: /team-capacity
     priority: 3
     icon: bar-chart
+    description: People, weekly capacity, and active work, composed from existing Member and Task data.
   - id: nav_activity
     label: Activity
     route: /activity
     priority: 3
     icon: list
+    description: A cross-project feed of business events.
   - id: nav_automation
     label: Automation
     route: /automation
     priority: 4
     icon: bolt
+    title: Workflow Automation
+    description: 'Trigger → Condition → Action, read from this Application''s own Constraint metadata and Action behavior -- not a generic automation builder.'
   - id: nav_board_settings
     label: Board Settings
     route: /board-settings
     priority: 4
     icon: settings
+    description: 'Lists (statuses) and labels shared across every Project''s board.'

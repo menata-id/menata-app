@@ -14,15 +14,24 @@ type AutomationRule struct {
 }
 
 templ AutomationPage(rules []AutomationRule, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	// Title kept as the mockup's own "Workflow Automation" (project-automation.html) rather than
-	// labelByID(ctx, "nav_automation")'s plain "Automation" -- unchanged from pageShell's own call here,
-	// a page-local heading distinct from its nav label, not a metadata-hardcoding violation (the
-	// declared label still governs the menu entry pointing at this route).
-	@appShell("Workflow Automation", workspaceName, viewer, switchWorkspaceHref) {
+	// The heading is the mockup's own "Workflow Automation" (project-automation.html), distinct from this
+	// item's plain "Automation" menu label -- and since 2026-09-30 that distinction is **declared**
+	// (`title:` on nav_automation) rather than typed here. titleByID falls back to `label:` when no
+	// title is declared, which is why every sibling screen could move to it unchanged.
+	//
+	// This comment used to say the literal was "not a metadata-hardcoding violation (the declared label
+	// still governs the menu entry)". That was true about the *label* and wrong about the heading: a
+	// navigation item declares three strings, and `title:` is exactly the one this page was retyping.
+	// TestRenderingHasNoHardcodedPageHeading could not see it because nothing was declared to compare
+	// against -- the gate was blind for want of a declaration, not for want of logic.
+	@appShell(titleByID(ctx, "nav_automation"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-2">
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
-			<h1 class="m-0 text-xl font-medium">Workflow Automation</h1>
-			<div class="text-sm text-slate-500">Trigger → Condition → Action, read from this Application's own Constraint metadata and Action behavior -- not a generic automation builder.</div>
+			{{ eyebrowApp, _ := CurrentApplication(ctx) }}
+			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ eyebrowApp.Name }</span>
+			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_automation") }</h1>
+			if desc := descriptionByID(ctx, "nav_automation"); desc != "" {
+				<div class="text-sm text-slate-500">{ desc }</div>
+			}
 		</div>
 		if len(rules) == 0 {
 			<p class="text-sm text-slate-500">No automation rules defined.</p>

@@ -31,11 +31,14 @@ func (s SprintSummary) CompletionPercent() int {
 // composability audit found this list re-implementing taskRowList's markup by hand and silently
 // dropping its status badge).
 templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
-	@appShell(labelByID(ctx, "nav_sprint"), workspaceName, viewer, switchWorkspaceHref) {
+	@appShell(titleByID(ctx, "nav_sprint"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-2">
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">Project Management</span>
-			<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_sprint") }</h1>
-			<div class="text-sm text-slate-500">A composed analytics view over real Task data -- no fabricated points or burndown.</div>
+			{{ eyebrowApp, _ := CurrentApplication(ctx) }}
+			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ eyebrowApp.Name }</span>
+			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_sprint") }</h1>
+			if desc := descriptionByID(ctx, "nav_sprint"); desc != "" {
+				<div class="text-sm text-slate-500">{ desc }</div>
+			}
 		</div>
 
 		@summaryCountTiles([]SummaryItem{
