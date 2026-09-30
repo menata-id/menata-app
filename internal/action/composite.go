@@ -1,4 +1,4 @@
-// Signature compositing (ROADMAP.md Phase 17): burns each approved Approval Step's own signature
+// Signature compositing (development-history.md Phase 17): burns each approved Approval Step's own signature
 // image onto the Document's PDF, at that step's declared page/x/y/width. This is genuinely new
 // *capability*, not new presentation -- Phase 15 deliberately excluded it for that reason. It
 // belongs here, alongside CanDecide/DocumentStatus, as a second hardcoded function: fires on one
@@ -29,7 +29,7 @@ import (
 // Stamp is one signature image to burn onto one page of a Document's PDF, at a percentage
 // position/size relative to that page -- Phase 15's own fld_signature_page/x/y/width convention.
 // X/Y are the stamp's own center point, origin top-left, Y growing down (matching the placement
-// screen's own drag math, ROADMAP.md Phase 15 Step 4); Width is a percentage of the page's own
+// screen's own drag math, development-history.md Phase 15 Step 4); Width is a percentage of the page's own
 // width. Height is derived from Image's own aspect ratio at composite time, not stored separately
 // -- a redundant height Field isn't forced when the image's own dimensions already answer it.
 type Stamp struct {

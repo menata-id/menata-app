@@ -44,7 +44,7 @@ func renderPlacement(t *testing.T, v PlacementView) string {
 // generic route rewrote a whole record from whatever was submitted and erased what was missing.
 // That echo is gone. A route writing four named Fields cannot erase a fifth, so the property worth
 // holding is now the absence: any hidden input naming a Field outside the four is a step back
-// toward the bug (ROADMAP.md Fase 6c-2/6c-3, where the hand-written list forgot four Fields and
+// toward the bug (development-history.md Fase 6c-2/6c-3, where the hand-written list forgot four Fields and
 // silently destroyed a one-time signature on the next drag).
 func TestSignaturePlacementPage_writesOnlyPlacementFields(t *testing.T) {
 	html := renderPlacement(t, placementFixture(true))

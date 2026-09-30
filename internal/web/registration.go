@@ -19,7 +19,7 @@ func showRegistration(w http.ResponseWriter, req *http.Request) {
 	render(req.Context(), w, rendering.RegistrationPage(""))
 }
 
-// submitRegistration is login.html's "Create a workspace" flow (ROADMAP.md Phase 21 Step 3):
+// submitRegistration is login.html's "Create a workspace" flow (development-history.md Phase 21 Step 3):
 // registration *is* Workspace creation, not a separate signup into an existing one -- there is no
 // path here to a bare user account with nowhere to go.
 //
@@ -92,7 +92,7 @@ func validateRegistration(workspaceName, fullName, email, password string) (stri
 
 // registerWorkspace creates the new Workspace, its first mch_user record, the login credential
 // (unverified -- see submitRegistration), and the admin membership joining them -- one
-// registration, four inserts (ROADMAP.md Phase 21 Step 3). Not wrapped in a transaction: a failure
+// registration, four inserts (development-history.md Phase 21 Step 3). Not wrapped in a transaction: a failure
 // partway through is an operational anomaly to clean up by hand (this app has no real users yet to
 // affect), not a case an actual retry-safe flow is forced by yet -- the same posture logActivity's
 // own best-effort writes already take.

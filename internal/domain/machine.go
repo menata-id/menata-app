@@ -51,7 +51,7 @@ var KnownFieldTypes = map[FieldType]bool{
 }
 
 // UserMachineID is the implicit relation target for every FieldTypePerson field
-// (ROADMAP.md Phase 7). Person is a semantic type in its own right, not a spelling of Relation
+// (development-history.md Phase 7). Person is a semantic type in its own right, not a spelling of Relation
 // metadata authors write out by hand -- but underneath, it references the same real mch_user
 // records a Relation field would.
 const UserMachineID = "mch_user"
@@ -279,7 +279,7 @@ const (
 	// Tahap 6).
 	ServiceSendNotification = "send_notification"
 	// ServiceCompositeSignedDocument burns every approved step's signature and the approval status
-	// banner onto the parent document's PDF and stores the result (ROADMAP.md Stage C, 2026-09-28;
+	// banner onto the parent document's PDF and stores the result (development-history.md Stage C, 2026-09-28;
 	// the audit's Gap B). See Composite for what is declared and what deliberately stays Go.
 	ServiceCompositeSignedDocument = "composite_signed_document"
 )
@@ -375,7 +375,7 @@ type Machine struct {
 	FlowTemplate     *FlowTemplate
 	FlowTemplateStep *FlowTemplateStep
 	// SLAField is a date Field ID on this Machine; when set, that Field renders as an OVERDUE /
-	// "N day(s) left" badge instead of a plain date (ROADMAP.md Phase 13). Machine-level rather
+	// "N day(s) left" badge instead of a plain date (development-history.md Phase 13). Machine-level rather
 	// than per-View because the record detail page renders it too, and a detail page selects no
 	// View.
 	SLAField string

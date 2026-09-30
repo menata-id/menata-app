@@ -281,7 +281,7 @@ type rollupRuleDoc struct {
 	Set   string `yaml:"set"`
 }
 
-// permissionDoc is the YAML serialization of a Permission (ROADMAP.md Phase 16).
+// permissionDoc is the YAML serialization of a Permission (development-history.md Phase 16).
 //
 // The three actor_*_field keys are the dynamic actor gate (CAP-F24, Fase 6c-1). They are flat
 // siblings of actor_field rather than a nested block, matching how the struct they build models

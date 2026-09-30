@@ -81,7 +81,7 @@ const (
 	taskStatusDone       = "done"
 )
 
-// Dashboard is the landing dashboard's composed content (ROADMAP.md Phase 6's own forcing case):
+// Dashboard is the landing dashboard's composed content (development-history.md Phase 6's own forcing case):
 // Project rollups, Document status counts, the Documents still in review, and a recent-events tail.
 type Dashboard struct {
 	Projects  []rendering.ProjectSummary
@@ -171,7 +171,7 @@ func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Ag
 	return d
 }
 
-// MyTasks is one identity's personal work queue (ROADMAP.md Phase 14), bucketed by due date.
+// MyTasks is one identity's personal work queue (development-history.md Phase 14), bucketed by due date.
 type MyTasks struct {
 	Summary   rendering.MyTasksSummary
 	Today     []rendering.TaskRow
@@ -333,7 +333,7 @@ func buildMyTasks(tasks []*data.Record, projects map[string]string, userID strin
 	return out
 }
 
-// Sprint is the sprint dashboard's composed content (ROADMAP.md Phase 14). The mockup's
+// Sprint is the sprint dashboard's composed content (development-history.md Phase 14). The mockup's
 // points/burndown/blocked content is deliberately absent -- see rendering.SprintSummary's own doc
 // comment for why.
 type Sprint struct {
@@ -412,7 +412,7 @@ func buildSprint(tasks, users []*data.Record, people, projects map[string]string
 	return out
 }
 
-// Capacity is the Team Capacity screen's composed content (ROADMAP.md Phase 14).
+// Capacity is the Team Capacity screen's composed content (development-history.md Phase 14).
 type Capacity struct {
 	Members       []rendering.MemberCapacity
 	TotalCapacity int
@@ -519,7 +519,7 @@ func buildCalendarWeek(tasks []*data.Record, projects map[string]string, now tim
 	return days
 }
 
-// ActivityFeed is the cross-Machine event feed grouped by day (ROADMAP.md Phase 14) -- the same
+// ActivityFeed is the cross-Machine event feed grouped by day (development-history.md Phase 14) -- the same
 // mch_activity data the dashboard shows as a flat tail, shaped for its own page.
 type ActivityFeed struct {
 	Today     []rendering.ActivityEntry
@@ -600,7 +600,7 @@ func activityRows(ctx context.Context, l *Loader, datasetID string) ([]*data.Rec
 }
 
 // AutomationRules describes this Application's real Constraint, Event, and Action metadata/
-// behavior as Trigger/Condition/Action rows (ROADMAP.md Phase 14) -- a read-only description of
+// behavior as Trigger/Condition/Action rows (development-history.md Phase 14) -- a read-only description of
 // what already exists, not a generic automation engine and not fictional example workflows.
 //
 // It composes over metadata alone and touches no records, so it takes the Machines directly

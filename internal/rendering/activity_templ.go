@@ -8,7 +8,7 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// ActivityPage is Case 19's cross-project event feed (ROADMAP.md Phase 14,
+// ActivityPage is Case 19's cross-project event feed (development-history.md Phase 14,
 // project-activity.html): the same mch_activity data as the Dashboard's Recent Activity section
 // (Phase 13), grouped by day instead of a flat top-10 list -- a different shape over the same
 // already-built data, not a new event mechanism.

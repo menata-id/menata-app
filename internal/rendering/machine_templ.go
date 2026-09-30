@@ -131,7 +131,7 @@ func hasNavItem(ctx context.Context, id string) bool {
 
 // approvalMachineID is how a Page building a link into one of the approval engine's own screens
 // asks which Machine to name: by the role its Application cast it in, never by retyping
-// `action.DocumentMachineID` (2026-09-28, the slice after ROADMAP.md's Stage A).
+// `action.DocumentMachineID` (2026-09-28, the slice after development-history.md's Stage A).
 //
 // It is routeByID's sibling in intent. routeByID exists because a *route* declared in metadata must
 // not be retyped in a template; this exists because a *Machine id* that appears in a route is the
@@ -498,7 +498,7 @@ func statusPill(label string, tone PillTone) templ.Component {
 
 // MachineList is the landing page: every Machine in the Workspace, linking to its own page.
 // Adding a third Machine requires no code change here -- it appears because it's in the
-// Workspace manifest, per ROADMAP.md Phase 3's exit criterion.
+// Workspace manifest, per development-history.md Phase 3's exit criterion.
 func MachineList(machines []*domain.Machine, workspaceName string, viewer Viewer, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -625,7 +625,7 @@ func MachineList(machines []*domain.Machine, workspaceName string, viewer Viewer
 // (007-composable-runtime-architecture.md §10, §23).
 //
 // actor is the viewing identity, threaded down to RecordRow the same reason detail.templ's
-// RecordDetailPage already takes it (ROADMAP.md Phase 16) -- so an Edit/Delete the viewer is not
+// RecordDetailPage already takes it (development-history.md Phase 16) -- so an Edit/Delete the viewer is not
 // permitted to perform isn't offered in the first place; the server enforces the same rule
 // regardless (allowsRecordEdit/deleteAllowed, internal/web/record.go), this only keeps the UI
 // honest about it.
@@ -686,7 +686,7 @@ func MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relat
 
 // MachineBody is the fragment every mutating endpoint returns for HTMX to swap into
 // #machine-body, so the full page never needs a hard reload. boardColumns is non-nil only when
-// m's board Layout groups by a relation field (ROADMAP.md Phase 10's ordered Lists) -- fetching
+// m's board Layout groups by a relation field (development-history.md Phase 10's ordered Lists) -- fetching
 // those columns is I/O this package doesn't perform, so the caller supplies them; nil means "use
 // the status field's own Options instead" (Phase 5's original behavior, still supported).
 //
@@ -1441,7 +1441,7 @@ func createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOpt
 // RecordRow is one Record in display mode. A relation field shows its target's label, not the
 // raw record id; the first field links to the record's own detail page (Phase 8). Edit is offered
 // only when authorization.AllowsAction says actor may perform ActionEdit on r
-// (MachinePage/MachineBody's own doc comment explains why, ROADMAP.md Phase 16, decideButtons'
+// (MachinePage/MachineBody's own doc comment explains why, development-history.md Phase 16, decideButtons'
 // pattern); a Machine with no declared Permission for edit stays open to any actor, same as
 // before this existed. Delete additionally requires action.CanDelete's own business-state check
 // (Approval Step already decided, Document already approved) -- the same AND detail.templ's
@@ -2026,7 +2026,7 @@ func projectedFieldValue(p ProjectedField) templ.Component {
 }
 
 // SummaryItem is one label/value pair on a summary-counts strip. Promoted to a shared component
-// (ROADMAP.md Phase 15 Step 0) after the same shape was found hand-rendered independently across
+// (development-history.md Phase 15 Step 0) after the same shape was found hand-rendered independently across
 // the Dashboard, My Tasks, Sprint Dashboard, and Team Capacity pages -- real cross-domain
 // recurrence (four different business questions), the same admission bar `slaBadge` itself already
 // cleared in Phase 13. summaryCounts, the `pageStyles` templ that rendered it, and activityFeedList

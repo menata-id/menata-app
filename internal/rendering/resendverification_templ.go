@@ -8,7 +8,7 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// ResendVerificationPage lets someone request a fresh verification link (ROADMAP.md Phase 21
+// ResendVerificationPage lets someone request a fresh verification link (development-history.md Phase 21
 // round 2, Step D). message, when set, is the same generic confirmation regardless of whether the
 // email exists or needs verifying at all -- a different message per case would let this be used to
 // enumerate registered emails.

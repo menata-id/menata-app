@@ -2,7 +2,7 @@ package domain
 
 // NavBadgeApprovalInboxPending is the one live count a navigation item may request: the
 // signed-in identity's own pending-approval count (already computed by
-// composition.ApprovalInbox, ROADMAP.md Phase 21 round 2 Step J's own badge). Named as a
+// composition.ApprovalInbox, development-history.md Phase 21 round 2 Step J's own badge). Named as a
 // constant rather than a free string so a typo in metadata fails validation instead of silently
 // rendering no badge.
 const NavBadgeApprovalInboxPending = "approval_inbox_pending"

@@ -14,7 +14,7 @@ import (
 	"menata.app/internal/data"
 )
 
-// MemberCapacity is one User's row on the Team Capacity page (ROADMAP.md Phase 14,
+// MemberCapacity is one User's row on the Team Capacity page (development-history.md Phase 14,
 // project-team.html): their own record, declared weekly capacity, and how many Tasks currently
 // assigned to them are still open -- all derived from already-fetched User/Task data, not a new
 // aggregation mechanism.

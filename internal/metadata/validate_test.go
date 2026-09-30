@@ -573,7 +573,7 @@ func TestValidate_cardFieldsUnknownRole(t *testing.T) {
 }
 
 // permissionMachine is a Machine shaped like mch_approval_step: a person Field an Action can be
-// scoped to (ROADMAP.md Phase 16).
+// scoped to (development-history.md Phase 16).
 func permissionMachine() *domain.Machine {
 	m := validMachine()
 	m.Fields = append(m.Fields, domain.Field{

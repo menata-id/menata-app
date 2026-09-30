@@ -7,7 +7,7 @@ import (
 )
 
 // ReadLog counts the reads one request issued, per target. It makes the throwaway probe Phase 6's
-// fourth test used a permanent part of the runtime (ROADMAP.md Phase 18 Step 3): the cost of a
+// fourth test used a permanent part of the runtime (development-history.md Phase 18 Step 3): the cost of a
 // page is then a number anyone can read, and the next forcing condition announces itself instead
 // of waiting to be guessed at.
 //

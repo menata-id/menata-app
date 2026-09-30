@@ -13,7 +13,7 @@ import (
 )
 
 // requireAuth gates every route in its group behind a valid session cookie
-// (internal/authorization, ROADMAP.md Phase 2). An HTMX/API request gets a plain 401 so the
+// (internal/authorization, development-history.md Phase 2). An HTMX/API request gets a plain 401 so the
 // client can react; a full-page navigation is redirected to /login.
 //
 // Beyond the cookie's own signature, this also checks its generation against
@@ -25,7 +25,7 @@ import (
 // error, so it can't be used to distinguish "this cookie used to be valid" from "never was".
 //
 // Once a session names a real identity, this is also the one place a request's Workspace is
-// resolved and put on ctx (ROADMAP.md Phase 21 Step 4) -- 007 §20's own ordering: scope is
+// resolved and put on ctx (development-history.md Phase 21 Step 4) -- 007 §20's own ordering: scope is
 // established before any retrieval, not trimmed after. defaultWorkspaceID is the fallback for a
 // session whose subject is not a real mch_user record id at all -- exactly the shared admin
 // credential's placeholder subject (config.AdminUserID) before it is bootstrapped to a real one
@@ -236,7 +236,7 @@ func blockWritesToArchivedWorkspace(store *data.Store) func(http.Handler) http.H
 
 // queryDiagnostics reports what each request actually read: how many statements it issued, how
 // many of those repeated a target it had already fetched, and the per-target breakdown
-// (ROADMAP.md Phase 18 Step 3). Phase 6 needed a throwaway probe inside internal/data to learn
+// (development-history.md Phase 18 Step 3). Phase 6 needed a throwaway probe inside internal/data to learn
 // this; making it permanent is what lets the next forcing condition show up as a number during
 // development rather than as a surprise in production -- see the Method's 2026-09-18 correction
 // for why this repo can no longer wait for real use to reveal its thresholds.

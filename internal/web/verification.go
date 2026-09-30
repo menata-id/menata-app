@@ -27,7 +27,7 @@ func sendVerificationEmail(ctx context.Context, mailer mail.Mailer, cfg config.C
 	}
 }
 
-// showVerifyEmail completes registration's own blocking verification (ROADMAP.md Phase 21 round 2,
+// showVerifyEmail completes registration's own blocking verification (development-history.md Phase 21 round 2,
 // Step D): a valid, unexpired token marks the credential verified and signs the person straight
 // in, the same way a normal login would.
 func showVerifyEmail(store *data.Store, cfg config.Config) http.HandlerFunc {

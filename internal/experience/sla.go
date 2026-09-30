@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// SLAStatus is the urgency of a due-date Field's value relative to now (ROADMAP.md Phase 13,
+// SLAStatus is the urgency of a due-date Field's value relative to now (development-history.md Phase 13,
 // matching document-approval.html's own real OVERDUE / "N day(s) left" badges).
 type SLAStatus string
 

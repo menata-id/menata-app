@@ -22,7 +22,7 @@ import (
 	"menata.app/internal/storage"
 )
 
-// showDocumentSubmit is Case 3's submission wizard (ROADMAP.md Phase 15 Step 6) -- Document
+// showDocumentSubmit is Case 3's submission wizard (development-history.md Phase 15 Step 6) -- Document
 // details + Approval mode + a dynamic, flat approver picker, all on one screen.
 //
 // wizardOptions is everything both wizard renderings need beyond chrome: the two Fields whose
@@ -399,7 +399,7 @@ func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.
 		carryForwardMissingFields(machine, values, existing.Values)
 		// The *value* is still a literal, deliberately: "submit this draft" shares the `edit` Action
 		// with every ordinary field change, so declaring it as edit's effect would set in_review on
-		// every edit. See mch_document's own actions: block, and ROADMAP.md's Stage B note on what it
+		// every edit. See mch_document's own actions: block, and development-history.md's Stage B note on what it
 		// leaves. The Field it goes in is the Machine's own, same as the draft path above.
 		values[machine.StatusField()] = action.DocumentStatusInReview
 		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
@@ -773,7 +773,7 @@ func showApprovalFlowTemplateRows(store *data.Store) http.HandlerFunc {
 	}
 }
 
-// showSignaturePlacement is Case 3's signature-coordinate placement screen (ROADMAP.md Phase 15
+// showSignaturePlacement is Case 3's signature-coordinate placement screen (development-history.md Phase 15
 // Step 4) -- a real rendered page of the Document's own PDF (Step 3's internal/pdf), one
 // draggable marker per Approval Step. Hardcoded to mch_document, same posture as decideStep: this
 // is Case 3's own screen, not a generic per-Machine feature.

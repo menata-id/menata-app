@@ -66,7 +66,7 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 }
 
 // showRecordRow serves three different renderings of the same Record from one route, depending
-// on who's asking (ROADMAP.md Phase 8): a direct browser navigation gets the full detail page;
+// on who's asking (development-history.md Phase 8): a direct browser navigation gets the full detail page;
 // an HTMX request targeting the detail page's own container gets just that container's view
 // fragment (used by the detail page's own Cancel-from-edit); any other HTMX request (a table row
 // or board card's Cancel) gets the original RecordRow fragment, unchanged from Phase 1.
@@ -269,7 +269,7 @@ func submittedValues(w http.ResponseWriter, req *http.Request, machine *domain.M
 
 // carryForwardFiles keeps a file field that this request did not re-upload. A browser can't
 // pre-fill <input type="file">, so "no new upload" must not be read as "clear the file" the way
-// an empty text input would be (ROADMAP.md Phase 11).
+// an empty text input would be (development-history.md Phase 11).
 func carryForwardFiles(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, uploaded, values map[string]any) bool {
 	if err := carryForwardExistingFiles(req.Context(), store, machine, id, uploaded, values); err != nil {
 		recordError(w, err)
@@ -442,7 +442,7 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 }
 
 // parseRecordForm parses a create/update request body that may be multipart/form-data (needed
-// for a FieldTypeFile upload -- every form sets hx-encoding for this, ROADMAP.md Phase 11) or a
+// for a FieldTypeFile upload -- every form sets hx-encoding for this, development-history.md Phase 11) or a
 // plain url-encoded body (any other client, e.g. a direct API caller). ParseMultipartForm always
 // runs ParseForm first regardless of content type, so http.ErrNotMultipart here just means "no
 // file part was present, req.Form is already populated correctly" -- not a real failure.

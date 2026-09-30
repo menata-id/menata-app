@@ -250,7 +250,7 @@ func TestStore_CreateAndGetCredential(t *testing.T) {
 	const email = "store_test@example.com"
 	cleanupCredentialTest(t, pool, email)
 	store := NewStore(pool)
-	// Credentials are not Workspace-scoped (login identity is global, ROADMAP.md Phase 21 Step
+	// Credentials are not Workspace-scoped (login identity is global, development-history.md Phase 21 Step
 	// 3) -- an ordinary, unscoped context is correct here, unlike the record-scoped tests above.
 	ctx := context.Background()
 

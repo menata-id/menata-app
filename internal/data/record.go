@@ -26,7 +26,7 @@ func newRecordID() string {
 }
 
 // newID generates a random opaque id with the given prefix -- the same generator record ids use,
-// reused for Workspace ids (ROADMAP.md Phase 21 Step 3) now that a second real caller needs it.
+// reused for Workspace ids (development-history.md Phase 21 Step 3) now that a second real caller needs it.
 func newID(prefix string) string {
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)

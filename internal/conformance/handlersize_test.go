@@ -12,7 +12,7 @@ import (
 
 // maxHandlerLines bounds one HTTP handler's body in internal/web.
 //
-// The number is measured, not chosen: after ROADMAP.md Phase 19 Step 3 the largest handler is
+// The number is measured, not chosen: after development-history.md Phase 19 Step 3 the largest handler is
 // decideStep at 55 lines, and 70 leaves room for an honest handler to grow without leaving room
 // for a screen's worth of derivation to move back in. Raising it is a decision someone should
 // have to make deliberately, in a commit that says why.

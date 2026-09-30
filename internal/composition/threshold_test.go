@@ -1,7 +1,7 @@
 //go:build threshold
 
 // Package composition's threshold harness constructs the forcing conditions this app cannot wait
-// for (ROADMAP.md Phase 18 Step 4, and the Method's 2026-09-18 correction).
+// for (development-history.md Phase 18 Step 4, and the Method's 2026-09-18 correction).
 //
 // menata-app has no users, so every production-shaped trigger the roadmap defers behind -- "the
 // first Machine whose record count makes a page slow," "a metadata author who is not the
@@ -163,7 +163,7 @@ func TestVolumeThreshold(t *testing.T) {
 		t.Logf("RESULT: no tested record count exceeded %v. Whole-Machine reads remain viable to 100k rows; projection/pagination is still not forced, and now that is a measurement rather than an assumption.", interactiveBudget)
 		return
 	}
-	t.Logf("RESULT: whole-Machine reads exceed %v at %d records. That is the forcing condition for projection/filter pushdown and pagination -- record it in ROADMAP.md Phase 6 and build pagination before the planner.", interactiveBudget, firstOverBudget)
+	t.Logf("RESULT: whole-Machine reads exceed %v at %d records. That is the forcing condition for projection/filter pushdown and pagination -- record it in development-history.md Phase 6 and build pagination before the planner.", interactiveBudget, firstOverBudget)
 }
 
 // TestBreadthThreshold constructs the *other* trigger: metadata breadth. Phase 6's fourth test

@@ -50,7 +50,7 @@ func showLogin(w http.ResponseWriter, req *http.Request) {
 }
 
 // submitLogin tries the shared admin credential first (unchanged since Phase 2, kept as a
-// bootstrap fallback per ROADMAP.md Phase 21's own design pass), then a real per-user credential
+// bootstrap fallback per development-history.md Phase 21's own design pass), then a real per-user credential
 // (Phase 21 Step 4).
 func submitLogin(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -97,7 +97,7 @@ const (
 
 // authenticateMember verifies email/password against a real per-user credential.
 //
-// An invited email (ROADMAP.md Phase 21 Step 6) has a membership row but no credential yet --
+// An invited email (development-history.md Phase 21 Step 6) has a membership row but no credential yet --
 // until security audit 2026-09-19's H1 fix, the first successful "login" attempt activated the
 // account by setting whatever password was POSTed as its real credential, which let anyone who
 // knew or guessed the invited email claim it before the real invitee ever logged in. A credential

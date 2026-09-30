@@ -61,7 +61,7 @@ func (p *SignaturePlacement) Fields() []string {
 
 // PlacementFields returns just the four positioning Fields, without the image. That is the set the
 // placement screen writes: moving a box must never touch the image a decision already captured,
-// which is the bug the whole-record update route once had (ROADMAP.md Fase 6c-3).
+// which is the bug the whole-record update route once had (development-history.md Fase 6c-3).
 func (p *SignaturePlacement) PlacementFields() []string {
 	if p == nil {
 		return nil

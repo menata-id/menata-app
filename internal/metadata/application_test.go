@@ -1285,7 +1285,7 @@ roles:
 // `workflow:` block a case wants to test. The Machine ids are deliberately *not* the template
 // library's mch_document/mch_approval_step: the binding must work by what the Application declares,
 // not by what anything is called, so a fixture using the familiar names could not tell the
-// difference (ROADMAP.md Stage A).
+// difference (development-history.md Stage A).
 func workflowManifest(t *testing.T, workflow string) string {
 	t.Helper()
 	dir := t.TempDir()

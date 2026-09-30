@@ -8,7 +8,7 @@ import (
 )
 
 // loginRateLimiter is a simple in-memory sliding-window limiter, keyed by client address +
-// attempted email -- real per-user passwords (ROADMAP.md Phase 21) make POST /login worth
+// attempted email -- real per-user passwords (development-history.md Phase 21) make POST /login worth
 // defending against repeated guessing, which the constant-time comparison in
 // internal/authorization only ever protected against timing attacks, not volume. No external
 // dependency (Redis etc.), matching 007 §4.10's single-binary posture -- a single-process

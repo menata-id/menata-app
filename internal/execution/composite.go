@@ -14,7 +14,7 @@ import (
 
 // compositeSignedDocument is ServiceCompositeSignedDocument: it burns every approved step's signature
 // and the growing approval-status banner onto the parent document's PDF, and stores the result
-// (ROADMAP.md Stage C, 2026-09-28; the audit's Gap B).
+// (development-history.md Stage C, 2026-09-28; the audit's Gap B).
 //
 // It moved here from internal/web on that date, and the move is the point. What made a signed PDF
 // appear was a direct call from flow code -- `signDocument(ctx, store, files, document, documentID)` in

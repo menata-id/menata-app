@@ -1,5 +1,5 @@
 // Package action implements exactly one workflow shape: sequential/parallel multi-step document
-// approval (ROADMAP.md Phase 12, Case 3's core mechanism) -- Approve/Reject as an Action that
+// approval (development-history.md Phase 12, Case 3's core mechanism) -- Approve/Reject as an Action that
 // writes a decision onto one Approval Step and, in sequential mode, is only allowed once every
 // earlier step is decided.
 //
@@ -56,7 +56,7 @@ const (
 	// board 10's own step titles, Fase 6b. Optional and unwritten until board 08's wizard collects
 	// it (6c); composition.stepLabel falls back to the assignee's name meanwhile.
 
-	// Signature placement fields (ROADMAP.md Phase 15 Step 3/4) -- plain, percentage-based number
+	// Signature placement fields (development-history.md Phase 15 Step 3/4) -- plain, percentage-based number
 	// Fields, not a new Field type. Origin is the top-left of the rendered page image: X grows
 	// right, Y grows down, matching (clientX-rect.left)/rect.width the placement screen's own drag
 	// handler computes.

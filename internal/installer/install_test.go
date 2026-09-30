@@ -138,7 +138,7 @@ func TestPlanInstall_fallsThroughToANumberedSuffix(t *testing.T) {
 }
 
 // The Application's own id is renameable too, and only became so when the approval engine stopped
-// matching it (ROADMAP.md Stage A). Before that a second copy under a different name would have
+// matching it (development-history.md Stage A). Before that a second copy under a different name would have
 // installed and then never engaged.
 func TestPlanInstall_renamesTheApplicationWhenItsIdIsTaken(t *testing.T) {
 	tmpl := documentApprovalTemplate(t)

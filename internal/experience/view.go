@@ -8,7 +8,7 @@ import (
 )
 
 // Column is one group of records in a board Layout. ID is the related record's id when the
-// column comes from a relation-based grouping (ROADMAP.md Phase 10's ordered Lists); empty for
+// column comes from a relation-based grouping (development-history.md Phase 10's ordered Lists); empty for
 // the original status-Options grouping (Phase 5), which keys by Label instead.
 type Column struct {
 	ID      string

@@ -11,7 +11,7 @@ import (
 
 // ChildSection is one resolved child collection ready to render: the child Machine, its records
 // (already filtered to the parent being viewed, in sort_order), and the relation options those
-// records' own reference fields need (ROADMAP.md Phase 9).
+// records' own reference fields need (development-history.md Phase 9).
 type ChildSection struct {
 	Machine   *domain.Machine
 	Records   []*data.Record
@@ -29,11 +29,11 @@ type DocumentSignaturePlacement struct {
 	View PlacementView
 }
 
-// RecordDetailPage is a dedicated per-record view (ROADMAP.md Phase 8), replacing inline-only
+// RecordDetailPage is a dedicated per-record view (development-history.md Phase 8), replacing inline-only
 // editing (table row / board card) as the host for richer content later phases add (Phase 9's
 // child collections, Phase 13's activity feed).
 // actor is the viewing identity, needed only so an Action the viewer is not permitted to
-// perform isn't offered in the first place (ROADMAP.md Phase 16) -- the server enforces the same
+// perform isn't offered in the first place (development-history.md Phase 16) -- the server enforces the same
 // rule regardless, this only keeps the UI honest about it.
 templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(m.Name, workspaceName, viewer, switchWorkspaceHref) {
@@ -71,7 +71,7 @@ templ detailBackLink(m *domain.Machine) {
 
 // RecordDetailView is one Record's read-only detail: every Field as a label/value pair, plus one
 // section per child collection -- every record of another Machine that references this one
-// (ROADMAP.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
+// (development-history.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
 templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement) {
 	<div id="record-detail" class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
@@ -91,6 +91,35 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 							@slaBadgePill(r.Values[f.ID])
 						} else if f.Type == domain.FieldTypeFile {
 							@fileLink(r.Values[f.ID])
+							// The last Field-id literal in documentApprovalFieldCoupling (1 of 1), and it is
+							// **a props decision, not a missing primitive** -- said that way because the
+							// entry above it in that gate spent three stages claiming the opposite about the
+							// wizard's form bindings and had to retract it.
+							//
+							// The value *is* derivable: the compositing Event already declares which Field
+							// holds the Document's PDF (action.CompositeFields(...).SourceField, which
+							// composition/review.go reads for exactly this Document). Two things stop it
+							// being read here. It lives on the **step** Machine and this page holds only the
+							// record's own, so the handler would have to resolve it into an eleventh
+							// parameter on a signature already at ten -- which wants a props struct, a change
+							// to every caller of a generic page, and is out of proportion to one thumbnail.
+							//
+							// And it would answer a *different question*. "Which file gets a preview" is
+							// presentation; "which file the signing composites onto" is workflow. They name
+							// the same Field today and need not: an approval Application that composites no
+							// PDF would silently lose its thumbnail while the file is still a PDF. Deriving
+							// from the nearest-looking declaration is the mistake Stage D named in place
+							// (CLAUDE.md, "derive or declare").
+							//
+							// So it stays a literal, under CLAUDE.md's decision path step 2, with all three
+							// obligations met rather than the none it carried until 2026-09-30: the missing
+							// capability is a *presentation* declaration for "preview this file" (a
+							// card_fields role, or a Field-level flag); the forward-checkable pointer is
+							// 007 §7.6 Projection and §12.3 Component boundedness, which is where such a
+							// role would have to fit; and it is listed in writing-guide.md's "What comes
+							// free vs. what's hardcoded today" table. The trigger for building it is a
+							// second case -- a second Machine wanting a file previewed -- per step 3, not
+							// taste.
 							if action.IsDocument(m) && f.ID == action.FieldDocumentFile {
 								@pdfThumbnail(m.ID, r.ID)
 							}

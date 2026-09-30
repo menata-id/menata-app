@@ -15,7 +15,7 @@ import (
 	"menata.app/internal/domain"
 )
 
-// WorkspaceHomePage is the landing page after login (ROADMAP.md Phase 21 Step 5). switchHref is
+// WorkspaceHomePage is the landing page after login (development-history.md Phase 21 Step 5). switchHref is
 // the mid-session Choose Workspace link (showSwitchWorkspace) when the signed-in identity belongs
 // to more than one Workspace, or "" to hide the switcher -- there is nothing to switch to
 // otherwise. homeRoute is domain.HomeCardRoute's result (internal/web/workspacehome.go), never a

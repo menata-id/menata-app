@@ -29,7 +29,7 @@ var errNotScoped = errors.New("data: context has no Workspace scope -- call With
 // consumer needs them).
 //
 // Every record-scoped method (CreateRecord/ListRecords/ListRecordsBy/GetRecord/UpdateRecord/
-// DeleteRecord) is additionally scoped to one Workspace (ROADMAP.md Phase 21 Step 2 -- "Workspace
+// DeleteRecord) is additionally scoped to one Workspace (development-history.md Phase 21 Step 2 -- "Workspace
 // never enters the data path" closed), carried on ctx via WithWorkspaceScope -- the same
 // context-carried-per-request-scope shape WithReadLog already established for the query
 // diagnostic. Every existing call site already passes the request's own ctx through untouched, so
@@ -67,7 +67,7 @@ func WorkspaceScope(ctx context.Context) (string, bool) {
 }
 
 // CreateRecord inserts a new Record for the given Machine, at the next sort_order after every
-// existing record of that Machine in this Store's Workspace (ROADMAP.md Phase 9: child
+// existing record of that Machine in this Store's Workspace (development-history.md Phase 9: child
 // collections need a meaningful order). Callers must validate values with ValidateRecord first --
 // the store does not know Domain Plane rules.
 func (s *Store) CreateRecord(ctx context.Context, machineID string, values map[string]any) (*Record, error) {
@@ -142,7 +142,7 @@ func (s *Store) CountRecords(ctx context.Context, machineID string) (int, error)
 }
 
 // ListRecordsBy returns every Record of machineID in this Store's Workspace whose fieldID value
-// equals value, in sort_order -- the query behind a child collection (ROADMAP.md Phase 9): fieldID
+// equals value, in sort_order -- the query behind a child collection (development-history.md Phase 9): fieldID
 // is a reference field on machineID pointing back to another record (value = that record's id).
 func (s *Store) ListRecordsBy(ctx context.Context, machineID, fieldID, value string) ([]*Record, error) {
 	workspaceID, ok := workspaceScopeFrom(ctx)
@@ -539,7 +539,7 @@ func (s *Store) MemberNames(ctx context.Context, workspaceID string) (map[string
 }
 
 // MarkEmailVerified sets a credential's EmailVerified to true, once its owner has proven they
-// received the emailed link (ROADMAP.md Phase 21 round 2, Step D).
+// received the emailed link (development-history.md Phase 21 round 2, Step D).
 func (s *Store) MarkEmailVerified(ctx context.Context, email string) error {
 	ct, err := s.pool.Exec(ctx, `UPDATE credentials SET email_verified = true WHERE email = $1`, email)
 	if err != nil {

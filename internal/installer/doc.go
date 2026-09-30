@@ -17,7 +17,7 @@
 // for everyone to serve the minority case.
 //
 // What may be renamed is exactly what no longer carries meaning in Go: Machine ids and an
-// Application's own id, both freed by ROADMAP.md's Stage A (the engine reads a declared binding
+// Application's own id, both freed by development-history.md's Stage A (the engine reads a declared binding
 // rather than matching a name) and the slice after it (a Machine is resolved by the role its
 // Application casts it in). Nav ids, nav routes and Dataset ids are still named from Go --
 // routeByID("nav_approval_inbox") in a .templ, composition's own ds_* constants,

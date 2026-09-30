@@ -8,7 +8,7 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// ForgotPasswordPage starts self-service password recovery (ROADMAP.md Phase 21 round 2, Step E)
+// ForgotPasswordPage starts self-service password recovery (development-history.md Phase 21 round 2, Step E)
 // -- deliberately self-service, not admin-triggered, so resetting a password stays each person's
 // own responsibility. message, when set, is the same generic confirmation regardless of whether
 // the email has an account -- a different message per case would let this be used to enumerate

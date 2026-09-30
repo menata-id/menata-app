@@ -4,7 +4,7 @@
 //
 // This file is the composition root and nothing else. It reads configuration, loads and
 // validates Runtime Metadata once, opens the pool, and hands the assembled dependencies to
-// internal/web, which owns the route table and the handlers (ROADMAP.md Phase 19).
+// internal/web, which owns the route table and the handlers (development-history.md Phase 19).
 package main
 
 import (

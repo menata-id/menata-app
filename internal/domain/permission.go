@@ -1,7 +1,7 @@
 package domain
 
 // ActionDecide is the cross-record Action the runtime realizes beyond plain record writes:
-// Approve/Reject on an Approval Step (ROADMAP.md Phase 12, `POST .../decide`).
+// Approve/Reject on an Approval Step (development-history.md Phase 12, `POST .../decide`).
 const ActionDecide = "decide"
 
 // ActionEdit and ActionDelete govern the generic record update/delete routes themselves (PUT/

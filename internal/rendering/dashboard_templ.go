@@ -39,7 +39,7 @@ type PendingDocument struct {
 }
 
 // DocumentSummary counts Case 3's Documents by status, for the Dashboard's Summary section
-// (ROADMAP.md Phase 13).
+// (development-history.md Phase 13).
 type DocumentSummary struct {
 	InReview, Approved, Rejected int
 }

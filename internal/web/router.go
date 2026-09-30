@@ -51,7 +51,7 @@ type Deps struct {
 	// Workspace is the whole loaded Workspace -- its own navigation and every Application
 	// declared inside it (004 §Navigation Metadata, 006 §Navigation). Routes hands it to
 	// internal/rendering once, at startup, rather than threading it through every handler and
-	// Page function (ROADMAP.md Phase 21 round 2 Step J already chose the equivalent trade-off
+	// Page function (development-history.md Phase 21 round 2 Step J already chose the equivalent trade-off
 	// for the pending-approval badge).
 	//
 	// It replaces the four single-Application fields that used to live here (AppName, Navigation,
@@ -63,7 +63,7 @@ type Deps struct {
 
 	// DefaultWorkspaceID is this manifest's own declared Workspace (the default Workspace row) --
 	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
-	// (ROADMAP.md Phase 21 Step 4).
+	// (development-history.md Phase 21 Step 4).
 	DefaultWorkspaceID string
 
 	// ReloadMetadata rebuilds this whole route table from metadata on disk and swaps it in

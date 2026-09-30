@@ -14,7 +14,7 @@ import (
 	"menata.app/internal/rendering"
 )
 
-// showWorkspaceHome is the landing page after login (ROADMAP.md Phase 21 Step 5): the signed-in
+// showWorkspaceHome is the landing page after login (development-history.md Phase 21 Step 5): the signed-in
 // identity's Workspace, one card per Application declared in it, and a "Your access" summary. A
 // membership row is expected to be missing for the shared admin credential's placeholder identity
 // (it predates real Workspace membership entirely); that degrades to a blank role rather than an

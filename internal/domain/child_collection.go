@@ -9,7 +9,7 @@ type ChildCollection struct {
 
 // FindChildCollections returns every (Machine, Field) pair among machines whose Field
 // references targetMachineID, used to show e.g. a Project's own Tasks embedded on the Project's
-// detail page (ROADMAP.md Phase 9). A Field counts regardless of its semantic Type -- Relation
+// detail page (development-history.md Phase 9). A Field counts regardless of its semantic Type -- Relation
 // and Person alike, per IsReference -- so a User's detail page gets "Tasks assigned to me" for
 // free from the same mechanism.
 func FindChildCollections(machines []*Machine, targetMachineID string) []ChildCollection {

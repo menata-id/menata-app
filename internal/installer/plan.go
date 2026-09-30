@@ -52,7 +52,7 @@ func (p Plan) RenamedMachineID(machineID string) string {
 // PlanInstall decides how tmpl would install into ws.
 //
 // **What may be renamed, and why only that.** Machine ids and an Application's own id, because
-// nothing in Go means anything by either one any more: ROADMAP.md's Stage A made the approval engine
+// nothing in Go means anything by either one any more: development-history.md's Stage A made the approval engine
 // read a declared binding instead of matching `app_document_approval`, and the slice after it made
 // every handler, composition and Page resolve a Machine by the role its Application casts it in. A
 // renamed copy of Document Approval therefore engages exactly as the original does, which was

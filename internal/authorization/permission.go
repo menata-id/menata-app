@@ -7,7 +7,7 @@ import (
 )
 
 // AllowsAction reports whether actorID may perform action on the record whose field values are
-// given (ROADMAP.md Phase 16 -- the Domain Plane's Permission primitive, 006-runtime-model.md
+// given (development-history.md Phase 16 -- the Domain Plane's Permission primitive, 006-runtime-model.md
 // "Permission").
 //
 // It is a pure function over already-fetched values, the same posture as behavior.CheckConstraints

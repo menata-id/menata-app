@@ -15,7 +15,7 @@ import (
 
 // Loader resolves the reads one rendered page needs -- a Machine's relation options, its child
 // collections, its board columns -- and remembers within a single request what it has already
-// read (ROADMAP.md Phase 18 Step 2, closing the duplication Phase 6's fourth test measured).
+// read (development-history.md Phase 18 Step 2, closing the duplication Phase 6's fourth test measured).
 //
 // It deliberately is not the Composable Execution Planner. It performs exactly one of the CEP's
 // jobs, deduplication of shared dependencies (007 §18), because that is the only one a
@@ -515,7 +515,7 @@ func (l *Loader) GroupOptions(ctx context.Context, m *domain.Machine) (rendering
 }
 
 // ChildSections resolves every child collection pointing at (m, recordID) -- every record of
-// another Machine whose reference field names this one (ROADMAP.md Phase 9) -- fetching each
+// another Machine whose reference field names this one (development-history.md Phase 9) -- fetching each
 // collection's records and the relation options its own rows need to render.
 //
 // Each section's relation options are resolved through the same Loader, which is what removes the
@@ -538,7 +538,7 @@ func (l *Loader) ChildSections(ctx context.Context, m *domain.Machine, recordID 
 }
 
 // BoardColumns resolves board columns for m when its board Layout groups by a reference field
-// (ROADMAP.md Phase 10's ordered Lists, e.g. mch_list) -- fetching those real records is I/O
+// (development-history.md Phase 10's ordered Lists, e.g. mch_list) -- fetching those real records is I/O
 // experience.GroupRecords doesn't perform itself. Returns nil (not an error) when m isn't a
 // board, or groups by an ordinary status field instead: GroupRecords computes its own columns
 // from that Field's Options in that case, unchanged since Phase 5.

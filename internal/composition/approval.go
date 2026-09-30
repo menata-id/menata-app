@@ -18,7 +18,7 @@ import (
 )
 
 // Inbox is the Approval Inbox's composed content, before any SLA filter is applied
-// (ROADMAP.md Phase 15 Step 1, document-approval.html).
+// (development-history.md Phase 15 Step 1, document-approval.html).
 //
 // Pending carries every actionable step and Buckets classifies them positionally -- Buckets[i]
 // describes Pending[i]. Two parallel slices rather than a field on SummaryCard because the bucket

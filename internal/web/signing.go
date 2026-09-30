@@ -115,7 +115,7 @@ func updateSignaturePlacement(store *data.Store, cfg config.Config) http.Handler
 		// Writing a named set is what makes this route safe in the way the generic update route was
 		// not. That route rewrites a whole record from whatever the form submits, so the screen had to
 		// echo every other Field back as a hidden input or lose it -- a list that silently forgot four
-		// Fields once and erased a one-time signature on the next drag (ROADMAP.md Fase 6c-2/6c-3). A
+		// Fields once and erased a one-time signature on the next drag (development-history.md Fase 6c-2/6c-3). A
 		// route that writes only these and touches nothing else cannot have that bug at all.
 		values := data.ValuesFromForm(machine, req.Form)
 		for _, id := range machine.SignaturePlacement.PlacementFields() {

@@ -8,7 +8,7 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// CalendarDay is one column of the Calendar's week grid (ROADMAP.md Phase 14,
+// CalendarDay is one column of the Calendar's week grid (development-history.md Phase 14,
 // project-calendar.html): a date label and every Task due that day, reusing TaskRow exactly as
 // My Tasks does.
 type CalendarDay struct {

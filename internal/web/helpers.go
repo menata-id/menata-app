@@ -30,7 +30,7 @@ func pageFromQuery(req *http.Request, totalPages int) int {
 
 // isDetailContext reports whether an HTMX request targets the record-detail page's own
 // container, as opposed to a table row or board card -- the same fragments serve both contexts
-// (ROADMAP.md Phase 8).
+// (development-history.md Phase 8).
 func isDetailContext(req *http.Request) bool {
 	return req.Header.Get("HX-Target") == "record-detail"
 }
@@ -85,7 +85,7 @@ func writeJSON(w http.ResponseWriter, v any) {
 	}
 }
 
-// logActivity appends one mch_activity record (ROADMAP.md Phase 13) -- an ordinary Machine, not
+// logActivity appends one mch_activity record (development-history.md Phase 13) -- an ordinary Machine, not
 // a new system-data-source concept (007 SS4.1's admission question). Best-effort: a logging
 // failure is not allowed to fail the real operation it's describing, only get logged itself.
 func logActivity(ctx context.Context, store *data.Store, machineID, recordID, actorID, summary string) {
@@ -102,7 +102,7 @@ func logActivity(ctx context.Context, store *data.Store, machineID, recordID, ac
 	}
 }
 
-// maxUploadBytes bounds one multipart request body (ROADMAP.md Phase 11) -- generous enough for
+// maxUploadBytes bounds one multipart request body (development-history.md Phase 11) -- generous enough for
 // a real PDF or a handful of images, small enough that a malicious upload can't exhaust disk.
 const maxUploadBytes = 20 << 20 // 20MB
 

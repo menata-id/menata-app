@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 // LoginPage is the sign-in form gating the application (internal/authorization,
-// ROADMAP.md Phase 2). errorMsg is shown when a prior attempt failed; empty renders no message.
+// development-history.md Phase 2). errorMsg is shown when a prior attempt failed; empty renders no message.
 //
 // The identifier field is labeled "Email" (2026-09-19 fix) because that's what every real
 // person types: mch_user has no fld_username at all, only fld_name/fld_email. Its

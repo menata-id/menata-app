@@ -14,7 +14,7 @@ import (
 	"menata.app/internal/data"
 )
 
-// MyTasksSummary is the three headline counts on the My Tasks page (ROADMAP.md Phase 14):
+// MyTasksSummary is the three headline counts on the My Tasks page (development-history.md Phase 14):
 // Open (not done), Due today, and Overdue -- all computed from the same already-fetched Task
 // set as the buckets below, not a separate query.
 type MyTasksSummary struct {
@@ -39,7 +39,7 @@ type TaskRow struct {
 	Due any
 }
 
-// MyTasksPage is Case 19's personal work queue (ROADMAP.md Phase 14, project-my-tasks.html):
+// MyTasksPage is Case 19's personal work queue (development-history.md Phase 14, project-my-tasks.html):
 // every mch_task assigned to the current user, projected across all Projects and bucketed by
 // due date -- Today (due today or overdue, SLA-badged), Upcoming (due later or undated),
 // Completed (status done). This is a filtered/bucketed view over one whole-machine Task query,

@@ -23,7 +23,7 @@ func sign(secret, subject string) string {
 
 // encodeCookie packs subject, the session generation it was issued under (security audit
 // 2026-09-19, M2), and their signature into one cookie value: "<subject>|<generation>.<hex hmac>".
-// Signing the subject itself (rather than a fixed literal, ROADMAP.md Phase 2's original design)
+// Signing the subject itself (rather than a fixed literal, development-history.md Phase 2's original design)
 // is what lets a session actually identify a real mch_user record (Phase 7); signing generation
 // alongside it is what makes revocation possible without a server-side session store keyed by
 // cookie value -- the signature alone still proves the payload wasn't tampered with, but
@@ -70,7 +70,7 @@ func CheckCredentials(username, password, wantUsername, wantPassword string) boo
 }
 
 // SetSessionCookie sets a signed session cookie naming subject -- the mch_user record ID this
-// login resolves to (ROADMAP.md Phase 7), or a placeholder identity if none is configured yet --
+// login resolves to (development-history.md Phase 7), or a placeholder identity if none is configured yet --
 // and generation, the session-revocation counter it was issued under (security audit 2026-09-19,
 // M2). Callers fetch generation from data.Store.CurrentSessionGeneration(ctx, subject) at the
 // moment they sign someone in, so a session issued after a bump always carries the new number.
@@ -132,7 +132,7 @@ func IsAuthenticated(r *http.Request, secret string) bool {
 }
 
 // PendingWorkspaceCookieName carries a verified email between a real-credential login and Choose
-// Workspace (ROADMAP.md Phase 21 Step 4), for the one login whose password check succeeds but
+// Workspace (development-history.md Phase 21 Step 4), for the one login whose password check succeeds but
 // names more than one Workspace membership -- the real session cookie isn't set yet at that
 // point, since which mch_user record to sign in as depends on which Workspace gets picked.
 const PendingWorkspaceCookieName = "menata_pending_email"

@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 // AutomationRule is one real, already-running rule shown on the Workflow Automation page
-// (ROADMAP.md Phase 14, project-automation.html), expressed as Trigger -> Condition -> Action to
+// (development-history.md Phase 14, project-automation.html), expressed as Trigger -> Condition -> Action to
 // match that mockup's own framing -- but populated from this app's actual Constraint, Event, and
 // Action metadata/behavior, not fictional example workflows. There is no generic automation
 // engine here (006's Behavioral Model has more shapes than these three alone); this page is a

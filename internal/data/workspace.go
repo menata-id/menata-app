@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// Workspace is a real, storage-backed Workspace (ROADMAP.md Phase 21 Step 3) -- distinct from
+// Workspace is a real, storage-backed Workspace (development-history.md Phase 21 Step 3) -- distinct from
 // domain.Workspace, which is Phase 2's metadata-only, exactly-one-hardcoded-instance type. A
 // Workspace created here is what registration produces; every record a Store scoped to its id
 // creates or reads belongs to it (WithWorkspace).
@@ -98,7 +98,7 @@ func (s *Store) RestoreWorkspace(ctx context.Context, id string) error {
 	return nil
 }
 
-// Membership is one identity's role within one Workspace (ROADMAP.md Phase 21 Step 3/8):
+// Membership is one identity's role within one Workspace (development-history.md Phase 21 Step 3/8):
 // WorkspaceRole gates the Workspace itself (admin/member), while AppRoles says what they may be
 // *within each Application*, keyed by Application id.
 //
@@ -265,7 +265,7 @@ func (s *Store) AddMember(ctx context.Context, workspaceID, userRecordID, email,
 }
 
 // GetMembership returns one identity's membership in one Workspace, or ErrRecordNotFound -- the
-// Workspace Home / "Your access" panel's own lookup (ROADMAP.md Phase 21 Step 5), given a
+// Workspace Home / "Your access" panel's own lookup (development-history.md Phase 21 Step 5), given a
 // userRecordID rather than an email (the caller usually only has the former, from an already-
 // resolved session).
 func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID string) (*Membership, error) {
@@ -301,7 +301,7 @@ func (s *Store) GetMembership(ctx context.Context, workspaceID, userRecordID str
 
 // ListMemberships returns every Workspace email belongs to -- login's own source of truth for
 // whether a signed-in identity has exactly one Workspace (skip straight in) or several (Choose
-// Workspace, ROADMAP.md Phase 21 Step 4).
+// Workspace, development-history.md Phase 21 Step 4).
 //
 // AppRoles is deliberately left nil here, unlike GetMembership/ListMembers: its callers show a
 // Workspace name and Workspace role only, and filling it would mean querying per-Application
@@ -401,7 +401,7 @@ func (s *Store) ListMembersFrom(ctx context.Context, workspaceID string, groups 
 	return memberships, nil
 }
 
-// UpdateMemberRole changes a member's WorkspaceRole/AppRole (ROADMAP.md Phase 21 Step 6).
+// UpdateMemberRole changes a member's WorkspaceRole/AppRole (development-history.md Phase 21 Step 6).
 func (s *Store) UpdateMemberRole(ctx context.Context, workspaceID, userRecordID, workspaceRole, appRole string) error {
 	ct, err := s.pool.Exec(ctx, `
 		UPDATE workspace_members
@@ -458,7 +458,7 @@ func (s *Store) ReactivateMember(ctx context.Context, workspaceID, userRecordID 
 // different Workspace would find nothing), since this is the one lookup that must run *before* a
 // request's own Workspace is known: an incoming session cookie names a user id, not a Workspace,
 // so resolving which Workspace it belongs to is the auth middleware's very first step
-// (ROADMAP.md Phase 21 Step 4).
+// (development-history.md Phase 21 Step 4).
 func (s *Store) ResolveUserWorkspace(ctx context.Context, userRecordID string) (string, error) {
 	readLogFrom(ctx).record("mch_user workspace by id")
 	var workspaceID string

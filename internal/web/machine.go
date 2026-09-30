@@ -55,7 +55,7 @@ func machinesFor(ctx context.Context) map[string]*domain.Machine {
 }
 
 // approvalMachine is how a handler asks for one of the approval engine's Machines: by the role its
-// Application cast it in, never by its id (2026-09-28, the slice after ROADMAP.md's Stage A).
+// Application cast it in, never by its id (2026-09-28, the slice after development-history.md's Stage A).
 //
 // `machines[action.StepMachineID]` was the old form, and it is wrong for a reason no test could see
 // until the binding existed: it asks for a *name*. A Workspace that installs Document Approval

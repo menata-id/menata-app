@@ -1,4 +1,4 @@
-// Package pdf rasterizes a PDF page to a PNG image (ROADMAP.md Phase 15 Step 3), the preview
+// Package pdf rasterizes a PDF page to a PNG image (development-history.md Phase 15 Step 3), the preview
 // step the signature-coordinate placement screen (Phase 15 Step 4) needs a real page image to
 // place markers against. Thin wrapper over github.com/richardwilkes/pdfview -- the pure-Go
 // PDF rasterizer chosen to match 007-composable-runtime-architecture.md §4.10's single-binary,

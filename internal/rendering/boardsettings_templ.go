@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "menata.app/internal/data"
 
-// BoardSettingsPage is Case 19's board-configuration hub (ROADMAP.md Phase 14,
+// BoardSettingsPage is Case 19's board-configuration hub (development-history.md Phase 14,
 // project-settings.html): a read-only preview of the two catalogs every board shares -- Lists
 // (a board's ordered statuses) and Labels -- each linking to its own already-built generic
 // Machine page for the actual create/rename/reorder/delete. This is pure composition of what

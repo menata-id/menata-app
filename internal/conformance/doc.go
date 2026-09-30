@@ -1,5 +1,5 @@
 // Package conformance holds executable checks for architectural obligations that 001-007 and each
-// package's own doc.go state in prose (ROADMAP.md Phase 18).
+// package's own doc.go state in prose (development-history.md Phase 18).
 //
 // It contains no runtime code and is imported by nothing. Its only job is to fail `make test`
 // when a plane boundary is crossed, so drift is caught the day it is written rather than at the

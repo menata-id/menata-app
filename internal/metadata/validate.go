@@ -557,7 +557,7 @@ func validateNotify(m *domain.Machine, e domain.Event, fieldsByID map[string]dom
 	return issues
 }
 
-// validatePermission checks one Permission's own shape (ROADMAP.md Phase 16). Everything it
+// validatePermission checks one Permission's own shape (development-history.md Phase 16). Everything it
 // needs is on the Machine itself, so unlike a Constraint there is no second, cross-Machine pass:
 // the Action must be one the runtime actually realizes, and actor_field must be a reference Field
 // on this same Machine -- a Permission whose actor can never be resolved would silently protect

@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 // CheckYourEmailPage is shown right after registration instead of signing the new admin straight
-// in (ROADMAP.md Phase 21 round 2, Step D) -- the account exists but is unusable until its own
+// in (development-history.md Phase 21 round 2, Step D) -- the account exists but is unusable until its own
 // emailed verification link is clicked, which is what actually closes "anyone can register a
 // workspace with any email."
 //

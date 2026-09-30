@@ -23,7 +23,7 @@ import (
 	"menata.app/internal/storage"
 )
 
-// showApprovalInbox serves Case 3's Approval Inbox (ROADMAP.md Phase 15 Step 1,
+// showApprovalInbox serves Case 3's Approval Inbox (development-history.md Phase 15 Step 1,
 // document-approval.html) and, since 2026-09-24, its two sibling tabs (My Documents, Assigned to
 // me) that share its route. Composing each tab's own content is composition's job
 // (ApprovalInbox, AssignedToMe); what stays here is genuinely about HTTP -- reading ?tab=/
@@ -152,7 +152,7 @@ func assignedTabContent(ctx context.Context, store *data.Store, machines map[str
 	return rows, filters, assigned.Truncated, nil
 }
 
-// showPendingCount serves pageShell's own nav badge (ROADMAP.md Phase 21 round 2, Step J) -- the
+// showPendingCount serves pageShell's own nav badge (development-history.md Phase 21 round 2, Step J) -- the
 // same Pending count showApprovalInbox reports, computed from the same predicate rather than
 // threaded through every one of pageShell's ~20 callers as a new parameter. Renders nothing at all
 // when there's nothing pending, so the badge's own :empty CSS rule hides it instead of showing
@@ -205,7 +205,7 @@ func pendingApprovalTotal(ctx context.Context, store *data.Store, userID string)
 	return total, nil
 }
 
-// decideStep is Case 3's core Action (ROADMAP.md Phase 12): Approve or Reject one Approval Step,
+// decideStep is Case 3's core Action (development-history.md Phase 12): Approve or Reject one Approval Step,
 // enforcing action.CanDecide's sequencing rule, then dispatching whatever Events the Machine
 // declares -- which is how the parent Document's own status now follows its steps
 // (mch_approval_step's evt_step_decision_rollup), instead of a hardcoded recompute here.
@@ -239,7 +239,7 @@ func decideStep(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg
 		}
 
 		// mch_approval_step declares prm_decide_own_step, so only the step's own fld_assignee
-		// gets past here (ROADMAP.md Phase 16).
+		// gets past here (development-history.md Phase 16).
 		actor := currentActor(req, store, cfg)
 		if !authorization.AllowsAction(machine, domain.ActionDecide, step.Values, actor) {
 			http.Error(w, "this approval step is assigned to someone else", http.StatusForbidden)

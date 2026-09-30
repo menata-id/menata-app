@@ -107,7 +107,7 @@ func (w Workspace) MachineInWorkflowRole(engine, role, applicationID string) *Ma
 
 // WorkflowEngineDocumentApproval is the sequential/parallel multi-step approval engine
 // internal/action implements: a document whose approval steps are decided in order or all at once
-// (006-runtime-model.md names Approve and Reject as Actions; ROADMAP.md Phase 12).
+// (006-runtime-model.md names Approve and Reject as Actions; development-history.md Phase 12).
 const WorkflowEngineDocumentApproval = "document_approval"
 
 const (
