@@ -1,0 +1,12 @@
+# Created with this Workspace. Installing an Application adds to the lists below.
+workspace: nana-2-workspace
+
+machines:
+  - ../activity.yaml
+  - ../notification.yaml
+  - ../user.yaml
+  - nana-2-workspace/cabang.yaml
+  - nana-2-workspace/pencatatan_sampah.yaml
+
+applications:
+  - nana-2-workspace/applications/pengelolaan_sampah.yaml

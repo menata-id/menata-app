@@ -1,0 +1,24 @@
+id: mch_cabang
+name: Cabang
+fields:
+  - id: fld_nama_cabang
+    name: Nama Cabang
+    type: text
+    required: true
+  - id: fld_pic_cabang
+    name: PIC Cabang
+    type: person
+    required: true
+permissions:
+  - id: prm_cabang_create
+    action: create
+    roles:
+      - approver
+  - id: prm_cabang_edit
+    action: edit
+    roles:
+      - approver
+  - id: prm_cabang_delete
+    action: delete
+    roles:
+      - approver

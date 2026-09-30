@@ -1,0 +1,13 @@
+id: app_pengelolaan_sampah
+name: Pengelolaan Sampah
+machines:
+  - mch_cabang
+  - mch_pencatatan_sampah
+roles:
+  - approver
+  - submitter
+navigation:
+  - id: nav_pengelolaan_sampah
+    label: Pengelolaan Sampah
+    route: /machines/mch_cabang
+    home_card: true

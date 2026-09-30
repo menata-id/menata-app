@@ -1,0 +1,39 @@
+id: mch_pencatatan_sampah
+name: Pencatatan Sampah
+fields:
+  - id: fld_pilih_cabang
+    name: Cabang
+    type: relation
+    required: true
+    machine: mch_cabang
+  - id: fld_berat_terpilah
+    name: Berat Sampah Terpilah (kg)
+    type: number
+    required: true
+  - id: fld_berat_total
+    name: Berat Total Sampah (kg)
+    type: number
+    required: true
+  - id: fld_persen_terolah
+    name: Persen Sampah Terolah (%)
+    type: number
+    required: true
+  - id: fld_tanggal_catat
+    name: Tanggal Pencatatan
+    type: date
+    required: true
+permissions:
+  - id: prm_sampah_create
+    action: create
+    roles:
+      - submitter
+      - approver
+  - id: prm_sampah_edit
+    action: edit
+    roles:
+      - submitter
+      - approver
+  - id: prm_sampah_delete
+    action: delete
+    roles:
+      - approver
