@@ -121,7 +121,7 @@ func Validate(m *domain.Machine) error {
 		seen[f.ID] = true
 		fieldsByID[f.ID] = f
 
-		if !domain.KnownFieldTypes[f.Type] {
+		if _, known := domain.KnownFieldTypes[f.Type]; !known {
 			issues = append(issues, fmt.Sprintf("field %q: unknown type %q", f.ID, f.Type))
 		}
 		if f.Type == domain.FieldTypeStatus && len(f.Options) == 0 {

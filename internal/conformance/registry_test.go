@@ -158,6 +158,12 @@ func TestDomainHoldsVocabularyAndRegistryHoldsDispatch(t *testing.T) {
 		t.Fatal("found no Known* maps in internal/domain -- this gate would pass by measuring nothing")
 	}
 	for _, name := range sortedKeys(domainMaps) {
+		if reason, excused := structuredDomainFacts[name]; excused {
+			if domainMaps[name] == "bool" {
+				t.Errorf("structuredDomainFacts excuses %s (%s) but it is a plain `bool` map now -- remove the entry, the ordinary rule covers it", name, reason)
+			}
+			continue
+		}
 		if domainMaps[name] != "bool" {
 			t.Errorf("internal/domain declares %s with value type %q. Ask the question 007 §14 asks: does something read this to decide *what to run* (a validator, resolver or renderer)? If yes it is a dispatch seam and belongs in internal/registry, beside Services and KnownWorkflowEngines. **If it is instead a fact about what the type *is*** -- 004 puts Field in the Domain Plane, and 005 Phase 4 makes canonical representation a load-time concern -- then it belongs here and this gate's `bool` test is too crude: widen the rule in registry_test.go rather than moving the fact",
 				name, domainMaps[name])
@@ -173,6 +179,23 @@ func TestDomainHoldsVocabularyAndRegistryHoldsDispatch(t *testing.T) {
 			t.Errorf("internal/registry declares %s as a `bool` map -- that is vocabulary, not dispatch, and internal/domain is where a closed set of legal strings belongs", name)
 		}
 	}
+}
+
+// structuredDomainFacts is the named exception the gate above predicted it would need, opened on the same
+// day by the case it named: a closed set whose value carries structure but describes **what the type is**
+// rather than **what to run** for it.
+//
+// A named list with a reason each, not a widened pattern, for the reason `unexplainedDerivationAccessors`
+// states for itself: "is this a fact or a dispatch" is a judgement no scan makes, and a pattern loose
+// enough to admit the facts would admit the seams too. A stale entry fails, so an entry cannot outlive the
+// map it excuses.
+var structuredDomainFacts = map[string]string{
+	"KnownFieldTypes": "FieldTypeSpec says what a field type is -- its label, whether a declaration needs " +
+		"options, whether its value is another record's id. 004 puts Field in the Domain Plane, and nothing " +
+		"reads this to decide what to run: internal/metadata still validates the declaration, internal/data " +
+		"still coerces the value, internal/rendering still picks the control, and 007 §14 permits each of " +
+		"those as its own resolution point. It exists to kill a prose copy in internal/aiassist, not to " +
+		"dispatch",
 }
 
 // closedSetValueTypes returns each package-level `map[...]T` variable whose name starts with a capital and

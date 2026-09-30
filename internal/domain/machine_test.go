@@ -49,7 +49,7 @@ func TestFieldTypeGroup_isNotAReference(t *testing.T) {
 	if f.RelatedMachine != "" {
 		t.Errorf("RelatedMachine = %q, want empty -- a Group is a platform record, not a Machine", f.RelatedMachine)
 	}
-	if !KnownFieldTypes[FieldTypeGroup] {
+	if _, ok := KnownFieldTypes[FieldTypeGroup]; !ok {
 		t.Error("group must be in KnownFieldTypes, or metadata declaring one is rejected at load time")
 	}
 }

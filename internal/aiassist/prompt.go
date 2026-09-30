@@ -3,18 +3,43 @@ package aiassist
 import (
 	"fmt"
 	"strings"
+
+	"menata.app/internal/domain"
 )
 
-// composableSurface is a condensed form of capabilities.md's own "Built" rows -- the vocabulary
-// this assistant is grounded to. Hand-curated rather than read from capabilities.md at runtime
-// (that file is human prose with no machine-readable structure, and is read only by
-// internal/conformance's own tests today -- confirmed by direct grep, zero production code paths
-// read it). Keeping this condensed copy in sync with capabilities.md is a review discipline, the
-// same one that already applies to every other place this codebase restates a capability in
-// prose (writing-guide.md, ROADMAP.md) -- not a new kind of drift risk.
-const composableSurface = `What you may generate (all fully composable today, no code needed):
-- Machines with Fields: text, number, boolean, date, status (with options), person (a user
-  reference), money, relation (references another machine), file, group.
+// composableSurface is the vocabulary this assistant is grounded to.
+//
+// **Its own comment used to claim that keeping it in sync was "a review discipline ... not a new kind of
+// drift risk". Measured 2026-09-30: it had drifted.** Three statements were stale, and checking each one
+// against the code -- rather than stopping at "these capabilities shipped, so the prompt is wrong" --
+// produced a finding sharper than the first read suggested:
+//
+//   - "Notifications ... no such capability exists in this runtime yet" is false about the *runtime*
+//     (send_notification has been in the registry since 2026-09-26, named by four real metadata files)
+//     and **right about the conclusion, for a reason it never gave**: GeneratedEvent carries no service
+//     field at all, and aiassist's own validate/writer set log_activity unconditionally. The assistant
+//     cannot emit a notification Event because its generated shape has no slot for one. Correct outcome,
+//     wrong reason -- so the reason is now the true one.
+//   - "the decide/... engine ... is Go code hardcoded to mch_document/mch_approval_step specifically" is
+//     simply wrong since Stage A (2026-09-28); the engine acts on whichever Machines an Application casts,
+//     under any names, and TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames proves it. What
+//     *is* true is that the engine's screens are Go routes no generated metadata can add, so a generated
+//     workflow: block would engage mechanics with no screen to reach them.
+//   - a saved default approval flow shipped 2026-09-27 and stays on the never-generate list for the same
+//     screen reason, not for the "does not exist" reason it used to carry.
+//
+// **The lesson worth keeping is the near-miss, not the drift**: the first pass of this fix removed the
+// notification prohibition outright, on the strength of "the capability shipped". Reading
+// GeneratedEvent's own shape is what stopped the assistant being told it could emit something its
+// publish path would silently turn into log_activity.
+//
+// The field-type sentence is **generated** now, from domain.KnownFieldTypes (fieldTypeSentence below), so
+// that part cannot drift at all. The rest is still prose and still needs the review discipline the old
+// comment described -- the difference is that it no longer *claims* prose is drift-free, and
+// conformance.TestPromptNamesEveryRegisteredCapability holds the registries it must mention.
+func composableSurface() string {
+	return `What you may generate (all fully composable today, no code needed):
+- Machines with Fields: ` + fieldTypeSentence() + `.
 - Role-based Permissions on the create/edit/delete actions of a machine.
 - Transitions: a status field moving from one declared option to another, always performed through
   the ordinary edit form (never a dedicated approve/reject button).
@@ -23,25 +48,39 @@ const composableSurface = `What you may generate (all fully composable today, no
   in its own role vocabulary (both purely additive -- never remove or rename anything that exists).
 
 What you may NEVER generate, because it would need new Go code to work, not metadata:
-- A dedicated Approve/Reject workflow with sequencing, signatures, or PDF compositing. Document
-  Approval's own metadata/applications/document-approval.yaml file is real and readable -- if asked
-  whether it exists, say so -- but it only declares that application's shell (its navigation, its
-  role vocabulary, which machines it claims). The decide/signature-placement/PDF-compositing engine
-  behind those screens is Go code hardcoded to mch_document/mch_approval_step specifically
-  (internal/web/approval.go, internal/composition/approval.go), not something that file expresses.
-  Copying its YAML into a new application's own file would not carry that engine with it, so the
-  copy would render a status field with no working decide button behind it. "Approval" in anything
-  you generate means: a status field that moves through the ordinary edit form, gated by who holds
-  a role -- not a special decision screen.
-- Notifications (email or in-app) of any kind -- no such capability exists in this runtime yet.
-- A saved default approval flow, conditional-required fields, or anything needing a new field type,
-  action, or service beyond the ones named above.
+- A dedicated Approve/Reject workflow with sequencing, signatures, or PDF compositing. That engine is
+  real and it is not name-bound: an application declares ` + "`workflow: {engine: document_approval, roles: {...}}`" + `
+  and the engine acts on whichever machines it casts, under any names. But **you cannot declare that
+  binding**, because the engine's screens (the approval inbox, the review page, signature placement) are
+  Go routes that no metadata you write can add. So generating a workflow: block would produce an
+  application whose approval mechanics engage with no screen to reach them. "Approval" in anything you
+  generate means: a status field that moves through the ordinary edit form, gated by who holds a role.
+- Any Event Service other than the activity-feed entry above. The runtime has four -- ` + "`log_activity`" + `,
+  ` + "`send_notification`" + ` (in-app and email), ` + "`rollup_parent_status`" + ` (a child's status rolling
+  up to its parent) and ` + "`composite_signed_document`" + ` (stamping signatures into a PDF) -- and every
+  one is a real Service a hand-written machine file may declare. **You cannot emit any but the first**, and
+  the reason is your own output shape rather than a missing feature: the Event you generate carries no
+  service at all, so it is always written as an activity-feed entry. Say that plainly if asked, rather than
+  implying the runtime lacks the feature.
+- A saved default approval flow. Real since 2026-09-27, and unreachable for the same reason as the
+  approval engine above: its screens are Go routes your metadata cannot add.
+- Conditional-required fields, or anything needing a new field type, action, or service beyond the ones
+  named above.
 - Removing, renaming, or retargeting anything that already exists in an installed application.
 
 If a request needs something from the second list, say so plainly in your reply's own message, and
 set capability_gap -- do not approximate it with something from the first list and call it the
 same thing. Approximating is worse than declining: it produces metadata that looks like it does
 what was asked and does not.`
+}
+
+// fieldTypeSentence renders every declarable field type from domain.KnownFieldTypes, in that catalogue's
+// own stable order, so the one part of this prompt that restates a closed set cannot drift from it.
+// domain.FieldTypeLabels owns the ordering for the reason 007 §4.6 gives: a map range would reword the
+// prompt between builds, and a prompt that varies per process is one whose output cannot be compared.
+func fieldTypeSentence() string {
+	return strings.Join(domain.FieldTypeLabels(), ", ")
+}
 
 // SystemPromptFor builds the whole system instruction for one conversation: the fixed composable-
 // surface boundary above, this workspace's own current installed applications (so an
@@ -55,7 +94,7 @@ description into a validated, purely additive Runtime Metadata change -- never t
 any code.
 
 `)
-	b.WriteString(composableSurface)
+	b.WriteString(composableSurface())
 	b.WriteString("\n\n")
 
 	if len(installed) == 0 {

@@ -547,6 +547,19 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   trying to move `Execute` in.
   `domain.WorkflowRole*` and `domain.WorkflowEngineDocumentApproval` deliberately stayed in `domain`:
   those are names an Application writes in its own YAML, vocabulary rather than dispatch.
+- `TestPromptNamesEveryRegisteredCapability` (`internal/conformance`) +
+  `aiassist.TestComposableSurfaceRendersEveryFieldType` — the AI assistant's grounding prompt against the
+  registries it describes. `composableSurface`'s own comment used to claim that keeping it in sync was
+  "a review discipline ... not a new kind of drift risk"; measured 2026-09-30 it had drifted three ways,
+  and the consequence was not untidy prose — the assistant **declined work and gave false reasons**. The
+  field-type sentence is generated from `domain.KnownFieldTypes` now, so that part cannot drift; the rest
+  is gated on *naming* every `registry.Services` and `registry.KnownWorkflowEngines` member, which found
+  two more unmentioned Services on its first run.
+  **What it cannot check is whether what the prompt says is true** — "you may generate X" versus "X exists
+  but you cannot emit it" is a claim about `aiassist.GeneratedEvent`'s own shape, and only reading that
+  shape settles it. Doing so is what stopped this change telling the model it could emit notifications:
+  the capability shipped, but `GeneratedEvent` carries no service field and the writer sets
+  `log_activity` unconditionally. **Right conclusion, wrong reason, is the failure mode prose hides best.**
 - `TestEveryCastRoleProvidesItsEngineDatasets` / `TestEveryEngineDatasetIsNamedByComposition` /
   `TestGoNamedDatasetsWithNoEngineRequirement` — the Dataset-provision family (2026-09-30), written after
   a missing `ds_documents_with_steps` 500'd every approval screen in two Workspaces for a day. The first

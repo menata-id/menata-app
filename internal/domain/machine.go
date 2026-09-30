@@ -39,19 +39,58 @@ const (
 	FieldTypeGroup FieldType = "group"
 )
 
-// KnownFieldTypes is the closed set of field types the runtime currently understands. New types
-// are added here deliberately, not inferred, per 007 §14's static-registry seam.
-var KnownFieldTypes = map[FieldType]bool{
-	FieldTypeText:     true,
-	FieldTypeNumber:   true,
-	FieldTypeBoolean:  true,
-	FieldTypeDate:     true,
-	FieldTypeStatus:   true,
-	FieldTypePerson:   true,
-	FieldTypeMoney:    true,
-	FieldTypeRelation: true,
-	FieldTypeFile:     true,
-	FieldTypeGroup:    true,
+// FieldTypeSpec is what a Field type *is* -- not how any plane implements it.
+//
+// **Deliberately a Domain fact rather than a registry entry, and 001-007 is why.** 004 puts Field in the
+// Domain Plane; 007 §14 scopes internal/registry to "discovering how a component type is *implemented*"
+// (contract → validator → resolver → renderer). Nothing here decides what to run: `metadata` still
+// validates a declaration, `data` still coerces and checks a value, `rendering` still picks a control --
+// and §14 explicitly permits each of those as "a Go map or compiler-checked switch", objecting only to
+// "business-specific switch statements scattered across handlers". Measured 2026-09-30: the three that
+// remain are in metadata/parse.go, data/validate.go and rendering/controls.templ. **None is a handler**,
+// each is one resolution point for its own plane's concern, and each already has a `default`.
+//
+// So this replaced `map[FieldType]bool` without moving a single branch. What it removes is a *prose copy*:
+// internal/aiassist described these ten types in a hand-written paragraph, and its own comment called
+// keeping that in sync "a review discipline ... not a new kind of drift risk". It had drifted.
+type FieldTypeSpec struct {
+	// Label is how the type is named to a human or to a model -- one short phrase, no trailing period.
+	Label string
+	// NeedsOptions is true when a declaration is incomplete without `options:` (validated in
+	// internal/metadata).
+	NeedsOptions bool
+	// ReferencesMachine is true when a value of this type is another record's id. Person is included:
+	// Normalize binds it to mch_user, which is an inference (001 #6), not a hand-written target.
+	ReferencesMachine bool
+}
+
+// KnownFieldTypes is the closed set of field types the runtime currently understands, each with what it
+// is. New types are added here **and** wherever their plane implements them; an unrecognized type is a
+// load-time error rather than a silent skip (capability-lifecycle.md §4 rule 3, "Unknown = explicit"),
+// which internal/metadata/validate.go enforces by reading this map.
+var KnownFieldTypes = map[FieldType]FieldTypeSpec{
+	FieldTypeText:     {Label: "text"},
+	FieldTypeNumber:   {Label: "number"},
+	FieldTypeBoolean:  {Label: "boolean"},
+	FieldTypeDate:     {Label: "date"},
+	FieldTypeStatus:   {Label: "status (with options)", NeedsOptions: true},
+	FieldTypePerson:   {Label: "person (a user reference)", ReferencesMachine: true},
+	FieldTypeMoney:    {Label: "money"},
+	FieldTypeRelation: {Label: "relation (references another machine)", ReferencesMachine: true},
+	FieldTypeFile:     {Label: "file"},
+	FieldTypeGroup:    {Label: "group"},
+}
+
+// FieldTypeLabels lists every type's label in a stable order, which is what a generated description needs
+// -- a map range would reorder the sentence between builds, and 007 §4.6 states determinism as a MUST.
+func FieldTypeLabels() []string {
+	order := []FieldType{FieldTypeText, FieldTypeNumber, FieldTypeBoolean, FieldTypeDate, FieldTypeStatus,
+		FieldTypePerson, FieldTypeMoney, FieldTypeRelation, FieldTypeFile, FieldTypeGroup}
+	out := make([]string, 0, len(order))
+	for _, t := range order {
+		out = append(out, KnownFieldTypes[t].Label)
+	}
+	return out
 }
 
 // UserMachineID is the implicit relation target for every FieldTypePerson field
