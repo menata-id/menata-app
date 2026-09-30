@@ -547,6 +547,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   trying to move `Execute` in.
   `domain.WorkflowRole*` and `domain.WorkflowEngineDocumentApproval` deliberately stayed in `domain`:
   those are names an Application writes in its own YAML, vocabulary rather than dispatch.
+- `TestDeclaredPlaceholdersStayDeclared` / `TestPlaceholderDocsClaimNoContent` — `internal/ir` and
+  `internal/planner` exist, carry boundary rules, and contain **only `doc.go`**, deliberately. A
+  placeholder is legitimate: it reserves the seam's name and its import boundary before anything fills it,
+  which is why `internal/registry`'s rule was already in place when Services moved in. What is not
+  legitimate is a placeholder whose *summary* claims to hold something — `ir/doc.go` said it held "Domain
+  IR, Data IR, and UI IR" while holding nothing and being imported by nothing, and `planner/doc.go` said
+  it "implements" the CEP. Both fixed 2026-09-30. `declaredPlaceholders` carries the reason each is empty
+  and fails in **both** directions, so an entry cannot outlive the emptiness it excuses.
+  **Do not propose `ir.Machine` again without re-measuring**: 005 Phase 5 defines Domain IR as exactly
+  `domain.Machine`'s own content, so a second type would be 001 #8 at the type level; Data IR's consumer
+  is the planner, which 007 §34 marks PROPOSED and says admits nothing by being named; UI IR waits on a
+  second render target. `ir/doc.go` records the full measurement — 379 sites across 11 packages to enforce
+  in the type system a rule five packages' `fixturevalidity_test.go` already gate, against violations
+  confined to tests.
 - `TestPromptNamesEveryRegisteredCapability` (`internal/conformance`) +
   `aiassist.TestComposableSurfaceRendersEveryFieldType` — the AI assistant's grounding prompt against the
   registries it describes. `composableSurface`'s own comment used to claim that keeping it in sync was
