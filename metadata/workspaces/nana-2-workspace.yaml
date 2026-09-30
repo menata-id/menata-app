@@ -7,6 +7,12 @@ machines:
   - ../user.yaml
   - nana-2-workspace/cabang.yaml
   - nana-2-workspace/pencatatan_sampah.yaml
+  - nana-2-workspace/document.yaml
+  - nana-2-workspace/approval_step.yaml
+  - nana-2-workspace/signature.yaml
+  - nana-2-workspace/approval_flow_template.yaml
+  - nana-2-workspace/approval_flow_template_step.yaml
 
 applications:
   - nana-2-workspace/applications/pengelolaan_sampah.yaml
+  - nana-2-workspace/applications/document-approval.yaml

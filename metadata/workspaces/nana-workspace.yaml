@@ -1,0 +1,15 @@
+# Created with this Workspace. Installing an Application adds to the lists below.
+workspace: nana-workspace
+
+machines:
+  - ../activity.yaml
+  - ../notification.yaml
+  - ../user.yaml
+  - nana-workspace/document.yaml
+  - nana-workspace/approval_step.yaml
+  - nana-workspace/signature.yaml
+  - nana-workspace/approval_flow_template.yaml
+  - nana-workspace/approval_flow_template_step.yaml
+
+applications:
+  - nana-workspace/applications/document-approval.yaml
