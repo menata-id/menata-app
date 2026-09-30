@@ -280,6 +280,11 @@ func LoadApplication(path string) (*App, error) {
 	// been established.
 	stampApplicationIDs(app.Workspace.Applications, app.Machines)
 	stampWorkflowRoles(app.Workspace.Applications, app.Machines)
+	// After stamping, because it asks each cast Machine a question -- and before the Dataset validators
+	// below, so "the engine needs this Dataset" is reported ahead of "this Dataset is malformed".
+	if err := validateWorkflowDatasets(app.Workspace.Applications, app.Machines); err != nil {
+		return nil, err
+	}
 	if err := validatePermissionRoles(app.Workspace.Applications, app.Machines); err != nil {
 		return nil, err
 	}
@@ -480,6 +485,63 @@ func validateWorkflowBinding(doc applicationDoc) []string {
 		issues = append(issues, fmt.Sprintf("application %q: workflow roles %q and %q are optional but inseparable -- a saved approval flow is a template *and* its steps, so casting one without the other declares a feature that stores nothing", doc.ID, domain.WorkflowRoleFlowTemplate, domain.WorkflowRoleFlowTemplateStep))
 	}
 	return issues
+}
+
+// validateWorkflowDatasets closes the gap that shipped a 500 to two Workspaces for a day: an engine
+// needs a Dataset to select through, the id is named from Go, and nothing made the Machine cast in that
+// role declare it.
+//
+// Tahap A (2026-09-29) replaced three hand-written Document-to-Step index loops with one declared
+// Relation, `ds_documents_with_steps`, and added it to the template library plus `default`'s own copy.
+// An install *copies*, so that never reached `hanomerch` or `dokter-kecil`, both of which cast the
+// engine's roles -- and composition.selectRecords answers a missing Dataset with an error, so every
+// approval screen in both returned 500 unconditionally. Nothing was red: the handler was registered,
+// the YAML was valid, and the requirement existed only inside a Go constant.
+//
+// So this runs where the *Machines* are visible, after stampWorkflowRoles, rather than inside
+// validateWorkflowBinding, which sees only one applicationDoc. It asks the engine what each role owes
+// (domain.WorkflowEngineSpec.Datasets) and asks the Machine cast in that role whether it declares it --
+// so a Workspace whose Machines were renamed on install is checked by *role*, never by file or id. That
+// distinction is not theoretical: dokter-kecil's `document` role is `mch_document_approval`, while its
+// own unrelated `mch_document` is the unbound Machine that has panicked two pages before.
+//
+// A load error rather than a per-request one, the same reason a missing Required role is: an engine that
+// cannot select its own records cannot run, and refusing to start beats serving a screen that throws.
+func validateWorkflowDatasets(applications []domain.Application, machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	var issues []string
+	for _, app := range applications {
+		if app.Workflow == nil {
+			continue
+		}
+		spec, known := domain.KnownWorkflowEngines[app.Workflow.Engine]
+		if !known {
+			continue // validateWorkflowBinding already reported this
+		}
+		for _, role := range slices.Sorted(maps.Keys(spec.Datasets)) {
+			machineID := app.Workflow.MachineForRole(role)
+			if machineID == "" {
+				continue // an uncast optional role owes nothing
+			}
+			m := byID[machineID]
+			if m == nil {
+				continue // validateWorkflowBinding already reported this
+			}
+			for _, want := range spec.DatasetsFor(role) {
+				if !slices.ContainsFunc(m.Datasets, func(ds domain.Dataset) bool { return ds.ID == want }) {
+					issues = append(issues, fmt.Sprintf("application %q: workflow engine %q selects through dataset %q, which machine %q (its %q role) does not declare -- the engine's own screens would fail at request time, not here. Copy the dataset from the template library's own machine file",
+						app.ID, app.Workflow.Engine, want, machineID, role))
+				}
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return fmt.Errorf("%s", strings.Join(issues, "; "))
+	}
+	return nil
 }
 
 func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {

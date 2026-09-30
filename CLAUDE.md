@@ -157,6 +157,35 @@ loader and rolled back if the result does not load, and the assistant's own publ
 collisions when generating (its prompt carries every Machine id already taken in the target Workspace,
 not only the Application-claimed ones).
 
+**A capability the runtime needs from metadata must be declared, or the copy model silently diverges
+(2026-09-30).** Installing copies, so **a later change to `metadata/*.yaml` never reaches a Workspace
+that installed earlier** — that is the isolation model working, and it is also how a Go-side requirement
+becomes a per-Workspace outage.
+
+Tahap A moved the Document↔Step correlation into a declared Relation, `ds_documents_with_steps`, adding
+it to the library template and to `default`'s own copy. `hanomerch` and `dokter-kecil` both cast the
+approval engine's roles, neither had the Dataset, and `composition.selectRecords` answers a missing
+Dataset with an error — so every approval screen in both returned **500, unconditionally, for a day**.
+Nothing was red: the handler was registered, the YAML was valid, every workflow derivation resolved, and
+the suite was green. **A requirement that lives only inside a Go constant is reachable only through the
+failure it causes.**
+
+So an engine now *declares* what it selects through: `domain.WorkflowEngineSpec.Datasets` maps a role to
+the Dataset ids the Machine cast in that role must provide, checked at load by
+`metadata.validateWorkflowDatasets` — by **role**, never by file or id, which matters because
+dokter-kecil's `document` role is `mch_document_approval` while its own unrelated `mch_document` is the
+unbound Machine that has panicked two pages. A load error, for the same reason a missing Required role
+is: an engine that cannot select its own records cannot run, and refusing to start beats serving a
+screen that throws. Note what that costs and accept it deliberately — one Workspace's missing Dataset now
+stops the **whole process**, which is how every other invalid manifest already behaves (005 Phase 3) and
+why `internal/installer` load-verifies and rolls back.
+
+**The general rule: when you add a Dataset id (or any metadata key) that Go names, ask which Workspaces
+already installed the Machine that must declare it.** The library is a template, not a live reference.
+Adding the id to `metadata/*.yaml` is half the change; the other half is every
+`metadata/workspaces/<slug>/` copy, and the declaration that makes the loader demand it instead of
+trusting you to remember.
+
 **A store method that takes an id takes the Workspace too (2026-09-29).** Workspace scoping is the one
 invariant this whole data layer rests on, and it is enforced *in the statement* --
 `records.workspace_id` on every read and write, `data.WorkspaceScope` on ctx. `Store.UpdateAISessionStatus`
@@ -501,6 +530,19 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   **When declaring `select: records`**: `limit:` is required (007 §7.9), `where:` values may name only
   `$current_user` or `$parameters.<name>` (§9.2 — anything else is a load error, on purpose), and
   `sort:` may name a Field or a record column (`created_at`, `updated_at`, `sort_order`).
+- `TestEveryCastRoleProvidesItsEngineDatasets` / `TestEveryEngineDatasetIsNamedByComposition` /
+  `TestGoNamedDatasetsWithNoEngineRequirement` — the Dataset-provision family (2026-09-30), written after
+  a missing `ds_documents_with_steps` 500'd every approval screen in two Workspaces for a day. The first
+  sweeps every installed Workspace and asserts each cast role provides its engine's Datasets; it is not
+  redundant with the load error, because a load error only fires for a manifest something loads and this
+  repo has shipped Workspaces no test loaded. The second checks the *other* direction, which fails
+  silently: a registry entry no composed screen selects through forces every Workspace to declare
+  something nothing reads — worse than the outage, since it breaks a Workspace that worked. The third
+  records the **remainder** (`goNamedDatasetsWithNoEngineRequirement`, seven ids) rather than gating it,
+  because "which Workspaces can reach the screen that selects through this id" needs a route-to-Dataset
+  call-graph walk nobody has built. **So the class is closed for the engine's Datasets and open for Case
+  19's** — say that, rather than reading a green run as the whole class.
+  Writing this also found `conformance.sortedKeys` never sorted, despite the name.
 - `TestActionDoesNotSwitchOnItsOwnMachineIDs` — the fourth of the identity family, and the one that
   exists because the other three could not see the place it mattered. `internal/action` is excluded
   from the Machine-id gate as the owner of those constants, and `action.CanDelete` used that

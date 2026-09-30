@@ -41,8 +41,37 @@ func TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames(t *testing.T) {
 		}
 	}
 
-	write("kantor/surat.yaml", "id: mch_surat\nname: Surat\nfields:\n  - id: fld_judul\n    name: Judul\n    type: text\n")
-	write("kantor/langkah.yaml", "id: mch_langkah\nname: Langkah\nfields:\n  - id: fld_urutan\n    name: Urutan\n    type: number\n")
+	// The Dataset ids stay `ds_documents_with_steps`/`rel_steps` while every *Machine* is renamed, and
+	// that is the point rather than an inconsistency: a Dataset id is named from Go (which is why
+	// internal/installer refuses to rename one), so what the engine requires of its `document` role is
+	// the same string in every Workspace. domain.KnownWorkflowEngines.Datasets is what makes the loader
+	// demand it -- added 2026-09-30, after its absence 500'd two real Workspaces for a day.
+	write("kantor/surat.yaml", `id: mch_surat
+name: Surat
+fields:
+  - id: fld_judul
+    name: Judul
+    type: text
+datasets:
+  - id: ds_documents_with_steps
+    select: records
+    limit: 500
+    relations:
+      - id: rel_steps
+        machine: mch_langkah
+        via: fld_surat
+`)
+	write("kantor/langkah.yaml", `id: mch_langkah
+name: Langkah
+fields:
+  - id: fld_urutan
+    name: Urutan
+    type: number
+  - id: fld_surat
+    name: Surat
+    type: relation
+    machine: mch_surat
+`)
 	// A second Machine inside the *same* Application, holding no role: claiming a Machine is not
 	// the same as casting it, and a screen that opts into approval behaviour for everything its
 	// Application owns would be the old bug in a new place.

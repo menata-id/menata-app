@@ -155,6 +155,28 @@ type WorkflowEngineSpec struct {
 	// 38 correct empties and Stage E1's genuinely-broken ones are the same observation, which is
 	// precisely why no gate over these numbers could be written before.
 	Answers map[string][]RoleAnswer
+	// Datasets maps a role to the Dataset ids the engine's own composed screens select through, and
+	// which the Machine cast in that role must therefore declare. Validated at load
+	// (internal/metadata.validateWorkflowDatasets).
+	//
+	// **This field exists because its absence shipped a 500 to two Workspaces.** Tahap A (2026-09-29)
+	// moved the Document-to-Step correlation out of three hand-written index loops and into a declared
+	// Relation, `ds_documents_with_steps` -- adding it to the template library and to `default`'s own
+	// copy. An install *copies*, so a library change never reaches a Workspace that installed earlier:
+	// `hanomerch` and `dokter-kecil` both cast the `step` role, neither declared the Dataset, and
+	// `composition.selectRecords` answers a missing Dataset with an error. Every approval screen in
+	// both Workspaces returned 500, unconditionally, for a day.
+	//
+	// Nothing could have caught it. The id is named from Go (which is why `internal/installer` refuses
+	// to rename a Dataset id rather than renaming it the way it renames a Machine id), and no
+	// declaration said the engine needed it -- so `TestNavigationRoutesAreRegistered` saw a registered
+	// handler, the loader saw valid YAML, and the whole suite stayed green. **A capability an engine
+	// requires and no metadata declares is reachable only through the failure it causes.**
+	//
+	// A load error rather than a per-request one, for the same reason a missing Required role is: an
+	// engine that cannot select its own records cannot run, and the Workspace should refuse to start
+	// rather than serve a screen that throws.
+	Datasets map[string][]string
 }
 
 // RoleAnswer is one derivation a role is responsible for, and whether the whole feature it belongs to
@@ -196,6 +218,10 @@ func (s WorkflowEngineSpec) Owes(role, derivation string) (owes, optional bool) 
 	}
 	return false, false
 }
+
+// DatasetsFor returns the Dataset ids the Machine cast in role must declare, or nil for a role that
+// needs none -- which is most of them.
+func (s WorkflowEngineSpec) DatasetsFor(role string) []string { return s.Datasets[role] }
 
 // Roles is every role this engine knows, required first -- for the "declares no role %q" message,
 // which is otherwise the one validation failure that leaves an author guessing.
@@ -259,5 +285,18 @@ var KnownWorkflowEngines = map[string]WorkflowEngineSpec{
 			WorkflowRoleFlowTemplate:     {{Derivation: DerivationFlowTemplate}},
 			WorkflowRoleFlowTemplateStep: {{Derivation: DerivationFlowTemplateStep}},
 		},
+		// One entry, on the `document` role: the Relation that attaches a Document's own Steps, which
+		// all three approval screens select through (composition.buildInbox, PendingApprovalCount,
+		// buildAssigned). It sits on `document` because the Dataset is declared by the Machine it
+		// selects *from*, and `via` names the reference Field on the step Machine pointing back.
+		Datasets: map[string][]string{
+			WorkflowRoleDocument: {DatasetDocumentsWithSteps},
+		},
 	},
 }
+
+// DatasetDocumentsWithSteps is the id of the Relation Dataset the approval engine's screens select
+// through (007 §7.5). It lives here rather than only in internal/composition because two places need
+// the same string -- the selector and the engine's own requirement above -- and 001 #8 makes that one
+// declaration, not two literals that agree.
+const DatasetDocumentsWithSteps = "ds_documents_with_steps"

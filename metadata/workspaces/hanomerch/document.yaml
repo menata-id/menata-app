@@ -278,6 +278,27 @@ transitions:
 # aggregation, so it stays code: selecting records by a predicate is 007 §8's Query Model, which
 # has no real forcing condition yet (menata-app-document's decomposition audit §7).
 datasets:
+  # Documents with their own Approval Steps attached (007 §7.5 Relation, Tahap A, 2026-09-29) -- the
+  # Dataset the approval engine's three screens select through (buildInbox, PendingApprovalCount,
+  # buildAssigned), declared here because a Dataset belongs to the Machine it selects *from*.
+  #
+  # **Backfilled 2026-09-30, after its absence returned 500 on every approval screen in this Workspace
+  # for a day.** Tahap A added it to the template library and to `default`'s own copy; an install copies,
+  # so a library change never reaches a Workspace that installed earlier. domain.KnownWorkflowEngines
+  # now declares that the engine's `document` role must provide it, and the loader refuses a Workspace
+  # that does not -- so this file is required to exist rather than merely nice to have.
+  #
+  # `via: fld_document` names an **existing** reference Field on the step Machine pointing back here,
+  # which is 007 §7.5's requirement rather than a second relationship identity, and what the loader
+  # checks. Physically a lookup: one bounded query per side (§7.5, §22).
+  - id: ds_documents_with_steps
+    select: records
+    limit: 500
+    relations:
+      - id: rel_steps
+        machine: mch_approval_step
+        via: fld_document
+
   - id: ds_document_by_status
     dimension: fld_status
     measures:

@@ -4131,6 +4131,64 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   markup; `POST /documents` is still 403 for the admin pseudo-identity, so the round trip is the
   Postgres-backed wizard tests' as before.
 
+  **Tahap A shipped a 500 to two Workspaces, and it took a day and a direct question to find
+  (2026-09-30).** The Relation migration added `ds_documents_with_steps` to the template library
+  (`metadata/document.yaml`) and to `default`'s own copy. Installing an Application **copies** it, so a
+  later library change never reaches a Workspace that installed earlier: `hanomerch` and `dokter-kecil`
+  both cast the approval engine's roles, neither declared the Dataset, and `composition.selectRecords`
+  answers a missing Dataset with an error. Every approval screen in both -- inbox, mine, assigned, and
+  the pending-count badge -- returned **500, unconditionally**.
+
+  **Nothing was red, and the list of what looked fine is the finding.** The handler was registered
+  (`TestNavigationRoutesAreRegistered`), the YAML was valid (the loader accepted it),
+  every workflow derivation resolved (`TestInstalledCastsExplainWithoutDefects`), the ratchets were at
+  their floors, and `go test -race ./...` was green. The Dataset id is named from Go -- which is exactly
+  why `internal/installer` *refuses* to rename a Dataset id where it happily renames a Machine id -- and
+  no declaration said the engine needed it. **A requirement that lives only inside a Go constant is
+  reachable only through the failure it causes.**
+
+  The fix is both halves. The engine **declares** what it selects through
+  (`domain.WorkflowEngineSpec.Datasets`, one entry on the `document` role) and the loader refuses a
+  Workspace that does not provide it (`metadata.validateWorkflowDatasets`) -- by **role**, never by file
+  or id, which is load-bearing rather than tidy: dokter-kecil's `document` role is
+  `mch_document_approval`, while its own unrelated `mch_document` is the unbound Machine that has
+  panicked two pages. Both Workspace copies were backfilled, so the screens work.
+
+  **A load error, and the cost is named rather than discovered.** One Workspace's missing Dataset now
+  stops the whole process, not just that Workspace -- which is how every other invalid manifest already
+  behaves (005 Phase 3, "invalid metadata must not enter execution") and why `internal/installer`
+  load-verifies and rolls back. Chosen over a per-request check for the same reason a missing Required
+  role is a load error: an engine that cannot select its own records cannot run.
+
+  **Three gates, and the third is the honest one.** `TestEveryCastRoleProvidesItsEngineDatasets` sweeps
+  every installed manifest -- not redundant with the load error, because a load error only fires for a
+  manifest something loads, and this repo shipped five dokter-kecil routes no test loaded until
+  2026-09-29. `TestEveryEngineDatasetIsNamedByComposition` checks the direction that fails silently: a
+  registry entry no screen selects through forces every Workspace to declare something nothing reads,
+  which is worse than the outage because it breaks a Workspace that was working.
+  `TestGoNamedDatasetsWithNoEngineRequirement` **records the remainder instead of gating it** --
+  seven Case 19 ids whose safety depends on which routes a Workspace's Applications declare, a
+  route-to-Dataset call-graph walk nobody has built. So: **closed for the engine's Datasets, open for
+  Case 19's.** The trigger is a Case 19 Machine diverging between Workspaces the way the approval
+  Machines already have.
+
+  **Mutation-proved, five arms**: removing the Dataset from a real Workspace fails; removing it *and*
+  disabling the load validator still fails, through the sweep; an invented registry entry fails; a new
+  Go-named Dataset in neither the registry nor the list fails; a stale list entry fails. And **live**:
+  deleting the Dataset from `hanomerch/document.yaml` made the running unit refuse to start, naming that
+  Workspace's own Machine and role in `/var/log/menata-app/app.log`; restored, it serves again. What
+  could *not* be checked live is the screens themselves in those two Workspaces -- the admin
+  pseudo-identity cannot `/switch-workspace` (303) -- so "the 500 is gone" rests on the loader now
+  demanding what the code selects, not on an HTTP request.
+
+  **Writing the gate found the tension it had to resolve.** Pointing `composition.documentsWithStepsDataset`
+  at `domain.DatasetDocumentsWithSteps` is what stops the selector and the requirement being two literals
+  that agree (001 #8) -- and it deletes the literal a literal-scanning gate looks for, so the first
+  version failed on correct code within a minute. `datasetIDsNamedIn` resolves `domain.Dataset*`
+  references as well. A gate that punishes the fix is the shape this repo has deleted before.
+
+  Also found while there: `conformance.sortedKeys` never sorted.
+
   **Order is load-bearing.** A before B because a declared binding is what lets a generalized
   `decide` know which Application it is acting for; B before C because the Service needs an Action
   to be triggered by; D after all three because it is the only one that had to *add* a declaration

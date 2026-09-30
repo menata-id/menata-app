@@ -1289,8 +1289,30 @@ roles:
 func workflowManifest(t *testing.T, workflow string) string {
 	t.Helper()
 	dir := t.TempDir()
-	writeFile(t, dir, "surat.yaml", "id: mch_surat\nname: Surat\n")
-	writeFile(t, dir, "langkah.yaml", "id: mch_langkah\nname: Langkah\n")
+	// mch_surat carries ds_documents_with_steps because the engine *declares* that its `document` role
+	// must (domain.KnownWorkflowEngines.Datasets, 2026-09-30) -- and the Dataset id stays the library's
+	// while every Machine name is renamed, which is the property: a Dataset id is named from Go, so what
+	// the engine requires is one string in every Workspace. Without it this fixture would describe a cast
+	// the loader refuses, which is what two real Workspaces did while 500ing every approval screen.
+	writeFile(t, dir, "surat.yaml", `id: mch_surat
+name: Surat
+datasets:
+  - id: ds_documents_with_steps
+    select: records
+    limit: 500
+    relations:
+      - id: rel_steps
+        machine: mch_langkah
+        via: fld_surat
+`)
+	writeFile(t, dir, "langkah.yaml", `id: mch_langkah
+name: Langkah
+fields:
+  - id: fld_surat
+    name: Surat
+    type: relation
+    machine: mch_surat
+`)
 	writeFile(t, dir, "ttd.yaml", "id: mch_ttd\nname: Tanda Tangan\n")
 	writeFile(t, dir, "lain.yaml", "id: mch_lain\nname: Lain\n")
 	writeFile(t, dir, "app.yaml", `

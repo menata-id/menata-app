@@ -41,8 +41,11 @@ const (
 	recentActivityDataset = "ds_recent_activity"
 	activityFeedDataset   = "ds_activity_feed"
 	myTasksDataset        = "ds_my_tasks"
-	// The one declared Relation (007 §7.5, Tahap A) and its id.
-	documentsWithStepsDataset = "ds_documents_with_steps"
+	// The one declared Relation (007 §7.5, Tahap A) and its id. The Dataset id is domain's, not a
+	// literal here: domain.KnownWorkflowEngines declares that the approval engine's `document` role must
+	// provide it, so the selector and the requirement are one string (001 #8). Two agreeing literals is
+	// how the same id reached the library and `default` while two other Workspaces went on 500ing.
+	documentsWithStepsDataset = domain.DatasetDocumentsWithSteps
 	documentStepsRelation     = "rel_steps"
 
 	// Measure ids follow one shape: msr_total is the aggregate, and anything after it is the

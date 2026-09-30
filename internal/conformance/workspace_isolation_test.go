@@ -3,6 +3,7 @@ package conformance
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -192,10 +193,15 @@ func machineIDAt(t *testing.T, path string) string {
 	return m.ID
 }
 
-func sortedKeys(m map[string]bool) []string {
+// sortedKeys is generic over the value type, and it actually sorts -- it did neither until 2026-09-30,
+// when a second caller needed it over a non-bool map and reading it showed the `sort` the name promises
+// was never there. Harmless where it was used (a membership set fed to an error message), but a helper
+// whose name is a lie is one an unrelated test will trust.
+func sortedKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)
 	}
+	sort.Strings(out)
 	return out
 }
