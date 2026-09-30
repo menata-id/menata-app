@@ -60,9 +60,27 @@ var generatedFieldSchema = geminiSchema{
 		},
 		"related_machine": {
 			Type:        "STRING",
-			Description: "Required when type is \"relation\": the id of another machine in this same application.",
+			Description: "Required when type is \"relation\": the id of a machine in this same change, or of any machine already installed in this workspace -- including one another application owns.",
+		},
+		"compute": {
+			Type:        "OBJECT",
+			Description: "Only on a number field that should be calculated rather than entered, e.g. a total. It is never shown as an input; it is calculated every time the record is saved.",
+			Required:    []string{"op", "fields"},
+			Properties: map[string]geminiSchema{
+				"op":     {Type: "STRING", Enum: computeOpEnum()},
+				"fields": {Type: "ARRAY", Items: &stringSchema, Description: "Ids of number fields of this same machine that are not computed themselves."},
+			},
 		},
 	},
+}
+
+func computeOpEnum() []string {
+	ops := make([]string, 0, len(domain.KnownComputeOps))
+	for op := range domain.KnownComputeOps {
+		ops = append(ops, string(op))
+	}
+	sort.Strings(ops)
+	return ops
 }
 
 var generatedPermissionSchema = geminiSchema{
@@ -114,7 +132,7 @@ var generatedMachineSchema = geminiSchema{
 
 var generatedApplicationSchema = geminiSchema{
 	Type:     "OBJECT",
-	Required: []string{"id", "name", "machines", "publisher_role"},
+	Required: []string{"id", "name", "machines", "publisher_role", "navigation"},
 	Properties: map[string]geminiSchema{
 		"id":          {Type: "STRING", Description: "Must match ^app_[a-z][a-z0-9_]*$."},
 		"name":        stringSchema,
@@ -127,6 +145,20 @@ var generatedApplicationSchema = geminiSchema{
 			Description: "Must be one of roles. Which role the person you are talking to will hold themselves once this is published -- ask them plainly which one that is before setting \"change\"; never guess or pick one on their behalf.",
 		},
 		"machines": {Type: "ARRAY", Items: &generatedMachineSchema},
+		"navigation": {
+			Type:        "ARRAY",
+			Description: "This application's menu, in order; the first entry is where its Home card opens. Ask the person which machines they want in the menu and what each entry should say before setting \"change\"; never decide it for them.",
+			Items:       &generatedMenuItemSchema,
+		},
+	},
+}
+
+var generatedMenuItemSchema = geminiSchema{
+	Type:     "OBJECT",
+	Required: []string{"label", "machine_id"},
+	Properties: map[string]geminiSchema{
+		"label":      {Type: "STRING", Description: "What the menu entry says, in the person's own language."},
+		"machine_id": {Type: "STRING", Description: "One of this application's own machine ids; the entry opens that machine's list."},
 	},
 }
 
@@ -137,7 +169,39 @@ var metadataAdditionSchema = geminiSchema{
 		"field_id":   stringSchema,
 		"new_option": {Type: "STRING", Description: "Set together with machine_id/field_id to add one option to an existing status field."},
 		"new_role":   {Type: "STRING", Description: "Set alone to add one role to the target application's own vocabulary."},
+		"new_machine": withDescription(generatedMachineSchema,
+			"Set alone to add a whole new machine to the target application. Its relation fields may point at any machine already in this workspace."),
+		"new_nav_item": {
+			Type:        "OBJECT",
+			Description: "Set alone to add one menu item to the target application, opening one of its machines (including one this same change adds). Ask the person for the label first.",
+			Required:    []string{"id", "label", "machine_id"},
+			Properties: map[string]geminiSchema{
+				"id":          {Type: "STRING", Description: "Must match ^nav_[a-z][a-z0-9_]*$ and not be used anywhere in this workspace."},
+				"label":       stringSchema,
+				"title":       stringSchema,
+				"description": stringSchema,
+				"machine_id":  stringSchema,
+				"icon":        {Type: "STRING", Enum: declarableIconEnum()},
+			},
+		},
+		"rename_application": {Type: "STRING", Description: "Set alone to give the target application a new display name. Its id does not change."},
+		"relabel_nav_item": {
+			Type:        "OBJECT",
+			Description: "Set alone to change the label of one of the target application's existing menu items, by its nav id.",
+			Required:    []string{"nav_id", "label"},
+			Properties:  map[string]geminiSchema{"nav_id": stringSchema, "label": stringSchema},
+		},
+		"reorder_navigation": {
+			Type:        "ARRAY",
+			Items:       &stringSchema,
+			Description: "Set alone to reorder the target application's menu: every one of its menu item ids, including ones this change adds, in the new order.",
+		},
 	},
+}
+
+func withDescription(s geminiSchema, d string) geminiSchema {
+	s.Description = d
+	return s
 }
 
 var generatedChangeSchema = geminiSchema{

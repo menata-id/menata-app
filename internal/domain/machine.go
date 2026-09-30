@@ -121,6 +121,49 @@ type Field struct {
 	// field back to empty is never silently re-filled, the same distinction SQL's own DEFAULT
 	// makes.
 	Default any
+	// Compute makes this a computed Field: its value is derived from other Fields of the same record
+	// every time the record is written through the generic create/edit routes, and it is never an
+	// input (007 §4.4: Composition resolves the shape; a person does not type a total). Nil for an
+	// ordinary Field. Declared as `compute: {op: sum, fields: [...]}`; see FieldCompute.
+	Compute *FieldCompute
+}
+
+// ComputeOp is one operation a computed Field may declare. A closed registry, like KnownAggregates:
+// an operation is added here, with its evaluation below, when a real case needs it.
+type ComputeOp string
+
+const (
+	// ComputeSum adds number Fields. The first case: a water-usage report totalling three meters.
+	ComputeSum ComputeOp = "sum"
+)
+
+// KnownComputeOps is the closed set of operations a computed Field may declare.
+var KnownComputeOps = map[ComputeOp]bool{ComputeSum: true}
+
+// FieldCompute is how a computed Field derives its value: Op applied to Fields, in order. Operands
+// are number Fields of the same Machine that are not computed themselves, which is what makes the
+// evaluation order-free and cycle-free (internal/metadata validates both at load).
+type FieldCompute struct {
+	Op     ComputeOp
+	Fields []string
+}
+
+// Evaluate derives the value from a record's own values. ok is false when no operand holds a value,
+// so a record nobody has filled in yet shows an empty total rather than a made-up zero; an operand
+// left empty otherwise counts as zero.
+func (c FieldCompute) Evaluate(values map[string]any) (v any, ok bool) {
+	switch c.Op {
+	case ComputeSum:
+		var total float64
+		for _, id := range c.Fields {
+			if n, isNum := values[id].(float64); isNum {
+				total += n
+				ok = true
+			}
+		}
+		return total, ok
+	}
+	return nil, false
 }
 
 // IsReference reports whether f's value is a record id referencing another Machine -- true for

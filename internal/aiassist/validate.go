@@ -29,13 +29,25 @@ type ExistingState struct {
 	// (does the target option/role already exist, does the target Field exist and is it a status
 	// Field) without this package depending on domain.Workspace's own richer shape.
 	Applications map[string]ExistingApplicationState
+	// NavIDs are every navigation item id declared anywhere in this Workspace. A new one must not
+	// reuse one (metadata.validateNavigationIDsAreUnique would refuse the load).
+	NavIDs map[string]bool
 }
 
 // ExistingApplicationState is the slice of one installed Application's current metadata that
 // extend_application validation reads.
 type ExistingApplicationState struct {
+	Name     string
 	Roles    []string
 	Machines map[string]*domain.Machine // keyed by machine id, this Application's own claimed Machines only
+	// Navigation is this Application's own menu, in declared order (domain.Application.AllNavigation).
+	Navigation []ExistingNavItem
+}
+
+// ExistingNavItem is one navigation item as a presentation change needs it: its id and its label.
+type ExistingNavItem struct {
+	ID    string
+	Label string
 }
 
 // Validate checks a GeneratedChange for internal consistency (real domain.Machine/
@@ -102,11 +114,12 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 	if len(app.Machines) == 0 {
 		issues = append(issues, "an application needs at least one machine")
 	}
+	issues = append(issues, validateMenu(app)...)
 
 	// Machine ids must be new workspace-wide (Machines are workspace-level and unique by id, per
 	// domain.Workspace's own doc comment) and unique within this change too.
 	seenMachine := map[string]bool{}
-	knownFieldTargets := map[string]bool{} // machine ids declared by this same change -- a relation may point at a sibling
+	knownFieldTargets := relationTargets(existing) // a relation may point at a sibling, or at any Machine already here
 	for _, m := range app.Machines {
 		knownFieldTargets[m.ID] = true
 	}
@@ -147,70 +160,11 @@ func validateNewApplication(change GeneratedChange, existing ExistingState) erro
 	return nil
 }
 
-func validateExtendApplication(change GeneratedChange, existing ExistingState) error {
-	target, ok := existing.Applications[change.TargetAppID]
-	if !ok {
-		return &ValidationError{Issues: []string{fmt.Sprintf("application %q is not installed in this workspace", change.TargetAppID)}}
-	}
-	if len(change.Additions) == 0 {
-		return &ValidationError{Issues: []string{"extend_application change carries no additions"}}
-	}
-
-	existingRoles := map[string]bool{}
-	for _, r := range target.Roles {
-		existingRoles[r] = true
-	}
-
-	var issues []string
-	for i, add := range change.Additions {
-		switch {
-		case add.NewOption != "":
-			m, ok := target.Machines[add.MachineID]
-			if !ok {
-				issues = append(issues, fmt.Sprintf("addition %d: machine %q is not part of application %q", i, add.MachineID, change.TargetAppID))
-				continue
-			}
-			f, ok := m.FieldByID(add.FieldID)
-			if !ok {
-				issues = append(issues, fmt.Sprintf("addition %d: field %q is not on machine %q", i, add.FieldID, add.MachineID))
-				continue
-			}
-			if f.Type != domain.FieldTypeStatus {
-				issues = append(issues, fmt.Sprintf("addition %d: field %q is not a status field, so it has no options to add to", i, add.FieldID))
-				continue
-			}
-			if contains(f.Options, add.NewOption) {
-				issues = append(issues, fmt.Sprintf("addition %d: %q is already one of field %q's declared options", i, add.NewOption, add.FieldID))
-			}
-		case add.NewRole != "":
-			if strings.TrimSpace(add.NewRole) == "" {
-				issues = append(issues, fmt.Sprintf("addition %d: new role is empty", i))
-			} else if existingRoles[add.NewRole] {
-				issues = append(issues, fmt.Sprintf("addition %d: role %q is already declared on application %q", i, add.NewRole, change.TargetAppID))
-			}
-		case add.NewNavItem != nil:
-			if _, ok := target.Machines[add.NewNavItem.MachineID]; !ok {
-				issues = append(issues, fmt.Sprintf("addition %d: nav item points at machine %q, which is not part of application %q", i, add.NewNavItem.MachineID, change.TargetAppID))
-			}
-			if strings.TrimSpace(add.NewNavItem.ID) == "" || strings.TrimSpace(add.NewNavItem.Label) == "" {
-				issues = append(issues, fmt.Sprintf("addition %d: nav item needs an id and a label", i))
-			}
-		default:
-			issues = append(issues, fmt.Sprintf("addition %d: names no actual change (no option, role, or nav item)", i))
-		}
-	}
-
-	if len(issues) > 0 {
-		return &ValidationError{Issues: issues}
-	}
-	return nil
-}
-
 // buildDomainMachine constructs a real domain.Machine from a GeneratedMachine, plus any issues
-// metadata.Validate has no way to express (a relation field naming a machine outside this same
-// change, since that's a cross-change constraint, not a per-Machine one). knownSiblings names
-// every machine id this same GeneratedChange declares.
-func buildDomainMachine(gm GeneratedMachine, knownSiblings map[string]bool) (*domain.Machine, []string) {
+// metadata.Validate has no way to express (a relation field naming a machine that will not exist,
+// since that's a Workspace-level constraint, not a per-Machine one). knownTargets names every
+// machine id a relation may point at: the ones this change declares and the ones already installed.
+func buildDomainMachine(gm GeneratedMachine, knownTargets map[string]bool) (*domain.Machine, []string) {
 	var issues []string
 	m := &domain.Machine{ID: gm.ID, Name: gm.Name}
 
@@ -224,12 +178,15 @@ func buildDomainMachine(gm GeneratedMachine, knownSiblings map[string]bool) (*do
 		}
 		if f.Type == domain.FieldTypeRelation {
 			f.RelatedMachine = gf.RelatedMachine
-			if !knownSiblings[gf.RelatedMachine] {
-				issues = append(issues, fmt.Sprintf("machine %q field %q: relation target %q is not a machine in this same application", gm.ID, gf.ID, gf.RelatedMachine))
+			if !knownTargets[gf.RelatedMachine] {
+				issues = append(issues, fmt.Sprintf("machine %q field %q: relation target %q is neither a machine in this change nor one already in this workspace", gm.ID, gf.ID, gf.RelatedMachine))
 			}
 		}
 		if f.Type == domain.FieldTypePerson {
 			f.RelatedMachine = domain.UserMachineID
+		}
+		if gf.Compute != nil {
+			f.Compute = &domain.FieldCompute{Op: domain.ComputeOp(gf.Compute.Op), Fields: gf.Compute.Fields}
 		}
 		m.Fields = append(m.Fields, f)
 	}
@@ -273,4 +230,45 @@ type ValidationError struct {
 
 func (e *ValidationError) Error() string {
 	return fmt.Sprintf("%d issue(s): %s", len(e.Issues), strings.Join(e.Issues, "; "))
+}
+
+// validateMenu holds the person's answer to "which of these do you want in the menu": at least one
+// entry, each naming a Machine this Application declares, none twice. A Machine left out is allowed
+// -- that is the answer, not an omission -- and stays reachable by its own URL.
+func validateMenu(app *GeneratedApplication) []string {
+	if len(app.Navigation) == 0 {
+		return []string{"navigation is required -- ask the person which of this application's machines they want in its menu, in what order, and what each entry should say"}
+	}
+	own := map[string]bool{}
+	for _, m := range app.Machines {
+		own[m.ID] = true
+	}
+	var issues []string
+	seen := map[string]bool{}
+	for i, item := range app.Navigation {
+		if strings.TrimSpace(item.Label) == "" {
+			issues = append(issues, fmt.Sprintf("navigation entry %d has no label", i+1))
+		}
+		if !own[item.MachineID] {
+			issues = append(issues, fmt.Sprintf("navigation entry %q opens machine %q, which this application does not declare", item.Label, item.MachineID))
+		}
+		if seen[item.MachineID] {
+			issues = append(issues, fmt.Sprintf("machine %q has more than one navigation entry", item.MachineID))
+		}
+		seen[item.MachineID] = true
+	}
+	return issues
+}
+
+// relationTargets is every Machine a generated relation may point at before counting the change's
+// own: all of this Workspace's Machines except the runtime's activity and notification logs, which
+// no business record refers to. mch_user stays, though a person Field is the usual way to name one.
+func relationTargets(existing ExistingState) map[string]bool {
+	out := make(map[string]bool, len(existing.MachineIDs))
+	for id := range existing.MachineIDs {
+		if id != "mch_activity" && id != "mch_notification" {
+			out[id] = true
+		}
+	}
+	return out
 }

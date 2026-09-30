@@ -23,6 +23,11 @@ var (
 	applicationIDPattern = regexp.MustCompile(`^app_[a-z][a-z0-9_]*$`)
 )
 
+// ValidWorkspaceSlug reports whether slug is one a manifest may name, and therefore one a manifest
+// file may be named after. Exported so a writer derives the file name from the same rule the loader
+// enforces on its contents.
+func ValidWorkspaceSlug(slug string) bool { return workspaceSlugPattern.MatchString(slug) }
+
 // App is a loaded Workspace manifest: the Workspace itself (including every Application declared
 // inside it) and every Machine it owns.
 //
@@ -290,6 +295,10 @@ func LoadApplication(path string) (*App, error) {
 		return nil, err
 	}
 	if err := validateNavigationIDsAreUnique(app.Workspace); err != nil {
+		return nil, err
+	}
+	// After stampWorkflowRoles, because it asks which Machines an engine casts.
+	if err := validateComputedFieldsAreGenericallyWritten(app.Machines); err != nil {
 		return nil, err
 	}
 

@@ -62,7 +62,7 @@ func submitRegistration(userMachine *domain.Machine, store *data.Store, mailer m
 			return
 		}
 
-		if err := registerWorkspace(req.Context(), store, workspaceName, fullName, email, password, values); err != nil {
+		if err := registerWorkspace(req.Context(), store, cfg, workspaceName, fullName, email, password, values); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -100,7 +100,7 @@ func validateRegistration(workspaceName, fullName, email, password string) (stri
 // fullName is written onto the credential, not the record (migration 010): this is the one moment
 // a brand-new identity is created, so it is where that identity's name is first stated. Every
 // Workspace this person joins afterwards reads it from there rather than asking again.
-func registerWorkspace(ctx context.Context, store *data.Store, workspaceName, fullName, email, password string, userValues map[string]any) error {
+func registerWorkspace(ctx context.Context, store *data.Store, cfg config.Config, workspaceName, fullName, email, password string, userValues map[string]any) error {
 	hash, err := authorization.HashPassword(password)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)
@@ -109,6 +109,7 @@ func registerWorkspace(ctx context.Context, store *data.Store, workspaceName, fu
 	if err != nil {
 		return err
 	}
+	ensureNewWorkspaceManifest(cfg, ws.Slug)
 	user, err := store.CreateRecord(data.WithWorkspaceScope(ctx, ws.ID), domain.UserMachineID, userValues)
 	if err != nil {
 		return err

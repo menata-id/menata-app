@@ -874,6 +874,7 @@ it a placeholder.
 | `options[]` | strings | **Required when `type: status`** |
 | `machine` | `mch_*` | **Required when `type: relation`** |
 | `default` | string | Always quoted, even for numbers/booleans. Create-only. For a `status` field it must be one of its own `options` |
+| `compute` | `{op, fields[]}` | Makes a `number` field computed (2026-09-30): never an input, recalculated on every save through the generic create/edit routes. `op` ∈ `domain.KnownComputeOps` (`sum`); `fields` are number fields of the same machine that are not computed themselves. Cannot be `required` or have a `default`. Refused at load on a machine a workflow engine casts, or on `mch_user`/`mch_activity`/`mch_notification`, because those are written by Go routes that do not compute |
 
 ### 12.4 `constraints[]` — one shape
 

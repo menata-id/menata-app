@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -140,6 +141,10 @@ func Validate(m *domain.Machine) error {
 		if f.Default != nil && f.ViolatesOptions(fmt.Sprint(f.Default)) {
 			issues = append(issues, fmt.Sprintf("field %q: default %q is not one of its own options %v", f.ID, f.Default, f.Options))
 		}
+	}
+
+	for _, f := range m.Fields {
+		issues = append(issues, validateCompute(f, fieldsByID)...)
 	}
 
 	for _, c := range m.Constraints {
@@ -1238,4 +1243,89 @@ func sortableColumnList() string {
 	}
 	slices.Sort(names)
 	return strings.Join(names, ", ")
+}
+
+// validateCompute holds a computed Field to the shape its evaluation assumes: a number, one known
+// operation, operands that are number Fields of this Machine and not computed themselves (so the
+// order of evaluation cannot matter and no cycle can exist), and none of the declarations that
+// would contradict "the runtime writes this, a person does not" -- required, or a default.
+func validateCompute(f domain.Field, fieldsByID map[string]domain.Field) []string {
+	if f.Compute == nil {
+		return nil
+	}
+	var issues []string
+	if f.Type != domain.FieldTypeNumber {
+		issues = append(issues, fmt.Sprintf("field %q: compute: is only valid on a number field, got type %q", f.ID, f.Type))
+	}
+	if !domain.KnownComputeOps[f.Compute.Op] {
+		issues = append(issues, fmt.Sprintf("field %q: compute op %q is not one of %v", f.ID, f.Compute.Op, sortedComputeOps()))
+	}
+	if len(f.Compute.Fields) == 0 {
+		issues = append(issues, fmt.Sprintf("field %q: compute: needs at least one field to compute from", f.ID))
+	}
+	if f.Required {
+		issues = append(issues, fmt.Sprintf("field %q: a computed field cannot be required -- nobody enters it", f.ID))
+	}
+	if f.Default != nil {
+		issues = append(issues, fmt.Sprintf("field %q: a computed field cannot declare a default -- its value is always derived", f.ID))
+	}
+	seen := map[string]bool{}
+	for _, id := range f.Compute.Fields {
+		operand, ok := fieldsByID[id]
+		switch {
+		case id == f.ID:
+			issues = append(issues, fmt.Sprintf("field %q: compute: names itself", f.ID))
+		case !ok:
+			issues = append(issues, fmt.Sprintf("field %q: compute: names %q, which this machine does not declare", f.ID, id))
+		case operand.Type != domain.FieldTypeNumber:
+			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q must be a number field, got type %q", f.ID, id, operand.Type))
+		case operand.Compute != nil:
+			issues = append(issues, fmt.Sprintf("field %q: compute: operand %q is itself computed -- compute from the fields it is computed from instead", f.ID, id))
+		}
+		if seen[id] {
+			issues = append(issues, fmt.Sprintf("field %q: compute: names %q more than once", f.ID, id))
+		}
+		seen[id] = true
+	}
+	return issues
+}
+
+func sortedComputeOps() []string {
+	out := make([]string, 0, len(domain.KnownComputeOps))
+	for op := range domain.KnownComputeOps {
+		out = append(out, string(op))
+	}
+	sort.Strings(out)
+	return out
+}
+
+// validateComputedFieldsAreGenericallyWritten refuses a computed Field on a Machine that Go writes
+// through its own routes. A computed value is filled in by the generic create/edit routes
+// (internal/web's record.go and api.go); a workflow engine's screens (the approval inbox, the submit
+// wizard) and the runtime's own writers (a membership's mch_user record, activity, notifications)
+// write their Machines directly and would leave the value stale. Refusing here keeps "every write of
+// this Machine computes it" true by construction, instead of true until someone adds a route.
+func validateComputedFieldsAreGenericallyWritten(machines []*domain.Machine) error {
+	var issues []string
+	for _, m := range machines {
+		var computed []string
+		for _, f := range m.Fields {
+			if f.Compute != nil {
+				computed = append(computed, f.ID)
+			}
+		}
+		if len(computed) == 0 {
+			continue
+		}
+		switch {
+		case m.WorkflowRole != "":
+			issues = append(issues, fmt.Sprintf("machine %q declares computed field(s) %v, but it plays the %q role in a workflow engine whose own screens write it without computing", m.ID, computed, m.WorkflowRole))
+		case m.ID == domain.UserMachineID || m.ID == "mch_activity" || m.ID == "mch_notification":
+			issues = append(issues, fmt.Sprintf("machine %q declares computed field(s) %v, but it is a runtime-level machine the runtime writes itself", m.ID, computed))
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
 }

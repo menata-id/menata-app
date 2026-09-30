@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -84,7 +83,11 @@ func submitInstallApplication(store *data.Store, cfg config.Config, reload func(
 			http.Error(w, "invalid form body", http.StatusBadRequest)
 			return
 		}
-		ws := rendering.CurrentWorkspace(ctx)
+		manifestPath, ws, err := workspaceInstallation(ctx, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
 		template, err := installer.TemplateByID(cfg.TemplatePath, req.FormValue("template"))
 		if err != nil {
 			http.Error(w, "no such template", http.StatusNotFound)
@@ -98,7 +101,6 @@ func submitInstallApplication(store *data.Store, cfg config.Config, reload func(
 			http.Error(w, "this application cannot be installed here: "+strings.Join(plan.Refusals, "; "), http.StatusUnprocessableEntity)
 			return
 		}
-		manifestPath := filepath.Join(cfg.MetadataPath, ws.Slug+".yaml")
 		appID, err := installer.Install(plan, cfg.TemplatePath, manifestPath)
 		if err != nil {
 			serverError(w, err)

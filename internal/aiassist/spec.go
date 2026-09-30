@@ -63,6 +63,21 @@ type GeneratedApplication struct {
 	// which one role the person wants, rather than the code guessing or granting all of them.
 	PublisherRole string             `json:"publisher_role"`
 	Machines      []GeneratedMachine `json:"machines"`
+	// Navigation is this Application's menu, in the order the person wants it: which of Machines
+	// get a menu entry and what each entry says. The first entry is also where the Application's
+	// Workspace Home card opens. The conversation must ask for it (prompt.go, rule 6); nothing
+	// derives it from Machines, because which records deserve a menu entry is the person's
+	// decision. Until 2026-09-30 the writer made one entry for the first Machine and nothing else,
+	// so a waste-reporting Application reached its branch list and not its waste report.
+	Navigation []GeneratedMenuItem `json:"navigation"`
+}
+
+// GeneratedMenuItem is one menu entry of a new Application: a label and the Machine whose generic
+// list page (/machines/{id}) it opens -- the only route this package can name, for the reason
+// GeneratedNavItem gives.
+type GeneratedMenuItem struct {
+	Label     string `json:"label"`
+	MachineID string `json:"machine_id"`
 }
 
 // GeneratedMachine is one Machine the Application exposes. Deliberately narrower than
@@ -82,8 +97,7 @@ type GeneratedMachine struct {
 
 // GeneratedField mirrors domain.Field's own composable surface. Type is restricted at validation
 // time to domain.KnownFieldTypes; RelatedMachine is meaningful only when Type is "relation" and
-// must name another Machine in the same GeneratedChange (a generated Application cannot reference
-// a Machine outside itself -- see validate.go).
+// must name a Machine in the same GeneratedChange or one already in this Workspace.
 type GeneratedField struct {
 	ID             string   `json:"id"`
 	Name           string   `json:"name"`
@@ -91,6 +105,14 @@ type GeneratedField struct {
 	Required       bool     `json:"required"`
 	Options        []string `json:"options,omitempty"`
 	RelatedMachine string   `json:"related_machine,omitempty"`
+	// Compute makes a number Field computed (domain.FieldCompute): never entered, derived on save.
+	Compute *GeneratedCompute `json:"compute,omitempty"`
+}
+
+// GeneratedCompute mirrors domain.FieldCompute.
+type GeneratedCompute struct {
+	Op     string   `json:"op"`
+	Fields []string `json:"fields"`
 }
 
 // GeneratedPermission mirrors the one shape a generated Machine may declare: role-based, on the
@@ -127,13 +149,22 @@ type GeneratedEvent struct {
 	Summary    string `json:"summary"`
 }
 
-// MetadataAddition is one purely-additive change to an Application already installed
-// (GeneratedChange.Kind == "extend_application") -- exactly the row hot-reload-safety.md's own
-// §3.3/§7.2 classification table already calls safe without a data-compatibility check: a new
-// option on an existing status Field, a new role, or a new navigation item. Never a Field, a
-// Machine, a Permission or a Transition on an existing Machine -- those interact with whatever
-// data and behavior that Machine already has in ways this first increment does not attempt to
-// reason about safely.
+// MetadataAddition is one change to an Application already installed (GeneratedChange.Kind ==
+// "extend_application"). Two kinds, deliberately separated:
+//
+//   - **Additions**, which leave everything that exists untouched: a new option on a status Field, a
+//     new role, a new Machine (which has no records yet, so no data can disagree with it), a new
+//     navigation item. These are hot-reload-safety.md §3.3/§7.2's "safe without a data check" row.
+//   - **Presentation changes**, which change a value but only one that no record, Permission or id
+//     depends on: the Application's name, a menu item's label, the menu's order. An Application's id
+//     and a navigation item's id stay what they were -- ids are what everything else references
+//     (CLAUDE.md: "a name is never an identity"), which is exactly why the name is safe to change.
+//
+// Still never: removing anything, or changing an existing Machine's Fields, Permissions or
+// Transitions. Those interact with the records and behaviour the Machine already has. Until
+// 2026-09-30 only the first two additions existed (and a navigation item validated but was never
+// written), so a request to add a water-usage report beside an installed waste-report Application,
+// with a menu for it, was refused.
 type MetadataAddition struct {
 	// MachineID/NewOption: append NewOption to that Machine's own status Field's declared options
 	// (FieldID names which one). Both must already exist; NewOption must not already be declared.
@@ -146,6 +177,23 @@ type MetadataAddition struct {
 	// description only; Route/route-bearing fields are never generated (a nav item must point at a
 	// real handler, which this package cannot create).
 	NewNavItem *GeneratedNavItem `json:"new_nav_item,omitempty"`
+	// NewMachine: add a whole Machine to the target Application. Its relation Fields may point at
+	// any Machine already in this Workspace, including one another Application owns -- Machines are
+	// the Workspace's, not an Application's (domain.Workspace).
+	NewMachine *GeneratedMachine `json:"new_machine,omitempty"`
+	// RenameApplication: the target Application's new display name. Its id does not change.
+	RenameApplication string `json:"rename_application,omitempty"`
+	// RelabelNavItem: a new label for one of the target Application's navigation items, by id.
+	RelabelNavItem *NavRelabel `json:"relabel_nav_item,omitempty"`
+	// ReorderNavigation: every navigation item id of the target Application, including any this same
+	// change adds, in the new order.
+	ReorderNavigation []string `json:"reorder_navigation,omitempty"`
+}
+
+// NavRelabel names one existing navigation item and the label it should carry.
+type NavRelabel struct {
+	NavID string `json:"nav_id"`
+	Label string `json:"label"`
 }
 
 // GeneratedNavItem is deliberately narrow: it may only redescribe a destination that already

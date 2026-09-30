@@ -36,6 +36,7 @@ func validGeneratedChange(name string) *aiassist.GeneratedChange {
 		Application: &aiassist.GeneratedApplication{
 			ID: "app_leave_permits", Name: name, Description: "Generated from your description.",
 			Roles: []string{"Employee", "Supervisor"}, PublisherRole: "Supervisor",
+			Navigation: []aiassist.GeneratedMenuItem{{Label: "Leave Permits", MachineID: "mch_leave_permit"}},
 			Machines: []aiassist.GeneratedMachine{{
 				ID: "mch_leave_permit", Name: "Leave Permit",
 				Fields: []aiassist.GeneratedField{
@@ -223,6 +224,7 @@ func TestExistingStateFor_reservesOnlyThisWorkspacesIDs(t *testing.T) {
 		Kind: aiassist.KindNewApplication,
 		Application: &aiassist.GeneratedApplication{
 			ID: "app_doc_submission", Name: "Pengajuan Dokumen",
+			Navigation: []aiassist.GeneratedMenuItem{{Label: "Pengajuan", MachineID: "mch_pengajuan"}},
 			Machines: []aiassist.GeneratedMachine{{
 				ID: "mch_pengajuan", Name: "Pengajuan",
 				Fields: []aiassist.GeneratedField{{ID: "fld_title", Name: "Judul", Type: "text", Required: true}},
@@ -343,6 +345,7 @@ func TestPublishNewApplication_grantsThePublisherTheirChosenRole(t *testing.T) {
 		Application: &aiassist.GeneratedApplication{
 			ID: "app_publish_role_test", Name: "Publish Role Test App",
 			Roles: []string{"author", "reviewer"}, PublisherRole: "reviewer",
+			Navigation: []aiassist.GeneratedMenuItem{{Label: "Documents", MachineID: "mch_publish_role_doc"}},
 			Machines: []aiassist.GeneratedMachine{{
 				ID: "mch_publish_role_doc", Name: "Document",
 				Fields: []aiassist.GeneratedField{{ID: "fld_title", Name: "Title", Type: "text", Required: true}},
@@ -457,9 +460,19 @@ func TestPublishNewApplication_failureReturnsToTheConversation(t *testing.T) {
 	}
 
 	// The Workspace now already has the Machine the proposal wants to create, so Validate refuses
-	// it at publish time even though it passed when generated.
+	// it at publish time even though it passed when generated. On disk, because publish reads the
+	// installation from the manifest rather than from ctx.
+	metadataDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(metadataDir, "already_here.yaml"),
+		[]byte("id: mch_already_here\nname: Thing\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(metadataDir, ws.Slug+".yaml"),
+		[]byte("workspace: "+ws.Slug+"\nmachines:\n  - already_here.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	occupied := domain.Workspace{Slug: ws.Slug, MachineIDs: []string{"mch_already_here"}}
-	cfg := config.Config{SessionSecret: "publish-failure-test-secret", MetadataPath: t.TempDir()}
+	cfg := config.Config{SessionSecret: "publish-failure-test-secret", MetadataPath: metadataDir}
 	ai := &recordingAIClient{reply: aiassist.Reply{Message: "Understood -- renaming it."}}
 
 	r := chi.NewRouter()
@@ -678,7 +691,7 @@ func newAssistantRouteSetup(t *testing.T, name, slug, email string) *assistantRo
 	_, installed := loadRealMachines(t)
 	wsCtx := rendering.WithCurrentWorkspace(data.WithWorkspaceScope(ctx, ws.ID), installed, name, false)
 	return &assistantRouteSetup{pool: pool, store: store,
-		cfg: config.Config{SessionSecret: slug + "-secret"}, wsCtx: wsCtx, workspaceID: ws.ID}
+		cfg: config.Config{SessionSecret: slug + "-secret", MetadataPath: t.TempDir(), TemplatePath: realLibrary(t)}, wsCtx: wsCtx, workspaceID: ws.ID}
 }
 
 func (s *assistantRouteSetup) postMessage(t *testing.T, client aiassist.Client, sessionID, message string) *httptest.ResponseRecorder {
@@ -728,4 +741,75 @@ func (s *assistantRouteSetup) sessionFromRedirect(t *testing.T, rec *httptest.Re
 		t.Fatalf("GetAISession(%s): %v", id, err)
 	}
 	return full
+}
+
+// sequenceAIClient answers each call with the next reply in order, and remembers every history it saw.
+type sequenceAIClient struct {
+	replies []aiassist.Reply
+	seen    [][]aiassist.Turn
+}
+
+func (c *sequenceAIClient) Generate(_ context.Context, _ string, turns []aiassist.Turn) (aiassist.Reply, error) {
+	c.seen = append(c.seen, turns)
+	r := c.replies[0]
+	if len(c.replies) > 1 {
+		c.replies = c.replies[1:]
+	}
+	return r, nil
+}
+
+// TestPostNewApplicationMessage_anInvalidChangeGetsOneCorrectionRound is the 2026-09-30 conversation:
+// the model twice said its change was ready while sending an extend_application with no additions,
+// no Review button appeared, and nobody told the model why. Now it is told once and answers again.
+func TestPostNewApplicationMessage_anInvalidChangeGetsOneCorrectionRound(t *testing.T) {
+	s := newAssistantRouteSetup(t, "Assistant Correction", "assistant-correction-workspace", "assistant_correction@example.com")
+	empty := &aiassist.GeneratedChange{Kind: aiassist.KindExtendApplication, TargetAppID: "app_nope"}
+
+	t.Run("corrected on the second answer", func(t *testing.T) {
+		client := &sequenceAIClient{replies: []aiassist.Reply{
+			{Message: "Ready.", Change: empty},
+			{Message: "Fixed.", Change: validGeneratedChange("Leave Requests")},
+		}}
+		rec := s.postMessage(t, client, "", "build it")
+		if rec.Code != http.StatusSeeOther {
+			t.Fatalf("post = %d; body=%s", rec.Code, firstChars(rec.Body.String()))
+		}
+		if len(client.seen) != 2 {
+			t.Fatalf("the model was called %d times, want 2", len(client.seen))
+		}
+		last := client.seen[1][len(client.seen[1])-1]
+		if last.Role != "user" || !strings.Contains(last.Text, "Automatic check") || !strings.Contains(last.Text, "not installed") {
+			t.Errorf("the model was not told what failed: %+v", last)
+		}
+		session := s.latestSession(t)
+		if session.Status != data.AISessionStatusGenerated {
+			t.Errorf("status = %q, want generated once the corrected change validates", session.Status)
+		}
+	})
+
+	t.Run("one round only", func(t *testing.T) {
+		client := &sequenceAIClient{replies: []aiassist.Reply{{Message: "Ready.", Change: empty}}}
+		if rec := s.postMessage(t, client, "", "build it"); rec.Code != http.StatusSeeOther {
+			t.Fatalf("post = %d", rec.Code)
+		}
+		if len(client.seen) != 2 {
+			t.Errorf("the model was called %d times, want exactly 2", len(client.seen))
+		}
+		if got := s.latestSession(t).Status; got == data.AISessionStatusGenerated {
+			t.Error("an invalid change reached generated")
+		}
+	})
+}
+
+func (s *assistantRouteSetup) latestSession(t *testing.T) *data.AISession {
+	t.Helper()
+	var id string
+	if err := s.pool.QueryRow(context.Background(), `SELECT id FROM ai_sessions WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 1`, s.workspaceID).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	session, err := s.store.GetAISession(s.wsCtx, s.workspaceID, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return session
 }

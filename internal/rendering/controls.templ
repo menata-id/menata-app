@@ -78,12 +78,23 @@ templ searchBox(path, q, placeholder string, hidden map[string]string) {
 	</form>
 }
 
+// computedDisplay is what a computed Field shows in place of an input. It is never an input: the
+// runtime derives it on save (data.ApplyComputed), so a name= would only invite a value it overwrites.
+func computedDisplay(current any) string {
+	if current == nil {
+		return "—"
+	}
+	return toString(current)
+}
+
 // fieldInput renders the input control appropriate to a Field's semantic type, pre-filled with
 // current (nil for a blank create-form field). relations supplies <select> options for any
 // reference field (Relation or Person, per domain.Field.IsReference); unused for every other
 // type.
 templ fieldInput(f domain.Field, current any, relations RelationOptions, groups GroupOptions) {
 	switch {
+		case f.Compute != nil:
+			<span class="text-sm text-slate-500" title="Calculated automatically when saved">{ computedDisplay(current) }</span>
 		case f.Type == domain.FieldTypeStatus:
 			<select name={ f.ID } class={ controlField + " w-full" }>
 				<option value=""></option>

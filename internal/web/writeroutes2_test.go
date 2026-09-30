@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -390,8 +392,10 @@ func TestSubmitCreateWorkspace_createsTheWorkspaceWithThisPersonAsAdmin(t *testi
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, s.cfg, s.userRecordID, 0)})
 
 	userMachine := realUserMachine(t)
+	cfg := s.cfg
+	cfg.MetadataPath, cfg.TemplatePath = t.TempDir(), realLibrary(t)
 	r := chi.NewRouter()
-	r.Post("/create-workspace", submitCreateWorkspace(userMachine, s.store, s.cfg))
+	r.Post("/create-workspace", submitCreateWorkspace(userMachine, s.store, cfg))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != http.StatusSeeOther && rec.Code != http.StatusFound {
@@ -416,6 +420,11 @@ func TestSubmitCreateWorkspace_createsTheWorkspaceWithThisPersonAsAdmin(t *testi
 	}
 	if !admin {
 		t.Error("the creator is not an admin of the Workspace they just created -- nobody can administer it")
+	}
+	// And its installation, without which the first publish or install into it has nowhere to go
+	// (2026-09-30).
+	if _, err := os.Stat(filepath.Join(cfg.MetadataPath, "created-by-test.yaml")); err != nil {
+		t.Errorf("the new Workspace has no manifest: %v", err)
 	}
 }
 

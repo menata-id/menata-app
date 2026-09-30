@@ -50,8 +50,10 @@ func Install(plan Plan, libraryDir, workspaceManifestPath string) (applicationID
 	}()
 
 	workspaceDir := filepath.Dir(workspaceManifestPath)
-	slug := strings.TrimSuffix(filepath.Base(workspaceManifestPath), filepath.Ext(workspaceManifestPath))
-	ownDir := filepath.Join(workspaceDir, slug)
+	ownDir, err := WorkspaceOwnDir(workspaceManifestPath)
+	if err != nil {
+		return "", err
+	}
 
 	var machineRelPaths []string
 	for _, tm := range plan.Template.Machines {

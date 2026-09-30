@@ -46,6 +46,7 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 			values[k] = v
 		}
 		data.ApplyDefaults(machine, values)
+		data.ApplyComputed(machine, values)
 
 		actor := currentActor(req, store, cfg)
 		if !allowsRecordCreate(w, machine, values, actor) {
@@ -193,6 +194,7 @@ func updateRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 		if !carryForwardFiles(w, req, store, machine, id, uploaded, values) {
 			return
 		}
+		data.ApplyComputed(machine, values)
 		if !allowsTransition(w, req, store, machine, id, values) {
 			return
 		}

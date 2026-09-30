@@ -49,6 +49,7 @@ func createRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 			return
 		}
 		data.ApplyDefaults(machine, values)
+		data.ApplyComputed(machine, values)
 
 		if !allowsRecordCreate(w, machine, values, currentActor(req, store, cfg)) {
 			return
@@ -102,6 +103,7 @@ func updateRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 		if !carryForwardFiles(w, req, store, machine, id, nil, values) {
 			return
 		}
+		data.ApplyComputed(machine, values)
 		if !allowsTransition(w, req, store, machine, id, values) {
 			return
 		}

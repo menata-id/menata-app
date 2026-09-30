@@ -87,6 +87,7 @@ func submitCreateWorkspace(userMachine *domain.Machine, store *data.Store, cfg c
 			serverError(w, err)
 			return
 		}
+		ensureNewWorkspaceManifest(cfg, ws.Slug)
 		user, err := store.CreateRecord(data.WithWorkspaceScope(ctx, ws.ID), domain.UserMachineID, values)
 		if err != nil {
 			serverError(w, err)

@@ -1,11 +1,13 @@
 package aiassist
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"menata.app/internal/installer"
 	"menata.app/internal/metadata"
 )
 
@@ -208,12 +210,6 @@ func TestWrite_newApplication_isLoadableByRealMetadataLoader(t *testing.T) {
 	}
 }
 
-func TestAppendFlowListItemNearAnchor_missingAnchor(t *testing.T) {
-	if _, err := appendFlowListItemNearAnchor([]byte("id: fld_other\noptions: [a, b]\n"), "id: fld_missing", "options:", "c"); err == nil {
-		t.Fatal("appendFlowListItemNearAnchor() = nil error, want one for a missing anchor")
-	}
-}
-
 // TestWrite_newApplication_refusesToOverwriteAnExistingMachineFile reproduces the 2026-09-27
 // incident exactly: a generated Machine whose id maps onto a file that already exists. The
 // generated filename comes from the id alone into one flat directory, so an id another Workspace's
@@ -246,6 +242,10 @@ func TestWrite_newApplication_refusesToOverwriteAnExistingMachineFile(t *testing
 	}
 	if !strings.Contains(err.Error(), "already exists") {
 		t.Errorf("Write() error = %v, want it to name the collision", err)
+	}
+	var rejected *installer.RejectedError
+	if !errors.As(err, &rejected) {
+		t.Errorf("a collision is not marked as a rejection, so the publish handler would not hand it back to the assistant: %v", err)
 	}
 
 	after, readErr := os.ReadFile(existingPath)
@@ -359,5 +359,67 @@ func TestWrite_rollsBackWhenGeneratedMetadataDoesNotLoad(t *testing.T) {
 	// restart reads a Workspace that works.
 	if _, err := metadata.LoadApplication(manifestPath); err != nil {
 		t.Errorf("the workspace no longer loads after a rolled-back write: %v", err)
+	}
+}
+
+// TestWrite_refusesAManifestNamingNoWorkspace is the 2026-09-30 incident: a Workspace with no manifest
+// resolved to an empty slug, and publishing aimed at metadata/workspaces/.yaml. That made the
+// Workspace's own directory the manifest directory itself, so the generated files were written into
+// the directory the loader scans as manifests before the missing manifest was noticed. It must refuse
+// before writing anything, and the refusal is the environment's, not the proposal's.
+func TestWrite_refusesAManifestNamingNoWorkspace(t *testing.T) {
+	workspacesDir := t.TempDir()
+	_, err := Write(filepath.Join(workspacesDir, ".yaml"), validLeaveRequestChange(), nil)
+	if err == nil {
+		t.Fatal("Write() into metadata/workspaces/.yaml succeeded")
+	}
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		t.Errorf("an unusable manifest path is marked as a rejection, so the assistant would be asked to fix it: %v", err)
+	}
+	entries, _ := os.ReadDir(workspacesDir)
+	if len(entries) != 0 {
+		t.Errorf("Write() left %d entries in the manifest directory", len(entries))
+	}
+}
+
+// TestWrite_newApplication_writesTheMenuAsGiven: the menu entries, their order and labels are the
+// person's answer, written through unchanged; only the first opens from Workspace Home.
+func TestWrite_newApplication_writesTheMenuAsGiven(t *testing.T) {
+	dir := t.TempDir()
+	workspacesDir := filepath.Join(dir, "workspaces")
+	if err := os.MkdirAll(workspacesDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "user.yaml"),
+		[]byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(workspacesDir, "cabang.yaml")
+	if err := os.WriteFile(manifestPath, []byte("workspace: cabang\nmachines:\n  - ../user.yaml\napplications: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	change := validLeaveRequestChange()
+	change.Application.Machines = append(change.Application.Machines, GeneratedMachine{
+		ID: "mch_leave_balance", Name: "Leave Balance",
+		Fields: []GeneratedField{{ID: "fld_days", Name: "Days", Type: "number", Required: true}},
+	})
+	change.Application.Navigation = []GeneratedMenuItem{
+		{Label: "Sisa Cuti", MachineID: "mch_leave_balance"},
+		{Label: "Pengajuan", MachineID: "mch_leave_request"},
+	}
+	if _, err := Write(manifestPath, change, nil); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	app, err := metadata.LoadApplication(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nav := app.Workspace.Applications[0].AllNavigation
+	if len(nav) != 2 || nav[0].Label != "Sisa Cuti" || nav[1].Label != "Pengajuan" {
+		t.Fatalf("navigation = %+v, want the two entries in the order given", nav)
+	}
+	if nav[0].Route != "/machines/mch_leave_balance" || !nav[0].HomeCard || nav[1].HomeCard {
+		t.Errorf("navigation = %+v, want the first entry to open from Home and only the first", nav)
 	}
 }

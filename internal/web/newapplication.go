@@ -3,10 +3,10 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +15,7 @@ import (
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/installer"
 	"menata.app/internal/rendering"
 )
 
@@ -127,7 +128,7 @@ func postNewApplicationMessage(store *data.Store, aiClient aiassist.Client, cfg 
 		}
 		session.Turns = append(session.Turns, data.AISessionTurn{Role: "user", Content: message})
 
-		if err := runAssistantTurn(ctx, store, aiClient, workspaceID, session); err != nil {
+		if err := runAssistantTurn(ctx, store, aiClient, cfg, workspaceID, session); err != nil {
 			serverError(w, err)
 			return
 		}
@@ -140,37 +141,73 @@ func postNewApplicationMessage(store *data.Store, aiClient aiassist.Client, cfg 
 // this workspace's own capability-tiered system prompt and the session's full history so far,
 // stores the raw structured reply as the next turn (buildConversationView/latestChange decode it
 // back), records a capability gap if the reply names one, and marks the session "generated" only
-// once its own proposed change passes aiassist.Validate -- a change that fails is left as an
-// ordinary conversational turn, never surfaced to the review step.
-func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.Client, workspaceID string, session *data.AISession) error {
-	ws := rendering.CurrentWorkspace(ctx)
+// once its own proposed change passes aiassist.Validate.
+//
+// The Workspace is read from disk (workspaceInstallation), not from ctx, for the reason publish
+// does: a Workspace created since the last reload is the zero Workspace on ctx, and the model would
+// be told nothing is installed.
+//
+// A proposed change that does not validate gets one automatic correction round: the issues go back
+// to the model as a turn and it answers once more. Without it the model's "your change is ready"
+// stood in the conversation beside no Review button, and nobody told it why (2026-09-30: an
+// extend_application with no additions, twice). One round, not a loop -- a model that cannot fix it
+// once is talking to a person who can see its message and answer.
+func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.Client, cfg config.Config, workspaceID string, session *data.AISession) error {
+	_, ws, err := workspaceInstallation(ctx, store, cfg)
+	if err != nil {
+		return err
+	}
 	prompt := aiassist.SystemPromptFor(installedApplicationsFor(ws), ws.MachineIDs)
+	existing := existingStateFor(ws)
+	for attempt := 0; attempt < 2; attempt++ {
+		reply, err := generateReply(ctx, aiClient, prompt, session)
+		if err != nil {
+			return err
+		}
+		if err := storeModelTurn(ctx, store, workspaceID, session, reply); err != nil {
+			return err
+		}
+		if reply.Change == nil {
+			return nil
+		}
+		problem := aiassist.Validate(*reply.Change, existing)
+		if problem == nil {
+			return store.UpdateAISessionStatus(ctx, workspaceID, session.ID, data.AISessionStatusGenerated)
+		}
+		if attempt == 1 {
+			return nil
+		}
+		report := "Automatic check: the change in your last reply does not validate, so it cannot be reviewed yet:\n\n" +
+			problem.Error() + "\n\nCorrect it, or ask me what you need to know."
+		if err := store.AppendAISessionTurn(ctx, session.ID, "user", report); err != nil {
+			return err
+		}
+		session.Turns = append(session.Turns, data.AISessionTurn{Role: "user", Content: report})
+	}
+	return nil
+}
+
+// generateReply calls the model with the session's history. A failure the browser did not cause --
+// most commonly aiassist.GeminiClient's own 60s timeout, observed live on schema-constrained calls --
+// becomes an ordinary assistant turn asking to retry, rather than a plain-text error page landing
+// on someone still watching the form they submitted.
+func generateReply(ctx context.Context, aiClient aiassist.Client, prompt string, session *data.AISession) (aiassist.Reply, error) {
 	turns := make([]aiassist.Turn, 0, len(session.Turns))
 	for _, t := range session.Turns {
 		turns = append(turns, aiassist.Turn{Role: t.Role, Text: t.Content})
 	}
-
 	reply, err := aiClient.Generate(ctx, prompt, turns)
 	if err != nil {
 		if ctx.Err() != nil {
-			// The browser's own request genuinely went away (it navigated off, or its own
-			// connection dropped) -- nothing left to show it, same reasoning as serverError's own
-			// doc comment for that case.
-			return err
+			return aiassist.Reply{}, err
 		}
-		// Any other failure -- most commonly aiassist.GeminiClient's own 60s HTTPClient.Timeout
-		// firing (2026-09-27, observed live: a schema-constrained call can legitimately take close
-		// to a minute) -- is the assistant's own turn failing, not this request's. The browser is
-		// still here: this screen is a plain form POST (this package's own doc comment on why),
-		// which blocks the tab until a response arrives, so ctx.Err() == nil at this point *means*
-		// someone is still watching. serverError's generic "request cancelled" plain-text page
-		// would otherwise land on them mid-wait -- indistinguishable from the server having
-		// crashed -- for a failure that is really just "ask again." Shown as an ordinary assistant
-		// turn instead, the same shape every successful reply already is, so the person can retry
-		// from the conversation they're already looking at.
 		log.Printf("assistant turn failed, showing a retry message instead of an error page: %v", err)
 		reply = aiassist.Reply{Message: "Menata didn't get a response in time. Please try sending your message again."}
 	}
+	return reply, nil
+}
+
+func storeModelTurn(ctx context.Context, store *data.Store, workspaceID string, session *data.AISession, reply aiassist.Reply) error {
 	raw, err := json.Marshal(reply)
 	if err != nil {
 		return err
@@ -178,16 +215,9 @@ func runAssistantTurn(ctx context.Context, store *data.Store, aiClient aiassist.
 	if err := store.AppendAISessionTurn(ctx, session.ID, "model", string(raw)); err != nil {
 		return err
 	}
-
+	session.Turns = append(session.Turns, data.AISessionTurn{Role: "model", Content: string(raw)})
 	if reply.CapabilityGap != nil {
-		if err := store.RecordAICapabilityGap(ctx, session.ID, workspaceID, reply.CapabilityGap.Requested, reply.CapabilityGap.Note); err != nil {
-			return err
-		}
-	}
-	if reply.Change != nil && aiassist.Validate(*reply.Change, existingStateFor(ws)) == nil {
-		if err := store.UpdateAISessionStatus(ctx, workspaceID, session.ID, data.AISessionStatusGenerated); err != nil {
-			return err
-		}
+		return store.RecordAICapabilityGap(ctx, session.ID, workspaceID, reply.CapabilityGap.Requested, reply.CapabilityGap.Note)
 	}
 	return nil
 }
@@ -258,18 +288,19 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			http.Error(w, "this conversation has no proposed change ready to publish", http.StatusUnprocessableEntity)
 			return
 		}
-		ws := rendering.CurrentWorkspace(ctx)
+		manifestPath, ws, err := workspaceInstallation(ctx, store, cfg)
+		if err != nil {
+			publishEnvironmentError(w, err)
+			return
+		}
 		if err := aiassist.Validate(*change, existingStateFor(ws)); err != nil {
-			returnToConversation(ctx, w, req, store, aiClient, session, err)
+			returnToConversation(ctx, w, req, store, aiClient, cfg, session, err)
 			return
 		}
 
-		manifestPath := filepath.Join(cfg.MetadataPath, ws.Slug+".yaml")
 		newAppID, err := aiassist.Write(manifestPath, *change, aiassist.FileMachineResolver{WorkspaceManifestPath: manifestPath})
 		if err != nil {
-			// aiassist.Write rolled its own writes back before returning, so the tree is untouched
-			// and this is safe to hand back to the assistant as an ordinary problem to fix.
-			returnToConversation(ctx, w, req, store, aiClient, session, err)
+			failPublish(ctx, w, req, store, aiClient, cfg, session, err)
 			return
 		}
 		if reload == nil {
@@ -308,6 +339,32 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 	}
 }
 
+// failPublish routes a failed aiassist.Write by whose problem it is. A rejection goes back to the
+// assistant to correct -- Write rolled its own writes back, so the tree is untouched. Anything else
+// is the environment, which no corrected proposal can fix.
+func failPublish(ctx context.Context, w http.ResponseWriter, req *http.Request, store *data.Store, aiClient aiassist.Client, cfg config.Config, session *data.AISession, err error) {
+	var rejected *installer.RejectedError
+	if errors.As(err, &rejected) {
+		returnToConversation(ctx, w, req, store, aiClient, cfg, session, err)
+		return
+	}
+	publishEnvironmentError(w, err)
+}
+
+// publishEnvironmentError is a publish that failed for a reason no change to the proposal can fix: a
+// manifest that cannot be read or written, a disk write that failed. It is shown to the person and
+// leaves the conversation alone -- no turn is added and the session keeps its status, so Publish can
+// simply be pressed again once the cause is gone.
+//
+// Handing these to returnToConversation is what it did until 2026-09-30, when a missing manifest
+// reached the model as a mistake to correct and the model answered "please try again", which could
+// never succeed.
+func publishEnvironmentError(w http.ResponseWriter, err error) {
+	log.Printf("publish failed on the server, not on the proposal: %v", err)
+	http.Error(w, "Publishing failed on the server, not because of the proposed application: "+err.Error()+
+		"\n\nYour proposal is kept. Go back and press Publish again once this is fixed.", http.StatusInternalServerError)
+}
+
 // returnToConversation is what a failed publish does instead of a raw error page: it hands the
 // problem back to the conversation the proposal came from, as a turn the assistant can read, and
 // lets it answer with a corrected change.
@@ -324,7 +381,7 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 // The session drops back to "open": the proposal that just failed is no longer offerable, and
 // runAssistantTurn will mark it "generated" again if the assistant's next reply carries a change
 // that actually validates.
-func returnToConversation(ctx context.Context, w http.ResponseWriter, req *http.Request, store *data.Store, aiClient aiassist.Client, session *data.AISession, problem error) {
+func returnToConversation(ctx context.Context, w http.ResponseWriter, req *http.Request, store *data.Store, aiClient aiassist.Client, cfg config.Config, session *data.AISession, problem error) {
 	// Phrased as the person reporting it, because that is the role the model's own history format
 	// has for "here is what happened when we tried": a model turn would claim the assistant said
 	// it, and the schema has no third voice.
@@ -340,7 +397,7 @@ func returnToConversation(ctx context.Context, w http.ResponseWriter, req *http.
 		serverError(w, err)
 		return
 	}
-	if err := runAssistantTurn(ctx, store, aiClient, workspaceID, session); err != nil {
+	if err := runAssistantTurn(ctx, store, aiClient, cfg, workspaceID, session); err != nil {
 		serverError(w, err)
 		return
 	}
@@ -376,19 +433,38 @@ func discardNewApplication(store *data.Store) http.HandlerFunc {
 
 // --- shared helpers ------------------------------------------------------------------------------
 
+// installedApplicationsFor is what the model is told about each installed Application: every
+// Machine with its Fields (so a new relation or computed field can name real ids), and the menu in
+// order with each item's id (so a relabel or reorder can name one). It used to pass bare Machine ids
+// and no menu, which left the model unable to relate to an existing Machine's data or to name a menu
+// item -- and it told the person both were impossible.
 func installedApplicationsFor(ws domain.Workspace) []aiassist.InstalledApplication {
+	byID := make(map[string]*domain.Machine, len(ws.Machines))
+	for _, m := range ws.Machines {
+		byID[m.ID] = m
+	}
 	out := make([]aiassist.InstalledApplication, 0, len(ws.Applications))
 	for _, app := range ws.Applications {
 		var machineSummaries []string
 		for _, mID := range app.Machines {
-			// Field names are not available here without the full Machine map; the id alone still
-			// grounds the assistant in what exists, which is what matters for an extend_application
-			// request naming a machine to add an option to.
-			machineSummaries = append(machineSummaries, mID)
+			m, ok := byID[mID]
+			if !ok {
+				machineSummaries = append(machineSummaries, mID)
+				continue
+			}
+			fields := make([]string, 0, len(m.Fields))
+			for _, f := range m.Fields {
+				fields = append(fields, fmt.Sprintf("%s %s: %s", f.ID, f.Name, f.Type))
+			}
+			machineSummaries = append(machineSummaries, fmt.Sprintf("%s %s (%s)", m.ID, m.Name, strings.Join(fields, ", ")))
+		}
+		navItems := make([]string, 0, len(app.AllNavigation))
+		for _, n := range app.AllNavigation {
+			navItems = append(navItems, fmt.Sprintf("%s: %s -> %s", n.ID, n.Label, n.Route))
 		}
 		out = append(out, aiassist.InstalledApplication{
 			ID: app.ID, Name: app.Name, Description: app.Description,
-			Roles: app.Roles, MachineSummaries: machineSummaries,
+			Roles: app.Roles, MachineSummaries: machineSummaries, NavItems: navItems,
 		})
 	}
 	return out
@@ -415,6 +491,10 @@ func existingStateFor(ws domain.Workspace) aiassist.ExistingState {
 		MachineIDs:     map[string]bool{},
 		ApplicationIDs: map[string]bool{},
 		Applications:   map[string]aiassist.ExistingApplicationState{},
+		NavIDs:         map[string]bool{},
+	}
+	for _, n := range ws.Navigation {
+		state.NavIDs[n.ID] = true
 	}
 	for _, id := range ws.MachineIDs {
 		state.MachineIDs[id] = true
@@ -438,7 +518,12 @@ func existingStateFor(ws domain.Workspace) aiassist.ExistingState {
 				claimed[mID] = m
 			}
 		}
-		state.Applications[app.ID] = aiassist.ExistingApplicationState{Roles: app.Roles, Machines: claimed}
+		nav := make([]aiassist.ExistingNavItem, 0, len(app.AllNavigation))
+		for _, n := range app.AllNavigation {
+			nav = append(nav, aiassist.ExistingNavItem{ID: n.ID, Label: n.Label})
+			state.NavIDs[n.ID] = true
+		}
+		state.Applications[app.ID] = aiassist.ExistingApplicationState{Name: app.Name, Roles: app.Roles, Machines: claimed, Navigation: nav}
 	}
 	return state
 }

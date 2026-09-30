@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -56,14 +55,14 @@ func Write(workspaceManifestPath string, change GeneratedChange, resolve Machine
 	case KindExtendApplication:
 		err = writeExtension(written, workspaceManifestPath, change, resolve)
 	default:
-		err = fmt.Errorf("unknown change kind %q", change.Kind)
+		err = installer.Rejected(fmt.Errorf("unknown change kind %q", change.Kind))
 	}
 	if err != nil {
 		return "", err
 	}
 
 	if _, err = metadata.LoadApplication(workspaceManifestPath); err != nil {
-		return "", fmt.Errorf("generated metadata was written but does not load, so it has been rolled back: %w", err)
+		return "", installer.Rejected(fmt.Errorf("generated metadata was written but does not load, so it has been rolled back: %w", err))
 	}
 	return newAppID, nil
 }
@@ -133,12 +132,18 @@ type machineDoc struct {
 }
 
 type fieldDoc struct {
-	ID       string   `yaml:"id"`
-	Name     string   `yaml:"name"`
-	Type     string   `yaml:"type"`
-	Required bool     `yaml:"required,omitempty"`
-	Options  []string `yaml:"options,omitempty"`
-	Machine  string   `yaml:"machine,omitempty"`
+	ID       string      `yaml:"id"`
+	Name     string      `yaml:"name"`
+	Type     string      `yaml:"type"`
+	Required bool        `yaml:"required,omitempty"`
+	Options  []string    `yaml:"options,omitempty"`
+	Machine  string      `yaml:"machine,omitempty"`
+	Compute  *computeDoc `yaml:"compute,omitempty"`
+}
+
+type computeDoc struct {
+	Op     string   `yaml:"op"`
+	Fields []string `yaml:"fields,flow"`
 }
 
 type permissionDoc struct {
@@ -193,34 +198,19 @@ func writeNewApplication(written *installer.WriteSet, workspaceManifestPath stri
 	workspaceDir := filepath.Dir(workspaceManifestPath)
 	// This Workspace's own namespace: metadata/workspaces/<slug>/, named from its manifest rather
 	// than passed in, so the two can never disagree about which Workspace is being written to.
-	ownDir := filepath.Join(workspaceDir, strings.TrimSuffix(filepath.Base(workspaceManifestPath), filepath.Ext(workspaceManifestPath)))
+	ownDir, err := installer.WorkspaceOwnDir(workspaceManifestPath)
+	if err != nil {
+		return "", err
+	}
 
 	var machineRelPaths []string
 	for _, m := range app.Machines {
-		doc := machineDoc{ID: m.ID, Name: m.Name}
-		for _, f := range m.Fields {
-			doc.Fields = append(doc.Fields, fieldDoc{
-				ID: f.ID, Name: f.Name, Type: f.Type, Required: f.Required,
-				Options: f.Options, Machine: f.RelatedMachine,
-			})
-		}
-		for _, p := range m.Permissions {
-			doc.Permissions = append(doc.Permissions, permissionDoc{ID: p.ID, Action: p.Action, Roles: p.Roles})
-		}
-		for _, t := range m.Transitions {
-			doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit"})
-		}
-		for _, e := range m.Events {
-			var ed eventDoc
-			ed.ID, ed.On, ed.WhenEquals, ed.OnCreate = e.ID, e.On, e.WhenEquals, e.OnCreate
-			ed.Then.Service, ed.Then.Summary = "log_activity", e.Summary
-			doc.Events = append(doc.Events, ed)
-		}
+		doc := machineDocFor(m)
 
 		filename := m.ID[len("mch_"):] + ".yaml"
 		absPath := filepath.Join(ownDir, filename)
 		if err := installer.RefuseIfExists(absPath, "machine "+m.ID); err != nil {
-			return "", err
+			return "", installer.Rejected(err)
 		}
 		if err := written.Note(absPath); err != nil {
 			return "", err
@@ -242,21 +232,23 @@ func writeNewApplication(written *installer.WriteSet, workspaceManifestPath stri
 	for _, m := range app.Machines {
 		appDoc.Machines = append(appDoc.Machines, m.ID)
 	}
-	// A generated Application otherwise declares no navigation: at all, and domain.Workspace.
-	// HomeRoute (see its own doc comment) is resolved from a home_card: true item or is empty --
-	// so its Workspace Home card had no destination and linked back to /home, found 2026-09-27
-	// alongside the missing publisher_role in the same conversation. One item, pointing at the
-	// first Machine's own generic list page (/machines/{id}, the one route this package can always
-	// name regardless of what the Application declares -- the same reasoning GeneratedNavItem's own
-	// doc comment already gives for extend_application), is enough to make the card go somewhere.
-	appDoc.Navigation = []navItemDoc{{
-		ID: "nav_" + app.ID[len("app_"):], Label: app.Name,
-		Route: "/machines/" + app.Machines[0].ID, HomeCard: true,
-	}}
+	// The menu is the person's answer (GeneratedApplication.Navigation), written as it was given.
+	// The first entry carries home_card: true, which is what domain.Workspace.HomeRoute resolves
+	// from; without one the Workspace Home card linked back to /home (2026-09-27). Ids are not the
+	// person's concern: the first keeps the id a generated Application has always had, the rest are
+	// qualified by the Application's own id, which is unique in the Workspace.
+	appName := app.ID[len("app_"):]
+	for i, item := range app.Navigation {
+		nav := navItemDoc{ID: "nav_" + appName, Label: item.Label, Route: "/machines/" + item.MachineID, HomeCard: i == 0}
+		if i > 0 {
+			nav.ID = "nav_" + appName + "_" + strings.TrimPrefix(item.MachineID, "mch_")
+		}
+		appDoc.Navigation = append(appDoc.Navigation, nav)
+	}
 	appFilename := app.ID[len("app_"):] + ".yaml"
 	appAbsPath := filepath.Join(ownDir, "applications", appFilename)
 	if err := installer.RefuseIfExists(appAbsPath, "application "+app.ID); err != nil {
-		return "", err
+		return "", installer.Rejected(err)
 	}
 	if err := written.Note(appAbsPath); err != nil {
 		return "", err
@@ -295,58 +287,6 @@ func writeNewApplication(written *installer.WriteSet, workspaceManifestPath stri
 
 // --- extend_application ------------------------------------------------------------------------
 
-func writeExtension(written *installer.WriteSet, workspaceManifestPath string, change GeneratedChange, resolve MachineFileResolver) error {
-	workspaceDir := filepath.Dir(workspaceManifestPath)
-
-	for _, add := range change.Additions {
-		switch {
-		case add.NewOption != "":
-			rel, ok := resolve.MachineFile(add.MachineID)
-			if ok != nil {
-				return fmt.Errorf("resolve file for machine %s: %w", add.MachineID, ok)
-			}
-			path := filepath.Join(workspaceDir, rel)
-			src, err := os.ReadFile(path)
-			if err != nil {
-				return fmt.Errorf("read machine file %s: %w", path, err)
-			}
-			updated, err := appendFlowListItemNearAnchor(src, "id: "+add.FieldID, "options:", add.NewOption)
-			if err != nil {
-				return fmt.Errorf("append option to %s: %w", path, err)
-			}
-			if err := written.Note(path); err != nil {
-				return err
-			}
-			if err := installer.WriteFileStrict[installer.FullMachineCheckDoc](path, updated); err != nil {
-				return err
-			}
-		case add.NewRole != "":
-			rel, err := resolveApplicationFile(workspaceManifestPath, change.TargetAppID)
-			if err != nil {
-				return err
-			}
-			path := filepath.Join(workspaceDir, rel)
-			src, err := os.ReadFile(path)
-			if err != nil {
-				return fmt.Errorf("read application file %s: %w", path, err)
-			}
-			updated, err := installer.AppendBlockListItem(src, "roles:", add.NewRole)
-			if err != nil {
-				return fmt.Errorf("append role to %s: %w", path, err)
-			}
-			if err := written.Note(path); err != nil {
-				return err
-			}
-			if err := installer.WriteFileStrict[installer.FullApplicationCheckDoc](path, updated); err != nil {
-				return err
-			}
-		case add.NewNavItem != nil:
-			return fmt.Errorf("generated navigation additions are not implemented yet -- named here rather than silently accepted")
-		}
-	}
-	return nil
-}
-
 // resolveApplicationFile finds the target Application's own file path by reading the workspace
 // manifest's applications: list and peeking each file's own id: -- the same technique
 // MachineFileResolver uses for Machines, needed here too since domain.Application carries no
@@ -381,31 +321,35 @@ func resolveApplicationFile(workspaceManifestPath, targetAppID string) (string, 
 	return "", fmt.Errorf("no application file in %s declares id %q", workspaceManifestPath, targetAppID)
 }
 
-// --- surgical YAML text edits -------------------------------------------------------------------
-
-// appendFlowListItemNearAnchor finds anchor (e.g. "id: fld_status") to scope the search, then the
-// next "key: [...]" line after it (e.g. "options: [...]"), and inserts newItem before the closing
-// bracket. Scoped to the anchor rather than the first match in the whole file, since a Machine
-// file can declare the same key (options:) on more than one Field.
-func appendFlowListItemNearAnchor(src []byte, anchor, key, newItem string) ([]byte, error) {
-	text := string(src)
-	anchorIdx := strings.Index(text, anchor)
-	if anchorIdx == -1 {
-		return nil, fmt.Errorf("anchor %q not found", anchor)
-	}
-	rest := text[anchorIdx:]
-
-	flowPattern := regexp.MustCompile(`(?m)^(\s*` + regexp.QuoteMeta(key) + `\s*\[)([^\]]*)(\])`)
-	loc := flowPattern.FindStringSubmatchIndex(rest)
-	if loc == nil {
-		return nil, fmt.Errorf("no flow-style %q list found after %q -- refusing rather than guessing a shape", key, anchor)
-	}
-	existingItems := rest[loc[4]:loc[5]]
-	replacement := rest[loc[2]:loc[3]] + strings.TrimRight(existingItems, " ") + ", " + newItem + rest[loc[6]:loc[7]]
-	newRest := rest[:loc[0]] + replacement + rest[loc[1]:]
-	return []byte(text[:anchorIdx] + newRest), nil
-}
-
 func toSlash(p string) string {
 	return filepath.ToSlash(p)
+}
+
+// machineDocFor is the file a generated Machine is written as, whether it arrives with a new
+// Application or is added to an installed one.
+func machineDocFor(m GeneratedMachine) machineDoc {
+	doc := machineDoc{ID: m.ID, Name: m.Name}
+	for _, f := range m.Fields {
+		fd := fieldDoc{
+			ID: f.ID, Name: f.Name, Type: f.Type, Required: f.Required,
+			Options: f.Options, Machine: f.RelatedMachine,
+		}
+		if f.Compute != nil {
+			fd.Compute = &computeDoc{Op: f.Compute.Op, Fields: f.Compute.Fields}
+		}
+		doc.Fields = append(doc.Fields, fd)
+	}
+	for _, p := range m.Permissions {
+		doc.Permissions = append(doc.Permissions, permissionDoc{ID: p.ID, Action: p.Action, Roles: p.Roles})
+	}
+	for _, t := range m.Transitions {
+		doc.Transitions = append(doc.Transitions, transitionDoc{ID: t.ID, Name: t.Name, Field: t.Field, From: t.From, To: t.To, Action: "edit"})
+	}
+	for _, e := range m.Events {
+		var ed eventDoc
+		ed.ID, ed.On, ed.WhenEquals, ed.OnCreate = e.ID, e.On, e.WhenEquals, e.OnCreate
+		ed.Then.Service, ed.Then.Summary = "log_activity", e.Summary
+		doc.Events = append(doc.Events, ed)
+	}
+	return doc
 }

@@ -220,6 +220,13 @@ type fieldDoc struct {
 	// the same convention constraintDoc's own Condition.Value already uses. Empty means no
 	// default was declared; there is no way to declare an empty-string default deliberately.
 	Default string `yaml:"default"`
+	// Compute declares a computed Field -- see domain.FieldCompute.
+	Compute *computeDoc `yaml:"compute"`
+}
+
+type computeDoc struct {
+	Op     string   `yaml:"op"`
+	Fields []string `yaml:"fields"`
 }
 
 type constraintDoc struct {
@@ -329,6 +336,10 @@ func Parse(data []byte) (*domain.Machine, error) {
 				return nil, fmt.Errorf("field %s: default %q: %w", fd.ID, fd.Default, err)
 			}
 		}
+		var compute *domain.FieldCompute
+		if fd.Compute != nil {
+			compute = &domain.FieldCompute{Op: domain.ComputeOp(fd.Compute.Op), Fields: fd.Compute.Fields}
+		}
 		m.Fields = append(m.Fields, domain.Field{
 			ID:             fd.ID,
 			Name:           fd.Name,
@@ -337,6 +348,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			Options:        fd.Options,
 			RelatedMachine: relatedMachine,
 			Default:        def,
+			Compute:        compute,
 		})
 	}
 	for _, cd := range doc.Constraints {

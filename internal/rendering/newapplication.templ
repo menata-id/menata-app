@@ -1,6 +1,10 @@
 package rendering
 
-import "menata.app/internal/aiassist"
+import (
+	"strings"
+
+	"menata.app/internal/aiassist"
+)
 
 // ConversationView is one render of the AI Metadata Assistant's own conversation screen
 // (NewApp.dc.html/M03c-NewApp.dc.html, Flow 2 gap study Tahap 8) -- built by internal/web from a
@@ -150,6 +154,16 @@ templ changeSummary(change aiassist.GeneratedChange) {
 					}
 				</div>
 			</div>
+			if len(app.Navigation) > 0 {
+				<div class="flex flex-col gap-1">
+					<span class="text-3xs text-slate-400 uppercase">Menu</span>
+					<ol class="m-0 flex flex-col gap-0.5 pl-4 text-slate-700">
+						for _, item := range app.Navigation {
+							<li>{ item.Label }</li>
+						}
+					</ol>
+				</div>
+			}
 			if len(app.Roles) > 0 {
 				<div class="flex flex-col gap-1">
 					<span class="text-3xs text-slate-400 uppercase">Roles</span>
@@ -183,7 +197,19 @@ func additionSummary(add aiassist.MetadataAddition) string {
 	case add.NewRole != "":
 		return "Add \"" + add.NewRole + "\" as a new role"
 	case add.NewNavItem != nil:
-		return "Add a \"" + add.NewNavItem.Label + "\" menu item"
+		return "Add a \"" + add.NewNavItem.Label + "\" menu item, opening " + add.NewNavItem.MachineID
+	case add.NewMachine != nil:
+		names := make([]string, 0, len(add.NewMachine.Fields))
+		for _, f := range add.NewMachine.Fields {
+			names = append(names, f.Name)
+		}
+		return "Add \"" + add.NewMachine.Name + "\" (" + strings.Join(names, ", ") + ")"
+	case add.RenameApplication != "":
+		return "Rename the application to \"" + add.RenameApplication + "\""
+	case add.RelabelNavItem != nil:
+		return "Change menu item " + add.RelabelNavItem.NavID + " to \"" + add.RelabelNavItem.Label + "\""
+	case len(add.ReorderNavigation) > 0:
+		return "Reorder the menu: " + strings.Join(add.ReorderNavigation, ", ")
 	default:
 		return "(unrecognized addition)"
 	}

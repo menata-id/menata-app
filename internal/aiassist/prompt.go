@@ -40,12 +40,19 @@ import (
 func composableSurface() string {
 	return `What you may generate (all fully composable today, no code needed):
 - Machines with Fields: ` + fieldTypeSentence() + `.
+- A relation field may point at any machine already installed in this workspace, including one another
+  application owns -- machines belong to the workspace, so two applications can share data this way.
+- A computed number field ("compute": {"op": ..., "fields": [...]}): its value is calculated from other
+  number fields of the same machine every time a record is saved, and it is never an input. Operations:
+  ` + strings.Join(computeOpEnum(), ", ") + `. Use it for totals rather than asking people to type one.
 - Role-based Permissions on the create/edit/delete actions of a machine.
 - Transitions: a status field moving from one declared option to another, always performed through
   the ordinary edit form (never a dedicated approve/reject button).
 - Events: log an activity-feed entry when a record is created, or when a field reaches one value.
-- On an application that already exists: a new option on one of its status fields, or a new role
-  in its own role vocabulary (both purely additive -- never remove or rename anything that exists).
+- On an application that already exists (kind "extend_application", one entry in "additions" per
+  change): a new option on one of its status fields; a new role; a whole new machine; a new menu item
+  opening one of its machines; a new display name for the application; a new label for one of its
+  menu items; a new order for its menu. Its id and its menu items' ids never change.
 
 What you may NEVER generate, because it would need new Go code to work, not metadata:
 - A dedicated Approve/Reject workflow with sequencing, signatures, or PDF compositing. That engine is
@@ -66,7 +73,8 @@ What you may NEVER generate, because it would need new Go code to work, not meta
   approval engine above: its screens are Go routes your metadata cannot add.
 - Conditional-required fields, or anything needing a new field type, action, or service beyond the ones
   named above.
-- Removing, renaming, or retargeting anything that already exists in an installed application.
+- Removing anything from an installed application, or changing an existing machine's fields,
+  permissions or transitions -- those already hold records and behaviour.
 
 If a request needs something from the second list, say so plainly in your reply's own message, and
 set capability_gap -- do not approximate it with something from the first list and call it the
@@ -102,8 +110,8 @@ any code.
 	} else {
 		b.WriteString("Applications already installed in this workspace (extend_application may target one of these):\n")
 		for _, app := range installed {
-			b.WriteString(fmt.Sprintf("- %s (id: %s): %s. Roles: %s. Machines: %s.\n",
-				app.Name, app.ID, app.Description, strings.Join(app.Roles, ", "), strings.Join(app.MachineSummaries, "; ")))
+			b.WriteString(fmt.Sprintf("- %s (id: %s): %s. Roles: %s. Machines: %s. Menu, in order: %s.\n",
+				app.Name, app.ID, app.Description, strings.Join(app.Roles, ", "), strings.Join(app.MachineSummaries, "; "), strings.Join(app.NavItems, "; ")))
 		}
 		b.WriteString("\n")
 	}
@@ -145,7 +153,17 @@ any code.
    themselves once it is published -- then set that answer as "publisher_role". Never guess or pick
    one on their behalf, even if one role looks like the obvious "admin" of the two. Nobody holds any
    role in a brand-new application the moment it exists, including its own creator, so without this
-   answer publishing would lock them out of what they just built.`)
+   answer publishing would lock them out of what they just built.
+6. For a brand-new application, always ask, in plain language, which of its machines the person
+   wants in the application's menu, in what order, and what each menu entry should say -- then set
+   that answer as "navigation". List every machine you are proposing when you ask, so they can see
+   what would be left out. Never decide the menu on their behalf, and never assume every machine
+   belongs in it. The first entry is where the application opens from Workspace Home.
+7. When you add a machine to an application that already exists, ask the same question for it:
+   should it get a menu item, and what should it say? Add the item only if they say so.
+8. A reply that says a change is ready must carry that whole change in "change" -- every addition you
+   describe, as its own entry. Never say you have prepared something the "change" does not contain.
+   Before saying something cannot be done, check the lists above; when it is on the first list, do it.`)
 	return b.String()
 }
 
@@ -157,5 +175,6 @@ type InstalledApplication struct {
 	Name             string
 	Description      string
 	Roles            []string
-	MachineSummaries []string // e.g. "Document (title, status, due date)"
+	MachineSummaries []string // e.g. "mch_cabang Cabang (fld_nama_cabang Nama Cabang: text)"
+	NavItems         []string // e.g. "nav_cabang: Cabang -> mch_cabang"
 }
