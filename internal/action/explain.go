@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/registry"
 )
 
 // ExplainCast explains every derivation this engine makes over one Workspace's cast, as
@@ -20,7 +21,7 @@ import (
 // broken ones look ordinary. A reader has to be able to see "this role does not answer that" as a
 // stated answer rather than infer it from an absence.
 func ExplainCast(ws domain.Workspace, engine, applicationID string) []domain.Resolution {
-	spec, known := domain.KnownWorkflowEngines[engine]
+	spec, known := registry.KnownWorkflowEngines[engine]
 	if !known {
 		return nil
 	}
@@ -64,7 +65,7 @@ var allDerivations = []string{
 //     404 nobody could distinguish from a Document that genuinely has no steps.
 //  3. Otherwise read it. Empty now means the Machine declares nothing for something its role owes --
 //     Stage E1's shape, and a real defect.
-func explainOne(spec domain.WorkflowEngineSpec, role, derivation string, m, doc *domain.Machine) domain.Resolution {
+func explainOne(spec registry.WorkflowEngineSpec, role, derivation string, m, doc *domain.Machine) domain.Resolution {
 	r := domain.Resolution{Name: role + "." + derivation, From: sourceOf(derivation)}
 
 	owes, optional := spec.Owes(role, derivation)

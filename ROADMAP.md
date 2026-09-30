@@ -161,11 +161,11 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | Data shape -- Machines, Fields, relations | **metadata** | `fields:` across `document`/`approval_step`/`signature.yaml` |
   | Access -- who may do what | **metadata** | `permissions:` + `actor_field:`, an Application's own `roles:` |
   | State model -- which moves exist, and their gating | **metadata** | `transitions:`, `sequencing:` |
-  | Reactions -- rollup, notification, activity log | **metadata** | `events:` → `service:`, from `domain.KnownServices` |
+  | Reactions -- rollup, notification, activity log | **metadata** | `events:` → `service:`, from `registry.Services` |
   | Aggregation and list presentation | **metadata** | `datasets:`, `views:`, `card_fields:`, `sla_field:` |
   | Bespoke screens | Go | `approvalinbox`/`documentsubmit`/`reviewdocument`/`signatureplacement.templ` |
   | Action *effect* -- which Fields `decide` writes | Go | `internal/web.decideStep` |
-  | Domain service -- signature capture, PDF compositing | Go | `internal/web.signDocument`, absent from `KnownServices` |
+  | Domain service -- signature capture, PDF compositing | Go | `internal/web.signDocument`, absent from `registry.Services` |
   | Binding -- how the Go engine finds "its" Machines | Go | `action.IsDocument`/`IsStep`, matching a literal Application id |
 
   Five layers are fully declarative and four are not, so the honest statement is **"composable,
@@ -180,7 +180,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   the four remaining layers, not evidence against the other five.
 
   **Each remaining layer already has the mechanism waiting for it**, which is why this is
-  deepening rather than a rewrite: `KnownServices` is a closed registry with three members and
+  deepening rather than a rewrite: `registry.Services` is a closed registry with three members and
   needs a fourth for signatures/PDF; `KnownActions` already carries `decide` as a *name* that
   Permissions gate and Transitions reference, and what is missing is a way to declare an Action's
   *effect* (`decideStep` writes exactly two Fields -- `fld_decision` from the submitted value,

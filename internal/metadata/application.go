@@ -11,6 +11,7 @@ import (
 
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
+	"menata.app/internal/registry"
 )
 
 var (
@@ -99,7 +100,7 @@ type workflowDoc struct {
 	Engine string `yaml:"engine"`
 	// Roles maps a role name the engine requires to a Machine id, e.g. `document: mch_document`.
 	// A map rather than named keys per role, so an engine's cast is declared by
-	// domain.KnownWorkflowEngines and validated against it, instead of every engine's roles
+	// registry.KnownWorkflowEngines and validated against it, instead of every engine's roles
 	// needing their own struct field here.
 	Roles map[string]string `yaml:"roles"`
 }
@@ -439,7 +440,7 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 //     no approval mechanics ever engaged;
 //   - a missing *required* role would leave the engine half-cast, failing on the first request
 //     rather than at load (an optional one is a legitimate smaller installation -- see
-//     domain.WorkflowEngineSpec for where that distinction is drawn);
+//     registry.WorkflowEngineSpec for where that distinction is drawn);
 //   - an unknown role name is almost always a misspelled real one, which without this check reports
 //     as "missing" *and* leaves the typo unexplained;
 //   - a role naming a Machine this Application does not claim would hand the engine records
@@ -456,9 +457,9 @@ func validateWorkflowBinding(doc applicationDoc) []string {
 	}
 
 	var issues []string
-	spec, known := domain.KnownWorkflowEngines[w.Engine]
+	spec, known := registry.KnownWorkflowEngines[w.Engine]
 	if !known {
-		return []string{fmt.Sprintf("application %q: workflow.engine %q is not an engine this runtime realizes -- see domain.KnownWorkflowEngines", doc.ID, w.Engine)}
+		return []string{fmt.Sprintf("application %q: workflow.engine %q is not an engine this runtime realizes -- see registry.KnownWorkflowEngines", doc.ID, w.Engine)}
 	}
 	for _, role := range spec.Required {
 		if strings.TrimSpace(w.Roles[role]) == "" {
@@ -500,7 +501,7 @@ func validateWorkflowBinding(doc applicationDoc) []string {
 //
 // So this runs where the *Machines* are visible, after stampWorkflowRoles, rather than inside
 // validateWorkflowBinding, which sees only one applicationDoc. It asks the engine what each role owes
-// (domain.WorkflowEngineSpec.Datasets) and asks the Machine cast in that role whether it declares it --
+// (registry.WorkflowEngineSpec.Datasets) and asks the Machine cast in that role whether it declares it --
 // so a Workspace whose Machines were renamed on install is checked by *role*, never by file or id. That
 // distinction is not theoretical: dokter-kecil's `document` role is `mch_document_approval`, while its
 // own unrelated `mch_document` is the unbound Machine that has panicked two pages before.
@@ -517,7 +518,7 @@ func validateWorkflowDatasets(applications []domain.Application, machines []*dom
 		if app.Workflow == nil {
 			continue
 		}
-		spec, known := domain.KnownWorkflowEngines[app.Workflow.Engine]
+		spec, known := registry.KnownWorkflowEngines[app.Workflow.Engine]
 		if !known {
 			continue // validateWorkflowBinding already reported this
 		}

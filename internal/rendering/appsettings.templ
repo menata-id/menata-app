@@ -118,7 +118,7 @@ templ settingsStaticSections() {
 		<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Configuration</h2>
 		@settingsPlaceholderRow("Document types", "Contract, invoice, quotation...")
 		// Only where this Application casts a Machine as its flow template (an optional role,
-		// domain.WorkflowEngineSpec): an Application that saves no default flows has no screen for
+		// registry.WorkflowEngineSpec): an Application that saves no default flows has no screen for
 		// them, and a row linking to /machines/ would 404.
 		if flowTemplate := approvalMachineID(ctx, domain.WorkflowRoleFlowTemplate); flowTemplate != "" {
 			@settingsRow("/machines/"+flowTemplate, "Approval flow", "Default steps per document type.", false)

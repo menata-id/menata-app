@@ -91,7 +91,7 @@ The general rule, and it applies to any future hardcoded Case 19-style behavior:
 identity the runtime may branch on.** The Machine id says *which Machine within an Application*, never
 which Application; the Application id says *which installation*, never which behavior. If code needs
 to know "is this one of mine", the Application has to declare it, and `workflow:` is the worked
-example of how — a closed engine registry (`domain.KnownWorkflowEngines`) whose roles are validated at
+example of how — a closed engine registry (`registry.KnownWorkflowEngines`) whose roles are validated at
 load against the Application's own `machines:`.
 
 **And what an Action writes is declared too (2026-09-28).** A Machine's `actions:` block says which
@@ -443,10 +443,10 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   someone adds it there.
 - `TestClosedRegistryMembersAreAcceptedByTheLoader` / `...AreActivatedByMetadata` — a new
   capability must arrive with its metadata seam, not just its Go. Every `domain.KnownActions`/
-  `KnownServices` member must be (a) accepted by `internal/metadata`'s own validation, since the
+  `registry.Services` member must be (a) accepted by `internal/metadata`'s own validation, since the
   registry and that validation are two lists that drift, and (b) actually named by an installed
   Workspace's metadata — a capability no manifest can start is one only Go can reach, which is
-  001 #3 inverted. `domain.KnownWorkflowEngines` is held to (b) as well, and deliberately not to
+  001 #3 inverted. `registry.KnownWorkflowEngines` is held to (b) as well, and deliberately not to
   (a): its validator reads the registry itself rather than repeating it in a switch, so it has no
   second list to drift from.
 - `TestDocumentApprovalFieldCouplingOnlyShrinks` — the Field-side twin of the ratchet below, frozen at
@@ -530,6 +530,23 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   **When declaring `select: records`**: `limit:` is required (007 §7.9), `where:` values may name only
   `$current_user` or `$parameters.<name>` (§9.2 — anything else is a load error, on purpose), and
   `sort:` may name a Field or a record column (`created_at`, `updated_at`, `sort_order`).
+- `TestServiceRegistryAndExecutorsAgree` / `TestRegistryDependsOnDomainOnly` /
+  `TestDomainHoldsVocabularyAndRegistryHoldsDispatch` — the dispatch-seam family (2026-09-30,
+  `internal/registry`). **The line it draws is mechanical, which is why it is gateable:** a closed set
+  whose value is `bool` is *vocabulary* ("is this string legal") and belongs in `internal/domain`; one
+  whose value carries **structure** — a validator func, a cast, a contract — is a *dispatch seam*
+  (007 §14) and belongs in `internal/registry`. Two have moved so far: `Services` (was
+  `domain.KnownServices`, names only, plus a validating `switch` in `internal/metadata` and **three
+  more** in `internal/execution`) and `KnownWorkflowEngines` with its `Answers`.
+  **`internal/registry` may import `internal/domain` and nothing else**, and that is a constraint, not a
+  preference: `internal/metadata` must import it to validate and is forbidden from `internal/data`;
+  `internal/execution` must import it to dispatch and is forbidden from `internal/metadata`. So a
+  `Service` carries its **validator** and never its executor — the executor stays in `internal/execution`
+  and `TestServiceRegistryAndExecutorsAgree` is the only thing binding the two. **That is a weaker claim
+  than "one registration point" and it is the true one**; read `registry.Service`'s own comment before
+  trying to move `Execute` in.
+  `domain.WorkflowRole*` and `domain.WorkflowEngineDocumentApproval` deliberately stayed in `domain`:
+  those are names an Application writes in its own YAML, vocabulary rather than dispatch.
 - `TestEveryCastRoleProvidesItsEngineDatasets` / `TestEveryEngineDatasetIsNamedByComposition` /
   `TestGoNamedDatasetsWithNoEngineRequirement` — the Dataset-provision family (2026-09-30), written after
   a missing `ds_documents_with_steps` 500'd every approval screen in two Workspaces for a day. The first

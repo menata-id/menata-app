@@ -11,6 +11,7 @@ import (
 
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
+	"menata.app/internal/registry"
 )
 
 // The three gates in this file exist because of one outage, and they are split the way they are
@@ -31,7 +32,7 @@ import (
 // every workflow derivation resolve, and the whole suite stayed green. A requirement that lives only
 // inside a Go constant is reachable only through the failure it causes.
 //
-// The fix was to make the engine **declare** it (`domain.WorkflowEngineSpec.Datasets`) and the loader
+// The fix was to make the engine **declare** it (`registry.WorkflowEngineSpec.Datasets`) and the loader
 // refuse a Workspace that does not provide it (`metadata.validateWorkflowDatasets`). These three gates
 // hold the parts a load check structurally cannot.
 
@@ -50,7 +51,7 @@ func TestEveryEngineDatasetIsNamedByComposition(t *testing.T) {
 	if len(named) == 0 {
 		t.Fatal("found no ds_ literals in internal/composition -- this gate would pass by measuring nothing")
 	}
-	for engine, spec := range domain.KnownWorkflowEngines {
+	for engine, spec := range registry.KnownWorkflowEngines {
 		for _, role := range sortedKeys(spec.Datasets) {
 			for _, id := range spec.DatasetsFor(role) {
 				if !named[id] {
@@ -90,9 +91,9 @@ func TestEveryCastRoleProvidesItsEngineDatasets(t *testing.T) {
 			if app.Workflow == nil {
 				continue
 			}
-			spec, known := domain.KnownWorkflowEngines[app.Workflow.Engine]
+			spec, known := registry.KnownWorkflowEngines[app.Workflow.Engine]
 			if !known {
-				t.Errorf("workspace %q application %q: engine %q is not in domain.KnownWorkflowEngines", slug, app.ID, app.Workflow.Engine)
+				t.Errorf("workspace %q application %q: engine %q is not in registry.KnownWorkflowEngines", slug, app.ID, app.Workflow.Engine)
 				continue
 			}
 			for _, role := range sortedKeys(spec.Datasets) {
@@ -164,7 +165,7 @@ func TestGoNamedDatasetsWithNoEngineRequirement(t *testing.T) {
 	named := datasetIDsNamedIn(t, filepath.Join(repoRoot(), "internal", "composition"))
 
 	required := map[string]bool{}
-	for _, spec := range domain.KnownWorkflowEngines {
+	for _, spec := range registry.KnownWorkflowEngines {
 		for _, ids := range spec.Datasets {
 			for _, id := range ids {
 				required[id] = true

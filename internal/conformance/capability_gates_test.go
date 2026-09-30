@@ -52,7 +52,7 @@ import (
 // (a member's own required keys) are expected and ignored -- this gate is about recognition, not
 // configuration.
 //
-// domain.KnownWorkflowEngines is deliberately absent, because it cannot have this failure: its
+// registry.KnownWorkflowEngines is deliberately absent, because it cannot have this failure: its
 // validator (internal/metadata.validateWorkflowBinding) reads the registry itself rather than
 // repeating its members in a switch, so there is no second list to drift from.
 //
@@ -87,7 +87,7 @@ func TestClosedRegistryMembersAreAcceptedByTheLoader(t *testing.T) {
 // by the loader, and yet appears in no manifest anywhere is a capability only Go can start, which
 // is 001 #3 inverted: the application would be evolving by changing source, not metadata.
 //
-// domain.KnownWorkflowEngines joined the two original registries on 2026-09-28 (Stage A), and is the
+// registry.KnownWorkflowEngines joined the two original registries on 2026-09-28 (Stage A), and is the
 // clearest case of what this gate is for: the approval engine existed for weeks with *no* metadata
 // seam at all -- it selected its own Machines by matching literals -- so there was nothing a manifest
 // could have named. An engine back in that state would pass every other test in this repo.
@@ -128,9 +128,9 @@ func TestClosedRegistryMembersAreActivatedByMetadata(t *testing.T) {
 			}
 		}
 	}
-	for engine := range domain.KnownWorkflowEngines {
+	for engine := range registry.KnownWorkflowEngines {
 		if !usedEngines[engine] {
-			t.Errorf("domain.KnownWorkflowEngines declares %q, but no installed Workspace's Application binds it in a workflow: block -- an engine no Application can name is one only Go can start, which is the shape Stage A removed (see workflow_binding_test.go). Declare the binding where the engine is meant to run, or remove it", engine)
+			t.Errorf("registry.KnownWorkflowEngines declares %q, but no installed Workspace's Application binds it in a workflow: block -- an engine no Application can name is one only Go can start, which is the shape Stage A removed (see workflow_binding_test.go). Declare the binding where the engine is meant to run, or remove it", engine)
 		}
 	}
 

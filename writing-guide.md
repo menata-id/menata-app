@@ -640,7 +640,7 @@ one specific transition while an Event merely observes one. And `summary_overrid
 if your wording needs more than "a default, and one exception," that's not expressible here yet.
 
 `service: log_activity` is the one Service this runtime realizes today
-(`internal/domain.KnownServices`) — the same closed-set discipline `action:` uses for Permission.
+(`internal/registry.Services`) — the same closed-set discipline `action:` uses for Permission.
 There is no way to declare a new Service purely in YAML, the same limit §8 already describes for
 Action.
 
@@ -773,7 +773,7 @@ workflow:
     step: mch_approval_step
 ```
 
-`engine` is a closed set (`domain.KnownWorkflowEngines`) with one member today,
+`engine` is a closed set (`registry.KnownWorkflowEngines`) with one member today,
 `document_approval`: the sequential/parallel multi-step approval engine in `internal/action`. Its
 required roles are `document` (what is being approved) and `step` (one approval decision each). Both
 are required — an engine cannot run against a partial cast — and each must name a Machine **this**
@@ -1234,7 +1234,7 @@ numbers with no code edit.
 | Card field roles | `title` `person` `money` `status` `date` | `domain.KnownCardFieldRoles` |
 | Aggregates | `count` `sum` | `domain.KnownAggregates` |
 | Actions | `decide` `edit` `delete` | `domain.KnownActions` |
-| Services | `log_activity` `rollup_parent_status` `send_notification` | `domain.KnownServices` |
+| Services | `log_activity` `rollup_parent_status` `send_notification` | `registry.Services` |
 | Schedule triggers | `overdue` | `domain.KnownScheduleWhens` |
 | Notification preference keys | `assigned` `decided` `sla_breach` | `domain.KnownNotificationPreferenceKeys` |
 | Comparison operators | `equals` `not_equals` | `expression.KnownOps` |
@@ -1259,7 +1259,7 @@ undocumented* (rare).
 | Constraint | 006 §Constraint | `domain.Constraint`, `behavior.CheckConstraints` |
 | Expression (`op`) | 007 §9 | `internal/expression` — two operators so far |
 | Event | 006 §Event, Behavioral Model | `domain.Event`, `behavior.MatchedEvents`/`MatchedCreateEvents`, `web.runEvents`/`runCreateEvents` |
-| Service | 006 §Service | `domain.KnownServices`, `web.logActivity` |
+| Service | 006 §Service | `registry.Services`, `web.logActivity` |
 | Permission | 006 §Permission, 005 §Security Ordering | `domain.Permission`, `authorization.AllowsAction` |
 | Action | 006 §Action | `domain.KnownActions` + `internal/action` — **Go code, not declarable** (§8) |
 | Sequencing (ordered activation) | 006 §Constraint (adjacent), CAP-A07 | `domain.Sequencing`, `behavior.CanAct`, `metadata.validateSequencing` |

@@ -15,6 +15,7 @@ import (
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
 	"menata.app/internal/metadata"
+	"menata.app/internal/registry"
 )
 
 // TestInstalledCastsExplainWithoutDefects is the control over reality, the same job
@@ -31,7 +32,7 @@ import (
 // majority: measured 2026-09-29, 38 of 50 derivations on cast Machines are empty because they belong
 // to another role -- a Document is not decided, a signature store has no state model, nothing decides
 // a template. An earlier attempt to gate these numbers without that distinction produced noise, which
-// is why domain.WorkflowEngineSpec.Answers exists at all.
+// is why registry.WorkflowEngineSpec.Answers exists at all.
 func TestInstalledCastsExplainWithoutDefects(t *testing.T) {
 	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
 	if err != nil {
@@ -50,7 +51,7 @@ func TestInstalledCastsExplainWithoutDefects(t *testing.T) {
 	engaged := 0
 	for _, slug := range slugs {
 		ws := wss[slug].Workspace
-		for engine := range domain.KnownWorkflowEngines {
+		for engine := range registry.KnownWorkflowEngines {
 			if len(ws.MachinesInWorkflowRole(engine, domain.WorkflowRoleStep)) == 0 {
 				continue // this Workspace installs no Application binding this engine
 			}
@@ -96,7 +97,7 @@ func TestEveryDerivationIsOwedBySomeRole(t *testing.T) {
 	}
 
 	owed := map[string][]string{}
-	for engine, spec := range domain.KnownWorkflowEngines {
+	for engine, spec := range registry.KnownWorkflowEngines {
 		for role, answers := range spec.Answers {
 			if !contains(spec.Roles(), role) {
 				t.Errorf("engine %q: Answers names role %q, which is in neither Required nor Optional", engine, role)

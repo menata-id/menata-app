@@ -44,7 +44,7 @@ func TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames(t *testing.T) {
 	// The Dataset ids stay `ds_documents_with_steps`/`rel_steps` while every *Machine* is renamed, and
 	// that is the point rather than an inconsistency: a Dataset id is named from Go (which is why
 	// internal/installer refuses to rename one), so what the engine requires of its `document` role is
-	// the same string in every Workspace. domain.KnownWorkflowEngines.Datasets is what makes the loader
+	// the same string in every Workspace. registry.KnownWorkflowEngines.Datasets is what makes the loader
 	// demand it -- added 2026-09-30, after its absence 500'd two real Workspaces for a day.
 	write("kantor/surat.yaml", `id: mch_surat
 name: Surat

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/registry"
 	"menata.app/internal/rendering"
 )
 
@@ -131,7 +132,7 @@ func TestInference_groupsEveryRowUnderItsOwnRole(t *testing.T) {
 	if len(v.Engines) != 1 {
 		t.Fatalf("got %d engine blocks, want 1", len(v.Engines))
 	}
-	spec := domain.KnownWorkflowEngines[domain.WorkflowEngineDocumentApproval]
+	spec := registry.KnownWorkflowEngines[domain.WorkflowEngineDocumentApproval]
 	if got, want := len(v.Engines[0].Roles), len(spec.Roles()); got != want {
 		t.Errorf("got %d role groups, want %d (every role in the cast, including the uncast optional ones)", got, want)
 	}

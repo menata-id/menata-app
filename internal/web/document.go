@@ -242,7 +242,7 @@ func applySubmissionEffect(w http.ResponseWriter, docMachine *domain.Machine, va
 // Document Type/Mode the submission just used and hands them to saveApprovalFlowTemplate. Its own
 // error is logged, never surfaced -- see saveApprovalFlowTemplate's doc comment for why.
 func saveDefaultApprovalFlow(ctx context.Context, store *data.Store, values map[string]any, rows []stepInput) {
-	// flow_template/flow_template_step are optional roles (domain.WorkflowEngineSpec): an approval
+	// flow_template/flow_template_step are optional roles (registry.WorkflowEngineSpec): an approval
 	// Application may cast neither, and then there is nowhere to save a default flow. This guard is
 	// also a real bug fix -- saveApprovalFlowTemplate dereferences both Machines, so before the roles
 	// existed a Workspace that installed Document Approval without them panicked on submit.

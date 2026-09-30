@@ -488,7 +488,7 @@ func applyApprovalSignature(w http.ResponseWriter, req *http.Request, ctx contex
 	step.Values[imageField] = key
 
 	// "Save this signature for next time" is only offerable where the Application casts a Machine
-	// in the signature role -- an optional one (domain.WorkflowEngineSpec). Where it casts none, the
+	// in the signature role -- an optional one (registry.WorkflowEngineSpec). Where it casts none, the
 	// one-time image written onto the step above is the whole feature, and there is nowhere to keep a
 	// reusable copy; the checkbox is not rendered either (reviewdocument.templ's own gate). A store
 	// declaring no signature_store: block is the same case for the same reason.

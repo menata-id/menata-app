@@ -1290,7 +1290,7 @@ func workflowManifest(t *testing.T, workflow string) string {
 	t.Helper()
 	dir := t.TempDir()
 	// mch_surat carries ds_documents_with_steps because the engine *declares* that its `document` role
-	// must (domain.KnownWorkflowEngines.Datasets, 2026-09-30) -- and the Dataset id stays the library's
+	// must (registry.KnownWorkflowEngines.Datasets, 2026-09-30) -- and the Dataset id stays the library's
 	// while every Machine name is renamed, which is the property: a Dataset id is named from Go, so what
 	// the engine requires is one string in every Workspace. Without it this fixture would describe a cast
 	// the loader refuses, which is what two real Workspaces did while 500ing every approval screen.
@@ -1451,7 +1451,7 @@ func TestLoadApplication_workflowBindingMustBeRealizable(t *testing.T) {
 
 // An optional role omitted is a smaller installation, not an error: this Application runs the
 // approval engine without reusable signatures and without saved default flows (see
-// domain.WorkflowEngineSpec). The Machine it does not cast stays unstamped, which is what every
+// registry.WorkflowEngineSpec). The Machine it does not cast stays unstamped, which is what every
 // role-resolving caller reads as "this Workspace has no such feature".
 func TestLoadApplication_optionalWorkflowRolesMayBeOmitted(t *testing.T) {
 	app, err := LoadApplication(workflowManifest(t, validWorkflow))

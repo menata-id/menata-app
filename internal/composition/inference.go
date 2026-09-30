@@ -7,6 +7,7 @@ import (
 	"menata.app/internal/action"
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
+	"menata.app/internal/registry"
 	"menata.app/internal/rendering"
 )
 
@@ -19,19 +20,19 @@ import (
 // logical dependency, generates no DAG node, and issues no query, so the two GET-sweep invariants
 // (`queries == reads`, `repeated == 0`) hold for this route without it having to be careful.
 //
-// Engines are sorted rather than ranged over as a map: domain.KnownWorkflowEngines is a map, and 007
+// Engines are sorted rather than ranged over as a map: registry.KnownWorkflowEngines is a map, and 007
 // §4.6 makes deterministic construction a MUST. action.ExplainCast already holds that property for the
 // rows within an engine (TestExplainCast_isDeterministic); this is the same obligation one level up.
 func Inference(ws domain.Workspace) rendering.InferenceView {
-	engines := make([]string, 0, len(domain.KnownWorkflowEngines))
-	for engine := range domain.KnownWorkflowEngines {
+	engines := make([]string, 0, len(registry.KnownWorkflowEngines))
+	for engine := range registry.KnownWorkflowEngines {
 		engines = append(engines, engine)
 	}
 	sort.Strings(engines)
 
 	var view rendering.InferenceView
 	for _, engine := range engines {
-		spec := domain.KnownWorkflowEngines[engine]
+		spec := registry.KnownWorkflowEngines[engine]
 		// An engine no Application here binds has nothing to explain. Skipped rather than rendered
 		// empty: a table of "not applicable" for a feature the Workspace never installed is noise of
 		// exactly the kind Resolution.Status exists to suppress.
@@ -125,7 +126,7 @@ func normalizationSteps(ws domain.Workspace, view *rendering.InferenceView) []re
 // `not applicable` is muted deliberately. It is 52 of 65 rows and every one of them is correct, so
 // rendering it at the same weight as the two statuses that mean something would bury the signal in its
 // own correctness -- which is what made the first two attempts at triaging these numbers useless
-// (domain.WorkflowEngineSpec.Answers' own comment).
+// (registry.WorkflowEngineSpec.Answers' own comment).
 func toneFor(s domain.ResolutionStatus) rendering.PillTone {
 	switch s {
 	case domain.StatusResolved:
