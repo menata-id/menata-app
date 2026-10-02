@@ -18,9 +18,9 @@ templ ActivityPage(today, yesterday, older []ActivityEntry, workspaceName string
 
 templ activityGroup(label string, entries []ActivityEntry) {
 	if len(entries) > 0 {
-		<section class="rounded-lg border border-slate-200 bg-white p-4">
+		@panelLayout() {
 			<h2 class="m-0 mb-3 text-base font-medium">{ label }</h2>
 			@activityFeedListRow(entries)
-		</section>
+		}
 	}
 }

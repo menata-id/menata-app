@@ -31,7 +31,7 @@ templ AutomationPage(rules []AutomationRule, workspaceName string, viewer Viewer
 		} else {
 			<div class="flex flex-col gap-3">
 				for _, r := range rules {
-					<section class="rounded-lg border border-slate-200 bg-white p-4">
+					@panelLayout() {
 						<h2 class="m-0 mb-3 text-base font-medium">{ r.Name }</h2>
 						<dl class="grid grid-cols-[6rem_1fr] gap-x-4 gap-y-2 text-sm">
 							<dt class="font-medium text-slate-500">Trigger</dt>
@@ -41,7 +41,7 @@ templ AutomationPage(rules []AutomationRule, workspaceName string, viewer Viewer
 							<dt class="font-medium text-slate-500">Action</dt>
 							<dd class="m-0">{ r.Action }</dd>
 						</dl>
-					</section>
+					}
 				}
 			</div>
 		}

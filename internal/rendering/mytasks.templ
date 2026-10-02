@@ -46,25 +46,25 @@ templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, 
 			{Label: "Overdue", Value: fmt.Sprint(summary.Overdue)},
 		})
 
-		<section class="rounded-lg border border-slate-200 bg-white p-4">
+		@panelLayout() {
 			<h2 class="m-0 mb-3 text-base font-medium">Today</h2>
 			if len(today) == 0 {
 				<p class="m-0 text-sm text-slate-500">Nothing due today or overdue.</p>
 			} else {
 				@taskRowList(today, true)
 			}
-		</section>
+		}
 
-		<section class="rounded-lg border border-slate-200 bg-white p-4">
+		@panelLayout() {
 			<h2 class="m-0 mb-3 text-base font-medium">Upcoming</h2>
 			if len(upcoming) == 0 {
 				<p class="m-0 text-sm text-slate-500">Nothing upcoming.</p>
 			} else {
 				@taskRowList(upcoming, false)
 			}
-		</section>
+		}
 
-		<section class="rounded-lg border border-slate-200 bg-white p-4">
+		@panelLayout() {
 			<h2 class="m-0 mb-3 text-base font-medium">Completed</h2>
 			if len(completed) == 0 {
 				<p class="m-0 text-sm text-slate-500">No completed tasks yet.</p>
@@ -78,7 +78,7 @@ templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, 
 					}
 				</ul>
 			}
-		</section>
+		}
 	}
 }
 

@@ -28,24 +28,36 @@ type LayoutKind string
 const (
 	// LayoutStack is vertical flow with a uniform gap. The most-used shape by an order of magnitude.
 	LayoutStack LayoutKind = "stack"
+	// LayoutPanel is a bordered, padded surface -- named for what it is rather than for the `<section>` it
+	// happens to render, so a later change of element is not a change of vocabulary (§12.3's naming rule).
+	LayoutPanel LayoutKind = "panel"
 )
 
-// **`row`, `grid` and `panel` are measured in use and still deliberately absent, and the reason is worth
-// reading before adding them.** They were written in the first pass of this slice and removed in the same
-// one: all three ended with **zero callers**, because building a primitive is only half of "build the
-// primitive, migrate the uses, then gate" -- and the other half is the half that proves it generic. The
-// evidence was concrete rather than theoretical: the unused `gridLayout` put `sm:grid-cols-3` into the
-// Tailwind bundle, a class no screen in the tree uses, which is a declaration growing the shipped CSS for
-// a code path nothing can reach.
+// **`row` and `grid` are not primitives in this corpus, and the measurement that settled it corrected an
+// earlier claim of mine.** The Experience Plane kajian said all four of these were "measured in use",
+// counting *frequency*. Counting distinct **shapes** instead (2026-10-02):
 //
-// Their measured use, so the next slice migrates rather than re-declares: `flex flex-wrap items-center
-// gap-N` and its justify-between variants **11 times** (row), `grid` with `grid-cols-*` **25** (grid), the
-// bordered `section` wrapper recurring throughout (panel). Add each *with* its callers.
+//   - `panel`: 12 sites, **one** class string. A primitive, and it is here.
+//   - `row`: 21 sites, **six** shapes -- `items-center gap-2` (7), `gap-1.5` (5),
+//     `items-center justify-between gap-3` (4), `gap-2` (3), plus two one-offs carrying `items-baseline`,
+//     `gap-x`/`gap-y`, or a bottom border.
+//   - `grid`: 6 sites, **six** shapes, every one an arbitrary track list (`grid-cols-[6rem_1fr]`,
+//     `lg:grid-cols-[1fr_360px]`, `lg:grid-cols-[1fr_340px]`). There is no closed column vocabulary to
+//     declare.
+//
+// Forcing `row`'s six shapes through one primitive either changes what renders or gives the primitive
+// enough knobs to become the unbounded `GenericComponent` §12.3 forbids by name. `grid`'s tracks are a
+// layout *language*, which is §15.2's "CSS framework classes" with a different syntax.
+//
+// So they stay hand-written, and this comment is the reason rather than an omission. What would change it:
+// a second case that genuinely shares one of `row`'s shapes -- the 7 `items-center gap-2` sites are the
+// most promising -- audited for whether they mean the same thing or merely look alike.
 
 // KnownLayoutKinds is the closed set. A kind absent from it is a load-time error, never a silent skip
 // (capability-lifecycle.md §4 rule 3, "Unknown = explicit").
 var KnownLayoutKinds = map[LayoutKind]bool{
 	LayoutStack: true,
+	LayoutPanel: true,
 }
 
 // Gap is the spacing between a layout's children, as an enum rather than a number.

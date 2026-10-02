@@ -45,6 +45,20 @@ templ stackLayout(gap domain.Gap) {
 // A primitive arrives with the uses it replaces, or it is a name with nothing behind it. Their measured
 // counts are in domain.LayoutKind's own comment.
 
+// panelLayout is the bordered, padded surface twelve sites across six screens carried as one identical
+// class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
+// variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would
+// change what renders, and a primitive that quietly restyles its callers is worse than a repeated class.
+//
+// **`row` and `grid` are not here, and that is a measured decision**: 21 row sites span six shapes and 6
+// grid sites span six arbitrary track lists. See domain.LayoutKind's comment for the counts and what would
+// change the answer.
+templ panelLayout() {
+	<section class="rounded-lg border border-slate-200 bg-white p-4">
+		{ children... }
+	</section>
+}
+
 // staticText renders one §12.6 static content node. Text arrives already resolved -- this function does
 // not read metadata, derive a heading, or fall back; `titleByID`/`descriptionByID` and
 // `domain.ResolveNavigationHeadings` own that, and a renderer that resolved its own content is the

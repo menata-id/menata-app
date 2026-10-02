@@ -41,7 +41,7 @@ templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, atte
 			{Label: "Completion", Value: fmt.Sprint(summary.CompletionPercent()) + "%"},
 		})
 
-		<section class="rounded-lg border border-slate-200 bg-white p-4">
+		@panelLayout() {
 			@sectionHeaderRow("Workload", routeByID(ctx, "nav_team_capacity"), "Full team capacity →")
 			if len(workload) == 0 {
 				<p class="m-0 text-sm text-slate-500">No members yet.</p>
@@ -55,15 +55,15 @@ templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, atte
 					}
 				</ul>
 			}
-		</section>
+		}
 
-		<section class="rounded-lg border border-slate-200 bg-white p-4">
+		@panelLayout() {
 			<h2 class="m-0 mb-3 text-base font-medium">Attention Needed</h2>
 			if len(attention) == 0 {
 				<p class="m-0 text-sm text-slate-500">Nothing overdue or due today.</p>
 			} else {
 				@taskRowList(attention, true)
 			}
-		</section>
+		}
 	}
 }
