@@ -14,28 +14,26 @@ import (
 // **Measured 18 citations across 5 documents on 2026-09-30, by grep; this gate counts 7, and the gate is right** -- it counts only backticked citations, where grep also caught prose mentions. Re-measuring a carried number is the rule this repo keeps relearning, and every one was a
 // pointer a reader of 001-007 could not follow -- the same class as the 141 dangling roadmap-phase citations fixed the same day, in the documents `CLAUDE.md` calls the normative target.
 //
-// `capability-lifecycle.md` was ported on 2026-10-02 (D1), and the §40 rewrite the same day removed every
-// citation of `capability-registry.md` and `runtime-metadata-schema.md`. What is left is this list, and it
-// is **shrink-only on the usual terms**: a higher count fails, a lower one fails until the entry is
-// updated, and a document that stops being cited fails too.
+// `capability-lifecycle.md` was ported on 2026-10-02 (D1) and the architecture map the same day (D2); the
+// §40 rewrite removed every citation of `capability-registry.md` and `runtime-metadata-schema.md`, and 002's
+// see-also list stopped naming `menata-runtime`'s own roadmap. **What is left is two mentions that are
+// already retractions**, and the entry exists so the count cannot creep back up.
+//
+// Shrink-only on the usual terms: a higher count fails, a lower one fails until the entry is updated, and a
+// document that stops being cited fails too.
 var unportedUpstreamDocs = map[string]struct {
 	Citations int
 	Reason    string
 }{
-	"composable-runtime-architecture-map.md": {
-		Citations: 4,
-		Reason: "cited by 001, 002 and 003 for the source-of-truth hierarchy, per-document " +
-			"responsibilities and consistency rules. Port is D2 of menata-app-document's " +
-			"audits/2026-09-30-kajian-pemutusan-dari-menata-runtime.md: §2, §12 and §13 only, ~120 lines " +
-			"of 488, with capability-registry/blueprint/roadmap rows remapped to capabilities.md, " +
-			"ROADMAP.md and this repo's own audits",
-	},
-	"composable-runtime-roadmap.md": {
+	"architecture-benchmark.md": {
 		Citations: 1,
-		Reason: "cited once by 002 §341 in a see-also list beside 007 and the architecture map. Upstream's " +
-			"own phase register; this repo's equivalent is ROADMAP.md plus menata-app-document's " +
-			"development-history.md, so closing it is a one-line edit to that sentence rather than a port -- " +
-			"folded into D2, which touches the same list",
+		Reason: "named once by 002 as **research provenance**, with the sentence saying outright that it " +
+			"lives in the closed `menata-runtime` archive and not here. Deliberately not ported: 510 lines " +
+			"comparing browser engines, Kubernetes, Terraform, React, EMF and VS Code is the study behind " +
+			"the layering, not architecture this runtime carries. The one normative implication -- VS " +
+			"Code's small-core lesson -- is stated directly in capability-lifecycle.md §4. Until " +
+			"2026-10-02 it was a markdown link that read as though the file were in this repo, which is " +
+			"also what exposed this gate's own blind spot: it matched only backticked citations",
 	},
 	"composable-runtime-blueprint.md": {
 		Citations: 2,
@@ -77,7 +75,13 @@ func TestConceptDocsCiteDocumentsThatExist(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
 		}
-		for _, m := range regexp.MustCompile("`([0-9A-Za-z][0-9A-Za-z._-]*\\.md)`").FindAllStringSubmatch(string(body), -1) {
+		// Both citation forms. **Backticks alone were a blind spot**: 002 linked
+		// `architecture-benchmark.md` as a markdown link to a file this repo does not have, and the gate
+		// could not see it -- found by hand on 2026-10-02, the day the gate was written, which is why the
+		// second pattern is here rather than waiting for the next reader to trip over it.
+		cites := regexp.MustCompile("`([0-9A-Za-z][0-9A-Za-z._-]*\\.md)`").FindAllStringSubmatch(string(body), -1)
+		cites = append(cites, regexp.MustCompile(`\]\(([0-9A-Za-z][0-9A-Za-z._-]*\.md)\)`).FindAllStringSubmatch(string(body), -1)...)
+		for _, m := range cites {
 			name := m[1]
 			if _, err := os.Stat(filepath.Join(repoRoot(), name)); err == nil {
 				continue // resolves, nothing to say

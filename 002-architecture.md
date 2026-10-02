@@ -336,9 +336,12 @@ Business Knowledge remains the long-term organizational asset.
 
 # Related Research
 
-The layered architecture above was informed by studying architecture patterns from other world-class systems — browser engines, Kubernetes, Terraform, React, VS Code, and others. See [architecture-benchmark.md](architecture-benchmark.md) for the full comparison and the design implications drawn from each.
+The layered architecture above was informed by studying architecture patterns from other world-class systems — browser engines, Kubernetes, Terraform, the browser DOM, React, the Eclipse Modeling Framework and VS Code. The full comparison is research provenance rather than architecture this runtime carries, and it lives in the closed `menata-runtime` archive as `architecture-benchmark.md` (510 lines). This sentence linked to it as though it were in this repository until 2026-10-02; the one design implication that is normative here is VS Code's small-core lesson, which `capability-lifecycle.md` §4 states directly.
 
-For the composable architecture specifically, see `007-composable-runtime-architecture.md`, `composable-runtime-architecture-map.md`, and `composable-runtime-roadmap.md`.
+For the composable architecture specifically, see `007-composable-runtime-architecture.md` and
+`composable-runtime-architecture-map.md`. Implementation order lives in `ROADMAP.md`, and the reasoning
+behind each step in `menata-app-document`'s `development-history.md` — the original third citation here was
+`menata-runtime`'s own roadmap, which is not in this repository (corrected 2026-10-02).
 
 ---
 

@@ -608,9 +608,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   reads.
   The second gate is the document-level twin of the pointer gate: 001–007 may not cite a `*.md` this repo
   lacks, except through `unportedUpstreamDocs`, a shrink-only named list with the reason and what closing
-  it needs. `capability-lifecycle.md` was ported to satisfy it (D1), which is what made 007's two
-  deferrals to §2 and §4 resolve at last. **Neither gate can check whether a status is true** — PROVEN
-  versus PARTIAL is a judgement; a green run means the citations resolve.
+  it needs. **The population went 18 → 3 on 2026-10-02**, by porting `capability-lifecycle.md` (D1) and
+  `composable-runtime-architecture-map.md`'s §2/§12/§13 (D2), and by the §40 rewrite dropping the rest; the
+  three that remain are mentions that *are themselves retractions*, saying the document is not here. It
+  matches **both** citation forms — backticks and markdown links — because backticks alone were a blind
+  spot found by hand the day it was written (002 linked `architecture-benchmark.md` as if it were local).
+  **Neither gate can check whether a status is true** — PROVEN versus PARTIAL is a judgement; a green run
+  means the citations resolve.
 - `TestInstalledNavigationExplainsItsHeadings` / `TestRuntimeScreensResolveTheirHeadings` /
   `TestRendererDoesNotResolveNavigationHeadings` — the navigation half of 001 #6's second clause, and the
   family that exists because **mutation showed the first fix was only half a fix**. A navigation item's
