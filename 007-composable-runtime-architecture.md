@@ -14,24 +14,31 @@
 > Static Component Registry with an explicit non-dynamic-dispatch statement; §40 replaced with a
 > claim-by-claim citation matrix distinguishing PROVEN (implemented, conformance-cited) from
 > PROPOSED (an architectural target, not yet built); a Tier-1-semantics note added below;
-> cross-linked to `composable-runtime-blueprint.md`. Previously v0.2 — bounded-component rule,
+> cross-linked to a Tier-3 blueprint. Previously v0.2 — bounded-component rule,
 > composition-cycle rejection, composition cost budget, two admission-gate questions added.
 >
 > > **What Tier 1 status means for this document.** Tier 1 in this repository means *normative
 > > architectural direction and constraint*, not a certification that every mechanism described
 > > here is built or proven — §41 (Open Research Questions) and §42 (Recommended Next Studies)
 > > already concede that much of this is still a hypothesis. Every substantive claim in §40 below
-> > is marked **PROVEN** (implemented and conformance-cited — a `CAP-` row, test ID, or file/line)
-> > or **PROPOSED** (an architectural target awaiting the study or case that would validate it).
-> > A PROPOSED claim carries no conformance backing and must still pass `capability-lifecycle.md`'
-> > §2's A1–A5 admission gate before it becomes a capability — this document does not admit anything
-> > by itself.
+> > is marked **PROVEN** (implemented here and cited to a file or a conformance test in this
+> > repository), **PARTIAL**, or **PROPOSED** (an architectural target not yet built).
+> >
+> > **A PROPOSED row is an anti-overclaim device, not permission withheld.** It stops a reader treating
+> > this document's mention of a mechanism as evidence the mechanism exists. It does not mean the
+> > mechanism must wait: `capability-lifecycle.md` §2's A1–A5 gate governs **new capabilities**, while
+> > architecture this document has already settled is awaiting *sequencing*, not evidence. Reading
+> > PROPOSED as a veto stalled three phases of work on 2026-09-30 (`menata-app-document`'s
+> > `audits/2026-09-30-kajian-arah-pengembangan-dan-protokol-kolaborasi-agen.md`).
 >
-> **Relationship to `composable-runtime-blueprint.md`.** This document (Tier 1) answers *what the
-> architecture must be* — the model, contracts, invariants, and boundaries. `composable-runtime-
-> blueprint.md` (Tier 3) answers *how the runtime gets there and proves it* — current-state gaps,
-> phased sequencing, each phase's own forcing condition, and the benchmark program. Read this
-> document for the target shape; read the blueprint for what's actually built today and what has to happen, in what order, before the rest is.
+> **Where the "how" lives, in this repository.** This document answers *what the architecture must be* —
+> the model, contracts, invariants and boundaries. The original cited a Tier-3
+> `composable-runtime-blueprint.md` for *how the runtime gets there*; **that document is not in this
+> repository**, and the role is filled here by three: `capability-lifecycle.md` (admission, definition
+> of done, NFR gates, extension architecture), `capabilities.md` (what is built right now, with each
+> Built row's proof), and `ROADMAP.md` (`## Shipped` / `## In progress` / `## Planned`). Design
+> reasoning, measurements and verification steps live in `menata-app-document` —
+> `development-history.md` and `audits/*`.
 
 ---
 
@@ -1808,32 +1815,53 @@ capability is implicitly admitted merely by naming this boundary.
 
 # 40. Claim Citation Matrix (PROVEN / PROPOSED)
 
-This section is the mechanism named by this document's own changelog (v0.3): every substantive
-architectural claim made above, marked **PROVEN** (implemented, cited to a `CAP-` row, conformance
-test, or file/line) or **PROPOSED** (an architectural target awaiting the study/case that would
-validate it, per `capability-lifecycle.md` §2's A1–A5 admission gate). A PROPOSED row is not
-admitted by appearing here. This matrix does not re-derive evidence — it cites
-`composable-runtime-blueprint.md` §3 (current-state inventory) and `composable-runtime-roadmap.md`
-(the `CR-01`–`CR-28` gap register), which already carry the underlying evidence trail.
+Every substantive architectural claim this document makes, with its state **in this repository** and a
+citation a reader can open. **PROVEN** means implemented here, cited to a file or a conformance test.
+**PARTIAL** means part of the claim holds and the rest is named. **PROPOSED** is an architectural target
+not yet built — and a PROPOSED row is *not admitted by appearing here*, nor is it forbidden by appearing
+here: it is an anti-overclaim device, not permission withheld (`capability-lifecycle.md` §2 draws that
+line, and reading it as a veto stalled three phases of work on 2026-09-30).
 
-| Claim / mechanism | Section | Status | Evidence |
+**Rewritten 2026-10-02, and the rewrite was the point.** Until then this matrix described a different
+repository: it was dated 2026-09-11, its evidence column cited `CAP-` rows, `CR-` gap numbers,
+`composable-runtime-blueprint.md` and `internal/metadata/compile.go` — **none of which exist here** — and
+it was wrong in both directions. It *over-claimed* "CEL expression evaluation — PROVEN" for a runtime
+with no CEL at all, inside the document `CLAUDE.md` tells every reader to consult before any
+architectural decision. It also *under-claimed*: Dataset, Relation and Projection were listed PROPOSED
+and have shipped. `internal/conformance.TestClaimMatrixCitesRealArtifacts` now holds every file path and
+test name below to existing, so this matrix cannot drift back into describing something else.
+
+| Claim / mechanism | Section | Status | Evidence in this repository |
 |---|---|---|---|
-| Domain model (Machine, Field, Event, Constraint, Permission) | §6 | **PROVEN** | `runtime-metadata-schema.md`; stable core, unchanged by this document |
-| View / page composition | §10, §12.4 | **PROVEN** | `CAP-V10` Tier 2, registry + conformance |
-| CEL expression evaluation | §9 | **PROVEN** | `CAP-C13` |
-| Static Component Registry as non-dynamic-dispatch seam | §14 | **PROVEN** (as a pattern) / **PROPOSED** (as a generic Component contract) | The seam pattern itself is proven by existing closed View-type dispatch (`runtime-metadata-schema.md` `### View Types`); a generic, registry-driven Component contract per §13 is not yet built |
-| Metadata compiles to lower-level runtime representations at load time | §17, §26 | **PROVEN** (as a general mechanism) | `internal/metadata/compile.go`, `CAP-W01` — proves the *pattern* of compiling declarative metadata, not the specific Domain/Data/Experience IR this document targets |
-| DataSource, Dataset, Dimension, Measure | §7.1–§7.4 | **PROPOSED** | `CAP-V22`/`CAP-V23` (reclassified to new Grammar area `D` — `CR-27`, resolved 2026-09-11; IDs retained unchanged for stability, full rows stay under `capability-registry.md`'s `## Views`, pointer rows added under `## Data`); `CR-03`/`CR-04` |
-| Relation, Projection (independent of View) | §7.5–§7.6 | **PROPOSED** | No `CAP-` row exists yet; `capability-registry.md`'s own note calls this an "unadmitted framing"; `CR-04`, `CR-05` |
-| Query Model (§8), bare Query/Projection reuse | §8 | **PROPOSED** | No `CAP-` row; `CR-05` |
-| Context, Scope, Binding (parent→child propagation) | §11 | **PROPOSED** | No shipped case requires it yet (`approval-dashboard.html` shipped without it); `CR-06` |
-| Layout vocabulary beyond `main`/`aside` | §12.2 | 🟡 **PARTIAL** | `CAP-V10` Tier 2 ships the one pairing; stack/grid/columns extensions are `CR-` tracked design triggers, not yet built |
-| UI Intermediate Representation | §15 | **PROPOSED** | No forcing case (one server-rendered target only, per `app/ARCHITECTURE.md`); `CR-07` |
-| Data IR | §16 | **PROPOSED** | `CR-02` |
-| Execution Plan as a runtime-internal artifact | §17 | **PROPOSED** | `CR-11`, `CR-17` |
-| Composable Execution Planner (dependency DAG, coalescing, batching, bounded concurrency, cost-based strategy selection) | §18 | **PROPOSED** | `composable-runtime-blueprint.md` §5 Phase 6/7 — "design now, implement when forced"; `CR-11`–`CR-15` |
-| CEP → Query Planner boundary | §19 | **PROPOSED** (boundary is documented, not yet enforced by code) | `CR-13` |
-| Security-aware dependency identity / coalescing ordering | §18.10, §20 | **PROPOSED** (RLS/permission foundations are `PROVEN`, the planner-level dependency-identity mechanism is not) | `CR-16` |
-| Renderer-neutral View Model / Render Input | §23 | **PROPOSED** | Current runtime has exactly one server-rendered target; `CR-25` |
-| Composability benchmark harness | §8 (Benchmark program, blueprint) | **PROPOSED** | Benchmark design exists (blueprint §8, this doc §32); no executable planner benchmark yet; `CR-19` |
-| Grammar-area classification for Data-plane primitives | — | **DECIDED, not yet implemented** | `CR-27` resolved 2026-09-11 (new `D` area); registry/lifecycle edits pending |
+| Domain model (Machine, Field, Event, Constraint, Permission, Action) | §6 | **PROVEN** | `internal/domain`; loaded and validated by `internal/metadata`; `internal/conformance.TestAppManifestLoads`, `TestMachineFixturesPassProductionValidation` |
+| Metadata compiles into runtime representations at load, with no source generation | §17, §26; 001 #17 | **PROVEN** (as a general mechanism) | `metadata.Parse` → `Validate` → `Normalize` → stamping (`stampWorkflowRoles`, `ResolveNavigationHeadings`). There is no `compile.go` and no generated application code |
+| DataSource, Dataset, Dimension, Measure | §7.1–§7.4 | **PROVEN** (minimal shape: `count`/`sum`) | `domain.Dataset`/`Measure`/`KnownAggregates`, `composition.Aggregate`, `metadata.validateDataset`; declared in 18 Machine files |
+| Filter, Sort, Pagination over a Dataset | §7.7–§7.9 | **PROVEN** | `select: records` with `where`/`sort`/`limit`; `data.ListRecordsSelect`, `composition.SelectDataset`; `limit:` required (§7.9); `conformance.TestPerViewerDatasetsScopeByIdentity` |
+| Relation (reusing an existing reference Field) | §7.5 | **PROVEN** | `domain.Relation`, `metadata.validateDatasetRelations`/`validateRelationTargets`, `composition.SelectRelated`, `data.ListRecordsByAny` |
+| Projection as a stable semantic contract | §7.6 | **PROVEN** | `card_fields:` + `composition.ProjectCardFields`/`ProjectedByRole`; `conformance.TestRenderingUsesProjectionNotRawValues` (one file left on its ratchet) |
+| Expression evaluation | §9 | **PARTIAL** — bounded comparisons, **not CEL** | `internal/expression`: `Comparison`, `Predicate` (`equals`/`not_equals`, conjunction). **This runtime has no CEL**, and the row claiming otherwise was the over-claim this rewrite exists to correct |
+| Allowed Context / Scope (`$current_user`, `$parameters`), failing closed | §9.2 | **PROVEN** | `expression.Context`, `KnownSentinel`; an unknown `$sentinel` is a load error |
+| Binding (component input ← context or semantic value) | §11.3 | **PROPOSED** | No primitive. A form input's `name=` is chosen by its page; `machine.templ` does it generically over `m.Fields`, and a capability's own block names the ones it owns (`signature_placement:`, `action.DeclaredFields`) |
+| Static Component Registry as a non-dynamic dispatch seam | §14 | **PARTIAL** | **Built for Services and workflow engines**: `internal/registry.Services`/`KnownWorkflowEngines`, bound to their executors by `conformance.TestServiceRegistryAndExecutorsAgree`, with `TestRegistryDependsOnDomainOnly` holding the import constraint that decided the shape. Field, Action and View types remain closed sets plus plane-local switches, which §14 permits ("a Go map **or compiler-checked switch**") |
+| View / page composition | §10, §12.4 | **PARTIAL** | `domain.KnownViewKinds` (`table`/`board`/`cards`/`stepper`) and `views:` per Machine. **But §12.4's normative rule is not met**: 36 of 38 declared navigation items point at a bespoke route, so adding a screen is writing Go. Plan and boundary: `menata-app-document`'s `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md` |
+| Layout vocabulary (`stack`, `row`, `columns`, `grid`, …) | §12.2 | **PROPOSED** | Zero declared layout primitives. The shapes are measurably in use *in Go* — `flex flex-col gap-N` 61 times across 38 screens — which is the evidence for building the closed set, not for having it |
+| Component boundedness, Slot, Static Content as nodes | §12.3, §12.5, §12.6 | **PROPOSED** | `internal/composition` produces eight resolved View Models, which is §23's View-Model half; none declares inputs, data requirements or slots, and no Slot or Static Content node exists |
+| Inference is inspectable | 001 #6; 005 Phase 4 | **PROVEN** | `domain.Resolution`, `action.ExplainCast`, `metadata.Explain`/`ExplainNavigation`, rendered at `/inference`; `conformance.TestInstalledCastsExplainWithoutDefects`, `TestInstalledNavigationExplainsItsHeadings` |
+| A workflow engine acts on whichever Machines an Application casts, under any names | §12.1 | **PROVEN** | `workflow:` → `registry.KnownWorkflowEngines`; `conformance.TestWorkflowEngineEngagesUnderAnyApplicationAndMachineNames`, `TestUnboundMachinesAreNotTheEngines` |
+| Security ordering: scope established before retrieval, never trim-at-render | §20 | **PARTIAL** | `data.WorkspaceScope` in every statement, `authorization.AllowsAction` over already-fetched records, `conformance.TestGetRoutesDoNotWrite`, `web.TestPostRoutesRefuseUnauthenticatedAndUnCSRFed`. The planner-level half (security-aware dependency identity, §18.10) does not exist because the planner does not |
+| UI Intermediate Representation | §15 | **PROPOSED** | `internal/ir` is a declared, empty seam whose `doc.go` records why. **Its blocker is not "one render target"**, which this row claimed until 2026-10-02: it waits on Layout → Component → Page/Slot being declared (Stages 1–3 of the plan above); a second renderer is Stage 5 |
+| Data IR | §16 | **PROPOSED** | Its consumer is the Query Planner, which §34 marks PROPOSED and unadmitted — building the input to an unadmitted stage is building ahead of §2's discipline |
+| Execution Plan as a runtime-internal artifact | §17 | **PROPOSED** | Physical strategy today is `internal/data`'s statements directly; nothing produces a plan object. 001 #17 and §18.13 govern it if built: a plan may never become authored metadata |
+| Composable Execution Planner (dependency DAG, coalescing, batching, bounded concurrency, cost-based selection) | §18, §34 | **PROPOSED** | `internal/planner` is a declared, empty seam. What exists of the foundation: `composition.Loader`'s per-request memo (`reads`/`served`), per-route query budgets, and `select: records`' bounds — a memo is not a DAG; it cannot see two screens asking for the same thing, order work, or batch |
+| CEP → Query Planner boundary | §19 | **PROPOSED** | Documented, no code to enforce it |
+| Dependency graph / DAG over a composed experience | 005 Phase 6, §33 | **PROPOSED** | Requires an experience tree to walk; see UI IR above |
+| Renderer-neutral View Model / Render Input | §23 | **PARTIAL** | Eight resolved View Models in `internal/composition`, and `TestRenderingUsesProjectionNotRawValues` is down to one grandfathered file — so the View-Model half §23 asks for largely holds. One render target (HTML/templ); the JSON API, email and PDF outputs render records, a sentence and a file, not a second rendering of one experience |
+| Physical storage independence (JSONB today, columns/indexes later) | §22 | **PARTIAL** | Logical metadata never names a physical strategy, and `records.data` JSONB is the only realization. No expression index, generated column or materialized aggregate exists; `menata-app-document`'s `audits/2026-09-22-lapisan-query-dan-indeks-kajian.md` refused new indexes on measurement, conditionally |
+| Convenience abstractions lowering into primitives (presets) | §25, §26 | **PROPOSED** | No preset lowers into anything, because the Experience Plane has no substrate to lower into. The pattern itself is proven elsewhere (Process Overlay, upstream) |
+| Composability benchmark harness | §32 | **PROPOSED** | **This repository has no benchmark suite** — which is also why `capability-lifecycle.md` §2's A1 remaps its second evidence source to a case, an audit, or a measured count |
+
+**How to keep this row set honest.** A status may only move toward PROVEN on evidence that cites a file
+or a test here; moving one the other way is a retraction and should say so in place, the way the CEL and
+UI IR rows now do. `TestClaimMatrixCitesRealArtifacts` checks that every backticked path and every
+`Test…` name in this table exists — it cannot check that a status is *true*, which is a judgement, so a
+green gate means the citations resolve and never that the claims are right.

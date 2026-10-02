@@ -597,6 +597,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   trying to move `Execute` in.
   `domain.WorkflowRole*` and `domain.WorkflowEngineDocumentApproval` deliberately stayed in `domain`:
   those are names an Application writes in its own YAML, vocabulary rather than dispatch.
+- `TestClaimMatrixCitesRealArtifacts` / `TestConceptDocsCiteDocumentsThatExist` — the normative documents
+  must cite artifacts a reader can open. **007 §40 described a different repository until 2026-10-02**: its
+  evidence column cited `CAP-` rows, `CR-` gap numbers and `internal/metadata/compile.go`, none of which
+  exist here, and it was wrong in both directions — "CEL expression evaluation — PROVEN" for a runtime with
+  no CEL, and Dataset/Relation/Projection listed PROPOSED after all three shipped. Rewritten so every
+  status cites a file, a package-qualified symbol, or a test **in this tree**; the gate checks each of
+  those resolves (a renamed symbol fails too) and reads **only the table rows**, because the preamble quotes
+  the citations the rewrite removed — the fifth gate here whose own text would otherwise sit in the data it
+  reads.
+  The second gate is the document-level twin of the pointer gate: 001–007 may not cite a `*.md` this repo
+  lacks, except through `unportedUpstreamDocs`, a shrink-only named list with the reason and what closing
+  it needs. `capability-lifecycle.md` was ported to satisfy it (D1), which is what made 007's two
+  deferrals to §2 and §4 resolve at last. **Neither gate can check whether a status is true** — PROVEN
+  versus PARTIAL is a judgement; a green run means the citations resolve.
 - `TestInstalledNavigationExplainsItsHeadings` / `TestRuntimeScreensResolveTheirHeadings` /
   `TestRendererDoesNotResolveNavigationHeadings` — the navigation half of 001 #6's second clause, and the
   family that exists because **mutation showed the first fix was only half a fix**. A navigation item's
