@@ -30,14 +30,7 @@ type MemberCapacity struct {
 // mch_user), and active Task counts, composed from existing Machines.
 templ TeamCapacityPage(members []MemberCapacity, totalCapacity, totalActive int, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_team_capacity"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-2">
-			{{ eyebrowApp, _ := CurrentApplication(ctx) }}
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ eyebrowApp.Name }</span>
-			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_team_capacity") }</h1>
-			if desc := descriptionByID(ctx, "nav_team_capacity"); desc != "" {
-				<div class="text-sm text-slate-500">{ desc }</div>
-			}
-		</div>
+		@pageHeader("nav_team_capacity")
 
 		@summaryCountTiles([]SummaryItem{
 			{Label: "Team capacity", Value: fmt.Sprint(totalCapacity) + "h/week"},

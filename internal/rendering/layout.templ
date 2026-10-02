@@ -1,0 +1,84 @@
+package rendering
+
+import "menata.app/internal/domain"
+
+// The generic renderers for domain's Layout and Static Content primitives (007 §12.2, §12.6).
+//
+// **This file is the only place a kind becomes CSS.** §15.2 forbids an intermediate representation
+// embedding "HTML, CSS framework classes", so `domain` carries the vocabulary and the mapping lives here,
+// in the plane entitled to know Tailwind exists. §14 permits exactly this shape -- "Existing templ
+// functions may remain behind registered components during migration".
+//
+// **The gate that matters for these is not "is anything using them".** It is
+// `conformance.TestLayoutRenderersHaveNoPerScreenBranch`: a generic renderer that needs to know *which
+// screen* is calling it is not a primitive, it is one screen's shape with a new name. That is the only
+// test of genericity these have, and it is why the four unmeasured §12.2 kinds were not built -- a
+// primitive with no second caller cannot fail it.
+
+// layoutGap maps a declared Gap onto the three spacing steps the measured corpus actually uses. An empty
+// Gap is GapDefault, resolved here rather than requiring every caller to say so.
+func layoutGap(g domain.Gap) string {
+	switch g {
+	case domain.GapTight:
+		return "gap-2"
+	case domain.GapDefault:
+		return "gap-3"
+	default:
+		// An empty Gap is GapDefault. Named explicitly above rather than left to this branch, because the
+		// tightened vocabulary gate reads which kinds are *named* -- and a step hidden in a default arm is
+		// indistinguishable from one nothing uses.
+		return "gap-3"
+	}
+}
+
+// stackLayout is vertical flow -- `flex flex-col gap-N`, the shape counted 61 times across the bespoke
+// screens on 2026-10-02 and the reason this primitive was built first.
+templ stackLayout(gap domain.Gap) {
+	<div class={ "flex flex-col", layoutGap(gap) }>
+		{ children... }
+	</div>
+}
+
+// **row, grid and panel are not here, and were removed from this file rather than never written.** The
+// first pass of this slice built all four §12.2 primitives measured in use; three finished with zero
+// callers, and `gridLayout` had put `sm:grid-cols-3` into the Tailwind bundle -- a class no screen uses.
+// A primitive arrives with the uses it replaces, or it is a name with nothing behind it. Their measured
+// counts are in domain.LayoutKind's own comment.
+
+// staticText renders one §12.6 static content node. Text arrives already resolved -- this function does
+// not read metadata, derive a heading, or fall back; `titleByID`/`descriptionByID` and
+// `domain.ResolveNavigationHeadings` own that, and a renderer that resolved its own content is the
+// render-time inference removed on 2026-10-02.
+templ staticText(kind domain.StaticKind, text string) {
+	switch kind {
+		case domain.StaticEyebrow:
+			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ text }</span>
+		case domain.StaticHeading:
+			<h1 class="m-0 text-xl font-medium">{ text }</h1>
+		case domain.StaticParagraph:
+			<div class="text-sm text-slate-500">{ text }</div>
+	}
+}
+
+// pageHeader is the primitives' first consumer: the eyebrow / heading / subtitle block that **eleven**
+// screens carried as five identical lines each.
+//
+// All three strings are already declarations -- the Application's own `name:`, and the navigation item's
+// `title:` and `description:` -- so this composes rather than decides. The subtitle is omitted when no
+// description is declared, which is the guard `approvalinbox.templ` established and the seven Stage 0.5
+// migrations adopted: an absent declaration must render nothing, not an empty styled element.
+//
+// **What it does not do**: it is not declared in metadata. A screen's *body* is what Stage 2 makes
+// declarable, because a body needs a bounded Component (§12.3) -- "a panel per rule, each with a heading
+// and three labelled values" is beyond Layout and Static Content, and pretending otherwise would be the
+// unbounded `GenericComponent` §12.3 forbids by name.
+templ pageHeader(navID string) {
+	{{ app, _ := CurrentApplication(ctx) }}
+	@stackLayout(domain.GapTight) {
+		@staticText(domain.StaticEyebrow, app.Name)
+		@staticText(domain.StaticHeading, titleByID(ctx, navID))
+		if desc := descriptionByID(ctx, navID); desc != "" {
+			@staticText(domain.StaticParagraph, desc)
+		}
+	}
+}

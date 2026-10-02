@@ -15,14 +15,7 @@ type CalendarDay struct {
 // rather than inventing new grid CSS.
 templ CalendarPage(days []CalendarDay, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_calendar"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-2">
-			{{ eyebrowApp, _ := CurrentApplication(ctx) }}
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ eyebrowApp.Name }</span>
-			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_calendar") }</h1>
-			if desc := descriptionByID(ctx, "nav_calendar"); desc != "" {
-				<div class="text-sm text-slate-500">{ desc }</div>
-			}
-		</div>
+		@pageHeader("nav_calendar")
 		<div class="grid grid-cols-1 gap-3 sm:grid-cols-7">
 			for _, d := range days {
 				<div class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3">

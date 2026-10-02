@@ -38,14 +38,7 @@ type TaskRow struct {
 // not a new query mechanism.
 templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_my_tasks"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-2">
-			{{ eyebrowApp, _ := CurrentApplication(ctx) }}
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ eyebrowApp.Name }</span>
-			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_my_tasks") }</h1>
-			if desc := descriptionByID(ctx, "nav_my_tasks"); desc != "" {
-				<div class="text-sm text-slate-500">{ desc }</div>
-			}
-		</div>
+		@pageHeader("nav_my_tasks")
 
 		@summaryCountTiles([]SummaryItem{
 			{Label: "Open", Value: fmt.Sprint(summary.Open)},

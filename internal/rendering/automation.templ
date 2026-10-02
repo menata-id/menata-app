@@ -25,14 +25,7 @@ templ AutomationPage(rules []AutomationRule, workspaceName string, viewer Viewer
 	// TestRenderingHasNoHardcodedPageHeading could not see it because nothing was declared to compare
 	// against -- the gate was blind for want of a declaration, not for want of logic.
 	@appShell(titleByID(ctx, "nav_automation"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-2">
-			{{ eyebrowApp, _ := CurrentApplication(ctx) }}
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ eyebrowApp.Name }</span>
-			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_automation") }</h1>
-			if desc := descriptionByID(ctx, "nav_automation"); desc != "" {
-				<div class="text-sm text-slate-500">{ desc }</div>
-			}
-		</div>
+		@pageHeader("nav_automation")
 		if len(rules) == 0 {
 			<p class="text-sm text-slate-500">No automation rules defined.</p>
 		} else {

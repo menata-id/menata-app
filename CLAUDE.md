@@ -597,6 +597,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   trying to move `Execute` in.
   `domain.WorkflowRole*` and `domain.WorkflowEngineDocumentApproval` deliberately stayed in `domain`:
   those are names an Application writes in its own YAML, vocabulary rather than dispatch.
+- `TestLayoutRenderersHaveNoPerScreenBranch` / `TestLayoutVocabularyIsRenderedAndUsed` /
+  `TestLayoutClassesStayInRendering` — the Experience Plane's first primitives (007 §12.2, §12.6), built
+  2026-10-02. The first is **the only real test of whether a layout primitive is a primitive**: a generic
+  renderer that must know *which screen* calls it is one screen's shape with a new name, and §12.2 names
+  that failure from the other side ("should not require separate layout concepts such as
+  `DashboardLayout`…"). The third holds §15.2 — `internal/domain` carries the vocabulary, the Tailwind
+  mapping lives only in `internal/rendering`.
+  **The second gate was too weak on its first run and that is the lesson here.** It checked only that
+  `pageHeader` had a caller, and passed while `rowLayout`, `gridLayout` and `panelLayout` sat with **zero**
+  — the unused `gridLayout` having already put `sm:grid-cols-3` into the shipped CSS bundle, a class no
+  screen uses. All three were removed, and the gate now requires every declared kind and every Gap step to
+  be named by something. **A primitive arrives with the uses it replaces**, or it is a name with nothing
+  behind it; the measured counts for the unbuilt kinds are in `domain.LayoutKind`'s comment so the next
+  slice migrates rather than re-declares.
 - `TestClaimMatrixCitesRealArtifacts` / `TestConceptDocsCiteDocumentsThatExist` — the normative documents
   must cite artifacts a reader can open. **007 §40 described a different repository until 2026-10-02**: its
   evidence column cited `CAP-` rows, `CR-` gap numbers and `internal/metadata/compile.go`, none of which

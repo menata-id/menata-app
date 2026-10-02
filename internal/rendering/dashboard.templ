@@ -53,11 +53,7 @@ type ActivityEntry struct {
 // not, on its own, force Phase 6 even with four sections composed.
 templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []PendingDocument, activity []ActivityEntry, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_dashboard"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-2">
-			{{ eyebrowApp, _ := CurrentApplication(ctx) }}
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ eyebrowApp.Name }</span>
-			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_dashboard") }</h1>
-		</div>
+		@pageHeader("nav_dashboard")
 
 		<section class="rounded-lg border border-slate-200 bg-white p-4">
 			@sectionHeaderRow("Projects", "/machines/mch_project", "View all →")

@@ -32,14 +32,7 @@ func (s SprintSummary) CompletionPercent() int {
 // dropping its status badge).
 templ SprintDashboardPage(summary SprintSummary, workload []MemberCapacity, attention []TaskRow, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_sprint"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-2">
-			{{ eyebrowApp, _ := CurrentApplication(ctx) }}
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ eyebrowApp.Name }</span>
-			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_sprint") }</h1>
-			if desc := descriptionByID(ctx, "nav_sprint"); desc != "" {
-				<div class="text-sm text-slate-500">{ desc }</div>
-			}
-		</div>
+		@pageHeader("nav_sprint")
 
 		@summaryCountTiles([]SummaryItem{
 			{Label: "Open", Value: fmt.Sprint(summary.Open)},
