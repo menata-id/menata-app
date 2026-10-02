@@ -9,6 +9,31 @@ This is a different job from the other planning doc, on purpose:
 Update this alongside the change that affects it — this file only ever describes the current
 state, never a changelog of how it got there.
 
+## How to read a row, and the three rules that keep this file a record rather than a wish
+
+Ported from `menata-runtime`'s `capability-registry.md` "Rules" (2026-10-02, D4), mapped onto the
+lifecycle states `capability-lifecycle.md` §1 defines — **Built here means SUPPORTED there**: implemented
+*and* carrying a conformance test that names it.
+
+1. **A row is never deleted, only restated.** If a capability is withdrawn, the row says so and why. A
+   deleted row makes the file silent about something a reader may still find in the code.
+2. **Status only rises.** Built → Built is the only transition that needs no explanation; anything moving
+   the other way is a **retraction** and must say so in place, the way 007 §40's CEL and UI IR rows now do.
+   This is the same shrink-only discipline the conformance ratchets carry, applied to prose.
+3. **Every Built row names its proof.** A test, a gate, or a live verification — and where the proof is a
+   gate, the gate must have been shown to bite. *"A capability recorded as Built with nothing naming its
+   proof is a claim, and this file has carried false ones"*: a row said `documentsubmit.templ` hardcoded
+   four form bindings "waiting on a primitive" for three stages after the primitive existed, and the AI
+   assistant's own grounding prompt told a model notifications did not exist in this runtime for four days
+   after they shipped.
+
+**What a status cannot be read as.** `Built` says the mechanism exists and is proven; it does not say the
+mechanism is *used* — `TestClosedRegistryMembersAreActivatedByMetadata` exists because a capability no
+manifest can start is one only Go can reach. And it does not say the architecture is complete: 007 §40 is
+where per-claim distance from the target is stated, and a Built row that contradicts it means one of the
+two is wrong, which is a finding rather than a resolution
+(`composable-runtime-architecture-map.md` §1).
+
 ---
 
 ## Field Types

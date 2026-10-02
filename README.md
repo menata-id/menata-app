@@ -66,8 +66,20 @@ Menata Runtime, hosted at [menata.app](https://menata.app). Throughout the conce
 
 `menata-runtime` (private) holds the capability-discovery history that produced these concepts:
 seven parallel prototypes, benchmarks, and the capability registry that proved out what a Menata
-Runtime needs to support. That discovery phase is closed. This repository (`menata-app`) is where
-active development happens going forward.
+Runtime needs to support. That discovery phase is closed, and since 2026-10-02 it is a **read-only
+archive**: nothing here depends on it, in code or in citation.
+
+**The governance it used to hold now lives here.** `capability-lifecycle.md` (admission test, definition
+of done, NFR gates, extension seams) and `composable-runtime-architecture-map.md` (which document wins
+when two overlap) were ported and adapted, not copied — where the original named a mechanism this runtime
+lacks, they say so. `capabilities.md` is the single source of record for what is Built.
+
+**A `CAP-xx` reference anywhere in this repository means precedent, never authority.** Those rows record
+what `menata-runtime` decided on its own evidence; a question they settle there is still open here until
+this repo's own evidence settles it. One sentence in `ROADMAP.md` read the other way — that upstream's
+registry meant "the work is to implement those capabilities rather than to re-decide them" — and it was
+wrong twice: the three behaviours it named were re-decided here, and the registry it deferred to is not in
+this tree.
 
 ## Security
 

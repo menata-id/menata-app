@@ -61,7 +61,7 @@ var roadmapDiaryVocabulary = regexp.MustCompile(`\b[0-9a-f]{7,40}\b|\b[Mm]easure
 // Read the numbers out of this map, not out of any prose describing it.
 var roadmapDiaryLines = map[string]int{
 	"Shipped":     0,
-	"In progress": 16,
+	"In progress": 14,
 	"Planned":     2,
 }
 
@@ -78,13 +78,13 @@ var roadmapDiaryLines = map[string]int{
 // on 2026-09-30 over a ceiling with slack. When it feels obstructive, the answer is to move a paragraph
 // to the repo it belongs in -- which is the gate working, not the gate misfiring.
 //
-// `In progress` at 1,089 is the remaining debt and is expected to fall: it holds the 27 entries the
+// `In progress` at 1,056 is the remaining debt and is expected to fall: it holds the 27 entries the
 // migration left because splitting them is a per-paragraph judgement (status belongs here, rationale
 // does not) rather than the two mechanical cases the migration covered -- a shipped feature still filed
 // under `In progress`/`Planned`, and an entry restating an audit that already exists in `audits/`.
 var roadmapSectionLines = map[string]int{
 	"Shipped":     130,
-	"In progress": 1089,
+	"In progress": 1056,
 	"Planned":     150,
 }
 

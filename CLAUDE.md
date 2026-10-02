@@ -746,6 +746,17 @@ Mechanics, each learned the hard way in one session:
 - Watch for a gate whose own text sits inside the data it reads — **four** were found in one session,
   each passing when it should have failed.
 
+Two more mechanics, both proven on 2026-10-02 and neither obvious until it bites:
+
+- **`pre-push` runs the whole tree's suite** (`make test`), so you cannot push while *another session* has
+  a failing test — even when your change is entirely separate. The answer is to wait, not `--no-verify`:
+  that flag would bypass a gate telling the literal truth, which is that the tree is not green. A
+  concurrent-run artifact is also possible, since both sessions share the dev database — a Postgres test
+  failing on a duplicate key is worth re-running alone before believing it.
+- **`git commit -- <paths>`** is the right form here. The index may already hold another session's staged
+  work (a staged deletion, in the case that taught this), and a plain `git commit` would carry it. Naming
+  your paths commits only those and leaves their staging untouched.
+
 The gates are what make this safe: they are the shared contract that lets one session change code
 another wrote. Breaking someone else's gate is a conversation, not a wall — lower the number if it is
 an improvement, or fix the code.
