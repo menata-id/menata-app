@@ -64,7 +64,7 @@ func TestPendingApprovalCard_noCardFieldsRendersNoMetaRow(t *testing.T) {
 // the heading/subtitle come from whichever one navID names (titleByID/descriptionByID panic on an
 // id absent from this list, the same posture routeByID/labelByID already have).
 func assignedNavFixture() context.Context {
-	return WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: []domain.NavigationItem{
+	return WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: resolvedNav([]domain.NavigationItem{
 		{ID: "nav_home", Label: "Home", Route: "/home"},
 		{ID: "nav_approval_inbox", Label: "Inbox", Title: "Pending my approval", Route: "/approval-inbox"},
 		{ID: "nav_my_documents", Label: "My Doc", Title: "My documents", Route: "/approval-inbox?tab=mine"},
@@ -72,7 +72,7 @@ func assignedNavFixture() context.Context {
 			ID: "nav_assigned_to_me", Label: "Assign Me", Title: "Assigned to me",
 			Description: "Every document that asked for your approval.", Route: "/approval-inbox?tab=assigned",
 		},
-	}}, "Test Workspace", false)
+	})}, "Test Workspace", false)
 }
 
 // TestApprovalInboxPage_AssignedTabRendersRows is the third tab's own proof: given a real

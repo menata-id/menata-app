@@ -120,3 +120,13 @@ func RuntimeScreenRoute(id string) string {
 	}
 	return ""
 }
+
+// RuntimeScreens are declared in Go, so they never pass through metadata.LoadApplication and would carry
+// no resolved Heading -- which surfaced as an empty <h1> on every Workspace-level screen the moment
+// titleByID stopped falling back at render time (2026-10-02).
+//
+// Resolved here through the same function the loader calls, rather than by writing Heading into each
+// literal above: one implementation of the inference, which is the whole point of
+// ResolveNavigationHeadings existing in this package (001 #8). An init rather than a hand-stamped field
+// also means a screen added to the list above cannot forget it.
+func init() { ResolveNavigationHeadings(RuntimeScreens) }

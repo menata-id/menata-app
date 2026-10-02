@@ -120,6 +120,19 @@ const (
 	DerivationPersonTarget    = "person_target"
 	DerivationChildCollection = "child_collection"
 	DerivationDefaultView     = "default_view"
+	// DerivationNavTitle is a navigation item's own heading when it declares no `title:` -- the runtime
+	// uses its `label:`. An authoring convenience (005 Phase 4, "expand authoring conveniences"): most
+	// screens say the same thing in the menu and in their own heading, so writing it twice would be
+	// 001 #8, and writing `title:` only when it differs is the shape the declaration should take.
+	//
+	// **It lived in internal/rendering until 2026-10-02**, as a fallback inside titleByID, which made it
+	// an inference happening at render time and visible to nothing. 001 #6's second clause names
+	// *rendering* explicitly -- "Hidden inference that cannot be explained is not an acceptable
+	// substitute for explicit configuration" -- and 005 Phase 4 requires the normalized result be
+	// "inspectable enough to explain important runtime decisions". Stamped at load now
+	// (metadata.LoadApplication) and explained here, so a reader can see which of 27 navigation items
+	// are showing a heading nobody wrote.
+	DerivationNavTitle = "nav_title"
 )
 
 // NormalizationSteps are the 005 Phase 4 steps these derivations belong to, used as Resolution.From's
@@ -152,6 +165,6 @@ var (
 		DerivationActionWrites,
 	}
 	NormalizationDerivations = []string{
-		DerivationPersonTarget, DerivationChildCollection, DerivationDefaultView,
+		DerivationPersonTarget, DerivationChildCollection, DerivationDefaultView, DerivationNavTitle,
 	}
 )

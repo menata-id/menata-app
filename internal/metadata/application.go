@@ -390,6 +390,21 @@ func loadApplicationFile(path, workspaceSlug string) (*domain.Application, error
 		return nil, &ValidationError{Issues: navIssues}
 	}
 
+	// A navigation item's Heading: its `title:` when declared, its `label:` otherwise -- resolved here, at
+	// load, rather than by whoever renders it. Title itself is left exactly as declared, so "did an author
+	// write this heading" stays answerable (domain.NavigationItem.Heading explains why that matters).
+	//
+	// **This was a fallback inside rendering.titleByID until 2026-10-02.** As a render-time fallback it
+	// was an inference that nothing could explain: 005 Phase 4 puts "expand authoring conveniences" in
+	// normalization and requires the result be "inspectable enough to explain important runtime
+	// decisions", and 001 #6's second clause names *rendering* among the things an unexplained inference
+	// must not silently affect. Stamping it here puts it in the phase that owns it and lets
+	// metadata.ExplainNavigation report it (domain.DerivationNavTitle).
+	//
+	// Before the three fields below are decided, deliberately: AllNavigation freezes the full list, and a
+	// title stamped after that freeze would be missing from exactly the lookup rendering.titleByID reads.
+	domain.ResolveNavigationHeadings(navigation)
+
 	// PrimaryNavGroup, HomeRoute and AllNavigation are all decided from the full declared list,
 	// *before* show_nav suppresses anything -- the same freeze-then-filter ordering
 	// hidden_nav_groups needed, and load-bearing for the same three reasons: suppressing a menu

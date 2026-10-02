@@ -88,7 +88,9 @@ func normalizationSteps(ws domain.Workspace, view *rendering.InferenceView) []re
 	at := map[string]int{}
 	var steps []rendering.InferenceStep
 
-	for _, r := range metadata.Explain(ws.Machines) {
+	// Applications as well as Machines: navigation's own Phase-4 inference lives on domain.Application,
+	// so a view that explained only Machines would show 27 navigation headings as explained by nothing.
+	for _, r := range append(metadata.Explain(ws.Machines), metadata.ExplainNavigation(ws.Applications)...) {
 		// From carries "<step> -- <detail>"; the step is the grouping key and the detail stays on the row.
 		step, detail, found := strings.Cut(r.From, " -- ")
 		if !found {

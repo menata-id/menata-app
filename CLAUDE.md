@@ -597,6 +597,24 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   trying to move `Execute` in.
   `domain.WorkflowRole*` and `domain.WorkflowEngineDocumentApproval` deliberately stayed in `domain`:
   those are names an Application writes in its own YAML, vocabulary rather than dispatch.
+- `TestInstalledNavigationExplainsItsHeadings` / `TestRuntimeScreensResolveTheirHeadings` /
+  `TestRendererDoesNotResolveNavigationHeadings` — the navigation half of 001 #6's second clause, and the
+  family that exists because **mutation showed the first fix was only half a fix**. A navigation item's
+  heading is its `title:` when declared and its `label:` otherwise; that inference lived as a fallback
+  inside `rendering.titleByID` until 2026-10-02, which made it happen at render time where nothing could
+  explain it — and 001 #6 names *rendering* explicitly while 005 Phase 4 owns "expand authoring
+  conveniences". It is resolved at load now (`domain.ResolveNavigationHeadings`, called by
+  `metadata.LoadApplication` and by `RuntimeScreens`' own init) and reported by
+  `metadata.ExplainNavigation`.
+  **Two things the first attempt got wrong, both worth carrying.** It stamped `Title = Label`, which
+  destroyed the one fact a reader needs — whether an author wrote the heading — so `ExplainNavigation` had
+  to guess from `Title == Label`, wrong for a screen whose heading legitimately equals its label; and it
+  doubled `TestRenderingHasNoHardcodedPageHeading`'s population, because that gate compares against
+  *declared* strings. `Title` stays as declared; `NavigationItem.Heading` carries the resolved answer.
+  And the resolver lives in `internal/domain`, not beside the loader, because **`internal/rendering` may
+  not import `internal/metadata`** — a rendering test building a nav fixture by hand has to reach the same
+  resolution, and asking a fixture to hand-write an inference is the inversion
+  `TestMachineFixturesPassProductionValidation` already rejects for `RelatedMachine`.
 - `TestDeclaredPlaceholdersStayDeclared` / `TestPlaceholderDocsClaimNoContent` — `internal/ir` and
   `internal/planner` exist, carry boundary rules, and contain **only `doc.go`**, deliberately. A
   placeholder is legitimate: it reserves the seam's name and its import boundary before anything fills it,

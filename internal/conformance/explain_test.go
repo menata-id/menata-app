@@ -539,9 +539,14 @@ func TestEveryNormalizationDerivationIsProduced(t *testing.T) {
 		t.Fatalf("load workspaces: %v", err)
 	}
 
+	// Both producers, because normalization's subjects are not all Machines. metadata.Explain answers for
+	// Machines; ExplainNavigation answers for an Application's navigation, whose title inference lives on
+	// domain.NavigationItem and has no Machine to hang from. Checking only the first made a correctly
+	// emitted derivation fail this gate the day it was added (nav_title, 2026-10-02) -- the gate was
+	// right that nobody could see it and wrong about why.
 	seen := map[string]bool{}
 	for _, app := range wss {
-		for _, r := range metadata.Explain(app.Machines) {
+		for _, r := range append(metadata.Explain(app.Machines), metadata.ExplainNavigation(app.Workspace.Applications)...) {
 			name, _, _ := strings.Cut(r.Name, ":")
 			seen[strings.TrimSpace(name)] = true
 		}

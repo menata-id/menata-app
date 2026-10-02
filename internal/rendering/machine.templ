@@ -189,10 +189,12 @@ func labelByID(ctx context.Context, id string) string {
 func titleByID(ctx context.Context, id string) string {
 	for _, item := range declaredNavigation(ctx) {
 		if item.ID == id {
-			if item.Title != "" {
-				return item.Title
-			}
-			return item.Label
+			// No label fallback: metadata.LoadApplication stamps Title from Label when an author declares
+			// none (domain.DerivationNavTitle). It lived here until 2026-10-02, which made it an inference
+			// happening at render time and explainable by nothing -- 001 #6's second clause names
+			// *rendering* exactly, and 005 Phase 4 owns "expand authoring conveniences". A renderer reads
+			// a resolved value; it does not resolve one.
+			return item.Heading
 		}
 	}
 	panic("rendering: no navigation item with id " + id)

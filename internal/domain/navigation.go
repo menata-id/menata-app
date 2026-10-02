@@ -49,7 +49,9 @@ type NavigationItem struct {
 	// falls back to linking at itself ("/home"), never a guessed Application route.
 	HomeCard bool
 	// Title is the heading the destination screen renders for *itself* -- its own <h1> -- and
-	// Description the sentence under it. Both optional; a screen with no Title declared falls back
+	// Description the sentence under it. Both optional. **Title stays exactly as declared** -- the
+	// resolution lives in Heading below, because "did an author write this heading" is the question
+	// metadata.ExplainNavigation has to answer precisely. Historically a screen with no Title fell back
 	// to Label (rendering.titleByID), which is what every screen did unconditionally until
 	// 2026-09-24.
 	//
@@ -64,7 +66,21 @@ type NavigationItem struct {
 	// its .templ (approvalinbox.templ carried two), which is the metadata-hardcoding violation
 	// CLAUDE.md's decision path describes, hiding in the one place the label gate could not see:
 	// a sentence is not a Title-Case phrase, so nothing matched it.
-	Title       string
+	Title string
+	// Heading is what a screen's own <h1> says: Title when an author declared one, Label otherwise.
+	//
+	// **A separate field rather than Title overwritten, and the difference is load-bearing.** The first
+	// attempt (2026-10-02) stamped Title = Label when Title was empty, which destroyed the one fact a
+	// reader needs: *whether an author wrote this heading*. metadata.ExplainNavigation then had to guess
+	// it from `Title == Label`, a heuristic that is simply wrong for a screen whose heading legitimately
+	// equals its menu label. It also doubled the population of
+	// conformance.TestRenderingHasNoHardcodedPageHeading, which compares against *declared* strings --
+	// with every label stamped as a title, that gate started flagging what the label gate already owns.
+	//
+	// So Title stays exactly as declared (possibly empty), Heading carries the resolved answer, and the
+	// inference is both exact and explainable (domain.DerivationNavTitle). Resolved in
+	// metadata.LoadApplication, before AllNavigation freezes -- see the comment there.
+	Heading     string
 	Description string
 	// SettingsHub marks the one navigation item that *is* an Application's Settings landing page
 	// (ROADMAP.md "In progress", "Application Settings hub") -- at most one per Application,
@@ -112,4 +128,26 @@ func HomeCardRoute(items []NavigationItem) string {
 		}
 	}
 	return ""
+}
+
+// ResolveNavigationHeadings fills each item's Heading: its Title when declared, its Label otherwise.
+//
+// A `domain` function rather than a `metadata` one for a plane reason, not a taste one: `internal/metadata`
+// calls it at load (005 Phase 4 owns the inference), and **`internal/rendering` is forbidden from
+// importing `internal/metadata`**, so a rendering test building a Workspace fixture by hand could not
+// otherwise reach the resolution. One implementation both planes call is 001 #8; two would be the
+// "fixture looser than the real thing" failure this repo has found three times.
+//
+// Asking a fixture to hand-write Heading was the alternative, and it is the inversion
+// TestMachineFixturesPassProductionValidation's own comment rejects for RelatedMachine: an inference the
+// runtime makes is not something a fixture should be asked to know.
+//
+// Idempotent, so calling it twice is harmless -- a fixture may hand it an already-resolved list.
+func ResolveNavigationHeadings(items []NavigationItem) {
+	for i := range items {
+		items[i].Heading = items[i].Title
+		if items[i].Heading == "" {
+			items[i].Heading = items[i].Label
+		}
+	}
 }
