@@ -33,25 +33,41 @@ const (
 	LayoutPanel LayoutKind = "panel"
 )
 
-// **`row` and `grid` are not primitives in this corpus, and the measurement that settled it corrected an
-// earlier claim of mine.** The Experience Plane kajian said all four of these were "measured in use",
-// counting *frequency*. Counting distinct **shapes** instead (2026-10-02):
+// **`row`, `grid` and `split` are primitives, and the comment that stood here said otherwise. Retracted
+// 2026-10-02 after the owner asked the obvious question: every real framework has row and grid, so how
+// could this corpus not need them.**
 //
-//   - `panel`: 12 sites, **one** class string. A primitive, and it is here.
-//   - `row`: 21 sites, **six** shapes -- `items-center gap-2` (7), `gap-1.5` (5),
-//     `items-center justify-between gap-3` (4), `gap-2` (3), plus two one-offs carrying `items-baseline`,
-//     `gap-x`/`gap-y`, or a bottom border.
-//   - `grid`: 6 sites, **six** shapes, every one an arbitrary track list (`grid-cols-[6rem_1fr]`,
-//     `lg:grid-cols-[1fr_360px]`, `lg:grid-cols-[1fr_340px]`). There is no closed column vocabulary to
-//     declare.
+// The rejected reasoning was: 21 `row` sites span "six shapes" and 6 `grid` sites span "six arbitrary
+// track lists", so neither is one shape. **That counted class strings and called the result shapes.** A
+// class-string difference is a *configuration* difference, and absorbing configuration is exactly what a
+// parameterised primitive is for -- `grid-cols-2` and `grid-cols-4` are not two primitives, they are
+// `columns: 2` and `columns: 4`.
 //
-// Forcing `row`'s six shapes through one primitive either changes what renders or gives the primitive
-// enough knobs to become the unbounded `GenericComponent` §12.3 forbids by name. `grid`'s tracks are a
-// layout *language*, which is §15.2's "CSS framework classes" with a different syntax.
+// What §12.3 actually forbids is a component becoming "'generic' merely by accepting **arbitrary**
+// properties". A grid taking a free CSS track string would be that -- CSS smuggled through the logical
+// plane, §15.2's own prohibition with different syntax. A grid taking `columns` from a closed set is
+// bounded. The constraint belongs on the *parameters*, not on the primitive's existence.
 //
-// So they stay hand-written, and this comment is the reason rather than an omission. What would change it:
-// a second case that genuinely shares one of `row`'s shapes -- the 7 `items-center gap-2` sites are the
-// most promising -- audited for whether they mean the same thing or merely look alike.
+// Re-measured by **meaning** rather than by class string, and the counts changed materially:
+//
+//   - `grid`, responsive column count: **6** sites -- `sm:grid-cols-2` x3, `sm:grid-cols-4`,
+//     `sm:grid-cols-7`, `grid-cols-2 sm:grid-cols-4`. One primitive, one enum parameter.
+//   - `split`, a main area beside a fixed-width aside: **5** sites --
+//     `lg:grid-cols-[320px_minmax(0,1fr)]`, `[1fr_360px]`, `[1fr_340px]`, `[minmax(0,1fr)_320px]`,
+//     `[minmax(0,1fr)_316px]`. **This is §12.2's own `split`, which the earlier comment dismissed as
+//     having "zero measured uses".** It has five, and the five differ only in a pixel width and which
+//     side the aside is on.
+//   - `row`: alignment is a **closed set of three** -- `items-center` (11), `justify-between` (5),
+//     `items-baseline` (2) -- which is precisely what Bootstrap, Tailwind and every component library
+//     expose as named options. The gap ladder needs more steps than the two currently declared
+//     (`gap-2` 11, `gap-1.5` 5, `gap-3` 4, `gap-1` 2, `gap-3.5` 1, plus one `gap-x`/`gap-y` pair).
+//   - genuine one-offs: **2** -- a `[6rem_1fr]` label/value definition list, and rolematrix's bordered
+//     row grid. Those stay hand-written, which is what a one-off is.
+//
+// So the next slice builds `row`, `grid` and `split` **with their callers**, parameters as closed enums,
+// and the two one-offs left alone. The error chain worth remembering: the first measurement counted
+// frequency and not uniformity; the second counted uniformity and not parameterisability. Both were
+// caught by being asked whether the conclusion was plausible, not by a gate.
 
 // KnownLayoutKinds is the closed set. A kind absent from it is a load-time error, never a silent skip
 // (capability-lifecycle.md §4 rule 3, "Unknown = explicit").

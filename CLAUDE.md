@@ -611,6 +611,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   be named by something. **A primitive arrives with the uses it replaces**, or it is a name with nothing
   behind it; the measured counts for the unbuilt kinds are in `domain.LayoutKind`'s comment so the next
   slice migrates rather than re-declares.
+  **And a warning that cost two wrong conclusions in two days**: when deciding whether something is a
+  primitive, do not count class strings. `row` and `grid` were written off as "not primitives in this
+  corpus" because 21 and 6 sites spanned many class strings — but class-string variety is *configuration*
+  variety, which is exactly what a parameterised primitive absorbs. §12.3 forbids a component accepting
+  **arbitrary** properties, not enumerated ones. Re-measuring by *meaning* found `split` (which §12.2
+  lists and the rejection said had zero uses) at **5 sites**, and only 2 genuine one-offs. The first
+  measurement counted frequency and not uniformity; the second counted uniformity and not
+  parameterisability. Neither was caught by a gate — both were caught by someone asking whether the
+  conclusion was plausible.
 - `TestClaimMatrixCitesRealArtifacts` / `TestConceptDocsCiteDocumentsThatExist` — the normative documents
   must cite artifacts a reader can open. **007 §40 described a different repository until 2026-10-02**: its
   evidence column cited `CAP-` rows, `CR-` gap numbers and `internal/metadata/compile.go`, none of which
