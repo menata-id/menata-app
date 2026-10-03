@@ -120,7 +120,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 			hx-swap="outerHTML"
 		>
 			@splitLayout(domain.GapComfortable, domain.SplitAsideEnd, domain.AsideNarrow) {
-				<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+				@sectionLayout(domain.GapDefault) {
 					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 						<h2 class="m-0 text-sm font-medium">{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</h2>
 						<span class="flex items-center gap-3 text-xs">
@@ -134,7 +134,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 					}
 					<p class="m-0 text-2xs text-slate-500">Drag each box to its signature block.</p>
 					@placementCanvas(v, true)
-				</section>
+				}
 				<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
 					<h2 class="m-0 text-sm font-medium">Approval steps</h2>
 					for _, s := range v.Steps {

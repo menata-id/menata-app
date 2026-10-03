@@ -3,7 +3,7 @@ package domain
 // LayoutKind is the closed set of generic spatial composition primitives
 // (007-composable-runtime-architecture.md §12.2).
 //
-// **Six of §12.2's eight are built, and each arrived with the uses it replaces.** §12.2 lists `stack`,
+// **Seven of §12.2's eight are built, and each arrived with the uses it replaces.** §12.2 lists `stack`,
 // `row`, `columns`, `grid`, `split`, `tabs`, `panel` and `section`. Counted by *meaning* across the 38
 // bespoke screens (see the retraction below for why the first two counts were wrong): vertical flow with a
 // uniform gap appears **61 times** (`stack`), the bordered padded surface twelve times across six screens
@@ -67,6 +67,21 @@ const (
 	// owner found it (2026-10-03) after I twice recorded `columns` as having "zero measured uses". Both times I
 	// searched for a class string (`columns-2`, CSS multi-column) instead of for the meaning.
 	LayoutColumns LayoutKind = "columns"
+	// LayoutSection is a bordered, padded surface that stacks its children -- §12.2's `section`, a titled
+	// grouping of content.
+	//
+	// **It is deliberately separate from `panel` even though both are bordered padded surfaces, and the
+	// difference is 4px of padding.** I argued for merging them: §24's Specialization Rule says not to add a
+	// type when existing primitives express the requirement, and `section` is arguably `panel` + an internal
+	// stack + a heading child. Measured, the real distinction in this corpus is *internal stacking* -- `panel`
+	// has none and none of its 12 callers stacks immediately, while all 17 `section` sites stack with a gap --
+	// and the padding correlates with it, which usually means the padding is the accident.
+	//
+	// **The owner chose to keep them separate (2026-10-03), and the defence is risk rather than taste**: it is
+	// the only option where *no screen moves*, and three of the six slices that day already moved pixels.
+	// §12.2 lists both names, so two primitives is within the vocabulary. Recorded here with the argument
+	// against it so the next reader does not "fix" the padding and silently restyle 12 or 21 screens.
+	LayoutSection LayoutKind = "section"
 )
 
 // ColumnsAlign is how a columns layout aligns its children on the cross axis **once it is a row**. Below the
@@ -239,6 +254,7 @@ var KnownLayoutKinds = map[LayoutKind]bool{
 	LayoutSplit:   true,
 	LayoutRow:     true,
 	LayoutColumns: true,
+	LayoutSection: true,
 }
 
 // Gap is the spacing between a layout's children, as an enum rather than a number.

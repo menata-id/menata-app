@@ -105,7 +105,7 @@ templ inferenceSummary(v InferenceView) {
 }
 
 templ inferenceEngineBlock(e InferenceEngine) {
-	<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+	@sectionLayout(domain.GapDefault) {
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			<h2 class="m-0 text-sm font-medium">{ e.Engine }</h2>
 			if e.Defects > 0 {
@@ -115,14 +115,14 @@ templ inferenceEngineBlock(e InferenceEngine) {
 		for _, r := range e.Roles {
 			@inferenceRoleBlock(r)
 		}
-	</section>
+	}
 }
 
 // inferenceStepBlock renders one Phase 4 step. These apply to every Machine in the Workspace, so the
 // section exists even when no workflow engine is installed -- which is also why the page's own empty
 // state above speaks only about engines.
 templ inferenceStepBlock(n InferenceStep) {
-	<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+	@sectionLayout(domain.GapDefault) {
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			<h2 class="m-0 text-sm font-medium">{ n.Step }</h2>
 			if n.Defects > 0 {
@@ -162,7 +162,7 @@ templ inferenceStepBlock(n InferenceStep) {
 				</tbody>
 			</table>
 		</div>
-	</section>
+	}
 }
 
 templ inferenceRoleBlock(r InferenceRole) {

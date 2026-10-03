@@ -1,5 +1,7 @@
 package rendering
 
+import "menata.app/internal/domain"
+
 // ProfilePage lets the signed-in identity edit their own display name; email is shown read-only
 // (it is the sign-in identity itself, not a display field -- changing it is a separate,
 // not-yet-built capability, same posture as Security's 2FA row).
@@ -22,7 +24,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 		}
 		<form method="POST" action="/account-profile" class="flex flex-col gap-4">
 			@csrfHiddenInput()
-			<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			@sectionLayout(domain.GapComfortable) {
 				<div class="flex flex-col gap-2">
 					<label for="profile-name" class="text-sm font-medium">Full name</label>
 					<input
@@ -45,7 +47,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 					/>
 					<p class="m-0 text-2xs text-slate-400">Your sign-in email -- contact a workspace admin to change this.</p>
 				</div>
-			</section>
+			}
 			<div class="flex justify-end gap-2.5">
 				<a href="/home" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Cancel</a>
 				@authSubmit("Save changes")
@@ -71,13 +73,13 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 		</div>
 		<form method="POST" action="/account-notifications" class="flex flex-col gap-4">
 			@csrfHiddenInput()
-			<section class="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white p-5">
+			@sectionLayout(domain.GapTight) {
 				<h2 class="m-0 text-sm font-medium">Document Approval</h2>
 				<p class="m-0 mb-2 text-2xs text-slate-500">Emails about approvals you're involved in.</p>
 				@notificationToggle("notify_assigned", "A document is assigned to me for approval", notifyAssigned)
 				@notificationToggle("notify_decided", "My submitted document is approved or rejected", notifyDecided)
 				@notificationToggle("notify_sla_breach", "My submitted document is overdue for approval", notifySLABreach)
-			</section>
+			}
 			<div class="flex justify-end gap-2.5">
 				<a href="/home" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Cancel</a>
 				@authSubmit("Save changes")
@@ -119,7 +121,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 			<h1 class="m-0 text-xl font-medium">Security</h1>
 			<div class="text-sm text-slate-500">Manage your password and where you're signed in.</div>
 		</div>
-		<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+		@sectionLayout(domain.GapComfortable) {
 			<div class="flex flex-col gap-1">
 				<h2 class="m-0 text-sm font-medium">Password</h2>
 				<p class="m-0 text-2xs text-slate-500">Choose a strong password you don't use elsewhere.</p>
@@ -139,8 +141,8 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 					@authSubmit("Update password")
 				</div>
 			</form>
-		</section>
-		<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+		}
+		@sectionLayout(domain.GapComfortable) {
 			<div class="flex flex-col gap-1">
 				<h2 class="m-0 text-sm font-medium">Other devices</h2>
 				<p class="m-0 text-2xs text-slate-500">Sign every other session out, keeping this one.</p>
@@ -152,7 +154,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 				@csrfHiddenInput()
 				<button type="submit" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Sign out of other devices</button>
 			</form>
-		</section>
+		}
 		<section class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-5">
 			<div class="flex flex-col gap-1">
 				<h2 class="m-0 text-sm font-medium">Two-factor authentication</h2>

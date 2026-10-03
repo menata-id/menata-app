@@ -70,6 +70,24 @@ templ panelLayout() {
 	</section>
 }
 
+// sectionLayout is §12.2's `section`: a bordered, padded surface that stacks its children -- the shape 17
+// sites across nine screens carried as one class string, usually holding a heading as their first child
+// (21 of 25 measured `<section>` blocks do).
+//
+// **Why `p-5` here and `p-4` in `panelLayout`.** They are two paddings for what is arguably one idea, and
+// that is the owner's decision rather than an oversight: keeping them separate is the only option where no
+// screen moves, and `domain.LayoutSection` records the argument for merging them. **Do not unify these
+// without saying which 12 or 21 screens shift** -- the correlation between the padding and whether the
+// surface stacks internally suggests the 4px is an accident, but acting on that is a visual change.
+//
+// It takes no title parameter. `sectionHeaderRow` (appshell.templ, 9 callers) is the heading half and takes
+// a link target; a Layout that accepted one would be a Layout that knows about routes.
+templ sectionLayout(gap domain.Gap) {
+	<section class={ "flex flex-col", layoutGap(gap), "rounded-lg border border-slate-200 bg-white p-5" }>
+		{ children... }
+	</section>
+}
+
 // gridColsBelowBreakpoint and gridColsFromBreakpoint are **two switches rather than one**, and each emits a
 // class only for a count the corpus measures at that breakpoint: one and two below `sm:`, two, four and
 // seven from `sm:` up.
@@ -346,6 +364,10 @@ templ uiNode(n ir.UINode) {
 					}
 				case domain.LayoutPanel:
 					@panelLayout() {
+						@uiChildren(n)
+					}
+				case domain.LayoutSection:
+					@sectionLayout(domain.Gap(n.Props["gap"])) {
 						@uiChildren(n)
 					}
 				case domain.LayoutColumns:

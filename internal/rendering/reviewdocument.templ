@@ -179,7 +179,7 @@ func reviewStatusTone(status string) domain.BadgeTone {
 // attribute -- no second route and no change to serveUpload's own content sniffing. The board draws
 // two affordances; the app has one file, so two links over one route is the honest rendering.
 templ reviewDocumentCard(v ReviewView) {
-	<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+	@sectionLayout(domain.GapComfortable) {
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 			<h2 class="m-0 text-sm font-medium">Document</h2>
 			if v.FileHref != "" {
@@ -202,7 +202,7 @@ templ reviewDocumentCard(v ReviewView) {
 				</span>
 			</div>
 		}
-	</section>
+	}
 }
 
 // reviewProgress is board 10's Approval Progress list: the same []StepApprover the Approval Inbox
@@ -213,7 +213,7 @@ templ reviewDocumentCard(v ReviewView) {
 // content, so one markup cannot serve both until that page ports too. The *data* is shared, which
 // is the part worth sharing -- see StepApprover's own doc comment.
 templ reviewProgress(steps []StepApprover) {
-	<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+	@sectionLayout(domain.GapComfortable) {
 		<h2 class="m-0 text-sm font-medium">Approval Progress</h2>
 		<ol class="m-0 flex list-none flex-col gap-4 p-0">
 			for i, s := range steps {
@@ -237,7 +237,7 @@ templ reviewProgress(steps []StepApprover) {
 				</li>
 			}
 		</ol>
-	</section>
+	}
 }
 
 // reviewStepMarker is the numbered circle: a tick for a decided step, its sequence number

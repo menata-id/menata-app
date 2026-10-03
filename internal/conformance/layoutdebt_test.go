@@ -34,8 +34,8 @@ import (
 //
 // Measured 2026-10-03 across every `.templ`, after two earlier measurements got the population wrong --
 // the first counted frequency and not uniformity, the second counted uniformity and not parameterisability
-// (see `domain.LayoutKind`'s retraction). **45 sites in 20 files -> 13 in 10**, over three slices the same
-// day: `grid` (5), `split` (5) and `row` (22). `grid`'s key is *absent* rather than zero, because an entry
+// (see `domain.LayoutKind`'s retraction). **45 sites in 20 files -> 35**, over three slices the same
+// day: `grid` (5), `split` (5), `row` (22), then `columns` (5) and `section` (17). `grid`'s key is *absent* rather than zero, because an entry
 // naming a kind with no sites fails too.
 var handWrittenLayoutSites = map[string]map[string]int{
 	// `row`: horizontal flow that wraps. **22 of 33 sites migrated on 2026-10-03; these eleven are the
@@ -66,10 +66,9 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	// hand-written `<section class=` plus `sectionHeaderRow`'s nine callers, which is the same concept with
 	// its heading already extracted. `layout.templ`'s one is `panelLayout` itself and is the floor.
 	"section": {
-		"account.templ": 5, "dashboard.templ": 3, "detail.templ": 4, "documentsubmit.templ": 2,
-		"groups.templ": 2, "inference.templ": 3, "installapplication.templ": 1, "layout.templ": 1,
-		"machine.templ": 4, "newapplication.templ": 1, "reviewdocument.templ": 2,
-		"signatureplacement.templ": 1, "sprintdashboard.templ": 1, "workspacemembers.templ": 4,
+		"account.templ": 1, "dashboard.templ": 3, "detail.templ": 4, "inference.templ": 1, "layout.templ": 2,
+		"machine.templ": 4, "newapplication.templ": 1, "sprintdashboard.templ": 1,
+		"workspacemembers.templ": 1,
 	},
 }
 
@@ -125,7 +124,7 @@ func TestHandWrittenLayoutSitesOnlyShrink(t *testing.T) {
 		"grid":    "use `gridLayout` (domain.GridCols x Gap)",
 		"split":   "use §12.2's `split` via `splitLayout` (domain.SplitSide x AsideWidth x Gap)",
 		"columns": "use §12.2's `columns` via `columnsLayout` (domain.ColumnsAlign x Gap) -- unless this site is a list row or a panel, which are the four that stayed",
-		"section": "§12.2's `section` is **not built yet** and this is the largest remaining population (34). Build it with its callers rather than adding an entry here",
+		"section": "use §12.2's `section` via `sectionLayout(Gap)` -- unless this site is one of the eight floor cases named in the entry above",
 	}
 
 	for _, kind := range []string{"grid", "row", "split", "columns", "section"} {

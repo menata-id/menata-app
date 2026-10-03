@@ -226,15 +226,15 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 		</div>
 		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class="flex flex-col gap-4">
 			@csrfHiddenInput()
-			<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			@sectionLayout(domain.GapComfortable) {
 				<div class="flex flex-col gap-1">
 					<h2 class="m-0 text-sm font-medium">Workspace role</h2>
 					<p class="m-0 text-2xs text-slate-500">Controls workspace administration, independent of application permissions.</p>
 				</div>
 				@workspaceRoleChoice("admin", "Can manage members, groups and workspace settings.", m.WorkspaceRole == "admin")
 				@workspaceRoleChoice("member", "No workspace administration.", m.WorkspaceRole == "member")
-			</section>
-			<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			}
+			@sectionLayout(domain.GapComfortable) {
 				<div class="flex flex-col gap-1">
 					<h2 class="m-0 text-sm font-medium">Application access</h2>
 					<p class="m-0 text-2xs text-slate-500">Assign the role this user receives directly in each application.</p>
@@ -245,7 +245,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 						@roleSelect("role_"+app.ID, app, m.AppRoles[app.ID])
 					}
 				}
-			</section>
+			}
 			<div class="flex items-center justify-end gap-3">
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-sm text-slate-500 hover:text-slate-700">Cancel</a>
 				@authSubmit("Save changes")
@@ -326,7 +326,7 @@ templ roleSelect(id string, app RoleApplication, selected string) {
 // is changed by editing that Group, which is what the board's own sentence says and what this
 // panel repeats. Rendering it inside the form would suggest the whole picture is editable here.
 templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
-	<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+	@sectionLayout(domain.GapComfortable) {
 		<div class="flex flex-col gap-1">
 			<h2 class="m-0 text-sm font-medium">Effective access</h2>
 			<p class="m-0 text-2xs text-slate-500">Direct roles combined with roles inherited from Groups.</p>
@@ -349,7 +349,7 @@ templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 				<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs text-slate-600">+ { g.Name } group</span>
 			}
 		}
-	</section>
+	}
 }
 
 // avatarLabel is an avatar's accessible name: the person's own name when known, their email otherwise.
