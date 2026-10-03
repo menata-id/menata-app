@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"menata.app/internal/experience"
 	"fmt"
 
 	"menata.app/internal/data"
@@ -22,12 +23,16 @@ type ProjectSummary struct {
 	Status string
 }
 
-// PendingDocument is one row of the Dashboard's "Pending Approval" table: a Document's declared title,
-// and the *stored* value of its declared date Field, which slaBadgePill parses itself.
+// PendingDocument is one row of the Dashboard's "Pending Approval" table: a Document's declared title and
+// its **resolved** SLA badge.
+//
+// `Due any` became `SLA experience.SLABadge` on 2026-10-03. The raw value was here so the Page could parse
+// it and evaluate the rule itself, which 007 §4.4 assigns to Composition and §4.6 forbids outright once the
+// evaluation reads the clock.
 type PendingDocument struct {
 	Record *data.Record
 	Title  string
-	Due    any
+	SLA    experience.SLABadge
 }
 
 // DocumentSummary counts Case 3's Documents by status, for the Dashboard's Summary section
@@ -110,7 +115,7 @@ templ DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []
 							for _, r := range pending {
 								<tr class="border-b border-slate-100 text-sm last:border-b-0">
 									<td class="px-3 py-2.5">{ r.Title }</td>
-									<td class="px-3 py-2.5">@slaBadgePill(r.Due)</td>
+									<td class="px-3 py-2.5">@slaBadge(r.SLA)</td>
 								</tr>
 							}
 						</tbody>

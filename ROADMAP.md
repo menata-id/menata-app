@@ -1205,9 +1205,9 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   PDF thumbnail. A props decision on a ten-parameter signature, not a missing primitive.
 - **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Adding an Application screen
   is writing Go today -- 36 of 38 navigation items point at a bespoke route, which 007 §12.4 forbids
-  normatively. Stage 1 is **done**: `stack`, `panel`, `grid`, `split` and `row`, each with all its callers
-  (2026-10-02/03), 45 hand-written layout sites down to a 13-site floor that `rendering.rowLayout` explains
-  per kind. Stage 2 is the bounded Component (§12.3). Plan and boundary:
+  normatively. Stage 1 **done** (`stack`, `panel`, `grid`, `split`, `row`, 2026-10-02/03): 45 hand-written
+  layout sites down to a 13-site floor. **Stage 2 began the same day** -- `registry.Components` carries §13
+  contracts and `StatusBadge` is its first member. Plan and boundary:
   `menata-app-document`'s `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`.
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.

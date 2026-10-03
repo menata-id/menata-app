@@ -10,6 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
+	"menata.app/internal/experience"
 
 	"menata.app/internal/data"
 )
@@ -33,10 +34,15 @@ type TaskRow struct {
 	// picks a Field off the record itself (007 §4.4).
 	Title  string
 	Status string
-	// Due is the *stored* value of the Field declared in the date role, not its projected display:
-	// slaBadgePill parses it. Which Field that is comes from the declaration
-	// (composition.FieldForRole), which is the whole point -- the id is not written here.
-	Due any
+	// SLA and DueText are the date Field in the `date` role, **already resolved** -- a badge with its
+	// label and tone, and the stored value as text for the lists that show a plain date instead.
+	//
+	// They replaced `Due any` on 2026-10-03. That field's own comment said "slaBadgePill parses it",
+	// which named the defect accurately: a Page was parsing a date and evaluating a business rule
+	// against `time.Now()`. Composition resolves both now, with the `now` it already takes. Which
+	// Field they come from is still the declaration's answer (composition.FieldForRole).
+	SLA     experience.SLABadge
+	DueText string
 }
 
 // MyTasksPage is Case 19's personal work queue (development-history.md Phase 14, project-my-tasks.html):
@@ -205,7 +211,7 @@ func MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, w
 						var templ_7745c5c3_Var6 string
 						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(t.Title)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 75, Col: 58}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 81, Col: 58}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 						if templ_7745c5c3_Err != nil {
@@ -218,7 +224,7 @@ func MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, w
 						var templ_7745c5c3_Var7 string
 						templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(t.ProjectName)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 76, Col: 67}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 82, Col: 67}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 						if templ_7745c5c3_Err != nil {
@@ -283,7 +289,7 @@ func taskRowList(rows []TaskRow, sla bool) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(t.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 89, Col: 19}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 95, Col: 19}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
@@ -296,7 +302,7 @@ func taskRowList(rows []TaskRow, sla bool) templ.Component {
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(t.Status)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 90, Col: 90}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 96, Col: 90}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -309,7 +315,7 @@ func taskRowList(rows []TaskRow, sla bool) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(t.ProjectName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 91, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 97, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -324,7 +330,7 @@ func taskRowList(rows []TaskRow, sla bool) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = slaBadgePill(t.Due).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = slaBadge(t.SLA).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -332,15 +338,15 @@ func taskRowList(rows []TaskRow, sla bool) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-			} else if due := toString(t.Due); due != "" {
+			} else if t.DueText != "" {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span class=\"ml-auto text-xs text-slate-400\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var12 string
-				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(due)
+				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(t.DueText)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 97, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/mytasks.templ`, Line: 103, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {

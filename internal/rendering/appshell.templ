@@ -4,10 +4,8 @@ import (
 	"context"
 	"sort"
 	"strings"
-	"time"
 
 	"menata.app/internal/domain"
-	"menata.app/internal/experience"
 )
 
 // launcherAppHomeRoute is an Application card's link target: its own declared HomeRoute, falling
@@ -948,15 +946,14 @@ templ sectionHeaderRow(title, linkHref, linkLabel string) {
 	</div>
 }
 
-// slaBadgePill is machine.templ's slaBadge, Tailwind side -- same experience.EvaluateSLA
-// resolution, red text over a plain badge for overdue, a slate pill otherwise.
-templ slaBadgePill(v any) {
-	if due, err := time.Parse("2006-01-02", toString(v)); err == nil {
-		{{ status, label := experience.EvaluateSLA(due, time.Now()) }}
-		if status == experience.SLAOverdue {
-			<span class="text-xs font-medium text-red-600">{ label }</span>
-		} else {
-			<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ label }</span>
-		}
-	}
-}
+// **slaBadgePill was deleted on 2026-10-03 and its four callers now take a resolved badge.** It took an
+// `any`, parsed `"2006-01-02"` out of it and called `experience.EvaluateSLA(due, time.Now())` -- a renderer
+// acquiring business data its contract does not represent (007 §12.3) and reading the clock, so identical
+// input did not produce identical output (§4.6, a MUST: the same record rendered "1 day left" and then
+// "OVERDUE" with nothing having changed). `experience.ResolveSLABadge` does it where `now` is an argument,
+// and `machine.templ`'s `slaBadge` draws the result through the registered `statusBadge` Component.
+//
+// **That unified two renderings of one idea, and it changes what four screens draw.** This one gave overdue
+// red *text* with no pill and everything else a slate pill a half-step tighter than `statusBadge`'s; overdue
+// is now a red pill, which is what `domain.ToneBad` already meant everywhere else. Two markups for one
+// semantic state is the same accident as `split`'s four aside widths, and a Component is where it stops.

@@ -129,18 +129,18 @@ func normalizationSteps(ws domain.Workspace, view *rendering.InferenceView) []re
 // rendering it at the same weight as the two statuses that mean something would bury the signal in its
 // own correctness -- which is what made the first two attempts at triaging these numbers useless
 // (registry.WorkflowEngineSpec.Answers' own comment).
-func toneFor(s domain.ResolutionStatus) rendering.PillTone {
+func toneFor(s domain.ResolutionStatus) domain.BadgeTone {
 	switch s {
 	case domain.StatusResolved:
-		return rendering.PillGood
+		return domain.ToneGood
 	case domain.StatusUndeclared:
-		return rendering.PillBad
+		return domain.ToneBad
 	case domain.StatusInputUnavailable:
-		return rendering.PillWarn
+		return domain.ToneWarn
 	case domain.StatusNotApplicable:
-		return rendering.PillMuted
+		return domain.ToneMuted
 	}
-	return rendering.PillNeutral
+	return domain.ToneNeutral
 }
 
 // splitResolutionName splits "step.decision" into its role and derivation halves. Resolution.Name is

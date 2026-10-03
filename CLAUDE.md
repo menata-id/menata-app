@@ -661,6 +661,38 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   that page unreliable noise. It took six fetches of the *baseline* to see it flip once. Fixed with sorted
   keys, held by `TestSearchBox_hiddenInputsRenderInAStableOrder`, which renders 50 times because one render of
   a two-key map passes about half the time.
+- `TestComponentRegistryAndRenderersAgree` / `TestRegisteredComponentsStayBounded` /
+  `TestRenderingDoesNotReadTheClock` — the **Component contract** family (007 §12.3, §13, §14), Stage 2 of
+  the Experience Plane, 2026-10-03. `registry.Components` is the catalogue: identity, the §13 contract, and a
+  validator. The renderer stays in `internal/rendering` for `registry.Service`'s own plane reason, and the
+  first gate binds the two across that boundary — a contract naming a renderer that does not exist is a
+  Component nothing can draw, and one with no caller is the shape-before-need that put three zero-caller
+  layout primitives in this tree a day earlier.
+  **The second gate is the one that does work, and it reads a signature rather than a call site.** §12.3's
+  normative sentence is *"MUST NOT silently acquire additional business data that is not represented by its
+  contract"*, and boundedness is a property of the renderer's parameters: a Component declaring no
+  `DataRequirements` may not take `any`, `*data.Record`, `*domain.Machine`, `context.Context` or `time.Time`.
+  That is unenforceable against an ordinary templ function — every signature is legal — which is the honest
+  answer to "what does a registry buy that a function does not".
+  **What it caught, and why it is worth reading before registering a second Component**: `slaBadgePill(v any)`
+  drew a status badge while parsing `"2006-01-02"` out of its argument and calling
+  `experience.EvaluateSLA(due, time.Now())`. Three defects in one signature — an untyped input, a business
+  rule evaluated in the Page (§4.4), and the clock (§4.6 Determinism, a **MUST**: the same record rendered
+  "1 day left" and later "OVERDUE" with no input having changed) — and `internal/composition` was already
+  evaluating that rule correctly in four places with an injected `now`, so it was 001 #8 as well.
+  `experience.ResolveSLABadge` does it where `now` is an argument. The third gate forbids the clock in
+  `internal/rendering` outright; `time.Time` as a **parameter** is the fix, not the violation.
+  **Unifying two markups for one semantic state changed what four screens draw** — overdue was red text with
+  no pill and is now a red pill, which `ToneBad` already meant on the eight sites using the shared shape.
+  Same class as `split`'s four aside widths: when a contract forces a choice between inconsistent literals,
+  the choice is a finding, so state it.
+  **And the verification could not be live.** Thirteen screens diffed against a worktree baseline came back
+  token-identical because **no record in the dev database holds a non-empty `fld_due_date`** — the badge has
+  never rendered in this environment. Thirteen identical screens would otherwise read as proof of something
+  they cannot prove; the real proof is `experience.TestResolveSLABadge*` and
+  `rendering.TestStatusBadge_rendersEachDeclaredTone`. **Check that a diff can reach the code before
+  reporting it as verification** — this is the third slice in a row where it could not, after
+  `pendingApprovalCardGrid` and New Application's review pane.
 - `TestNoClassLivesOnlyInAComment` — **Tailwind scans the `.templ` files as text, so a comment naming a
   utility class emits that class.** Nothing in `make css` knows what a Go comment is. Three leaks were found
   this way, all self-inflicted and all invisible: the comment recording that the first Experience Plane pass

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"menata.app/internal/composition"
@@ -137,7 +138,7 @@ func showMachinePage(store *data.Store, cfg config.Config) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-		render(req.Context(), w, rendering.MachinePage(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor, workspaceName, viewer, switchHref))
+		render(req.Context(), w, rendering.MachinePage(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor, workspaceName, viewer, switchHref, time.Now()))
 	}
 }
 
@@ -151,7 +152,7 @@ func renderMachineBody(w http.ResponseWriter, req *http.Request, machines map[st
 		serverError(w, err)
 		return
 	}
-	render(req.Context(), w, rendering.MachineBody(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor))
+	render(req.Context(), w, rendering.MachineBody(machine, v, p.records, p.relations, p.groups, p.boardColumns, p.cards, actor, time.Now()))
 }
 
 // machineViewReads is everything one arrangement of a Machine's records needs to render. Both the

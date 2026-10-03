@@ -32,9 +32,9 @@ func TestInferencePage_showsTheReviewDefect(t *testing.T) {
 			Roles: []InferenceRole{{
 				Role: "step", MachineID: "mch_langkah", Required: true, Defects: 1,
 				Rows: []InferenceRow{
-					{Derivation: "decision", Value: "fld_putusan", From: "transitions[action=decide].field", Status: "resolved", Tone: PillGood},
+					{Derivation: "decision", Value: "fld_putusan", From: "transitions[action=decide].field", Status: "resolved", Tone: domain.ToneGood},
 					{
-						Derivation: "parent", Value: "", Status: "input unavailable", Tone: PillWarn, IsDefect: true,
+						Derivation: "parent", Value: "", Status: "input unavailable", Tone: domain.ToneWarn, IsDefect: true,
 						From: "relation to the document Machine -- but no document Machine was supplied",
 					},
 				},
@@ -78,8 +78,8 @@ func TestInferencePage_doesNotShoutAboutCorrectEmpties(t *testing.T) {
 			Roles: []InferenceRole{{
 				Role: "document", MachineID: "mch_surat", Required: true,
 				Rows: []InferenceRow{
-					{Derivation: "document_status", Value: "fld_status", From: "transitions[].field", Status: "resolved", Tone: PillGood},
-					{Derivation: "decision", Value: "", From: "transitions[action=decide].field", Status: "not applicable", Tone: PillMuted},
+					{Derivation: "document_status", Value: "fld_status", From: "transitions[].field", Status: "resolved", Tone: domain.ToneGood},
+					{Derivation: "decision", Value: "", From: "transitions[action=decide].field", Status: "not applicable", Tone: domain.ToneMuted},
 				},
 			}},
 		}},

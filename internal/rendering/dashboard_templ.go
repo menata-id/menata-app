@@ -10,6 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
+	"menata.app/internal/experience"
 
 	"menata.app/internal/data"
 )
@@ -30,12 +31,16 @@ type ProjectSummary struct {
 	Status string
 }
 
-// PendingDocument is one row of the Dashboard's "Pending Approval" table: a Document's declared title,
-// and the *stored* value of its declared date Field, which slaBadgePill parses itself.
+// PendingDocument is one row of the Dashboard's "Pending Approval" table: a Document's declared title and
+// its **resolved** SLA badge.
+//
+// `Due any` became `SLA experience.SLABadge` on 2026-10-03. The raw value was here so the Page could parse
+// it and evaluate the rule itself, which 007 §4.4 assigns to Composition and §4.6 forbids outright once the
+// evaluation reads the clock.
 type PendingDocument struct {
 	Record *data.Record
 	Title  string
-	Due    any
+	SLA    experience.SLABadge
 }
 
 // DocumentSummary counts Case 3's Documents by status, for the Dashboard's Summary section
@@ -128,7 +133,7 @@ func DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []P
 					var templ_7745c5c3_Var4 string
 					templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(s.Name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 73, Col: 40}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 78, Col: 40}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 					if templ_7745c5c3_Err != nil {
@@ -141,7 +146,7 @@ func DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []P
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(s.Status)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 74, Col: 118}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 79, Col: 118}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {
@@ -154,7 +159,7 @@ func DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []P
 					var templ_7745c5c3_Var6 string
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(s.OpenTasks))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 75, Col: 57}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 80, Col: 57}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 					if templ_7745c5c3_Err != nil {
@@ -167,7 +172,7 @@ func DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []P
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprint(s.TotalTasks))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 76, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 81, Col: 58}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -246,7 +251,7 @@ func DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []P
 						var templ_7745c5c3_Var9 string
 						templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(r.Title)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 112, Col: 42}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/dashboard.templ`, Line: 117, Col: 42}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 						if templ_7745c5c3_Err != nil {
@@ -256,7 +261,7 @@ func DashboardPage(summaries []ProjectSummary, docs DocumentSummary, pending []P
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = slaBadgePill(r.Due).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = slaBadge(r.SLA).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

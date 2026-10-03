@@ -35,7 +35,7 @@ func TestBuildDashboard_ProjectRollups(t *testing.T) {
 		task("tsk_4", "prj_2", "usr_ana", "todo", ""),
 	}
 
-	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil), projectMachineForTest(), documentMachineForTest())
+	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil), projectMachineForTest(), documentMachineForTest(), time.Now())
 	if len(got.Projects) != 2 {
 		t.Fatalf("want a summary per Project, got %d", len(got.Projects))
 	}
@@ -52,7 +52,7 @@ func TestBuildDashboard_OrphanTaskCountsAgainstNoProject(t *testing.T) {
 	projects := []*data.Record{rec("prj_1", map[string]any{"fld_name": "Apollo"})}
 	tasks := []*data.Record{task("tsk_orphan", "", "usr_ana", "todo", "")}
 
-	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil), projectMachineForTest(), documentMachineForTest())
+	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil), projectMachineForTest(), documentMachineForTest(), time.Now())
 	if got.Projects[0].TotalTasks != 0 {
 		t.Errorf("orphan Task must not be counted against Apollo, got total %d", got.Projects[0].TotalTasks)
 	}
@@ -68,7 +68,7 @@ func TestBuildDashboard_DocumentStatusSplit(t *testing.T) {
 		rec("doc_6", map[string]any{"fld_status": "something_else"}),
 	}
 
-	got := buildDashboard(nil, documents, Aggregate(taskByProject(), nil), Aggregate(documentByStatus(), documents), projectMachineForTest(), documentMachineForTest())
+	got := buildDashboard(nil, documents, Aggregate(taskByProject(), nil), Aggregate(documentByStatus(), documents), projectMachineForTest(), documentMachineForTest(), time.Now())
 	s := got.Documents
 	if s.InReview != 2 || s.Approved != 1 || s.Rejected != 1 {
 		t.Errorf("counts review/approved/rejected = %d/%d/%d, want 2/1/1", s.InReview, s.Approved, s.Rejected)

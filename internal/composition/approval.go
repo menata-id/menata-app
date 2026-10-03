@@ -324,7 +324,7 @@ func buildInbox(sel Selection, activities []*data.Record, names map[string]strin
 			Submitter:    submitter,
 			SubmittedAt:  submittedAt,
 			Status:       DisplayString(doc.Values[f.DocumentStatus]),
-			SLADue:       doc.Values["fld_due_date"],
+			SLA:          experience.ResolveSLABadge(doc.Values["fld_due_date"], now),
 			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names, "", f),
 			Href:         fmt.Sprintf("/machines/%s/records/%s/review", stepMachine.ID, s.ID),
 			CardFields:   cardFields,
@@ -375,7 +375,7 @@ func buildInbox(sel Selection, activities []*data.Record, names map[string]strin
 			TotalSteps:   len(stepsByDoc[d.ID]),
 			SubmittedAt:  mineSubmittedAt,
 			Status:       status,
-			SLADue:       d.Values["fld_due_date"],
+			SLA:          experience.ResolveSLABadge(d.Values["fld_due_date"], now),
 			Approvers:    stepStates(seq, d, stepsByDoc[d.ID], names, userID, f),
 			Href:         reviewHref(docMachine.ID, d.ID, len(stepsByDoc[d.ID]), status),
 		})

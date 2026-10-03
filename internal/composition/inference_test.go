@@ -10,7 +10,7 @@ import (
 
 // This file exists because mutation testing found the gap it fills. The rendering tests construct
 // InferenceRow values with an explicit Tone, so they never exercise toneFor -- mapping
-// `not applicable` to PillBad (the loudest tone, over the 52-of-65 majority that is correct) passed
+// `not applicable` to domain.ToneBad (the loudest tone, over the 52-of-65 majority that is correct) passed
 // every test in the package. The grouping had no test either, which matters more than it sounds:
 // Inference stores indexes into block.Roles precisely because storing pointers there is invalidated
 // by the next append, and nothing would have caught that regression.
@@ -81,17 +81,17 @@ func TestInference_toneMatchesTheStatusItReports(t *testing.T) {
 	v := Inference(inferenceCast(t))
 
 	resolved := rowFor(t, v, "step", "decision")
-	if resolved.Tone != rendering.PillGood || resolved.IsDefect {
+	if resolved.Tone != domain.ToneGood || resolved.IsDefect {
 		t.Errorf("a resolved derivation has tone %q, defect=%v; want %q and not a defect",
-			resolved.Tone, resolved.IsDefect, rendering.PillGood)
+			resolved.Tone, resolved.IsDefect, domain.ToneGood)
 	}
 
 	// A Document is not decided -- its steps are. Correct, common, and must stay quiet.
 	notApplicable := rowFor(t, v, "document", "decision")
-	if notApplicable.Tone != rendering.PillMuted {
+	if notApplicable.Tone != domain.ToneMuted {
 		t.Errorf("a not-applicable derivation has tone %q, want %q -- it is 52 of 65 rows and every one "+
 			"of them is right, so rendering it as loudly as a defect hides the ones that matter",
-			notApplicable.Tone, rendering.PillMuted)
+			notApplicable.Tone, domain.ToneMuted)
 	}
 	if notApplicable.IsDefect {
 		t.Error("a not-applicable derivation is reported as a defect")
@@ -111,8 +111,8 @@ func TestInference_inputUnavailableIsWarnedAndCounted(t *testing.T) {
 
 	v := Inference(ws)
 	parent := rowFor(t, v, "step", "parent")
-	if parent.Tone != rendering.PillWarn {
-		t.Errorf("step.parent tone = %q, want %q", parent.Tone, rendering.PillWarn)
+	if parent.Tone != domain.ToneWarn {
+		t.Errorf("step.parent tone = %q, want %q", parent.Tone, domain.ToneWarn)
 	}
 	if !parent.IsDefect {
 		t.Error("step.parent is not counted as a defect -- it produced a silent 404 in production for a day")

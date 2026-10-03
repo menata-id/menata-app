@@ -342,7 +342,7 @@ func ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, switc
 // anything else falls through to neutral grey rather than being hidden -- a status this screen has
 // not been taught about is still a fact about the Document.
 //
-// It draws no pill of its own since 2026-09-29: statusPill (machine.templ) owns the shape, and this
+// It draws no pill of its own since 2026-09-29: statusBadge (machine.templ) owns the shape, and this
 // function is now only the part that is genuinely this screen's -- which of *fld_status's* values
 // means what. The pill's second caller is the inference diagnostics page, over an unrelated closed
 // vocabulary, and keeping the mapping here is what lets both exist without either knowing the other's
@@ -368,7 +368,7 @@ func reviewStatusPill(status string) templ.Component {
 			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = statusPill(status, reviewStatusTone(status)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = statusBadge(status, reviewStatusTone(status)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -379,16 +379,16 @@ func reviewStatusPill(status string) templ.Component {
 // reviewStatusTone maps a Document's status to a tone. Unknown values fall through to neutral rather
 // than being hidden -- a status this screen has not been taught about is still a fact about the
 // Document, which was this function's own original reasoning and is unchanged.
-func reviewStatusTone(status string) PillTone {
+func reviewStatusTone(status string) domain.BadgeTone {
 	switch status {
 	case "in_review":
-		return PillInfo
+		return domain.ToneInfo
 	case "approved":
-		return PillGood
+		return domain.ToneGood
 	case "rejected":
-		return PillBad
+		return domain.ToneBad
 	}
-	return PillNeutral
+	return domain.ToneNeutral
 }
 
 // reviewDocumentCard is the board's "Document" panel: the file, its page count, and the two ways

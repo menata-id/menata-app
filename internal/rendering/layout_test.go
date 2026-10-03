@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 )
 
 // TestGridLayout_rendersTheClassStringEachCallSiteReplaced pins what `gridLayout` emits for every
@@ -181,5 +182,60 @@ func TestGridLayout_unmeasuredColumnCountFallsBackRatherThanEmittingANewClass(t 
 	}
 	if got := buf.String(); !regexp.MustCompile(`class="grid grid-cols-1 `).MatchString(got) {
 		t.Errorf("a mobile count the corpus does not measure should fall back to single-column, not emit a new class; got %q", got)
+	}
+}
+
+// TestStatusBadge_rendersEachDeclaredTone pins the registered Component's output per tone, and
+// TestSlaBadge_rendersNothingWhenAbsent pins the one conditional in its adapter.
+//
+// **These carry the whole verification of the markup change, because the live diff could not reach it.**
+// Thirteen screens were fetched from a worktree baseline and all thirteen came back token-identical -- no
+// record in the dev database holds a non-empty due date, so the badge has never rendered in this environment.
+// The change is real: `slaBadgePill` drew overdue as red *text* with no pill and everything else as a slate
+// pill a half-step tighter than this one. Overdue is now a red pill, which is what `domain.ToneBad` already
+// meant on the eight sites that were already using the shared shape.
+func TestStatusBadge_rendersEachDeclaredTone(t *testing.T) {
+	want := map[domain.BadgeTone]string{
+		domain.ToneNeutral: "bg-slate-100 text-slate-600",
+		domain.ToneInfo:    "bg-blue-50 text-blue-700",
+		domain.ToneGood:    "bg-emerald-50 text-emerald-700",
+		domain.ToneBad:     "bg-red-50 text-red-700",
+		domain.ToneWarn:    "bg-amber-50 text-amber-800",
+		domain.ToneMuted:   "bg-slate-50 text-slate-400",
+	}
+	if len(want) != len(domain.KnownBadgeTones) {
+		t.Fatalf("this test pins %d tones and domain.KnownBadgeTones declares %d -- add the new one here with the classes it draws", len(want), len(domain.KnownBadgeTones))
+	}
+	for tone, classes := range want {
+		var buf bytes.Buffer
+		if err := statusBadge("OVERDUE", tone).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("%s: Render() error = %v", tone, err)
+		}
+		got := buf.String()
+		if !strings.Contains(got, classes) {
+			t.Errorf("statusBadge(_, %s) does not carry %q; got %q", tone, classes, got)
+		}
+		if !strings.Contains(got, ">OVERDUE<") {
+			t.Errorf("statusBadge(%q, %s) did not render its label; got %q", "OVERDUE", tone, got)
+		}
+	}
+}
+
+func TestSlaBadge_rendersNothingWhenAbsent(t *testing.T) {
+	var buf bytes.Buffer
+	if err := slaBadge(experience.SLABadge{}).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if got := buf.String(); got != "" {
+		t.Errorf("an absent SLA badge rendered %q -- a Field with no value must produce no markup, not an empty styled element", got)
+	}
+
+	buf.Reset()
+	if err := slaBadge(experience.SLABadge{Label: "OVERDUE", Tone: domain.ToneBad, Present: true}).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	// The deliberate change: overdue is a red *pill* now, not red text.
+	if got := buf.String(); !strings.Contains(got, "rounded-full") || !strings.Contains(got, "bg-red-50 text-red-700") {
+		t.Errorf("an overdue badge should render as a red pill through statusBadge; got %q", got)
 	}
 }

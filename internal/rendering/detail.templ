@@ -1,6 +1,8 @@
 package rendering
 
 import (
+	"menata.app/internal/experience"
+	"time"
 	"fmt"
 
 	"menata.app/internal/action"
@@ -35,11 +37,11 @@ type DocumentSignaturePlacement struct {
 // actor is the viewing identity, needed only so an Action the viewer is not permitted to
 // perform isn't offered in the first place (development-history.md Phase 16) -- the server enforces the same
 // rule regardless, this only keeps the UI honest about it.
-templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, workspaceName string, viewer Viewer, switchWorkspaceHref string, now time.Time) {
 	@appShell(m.Name, workspaceName, viewer, switchWorkspaceHref) {
 		@detailBackLink(m)
 		<div id="record-detail" class="flex flex-col gap-4">
-			@RecordDetailView(m, r, relations, groups, children, actor, sigPlacement)
+			@RecordDetailView(m, r, relations, groups, children, actor, sigPlacement, now)
 		</div>
 	}
 }
@@ -72,7 +74,7 @@ templ detailBackLink(m *domain.Machine) {
 // RecordDetailView is one Record's read-only detail: every Field as a label/value pair, plus one
 // section per child collection -- every record of another Machine that references this one
 // (development-history.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
-templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement) {
+templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, now time.Time) {
 	<div id="record-detail" class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
 			<h1 class="m-0 text-xl font-medium">{ recordTitle(m, r) }</h1>
@@ -88,7 +90,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 					<dt class="self-center text-2xs font-medium tracking-wide text-slate-500 uppercase">{ f.Name }</dt>
 					<dd class="m-0 text-slate-900">
 						if f.ID == m.SLAField {
-							@slaBadgePill(r.Values[f.ID])
+							@slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now))
 						} else if f.Type == domain.FieldTypeFile {
 							@fileLink(r.Values[f.ID])
 							// The last Field-id literal in documentApprovalFieldCoupling (1 of 1), and it is
@@ -173,7 +175,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 				@sectionHeaderRow(stepperView.Name, "", "")
 				@approvalStepper(cc.Machine, cc.Machine.Sequencing, r, cc.Records, cc.Relations)
 			} else {
-				@ChildSectionView(cc, groups, actor)
+				@ChildSectionView(cc, groups, actor, now)
 			}
 		}
 		if action.IsDocument(m) && sigPlacement != nil {
@@ -196,7 +198,7 @@ templ pdfThumbnail(machineID, recordID string) {
 
 // ChildSectionView renders one child collection: a compact table of the child Machine's records,
 // each row the same generic RecordRow used everywhere else.
-templ ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor) {
+templ ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor, now time.Time) {
 	<section class="flex flex-col gap-2">
 		@sectionHeaderRow(fmt.Sprintf("%s (%d)", cc.Machine.Name, len(cc.Records)), "", "")
 		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
@@ -211,7 +213,7 @@ templ ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor)
 				</thead>
 				<tbody>
 					for _, rec := range cc.Records {
-						@RecordRow(cc.Machine, rec, cc.Relations, groups, actor)
+						@RecordRow(cc.Machine, rec, cc.Relations, groups, actor, now)
 					}
 				</tbody>
 			</table>

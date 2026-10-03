@@ -5,6 +5,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"menata.app/internal/action"
 	"menata.app/internal/data"
@@ -67,7 +68,7 @@ func TestRecordRow_deleteRespectsBusinessState(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := RecordRow(m, r, nil, nil, domain.Actor{ID: "rec_user1"}).Render(approvalWorkspaceCtx(m), &buf); err != nil {
+	if err := RecordRow(m, r, nil, nil, domain.Actor{ID: "rec_user1"}, time.Now()).Render(approvalWorkspaceCtx(m), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if strings.Contains(buf.String(), "hx-delete") {
@@ -102,7 +103,7 @@ func TestMachineBody_cardsViewRendersProjectedFields(t *testing.T) {
 	}}
 
 	var buf bytes.Buffer
-	if err := MachineBody(m, m.Views[1], records, nil, nil, nil, cards, domain.Actor{ID: "usr_ana"}).Render(context.Background(), &buf); err != nil {
+	if err := MachineBody(m, m.Views[1], records, nil, nil, nil, cards, domain.Actor{ID: "usr_ana"}, time.Now()).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -125,7 +126,7 @@ func TestMachineBody_viewSwitcherUsesDeclaredNames(t *testing.T) {
 	m := docMachine()
 
 	var buf bytes.Buffer
-	if err := MachineBody(m, m.Views[0], nil, nil, nil, nil, nil, domain.Actor{ID: "usr_ana"}).Render(context.Background(), &buf); err != nil {
+	if err := MachineBody(m, m.Views[0], nil, nil, nil, nil, nil, domain.Actor{ID: "usr_ana"}, time.Now()).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -144,7 +145,7 @@ func TestMachineBody_noSwitcherBelowTwoViews(t *testing.T) {
 	m.Views = m.Views[:1]
 
 	var buf bytes.Buffer
-	if err := MachineBody(m, m.Views[0], nil, nil, nil, nil, nil, domain.Actor{ID: "usr_ana"}).Render(context.Background(), &buf); err != nil {
+	if err := MachineBody(m, m.Views[0], nil, nil, nil, nil, nil, domain.Actor{ID: "usr_ana"}, time.Now()).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if strings.Contains(buf.String(), "view-switcher") {

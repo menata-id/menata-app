@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"menata.app/internal/experience"
 	"fmt"
 
 	"menata.app/internal/data"
@@ -25,10 +26,15 @@ type TaskRow struct {
 	// picks a Field off the record itself (007 §4.4).
 	Title  string
 	Status string
-	// Due is the *stored* value of the Field declared in the date role, not its projected display:
-	// slaBadgePill parses it. Which Field that is comes from the declaration
-	// (composition.FieldForRole), which is the whole point -- the id is not written here.
-	Due any
+	// SLA and DueText are the date Field in the `date` role, **already resolved** -- a badge with its
+	// label and tone, and the stored value as text for the lists that show a plain date instead.
+	//
+	// They replaced `Due any` on 2026-10-03. That field's own comment said "slaBadgePill parses it",
+	// which named the defect accurately: a Page was parsing a date and evaluating a business rule
+	// against `time.Now()`. Composition resolves both now, with the `now` it already takes. Which
+	// Field they come from is still the declaration's answer (composition.FieldForRole).
+	SLA     experience.SLABadge
+	DueText string
 }
 
 // MyTasksPage is Case 19's personal work queue (development-history.md Phase 14, project-my-tasks.html):
@@ -91,10 +97,10 @@ templ taskRowList(rows []TaskRow, sla bool) {
 				<span class="text-xs text-slate-400">{ t.ProjectName }</span>
 				if sla {
 					<span class="ml-auto">
-						@slaBadgePill(t.Due)
+						@slaBadge(t.SLA)
 					</span>
-				} else if due := toString(t.Due); due != "" {
-					<span class="ml-auto text-xs text-slate-400">{ due }</span>
+				} else if t.DueText != "" {
+					<span class="ml-auto text-xs text-slate-400">{ t.DueText }</span>
 				}
 			</li>
 		}

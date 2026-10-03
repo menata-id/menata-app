@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"menata.app/internal/action"
@@ -110,7 +111,7 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				serverError(w, err)
 				return
 			}
-			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, groups, children, actor, sigPlacement, workspaceName, viewer, switchHref))
+			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, groups, children, actor, sigPlacement, workspaceName, viewer, switchHref, time.Now()))
 			return
 		}
 		if isDetailContext(req) {
@@ -120,10 +121,10 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				return
 			}
 			sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
-			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement))
+			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement, time.Now()))
 			return
 		}
-		render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor))
+		render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor, time.Now()))
 	}
 }
 
@@ -356,10 +357,10 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 			return
 		}
 		sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
-		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement))
+		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement, time.Now()))
 		return
 	}
-	render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor))
+	render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor, time.Now()))
 }
 
 func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {

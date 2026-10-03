@@ -98,7 +98,7 @@ type Dashboard struct {
 // has no documents to summarise, and the status tiles correctly read zero. Before the roles existed
 // this read the literal mch_document, which in such a Workspace would have counted whatever else
 // happened to be named that -- a plain CRUD Machine's records presented as documents in review.
-func DashboardData(ctx context.Context, l *Loader, docMachine *domain.Machine) (Dashboard, error) {
+func DashboardData(ctx context.Context, l *Loader, docMachine *domain.Machine, now time.Time) (Dashboard, error) {
 	projects, err := l.ListRecords(ctx, projectMachineID)
 	if err != nil {
 		return Dashboard{}, err
@@ -123,7 +123,7 @@ func DashboardData(ctx context.Context, l *Loader, docMachine *domain.Machine) (
 		return Dashboard{}, err
 	}
 
-	d := buildDashboard(projects, documents, taskCounts, docCounts, l.Machine(projectMachineID), docMachine)
+	d := buildDashboard(projects, documents, taskCounts, docCounts, l.Machine(projectMachineID), docMachine, now)
 	d.Activity = activity
 	return d, nil
 }
@@ -133,7 +133,7 @@ func DashboardData(ctx context.Context, l *Loader, docMachine *domain.Machine) (
 // ds_document_by_status). Collecting the in_review Documents themselves is not counting but
 // selection, and stays here: picking records by a predicate is 007 §8's Query Model, which the
 // decomposition audit explicitly recommends against building until something forces it.
-func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Aggregation, projectMachine, docMachine *domain.Machine) Dashboard {
+func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Aggregation, projectMachine, docMachine *domain.Machine, now time.Time) Dashboard {
 	var d Dashboard
 	d.Projects = make([]rendering.ProjectSummary, 0, len(projects))
 	for _, p := range projects {
@@ -165,7 +165,7 @@ func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Ag
 		d.Pending = append(d.Pending, rendering.PendingDocument{
 			Record: doc,
 			Title:  ProjectedByRole(docMachine, doc, nil)[string(domain.CardFieldRoleTitle)],
-			Due:    doc.Values[dueField],
+			SLA:    experience.ResolveSLABadge(doc.Values[dueField], now),
 		})
 	}
 	return d
@@ -285,17 +285,21 @@ func PersonalTasks(ctx context.Context, l *Loader, userID string, now time.Time)
 // fld_status or fld_due_date, and a Machine whose Fields are called something else still renders
 // (2026-09-28; this is what let mytasks.templ/calendar.templ stop reading Values["fld_title"]).
 //
-// Due stays the *raw* stored value rather than the projected display string: buildMyTasks parses it
-// as a date and mytasks.templ's own SLA pill does too, and Projection formats a date for reading
-// ("2 Jan 2006"), which neither can parse back.
-func taskRow(t *data.Record, projects map[string]string, taskMachine *domain.Machine) rendering.TaskRow {
+// **DueText stays the *raw* stored value rather than the projected display string**, and that is not the
+// same decision as the one this comment used to describe. Projection formats a date for reading
+// ("2 Jan 2006"), which nothing can parse back, so the bucketing below needs the stored form -- but the
+// *badge* is resolved here now instead of in the Page. `rendering.TaskRow.Due any` existed so
+// mytasks.templ could parse a date and evaluate a rule against `time.Now()`; that is 007 §4.4's division
+// and §4.6's determinism rule, and it is why `now` is a parameter.
+func taskRow(t *data.Record, projects map[string]string, taskMachine *domain.Machine, now time.Time) rendering.TaskRow {
 	shape := ProjectedByRole(taskMachine, t, nil)
 	return rendering.TaskRow{
 		Task:        t,
 		ProjectName: projects[DisplayString(t.Values["fld_project"])],
 		Title:       shape[string(domain.CardFieldRoleTitle)],
 		Status:      shape[string(domain.CardFieldRoleStatus)],
-		Due:         t.Values[FieldForRole(taskMachine, domain.CardFieldRoleDate)],
+		DueText:     DisplayString(t.Values[FieldForRole(taskMachine, domain.CardFieldRoleDate)]),
+		SLA:         experience.ResolveSLABadge(t.Values[FieldForRole(taskMachine, domain.CardFieldRoleDate)], now),
 	}
 }
 
@@ -303,7 +307,7 @@ func taskRow(t *data.Record, projects map[string]string, taskMachine *domain.Mac
 func buildMyTasks(tasks []*data.Record, projects map[string]string, userID string, now time.Time, taskMachine *domain.Machine) MyTasks {
 	var out MyTasks
 	for _, t := range tasks {
-		row := taskRow(t, projects, taskMachine)
+		row := taskRow(t, projects, taskMachine, now)
 
 		if DisplayString(t.Values["fld_status"]) == "done" {
 			out.Completed = append(out.Completed, row)
@@ -313,7 +317,7 @@ func buildMyTasks(tasks []*data.Record, projects map[string]string, userID strin
 
 		// A Task with no parseable due date is upcoming rather than dropped: "someday" is a
 		// real answer, and silently hiding the row would be worse than showing it undated.
-		due, err := time.Parse("2006-01-02", DisplayString(row.Due))
+		due, err := time.Parse("2006-01-02", row.DueText)
 		if err != nil {
 			out.Upcoming = append(out.Upcoming, row)
 			continue
@@ -396,7 +400,7 @@ func buildSprint(tasks, users []*data.Record, people, projects map[string]string
 		}
 		if due, err := time.Parse("2006-01-02", DisplayString(t.Values["fld_due_date"])); err == nil {
 			if slaStatus, label := experience.EvaluateSLA(due, now); slaStatus == experience.SLAOverdue || label == "Due today" {
-				out.Attention = append(out.Attention, taskRow(t, projects, taskMachine))
+				out.Attention = append(out.Attention, taskRow(t, projects, taskMachine, now))
 			}
 		}
 	}
@@ -491,8 +495,8 @@ func CalendarWeek(ctx context.Context, l *Loader, now time.Time) ([]rendering.Ca
 func buildCalendarWeek(tasks []*data.Record, projects map[string]string, now time.Time, taskMachine *domain.Machine) []rendering.CalendarDay {
 	byDate := make(map[string][]rendering.TaskRow)
 	for _, t := range tasks {
-		row := taskRow(t, projects, taskMachine)
-		due := DisplayString(row.Due)
+		row := taskRow(t, projects, taskMachine, now)
+		due := row.DueText
 		if due == "" {
 			continue
 		}

@@ -3,7 +3,6 @@ package rendering
 import (
 	"fmt"
 	"net/url"
-	"time"
 
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
@@ -90,7 +89,10 @@ type PendingApprovalCard struct {
 	// through this composed shape rather than only where a screen already draws it -- My
 	// Documents' own status filter chips (internal/web's mineTabContent) are the reader.
 	Status string
-	SLADue any
+	// SLA is the resolved due-date badge, replacing a raw `SLADue any` on 2026-10-03. The card used to
+	// call a page-local `parseSLA` that parsed the date and evaluated the rule against `time.Now()` --
+	// 007 §4.4 gives that to Composition and §4.6 forbids a renderer reading the clock at all.
+	SLA experience.SLABadge
 	// Approvers is every step's approver and state, ordered by fld_sequence.
 	Approvers []StepApprover
 	Href      string
@@ -380,20 +382,20 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 // Page-internal on purpose: capabilities.md records it as cataloged-but-not-yet-reused, which is
 // the honest state until a second, genuinely different screen needs the identical shape.
 templ pendingApprovalCard(c PendingApprovalCard) {
-	{{ status, label := parseSLA(c.SLADue) }}
+	{{ overdue := c.SLA.Present && c.SLA.Tone == domain.ToneBad }}
 	<div
 		class={ "flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-300",
-			templ.KV("border-red-200", status == experience.SLAOverdue),
-			templ.KV("border-slate-200", status != experience.SLAOverdue) }
+			templ.KV("border-red-200", overdue),
+			templ.KV("border-slate-200", !overdue) }
 	>
 		<a href={ templ.SafeURL(c.Href) } class="flex flex-col gap-3">
-			if label != "" {
+			if c.SLA.Present {
 				<span
 					class={ "self-start rounded-full px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase",
-						templ.KV("bg-red-50 text-red-700", status == experience.SLAOverdue),
-						templ.KV("bg-amber-50 text-amber-700", status != experience.SLAOverdue) }
+						templ.KV("bg-red-50 text-red-700", overdue),
+						templ.KV("bg-amber-50 text-amber-700", !overdue) }
 				>
-					{ label }
+					{ c.SLA.Label }
 				</span>
 			}
 			<div class="flex flex-col gap-1">
@@ -536,17 +538,8 @@ func progressWidth(approved, total int) string {
 	return fmt.Sprintf("width:%d%%", progressPercent(approved, total))
 }
 
-// parseSLA turns a Document's own fld_due_date into a status and label, tolerating an unset or
-// unparseable value (the card simply shows no SLA line). Day-scale by construction -- see
-// ApprovalInboxPage's own note on why board 07's hour wording is not implementable.
-func parseSLA(due any) (experience.SLAStatus, string) {
-	s := fmt.Sprint(due)
-	if s == "" || s == "<nil>" {
-		return experience.SLAOK, ""
-	}
-	t, err := time.Parse("2006-01-02", s)
-	if err != nil {
-		return experience.SLAOK, ""
-	}
-	return experience.EvaluateSLA(t, time.Now())
-}
+// **parseSLA was deleted on 2026-10-03.** It parsed a date out of an `any` and called
+// `experience.EvaluateSLA(t, time.Now())` -- the second of two render-time evaluation sites for a rule
+// `internal/composition` was already evaluating in four places with an injected `now`. See
+// `experience.ResolveSLABadge` for all three things that was wrong with, and PendingApprovalCard.SLA for
+// what replaced it.

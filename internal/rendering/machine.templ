@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"time"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -255,26 +256,15 @@ templ csrfHiddenInput() {
 	<input type="hidden" name="csrf_token" value={ authorization.CSRFTokenFromContext(ctx) }/>
 }
 
-// PillTone is the closed set of tones statusPill knows. Closed rather than a class string, so a
-// caller cannot reach through the component and style arbitrary things -- 007 §12.3's boundedness
-// rule ("A Component MUST expose a bounded semantic contract. It MUST NOT become 'generic' merely by
-// accepting arbitrary properties").
-type PillTone string
+// **domain.BadgeTone moved to `domain.BadgeTone` on 2026-10-03, and the tones kept their meanings.** It was a
+// closed set whose value is a bare string -- vocabulary, which
+// `conformance.TestDomainHoldsVocabularyAndRegistryHoldsDispatch` places in `internal/domain`, while the
+// *contract* that uses it is a dispatch seam and went to `internal/registry.Components`. `domain.ToneMuted` ->
+// `domain.ToneMuted` keeps the measured reason it exists rather than symmetry: on the inference page 52 of
+// 65 rows are "not applicable", all of them right, and drawing them at the same weight as the two that mean
+// something would bury the signal in its own correctness.
 
-const (
-	PillNeutral PillTone = "neutral"
-	PillInfo    PillTone = "info"
-	PillGood    PillTone = "good"
-	PillBad     PillTone = "bad"
-	PillWarn    PillTone = "warn"
-	// PillMuted is for a value that is correct and uninteresting, and it exists because of a measured
-	// need rather than for symmetry: on the inference page 52 of 65 rows are "not applicable", all of
-	// them right, and rendering them at the same weight as the two that mean something would bury the
-	// signal in its own correctness.
-	PillMuted PillTone = "muted"
-)
-
-// statusPill is the shared pill shape -- 007 §12.3 lists `StatusBadge` as a Component by name, and
+// statusBadge is the shared pill shape -- 007 §12.3 lists `StatusBadge` as a Component by name, and
 // this is it at the level this runtime actually needs.
 //
 // **The component owns presentation; the caller owns vocabulary.** That split is the whole point of
@@ -314,18 +304,42 @@ templ truncationNotice(t Truncation) {
 	}
 }
 
-templ statusPill(label string, tone PillTone) {
+// statusBadge is the registered renderer for `domain.ComponentStatusBadge` --
+// `registry.Components`' first member, and the renderer its contract names by the string
+// "statusBadge" (`conformance.TestComponentRegistryAndRenderersAgree` binds the two).
+//
+// **Its signature is the contract's teeth.** Two resolved inputs and nothing else: no `*data.Record`
+// to find a label in, no `any` to parse, no `time.Time` to compare against. That is what
+// `slaBadgePill` failed -- it took an `any`, parsed `"2006-01-02"` out of it and called
+// `experience.EvaluateSLA(due, time.Now())`, which §12.3 forbids ("MUST NOT silently acquire
+// additional business data that is not represented by its contract") and §4.6 forbids again
+// (`time.Now()` means identical input does not produce identical output). It was deleted and its
+// four callers now receive an `experience.SLABadge` resolved where `now` is an argument.
+//
+// This renamed from `statusBadge` the same day. §12.3 asks that Components be "named for reusable
+// semantic or structural identity rather than one business case", and `pill` names the shape of the
+// element -- a rename of the element would have been a rename of the vocabulary.
+templ statusBadge(label string, tone domain.BadgeTone) {
 	<span
 		class={ "inline-flex items-center rounded-full px-2.5 py-1 text-2xs whitespace-nowrap",
-			templ.KV("bg-slate-100 text-slate-600", tone == PillNeutral),
-			templ.KV("bg-blue-50 text-blue-700", tone == PillInfo),
-			templ.KV("bg-emerald-50 text-emerald-700", tone == PillGood),
-			templ.KV("bg-red-50 text-red-700", tone == PillBad),
-			templ.KV("bg-amber-50 text-amber-800", tone == PillWarn),
-			templ.KV("bg-slate-50 text-slate-400", tone == PillMuted) }
+			templ.KV("bg-slate-100 text-slate-600", tone == domain.ToneNeutral),
+			templ.KV("bg-blue-50 text-blue-700", tone == domain.ToneInfo),
+			templ.KV("bg-emerald-50 text-emerald-700", tone == domain.ToneGood),
+			templ.KV("bg-red-50 text-red-700", tone == domain.ToneBad),
+			templ.KV("bg-amber-50 text-amber-800", tone == domain.ToneWarn),
+			templ.KV("bg-slate-50 text-slate-400", tone == domain.ToneMuted) }
 	>
 		{ label }
 	</span>
+}
+
+// slaBadge draws a resolved SLA badge, or nothing when no due date was set. It is a thin adapter over
+// statusBadge, exactly as reviewStatusPill is -- the Component owns presentation, the caller owns
+// vocabulary, and "overdue" is the caller's word.
+templ slaBadge(b experience.SLABadge) {
+	if b.Present {
+		@statusBadge(b.Label, b.Tone)
+	}
 }
 
 // pageShell, pageHead, pageStyles and navLink were deleted on 2026-09-24, with their last two
@@ -378,10 +392,10 @@ templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewe
 // permitted to perform isn't offered in the first place; the server enforces the same rule
 // regardless (allowsRecordEdit/deleteAllowed, internal/web/record.go), this only keeps the UI
 // honest about it.
-templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, workspaceName string, viewer Viewer, switchWorkspaceHref string, now time.Time) {
 	@appShell(m.Name, workspaceName, viewer, switchWorkspaceHref) {
 		<div id="machine-body" class="flex flex-col gap-4">
-			@MachineBody(m, v, records, relations, groups, boardColumns, cards, actor)
+			@MachineBody(m, v, records, relations, groups, boardColumns, cards, actor, now)
 		</div>
 	}
 }
@@ -397,7 +411,7 @@ templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, rela
 // one that was (the ?view= it resolved). cards is non-nil only for a cards View, for the same
 // caller-supplies-I/O reason as boardColumns -- the projection is resolved in
 // internal/composition, which this package cannot import.
-templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
+templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, now time.Time) {
 	<div class="flex flex-col gap-1">
 		<h1 class="m-0 text-xl font-medium">{ m.Name }</h1>
 		<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
@@ -438,18 +452,18 @@ templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, rela
 		@viewSwitcher(m, v)
 		switch v.EffectiveType() {
 			case domain.ViewBoard:
-				@boardLayout(m, v, records, relations, groups, boardColumns, actor)
+				@boardLayout(m, v, records, relations, groups, boardColumns, actor, now)
 			case domain.ViewCards:
 				@cardsLayout(m, cards)
 			default:
-				@tableLayout(m, records, relations, groups, actor)
+				@tableLayout(m, records, relations, groups, actor, now)
 		}
 	</section>
 }
 
 // tableLayout is the generic flat-list Layout: every Field as a column, every Record as a row,
 // plus a create-form row (007 §12.2 "Layout is a generic structural composition primitive").
-templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) {
+templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor, now time.Time) {
 	<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
 		<table class="w-full border-collapse text-sm">
 			<thead>
@@ -462,7 +476,7 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 			</thead>
 			<tbody>
 				for _, r := range records {
-					@RecordRow(m, r, relations, groups, actor)
+					@RecordRow(m, r, relations, groups, actor, now)
 				}
 				@createFormRow(m, relations, groups)
 			</tbody>
@@ -534,7 +548,7 @@ type RecordCard struct {
 // column as the same generic table primitive tableLayout already uses -- a board is not a new
 // renderer, it is Collection + Group Dimension + the existing Table renderer, reused per column
 // (006-runtime-model.md "View" lowering formula).
-templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, actor domain.Actor) {
+templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, actor domain.Actor, now time.Time) {
 	<div class="flex gap-4 overflow-x-auto pb-2">
 		for _, col := range experience.GroupRecords(m, v, records, boardColumns) {
 			<div class="flex w-65 shrink-0 flex-col gap-2 rounded-lg bg-slate-100 p-3">
@@ -542,7 +556,7 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, rela
 				<table class="w-full border-collapse text-sm">
 					<tbody>
 						for _, r := range col.Records {
-							@RecordRow(m, r, relations, groups, actor)
+							@RecordRow(m, r, relations, groups, actor, now)
 						}
 					</tbody>
 				</table>
@@ -595,14 +609,14 @@ templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOp
 // then reject server-side). Called with nil steps -- unlike canDeleteInView, this generic row has
 // no Document's own child-collection steps in hand, so a Document row's own check degrades to
 // status-only, the same fallback canDeleteInView already uses when it can't find them either.
-templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor) {
+templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor, now time.Time) {
 	<tr id={ "record-" + r.ID }>
 		for i, f := range m.Fields {
 			<td class={ tableCell }>
 				if i == 0 {
 					<a class="font-medium text-blue-600 hover:text-blue-700" href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
 				} else if f.ID == m.SLAField {
-					@slaBadgePill(r.Values[f.ID])
+					@slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now))
 				} else if f.Type == domain.FieldTypeFile {
 					@fileLink(r.Values[f.ID])
 				} else if f.IsReference() {
