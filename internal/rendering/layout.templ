@@ -322,6 +322,26 @@ templ staticText(kind domain.StaticKind, text string) {
 	}
 }
 
+// staticLink draws `domain.StaticLink` -- §12.6's `link`, and the only Static Content node that needs a
+// destination as well as text.
+//
+// Separate from `staticText` rather than a fourth case in it, because that function takes only text and a
+// link needs an href. The href arrives **already resolved**: callers pass `routeByID(...)` or a view model's
+// own field, so this never looks a route up and stays as route-free as the Layout primitives beside it.
+//
+// **It only works in child position, and templ fails silently when it is not.** Three of the eight sites this
+// migration tried were `<a>` inline inside a text run ("Don't have one? <a>Create a workspace</a>"), and templ
+// renders `@staticLink(...)` there as **literal text** -- no error, no warning, the string `@staticLink("/register",
+// "Create a workspace")` printed into the page. Caught only by the byte-diff; the build was green and the
+// conformance suite passed. Those three were reverted and stay hand-written.
+//
+// `templ.URL` rather than `templ.SafeURL`: the sanitising one. Two migrated sites used `SafeURL` to bypass
+// it; for internal routes the output is identical, and the byte-diff is what proved that rather than the
+// assumption.
+templ staticLink(href, text string) {
+	<a href={ templ.URL(href) } class="text-blue-600 hover:text-blue-700">{ text }</a>
+}
+
 // pageHeader is the primitives' first consumer: the eyebrow / heading / subtitle block that **eleven**
 // screens carried as five identical lines each.
 //
@@ -411,7 +431,11 @@ templ uiNode(n ir.UINode) {
 					}
 			}
 		case ir.NodeStatic:
-			@staticText(domain.StaticKind(n.Type), n.Props["text"])
+			if domain.StaticKind(n.Type) == domain.StaticLink {
+				@staticLink(n.Props["href"], n.Props["text"])
+			} else {
+				@staticText(domain.StaticKind(n.Type), n.Props["text"])
+			}
 		case ir.NodeComponent:
 			switch domain.ComponentType(n.Type) {
 				case domain.ComponentStatusBadge:

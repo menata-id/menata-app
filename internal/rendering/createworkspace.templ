@@ -21,7 +21,7 @@ templ CreateWorkspacePage(errorMsg string) {
 			</form>
 		}
 		@authFooterNote() {
-			<a href="/switch-workspace" class="text-blue-600 hover:text-blue-700">← Back to workspaces</a>
+			@staticLink("/switch-workspace", "← Back to workspaces")
 		}
 	}
 }

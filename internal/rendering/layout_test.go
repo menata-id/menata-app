@@ -326,3 +326,27 @@ func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 		t.Errorf("an empty collection should render an empty list; got %q", got)
 	}
 }
+
+// TestStaticLink_rendersAnAnchorNotLiteralText pins §12.6's `link` and the failure that nearly shipped.
+//
+// templ interprets `@component(...)` **only in child position**. Three of the eight sites this primitive was
+// written for were `<a>` inline inside a text run, and templ rendered the call there as literal text -- the
+// string `@staticLink("/register", "Create a workspace")` printed into the page, with a green build and a
+// green conformance suite. Only the byte-diff caught it. Those three stay hand-written.
+//
+// This test cannot detect the inline-position case (it calls the component directly, which is always child
+// position). It pins what the primitive emits; the byte-diff remains the only thing that catches a caller
+// placing it where templ will not read it.
+func TestStaticLink_rendersAnAnchorNotLiteralText(t *testing.T) {
+	var buf bytes.Buffer
+	if err := staticLink("/register", "Create a workspace").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	got := buf.String()
+	if want := `<a href="/register" class="text-blue-600 hover:text-blue-700">Create a workspace</a>`; got != want {
+		t.Errorf("staticLink emitted %q, want %q -- this is the pre-migration literal from git history, not from the renderer", got, want)
+	}
+	if strings.Contains(got, "@staticLink") {
+		t.Error("staticLink rendered its own call as text")
+	}
+}

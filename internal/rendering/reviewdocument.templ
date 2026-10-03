@@ -328,7 +328,7 @@ templ reviewSignaturePanel(v ReviewView) {
 			@reviewSignatureLegend()
 			<p class="m-0 text-2xs leading-5 text-slate-500">
 				Numbers match the approval steps on the left. Boxes sit where the submitter placed them.
-				<a href={ templ.SafeURL(v.AllPositionsHref) } class="text-blue-600 hover:text-blue-700">See all positions →</a>
+				@staticLink(v.AllPositionsHref, "See all positions →")
 			</p>
 		}
 	</aside>

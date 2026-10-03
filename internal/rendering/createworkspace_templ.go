@@ -109,7 +109,7 @@ func CreateWorkspacePage(errorMsg string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<a href=\"/switch-workspace\" class=\"text-blue-600 hover:text-blue-700\">← Back to workspaces</a>")
+				templ_7745c5c3_Err = staticLink("/switch-workspace", "← Back to workspaces").Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

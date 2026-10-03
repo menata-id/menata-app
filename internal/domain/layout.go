@@ -311,6 +311,19 @@ const (
 	StaticEyebrow   StaticKind = "eyebrow"
 	StaticHeading   StaticKind = "heading"
 	StaticParagraph StaticKind = "paragraph"
+	// StaticLink is §12.6's own `link`: a text link to an already-resolved destination.
+	//
+	// **It carries no size, and that is what the measurement decided.** 29 `<a>` sites use the blue link
+	// colour, and three estimates of mine put the uniform population at 34, then 23, then 12. Measuring each
+	// site's own size *against the size it inherits* settled it: `text-sm` appears inside a `text-xs` parent
+	// (larger), inside `text-2xs` (much larger) and inside `text-base` (smaller); `text-xs` appears inside
+	// `text-sm` (smaller) and inside `text-3xs` (larger). A link's size in this corpus **overrides its context,
+	// in both directions**, so it has no consistent meaning -- and naming kinds `meta`/`body` for it would
+	// invent a semantics the data refuses, which is 007 §4.2 cutting the opposite way to the obvious reading.
+	//
+	// So the primitive is the sites carrying **no size at all**, which inherit their context. Everything with a
+	// size is per-site typography and stays hand-written, the same reason seven `row` sites do.
+	StaticLink StaticKind = "link"
 )
 
 // KnownStaticKinds is the closed set.
@@ -318,4 +331,5 @@ var KnownStaticKinds = map[StaticKind]bool{
 	StaticEyebrow:   true,
 	StaticHeading:   true,
 	StaticParagraph: true,
+	StaticLink:      true,
 }

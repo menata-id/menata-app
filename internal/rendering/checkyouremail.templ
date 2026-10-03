@@ -16,7 +16,7 @@ templ CheckYourEmailPage(email string) {
 			</div>
 		}
 		@authFooterNote() {
-			Didn't get it? <a href="/resend-verification" class="text-blue-600 hover:text-blue-700">Resend the link</a>
+			Didn't get it? @staticLink("/resend-verification", "Resend the link")
 		}
 	}
 }

@@ -99,7 +99,7 @@ func CheckYourEmailPage(email string) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "Didn't get it? <a href=\"/resend-verification\" class=\"text-blue-600 hover:text-blue-700\">Resend the link</a>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "Didn't get it? @staticLink(\"/resend-verification\", \"Resend the link\")")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

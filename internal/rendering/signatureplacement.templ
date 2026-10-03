@@ -125,10 +125,10 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 						<h2 class="m-0 text-sm font-medium">{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</h2>
 						<span class="flex items-center gap-3 text-xs">
 							if v.Page > 1 {
-								<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page-1)) } class="text-blue-600 hover:text-blue-700">← Prev</a>
+								@staticLink(placementPageHref(ctx, v.DocumentID, v.Page-1), "← Prev")
 							}
 							if v.Page < v.TotalPages {
-								<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page+1)) } class="text-blue-600 hover:text-blue-700">Next →</a>
+								@staticLink(placementPageHref(ctx, v.DocumentID, v.Page+1), "Next →")
 							}
 						</span>
 					}
