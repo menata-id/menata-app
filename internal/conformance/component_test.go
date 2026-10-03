@@ -211,3 +211,57 @@ func rendererSignature(src, name string) string {
 	}
 	return m[1]
 }
+
+// TestEveryAcceptedNodeTypeHasAWalkerArm closes the gap the UI IR slice shipped with.
+//
+// `ir.Validate` accepted `layout/row`, `layout/grid`, `layout/split` and `component/Avatar` -- correctly, they
+// are real primitives -- while `rendering.uiNode` had a case for none of them. A valid tree containing any one
+// of them rendered **nothing, silently**: no error, no panic, no failing test, just a missing block. That is
+// the exact failure class this package gates everywhere else, and the slice that introduced UI IR introduced
+// it too.
+//
+// The two lists are `internal/ir`'s permitted-property table and the walker's switch arms, and they are in
+// different packages by design (§15.1's pipeline runs IR → renderer, so the renderer may not be imported
+// back). Nothing but this test makes them agree -- the same role `TestServiceRegistryAndExecutorsAgree` and
+// `TestComponentRegistryAndRenderersAgree` already play across the other two seams.
+//
+// **Narrowing `Validate` is not the way to pass.** A tree with a `row` node is not invalid; refusing it would
+// make the IR reject legitimate composition to match a renderer that is behind. The walker gets the arm.
+func TestEveryAcceptedNodeTypeHasAWalkerArm(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join(repoRoot(), "internal", "ir", "ui.go"))
+	if err != nil {
+		t.Fatalf("read ir/ui.go: %v", err)
+	}
+	accepted := regexp.MustCompile(`"(layout|static|component)/([A-Za-z]+)"`).FindAllStringSubmatch(string(src), -1)
+	if len(accepted) == 0 {
+		t.Fatal("found no accepted node types in internal/ir/ui.go -- this gate would pass by measuring nothing")
+	}
+
+	walker := renderingSource(t)
+	// The identifier each kind's arm must name, derived from the type rather than listed, so a new entry in
+	// ir's table is covered the day it is added.
+	ident := map[string]string{
+		"layout":    "domain.Layout",
+		"static":    "domain.Static",
+		"component": "domain.Component",
+	}
+	seen := map[string]bool{}
+	for _, m := range accepted {
+		kind, typ := m[1], m[2]
+		key := kind + "/" + typ
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		name := ident[kind] + strings.ToUpper(typ[:1]) + typ[1:]
+		if kind == "component" {
+			name = ident[kind] + typ // ComponentStatusBadge, ComponentAvatar
+		}
+		if !strings.Contains(walker, "case "+name+":") {
+			t.Errorf("internal/ir accepts %q and internal/rendering's uiNode has no `case %s:` -- a valid tree containing it renders nothing, silently. Add the arm; do not narrow Validate", key, name)
+		}
+	}
+	if len(seen) < 8 {
+		t.Errorf("only %d node types found in ir's permitted-property table -- expected at least 8 (5 layouts, 3 static); has the table moved?", len(seen))
+	}
+}

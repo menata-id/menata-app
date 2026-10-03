@@ -43,6 +43,30 @@ type Component struct {
 var Components = map[domain.ComponentType]Component{
 	domain.ComponentStatusBadge: {Contract: statusBadgeContract, Validate: validateStatusBadge},
 	domain.ComponentAvatar:      {Contract: avatarContract, Validate: validateAvatar},
+	domain.ComponentMetric:      {Contract: metricContract, Validate: validateMetric},
+}
+
+// metricContract is §12.3's `Metric`: a resolved number and the question it answers.
+//
+// **Value is a string, deliberately.** A Component that took an `int` would be taking a half-resolved value --
+// the caller already decided the format (`fmt.Sprint`, a percentage, "3 of 7"), and asking the Component to
+// format would be asking it to decide presentation from data it does not have. §4.4's division again: resolve,
+// then render.
+var metricContract = domain.ComponentContract{
+	Type: domain.ComponentMetric,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "value", Kind: "string", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "the value and its label are adjacent text in reading order, so the pair is its own accessible description; it is not a live region",
+	Renderer:         "metric",
+}
+
+func validateMetric(inputs map[string]string) []string {
+	return checkDeclaredInputs(metricContract, inputs, "Metric")
 }
 
 // statusBadgeContract is declared separately from the catalogue, not for tidiness: `validateStatusBadge`

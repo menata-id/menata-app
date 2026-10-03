@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"strconv"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -313,15 +314,23 @@ templ uiNode(n ir.UINode) {
 			switch domain.LayoutKind(n.Type) {
 				case domain.LayoutStack:
 					@stackLayout(domain.Gap(n.Props["gap"])) {
-						for _, c := range n.Children {
-							@uiNode(c)
-						}
+						@uiChildren(n)
 					}
 				case domain.LayoutPanel:
 					@panelLayout() {
-						for _, c := range n.Children {
-							@uiNode(c)
-						}
+						@uiChildren(n)
+					}
+				case domain.LayoutRow:
+					@rowLayout(domain.Gap(n.Props["gap"]), domain.RowAlign(n.Props["align"]), domain.RowJustify(n.Props["justify"])) {
+						@uiChildren(n)
+					}
+				case domain.LayoutGrid:
+					@gridLayout(domain.Gap(n.Props["gap"]), gridColsFromProp(n.Props["mobile"]), gridColsFromProp(n.Props["columns"])) {
+						@uiChildren(n)
+					}
+				case domain.LayoutSplit:
+					@splitLayout(domain.Gap(n.Props["gap"]), domain.SplitSide(n.Props["side"]), domain.AsideWidth(n.Props["aside"])) {
+						@uiChildren(n)
 					}
 			}
 		case ir.NodeStatic:
@@ -330,6 +339,32 @@ templ uiNode(n ir.UINode) {
 			switch domain.ComponentType(n.Type) {
 				case domain.ComponentStatusBadge:
 					@statusBadge(n.Props["label"], domain.BadgeTone(n.Props["tone"]))
+				case domain.ComponentMetric:
+					@metric(n.Props["label"], n.Props["value"])
+				case domain.ComponentAvatar:
+					@avatar(n.Props["initials"], n.Props["label"], domain.AvatarSize(n.Props["size"]), domain.AvatarPresence(n.Props["presence"]))
 			}
 	}
+}
+
+// uiChildren walks a node's subtree. Extracted so each Layout arm above is one line -- five arms repeating a
+// four-line loop is how a dispatch table starts drifting between its own cases.
+templ uiChildren(n ir.UINode) {
+	for _, c := range n.Children {
+		@uiNode(c)
+	}
+}
+
+// gridColsFromProp reads a column count off a resolved property.
+//
+// It is a **closed** parse, not `strconv.Atoi`: a count outside `domain.KnownGridCols` falls back rather than
+// becoming a class Tailwind never scanned. `ir.Validate` is what refuses a bad tree; this is the second line
+// of defence for a tree that reached the renderer anyway.
+func gridColsFromProp(v string) domain.GridCols {
+	for c := range domain.KnownGridCols {
+		if strconv.Itoa(int(c)) == v {
+			return c
+		}
+	}
+	return domain.GridCols1
 }

@@ -48,6 +48,14 @@ const (
 	ComponentStatusBadge ComponentType = "StatusBadge"
 	// ComponentAvatar is §12.3's own `Avatar`: one person as a circle of initials.
 	ComponentAvatar ComponentType = "Avatar"
+	// ComponentMetric is §12.3's own `Metric`: one headline number with its label.
+	//
+	// **Registered by building its case rather than by waiting for one** (owner, 2026-10-03: *"buatkan case
+	// agar case nya jadi ada. ini kan umum ada di aplikasi bukan?"*). The second-case rule governs invented
+	// *semantics*; a metric tile is structural vocabulary §12.3 closes by name and every application has, so
+	// the question is not whether it recurs but whether this runtime can compose one. It now can, and four
+	// screens do.
+	ComponentMetric ComponentType = "Metric"
 )
 
 // AvatarSize is how large an avatar circle is, as a closed set rather than a number -- the same reason

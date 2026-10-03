@@ -193,6 +193,7 @@ var allowedProps = map[string][]string{
 	"static/paragraph":      {"text"},
 	"component/StatusBadge": {"label", "tone"},
 	"component/Avatar":      {"initials", "label", "size", "presence"},
+	"component/Metric":      {"label", "value"},
 }
 
 func propAllowed(n UINode, key string) bool {
