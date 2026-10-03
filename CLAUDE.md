@@ -620,6 +620,16 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   measurement counted frequency and not uniformity; the second counted uniformity and not
   parameterisability. Neither was caught by a gate — both were caught by someone asking whether the
   conclusion was plausible.
+- `TestHandWrittenLayoutSitesOnlyShrink` — **the one gate here that directs work rather than only
+  preventing regression**, and the odd one out for that reason. It freezes, per file, how many layout sites
+  are still hand-written: **45 across 20 files** (row 33, grid 5, split 7), measured 2026-10-03. A *new*
+  hand-written site fails and the message names the primitive it should have used; a *lower* count fails
+  until the entry drops, so a migration is locked in. The next session finds this work from a failing test
+  rather than from remembering to read a plan.
+  Counted **syntactically** on purpose — "is this really a row" is a judgement, and a gate making it would
+  be the ~50%-false-finding shape deleted twice here. What syntax cannot separate is noted per entry:
+  `split`'s floor is **2, not 0**, because `automation.templ`'s `[6rem_1fr]` definition list and
+  `rolematrix.templ`'s bordered grid are genuine one-offs, and a one-off is what a primitive is not for.
 - `TestClaimMatrixCitesRealArtifacts` / `TestConceptDocsCiteDocumentsThatExist` — the normative documents
   must cite artifacts a reader can open. **007 §40 described a different repository until 2026-10-02**: its
   evidence column cited `CAP-` rows, `CR-` gap numbers and `internal/metadata/compile.go`, none of which
