@@ -145,11 +145,11 @@ templ changeSummary(change aiassist.GeneratedChange) {
 			}
 			<div class="flex flex-col gap-1">
 				<span class="text-3xs text-slate-400 uppercase">Data it keeps</span>
-				<div class="flex flex-wrap gap-1.5">
+				@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 					for _, m := range app.Machines {
 						<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs text-slate-600">{ m.Name }</span>
 					}
-				</div>
+				}
 			</div>
 			if len(app.Navigation) > 0 {
 				<div class="flex flex-col gap-1">
@@ -164,11 +164,11 @@ templ changeSummary(change aiassist.GeneratedChange) {
 			if len(app.Roles) > 0 {
 				<div class="flex flex-col gap-1">
 					<span class="text-3xs text-slate-400 uppercase">Roles</span>
-					<div class="flex flex-wrap gap-1.5">
+					@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 						for _, r := range app.Roles {
 							<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs text-slate-600">{ r }</span>
 						}
-					</div>
+					}
 				</div>
 			}
 		</div>

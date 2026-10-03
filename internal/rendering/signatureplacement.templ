@@ -121,7 +121,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 		>
 			@splitLayout(domain.GapComfortable, domain.SplitAsideEnd, domain.AsideNarrow) {
 				<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
-					<div class="flex flex-wrap items-center justify-between gap-3">
+					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 						<h2 class="m-0 text-sm font-medium">{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</h2>
 						<span class="flex items-center gap-3 text-xs">
 							if v.Page > 1 {
@@ -131,7 +131,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 								<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page+1)) } class="text-blue-600 hover:text-blue-700">Next →</a>
 							}
 						</span>
-					</div>
+					}
 					<p class="m-0 text-2xs text-slate-500">Drag each box to its signature block.</p>
 					@placementCanvas(v, true)
 				</section>
@@ -222,7 +222,7 @@ templ placementMarker(s PlacementStep, tailwind bool) {
 // currently sits.
 templ placementStepCard(s PlacementStep, page int) {
 	<div class="flex flex-col gap-2 rounded-md border border-slate-200 p-3">
-		<div class="flex flex-wrap items-center gap-2">
+		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			<span aria-hidden="true" class="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-3xs font-medium text-slate-700">{ fmt.Sprint(s.Index) }</span>
 			<span class="truncate text-sm">
 				if s.Approver != "" {
@@ -232,7 +232,7 @@ templ placementStepCard(s PlacementStep, page int) {
 				}
 			</span>
 			@approverKindBadge(s.ApproverKind)
-		</div>
+		}
 		<span class="text-2xs text-slate-400">{ placementSubline(s) }</span>
 		if s.Editable {
 			@widthControl(s, page)

@@ -194,13 +194,15 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 		switch tab {
 			case TabMine:
 				{{ mineChipPrefix := routeByID(ctx, "nav_my_documents") + "&status=" }}
-				<div role="group" aria-label="Filter by status" class="flex flex-wrap items-center justify-between gap-3">
-					<div class="flex flex-wrap gap-2">
-						for _, f := range mineFilters {
-							@filterChip(f, mineChipPrefix)
+				<div role="group" aria-label="Filter by status">
+					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
+						@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
+							for _, f := range mineFilters {
+								@filterChip(f, mineChipPrefix)
+							}
 						}
-					</div>
-					@searchBox(routeByID(ctx, "nav_approval_inbox"), q, "Search title or DOC number…", map[string]string{"tab": TabMine, "status": activeFilterKey(mineFilters)})
+						@searchBox(routeByID(ctx, "nav_approval_inbox"), q, "Search title or DOC number…", map[string]string{"tab": TabMine, "status": activeFilterKey(mineFilters)})
+					}
 				</div>
 				if len(drafts) == 0 && len(mine) == 0 {
 					if q != "" {
@@ -226,13 +228,15 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 				}
 			case TabAssigned:
 				{{ assignedChipPrefix := routeByID(ctx, "nav_assigned_to_me") + "&status=" }}
-				<div role="group" aria-label="Filter" class="flex flex-wrap items-center justify-between gap-3">
-					<div class="flex flex-wrap gap-2">
-						for _, f := range assignedFilters {
-							@filterChip(f, assignedChipPrefix)
+				<div role="group" aria-label="Filter">
+					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
+						@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
+							for _, f := range assignedFilters {
+								@filterChip(f, assignedChipPrefix)
+							}
 						}
-					</div>
-					@searchBox(routeByID(ctx, "nav_approval_inbox"), q, "Search title or DOC number…", map[string]string{"tab": TabAssigned, "status": activeFilterKey(assignedFilters)})
+						@searchBox(routeByID(ctx, "nav_approval_inbox"), q, "Search title or DOC number…", map[string]string{"tab": TabAssigned, "status": activeFilterKey(assignedFilters)})
+					}
 				</div>
 				if len(assigned) == 0 {
 					if q != "" {
@@ -245,9 +249,11 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 				}
 			default:
 				{{ inboxChipPrefix := routeByID(ctx, "nav_approval_inbox") + "?filter=" }}
-				<div role="group" aria-label="Filter" class="flex flex-wrap gap-2">
-					for _, f := range filters {
-						@filterChip(f, inboxChipPrefix)
+				<div role="group" aria-label="Filter">
+					@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
+						for _, f := range filters {
+							@filterChip(f, inboxChipPrefix)
+						}
 					}
 				</div>
 				if len(pending) == 0 {
@@ -431,11 +437,11 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 				@approvalProgress(c.Approved, c.TotalSteps)
 			}
 			if len(c.CardFields) > 0 {
-				<div class="flex flex-wrap gap-1.5">
+				@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 					for _, f := range c.CardFields {
 						@projectedFieldValue(f)
 					}
-				</div>
+				}
 			}
 		</a>
 		// Revise (Flow 2 mockup: My Documents' Rejected row) -- a POST, not a link, so it cannot be

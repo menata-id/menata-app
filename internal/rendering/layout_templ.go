@@ -8,7 +8,11 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "menata.app/internal/domain"
+import (
+	"strings"
+
+	"menata.app/internal/domain"
+)
 
 // The generic renderers for domain's Layout and Static Content primitives (007 §12.2, §12.6).
 //
@@ -100,16 +104,16 @@ func stackLayout(gap domain.Gap) templ.Component {
 	})
 }
 
-// **row and split are not here yet, and were removed from this file rather than never written.** The first
-// pass of this slice built all four §12.2 primitives measured in use; three finished with zero callers, and
-// `gridLayout` had put a *three-column desktop* class into the Tailwind bundle -- a class no screen uses. A
-// primitive arrives with the uses it replaces, or it is a name with nothing behind it. Their measured
-// counts are in domain.LayoutKind's own comment.
+// **All five measured primitives are here now, and three of them were in this file once before with no
+// callers.** The first pass built four and migrated nothing; `grid`, `panel` and `row` were deleted the same
+// day, and the unused grid renderer had already put a *three-column desktop* class into the Tailwind bundle --
+// a class no screen used. Each came back only with the sites it replaces. A primitive arrives with its uses,
+// or it is a name with nothing behind it.
 //
-// **That class name is written in prose here on purpose**, and the reason is the bug it caused: Tailwind
-// scans these `.templ` files as *text*, so the comment naming the mistake re-committed it. The class sat in
-// app.css for a day, sourced by nothing but the sentence saying it should not be.
-// `conformance.TestNoClassLivesOnlyInAComment` holds this now.
+// **That class is described in prose rather than named, on purpose**, and the reason is the bug it caused:
+// Tailwind scans these `.templ` files as *text*, so the comment recording the mistake re-committed it. The
+// class sat in app.css for a day, sourced by nothing but the sentence saying it should not be.
+// `conformance.TestNoClassLivesOnlyInAComment` holds this now, and found two more the same way.
 
 // panelLayout is the bordered, padded surface twelve sites across six screens carried as one identical
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
@@ -344,11 +348,63 @@ func splitLayout(gap domain.Gap, side domain.SplitSide, aside domain.AsideWidth)
 	})
 }
 
-// staticText renders one §12.6 static content node. Text arrives already resolved -- this function does
-// not read metadata, derive a heading, or fall back; `titleByID`/`descriptionByID` and
-// `domain.ResolveNavigationHeadings` own that, and a renderer that resolved its own content is the
-// render-time inference removed on 2026-10-02.
-func staticText(kind domain.StaticKind, text string) templ.Component {
+// rowAlign and rowJustify map the two flexbox axes. Both return "" for their default member, and
+// `RowAlignStretch`/`RowJustifyStart` are named in their switches rather than left to the fallthrough, because
+// the vocabulary gate reads which members a renderer *names* -- one reachable only through a default arm is
+// indistinguishable from one nothing draws.
+//
+// **rowClasses joins them in Go rather than handing templ a list**, which is not a style choice. templ's
+// `class={ a, b, c }` does not drop an empty value, it emits a **double space** -- measured, not assumed, by
+// rendering the three combinations before writing the call sites. Eighteen of the 24 migrated sites pass at
+// least one default, so the list form would have left eighteen screens differing from their baseline by a
+// space that no one would ever look for.
+func rowAlign(a domain.RowAlign) string {
+	switch a {
+	case domain.RowAlignCenter:
+		return "items-center"
+	case domain.RowAlignStretch:
+		return ""
+	default:
+		return ""
+	}
+}
+
+func rowJustify(j domain.RowJustify) string {
+	switch j {
+	case domain.RowJustifySpread:
+		return "justify-between"
+	case domain.RowJustifyStart:
+		return ""
+	default:
+		return ""
+	}
+}
+
+// rowLayout is horizontal flow that wraps -- the second most common shape in the corpus after `stack`, and the
+// last of §12.2's measured-in-use primitives to be built.
+//
+// **22 of its 33 sites migrate, and the other eleven are a floor rather than debt**, in three kinds:
+//
+//   - **seven carry non-layout classes on the same element** -- typography (`text-sm`, `text-3xs
+//     text-slate-600`), decoration (`border-b … pb-1.5`) or sizing (`sm:w-32`). Absorbing them would mean this
+//     primitive accepting a CSS class string, which is 007 §15.2's prohibition with different syntax and
+//     §12.3's "arbitrary properties" with the same one. A primitive taking `textClass string` is a `<div>`
+//     with extra steps.
+//   - **two want an asymmetric column/row gap** the single `Gap` ladder cannot express, and inventing a second
+//     ladder for two sites would be shape-before-need.
+//   - **two are not a `<div>`** -- one `<form>`, one `<span>`. This is the only one of the three that is a real
+//     missing capability rather than a boundary: nothing lets a caller choose the element, and changing it
+//     would break the form's submission and nest a block inside an inline context. The primitive that answers
+//     it is §12.5 Slot or a Component with a declared element, which is Stage 2.
+//
+// Three further sites *did* migrate by **nesting**: `approvalinbox`'s filter groups keep `role="group"` and
+// their `aria-label` on a wrapper with the row inside, for the same reason `signatureplacement` keeps its htmx
+// wiring outside `splitLayout`. Accessibility semantics are not layout, and separating them is how a declared
+// Page would express the pair anyway. Cost: three extra DOM nodes.
+//
+// Of the 22, **five render two pixels differently**: they used a gap one and a half steps wide, which folds
+// into `GapTight`. `domain.Gap` records why that was the right call rather than declaring a half-step.
+func rowLayout(gap domain.Gap, align domain.RowAlign, justify domain.RowJustify) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -369,58 +425,129 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			templ_7745c5c3_Var11 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		var templ_7745c5c3_Var12 = []any{rowClasses(gap, align, justify)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var13 string
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var12).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templ_7745c5c3_Var11.Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// rowClasses is the join described above rowAlign: `flex flex-wrap`, then each axis that is not its default,
+// then the gap -- the order all 24 call sites already wrote.
+func rowClasses(gap domain.Gap, align domain.RowAlign, justify domain.RowJustify) string {
+	parts := []string{"flex flex-wrap"}
+	for _, c := range []string{rowAlign(align), rowJustify(justify), layoutGap(gap)} {
+		if c != "" {
+			parts = append(parts, c)
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// staticText renders one §12.6 static content node. Text arrives already resolved -- this function does
+// not read metadata, derive a heading, or fall back; `titleByID`/`descriptionByID` and
+// `domain.ResolveNavigationHeadings` own that, and a renderer that resolved its own content is the
+// render-time inference removed on 2026-10-02.
+func staticText(kind domain.StaticKind, text string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var14 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var14 == nil {
+			templ_7745c5c3_Var14 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
 		switch kind {
 		case domain.StaticEyebrow:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<span class=\"text-3xs tracking-wide text-blue-600 uppercase\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<span class=\"text-3xs tracking-wide text-blue-600 uppercase\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var12 string
-			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(text)
+			var templ_7745c5c3_Var15 string
+			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 168, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 246, Col: 70}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case domain.StaticHeading:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<h1 class=\"m-0 text-xl font-medium\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<h1 class=\"m-0 text-xl font-medium\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var13 string
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(text)
+			var templ_7745c5c3_Var16 string
+			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 170, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 248, Col: 45}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</h1>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case domain.StaticParagraph:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"text-sm text-slate-500\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<div class=\"text-sm text-slate-500\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var14 string
-			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(text)
+			var templ_7745c5c3_Var17 string
+			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 172, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 250, Col: 45}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -457,13 +584,13 @@ func pageHeader(navID string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var15 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var15 == nil {
-			templ_7745c5c3_Var15 = templ.NopComponent
+		templ_7745c5c3_Var18 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var18 == nil {
+			templ_7745c5c3_Var18 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		app, _ := CurrentApplication(ctx)
-		templ_7745c5c3_Var16 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var19 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -479,7 +606,7 @@ func pageHeader(navID string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -487,7 +614,7 @@ func pageHeader(navID string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -499,7 +626,7 @@ func pageHeader(navID string) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = stackLayout(domain.GapTight).Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = stackLayout(domain.GapTight).Render(templ.WithChildren(ctx, templ_7745c5c3_Var19), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

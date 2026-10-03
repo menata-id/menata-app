@@ -26,25 +26,28 @@ import (
 // be the ~50%-false-finding shape this repo has deleted twice. What the syntax cannot tell apart is noted
 // per entry instead.
 //
-// **The floor is not zero for `split`.** Two of its seven matches are genuine one-offs that will stay
-// hand-written: `automation.templ`'s `[6rem_1fr]` label/value definition list, and `rolematrix.templ`'s
-// bordered row grid. A one-off is what a primitive is *not* for.
+// **Neither remaining floor is zero, and that is a finding rather than a shortfall.** A site stays
+// hand-written when absorbing it would make the primitive accept something it must not: a CSS class string
+// (007 §12.3's "arbitrary properties", §15.2's framework classes), a second gap ladder for two sites, or a
+// choice of HTML element the vocabulary has no word for. Each entry below says which. Reading the floor as
+// debt would push exactly the wrong change.
 //
 // Measured 2026-10-03 across every `.templ`, after two earlier measurements got the population wrong --
-// the first counted frequency and not uniformity, the second counted uniformity and not
-// parameterisability (see `domain.LayoutKind`'s retraction). 45 sites in 20 files, of which **`grid`'s five
-// are now zero**: `domain.LayoutGrid` and `rendering.gridLayout` landed with all five callers the same day,
-// and `grid` is absent below rather than set to zero because an entry for a kind with no sites fails too.
+// the first counted frequency and not uniformity, the second counted uniformity and not parameterisability
+// (see `domain.LayoutKind`'s retraction). **45 sites in 20 files -> 13 in 10**, over three slices the same
+// day: `grid` (5), `split` (5) and `row` (22). `grid`'s key is *absent* rather than zero, because an entry
+// naming a kind with no sites fails too.
 var handWrittenLayoutSites = map[string]map[string]int{
-	// `row`: horizontal flow that wraps. Alignment is a closed set of three in this corpus --
-	// items-center (11), justify-between (5), items-baseline (2) -- which is exactly what Bootstrap,
-	// Tailwind and every component library expose as named options.
+	// `row`: horizontal flow that wraps. **22 of 33 sites migrated on 2026-10-03; these eleven are the
+	// floor.** Three kinds, none of them debt: seven carry typography, decoration or sizing on the same
+	// element (absorbing them would make the primitive take a CSS class string -- 007 §12.3, §15.2); two want
+	// an asymmetric column/row gap the single Gap ladder cannot express; and two are not a `<div>` at all (a
+	// `<form>` and a `<span>`), which is the one genuine missing capability here -- choosing the element needs
+	// §12.5 Slot or a Component, i.e. Stage 2. `rendering.rowLayout`'s comment carries the per-site reasons.
 	"row": {
-		"approvalinbox.templ": 6, "appsettings.templ": 1, "appshell.templ": 1, "boardsettings.templ": 1,
-		"detail.templ": 2, "documentsubmit.templ": 1, "groups.templ": 1, "inference.templ": 3,
-		"installapplication.templ": 1, "machine.templ": 1, "mytasks.templ": 1, "newapplication.templ": 2,
-		"reviewdocument.templ": 5, "rolematrix.templ": 1, "signatureplacement.templ": 2,
-		"workspacehome.templ": 1, "workspacemembers.templ": 3,
+		"appsettings.templ": 1, "appshell.templ": 1, "inference.templ": 1, "installapplication.templ": 1,
+		"machine.templ": 1, "mytasks.templ": 1, "reviewdocument.templ": 2, "rolematrix.templ": 1,
+		"workspacemembers.templ": 2,
 	},
 	// `split`: a main area beside a fixed-width aside. **§12.2 lists `split`, and an earlier measurement of
 	// mine claimed it had zero uses.** It had five, all migrated on 2026-10-03; what is left is the two
@@ -94,9 +97,9 @@ func TestHandWrittenLayoutSitesOnlyShrink(t *testing.T) {
 	}
 
 	advice := map[string]string{
-		"row":   "build or use the `row` primitive (alignment is a closed set of three here: centre, spread, baseline)",
-		"grid":  "build or use the `grid` primitive with a `columns` enum",
-		"split": "build or use §12.2's `split` primitive (main area plus a fixed-width aside)",
+		"row":   "use `rowLayout` (domain.RowAlign x RowJustify x Gap, all closed sets) -- unless this site is one of the eleven kinds of floor, in which case say which in the entry above rather than widening the primitive",
+		"grid":  "use `gridLayout` (domain.GridCols x Gap)",
+		"split": "use §12.2's `split` via `splitLayout` (domain.SplitSide x AsideWidth x Gap)",
 	}
 
 	for _, kind := range []string{"grid", "row", "split"} {

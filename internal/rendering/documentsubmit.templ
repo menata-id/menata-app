@@ -89,7 +89,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			@splitLayout(domain.GapComfortable, domain.SplitAsideStart, domain.AsideNarrow) {
 				@modeFieldset(mode, draft.Mode)
 				<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
-					<div class="flex flex-wrap items-center justify-between gap-3">
+					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 						<h2 class="m-0 text-sm font-medium">Approval steps</h2>
 						<button
 							type="button"
@@ -98,7 +98,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 							hx-swap="beforeend"
 							class="cursor-pointer text-xs text-blue-600 hover:text-blue-700"
 						>+ Add approver</button>
-					</div>
+					}
 					<p class="m-0 text-2xs text-slate-500">
 						Each step is one person or a whole group. The order below is used only when
 						{ mode.Name } is { firstOption(mode) } — use ▲/▼ to reorder.

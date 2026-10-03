@@ -118,10 +118,10 @@ templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, swit
 			← { labelByID(ctx, "nav_approval_inbox") }
 		</a>
 		<div class="flex flex-col gap-2">
-			<div class="flex flex-wrap items-center gap-2">
+			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 				<code class="rounded bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ v.Reference }</code>
 				@reviewStatusPill(v.Status)
-			</div>
+			}
 			<h1 class="m-0 text-xl font-medium">{ v.Title }</h1>
 			<div class="text-sm text-slate-500">
 				{ v.DocumentType }
@@ -180,7 +180,7 @@ func reviewStatusTone(status string) PillTone {
 // two affordances; the app has one file, so two links over one route is the honest rendering.
 templ reviewDocumentCard(v ReviewView) {
 	<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
-		<div class="flex flex-wrap items-center justify-between gap-3">
+		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 			<h2 class="m-0 text-sm font-medium">Document</h2>
 			if v.FileHref != "" {
 				<div class="flex gap-2">
@@ -188,7 +188,7 @@ templ reviewDocumentCard(v ReviewView) {
 					<a href={ templ.SafeURL(v.FileHref) } download class="flex h-8 items-center rounded-md border border-slate-200 px-3 text-xs hover:border-blue-300">Download</a>
 				</div>
 			}
-		</div>
+		}
 		if v.FileHref == "" {
 			<p class="m-0 text-sm text-slate-400">No file is attached to this document.</p>
 		} else {
@@ -307,14 +307,14 @@ func reviewStepStatusLine(s StepApprover) string {
 // the same posture the panel's previous single-marker shape took.
 templ reviewSignaturePanel(v ReviewView) {
 	<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
-		<div class="flex flex-wrap items-center justify-between gap-3">
+		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 			<h2 class="m-0 text-sm font-medium">Signature positions</h2>
 			if v.SignatureStepCount > 0 {
 				<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs whitespace-nowrap text-slate-600">
 					{ fmt.Sprintf("%d of %d signed", v.SignatureSignedCount, v.SignatureStepCount) }
 				</span>
 			}
-		</div>
+		}
 		if v.SignaturePage == 0 {
 			<p class="m-0 text-2xs text-slate-500">No signature position has been placed for this document yet.</p>
 		} else {

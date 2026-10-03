@@ -631,9 +631,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   be the ~50%-false-finding shape deleted twice here. What syntax cannot separate is noted per entry:
   `split`'s floor is **2, not 0**, because `automation.templ`'s `[6rem_1fr]` definition list and
   `rolematrix.templ`'s bordered grid are genuine one-offs, and a one-off is what a primitive is not for.
-  **`grid` and `split` both reached their floor on 2026-10-03** — `grid`'s key was *removed* (an entry naming
-  a kind with no sites fails too), `split`'s dropped to its two one-offs. 45 sites in 20 files -> **35 in
-  18**, all of it `row`. Read the current numbers out of the map.
+  **All three reached their floor on 2026-10-03** — `grid`'s key was *removed* (an entry naming a kind with no
+  sites fails too), `split` dropped to its two one-offs, `row` to eleven. 45 sites in 20 files -> **13 in
+  10**. Read the current numbers out of the map, and **read a floor as a finding rather than as debt**: a site
+  stays hand-written when absorbing it would make the primitive accept a CSS class string (§12.3's "arbitrary
+  properties"), a second gap ladder for two sites, or a choice of HTML element the vocabulary has no word for.
+  Only the last of `row`'s three kinds is a missing capability; the other two are the boundary working.
   **`split` is also the slice to read before migrating `row`, because it is the one that changed what
   renders.** Its five asides were 316/320/320/340/360px: four widths for one idea, so two named steps widened
   two screens (4px and 20px). More importantly three sites gave the main column `minmax(0,1fr)` and two gave
@@ -644,7 +647,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   literal beside the intended one in the test (`rendering.TestSplitLayout_*`) so it stays legible without git.
   One site keeps its htmx wiring on a wrapper **outside** the primitive, costing one DOM node: a Layout
   primitive accepting arbitrary HTML attributes is exactly what §12.3 forbids by name, and a screen's
-  self-refresh is behaviour, not layout.
+  self-refresh is behaviour, not layout. `row` did the same for three `role="group"`/`aria-label` filter
+  groups — accessibility semantics are not layout, and separating them is how a declared Page would express
+  the pair anyway.
+  **Two things `row` taught that are not about layout at all.** First, **measure what templ emits before
+  writing call sites**: `class={ a, b, c }` does not drop an empty value, it emits a *double space*, and 18 of
+  22 sites pass at least one default — the naive form would have left eighteen screens differing from their
+  baseline by a space nobody would look for. `rowClasses` joins in Go, and
+  `rendering.TestRowLayout_*` asserts no double space. Second, a render-diff over a baseline **finds defects
+  that have nothing to do with the change**: this one surfaced `searchBox` ranging over a
+  `map[string]string`, so its hidden inputs rendered in a random order between requests — a straight breach of
+  007 §4.6 Determinism (a MUST) that broke nothing visible and would have made every future byte comparison of
+  that page unreliable noise. It took six fetches of the *baseline* to see it flip once. Fixed with sorted
+  keys, held by `TestSearchBox_hiddenInputsRenderInAStableOrder`, which renders 50 times because one render of
+  a two-key map passes about half the time.
 - `TestNoClassLivesOnlyInAComment` — **Tailwind scans the `.templ` files as text, so a comment naming a
   utility class emits that class.** Nothing in `make css` knows what a Go comment is. Three leaks were found
   this way, all self-inflicted and all invisible: the comment recording that the first Experience Plane pass

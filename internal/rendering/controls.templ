@@ -1,6 +1,8 @@
 package rendering
 
 import (
+	"sort"
+
 	"menata.app/internal/domain"
 	"menata.app/internal/storage"
 )
@@ -68,10 +70,16 @@ const (
 // state that must survive the round trip, tab included, has to travel as a hidden input instead).
 // q pre-fills the box with the current query so a search is never silently lost when a filter chip
 // is clicked next to it.
+// **The hidden inputs render in sorted key order, not map order.** `range` over a map is randomised in Go, so
+// this form emitted its two hidden inputs in a different sequence between requests -- caught on 2026-10-03 by
+// diffing one screen against a worktree baseline six times, where the *baseline alone* flipped. Harmless to
+// the submission (both inputs are sent either way) and a straight breach of 007 §4.6, which makes identical
+// input producing identical output a MUST; it also makes any byte-level comparison of this page -- a render
+// diff, an ETag, a cache key -- unreliable in a way nothing would report.
 templ searchBox(path, q, placeholder string, hidden map[string]string) {
 	<form method="get" action={ templ.SafeURL(path) } role="search" class="flex items-center gap-2">
-		for k, v := range hidden {
-			<input type="hidden" name={ k } value={ v }/>
+		for _, k := range sortedKeys(hidden) {
+			<input type="hidden" name={ k } value={ hidden[k] }/>
 		}
 		<label for="q" class="sr-only">{ placeholder }</label>
 		<input id="q" type="search" name="q" value={ q } placeholder={ placeholder } class={ controlField + " w-full sm:w-70" }/>
@@ -146,3 +154,13 @@ templ fileLink(v any) {
 	}
 }
 
+
+// sortedKeys gives a map's keys in a stable order, so a `range` over it renders deterministically (007 §4.6).
+func sortedKeys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}

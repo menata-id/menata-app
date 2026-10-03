@@ -228,14 +228,14 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 			<button type="submit" class={ controlPrimary }>Start →</button>
 		</form>
 		if len(suggestions) > 0 {
-			<div class="flex flex-wrap items-center gap-2">
+			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 				for _, s := range suggestions {
 					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">
 						{ s.Label }
 					</a>
 				}
 				<span class="ml-auto text-2xs text-slate-400">Only workspace admins can add applications</span>
-			</div>
+			}
 		} else {
 			<span class="text-2xs text-slate-400">Only workspace admins can add applications</span>
 		}

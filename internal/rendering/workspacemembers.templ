@@ -3,6 +3,7 @@ package rendering
 import "fmt"
 import "strings"
 import "menata.app/internal/data"
+import "menata.app/internal/domain"
 
 // RoleApplication is one Application a member can hold a role in, as the Members screens need it:
 // its declared vocabulary plus the form field that carries it.
@@ -338,7 +339,7 @@ templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 			</p>
 		}
 		{{ effective := data.EffectiveRoles(m.AppRoles, m.Groups) }}
-		<div class="flex flex-wrap gap-1.5">
+		@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 			for _, app := range roleApps {
 				for _, role := range effective[app.ID] {
 					<span class="rounded-full bg-blue-50 px-2.5 py-1 text-2xs text-blue-700">{ app.Name } · { role }</span>
@@ -347,6 +348,6 @@ templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 			for _, g := range m.Groups {
 				<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs text-slate-600">+ { g.Name } group</span>
 			}
-		</div>
+		}
 	</section>
 }

@@ -51,7 +51,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 						<span class="text-[15px] font-medium">{ g.Name }</span>
 						<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", g.MemberCount) }{ pluralS(g.MemberCount) }</span>
 					</div>
-					<div class="flex flex-wrap gap-1.5">
+					@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 						if len(g.Grants) == 0 {
 							<span class="text-2xs text-slate-400">Grants no role yet</span>
 						}
@@ -60,7 +60,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 								<span class="rounded-full bg-blue-50 px-2.5 py-1 text-2xs text-blue-700">{ app.Name } · { role }</span>
 							}
 						}
-					</div>
+					}
 				</a>
 			}
 		}

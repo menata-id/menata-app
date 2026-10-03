@@ -145,7 +145,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)) } class="text-sm font-medium text-blue-600 hover:text-blue-700">Review and decide →</a>
 		}
 		{{ deletable, blockedReason := canDeleteInView(m, r, children, actor) }}
-		<div class="flex flex-wrap items-center gap-2">
+		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			if action.IsDocument(m) {
 				<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)) } class={ controlSecondary }>Signature Positions</a>
 			}
@@ -167,7 +167,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			} else {
 				<span class="text-xs text-slate-500" title={ blockedReason }>Cannot delete: { blockedReason }</span>
 			}
-		</div>
+		}
 		for _, cc := range children {
 			if stepperView, ok := cc.Machine.StepperView(); ok {
 				@sectionHeaderRow(stepperView.Name, "", "")
@@ -241,7 +241,7 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 					</dd>
 				}
 			</dl>
-			<div class="flex flex-wrap items-center gap-2">
+			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 				<button type="submit" class={ controlPrimary }>Save</button>
 				<button
 					type="button"
@@ -250,7 +250,7 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 					hx-target="#record-detail"
 					hx-swap="outerHTML"
 				>Cancel</button>
-			</div>
+			}
 		</form>
 	</div>
 }

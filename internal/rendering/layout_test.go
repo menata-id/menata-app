@@ -54,6 +54,51 @@ func TestGridLayout_rendersTheClassStringEachCallSiteReplaced(t *testing.T) {
 	}
 }
 
+// TestRowLayout_rendersTheClassStringEachCallSiteReplaced pins the three argument combinations `row`'s 22
+// migrated sites use, in the class order all 22 already wrote: `flex flex-wrap`, each axis that is not its
+// default, then the gap.
+//
+// **The double-space case is the one worth having a test for.** templ's `class={ a, b, c }` does not drop an
+// empty value, it emits two spaces -- measured by rendering the combinations before writing any call site,
+// which is why `rowClasses` joins in Go. Eighteen of the 22 pass at least one default, so the naive form
+// would have left eighteen screens differing from their baseline by a space nobody would think to look for.
+// Each `want` below is the exact pre-migration literal.
+func TestRowLayout_rendersTheClassStringEachCallSiteReplaced(t *testing.T) {
+	class := regexp.MustCompile(`class="([^"]*)"`)
+
+	for _, tc := range []struct {
+		shape   string
+		sites   int
+		gap     domain.Gap
+		align   domain.RowAlign
+		justify domain.RowJustify
+		want    string
+	}{
+		{"centred, spread apart", 6, domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread,
+			"flex flex-wrap items-center justify-between gap-3"},
+		{"centred", 7, domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart,
+			"flex flex-wrap items-center gap-2"},
+		{"plain wrapping flow", 9, domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart,
+			"flex flex-wrap gap-2"},
+	} {
+		var buf bytes.Buffer
+		if err := rowLayout(tc.gap, tc.align, tc.justify).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("%s: Render() error = %v", tc.shape, err)
+		}
+		m := class.FindStringSubmatch(buf.String())
+		if m == nil {
+			t.Errorf("%s: rendered no class attribute; got %q", tc.shape, buf.String())
+			continue
+		}
+		if m[1] != tc.want {
+			t.Errorf("%s (%d sites): rowLayout emitted %q, want %q", tc.shape, tc.sites, m[1], tc.want)
+		}
+		if strings.Contains(m[1], "  ") {
+			t.Errorf("%s: class attribute has a double space (%q) -- an empty axis value is being joined instead of skipped", tc.shape, m[1])
+		}
+	}
+}
+
 // TestSplitLayout_rendersTheClassStringEachCallSiteReplaced is `grid`'s counterpart, and it carries more
 // weight because **two of `split`'s five sites deliberately render differently now**. The `want` column is
 // therefore the *intended* class string, with the pre-migration literal beside it where they differ, so a

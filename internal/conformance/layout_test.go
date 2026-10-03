@@ -128,15 +128,21 @@ func TestLayoutVocabularyIsRenderedAndUsed(t *testing.T) {
 		}
 	}
 
-	// `split`'s own two parameter sets, held to the same both-ends rule. Their Go identifiers do not derive
+	// `split`'s and `row`'s own parameter sets, held to the same both-ends rule. Their Go identifiers do not derive
 	// from their string values (`SplitAsideStart` is "start", `AsideNarrow` is "narrow"), so the map is keyed
 	// by value and names the constant -- which also means a renamed constant fails here rather than silently
-	// stopping being checked.
+	// stopping being checked. `RowAlignStretch` and `RowJustifyStart` render the empty string, so "drawn" for
+	// those two means *named in a switch arm*, which is exactly what this checks and why `rowAlign` names them
+	// instead of letting them fall through.
 	for ident, declared := range map[string]bool{
-		"domain.SplitAsideStart": domain.KnownSplitSides[domain.SplitAsideStart],
-		"domain.SplitAsideEnd":   domain.KnownSplitSides[domain.SplitAsideEnd],
-		"domain.AsideNarrow":     domain.KnownAsideWidths[domain.AsideNarrow],
-		"domain.AsideWide":       domain.KnownAsideWidths[domain.AsideWide],
+		"domain.SplitAsideStart":  domain.KnownSplitSides[domain.SplitAsideStart],
+		"domain.SplitAsideEnd":    domain.KnownSplitSides[domain.SplitAsideEnd],
+		"domain.AsideNarrow":      domain.KnownAsideWidths[domain.AsideNarrow],
+		"domain.AsideWide":        domain.KnownAsideWidths[domain.AsideWide],
+		"domain.RowAlignStretch":  domain.KnownRowAligns[domain.RowAlignStretch],
+		"domain.RowAlignCenter":   domain.KnownRowAligns[domain.RowAlignCenter],
+		"domain.RowJustifyStart":  domain.KnownRowJustifies[domain.RowJustifyStart],
+		"domain.RowJustifySpread": domain.KnownRowJustifies[domain.RowJustifySpread],
 	} {
 		if !declared {
 			t.Errorf("%s is named in this gate but is no longer in its closed set -- update the gate or the set, whichever is wrong", ident)
@@ -151,8 +157,9 @@ func TestLayoutVocabularyIsRenderedAndUsed(t *testing.T) {
 	}
 	// And the sets may not grow past what this gate enumerates, which is the half a range loop gives for
 	// free and a hand-written map does not.
-	if got, want := len(domain.KnownSplitSides)+len(domain.KnownAsideWidths), 4; got != want {
-		t.Errorf("KnownSplitSides + KnownAsideWidths now hold %d members, this gate enumerates %d -- add the new one above with its renderer arm and its caller", got, want)
+	if got, want := len(domain.KnownSplitSides)+len(domain.KnownAsideWidths)+
+		len(domain.KnownRowAligns)+len(domain.KnownRowJustifies), 8; got != want {
+		t.Errorf("the split/row parameter sets now hold %d members, this gate enumerates %d -- add the new one above with its renderer arm and its caller", got, want)
 	}
 }
 

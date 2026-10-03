@@ -3,12 +3,13 @@ package domain
 // LayoutKind is the closed set of generic spatial composition primitives
 // (007-composable-runtime-architecture.md §12.2).
 //
-// **Four of §12.2's eight are built, and each arrived with the uses it replaces.** §12.2 lists `stack`,
+// **Five of §12.2's eight are built, and each arrived with the uses it replaces.** §12.2 lists `stack`,
 // `row`, `columns`, `grid`, `split`, `tabs`, `panel` and `section`. Counted by *meaning* across the 38
 // bespoke screens (see the retraction below for why the first two counts were wrong): vertical flow with a
 // uniform gap appears **61 times** (`stack`), the bordered padded surface twelve times across six screens
 // (`panel`), a responsive card grid **five** times (`grid`) and a main-plus-aside split **five** more
-// (`split`). `row` (33 sites) is measured and next; `columns`, `tabs` and §12.2's own `section` have
+// (`split`), and horizontal wrapping flow **24** times (`row`, of 33 sites -- nine carry typography or
+// sizing on the same element and stay hand-written). `columns`, `tabs` and §12.2's own `section` have
 // **zero** measured uses and are deliberately absent -- §12.2 is a permitted vocabulary, not a quota, and building the rest now would be
 // the shape-before-need 007 §34 forbids.
 //
@@ -41,7 +42,49 @@ const (
 	// §12.2 lists it, and an earlier measurement of mine claimed it had zero uses in this corpus; it has
 	// five, and they differ only in which side the aside is on and how wide it is.
 	LayoutSplit LayoutKind = "split"
+	// LayoutRow is horizontal flow that wraps. Its parameters are the two flexbox axes as closed sets --
+	// `RowAlign` and `RowJustify` -- which is what Bootstrap, Tailwind and every component library expose as
+	// named options rather than as free CSS.
+	LayoutRow LayoutKind = "row"
 )
+
+// RowAlign is a row's cross-axis alignment, as a closed set.
+//
+// Two members, because the 24 migrated sites use two. `RowAlignStretch` is flexbox's own default and emits no
+// class at all, which is why it is named `stretch` rather than `start`: `align-items: normal` behaves as
+// stretch, and a vocabulary word that lies about what it renders is worse than no word.
+//
+// **`baseline` is deliberately absent.** Three sites use it and all three are excluded from the migration for
+// other reasons (see rendering.rowLayout), so declaring it would be a member no screen calls -- which
+// `conformance.TestLayoutVocabularyIsRenderedAndUsed` fails, and rightly: the first pass of this work shipped
+// three such primitives.
+type RowAlign string
+
+const (
+	RowAlignStretch RowAlign = "stretch"
+	RowAlignCenter  RowAlign = "center"
+)
+
+// KnownRowAligns is the closed set.
+var KnownRowAligns = map[RowAlign]bool{
+	RowAlignStretch: true,
+	RowAlignCenter:  true,
+}
+
+// RowJustify is a row's main-axis distribution, as a closed set. Two members: flow from the start, or push the
+// children apart. Six of the 24 migrated sites do the second.
+type RowJustify string
+
+const (
+	RowJustifyStart  RowJustify = "start"
+	RowJustifySpread RowJustify = "spread"
+)
+
+// KnownRowJustifies is the closed set.
+var KnownRowJustifies = map[RowJustify]bool{
+	RowJustifyStart:  true,
+	RowJustifySpread: true,
+}
 
 // SplitSide says which side of a split the fixed-width aside sits on.
 //
@@ -157,6 +200,7 @@ var KnownLayoutKinds = map[LayoutKind]bool{
 	LayoutPanel: true,
 	LayoutGrid:  true,
 	LayoutSplit: true,
+	LayoutRow:   true,
 }
 
 // Gap is the spacing between a layout's children, as an enum rather than a number.
@@ -173,10 +217,13 @@ var KnownLayoutKinds = map[LayoutKind]bool{
 // The fourth arrived with `split` the same day, for the two New Application screens, which space their two
 // columns one step wider than the three approval screens do.
 //
-// **The spacings still hand-written are not a fifth step waiting to be declared.** The corpus also uses two
-// *half*-steps between tight and default, across six `row` sites. Those are almost certainly accidental, and
-// the `row` migration folds them into the two neighbours this ladder already has, which moves six sites by
-// at most two pixels. That is a decision about the corpus, not about this ladder.
+// **No half-step was declared, and that was the `row` migration's one judgement call.** The corpus used two
+// half-steps between tight and default. Five sites at one and a half fold into `GapTight`, which moves each of
+// the five by **two pixels**; declaring the half-step instead would have preserved an accident as vocabulary.
+// The one site at two and a half is not in the migrated set at all -- it is a `<form>`, and this primitive
+// renders a `<div>` -- so it keeps its own class and no decision was needed about it. Worth saying because the
+// first count folded it in and was wrong by one: the gap ladder and the migrated population are two different
+// measurements.
 type Gap string
 
 const (

@@ -1,6 +1,7 @@
 package rendering
 
 import "strconv"
+import "menata.app/internal/domain"
 
 // InferenceView is the diagnostics screen's own shape: every derivation the runtime makes over this
 // Workspace's installed engines, grouped by the role that owes it.
@@ -105,12 +106,12 @@ templ inferenceSummary(v InferenceView) {
 
 templ inferenceEngineBlock(e InferenceEngine) {
 	<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
-		<div class="flex flex-wrap items-center gap-2">
+		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			<h2 class="m-0 text-sm font-medium">{ e.Engine }</h2>
 			if e.Defects > 0 {
 				@statusPill(pluralRows(e.Defects)+" to act on", PillBad)
 			}
-		</div>
+		}
 		for _, r := range e.Roles {
 			@inferenceRoleBlock(r)
 		}
@@ -122,12 +123,12 @@ templ inferenceEngineBlock(e InferenceEngine) {
 // state above speaks only about engines.
 templ inferenceStepBlock(n InferenceStep) {
 	<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
-		<div class="flex flex-wrap items-center gap-2">
+		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			<h2 class="m-0 text-sm font-medium">{ n.Step }</h2>
 			if n.Defects > 0 {
 				@statusPill(pluralRows(n.Defects)+" to act on", PillBad)
 			}
-		</div>
+		}
 		<div class="overflow-x-auto">
 			<table class="w-full min-w-[560px] border-collapse text-xs">
 				<thead>
