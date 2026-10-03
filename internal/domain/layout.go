@@ -3,14 +3,26 @@ package domain
 // LayoutKind is the closed set of generic spatial composition primitives
 // (007-composable-runtime-architecture.md §12.2).
 //
-// **Five of §12.2's eight are built, and each arrived with the uses it replaces.** §12.2 lists `stack`,
+// **Six of §12.2's eight are built, and each arrived with the uses it replaces.** §12.2 lists `stack`,
 // `row`, `columns`, `grid`, `split`, `tabs`, `panel` and `section`. Counted by *meaning* across the 38
 // bespoke screens (see the retraction below for why the first two counts were wrong): vertical flow with a
 // uniform gap appears **61 times** (`stack`), the bordered padded surface twelve times across six screens
 // (`panel`), a responsive card grid **five** times (`grid`) and a main-plus-aside split **five** more
-// (`split`), and horizontal wrapping flow **24** times (`row`, of 33 sites -- nine carry typography or
-// sizing on the same element and stay hand-written). `columns`, `tabs` and §12.2's own `section` have
-// **zero** measured uses and are deliberately absent -- §12.2 is a permitted vocabulary, not a quota, and building the rest now would be
+// (`split`), horizontal wrapping flow **24** times (`row`, of 33 sites) and content that stacks on a phone
+// then sits side by side **9** times (`columns`, of which 5 migrated).
+//
+// **`tabs` and `section` are the two still unbuilt, and neither is unbuilt for lack of a case.** An earlier
+// version of this comment said `columns`, `tabs` and `section` had "**zero** measured uses and are
+// deliberately absent". All three were wrong, and the owner disproved the first with one observation --
+// decompose the Document Approval app and its sub-components become columns on desktop, with sections.
+// Measured: `columns` 9, `section` **34** (the largest remaining population in the corpus), `tabs` at least
+// the Approval Inbox's three, which have been running in production the whole time.
+// The method was the fault, not the corpus: all three were searched for as *class strings* -- `columns-2`,
+// CSS multi-column -- instead of being read as shapes on a screen. That is the same failure that wrongly
+// rejected `row` and `grid` the day before, and it happened three times in one session
+// (`menata-app-document`'s `guides/subordinate-mechanisms-must-not-outrank-the-vision.md`).
+// `conformance.handWrittenLayoutSites` now counts both, which took its reported debt from 13 sites to 51 --
+// a directive gate that under-reports by four times directs nothing -- §12.2 is a permitted vocabulary, not a quota, and building the rest now would be
 // the shape-before-need 007 §34 forbids.
 //
 // **Why a closed set rather than a class string**: §15.2 forbids an intermediate representation embedding

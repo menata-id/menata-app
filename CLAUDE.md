@@ -724,7 +724,28 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   form binding (`installapplication`'s `method`/`action`, which is 007 §11.3); and an element plus control
   behaviour (the `<button>`'s `popovertarget`, which is §12.3's `actions`). An element enum would fix **one of
   three** and be shape-before-need for the other two.
-  **The lesson is the one this repo keeps relearning: "two cases" is a claim about sameness, and sameness is
+  **Counting what is present may be syntactic. Concluding something is absent may not.** That is the rule
+  the whole class reduces to, and it was derived after three failures in one session
+  (`menata-app-document`'s `audits/2026-10-03-audit-klaim-nol-case-di-dokumentasi-dan-gerbang.md`). A
+  ratchet counting 129 Field references by regex is sound -- it measures something that is there. A
+  conclusion that "this primitive has zero uses" by regex is **not**, because the absence of a *class
+  string* is not the absence of a *meaning*. The two look like the same measurement and have opposite
+  reliability.
+  Worked examples of it being wrong: `row`/`grid` rejected by counting class strings; `columns` recorded
+  twice as "zero measured uses" and measured at **9**, three of them inside Document Approval; `section`
+  dismissed as overlapping `panel` and measured at **34**, the largest remaining population in the corpus;
+  `tabs` recorded as zero while the Approval Inbox's three tabs were running in production. Each time the
+  owner disproved it by *reading a screen*, which is what a class-string grep structurally cannot do.
+  **And the directive gate itself carried the flaw**: `handWrittenLayoutSites` had patterns only for `row`,
+  `grid` and `split`, so it reported 13 sites of Experience Plane debt when the real population was **51**.
+  A gate whose job is to point the next session at the work, under-reporting it four times over, is worse
+  than no gate -- it supplies a number that looks measured. Fixed 2026-10-03.
+  Before writing "no case yet": open `case-portfolio.md` (21 written use cases, 105 lines); decompose one
+  running application and read its screens; check whether established framework vocabulary has a name for
+  it. And if you still conclude zero, **state your measurement method beside the claim**, so the next
+  reader can judge the method instead of trusting the number.
+
+  **The lesson this repo keeps relearning: "two cases" is a claim about sameness, and sameness is
   what the measurement decides.** Counting sites that share a *symptom* is how `row` and `grid` were wrongly
   rejected (class strings), and it is how this was wrongly accepted. Look at what each site would actually
   need.

@@ -55,6 +55,22 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	"split": {
 		"automation.templ": 1, "rolematrix.templ": 1,
 	},
+	// `columns`: content that stacks on a phone and sits side by side from `sm:` up. Five of its nine sites
+	// migrated on 2026-10-03; these four did not -- three carry `border-b`/padding and are `Collection`'s item
+	// shape rather than a bare columns, one is a panel that becomes columns.
+	"columns": {
+		"approvalinbox.templ": 1, "reviewdocument.templ": 1, "workspacemembers.templ": 2,
+	},
+	// `section`: a titled grouping of content (§12.2). **Unbuilt, and the largest remaining population** --
+	// measured only after the owner pointed out that Document Approval visibly uses it. 34 sites: 25
+	// hand-written `<section class=` plus `sectionHeaderRow`'s nine callers, which is the same concept with
+	// its heading already extracted. `layout.templ`'s one is `panelLayout` itself and is the floor.
+	"section": {
+		"account.templ": 5, "dashboard.templ": 3, "detail.templ": 4, "documentsubmit.templ": 2,
+		"groups.templ": 2, "inference.templ": 3, "installapplication.templ": 1, "layout.templ": 1,
+		"machine.templ": 4, "newapplication.templ": 1, "reviewdocument.templ": 2,
+		"signatureplacement.templ": 1, "sprintdashboard.templ": 1, "workspacemembers.templ": 4,
+	},
 }
 
 // layoutSitePatterns are the syntactic shapes counted. Kept beside the population so a reader can
@@ -63,6 +79,14 @@ var layoutSitePatterns = map[string]*regexp.Regexp{
 	"row":   regexp.MustCompile(`class="flex flex-wrap[^"]*"`),
 	"split": regexp.MustCompile(`class="grid[^"]*grid-cols-\[`),
 	"grid":  regexp.MustCompile(`class="grid[^"]*\bgrid-cols-\d`),
+	// **These two were missing until 2026-10-03, and their absence is the finding, not the fix.** This gate
+	// exists to point the next session at the remaining work, and it was reporting 13 sites while the real
+	// unmigrated population was 51 -- because its patterns were written with the same method that wrongly
+	// rejected `row` and `grid`: searching for a class string instead of for the meaning. `columns` was
+	// recorded twice as having "zero measured uses" and has nine; `section` was dismissed as overlapping
+	// `panel` and has 34. A directive gate that under-reports by four times directs nothing.
+	"columns": regexp.MustCompile(`class="[^"]*(?:sm|md|lg):flex-row`),
+	"section": regexp.MustCompile(`<section class=|@sectionHeaderRow\(`),
 }
 
 // TestHandWrittenLayoutSitesOnlyShrink is the directive half of the Experience Plane work.
@@ -73,7 +97,7 @@ func TestHandWrittenLayoutSitesOnlyShrink(t *testing.T) {
 		t.Fatalf("read rendering: %v", err)
 	}
 
-	actual := map[string]map[string]int{"row": {}, "grid": {}, "split": {}}
+	actual := map[string]map[string]int{"row": {}, "grid": {}, "split": {}, "columns": {}, "section": {}}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
 			continue
@@ -97,12 +121,14 @@ func TestHandWrittenLayoutSitesOnlyShrink(t *testing.T) {
 	}
 
 	advice := map[string]string{
-		"row":   "use `rowLayout` (domain.RowAlign x RowJustify x Gap, all closed sets) -- unless this site is one of the eleven kinds of floor, in which case say which in the entry above rather than widening the primitive",
-		"grid":  "use `gridLayout` (domain.GridCols x Gap)",
-		"split": "use §12.2's `split` via `splitLayout` (domain.SplitSide x AsideWidth x Gap)",
+		"row":     "use `rowLayout` (domain.RowAlign x RowJustify x Gap, all closed sets) -- unless this site is one of the eleven kinds of floor, in which case say which in the entry above rather than widening the primitive",
+		"grid":    "use `gridLayout` (domain.GridCols x Gap)",
+		"split":   "use §12.2's `split` via `splitLayout` (domain.SplitSide x AsideWidth x Gap)",
+		"columns": "use §12.2's `columns` via `columnsLayout` (domain.ColumnsAlign x Gap) -- unless this site is a list row or a panel, which are the four that stayed",
+		"section": "§12.2's `section` is **not built yet** and this is the largest remaining population (34). Build it with its callers rather than adding an entry here",
 	}
 
-	for _, kind := range []string{"grid", "row", "split"} {
+	for _, kind := range []string{"grid", "row", "split", "columns", "section"} {
 		want, got := handWrittenLayoutSites[kind], actual[kind]
 		for _, f := range sortedFileNames(got) {
 			switch w := want[f]; {
