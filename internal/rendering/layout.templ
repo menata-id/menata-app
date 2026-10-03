@@ -39,11 +39,16 @@ templ stackLayout(gap domain.Gap) {
 	</div>
 }
 
-// **row, grid and panel are not here, and were removed from this file rather than never written.** The
-// first pass of this slice built all four §12.2 primitives measured in use; three finished with zero
-// callers, and `gridLayout` had put `sm:grid-cols-3` into the Tailwind bundle -- a class no screen uses.
-// A primitive arrives with the uses it replaces, or it is a name with nothing behind it. Their measured
+// **row and split are not here yet, and were removed from this file rather than never written.** The first
+// pass of this slice built all four §12.2 primitives measured in use; three finished with zero callers, and
+// `gridLayout` had put a *three-column desktop* class into the Tailwind bundle -- a class no screen uses. A
+// primitive arrives with the uses it replaces, or it is a name with nothing behind it. Their measured
 // counts are in domain.LayoutKind's own comment.
+//
+// **That class name is written in prose here on purpose**, and the reason is the bug it caused: Tailwind
+// scans these `.templ` files as *text*, so the comment naming the mistake re-committed it. The class sat in
+// app.css for a day, sourced by nothing but the sentence saying it should not be.
+// `conformance.TestNoClassLivesOnlyInAComment` holds this now.
 
 // panelLayout is the bordered, padded surface twelve sites across six screens carried as one identical
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
