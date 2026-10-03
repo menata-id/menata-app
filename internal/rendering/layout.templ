@@ -416,6 +416,10 @@ templ uiNode(n ir.UINode) {
 			switch domain.ComponentType(n.Type) {
 				case domain.ComponentStatusBadge:
 					@statusBadge(n.Props["label"], domain.BadgeTone(n.Props["tone"]))
+				case domain.ComponentField:
+					@field(n.Props["for"], n.Props["label"]) {
+						@uiChildren(n)
+					}
 				case domain.ComponentCollection:
 					@collection(domain.Gap(n.Props["gap"]), uiChildComponents(n))
 				case domain.ComponentMetric:

@@ -62,6 +62,16 @@ const (
 	// Its items arrive as rendered children rather than as records, so the Component never selects, sorts or
 	// formats anything -- a collection that took `[]*data.Record` would be taking the data layer with it.
 	ComponentCollection ComponentType = "Collection"
+	// ComponentField is §12.3's own `Field`: a labelled form control.
+	//
+	// **It already existed unregistered.** `rendering.wizardField(id, label)` was exactly this -- a wrapper,
+	// a `<label for>`, and `{ children... }` for the control -- and `authField` carried the identical wrapper
+	// and label with one hardcoded `<input>` after them. So registering it is naming what was there, and both
+	// migrate byte-identically.
+	//
+	// Second Component with a slot, after `Collection`. The slot is why this is two inputs rather than the six
+	// `authField` took: a Field labels a control, it does not know what kind of control.
+	ComponentField ComponentType = "Field"
 )
 
 // AvatarSize is how large an avatar circle is, as a closed set rather than a number -- the same reason

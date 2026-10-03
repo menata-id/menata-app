@@ -45,6 +45,33 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentAvatar:      {Contract: avatarContract, Validate: validateAvatar},
 	domain.ComponentMetric:      {Contract: metricContract, Validate: validateMetric},
 	domain.ComponentCollection:  {Contract: collectionContract, Validate: validateCollection},
+	domain.ComponentField:       {Contract: fieldContract, Validate: validateField},
+}
+
+// fieldContract is §12.3's `Field`: a label bound to one control, which fills the slot.
+//
+// **Two inputs, not six.** `authField` took `(id, name, label, kind, autocomplete, autofocus)`; five of those
+// describe the *control*, not the labelling, and a Component that accepted them would be deciding what sort
+// of input exists. The slot moves that to the caller, which is also why `wizardField` -- already this shape
+// with `{ children... }` -- needed no parameters beyond these two.
+//
+// `for` is the control's own id, so the label and the control are bound in the DOM rather than by proximity.
+// That is the accessibility clause doing work again: a `<label>` with no `for` and no nesting labels nothing.
+var fieldContract = domain.ComponentContract{
+	Type: domain.ComponentField,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "for", Kind: "string", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            []string{"control"},
+	Actions:          nil,
+	Accessibility:    "`for` must name the control's own id: a <label> bound neither by `for` nor by nesting labels nothing, and this Component cannot nest because the control arrives through a slot",
+	Renderer:         "field",
+}
+
+func validateField(inputs map[string]string) []string {
+	return checkDeclaredInputs(fieldContract, inputs, "Field")
 }
 
 // collectionContract is §12.3's `Collection`, and **the first contract here with a slot** -- so it is the

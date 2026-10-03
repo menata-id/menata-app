@@ -213,6 +213,7 @@ var allowedProps = map[string][]string{
 	"component/Avatar":      {"initials", "label", "size", "presence"},
 	"component/Metric":      {"label", "value"},
 	"component/Collection":  {"gap"},
+	"component/Field":       {"label", "for"},
 }
 
 func propAllowed(n UINode, key string) bool {

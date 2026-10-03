@@ -58,10 +58,10 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapComfortable) {
 				<h2 class="m-0 text-sm font-medium">Document</h2>
-				@wizardField("doc_title", "Title") {
+				@field("doc_title", "Title") {
 					<input id="doc_title" type="text" name="fld_title" value={ draft.Title } required class={ controlField }/>
 				}
-				@wizardField("doc_type", documentType.Name) {
+				@field("doc_type", documentType.Name) {
 					<select
 						id="doc_type"
 						name={ documentType.ID }
@@ -79,7 +79,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 						}
 					</select>
 				}
-				@wizardField("doc_file", "PDF file") {
+				@field("doc_file", "PDF file") {
 					<input id="doc_file" type="file" name="fld_file" accept="application/pdf" required?={ draft.ID == "" } class="text-sm"/>
 					if draft.ID != "" {
 						<p class="m-0 text-2xs text-slate-500">Current file: { draft.FileName } — choose a new file to replace it.</p>
@@ -202,9 +202,15 @@ templ modeFieldsetContent(mode domain.Field, selected string) {
 // wizardField is one labelled control on this page. Not authField (authshell.templ): that one is
 // the pre-auth kit's, owns its own <input> and its own sizing, and its doc comment says so. This
 // wraps whatever control it is given, because this form has four different ones.
-templ wizardField(id, label string) {
+// **`wizardField` became `field` on 2026-10-03** -- `registry.Components`' fifth member and §12.3's own
+// `Field`. The markup is unchanged: this was already a label plus a slotted control, which is exactly the
+// contract, so registering it was naming what was here rather than building anything.
+//
+// `authField` (authshell.templ) carried the identical wrapper and label with one hardcoded `<input>` after
+// them; it is an adapter over this now, and both migrations are byte-identical.
+templ field(forID, label string) {
 	<div class="flex flex-col gap-2">
-		<label for={ id } class="text-sm font-medium">{ label }</label>
+		<label for={ forID } class="text-sm font-medium">{ label }</label>
 		{ children... }
 	</div>
 }

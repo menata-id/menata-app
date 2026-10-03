@@ -83,9 +83,14 @@ templ authFooterNote() {
 //
 // LoginPage deliberately does not use this: its password row carries a "Forgot password?" link
 // beside the label, so its markup genuinely differs rather than being this shape plus a flag.
+// authField is an adapter over the registered `Field` Component: it supplies the control that goes in the
+// slot and nothing else. Its wrapper and label were character-for-character identical to `field`'s already,
+// which is why this migration is byte-identical.
+//
+// The five parameters beyond `id`/`label` describe the **control**, not the labelling, and that is the
+// division the slot makes: a Field labels a control, it does not know what sort of control exists.
 templ authField(id, name, label, kind, autocomplete string, autofocus bool) {
-	<div class="flex flex-col gap-2">
-		<label for={ id } class="text-sm font-medium">{ label }</label>
+	@field(id, label) {
 		<input
 			id={ id }
 			type={ kind }
@@ -95,7 +100,7 @@ templ authField(id, name, label, kind, autocomplete string, autofocus bool) {
 			autofocus?={ autofocus }
 			class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
 		/>
-	</div>
+	}
 }
 
 // authPasswordField is authField's counterpart for a *new* password, carrying the minlength the
