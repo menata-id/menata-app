@@ -123,7 +123,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			for _, m := range members {
 				<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
 					<div class="flex grow items-center gap-3">
-						<span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-2xs font-medium text-slate-700">{ personInitials(names[m.UserRecordID], m.Email) }</span>
+						@avatar(personInitials(names[m.UserRecordID], m.Email), avatarLabel(names[m.UserRecordID], m.Email), domain.AvatarInline, domain.AvatarPresent)
 						<span class="flex min-w-0 flex-col gap-0.5">
 							if names[m.UserRecordID] != "" && names[m.UserRecordID] != m.Email {
 								<span class="truncate text-sm">{ names[m.UserRecordID] }</span>
@@ -170,7 +170,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			for _, inv := range pending {
 				<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
 					<div class="flex grow items-center gap-3">
-						<span class="flex size-8 shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-2xs font-medium text-slate-400">{ personInitials("", inv.Email) }</span>
+						@avatar(personInitials("", inv.Email), inv.Email, domain.AvatarInline, domain.AvatarPending)
 						<span class="truncate text-sm text-slate-600">{ inv.Email }</span>
 					</div>
 					<div class="sm:w-32">
@@ -214,7 +214,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 			← { labelByID(ctx, "nav_workspace_members") }
 		</a>
 		<div class="flex items-center gap-3">
-			<span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-medium text-slate-700">{ personInitials(name, m.Email) }</span>
+			@avatar(personInitials(name, m.Email), avatarLabel(name, m.Email), domain.AvatarLead, domain.AvatarPresent)
 			<span class="flex min-w-0 flex-col gap-0.5">
 				if name != "" && name != m.Email {
 					<span class="truncate text-[15px] font-medium">{ name }</span>
@@ -350,4 +350,17 @@ templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 			}
 		}
 	</section>
+}
+
+// avatarLabel is an avatar's accessible name: the person's own name when known, their email otherwise.
+//
+// It exists because `domain.ComponentAvatar`'s contract declares `label` *required* -- the initials are not a
+// name -- and two of the four sites have both a name and an email while two have only an email. Resolving the
+// fallback here rather than inside the Component keeps the Component bounded: it is handed a string and does
+// not decide what a person is called.
+func avatarLabel(name, email string) string {
+	if strings.TrimSpace(name) != "" {
+		return name
+	}
+	return email
 }

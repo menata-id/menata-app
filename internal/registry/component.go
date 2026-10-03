@@ -41,6 +41,7 @@ type Component struct {
 // repo's own three zero-caller layout primitives are why none of them is registered in advance.
 var Components = map[domain.ComponentType]Component{
 	domain.ComponentStatusBadge: {Contract: statusBadgeContract, Validate: validateStatusBadge},
+	domain.ComponentAvatar:      {Contract: avatarContract, Validate: validateAvatar},
 }
 
 // statusBadgeContract is declared separately from the catalogue, not for tidiness: `validateStatusBadge`
@@ -66,6 +67,70 @@ var statusBadgeContract = domain.ComponentContract{
 	Renderer:      "statusBadge",
 }
 
+// avatarContract is the **second** registered Component, and it is here to answer the question the Stage 2
+// plan asked: does the contract have to change to hold a second member?
+//
+// **Structurally, no.** `Inputs` is a slice, so four inputs fit where two did, and `Validate` derives from
+// the declaration rather than agreeing with it. Saying that plainly is more useful than implying the second
+// member was a stress test it was not.
+//
+// **What it did expose is `Accessibility`.** For `StatusBadge` that field describes an absence -- the badge's
+// text *is* its accessible name, so there is nothing for the renderer to do. An avatar's content is "AP",
+// which is not a name, and none of the four hand-written sites carried one. So this is the first contract
+// whose accessibility clause **demands markup**, and honouring it adds a `title` and an `aria-label` to four
+// screens that had neither. A field that only ever described absences would have been decoration; this is
+// what made it a requirement.
+var avatarContract = domain.ComponentContract{
+	Type: domain.ComponentAvatar,
+	Inputs: []domain.ComponentInput{
+		{Name: "initials", Kind: "string", Required: true},
+		// Required, and this is the accessibility clause as an input rather than as prose. An avatar with no
+		// name is a circle a screen reader announces as two letters.
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "size", Kind: "AvatarSize", Required: true},
+		{Name: "presence", Kind: "AvatarPresence", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "the initials are not an accessible name: the renderer MUST carry the person's name or email as `aria-label`, and as `title` so a sighted reader can hover",
+	Renderer:         "avatar",
+}
+
+// validateAvatar checks a use against the declared inputs, including both closed sets. Same shape as
+// validateStatusBadge, deliberately -- a second validator that invented its own conventions would make the
+// catalogue two catalogues.
+func validateAvatar(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(avatarContract, inputs, "Avatar")
+	if v := inputs["size"]; v != "" && !domain.KnownAvatarSizes[domain.AvatarSize(v)] {
+		issues = append(issues, fmt.Sprintf("Avatar size %q is not one of the declared sizes", v))
+	}
+	if v := inputs["presence"]; v != "" && !domain.KnownAvatarPresences[domain.AvatarPresence(v)] {
+		issues = append(issues, fmt.Sprintf("Avatar presence %q is not one of the declared presences", v))
+	}
+	return issues
+}
+
+// checkDeclaredInputs is the half both validators share: every required input present, and no undeclared one
+// supplied. Extracted when the second Component arrived rather than in advance -- one validator is a screen's
+// own detail, two is a shape (CLAUDE.md's decision path, step 3).
+func checkDeclaredInputs(c domain.ComponentContract, inputs map[string]string, name string) []string {
+	var issues []string
+	declared := map[string]bool{}
+	for _, in := range c.Inputs {
+		declared[in.Name] = true
+		if in.Required && inputs[in.Name] == "" {
+			issues = append(issues, fmt.Sprintf("%s requires input %q", name, in.Name))
+		}
+	}
+	for k := range inputs {
+		if !declared[k] {
+			issues = append(issues, fmt.Sprintf("%s has no declared input %q -- a Component does not grow a property to suit one caller (007 §12.3)", name, k))
+		}
+	}
+	return issues
+}
+
 // ValidateComponentUse is the entry point: it resolves the type and runs its contract, or reports that the
 // runtime realizes no such Component.
 func ValidateComponentUse(t domain.ComponentType, inputs map[string]string) []string {
@@ -83,19 +148,7 @@ func ValidateComponentUse(t domain.ComponentType, inputs map[string]string) []st
 // starts becoming the unbounded `GenericComponent` §12.3 forbids by name -- one caller passes something the
 // contract does not mention, the renderer grows a parameter for it, and the contract is now a comment.
 func validateStatusBadge(inputs map[string]string) []string {
-	var issues []string
-	declared := map[string]bool{}
-	for _, in := range statusBadgeContract.Inputs {
-		declared[in.Name] = true
-		if in.Required && inputs[in.Name] == "" {
-			issues = append(issues, fmt.Sprintf("StatusBadge requires input %q", in.Name))
-		}
-	}
-	for name := range inputs {
-		if !declared[name] {
-			issues = append(issues, fmt.Sprintf("StatusBadge has no declared input %q -- a Component does not grow a property to suit one caller (007 §12.3)", name))
-		}
-	}
+	issues := checkDeclaredInputs(statusBadgeContract, inputs, "StatusBadge")
 	if tone := inputs["tone"]; tone != "" && !domain.KnownBadgeTones[domain.BadgeTone(tone)] {
 		issues = append(issues, fmt.Sprintf("StatusBadge tone %q is not one of the declared tones", tone))
 	}

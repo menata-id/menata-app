@@ -686,13 +686,28 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   no pill and is now a red pill, which `ToneBad` already meant on the eight sites using the shared shape.
   Same class as `split`'s four aside widths: when a contract forces a choice between inconsistent literals,
   the choice is a finding, so state it.
+  **The second member answered the plan's own question, and the answer was "no".** `Avatar` arrived with four
+  measured sites and two closed parameter sets, and the contract did **not** have to change structurally:
+  `Inputs` is a slice, both validators share one derived helper (extracted on the second case, not the first).
+  What it *did* expose is `Accessibility`. For `StatusBadge` that field describes an absence — the text is the
+  name. An avatar's content is initials, "SI" is not a name, and **none of the four sites carried an accessible
+  name at all**, so the contract declares `label` *required* and the renderer spends it on `aria-label` plus
+  `title`. A field that only ever described absences would have been decoration; this made it a requirement,
+  and fixed four screens nobody had reviewed for it. **When registering a Component, ask what its contract
+  forces that a reviewer would not have asked for.**
+  It also gave a **second case** for the one real missing capability: `appshell`'s account avatar is a
+  `<button>`, and a Component cannot choose its element — the same limit that left two `row` sites
+  hand-written. Two cases is the trigger; it is §12.5 Slot or a declared element, i.e. Stage 3.
   **And the verification could not be live.** Thirteen screens diffed against a worktree baseline came back
   token-identical because **no record in the dev database holds a non-empty `fld_due_date`** — the badge has
   never rendered in this environment. Thirteen identical screens would otherwise read as proof of something
   they cannot prove; the real proof is `experience.TestResolveSLABadge*` and
   `rendering.TestStatusBadge_rendersEachDeclaredTone`. **Check that a diff can reach the code before
   reporting it as verification** — this is the third slice in a row where it could not, after
-  `pendingApprovalCardGrid` and New Application's review pane.
+  `pendingApprovalCardGrid` and New Application's review pane — and a fourth the next day, `Avatar`'s
+  `pending` variant, which needs an outstanding invitation the dev database does not have. Three of its four
+  sites *were* reachable, which is the useful shape: diff what you can, pin what you cannot, and say which is
+  which.
 - `TestNoClassLivesOnlyInAComment` — **Tailwind scans the `.templ` files as text, so a comment naming a
   utility class emits that class.** Nothing in `make css` knows what a Go comment is. Three leaks were found
   this way, all self-inflicted and all invisible: the comment recording that the first Experience Plane pass

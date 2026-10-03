@@ -83,3 +83,53 @@ func TestStatusBadgeContractDeclaresNoDataRequirements(t *testing.T) {
 		t.Error("StatusBadge declares no accessibility semantics -- §13 lists them, and \"the text is the name\" is an answer worth writing down so the next reader does not add a role it should not have")
 	}
 }
+
+// TestAvatarContractRequiresAnAccessibleName asserts the clause the second Component existed to find.
+//
+// `StatusBadge`'s accessibility clause describes an absence -- its text is its name. An avatar's content is
+// initials, which are not a name, so `label` is a **required input** rather than an optional nicety. The four
+// hand-written sites it replaced carried no accessible name at all.
+func TestAvatarContractRequiresAnAccessibleName(t *testing.T) {
+	var label *domain.ComponentInput
+	for i, in := range Components[domain.ComponentAvatar].Contract.Inputs {
+		if in.Name == "label" {
+			label = &Components[domain.ComponentAvatar].Contract.Inputs[i]
+		}
+	}
+	if label == nil {
+		t.Fatal("Avatar declares no `label` input -- the initials are not an accessible name, so a Component that cannot be given one renders a circle a screen reader announces as two letters")
+	}
+	if !label.Required {
+		t.Error("Avatar's `label` is optional -- an accessibility requirement a caller may skip is not a requirement")
+	}
+	if issues := ValidateComponentUse(domain.ComponentAvatar, map[string]string{
+		"initials": "AP", "size": string(domain.AvatarInline), "presence": string(domain.AvatarPresent),
+	}); len(issues) == 0 {
+		t.Error("an Avatar use with no label passed validation")
+	}
+}
+
+// TestBothComponentsShareOneValidatorShape is the answer to the Stage 2 plan's own question -- does the
+// contract have to change to hold a second member?
+//
+// **Structurally it did not**, and that is worth asserting rather than implying: `Inputs` is a slice, so four
+// fit where two did, and both validators derive their required/undeclared checks from the declaration through
+// one shared helper. A second validator that invented its own conventions would make the catalogue two
+// catalogues, which is the failure this checks for.
+func TestBothComponentsShareOneValidatorShape(t *testing.T) {
+	for typ := range Components {
+		undeclared := ValidateComponentUse(typ, map[string]string{"notAThing": "x"})
+		var found bool
+		for _, s := range undeclared {
+			if strings.Contains(s, `no declared input "notAThing"`) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s does not refuse an undeclared input -- every Component must, or boundedness is per-Component taste (007 §12.3)", typ)
+		}
+	}
+	if len(Components) < 2 {
+		t.Fatalf("this gate compares Components against each other and the catalogue holds %d", len(Components))
+	}
+}

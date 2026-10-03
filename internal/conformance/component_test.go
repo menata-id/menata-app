@@ -53,12 +53,32 @@ func TestComponentRegistryAndRenderersAgree(t *testing.T) {
 	// bundle for nothing. `ToneMuted` is the member that proves the second half is worth checking -- it
 	// exists for a measured reason (52 of 65 inference rows are correctly "not applicable", and drawing them
 	// at full weight buried the two that mattered), not for symmetry.
-	for tone := range domain.KnownBadgeTones {
-		name := "domain.Tone" + strings.ToUpper(string(tone)[:1]) + string(tone)[1:]
-		if !strings.Contains(rendering, name) {
-			t.Errorf("domain.KnownBadgeTones declares %q and no .templ names %s -- a tone no renderer draws is a declaration that silently renders no colour", tone, name)
+	for setName, members := range map[string][]string{
+		"KnownBadgeTones":      toneIdents(),
+		"KnownAvatarSizes":     {"domain.AvatarInline", "domain.AvatarLead"},
+		"KnownAvatarPresences": {"domain.AvatarPresent", "domain.AvatarPending"},
+	} {
+		for _, ident := range members {
+			if !strings.Contains(rendering, ident) {
+				t.Errorf("domain.%s declares a member no .templ names (%s) -- a declared value no renderer draws silently renders the default", setName, ident)
+			}
 		}
 	}
+	// And the sets may not grow past what this gate enumerates. A range loop gives that for free; a hand-
+	// written list does not, so the count is asserted instead.
+	if got, want := len(domain.KnownAvatarSizes)+len(domain.KnownAvatarPresences), 4; got != want {
+		t.Errorf("the Avatar parameter sets now hold %d members, this gate enumerates %d -- add the new one above with its renderer arm", got, want)
+	}
+}
+
+// toneIdents turns every declared BadgeTone into the Go identifier a .templ would name it by, read out of the
+// closed set rather than retyped -- so a tone added to domain and not drawn fails without anyone editing this.
+func toneIdents() []string {
+	out := make([]string, 0, len(domain.KnownBadgeTones))
+	for tone := range domain.KnownBadgeTones {
+		out = append(out, "domain.Tone"+strings.ToUpper(string(tone)[:1])+string(tone)[1:])
+	}
+	return out
 }
 
 // TestRegisteredComponentsStayBounded is the gate 007 §12.3 asks for by name: *"A Component MUST expose a

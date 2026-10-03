@@ -239,3 +239,52 @@ func TestSlaBadge_rendersNothingWhenAbsent(t *testing.T) {
 		t.Errorf("an overdue badge should render as a red pill through statusBadge; got %q", got)
 	}
 }
+
+// TestAvatar_rendersEachCallSiteCombination pins the four combinations the migrated sites pass, and the
+// accessible name the contract made required.
+//
+// **Three of the four were verified live and the fourth could not be.** `/workspace-members`, a Group's
+// detail page and `/workspace-members/{id}/edit` were diffed against a worktree baseline: identical class
+// *sets* (reordered only) plus the added `aria-label`/`title`. The `pending` variant renders only for an
+// outstanding invitation and the dev database has zero, so it is pinned here instead -- the same gap that hit
+// `pendingApprovalCardGrid`, New Application's review pane and the SLA badge. Check whether a diff can reach
+// the code before reporting it as verification.
+func TestAvatar_rendersEachCallSiteCombination(t *testing.T) {
+	for _, tc := range []struct {
+		site     string
+		size     domain.AvatarSize
+		presence domain.AvatarPresence
+		want     []string
+		absent   string
+	}{
+		{"workspacemembers (member row)", domain.AvatarInline, domain.AvatarPresent,
+			[]string{"size-8", "text-2xs", "bg-slate-200", "text-slate-700"}, "border-dashed"},
+		{"groups (member row)", domain.AvatarInline, domain.AvatarPresent,
+			[]string{"size-8", "text-2xs", "bg-slate-200"}, "border-dashed"},
+		{"workspacemembers (invited row)", domain.AvatarInline, domain.AvatarPending,
+			[]string{"size-8", "border-dashed", "border-slate-300", "text-slate-400"}, "bg-slate-200"},
+		{"workspacemembers (edit member header)", domain.AvatarLead, domain.AvatarPresent,
+			[]string{"size-10", "text-sm", "bg-slate-200"}, "border-dashed"},
+	} {
+		var buf bytes.Buffer
+		if err := avatar("SI", "Silvia Indah Rini", tc.size, tc.presence).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("%s: Render() error = %v", tc.site, err)
+		}
+		got := buf.String()
+		for _, cls := range tc.want {
+			if !strings.Contains(got, cls) {
+				t.Errorf("%s: avatar missing %q; got %q", tc.site, cls, got)
+			}
+		}
+		if strings.Contains(got, tc.absent) {
+			t.Errorf("%s: avatar carries %q, which belongs to the other %s", tc.site, tc.absent, "variant")
+		}
+		// The clause the second Component turned from prose into a requirement.
+		if !strings.Contains(got, `aria-label="Silvia Indah Rini"`) || !strings.Contains(got, `title="Silvia Indah Rini"`) {
+			t.Errorf("%s: avatar carries no accessible name -- \"SI\" is not a name; got %q", tc.site, got)
+		}
+		if !strings.Contains(got, ">SI<") {
+			t.Errorf("%s: avatar did not render its initials; got %q", tc.site, got)
+		}
+	}
+}

@@ -333,6 +333,37 @@ templ statusBadge(label string, tone domain.BadgeTone) {
 	</span>
 }
 
+// avatarClasses maps an avatar's two closed parameters onto the circle it draws. Two switches rather than one
+// pair-wise table, because size and presence are genuinely independent here -- unlike `splitTracks`, where
+// Tailwind needs the whole track list as one literal.
+func avatarClasses(size domain.AvatarSize, presence domain.AvatarPresence) string {
+	dim := "size-8 text-2xs"
+	if size == domain.AvatarLead {
+		dim = "size-10 text-sm"
+	}
+	tone := "bg-slate-200 text-slate-700"
+	if presence == domain.AvatarPending {
+		tone = "border border-dashed border-slate-300 text-slate-400"
+	}
+	return "flex shrink-0 items-center justify-center rounded-full font-medium " + dim + " " + tone
+}
+
+// avatar is the registered renderer for `domain.ComponentAvatar` -- `registry.Components`' second member, and
+// the one that turned the contract's `Accessibility` clause from a description into a requirement.
+//
+// **The four sites it replaced carried no accessible name at all.** Their content is initials, and "AP" is not
+// a name: a screen reader announced two letters. The contract declares `label` as a *required input* for that
+// reason, and this renderer spends it on `aria-label` plus `title` -- so a sighted reader can hover and an
+// assistive one hears the person. That is an added attribute on four screens, a deliberate change rather than
+// a port.
+//
+// `presence` is semantic, not visual (§4.2). The dashed circle means **invited but not yet a member**, which
+// is a distinction this repo holds elsewhere too, and keeping it a declared value rather than a colour is what
+// stops the next caller reaching for the dash to mean something else.
+templ avatar(initials, label string, size domain.AvatarSize, presence domain.AvatarPresence) {
+	<span class={ avatarClasses(size, presence) } title={ label } aria-label={ label }>{ initials }</span>
+}
+
 // slaBadge draws a resolved SLA badge, or nothing when no due date was set. It is a thin adapter over
 // statusBadge, exactly as reviewStatusPill is -- the Component owns presentation, the caller owns
 // vocabulary, and "overdue" is the caller's word.

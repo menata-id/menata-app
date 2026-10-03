@@ -46,7 +46,48 @@ type ComponentType string
 const (
 	// ComponentStatusBadge is §12.3's own `StatusBadge`: one resolved state, rendered as a pill.
 	ComponentStatusBadge ComponentType = "StatusBadge"
+	// ComponentAvatar is §12.3's own `Avatar`: one person as a circle of initials.
+	ComponentAvatar ComponentType = "Avatar"
 )
+
+// AvatarSize is how large an avatar circle is, as a closed set rather than a number -- the same reason
+// `Gap` is a ladder and not a pixel count (§15.2: a logical declaration carrying `size: 40px` has smuggled a
+// physical choice into the plane that must not know about them).
+//
+// Two steps, because the four migrated sites use two. Named for the role the size plays rather than for the
+// measurement, so a change of scale is not a change of vocabulary.
+type AvatarSize string
+
+const (
+	// AvatarInline sits in a list row beside other content.
+	AvatarInline AvatarSize = "inline"
+	// AvatarLead heads a detail screen, where the person is the subject rather than a row.
+	AvatarLead AvatarSize = "lead"
+)
+
+// KnownAvatarSizes is the closed set.
+var KnownAvatarSizes = map[AvatarSize]bool{
+	AvatarInline: true,
+	AvatarLead:   true,
+}
+
+// AvatarPresence distinguishes a person who is here from one who has only been asked.
+//
+// **It is semantic, not visual** (007 §4.2), and the distinction is real rather than decorative: an
+// invitation is not a membership (this repo has a standing rule about exactly that), so the dashed circle on
+// the Members screen says "asked, not joined" and must not be reachable by passing a colour.
+type AvatarPresence string
+
+const (
+	AvatarPresent AvatarPresence = "present"
+	AvatarPending AvatarPresence = "pending"
+)
+
+// KnownAvatarPresences is the closed set.
+var KnownAvatarPresences = map[AvatarPresence]bool{
+	AvatarPresent: true,
+	AvatarPending: true,
+}
 
 // ComponentContract is what §13 asks a Component to declare, as a Go value rather than as prose.
 //
