@@ -19,10 +19,11 @@ import (
 // So the entry is the *reason it is empty*, and the gate below makes an empty package a recorded decision
 // instead of an accident.
 var declaredPlaceholders = map[string]string{
-	"ir": "Domain IR is realised as internal/domain (005 Phase 5's definition is domain.Machine's own " +
-		"content); Data IR waits on the planner, which 007 §34 marks PROPOSED and unadmitted; UI IR waits " +
-		"on a second render target. See the package's own doc.go, which also records why the ir.Machine " +
-		"refactor proposed in menata-app-document audits/2026-09-30 was measured and rejected",
+	// `ir` left this map on 2026-10-03, when UI IR landed. Its entry said "UI IR waits on a second render
+	// target", which was measured on 2026-09-30 -- before the Experience Plane's primitives existed -- and
+	// expired on its own terms once the vocabulary was shared across screens and only the *composition* was
+	// still hardcoded. Recorded here rather than deleted silently, because a deferral that is removed without
+	// saying why reads like one that was never checked.
 	"planner": "the Composable Execution Planner is PROPOSED (007 §34), which says outright that naming " +
 		"the boundary admits no capability; its own doc.go says to build it against real forcing cases",
 }

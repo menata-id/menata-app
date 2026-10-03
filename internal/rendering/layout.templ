@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/ir"
 )
 
 // The generic renderers for domain's Layout and Static Content primitives (007 §12.2, §12.6).
@@ -265,11 +266,70 @@ templ staticText(kind domain.StaticKind, text string) {
 // unbounded `GenericComponent` §12.3 forbids by name.
 templ pageHeader(navID string) {
 	{{ app, _ := CurrentApplication(ctx) }}
-	@stackLayout(domain.GapTight) {
-		@staticText(domain.StaticEyebrow, app.Name)
-		@staticText(domain.StaticHeading, titleByID(ctx, navID))
-		if desc := descriptionByID(ctx, navID); desc != "" {
-			@staticText(domain.StaticParagraph, desc)
-		}
+	@uiNode(headerTree(app.Name, titleByID(ctx, navID), descriptionByID(ctx, navID)))
+}
+
+// headerTree builds the header block as **UI IR** rather than as templ structure -- the first screen content
+// in this runtime expressed as data (007 §15, §15.1's `Build UI IR` stage).
+//
+// Eight screens call `pageHeader`, and until now its composition was Go: a `stackLayout` holding three
+// `staticText` calls. Every value in it was already a declaration (the Application's `name:`, the navigation
+// item's `title:` and `description:`), so what was left hardcoded was only the *shape* -- which is 001 #3
+// inverted, and which 007 §12.4 calls a breach of a normative rule when multiplied across 38 screens.
+//
+// **It is a small tree on purpose.** §24 prescribes *progressive* lowering, and a first lowering whose output
+// can be diffed byte-for-byte against eight live screens is worth more than a large one that cannot. The
+// subtitle node is omitted rather than emptied when no description is declared -- the same guard the templ
+// version had, now a property of the tree.
+func headerTree(appName, title, description string) ir.UINode {
+	children := []ir.UINode{
+		{Kind: ir.NodeStatic, Type: string(domain.StaticEyebrow), Props: map[string]string{"text": appName}},
+		{Kind: ir.NodeStatic, Type: string(domain.StaticHeading), Props: map[string]string{"text": title}},
+	}
+	if description != "" {
+		children = append(children, ir.UINode{
+			Kind: ir.NodeStatic, Type: string(domain.StaticParagraph),
+			Props: map[string]string{"text": description},
+		})
+	}
+	return ir.UINode{
+		Kind:     ir.NodeLayout,
+		Type:     string(domain.LayoutStack),
+		Identity: "page_header",
+		Props:    map[string]string{"gap": string(domain.GapTight)},
+		Children: children,
+	}
+}
+
+// uiNode walks a UI IR tree and draws it through the primitives already registered.
+//
+// **It has no per-screen branch and cannot acquire anything.** Every value it draws arrives in `Props`,
+// already resolved; the walker's whole job is dispatch on a closed kind. An unknown kind renders nothing
+// rather than guessing, and `ir.Validate` is what refuses one before it gets here -- which is the division
+// §15.3 states ("the compiler MUST reject") and the reason the walker stays this small.
+templ uiNode(n ir.UINode) {
+	switch n.Kind {
+		case ir.NodeLayout:
+			switch domain.LayoutKind(n.Type) {
+				case domain.LayoutStack:
+					@stackLayout(domain.Gap(n.Props["gap"])) {
+						for _, c := range n.Children {
+							@uiNode(c)
+						}
+					}
+				case domain.LayoutPanel:
+					@panelLayout() {
+						for _, c := range n.Children {
+							@uiNode(c)
+						}
+					}
+			}
+		case ir.NodeStatic:
+			@staticText(domain.StaticKind(n.Type), n.Props["text"])
+		case ir.NodeComponent:
+			switch domain.ComponentType(n.Type) {
+				case domain.ComponentStatusBadge:
+					@statusBadge(n.Props["label"], domain.BadgeTone(n.Props["tone"]))
+			}
 	}
 }

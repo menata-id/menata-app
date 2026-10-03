@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"sort"
 
 	"menata.app/internal/domain"
 )
@@ -153,4 +154,19 @@ func validateStatusBadge(inputs map[string]string) []string {
 		issues = append(issues, fmt.Sprintf("StatusBadge tone %q is not one of the declared tones", tone))
 	}
 	return issues
+}
+
+// ComponentTypeNames is the catalogue's keys as strings, for a consumer that must know which types exist but
+// may not depend on this package's types -- `internal/ir`, which validates a tree against them (007 §15.3)
+// and is upstream of the renderer in §15.1's pipeline.
+//
+// Sorted, because the caller may log or compare it and 007 §4.6 makes identical input producing identical
+// output a MUST -- a map range would make that false for no reason.
+func ComponentTypeNames() []string {
+	out := make([]string, 0, len(Components))
+	for t := range Components {
+		out = append(out, string(t))
+	}
+	sort.Strings(out)
+	return out
 }

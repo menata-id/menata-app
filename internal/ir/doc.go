@@ -1,4 +1,8 @@
-// Package ir is a declared seam that is **empty on purpose**, and this comment is the record of why.
+// Package ir holds the runtime's intermediate representations (007 §15, §16; 005 Phase 5).
+//
+// **It holds UI IR as of 2026-10-03** (`ui.go`: `UINode`, and `Validate` implementing 007 §15.3's five
+// mandatory rejections). Domain IR and Data IR are still elsewhere or still absent, for the reasons below --
+// which are now a *partial* record rather than an explanation of emptiness.
 //
 // # What it used to claim
 //
@@ -29,9 +33,21 @@
 //     naming this boundary", and §40 lists Data IR itself as PROPOSED (`CR-02`). Building the input to an
 //     unadmitted stage is building ahead of the admission discipline §34 requires. Trigger: the planner
 //     being admitted, or 005 Phase 11 hot reload needing a plan identity.
-//   - **UI IR** (007 §15) is an experience tree whose forcing case is a **second render target** -- one
-//     target means the templ functions already are the tree. 007 §40 lists it PROPOSED. Trigger: a second
-//     render target.
+//   - **UI IR** (007 §15) was deferred here with the trigger "a second render target -- one target means the
+//     templ functions already are the tree". **That deferral expired on its own terms and UI IR is now
+//     built**; the retraction is worth keeping rather than deleting, because the shape of the mistake
+//     recurs. The reasoning was sound when it was written (2026-09-30) and false three days later: it rested
+//     on "the templ functions *are* the tree", which holds only while nothing else could express one. After
+//     Stages 1 and 2 there were five Layout primitives with 45 call sites and two registered Components with
+//     13 -- the vocabulary was shared across screens, and the only thing still hardcoded was the
+//     *composition*. A tree of named values is data.
+//     The forcing case was never really a second render target. It is 007 §12.4's normative rule -- a View
+//     "MUST NOT be required as the universal composition primitive" -- against 38 screens rendered from 38
+//     bespoke Go functions, a breach that was already live. §24 prescribes the remedy as *progressive*
+//     lowering, which is why this arrived as one block of §15.1's ten-stage pipeline.
+//     **A deferral is a measurement with an expiry date** (CLAUDE.md). This one was cited as a reason to stop
+//     before being re-measured; the failure record is `menata-app-document`'s
+//     `guides/subordinate-mechanisms-must-not-outrank-the-vision.md`.
 //
 // `internal/planner`'s own doc.go already states this posture for itself ("Status: this mechanism is
 // architecturally PROPOSED (007 §34) ... Build it against real forcing cases, not speculatively"). This

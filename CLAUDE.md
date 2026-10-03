@@ -60,6 +60,27 @@ neither may take the other's job. Keep the execution order the repo already uses
 migrate the uses, *then* gate — because a gate installed first tests failure classes that do not exist
 yet, which 007 §15.3 demonstrates about itself.
 
+**Knowing that paragraph is not enough — one agent broke it four times in one session after writing it
+down.** The failure record, with all four instances and the four-step check that prevents them, is
+`menata-app-document`'s `guides/subordinate-mechanisms-must-not-outrank-the-vision.md`. Read it before
+concluding that something 001–007 directs should not be built yet. The short form:
+
+1. **Check the mechanism's scope against its own sentence.** §27 reads *"Before adding a **new
+   capability**"*; §40 says a `PROPOSED` row *"is not admitted by appearing here"*. A mechanism applied
+   outside its scope is not refusing — it is being misused.
+2. **Look for the imperative word in the normative text.** `MUST`, `MUST NOT`, *progressively*, *should
+   not require*. A claim that contradicts the text is the claim that is wrong: "Stage 3 cannot be split
+   honestly" died to one word in §24 (*"progressively* lower them to generic primitives").
+3. **Ask whether a MUST is in breach right now.** §12.4 says a View **MUST NOT** be the universal
+   composition primitive, and this runtime renders 38 screens from 38 bespoke Go functions. That breach
+   is live, and "no second case yet" is not an answer to a MUST already failing.
+4. **If the reason to stop is yours — change the reason, not the work.** Remaining context, slice size
+   and verification standard are all under your control. Split the pipeline, ship one fully verified
+   stage, and name which stage. **Never dress an operating limit as an architectural finding**: that is
+   the same overclaim class as `ir/doc.go` once claiming to hold three IRs while empty.
+   Self-recognisable warning sign: if your summary contains *"better not to start than to start half"*,
+   you are in this failure. The right answer is a smaller whole slice, not zero slices.
+
 The two that most often get violated by an unreviewed edit:
 
 - **001 Principle #3, Metadata First** — "Application evolution should primarily occur by
@@ -765,6 +786,21 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   not import `internal/metadata`** — a rendering test building a nav fixture by hand has to reach the same
   resolution, and asking a fixture to hand-write an inference is the inversion
   `TestMachineFixturesPassProductionValidation` already rejects for `RelatedMachine`.
+- `ir.TestValidateRejectsAllFiveMandatoryFaults` / `TestValidateAcceptsTheHeaderTree` /
+  `TestValidateRefusesUnknownTypes` — **UI IR exists** (2026-10-03, 007 §15), with §15.3's five mandatory
+  rejections: cyclic tree, unresolved required child, slot/type mismatch, binding outside the permitted
+  scope, depth beyond `ir.MaxDepth`. The cycle check is an **identity repeating on its own ancestor path**,
+  because a Go value tree cannot contain itself and that is the reachable form of the fault. The positive
+  case matters as much: a validator that rejects everything would pass all five.
+  **Its first consumer is `rendering.headerTree`** — the eyebrow/heading/subtitle block eight screens share,
+  now built as data and walked by `uiNode` instead of being templ structure. Byte-diffed over all eight:
+  −2 bytes each, every one inter-tag whitespace between block elements in a flex-col container, nothing
+  else. **A primitive arrives with its consumer**, and UI IR was no exception.
+  `internal/ir` left `declaredPlaceholders` the same day. Its entry said UI IR "waits on a second render
+  target" — measured 2026-09-30, before the Experience Plane's primitives, and **expired on its own terms**
+  once five Layout primitives had 45 call sites and the only hardcoded thing left was the *composition*. The
+  real forcing case was never a second render target: it is §12.4's normative rule, with 38 screens rendered
+  from 38 bespoke Go functions, a breach that was already live.
 - `TestDeclaredPlaceholdersStayDeclared` / `TestPlaceholderDocsClaimNoContent` — `internal/ir` and
   `internal/planner` exist, carry boundary rules, and contain **only `doc.go`**, deliberately. A
   placeholder is legitimate: it reserves the seam's name and its import boundary before anything fills it,

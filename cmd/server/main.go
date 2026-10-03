@@ -24,13 +24,20 @@ import (
 	"menata.app/internal/db"
 	"menata.app/internal/domain"
 	"menata.app/internal/execution"
+	"menata.app/internal/ir"
 	"menata.app/internal/mail"
 	"menata.app/internal/metadata"
+	"menata.app/internal/registry"
 	"menata.app/internal/storage"
 	"menata.app/internal/web"
 )
 
 func main() {
+	// UI IR must know which Component types exist before any tree is validated (007 §15.3 rejects an
+	// unknown one). Injected here rather than imported, so `internal/ir` depends on neither the catalogue
+	// nor the renderer -- the dependency points the way §15.1's pipeline runs.
+	ir.RegisterComponentTypes(registry.ComponentTypeNames())
+
 	_ = godotenv.Load()
 	cfg := config.Load()
 	ctx := context.Background()
