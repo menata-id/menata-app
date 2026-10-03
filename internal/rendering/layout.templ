@@ -15,14 +15,16 @@ import "menata.app/internal/domain"
 // test of genericity these have, and it is why the four unmeasured §12.2 kinds were not built -- a
 // primitive with no second caller cannot fail it.
 
-// layoutGap maps a declared Gap onto the three spacing steps the measured corpus actually uses. An empty
-// Gap is GapDefault, resolved here rather than requiring every caller to say so.
+// layoutGap maps a declared Gap onto the spacing steps the measured corpus actually uses. An empty Gap is
+// GapDefault, resolved here rather than requiring every caller to say so.
 func layoutGap(g domain.Gap) string {
 	switch g {
 	case domain.GapTight:
 		return "gap-2"
 	case domain.GapDefault:
 		return "gap-3"
+	case domain.GapComfortable:
+		return "gap-4"
 	default:
 		// An empty Gap is GapDefault. Named explicitly above rather than left to this branch, because the
 		// tightened vocabulary gate reads which kinds are *named* -- and a step hidden in a default arm is
@@ -54,14 +56,60 @@ templ stackLayout(gap domain.Gap) {
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would
 // change what renders, and a primitive that quietly restyles its callers is worse than a repeated class.
-//
-// **`row` and `grid` are not here, and that is a measured decision**: 21 row sites span six shapes and 6
-// grid sites span six arbitrary track lists. See domain.LayoutKind's comment for the counts and what would
-// change the answer.
 templ panelLayout() {
 	<section class="rounded-lg border border-slate-200 bg-white p-4">
 		{ children... }
 	</section>
+}
+
+// gridColsBelowBreakpoint and gridColsFromBreakpoint are **two switches rather than one**, and each emits a
+// class only for a count the corpus measures at that breakpoint: one and two below `sm:`, two, four and
+// seven from `sm:` up.
+//
+// The alternative -- one switch over all four, used at both breakpoints -- reads better and would put three
+// utility classes into the shipped bundle that no screen uses. That is not a hypothetical cost. It is
+// precisely the defect the first pass of this slice shipped, and the reason the second had to count the
+// bundle before counting anything else.
+func gridColsBelowBreakpoint(c domain.GridCols) string {
+	switch c {
+	case domain.GridCols1:
+		return "grid-cols-1"
+	case domain.GridCols2:
+		return "grid-cols-2"
+	default:
+		return "grid-cols-1"
+	}
+}
+
+func gridColsFromBreakpoint(c domain.GridCols) string {
+	switch c {
+	case domain.GridCols2:
+		return "sm:grid-cols-2"
+	case domain.GridCols4:
+		return "sm:grid-cols-4"
+	case domain.GridCols7:
+		return "sm:grid-cols-7"
+	default:
+		return "sm:grid-cols-2"
+	}
+}
+
+// gridLayout is the responsive card grid five screens carried as a hand-written class string: a summary-tile
+// strip, a seven-day calendar, two card grids and the Machine `cards` View.
+//
+// The five differ in exactly two things, a column count and a gap, which is the whole argument for this
+// being one primitive. An earlier measurement of mine counted the five class strings, found them all
+// different, and concluded there was no shape here -- it had counted *configuration* and called it shape. A
+// two-column desktop grid and a four-column one are not two primitives; they are one primitive and two
+// arguments.
+//
+// Class order is `grid`, the mobile count, the gap, then the breakpoint count, which is the order all five
+// call sites already wrote. That is why this migration is byte-identical rather than merely equivalent, and
+// byte-identical is what let it be verified instead of eyeballed.
+templ gridLayout(gap domain.Gap, mobile, columns domain.GridCols) {
+	<div class={ "grid", gridColsBelowBreakpoint(mobile), layoutGap(gap), gridColsFromBreakpoint(columns) }>
+		{ children... }
+	</div>
 }
 
 // staticText renders one §12.6 static content node. Text arrives already resolved -- this function does

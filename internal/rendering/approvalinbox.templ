@@ -318,11 +318,11 @@ templ assignedDecisionLabel(key, label string) {
 // owner asked for My Documents to look like the Inbox (2026-09-21) -- the second caller is what
 // earned it a name, rather than the grid classes being written twice.
 templ pendingApprovalCardGrid(cards []PendingApprovalCard) {
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+	@gridLayout(domain.GapComfortable, domain.GridCols1, domain.GridCols2) {
 		for _, c := range cards {
 			@pendingApprovalCard(c)
 		}
-	</div>
+	}
 }
 
 templ inboxEmpty(message string) {

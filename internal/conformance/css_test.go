@@ -84,12 +84,41 @@ func TestNoClassLivesOnlyInAComment(t *testing.T) {
 		t.Fatal("no class-shaped token found in any .templ comment -- the pattern has stopped matching, so this gate is measuring nothing (there were 4 on 2026-10-03)")
 	}
 	for tok, files := range commentTokens {
-		if strings.Contains(live, tok) {
+		if isLiveClass(live, tok) {
 			continue // some screen uses it; the comment costs nothing
 		}
-		if !strings.Contains(emitted, tok) {
+		if !isEmittedClass(emitted, tok) {
 			continue // not a class Tailwind recognised; prose that merely looks like one
 		}
 		t.Errorf("%q is in static/css/app.css but appears in no live class attribute -- its only source is a comment in %s. Tailwind scans .templ as text: describe the class in prose instead of naming it, then re-run `make css`", tok, strings.Join(files, ", "))
 	}
+}
+
+// isLiveClass asks whether a token is used as a class in its own right, **not merely as the tail of a
+// longer one**.
+//
+// `strings.Contains` is wrong here and this gate shipped with it for one commit. `grid-cols-4` is a
+// substring of `sm:grid-cols-4`, so a comment naming the unprefixed class looked live while only the
+// breakpoint variant was -- and the unprefixed one went into the bundle. The leak was caught by diffing
+// app.css across a worktree baseline, not by this gate, which is the honest order of events: the render-diff
+// found what the gate was built to find.
+//
+// So a match must not be preceded by `:` (a variant prefix), `-` or a word character, nor followed by one
+// that would extend the utility's own value.
+func isLiveClass(live, tok string) bool {
+	re := regexp.MustCompile(`(?:^|[^\w:.-])` + regexp.QuoteMeta(tok) + `(?:$|[^\w.-])`)
+	return re.MatchString(live)
+}
+
+// isEmittedClass asks whether Tailwind emitted the token as a **class selector**, not merely as some other
+// substring of the stylesheet.
+//
+// The looser version reported `slate-500` on its first run, which is not a class at all -- app.css carries
+// `--color-slate-500` as a theme variable, and the token extractor had matched the tail of `text-slate-500`
+// in a comment. Requiring a leading `.` separates the two: a variable is preceded by `-`, a selector by a
+// dot. It also keeps a variant from vouching for its own base -- `.sm\:top-17` unescapes to `.sm:top-17`,
+// which does not contain `.top-17`.
+func isEmittedClass(css, tok string) bool {
+	re := regexp.MustCompile(`\.` + regexp.QuoteMeta(tok) + `(?:[,{:>~+\[\s]|$)`)
+	return re.MatchString(css)
 }

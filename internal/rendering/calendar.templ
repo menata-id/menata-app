@@ -1,5 +1,7 @@
 package rendering
 
+import "menata.app/internal/domain"
+
 // CalendarDay is one column of the Calendar's week grid (development-history.md Phase 14,
 // project-calendar.html): a date label and every Task due that day, reusing TaskRow exactly as
 // My Tasks does.
@@ -16,7 +18,7 @@ type CalendarDay struct {
 templ CalendarPage(days []CalendarDay, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_calendar"), workspaceName, viewer, switchWorkspaceHref) {
 		@pageHeader("nav_calendar")
-		<div class="grid grid-cols-1 gap-3 sm:grid-cols-7">
+		@gridLayout(domain.GapDefault, domain.GridCols1, domain.GridCols7) {
 			for _, d := range days {
 				<div class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3">
 					<div class="flex items-center gap-2">
@@ -40,6 +42,6 @@ templ CalendarPage(days []CalendarDay, workspaceName string, viewer Viewer, swit
 					}
 				</div>
 			}
-		</div>
+		}
 	}
 }

@@ -1205,9 +1205,9 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   PDF thumbnail. A props decision on a ten-parameter signature, not a missing primitive.
 - **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Adding an Application screen
   is writing Go today -- 36 of 38 navigation items point at a bespoke route, which 007 §12.4 forbids
-  normatively. Stage 1: the Layout and Static Content primitives already measurably in use, plus the
-  first screens moved onto them. Plan, farthest capability and boundary (15 of 38 composed, 23
-  deliberately Go, seven things that will not be built):
+  normatively. Stage 1 built `stack`, `panel` and `grid`, each with all its callers (2026-10-02/03);
+  Stage 1b is `row` (33 sites) and `split` (5), frozen shrink-only in
+  `conformance.TestHandWrittenLayoutSitesOnlyShrink`. Plan, boundary and farthest capability:
   `menata-app-document`'s `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`.
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.

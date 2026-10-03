@@ -507,7 +507,7 @@ templ viewSwitcher(m *domain.Machine, selected domain.View) {
 // resolved an empty list for every record because no Machine declared card_fields at all, which
 // is why internal/metadata refuses a cards View on a Machine that declares none.
 templ cardsLayout(m *domain.Machine, cards []RecordCard) {
-	<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+	@gridLayout(domain.GapDefault, domain.GridCols1, domain.GridCols2) {
 		for _, c := range cards {
 			<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-4 text-slate-900 hover:border-blue-300">
 				<span class="text-sm font-medium">{ recordTitle(m, c.Record) }</span>
@@ -518,7 +518,7 @@ templ cardsLayout(m *domain.Machine, cards []RecordCard) {
 				</span>
 			</a>
 		}
-	</div>
+	}
 }
 
 // RecordCard is one record already projected for a cards View: internal/composition resolves the

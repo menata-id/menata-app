@@ -640,7 +640,7 @@ templ sheetPanel(id string, aboveBar bool, desktop string) {
 }
 
 // sheetContainerClasses positions the popover box itself at `sm` and up: full-width sheet frame
-// below that breakpoint, a 288px box under its own control above it. `top-17` rather than CSS
+// below that breakpoint, a 288px box under its own control above it. `sm:top-17` rather than CSS
 // anchor positioning -- the header is a fixed 60px and sticky at top-0, so the offset is knowable
 // without a feature that is still Chromium-only.
 func sheetContainerClasses(desktop string) string {
@@ -676,7 +676,7 @@ func sheetPanelClasses(desktop string) string {
 //
 // Its panel is positioned bottom-sheet-style on mobile (pinned to the viewport bottom, rounded top
 // corners) and as a right-anchored dropdown at `sm` and up, via Tailwind classes alone -- ported
-// from ui-sample/nav-chrome.js's sheetPanelClasses(). `top-17` rather than CSS anchor positioning:
+// from ui-sample/nav-chrome.js's sheetPanelClasses(). `sm:top-17` rather than CSS anchor positioning:
 // the header is a fixed 60px and sticky at top-0, so the panel's own offset is knowable without a
 // feature that is still Chromium-only.
 //
@@ -915,14 +915,14 @@ templ launcherAppCard(app domain.Application) {
 // Management's own pageShell -> appShell port, 2026-09-22) use these; detail.templ still uses the
 // originals, being still pageStyles.
 templ summaryCountTiles(items []SummaryItem) {
-	<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+	@gridLayout(domain.GapDefault, domain.GridCols2, domain.GridCols4) {
 		for _, it := range items {
 			<div class="rounded-lg border border-slate-200 bg-white p-3">
 				<div class="text-2xl font-medium">{ it.Value }</div>
 				<div class="text-xs text-slate-500">{ it.Label }</div>
 			</div>
 		}
-	</div>
+	}
 }
 
 templ activityFeedListRow(entries []ActivityEntry) {

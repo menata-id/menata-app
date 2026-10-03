@@ -23,14 +23,16 @@ import "menata.app/internal/domain"
 // test of genericity these have, and it is why the four unmeasured §12.2 kinds were not built -- a
 // primitive with no second caller cannot fail it.
 
-// layoutGap maps a declared Gap onto the three spacing steps the measured corpus actually uses. An empty
-// Gap is GapDefault, resolved here rather than requiring every caller to say so.
+// layoutGap maps a declared Gap onto the spacing steps the measured corpus actually uses. An empty Gap is
+// GapDefault, resolved here rather than requiring every caller to say so.
 func layoutGap(g domain.Gap) string {
 	switch g {
 	case domain.GapTight:
 		return "gap-2"
 	case domain.GapDefault:
 		return "gap-3"
+	case domain.GapComfortable:
+		return "gap-4"
 	default:
 		// An empty Gap is GapDefault. Named explicitly above rather than left to this branch, because the
 		// tightened vocabulary gate reads which kinds are *named* -- and a step hidden in a default arm is
@@ -96,20 +98,21 @@ func stackLayout(gap domain.Gap) templ.Component {
 	})
 }
 
-// **row, grid and panel are not here, and were removed from this file rather than never written.** The
-// first pass of this slice built all four §12.2 primitives measured in use; three finished with zero
-// callers, and `gridLayout` had put `sm:grid-cols-3` into the Tailwind bundle -- a class no screen uses.
-// A primitive arrives with the uses it replaces, or it is a name with nothing behind it. Their measured
+// **row and split are not here yet, and were removed from this file rather than never written.** The first
+// pass of this slice built all four §12.2 primitives measured in use; three finished with zero callers, and
+// `gridLayout` had put a *three-column desktop* class into the Tailwind bundle -- a class no screen uses. A
+// primitive arrives with the uses it replaces, or it is a name with nothing behind it. Their measured
 // counts are in domain.LayoutKind's own comment.
+//
+// **That class name is written in prose here on purpose**, and the reason is the bug it caused: Tailwind
+// scans these `.templ` files as *text*, so the comment naming the mistake re-committed it. The class sat in
+// app.css for a day, sourced by nothing but the sentence saying it should not be.
+// `conformance.TestNoClassLivesOnlyInAComment` holds this now.
 
 // panelLayout is the bordered, padded surface twelve sites across six screens carried as one identical
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would
 // change what renders, and a primitive that quietly restyles its callers is worse than a repeated class.
-//
-// **`row` and `grid` are not here, and that is a measured decision**: 21 row sites span six shapes and 6
-// grid sites span six arbitrary track lists. See domain.LayoutKind's comment for the counts and what would
-// change the answer.
 func panelLayout() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -147,11 +150,51 @@ func panelLayout() templ.Component {
 	})
 }
 
-// staticText renders one §12.6 static content node. Text arrives already resolved -- this function does
-// not read metadata, derive a heading, or fall back; `titleByID`/`descriptionByID` and
-// `domain.ResolveNavigationHeadings` own that, and a renderer that resolved its own content is the
-// render-time inference removed on 2026-10-02.
-func staticText(kind domain.StaticKind, text string) templ.Component {
+// gridColsBelowBreakpoint and gridColsFromBreakpoint are **two switches rather than one**, and each emits a
+// class only for a count the corpus measures at that breakpoint: one and two below `sm:`, two, four and
+// seven from `sm:` up.
+//
+// The alternative -- one switch over all four, used at both breakpoints -- reads better and would put three
+// utility classes into the shipped bundle that no screen uses. That is not a hypothetical cost. It is
+// precisely the defect the first pass of this slice shipped, and the reason the second had to count the
+// bundle before counting anything else.
+func gridColsBelowBreakpoint(c domain.GridCols) string {
+	switch c {
+	case domain.GridCols1:
+		return "grid-cols-1"
+	case domain.GridCols2:
+		return "grid-cols-2"
+	default:
+		return "grid-cols-1"
+	}
+}
+
+func gridColsFromBreakpoint(c domain.GridCols) string {
+	switch c {
+	case domain.GridCols2:
+		return "sm:grid-cols-2"
+	case domain.GridCols4:
+		return "sm:grid-cols-4"
+	case domain.GridCols7:
+		return "sm:grid-cols-7"
+	default:
+		return "sm:grid-cols-2"
+	}
+}
+
+// gridLayout is the responsive card grid five screens carried as a hand-written class string: a summary-tile
+// strip, a seven-day calendar, two card grids and the Machine `cards` View.
+//
+// The five differ in exactly two things, a column count and a gap, which is the whole argument for this
+// being one primitive. An earlier measurement of mine counted the five class strings, found them all
+// different, and concluded there was no shape here -- it had counted *configuration* and called it shape. A
+// two-column desktop grid and a four-column one are not two primitives; they are one primitive and two
+// arguments.
+//
+// Class order is `grid`, the mobile count, the gap, then the breakpoint count, which is the order all five
+// call sites already wrote. That is why this migration is byte-identical rather than merely equivalent, and
+// byte-identical is what let it be verified instead of eyeballed.
+func gridLayout(gap domain.Gap, mobile, columns domain.GridCols) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -172,58 +215,117 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		var templ_7745c5c3_Var6 = []any{"grid", gridColsBelowBreakpoint(mobile), layoutGap(gap), gridColsFromBreakpoint(columns)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var6...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var6).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templ_7745c5c3_Var5.Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// staticText renders one §12.6 static content node. Text arrives already resolved -- this function does
+// not read metadata, derive a heading, or fall back; `titleByID`/`descriptionByID` and
+// `domain.ResolveNavigationHeadings` own that, and a renderer that resolved its own content is the
+// render-time inference removed on 2026-10-02.
+func staticText(kind domain.StaticKind, text string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
 		switch kind {
 		case domain.StaticEyebrow:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<span class=\"text-3xs tracking-wide text-blue-600 uppercase\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<span class=\"text-3xs tracking-wide text-blue-600 uppercase\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(text)
+			var templ_7745c5c3_Var9 string
+			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 69, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 122, Col: 70}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case domain.StaticHeading:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h1 class=\"m-0 text-xl font-medium\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<h1 class=\"m-0 text-xl font-medium\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(text)
+			var templ_7745c5c3_Var10 string
+			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 71, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 124, Col: 45}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</h1>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case domain.StaticParagraph:
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<div class=\"text-sm text-slate-500\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div class=\"text-sm text-slate-500\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var8 string
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(text)
+			var templ_7745c5c3_Var11 string
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 73, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 126, Col: 45}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -260,13 +362,13 @@ func pageHeader(navID string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var9 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var9 == nil {
-			templ_7745c5c3_Var9 = templ.NopComponent
+		templ_7745c5c3_Var12 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var12 == nil {
+			templ_7745c5c3_Var12 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		app, _ := CurrentApplication(ctx)
-		templ_7745c5c3_Var10 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var13 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -282,7 +384,7 @@ func pageHeader(navID string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -290,7 +392,7 @@ func pageHeader(navID string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -302,7 +404,7 @@ func pageHeader(navID string) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = stackLayout(domain.GapTight).Render(templ.WithChildren(ctx, templ_7745c5c3_Var10), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = stackLayout(domain.GapTight).Render(templ.WithChildren(ctx, templ_7745c5c3_Var13), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

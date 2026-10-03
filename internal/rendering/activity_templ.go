@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 // ActivityPage is Case 19's cross-project event feed (development-history.md Phase 14,
 // project-activity.html): the same mch_activity data as the Dashboard's Recent Activity section
-// (Phase 13), grouped by day instead of a flat top-10 list -- a different shape over the same
+// (Phase 13), grouped by day instead of a flat ten-item list -- a different shape over the same
 // already-built data, not a new event mechanism.
 func ActivityPage(today, yesterday, older []ActivityEntry, workspaceName string, viewer Viewer, switchWorkspaceHref string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {

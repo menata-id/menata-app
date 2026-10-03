@@ -1,6 +1,7 @@
 package conformance
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -105,6 +106,25 @@ func TestLayoutVocabularyIsRenderedAndUsed(t *testing.T) {
 	for g := range domain.KnownGaps {
 		if !strings.Contains(callers, "domain.Gap"+strings.ToUpper(string(g)[:1])+string(g)[1:]) {
 			t.Errorf("domain.KnownGaps declares %q and nothing names it -- an unused spacing step is one more class in the shipped bundle for nothing", g)
+		}
+	}
+
+	// And the same both-ends rule for a primitive's own closed parameter set. GridCols is where the
+	// vocabulary could grow most quietly: adding a member costs one line in domain and emits a utility class
+	// the moment a renderer draws it, whether or not a screen ever asks for that count.
+	//
+	// Drawn and called are checked separately on purpose. A member no renderer draws is a declaration that
+	// silently renders the default -- the footgun domain.GridCols names in its own comment. A member no
+	// screen calls is shape-before-need, and `sm:grid-cols-3` is this repository's own worked example of the
+	// cost: a column count nothing used, shipped in the bundle, kept alive for a day by the comment
+	// recording that it should not be there (see TestNoClassLivesOnlyInAComment).
+	for c := range domain.KnownGridCols {
+		name := fmt.Sprintf("domain.GridCols%d", c)
+		if !strings.Contains(layout, name) {
+			t.Errorf("domain.KnownGridCols declares %d and no switch in layout.templ names %s -- a column count no renderer draws silently renders the default instead", c, name)
+		}
+		if !strings.Contains(callers, name) {
+			t.Errorf("domain.KnownGridCols declares %d and no screen passes %s -- a column count arrives with the site that needs it, or it is a utility class in the bundle for nothing", c, name)
 		}
 	}
 }

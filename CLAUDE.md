@@ -606,9 +606,9 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   mapping lives only in `internal/rendering`.
   **The second gate was too weak on its first run and that is the lesson here.** It checked only that
   `pageHeader` had a caller, and passed while `rowLayout`, `gridLayout` and `panelLayout` sat with **zero**
-  — the unused `gridLayout` having already put `sm:grid-cols-3` into the shipped CSS bundle, a class no
-  screen uses. All three were removed, and the gate now requires every declared kind and every Gap step to
-  be named by something. **A primitive arrives with the uses it replaces**, or it is a name with nothing
+  — the unused grid renderer having already put a three-column desktop class into the shipped CSS bundle, a
+  class no screen uses. All three were removed, and the gate now requires every declared kind, every Gap
+  step **and every `GridCols` member** to be both drawn by a renderer and named by a caller. **A primitive arrives with the uses it replaces**, or it is a name with nothing
   behind it; the measured counts for the unbuilt kinds are in `domain.LayoutKind`'s comment so the next
   slice migrates rather than re-declares.
   **And a warning that cost two wrong conclusions in two days**: when deciding whether something is a
@@ -622,7 +622,8 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   conclusion was plausible.
 - `TestHandWrittenLayoutSitesOnlyShrink` — **the one gate here that directs work rather than only
   preventing regression**, and the odd one out for that reason. It freezes, per file, how many layout sites
-  are still hand-written: **45 across 20 files** (row 33, grid 5, split 7), measured 2026-10-03. A *new*
+  are still hand-written: measured at **45 across 20 files** on 2026-10-03 (row 33, grid 5, split 7) and
+  **40 across 18** the same day once `grid` landed. A *new*
   hand-written site fails and the message names the primitive it should have used; a *lower* count fails
   until the entry drops, so a migration is locked in. The next session finds this work from a failing test
   rather than from remembering to read a plan.
@@ -630,6 +631,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   be the ~50%-false-finding shape deleted twice here. What syntax cannot separate is noted per entry:
   `split`'s floor is **2, not 0**, because `automation.templ`'s `[6rem_1fr]` definition list and
   `rolematrix.templ`'s bordered grid are genuine one-offs, and a one-off is what a primitive is not for.
+  **`grid`'s five sites went to zero on 2026-10-03** and its key was *removed* rather than set to zero,
+  because an entry naming a kind with no sites fails too. Read the current numbers out of the map.
+- `TestNoClassLivesOnlyInAComment` — **Tailwind scans the `.templ` files as text, so a comment naming a
+  utility class emits that class.** Nothing in `make css` knows what a Go comment is. Three leaks were found
+  this way, all self-inflicted and all invisible: the comment recording that the first Experience Plane pass
+  had leaked a three-column class kept that class alive for a day; `activity.templ` described a feed as "a
+  flat top-10 list" and shipped `.top-10`; two `appshell.templ` comments cited `top-17` where the code uses
+  only the `sm:` variant. Intent is invisible to the scanner — describe a class in prose, or cite one the
+  code beside it actually uses.
+  **Two things worth carrying forward.** First, this gate shipped with `strings.Contains` for its live-check,
+  which made `grid-cols-4` look live inside `sm:grid-cols-4`; the leak it missed was caught by the
+  worktree render-diff instead, which is the honest order of events. A containment check is not a token
+  check. Second, it reads the *committed* `app.css`, so `make check-generated` is the half that catches a
+  leak committed without regenerating — neither alone is sufficient.
 - `TestClaimMatrixCitesRealArtifacts` / `TestConceptDocsCiteDocumentsThatExist` — the normative documents
   must cite artifacts a reader can open. **007 §40 described a different repository until 2026-10-02**: its
   evidence column cited `CAP-` rows, `CR-` gap numbers and `internal/metadata/compile.go`, none of which

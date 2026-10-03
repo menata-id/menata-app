@@ -3,13 +3,14 @@ package domain
 // LayoutKind is the closed set of generic spatial composition primitives
 // (007-composable-runtime-architecture.md §12.2).
 //
-// **Four of §12.2's eight, and the four are the ones measured in use.** §12.2 lists `stack`, `row`,
-// `columns`, `grid`, `split`, `tabs`, `panel` and `section`; counted across the 38 bespoke screens on
-// 2026-10-02, `flex flex-col gap-N` (stack) appears **61 times**, `flex flex-wrap items-center gap-N` and
-// its justify-between variants 11 (row), `grid` with `grid-cols-*` 25, and the bordered `section` wrapper
-// (panel) recurs throughout. `columns`, `split`, `tabs` and §12.2's own `section` have **zero** measured
-// uses, so they are deliberately absent: §12.2 is a permitted vocabulary, not a quota, and building the
-// rest now would be the shape-before-need 007 §34 forbids.
+// **Three of §12.2's eight are built, and each arrived with the uses it replaces.** §12.2 lists `stack`,
+// `row`, `columns`, `grid`, `split`, `tabs`, `panel` and `section`. Counted by *meaning* across the 38
+// bespoke screens (see the retraction below for why the first two counts were wrong): vertical flow with a
+// uniform gap appears **61 times** (`stack`), the bordered padded surface twelve times across six screens
+// (`panel`), and a responsive card grid **five** times (`grid`). `row` (33 sites) and `split` (5) are
+// measured and next; `columns`, `tabs` and §12.2's own `section` have **zero** measured uses and are
+// deliberately absent -- §12.2 is a permitted vocabulary, not a quota, and building the rest now would be
+// the shape-before-need 007 §34 forbids.
 //
 // **Why a closed set rather than a class string**: §15.2 forbids an intermediate representation embedding
 // "HTML, CSS framework classes", and §12.6 says static content "does not imply arbitrary HTML or a code
@@ -31,7 +32,41 @@ const (
 	// LayoutPanel is a bordered, padded surface -- named for what it is rather than for the `<section>` it
 	// happens to render, so a later change of element is not a change of vocabulary (§12.3's naming rule).
 	LayoutPanel LayoutKind = "panel"
+	// LayoutGrid is a card grid whose column count responds to viewport width. Its parameters are GridCols
+	// and Gap, both closed sets -- which is what makes it bounded under §12.3, a rule about *arbitrary*
+	// properties and not about having parameters at all. A grid taking a free CSS track list would be the
+	// thing §12.3 forbids; one taking a column count from a closed set is vocabulary.
+	LayoutGrid LayoutKind = "grid"
 )
+
+// GridCols is a grid's column count: a closed set, not a free integer.
+//
+// Closed because an open one is how a logical primitive becomes a CSS passthrough. The four members are
+// exactly the counts the corpus uses, and they are **not interchangeable across breakpoints** -- the
+// measured mobile counts are one and two, the measured desktop counts are two, four and seven, and
+// `internal/rendering` emits a class only for a count measured at that breakpoint. Passing a desktop-only
+// count as the mobile one therefore renders the single-column default rather than a new class, which is the
+// deliberate trade: the alternative is shipping utility classes no screen uses, which is the defect the
+// first pass of this work actually caused.
+//
+// Growing this set is gated from both ends: `conformance.TestLayoutVocabularyIsRenderedAndUsed` fails a
+// member no renderer draws *and* a member no screen calls.
+type GridCols int
+
+const (
+	GridCols1 GridCols = 1
+	GridCols2 GridCols = 2
+	GridCols4 GridCols = 4
+	GridCols7 GridCols = 7
+)
+
+// KnownGridCols is the closed set.
+var KnownGridCols = map[GridCols]bool{
+	GridCols1: true,
+	GridCols2: true,
+	GridCols4: true,
+	GridCols7: true,
+}
 
 // **`row`, `grid` and `split` are primitives, and the comment that stood here said otherwise. Retracted
 // 2026-10-02 after the owner asked the obvious question: every real framework has row and grid, so how
@@ -74,25 +109,38 @@ const (
 var KnownLayoutKinds = map[LayoutKind]bool{
 	LayoutStack: true,
 	LayoutPanel: true,
+	LayoutGrid:  true,
 }
 
 // Gap is the spacing between a layout's children, as an enum rather than a number.
 //
 // Deliberately not a pixel or rem value: a declaration that carries `gap: 12px` has smuggled a physical
 // presentation choice into the logical plane, which is what §15.2 forbids and what would make this a page
-// builder rather than a composition vocabulary. Three steps, because the measured corpus uses
-// `gap-1`/`gap-2` (tight), `gap-3`/`gap-4` (default) and `gap-5` (loose) and nothing else.
+// builder rather than a composition vocabulary.
+//
+// A step is declared when a migration needs it, never in advance -- an unused step is one more utility class
+// in the shipped bundle for nothing, and `conformance.TestLayoutVocabularyIsRenderedAndUsed` fails one. The
+// third arrived with the `grid` migration on 2026-10-03, because two of its five sites space their cards one
+// step wider than the other three and collapsing that would have silently restyled them.
+//
+// **The spacings still hand-written are not a fourth step waiting to be declared.** The corpus also uses two
+// *half*-steps between tight and default (six `row` sites) and one step above comfortable (two `split`
+// sites). The half-steps are almost certainly accidental and the `row` migration folds them into the two
+// neighbours it already has, which moves six sites by at most two pixels. That is a decision about the
+// corpus, not about this ladder.
 type Gap string
 
 const (
-	GapTight   Gap = "tight"
-	GapDefault Gap = "default"
+	GapTight       Gap = "tight"
+	GapDefault     Gap = "default"
+	GapComfortable Gap = "comfortable"
 )
 
 // KnownGaps is the closed set. An empty Gap means GapDefault, resolved where the layout is rendered.
 var KnownGaps = map[Gap]bool{
-	GapTight:   true,
-	GapDefault: true,
+	GapTight:       true,
+	GapDefault:     true,
+	GapComfortable: true,
 }
 
 // StaticKind is the closed set of static content nodes (§12.6): explanatory text and visual material

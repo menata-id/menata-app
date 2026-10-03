@@ -32,7 +32,9 @@ import (
 //
 // Measured 2026-10-03 across every `.templ`, after two earlier measurements got the population wrong --
 // the first counted frequency and not uniformity, the second counted uniformity and not
-// parameterisability (see `domain.LayoutKind`'s retraction). 45 sites in 20 files.
+// parameterisability (see `domain.LayoutKind`'s retraction). 45 sites in 20 files, of which **`grid`'s five
+// are now zero**: `domain.LayoutGrid` and `rendering.gridLayout` landed with all five callers the same day,
+// and `grid` is absent below rather than set to zero because an entry for a kind with no sites fails too.
 var handWrittenLayoutSites = map[string]map[string]int{
 	// `row`: horizontal flow that wraps. Alignment is a closed set of three in this corpus --
 	// items-center (11), justify-between (5), items-baseline (2) -- which is exactly what Bootstrap,
@@ -43,11 +45,6 @@ var handWrittenLayoutSites = map[string]map[string]int{
 		"installapplication.templ": 1, "machine.templ": 1, "mytasks.templ": 1, "newapplication.templ": 2,
 		"reviewdocument.templ": 5, "rolematrix.templ": 1, "signatureplacement.templ": 2,
 		"workspacehome.templ": 1, "workspacemembers.templ": 3,
-	},
-	// `grid`: a responsive column count. One enum parameter -- 2, 4 and 7 are the counts used.
-	"grid": {
-		"approvalinbox.templ": 1, "appshell.templ": 1, "calendar.templ": 1, "groups.templ": 1,
-		"machine.templ": 1,
 	},
 	// `split`: a main area beside a fixed-width aside, five of these differing only in a pixel width and
 	// which side. **§12.2 lists `split`, and an earlier measurement of mine claimed it had zero uses.**
