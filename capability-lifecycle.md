@@ -53,7 +53,7 @@ All five must hold. Any failure leaves the capability Proposed, with the failing
 
 | # | Criterion | Test, as it applies here |
 |---|---|---|
-| A1 | **Dual evidence** | Named by ≥2 *independent* sources. The original asks for one case plus one benchmark; **this repo has no benchmark suite**, so the second source is `menata-app-document`'s `case-portfolio.md` (a different case), an audit in `audits/`, or a measured count in this tree. A single enthusiastic source is a hypothesis. |
+| A1 | **Dual evidence** | Named by ≥2 *independent* sources. The original asks for one case plus one benchmark; **this repo has no benchmark suite**, so the second source is `menata-app-document`'s `case-portfolio.md` (a different case), an audit in `audits/`, or a measured count in this tree. A single enthusiastic source is a hypothesis. **A measured count is evidence *for* presence and never *against* it** — see the asymmetry note below, which exists because this criterion produced four wrong rejections in one session. |
 | A2 | **Universality or declared verticality** | Either most platforms have it, or it is explicitly scoped. Never "we might need it someday". |
 | A3 | **Single responsibility** | Maps to exactly one plane (Domain / Data / Experience, 004) or one declared cross-cutting area. If it needs two, it is two capabilities. |
 | A4 | **Non-composability** | Cannot be built by composing existing supported capabilities. This is the criterion 007 §27's Q1–Q3 ask in more detail, and the one most often answered too fast. |
@@ -64,8 +64,34 @@ recorded in `menata-app-document`'s `audits/2026-09-30-kajian-arah-pengembangan-
 it governs **new capabilities**. It does not govern executing architecture `001`–`007` already agreed.
 007 §27 says so in its own first line — *"Before adding a **new** capability"* — and `007 §40`'s
 `PROPOSED` is an anti-overclaim device (*"A PROPOSED row is not admitted by appearing here"*), not
-permission withheld. UI IR, Data IR and the Composable Execution Planner are agreed architecture awaiting
-sequencing, not proposals awaiting evidence.
+permission withheld. UI IR, Data IR and the Composable Execution Planner were named here as agreed
+architecture awaiting sequencing, not proposals awaiting evidence. **UI IR shipped on 2026-10-03**
+(`ir.UINode`, §15.3's five rejections, two consumers) and the record of what delayed it is instructive: it was
+held back one commit by my own remaining context dressed as the architectural claim "Stage 3 cannot be split
+honestly", which one word in 007 §24 refutes (*"progressively* lower them to generic primitives"). Data IR and
+the planner remain correctly deferred — §34 marks the planner PROPOSED and says naming a boundary admits no
+capability, so building its input is still the wrong order.
+
+**The asymmetry A1 depends on, added 2026-10-03 after it failed four times.** A grep over this tree is sound
+evidence that something *is* used and worthless as evidence that it is *not*. The absence of a class string is
+not the absence of a meaning, so a count may admit a capability and may never reject one. Four rejections were
+made this way and all four were wrong: `row` and `grid` ("not primitives in this corpus" — class strings
+counted as shapes); `columns` ("zero measured uses" — nine, three inside Document Approval); `section`
+("overlaps `panel`" — 34 sites, the largest population in the corpus); `tabs` ("zero" — three tabs running in
+production). Each was disproved by *reading a screen*, which a grep structurally cannot do.
+
+So before A1 is used to leave something Proposed:
+
+1. open `case-portfolio.md` — 21 written use cases, 105 lines, and the source I never opened while rejecting;
+2. decompose one **running** application and read its screens, not its class attributes;
+3. check whether established framework vocabulary (Bootstrap, Material, Vue/Svelte slots, CSS Grid) has a name
+   for it — if it does, this corpus probably has the shape under different classes;
+4. if you still conclude absence, **state the measurement method beside the claim** so the next reader judges
+   the method rather than trusting the number.
+
+The full failure record, including the three further instances where a subordinate mechanism was allowed to
+outrank `001`–`007`, is `menata-app-document`'s
+`guides/subordinate-mechanisms-must-not-outrank-the-vision.md`.
 
 ---
 

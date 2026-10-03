@@ -112,6 +112,13 @@ the documents in this tree.
    work.
 8. Add a **conformance proof**, or record why it is deferred. **A gate not shown to bite is not a gate** —
    mutate it, and verify the mutation applied before trusting a green run.
+   **And say which kind of gate it is**, because the two have opposite failure modes. A gate that *preserves*
+   an achievement fails loudly when something regresses, and silence means safety. A gate that *directs* work
+   — `conformance.TestHandWrittenLayoutSitesOnlyShrink` is the only one here — fails when the debt grows, and
+   silence means nothing: if its patterns miss a shape, it under-reports and the next session trusts the
+   number. That happened. It reported 13 remaining layout sites against a real population of **51**, because
+   its three patterns were written by searching for class strings. A directive gate must be re-derived from
+   the vocabulary it tracks whenever that vocabulary grows, not maintained by hand.
 9. Record it in `capabilities.md` with the test that proves it, and in `ROADMAP.md` at feature grain.
 10. Put the reasoning, the measurements and what could not be verified in
     `menata-app-document/development-history.md`, not in `ROADMAP.md`.
@@ -119,6 +126,12 @@ the documents in this tree.
     normatively and §24 gives the Specialization Rule. This rule is a pointer, not a second statement.
 12. **Do not introduce a mini-language** where the shared Expression model can express the requirement
     safely (007 §9, and `internal/expression`'s deliberately bounded shape).
-13. **Re-measure every number you inherit.** Six carried figures failed on measurement in a single
+13. **A measurement may establish presence, never absence.** Counting what is there with a regex is sound;
+    concluding "this has no case" with the same regex is not, because the absence of a class string is not the
+    absence of a meaning. Four capabilities were rejected this way in one session and all four were wrong
+    (`row`, `grid`, `columns`, `section` — see `capability-lifecycle.md` §2's asymmetry note). To establish
+    absence, read the running screens and `menata-app-document`'s `case-portfolio.md`, and state your method
+    beside the claim.
+14. **Re-measure every number you inherit.** Six carried figures failed on measurement in a single
     session; a deferral reading "no primitive exists" is grep-checkable in a minute. A stale measurement
     reads exactly like a settled decision.
