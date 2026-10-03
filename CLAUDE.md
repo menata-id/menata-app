@@ -695,9 +695,18 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `title`. A field that only ever described absences would have been decoration; this made it a requirement,
   and fixed four screens nobody had reviewed for it. **When registering a Component, ask what its contract
   forces that a reviewer would not have asked for.**
-  It also gave a **second case** for the one real missing capability: `appshell`'s account avatar is a
-  `<button>`, and a Component cannot choose its element — the same limit that left two `row` sites
-  hand-written. Two cases is the trigger; it is §12.5 Slot or a declared element, i.e. Stage 3.
+  It looked like it also gave a **second case** for "a Component cannot choose its element" — `appshell`'s
+  account avatar is a `<button>`, beside a `row` site that is a `<form>` and one that is a `<span>`. **Measured
+  the next step, that trigger dissolves, and the claim above it was wrong when first written here.** Those are
+  not three cases of one capability; they are one case each of three:
+  a bare element swap (`reviewdocument`'s `<span>`, which a closed element enum would fix); an element plus
+  form binding (`installapplication`'s `method`/`action`, which is 007 §11.3); and an element plus control
+  behaviour (the `<button>`'s `popovertarget`, which is §12.3's `actions`). An element enum would fix **one of
+  three** and be shape-before-need for the other two.
+  **The lesson is the one this repo keeps relearning: "two cases" is a claim about sameness, and sameness is
+  what the measurement decides.** Counting sites that share a *symptom* is how `row` and `grid` were wrongly
+  rejected (class strings), and it is how this was wrongly accepted. Look at what each site would actually
+  need.
   **And the verification could not be live.** Thirteen screens diffed against a worktree baseline came back
   token-identical because **no record in the dev database holds a non-empty `fld_due_date`** — the badge has
   never rendered in this environment. Thirteen identical screens would otherwise read as proof of something
