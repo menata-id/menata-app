@@ -56,6 +56,12 @@ const (
 	// the question is not whether it recurs but whether this runtime can compose one. It now can, and four
 	// screens do.
 	ComponentMetric ComponentType = "Metric"
+	// ComponentCollection is §12.3's own `Collection`: an ordered list of already-composed items.
+	//
+	// **The first Component with a non-empty `Slots`**, which is what makes it §12.5's first real consumer.
+	// Its items arrive as rendered children rather than as records, so the Component never selects, sorts or
+	// formats anything -- a collection that took `[]*data.Record` would be taking the data layer with it.
+	ComponentCollection ComponentType = "Collection"
 )
 
 // AvatarSize is how large an avatar circle is, as a closed set rather than a number -- the same reason

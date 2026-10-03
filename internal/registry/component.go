@@ -44,6 +44,30 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentStatusBadge: {Contract: statusBadgeContract, Validate: validateStatusBadge},
 	domain.ComponentAvatar:      {Contract: avatarContract, Validate: validateAvatar},
 	domain.ComponentMetric:      {Contract: metricContract, Validate: validateMetric},
+	domain.ComponentCollection:  {Contract: collectionContract, Validate: validateCollection},
+}
+
+// collectionContract is §12.3's `Collection`, and **the first contract here with a slot** -- so it is the
+// first time `Slots` has held anything, after three contracts left it nil.
+//
+// `item` is the slot each child fills. The Component declares no data requirements and never will: items
+// arrive already composed, so it cannot select, sort or format. That is what keeps a list generic without
+// becoming the unbounded escape hatch §12.3 forbids -- 21 of the 21 written use cases need a list, and they
+// need 21 different row shapes, which is a slot's job rather than a parameter's.
+var collectionContract = domain.ComponentContract{
+	Type: domain.ComponentCollection,
+	Inputs: []domain.ComponentInput{
+		{Name: "gap", Kind: "Gap", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            []string{"item"},
+	Actions:          nil,
+	Accessibility:    "renders a real <ul>/<li>, so the list and its length are announced without an explicit role",
+	Renderer:         "collection",
+}
+
+func validateCollection(inputs map[string]string) []string {
+	return checkDeclaredInputs(collectionContract, inputs, "Collection")
 }
 
 // metricContract is §12.3's `Metric`: a resolved number and the question it answers.
@@ -190,6 +214,19 @@ func ComponentTypeNames() []string {
 	out := make([]string, 0, len(Components))
 	for t := range Components {
 		out = append(out, string(t))
+	}
+	sort.Strings(out)
+	return out
+}
+
+// SlottedComponentTypeNames is the subset of the catalogue whose contract declares at least one child slot,
+// for `internal/ir` to validate children against (007 §15.3's slot/type mismatch). Sorted, per §4.6.
+func SlottedComponentTypeNames() []string {
+	out := []string{}
+	for t, c := range Components {
+		if len(c.Contract.Slots) > 0 {
+			out = append(out, string(t))
+		}
 	}
 	sort.Strings(out)
 	return out

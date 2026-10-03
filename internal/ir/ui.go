@@ -132,7 +132,11 @@ func validate(n UINode, depth int, ancestry map[string]bool, issues *[]string) {
 		if !isKnownComponent(n.Type) {
 			*issues = append(*issues, fmt.Sprintf("component type %q is not one this runtime realizes", n.Type))
 		}
-		if len(n.Children) > 0 {
+		// §15.3's slot/type mismatch, now with a real slot to check against rather than "a leaf was given a
+		// subtree". `Collection` declares an `item` slot and so may hold children; every other registered
+		// Component is a leaf. Keyed by the declared slot list rather than by a name, so a second slotted
+		// Component is covered the day it is registered.
+		if len(n.Children) > 0 && !componentHasSlot(n.Type) {
 			*issues = append(*issues, fmt.Sprintf("component %q has %d children and declares no slots (007 §15.3, slot/type mismatch)", n.Type, len(n.Children)))
 		}
 	}
@@ -176,6 +180,20 @@ func RegisterComponentTypes(types []string) {
 
 func isKnownComponent(t string) bool { return knownComponents[t] }
 
+// slottedComponents are the registered Components that declare at least one child slot, injected the same
+// way `knownComponents` is and for the same plane reason: this package may not import the catalogue.
+var slottedComponents = map[string]bool{}
+
+// RegisterSlottedComponentTypes is called once by the composition root with the subset of types whose
+// contract declares a slot. A Component absent from it is a leaf, and children are a §15.3 rejection.
+func RegisterSlottedComponentTypes(types []string) {
+	for _, t := range types {
+		slottedComponents[t] = true
+	}
+}
+
+func componentHasSlot(t string) bool { return slottedComponents[t] }
+
 // allowedProps is the permitted binding scope per node type -- 007 §15.3's fourth rejection, read as "a
 // property its type does not declare". Fail closed: a key absent from the set is rejected rather than
 // ignored, the same posture §9.2 takes for expression context.
@@ -194,6 +212,7 @@ var allowedProps = map[string][]string{
 	"component/StatusBadge": {"label", "tone"},
 	"component/Avatar":      {"initials", "label", "size", "presence"},
 	"component/Metric":      {"label", "value"},
+	"component/Collection":  {"gap"},
 }
 
 func propAllowed(n UINode, key string) bool {

@@ -210,6 +210,29 @@ templ columnsLayout(gap domain.Gap, align domain.ColumnsAlign) {
 	</div>
 }
 
+// collection is the registered renderer for `domain.ComponentCollection` -- §12.3's `Collection`, and the
+// first Component here with a slot (§12.5). Items arrive **already composed**, one `templ.Component` each,
+// which is what lets one list serve 21 different row shapes without the Component knowing any of them.
+//
+// **The two class strings are measured, not chosen.** `taskRowList` and `activityFeedListRow` were
+// structurally identical and used exactly `flex flex-col gap-2` on the `<ul>` and
+// `flex flex-wrap items-center gap-2 text-sm` on the `<li>` -- 2 of 2, so this is the shape rather than a
+// preference. `text-sm` on the item wrapper is typography inside a Component, which is the same thing that
+// kept seven `row` sites hand-written; it is accepted here only because both measured callers agree on it,
+// and it is the first thing to revisit when a third caller does not.
+//
+// A real `<ul>`/`<li>` rather than divs: the list and its length are then announced without an explicit
+// role, which is what the contract's accessibility clause records.
+templ collection(gap domain.Gap, items []templ.Component) {
+	<ul class={ "flex flex-col", layoutGap(gap) }>
+		for _, it := range items {
+			<li class={ "flex flex-wrap items-center", layoutGap(gap), "text-sm" }>
+				@it
+			</li>
+		}
+	</ul>
+}
+
 // rowAlign and rowJustify map the two flexbox axes. Both return "" for their default member, and
 // `RowAlignStretch`/`RowJustifyStart` are named in their switches rather than left to the fallthrough, because
 // the vocabulary gate reads which members a renderer *names* -- one reachable only through a default arm is
@@ -393,12 +416,24 @@ templ uiNode(n ir.UINode) {
 			switch domain.ComponentType(n.Type) {
 				case domain.ComponentStatusBadge:
 					@statusBadge(n.Props["label"], domain.BadgeTone(n.Props["tone"]))
+				case domain.ComponentCollection:
+					@collection(domain.Gap(n.Props["gap"]), uiChildComponents(n))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"])
 				case domain.ComponentAvatar:
 					@avatar(n.Props["initials"], n.Props["label"], domain.AvatarSize(n.Props["size"]), domain.AvatarPresence(n.Props["presence"]))
 			}
 	}
+}
+
+// uiChildComponents turns a node's children into one composed component each, for a slotted Component that
+// takes them as values rather than as `{ children... }`.
+func uiChildComponents(n ir.UINode) []templ.Component {
+	out := make([]templ.Component, 0, len(n.Children))
+	for _, c := range n.Children {
+		out = append(out, uiNode(c))
+	}
+	return out
 }
 
 // uiChildren walks a node's subtree. Extracted so each Layout arm above is one line -- five arms repeating a

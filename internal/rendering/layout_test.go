@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/a-h/templ"
+
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
 )
@@ -286,5 +288,41 @@ func TestAvatar_rendersEachCallSiteCombination(t *testing.T) {
 		if !strings.Contains(got, ">SI<") {
 			t.Errorf("%s: avatar did not render its initials; got %q", tc.site, got)
 		}
+	}
+}
+
+// TestCollection_rendersTheListShapeBothCallersHad pins §12.3's `Collection` against the two class strings its
+// callers used, and covers the one the live diff could not reach.
+//
+// `activityFeedListRow` was exercised for real -- 30 items on /activity, 10 on /dashboard, byte-identical --
+// but `taskRowList` rendered **zero** items because this credential has no assigned tasks. Same gap as four
+// earlier slices, so it is pinned here and said out loud rather than counted as verified.
+//
+// The two class strings are measured, not chosen: both callers used exactly these, 2 of 2.
+func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
+	var buf bytes.Buffer
+	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
+	if err := collection(domain.GapTight, items).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, `<ul class="flex flex-col gap-2">`) {
+		t.Errorf("collection's list wrapper changed; got %q", got)
+	}
+	if n := strings.Count(got, `<li class="flex flex-wrap items-center gap-2 text-sm">`); n != 2 {
+		t.Errorf("collection rendered %d item wrappers for 2 items; got %q", n, got)
+	}
+	if !strings.Contains(got, ">one<") || !strings.Contains(got, ">two<") {
+		t.Errorf("collection did not render its slot children; got %q", got)
+	}
+
+	// An empty collection still renders the list, not nothing: a screen showing "no rows" decides that
+	// itself, and a Component that vanished would make the empty state the Component's business.
+	buf.Reset()
+	if err := collection(domain.GapTight, nil).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if got := buf.String(); !strings.Contains(got, "<ul") || strings.Contains(got, "<li") {
+		t.Errorf("an empty collection should render an empty list; got %q", got)
 	}
 }

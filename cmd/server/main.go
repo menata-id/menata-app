@@ -37,6 +37,7 @@ func main() {
 	// unknown one). Injected here rather than imported, so `internal/ir` depends on neither the catalogue
 	// nor the renderer -- the dependency points the way §15.1's pipeline runs.
 	ir.RegisterComponentTypes(registry.ComponentTypeNames())
+	ir.RegisterSlottedComponentTypes(registry.SlottedComponentTypeNames())
 
 	_ = godotenv.Load()
 	cfg := config.Load()

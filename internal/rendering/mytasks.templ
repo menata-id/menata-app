@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"menata.app/internal/domain"
 	"menata.app/internal/experience"
 	"fmt"
 
@@ -89,20 +90,28 @@ templ MyTasksPage(summary MyTasksSummary, today, upcoming, completed []TaskRow, 
 }
 
 templ taskRowList(rows []TaskRow, sla bool) {
-	<ul class="flex flex-col gap-2">
-		for _, t := range rows {
-			<li class="flex flex-wrap items-center gap-2 text-sm">
-				<span>{ t.Title }</span>
-				<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ t.Status }</span>
-				<span class="text-xs text-slate-400">{ t.ProjectName }</span>
-				if sla {
-					<span class="ml-auto">
-						@slaBadge(t.SLA)
-					</span>
-				} else if t.DueText != "" {
-					<span class="ml-auto text-xs text-slate-400">{ t.DueText }</span>
-				}
-			</li>
-		}
-	</ul>
+	@collection(domain.GapTight, taskItems(rows, sla))
+}
+
+// taskItems fills the Collection's item slot. `sla` stays a parameter of the *item*, not of the list: it
+// decides what a row shows, which is the row's business and not the collection's.
+func taskItems(rows []TaskRow, sla bool) []templ.Component {
+	out := make([]templ.Component, 0, len(rows))
+	for _, t := range rows {
+		out = append(out, taskRowItem(t, sla))
+	}
+	return out
+}
+
+templ taskRowItem(t TaskRow, sla bool) {
+	<span>{ t.Title }</span>
+	<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ t.Status }</span>
+	<span class="text-xs text-slate-400">{ t.ProjectName }</span>
+	if sla {
+		<span class="ml-auto">
+			@slaBadge(t.SLA)
+		</span>
+	} else if t.DueText != "" {
+		<span class="ml-auto text-xs text-slate-400">{ t.DueText }</span>
+	}
 }
