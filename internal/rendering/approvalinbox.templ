@@ -160,7 +160,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 			case TabAssigned:
 				{{ navID = "nav_assigned_to_me" }}
 		}
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
 			<div class="flex flex-col gap-2">
 				<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, navID) }</h1>
 				if desc := descriptionByID(ctx, navID); desc != "" {
@@ -188,7 +188,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 					+ New Document
 				</a>
 			}
-		</div>
+		}
 		// Once, above the tabs, because the bound cut the Document set all three are built from -- not
 		// per tab, and not per filter chip: a list narrowed from a capped set is still capped. Renders
 		// nothing when the bound did not bite (truncationNotice).

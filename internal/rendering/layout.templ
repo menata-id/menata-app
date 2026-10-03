@@ -164,6 +164,34 @@ templ splitLayout(gap domain.Gap, side domain.SplitSide, aside domain.AsideWidth
 	</div>
 }
 
+// columnsAlign maps a columns layout's cross-axis alignment, applied only from the breakpoint up.
+func columnsAlign(a domain.ColumnsAlign) string {
+	switch a {
+	case domain.ColumnsAlignEnd:
+		return "sm:items-end"
+	case domain.ColumnsAlignCenter:
+		return "sm:items-center"
+	default:
+		return "sm:items-center"
+	}
+}
+
+// columnsLayout is §12.2's `columns`: different content per column on desktop, one stack on a phone.
+//
+// Five sites, all of them a heading or label beside its own action -- Workspace Members and Groups page
+// headers, the inbox header, two role rows. The three further `sm:flex-row` sites that did **not** migrate are
+// list rows carrying `border-b`/padding, which is `Collection`'s item shape rather than a bare columns, and one
+// panel that becomes columns; naming why is what stops the next reader forcing them through this and
+// restyling them.
+//
+// `sm:justify-between` is not a parameter because all five use it. A closed set with one member is a constant
+// wearing an enum's clothes.
+templ columnsLayout(gap domain.Gap, align domain.ColumnsAlign) {
+	<div class={ "flex flex-col", layoutGap(gap), "sm:flex-row", columnsAlign(align), "sm:justify-between" }>
+		{ children... }
+	</div>
+}
+
 // rowAlign and rowJustify map the two flexbox axes. Both return "" for their default member, and
 // `RowAlignStretch`/`RowJustifyStart` are named in their switches rather than left to the fallthrough, because
 // the vocabulary gate reads which members a renderer *names* -- one reachable only through a default arm is
@@ -318,6 +346,10 @@ templ uiNode(n ir.UINode) {
 					}
 				case domain.LayoutPanel:
 					@panelLayout() {
+						@uiChildren(n)
+					}
+				case domain.LayoutColumns:
+					@columnsLayout(domain.Gap(n.Props["gap"]), domain.ColumnsAlign(n.Props["align"])) {
 						@uiChildren(n)
 					}
 				case domain.LayoutRow:

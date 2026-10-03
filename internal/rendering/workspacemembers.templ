@@ -78,7 +78,7 @@ func personInitials(name, email string) string {
 // its owner ever states one, when they accept.
 templ WorkspaceMembersPage(members []data.Membership, names map[string]string, pending []data.PendingInvite, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref, q string, totalMembers int) {
 	@appShell(labelByID(ctx, "nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
 				<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_workspace_members") }</h1>
@@ -88,7 +88,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">{ labelByID(ctx, "nav_workspace_groups") } →</a>
 				<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", totalMembers) }{ pluralS(totalMembers) }</span>
 			</div>
-		</div>
+		}
 		<details class="rounded-lg border border-slate-200 bg-white">
 			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ Invite member</summary>
 			<form method="POST" action="/workspace-members/invite" class="flex flex-col gap-4 border-t border-slate-200 px-5 py-4">
@@ -240,10 +240,10 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 					<p class="m-0 text-2xs text-slate-500">Assign the role this user receives directly in each application.</p>
 				</div>
 				for _, app := range roleApps {
-					<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+					@columnsLayout(domain.GapTight, domain.ColumnsAlignCenter) {
 						<label for={ "role_" + app.ID } class="text-sm">{ app.Name }</label>
 						@roleSelect("role_"+app.ID, app, m.AppRoles[app.ID])
-					</div>
+					}
 				}
 			</section>
 			<div class="flex items-center justify-end gap-3">

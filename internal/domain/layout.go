@@ -46,7 +46,32 @@ const (
 	// `RowAlign` and `RowJustify` -- which is what Bootstrap, Tailwind and every component library expose as
 	// named options rather than as free CSS.
 	LayoutRow LayoutKind = "row"
+	// LayoutColumns is content that stacks on a narrow viewport and sits side by side from `sm:` up.
+	//
+	// **It is not `grid` and not `split`**, and the distinction is what made it invisible to two earlier
+	// measurements of mine. `grid` flows *items* into equal cells; `split` is one main area beside a
+	// fixed-width aside; `columns` is *different content* in each column, equal width, collapsing to a stack.
+	// A Document Approval screen decomposed into sub-components is exactly this on desktop -- which is how the
+	// owner found it (2026-10-03) after I twice recorded `columns` as having "zero measured uses". Both times I
+	// searched for a class string (`columns-2`, CSS multi-column) instead of for the meaning.
+	LayoutColumns LayoutKind = "columns"
 )
+
+// ColumnsAlign is how a columns layout aligns its children on the cross axis **once it is a row**. Below the
+// breakpoint it is a stack and alignment does not apply.
+//
+// Two members, which is what the five migrated sites use: `end` for a heading beside its action (they sit on
+// one baseline at the bottom), `center` for row content. The main axis is not a parameter -- all five push
+// their children apart, so a `justify` enum would be a value with one case.
+type ColumnsAlign string
+
+const (
+	ColumnsAlignEnd    ColumnsAlign = "end"
+	ColumnsAlignCenter ColumnsAlign = "center"
+)
+
+// KnownColumnsAligns is the closed set.
+var KnownColumnsAligns = map[ColumnsAlign]bool{ColumnsAlignEnd: true, ColumnsAlignCenter: true}
 
 // RowAlign is a row's cross-axis alignment, as a closed set.
 //
@@ -196,11 +221,12 @@ var KnownGridCols = map[GridCols]bool{
 // KnownLayoutKinds is the closed set. A kind absent from it is a load-time error, never a silent skip
 // (capability-lifecycle.md §4 rule 3, "Unknown = explicit").
 var KnownLayoutKinds = map[LayoutKind]bool{
-	LayoutStack: true,
-	LayoutPanel: true,
-	LayoutGrid:  true,
-	LayoutSplit: true,
-	LayoutRow:   true,
+	LayoutStack:   true,
+	LayoutPanel:   true,
+	LayoutGrid:    true,
+	LayoutSplit:   true,
+	LayoutRow:     true,
+	LayoutColumns: true,
 }
 
 // Gap is the spacing between a layout's children, as an enum rather than a number.
