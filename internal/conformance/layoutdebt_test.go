@@ -46,12 +46,11 @@ var handWrittenLayoutSites = map[string]map[string]int{
 		"reviewdocument.templ": 5, "rolematrix.templ": 1, "signatureplacement.templ": 2,
 		"workspacehome.templ": 1, "workspacemembers.templ": 3,
 	},
-	// `split`: a main area beside a fixed-width aside, five of these differing only in a pixel width and
-	// which side. **§12.2 lists `split`, and an earlier measurement of mine claimed it had zero uses.**
-	// Two of the seven are the one-offs named above and will not migrate.
+	// `split`: a main area beside a fixed-width aside. **§12.2 lists `split`, and an earlier measurement of
+	// mine claimed it had zero uses.** It had five, all migrated on 2026-10-03; what is left is the two
+	// one-offs named above, which is this kind's floor rather than debt.
 	"split": {
-		"automation.templ": 1, "documentsubmit.templ": 1, "newapplication.templ": 2,
-		"reviewdocument.templ": 1, "rolematrix.templ": 1, "signatureplacement.templ": 1,
+		"automation.templ": 1, "rolematrix.templ": 1,
 	},
 }
 

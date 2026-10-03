@@ -101,38 +101,50 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 				make them.
 			</div>
 		</div>
+		// The htmx wiring stays on a wrapper and `splitLayout` sits inside it, rather than the primitive
+		// taking an id and four hx-* attributes. A Layout primitive that accepts arbitrary HTML attributes is
+		// what 007 §12.3 forbids by name -- "MUST NOT become 'generic' merely by accepting arbitrary
+		// properties" -- and this screen's self-refresh is behaviour, not layout.
+		//
+		// **The cost is one extra DOM node, and this is the only one of the five split sites that is not
+		// byte-identical after migration.** `hx-select="#sig-body"` plus `outerHTML` still replaces this
+		// wrapper, so the refresh is unchanged. Declaring the pair properly needs a Page tree where a node
+		// can carry an id and a behaviour binding separately, which is 007 §11.3 Binding plus Stage 3 of the
+		// Experience Plane plan (`menata-app-document`'s
+		// `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`).
 		<div
-			class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_316px]"
 			id="sig-body"
 			hx-trigger="htmx:afterRequest[detail.successful]"
 			hx-get={ placementPageHref(ctx, v.DocumentID, v.Page) }
 			hx-select="#sig-body"
 			hx-swap="outerHTML"
 		>
-			<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
-				<div class="flex flex-wrap items-center justify-between gap-3">
-					<h2 class="m-0 text-sm font-medium">{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</h2>
-					<span class="flex items-center gap-3 text-xs">
-						if v.Page > 1 {
-							<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page-1)) } class="text-blue-600 hover:text-blue-700">← Prev</a>
-						}
-						if v.Page < v.TotalPages {
-							<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page+1)) } class="text-blue-600 hover:text-blue-700">Next →</a>
-						}
-					</span>
-				</div>
-				<p class="m-0 text-2xs text-slate-500">Drag each box to its signature block.</p>
-				@placementCanvas(v, true)
-			</section>
-			<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
-				<h2 class="m-0 text-sm font-medium">Approval steps</h2>
-				for _, s := range v.Steps {
-					@placementStepCard(s, v.Page)
-				}
-				<p class="m-0 rounded-md bg-slate-50 p-3 text-2xs leading-5 text-slate-500">
-					Approvers are supplied by Groups. Changing group membership is managed separately.
-				</p>
-			</aside>
+			@splitLayout(domain.GapComfortable, domain.SplitAsideEnd, domain.AsideNarrow) {
+				<section class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+					<div class="flex flex-wrap items-center justify-between gap-3">
+						<h2 class="m-0 text-sm font-medium">{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</h2>
+						<span class="flex items-center gap-3 text-xs">
+							if v.Page > 1 {
+								<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page-1)) } class="text-blue-600 hover:text-blue-700">← Prev</a>
+							}
+							if v.Page < v.TotalPages {
+								<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page+1)) } class="text-blue-600 hover:text-blue-700">Next →</a>
+							}
+						</span>
+					</div>
+					<p class="m-0 text-2xs text-slate-500">Drag each box to its signature block.</p>
+					@placementCanvas(v, true)
+				</section>
+				<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+					<h2 class="m-0 text-sm font-medium">Approval steps</h2>
+					for _, s := range v.Steps {
+						@placementStepCard(s, v.Page)
+					}
+					<p class="m-0 rounded-md bg-slate-50 p-3 text-2xs leading-5 text-slate-500">
+						Approvers are supplied by Groups. Changing group membership is managed separately.
+					</p>
+				</aside>
+			}
 		</div>
 		<div class="flex justify-end">
 			<a

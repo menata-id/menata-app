@@ -86,7 +86,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 					}
 				}
 			</section>
-			<div class="grid grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+			@splitLayout(domain.GapComfortable, domain.SplitAsideStart, domain.AsideNarrow) {
 				@modeFieldset(mode, draft.Mode)
 				<section class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
 					<div class="flex flex-wrap items-center justify-between gap-3">
@@ -107,7 +107,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 						@ApproverRow(approvers, groups, fields, StepPrefill{})
 					</div>
 				</section>
-			</div>
+			}
 			<label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
 				<input type="checkbox" name="save_as_default_flow" value="1" checked class="size-4 accent-blue-500"/>
 				Save this as the default approval flow for this document type

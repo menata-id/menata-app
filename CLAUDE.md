@@ -631,8 +631,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   be the ~50%-false-finding shape deleted twice here. What syntax cannot separate is noted per entry:
   `split`'s floor is **2, not 0**, because `automation.templ`'s `[6rem_1fr]` definition list and
   `rolematrix.templ`'s bordered grid are genuine one-offs, and a one-off is what a primitive is not for.
-  **`grid`'s five sites went to zero on 2026-10-03** and its key was *removed* rather than set to zero,
-  because an entry naming a kind with no sites fails too. Read the current numbers out of the map.
+  **`grid` and `split` both reached their floor on 2026-10-03** — `grid`'s key was *removed* (an entry naming
+  a kind with no sites fails too), `split`'s dropped to its two one-offs. 45 sites in 20 files -> **35 in
+  18**, all of it `row`. Read the current numbers out of the map.
+  **`split` is also the slice to read before migrating `row`, because it is the one that changed what
+  renders.** Its five asides were 316/320/320/340/360px: four widths for one idea, so two named steps widened
+  two screens (4px and 20px). More importantly three sites gave the main column `minmax(0,1fr)` and two gave
+  it `1fr`, which differ in **behaviour** — `1fr` cannot shrink below its content, so the two screens that
+  render a `<pre>` of generated YAML carried a latent overflow. A primitive has to pick one answer, and
+  picking it is what surfaced the bug. When a migration forces a choice between inconsistent literals, the
+  choice is a finding; state which screens move and by how much in the commit, and put the pre-migration
+  literal beside the intended one in the test (`rendering.TestSplitLayout_*`) so it stays legible without git.
+  One site keeps its htmx wiring on a wrapper **outside** the primitive, costing one DOM node: a Layout
+  primitive accepting arbitrary HTML attributes is exactly what §12.3 forbids by name, and a screen's
+  self-refresh is behaviour, not layout.
 - `TestNoClassLivesOnlyInAComment` — **Tailwind scans the `.templ` files as text, so a comment naming a
   utility class emits that class.** Nothing in `make css` knows what a Go comment is. Three leaks were found
   this way, all self-inflicted and all invisible: the comment recording that the first Experience Plane pass

@@ -25,6 +25,8 @@ func layoutGap(g domain.Gap) string {
 		return "gap-3"
 	case domain.GapComfortable:
 		return "gap-4"
+	case domain.GapLoose:
+		return "gap-5"
 	default:
 		// An empty Gap is GapDefault. Named explicitly above rather than left to this branch, because the
 		// tightened vocabulary gate reads which kinds are *named* -- and a step hidden in a default arm is
@@ -108,6 +110,50 @@ func gridColsFromBreakpoint(c domain.GridCols) string {
 // byte-identical is what let it be verified instead of eyeballed.
 templ gridLayout(gap domain.Gap, mobile, columns domain.GridCols) {
 	<div class={ "grid", gridColsBelowBreakpoint(mobile), layoutGap(gap), gridColsFromBreakpoint(columns) }>
+		{ children... }
+	</div>
+}
+
+// splitTracks is **one switch over the (side, width) pair rather than two independent ones**, because
+// Tailwind needs the whole track list as a literal class -- a composed string is a class its scanner never
+// sees, and the page then renders with no columns at all and nothing fails.
+//
+// Three of the four combinations are drawn, which are the three the corpus measures. A start-side wide aside
+// has no site, so emitting it would put an arbitrary-value class into the bundle for nothing; it falls
+// through to the most common combination instead, and
+// `TestSplitLayout_unmeasuredCombinationFallsBackRatherThanEmittingANewClass` asserts that rather than
+// leaving it to be met as a bug. Every main track is `minmax(0,1fr)`, which is a **deliberate change** to the
+// two New Application screens -- see splitLayout's own comment.
+func splitTracks(side domain.SplitSide, aside domain.AsideWidth) string {
+	switch {
+	case side == domain.SplitAsideStart && aside == domain.AsideNarrow:
+		return "lg:grid-cols-[320px_minmax(0,1fr)]"
+	case side == domain.SplitAsideEnd && aside == domain.AsideWide:
+		return "lg:grid-cols-[minmax(0,1fr)_360px]"
+	default:
+		// SplitAsideEnd + AsideNarrow, the most common of the three.
+		return "lg:grid-cols-[minmax(0,1fr)_320px]"
+	}
+}
+
+// splitLayout is §12.2's own `split`: a main area beside a fixed-width aside, stacking to one column below
+// `lg`. Five sites -- the submit wizard's approver rail, the review screen's decision panel, the signature
+// placement sidebar, and New Application's two preview panes.
+//
+// **This migration changes what renders on two of the five, and that is the point rather than a side
+// effect.** The five asides were 316, 320, 320, 340 and 360 pixels wide. Four distinct widths for one idea is
+// not four decisions; naming two steps makes the signature-placement aside 4px wider and the second New
+// Application aside 20px wider, and leaves the other three untouched.
+//
+// **The second change is not cosmetic at all.** Three sites gave the main column `minmax(0,1fr)` and the two
+// New Application sites gave it `1fr`. Those differ in behaviour: `minmax(0,1fr)` lets the main column shrink
+// below its content's intrinsic width, and `1fr` does not, so wide content there pushes the layout out
+// instead of scrolling or wrapping inside it. Both New Application screens render a `<pre>` of generated
+// YAML. Normalising to `minmax(0,1fr)` fixes a latent overflow on exactly the two screens most likely to hit
+// it -- which is why the inconsistency was worth finding, and why a primitive that has to pick one answer is
+// how it got found.
+templ splitLayout(gap domain.Gap, side domain.SplitSide, aside domain.AsideWidth) {
+	<div class={ "grid grid-cols-1", layoutGap(gap), splitTracks(side, aside) }>
 		{ children... }
 	</div>
 }

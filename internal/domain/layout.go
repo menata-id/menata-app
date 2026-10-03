@@ -3,13 +3,13 @@ package domain
 // LayoutKind is the closed set of generic spatial composition primitives
 // (007-composable-runtime-architecture.md §12.2).
 //
-// **Three of §12.2's eight are built, and each arrived with the uses it replaces.** §12.2 lists `stack`,
+// **Four of §12.2's eight are built, and each arrived with the uses it replaces.** §12.2 lists `stack`,
 // `row`, `columns`, `grid`, `split`, `tabs`, `panel` and `section`. Counted by *meaning* across the 38
 // bespoke screens (see the retraction below for why the first two counts were wrong): vertical flow with a
 // uniform gap appears **61 times** (`stack`), the bordered padded surface twelve times across six screens
-// (`panel`), and a responsive card grid **five** times (`grid`). `row` (33 sites) and `split` (5) are
-// measured and next; `columns`, `tabs` and §12.2's own `section` have **zero** measured uses and are
-// deliberately absent -- §12.2 is a permitted vocabulary, not a quota, and building the rest now would be
+// (`panel`), a responsive card grid **five** times (`grid`) and a main-plus-aside split **five** more
+// (`split`). `row` (33 sites) is measured and next; `columns`, `tabs` and §12.2's own `section` have
+// **zero** measured uses and are deliberately absent -- §12.2 is a permitted vocabulary, not a quota, and building the rest now would be
 // the shape-before-need 007 §34 forbids.
 //
 // **Why a closed set rather than a class string**: §15.2 forbids an intermediate representation embedding
@@ -37,7 +37,53 @@ const (
 	// properties and not about having parameters at all. A grid taking a free CSS track list would be the
 	// thing §12.3 forbids; one taking a column count from a closed set is vocabulary.
 	LayoutGrid LayoutKind = "grid"
+	// LayoutSplit is a main area beside a fixed-width aside, stacking to one column on a narrow viewport.
+	// §12.2 lists it, and an earlier measurement of mine claimed it had zero uses in this corpus; it has
+	// five, and they differ only in which side the aside is on and how wide it is.
+	LayoutSplit LayoutKind = "split"
 )
+
+// SplitSide says which side of a split the fixed-width aside sits on.
+//
+// `start`/`end` rather than `left`/`right`, matching CSS logical properties: a vocabulary that names a
+// physical direction is wrong the first time something renders right-to-left, and this set is meant to
+// outlive that.
+type SplitSide string
+
+const (
+	SplitAsideStart SplitSide = "start"
+	SplitAsideEnd   SplitSide = "end"
+)
+
+// KnownSplitSides is the closed set.
+var KnownSplitSides = map[SplitSide]bool{
+	SplitAsideStart: true,
+	SplitAsideEnd:   true,
+}
+
+// AsideWidth is how wide a split's fixed track is, as a **named step rather than a pixel count**.
+//
+// Two steps, where the corpus had **four distinct widths across five sites** -- 316, 320, 320, 340 and 360
+// pixels. Those are not four design decisions. They are roughly two, written five times, which is what a
+// repeated literal turns into. Naming the steps is therefore a correction and not only a
+// generalisation -- and it **changes what renders** on two screens, which is recorded where the migration is
+// rather than discovered later: the signature-placement aside gains 4px, and the second New Application
+// aside gains 20px.
+//
+// A third step is not declared. If a screen genuinely needs one, it arrives with that screen, the same rule
+// `Gap` and `GridCols` follow.
+type AsideWidth string
+
+const (
+	AsideNarrow AsideWidth = "narrow"
+	AsideWide   AsideWidth = "wide"
+)
+
+// KnownAsideWidths is the closed set.
+var KnownAsideWidths = map[AsideWidth]bool{
+	AsideNarrow: true,
+	AsideWide:   true,
+}
 
 // GridCols is a grid's column count: a closed set, not a free integer.
 //
@@ -110,6 +156,7 @@ var KnownLayoutKinds = map[LayoutKind]bool{
 	LayoutStack: true,
 	LayoutPanel: true,
 	LayoutGrid:  true,
+	LayoutSplit: true,
 }
 
 // Gap is the spacing between a layout's children, as an enum rather than a number.
@@ -123,17 +170,20 @@ var KnownLayoutKinds = map[LayoutKind]bool{
 // third arrived with the `grid` migration on 2026-10-03, because two of its five sites space their cards one
 // step wider than the other three and collapsing that would have silently restyled them.
 //
-// **The spacings still hand-written are not a fourth step waiting to be declared.** The corpus also uses two
-// *half*-steps between tight and default (six `row` sites) and one step above comfortable (two `split`
-// sites). The half-steps are almost certainly accidental and the `row` migration folds them into the two
-// neighbours it already has, which moves six sites by at most two pixels. That is a decision about the
-// corpus, not about this ladder.
+// The fourth arrived with `split` the same day, for the two New Application screens, which space their two
+// columns one step wider than the three approval screens do.
+//
+// **The spacings still hand-written are not a fifth step waiting to be declared.** The corpus also uses two
+// *half*-steps between tight and default, across six `row` sites. Those are almost certainly accidental, and
+// the `row` migration folds them into the two neighbours this ladder already has, which moves six sites by
+// at most two pixels. That is a decision about the corpus, not about this ladder.
 type Gap string
 
 const (
 	GapTight       Gap = "tight"
 	GapDefault     Gap = "default"
 	GapComfortable Gap = "comfortable"
+	GapLoose       Gap = "loose"
 )
 
 // KnownGaps is the closed set. An empty Gap means GapDefault, resolved where the layout is rendered.
@@ -141,6 +191,7 @@ var KnownGaps = map[Gap]bool{
 	GapTight:       true,
 	GapDefault:     true,
 	GapComfortable: true,
+	GapLoose:       true,
 }
 
 // StaticKind is the closed set of static content nodes (§12.6): explanatory text and visual material

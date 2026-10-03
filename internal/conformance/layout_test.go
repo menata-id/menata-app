@@ -127,6 +127,33 @@ func TestLayoutVocabularyIsRenderedAndUsed(t *testing.T) {
 			t.Errorf("domain.KnownGridCols declares %d and no screen passes %s -- a column count arrives with the site that needs it, or it is a utility class in the bundle for nothing", c, name)
 		}
 	}
+
+	// `split`'s own two parameter sets, held to the same both-ends rule. Their Go identifiers do not derive
+	// from their string values (`SplitAsideStart` is "start", `AsideNarrow` is "narrow"), so the map is keyed
+	// by value and names the constant -- which also means a renamed constant fails here rather than silently
+	// stopping being checked.
+	for ident, declared := range map[string]bool{
+		"domain.SplitAsideStart": domain.KnownSplitSides[domain.SplitAsideStart],
+		"domain.SplitAsideEnd":   domain.KnownSplitSides[domain.SplitAsideEnd],
+		"domain.AsideNarrow":     domain.KnownAsideWidths[domain.AsideNarrow],
+		"domain.AsideWide":       domain.KnownAsideWidths[domain.AsideWide],
+	} {
+		if !declared {
+			t.Errorf("%s is named in this gate but is no longer in its closed set -- update the gate or the set, whichever is wrong", ident)
+			continue
+		}
+		if !strings.Contains(layout, ident) {
+			t.Errorf("%s is declared and no switch in layout.templ names it -- a split option no renderer draws silently renders the default track list instead", ident)
+		}
+		if !strings.Contains(callers, ident) {
+			t.Errorf("%s is declared and no screen passes it -- an option arrives with the site that needs it, or it is an arbitrary-value class in the bundle for nothing", ident)
+		}
+	}
+	// And the sets may not grow past what this gate enumerates, which is the half a range loop gives for
+	// free and a hand-written map does not.
+	if got, want := len(domain.KnownSplitSides)+len(domain.KnownAsideWidths), 4; got != want {
+		t.Errorf("KnownSplitSides + KnownAsideWidths now hold %d members, this gate enumerates %d -- add the new one above with its renderer arm and its caller", got, want)
+	}
 }
 
 // TestLayoutClassesStayInRendering holds §15.2's own rule: an intermediate representation "should not embed

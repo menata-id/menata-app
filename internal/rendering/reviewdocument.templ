@@ -133,13 +133,13 @@ templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, swit
 				}
 			</div>
 		</div>
-		<div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+		@splitLayout(domain.GapComfortable, domain.SplitAsideEnd, domain.AsideNarrow) {
 			<div class="flex flex-col gap-4">
 				@reviewDocumentCard(v)
 				@reviewProgress(v.Steps)
 			</div>
 			@reviewSignaturePanel(v)
-		</div>
+		}
 		@reviewDecisionBar(v)
 	}
 }
