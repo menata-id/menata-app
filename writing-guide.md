@@ -1284,6 +1284,16 @@ Every item on the left, any new Machine gets automatically, purely from YAML. Ev
 right is real, working code in this app, but wired to specific Machine ids in Go — declaring
 similar-looking metadata for a *different* Machine does not activate it.
 
+> **A screen's own layout is on neither side yet, and that is worth stating so nothing here is
+> misread.** As of 2026-10-03 the Experience Plane has six of 007 §12.2's Layout primitives, three
+> §12.3 Components with declared contracts, and UI IR (`ir.UINode`) with two consumers — so a screen's
+> composition is now *data* rather than templ structure in those two places. **But no YAML declares a
+> layout.** The tree is built in Go, which means this capability has moved from "hardcoded per screen"
+> to "one generic vocabulary, still reached from Go" — a real step and not the left column. What the
+> left column requires is §15.1's pipeline running from metadata, which is unbuilt. Forward pointer:
+> 007 §12.4's normative rule (a View MUST NOT be the universal composition primitive) and
+> `conformance.TestHandWrittenLayoutSitesOnlyShrink`, which carries the 51 sites still hand-written.
+
 | Generic (any Machine, metadata only) | Hardcoded to specific Machines (real Go code required for a new one) |
 |---|---|
 | CRUD screens + JSON API, table and board views | The `decide` Action itself — though its two cross-record rules (step ordering, Document status rollup) are now declared, not hardcoded, *which decisions are legal at all* moved left in Fase 7 (`transitions:`), **which Machines it acts on** moved left on 2026-09-28 (`workflow:`), and **which Fields it writes** moved left the same day (`actions:`, §12.6c — with the status move itself derived from the Transition that names the Action, so it is declared once rather than twice). What is still Go is the *Fields it reads*: the signed-PDF compositing filters steps by `fld_decision`, and composed screens project Fields by id |
