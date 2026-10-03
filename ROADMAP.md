@@ -1206,8 +1206,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Adding an Application screen
   is writing Go today -- 36 of 38 navigation items point at a bespoke route, which 007 §12.4 forbids
   normatively. **Six of §12.2's eight Layouts, three §12.3 Components and UI IR are built** (2026-10-02/03):
-  45 sites migrated, 51 left, `section` the largest. Next: `Slot` + `Collection`, which 21 of 21 use cases
-  need. Plan, gaps and the measurement failures corrected on the way:
+  45 sites migrated, 51 left. Order: `section` (34 sites), then `Slot` + `Collection` (21 of 21 use cases),
+  then the `<form>` element. Plan, gaps and corrections:
   `menata-app-document`'s `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`.
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.
