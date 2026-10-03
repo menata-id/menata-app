@@ -734,7 +734,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   Worked examples of it being wrong: `row`/`grid` rejected by counting class strings; `columns` recorded
   twice as "zero measured uses" and measured at **9**, three of them inside Document Approval; `section`
   dismissed as overlapping `panel` and measured at **34**, the largest remaining population in the corpus;
-  `tabs` recorded as zero while the Approval Inbox's three tabs were running in production. Each time the
+  `tabs` recorded as zero, then **wrongly recorded as running in production** — the Approval Inbox's "three tabs" are declared navigation items, not a tab layout, and no `.templ` draws a tab bar. That correction is the fifth of this class and the first in the *opposite* direction, which sharpens the rule: **assert neither presence nor absence without measuring.** Over-claiming a case is the same failure as under-claiming one, and it is more dangerous, because it gets built. Each time the
   owner disproved it by *reading a screen*, which is what a class-string grep structurally cannot do.
   **And the directive gate itself carried the flaw**: `handWrittenLayoutSites` had patterns only for `row`,
   `grid` and `split`, so it reported 13 sites of Experience Plane debt when the real population was **51**.
