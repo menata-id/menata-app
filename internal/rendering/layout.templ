@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,26 @@ import (
 // screen* is calling it is not a primitive, it is one screen's shape with a new name. That is the only
 // test of genericity these have, and it is why the four unmeasured §12.2 kinds were not built -- a
 // primitive with no second caller cannot fail it.
+
+// radiusClass maps a radius role through **this request's Workspace theme** — the first token category that a
+// Workspace can redeclare without a recompile, which is what distinguishes a Theme from the Go vocabularies
+// (`Gap`, `BadgeTone`) that already existed.
+//
+// Reads the theme off ctx rather than taking it as a parameter, because every primitive below would otherwise
+// grow one, and the zero Theme is a working answer: a pre-auth screen has no Workspace on ctx and
+// `Theme.RadiusFor` falls back to `DefaultTheme`, so it renders exactly what it rendered before.
+func radiusClass(ctx context.Context, role domain.RadiusRole) string {
+	switch CurrentWorkspace(ctx).Theme.RadiusFor(role) {
+	case domain.RadiusStepSmall:
+		return "rounded-md"
+	case domain.RadiusStepLarge:
+		return "rounded-lg"
+	case domain.RadiusStepFull:
+		return "rounded-full"
+	default:
+		return "rounded-lg"
+	}
+}
 
 // layoutGap maps a declared Gap onto the spacing steps the measured corpus actually uses. An empty Gap is
 // GapDefault, resolved here rather than requiring every caller to say so.
@@ -65,7 +86,7 @@ templ stackLayout(gap domain.Gap) {
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would
 // change what renders, and a primitive that quietly restyles its callers is worse than a repeated class.
 templ panelLayout() {
-	<section class="rounded-lg border border-slate-200 bg-white p-4">
+	<section class={ radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 bg-white p-4" }>
 		{ children... }
 	</section>
 }
@@ -83,7 +104,7 @@ templ panelLayout() {
 // It takes no title parameter. `sectionHeaderRow` (appshell.templ, 9 callers) is the heading half and takes
 // a link target; a Layout that accepted one would be a Layout that knows about routes.
 templ sectionLayout(gap domain.Gap) {
-	<section class={ "flex flex-col", layoutGap(gap), "rounded-lg border border-slate-200 bg-white p-5" }>
+	<section class={ "flex flex-col", layoutGap(gap), radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 bg-white p-5" }>
 		{ children... }
 	</section>
 }

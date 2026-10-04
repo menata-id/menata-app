@@ -321,7 +321,7 @@ templ truncationNotice(t Truncation) {
 // element -- a rename of the element would have been a rename of the vocabulary.
 templ statusBadge(label string, tone domain.BadgeTone) {
 	<span
-		class={ "inline-flex items-center rounded-full px-2.5 py-1 text-2xs whitespace-nowrap",
+		class={ "inline-flex items-center px-2.5 py-1 text-2xs whitespace-nowrap", radiusClass(ctx, domain.RadiusPill),
 			templ.KV("bg-slate-100 text-slate-600", tone == domain.ToneNeutral),
 			templ.KV("bg-blue-50 text-blue-700", tone == domain.ToneInfo),
 			templ.KV("bg-emerald-50 text-emerald-700", tone == domain.ToneGood),
@@ -368,7 +368,7 @@ templ avatar(initials, label string, size domain.AvatarSize, presence domain.Ava
 // answers, §12.3's own `Metric`. Value before label in reading order, which is what the four screens already
 // rendered and what makes the pair its own accessible description.
 templ metric(label, value string) {
-	<div class="rounded-lg border border-slate-200 bg-white p-3">
+	<div class={ radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 bg-white p-3" }>
 		<div class="text-2xl font-medium">{ value }</div>
 		<div class="text-xs text-slate-500">{ label }</div>
 	</div>

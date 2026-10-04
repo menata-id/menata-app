@@ -9,6 +9,11 @@ package domain
 // would load the same file twice and produce two Machine objects with one id. An Application
 // *selects* from this set instead -- see Application.Machines.
 type Workspace struct {
+	// Theme is this Workspace's declared token set (006, `theme:` in its manifest). The zero value is a
+	// working answer, not a missing one: Theme.RadiusFor falls back to DefaultTheme, so a Workspace with no
+	// manifest and a pre-auth screen with no Workspace on ctx both render exactly what they rendered before
+	// Theme existed.
+	Theme Theme
 	// Slug names which Workspace this manifest installs into, matched against the `workspaces`
 	// table's own slug column at load time (metadata/workspaces/<slug>.yaml, 2026-09-22).
 	//

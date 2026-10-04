@@ -196,6 +196,11 @@ type WorkspaceManifestCheckDoc struct {
 	// generated publish into that Workspace would have failed its own strict re-parse and rolled back,
 	// with an error about a key the loader is perfectly happy with.
 	SuggestedApplications []any `yaml:"suggested_applications"`
+	// Theme is the **third** instance of the same drift, and the gate caught it again on 2026-10-04 within
+	// minutes of the key landing on metadata's own workspaceDoc. The plan for this slice had predicted it by
+	// name, which is the useful part: a mirror that has broken twice is a mirror to check *before* the gate
+	// does, not after.
+	Theme any `yaml:"theme"`
 }
 
 // FullMachineCheckDoc/FullApplicationCheckDoc mirror internal/metadata's own real machineDoc/

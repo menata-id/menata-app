@@ -45,9 +45,45 @@ type App struct {
 // block held the Workspace's own id and name, and neither belongs in a file any more (see
 // domain.Workspace.Slug). What is left is a single scalar naming the target, so a nesting level
 // that once carried four keys would now carry one.
+// themeDoc is the `theme:` block. One sub-block per token category; only `radius` exists today, and the
+// others arrive one slice each in the order `menata-app-document`'s token inventory sets.
+type themeDoc struct {
+	Radius map[string]string `yaml:"radius"`
+}
+
+// resolveTheme turns the declared block into domain.Theme, reporting every unknown role or step rather than
+// the first. **Fail closed**: an unrecognised token is a load error, never a silent default -- the same
+// posture 007 §9.2 takes for expression context, and the reason a typo here cannot ship as a missing class.
+func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
+	t := domain.Theme{}
+	if doc == nil {
+		return t, nil
+	}
+	var issues []string
+	if len(doc.Radius) > 0 {
+		t.Radius = map[domain.RadiusRole]domain.RadiusStep{}
+		for role, step := range doc.Radius {
+			r, s := domain.RadiusRole(role), domain.RadiusStep(step)
+			if !domain.KnownRadiusRoles[r] {
+				issues = append(issues, fmt.Sprintf("theme.radius: %q is not a radius role this runtime realizes", role))
+				continue
+			}
+			if !domain.KnownRadiusSteps[s] {
+				issues = append(issues, fmt.Sprintf("theme.radius.%s: %q is not a radius step this runtime realizes", role, step))
+				continue
+			}
+			t.Radius[r] = s
+		}
+	}
+	return t, issues
+}
+
 type workspaceDoc struct {
 	// Workspace is the target Workspace's slug -- see domain.Workspace.Slug.
 	Workspace string `yaml:"workspace"`
+	// Theme is this Workspace's own token set (006). Optional: an absent block means DefaultTheme, which is
+	// what the corpus rendered before Theme existed, so adding the key changed nothing anywhere.
+	Theme *themeDoc `yaml:"theme"`
 	// Machines are file paths, resolved relative to this manifest. Workspace-level and unique by
 	// id: an Application *selects* from this set by id rather than owning files, because several
 	// Applications genuinely share one (mch_user, mch_activity).
@@ -249,11 +285,16 @@ func LoadApplication(path string) (*App, error) {
 	for _, s := range doc.SuggestedApplications {
 		suggestions = append(suggestions, domain.ApplicationSuggestion{Label: s.Label, Prompt: s.Prompt})
 	}
+	theme, themeIssues := resolveTheme(doc.Theme)
+	if len(themeIssues) > 0 {
+		return nil, fmt.Errorf("%s: %s", path, strings.Join(themeIssues, "; "))
+	}
 	app := &App{
 		Workspace: domain.Workspace{
 			Slug:                  doc.Workspace,
 			Navigation:            workspaceNav,
 			SuggestedApplications: suggestions,
+			Theme:                 theme,
 		},
 	}
 
