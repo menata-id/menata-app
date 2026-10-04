@@ -759,6 +759,23 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `pending` variant, which needs an outstanding invitation the dev database does not have. Three of its four
   sites *were* reachable, which is the useful shape: diff what you can, pin what you cannot, and say which is
   which.
+- **Theme (006) is declarable for exactly one token category, and the bookkeeping rule it broke is worth more
+  than the feature.** `domain.Theme` maps `RadiusRole` to `RadiusStep`; a `theme:` block in a Workspace
+  manifest is validated by `metadata.resolveTheme` and read by `rendering.radiusClass`. **Verified live, not
+  asserted**: a declared `surface: full` changed `sectionLayout`'s radius with no recompile, which is the only
+  thing distinguishing a Theme from `Gap`/`BadgeTone` — closed vocabularies only Go can set.
+  **Adding a metadata key means four documents, and I shipped the code without them.** The plan for that slice
+  stated the rule — *update `capabilities.md` and 007 §40 in the same change* — and the next commit violated
+  it: `capabilities.md`, §40, `CLAUDE.md` and `ROADMAP.md` all had zero mentions of Theme after it shipped,
+  found only because the owner asked where it was documented. **A new metadata key is not done until
+  `writing-guide.md` shows an author how to write it** — that file is the only one a metadata author reads,
+  and it is the easiest to forget because no gate reads it.
+  Also: the `theme:` key broke `installer.WorkspaceManifestCheckDoc` within minutes — the **third** instance,
+  and the first its own plan had predicted by name. Check that mirror before the gate does.
+  **Eight of nine token categories are still Go-only**, and the order they arrive in is measured, not chosen:
+  `menata-app-document/audits/2026-10-04-inventaris-token-design-system.md` carries all 104 values with
+  per-value counts and a verdict each. Two findings there change the plan — `domain.Gap` is **missing its two
+  smallest steps** (`gap-1` 49 uses, `gap-0.5` 24, both below `tight`), and padding is **56** values, not 20.
 - `TestNoClassLivesOnlyInAComment` — **Tailwind scans the `.templ` files as text, so a comment naming a
   utility class emits that class.** Nothing in `make css` knows what a Go comment is. Three leaks were found
   this way, all self-inflicted and all invisible: the comment recording that the first Experience Plane pass

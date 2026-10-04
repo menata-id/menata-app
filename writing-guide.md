@@ -1284,6 +1284,24 @@ Every item on the left, any new Machine gets automatically, purely from YAML. Ev
 right is real, working code in this app, but wired to specific Machine ids in Go — declaring
 similar-looking metadata for a *different* Machine does not activate it.
 
+> **One Theme token is declarable, and it is the first thing in this app a Workspace can restyle from
+> YAML.** A Workspace manifest may carry:
+>
+> ```yaml
+> theme:
+>   radius:
+>     control: small    # inputs, buttons      (default: small  -> rounded-md)
+>     surface: large    # panels, sections     (default: large  -> rounded-lg)
+>     pill:    full     # badges, avatars      (default: full   -> rounded-full)
+> ```
+>
+> All three roles and all three steps are closed sets: an unknown value is a **load error**, not a silent
+> default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the
+> default — which is exactly what the app rendered before Theme existed, so adding the key changes nothing
+> until you change a value. Eight other token categories (text size, colours, gap, padding, font weight,
+> shadow) are **not** declarable yet; the order they arrive in is set by
+> `menata-app-document/audits/2026-10-04-inventaris-token-design-system.md`.
+
 > **A screen's own layout is on neither side yet, and that is worth stating so nothing here is
 > misread.** As of 2026-10-03 the Experience Plane has six of 007 §12.2's Layout primitives, three
 > §12.3 Components with declared contracts, and UI IR (`ir.UINode`) with two consumers — so a screen's
