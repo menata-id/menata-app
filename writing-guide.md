@@ -1293,13 +1293,15 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     control: small    # inputs, buttons      (default: small  -> rounded-md)
 >     surface: large    # panels, sections     (default: large  -> rounded-lg)
 >     pill:    full     # badges, avatars      (default: full   -> rounded-full)
+>   weight:
+>     body:     normal  # text explicitly unemphasised  (default: normal)
+>     emphasis: medium  # headings, labels, values      (default: medium)
 > ```
 >
 > All three roles and all three steps are closed sets: an unknown value is a **load error**, not a silent
 > default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the
 > default — which is exactly what the app rendered before Theme existed, so adding the key changes nothing
-> until you change a value. Eight other token categories (text size, colours, gap, padding, font weight,
-> shadow) are **not** declarable yet; the order they arrive in is set by
+> until you change a value. Seven other token categories (text size, colours, gap, padding, shadow) are **not** declarable yet; the order they arrive in is set by
 > `menata-app-document/audits/2026-10-04-inventaris-token-design-system.md`.
 
 > **A screen's own layout is on neither side yet, and that is worth stating so nothing here is
