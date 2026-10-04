@@ -50,6 +50,7 @@ type App struct {
 type themeDoc struct {
 	Radius map[string]string `yaml:"radius"`
 	Weight map[string]string `yaml:"weight"`
+	Text   map[string]string `yaml:"text"`
 }
 
 // resolveTheme turns the declared block into domain.Theme, reporting every unknown role or step rather than
@@ -89,6 +90,21 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				continue
 			}
 			t.Weight[r] = w
+		}
+	}
+	if len(doc.Text) > 0 {
+		t.Text = map[domain.TextRole]domain.TextScale{}
+		for role, step := range doc.Text {
+			r, x := domain.TextRole(role), domain.TextScale(step)
+			if !domain.KnownTextRoles[r] {
+				issues = append(issues, fmt.Sprintf("theme.text: %q is not a text role this runtime realizes", role))
+				continue
+			}
+			if !domain.KnownTextScales[x] {
+				issues = append(issues, fmt.Sprintf("theme.text.%s: %q is not a text scale this runtime realizes", role, step))
+				continue
+			}
+			t.Text[r] = x
 		}
 	}
 	return t, issues

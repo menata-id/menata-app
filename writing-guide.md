@@ -1296,12 +1296,22 @@ similar-looking metadata for a *different* Machine does not activate it.
 >   weight:
 >     body:     normal  # text explicitly unemphasised  (default: normal)
 >     emphasis: medium  # headings, labels, values      (default: medium)
+>   text:
+>     display: huge     # a tile's headline number   (default: huge)
+>     heading: large    # a screen or section title  (default: large)
+>     body:    normal   # prose and row content      (default: normal)
+>     meta:    small    # dates, counts, names       (default: small)
+>     label:   tiny     # badge and pill text        (default: tiny)
+>     eyebrow: micro    # the uppercase line above a title (default: micro)
 > ```
+>
+> The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
+> `medium` is the one no role claims by default.
 >
 > All three roles and all three steps are closed sets: an unknown value is a **load error**, not a silent
 > default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the
 > default — which is exactly what the app rendered before Theme existed, so adding the key changes nothing
-> until you change a value. Seven other token categories (text size, colours, gap, padding, shadow) are **not** declarable yet; the order they arrive in is set by
+> until you change a value. Six other token categories (colours x3, gap, padding, shadow) are **not** declarable yet; the order they arrive in is set by
 > `menata-app-document/audits/2026-10-04-inventaris-token-design-system.md`.
 
 > **A screen's own layout is on neither side yet, and that is worth stating so nothing here is
