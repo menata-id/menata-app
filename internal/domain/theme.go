@@ -36,12 +36,45 @@ const (
 // KnownRadiusSteps is the closed set.
 var KnownRadiusSteps = map[RadiusStep]bool{RadiusStepSmall: true, RadiusStepLarge: true, RadiusStepFull: true}
 
+// WeightRole is how strongly a piece of text is set, as a closed set — the second token category.
+//
+// **Two roles, and the measurement is why there are not three.** Counted 2026-10-04: `font-medium` 170 uses,
+// `font-normal` 11, `font-semibold` 2, `font-bold` 1. The inventory's first verdict called the last two
+// accidents to fold into medium — **re-measured per site, that was wrong on both**. `font-bold` sits on the
+// brand mark (`bg-brand`, a 26px glyph), which is 006's *branding*, a separate concern from weight; and the
+// two `font-semibold` are a role heading and an SLA badge, per-site stronger emphasis with no second
+// consistent case. All three stay hand-written, so **this slice moves zero sites** rather than the three the
+// inventory predicted.
+type WeightRole string
+
+const (
+	// WeightBody is ordinary text, explicitly unemphasised — the 11 sites that reset an inherited weight.
+	WeightBody WeightRole = "body"
+	// WeightEmphasis is a heading, a label, a value: the thing a reader should land on. 170 uses, so this is
+	// the default a primitive reaches for.
+	WeightEmphasis WeightRole = "emphasis"
+)
+
+// KnownWeightRoles is the closed set.
+var KnownWeightRoles = map[WeightRole]bool{WeightBody: true, WeightEmphasis: true}
+
+// WeightStep is a step on the weight ladder. Two, because two carry 181 of 184 measured uses.
+type WeightStep string
+
+const (
+	WeightStepNormal WeightStep = "normal"
+	WeightStepMedium WeightStep = "medium"
+)
+
+// KnownWeightSteps is the closed set.
+var KnownWeightSteps = map[WeightStep]bool{WeightStepNormal: true, WeightStepMedium: true}
+
 // Theme is a Workspace's declared token set (006 "Theme": typography, spacing, icons, branding, tokens).
 //
 // **It holds no CSS and no business data.** 006's own warning is that a Theme "must not become a hidden
 // business or data dependency", so this is a mapping between two closed vocabularies and nothing else.
 //
-// **Radius only, and that is a measured boundary rather than a staged rollout.** The full token surface is
+// **Radius and weight only, and that is a measured boundary rather than a staged rollout.** The full token surface is
 // 2,507 usages over 104 values in nine categories (`menata-app-document`'s
 // `audits/2026-10-04-inventaris-token-design-system.md`). Radius is first because its ladder is the cleanest
 // — three values carry 95% of its uses — so this slice proves the whole mechanism, declaration included,
@@ -55,16 +88,34 @@ type Theme struct {
 	// resolved by RadiusFor rather than at load, so the zero Theme — a pre-auth screen, or a Workspace with
 	// no manifest — is a working answer rather than a missing one.
 	Radius map[RadiusRole]RadiusStep
+	// Weight maps every weight role to its step, on the same terms as Radius: an omitted role inherits the
+	// default, resolved by WeightFor rather than at load.
+	Weight map[WeightRole]WeightStep
 }
 
 // DefaultTheme is what the corpus renders today, so adopting Theme changes nothing until a Workspace declares
 // otherwise. Each pair is the class the primitive hardcoded before this file existed.
 func DefaultTheme() Theme {
-	return Theme{Radius: map[RadiusRole]RadiusStep{
-		RadiusControl: RadiusStepSmall, // was rounded-md
-		RadiusSurface: RadiusStepLarge, // was rounded-lg
-		RadiusPill:    RadiusStepFull,  // was rounded-full
-	}}
+	return Theme{
+		Radius: map[RadiusRole]RadiusStep{
+			RadiusControl: RadiusStepSmall, // was rounded-md
+			RadiusSurface: RadiusStepLarge, // was rounded-lg
+			RadiusPill:    RadiusStepFull,  // was rounded-full
+		},
+		Weight: map[WeightRole]WeightStep{
+			WeightBody:     WeightStepNormal, // was font-normal
+			WeightEmphasis: WeightStepMedium, // was font-medium
+		},
+	}
+}
+
+// WeightFor resolves a weight role, falling back to the default for the same reason RadiusFor does: a role
+// with no mapping would otherwise render with no weight class, which is a silent defect.
+func (t Theme) WeightFor(role WeightRole) WeightStep {
+	if s, ok := t.Weight[role]; ok && KnownWeightSteps[s] {
+		return s
+	}
+	return DefaultTheme().Weight[role]
 }
 
 // RadiusFor resolves a role, falling back to the default rather than to the empty string: a role with no

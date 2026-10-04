@@ -42,6 +42,18 @@ func radiusClass(ctx context.Context, role domain.RadiusRole) string {
 	}
 }
 
+// weightClass maps a weight role through this request's Workspace theme, on the same terms as radiusClass.
+func weightClass(ctx context.Context, role domain.WeightRole) string {
+	switch CurrentWorkspace(ctx).Theme.WeightFor(role) {
+	case domain.WeightStepNormal:
+		return "font-normal"
+	case domain.WeightStepMedium:
+		return "font-medium"
+	default:
+		return "font-medium"
+	}
+}
+
 // layoutGap maps a declared Gap onto the spacing steps the measured corpus actually uses. An empty Gap is
 // GapDefault, resolved here rather than requiring every caller to say so.
 func layoutGap(g domain.Gap) string {

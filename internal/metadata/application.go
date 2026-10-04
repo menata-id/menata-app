@@ -49,6 +49,7 @@ type App struct {
 // others arrive one slice each in the order `menata-app-document`'s token inventory sets.
 type themeDoc struct {
 	Radius map[string]string `yaml:"radius"`
+	Weight map[string]string `yaml:"weight"`
 }
 
 // resolveTheme turns the declared block into domain.Theme, reporting every unknown role or step rather than
@@ -73,6 +74,21 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				continue
 			}
 			t.Radius[r] = s
+		}
+	}
+	if len(doc.Weight) > 0 {
+		t.Weight = map[domain.WeightRole]domain.WeightStep{}
+		for role, step := range doc.Weight {
+			r, w := domain.WeightRole(role), domain.WeightStep(step)
+			if !domain.KnownWeightRoles[r] {
+				issues = append(issues, fmt.Sprintf("theme.weight: %q is not a weight role this runtime realizes", role))
+				continue
+			}
+			if !domain.KnownWeightSteps[w] {
+				issues = append(issues, fmt.Sprintf("theme.weight.%s: %q is not a weight step this runtime realizes", role, step))
+				continue
+			}
+			t.Weight[r] = w
 		}
 	}
 	return t, issues
