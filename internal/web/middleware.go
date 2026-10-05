@@ -5,8 +5,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	chimw "github.com/go-chi/chi/v5/middleware"
 
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
@@ -256,36 +260,62 @@ func blockWritesToArchivedWorkspace(store *data.Store) func(http.Handler) http.H
 func queryDiagnostics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx, reads := data.WithReadLog(req.Context())
+		reads.SetRequest(req.Method, req.URL.Path)
+		ww := chimw.NewWrapResponseWriter(w, req.ProtoMajor)
 		started := time.Now()
-		next.ServeHTTP(w, req.WithContext(ctx))
-		elapsed := time.Since(started)
-
-		if reads.Queries() == 0 {
-			return
-		}
-		parts := make([]string, 0, 8)
-		for _, tc := range reads.Breakdown() {
-			if tc.Reads > 1 {
-				parts = append(parts, fmt.Sprintf("%s x%d", tc.Target, tc.Reads))
-				continue
+		completed := false
+		// The line is written from a defer so a request that panics is still reported: chi's
+		// Recoverer sits above this and turns the panic into a 500, but by then this frame has
+		// unwound, so without the defer the most broken request of all was the one line missing.
+		defer func() {
+			status := strconv.Itoa(ww.Status())
+			if !completed {
+				status = "panic"
+			} else if ww.Status() == 0 {
+				status = "200" // net/http's implicit status when a handler writes nothing
 			}
-			parts = append(parts, tc.Target)
-		}
-		// unnamed is the gap described above, printed only when there is one so a healthy line
-		// stays as short as it was.
-		gap := reads.Unnamed()
-		unnamed := ""
-		if gap > 0 {
-			unnamed = fmt.Sprintf(" unnamed=%d", gap)
-		}
-		// writes=, db= and total= close the line, after the bracket, so everything a periodic review parses by
-		// position (count fields, then the path) stays where it was. db is the summed statement time,
-		// total is the handler's wall time; total minus db is what the page spent outside the database.
-		log.Printf("%squeries=%d reads=%d repeated=%d%s %s [%s] writes=%d db=%s total=%s",
-			anomalyPrefix(req.Method, reads.Repeated(), gap),
-			reads.Queries(), reads.Total(), reads.Repeated(), unnamed, req.URL.Path, strings.Join(parts, ", "), reads.Writes(),
-			formatMillis(reads.DBTime()), formatMillis(elapsed))
+			logRequest(req, reads, status, time.Since(started))
+		}()
+		next.ServeHTTP(ww, req.WithContext(ctx))
+		completed = true
 	})
+}
+
+// logRequest prints one request's line. Every request in the authenticated group gets one, a request
+// that issued no query included: a 303 to /login and a 401 are requests too, and before this the log
+// was silent on exactly the traffic that never reached the database.
+func logRequest(req *http.Request, reads *data.ReadLog, status string, elapsed time.Duration) {
+	parts := make([]string, 0, 8)
+	for _, tc := range reads.Breakdown() {
+		if tc.Reads > 1 {
+			parts = append(parts, fmt.Sprintf("%s x%d", tc.Target, tc.Reads))
+			continue
+		}
+		parts = append(parts, tc.Target)
+	}
+	// unnamed is the gap described above, printed only when there is one so a healthy line
+	// stays as short as it was.
+	gap := reads.Unnamed()
+	unnamed := ""
+	if gap > 0 {
+		unnamed = fmt.Sprintf(" unnamed=%d", gap)
+	}
+	// route is chi's matched pattern (/machines/{machineID}/records/{id}), which groups requests the
+	// path cannot: the path carries the id, so a per-route latency over paths has one bucket per
+	// record. It is read after the handler ran, since the mux fills it in while routing. "-" when
+	// nothing matched.
+	route := "-"
+	if rctx := chi.RouteContext(req.Context()); rctx != nil && rctx.RoutePattern() != "" {
+		route = rctx.RoutePattern()
+	}
+	// writes=, db=, total=, method=, status= and route= close the line, after the bracket, so everything
+	// a periodic review parses by position (count fields, then the path) stays where it was. db is the
+	// summed statement time, total is the handler's wall time; total minus db is what the page spent
+	// outside the database.
+	log.Printf("%squeries=%d reads=%d repeated=%d%s %s [%s] writes=%d db=%s total=%s method=%s status=%s route=%s",
+		anomalyPrefix(req.Method, status, reads.Repeated(), gap),
+		reads.Queries(), reads.Total(), reads.Repeated(), unnamed, req.URL.Path, strings.Join(parts, ", "), reads.Writes(),
+		formatMillis(reads.DBTime()), formatMillis(elapsed), req.Method, status, route)
 }
 
 // formatMillis prints a duration as milliseconds with one decimal ("12.3ms"). Whole milliseconds
@@ -317,8 +347,17 @@ const anomalyMarker = "ANOMALY"
 //     composition.Loader's own doc comment forbids one memo from spanning a mutation, so a POST
 //     re-reading after its write is the correct behaviour, not a defect. Flagging it would train
 //     the reader to ignore the marker, which is the only way a marker like this fails.
-func anomalyPrefix(method string, repeated, unnamed int) string {
+//
+//   - **A failed request is always anomalous**: a 5xx status, or a handler that panicked (status
+//     "panic"). Nothing else in this line says a request failed -- a page that errors out early issues
+//     *fewer* queries, so its counts look healthier than a working page's.
+func anomalyPrefix(method, status string, repeated, unnamed int) string {
 	var reasons []string
+	if status == "panic" {
+		reasons = append(reasons, "panic")
+	} else if strings.HasPrefix(status, "5") {
+		reasons = append(reasons, "5xx")
+	}
 	if unnamed > 0 {
 		reasons = append(reasons, "unnamed")
 	}

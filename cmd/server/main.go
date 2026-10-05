@@ -56,6 +56,7 @@ func main() {
 	}
 	defer pool.Close()
 	store := data.NewStore(pool)
+	go db.ReportPool(ctx, pool, poolReportInterval)
 
 	files, err := storage.NewStore(cfg.UploadsDir)
 	if err != nil {
@@ -74,6 +75,11 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+// poolReportInterval is how often db.ReportPool writes its POOL line. Five minutes is frequent
+// enough to place a leak or a saturation window within one review and rare enough (288 lines a day)
+// not to compete with the request lines it sits among.
+const poolReportInterval = 5 * time.Minute
 
 // runScheduler is domain.Event's third trigger shape (Schedule) made real: every interval, for
 // every installed Workspace, it asks execution.RunScheduledEvents to evaluate whatever

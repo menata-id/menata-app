@@ -1,8 +1,13 @@
 package data
 
 import (
+	"bytes"
 	"context"
+	"log"
+	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -52,5 +57,61 @@ func TestUnnamedCountsOnlyReadsThatDidNotNameThemselves(t *testing.T) {
 	log.record("some read")
 	if log.Unnamed() != 0 {
 		t.Errorf("after the read named itself: unnamed=%d, want 0", log.Unnamed())
+	}
+}
+
+// captureLog redirects the standard logger for one test and returns what it received.
+func captureLog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	flags := log.Flags()
+	log.SetFlags(0)
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(os.Stderr); log.SetFlags(flags) })
+	return &buf
+}
+
+func runStatement(tr *QueryTracer, ctx context.Context, sql string, args []any, took time.Duration) {
+	ctx = tr.TraceQueryStart(ctx, nil, pgx.TraceQueryStartData{SQL: sql, Args: args})
+	time.Sleep(took)
+	tr.TraceQueryEnd(ctx, nil, pgx.TraceQueryEndData{})
+}
+
+// TestSlowStatementIsLoggedByTextAndNeverByArguments: the line names the statement and the request,
+// and must not carry a bound value -- args are where emails and record content travel.
+func TestSlowStatementIsLoggedByTextAndNeverByArguments(t *testing.T) {
+	buf := captureLog(t)
+	ctx, rl := WithReadLog(context.Background())
+	rl.SetRequest("GET", "/approval-inbox")
+	tr := &QueryTracer{SlowThreshold: time.Millisecond}
+
+	runStatement(tr, ctx, "\n\t\tSELECT id\n\t\t  FROM records WHERE email = $1", []any{"secret@example.com"}, 5*time.Millisecond)
+
+	line := buf.String()
+	for _, want := range []string{"SLOW-QUERY", "GET /approval-inbox", `sql="SELECT id FROM records WHERE email = $1"`} {
+		if !strings.Contains(line, want) {
+			t.Errorf("slow line lacks %q:\n  %s", want, line)
+		}
+	}
+	if strings.Contains(line, "secret@example.com") {
+		t.Errorf("a bound argument reached the log:\n  %s", line)
+	}
+}
+
+func TestFastOrDisabledStatementsLogNothingSlow(t *testing.T) {
+	buf := captureLog(t)
+	ctx, _ := WithReadLog(context.Background())
+
+	runStatement(&QueryTracer{SlowThreshold: time.Hour}, ctx, "SELECT 1", nil, time.Millisecond)
+	runStatement(&QueryTracer{}, ctx, "SELECT 1", nil, 3*time.Millisecond) // zero threshold = off
+	if buf.Len() != 0 {
+		t.Errorf("nothing was slow, yet the log has: %s", buf.String())
+	}
+}
+
+func TestSlowStatementTextIsTruncated(t *testing.T) {
+	long := "SELECT " + strings.Repeat("a, ", 200) + "z FROM t"
+	if got := squeezeSQL(long); len([]rune(got)) > slowSQLMax+1 {
+		t.Errorf("a %d-rune statement logged as %d runes", len(long), len([]rune(got)))
 	}
 }

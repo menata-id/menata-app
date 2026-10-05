@@ -431,6 +431,16 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `pgx.QueryTracer` it is handed. Both failures are invisible at runtime: the app works, the log
   just quietly reports a smaller number. That is what happened between Phase 18 Step 3 and
   2026-09-22.
+- `TestDiagnosticLineSurvivesAPanicAndMarksIt` / `TestDiagnosticLineCarriesMethodStatusAndRoutePattern` /
+  `TestAnomalyPrefixMarksFailedRequests` / `TestSlowStatementIsLoggedByTextAndNeverByArguments` -- the
+  diagnostic's own contract (2026-10-05), beside the wiring pair above. The line is written from a `defer`
+  because a panic unwinds past a log written after `next.ServeHTTP`: the most broken request was the one
+  line missing, and a page that failed early looked *cheaper* than one that worked. `route=` is chi's
+  pattern, not the path. `SLOW-QUERY` logs SQL text and never arguments. `db.ReportPool`'s `POOL` line
+  marks only `canceled` as an anomaly -- `empty` acquires are normal on a cold pool, and a marker that
+  fires on healthy traffic is the `unnamed` mistake again. A log-review script must pick fields **by
+  name** (`menata-app-document/guides/log-review.md` appendix B), since three line formats coexist in any
+  window that crosses a deploy.
 - `TestGetRoutesDoNotWrite` — no handler registered for GET may reach `CreateRecord`/
   `UpdateRecord`/`DeleteRecord`, walking the call graph across `internal/web` and
   `internal/composition` (the one that prompted this was four calls deep). Exactly one exception

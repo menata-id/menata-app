@@ -20,6 +20,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/go-chi/chi/v5"
+	chimw "github.com/go-chi/chi/v5/middleware"
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -541,7 +543,7 @@ func TestNoGetRouteVariantRepeatsAReadOrLeavesOneUnnamed(t *testing.T) {
 	}
 }
 
-var queryTimingPattern = regexp.MustCompile(`\] writes=\d+ db=([0-9.]+)ms total=([0-9.]+)ms$`)
+var queryTimingPattern = regexp.MustCompile(`\] writes=\d+ db=([0-9.]+)ms total=([0-9.]+)ms method=[A-Z]+ status=(\d+|panic) route=\S+$`)
 
 // TestDiagnosticLineReportsDurations holds the two timing fields the log review of 2026-10-05 found
 // missing (it could say how many statements a page ran but never how long it took). db must be
@@ -588,5 +590,84 @@ func TestAWriteRequestIsNotReportedUnnamed(t *testing.T) {
 	}
 	if strings.Contains(line, "writes=0") {
 		t.Errorf("/logout reported no write -- the test is not reaching the UPDATE it stands for:\n  %s", line)
+	}
+}
+
+// diagnosticLineFor drives one request through queryDiagnostics around h, mounted on a real chi
+// router at pattern so the route pattern exists, and returns the line it logged.
+func diagnosticLineFor(t *testing.T, pattern string, h http.HandlerFunc, method, target string) string {
+	t.Helper()
+	r := chi.NewRouter()
+	r.Use(chimw.Recoverer)
+	r.Group(func(g chi.Router) {
+		g.Use(queryDiagnostics)
+		g.MethodFunc(method, pattern, h)
+	})
+	var buf bytes.Buffer
+	flags := log.Flags()
+	log.SetFlags(0)
+	log.SetOutput(&buf)
+	defer func() { log.SetOutput(os.Stderr); log.SetFlags(flags) }()
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(method, target, nil))
+	for _, l := range strings.Split(buf.String(), "\n") {
+		if strings.Contains(l, "queries=") {
+			return l
+		}
+	}
+	return ""
+}
+
+// TestDiagnosticLineCarriesMethodStatusAndRoutePattern: route= is the pattern, so /things/a and
+// /things/b are one bucket; a request that never touched the database is still a line; and a
+// handler's own status is the one reported.
+func TestDiagnosticLineCarriesMethodStatusAndRoutePattern(t *testing.T) {
+	line := diagnosticLineFor(t, "/things/{id}", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+	}, http.MethodGet, "/things/abc")
+	if line == "" {
+		t.Fatal("a request with no queries logged nothing -- the zero-query traffic is still invisible")
+	}
+	for _, want := range []string{"queries=0 reads=0 repeated=0 /things/abc [] writes=0", "method=GET status=418 route=/things/{id}"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("line lacks %q:\n  %s", want, line)
+		}
+	}
+	if !queryTimingPattern.MatchString(line) {
+		t.Errorf("line does not end in the documented trailing fields:\n  %s", line)
+	}
+
+	implicit := diagnosticLineFor(t, "/quiet", func(http.ResponseWriter, *http.Request) {}, http.MethodGet, "/quiet")
+	if !strings.Contains(implicit, "status=200") {
+		t.Errorf("a handler that wrote nothing is a 200:\n  %s", implicit)
+	}
+}
+
+// TestDiagnosticLineSurvivesAPanicAndMarksIt: the Recoverer above turns a panic into a 500 after this
+// frame has unwound, so without the deferred log the most broken request was the one line missing.
+// Measured 2026-10-05: eight routes panicked in four Workspaces and the diagnostic said nothing.
+func TestDiagnosticLineSurvivesAPanicAndMarksIt(t *testing.T) {
+	line := diagnosticLineFor(t, "/boom", func(http.ResponseWriter, *http.Request) { panic("boom") }, http.MethodGet, "/boom")
+	if !strings.HasPrefix(line, "ANOMALY(panic) ") || !strings.Contains(line, "status=panic") {
+		t.Errorf("a panicking request was not reported as one:\n  %s", line)
+	}
+}
+
+func TestAnomalyPrefixMarksFailedRequests(t *testing.T) {
+	for _, c := range []struct {
+		method, status string
+		repeated, gap  int
+		want           string
+	}{
+		{"GET", "200", 0, 0, ""},
+		{"GET", "404", 0, 0, ""}, // a 404 is an answer, not a failure
+		{"GET", "500", 0, 0, "ANOMALY(5xx) "},
+		{"POST", "503", 0, 0, "ANOMALY(5xx) "},
+		{"GET", "panic", 0, 0, "ANOMALY(panic) "},
+		{"GET", "500", 2, 1, "ANOMALY(5xx,unnamed,repeated) "},
+		{"POST", "200", 2, 0, ""},
+	} {
+		if got := anomalyPrefix(c.method, c.status, c.repeated, c.gap); got != c.want {
+			t.Errorf("anomalyPrefix(%s, %s, %d, %d) = %q, want %q", c.method, c.status, c.repeated, c.gap, got, c.want)
+		}
 	}
 }

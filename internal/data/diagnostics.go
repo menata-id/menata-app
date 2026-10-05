@@ -22,10 +22,14 @@ type ReadLog struct {
 	// byTarget are the named half, recorded by the Store methods themselves. The two are kept
 	// apart rather than merged because their disagreement is the useful signal: queries above
 	// total + writes + control means something issued a read without naming itself.
-	queries  int
-	writes   int
-	control  int
-	dbTime   time.Duration
+	queries int
+	writes  int
+	control int
+	dbTime  time.Duration
+	// method and path say which request this log belongs to, for a line the tracer writes while
+	// the request is still running (SLOW-QUERY), when queryDiagnostics has not printed its own yet.
+	method   string
+	path     string
 	total    int
 	byTarget map[string]int
 }
@@ -47,6 +51,28 @@ func (l *ReadLog) countQuery(kind statementKind) {
 	case kindControl:
 		l.control++
 	}
+}
+
+// SetRequest names the request this log belongs to. See the method/path fields.
+func (l *ReadLog) SetRequest(method, path string) {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.method, l.path = method, path
+}
+
+func (l *ReadLog) request() string {
+	if l == nil {
+		return "-"
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.path == "" {
+		return "-"
+	}
+	return l.method + " " + l.path
 }
 
 // Writes is how many INSERT/UPDATE/DELETE statements the request issued. They are not reads and
