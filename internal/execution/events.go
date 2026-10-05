@@ -240,7 +240,7 @@ func RunEvents(ctx context.Context, svc Services, machines map[string]*domain.Ma
 		return
 	}
 	for _, e := range behavior.MatchedEvents(machine, oldValues, record.Values) {
-		summary := renderEventSummary(e, machine, oldValues, record.Values)
+		summary := renderEventSummaryWith(e, machine, oldValues, record.Values, relationTitles(ctx, svc.Store, machines))
 		runService(ctx, serviceInput{
 			svc: svc, machines: machines, machine: machine, record: record, actorID: actorID, event: e,
 			oldValues: oldValues, summary: summary, activitySummary: summary,
@@ -389,13 +389,55 @@ func rollUpParentStatus(ctx context.Context, svc Services, machines map[string]*
 // vocabulary). SummaryOverride is used instead of Summary when the Event's own Field just became
 // SummaryOverrideWhen.
 func renderEventSummary(e domain.Event, m *domain.Machine, oldValues, newValues map[string]any) string {
+	return renderEventSummaryWith(e, m, oldValues, newValues, func(_ domain.Field, v any) string { return displayString(v) })
+}
+
+// renderEventSummaryWith is renderEventSummary with the way a Field's value becomes text injected, so a
+// dispatcher that can read the store may name a related record instead of printing its id.
+func renderEventSummaryWith(e domain.Event, m *domain.Machine, oldValues, newValues map[string]any, display func(domain.Field, any) string) string {
 	tmpl := e.Then.Summary
 	if e.Then.SummaryOverrideWhen != "" && fmt.Sprint(newValues[e.On]) == e.Then.SummaryOverrideWhen {
 		tmpl = e.Then.SummaryOverride
 	}
-	tmpl = strings.NewReplacer("{old}", displayString(oldValues[e.On]), "{new}", displayString(newValues[e.On])).Replace(tmpl)
+	on, _ := m.FieldByID(e.On)
+	tmpl = strings.NewReplacer("{old}", display(on, oldValues[e.On]), "{new}", display(on, newValues[e.On])).Replace(tmpl)
 	for _, f := range m.Fields {
-		tmpl = strings.ReplaceAll(tmpl, "{"+f.ID+"}", displayString(newValues[f.ID]))
+		tmpl = strings.ReplaceAll(tmpl, "{"+f.ID+"}", display(f, newValues[f.ID]))
 	}
 	return tmpl
+}
+
+// relationTitles returns the display function RunEvents renders summaries with: a `relation` Field's value
+// becomes the related record's `title` (its Machine's own `card_fields:`), so "moved from lst_x to lst_y"
+// reads "moved from Backlog to Pre-production". Anything it cannot resolve -- another Field type, a Machine
+// not in this Workspace, one declaring no title, a record since deleted -- falls back to the stored value,
+// which is what the summary printed before; an unset relation reads "no value" rather than leaving a gap.
+//
+// One read per relation placeholder, and only when an Event actually fires.
+func relationTitles(ctx context.Context, store *data.Store, machines map[string]*domain.Machine) func(domain.Field, any) string {
+	return func(f domain.Field, v any) string {
+		raw := displayString(v)
+		if f.Type != domain.FieldTypeRelation {
+			return raw
+		}
+		if raw == "" {
+			return "no value"
+		}
+		related := machines[f.RelatedMachine]
+		if related == nil || store == nil {
+			return raw
+		}
+		titleField := related.CardFieldFor(domain.CardFieldRoleTitle)
+		if titleField == "" {
+			return raw
+		}
+		rec, err := store.GetRecord(ctx, related.ID, raw)
+		if err != nil || rec == nil {
+			return raw
+		}
+		if title := displayString(rec.Values[titleField]); title != "" {
+			return title
+		}
+		return raw
+	}
 }

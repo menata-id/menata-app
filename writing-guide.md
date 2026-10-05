@@ -688,6 +688,11 @@ values; any other `{field_id}` in braces is that field's current (post-write) va
 placeholder substitution is deliberately not a general templating language — the same minimalism
 `internal/expression`'s `equals`/`not_equals` vocabulary already established for Constraint.
 
+A placeholder for a `relation` Field reads as the related record's own title — its Machine's
+`card_fields:` `title` role — not its id, so `on: fld_list` with `moved from {old} to {new}` logs
+"moved from Backlog to Pre-production" (`mch_task`'s `evt_task_list_changed`). A record that no longer
+resolves, or a Machine with no `title` role, falls back to the stored id; an unset relation reads "no value".
+
 Two things this is *not*: leaving `when_equals` off (the field above doesn't set one) means "any
 change fires it" — unlike Constraint, where `when_equals` is required, because a Constraint gates
 one specific transition while an Event merely observes one. And `summary_override`/

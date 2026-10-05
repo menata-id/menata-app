@@ -442,3 +442,77 @@ func TestRunScheduledEvents_skipsNotOverdueAndDecided(t *testing.T) {
 		t.Errorf("sent email to %v, want none", spy.sent)
 	}
 }
+
+// TestRunEvents_relationChangeNamesTheRelatedRecordsByTitle pins what evt_task_list_changed relies on: a
+// `relation` Field's {old}/{new} read as the related record's own title, not its id -- and fall back to the
+// stored value when that cannot be resolved, rather than leaving a hole in the history.
+func TestRunEvents_relationChangeNamesTheRelatedRecordsByTitle(t *testing.T) {
+	pool := testPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+
+	ws, err := store.CreateWorkspace(ctx, "Relation Title Test", "relation-title-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupTest(t, pool, ws.ID, "unused_relation_title_test@example.com")
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	backlog, err := store.CreateRecord(wsCtx, "mch_list_fixture", map[string]any{"fld_name": "Backlog"})
+	if err != nil {
+		t.Fatalf("CreateRecord(list): %v", err)
+	}
+	doing, err := store.CreateRecord(wsCtx, "mch_list_fixture", map[string]any{"fld_name": "Pre-production"})
+	if err != nil {
+		t.Fatalf("CreateRecord(list): %v", err)
+	}
+
+	listMachine := &domain.Machine{
+		ID:         "mch_list_fixture",
+		Fields:     []domain.Field{{ID: "fld_name", Type: domain.FieldTypeText}},
+		CardFields: []domain.CardField{{Field: "fld_name", Role: domain.CardFieldRoleTitle}},
+	}
+	taskMachine := &domain.Machine{
+		ID: "mch_task_fixture",
+		Fields: []domain.Field{
+			{ID: "fld_title", Type: domain.FieldTypeText},
+			{ID: "fld_list", Type: domain.FieldTypeRelation, RelatedMachine: "mch_list_fixture"},
+		},
+		Events: []domain.Event{{
+			ID: "evt_list_changed_fixture", On: "fld_list",
+			Then: domain.Service{Name: domain.ServiceLogActivity, Summary: `"{fld_title}" moved from {old} to {new}`},
+		}},
+	}
+	machines := map[string]*domain.Machine{listMachine.ID: listMachine, taskMachine.ID: taskMachine}
+
+	move := func(from, to any) string {
+		t.Helper()
+		RunEvents(wsCtx, Services{Store: store}, machines, taskMachine,
+			&data.Record{ID: "tsk_1", Values: map[string]any{"fld_title": "Lock schedule", "fld_list": to}},
+			"", map[string]any{"fld_title": "Lock schedule", "fld_list": from}, true)
+		rows, err := store.ListRecords(wsCtx, "mch_activity")
+		if err != nil {
+			t.Fatalf("ListRecords(mch_activity): %v", err)
+		}
+		if len(rows) == 0 {
+			t.Fatal("the move logged nothing")
+		}
+		last := rows[len(rows)-1]
+		for _, r := range rows {
+			if r.CreatedAt.After(last.CreatedAt) {
+				last = r
+			}
+		}
+		return displayString(last.Values["fld_summary"])
+	}
+
+	if got, want := move(backlog.ID, doing.ID), `"Lock schedule" moved from Backlog to Pre-production`; got != want {
+		t.Errorf("summary = %q, want %q", got, want)
+	}
+	if got, want := move("", doing.ID), `"Lock schedule" moved from no value to Pre-production`; got != want {
+		t.Errorf("an unset old list: summary = %q, want %q", got, want)
+	}
+	if got, want := move(backlog.ID, "lst_deleted"), `"Lock schedule" moved from Backlog to lst_deleted`; got != want {
+		t.Errorf("a list that no longer resolves: summary = %q, want %q", got, want)
+	}
+}

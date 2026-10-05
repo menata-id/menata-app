@@ -48,6 +48,14 @@ events:
       summary: "\"{fld_title}\" moved from {old} to {new}"
       summary_override_when: done
       summary_override: "\"{fld_title}\" completed"
+  # A Task moved to another List (Case 19 PM01/PM02: a drag, or the Move panel). `{old}`/`{new}` name the
+  # Lists, not their ids -- a `relation` Field's value is resolved through the related Machine's own
+  # `card_fields: title` (execution.relationTitles), so no template has to know which Machine it points at.
+  - id: evt_task_list_changed
+    on: fld_list
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" moved from {old} to {new}"
   # A Task logs its own creation (2026-09-19), generalized from internal/web's own hardcoded
   # logRecordCreated switch into the same declared Event mechanism evt_task_status_changed above
   # already proved -- the on_create shape's own worked example.

@@ -603,6 +603,18 @@ func (m *Machine) DatasetByID(id string) (Dataset, bool) {
 }
 
 // FieldByID returns the Field with the given id, if m declares one.
+// CardFieldFor is the id of the Field this Machine's `card_fields:` assigns to role, or "" when it declares
+// none. It lives here rather than in internal/composition so the Execution Plane can ask the same question
+// without importing the plane that composes screens.
+func (m *Machine) CardFieldFor(role CardFieldRole) string {
+	for _, cf := range m.CardFields {
+		if cf.Role == role {
+			return cf.Field
+		}
+	}
+	return ""
+}
+
 func (m *Machine) FieldByID(id string) (Field, bool) {
 	for _, f := range m.Fields {
 		if f.ID == id {

@@ -112,12 +112,7 @@ func ProjectedByRole(m *domain.Machine, r *data.Record, relations rendering.Rela
 // Empty when the Machine declares no such role, and a caller reading Values[""] gets nil, which every
 // one of them already handles as "not set".
 func FieldForRole(m *domain.Machine, role domain.CardFieldRole) string {
-	for _, cf := range m.CardFields {
-		if cf.Role == role {
-			return cf.Field
-		}
-	}
-	return ""
+	return m.CardFieldFor(role)
 }
 
 // IsComplete reports whether r holds the value m declares as "finished" (domain.Completion). A Machine
