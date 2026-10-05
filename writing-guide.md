@@ -1284,8 +1284,8 @@ Every item on the left, any new Machine gets automatically, purely from YAML. Ev
 right is real, working code in this app, but wired to specific Machine ids in Go — declaring
 similar-looking metadata for a *different* Machine does not activate it.
 
-> **One Theme token is declarable, and it is the first thing in this app a Workspace can restyle from
-> YAML.** A Workspace manifest may carry:
+> **Six Theme token categories are declarable, and they are the first things in this app a Workspace can
+> restyle from YAML.** A Workspace manifest may carry:
 >
 > ```yaml
 > theme:
@@ -1312,7 +1312,19 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     surface: soft     # panels, sections, cards, tables (default: soft)
 >     control: defined  # inputs and other controls       (default: defined)
 >     divider: faint    # row separators in lists/tables  (default: faint)
+>   tone:
+>     neutral: grey        # a badge with no particular meaning  (default: grey)
+>     info:    blue        # informational                       (default: blue)
+>     good:    green       # success / approved                  (default: green)
+>     bad:     red         # failure / overdue                   (default: red)
+>     warn:    amber       # needs attention                     (default: amber)
+>     muted:   grey-faint  # de-emphasised                       (default: grey-faint)
 > ```
+>
+> `tone:` maps each semantic tone to a **palette**, and a palette is a background *and* text colour as one
+> pair -- you cannot declare one without the other, so a badge never becomes unreadable. Palettes:
+> `grey`, `grey-faint`, `blue`, `green`, `red`, `amber`. Like `gap:` it needs no role of its own, because the
+> tone *is* the role.
 >
 > `gap:` is the one category shaped differently: it maps a **spacing step straight to an amount**, because a
 > caller already says `tight` rather than a raw class — there is no role to invent. Amounts, smallest first:
@@ -1321,10 +1333,10 @@ similar-looking metadata for a *different* Machine does not activate it.
 > The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
 > `medium` is the one no role claims by default.
 >
-> All three roles and all three steps are closed sets: an unknown value is a **load error**, not a silent
+> Every role, step and palette is a closed set: an unknown value is a **load error**, not a silent
 > default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the
 > default — which is exactly what the app rendered before Theme existed, so adding the key changes nothing
-> until you change a value. Four other token categories (text and background colour, padding, shadow) are **not** declarable yet; the order they arrive in is set by
+> until you change a value. Three other token categories (text colour, background colour, padding) are **not** declarable yet, and shadow is deliberately not a category (six uses in total); the order they arrive in is set by
 > `menata-app-document/audits/2026-10-04-inventaris-token-design-system.md`.
 
 > **A screen's own layout is on neither side yet, and that is worth stating so nothing here is

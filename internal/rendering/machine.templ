@@ -320,15 +320,7 @@ templ truncationNotice(t Truncation) {
 // semantic or structural identity rather than one business case", and `pill` names the shape of the
 // element -- a rename of the element would have been a rename of the vocabulary.
 templ statusBadge(label string, tone domain.BadgeTone) {
-	<span
-		class={ "inline-flex items-center px-2.5 py-1 whitespace-nowrap", textClass(ctx, domain.RoleLabel), radiusClass(ctx, domain.RadiusPill),
-			templ.KV("bg-slate-100 text-slate-600", tone == domain.ToneNeutral),
-			templ.KV("bg-blue-50 text-blue-700", tone == domain.ToneInfo),
-			templ.KV("bg-emerald-50 text-emerald-700", tone == domain.ToneGood),
-			templ.KV("bg-red-50 text-red-700", tone == domain.ToneBad),
-			templ.KV("bg-amber-50 text-amber-800", tone == domain.ToneWarn),
-			templ.KV("bg-slate-50 text-slate-400", tone == domain.ToneMuted) }
-	>
+	<span class={ "inline-flex items-center px-2.5 py-1 whitespace-nowrap", textClass(ctx, domain.RoleLabel), radiusClass(ctx, domain.RadiusPill), toneClass(ctx, tone) }>
 		{ label }
 	</span>
 }

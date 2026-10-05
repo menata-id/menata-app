@@ -53,6 +53,7 @@ type themeDoc struct {
 	Text   map[string]string `yaml:"text"`
 	Gap    map[string]string `yaml:"gap"`
 	Border map[string]string `yaml:"border"`
+	Tone   map[string]string `yaml:"tone"`
 }
 
 // resolveTheme turns the declared block into domain.Theme, reporting every unknown role or step rather than
@@ -137,6 +138,21 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				continue
 			}
 			t.Border[r] = b
+		}
+	}
+	if len(doc.Tone) > 0 {
+		t.Tone = map[domain.BadgeTone]domain.TonePalette{}
+		for tone, palette := range doc.Tone {
+			n, pal := domain.BadgeTone(tone), domain.TonePalette(palette)
+			if !domain.KnownBadgeTones[n] {
+				issues = append(issues, fmt.Sprintf("theme.tone: %q is not a semantic tone this runtime realizes", tone))
+				continue
+			}
+			if !domain.KnownTonePalettes[pal] {
+				issues = append(issues, fmt.Sprintf("theme.tone.%s: %q is not a palette this runtime realizes", tone, palette))
+				continue
+			}
+			t.Tone[n] = pal
 		}
 	}
 	return t, issues

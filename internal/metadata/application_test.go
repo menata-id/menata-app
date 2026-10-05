@@ -1596,3 +1596,26 @@ func TestDecodeStrict_acceptsMapKeys(t *testing.T) {
 		t.Errorf("roles[signature] = %q, want mch_ttd", got)
 	}
 }
+
+// TestResolveTheme_tone holds the `theme.tone` block's two closed sets. Both fail **closed**: an unknown tone
+// or palette is a load issue, not a silently ignored key, so a typo cannot ship as a badge that kept its old
+// colour while the author believed it changed.
+func TestResolveTheme_tone(t *testing.T) {
+	th, issues := resolveTheme(&themeDoc{Tone: map[string]string{"warn": "red", "muted": "grey"}})
+	if len(issues) != 0 {
+		t.Fatalf("a valid tone block reported issues: %v", issues)
+	}
+	if th.Tone[domain.ToneWarn] != domain.PaletteRed || th.Tone[domain.ToneMuted] != domain.PaletteGrey {
+		t.Errorf("declared entries not resolved: %v", th.Tone)
+	}
+
+	_, issues = resolveTheme(&themeDoc{Tone: map[string]string{"alarming": "red"}})
+	if len(issues) != 1 || !strings.Contains(issues[0], "theme.tone") || !strings.Contains(issues[0], "alarming") {
+		t.Errorf("an unknown tone should be one load issue naming it; got %v", issues)
+	}
+
+	_, issues = resolveTheme(&themeDoc{Tone: map[string]string{"warn": "chartreuse"}})
+	if len(issues) != 1 || !strings.Contains(issues[0], "chartreuse") {
+		t.Errorf("an unknown palette should be one load issue naming it; got %v", issues)
+	}
+}

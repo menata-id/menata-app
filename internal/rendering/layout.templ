@@ -90,6 +90,30 @@ func borderClass(ctx context.Context, role domain.BorderRole) string {
 	}
 }
 
+// toneClass maps a semantic tone to its background and text pair, through this request's Workspace theme.
+//
+// Returns both classes as one string because a palette **is** the pair: splitting them would let a Workspace
+// declare a background without its text colour and produce an unreadable badge, which is the kind of
+// half-valid state a closed set exists to prevent.
+func toneClass(ctx context.Context, tone domain.BadgeTone) string {
+	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
+	case domain.PaletteGrey:
+		return "bg-slate-100 text-slate-600"
+	case domain.PaletteGreyFaint:
+		return "bg-slate-50 text-slate-400"
+	case domain.PaletteBlue:
+		return "bg-blue-50 text-blue-700"
+	case domain.PaletteGreen:
+		return "bg-emerald-50 text-emerald-700"
+	case domain.PaletteRed:
+		return "bg-red-50 text-red-700"
+	case domain.PaletteAmber:
+		return "bg-amber-50 text-amber-800"
+	default:
+		return "bg-slate-100 text-slate-600"
+	}
+}
+
 // layoutGap maps a declared Gap onto the spacing steps the measured corpus actually uses. An empty Gap is
 // GapDefault, resolved here rather than requiring every caller to say so.
 func layoutGap(ctx context.Context, g domain.Gap) string {

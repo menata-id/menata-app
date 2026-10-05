@@ -162,12 +162,45 @@ const (
 // KnownBorderShades is the closed set.
 var KnownBorderShades = map[BorderShade]bool{BorderFaint: true, BorderSoft: true, BorderDefined: true}
 
+// TonePalette is the colour family a semantic tone renders in — the sixth token category, and the one that
+// **moves an existing enum into the Theme rather than adding a new vocabulary**.
+//
+// `BadgeTone` already was a role set (neutral/info/good/bad/warn/muted) and each of its six members was
+// already a **bg+text pair** hardcoded in `statusBadge`: `bg-amber-50 text-amber-800`,
+// `bg-red-50 text-red-700`, and so on. So this is the same shape `Gap` has -- the role exists, only the
+// amount was fixed -- and the entry maps tone straight to palette with no second role vocabulary.
+//
+// **Why this had to come before text and background colour** (decision D1 in `menata-app-document`'s
+// `guides/design-system-decisions.md`): those six pairs own 42 of the `-50` tint uses and ~36 of the semantic
+// text-colour uses. Defining colour roles first would have produced roles overlapping these tones, then
+// required unpicking. And without it a Workspace could remap its surface backgrounds but **not** its badge
+// colours, a split nobody could be told.
+//
+// Six palettes, 1:1 with the six tones by default. Two are grey at different intensities, which is why the
+// palette is named rather than being a bare colour: `grey` and `grey-faint` are one family, two jobs.
+type TonePalette string
+
+const (
+	PaletteGrey      TonePalette = "grey"
+	PaletteGreyFaint TonePalette = "grey-faint"
+	PaletteBlue      TonePalette = "blue"
+	PaletteGreen     TonePalette = "green"
+	PaletteRed       TonePalette = "red"
+	PaletteAmber     TonePalette = "amber"
+)
+
+// KnownTonePalettes is the closed set.
+var KnownTonePalettes = map[TonePalette]bool{
+	PaletteGrey: true, PaletteGreyFaint: true, PaletteBlue: true,
+	PaletteGreen: true, PaletteRed: true, PaletteAmber: true,
+}
+
 // Theme is a Workspace's declared token set (006 "Theme": typography, spacing, icons, branding, tokens).
 //
 // **It holds no CSS and no business data.** 006's own warning is that a Theme "must not become a hidden
 // business or data dependency", so this is a mapping between two closed vocabularies and nothing else.
 //
-// **Radius, weight, text size, gap and border colour only, and that is a measured boundary rather than a staged rollout.** The full token surface is
+// **Radius, weight, text size, gap, border colour and semantic tone only, and that is a measured boundary rather than a staged rollout.** The full token surface is
 // 2,507 usages over 104 values in nine categories (`menata-app-document`'s
 // `audits/2026-10-04-inventaris-token-design-system.md`). Radius is first because its ladder is the cleanest
 // — three values carry 95% of its uses — so this slice proves the whole mechanism, declaration included,
@@ -191,6 +224,9 @@ type Theme struct {
 	Gap map[Gap]GapAmount
 	// Border maps each border role to its shade.
 	Border map[BorderRole]BorderShade
+	// Tone maps each semantic badge tone to the palette it renders in. Like Gap, this needs no role
+	// vocabulary: BadgeTone already is the role.
+	Tone map[BadgeTone]TonePalette
 }
 
 // DefaultTheme is what the corpus renders today, so adopting Theme changes nothing until a Workspace declares
@@ -225,7 +261,24 @@ func DefaultTheme() Theme {
 			BorderControl: BorderDefined, // was border-slate-300
 			BorderDivider: BorderFaint,   // was border-slate-100
 		},
+		Tone: map[BadgeTone]TonePalette{
+			ToneNeutral: PaletteGrey,      // was bg-slate-100 text-slate-600
+			ToneInfo:    PaletteBlue,      // was bg-blue-50 text-blue-700
+			ToneGood:    PaletteGreen,     // was bg-emerald-50 text-emerald-700
+			ToneBad:     PaletteRed,       // was bg-red-50 text-red-700
+			ToneWarn:    PaletteAmber,     // was bg-amber-50 text-amber-800
+			ToneMuted:   PaletteGreyFaint, // was bg-slate-50 text-slate-400
+		},
 	}
+}
+
+// ToneFor resolves a semantic tone to its palette, falling back to the default for the same reason RadiusFor
+// does.
+func (t Theme) ToneFor(tone BadgeTone) TonePalette {
+	if p, ok := t.Tone[tone]; ok && KnownTonePalettes[p] {
+		return p
+	}
+	return DefaultTheme().Tone[tone]
 }
 
 // BorderFor resolves a border role, falling back to the default for the same reason RadiusFor does.

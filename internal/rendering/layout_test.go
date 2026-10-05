@@ -223,6 +223,31 @@ func TestStatusBadge_rendersEachDeclaredTone(t *testing.T) {
 	}
 }
 
+// TestStatusBadge_followsTheWorkspaceTheme is the proof that a tone's colour is declarable and not just
+// mapped: the same tone renders a different palette under a Workspace that declares one, with no recompile.
+// It also pins the property that makes `theme.tone` safe to partially declare -- remapping one tone leaves the
+// other five exactly as they were.
+func TestStatusBadge_followsTheWorkspaceTheme(t *testing.T) {
+	ws := domain.Workspace{Slug: "test", Theme: domain.Theme{Tone: map[domain.BadgeTone]domain.TonePalette{
+		domain.ToneWarn: domain.PaletteRed,
+	}}}
+	ctx := WithCurrentWorkspace(context.Background(), ws, "Test Workspace", false)
+
+	render := func(tone domain.BadgeTone) string {
+		var buf bytes.Buffer
+		if err := statusBadge("X", tone).Render(ctx, &buf); err != nil {
+			t.Fatalf("%s: Render() error = %v", tone, err)
+		}
+		return buf.String()
+	}
+	if got := render(domain.ToneWarn); !strings.Contains(got, "bg-red-50 text-red-700") || strings.Contains(got, "amber") {
+		t.Errorf("a declared warn=red should draw red and no amber; got %q", got)
+	}
+	if got := render(domain.ToneGood); !strings.Contains(got, "bg-emerald-50 text-emerald-700") {
+		t.Errorf("an undeclared tone should keep its default under a partial theme; got %q", got)
+	}
+}
+
 func TestSlaBadge_rendersNothingWhenAbsent(t *testing.T) {
 	var buf bytes.Buffer
 	if err := slaBadge(experience.SLABadge{}).Render(context.Background(), &buf); err != nil {

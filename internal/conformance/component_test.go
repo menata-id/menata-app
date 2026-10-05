@@ -48,13 +48,22 @@ func TestComponentRegistryAndRenderersAgree(t *testing.T) {
 		}
 	}
 
-	// And the tone vocabulary, held the same both-ends way the Layout primitives' is: a tone the renderer
-	// cannot draw renders as no colour at all, and a tone nothing names is one more class in the shipped
-	// bundle for nothing. `ToneMuted` is the member that proves the second half is worth checking -- it
-	// exists for a measured reason (52 of 65 inference rows are correctly "not applicable", and drawing them
-	// at full weight buried the two that mattered), not for symmetry.
+	// And the tone vocabulary, held at both ends -- which are no longer the same two ends they were.
+	//
+	// A tone used to be drawn by a `.templ` switch naming it, so "some .templ names this tone" meant "the
+	// renderer can draw it". Since 2026-10-05 a tone resolves through the Workspace's Theme to a *palette*,
+	// and it is the palette the renderer draws, so the renderer's half of the check moves to the palettes. A
+	// palette no arm draws renders as the fallback colour, and a palette nothing draws is a class in the
+	// bundle for nothing.
+	//
+	// The tone's own half is not "a .templ names it" any more -- `ToneWarn` is named by no `.templ` and is
+	// correct, because Composition produces it as data (`composition.toneFor`) and the Page passes `row.Tone`
+	// through (007 §4.4). That is **why the old check read as satisfied for ToneWarn**: it was named by the
+	// renderer's own switch, which proved the renderer could draw it and said nothing about anyone producing
+	// it. Retargeting it to producers measures the thing the old wording only implied. See
+	// TestEveryBadgeToneHasAProducer.
 	for setName, members := range map[string][]string{
-		"KnownBadgeTones":      toneIdents(),
+		"KnownTonePalettes":    paletteIdents(),
 		"KnownAvatarSizes":     {"domain.AvatarInline", "domain.AvatarLead"},
 		"KnownAvatarPresences": {"domain.AvatarPresent", "domain.AvatarPending"},
 	} {
@@ -71,14 +80,78 @@ func TestComponentRegistryAndRenderersAgree(t *testing.T) {
 	}
 }
 
-// toneIdents turns every declared BadgeTone into the Go identifier a .templ would name it by, read out of the
-// closed set rather than retyped -- so a tone added to domain and not drawn fails without anyone editing this.
-func toneIdents() []string {
-	out := make([]string, 0, len(domain.KnownBadgeTones))
-	for tone := range domain.KnownBadgeTones {
-		out = append(out, "domain.Tone"+strings.ToUpper(string(tone)[:1])+string(tone)[1:])
+// paletteIdents turns every declared TonePalette into the Go identifier a .templ would name it by, read out of
+// the closed set rather than retyped -- so a palette added to domain and not drawn fails without anyone
+// editing this.
+func paletteIdents() []string {
+	out := make([]string, 0, len(domain.KnownTonePalettes))
+	for p := range domain.KnownTonePalettes {
+		parts := strings.Split(string(p), "-")
+		for i := range parts {
+			parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+		}
+		out = append(out, "domain.Palette"+strings.Join(parts, ""))
 	}
 	return out
+}
+
+// TestEveryBadgeToneHasAProducer is the half of the tone check that a tone resolved through Theme cannot get
+// from the renderer: **who produces this value.**
+//
+// A tone reaches `statusBadge` two ways -- a `.templ` call site naming it, or Composition resolving it as data
+// and the Page passing it through. A grep of `.templ` call sites sees only the first, and read `ToneWarn` as
+// having no caller when `composition.toneFor` returns it for `input unavailable`, one of the two statuses
+// `TestInstalledCastsExplainWithoutDefects` exists to catch. So this counts a tone as produced when any
+// non-test, non-generated source **outside `internal/domain`** names it on a non-comment line.
+//
+// `internal/domain` is excluded because it is where the closed set and `DefaultTheme` live: a tone named only
+// there is declared, not produced, which is the shape-before-need the old check was reaching for.
+func TestEveryBadgeToneHasAProducer(t *testing.T) {
+	produced := map[string][]string{}
+	for tone := range domain.KnownBadgeTones {
+		produced[string(tone)] = nil
+	}
+	root := filepath.Join(repoRoot(), "internal")
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		name := info.Name()
+		if strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_templ.go") ||
+			!(strings.HasSuffix(name, ".go") || strings.HasSuffix(name, ".templ")) {
+			return nil
+		}
+		if rel, _ := filepath.Rel(root, path); strings.HasPrefix(rel, "domain"+string(filepath.Separator)) {
+			return nil
+		}
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		var code strings.Builder
+		for _, line := range strings.Split(string(body), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "//") {
+				continue
+			}
+			code.WriteString(line)
+			code.WriteByte('\n')
+		}
+		for tone := range produced {
+			ident := "domain.Tone" + strings.ToUpper(tone[:1]) + tone[1:]
+			if regexp.MustCompile(regexp.QuoteMeta(ident) + `\b`).MatchString(code.String()) {
+				produced[tone] = append(produced[tone], name)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk internal: %v", err)
+	}
+	for tone, files := range produced {
+		if len(files) == 0 {
+			t.Errorf("domain.Tone%s is named by no source outside internal/domain -- a tone nothing produces is a Theme entry and a palette arm for nothing; delete it, or find who should be producing it before concluding that", strings.ToUpper(tone[:1])+tone[1:])
+		}
+	}
 }
 
 // TestRegisteredComponentsStayBounded is the gate 007 §12.3 asks for by name: *"A Component MUST expose a
