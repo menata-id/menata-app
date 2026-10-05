@@ -154,7 +154,7 @@ templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, swit
 // vocabulary, and keeping the mapping here is what lets both exist without either knowing the other's
 // words (007 §12.3's boundedness rule).
 templ reviewStatusPill(status string) {
-	@statusBadge(status, reviewStatusTone(status))
+	@statusBadge(status, reviewStatusTone(status), domain.BadgeRegular)
 }
 
 // reviewStatusTone maps a Document's status to a tone. Unknown values fall through to neutral rather
@@ -310,9 +310,7 @@ templ reviewSignaturePanel(v ReviewView) {
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 			<h2 class="m-0 text-sm font-medium">Signature positions</h2>
 			if v.SignatureStepCount > 0 {
-				<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs whitespace-nowrap text-slate-600">
-					{ fmt.Sprintf("%d of %d signed", v.SignatureSignedCount, v.SignatureStepCount) }
-				</span>
+				@statusBadge(fmt.Sprintf("%d of %d signed", v.SignatureSignedCount, v.SignatureStepCount), domain.ToneNeutral, domain.BadgeRegular)
 			}
 		}
 		if v.SignaturePage == 0 {
@@ -475,7 +473,7 @@ templ reviewDecisionBar(v ReviewView) {
 				}
 			</form>
 		} else if v.Decision != action.DecisionPending {
-			<span class="rounded-full bg-slate-100 px-3 py-1 text-2xs text-slate-600">{ v.Decision }</span>
+			@statusBadge(v.Decision, domain.ToneNeutral, domain.BadgeRegular)
 		} else {
 			<span class="text-2xs text-slate-400">Awaiting its own assignee's decision</span>
 		}

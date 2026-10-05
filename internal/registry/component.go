@@ -143,6 +143,9 @@ var statusBadgeContract = domain.ComponentContract{
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "tone", Kind: "BadgeTone", Required: true},
+		// Optional, unlike Avatar's: an unset size is `regular`, which is what every badge was before the
+		// input existed, so a composed node written earlier keeps meaning what it meant.
+		{Name: "size", Kind: "BadgeSize", Required: false},
 	},
 	// Empty, and this is the load-bearing line of the whole slice. See
 	// domain.ComponentContract.DataRequirements.
@@ -240,6 +243,9 @@ func validateStatusBadge(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(statusBadgeContract, inputs, "StatusBadge")
 	if tone := inputs["tone"]; tone != "" && !domain.KnownBadgeTones[domain.BadgeTone(tone)] {
 		issues = append(issues, fmt.Sprintf("StatusBadge tone %q is not one of the declared tones", tone))
+	}
+	if size := inputs["size"]; size != "" && !domain.KnownBadgeSizes[domain.BadgeSize(size)] {
+		issues = append(issues, fmt.Sprintf("StatusBadge size %q is not one of the declared sizes", size))
 	}
 	return issues
 }

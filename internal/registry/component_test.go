@@ -22,6 +22,17 @@ func TestValidateComponentUse(t *testing.T) {
 			inputs: map[string]string{"label": "OVERDUE", "tone": string(domain.ToneBad)},
 		},
 		{
+			name:   "an unset size is allowed, because unset means regular",
+			typ:    domain.ComponentStatusBadge,
+			inputs: map[string]string{"label": "3", "tone": string(domain.ToneNeutral), "size": string(domain.BadgeCompact)},
+		},
+		{
+			name:   "a size outside the closed set is refused",
+			typ:    domain.ComponentStatusBadge,
+			inputs: map[string]string{"label": "3", "tone": string(domain.ToneNeutral), "size": "jumbo"},
+			want:   `size "jumbo" is not one of the declared sizes`,
+		},
+		{
 			name:   "a missing required input is named",
 			typ:    domain.ComponentStatusBadge,
 			inputs: map[string]string{"tone": string(domain.ToneGood)},

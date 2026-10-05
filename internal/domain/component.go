@@ -116,6 +116,28 @@ var KnownAvatarPresences = map[AvatarPresence]bool{
 	AvatarPending: true,
 }
 
+// BadgeSize is how much room a `StatusBadge` takes around its label, as a closed set for the reason
+// `AvatarSize` is one. Measured over the 15 hand-written grey chips that migrate to it (2026-10-05): six sit in
+// a dense row beside other text (`px-2 py-0.5`) and the other nine are the main thing on their line
+// (`px-2.5 py-1`), which is two steps, not a count to declare.
+//
+// Both are literals inside `rendering.statusBadge` today and become Theme padding steps when the padding
+// category lands (design-system-decisions D4) -- the size is the semantic that stays.
+type BadgeSize string
+
+const (
+	// BadgeRegular is a badge that is the subject of its own line or cell. It is also what an unset size means.
+	BadgeRegular BadgeSize = "regular"
+	// BadgeCompact is a badge sitting in a dense row, where a regular one would outweigh the text beside it.
+	BadgeCompact BadgeSize = "compact"
+)
+
+// KnownBadgeSizes is the closed set.
+var KnownBadgeSizes = map[BadgeSize]bool{
+	BadgeRegular: true,
+	BadgeCompact: true,
+}
+
 // ComponentContract is what §13 asks a Component to declare, as a Go value rather than as prose.
 //
 // **The field that carries the weight is `DataRequirements`, and it carries it by being empty.** §12.3's

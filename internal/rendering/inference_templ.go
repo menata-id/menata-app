@@ -185,7 +185,7 @@ func inferenceSummary(v InferenceView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = statusBadge("nothing to act on", domain.ToneGood).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = statusBadge("nothing to act on", domain.ToneGood, domain.BadgeRegular).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -198,7 +198,7 @@ func inferenceSummary(v InferenceView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = statusBadge("needs attention", domain.ToneBad).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = statusBadge("needs attention", domain.ToneBad, domain.BadgeRegular).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -291,7 +291,7 @@ func inferenceEngineBlock(e InferenceEngine) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if e.Defects > 0 {
-					templ_7745c5c3_Err = statusBadge(pluralRows(e.Defects)+" to act on", domain.ToneBad).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = statusBadge(pluralRows(e.Defects)+" to act on", domain.ToneBad, domain.BadgeRegular).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -384,7 +384,7 @@ func inferenceStepBlock(n InferenceStep) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if n.Defects > 0 {
-					templ_7745c5c3_Err = statusBadge(pluralRows(n.Defects)+" to act on", domain.ToneBad).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = statusBadge(pluralRows(n.Defects)+" to act on", domain.ToneBad, domain.BadgeRegular).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -477,7 +477,7 @@ func inferenceStepBlock(n InferenceStep) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = statusBadge(row.Status, row.Tone).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = statusBadge(row.Status, row.Tone, domain.BadgeRegular).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -557,7 +557,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = statusBadge("uncast", domain.ToneMuted).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = statusBadge("uncast", domain.ToneMuted, domain.BadgeRegular).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -650,7 +650,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = statusBadge(row.Status, row.Tone).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = statusBadge(row.Status, row.Tone, domain.BadgeRegular).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

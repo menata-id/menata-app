@@ -61,7 +61,7 @@ templ taskSection(heading, hint string, rows []TaskRow) {
 		@stackLayout(domain.GapTight) {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 				<h2 class="m-0 text-sm font-medium">{ heading }</h2>
-				<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ fmt.Sprint(len(rows)) }</span>
+				@statusBadge(fmt.Sprint(len(rows)), domain.ToneNeutral, domain.BadgeCompact)
 				if hint != "" {
 					<span class="text-xs text-slate-400">{ hint }</span>
 				}
@@ -112,7 +112,7 @@ templ myTaskRow(t TaskRow) {
 			}
 		</a>
 		if t.ListName != "" {
-			<span class="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ t.ListName }</span>
+			@statusBadge(t.ListName, domain.ToneNeutral, domain.BadgeCompact)
 		}
 		if t.Date.Present {
 			<span class={ "inline-flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-xs", toneClass(ctx, t.Date.Tone) }>
@@ -149,7 +149,7 @@ func taskItems(rows []TaskRow, sla bool) []templ.Component {
 
 templ taskRowItem(t TaskRow, sla bool) {
 	<span>{ t.Title }</span>
-	<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ t.Status }</span>
+	@statusBadge(t.Status, domain.ToneNeutral, domain.BadgeCompact)
 	<span class="text-xs text-slate-400">{ t.ProjectName }</span>
 	if sla {
 		<span class="ml-auto">

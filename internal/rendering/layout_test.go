@@ -210,7 +210,7 @@ func TestStatusBadge_rendersEachDeclaredTone(t *testing.T) {
 	}
 	for tone, classes := range want {
 		var buf bytes.Buffer
-		if err := statusBadge("OVERDUE", tone).Render(context.Background(), &buf); err != nil {
+		if err := statusBadge("OVERDUE", tone, domain.BadgeRegular).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("%s: Render() error = %v", tone, err)
 		}
 		got := buf.String()
@@ -219,6 +219,36 @@ func TestStatusBadge_rendersEachDeclaredTone(t *testing.T) {
 		}
 		if !strings.Contains(got, ">OVERDUE<") {
 			t.Errorf("statusBadge(%q, %s) did not render its label; got %q", "OVERDUE", tone, got)
+		}
+	}
+}
+
+// TestStatusBadge_sizeChoosesTheRoomAroundTheLabel pins what the 2026-10-05 chip slice could not diff: the
+// six compact chips sit on screens whose dev data renders none of them (my-tasks, the activity feed, the
+// workspace home), so the exact class set each size draws is held here instead. The literals are the
+// pre-migration ones -- `px-2 py-0.5` for the six dense-row chips, `px-2.5 py-1` for the nine that were the
+// subject of their line -- so the test reads without git.
+func TestStatusBadge_sizeChoosesTheRoomAroundTheLabel(t *testing.T) {
+	for _, tc := range []struct {
+		size domain.BadgeSize
+		want string
+		not  string
+	}{
+		{domain.BadgeCompact, "px-2 py-0.5", "px-2.5"},
+		{domain.BadgeRegular, "px-2.5 py-1", "py-0.5"},
+		{"", "px-2.5 py-1", "py-0.5"}, // an unset size is regular, never "no padding"
+		{"jumbo", "px-2.5 py-1", "py-0.5"},
+	} {
+		var buf bytes.Buffer
+		if err := statusBadge("3", domain.ToneNeutral, tc.size).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("%q: Render() error = %v", tc.size, err)
+		}
+		got := buf.String()
+		if !strings.Contains(got, tc.want) || strings.Contains(got, tc.not) {
+			t.Errorf("statusBadge(_, _, %q) should carry %q and not %q; got %q", tc.size, tc.want, tc.not, got)
+		}
+		if !strings.Contains(got, "text-2xs rounded-full bg-slate-100 text-slate-600") {
+			t.Errorf("statusBadge(_, _, %q) drew the wrong type/shape/colour; got %q", tc.size, got)
 		}
 	}
 }
@@ -235,7 +265,7 @@ func TestStatusBadge_followsTheWorkspaceTheme(t *testing.T) {
 
 	render := func(tone domain.BadgeTone) string {
 		var buf bytes.Buffer
-		if err := statusBadge("X", tone).Render(ctx, &buf); err != nil {
+		if err := statusBadge("X", tone, domain.BadgeRegular).Render(ctx, &buf); err != nil {
 			t.Fatalf("%s: Render() error = %v", tone, err)
 		}
 		return buf.String()

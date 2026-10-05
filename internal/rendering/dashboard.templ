@@ -81,7 +81,7 @@ templ DashboardPage(c DashboardContent, workspaceName string, viewer Viewer, swi
 										@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
 											<span>{ s.Name }</span>
 											if s.Status != "" {
-												@statusBadge(s.Status, domain.ToneMuted)
+												@statusBadge(s.Status, domain.ToneMuted, domain.BadgeRegular)
 											}
 										}
 									</td>

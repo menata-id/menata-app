@@ -85,12 +85,12 @@ templ inferenceSummary(v InferenceView) {
 	<section class="rounded-lg border border-slate-200 bg-white p-5">
 		if v.Defects == 0 {
 			<div class="flex items-center gap-2 text-sm">
-				@statusBadge("nothing to act on", domain.ToneGood)
+				@statusBadge("nothing to act on", domain.ToneGood, domain.BadgeRegular)
 				<span class="text-slate-500">Every derivation either resolved, or is correctly not this role's question.</span>
 			</div>
 		} else {
 			<div class="flex items-center gap-2 text-sm">
-				@statusBadge("needs attention", domain.ToneBad)
+				@statusBadge("needs attention", domain.ToneBad, domain.BadgeRegular)
 				<span class="text-slate-700">
 					{ pluralRows(v.Defects) } the runtime relies on and cannot explain.
 				</span>
@@ -109,7 +109,7 @@ templ inferenceEngineBlock(e InferenceEngine) {
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			<h2 class="m-0 text-sm font-medium">{ e.Engine }</h2>
 			if e.Defects > 0 {
-				@statusBadge(pluralRows(e.Defects)+" to act on", domain.ToneBad)
+				@statusBadge(pluralRows(e.Defects)+" to act on", domain.ToneBad, domain.BadgeRegular)
 			}
 		}
 		for _, r := range e.Roles {
@@ -126,7 +126,7 @@ templ inferenceStepBlock(n InferenceStep) {
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			<h2 class="m-0 text-sm font-medium">{ n.Step }</h2>
 			if n.Defects > 0 {
-				@statusBadge(pluralRows(n.Defects)+" to act on", domain.ToneBad)
+				@statusBadge(pluralRows(n.Defects)+" to act on", domain.ToneBad, domain.BadgeRegular)
 			}
 		}
 		<div class="overflow-x-auto">
@@ -155,7 +155,7 @@ templ inferenceStepBlock(n InferenceStep) {
 							</td>
 							<td class="py-1.5 pr-3 text-slate-500">{ row.From }</td>
 							<td class="py-1.5">
-								@statusBadge(row.Status, row.Tone)
+								@statusBadge(row.Status, row.Tone, domain.BadgeRegular)
 							</td>
 						</tr>
 					}
@@ -172,7 +172,7 @@ templ inferenceRoleBlock(r InferenceRole) {
 			if r.MachineID != "" {
 				<code class="text-2xs text-slate-500">{ r.MachineID }</code>
 			} else {
-				@statusBadge("uncast", domain.ToneMuted)
+				@statusBadge("uncast", domain.ToneMuted, domain.BadgeRegular)
 			}
 			if !r.Required {
 				<span class="text-2xs text-slate-400">optional role</span>
@@ -206,7 +206,7 @@ templ inferenceRoleBlock(r InferenceRole) {
 							</td>
 							<td class="py-1.5 pr-3 text-slate-500">{ row.From }</td>
 							<td class="py-1.5">
-								@statusBadge(row.Status, row.Tone)
+								@statusBadge(row.Status, row.Tone, domain.BadgeRegular)
 							</td>
 						</tr>
 					}

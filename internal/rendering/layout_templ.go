@@ -1324,7 +1324,7 @@ func uiNode(n ir.UINode) templ.Component {
 		case ir.NodeComponent:
 			switch domain.ComponentType(n.Type) {
 			case domain.ComponentStatusBadge:
-				templ_7745c5c3_Err = statusBadge(n.Props["label"], domain.BadgeTone(n.Props["tone"])).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = statusBadge(n.Props["label"], domain.BadgeTone(n.Props["tone"]), domain.BadgeSize(n.Props["size"])).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

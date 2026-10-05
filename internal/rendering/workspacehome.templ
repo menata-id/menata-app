@@ -192,7 +192,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 				// the shared admin credential's case, which still sees this row because it can open
 				// the destination (the != member split above).
 				if viewer.WorkspaceRole != "" {
-					<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs font-medium text-slate-600">{ viewer.WorkspaceRole }</span>
+					@statusBadge(viewer.WorkspaceRole, domain.ToneNeutral, domain.BadgeCompact)
 				}
 				<span class="grow">You manage { workspaceName }</span>
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="flex shrink-0 items-center gap-1.5 text-blue-600 hover:text-blue-700">

@@ -183,7 +183,7 @@ func DashboardPage(c DashboardContent, workspaceName string, viewer Viewer, swit
 								return templ_7745c5c3_Err
 							}
 							if s.Status != "" {
-								templ_7745c5c3_Err = statusBadge(s.Status, domain.ToneMuted).Render(ctx, templ_7745c5c3_Buffer)
+								templ_7745c5c3_Err = statusBadge(s.Status, domain.ToneMuted, domain.BadgeRegular).Render(ctx, templ_7745c5c3_Buffer)
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}

@@ -135,9 +135,9 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					</div>
 					<div class="flex flex-wrap gap-1 sm:w-32">
 						if m.WorkspaceRole == "admin" {
-							<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">{ m.WorkspaceRole }</span>
+							@statusBadge(m.WorkspaceRole, domain.ToneInfo, domain.BadgeRegular)
 						} else {
-							<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{ displayRole(m.WorkspaceRole) }</span>
+							@statusBadge(displayRole(m.WorkspaceRole), domain.ToneNeutral, domain.BadgeRegular)
 						}
 						// Deactivated (Flow 2 canvas re-audit, ROADMAP.md, 2026-09-27): shown
 						// alongside the role badge, not in place of it -- unlike a pending invite,
@@ -159,7 +159,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 							<span class="text-2xs text-slate-400">Direct</span>
 						}
 						for _, g := range m.Groups {
-							<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">Group: { g.Name }</span>
+							@statusBadge("Group: "+g.Name, domain.ToneNeutral, domain.BadgeCompact)
 						}
 					</div>
 					<div class="sm:w-16">
@@ -346,7 +346,7 @@ templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 				}
 			}
 			for _, g := range m.Groups {
-				<span class="rounded-full bg-slate-100 px-2.5 py-1 text-2xs text-slate-600">+ { g.Name } group</span>
+				@statusBadge("+ "+g.Name+" group", domain.ToneNeutral, domain.BadgeRegular)
 			}
 		}
 	}

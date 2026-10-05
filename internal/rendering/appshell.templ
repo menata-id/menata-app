@@ -1052,7 +1052,7 @@ func activityItems(entries []ActivityEntry) []templ.Component {
 templ activityEntryRow(a ActivityEntry) {
 	<span>{ a.Summary }</span>
 	if a.Actor != "" {
-		<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ a.Actor }</span>
+		@statusBadge(a.Actor, domain.ToneNeutral, domain.BadgeCompact)
 	}
 	<span class="ml-auto text-xs text-slate-400">{ a.When }</span>
 }

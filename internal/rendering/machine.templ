@@ -321,10 +321,20 @@ templ truncationNotice(t Truncation) {
 // This renamed from `statusBadge` the same day. §12.3 asks that Components be "named for reusable
 // semantic or structural identity rather than one business case", and `pill` names the shape of the
 // element -- a rename of the element would have been a rename of the vocabulary.
-templ statusBadge(label string, tone domain.BadgeTone) {
-	<span class={ "inline-flex items-center px-2.5 py-1 whitespace-nowrap", textClass(ctx, domain.RoleLabel), radiusClass(ctx, domain.RadiusPill), toneClass(ctx, tone) }>
+templ statusBadge(label string, tone domain.BadgeTone, size domain.BadgeSize) {
+	<span class={ "inline-flex items-center", badgePadding(size), "whitespace-nowrap", textClass(ctx, domain.RoleLabel), radiusClass(ctx, domain.RadiusPill), toneClass(ctx, tone) }>
 		{ label }
 	</span>
+}
+
+// badgePadding is the one place a badge's room is chosen. An unset or unknown size is the regular one rather
+// than no padding at all -- a badge with no padding is a cut-off label, which is a defect that renders instead
+// of one that fails.
+func badgePadding(size domain.BadgeSize) string {
+	if size == domain.BadgeCompact {
+		return "px-2 py-0.5"
+	}
+	return "px-2.5 py-1"
 }
 
 // avatarClasses maps an avatar's two closed parameters onto the circle it draws. Two switches rather than one
@@ -382,7 +392,7 @@ templ metric(label, value, hint string, tone domain.BadgeTone) {
 // vocabulary, and "overdue" is the caller's word.
 templ slaBadge(b experience.SLABadge) {
 	if b.Present {
-		@statusBadge(b.Label, b.Tone)
+		@statusBadge(b.Label, b.Tone, domain.BadgeRegular)
 	}
 }
 

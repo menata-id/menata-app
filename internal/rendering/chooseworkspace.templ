@@ -3,6 +3,8 @@ package rendering
 import (
 	"fmt"
 	"strings"
+
+	"menata.app/internal/domain"
 )
 
 // WorkspaceChoice is one row on the Choose Workspace screen: a Workspace this identity belongs to,
@@ -88,9 +90,9 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 								<span class="text-xs text-slate-400">{ c.Slug } · { fmt.Sprint(c.MemberCount) } member{ pluralS(c.MemberCount) }</span>
 							</span>
 							if c.Role == "admin" {
-								<span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700">{ capitalizeRole(c.Role) }</span>
+								@statusBadge(capitalizeRole(c.Role), domain.ToneInfo, domain.BadgeRegular)
 							} else {
-								<span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{ capitalizeRole(c.Role) }</span>
+								@statusBadge(capitalizeRole(c.Role), domain.ToneNeutral, domain.BadgeRegular)
 							}
 						</button>
 					</form>
