@@ -222,6 +222,9 @@ func Validate(m *domain.Machine) error {
 		if !domain.KnownCardFieldRoles[cf.Role] {
 			issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q has unknown role %q", m.ID, cf.Field, cf.Role))
 		}
+		if f, ok := fieldsByID[cf.Field]; ok && cf.Role == domain.CardFieldRoleFile && f.Type != domain.FieldTypeFile {
+			issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q has the file role, so it must be a file field, got %q", m.ID, cf.Field, f.Type))
+		}
 	}
 
 	// An append-only Machine that also declares who may edit or delete it is a contradiction the

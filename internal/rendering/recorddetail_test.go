@@ -219,3 +219,47 @@ func TestChecklistSection_HidesWritesFromSomeoneWhoCannotEdit(t *testing.T) {
 		}
 	}
 }
+
+func renderAttachments(t *testing.T, canEdit bool) string {
+	t.Helper()
+	a := &Attachments{ParentField: "fld_task", FileField: "fld_file", Items: []AttachmentItem{
+		{ID: "a", Key: "mch_attachment/fld_file/ab__plan.pdf", Name: "plan.pdf", Kind: "PDF", Added: "02 Oct", Size: "2.4 MB"},
+		{ID: "b", Key: "mch_attachment/fld_file/cd__gone.png", Name: "gone.png", Kind: "PNG", Added: "01 Oct"},
+	}}
+	var buf strings.Builder
+	m := &domain.Machine{ID: "mch_attachment", Name: "Attachments"}
+	if err := attachmentsSection(m, "tsk_1", a, canEdit).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
+}
+
+// Each upload is a row (chip, name, "Added ... · size", Download), the size is dropped rather than faked
+// when unknown, and the add form is a multipart create naming the parent that submits on selection.
+func TestAttachmentsSection_DrawsRowsRemoveAndAddForm(t *testing.T) {
+	out := renderAttachments(t, true)
+	for _, want := range []string{
+		"Attachments", "plan.pdf", ">PDF<", "Added 02 Oct · 2.4 MB", `href="/uploads/mch_attachment/fld_file/ab__plan.pdf"`, "Download",
+		"Added 01 Oct<", // no size: no separator either
+		`hx-delete="/machines/mch_attachment/records/a"`, `hx-target="closest li"`,
+		`hx-post="/machines/mch_attachment/records"`, `hx-encoding="multipart/form-data"`, `hx-trigger="change"`,
+		`name="fld_task" value="tsk_1"`, `type="file" name="fld_file"`, "Add an attachment",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("attachments are missing %q\n%s", want, out)
+		}
+	}
+}
+
+// Someone who cannot edit the Task still sees and downloads the files, with nothing that would be refused.
+func TestAttachmentsSection_HidesWritesFromSomeoneWhoCannotEdit(t *testing.T) {
+	out := renderAttachments(t, false)
+	if !strings.Contains(out, "plan.pdf") || !strings.Contains(out, "Download") {
+		t.Fatal("a read-only list must still show and link its files")
+	}
+	for _, banned := range []string{"hx-delete", "hx-post", "Add an attachment", `type="file"`} {
+		if strings.Contains(out, banned) {
+			t.Errorf("read-only list drew %q", banned)
+		}
+	}
+}

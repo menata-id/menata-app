@@ -918,3 +918,18 @@ func TestValidateCardTags(t *testing.T) {
 		})
 	}
 }
+
+// A `file` card role names the Field an upload lives in, so a Field of any other type is refused at load.
+func TestValidate_FileCardRoleNeedsAFileField(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x", Name: "X",
+		Fields:     []domain.Field{{ID: "fld_t", Name: "T", Type: domain.FieldTypeText}, {ID: "fld_f", Name: "F", Type: domain.FieldTypeFile}},
+		CardFields: []domain.CardField{{Field: "fld_t", Role: domain.CardFieldRoleFile}},
+	}
+	if err := Validate(m); err == nil || !strings.Contains(err.Error(), "must be a file field") {
+		t.Fatalf("a text field in the file role validated: %v", err)
+	}
+	m.CardFields[0].Field = "fld_f"
+	if err := Validate(m); err != nil {
+		t.Fatalf("a file field in the file role was refused: %v", err)
+	}
+}

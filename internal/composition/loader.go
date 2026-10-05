@@ -11,6 +11,7 @@ import (
 	"menata.app/internal/experience"
 	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
+	"menata.app/internal/storage"
 )
 
 // Loader resolves the reads one rendered page needs -- a Machine's relation options, its child
@@ -31,6 +32,9 @@ import (
 type Loader struct {
 	store    *data.Store
 	machines map[string]*domain.Machine
+	// files answers an attachment's size; nil leaves sizes blank, which is what a caller that never draws
+	// attachments (every one but the record detail) wants.
+	files *storage.Store
 
 	listed   map[string][]*data.Record
 	listedBy map[string][]*data.Record
@@ -72,6 +76,12 @@ type Loader struct {
 }
 
 // NewLoader returns a Loader for one request.
+// WithFiles lets the Loader read the size of a stored upload, for the record detail's attachments list.
+func (l *Loader) WithFiles(files *storage.Store) *Loader {
+	l.files = files
+	return l
+}
+
 func NewLoader(store *data.Store, machines map[string]*domain.Machine) *Loader {
 	return &Loader{
 		store:     store,
@@ -537,7 +547,7 @@ func (l *Loader) ChildSections(ctx context.Context, m *domain.Machine, recordID 
 		if err != nil {
 			return nil, err
 		}
-		sections = append(sections, rendering.ChildSection{Machine: cc.Machine, Records: records, Relations: relations, Checklist: checklistFor(cc.Machine, cc.Field.ID, records)})
+		sections = append(sections, rendering.ChildSection{Machine: cc.Machine, Records: records, Relations: relations, Checklist: checklistFor(cc.Machine, cc.Field.ID, records), Attachments: attachmentsFor(cc.Machine, cc.Field.ID, records, l.files)})
 	}
 	return sections, nil
 }

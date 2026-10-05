@@ -2,13 +2,17 @@ package composition
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
 	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
+	"menata.app/internal/storage"
 )
 
 // recordActivityDataset is one record's own history (metadata/activity.yaml, Case 19 PM02). Its two
@@ -128,4 +132,55 @@ func checklistFor(m *domain.Machine, parentField string, records []*data.Record)
 		c.Items = append(c.Items, rendering.ChecklistItem{ID: r.ID, Text: DisplayString(r.Values[text]), Complete: *cardComplete(m, r)})
 	}
 	return c
+}
+
+// attachmentsFor is how a child collection becomes a list of uploaded files: its Machine names the Field
+// holding the upload with the `file` card role. Nil for a Machine that does not, which keeps its table.
+// files may be nil, in which case sizes are left blank.
+func attachmentsFor(m *domain.Machine, parentField string, records []*data.Record, files *storage.Store) *rendering.Attachments {
+	fileField := FieldForRole(m, domain.CardFieldRoleFile)
+	if fileField == "" {
+		return nil
+	}
+	a := &rendering.Attachments{ParentField: parentField, FileField: fileField}
+	for _, r := range records {
+		key := DisplayString(r.Values[fileField])
+		if key == "" {
+			continue
+		}
+		item := rendering.AttachmentItem{ID: r.ID, Key: key, Name: storage.DisplayName(key), Kind: attachmentKind(key), Added: r.CreatedAt.Format("02 Jan")}
+		if files != nil {
+			item.Size = humanSize(files.Size(key))
+		}
+		a.Items = append(a.Items, item)
+	}
+	return a
+}
+
+// attachmentKind is the short type chip a file row carries: its extension, upper-cased and capped at four
+// letters ("PDF", "XLSX"), or "FILE" when it has none.
+func attachmentKind(key string) string {
+	ext := strings.TrimPrefix(strings.ToUpper(filepath.Ext(key)), ".")
+	if ext == "" {
+		return "FILE"
+	}
+	if len(ext) > 4 {
+		ext = ext[:4]
+	}
+	return ext
+}
+
+// humanSize writes a byte count the way the mockup does ("840 KB", "2.4 MB"); 0 is "" so an unreadable file
+// shows no size rather than a wrong one.
+func humanSize(n int64) string {
+	switch {
+	case n <= 0:
+		return ""
+	case n < 1000:
+		return fmt.Sprintf("%d B", n)
+	case n < 1000*1000:
+		return fmt.Sprintf("%d KB", (n+500)/1000)
+	default:
+		return fmt.Sprintf("%.1f MB", float64(n)/1e6)
+	}
 }

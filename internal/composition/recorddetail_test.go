@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
+	"menata.app/internal/storage"
 )
 
 func TestBuildRecordActivity_KeepsTheDatasetOrderAndNamesTheActor(t *testing.T) {
@@ -265,6 +267,66 @@ func TestChecklistFor_NeedsBothDeclarations(t *testing.T) {
 	for name, m := range map[string]*domain.Machine{"no completion": noCompletion, "no title role": noTitle} {
 		if checklistFor(m, "fld_task", nil) != nil {
 			t.Errorf("%s: drawn as a checklist", name)
+		}
+	}
+}
+
+func attachmentMachine() *domain.Machine {
+	return &domain.Machine{ID: "mch_attachment",
+		Fields: []domain.Field{
+			{ID: "fld_task", Type: domain.FieldTypeRelation, RelatedMachine: "mch_task"},
+			{ID: "fld_file", Type: domain.FieldTypeFile},
+		},
+		CardFields: []domain.CardField{{Field: "fld_file", Role: domain.CardFieldRoleFile}},
+	}
+}
+
+// A child Machine giving a file Field the `file` role is a list of uploads: each row carries the name the
+// storage key embeds, the extension as its chip, when the record was made and how big the file on disk is.
+func TestAttachmentsFor_NamesEachUploadAndReadsItsSize(t *testing.T) {
+	files, err := storage.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := files.Save("mch_attachment", "fld_file", "shooting-schedule.pdf", strings.NewReader(strings.Repeat("x", 2_400_000)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	recs := []*data.Record{
+		{ID: "a", CreatedAt: time.Date(2026, 10, 2, 9, 0, 0, 0, time.UTC), Values: map[string]any{"fld_file": key}},
+		{ID: "b", Values: map[string]any{}}, // no upload: not a row
+	}
+	a := attachmentsFor(attachmentMachine(), "fld_task", recs, files)
+	if a == nil || len(a.Items) != 1 || a.ParentField != "fld_task" || a.FileField != "fld_file" {
+		t.Fatalf("attachments = %+v", a)
+	}
+	got := a.Items[0]
+	if got.ID != "a" || got.Name != "shooting-schedule.pdf" || got.Kind != "PDF" || got.Added != "02 Oct" || got.Size != "2.4 MB" || got.Key != key {
+		t.Errorf("item = %+v", got)
+	}
+	if blank := attachmentsFor(attachmentMachine(), "fld_task", recs, nil); blank.Items[0].Size != "" {
+		t.Errorf("a Loader with no store should leave the size blank, got %q", blank.Items[0].Size)
+	}
+}
+
+// Without the role the Machine keeps its table.
+func TestAttachmentsFor_NeedsTheFileRole(t *testing.T) {
+	m := attachmentMachine()
+	m.CardFields = nil
+	if attachmentsFor(m, "fld_task", nil, nil) != nil {
+		t.Error("drawn as attachments with no file role")
+	}
+}
+
+func TestHumanSizeAndKind(t *testing.T) {
+	for n, want := range map[int64]string{0: "", -3: "", 512: "512 B", 36_000: "36 KB", 840_400: "840 KB", 2_400_000: "2.4 MB"} {
+		if got := humanSize(n); got != want {
+			t.Errorf("humanSize(%d) = %q, want %q", n, got, want)
+		}
+	}
+	for key, want := range map[string]string{"m/f/ab__plan.pdf": "PDF", "m/f/ab__book.xlsx": "XLSX", "m/f/ab__notes": "FILE", "m/f/ab__a.markdown": "MARK"} {
+		if got := attachmentKind(key); got != want {
+			t.Errorf("attachmentKind(%q) = %q, want %q", key, got, want)
 		}
 	}
 }

@@ -97,7 +97,7 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 		}
 		// The Loader first, and the record through it: the signature-placement embed below reads this
 		// same Document again, and a direct store read leaves nothing to memoize against.
-		ld := composition.NewLoader(store, machines)
+		ld := composition.NewLoader(store, machines).WithFiles(files)
 		record, err := ld.Record(req.Context(), machine.ID, chi.URLParam(req, "id"))
 		if err != nil {
 			recordError(w, err)
@@ -481,7 +481,7 @@ func passesWriteGuards(w http.ResponseWriter, req *http.Request, store *data.Sto
 // renderRecord re-renders one record after a write, as the detail view or as a table/board row
 // depending on what the HTMX request targeted.
 func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]*domain.Machine, store *data.Store, files *storage.Store, machine *domain.Machine, record *data.Record, actor domain.Actor) {
-	ld := composition.NewLoader(store, machines)
+	ld := composition.NewLoader(store, machines).WithFiles(files)
 	relations, err := ld.RelationOptions(req.Context(), machine)
 	if err != nil {
 		serverError(w, err)

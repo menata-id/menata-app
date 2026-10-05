@@ -1,0 +1,79 @@
+package rendering
+
+import (
+	"fmt"
+
+	"menata.app/internal/domain"
+)
+
+// Attachments is a child collection drawn the way Case 19's PM02 draws a card's files: one row per upload
+// with a type chip, its name, when it was added and how big it is, a Download link and a remove button,
+// then an "Add an attachment" control. Composition resolves it (composition.attachmentsFor) for a child
+// Machine that declares a `file` card field, so the page names no Field id.
+type Attachments struct {
+	Items []AttachmentItem
+	// ParentField is the Field naming the record the files belong to; FileField is the one an upload is
+	// stored in. The add form writes both.
+	ParentField string
+	FileField   string
+}
+
+// AttachmentItem is one row. Key is the storage key /uploads/ serves; Kind is the chip text ("PDF"); Added is
+// already formatted, and Size is empty when the file could not be read.
+type AttachmentItem struct {
+	ID, Key, Name, Kind, Added, Size string
+}
+
+// attachmentMeta is the "Added 02 Oct · 2.4 MB" line; with no size it is only the date.
+func attachmentMeta(it AttachmentItem) string {
+	if it.Size == "" {
+		return "Added " + it.Added
+	}
+	return "Added " + it.Added + " · " + it.Size
+}
+
+// attachmentsSection draws one Attachments. The add form posts a multipart create and the remove button
+// deletes the record; both answer without a body the page could swap, so the add refreshes (the handler sends
+// HX-Refresh from another page) and the remove drops its own row. The chip is neutral for every type: tone is
+// urgency (domain.BadgeTone), and a file's type is in the chip's text. canEdit only hides the controls.
+templ attachmentsSection(m *domain.Machine, parentID string, a *Attachments, canEdit bool) {
+	@stackLayout(domain.GapTight) {
+		<h2 class="m-0 text-base font-medium">{ m.Name }</h2>
+		<ul class="m-0 flex list-none flex-col p-0">
+			for _, it := range a.Items {
+				<li class="border-t border-slate-100 py-2.5 first:border-t-0">
+					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+						<span aria-hidden="true" class={ "grid h-8 w-11 shrink-0 place-items-center rounded-md text-2xs font-medium tracking-wide", toneClass(ctx, domain.ToneNeutral) }>{ it.Kind }</span>
+						<span class="flex min-w-0 grow flex-col gap-0.5">
+							<span class="truncate text-sm">{ it.Name }</span>
+							<span class="text-xs text-slate-400">{ attachmentMeta(it) }</span>
+						</span>
+						<a href={ templ.URL("/uploads/" + it.Key) } target="_blank" class="shrink-0 text-xs text-blue-600 hover:text-blue-700">Download</a>
+						if canEdit {
+							<button
+								type="button"
+								hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, it.ID) }
+								hx-target="closest li"
+								hx-swap="outerHTML"
+								hx-confirm={ "Remove " + it.Name + "?" }
+								aria-label={ "Remove " + it.Name }
+								class="grid size-7 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+							>
+								@icon("trash", "size-4")
+							</button>
+						}
+					}
+				</li>
+			}
+		</ul>
+		if canEdit {
+			<form class="m-0" hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) } hx-encoding="multipart/form-data" hx-trigger="change" hx-swap="none">
+				<input type="hidden" name={ a.ParentField } value={ parentID }/>
+				<label class={ controlSecondary, "cursor-pointer" }>
+					Add an attachment
+					<input type="file" name={ a.FileField } required class="sr-only"/>
+				</label>
+			</form>
+		}
+	}
+}

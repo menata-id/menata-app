@@ -57,7 +57,7 @@ var DeclarableIcons = map[string]bool{
 // chromeOnlyIcons are this runtime's own chrome, drawn by appShell -- no manifest, and nothing
 // generated, may declare one.
 var chromeOnlyIcons = []string{
-	"home", "grid", "more", "chevron-right", "chevron-down", "switch",
+	"home", "grid", "more", "chevron-right", "chevron-down", "switch", "trash",
 	// sparkle: the Workspace menu's own "New application" link (AI Metadata Assistant, Flow 2 gap
 	// study Tahap 8) -- chrome, not a declarable Application/nav icon, the same posture "switch"
 	// already has.

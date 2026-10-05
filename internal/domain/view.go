@@ -52,6 +52,9 @@ const (
 	// CardFieldRoleColor is a Field holding one entry of KnownTagColors. It is read on a Machine
 	// whose records are the tags another Machine's card_tags: draws (a label's own colour).
 	CardFieldRoleColor CardFieldRole = "color"
+	// CardFieldRoleFile is a Field of type file holding a stored upload. A child Machine declaring it is
+	// drawn on its parent's detail page as an attachments list, one row per record.
+	CardFieldRoleFile CardFieldRole = "file"
 )
 
 // TagColor is one entry of the closed palette a tag may be drawn in. A Workspace picks a name, never a
@@ -104,6 +107,7 @@ var KnownCardFieldRoles = map[CardFieldRole]bool{
 	CardFieldRoleStatus: true,
 	CardFieldRoleDate:   true,
 	CardFieldRoleColor:  true,
+	CardFieldRoleFile:   true,
 }
 
 // CardField names one of this Machine's own Fields to project onto a composed card (Approval

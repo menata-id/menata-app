@@ -77,6 +77,20 @@ func (s *Store) Path(key string) (string, error) {
 	return abs, nil
 }
 
+// Size is the byte length of the file stored under key, or 0 when it cannot be read (a record may outlive its
+// file; a missing size is drawn as nothing rather than failing the page).
+func (s *Store) Size(key string) int64 {
+	path, err := s.Path(key)
+	if err != nil {
+		return 0
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size()
+}
+
 // DisplayName extracts the original filename from a key produced by Save.
 func DisplayName(key string) string {
 	base := filepath.Base(key)

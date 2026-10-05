@@ -20,6 +20,8 @@ type ChildSection struct {
 	Relations RelationOptions
 	// Checklist is set when the child Machine is drawn as a to-do list rather than a table.
 	Checklist *Checklist
+	// Attachments is set when the child Machine is drawn as a list of uploaded files.
+	Attachments *Attachments
 }
 
 // RecordExtras is what a record's detail page draws beside its own Fields, resolved by Composition
@@ -232,6 +234,8 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			if stepperView, ok := cc.Machine.StepperView(); ok {
 				@sectionHeaderRow(stepperView.Name, "", "")
 				@approvalStepper(cc.Machine, cc.Machine.Sequencing, r, cc.Records, cc.Relations)
+			} else if cc.Attachments != nil {
+				@attachmentsSection(cc.Machine, r.ID, cc.Attachments, authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor))
 			} else if cc.Checklist != nil {
 				@checklistSection(cc.Machine, r.ID, cc.Checklist, authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor))
 			} else {

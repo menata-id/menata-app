@@ -1,0 +1,21 @@
+# mch_attachment is a Task's files (Case 19 PM02 "Attachments"): each record is one upload belonging to one
+# mch_task. Nothing here is attachment-specific to the runtime -- it is a child collection (Phase 9) whose
+# Machine gives one Field the `file` card role, which is what makes the Task's detail page draw it as rows
+# (type chip, name, "Added 02 Oct · 2.4 MB", Download, remove) with an "Add an attachment" control instead
+# of a table (composition.attachmentsFor). It replaces mch_task's single `fld_attachment`, which the mockup
+# does not draw. Another Machine giving a file Field the same role gets the same screen.
+id: mch_attachment
+name: Attachments
+fields:
+  - id: fld_task
+    name: Task
+    type: relation
+    machine: mch_task
+    required: true
+  - id: fld_file
+    name: File
+    type: file
+    required: true
+
+card_fields:
+  - { field: fld_file, role: file }
