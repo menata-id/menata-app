@@ -50,23 +50,10 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 		for k, v := range uploaded {
 			values[k] = v
 		}
-		data.ApplyDefaults(machine, values)
-		data.ApplyComputed(machine, values)
-
-		actor := currentActor(req, store, cfg)
-		data.ApplyStamps(machine, values, actor.ID)
-		if !allowsRecordCreate(w, machine, values, actor) {
+		_, actor, ok := createFromValues(w, req, store, files, mailer, cfg, machine, values)
+		if !ok {
 			return
 		}
-		if !validRecord(w, req, store, machine, values) {
-			return
-		}
-		record, err := store.CreateRecord(req.Context(), machine.ID, values)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machine, record, actor.ID)
 
 		if fromAnotherPage(req, machine) {
 			w.Header().Set("HX-Refresh", "true")
@@ -74,6 +61,27 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 		}
 		renderMachineBody(w, req, machines, machine, store, actor)
 	}
+}
+
+// createFromValues is the generic create pipeline every form-driven create goes through: defaults, computed and
+// stamped Fields, the create Permission, validation, the write, then the Machine's on_create Events. It answers
+// the request itself when any step refuses, so a caller only continues on ok.
+func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config, machine *domain.Machine, values map[string]any) (*data.Record, domain.Actor, bool) {
+	data.ApplyDefaults(machine, values)
+	data.ApplyComputed(machine, values)
+
+	actor := currentActor(req, store, cfg)
+	data.ApplyStamps(machine, values, actor.ID)
+	if !allowsRecordCreate(w, machine, values, actor) || !validRecord(w, req, store, machine, values) {
+		return nil, actor, false
+	}
+	record, err := store.CreateRecord(req.Context(), machine.ID, values)
+	if err != nil {
+		serverError(w, err)
+		return nil, actor, false
+	}
+	execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machine, record, actor.ID)
+	return record, actor, true
 }
 
 // fromAnotherPage says the request came from a screen that is not this Machine's own page -- a Task's

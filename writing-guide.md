@@ -332,6 +332,12 @@ The same move is offered as a **Move…** panel in the ⋯ menu of the record's 
 any Machine that has a `board` View gets it, and it writes through that View. That page also draws a breadcrumb
 (the Machine's heading, linking to the board, then the card's list) from the same View.
 
+The menu's **Copy…** is just as undeclared: any Machine with a `title` card role, a `create` Permission the actor
+passes, and that is neither `append_only` nor cast in a workflow role gets it. It names the copy (default
+"<title> (copy)"), writes it through the same create pipeline as `POST /machines/{id}/records` (defaults, computed
+Fields, stamps, the Permission, validation, `on_create` events) and opens it. Computed, stamped and `file` Fields are
+not carried over, and neither are child records (checklist, comments, attachments).
+
 Write the `name` yourself; don't expect the type to supply it. `table`/`cards` is the runtime
 engine's own vocabulary, and a string the user reads is the Application author's to write — the
 same separation `name:` already has on a Machine and on a Field.

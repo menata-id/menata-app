@@ -388,3 +388,18 @@ func TestRecordExtras_CommentsJoinTheFeedAndAreNotAChildTable(t *testing.T) {
 		t.Errorf("comments were also drawn as a child section: %+v", sections)
 	}
 }
+
+// The Copy panel starts from the record's own name, marked as a copy, and is offered only where the Machine can
+// be copied at all.
+func TestRecordCopy_NamesTheCopyAfterTheRecordAndIsAbsentWhereACopyIsNotAllowed(t *testing.T) {
+	m := &domain.Machine{ID: "mch_task", CardFields: []domain.CardField{{Field: "fld_title", Role: domain.CardFieldRoleTitle}}}
+	r := &data.Record{ID: "rec_1", Values: map[string]any{"fld_title": "Call sheet"}}
+	cp := recordCopy(m, r)
+	if cp == nil || cp.TitleField != "fld_title" || cp.Title != "Call sheet (copy)" {
+		t.Fatalf("recordCopy = %+v, want fld_title / %q", cp, "Call sheet (copy)")
+	}
+	m.AppendOnly = true
+	if recordCopy(m, r) != nil {
+		t.Error("an append-only Machine was offered a copy")
+	}
+}

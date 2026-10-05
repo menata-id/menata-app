@@ -312,3 +312,31 @@ func TestRecordDetail_CommentsFeedWithoutActivityLogStillDrawsTheBox(t *testing.
 		t.Error("a Workspace with no activity log lost its comment box")
 	}
 }
+
+func TestRecordDetail_CopyPanelPostsToTheCopyRouteAndNamesTheTitleField(t *testing.T) {
+	html := renderDetail(t, RecordExtras{Copy: &RecordCopy{TitleField: "fld_title", Title: "Lock shooting schedule (copy)"}})
+	for _, want := range []string{"Copy…", `hx-post="/machines/mch_task/records/rec_1/copy"`, `name="fld_title"`, `value="Lock shooting schedule (copy)"`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the Copy panel is missing %q", want)
+		}
+	}
+	if strings.Contains(renderDetail(t, RecordExtras{}), "Copy…") {
+		t.Error("a record whose Machine cannot be copied drew a Copy panel")
+	}
+}
+
+// Copying is a create, so the panel follows the create Permission the way Move follows Edit.
+func TestRecordDetail_CopyPanelIsHiddenFromAnActorWhoMayNotCreate(t *testing.T) {
+	m := &domain.Machine{ID: "mch_task", Name: "Task",
+		Fields:      []domain.Field{{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText}, {ID: "fld_owner", Name: "Owner", Type: domain.FieldTypePerson}},
+		Permissions: []domain.Permission{{Action: domain.ActionCreate, ActorField: "fld_owner"}},
+	}
+	r := &data.Record{ID: "rec_1", Values: map[string]any{"fld_title": "T", "fld_owner": "usr_other"}}
+	var buf bytes.Buffer
+	if err := RecordDetailView(m, r, nil, nil, nil, domain.Actor{ID: "usr_ana"}, nil, RecordExtras{Copy: &RecordCopy{TitleField: "fld_title", Title: "T (copy)"}}, time.Now()).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if strings.Contains(buf.String(), "Copy…") {
+		t.Error("an actor the create permission refuses was offered a copy")
+	}
+}

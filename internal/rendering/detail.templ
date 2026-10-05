@@ -35,6 +35,9 @@ type RecordExtras struct {
 	ShowActivity       bool
 	Activity           []ActivityEntry
 	ActivityTruncation Truncation
+	// Copy is the "Copy…" panel of the ⋯ menu, nil when the record's Machine cannot be copied
+	// (domain.Machine.CopyTitleField).
+	Copy *RecordCopy
 	// Comments is the "Write a comment" box, set when the record's Machine has a child Machine drawn as
 	// comments (a `comment` card role). It also makes the feed a section on its own, with or without an
 	// activity log.
@@ -47,6 +50,12 @@ type CommentComposer struct {
 	MachineID   string
 	ParentField string
 	BodyField   string
+}
+
+// RecordCopy is what the copy panel needs: the Field the copy is named through, and the name it starts with.
+type RecordCopy struct {
+	TitleField string
+	Title      string
 }
 
 // RecordMove is what a detail page needs to offer the move a board card offers: the same PATCH (the group
@@ -230,7 +239,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 					hx-swap="outerHTML"
 				>Edit</button>
 			}
-			@recordActionsMenu(m, r, extras.Move != nil && authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor), extras.Move)
+			@recordActionsMenu(m, r, extras.Move != nil && authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor), extras.Move, authorization.AllowsAction(m, domain.ActionCreate, r.Values, actor), extras.Copy)
 			if deletable {
 				<button
 					class={ controlSecondary }
@@ -269,14 +278,15 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 // recordActionsMenu is PM02b's "⋯" card-actions menu. Move… opens PM02c's panel (List and Position: "the same
 // result as dragging the card, for anyone who would rather not drag -- or who is working by keyboard"), sending
 // the board's own PATCH and answering with HX-Refresh (this is not the Machine's own page), which redraws the
-// detail with the new List in its Fields and the move in History. Share copies the page's own address.
+// detail with the new List in its Fields and the move in History. Copy… names a new record made from this one and
+// posts to its own route, which answers with an HX-Redirect to the copy. Share copies the page's own address.
 //
 // Both are <details> so the menu opens and closes without script. Share is a clipboard write, which has no
 // declarative form: a named exception to 007 §12.3's `actions` (the Component contract's gesture slot, not built
 // yet), the same class as boardDragScript, and listed in writing-guide.md's "What comes free vs. what's
-// hardcoded today". Join, Copy, Watch and Archive from the mockup need a writable Machine or a write primitive
-// and are not drawn.
-templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *RecordMove) {
+// hardcoded today". Join, Make template, Watch and Archive from the mockup need a write primitive or a Machine
+// nothing declares yet, and are not drawn.
+templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *RecordMove, canCopy bool, cp *RecordCopy) {
 	<details class="relative">
 		<summary aria-label="Card actions" class={ controlSecondary + " cursor-pointer list-none" }>⋯</summary>
 		<div class="absolute top-full left-0 z-10 mt-1 flex w-72 flex-col gap-1 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
@@ -304,6 +314,22 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 							<input type="number" name="position" min="1" value={ fmt.Sprint(move.Position) } class={ controlField + " w-full" }/>
 						</label>
 						<button type="submit" class={ controlPrimary }>Move</button>
+					</form>
+				</details>
+			}
+			if canCopy && cp != nil {
+				<details>
+					<summary class="flex cursor-pointer list-none flex-col rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">Copy…</summary>
+					<form
+						class="flex flex-col gap-3 p-2"
+						hx-post={ fmt.Sprintf("/machines/%s/records/%s/copy", m.ID, r.ID) }
+						hx-swap="none"
+					>
+						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+							Title
+							<input type="text" name={ cp.TitleField } value={ cp.Title } required class={ controlField + " w-full" }/>
+						</label>
+						<button type="submit" class={ controlPrimary }>Copy</button>
 					</form>
 				</details>
 			}

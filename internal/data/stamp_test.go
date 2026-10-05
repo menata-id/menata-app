@@ -54,3 +54,17 @@ func TestValuesFromForm_ignoresStampedFields(t *testing.T) {
 		t.Errorf("an ordinary Field was dropped: %v", values)
 	}
 }
+
+func TestCopyableValuesDropsWhatTheRuntimeWritesOrWhatWouldBeShared(t *testing.T) {
+	m := &domain.Machine{Fields: []domain.Field{
+		{ID: "fld_title", Type: domain.FieldTypeText},
+		{ID: "fld_author", Type: domain.FieldTypePerson, Stamp: domain.FieldStampCurrentUser},
+		{ID: "fld_total", Type: domain.FieldTypeNumber, Compute: &domain.FieldCompute{}},
+		{ID: "fld_file", Type: domain.FieldTypeFile},
+		{ID: "fld_note", Type: domain.FieldTypeText},
+	}}
+	got := CopyableValues(m, map[string]any{"fld_title": "a", "fld_author": "u", "fld_total": 3.0, "fld_file": "f", "fld_unknown": "z"})
+	if len(got) != 1 || got["fld_title"] != "a" {
+		t.Fatalf("CopyableValues = %v, want only fld_title (stamped, computed, file and undeclared values are not copied)", got)
+	}
+}

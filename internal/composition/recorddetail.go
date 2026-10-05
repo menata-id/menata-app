@@ -41,6 +41,7 @@ func (l *Loader) RecordExtras(ctx context.Context, m *domain.Machine, r *data.Re
 	if out.Move, err = l.recordMove(ctx, m, r); err != nil {
 		return out, err
 	}
+	out.Copy = recordCopy(m, r)
 
 	var events []*data.Record
 	if _, ok := l.Dataset(recordActivityDataset); ok {
@@ -132,6 +133,16 @@ func buildRecordActivity(events []*data.Record, thread commentThread, names map[
 		out = append(out, d.entry)
 	}
 	return out
+}
+
+// recordCopy resolves the Copy panel: nil for a Machine whose records cannot be copied, otherwise the Field a
+// copy is named through and the name it starts with -- the record's own, marked as a copy.
+func recordCopy(m *domain.Machine, r *data.Record) *rendering.RecordCopy {
+	field := m.CopyTitleField()
+	if field == "" {
+		return nil
+	}
+	return &rendering.RecordCopy{TitleField: field, Title: DisplayString(r.Values[field]) + " (copy)"}
 }
 
 // recordMove resolves the Move panel: the lists the record can go to and the place it holds in its own.

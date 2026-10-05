@@ -1383,9 +1383,10 @@ func validateFieldsAreGenericallyWritten(machines []*domain.Machine, kind string
 			continue
 		}
 		switch {
+		case m.GenericallyWritten():
 		case m.WorkflowRole != "":
 			issues = append(issues, fmt.Sprintf("machine %q declares %s field(s) %v, but it plays the %q role in a workflow engine whose own screens write it without applying them", m.ID, kind, found, m.WorkflowRole))
-		case m.ID == domain.UserMachineID || m.ID == "mch_activity" || m.ID == "mch_notification":
+		default:
 			issues = append(issues, fmt.Sprintf("machine %q declares %s field(s) %v, but it is a runtime-level machine the runtime writes itself", m.ID, kind, found))
 		}
 	}

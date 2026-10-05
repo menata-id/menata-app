@@ -661,6 +661,25 @@ func (m *Machine) FieldByID(id string) (Field, bool) {
 	return Field{}, false
 }
 
+// GenericallyWritten says every write of this Machine's records goes through the generic routes, which is what
+// lets a rule that lives there (a computed or stamped Field, a copy) hold for all of them. False for the
+// Machines a workflow engine's own screens write and for the three runtime-level Machines the runtime writes
+// itself, where the same rule would be skipped silently.
+func (m *Machine) GenericallyWritten() bool {
+	return m.WorkflowRole == "" && m.ID != UserMachineID && m.ID != "mch_activity" && m.ID != "mch_notification"
+}
+
+// CopyTitleField is the Field a copy of one of this Machine's records is renamed through, or "" when its
+// records cannot be copied. Copying is derived rather than declared: it is a create, so it needs a Machine the
+// generic create route writes (GenericallyWritten) and that is not an audit trail (append_only), and it needs
+// the `title` card role to say what to call the copy -- a Machine that names none has no honest default.
+func (m *Machine) CopyTitleField() string {
+	if !m.GenericallyWritten() || m.AppendOnly {
+		return ""
+	}
+	return m.CardFieldFor(CardFieldRoleTitle)
+}
+
 // StampedAuthorField is the id of the person Field this Machine stamps with the acting user -- who wrote a
 // comment, when the Machine is drawn as one. Empty when it declares none.
 func (m *Machine) StampedAuthorField() string {

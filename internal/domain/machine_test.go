@@ -68,3 +68,22 @@ func TestReopenValue(t *testing.T) {
 		t.Errorf("default b: ReopenValue() = %q, want the Field's default", got)
 	}
 }
+
+func TestCopyTitleFieldIsDerivedFromWhatTheMachineAlreadyDeclares(t *testing.T) {
+	title := []CardField{{Field: "fld_title", Role: CardFieldRoleTitle}}
+	for _, tc := range []struct {
+		name string
+		m    Machine
+		want string
+	}{
+		{"an ordinary Machine with a title", Machine{ID: "mch_task", CardFields: title}, "fld_title"},
+		{"no title role: nothing to name a copy by", Machine{ID: "mch_task"}, ""},
+		{"append-only: an audit trail is not copied", Machine{ID: "mch_comment", CardFields: title, AppendOnly: true}, ""},
+		{"a workflow engine's Machine: its own screens write it", Machine{ID: "mch_document", CardFields: title, WorkflowRole: "document"}, ""},
+		{"a runtime-level Machine", Machine{ID: UserMachineID, CardFields: title}, ""},
+	} {
+		if got := tc.m.CopyTitleField(); got != tc.want {
+			t.Errorf("%s: CopyTitleField = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
