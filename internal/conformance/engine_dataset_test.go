@@ -146,7 +146,7 @@ var goNamedDatasetsWithNoEngineRequirement = map[string]string{
 	"ds_activity_feed":   "on mch_activity, same shared copy",
 	"ds_my_tasks":        "on mch_task (Task Tracker); reachable only from routes that Workspace's Applications declare",
 	"ds_task_workload":   "on mch_task; same",
-	"ds_task_by_project": "on mch_task; same",
+	"ds_all_tasks":       "on mch_task; same",
 	"ds_task_by_status":  "on mch_task; same",
 	"ds_user_capacity":   "on mch_user, a shared runtime reference",
 	// Not on this list and not required by the engine either: ds_document_by_status. Both real

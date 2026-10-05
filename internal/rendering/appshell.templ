@@ -1011,9 +1011,15 @@ templ summaryCountTiles(items []SummaryItem) {
 func summaryTileTree(items []SummaryItem) ir.UINode {
 	children := make([]ir.UINode, 0, len(items))
 	for _, it := range items {
+		props := map[string]string{"label": it.Label, "value": it.Value}
+		if it.Hint != "" {
+			props["hint"] = it.Hint
+		}
+		if it.Tone != "" {
+			props["tone"] = string(it.Tone)
+		}
 		children = append(children, ir.UINode{
-			Kind: ir.NodeComponent, Type: string(domain.ComponentMetric),
-			Props: map[string]string{"label": it.Label, "value": it.Value},
+			Kind: ir.NodeComponent, Type: string(domain.ComponentMetric), Props: props,
 		})
 	}
 	return ir.UINode{

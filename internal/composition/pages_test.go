@@ -22,11 +22,28 @@ func task(id, project, assignee, status, due string) *data.Record {
 
 var projectLabels = map[string]string{"prj_1": "Apollo", "prj_2": "Borneo"}
 
-// A Project's rollup counts its own Tasks only, and "open" means every status except done --
-// not just todo, or in_progress would vanish from the count.
+var dashboardNow = time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
+
+func dashboardFrom(tasks, projects, documents []*data.Record, people map[string]string) rendering.DashboardContent {
+	return buildDashboard(tasks, projects, documents, people, Aggregate(documentByStatus(), documents), taskMachineForTest(), projectMachineForTest(), documentMachineForTest(), dashboardNow)
+}
+
+func tile(t *testing.T, d rendering.DashboardContent, label string) rendering.SummaryItem {
+	t.Helper()
+	for _, it := range d.Tiles {
+		if it.Label == label {
+			return it
+		}
+	}
+	t.Fatalf("no %q tile in %+v", label, d.Tiles)
+	return rendering.SummaryItem{}
+}
+
+// A Project's rollup counts its own Tasks only, and "open" means not finished by the Machine's declared
+// completion -- not "status is not done" restated here, which is what the old Dataset did.
 func TestBuildDashboard_ProjectRollups(t *testing.T) {
 	projects := []*data.Record{
-		rec("prj_1", map[string]any{"fld_name": "Apollo"}),
+		rec("prj_1", map[string]any{"fld_name": "Apollo", "fld_status": "active"}),
 		rec("prj_2", map[string]any{"fld_name": "Borneo"}),
 	}
 	tasks := []*data.Record{
@@ -36,26 +53,98 @@ func TestBuildDashboard_ProjectRollups(t *testing.T) {
 		task("tsk_4", "prj_2", "usr_ana", "todo", ""),
 	}
 
-	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil), projectMachineForTest(), documentMachineForTest(), time.Now())
+	got := dashboardFrom(tasks, projects, nil, nil)
 	if len(got.Projects) != 2 {
 		t.Fatalf("want a summary per Project, got %d", len(got.Projects))
 	}
-	if got.Projects[0].OpenTasks != 2 || got.Projects[0].TotalTasks != 3 {
-		t.Errorf("Apollo open/total = %d/%d, want 2/3", got.Projects[0].OpenTasks, got.Projects[0].TotalTasks)
+	if p := got.Projects[0]; p.Name != "Apollo" || p.Status != "active" || p.OpenTasks != 2 || p.TotalTasks != 3 {
+		t.Errorf("Apollo = %+v, want Apollo/active open 2 total 3", p)
 	}
-	if got.Projects[1].OpenTasks != 1 || got.Projects[1].TotalTasks != 1 {
-		t.Errorf("Borneo open/total = %d/%d, want 1/1", got.Projects[1].OpenTasks, got.Projects[1].TotalTasks)
+	if p := got.Projects[1]; p.Name != "Borneo" || p.OpenTasks != 1 || p.TotalTasks != 1 {
+		t.Errorf("Borneo = %+v, want open 1 total 1", p)
 	}
 }
 
-// A Task belonging to no Project must not be attributed to one, and must not crash the rollup.
+// A Task belonging to no Project must not be attributed to one, and must not crash the rollup -- but it is
+// still a card, so the headline tiles count it.
 func TestBuildDashboard_OrphanTaskCountsAgainstNoProject(t *testing.T) {
 	projects := []*data.Record{rec("prj_1", map[string]any{"fld_name": "Apollo"})}
 	tasks := []*data.Record{task("tsk_orphan", "", "usr_ana", "todo", "")}
 
-	got := buildDashboard(projects, nil, Aggregate(taskByProject(), tasks), Aggregate(documentByStatus(), nil), projectMachineForTest(), documentMachineForTest(), time.Now())
+	got := dashboardFrom(tasks, projects, nil, nil)
 	if got.Projects[0].TotalTasks != 0 {
 		t.Errorf("orphan Task must not be counted against Apollo, got total %d", got.Projects[0].TotalTasks)
+	}
+	if v := tile(t, got, "All cards").Value; v != "1" {
+		t.Errorf("All cards = %s, want the orphan counted", v)
+	}
+}
+
+// The four tiles are one partition of the same selection: Open + Completed = All cards, and Overdue is a
+// subset of Open. A finished card is never overdue, whatever its date says.
+func TestBuildDashboard_TilesPartitionOneSelection(t *testing.T) {
+	tasks := []*data.Record{
+		task("tsk_done_late", "prj_1", "usr_ana", "done", "2026-09-01"),
+		task("tsk_overdue", "prj_1", "usr_ana", "todo", "2026-09-09"),
+		task("tsk_today", "prj_2", "usr_ana", "in_progress", "2026-09-10"),
+		task("tsk_undated", "prj_2", "usr_ana", "todo", ""),
+	}
+	got := dashboardFrom(tasks, nil, nil, nil)
+
+	for label, want := range map[string]string{"All cards": "4", "Open": "3", "Overdue": "1", "Completed": "1"} {
+		if v := tile(t, got, label).Value; v != want {
+			t.Errorf("%s = %s, want %s", label, v, want)
+		}
+	}
+	if h := tile(t, got, "All cards").Hint; h != "In 2 projects" {
+		t.Errorf("All cards hint = %q", h)
+	}
+	if h := tile(t, got, "Completed").Hint; h != "25% of all cards" {
+		t.Errorf("Completed hint = %q", h)
+	}
+	if tone := tile(t, got, "Overdue").Tone; tone != domain.ToneBad {
+		t.Errorf("a non-zero Overdue is red, got %q", tone)
+	}
+}
+
+// A zero is not a signal: no overdue cards must not paint the tile red, and an empty Workspace must not
+// divide by zero.
+func TestBuildDashboard_EmptyWorkspaceIsQuietNotRed(t *testing.T) {
+	got := dashboardFrom(nil, nil, nil, nil)
+	if tone := tile(t, got, "Overdue").Tone; tone == domain.ToneBad {
+		t.Errorf("zero overdue drawn red")
+	}
+	if tone := tile(t, got, "Completed").Tone; tone == domain.ToneGood {
+		t.Errorf("zero completed drawn green")
+	}
+	if h := tile(t, got, "Completed").Hint; h != "0% of all cards" {
+		t.Errorf("hint = %q", h)
+	}
+}
+
+// Open cards per person: most open first, ties by name, unassigned cards belong to nobody, and an assignee
+// with no resolvable name is left off rather than shown as an id.
+func TestBuildDashboard_OpenCardsPerPerson(t *testing.T) {
+	people := map[string]string{"usr_ana": "Ana", "usr_budi": "Budi", "usr_cici": "Cici"}
+	tasks := []*data.Record{
+		task("t1", "prj_1", "usr_budi", "todo", ""),
+		task("t2", "prj_1", "usr_budi", "done", ""),
+		task("t3", "prj_1", "usr_ana", "todo", ""),
+		task("t4", "prj_1", "usr_ana", "todo", ""),
+		task("t5", "prj_1", "usr_cici", "done", ""),
+		task("t6", "prj_1", "", "todo", ""),
+		task("t7", "prj_1", "usr_gone", "todo", ""),
+	}
+	got := dashboardFrom(tasks, nil, nil, people).People
+
+	want := []rendering.PersonLoad{{Name: "Ana", Open: 2, Total: 2}, {Name: "Budi", Open: 1, Total: 2}, {Name: "Cici", Open: 0, Total: 1}}
+	if len(got) != len(want) {
+		t.Fatalf("people = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("people[%d] = %+v, want %+v", i, got[i], want[i])
+		}
 	}
 }
 
@@ -69,7 +158,7 @@ func TestBuildDashboard_DocumentStatusSplit(t *testing.T) {
 		rec("doc_6", map[string]any{"fld_status": "something_else"}),
 	}
 
-	got := buildDashboard(nil, documents, Aggregate(taskByProject(), nil), Aggregate(documentByStatus(), documents), projectMachineForTest(), documentMachineForTest(), time.Now())
+	got := dashboardFrom(nil, nil, documents, nil)
 	s := got.Documents
 	if s.InReview != 2 || s.Approved != 1 || s.Rejected != 1 {
 		t.Errorf("counts review/approved/rejected = %d/%d/%d, want 2/1/1", s.InReview, s.Approved, s.Rejected)
@@ -431,11 +520,14 @@ func taskMachineForTest() *domain.Machine {
 			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
 			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus, Options: []string{"todo", "in_progress", "done"}},
 			{ID: "fld_due_date", Name: "Due", Type: domain.FieldTypeDate},
+			{ID: "fld_project", Name: "Project", Type: domain.FieldTypeRelation, RelatedMachine: "mch_project"},
+			{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: "mch_user"},
 		},
 		CardFields: []domain.CardField{
 			{Field: "fld_title", Role: domain.CardFieldRoleTitle},
 			{Field: "fld_status", Role: domain.CardFieldRoleStatus},
 			{Field: "fld_due_date", Role: domain.CardFieldRoleDate},
+			{Field: "fld_assignee", Role: domain.CardFieldRolePerson},
 		},
 		Completion: &domain.Completion{Field: "fld_status", Done: "done"},
 	}

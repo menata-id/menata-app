@@ -56,7 +56,7 @@ append_only: true
 # `field: created_at` is a **record column**, not a Field: mch_activity declares no timestamp of its
 # own, which is exactly the case that made domain.SortableColumns necessary (see its comment).
 # **Two Datasets rather than one with a parameter**, which is the same call ds_task_workload and
-# ds_task_by_project already made for the same reason: these are two screens' genuinely different
+# ds_task_by_status already made for the same reason: these are two screens' genuinely different
 # data requirements, not one requirement configured twice. The Dashboard's card can afford a tail of
 # ten; the dedicated feed can afford fifty. Those two numbers lived in internal/web as
 # `dashboardActivityLimit` and `activityFeedLimit`, with a comment explaining the difference -- the

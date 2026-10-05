@@ -858,7 +858,7 @@ func validateCompositeTargets(machines []*domain.Machine) error {
 // just within its own Machine file -- which a single file cannot check for itself.
 //
 // This is what makes a Dataset addressable by id alone (composition.Loader.Dataset): a screen
-// names ds_task_by_project and the runtime knows which Machine's records that means, because
+// names ds_task_by_status and the runtime knows which Machine's records that means, because
 // exactly one Machine can declare it. Without this the id would be ambiguous and every caller
 // would have to keep naming a Machine id alongside it -- which is precisely the hardcoding this
 // resolution exists to remove.

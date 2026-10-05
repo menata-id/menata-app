@@ -114,6 +114,20 @@ func toneClass(ctx context.Context, tone domain.BadgeTone) string {
 	}
 }
 
+// metricValueClass is toneClass's text-only counterpart for a Metric's value. A value has no background to
+// pair with, so it takes only the palette's text colour -- and only for the two tones that signal something;
+// every other tone, and the unset one, stays the default ink rather than tinting a number nobody flagged.
+func metricValueClass(ctx context.Context, tone domain.BadgeTone) string {
+	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
+	case domain.PaletteRed:
+		return "text-red-700"
+	case domain.PaletteGreen:
+		return "text-emerald-700"
+	default:
+		return "text-slate-900"
+	}
+}
+
 // layoutGap maps a declared Gap onto the spacing steps the measured corpus actually uses. An empty Gap is
 // GapDefault, resolved here rather than requiring every caller to say so.
 func layoutGap(ctx context.Context, g domain.Gap) string {
@@ -541,7 +555,7 @@ templ uiNode(n ir.UINode) {
 				case domain.ComponentCollection:
 					@collection(domain.Gap(n.Props["gap"]), uiChildComponents(n))
 				case domain.ComponentMetric:
-					@metric(n.Props["label"], n.Props["value"])
+					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:
 					@avatar(n.Props["initials"], n.Props["label"], domain.AvatarSize(n.Props["size"]), domain.AvatarPresence(n.Props["presence"]))
 			}

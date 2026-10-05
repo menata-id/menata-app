@@ -41,6 +41,7 @@ navigation:
     route: /dashboard
     priority: 1
     icon: dashboard
+    description: How much work is open, overdue and finished, by project and by person. A card counts as finished only when its circle is ticked, so overdue never includes work that is already done.
   - id: nav_calendar
     label: Calendar
     route: /calendar

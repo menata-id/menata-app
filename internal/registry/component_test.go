@@ -133,3 +133,18 @@ func TestBothComponentsShareOneValidatorShape(t *testing.T) {
 		t.Fatalf("this gate compares Components against each other and the catalogue holds %d", len(Components))
 	}
 }
+
+// A Metric's optional hint and tone are declared in its contract, and a tone outside the closed set is
+// refused -- the same posture StatusBadge takes, since both hand a tone to the Theme's palette lookup.
+func TestMetricAcceptsHintAndToneButOnlyDeclaredTones(t *testing.T) {
+	if issues := ValidateComponentUse(domain.ComponentMetric, map[string]string{
+		"label": "Overdue", "value": "1", "hint": "Past its due date", "tone": string(domain.ToneBad),
+	}); len(issues) != 0 {
+		t.Errorf("a Metric with hint and a declared tone was refused: %v", issues)
+	}
+	if issues := ValidateComponentUse(domain.ComponentMetric, map[string]string{
+		"label": "Overdue", "value": "1", "tone": "chartreuse",
+	}); len(issues) == 0 {
+		t.Error("a Metric with an undeclared tone passed validation")
+	}
+}

@@ -55,7 +55,7 @@ func showDashboard(store *data.Store, cfg config.Config) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.DashboardPage(d.Projects, d.Documents, d.Pending, d.Activity, workspaceName, viewer, switchHref))
+		render(ctx, w, rendering.DashboardPage(d, workspaceName, viewer, switchHref))
 	}
 }
 

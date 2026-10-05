@@ -65,7 +65,7 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	// hand-written `<section class=` plus `sectionHeaderRow`'s nine callers, which is the same concept with
 	// its heading already extracted. `layout.templ`'s one is `panelLayout` itself and is the floor.
 	"section": {
-		"account.templ": 1, "dashboard.templ": 3, "detail.templ": 4, "inference.templ": 1, "layout.templ": 2,
+		"account.templ": 1, "dashboard.templ": 2, "detail.templ": 4, "inference.templ": 1, "layout.templ": 2,
 		"machine.templ": 4, "newapplication.templ": 1, "sprintdashboard.templ": 1,
 		"workspacemembers.templ": 1,
 	},

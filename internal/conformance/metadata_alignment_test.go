@@ -543,13 +543,15 @@ func TestHandlersHaveNoHardcodedApplicationLabel(t *testing.T) {
 // TestNavigationRoutesAreRegistered already closes for routes.
 var composedScreenDatasets = map[string]map[string][]string{
 	"task.yaml": {
-		"ds_task_workload":   {"msr_total", "msr_total_open"}, // Team Capacity, and Sprint Dashboard's workload column
-		"ds_task_by_project": {"msr_total", "msr_total_open"}, // Dashboard's Project rollup
-		"ds_task_by_status":  {"msr_total"},                   // Sprint Dashboard's headline counts
+		"ds_task_workload":  {"msr_total", "msr_total_open"}, // Team Capacity, and Sprint Dashboard's workload column
+		"ds_task_by_status": {"msr_total"},                   // Sprint Dashboard's headline counts
 		// My Tasks' record selection. Its *predicate* is separately gated by
 		// TestPerViewerDatasetsScopeByIdentity, which also fails if it stops existing -- but that gate
 		// is about identity scoping, and this one is about the id resolving at all. Both, on purpose.
 		"ds_my_tasks": {},
+		// The Dashboard's whole Task set (PM04). Records, not counts: its tiles, per-project rows and
+		// per-person bars are all derived from them through the Machine's own `completion:`.
+		"ds_all_tasks": {},
 	},
 	"user.yaml":     {"ds_user_capacity": {"msr_total_capacity"}},
 	"document.yaml": {"ds_document_by_status": {"msr_total"}},

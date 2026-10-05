@@ -99,6 +99,13 @@ func validateCollection(inputs map[string]string) []string {
 
 // metricContract is §12.3's `Metric`: a resolved number and the question it answers.
 //
+// **`hint` and `tone` are optional, added 2026-10-05 for the Project Management Dashboard (Case 19 PM04),
+// whose four tiles each carry a one-line qualifier ("Past its due date") and whose Overdue and Completed
+// values are drawn as a signal.** Both are resolved by the caller: the hint is text it already composed, the
+// tone is the same closed `BadgeTone` set a status badge takes, so the Component still decides no business
+// meaning and the renderer still draws a colour only through the Workspace's theme. Neither is required, so
+// the three screens that predate them are unchanged.
+//
 // **Value is a string, deliberately.** A Component that took an `int` would be taking a half-resolved value --
 // the caller already decided the format (`fmt.Sprint`, a percentage, "3 of 7"), and asking the Component to
 // format would be asking it to decide presentation from data it does not have. §4.4's division again: resolve,
@@ -108,16 +115,22 @@ var metricContract = domain.ComponentContract{
 	Inputs: []domain.ComponentInput{
 		{Name: "label", Kind: "string", Required: true},
 		{Name: "value", Kind: "string", Required: true},
+		{Name: "hint", Kind: "string"},
+		{Name: "tone", Kind: "BadgeTone"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,
 	Actions:          nil,
-	Accessibility:    "the value and its label are adjacent text in reading order, so the pair is its own accessible description; it is not a live region",
+	Accessibility:    "the value, its label and its hint are adjacent text in reading order, so the group is its own accessible description; tone is colour only and carries no meaning a reader needs, so it is never the only carrier of one; it is not a live region",
 	Renderer:         "metric",
 }
 
 func validateMetric(inputs map[string]string) []string {
-	return checkDeclaredInputs(metricContract, inputs, "Metric")
+	issues := checkDeclaredInputs(metricContract, inputs, "Metric")
+	if tone := inputs["tone"]; tone != "" && !domain.KnownBadgeTones[domain.BadgeTone(tone)] {
+		issues = append(issues, fmt.Sprintf("Metric tone %q is not one of the declared tones", tone))
+	}
+	return issues
 }
 
 // statusBadgeContract is declared separately from the catalogue, not for tidiness: `validateStatusBadge`

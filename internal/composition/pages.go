@@ -32,7 +32,7 @@ const (
 // which one it wants.
 const (
 	taskWorkloadDataset   = "ds_task_workload"
-	taskByProjectDataset  = "ds_task_by_project"
+	dashboardTasksDataset = "ds_all_tasks"
 	taskByStatusDataset   = "ds_task_by_status"
 	userCapacityDataset   = "ds_user_capacity"
 	documentStatusDataset = "ds_document_by_status"
@@ -81,72 +81,127 @@ const (
 	taskStatusDone       = "done"
 )
 
-// Dashboard is the landing dashboard's composed content (development-history.md Phase 6's own forcing case):
-// Project rollups, Document status counts, the Documents still in review, and a recent-events tail.
-type Dashboard struct {
-	Projects  []rendering.ProjectSummary
-	Documents rendering.DocumentSummary
-	Pending   []rendering.PendingDocument
-	Activity  []rendering.ActivityEntry
-}
-
-// DashboardData composes the dashboard. Each Machine is read once for the whole page -- three
-// reads plus the activity feed's two, not one per Project.
+// DashboardData composes the dashboard (Case 19 PM04). Every Task figure on it -- the four tiles, the
+// per-project rows, the per-person bars -- is derived from one bounded selection of Task records
+// (ds_all_tasks) through the Machine's own `completion:`, so "finished" has one definition on this screen
+// rather than the Dataset's `value: done` and the board's circle each holding one. The Documents panel is
+// not in the mockup and keeps its declared counts (ds_document_by_status).
 //
 // docMachine is whichever Machine this Workspace's approval Application casts as its document
 // (2026-09-28), and **nil is a real argument**: a Workspace with no approval Application installed
 // has no documents to summarise, and the status tiles correctly read zero. Before the roles existed
 // this read the literal mch_document, which in such a Workspace would have counted whatever else
 // happened to be named that -- a plain CRUD Machine's records presented as documents in review.
-func DashboardData(ctx context.Context, l *Loader, docMachine *domain.Machine, now time.Time) (Dashboard, error) {
+func DashboardData(ctx context.Context, l *Loader, docMachine *domain.Machine, now time.Time) (rendering.DashboardContent, error) {
+	tasks, err := l.SelectRelated(ctx, dashboardTasksDataset, expression.Context{})
+	if err != nil {
+		return rendering.DashboardContent{}, err
+	}
 	projects, err := l.ListRecords(ctx, projectMachineID)
 	if err != nil {
-		return Dashboard{}, err
+		return rendering.DashboardContent{}, err
+	}
+	people, err := l.PersonNames(ctx)
+	if err != nil {
+		return rendering.DashboardContent{}, err
 	}
 	var documents []*data.Record
 	if docMachine != nil {
 		if documents, err = l.ListRecords(ctx, docMachine.ID); err != nil {
-			return Dashboard{}, err
+			return rendering.DashboardContent{}, err
 		}
 	}
 	activity, err := RecentActivity(ctx, l)
 	if err != nil {
-		return Dashboard{}, err
-	}
-
-	taskCounts, err := l.AggregateDataset(ctx, taskByProjectDataset)
-	if err != nil {
-		return Dashboard{}, err
+		return rendering.DashboardContent{}, err
 	}
 	docCounts, err := l.AggregateDataset(ctx, documentStatusDataset)
 	if err != nil {
-		return Dashboard{}, err
+		return rendering.DashboardContent{}, err
 	}
 
-	d := buildDashboard(projects, documents, taskCounts, docCounts, l.Machine(projectMachineID), docMachine, now)
+	d := buildDashboard(tasks.Records, projects, documents, people, docCounts, l.Machine(taskMachineID), l.Machine(projectMachineID), docMachine, now)
+	d.TasksTruncation = rendering.Truncation{Hit: tasks.Truncated, Limit: tasks.Limit}
 	d.Activity = activity
 	return d, nil
 }
 
-// buildDashboard splits what used to be one loop into its two genuinely different halves. Counting
-// -- Tasks per Project, Documents per status -- is now declared (ds_task_by_project,
-// ds_document_by_status). Collecting the in_review Documents themselves is not counting but
-// selection, and stays here: picking records by a predicate is 007 §8's Query Model, which the
-// decomposition audit explicitly recommends against building until something forces it.
-func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Aggregation, projectMachine, docMachine *domain.Machine, now time.Time) Dashboard {
-	var d Dashboard
+// buildDashboard is the pure half. Tasks are the only input for every figure about Tasks; documents keep
+// their declared counts, and collecting the in_review Documents themselves is selection, which stays here --
+// picking records by a predicate is 007 §8's Query Model, which the decomposition audit recommends against
+// building until something forces it.
+//
+// Which Field names a Task's Project and its person come from the Machine rather than from a literal: the
+// person is the `person` card_fields role, the Project is the one Field referencing the Project Machine.
+// A Task Machine with neither simply yields no per-project or per-person rows.
+func buildDashboard(tasks, projects, documents []*data.Record, people map[string]string, docCounts Aggregation, taskMachine, projectMachine, docMachine *domain.Machine, now time.Time) rendering.DashboardContent {
+	var d rendering.DashboardContent
+	projectField := fieldReferencing(taskMachine, projectMachineID)
+	personField := FieldForRole(taskMachine, domain.CardFieldRolePerson)
+
+	perProject := map[string]taskLoad{}
+	perPerson := map[string]taskLoad{}
+	open, overdue := 0, 0
+	for _, t := range tasks {
+		done := IsComplete(taskMachine, t)
+		if !done {
+			open++
+			if isOverdue(taskMachine, t, now) {
+				overdue++
+			}
+		}
+		bump := func(m map[string]taskLoad, key string) {
+			if key == "" {
+				return
+			}
+			l := m[key]
+			l.total++
+			if !done {
+				l.open++
+			}
+			m[key] = l
+		}
+		bump(perProject, DisplayString(t.Values[projectField]))
+		bump(perPerson, DisplayString(t.Values[personField]))
+	}
+	total := len(tasks)
+	completed := total - open
+
+	d.Tiles = []rendering.SummaryItem{
+		{Label: "All cards", Value: fmt.Sprint(total), Hint: projectCountHint(perProject)},
+		{Label: "Open", Value: fmt.Sprint(open), Hint: "Not finished yet", Tone: domain.ToneNeutral},
+		{Label: "Overdue", Value: fmt.Sprint(overdue), Hint: "Past its due date", Tone: toneIf(overdue > 0, domain.ToneBad)},
+		{Label: "Completed", Value: fmt.Sprint(completed), Hint: fmt.Sprintf("%d%% of all cards", percentOf(completed, total)), Tone: toneIf(completed > 0, domain.ToneGood)},
+	}
+
 	d.Projects = make([]rendering.ProjectSummary, 0, len(projects))
 	for _, p := range projects {
-		mine := taskCounts.ByDimension[p.ID]
+		mine := perProject[p.ID]
 		shape := ProjectedByRole(projectMachine, p, nil)
 		d.Projects = append(d.Projects, rendering.ProjectSummary{
-			Project:    p,
-			OpenTasks:  int(mine[measureTotalOpen]),
-			TotalTasks: int(mine[measureTotal]),
+			OpenTasks:  mine.open,
+			TotalTasks: mine.total,
 			Name:       shape[string(domain.CardFieldRoleTitle)],
 			Status:     shape[string(domain.CardFieldRoleStatus)],
 		})
 	}
+
+	for id, l := range perPerson {
+		// An assignee the Workspace no longer has a name for is left off the list rather than shown as an id.
+		// The tiles above still count their cards, so the figures can differ -- the same trade
+		// buildCapacity makes for TotalActive.
+		if people[id] == "" {
+			continue
+		}
+		d.People = append(d.People, rendering.PersonLoad{Name: people[id], Open: l.open, Total: l.total})
+	}
+	sort.Slice(d.People, func(i, j int) bool {
+		a, b := d.People[i], d.People[j]
+		if a.Open != b.Open {
+			return a.Open > b.Open
+		}
+		return a.Name < b.Name
+	})
 
 	d.Documents = rendering.DocumentSummary{
 		InReview: int(docCounts.ByDimension[action.DocumentStatusInReview][measureTotal]),
@@ -169,6 +224,54 @@ func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Ag
 		})
 	}
 	return d
+}
+
+// isOverdue reports whether an unfinished record's date has passed. The caller has already ruled out
+// finished ones -- a finished card is never overdue, which is the sentence the Dashboard's own subtitle says.
+func isOverdue(m *domain.Machine, r *data.Record, now time.Time) bool {
+	due, err := time.Parse("2006-01-02", DisplayString(r.Values[FieldForRole(m, domain.CardFieldRoleDate)]))
+	if err != nil {
+		return false
+	}
+	status, _ := experience.EvaluateSLA(due, now)
+	return status == experience.SLAOverdue
+}
+
+// fieldReferencing is the id of the Field on m that points at the Machine target, "" when there is none. The
+// first such Field wins; a Machine with two Fields to the same target would need to say which, and Task has one.
+func fieldReferencing(m *domain.Machine, target string) string {
+	for _, f := range m.Fields {
+		if f.IsReference() && f.RelatedMachine == target {
+			return f.ID
+		}
+	}
+	return ""
+}
+
+// taskLoad is a count of Tasks and how many of them are unfinished, per Project or per person.
+type taskLoad struct{ open, total int }
+
+func projectCountHint(perProject map[string]taskLoad) string {
+	if len(perProject) == 1 {
+		return "In 1 project"
+	}
+	return fmt.Sprintf("In %d projects", len(perProject))
+}
+
+func percentOf(part, whole int) int {
+	if whole <= 0 {
+		return 0
+	}
+	return part * 100 / whole
+}
+
+// toneIf is the signal tone when a figure is worth signalling and the neutral one when it is zero -- a red
+// "0" would read as a problem on a screen whose point is that there is none.
+func toneIf(signal bool, tone domain.BadgeTone) domain.BadgeTone {
+	if signal {
+		return tone
+	}
+	return domain.ToneNeutral
 }
 
 // MyTasks is one identity's personal work queue (development-history.md Phase 14), bucketed by due date:
