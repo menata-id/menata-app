@@ -52,6 +52,7 @@ type themeDoc struct {
 	Weight map[string]string `yaml:"weight"`
 	Text   map[string]string `yaml:"text"`
 	Gap    map[string]string `yaml:"gap"`
+	Border map[string]string `yaml:"border"`
 }
 
 // resolveTheme turns the declared block into domain.Theme, reporting every unknown role or step rather than
@@ -121,6 +122,21 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				continue
 			}
 			t.Gap[g] = a
+		}
+	}
+	if len(doc.Border) > 0 {
+		t.Border = map[domain.BorderRole]domain.BorderShade{}
+		for role, shade := range doc.Border {
+			r, b := domain.BorderRole(role), domain.BorderShade(shade)
+			if !domain.KnownBorderRoles[r] {
+				issues = append(issues, fmt.Sprintf("theme.border: %q is not a border role this runtime realizes", role))
+				continue
+			}
+			if !domain.KnownBorderShades[b] {
+				issues = append(issues, fmt.Sprintf("theme.border.%s: %q is not a border shade this runtime realizes", role, shade))
+				continue
+			}
+			t.Border[r] = b
 		}
 	}
 	return t, issues

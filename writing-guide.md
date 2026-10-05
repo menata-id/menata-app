@@ -1308,6 +1308,10 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     default:     three  # (default: three)
 >     comfortable: four   # (default: four)
 >     loose:       five   # (default: five)
+>   border:
+>     surface: soft     # panels, sections, cards, tables (default: soft)
+>     control: defined  # inputs and other controls       (default: defined)
+>     divider: faint    # row separators in lists/tables  (default: faint)
 > ```
 >
 > `gap:` is the one category shaped differently: it maps a **spacing step straight to an amount**, because a
@@ -1320,7 +1324,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 > All three roles and all three steps are closed sets: an unknown value is a **load error**, not a silent
 > default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the
 > default — which is exactly what the app rendered before Theme existed, so adding the key changes nothing
-> until you change a value. Five other token categories (colours x3, padding, shadow) are **not** declarable yet; the order they arrive in is set by
+> until you change a value. Four other token categories (text and background colour, padding, shadow) are **not** declarable yet; the order they arrive in is set by
 > `menata-app-document/audits/2026-10-04-inventaris-token-design-system.md`.
 
 > **A screen's own layout is on neither side yet, and that is worth stating so nothing here is

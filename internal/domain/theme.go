@@ -123,12 +123,51 @@ var KnownTextScales = map[TextScale]bool{
 	TextMedium: true, TextLarge: true, TextHuge: true,
 }
 
+// BorderRole is what a border separates, as a closed set — the fifth token category, and the first slice of
+// colour.
+//
+// **Three roles, each with a visibly distinct job**, which is what made border the right colour sub-category
+// to take first: `slate-200` (70 uses, 24 files) outlines a **surface** — a panel, a section, a card, a table;
+// `slate-300` (24) outlines a **control** — an input's own box, and the dashed circle of a pending avatar;
+// `slate-100` (21) is a **divider** between rows. 115 of 155 border-colour uses, and no overlap between the
+// three.
+//
+// Taken before text and background colour deliberately: those are 19 and 16 values where the semantic naming
+// is the hard part (`slate-500` at 145 uses against `slate-400` at 103 — two shades of "secondary" with no
+// measured line between them). Border has three jobs and three shades, one each.
+type BorderRole string
+
+const (
+	// BorderSurface outlines something content sits inside.
+	BorderSurface BorderRole = "surface"
+	// BorderControl outlines something a person types into or interacts with.
+	BorderControl BorderRole = "control"
+	// BorderDivider separates rows in a list or a table.
+	BorderDivider BorderRole = "divider"
+)
+
+// KnownBorderRoles is the closed set.
+var KnownBorderRoles = map[BorderRole]bool{BorderSurface: true, BorderControl: true, BorderDivider: true}
+
+// BorderShade is how visible a border is, named by presence rather than by palette number — `slate-300` is a
+// Tailwind token and 007 §15.2 keeps those out of the logical plane. Three, because three are in use.
+type BorderShade string
+
+const (
+	BorderFaint   BorderShade = "faint"
+	BorderSoft    BorderShade = "soft"
+	BorderDefined BorderShade = "defined"
+)
+
+// KnownBorderShades is the closed set.
+var KnownBorderShades = map[BorderShade]bool{BorderFaint: true, BorderSoft: true, BorderDefined: true}
+
 // Theme is a Workspace's declared token set (006 "Theme": typography, spacing, icons, branding, tokens).
 //
 // **It holds no CSS and no business data.** 006's own warning is that a Theme "must not become a hidden
 // business or data dependency", so this is a mapping between two closed vocabularies and nothing else.
 //
-// **Radius, weight, text size and gap only, and that is a measured boundary rather than a staged rollout.** The full token surface is
+// **Radius, weight, text size, gap and border colour only, and that is a measured boundary rather than a staged rollout.** The full token surface is
 // 2,507 usages over 104 values in nine categories (`menata-app-document`'s
 // `audits/2026-10-04-inventaris-token-design-system.md`). Radius is first because its ladder is the cleanest
 // — three values carry 95% of its uses — so this slice proves the whole mechanism, declaration included,
@@ -150,6 +189,8 @@ type Theme struct {
 	// Gap maps each spacing step to the amount it renders. Unlike the three above this needs no role
 	// vocabulary -- Gap already is the role. See domain.GapAmount.
 	Gap map[Gap]GapAmount
+	// Border maps each border role to its shade.
+	Border map[BorderRole]BorderShade
 }
 
 // DefaultTheme is what the corpus renders today, so adopting Theme changes nothing until a Workspace declares
@@ -179,7 +220,20 @@ func DefaultTheme() Theme {
 			GapComfortable: GapAmountFour,  // was gap-4
 			GapLoose:       GapAmountFive,  // was gap-5
 		},
+		Border: map[BorderRole]BorderShade{
+			BorderSurface: BorderSoft,    // was border-slate-200
+			BorderControl: BorderDefined, // was border-slate-300
+			BorderDivider: BorderFaint,   // was border-slate-100
+		},
 	}
+}
+
+// BorderFor resolves a border role, falling back to the default for the same reason RadiusFor does.
+func (t Theme) BorderFor(role BorderRole) BorderShade {
+	if b, ok := t.Border[role]; ok && KnownBorderShades[b] {
+		return b
+	}
+	return DefaultTheme().Border[role]
 }
 
 // GapFor resolves a spacing step, falling back to the default for the same reason RadiusFor does.
