@@ -93,3 +93,31 @@ func TestGroupRecords_relationBasedColumns(t *testing.T) {
 		t.Errorf("columns[1] = %+v, want Done with rec_1", got[1])
 	}
 }
+
+func TestPlaceBefore(t *testing.T) {
+	v := domain.View{GroupBy: "fld_list"}
+	rec := func(id, list string) *data.Record {
+		return &data.Record{ID: id, Values: map[string]any{"fld_list": list}}
+	}
+	records := []*data.Record{rec("a", "x"), rec("b", "y"), rec("c", "x"), rec("d", "x")}
+	for _, tc := range []struct {
+		moved, group string
+		pos          int
+		want         string
+	}{
+		{"b", "x", 1, "a"},
+		{"b", "x", 2, "c"},
+		{"b", "x", 3, "d"},
+		{"b", "x", 4, ""},
+		{"b", "x", 99, ""},
+		{"b", "x", 0, "a"},
+		{"c", "x", 3, ""},
+		{"a", "x", 1, "c"},
+		{"a", "y", 1, "b"},
+		{"a", "empty", 1, ""},
+	} {
+		if got := PlaceBefore(v, records, tc.moved, tc.group, tc.pos); got != tc.want {
+			t.Errorf("PlaceBefore(%s -> %s #%d) = %q, want %q", tc.moved, tc.group, tc.pos, got, tc.want)
+		}
+	}
+}

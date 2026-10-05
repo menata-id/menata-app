@@ -281,6 +281,7 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/edit", editRecordRow(d.Store, d.Cfg))
 		pr.Put("/machines/{machineID}/records/{id}", updateRecordForm(d.Store, d.Files, d.Mailer, d.Cfg))
+		pr.Patch("/machines/{machineID}/records/{id}", patchRecordForm(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/review", showReviewDocument(d.Store, d.Files, d.Cfg))

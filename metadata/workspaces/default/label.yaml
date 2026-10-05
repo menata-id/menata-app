@@ -5,7 +5,17 @@ fields:
     name: Name
     type: text
     required: true
+  # The palette is closed (domain.KnownTagColors): a Workspace picks a name, and one shared mapping
+  # in internal/rendering draws it, so a label reads the same on every board. This was free text
+  # before the board drew labels at all; a record still holding another value draws in slate.
   - id: fld_color
     name: Color
-    type: text
+    type: status
     required: true
+    options: [blue, purple, amber, slate, emerald, cyan, rose]
+    default: slate
+
+# What a label looks like wherever a Machine's card_tags: draws it (007 §7.6).
+card_fields:
+  - { field: fld_name, role: title }
+  - { field: fld_color, role: color }

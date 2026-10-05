@@ -133,6 +133,17 @@ datasets:
 #
 # Three roles, from the closed set (domain.KnownCardFieldRoles): what to call it, what state it is
 # in, and when it is due. Nothing here says how any of them is drawn.
+# completion: which status value means a Task is finished (domain.Completion). A card's date pill reads
+# it -- a finished card shows its date green with a check, never overdue -- and it is what the hover
+# circle on a card will write. Nothing else in the runtime knew which option was terminal: the Dashboard
+# still compares against a literal "done" in internal/composition/pages.go (P3).
+completion: { field: fld_status, done: done }
+
+# card_tags: the chips a board card shows above its title -- the mch_card_label records pointing at it
+# (007 §7.5's Relation shape: machine + via) and the label each one names (`tag`). What a chip *looks*
+# like is mch_label's own card_fields, not this block.
+card_tags: { machine: mch_card_label, via: fld_task, tag: fld_label }
+
 card_fields:
   - { field: fld_title, role: title }
   - { field: fld_status, role: status }

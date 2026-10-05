@@ -53,3 +53,18 @@ func TestFieldTypeGroup_isNotAReference(t *testing.T) {
 		t.Error("group must be in KnownFieldTypes, or metadata declaring one is rejected at load time")
 	}
 }
+
+func TestReopenValue(t *testing.T) {
+	m := &Machine{Fields: []Field{{ID: "f", Type: FieldTypeStatus, Options: []string{"a", "b", "z"}}}}
+	if got := m.ReopenValue(); got != "" {
+		t.Errorf("no completion declared: ReopenValue() = %q, want empty", got)
+	}
+	m.Completion = &Completion{Field: "f", Done: "z"}
+	if got := m.ReopenValue(); got != "a" {
+		t.Errorf("no default: ReopenValue() = %q, want the first option", got)
+	}
+	m.Fields[0].Default = "b"
+	if got := m.ReopenValue(); got != "b" {
+		t.Errorf("default b: ReopenValue() = %q, want the Field's default", got)
+	}
+}

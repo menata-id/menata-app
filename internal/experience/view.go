@@ -60,3 +60,25 @@ func GroupRecords(m *domain.Machine, v domain.View, records []*data.Record, colu
 	}
 	return columns
 }
+
+// PlaceBefore answers "where does a card go": given the 1-based position a person asked for inside the
+// group whose value is groupValue, it returns the id of the card the moved one must sit immediately
+// before, or "" for after the last of the group. records is the Machine's whole list in order; the moved
+// record itself is skipped, so moving a card down one slot does not count itself. A position past the end
+// (or below 1) lands at the end (or the start) rather than failing -- a drag released below the last card
+// and a typed 99 mean the same thing.
+func PlaceBefore(v domain.View, records []*data.Record, movedID, groupValue string, position int) string {
+	var inGroup []*data.Record
+	for _, r := range records {
+		if r.ID != movedID && fmt.Sprint(r.Values[v.GroupBy]) == groupValue {
+			inGroup = append(inGroup, r)
+		}
+	}
+	if position < 1 {
+		position = 1
+	}
+	if position > len(inGroup) {
+		return ""
+	}
+	return inGroup[position-1].ID
+}

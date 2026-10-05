@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 
 	"menata.app/internal/domain"
@@ -344,5 +345,37 @@ blocks_member_removal:
 	}
 	if b != want {
 		t.Errorf("MemberRemovalBlocks[0] = %+v, want %+v", b, want)
+	}
+}
+
+func TestParse_completion(t *testing.T) {
+	m, err := Parse([]byte("id: mch_task\nname: Task\ncompletion: { field: fld_status, done: done }\n"))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	want := &domain.Completion{Field: "fld_status", Done: "done"}
+	if !reflect.DeepEqual(m.Completion, want) {
+		t.Errorf("Completion = %+v, want %+v", m.Completion, want)
+	}
+	if got := m.DeclaredBlocks(); !slices.Contains(got, "completion") {
+		t.Errorf("DeclaredBlocks() = %v, want it to name completion", got)
+	}
+}
+
+func TestParse_cardTags(t *testing.T) {
+	src := `
+id: mch_task
+name: Task
+fields:
+  - { id: fld_title, name: Title, type: text }
+card_tags: { machine: mch_card_label, via: fld_task, tag: fld_label }
+`
+	m, err := Parse([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &domain.CardTags{Machine: "mch_card_label", Via: "fld_task", Tag: "fld_label"}
+	if m.CardTags == nil || *m.CardTags != *want {
+		t.Errorf("CardTags = %+v, want %+v", m.CardTags, want)
 	}
 }

@@ -241,6 +241,8 @@ type FullMachineCheckDoc struct {
 	FlowTemplate     any    `yaml:"flow_template"`
 	FlowTemplateStep any    `yaml:"flow_template_step"`
 	SLAField         string `yaml:"sla_field"`
+	Completion       any    `yaml:"completion"`
+	CardTags         any    `yaml:"card_tags"`
 	CardFields       []any  `yaml:"card_fields"`
 	Views            []any  `yaml:"views"`
 	AppendOnly       bool   `yaml:"append_only"`

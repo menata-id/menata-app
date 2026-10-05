@@ -324,6 +324,10 @@ rename the screen in the Application's `navigation:`, not in Go. A card shows wh
 to get the avatar. A Machine that declares `type: table` beside the board gets the segmented Board/Table
 switcher; the switcher's look changed for **every** Machine with more than one View.
 
+**Moving a card needs nothing declared.** Anyone who may edit a record can drag its card to another column or
+place in the same one, or use the pencil's *Move to list* / *Position*; both write the `group_by` Field and the
+card's order (`sort_order`). Nothing can be moved into the automatic "Other" column — it has no value to write.
+
 Write the `name` yourself; don't expect the type to supply it. `table`/`cards` is the runtime
 engine's own vocabulary, and a string the user reads is the Application author's to write — the
 same separation `name:` already has on a Machine and on a Field.
@@ -346,6 +350,47 @@ Machine's records look *wherever* they appear, and the record detail page select
 putting it on one arrangement would have forced an arbitrary pick. The same reasoning applies to
 `card_fields` below.
 
+## 7.05. Completion — which status value means "finished"
+
+```yaml
+completion: { field: fld_status, done: done }
+```
+
+`field` must be a `status` Field of this Machine and `done` one of its `options:` — both checked at
+load. Nothing else in a Machine says which status is terminal (the last option is a convention, and
+a Machine may list `archived` after `done`), so a screen that wants to draw a record as finished reads
+this. Today that is a board card's date pill (grey ahead, red once past, green with a check when
+finished — a finished card is never overdue) and its **completion circle**: hovering a card shows a
+circle that writes `done` into `field`, and on a finished card writes it back to the Field's `default:`
+(its first option when it declares none), so give the Field a `default` that means "not started". The
+circle and the quick-edit pencil appear only for someone the Machine's `edit` Permission allows. Optional: a Machine that declares none simply has no
+finished records. Like `sla_field`, it sits at the top level of the Machine, not inside a View.
+
+## 7.06. Card tags — the chips on a board card
+
+```yaml
+# on mch_task
+card_tags: { machine: mch_card_label, via: fld_task, tag: fld_label }
+```
+
+`machine` is the join Machine (one record per task–label pairing), `via` the reference Field on it that
+points back at this Machine, and `tag` the reference Field that names the label. All three are checked at
+load, across Machines, so a `via` that does not point back or a tag Machine with no name fails to start
+instead of drawing a board with no chips.
+
+What a chip looks like is declared **on the tag Machine**, once, in its own `card_fields`:
+
+```yaml
+# on mch_label
+card_fields:
+  - { field: fld_name, role: title }
+  - { field: fld_color, role: color }
+```
+
+A `color` Field must be a `status` Field whose `options:` are all in the closed palette
+(`blue, purple, amber, slate, emerald, cyan, rose`) — you choose a name, never a colour value, so a label
+reads the same on every board. Only a `board` View draws chips; the optional block costs nothing when absent.
+
 ## 7.1. Card fields — what a record shows when it renders as a card
 
 ```yaml
@@ -356,7 +401,7 @@ card_fields:
 ```
 
 Each entry names one of this Machine's own Fields plus the semantic **role** it renders as —
-`title`, `person`, `money`, `status` or `date` (`internal/domain.KnownCardFieldRoles`). The
+`title`, `person`, `money`, `status`, `date` or `color` (`internal/domain.KnownCardFieldRoles`; `color` only on a tag Machine, see 7.06). The
 renderer picks markup by role, not by the Field's storage type, so the same declaration works
 whether the underlying Field is plain text or a relation.
 
@@ -1101,6 +1146,8 @@ no View at all, so putting them on one arrangement would have forced an arbitrar
 | Key | Value | Notes |
 |---|---|---|
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
+| `card_tags` | `{machine, via, tag}` | `machine` an installed join Machine; `via` a reference on it pointing back at this Machine; `tag` a reference on it naming the tag. The tag Machine needs `card_fields` with `title` and (for colour) `color` roles. Read by a board card's chips |
+| `completion` | `{field: fld_*, done: <option>}` | `field` must be a `status` field and `done` one of its options. Read by a board card's date pill (`composition.IsComplete`) |
 | `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week, the Sprint dashboard's Attention list and the Dashboard's Project/pending-Document rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
 
 **There is no singular `view:` block any more.** It was one anonymous arrangement per Machine until

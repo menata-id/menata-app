@@ -185,12 +185,16 @@ func readMachineView(req *http.Request, machines map[string]*domain.Machine, mac
 	if err != nil {
 		return machineViewReads{}, err
 	}
+	tags, err := ld.CardTags(req.Context(), machine, v, records)
+	if err != nil {
+		return machineViewReads{}, err
+	}
 	return machineViewReads{
 		records:      records,
 		relations:    relations,
 		groups:       groups,
 		boardColumns: boardColumns,
-		cards:        composition.RecordCards(machine, v, records, relations),
+		cards:        composition.RecordCards(machine, v, records, relations, tags, time.Now()),
 	}, nil
 }
 

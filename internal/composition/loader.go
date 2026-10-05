@@ -567,6 +567,74 @@ func (l *Loader) BoardColumns(ctx context.Context, m *domain.Machine, v domain.V
 	return columns, nil
 }
 
+// CardTags resolves m's `card_tags:` for the records a board is about to draw: the join records that
+// point at them, then the few tag records those name -- two bounded statements whatever the board's size,
+// never one per card and never every record of the tag Machine. A tag's name and colour come from the tag
+// Machine's own `title` and `color` card_fields, so a Machine declaring nothing here costs nothing and
+// returns nil.
+//
+// A tag whose colour is missing or outside the palette (a record written before the Field was constrained)
+// is drawn in the neutral entry rather than dropped: losing the chip would hide that the card is tagged.
+func (l *Loader) CardTags(ctx context.Context, m *domain.Machine, v domain.View, records []*data.Record) (map[string][]rendering.CardTag, error) {
+	ct := m.CardTags
+	if ct == nil || v.EffectiveType() != domain.ViewBoard || len(records) == 0 {
+		return nil, nil
+	}
+	join, ok := l.machines[ct.Machine]
+	if !ok {
+		return nil, nil
+	}
+	tagField, ok := join.FieldByID(ct.Tag)
+	if !ok {
+		return nil, nil
+	}
+	tagMachine, ok := l.machines[tagField.RelatedMachine]
+	if !ok {
+		return nil, nil
+	}
+
+	parentIDs := make([]string, 0, len(records))
+	for _, r := range records {
+		parentIDs = append(parentIDs, r.ID)
+	}
+	joins, err := l.store.ListRecordsByAny(ctx, join.ID, "card_tags", ct.Via, parentIDs)
+	if err != nil {
+		return nil, err
+	}
+	l.reads++
+	tagIDs := make([]string, 0, len(joins))
+	seen := map[string]bool{}
+	for _, j := range joins {
+		if id := DisplayString(j.Values[ct.Tag]); id != "" && !seen[id] {
+			seen[id] = true
+			tagIDs = append(tagIDs, id)
+		}
+	}
+	tagRecords, err := l.store.ListRecordsByIDs(ctx, tagMachine.ID, tagIDs)
+	if err != nil {
+		return nil, err
+	}
+	l.reads++
+
+	titleField, colorField := FieldForRole(tagMachine, domain.CardFieldRoleTitle), FieldForRole(tagMachine, domain.CardFieldRoleColor)
+	byID := make(map[string]rendering.CardTag, len(tagRecords))
+	for _, t := range tagRecords {
+		color := domain.TagSlate
+		if c := DisplayString(t.Values[colorField]); domain.IsTagColor(c) {
+			color = domain.TagColor(c)
+		}
+		byID[t.ID] = rendering.CardTag{Label: DisplayString(t.Values[titleField]), Color: color}
+	}
+	out := make(map[string][]rendering.CardTag, len(records))
+	for _, j := range joins {
+		if tag, ok := byID[DisplayString(j.Values[ct.Tag])]; ok {
+			parent := DisplayString(j.Values[ct.Via])
+			out[parent] = append(out[parent], tag)
+		}
+	}
+	return out, nil
+}
+
 // ConstraintRelatedRecords fetches every record of each Constraint's related Machine, keyed by
 // that Machine's ID, for behavior.CheckConstraints to evaluate against.
 func (l *Loader) ConstraintRelatedRecords(ctx context.Context, m *domain.Machine) (map[string][]*data.Record, error) {

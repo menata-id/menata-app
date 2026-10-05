@@ -300,6 +300,26 @@ func (s *Store) ListRecordsByAny(ctx context.Context, machineID, datasetID, fiel
 	`, machineID, workspaceID, fieldID, ids)
 }
 
+// ListRecordsByIDs returns the given records of one Machine, Workspace-scoped in the statement. It is the
+// read a screen needs when it already holds ids from another Machine's reference Field (a board card's
+// tags) and wants those few records, rather than every record of the Machine.
+func (s *Store) ListRecordsByIDs(ctx context.Context, machineID string, ids []string) ([]*Record, error) {
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return nil, errNotScoped
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	readLogFrom(ctx).record(machineID + " by ids")
+	return s.queryRecords(ctx, `
+		SELECT id, machine_id, workspace_id, data, sort_order, created_at, updated_at
+		FROM records
+		WHERE machine_id = $1 AND workspace_id = $2 AND id = ANY($3)
+		ORDER BY sort_order ASC, created_at ASC
+	`, machineID, workspaceID, ids)
+}
+
 func (s *Store) queryRecords(ctx context.Context, query string, args ...any) ([]*Record, error) {
 	rows, err := s.pool.Query(ctx, query, args...)
 	if err != nil {
@@ -376,6 +396,85 @@ func (s *Store) UpdateRecord(ctx context.Context, machineID, id string, values m
 		return nil, fmt.Errorf("update record: %w", err)
 	}
 	return r, nil
+}
+
+// PlaceRecord moves one Record to sit immediately before beforeID in this Machine's order, or last when
+// beforeID is empty, and renumbers sort_order to say so. Order is the only thing it changes; the Record's
+// values are UpdateRecord's. The renumbering is the whole Machine, not the neighbours, because sort_order
+// is creation order (MAX+1) with no gaps to slot a value into -- and the select locks the rows, so two
+// moves cannot interleave into a mixed order. Workspace is in every statement (the same rule as every
+// other Store method taking an id).
+func (s *Store) PlaceRecord(ctx context.Context, machineID, id, beforeID string) error {
+	workspaceID, ok := workspaceScopeFrom(ctx)
+	if !ok {
+		return errNotScoped
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("place record: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	readLogFrom(ctx).record(machineID + " order")
+	rows, err := tx.Query(ctx, `
+		SELECT id FROM records
+		WHERE machine_id = $1 AND workspace_id = $2
+		ORDER BY sort_order ASC, created_at ASC
+		FOR UPDATE
+	`, machineID, workspaceID)
+	if err != nil {
+		return fmt.Errorf("place record: %w", err)
+	}
+	var current []string
+	for rows.Next() {
+		var rid string
+		if err := rows.Scan(&rid); err != nil {
+			rows.Close()
+			return fmt.Errorf("place record: %w", err)
+		}
+		current = append(current, rid)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("place record: %w", err)
+	}
+
+	order := make([]string, 0, len(current))
+	found, anchored := false, beforeID == ""
+	for _, rid := range current {
+		found = found || rid == id
+		anchored = anchored || rid == beforeID
+	}
+	if !found || !anchored {
+		return ErrRecordNotFound
+	}
+	if beforeID == id {
+		return nil
+	}
+	for _, rid := range current {
+		if rid == id {
+			continue
+		}
+		if rid == beforeID {
+			order = append(order, id)
+		}
+		order = append(order, rid)
+	}
+	if beforeID == "" {
+		order = append(order, id)
+	}
+	numbers := make([]int32, len(order))
+	for i := range order {
+		numbers[i] = int32(i + 1)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE records SET sort_order = v.n, updated_at = NOW()
+		FROM unnest($3::text[], $4::int[]) AS v(id, n)
+		WHERE records.id = v.id AND records.machine_id = $1 AND records.workspace_id = $2
+	`, machineID, workspaceID, order, numbers); err != nil {
+		return fmt.Errorf("place record: %w", err)
+	}
+	return tx.Commit(ctx)
 }
 
 // DeleteRecord removes a Record from this Store's Workspace. It is not an error to delete an

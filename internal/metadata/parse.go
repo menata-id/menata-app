@@ -36,12 +36,29 @@ type machineDoc struct {
 
 	// Machine-level display: how these records look wherever they appear, read on screens that
 	// select no View at all (the detail page, composition's bespoke cards).
-	SLAField   string         `yaml:"sla_field"`
+	SLAField string `yaml:"sla_field"`
+	// Completion -- see domain.Completion.
+	Completion *completionDoc `yaml:"completion"`
+	// CardTags -- see domain.CardTags.
+	CardTags   *cardTagsDoc   `yaml:"card_tags"`
 	CardFields []cardFieldDoc `yaml:"card_fields"`
 	// Views are the declared arrangements of those records.
 	Views []viewDoc `yaml:"views"`
 	// AppendOnly -- see domain.Machine.AppendOnly.
 	AppendOnly bool `yaml:"append_only"`
+}
+
+// cardTagsDoc is the YAML serialization of a domain.CardTags.
+type cardTagsDoc struct {
+	Machine string `yaml:"machine"`
+	Via     string `yaml:"via"`
+	Tag     string `yaml:"tag"`
+}
+
+// completionDoc is the YAML serialization of a domain.Completion.
+type completionDoc struct {
+	Field string `yaml:"field"`
+	Done  string `yaml:"done"`
 }
 
 // transitionDoc is the YAML serialization of a domain.Transition (Case 03 Fase 7).
@@ -542,6 +559,12 @@ func Parse(data []byte) (*domain.Machine, error) {
 	}
 
 	m.SLAField = doc.SLAField
+	if doc.CardTags != nil {
+		m.CardTags = &domain.CardTags{Machine: doc.CardTags.Machine, Via: doc.CardTags.Via, Tag: doc.CardTags.Tag}
+	}
+	if doc.Completion != nil {
+		m.Completion = &domain.Completion{Field: doc.Completion.Field, Done: doc.Completion.Done}
+	}
 	m.AppendOnly = doc.AppendOnly
 	for _, cf := range doc.CardFields {
 		m.CardFields = append(m.CardFields, domain.CardField{

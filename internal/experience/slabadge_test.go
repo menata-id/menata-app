@@ -70,3 +70,35 @@ func TestResolveSLABadgeIsDeterministic(t *testing.T) {
 		t.Fatal("the same due date resolved identically across midnight -- `now` is not reaching the comparison, so the parameter is decorative")
 	}
 }
+
+// The three states a card's date pill has, and the one rule that orders them: a finished card is never
+// overdue. `now` is injected, so each row is deterministic.
+func TestResolveCardDate(t *testing.T) {
+	now := time.Date(2026, 10, 5, 9, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name      string
+		value     any
+		done      bool
+		wantLabel string
+		wantTone  domain.BadgeTone
+	}{
+		{"ahead, this year", "2026-10-12", false, "12 Oct", domain.ToneNeutral},
+		{"due today is not overdue", "2026-10-05", false, "5 Oct", domain.ToneNeutral},
+		{"past", "2026-10-01", false, "1 Oct", domain.ToneBad},
+		{"past but finished", "2026-10-01", true, "1 Oct", domain.ToneGood},
+		{"finished before its date", "2026-10-12", true, "12 Oct", domain.ToneGood},
+		{"another year keeps the year", "2027-01-03", false, "3 Jan 2027", domain.ToneNeutral},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := ResolveCardDate(tc.value, tc.done, now)
+			if !got.Present || got.Label != tc.wantLabel || got.Tone != tc.wantTone || got.Done != tc.done {
+				t.Errorf("ResolveCardDate(%v, %v) = %+v, want label %q tone %q", tc.value, tc.done, got, tc.wantLabel, tc.wantTone)
+			}
+		})
+	}
+	for _, v := range []any{nil, "", "not a date"} {
+		if got := ResolveCardDate(v, true, now); got.Present {
+			t.Errorf("ResolveCardDate(%v) = %+v, want nothing drawn", v, got)
+		}
+	}
+}

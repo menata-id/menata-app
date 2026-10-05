@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"menata.app/internal/action"
@@ -450,7 +451,7 @@ templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, rela
 // internal/composition, which this package cannot import.
 templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, now time.Time) {
 	if v.EffectiveType() == domain.ViewBoard {
-		@boardScreen(m, v, records, relations, groups, boardColumns, cards)
+		@boardScreen(m, v, records, relations, groups, boardColumns, cards, actor)
 	} else {
 		@machineScreen(m, v, records, relations, groups, cards, actor, now)
 	}
@@ -589,6 +590,26 @@ templ cardsLayout(m *domain.Machine, cards []RecordCard) {
 type RecordCard struct {
 	Record *data.Record
 	Fields []ProjectedField
+	// Date is the resolved due-date pill (experience.ResolveCardDate); the zero value draws none.
+	Date experience.CardDate
+	// Tags are the chips drawn above the title (composition.Loader.CardTags), already named and coloured.
+	Tags []CardTag
+	// Complete is the completion toggle the card offers, nil when its Machine declares no completion.
+	Complete *CardComplete
+}
+
+// CardComplete is a card's completion toggle already resolved: the Field a click writes, the value it
+// writes (the opposite of what the record holds now) and whether the record is finished.
+type CardComplete struct {
+	Field string
+	Next  string
+	Done  bool
+}
+
+// CardTag is one resolved chip: a name and an entry of the closed palette.
+type CardTag struct {
+	Label string
+	Color domain.TagColor
 }
 
 // boardScreen is Case 19's Board page (PM01): a heading and a one-line summary, the View switcher beside a
@@ -599,7 +620,7 @@ type RecordCard struct {
 // name -- a Workspace's `nav_board` says "Board" and the Machine says "Task", and a screen titles itself
 // with what its own navigation calls it (the same rule pageHeader follows). The summary is computed from the
 // records and the View's own `group_by`: no count or Field name is typed here.
-templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard) {
+templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
 	@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
 		<div class="flex flex-col gap-1">
 			<h1 class="m-0 text-2xl font-medium">{ machineHeading(ctx, m) }</h1>
@@ -610,7 +631,82 @@ templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, rela
 			@newCardPopover(m, relations, groups)
 		}
 	}
-	@boardLayout(m, v, records, boardColumns, cards)
+	@boardLayout(m, v, records, boardColumns, cards, actor)
+	@boardDragScript()
+}
+
+// boardDragScript lets a card be dragged to another list or another place in its own: the same PATCH the
+// Move panel sends (the group Field and `position`), so a drop and the panel are one contract and the server
+// decides nothing differently for either. One delegated listener per page -- the board is swapped by HTMX
+// and a listener on the cards would be lost with them. Nothing here is moved in the DOM: the board that comes
+// back is the proof it saved, and a refused write (the shared htmx:responseError notice) leaves the card
+// where it was. This is the second named vanilla-JS exception beside signature placement: drag geometry
+// has no declarative form (007 §12.3's `actions` carries a click, not a gesture).
+templ boardDragScript() {
+	<script>
+		(function () {
+			if (window.menataBoardDrag) return;
+			window.menataBoardDrag = true;
+			var dragged = null, slot = null;
+			function clear() {
+				document.querySelectorAll("[data-board-column].ring-2").forEach(function (c) {
+					c.classList.remove("ring-2", "ring-emerald-500");
+				});
+				if (slot) { slot.remove(); slot = null; }
+			}
+			function placeIn(col, y) {
+				var cards = Array.prototype.filter.call(col.querySelectorAll("[data-card]"), function (c) { return c !== dragged; });
+				var idx = cards.length;
+				for (var i = 0; i < cards.length; i++) {
+					var r = cards[i].getBoundingClientRect();
+					if (y < r.top + r.height / 2) { idx = i; break; }
+				}
+				return { cards: cards, idx: idx };
+			}
+			// A text field inside a draggable card cannot have its text selected with the mouse (the card
+			// takes the gesture), so the card stops being draggable while the pointer is in its edit panel.
+			document.addEventListener("pointerdown", function (e) {
+				var c = e.target.closest && e.target.closest("[data-card]");
+				if (c && c.getAttribute("draggable") !== null) c.draggable = !e.target.closest("details");
+			});
+			document.addEventListener("dragstart", function (e) {
+				var c = e.target.closest && e.target.closest("[data-card]");
+				if (!c) return;
+				dragged = c;
+				e.dataTransfer.effectAllowed = "move";
+				e.dataTransfer.setData("text/plain", c.dataset.url);
+				setTimeout(function () { c.classList.add("opacity-40"); }, 0);
+			});
+			document.addEventListener("dragover", function (e) {
+				if (!dragged) return;
+				var col = e.target.closest("[data-board-column]");
+				if (!col) return;
+				e.preventDefault();
+				e.dataTransfer.dropEffect = "move";
+				clear();
+				col.classList.add("ring-2", "ring-emerald-500");
+				var p = placeIn(col, e.clientY);
+				slot = document.createElement("div");
+				slot.className = "h-1 rounded-full bg-emerald-500";
+				col.querySelector("[data-cards]").insertBefore(slot, p.cards[p.idx] || null);
+			});
+			document.addEventListener("drop", function (e) {
+				if (!dragged) return;
+				var col = e.target.closest("[data-board-column]");
+				if (!col || !col.dataset.value) return;
+				e.preventDefault();
+				var card = dragged, values = { position: placeIn(col, e.clientY).idx + 1 };
+				values[col.dataset.field] = col.dataset.value;
+				clear();
+				htmx.ajax("PATCH", card.dataset.url, { source: card, target: "#machine-body", swap: "innerHTML", values: values });
+			});
+			document.addEventListener("dragend", function () {
+				if (dragged) dragged.classList.remove("opacity-40");
+				dragged = null;
+				clear();
+			});
+		})();
+	</script>
 }
 
 // boardSummary is "11 cards · grouped by List".
@@ -638,24 +734,63 @@ func machineHeading(ctx context.Context, m *domain.Machine) string {
 // boardLayout groups records into columns by the selected View's own group_by and draws each as a
 // fixed-width column of cards (007 §12.2 -- Collection + Group Dimension, one column per group). Each
 // column ends in a composer that creates a record already placed in that group.
-templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boardColumns []experience.Column, cards []RecordCard) {
+templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
 	{{ byRecord := cardsByRecord(cards) }}
+	{{ columns := experience.GroupRecords(m, v, records, boardColumns) }}
+	{{ targets := moveTargets(m, v, columns) }}
 	<div class="flex items-start gap-2.5 overflow-x-auto pb-2">
-		for _, col := range experience.GroupRecords(m, v, records, boardColumns) {
-			<div role="group" aria-label={ col.Label } class="flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2">
+		for _, col := range columns {
+			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class="flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2">
 				<header class="flex items-center gap-1.5 px-1">
 					<h3 class="m-0 text-xs font-medium text-slate-700">{ col.Label }</h3>
 					<span class="rounded-full bg-white px-1.5 text-2xs text-slate-500">{ fmt.Sprint(len(col.Records)) }</span>
 				</header>
-				<div class="flex flex-col gap-2">
-					for _, r := range col.Records {
-						@boardCard(m, byRecord[r.ID])
+				<div data-cards class="flex flex-col gap-2">
+					for i, r := range col.Records {
+						@boardCard(m, byRecord[r.ID], actor, CardMove{Field: v.GroupBy, Targets: targets, Current: columnValue(m, v, col), Position: i + 1})
 					}
 				</div>
 				@cardComposer(m, v, col)
 			</div>
 		}
 	</div>
+}
+
+// CardMove is what a card needs to offer moving itself: the Field a move writes (the View's group_by), where
+// it can go, where it is, and its place there. A zero value offers no move.
+type CardMove struct {
+	Field    string
+	Targets  []MoveTarget
+	Current  string
+	Position int
+}
+
+// MoveTarget is one list a card can move to: the value written into the group Field, and what to call it.
+type MoveTarget struct {
+	Value, Label string
+}
+
+// columnValue is what a record must hold in the View's group Field to belong to col: the related record's
+// id for a relation-grouped board, the option itself for a status-grouped one, and "" for the synthetic
+// "Other" column, which no value produces and so nothing can be moved into.
+func columnValue(m *domain.Machine, v domain.View, col experience.Column) string {
+	if col.ID != "" {
+		return col.ID
+	}
+	if f, ok := m.FieldByID(v.GroupBy); ok && slices.Contains(f.Options, col.Label) {
+		return col.Label
+	}
+	return ""
+}
+
+func moveTargets(m *domain.Machine, v domain.View, cols []experience.Column) []MoveTarget {
+	var out []MoveTarget
+	for _, c := range cols {
+		if val := columnValue(m, v, c); val != "" {
+			out = append(out, MoveTarget{Value: val, Label: c.Label})
+		}
+	}
+	return out
 }
 
 func cardsByRecord(cards []RecordCard) map[string]RecordCard {
@@ -676,18 +811,135 @@ func cardRole(c RecordCard, role domain.CardFieldRole) string {
 	return ""
 }
 
+// tagClasses maps a palette entry onto the chip it draws and the dot inside it. Two literals per entry
+// because Tailwind reads class strings out of this file as text and cannot see one assembled at run time.
+// An unknown entry takes the neutral one, the same fallback composition applies before it gets here.
+func tagClasses(c domain.TagColor) (chip, dot string) {
+	switch c {
+	case domain.TagBlue:
+		return "border-blue-600/20 bg-blue-600/10 text-blue-600", "bg-blue-600"
+	case domain.TagPurple:
+		return "border-violet-600/20 bg-violet-600/10 text-violet-600", "bg-violet-600"
+	case domain.TagAmber:
+		return "border-amber-700/20 bg-amber-700/10 text-amber-700", "bg-amber-700"
+	case domain.TagEmerald:
+		return "border-green-700/20 bg-green-700/10 text-green-700", "bg-green-700"
+	case domain.TagCyan:
+		return "border-cyan-700/20 bg-cyan-700/10 text-cyan-700", "bg-cyan-700"
+	case domain.TagRose:
+		return "border-rose-700/20 bg-rose-700/10 text-rose-700", "bg-rose-700"
+	default:
+		return "border-slate-600/20 bg-slate-600/10 text-slate-600", "bg-slate-600"
+	}
+}
+
+// tagChip is a tag drawn as a pill with a colour dot. Its colour is a palette name, never a value, so the
+// same label reads the same on every board.
+templ tagChip(t CardTag) {
+	{{ chip, dot := tagClasses(t.Color) }}
+	<span class={ "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-2xs", chip }>
+		<span class={ "size-1.5 rounded-full", dot } aria-hidden="true"></span>
+		{ t.Label }
+	</span>
+}
+
 // boardCard is one record on a board: its title, its date and its person -- the three roles the
 // Machine's own card_fields declared, which is why this reads RecordCard and never a Field by id.
-templ boardCard(m *domain.Machine, c RecordCard) {
-	<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class="flex flex-col gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-slate-900 hover:shadow-sm">
-		<span class="text-sm leading-snug">{ cardRole(c, domain.CardFieldRoleTitle) }</span>
-		{{ date, person := cardRole(c, domain.CardFieldRoleDate), cardRole(c, domain.CardFieldRolePerson) }}
-		if date != "" || person != "" {
+//
+// The whole card is one link: the title's anchor stretches over it (`after:absolute after:inset-0`), which
+// is what lets the completion circle and the quick-edit pencil be real buttons -- a button inside an <a>
+// is invalid HTML. Both come before the link in the source so that their static position is the title's
+// row, and they only show on hover
+// or focus (a finished card keeps its circle). Both write through PATCH, which changes the Field named and
+// nothing else, and both answer with the board.
+templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove) {
+	{{ title := cardRole(c, domain.CardFieldRoleTitle) }}
+	{{ done := c.Complete != nil && c.Complete.Done }}
+	{{ canEdit := authorization.AllowsAction(m, domain.ActionEdit, c.Record.Values, actor) }}
+	<div
+		data-card
+		data-url={ cardPatchURL(m, c) }
+		if canEdit && mv.Field != "" {
+			draggable="true"
+		}
+		class="group/card relative flex flex-col gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-slate-900 hover:shadow-sm"
+	>
+		if len(c.Tags) > 0 {
+			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
+				for _, t := range c.Tags {
+					@tagChip(t)
+				}
+			}
+		}
+		<span class="block">
+			if c.Complete != nil && canEdit {
+				<form
+					class={ "absolute left-2.5 z-10 opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100", templ.KV("opacity-100", done) }
+					hx-patch={ cardPatchURL(m, c) }
+					hx-target="#machine-body"
+					hx-swap="innerHTML"
+				>
+					<input type="hidden" name={ c.Complete.Field } value={ c.Complete.Next }/>
+					<button
+						type="submit"
+						aria-pressed={ fmt.Sprint(done) }
+						aria-label={ completeLabel(done, title) }
+						class={ "grid size-5 place-items-center rounded-full border-2 text-white", templ.KV("border-emerald-600 bg-emerald-600", done), templ.KV("border-slate-300 hover:border-emerald-600", !done) }
+					>
+						if done {
+							@icon("check", "size-3")
+						}
+					</button>
+				</form>
+			}
+			if canEdit {
+				<details class="group/edit absolute right-2 z-10 rounded-md opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 open:inset-x-0 open:top-0 open:rounded-md open:border open:border-slate-200 open:bg-white open:p-2 open:opacity-100 open:shadow-md">
+					<summary aria-label={ "Edit " + title } class="grid size-5 cursor-pointer list-none place-items-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 group-open/edit:hidden">
+						@icon("pencil", "size-3.5")
+					</summary>
+					<form class="flex flex-col gap-1.5" hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
+						<input type="text" name={ cardTitleFieldID(m) } value={ title } required aria-label="Card title" class={ controlField + " w-full" }/>
+						<span class="flex gap-1.5">
+							<button type="submit" class={ controlPrimary }>Save</button>
+							<button type="button" class={ controlSecondary } onclick="this.closest('details').open=false">Cancel</button>
+						</span>
+					</form>
+					if mv.Field != "" && len(mv.Targets) > 0 {
+						<form class="mt-2 flex flex-col gap-1.5 border-t border-slate-200 pt-2" hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
+							<label class="flex flex-col gap-1 text-2xs text-slate-500">
+								Move to list
+								<select name={ mv.Field } class={ controlField + " w-full" }>
+									for _, t := range mv.Targets {
+										<option value={ t.Value } selected?={ t.Value == mv.Current }>{ t.Label }</option>
+									}
+								</select>
+							</label>
+							<label class="flex flex-col gap-1 text-2xs text-slate-500">
+								Position
+								<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ controlField + " w-full" }/>
+							</label>
+							<button type="submit" class={ controlSecondary }>Move</button>
+						</form>
+					}
+				</details>
+			}
+			<a
+				href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) }
+				draggable="false"
+				class={ "block text-sm leading-snug after:absolute after:inset-0", templ.KV("text-slate-500", done), templ.KV("group-hover/card:pl-7 group-hover/card:pr-6 group-focus-within/card:pl-7 group-focus-within/card:pr-6", canEdit && c.Complete != nil), templ.KV("pl-7 pr-6", done && canEdit) }
+			>{ title }</a>
+		</span>
+		{{ person := cardRole(c, domain.CardFieldRolePerson) }}
+		if c.Date.Present || person != "" {
 			<span class="flex items-center justify-between gap-2">
-				if date != "" {
-					<span class="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-2xs text-slate-600">
-						@icon("calendar", "size-3")
-						{ date }
+				if c.Date.Present {
+					<span class={ "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs", toneClass(ctx, c.Date.Tone) }>
+						if c.Date.Done {
+							@icon("check", "size-3")
+						} else {
+							@icon("calendar", "size-3")
+						}
+						{ c.Date.Label }
 					</span>
 				}
 				if person != "" {
@@ -697,7 +949,20 @@ templ boardCard(m *domain.Machine, c RecordCard) {
 				}
 			</span>
 		}
-	</a>
+	</div>
+}
+
+// cardPatchURL is the route a card's own writes go through.
+func cardPatchURL(m *domain.Machine, c RecordCard) string {
+	return "/machines/" + m.ID + "/records/" + c.Record.ID
+}
+
+// completeLabel is the circle's accessible name: what pressing it does, naming the card.
+func completeLabel(done bool, title string) string {
+	if done {
+		return "Mark \u201c" + title + "\u201d not complete"
+	}
+	return "Mark \u201c" + title + "\u201d complete"
 }
 
 // cardTitleFieldID is the Field a composer's input fills: the Machine's `title` card role, or its first

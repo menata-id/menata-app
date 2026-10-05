@@ -431,6 +431,9 @@ func LoadApplication(path string) (*App, error) {
 	if err := validateDatasetRelations(app.Machines); err != nil {
 		return nil, err
 	}
+	if err := validateCardTags(app.Machines); err != nil {
+		return nil, err
+	}
 	if err := validateRelationTargets(app.Machines); err != nil {
 		return nil, err
 	}
@@ -934,6 +937,75 @@ func validateDatasetRelations(machines []*domain.Machine) error {
 					issues = append(issues, fmt.Sprintf("machine %q dataset %q relation %q: %s.%s references %q, not %q -- a relation follows a field that points back at the declaring machine", m.ID, ds.ID, rel.ID, rel.Machine, rel.Via, f.RelatedMachine, m.ID))
 				}
 			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
+}
+
+// validateCardTags checks every `card_tags:` against the Machines it names, which a per-Machine Validate
+// cannot see. A card_tags that loads but draws nothing -- a `via` that does not point back, a tag Machine
+// with no colour role, a colour outside the palette -- is a board that silently shows no chips, which is
+// the shape this loader refuses everywhere else it can.
+func validateCardTags(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	var issues []string
+	for _, m := range machines {
+		ct := m.CardTags
+		if ct == nil {
+			continue
+		}
+		bad := func(format string, args ...any) {
+			issues = append(issues, fmt.Sprintf("machine %q card_tags: ", m.ID)+fmt.Sprintf(format, args...))
+		}
+		join, ok := byID[ct.Machine]
+		if !ok {
+			bad("machine %q is not installed in this workspace", ct.Machine)
+			continue
+		}
+		via, ok := join.FieldByID(ct.Via)
+		switch {
+		case !ok:
+			bad("%q has no field %q", ct.Machine, ct.Via)
+		case !via.IsReference() || via.RelatedMachine != m.ID:
+			bad("%s.%s must be a reference field pointing back at %q", ct.Machine, ct.Via, m.ID)
+		}
+		tag, ok := join.FieldByID(ct.Tag)
+		if !ok || !tag.IsReference() {
+			bad("%s.%s must be a reference field naming the tag", ct.Machine, ct.Tag)
+			continue
+		}
+		tagMachine, ok := byID[tag.RelatedMachine]
+		if !ok {
+			bad("tag machine %q is not installed in this workspace", tag.RelatedMachine)
+			continue
+		}
+		var hasTitle bool
+		for _, cf := range tagMachine.CardFields {
+			if cf.Role == domain.CardFieldRoleTitle {
+				hasTitle = true
+			}
+			if cf.Role != domain.CardFieldRoleColor {
+				continue
+			}
+			f, _ := tagMachine.FieldByID(cf.Field)
+			if f.Type != domain.FieldTypeStatus {
+				bad("%s.%s has the color role, so it must be a status field whose options are the palette", tagMachine.ID, cf.Field)
+				continue
+			}
+			for _, o := range f.Options {
+				if !domain.IsTagColor(o) {
+					bad("%s.%s offers %q, which is not in the palette %v", tagMachine.ID, cf.Field, o, domain.KnownTagColors)
+				}
+			}
+		}
+		if !hasTitle {
+			bad("%s declares no card_fields entry with the title role, so a tag would have no name to draw", tagMachine.ID)
 		}
 	}
 	if len(issues) > 0 {

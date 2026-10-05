@@ -105,83 +105,88 @@ func icon(name, class string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+		case "pencil":
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<path d=\"M4.5 19.5l1-4L16 5a2 2 0 0 1 3 3L8.5 18.5z\"></path> <path d=\"M14.5 6.5l3 3\"></path>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		case "calendar":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<rect x=\"3.5\" y=\"5.5\" width=\"17\" height=\"15\" rx=\"2\"></rect> <path d=\"M3.5 10h17M8 3.5v4M16 3.5v4\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<rect x=\"3.5\" y=\"5.5\" width=\"17\" height=\"15\" rx=\"2\"></rect> <path d=\"M3.5 10h17M8 3.5v4M16 3.5v4\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "timer":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<circle cx=\"12\" cy=\"13.5\" r=\"7\"></circle> <path d=\"M12 10v3.5l2.5 1.5M9.5 2.5h5\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<circle cx=\"12\" cy=\"13.5\" r=\"7\"></circle> <path d=\"M12 10v3.5l2.5 1.5M9.5 2.5h5\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "bar-chart":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<path d=\"M3.5 20.5h17\"></path> <path d=\"M7 20.5v-6M12 20.5V7M17 20.5v-9\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<path d=\"M3.5 20.5h17\"></path> <path d=\"M7 20.5v-6M12 20.5V7M17 20.5v-9\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "list":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<path d=\"M8.5 6.5h11M8.5 12h11M8.5 17.5h11\"></path> <circle cx=\"4.5\" cy=\"6.5\" r=\"1\"></circle> <circle cx=\"4.5\" cy=\"12\" r=\"1\"></circle> <circle cx=\"4.5\" cy=\"17.5\" r=\"1\"></circle>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<path d=\"M8.5 6.5h11M8.5 12h11M8.5 17.5h11\"></path> <circle cx=\"4.5\" cy=\"6.5\" r=\"1\"></circle> <circle cx=\"4.5\" cy=\"12\" r=\"1\"></circle> <circle cx=\"4.5\" cy=\"17.5\" r=\"1\"></circle>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "bolt":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<path d=\"M13.5 3 5.5 13.5h5.5l-1 7.5 8-10.5h-5.5z\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<path d=\"M13.5 3 5.5 13.5h5.5l-1 7.5 8-10.5h-5.5z\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "settings":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<circle cx=\"12\" cy=\"12\" r=\"3\"></circle> <path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<circle cx=\"12\" cy=\"12\" r=\"3\"></circle> <path d=\"M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "home":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<path d=\"M4 10.5 12 4l8 6.5\"></path> <path d=\"M6.5 9.5V20h11V9.5\"></path>  ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<path d=\"M4 10.5 12 4l8 6.5\"></path> <path d=\"M6.5 9.5V20h11V9.5\"></path>  ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "grid":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<circle cx=\"6\" cy=\"6\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"6\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"6\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"6\" cy=\"12\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"12\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"12\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"6\" cy=\"18\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"18\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"18\" r=\"1.6\" fill=\"currentColor\"></circle>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<circle cx=\"6\" cy=\"6\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"6\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"6\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"6\" cy=\"12\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"12\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"12\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"6\" cy=\"18\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"18\" r=\"1.6\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"18\" r=\"1.6\" fill=\"currentColor\"></circle>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "more":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<circle cx=\"6\" cy=\"12\" r=\"1.7\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"12\" r=\"1.7\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"12\" r=\"1.7\" fill=\"currentColor\"></circle>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<circle cx=\"6\" cy=\"12\" r=\"1.7\" fill=\"currentColor\"></circle> <circle cx=\"12\" cy=\"12\" r=\"1.7\" fill=\"currentColor\"></circle> <circle cx=\"18\" cy=\"12\" r=\"1.7\" fill=\"currentColor\"></circle>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "chevron-right":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<path d=\"M9 6l6 6-6 6\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<path d=\"M9 6l6 6-6 6\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "chevron-down":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<path d=\"M6 9l6 6 6-6\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<path d=\"M6 9l6 6 6-6\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "switch":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<path d=\"M7 7h12l-3-3M17 17H5l3 3\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<path d=\"M7 7h12l-3-3M17 17H5l3 3\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "user-check":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<circle cx=\"10\" cy=\"8\" r=\"3.5\"></circle> <path d=\"M3.5 19.5c1-3.3 3.6-5 6.5-5s5.5 1.7 6.5 5\"></path> <path d=\"M16 11.5l2 2 3.5-3.5\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<circle cx=\"10\" cy=\"8\" r=\"3.5\"></circle> <path d=\"M3.5 19.5c1-3.3 3.6-5 6.5-5s5.5 1.7 6.5 5\"></path> <path d=\"M16 11.5l2 2 3.5-3.5\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "sparkle":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "  <path d=\"M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z\"></path> <path d=\"M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "  <path d=\"M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z\"></path> <path d=\"M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		case "bell":
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "   <path d=\"M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9\"></path> <path d=\"M13.73 21a2 2 0 0 1-3.46 0\"></path>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "   <path d=\"M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9\"></path> <path d=\"M13.73 21a2 2 0 0 1-3.46 0\"></path>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</svg>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</svg>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

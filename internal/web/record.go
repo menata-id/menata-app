@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,6 +22,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/execution"
+	"menata.app/internal/experience"
 	"menata.app/internal/mail"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
@@ -195,27 +198,130 @@ func updateRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 		if !carryForwardFiles(w, req, store, machine, id, uploaded, values) {
 			return
 		}
-		data.ApplyComputed(machine, values)
-		if !allowsTransition(w, req, store, machine, id, values) {
-			return
-		}
-		if !passesWriteGuards(w, req, store, machines, machine, id, values) {
+		record, ok := commitRecordUpdate(w, req, store, files, mailer, machines, machine, id, values, actor)
+		if !ok {
 			return
 		}
 
-		// oldValues has to be read before the write replaces it, so any declared Event
-		// (domain.Machine.Events) can compare what changed once the write succeeds.
-		oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
+		renderRecord(w, req, machines, store, files, machine, record, actor)
+	}
+}
 
-		record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
+// commitRecordUpdate is everything between "these are the new values" and "they are stored": computed
+// Fields, the declared state model, the write guards, and the Events that fire afterwards. The generic
+// edit route and the single-Field one both end here, so a write that skips none of it cannot be written
+// by adding a route.
+func commitRecordUpdate(w http.ResponseWriter, req *http.Request, store *data.Store, files *storage.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, id string, values map[string]any, actor domain.Actor) (*data.Record, bool) {
+	data.ApplyComputed(machine, values)
+	if !allowsTransition(w, req, store, machine, id, values) {
+		return nil, false
+	}
+	if !passesWriteGuards(w, req, store, machines, machine, id, values) {
+		return nil, false
+	}
+	// oldValues has to be read before the write replaces it, so any declared Event
+	// (domain.Machine.Events) can compare what changed once the write succeeds.
+	oldValues, oldValuesOK := eventOldValues(req, store, machine, id)
+
+	record, err := store.UpdateRecord(req.Context(), machine.ID, id, values)
+	if err != nil {
+		recordError(w, err)
+		return nil, false
+	}
+	execution.RunEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID, oldValues, oldValuesOK)
+	return record, true
+}
+
+// patchRecordForm changes only the Fields the request names and keeps the rest of the record as it is.
+// updateRecordForm replaces a record from a whole form, which is right for an edit form and wrong for a
+// card's completion circle, quick edit or move: each knows one Field and must not blank the others by
+// not knowing them. Same permission, state model, guards and Events as that route (commitRecordUpdate).
+// Answers with the Machine's body, the fragment a board swaps in, the way create does.
+func patchRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machines := machinesFor(req.Context())
+		machine, ok := resolveMachine(w, req)
+		if !ok || refusesAppendOnlyWrite(w, machine) {
+			return
+		}
+		id := chi.URLParam(req, "id")
+		actor := currentActor(req, store, cfg)
+		if !allowsRecordEdit(w, req, store, machine, id, actor) {
+			return
+		}
+		if err := parseRecordForm(req); err != nil {
+			http.Error(w, "invalid form body", http.StatusBadRequest)
+			return
+		}
+		existing, err := store.GetRecord(req.Context(), machine.ID, id)
 		if err != nil {
 			recordError(w, err)
 			return
 		}
-		execution.RunEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machines, machine, record, actor.ID, oldValues, oldValuesOK)
-
-		renderRecord(w, req, machines, store, files, machine, record, actor)
+		values, submitted := maps.Clone(existing.Values), data.ValuesFromForm(machine, req.Form)
+		var changed int
+		for _, f := range machine.Fields {
+			if _, named := req.Form[f.ID]; named && f.Type != domain.FieldTypeFile {
+				values[f.ID] = submitted[f.ID]
+				changed++
+			}
+		}
+		if changed == 0 {
+			http.Error(w, "no field of this machine was named", http.StatusBadRequest)
+			return
+		}
+		position, ok := positionParam(w, req)
+		if !ok {
+			return
+		}
+		record, ok := commitRecordUpdate(w, req, store, files, mailer, machines, machine, id, values, actor)
+		if !ok || (position != 0 && !placeCard(w, req, store, machine, record, position)) {
+			return
+		}
+		renderMachineBody(w, req, machines, machine, store, actor)
 	}
+}
+
+// positionParam reads the optional `position` of a PATCH before anything is written, so a malformed one
+// refuses the whole request instead of refusing it after the Fields were saved. 0 means none was sent; a
+// position is 1-based, and a number below 1 is a malformed one.
+func positionParam(w http.ResponseWriter, req *http.Request) (int, bool) {
+	raw := req.FormValue("position")
+	if raw == "" {
+		return 0, true
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 {
+		http.Error(w, "position must be a number from 1", http.StatusBadRequest)
+		return 0, false
+	}
+	return n, true
+}
+
+// placeCard puts the record at the 1-based slot a PATCH's `position` asked for among the cards of the group
+// it now belongs to, in the View the person is looking at (resolveView reads it from HX-Current-URL, like
+// every other fragment). Position is not a Field and is never stored in the record: order is sort_order's
+// business (data.Store.PlaceRecord).
+func placeCard(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, record *data.Record, position int) bool {
+	v, ok := resolveView(w, machine, req)
+	if !ok {
+		return false
+	}
+	if v.GroupBy == "" {
+		http.Error(w, "position needs a grouped view", http.StatusBadRequest)
+		return false
+	}
+	records, err := store.ListRecords(req.Context(), machine.ID)
+	if err != nil {
+		serverError(w, err)
+		return false
+	}
+	before := experience.PlaceBefore(v, records, record.ID, fmt.Sprint(record.Values[v.GroupBy]), position)
+	if err := store.PlaceRecord(req.Context(), machine.ID, record.ID, before); err != nil {
+		recordError(w, err)
+		return false
+	}
+	return true
 }
 
 // recordEditAllowed is the one place that decides whether actor may edit a record given its

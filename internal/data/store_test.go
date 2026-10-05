@@ -546,3 +546,56 @@ func TestStore_ListRecordsSelectReportsTruncation(t *testing.T) {
 		}
 	}
 }
+
+func TestStore_PlaceRecord(t *testing.T) {
+	pool := storePool(t)
+	cleanupStoreTest(t, pool)
+	store := NewStore(pool)
+	ctx := storeTestContext()
+
+	ids := map[string]string{}
+	for _, name := range []string{"a", "b", "c", "d"} {
+		r, err := store.CreateRecord(ctx, storeTestMachine, map[string]any{"fld_name": name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[name] = r.ID
+	}
+	order := func() string {
+		rs, err := store.ListRecords(ctx, storeTestMachine)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var s string
+		for _, r := range rs {
+			s += r.Values["fld_name"].(string)
+		}
+		return s
+	}
+
+	if err := store.PlaceRecord(ctx, storeTestMachine, ids["d"], ids["b"]); err != nil || order() != "adbc" {
+		t.Errorf("d before b: err=%v order=%s, want adbc", err, order())
+	}
+	if err := store.PlaceRecord(ctx, storeTestMachine, ids["a"], ""); err != nil || order() != "dbca" {
+		t.Errorf("a last: err=%v order=%s, want dbca", err, order())
+	}
+	if err := store.PlaceRecord(ctx, storeTestMachine, ids["c"], ids["c"]); err != nil || order() != "dbca" {
+		t.Errorf("a card before itself must change nothing: err=%v order=%s", err, order())
+	}
+	if err := store.PlaceRecord(ctx, storeTestMachine, "rec_missing", ""); !errors.Is(err, ErrRecordNotFound) {
+		t.Errorf("an unknown record = %v, want ErrRecordNotFound", err)
+	}
+	if err := store.PlaceRecord(ctx, storeTestMachine, ids["a"], "rec_missing"); !errors.Is(err, ErrRecordNotFound) {
+		t.Errorf("an unknown anchor = %v, want ErrRecordNotFound", err)
+	}
+	if err := store.PlaceRecord(context.Background(), storeTestMachine, ids["a"], ""); err == nil {
+		t.Error("an unscoped context must not place anything")
+	}
+	other := WithWorkspaceScope(context.Background(), "ws_someone_else")
+	if err := store.PlaceRecord(other, storeTestMachine, ids["a"], ""); !errors.Is(err, ErrRecordNotFound) {
+		t.Errorf("another Workspace placing this record = %v, want ErrRecordNotFound", err)
+	}
+	if order() != "dbca" {
+		t.Errorf("a refused placement changed the order: %s", order())
+	}
+}

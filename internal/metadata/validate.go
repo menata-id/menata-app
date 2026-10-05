@@ -204,6 +204,17 @@ func Validate(m *domain.Machine) error {
 			issues = append(issues, fmt.Sprintf("machine %q: sla_field %q must be a date field, got %q", m.ID, m.SLAField, f.Type))
 		}
 	}
+	if m.Completion != nil {
+		f, ok := fieldsByID[m.Completion.Field]
+		switch {
+		case !ok:
+			issues = append(issues, fmt.Sprintf("machine %q: completion field %q is not a field of this machine", m.ID, m.Completion.Field))
+		case f.Type != domain.FieldTypeStatus:
+			issues = append(issues, fmt.Sprintf("machine %q: completion field %q must be a status field, got %q", m.ID, m.Completion.Field, f.Type))
+		case !slices.Contains(f.Options, m.Completion.Done):
+			issues = append(issues, fmt.Sprintf("machine %q: completion done %q is not one of %q's options %v", m.ID, m.Completion.Done, f.ID, f.Options))
+		}
+	}
 	for _, cf := range m.CardFields {
 		if _, ok := fieldsByID[cf.Field]; !ok {
 			issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q is not a field of this machine", m.ID, cf.Field))

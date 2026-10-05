@@ -91,3 +91,36 @@ func ResolveSLABadge(value any, now time.Time) SLABadge {
 	}
 	return SLABadge{Label: label, Tone: tone, Present: true}
 }
+
+// CardDate is the resolved input for a date pill on a card: the short date text, a tone, and whether the
+// record it belongs to is finished. Like SLABadge it carries nothing left to parse or compare.
+type CardDate struct {
+	Label   string
+	Tone    domain.BadgeTone
+	Done    bool
+	Present bool
+}
+
+// ResolveCardDate turns a stored due-date value into a card's date pill: neutral while the date is ahead
+// or today, ToneBad once it has passed, ToneGood once the record is complete -- a finished card is never
+// overdue, whatever its date says. The year is dropped for the current year ("12 Oct"), the form a card
+// has room for. `now` is a parameter for the same reason as in ResolveSLABadge.
+func ResolveCardDate(value any, done bool, now time.Time) CardDate {
+	badge := ResolveSLABadge(value, now)
+	if !badge.Present {
+		return CardDate{}
+	}
+	due, _ := time.Parse("2006-01-02", fmt.Sprint(value))
+	label := due.Format("2 Jan")
+	if due.Year() != now.Year() {
+		label = due.Format("2 Jan 2006")
+	}
+	tone := domain.ToneNeutral
+	switch {
+	case done:
+		tone = domain.ToneGood
+	case badge.Tone == domain.ToneBad:
+		tone = domain.ToneBad
+	}
+	return CardDate{Label: label, Tone: tone, Done: done, Present: true}
+}

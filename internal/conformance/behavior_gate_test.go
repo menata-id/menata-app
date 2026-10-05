@@ -30,6 +30,7 @@ import (
 var mutatingWriteGuards = map[string]map[string]string{
 	"record.go": {
 		"updateRecordForm": "allowsRecordEdit",
+		"patchRecordForm":  "allowsRecordEdit",
 		"deleteRecord":     "deleteAllowed",
 	},
 	"api.go": {
@@ -45,7 +46,13 @@ var mutatingWriteGuards = map[string]map[string]string{
 // could be written straight to `approved` through the generic route with no step decided, exactly
 // as it could before this phase.
 var transitionGuards = map[string]map[string]string{
-	"record.go":   {"updateRecordForm": "allowsTransition"},
+	// The transition check moved into commitRecordUpdate when PATCH became the second whole-record write
+	// that shares it; the two handlers are held to calling it, so the guard is still reached by both.
+	"record.go": {
+		"commitRecordUpdate": "allowsTransition",
+		"updateRecordForm":   "commitRecordUpdate",
+		"patchRecordForm":    "commitRecordUpdate",
+	},
 	"api.go":      {"updateRecord": "allowsTransition"},
 	"approval.go": {"decideStep": "declaredDecision"},
 }

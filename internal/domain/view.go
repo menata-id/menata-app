@@ -49,7 +49,52 @@ const (
 	CardFieldRoleMoney  CardFieldRole = "money"
 	CardFieldRoleStatus CardFieldRole = "status"
 	CardFieldRoleDate   CardFieldRole = "date"
+	// CardFieldRoleColor is a Field holding one entry of KnownTagColors. It is read on a Machine
+	// whose records are the tags another Machine's card_tags: draws (a label's own colour).
+	CardFieldRoleColor CardFieldRole = "color"
 )
+
+// TagColor is one entry of the closed palette a tag may be drawn in. A Workspace picks a name, never a
+// colour value: the palette is shared so a tag reads the same on every board and stays legible on a
+// small card (the Board Settings mockup states the rule in those words), and the Tailwind mapping lives
+// only in internal/rendering (007 §15.2).
+type TagColor string
+
+const (
+	TagBlue    TagColor = "blue"
+	TagPurple  TagColor = "purple"
+	TagAmber   TagColor = "amber"
+	TagSlate   TagColor = "slate"
+	TagEmerald TagColor = "emerald"
+	TagCyan    TagColor = "cyan"
+	TagRose    TagColor = "rose"
+)
+
+// KnownTagColors is the closed palette, in the order Board Settings lists it.
+var KnownTagColors = []TagColor{TagBlue, TagPurple, TagAmber, TagSlate, TagEmerald, TagCyan, TagRose}
+
+// IsTagColor reports whether s names an entry of the palette.
+func IsTagColor(s string) bool {
+	for _, c := range KnownTagColors {
+		if string(c) == s {
+			return true
+		}
+	}
+	return false
+}
+
+// CardTags declares the tags a record's card shows: the records of a join Machine that point at it,
+// and the tag each one points at. It is 007 §7.5's Relation (`machine`, `via`) with the one thing a
+// Relation alone does not say -- which of the join's *other* reference Fields is the thing to draw.
+//
+// Nothing here restates a Field: `via` and `tag` both name reference Fields the join Machine already
+// has, and what a tag *looks like* is that tag Machine's own card_fields (a `title` role for its name, a
+// `color` role for its colour), so a Workspace's labels are described once, on the label.
+type CardTags struct {
+	Machine string
+	Via     string
+	Tag     string
+}
 
 // KnownCardFieldRoles is the closed set of roles card_fields may declare.
 var KnownCardFieldRoles = map[CardFieldRole]bool{
@@ -58,6 +103,7 @@ var KnownCardFieldRoles = map[CardFieldRole]bool{
 	CardFieldRoleMoney:  true,
 	CardFieldRoleStatus: true,
 	CardFieldRoleDate:   true,
+	CardFieldRoleColor:  true,
 }
 
 // CardField names one of this Machine's own Fields to project onto a composed card (Approval

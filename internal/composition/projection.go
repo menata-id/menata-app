@@ -5,6 +5,7 @@ import (
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 	"menata.app/internal/rendering"
 )
 
@@ -16,13 +17,19 @@ import (
 // This is the consumer Projection was missing. Its only previous one (PendingApprovalCard)
 // projects a list whose role-compatible Fields hold the same value on every row, so the primitive
 // could run without any of its output varying; here the projection is the card.
-func RecordCards(m *domain.Machine, v domain.View, records []*data.Record, relations rendering.RelationOptions) []rendering.RecordCard {
+func RecordCards(m *domain.Machine, v domain.View, records []*data.Record, relations rendering.RelationOptions, tags map[string][]rendering.CardTag, now time.Time) []rendering.RecordCard {
 	if t := v.EffectiveType(); t != domain.ViewCards && t != domain.ViewBoard {
 		return nil
 	}
 	cards := make([]rendering.RecordCard, 0, len(records))
 	for _, r := range records {
-		cards = append(cards, rendering.RecordCard{Record: r, Fields: ProjectCardFields(m, r, relations)})
+		cards = append(cards, rendering.RecordCard{
+			Record:   r,
+			Fields:   ProjectCardFields(m, r, relations),
+			Tags:     tags[r.ID],
+			Complete: cardComplete(m, r),
+			Date:     experience.ResolveCardDate(r.Values[FieldForRole(m, domain.CardFieldRoleDate)], IsComplete(m, r), now),
+		})
 	}
 	return cards
 }
@@ -111,4 +118,24 @@ func FieldForRole(m *domain.Machine, role domain.CardFieldRole) string {
 		}
 	}
 	return ""
+}
+
+// IsComplete reports whether r holds the value m declares as "finished" (domain.Completion). A Machine
+// that declares none has no finished records, which is the honest answer rather than a guess at one.
+func IsComplete(m *domain.Machine, r *data.Record) bool {
+	return m.Completion != nil && DisplayString(r.Values[m.Completion.Field]) == m.Completion.Done
+}
+
+// cardComplete is the completion toggle a card offers: the Field it writes and the value a click writes,
+// which is the opposite of what the record holds now. Nil when the Machine declares no completion.
+func cardComplete(m *domain.Machine, r *data.Record) *rendering.CardComplete {
+	if m.Completion == nil {
+		return nil
+	}
+	done := IsComplete(m, r)
+	next := m.Completion.Done
+	if done {
+		next = m.ReopenValue()
+	}
+	return &rendering.CardComplete{Field: m.Completion.Field, Next: next, Done: done}
 }

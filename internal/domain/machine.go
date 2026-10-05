@@ -490,6 +490,11 @@ type Machine struct {
 	// than per-View because the record detail page renders it too, and a detail page selects no
 	// View.
 	SLAField string
+	// Completion declares which Field/value means a record is finished -- see Completion's own doc
+	// comment. Nil means this Machine declares no notion of "done", so nothing renders as complete.
+	Completion *Completion
+	// CardTags declares the tag chips a board card shows -- see CardTags' own doc comment.
+	CardTags *CardTags
 	// CardFields is the ordered list of this Machine's own Fields a card projects, each with its
 	// semantic role (Projection, 007 §7.6). Machine-level for the same reason as SLAField, and
 	// because internal/composition reads it for a bespoke card outside any View.
@@ -513,6 +518,41 @@ type Machine struct {
 	// delete those rows through the generic CRUD screens -- an audit trail with no integrity
 	// property at all, found by the authorization review rather than by a case.
 	AppendOnly bool
+}
+
+// Completion names the one Field and the one option of it that mean "this record is finished"
+// (007 §7.6 Projection's missing half: card_fields says which Field is the status, nothing said which
+// status value is terminal, so internal/composition's P3 hardcoded `done` for Task alone).
+//
+// Declared, not derived from the Machine's `transitions:`: a Machine with a free status Field (Task
+// declares none) has no edge to read, and the *last option* is a convention, not a fact -- a Machine
+// may list `archived` after `done`. The same "derive when something already answers it, declare when
+// nothing does" rule the Stage D/E2 blocks follow.
+//
+// Reopening a finished record writes Reopen: the Field's declared default when it has one, else its
+// first option. That is derivable from the Field itself, so it is not a second key.
+type Completion struct {
+	Field string
+	Done  string
+}
+
+// ReopenValue is what finishing's opposite writes: the completion Field's declared default when it has one,
+// else its first option. "" when m declares no completion.
+func (m *Machine) ReopenValue() string {
+	if m.Completion == nil {
+		return ""
+	}
+	f, ok := m.FieldByID(m.Completion.Field)
+	if !ok {
+		return ""
+	}
+	if s, ok := f.Default.(string); ok && s != "" {
+		return s
+	}
+	if len(f.Options) > 0 {
+		return f.Options[0]
+	}
+	return ""
 }
 
 // ViewByID returns the View with the given id, if m declares one -- the lookup a screen uses to

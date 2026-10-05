@@ -275,3 +275,99 @@ func TestSelectDataset_refusesAnUnresolvableSentinel(t *testing.T) {
 			"filter on the empty string or select everything")
 	}
 }
+
+// cardTagsFixture is a card Machine, its join, and a tag Machine, with two tasks, two labels and
+// three joins -- one label shared, one task untagged by anything but a *different* Workspace's join.
+func cardTagsFixture(t *testing.T, suffix string) (*Loader, context.Context, *domain.Machine, []*data.Record, func()) {
+	t.Helper()
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		t.Skip("set DATABASE_URL to run the card-tags integration tests")
+	}
+	pool, err := pgxpool.New(context.Background(), url)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	store := data.NewStore(pool)
+	ctx := data.WithWorkspaceScope(context.Background(), "ws_card_tags_"+suffix)
+	other := data.WithWorkspaceScope(context.Background(), "ws_card_tags_other_"+suffix)
+	card, join, tag := "mch_ct_card_"+suffix, "mch_ct_join_"+suffix, "mch_ct_tag_"+suffix
+	t.Cleanup(func() {
+		if _, err := pool.Exec(context.Background(), `DELETE FROM records WHERE machine_id = ANY($1)`, []string{card, join, tag}); err != nil {
+			t.Errorf("cleanup: %v", err)
+		}
+	})
+	must := func(r *data.Record, err error) *data.Record {
+		t.Helper()
+		if err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+		return r
+	}
+	a := must(store.CreateRecord(ctx, card, map[string]any{"fld_title": "A"}))
+	b := must(store.CreateRecord(ctx, card, map[string]any{"fld_title": "B"}))
+	bug := must(store.CreateRecord(ctx, tag, map[string]any{"fld_name": "Bug", "fld_color": "rose"}))
+	odd := must(store.CreateRecord(ctx, tag, map[string]any{"fld_name": "Legacy", "fld_color": "chartreuse"}))
+	must(store.CreateRecord(ctx, join, map[string]any{"fld_task": a.ID, "fld_label": bug.ID}))
+	must(store.CreateRecord(ctx, join, map[string]any{"fld_task": a.ID, "fld_label": odd.ID}))
+	must(store.CreateRecord(ctx, join, map[string]any{"fld_task": b.ID, "fld_label": bug.ID}))
+	// Another Workspace pointing at the same ids must contribute nothing.
+	must(store.CreateRecord(other, join, map[string]any{"fld_task": b.ID, "fld_label": odd.ID}))
+
+	cardM := &domain.Machine{
+		ID:       card,
+		Fields:   []domain.Field{{ID: "fld_title", Type: domain.FieldTypeText}},
+		CardTags: &domain.CardTags{Machine: join, Via: "fld_task", Tag: "fld_label"},
+		Views:    []domain.View{{ID: "vw_board", Type: domain.ViewBoard}},
+	}
+	joinM := &domain.Machine{ID: join, Fields: []domain.Field{
+		{ID: "fld_task", Type: domain.FieldTypeRelation, RelatedMachine: card},
+		{ID: "fld_label", Type: domain.FieldTypeRelation, RelatedMachine: tag},
+	}}
+	tagM := &domain.Machine{ID: tag,
+		Fields: []domain.Field{
+			{ID: "fld_name", Type: domain.FieldTypeText},
+			{ID: "fld_color", Type: domain.FieldTypeStatus, Options: []string{"rose", "slate"}},
+		},
+		CardFields: []domain.CardField{
+			{Field: "fld_name", Role: domain.CardFieldRoleTitle},
+			{Field: "fld_color", Role: domain.CardFieldRoleColor},
+		},
+	}
+	l := NewLoader(store, map[string]*domain.Machine{card: cardM, join: joinM, tag: tagM})
+	return l, ctx, cardM, []*data.Record{a, b}, func() {}
+}
+
+func TestCardTags_resolvesNamesAndColoursInBoundedReads(t *testing.T) {
+	l, ctx, m, records, _ := cardTagsFixture(t, "ok")
+	got, err := l.CardTags(ctx, m, m.Views[0], records)
+	if err != nil {
+		t.Fatalf("CardTags: %v", err)
+	}
+	a, b := records[0].ID, records[1].ID
+	if len(got[a]) != 2 || len(got[b]) != 1 {
+		t.Fatalf("tags per card = %d and %d, want 2 and 1 (another Workspace's join must not count): %+v", len(got[a]), len(got[b]), got)
+	}
+	colours := map[string]domain.TagColor{}
+	for _, tg := range got[a] {
+		colours[tg.Label] = tg.Color
+	}
+	if colours["Bug"] != domain.TagRose {
+		t.Errorf("Bug drawn %q, want rose", colours["Bug"])
+	}
+	if colours["Legacy"] != domain.TagSlate {
+		t.Errorf("a colour outside the palette must fall back to slate, got %q", colours["Legacy"])
+	}
+	if l.reads != 2 {
+		t.Errorf("reads = %d, want 2 (the joins, then the tags) however many cards there are", l.reads)
+	}
+}
+
+func TestCardTags_declaredNothingCostsNothing(t *testing.T) {
+	l, ctx, m, records, _ := cardTagsFixture(t, "none")
+	m.CardTags = nil
+	if got, err := l.CardTags(ctx, m, m.Views[0], records); err != nil || got != nil || l.reads != 0 {
+		t.Errorf("no card_tags: got %v, err %v, reads %d; want nil, nil, 0", got, err, l.reads)
+	}
+}

@@ -844,3 +844,77 @@ func TestValidate_permissionMustGateOnSomething(t *testing.T) {
 		t.Error("Validate() = nil, want an error -- a permission that gates on nothing protects nothing")
 	}
 }
+
+func TestValidate_completion(t *testing.T) {
+	ok := validMachine()
+	ok.Completion = &domain.Completion{Field: "fld_status", Done: "done"}
+	if err := Validate(ok); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+
+	for _, tc := range []struct {
+		name string
+		c    domain.Completion
+		want string
+	}{
+		{"unknown field", domain.Completion{Field: "fld_nope", Done: "done"}, "is not a field of this machine"},
+		{"not a status field", domain.Completion{Field: "fld_title", Done: "done"}, "must be a status field"},
+		{"value not an option", domain.Completion{Field: "fld_status", Done: "shipped"}, "is not one of"},
+	} {
+		m := validMachine()
+		c := tc.c
+		m.Completion = &c
+		t.Run(tc.name, func(t *testing.T) { assertIssue(t, m, tc.want) })
+	}
+}
+
+func cardTagsMachines() (card, join, tag *domain.Machine) {
+	card = &domain.Machine{ID: "mch_task", Name: "Task",
+		Fields:   []domain.Field{{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText}},
+		CardTags: &domain.CardTags{Machine: "mch_task_label", Via: "fld_task", Tag: "fld_label"}}
+	join = &domain.Machine{ID: "mch_task_label", Name: "Task label", Fields: []domain.Field{
+		{ID: "fld_task", Name: "Task", Type: domain.FieldTypeRelation, RelatedMachine: "mch_task"},
+		{ID: "fld_label", Name: "Label", Type: domain.FieldTypeRelation, RelatedMachine: "mch_label"},
+	}}
+	tag = &domain.Machine{ID: "mch_label", Name: "Label",
+		Fields: []domain.Field{
+			{ID: "fld_name", Name: "Name", Type: domain.FieldTypeText},
+			{ID: "fld_color", Name: "Colour", Type: domain.FieldTypeStatus, Options: []string{"blue", "rose"}},
+		},
+		CardFields: []domain.CardField{
+			{Field: "fld_name", Role: domain.CardFieldRoleTitle},
+			{Field: "fld_color", Role: domain.CardFieldRoleColor},
+		}}
+	return
+}
+
+func TestValidateCardTags(t *testing.T) {
+	card, join, tag := cardTagsMachines()
+	if err := validateCardTags([]*domain.Machine{card, join, tag}); err != nil {
+		t.Fatalf("valid card_tags rejected: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		mutate func(card, join, tag *domain.Machine)
+		want   string
+	}{
+		{"join not installed", func(c, j, tg *domain.Machine) { c.CardTags.Machine = "mch_nowhere" }, "is not installed"},
+		{"via is not a field", func(c, j, tg *domain.Machine) { c.CardTags.Via = "fld_nope" }, "has no field"},
+		{"via points elsewhere", func(c, j, tg *domain.Machine) { j.Fields[0].RelatedMachine = "mch_label" }, "pointing back"},
+		{"tag is not a reference", func(c, j, tg *domain.Machine) { j.Fields[1].RelatedMachine = "" }, "reference field naming the tag"},
+		{"tag machine absent", func(c, j, tg *domain.Machine) { j.Fields[1].RelatedMachine = "mch_gone" }, "tag machine"},
+		{"no title role", func(c, j, tg *domain.Machine) { tg.CardFields = tg.CardFields[1:] }, "title role"},
+		{"colour not status", func(c, j, tg *domain.Machine) { tg.Fields[1].Type = domain.FieldTypeText }, "must be a status field"},
+		{"colour outside palette", func(c, j, tg *domain.Machine) { tg.Fields[1].Options = []string{"blue", "chartreuse"} }, "not in the palette"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, j, tg := cardTagsMachines()
+			tc.mutate(c, j, tg)
+			err := validateCardTags([]*domain.Machine{c, j, tg})
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error = %v, want one containing %q", err, tc.want)
+			}
+		})
+	}
+}
