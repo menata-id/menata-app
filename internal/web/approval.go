@@ -128,7 +128,16 @@ func pendingTabContent(ctx context.Context, store *data.Store, machines map[stri
 // ?status= the same way pendingTabContent reduces Pending by ?filter=, then by ?q= within whichever
 // status chip is active.
 func assignedTabContent(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, userID, statusKey, q string) (rows []rendering.AssignedRow, filters []rendering.FilterChip, truncated rendering.Truncation, err error) {
-	assigned, err := composition.AssignedToMe(ctx, composition.NewLoader(store, machines), userID, time.Now(), machineForStep(ctx), machineForDocument(ctx))
+	workspaceID, _ := data.WorkspaceScope(ctx)
+	membership, err := membershipFor(ctx, store, workspaceID, userID)
+	if err != nil {
+		return nil, nil, rendering.Truncation{}, err
+	}
+	var viewerGroups []data.Group
+	if membership != nil {
+		viewerGroups = membership.Groups
+	}
+	assigned, err := composition.AssignedToMe(ctx, composition.NewLoader(store, machines), userID, viewerGroups, time.Now(), machineForStep(ctx), machineForDocument(ctx))
 	if err != nil {
 		return nil, nil, rendering.Truncation{}, err
 	}

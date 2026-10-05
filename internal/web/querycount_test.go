@@ -505,3 +505,27 @@ func routerSetupParts(t *testing.T, name string) (http.Handler, string, context.
 	})
 	return h, sessionCookieValueForTest(t, cfg, actor.ID, 0), wsCtx, store, files, installed, actor.ID
 }
+
+// getSweepVariants are the query-string variants of a swept route whose cost differs from the bare
+// route's. TestNoGetRouteRepeatsAReadOrLeavesOneUnnamed requests each route bare, so a branch behind
+// ?tab=/?status= is reached by nothing: the log review of 2026-10-05 found 176 of 857 /approval-inbox
+// visits repeating a read, and the bare route is clean. A named list rather than a discovery, because
+// "which query strings change a handler's reads" is a judgement a scan of router.go cannot make.
+var getSweepVariants = []string{
+	"/approval-inbox?tab=assigned",
+}
+
+func TestNoGetRouteVariantRepeatsAReadOrLeavesOneUnnamed(t *testing.T) {
+	h, cookie := newRouterTestSetup(t, "getvariants")
+	for _, url := range getSweepVariants {
+		req := httptest.NewRequest(http.MethodGet, url, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		queries, reads, repeated, line := serveAndCount(t, h, req)
+		if queries != reads {
+			t.Errorf("%s: queries=%d reads=%d -- %d statement(s) named nothing\n  %s", url, queries, reads, queries-reads, line)
+		}
+		if repeated > 0 {
+			t.Errorf("%s: repeated=%d -- the variant read the same target twice\n  %s", url, repeated, line)
+		}
+	}
+}

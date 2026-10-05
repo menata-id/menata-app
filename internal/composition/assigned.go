@@ -58,7 +58,7 @@ type Assigned struct {
 // composition.ApprovalInbox already is, not a filtered list -- so it follows the identical shape:
 // an I/O wrapper here, the actual derivation in a pure function (buildAssigned) that a test can
 // call without a database.
-func AssignedToMe(ctx context.Context, l *Loader, viewerID string, now time.Time, stepMachine, docMachine *domain.Machine) (Assigned, error) {
+func AssignedToMe(ctx context.Context, l *Loader, viewerID string, viewerGroups []data.Group, now time.Time, stepMachine, docMachine *domain.Machine) (Assigned, error) {
 	if viewerID == "" {
 		return Assigned{}, nil
 	}
@@ -78,13 +78,11 @@ func AssignedToMe(ctx context.Context, l *Loader, viewerID string, now time.Time
 	if err != nil {
 		return Assigned{}, err
 	}
-	workspaceID, _ := data.WorkspaceScope(ctx)
-	myGroups, err := l.store.GroupsForMember(ctx, workspaceID, viewerID)
-	if err != nil {
-		return Assigned{}, err
-	}
-	myGroupNames := make(map[string]string, len(myGroups))
-	for _, g := range myGroups {
+	// viewerGroups comes from the caller's already-resolved membership: reading them here again
+	// was the repeated `groups for member` on 176 of 857 /approval-inbox visits (log review
+	// 2026-10-05), because identity resolution had already read them once per request.
+	myGroupNames := make(map[string]string, len(viewerGroups))
+	for _, g := range viewerGroups {
 		myGroupNames[g.ID] = g.Name
 	}
 	return buildAssigned(sel, activities, names, myGroupNames, viewerID, now, stepMachine, docMachine), nil
