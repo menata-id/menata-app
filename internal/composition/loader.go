@@ -576,8 +576,18 @@ func (l *Loader) BoardColumns(ctx context.Context, m *domain.Machine, v domain.V
 // A tag whose colour is missing or outside the palette (a record written before the Field was constrained)
 // is drawn in the neutral entry rather than dropped: losing the chip would hide that the card is tagged.
 func (l *Loader) CardTags(ctx context.Context, m *domain.Machine, v domain.View, records []*data.Record) (map[string][]rendering.CardTag, error) {
+	if v.EffectiveType() != domain.ViewBoard {
+		return nil, nil
+	}
+	return l.CardTagsFor(ctx, m, records)
+}
+
+// CardTagsFor is CardTags for a screen that is not a board View but draws the same chips on the same
+// records (My Tasks): the declaration belongs to the Machine, and which screen asks does not change what a
+// card is tagged with.
+func (l *Loader) CardTagsFor(ctx context.Context, m *domain.Machine, records []*data.Record) (map[string][]rendering.CardTag, error) {
 	ct := m.CardTags
-	if ct == nil || v.EffectiveType() != domain.ViewBoard || len(records) == 0 {
+	if ct == nil || len(records) == 0 {
 		return nil, nil
 	}
 	join, ok := l.machines[ct.Machine]

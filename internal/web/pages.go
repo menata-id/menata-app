@@ -78,7 +78,7 @@ func showMyTasks(store *data.Store, cfg config.Config) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.MyTasksPage(t.Summary, t.Today, t.Upcoming, t.Completed, workspaceName, viewer, switchHref))
+		render(ctx, w, rendering.MyTasksPage(t.Overdue, t.Next7Days, t.Later, t.Completed, workspaceName, viewer, switchHref))
 	}
 }
 

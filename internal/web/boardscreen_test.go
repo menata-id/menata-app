@@ -103,6 +103,11 @@ func TestBoardDrawsTagChipsFromCardTags(t *testing.T) {
 
 func patchCard(t *testing.T, h http.Handler, cookie, id string, fields map[string]string, csrf bool) *httptest.ResponseRecorder {
 	t.Helper()
+	return patchCardFrom(t, h, cookie, id, fields, csrf, "http://x/machines/mch_task")
+}
+
+func patchCardFrom(t *testing.T, h http.Handler, cookie, id string, fields map[string]string, csrf bool, currentURL string) *httptest.ResponseRecorder {
+	t.Helper()
 	tok := csrfTokenFor(t, h, "/machines/mch_task/records")
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
@@ -116,7 +121,7 @@ func patchCard(t *testing.T, h http.Handler, cookie, id string, fields map[strin
 		req.Header.Set("X-CSRF-Token", tok.value)
 	}
 	req.Header.Set("HX-Request", "true")
-	req.Header.Set("HX-Current-URL", "http://x/machines/mch_task")
+	req.Header.Set("HX-Current-URL", currentURL)
 	req.AddCookie(tok.cookie)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
 	rec := httptest.NewRecorder()
@@ -246,5 +251,44 @@ func TestBoardCardMoveWritesListAndPosition(t *testing.T) {
 	}
 	if got, _ := store.GetRecord(ctx, "mch_task", d); got.Values["fld_list"] != shooting || got.Values["position"] != nil {
 		t.Errorf("position leaked into the record's values: %+v", got.Values)
+	}
+}
+
+// My Tasks sections the viewer's own Tasks and its circle PATCHes the same record route the board's does.
+// Written from /my-tasks there is no Machine body to swap in, so the answer is an HX-Refresh with no body --
+// and the Task moves from Next 7 days (or Later) to Completed on the redraw, which is the whole point.
+func TestMyTasksCircleCompletesAndRefreshesThePage(t *testing.T) {
+	h, cookie, ctx, store, _, _, actorID := routerSetupFor(t, "mytaskscircle", "default")
+	task, err := store.CreateRecord(ctx, "mch_task", map[string]any{"fld_title": "Circle me", "fld_assignee": actorID, "fld_status": "todo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateRecord(ctx, "mch_task", map[string]any{"fld_title": "Not mine", "fld_assignee": "usr_someone_else", "fld_status": "todo"}); err != nil {
+		t.Fatal(err)
+	}
+	get := func() string {
+		req := httptest.NewRequest(http.MethodGet, "/my-tasks", nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("/my-tasks = %d\n%s", rec.Code, rec.Body.String())
+		}
+		return rec.Body.String()
+	}
+	before := get()
+	if !strings.Contains(before, "Circle me") || strings.Contains(before, "Not mine") {
+		t.Fatalf("My Tasks must list the viewer's task and only that")
+	}
+	if strings.Contains(before, "Completed") {
+		t.Errorf("no Completed section should be drawn while nothing is completed")
+	}
+
+	rec := patchCardFrom(t, h, cookie, task.ID, map[string]string{"fld_status": "done"}, true, "http://x/my-tasks")
+	if rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "true" || rec.Body.Len() != 0 {
+		t.Fatalf("circle from /my-tasks = %d, HX-Refresh=%q, body %d bytes; want 200, true, empty", rec.Code, rec.Header().Get("HX-Refresh"), rec.Body.Len())
+	}
+	if after := get(); !strings.Contains(after, "Completed") || !strings.Contains(after, `aria-pressed="true"`) {
+		t.Errorf("after the circle the task should sit under Completed")
 	}
 }

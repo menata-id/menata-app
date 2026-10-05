@@ -42,7 +42,7 @@ navigation:
     priority: 2
     home_card: true
     icon: check-square
-    description: Tasks assigned to you, projected across all projects.
+    description: Everything assigned to you, from every board in this workspace. Tick a circle to finish a task without opening it.
   # Moved here from document-approval.yaml (2026-09-21): the page composes Projects, Tasks and
   # their Activity -- this Application's Machines -- and had only ever been declared over there
   # because both Applications were one before Fase 3 split them.

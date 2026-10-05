@@ -6,6 +6,7 @@ import (
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 )
@@ -78,42 +79,78 @@ func TestBuildDashboard_DocumentStatusSplit(t *testing.T) {
 	}
 }
 
-// My Tasks buckets by day and by status: done is Completed regardless of date, overdue and
-// due-today share the Today column but count separately, and an unparseable date is Upcoming
-// rather than dropped.
+// My Tasks buckets by day and by completion: a finished Task is Completed whatever its date says, a passed
+// date is Overdue, a date from today through seven days ahead is Next 7 days, and anything later or
+// undated is Later (an unparseable date is "someday", not dropped).
 //
 // **It no longer receives another identity's Tasks, because it no longer filters** (2026-09-29): the
 // assignee predicate moved into ds_my_tasks and runs in the database. That property did not stop
 // mattering, so it did not stop being tested -- TestPersonalTasks_returnsOnlyTheViewersTasks in
 // select_test.go asserts it end to end against a real database, which is where it now lives.
-// Leaving tsk_theirs in this fixture would assert that buildMyTasks still filters, which is the
-// opposite of what the migration did.
 func TestBuildMyTasks_Buckets(t *testing.T) {
 	tasks := []*data.Record{
 		task("tsk_done", "prj_1", "usr_ana", "done", "2026-09-01"),
 		task("tsk_overdue", "prj_1", "usr_ana", "todo", "2026-09-09"),
 		task("tsk_today", "prj_1", "usr_ana", "in_progress", "2026-09-10"),
-		task("tsk_later", "prj_2", "usr_ana", "todo", "2026-09-20"),
+		task("tsk_edge", "prj_2", "usr_ana", "todo", "2026-09-17"),
+		task("tsk_later", "prj_2", "usr_ana", "todo", "2026-09-18"),
 		task("tsk_undated", "prj_2", "usr_ana", "todo", ""),
 	}
+	tags := map[string][]rendering.CardTag{"tsk_today": {{Label: "Set"}}}
 
-	got := buildMyTasks(tasks, projectLabels, "usr_ana", at(10), taskMachineForTest())
+	got := buildMyTasks(tasks, projectLabels, at(10), taskMachineForTest(), tags, nil)
 
-	if len(got.Completed) != 1 || got.Completed[0].Task.ID != "tsk_done" {
-		t.Errorf("Completed = %v, want just tsk_done", ids(got.Completed))
+	for name, c := range map[string]struct{ got, want []string }{
+		"Completed": {ids(got.Completed), []string{"tsk_done"}},
+		"Overdue":   {ids(got.Overdue), []string{"tsk_overdue"}},
+		"Next 7":    {ids(got.Next7Days), []string{"tsk_today", "tsk_edge"}},
+		"Later":     {ids(got.Later), []string{"tsk_later", "tsk_undated"}},
+	} {
+		if !equal(c.got, c.want) {
+			t.Errorf("%s = %v, want %v", name, c.got, c.want)
+		}
 	}
-	if want := []string{"tsk_overdue", "tsk_today"}; !equal(ids(got.Today), want) {
-		t.Errorf("Today = %v, want %v", ids(got.Today), want)
+	if got.Overdue[0].ProjectName != "Apollo" {
+		t.Errorf("ProjectName = %q, want the resolved name", got.Overdue[0].ProjectName)
 	}
-	if want := []string{"tsk_later", "tsk_undated"}; !equal(ids(got.Upcoming), want) {
-		t.Errorf("Upcoming = %v, want %v", ids(got.Upcoming), want)
+	if c := got.Completed[0].Complete; c == nil || !c.Done || c.Next != "todo" {
+		t.Errorf("a finished row must offer to reopen: %+v", c)
 	}
-	if got.Summary.Open != 4 || got.Summary.Overdue != 1 || got.Summary.DueToday != 1 {
-		t.Errorf("summary open/overdue/today = %d/%d/%d, want 4/1/1", got.Summary.Open, got.Summary.Overdue, got.Summary.DueToday)
+	if c := got.Overdue[0].Complete; c == nil || c.Done || c.Next != "done" {
+		t.Errorf("an open row must offer to finish: %+v", c)
 	}
-	// The Project label is resolved, not left as the raw id.
-	if got.Today[0].ProjectName != "Apollo" {
-		t.Errorf("ProjectName = %q, want %q", got.Today[0].ProjectName, "Apollo")
+	if !got.Overdue[0].Date.Present || got.Overdue[0].Date.Tone != domain.ToneBad {
+		t.Errorf("an overdue row's date must be drawn as overdue: %+v", got.Overdue[0].Date)
+	}
+	if len(got.Next7Days[0].Tags) != 1 {
+		t.Errorf("tags did not reach the row: %+v", got.Next7Days[0].Tags)
+	}
+}
+
+// listName reads the default View's group_by: a relation-grouped board names the list through its columns,
+// an option-grouped one is the value itself, and an ungrouped Machine has none.
+func TestListName(t *testing.T) {
+	grouped := &domain.Machine{
+		Fields: []domain.Field{{ID: "fld_list", Type: domain.FieldTypeRelation, RelatedMachine: "mch_list"}},
+		Views:  []domain.View{{ID: "v", Type: domain.ViewBoard, GroupBy: "fld_list"}},
+	}
+	r := rec("t1", map[string]any{"fld_list": "lst_1"})
+	cols := []experience.Column{{ID: "lst_1", Label: "Shooting"}}
+	if got := listName(grouped, r, cols); got != "Shooting" {
+		t.Errorf("relation-grouped = %q, want Shooting", got)
+	}
+	if got := listName(grouped, rec("t2", map[string]any{"fld_list": "gone"}), cols); got != "" {
+		t.Errorf("a list that no longer exists = %q, want none", got)
+	}
+	byStatus := &domain.Machine{
+		Fields: []domain.Field{{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"todo"}}},
+		Views:  []domain.View{{ID: "v", Type: domain.ViewBoard, GroupBy: "fld_status"}},
+	}
+	if got := listName(byStatus, rec("t3", map[string]any{"fld_status": "todo"}), nil); got != "todo" {
+		t.Errorf("option-grouped = %q, want the value", got)
+	}
+	if got := listName(taskMachineForTest(), r, nil); got != "" {
+		t.Errorf("ungrouped = %q, want none", got)
 	}
 }
 
@@ -400,6 +437,7 @@ func taskMachineForTest() *domain.Machine {
 			{Field: "fld_status", Role: domain.CardFieldRoleStatus},
 			{Field: "fld_due_date", Role: domain.CardFieldRoleDate},
 		},
+		Completion: &domain.Completion{Field: "fld_status", Done: "done"},
 	}
 }
 

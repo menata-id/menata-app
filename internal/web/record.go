@@ -9,6 +9,7 @@ import (
 	"maps"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -278,8 +279,21 @@ func patchRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer
 		if !ok || (position != 0 && !placeCard(w, req, store, machine, record, position)) {
 			return
 		}
+		if !onMachinePage(req, machine) {
+			w.Header().Set("HX-Refresh", "true")
+			return
+		}
 		renderMachineBody(w, req, machines, machine, store, actor)
 	}
+}
+
+// onMachinePage says whether the person who sent this fragment request is looking at the Machine's own page
+// (HX-Current-URL), the only place the Machine body it would answer with can be swapped in. A write from
+// another screen -- a task's circle on My Tasks -- is answered with an HX-Refresh instead, so that screen
+// redraws itself from its own composition rather than receiving markup it has no place for.
+func onMachinePage(req *http.Request, machine *domain.Machine) bool {
+	current, err := url.Parse(req.Header.Get("HX-Current-URL"))
+	return err == nil && current.Path == "/machines/"+machine.ID
 }
 
 // positionParam reads the optional `position` of a PATCH before anything is written, so a malformed one

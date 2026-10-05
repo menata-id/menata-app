@@ -171,13 +171,18 @@ func buildDashboard(projects, documents []*data.Record, taskCounts, docCounts Ag
 	return d
 }
 
-// MyTasks is one identity's personal work queue (development-history.md Phase 14), bucketed by due date.
+// MyTasks is one identity's personal work queue (development-history.md Phase 14), bucketed by due date:
+// Overdue, due within the next seven days (today included), Later (including undated), and Completed --
+// "completed" being the Machine's own `completion:` declaration, not a status literal.
 type MyTasks struct {
-	Summary   rendering.MyTasksSummary
-	Today     []rendering.TaskRow
-	Upcoming  []rendering.TaskRow
+	Overdue   []rendering.TaskRow
+	Next7Days []rendering.TaskRow
+	Later     []rendering.TaskRow
 	Completed []rendering.TaskRow
 }
+
+// myTasksWindowDays is how far ahead "Next 7 days" reaches, counting today.
+const myTasksWindowDays = 7
 
 // MyNotifications lists the viewer's own mch_notification records, newest first (Flow 2 gap study
 // Tahap 6) -- the same "filter by identity in Go" shape PersonalTasks/PendingApprovalCount already
@@ -276,7 +281,36 @@ func PersonalTasks(ctx context.Context, l *Loader, userID string, now time.Time)
 	if err != nil {
 		return MyTasks{}, err
 	}
-	return buildMyTasks(tasks, names, userID, now, l.Machine(taskMachineID)), nil
+	m := l.Machine(taskMachineID)
+	tags, err := l.CardTagsFor(ctx, m, tasks)
+	if err != nil {
+		return MyTasks{}, err
+	}
+	columns, err := l.BoardColumns(ctx, m, m.DefaultView())
+	if err != nil {
+		return MyTasks{}, err
+	}
+	return buildMyTasks(tasks, names, now, m, tags, columns), nil
+}
+
+// listName is the name of the list a record sits in: its value of the Machine's default View's `group_by`
+// Field, resolved through that View's columns for a relation-grouped board (the list's own title) and read
+// as it is for an option-grouped one. "" when the default View is not grouped.
+func listName(m *domain.Machine, r *data.Record, columns []experience.Column) string {
+	group := m.DefaultView().GroupBy
+	if group == "" {
+		return ""
+	}
+	value := DisplayString(r.Values[group])
+	for _, c := range columns {
+		if c.ID != "" && c.ID == value {
+			return c.Label
+		}
+	}
+	if f, ok := m.FieldByID(group); ok && f.Type != domain.FieldTypeRelation {
+		return value
+	}
+	return ""
 }
 
 // taskRow resolves one Task row's display shape from the Machine's own card_fields declaration. All
@@ -303,37 +337,46 @@ func taskRow(t *data.Record, projects map[string]string, taskMachine *domain.Mac
 	}
 }
 
-// taskMachine carries this Machine's own declared display shape (card_fields), read through taskRow.
-func buildMyTasks(tasks []*data.Record, projects map[string]string, userID string, now time.Time, taskMachine *domain.Machine) MyTasks {
+// buildMyTasks buckets the viewer's Tasks. Completed is the Machine's own declaration (IsComplete) and is
+// kept apart from the dated buckets whatever the date says; an undated Task is Later rather than dropped
+// ("someday" is a real answer). Overdue and Next 7 days are ordered by date, so the soonest is on top.
+func buildMyTasks(tasks []*data.Record, projects map[string]string, now time.Time, taskMachine *domain.Machine, tags map[string][]rendering.CardTag, columns []experience.Column) MyTasks {
 	var out MyTasks
+	y, mo, d := now.Date()
+	today := time.Date(y, mo, d, 0, 0, 0, 0, time.UTC)
 	for _, t := range tasks {
 		row := taskRow(t, projects, taskMachine, now)
+		done := IsComplete(taskMachine, t)
+		row.Complete = cardComplete(taskMachine, t)
+		row.Date = experience.ResolveCardDate(t.Values[FieldForRole(taskMachine, domain.CardFieldRoleDate)], done, now)
+		row.ListName = listName(taskMachine, t, columns)
+		row.Tags = tags[t.ID]
 
-		if DisplayString(t.Values["fld_status"]) == "done" {
+		if done {
 			out.Completed = append(out.Completed, row)
 			continue
 		}
-		out.Summary.Open++
-
-		// A Task with no parseable due date is upcoming rather than dropped: "someday" is a
-		// real answer, and silently hiding the row would be worse than showing it undated.
 		due, err := time.Parse("2006-01-02", row.DueText)
-		if err != nil {
-			out.Upcoming = append(out.Upcoming, row)
-			continue
+		status := experience.SLAOK
+		if err == nil {
+			status, _ = experience.EvaluateSLA(due, now)
 		}
-		status, label := experience.EvaluateSLA(due, now)
 		switch {
+		case err != nil:
+			out.Later = append(out.Later, row)
 		case status == experience.SLAOverdue:
-			out.Summary.Overdue++
-			out.Today = append(out.Today, row)
-		case label == "Due today":
-			out.Summary.DueToday++
-			out.Today = append(out.Today, row)
+			out.Overdue = append(out.Overdue, row)
+		case due.Before(today.AddDate(0, 0, myTasksWindowDays+1)):
+			out.Next7Days = append(out.Next7Days, row)
 		default:
-			out.Upcoming = append(out.Upcoming, row)
+			out.Later = append(out.Later, row)
 		}
 	}
+	byDue := func(rows []rendering.TaskRow) {
+		sort.SliceStable(rows, func(i, j int) bool { return rows[i].DueText < rows[j].DueText })
+	}
+	byDue(out.Overdue)
+	byDue(out.Next7Days)
 	return out
 }
 
