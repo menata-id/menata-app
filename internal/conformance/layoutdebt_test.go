@@ -52,7 +52,7 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	// mine claimed it had zero uses.** It had five, all migrated on 2026-10-03; what is left is the two
 	// one-offs named above, which is this kind's floor rather than debt.
 	"split": {
-		"automation.templ": 1, "rolematrix.templ": 1,
+		"rolematrix.templ": 1,
 	},
 	// `columns`: content that stacks on a phone and sits side by side from `sm:` up. Five of its nine sites
 	// migrated on 2026-10-03; these four did not -- three carry `border-b`/padding and are `Collection`'s item
@@ -65,8 +65,8 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	// hand-written `<section class=` plus `sectionHeaderRow`'s nine callers, which is the same concept with
 	// its heading already extracted. `layout.templ`'s one is `panelLayout` itself and is the floor.
 	"section": {
-		"account.templ": 1, "dashboard.templ": 2, "detail.templ": 4, "inference.templ": 1, "layout.templ": 2,
-		"machine.templ": 4, "newapplication.templ": 1, "sprintdashboard.templ": 1,
+		"account.templ": 1, "detail.templ": 4, "inference.templ": 1, "layout.templ": 2,
+		"machine.templ": 4, "newapplication.templ": 1,
 		"workspacemembers.templ": 1,
 	},
 }

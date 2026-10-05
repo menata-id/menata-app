@@ -26,12 +26,10 @@ import (
 // *deliberately* invalid belongs excluded by name with its reason, never by loosening this.
 func TestMachineFixturesPassProductionValidation(t *testing.T) {
 	fixtures := map[string]*domain.Machine{
-		"stepMachineForTest":     stepMachineForTest(),
-		"docMachineForTest":      docMachineForTest(),
-		"taskMachineForTest":     taskMachineForTest(),
-		"projectMachineForTest":  projectMachineForTest(),
-		"documentMachineForTest": documentMachineForTest(),
-		"userMachineForTest":     userMachineForTest(),
+		"stepMachineForTest":    stepMachineForTest(),
+		"docMachineForTest":     docMachineForTest(),
+		"taskMachineForTest":    taskMachineForTest(),
+		"projectMachineForTest": projectMachineForTest(),
 	}
 	if len(fixtures) == 0 {
 		t.Fatal("no fixtures listed -- this test would pass while checking nothing")

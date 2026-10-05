@@ -99,3 +99,49 @@ func TestRecordDetail_MovePanelIsHiddenFromAnActorWhoMayNotEdit(t *testing.T) {
 		t.Error("an actor the Edit permission refuses was offered a move")
 	}
 }
+
+// The ⋯ menu is on every record's page because Share is a link to the page itself; Move is only in it for a
+// record that can be moved, so the menu never offers something the server would refuse.
+func TestRecordDetail_ActionsMenuAlwaysSharesAndOnlyOffersMoveWhenItCan(t *testing.T) {
+	plain := renderDetail(t, RecordExtras{})
+	if !strings.Contains(plain, `aria-label="Card actions"`) || !strings.Contains(plain, "Copy a link to this card") {
+		t.Error("a record with nothing to move still has the menu, with Share in it")
+	}
+	if !strings.Contains(plain, "navigator.clipboard.writeText(location.href)") {
+		t.Error("Share must copy the page's own address")
+	}
+	if strings.Contains(plain, "Move…") {
+		t.Error("a record with no board drew Move")
+	}
+	if !strings.Contains(renderDetail(t, RecordExtras{Move: moveForDetail()}), "Move…") {
+		t.Error("a record on a board lost Move")
+	}
+}
+
+func renderDetailPage(t *testing.T, extras RecordExtras) string {
+	t.Helper()
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Navigation: resolvedNav([]domain.NavigationItem{
+		{ID: "nav_tasks", Label: "Tasks board", Route: "/machines/mch_task"},
+	})}, "Test Workspace", false)
+	m := &domain.Machine{ID: "mch_task", Name: "Task", Fields: []domain.Field{{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText}}}
+	r := &data.Record{ID: "rec_1", Values: map[string]any{"fld_title": "Lock shooting schedule"}}
+	var buf bytes.Buffer
+	if err := RecordDetailPage(m, r, nil, nil, nil, domain.Actor{ID: "usr_ana"}, nil, "Acme", Viewer{Initials: "AN"}, "", extras, time.Now()).Render(ctx, &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	return buf.String()
+}
+
+// PM02's "Tasks board / Pre-production": the Machine's heading links back to the board View the card is on, and
+// the second half is the list it is in now -- the same answer the Move panel selects, so the two cannot disagree.
+func TestRecordDetailPage_BreadcrumbNamesTheBoardAndTheCurrentList(t *testing.T) {
+	html := renderDetailPage(t, RecordExtras{Move: moveForDetail()})
+	for _, want := range []string{`aria-label="Breadcrumb"`, `href="/machines/mch_task?view=vw_board"`, ">Tasks board<", `aria-current="page">Doing<`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("page is missing %q", want)
+		}
+	}
+	if strings.Contains(renderDetailPage(t, RecordExtras{}), `href="/machines/mch_task?view=`) {
+		t.Error("a Machine with no board has no list to name, so it keeps its plain back link")
+	}
+}

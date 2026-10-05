@@ -92,7 +92,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `capabilities.md`, `writing-guide.md` §10). Proven by replacing what used to be hardcoded Go
   (Task status move logging) with a declared `mch_task.evt_task_status_changed`, and verified
   live: editing only the YAML wording changes the Activity feed's own text, no code touched.
-  `/automation` now lists Events alongside Constraints. Extended 2026-09-19 to a second shape,
+  Extended 2026-09-19 to a second shape,
   `on_create: true`, generalizing what was `internal/web`'s own hardcoded `logRecordCreated`
   switch (`mch_document`/`mch_task`/`mch_project` record-creation logging) -- a real third case
   proven before the shape was built, per `menata-app-document`'s
@@ -498,18 +498,15 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   | ~~PDF signature compositing is hand-written Go~~ | **closed 2026-09-28 (Stage C)** | **This row was stale and is struck rather than kept with a note, because its claim was simply false by then**: compositing is a declared Service (`composite_signed_document` in `registry.Services`, named by an `events:` block in two Workspaces' own `approval_step.yaml`), executed by `internal/execution/composite.go` through the Service dispatch table. `internal/action/composite.go`/`banner.go` still hold the binary-PDF mechanics, which is where physical work belongs (002's Runtime Boundary) — what changed is that *which Fields it reads and when it fires* are declarations. Found by measuring the row rather than by reading it |
   | ~~The approval stepper is five constants, not a declared View~~ (upstream CAP-V20 ✅) | **done 2026-09-26**: `domain.ViewStepper` — "a View composing other Views" (this file's own Planned entry) implemented as the narrow real case it always was | `mch_approval_step` declares `vw_step_progress` (`type: stepper`), validated to require `sequencing:` (`internal/metadata.validateView`, mirroring the existing `cards`/`card_fields` requirement). `internal/rendering/detail.templ` composes it via `domain.Machine.StepperView()`, replacing the `m.ID == action.DocumentMachineID && cc.Machine.ID == action.StepMachineID` check with a declared-View lookup any future Sequencing-declaring Machine pair gets for free. `approvalstepper.templ` reads `Sequencing.OrderField`/`StateField` (dynamic field names) and the Machine's first `person` Field generically instead of `action.Field*` constants — closing `approvalstepper.templ`, the **last Case 3 entry**, out of `internal/conformance`'s `projectionRatchet` (five Case 19 screens remain). Matches upstream's own admitted CAP-V20 shape exactly (done/current/pending, three states) rather than keeping the hardcoded version's extra red/green approved-vs-rejected split — the outcome still reads from the decided step's own text label. Deliberately did **not** reuse `card_fields`/Projection for the assignee: `mch_approval_step`'s own dormant `card_fields` wiring already serves the Approval Inbox's pending-card list, where every value would be constant ("pending", "me") — declaring `card_fields` to feed the stepper would have silently activated that unrelated screen's own chip rendering too, checked directly before ruling it out |
   | "Keep me signed in" (board 01) | **no phase yet** | a session-lifetime change; `internal/authorization` has no remember-me concept |
-- Rounding out Project Management: a project-level workspace overview, richer task detail
-  (checklist, comments, attachments), and scoping views to one project at a time. **Its standing
-  relative to the Document Approval scope decision is unsettled, and that matters more than it
-  looks:** the 2026-09-20 decision narrowed the proof-of-concept to Document Approval, while this
-  line still reads as active work — and the files left in `projectionRatchet` were, until
-  2026-09-28, all Project Management screens whose stated exit was "migrates with
-  Dataset/Projection". So the ratchet's own path to empty ran through work whose scope is
-  undecided. **That tension resolved itself the cheap way**: the migration turned out to need no
-  Project Management *feature* work at all — four `card_fields:` declarations and a derivation —
-  so the ratchet drained to one entry without the scope question being answered. The scope
-  question itself is still open for the rest of the line (project overview, task detail, per-
-  project view scoping); what is no longer true is that the ratchet is waiting on it.
+- Rounding out Project Management **against its own mockup** (the "Case 19" page of the design canvas, nine
+  desktop boards plus the mobile set): the Task detail body (long description, checklist, several attachments,
+  comments), the rest of the card's ⋯ menu (Join, Copy, Watch, Archive, moving to another board), Calendar's
+  Month view and drag-to-reschedule, and Board Settings' write gestures (reorder, rename, new list/label). **What
+  that canvas does not draw is not queued**: a project-level workspace overview, scoping every screen to one
+  project, a Timeline, burndown/sprint points, a separate Team Capacity or Workflow Automation screen. Those came
+  from the older `ui-sample/` set and stay out until a board asks for them. **Its standing relative to the
+  Document Approval scope decision is unsettled**, but the ratchet no longer waits on it: the `projectionRatchet`
+  migration needed no feature work, only four `card_fields:` declarations and a derivation.
 - ~~Two-level navigation for switching between applications inside a workspace~~ — *shipped*: the
   9-dot launcher (Fase 2) over real Applications (Fase 3a).
 - Accessibility and mobile/responsive polish across existing screens. The Case 03 port carries its
@@ -600,7 +597,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   sufficient (e.g. a dedicated worker process), not before.
 - Expanding beyond the first two applications into the wider portfolio of business cases this
   runtime is designed to support (HR, inventory, point of sale, e-commerce, helpdesk, and more).
-- **Composition-layer decomposition** -- Projection gate, Datasets (Team/Sprint/Dashboard) and the Case 19 migration onto `card_fields`
+- **Composition-layer decomposition** -- Projection gate, Datasets (the Dashboard) and the Case 19 migration onto `card_fields`
   are done; `projectionRatchet` is empty. Still open: My Tasks' counts (viewing identity, date against now). Audit: `menata-app-document`'s
   `audits/2026-09-19-decomposition-maturity-audit.md`; the migration narrative: `development-history.md`.
 - Re-evaluating `internal/composition/pages.go`'s Case 19 Machine-id/status-option constants

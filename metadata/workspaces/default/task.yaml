@@ -96,18 +96,6 @@ datasets:
       value: $current_user
     limit: 200
 
-  - id: ds_task_workload
-    dimension: fld_assignee
-    measures:
-      - id: msr_total
-        aggregate: count
-      - id: msr_total_open
-        aggregate: count
-        where:
-          field: fld_status
-          op: not_equals
-          value: done
-
   # The Dashboard's whole Task set, as records rather than counts (2026-10-05, Case 19 PM04). It replaces
   # ds_task_by_project, which counted `msr_total_open` with `value: done` -- a second statement of which
   # status means finished, beside `completion:` below. The Dashboard's own subtitle says a card is
@@ -119,14 +107,6 @@ datasets:
   - id: ds_all_tasks
     select: records
     limit: 1000
-
-  # Sprint Dashboard's headline counts. No filtered measure: the breakdown *is* by status, so the
-  # per-status numbers come from the dimension rather than from a where clause.
-  - id: ds_task_by_status
-    dimension: fld_status
-    measures:
-      - id: msr_total
-        aggregate: count
 
 # card_fields: what a Task's own records show wherever a screen renders them without picking
 # Fields itself (007 §7.6 Projection). Added 2026-09-28, when the Case 19 screens stopped reading

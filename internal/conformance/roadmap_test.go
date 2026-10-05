@@ -86,7 +86,7 @@ var roadmapDiaryLines = map[string]int{
 // on purpose: four bullets for features that had been shipped but only narrated under `In progress`.
 var roadmapSectionLines = map[string]int{
 	"Shipped":     138,
-	"In progress": 404,
+	"In progress": 401,
 	"Planned":     67,
 }
 

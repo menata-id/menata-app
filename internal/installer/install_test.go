@@ -180,9 +180,9 @@ func TestPlanInstall_refusesWhatItWillNotRename(t *testing.T) {
 		{
 			name: "a dataset id already declared here",
 			ws: domain.Workspace{Slug: "x", Machines: []*domain.Machine{
-				{ID: "mch_other", Datasets: []domain.Dataset{{ID: "ds_document_by_status"}}},
+				{ID: "mch_other", Datasets: []domain.Dataset{{ID: "ds_documents_with_steps"}}},
 			}},
-			want: `the saved figure "ds_document_by_status" is already defined`,
+			want: `the saved figure "ds_documents_with_steps" is already defined`,
 		},
 	}
 	for _, tt := range tests {
@@ -476,7 +476,7 @@ func TestPlanInstall_refusesASecondInstallOfTheSameApplication(t *testing.T) {
 		t.Fatal("a second install of Document Approval was accepted -- nav ids, routes and Dataset ids cannot be renamed, so it must be refused rather than duplicated")
 	}
 	reasons := strings.Join(p.Refusals, " | ")
-	for _, want := range []string{"/approval-inbox", "nav_approval_inbox", "ds_document_by_status"} {
+	for _, want := range []string{"/approval-inbox", "nav_approval_inbox", "ds_documents_with_steps"} {
 		if !strings.Contains(reasons, want) {
 			t.Errorf("the refusal does not mention %q -- a refusal for the wrong reason would pass a bare !OK() check.\n  got: %s", want, reasons)
 		}

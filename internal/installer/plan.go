@@ -65,7 +65,7 @@ func (p Plan) RenamedMachineID(machineID string) string {
 //   - a navigation route -- domain.Workspace.ApplicationForRoute matches the declared string, so two
 //     Applications sharing a route make "which Application is this request in" answer whichever
 //     loaded first;
-//   - a Dataset id -- internal/composition names five of them as Go constants (ds_document_by_status
+//   - a Dataset id -- internal/composition names a handful of them as Go constants (ds_all_tasks
 //     and friends), so a renamed Dataset is a screen that silently counts nothing.
 //
 // Renaming any of those would recreate precisely the coupling those two slices removed, which is why

@@ -352,7 +352,7 @@ func csrfHiddenInput() templ.Component {
 // Dataset's own `limit:` -- never retyped here.
 //
 // **Only lists that claim completeness pass a filled Truncation.** A Dataset whose bound *is* its
-// meaning -- `ds_recent_activity` at 10, `ds_activity_feed` at 50 -- is not truncated in any sense a
+// meaning -- the former `ds_recent_activity` at 10 and `ds_activity_feed` at 50 -- is not truncated in any sense a
 // reader cares about, and mch_activity holds 30 records today, so rendering this on the Dashboard's
 // activity tail would state something false. See composition.Selection.Limit for why that distinction
 // is the screen's to make and not yet a declaration.

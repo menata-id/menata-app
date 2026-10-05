@@ -41,6 +41,17 @@ type RecordMove struct {
 	ViewID string
 }
 
+// CurrentLabel is the name of the list the record is in now: the target whose value it holds. Composition
+// only builds a RecordMove when one does, so the empty answer is a fixture's, not a screen's.
+func (mv RecordMove) CurrentLabel() string {
+	for _, t := range mv.Targets {
+		if t.Value == mv.Current {
+			return t.Label
+		}
+	}
+	return ""
+}
+
 // DocumentSignaturePlacement is the composed placement view the Document's own detail page embeds
 // -- nil for every Machine other than mch_document.
 //
@@ -60,7 +71,7 @@ type DocumentSignaturePlacement struct {
 // rule regardless, this only keeps the UI honest about it.
 templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, workspaceName string, viewer Viewer, switchWorkspaceHref string, extras RecordExtras, now time.Time) {
 	@appShell(m.Name, workspaceName, viewer, switchWorkspaceHref) {
-		@detailBackLink(m)
+		@detailBackLink(m, extras)
 		<div id="record-detail" class="flex flex-col gap-4">
 			@RecordDetailView(m, r, relations, groups, children, actor, sigPlacement, extras, now)
 		</div>
@@ -84,12 +95,26 @@ templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOpti
 // actually linking to a sibling, only assuming one existed. hasNavItem checks first instead of
 // assuming, so that Application's own generic page remains its own real destination, same as any
 // other Machine with no bespoke flow.
-templ detailBackLink(m *domain.Machine) {
+templ detailBackLink(m *domain.Machine, extras RecordExtras) {
 	if (action.IsDocument(m) || action.IsStep(m)) && hasNavItem(ctx, "nav_approval_inbox") {
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID(ctx, "nav_approval_inbox") }</a>
+	} else if extras.Move != nil {
+		@recordBreadcrumb(m, *extras.Move)
 	} else {
 		<a href={ templ.URL("/machines/" + m.ID) } class="text-xs text-blue-600 hover:text-blue-700">← { m.Name }</a>
 	}
+}
+
+// recordBreadcrumb is PM02's "Tasks board / Pre-production": the Machine's own heading linking back to the
+// board View the card sits on, then the list it is in. Both halves are what recordMove already resolved (the
+// board View and the current list's title), so the breadcrumb and the Move panel cannot disagree about where
+// the card is.
+templ recordBreadcrumb(m *domain.Machine, mv RecordMove) {
+	<nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-xs text-slate-500">
+		<a href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, mv.ViewID)) } class="text-blue-600 hover:text-blue-700">{ machineHeading(ctx, m) }</a>
+		<span aria-hidden="true">/</span>
+		<span aria-current="page">{ mv.CurrentLabel() }</span>
+	</nav>
 }
 
 // RecordDetailView is one Record's read-only detail: every Field as a label/value pair, plus one
@@ -187,9 +212,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 					hx-swap="outerHTML"
 				>Edit</button>
 			}
-			if extras.Move != nil && authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
-				@recordMovePanel(m, r, *extras.Move)
-			}
+			@recordActionsMenu(m, r, extras.Move != nil && authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor), extras.Move)
 			if deletable {
 				<button
 					class={ controlSecondary }
@@ -219,32 +242,56 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 	</div>
 }
 
-// recordMovePanel is the PM02c Move panel: List and Position, "the same result as dragging the card, for
-// anyone who would rather not drag -- or who is working by keyboard". A <details>, as the board card's own
-// edit panel is, so it opens and closes without script. It answers with HX-Refresh (this is not the
-// Machine's own page), which redraws the detail with the new List in its Fields and the move in History.
-templ recordMovePanel(m *domain.Machine, r *data.Record, mv RecordMove) {
+// recordActionsMenu is PM02b's "⋯" card-actions menu. Move… opens PM02c's panel (List and Position: "the same
+// result as dragging the card, for anyone who would rather not drag -- or who is working by keyboard"), sending
+// the board's own PATCH and answering with HX-Refresh (this is not the Machine's own page), which redraws the
+// detail with the new List in its Fields and the move in History. Share copies the page's own address.
+//
+// Both are <details> so the menu opens and closes without script. Share is a clipboard write, which has no
+// declarative form: a named exception to 007 §12.3's `actions` (the Component contract's gesture slot, not built
+// yet), the same class as boardDragScript, and listed in writing-guide.md's "What comes free vs. what's
+// hardcoded today". Join, Copy, Watch and Archive from the mockup need a writable Machine or a write primitive
+// and are not drawn.
+templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *RecordMove) {
 	<details class="relative">
-		<summary class={ controlSecondary + " cursor-pointer list-none" }>Move…</summary>
-		<form
-			class="absolute top-full left-0 z-10 mt-1 flex w-72 flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-lg"
-			hx-patch={ fmt.Sprintf("/machines/%s/records/%s?view=%s", m.ID, r.ID, mv.ViewID) }
-			hx-target="#record-detail"
-		>
-			<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
-				List
-				<select name={ mv.Field } class={ controlField + " w-full" }>
-					for _, t := range mv.Targets {
-						<option value={ t.Value } selected?={ t.Value == mv.Current }>{ t.Label }</option>
-					}
-				</select>
-			</label>
-			<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
-				Position
-				<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ controlField + " w-full" }/>
-			</label>
-			<button type="submit" class={ controlPrimary }>Move</button>
-		</form>
+		<summary aria-label="Card actions" class={ controlSecondary + " cursor-pointer list-none" }>⋯</summary>
+		<div class="absolute top-full left-0 z-10 mt-1 flex w-72 flex-col gap-1 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+			if canMove && move != nil {
+				<details>
+					<summary class="flex cursor-pointer list-none flex-col rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
+						Move…
+						<span class="text-2xs text-slate-500">Another list</span>
+					</summary>
+					<form
+						class="flex flex-col gap-3 p-2"
+						hx-patch={ fmt.Sprintf("/machines/%s/records/%s?view=%s", m.ID, r.ID, move.ViewID) }
+						hx-target="#record-detail"
+					>
+						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+							List
+							<select name={ move.Field } class={ controlField + " w-full" }>
+								for _, t := range move.Targets {
+									<option value={ t.Value } selected?={ t.Value == move.Current }>{ t.Label }</option>
+								}
+							</select>
+						</label>
+						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+							Position
+							<input type="number" name="position" min="1" value={ fmt.Sprint(move.Position) } class={ controlField + " w-full" }/>
+						</label>
+						<button type="submit" class={ controlPrimary }>Move</button>
+					</form>
+				</details>
+			}
+			<button
+				type="button"
+				class="flex cursor-pointer flex-col rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+				onclick="navigator.clipboard.writeText(location.href).then(() => { this.querySelector('[data-share-hint]').textContent = 'Link copied' })"
+			>
+				Share
+				<span data-share-hint class="text-2xs text-slate-500">Copy a link to this card</span>
+			</button>
+		</div>
 	</details>
 }
 

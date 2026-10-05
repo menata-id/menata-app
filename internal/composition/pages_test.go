@@ -7,7 +7,6 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
-	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 )
 
@@ -24,8 +23,8 @@ var projectLabels = map[string]string{"prj_1": "Apollo", "prj_2": "Borneo"}
 
 var dashboardNow = time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
 
-func dashboardFrom(tasks, projects, documents []*data.Record, people map[string]string) rendering.DashboardContent {
-	return buildDashboard(tasks, projects, documents, people, Aggregate(documentByStatus(), documents), taskMachineForTest(), projectMachineForTest(), documentMachineForTest(), dashboardNow)
+func dashboardFrom(tasks, projects []*data.Record, people map[string]string) rendering.DashboardContent {
+	return buildDashboard(tasks, projects, people, taskMachineForTest(), projectMachineForTest(), dashboardNow)
 }
 
 func tile(t *testing.T, d rendering.DashboardContent, label string) rendering.SummaryItem {
@@ -53,7 +52,7 @@ func TestBuildDashboard_ProjectRollups(t *testing.T) {
 		task("tsk_4", "prj_2", "usr_ana", "todo", ""),
 	}
 
-	got := dashboardFrom(tasks, projects, nil, nil)
+	got := dashboardFrom(tasks, projects, nil)
 	if len(got.Projects) != 2 {
 		t.Fatalf("want a summary per Project, got %d", len(got.Projects))
 	}
@@ -71,7 +70,7 @@ func TestBuildDashboard_OrphanTaskCountsAgainstNoProject(t *testing.T) {
 	projects := []*data.Record{rec("prj_1", map[string]any{"fld_name": "Apollo"})}
 	tasks := []*data.Record{task("tsk_orphan", "", "usr_ana", "todo", "")}
 
-	got := dashboardFrom(tasks, projects, nil, nil)
+	got := dashboardFrom(tasks, projects, nil)
 	if got.Projects[0].TotalTasks != 0 {
 		t.Errorf("orphan Task must not be counted against Apollo, got total %d", got.Projects[0].TotalTasks)
 	}
@@ -89,7 +88,7 @@ func TestBuildDashboard_TilesPartitionOneSelection(t *testing.T) {
 		task("tsk_today", "prj_2", "usr_ana", "in_progress", "2026-09-10"),
 		task("tsk_undated", "prj_2", "usr_ana", "todo", ""),
 	}
-	got := dashboardFrom(tasks, nil, nil, nil)
+	got := dashboardFrom(tasks, nil, nil)
 
 	for label, want := range map[string]string{"All cards": "4", "Open": "3", "Overdue": "1", "Completed": "1"} {
 		if v := tile(t, got, label).Value; v != want {
@@ -110,7 +109,7 @@ func TestBuildDashboard_TilesPartitionOneSelection(t *testing.T) {
 // A zero is not a signal: no overdue cards must not paint the tile red, and an empty Workspace must not
 // divide by zero.
 func TestBuildDashboard_EmptyWorkspaceIsQuietNotRed(t *testing.T) {
-	got := dashboardFrom(nil, nil, nil, nil)
+	got := dashboardFrom(nil, nil, nil)
 	if tone := tile(t, got, "Overdue").Tone; tone == domain.ToneBad {
 		t.Errorf("zero overdue drawn red")
 	}
@@ -135,7 +134,7 @@ func TestBuildDashboard_OpenCardsPerPerson(t *testing.T) {
 		task("t6", "prj_1", "", "todo", ""),
 		task("t7", "prj_1", "usr_gone", "todo", ""),
 	}
-	got := dashboardFrom(tasks, nil, nil, people).People
+	got := dashboardFrom(tasks, nil, people).People
 
 	want := []rendering.PersonLoad{{Name: "Ana", Open: 2, Total: 2}, {Name: "Budi", Open: 1, Total: 2}, {Name: "Cici", Open: 0, Total: 1}}
 	if len(got) != len(want) {
@@ -145,26 +144,6 @@ func TestBuildDashboard_OpenCardsPerPerson(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("people[%d] = %+v, want %+v", i, got[i], want[i])
 		}
-	}
-}
-
-// Only in_review Documents are "pending"; the other two statuses are counted but not listed.
-func TestBuildDashboard_DocumentStatusSplit(t *testing.T) {
-	documents := []*data.Record{
-		rec("doc_2", map[string]any{"fld_status": "in_review"}),
-		rec("doc_3", map[string]any{"fld_status": "in_review"}),
-		rec("doc_4", map[string]any{"fld_status": "approved"}),
-		rec("doc_5", map[string]any{"fld_status": "rejected"}),
-		rec("doc_6", map[string]any{"fld_status": "something_else"}),
-	}
-
-	got := dashboardFrom(nil, nil, documents, nil)
-	s := got.Documents
-	if s.InReview != 2 || s.Approved != 1 || s.Rejected != 1 {
-		t.Errorf("counts review/approved/rejected = %d/%d/%d, want 2/1/1", s.InReview, s.Approved, s.Rejected)
-	}
-	if len(got.Pending) != 2 {
-		t.Errorf("Pending lists the in_review Documents only, got %d", len(got.Pending))
 	}
 }
 
@@ -240,66 +219,6 @@ func TestListName(t *testing.T) {
 	}
 	if got := listName(taskMachineForTest(), r, nil); got != "" {
 		t.Errorf("ungrouped = %q, want none", got)
-	}
-}
-
-// Sprint counts every Task including done, but workload and attention consider only open ones.
-func TestBuildSprint_CountsAndAttention(t *testing.T) {
-	// mch_user records carry no name any more (migration 010); the display name arrives as a
-	// resolved map beside them, which is what personNames stands in for.
-	users := []*data.Record{
-		rec("usr_ana", nil),
-		rec("usr_budi", nil),
-	}
-	tasks := []*data.Record{
-		task("tsk_1", "prj_1", "usr_ana", "todo", "2026-09-09"),        // overdue -> attention
-		task("tsk_2", "prj_1", "usr_ana", "in_progress", "2026-09-10"), // due today -> attention
-		task("tsk_3", "prj_1", "usr_ana", "todo", "2026-09-30"),        // later -> not attention
-		task("tsk_4", "prj_2", "usr_budi", "done", "2026-09-01"),       // done -> no workload
-	}
-
-	got := buildSprint(tasks, users, personNames, projectLabels, at(10), Aggregate(taskByStatus(), tasks), Aggregate(taskWorkload(), tasks), taskMachineForTest())
-
-	s := got.Summary
-	if s.Total != 4 || s.Open != 2 || s.InProgress != 1 || s.Done != 1 {
-		t.Errorf("total/open/in_progress/done = %d/%d/%d/%d, want 4/2/1/1", s.Total, s.Open, s.InProgress, s.Done)
-	}
-	if want := []string{"tsk_1", "tsk_2"}; !equal(ids(got.Attention), want) {
-		t.Errorf("Attention = %v, want %v", ids(got.Attention), want)
-	}
-	if len(got.Workload) != 2 {
-		t.Fatalf("want a workload row per user, got %d", len(got.Workload))
-	}
-	if got.Workload[0].ActiveCards != 3 {
-		t.Errorf("Ana's active cards = %d, want 3", got.Workload[0].ActiveCards)
-	}
-	if got.Workload[1].ActiveCards != 0 {
-		t.Errorf("Budi's only Task is done, so active = %d, want 0", got.Workload[1].ActiveCards)
-	}
-}
-
-func TestBuildCapacity(t *testing.T) {
-	users := []*data.Record{
-		rec("usr_ana", map[string]any{"fld_weekly_capacity": float64(40)}),
-		rec("usr_budi", nil), // no capacity declared
-	}
-	tasks := []*data.Record{
-		task("tsk_1", "prj_1", "usr_ana", "todo", ""),
-		task("tsk_2", "prj_1", "usr_ana", "done", ""),
-		task("tsk_3", "prj_1", "usr_budi", "todo", ""),
-	}
-
-	got := buildCapacity(users, personNames, Aggregate(taskWorkload(), tasks), Aggregate(userCapacity(), users),
-		datasetMeasureField(userMachineForTest(), userCapacityDataset, measureTotalCapacity))
-
-	if got.TotalCapacity != 40 {
-		t.Errorf("TotalCapacity = %d, want 40 (a user with no declared capacity adds nothing)", got.TotalCapacity)
-	}
-	if got.TotalActive != 2 {
-		t.Errorf("TotalActive = %d, want 2", got.TotalActive)
-	}
-	if got.Members[0].ActiveCards != 1 || got.Members[0].TotalCards != 2 {
-		t.Errorf("Ana active/total = %d/%d, want 1/2", got.Members[0].ActiveCards, got.Members[0].TotalCards)
 	}
 }
 
@@ -437,120 +356,6 @@ func TestClampWeekOffset(t *testing.T) {
 	}
 }
 
-func TestBuildActivityFeed_GroupsByDay(t *testing.T) {
-	names := map[string]string{"usr_ana": "Ana Putri"}
-	events := []*data.Record{
-		{ID: "a1", Values: map[string]any{"fld_summary": "now", "fld_actor": "usr_ana"}, CreatedAt: at(10)},
-		{ID: "a2", Values: map[string]any{"fld_summary": "yesterday", "fld_actor": "usr_ana"}, CreatedAt: at(9)},
-		{ID: "a3", Values: map[string]any{"fld_summary": "older", "fld_actor": "usr_ana"}, CreatedAt: at(3)},
-	}
-
-	got := buildActivityFeed(events, names, at(10))
-
-	if len(got.Today) != 1 || len(got.Yesterday) != 1 || len(got.Earlier) != 1 {
-		t.Fatalf("today/yesterday/earlier = %d/%d/%d, want 1/1/1", len(got.Today), len(got.Yesterday), len(got.Earlier))
-	}
-	// Recent entries show a time; older ones need the date to be meaningful.
-	if got.Today[0].When != "12:00" {
-		t.Errorf("today's When = %q, want %q", got.Today[0].When, "12:00")
-	}
-	if got.Earlier[0].When != "2026-09-03 12:00" {
-		t.Errorf("earlier When = %q, want a dated stamp", got.Earlier[0].When)
-	}
-	if got.Today[0].Actor != "Ana Putri" {
-		t.Errorf("Actor = %q, want the resolved name", got.Today[0].Actor)
-	}
-}
-
-// AutomationRules describes real Constraint metadata. The sequencing rule is appended because it
-// lives in internal/action rather than in a Constraint, so it has nothing to be derived from.
-func TestAutomationRules_DescribesRealConstraints(t *testing.T) {
-	machines := []*domain.Machine{
-		{
-			ID:   "mch_project",
-			Name: "Project",
-			Fields: []domain.Field{
-				{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus},
-			},
-			Constraints: []domain.Constraint{{
-				ID:         "cst_project_done_no_open_tasks",
-				On:         "fld_status",
-				WhenEquals: "done",
-				BlockIf: domain.RelationBlock{
-					RelatedMachine: "mch_task",
-					RelatedField:   "fld_project",
-					Condition:      expression.Comparison{Field: "fld_status", Op: "!=", Value: "done"},
-				},
-			}},
-		},
-		{
-			ID:     "mch_task",
-			Name:   "Task",
-			Fields: []domain.Field{{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus}},
-		},
-	}
-
-	rules := AutomationRules(machines)
-
-	if len(rules) != 2 {
-		t.Fatalf("want one derived rule plus the appended sequencing rule, got %d", len(rules))
-	}
-	if rules[0].Name != "cst_project_done_no_open_tasks" {
-		t.Errorf("Name = %q", rules[0].Name)
-	}
-	if want := `Project's Status becomes "done"`; rules[0].Trigger != want {
-		t.Errorf("Trigger = %q, want %q", rules[0].Trigger, want)
-	}
-	// The related field is rendered by its human name, resolved through the related Machine.
-	if want := `a related mch_task (via its fld_project field) has Status != "done"`; rules[0].Condition != want {
-		t.Errorf("Condition = %q, want %q", rules[0].Condition, want)
-	}
-	if rules[1].Name != "Approval Step sequencing" {
-		t.Errorf("last rule = %q, want the appended sequencing rule", rules[1].Name)
-	}
-}
-
-func TestAutomationRules_DescribesRealEvents(t *testing.T) {
-	machines := []*domain.Machine{
-		{
-			ID:   "mch_task",
-			Name: "Task",
-			Fields: []domain.Field{
-				{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus},
-			},
-			Events: []domain.Event{{
-				ID: "evt_task_status_changed",
-				On: "fld_status",
-				Then: domain.Service{
-					Name:    domain.ServiceLogActivity,
-					Summary: "moved from {old} to {new}",
-				},
-			}},
-		},
-	}
-
-	rules := AutomationRules(machines)
-
-	if len(rules) != 2 {
-		t.Fatalf("want one derived rule plus the appended sequencing rule, got %d", len(rules))
-	}
-	if rules[0].Name != "evt_task_status_changed" {
-		t.Errorf("Name = %q", rules[0].Name)
-	}
-	if want := "Task's Status changes"; rules[0].Trigger != want {
-		t.Errorf("Trigger = %q, want %q (no when_equals declared, so it's any change)", rules[0].Trigger, want)
-	}
-}
-
-// An Application with no Constraints still describes the sequencing rule, so the page is never
-// blank.
-func TestAutomationRules_AlwaysIncludesSequencing(t *testing.T) {
-	rules := AutomationRules(nil)
-	if len(rules) != 1 || rules[0].Name != "Approval Step sequencing" {
-		t.Errorf("got %d rule(s), want only the sequencing rule", len(rules))
-	}
-}
-
 func TestSameDay(t *testing.T) {
 	if !SameDay(at(10), time.Date(2026, 9, 10, 23, 59, 0, 0, time.UTC)) {
 		t.Error("same calendar day, different hours, must be same day")
@@ -604,9 +409,8 @@ func taskMachineForTest() *domain.Machine {
 	}
 }
 
-// projectMachineForTest and documentMachineForTest are the same reduction as taskMachineForTest, for
-// the two Machines the dashboard composes: its Project summaries and its pending-Document list both
-// read a declared display shape now, not a Field id.
+// projectMachineForTest is the same reduction as taskMachineForTest, for the Machine the dashboard
+// composes its Project summaries from: it reads a declared display shape, not a Field id.
 func projectMachineForTest() *domain.Machine {
 	return &domain.Machine{
 		ID: "mch_project", Name: "Project",
@@ -618,54 +422,6 @@ func projectMachineForTest() *domain.Machine {
 			{Field: "fld_name", Role: domain.CardFieldRoleTitle},
 			{Field: "fld_status", Role: domain.CardFieldRoleStatus},
 		},
-	}
-}
-
-func documentMachineForTest() *domain.Machine {
-	return &domain.Machine{
-		ID: "mch_document", Name: "Document",
-		Fields: []domain.Field{
-			{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
-			{ID: "fld_due_date", Name: "Due", Type: domain.FieldTypeDate},
-			{ID: "fld_status", Name: "Status", Type: domain.FieldTypeStatus,
-				Options: []string{"draft", "in_review", "approved", "rejected"}},
-		},
-		// The transitions are what make StatusField() answer, and the Dashboard needs it since
-		// 2026-09-29: its Pending list derives the status Field from this Machine's own edges rather
-		// than naming action.FieldDocumentStatus. The fixture had neither the Field nor an edge, so the
-		// derivation resolved to "" and every Document looked not-in-review -- caught by the existing
-		// assertion, which is the order that works.
-		//
-		// A second fixture looser than the real Machine in one slice, after stepMachineForTest's missing
-		// compositing Event. TestFixturesMirrorTheRealMachines checks *presence* of a `transitions:`
-		// block, not equality, and this fixture declared none at all -- but it is also not in that
-		// gate's named population, which is the limit that comment already states.
-		// ids and names are required -- TestMachineFixturesPassProductionValidation caught their absence
-		// immediately, which is that gate doing exactly its job: a fixture the real validator rejects is
-		// not a smaller Machine but an impossible one.
-		Transitions: []domain.Transition{
-			{ID: "trn_doc_submit", Name: "Submit", Field: "fld_status", From: "draft", To: "in_review"},
-			{ID: "trn_doc_approve", Name: "Approve", Field: "fld_status", From: "in_review", To: "approved"},
-			{ID: "trn_doc_reject", Name: "Reject", Field: "fld_status", From: "in_review", To: "rejected"},
-		},
-		CardFields: []domain.CardField{
-			{Field: "fld_title", Role: domain.CardFieldRoleTitle},
-			{Field: "fld_due_date", Role: domain.CardFieldRoleDate},
-		},
-	}
-}
-
-// userMachineForTest carries the Dataset Team Capacity reads the capacity Field out of -- the
-// derivation itself, so the test exercises datasetMeasureField rather than retyping the Field id the
-// way the screen used to.
-func userMachineForTest() *domain.Machine {
-	// The capacity Field the Dataset sums over, and a Name: a Dataset measuring a Field this Machine
-	// does not declare is a Machine the loader refuses, which running this fixture through
-	// metadata.Validate said out loud (2026-09-29).
-	return &domain.Machine{
-		ID: "mch_user", Name: "User",
-		Fields:   []domain.Field{{ID: "fld_weekly_capacity", Name: "Weekly Capacity", Type: domain.FieldTypeNumber}},
-		Datasets: []domain.Dataset{userCapacity()},
 	}
 }
 

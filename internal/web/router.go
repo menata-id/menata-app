@@ -247,17 +247,13 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/dashboard", showDashboard(d.Store, d.Cfg))
 		pr.Get("/my-tasks", showMyTasks(d.Store, d.Cfg))
 		pr.Get("/board-settings", showBoardSettings(d.Store, d.Cfg))
-		pr.Get("/activity", showActivity(d.Store, d.Cfg))
 		// Notifications (Flow 2 gap study Tahap 6) -- Workspace-level runtime routes, same category
 		// as /dashboard and /account-profile: reachable by any authenticated member regardless of
 		// Application access, since a notification can concern any Application's own Machine.
 		pr.Get("/notifications", showNotifications(d.Store, d.Cfg))
 		pr.Post("/notifications/mark-all-read", submitMarkAllNotificationsRead(d.Store, d.Cfg))
 		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Store, d.Cfg))
-		pr.Get("/team-capacity", showTeamCapacity(d.Store, d.Cfg))
-		pr.Get("/automation", showAutomation(d.Store, d.Cfg))
 		pr.Get("/calendar", showCalendar(d.Store, d.Cfg))
-		pr.Get("/sprint", showSprintDashboard(d.Store, d.Cfg))
 		pr.Get("/approval-inbox", showApprovalInbox(d.Store, d.Cfg))
 		pr.Get("/api/approval-inbox/pending-count", showPendingCount(d.Store, d.Cfg))
 		pr.Get("/documents/new", showDocumentSubmit(d.Store, d.Cfg))

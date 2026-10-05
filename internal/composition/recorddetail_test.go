@@ -13,7 +13,6 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
-	"menata.app/internal/rendering"
 )
 
 func TestBuildRecordActivity_KeepsTheDatasetOrderAndNamesTheActor(t *testing.T) {
@@ -132,65 +131,6 @@ func TestChildSections_OmitsTheMachineCardTagsDraws(t *testing.T) {
 			ids = append(ids, s.Machine.ID)
 		}
 		t.Fatalf("sections = %v, want only mch_subtask", ids)
-	}
-}
-
-// Each Application's feed is its own. Two Applications' events sit in one Workspace, and the same request
-// reads them twice -- once per Application -- so a filter that leaked in either direction fails here. A row
-// with no Application (written before the Field existed, or about an unclaimed Machine) is in neither.
-func TestActivityFeedsShowOnlyTheRequestsApplication(t *testing.T) {
-	l, store, ctx := recordExtrasLoader(t, true)
-	for _, e := range []map[string]any{
-		{"fld_machine_id": "mch_task", "fld_record_id": "r1", "fld_summary": "pm one", "fld_application_id": "app_pm"},
-		{"fld_machine_id": "mch_task", "fld_record_id": "r2", "fld_summary": "pm two", "fld_application_id": "app_pm"},
-		{"fld_machine_id": "mch_document", "fld_record_id": "r3", "fld_summary": "approval", "fld_application_id": "app_approval"},
-		{"fld_machine_id": "mch_old", "fld_record_id": "r4", "fld_summary": "no application"},
-	} {
-		if _, err := store.CreateRecord(ctx, "mch_activity", e); err != nil {
-			t.Fatalf("seed: %v", err)
-		}
-	}
-
-	summaries := func(appID string) (flat, grouped []string) {
-		// A fresh Loader per request: the Loader memoises a selection under its Dataset id.
-		reqCtx := rendering.WithCurrentApplication(ctx, domain.Application{ID: appID})
-		recent, err := RecentActivity(reqCtx, NewLoader(store, l.machines))
-		if err != nil {
-			t.Fatalf("RecentActivity(%s): %v", appID, err)
-		}
-		for _, e := range recent {
-			flat = append(flat, e.Summary)
-		}
-		feed, err := GroupedActivity(reqCtx, NewLoader(store, l.machines), time.Now())
-		if err != nil {
-			t.Fatalf("GroupedActivity(%s): %v", appID, err)
-		}
-		for _, e := range feed.Today {
-			grouped = append(grouped, e.Summary)
-		}
-		return flat, grouped
-	}
-
-	for _, tc := range []struct {
-		app  string
-		want []string
-	}{
-		{"app_pm", []string{"pm two", "pm one"}},
-		{"app_approval", []string{"approval"}},
-	} {
-		flat, grouped := summaries(tc.app)
-		if !reflect.DeepEqual(flat, tc.want) || !reflect.DeepEqual(grouped, tc.want) {
-			t.Errorf("%s: recent = %v, feed = %v; want both %v", tc.app, flat, grouped, tc.want)
-		}
-	}
-}
-
-// Outside any Application there is no history to show, and the selection refuses instead of listing
-// every Application's events -- the filter's `$parameters.application` cannot resolve to "".
-func TestActivityFeedsRefuseWithoutAnApplication(t *testing.T) {
-	l, _, ctx := recordExtrasLoader(t, true)
-	if _, err := RecentActivity(ctx, l); err == nil {
-		t.Error("RecentActivity outside an Application listed events instead of refusing")
 	}
 }
 

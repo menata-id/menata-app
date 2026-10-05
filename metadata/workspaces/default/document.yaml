@@ -296,12 +296,6 @@ datasets:
         machine: mch_approval_step
         via: fld_document
 
-  - id: ds_document_by_status
-    dimension: fld_status
-    measures:
-      - id: msr_total
-        aggregate: count
-
 # How a Document's records look wherever they appear -- the detail page selects no View, so
 # these are Machine-level rather than per-arrangement.
 sla_field: fld_due_date

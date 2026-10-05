@@ -424,7 +424,7 @@ func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
 var wholeMachineReadRatchet = map[string]int{
 	"approval.go": 1,
 	"assigned.go": 1,
-	"pages.go":    6,
+	"pages.go":    2,
 	"review.go":   2,
 }
 

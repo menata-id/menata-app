@@ -6,7 +6,6 @@ import (
 	"sort"
 	"time"
 
-	"menata.app/internal/action"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
@@ -21,7 +20,6 @@ const (
 	taskMachineID         = "mch_task"
 	projectMachineID      = "mch_project"
 	userMachineID         = "mch_user"
-	activityMachineID     = "mch_activity"
 	notificationMachineID = "mch_notification"
 )
 
@@ -31,15 +29,7 @@ const (
 // rendering.routeByID("nav_xxx") already draws: the *value* lives in metadata, the code only says
 // which one it wants.
 const (
-	taskWorkloadDataset   = "ds_task_workload"
 	dashboardTasksDataset = "ds_all_tasks"
-	taskByStatusDataset   = "ds_task_by_status"
-	userCapacityDataset   = "ds_user_capacity"
-	documentStatusDataset = "ds_document_by_status"
-	// The two activity selections (007 §7.7-§7.9, Slice A). Two rather than one because the
-	// Dashboard's tail and the dedicated feed declare different bounds -- see metadata/activity.yaml.
-	recentActivityDataset = "ds_recent_activity"
-	activityFeedDataset   = "ds_activity_feed"
 	myTasksDataset        = "ds_my_tasks"
 	// Board Settings' three (Case 19 PM06): the Lists and Labels a board is built from, and how many cards
 	// carry each Label.
@@ -67,37 +57,15 @@ const (
 	// own option list. It was briefly msr_active, until mch_project turned out to declare `active`
 	// as a literal status option -- the same word would then have meant "not done" in one dataset
 	// and "status == active" in another. A qualifier must not collide with a real option value.
-	measureTotal         = "msr_total"
-	measureTotalOpen     = "msr_total_open"
-	measureTotalCapacity = "msr_total_capacity"
-)
-
-// mch_task's own fld_status option values, named rather than repeated as inline literals.
-//
-// This is an improvement in kind but not in level: the values still live in Go as well as in
-// metadata/task.yaml's options:, so they remain compile-time-bound. What would actually remove
-// them is a semantic marker on the option itself (something like `terminal: true` for "done"), so
-// a screen could ask metadata which status means finished instead of knowing the word. That is
-// the decomposition audit's P3, deliberately not built yet -- it is the least mature of the six
-// variation points the audit mapped, and no second shape has forced it.
-const (
-	taskStatusTodo       = "todo"
-	taskStatusInProgress = "in_progress"
-	taskStatusDone       = "done"
+	measureTotal = "msr_total"
 )
 
 // DashboardData composes the dashboard (Case 19 PM04). Every Task figure on it -- the four tiles, the
 // per-project rows, the per-person bars -- is derived from one bounded selection of Task records
 // (ds_all_tasks) through the Machine's own `completion:`, so "finished" has one definition on this screen
-// rather than the Dataset's `value: done` and the board's circle each holding one. The Documents panel is
-// not in the mockup and keeps its declared counts (ds_document_by_status).
-//
-// docMachine is whichever Machine this Workspace's approval Application casts as its document
-// (2026-09-28), and **nil is a real argument**: a Workspace with no approval Application installed
-// has no documents to summarise, and the status tiles correctly read zero. Before the roles existed
-// this read the literal mch_document, which in such a Workspace would have counted whatever else
-// happened to be named that -- a plain CRUD Machine's records presented as documents in review.
-func DashboardData(ctx context.Context, l *Loader, docMachine *domain.Machine, now time.Time) (rendering.DashboardContent, error) {
+// rather than the Dataset's `value: done` and the board's circle each holding one. The mockup has nothing
+// else on the page, so nothing else is composed.
+func DashboardData(ctx context.Context, l *Loader, now time.Time) (rendering.DashboardContent, error) {
 	tasks, err := l.SelectRelated(ctx, dashboardTasksDataset, expression.Context{})
 	if err != nil {
 		return rendering.DashboardContent{}, err
@@ -110,36 +78,18 @@ func DashboardData(ctx context.Context, l *Loader, docMachine *domain.Machine, n
 	if err != nil {
 		return rendering.DashboardContent{}, err
 	}
-	var documents []*data.Record
-	if docMachine != nil {
-		if documents, err = l.ListRecords(ctx, docMachine.ID); err != nil {
-			return rendering.DashboardContent{}, err
-		}
-	}
-	activity, err := RecentActivity(ctx, l)
-	if err != nil {
-		return rendering.DashboardContent{}, err
-	}
-	docCounts, err := l.AggregateDataset(ctx, documentStatusDataset)
-	if err != nil {
-		return rendering.DashboardContent{}, err
-	}
 
-	d := buildDashboard(tasks.Records, projects, documents, people, docCounts, l.Machine(taskMachineID), l.Machine(projectMachineID), docMachine, now)
+	d := buildDashboard(tasks.Records, projects, people, l.Machine(taskMachineID), l.Machine(projectMachineID), now)
 	d.TasksTruncation = rendering.Truncation{Hit: tasks.Truncated, Limit: tasks.Limit}
-	d.Activity = activity
 	return d, nil
 }
 
-// buildDashboard is the pure half. Tasks are the only input for every figure about Tasks; documents keep
-// their declared counts, and collecting the in_review Documents themselves is selection, which stays here --
-// picking records by a predicate is 007 §8's Query Model, which the decomposition audit recommends against
-// building until something forces it.
+// buildDashboard is the pure half. Tasks are the only input for every figure on the page.
 //
 // Which Field names a Task's Project and its person come from the Machine rather than from a literal: the
 // person is the `person` card_fields role, the Project is the one Field referencing the Project Machine.
 // A Task Machine with neither simply yields no per-project or per-person rows.
-func buildDashboard(tasks, projects, documents []*data.Record, people map[string]string, docCounts Aggregation, taskMachine, projectMachine, docMachine *domain.Machine, now time.Time) rendering.DashboardContent {
+func buildDashboard(tasks, projects []*data.Record, people map[string]string, taskMachine, projectMachine *domain.Machine, now time.Time) rendering.DashboardContent {
 	var d rendering.DashboardContent
 	projectField := fieldReferencing(taskMachine, projectMachineID)
 	personField := FieldForRole(taskMachine, domain.CardFieldRolePerson)
@@ -193,8 +143,7 @@ func buildDashboard(tasks, projects, documents []*data.Record, people map[string
 
 	for id, l := range perPerson {
 		// An assignee the Workspace no longer has a name for is left off the list rather than shown as an id.
-		// The tiles above still count their cards, so the figures can differ -- the same trade
-		// buildCapacity makes for TotalActive.
+		// The tiles above still count their cards, so the figures can differ.
 		if people[id] == "" {
 			continue
 		}
@@ -208,26 +157,6 @@ func buildDashboard(tasks, projects, documents []*data.Record, people map[string
 		return a.Name < b.Name
 	})
 
-	d.Documents = rendering.DocumentSummary{
-		InReview: int(docCounts.ByDimension[action.DocumentStatusInReview][measureTotal]),
-		Approved: int(docCounts.ByDimension[action.DocumentStatusApproved][measureTotal]),
-		Rejected: int(docCounts.ByDimension[action.DocumentStatusRejected][measureTotal]),
-	}
-	dueField := FieldForRole(docMachine, domain.CardFieldRoleDate)
-	for _, doc := range documents {
-		// The status *Field* is derived from the Document Machine's own transitions
-		// (docMachine.StatusField(), 2026-09-29). The status *value* is still a literal, and that is a
-		// different variation point deliberately left alone: semantic meaning for an option value is
-		// the decomposition audit's P3, the least mature of the six it mapped, with no second case.
-		if DisplayString(doc.Values[docMachine.StatusField()]) != action.DocumentStatusInReview {
-			continue
-		}
-		d.Pending = append(d.Pending, rendering.PendingDocument{
-			Record: doc,
-			Title:  ProjectedByRole(docMachine, doc, nil)[string(domain.CardFieldRoleTitle)],
-			SLA:    experience.ResolveSLABadge(doc.Values[dueField], now),
-		})
-	}
 	return d
 }
 
@@ -488,147 +417,6 @@ func buildMyTasks(tasks []*data.Record, projects map[string]string, now time.Tim
 	return out
 }
 
-// Sprint is the sprint dashboard's composed content (development-history.md Phase 14). The mockup's
-// points/burndown/blocked content is deliberately absent -- see rendering.SprintSummary's own doc
-// comment for why.
-type Sprint struct {
-	Summary   rendering.SprintSummary
-	Workload  []rendering.MemberCapacity
-	Attention []rendering.TaskRow
-}
-
-func SprintDashboard(ctx context.Context, l *Loader, now time.Time) (Sprint, error) {
-	tasks, err := l.ListRecords(ctx, taskMachineID)
-	if err != nil {
-		return Sprint{}, err
-	}
-	users, err := l.ListRecords(ctx, userMachineID)
-	if err != nil {
-		return Sprint{}, err
-	}
-	names, err := projectNames(ctx, l)
-	if err != nil {
-		return Sprint{}, err
-	}
-	byStatus, err := l.AggregateDataset(ctx, taskByStatusDataset)
-	if err != nil {
-		return Sprint{}, err
-	}
-	workload, err := l.AggregateDataset(ctx, taskWorkloadDataset)
-	if err != nil {
-		return Sprint{}, err
-	}
-
-	people, err := l.PersonNames(ctx)
-	if err != nil {
-		return Sprint{}, err
-	}
-	return buildSprint(tasks, users, people, names, now, byStatus, workload, l.Machine(taskMachineID)), nil
-}
-
-// buildSprint reads two Datasets, and the second one is the point: ds_task_workload is the same
-// declaration Team Capacity composes from, reused here unchanged. That reuse is what makes a
-// Dataset a "named, reusable semantic data definition" (007 §7.2) rather than a per-screen config
-// block -- two screens now agree on what "active cards per assignee" means because they read one
-// declaration, not because two Go loops happen to be written the same way.
-//
-// The Attention list stays a loop for the same reason buildDashboard's Pending does: it selects
-// records rather than counting them, and its predicate is temporal (overdue or due today against
-// now), which the declared where: shape cannot express at all.
-func buildSprint(tasks, users []*data.Record, people, projects map[string]string, now time.Time, byStatus, workload Aggregation, taskMachine *domain.Machine) Sprint {
-	var out Sprint
-
-	out.Summary.Total = int(byStatus.Total[measureTotal])
-	out.Summary.Open = int(byStatus.ByDimension[taskStatusTodo][measureTotal])
-	out.Summary.InProgress = int(byStatus.ByDimension[taskStatusInProgress][measureTotal])
-	out.Summary.Done = int(byStatus.ByDimension[taskStatusDone][measureTotal])
-
-	active := workload.ByDimension
-
-	for _, t := range tasks {
-		if DisplayString(t.Values["fld_status"]) == taskStatusDone {
-			continue
-		}
-		if due, err := time.Parse("2006-01-02", DisplayString(t.Values["fld_due_date"])); err == nil {
-			if slaStatus, label := experience.EvaluateSLA(due, now); slaStatus == experience.SLAOverdue || label == "Due today" {
-				out.Attention = append(out.Attention, taskRow(t, projects, taskMachine, now))
-			}
-		}
-	}
-
-	out.Workload = make([]rendering.MemberCapacity, 0, len(users))
-	for _, u := range users {
-		out.Workload = append(out.Workload, rendering.MemberCapacity{
-			User:        u,
-			Name:        people[u.ID],
-			ActiveCards: int(active[u.ID][measureTotalOpen]),
-		})
-	}
-	return out
-}
-
-// Capacity is the Team Capacity screen's composed content (development-history.md Phase 14).
-type Capacity struct {
-	Members       []rendering.MemberCapacity
-	TotalCapacity int
-	TotalActive   int
-}
-
-func TeamCapacity(ctx context.Context, l *Loader) (Capacity, error) {
-	workload, err := l.AggregateDataset(ctx, taskWorkloadDataset)
-	if err != nil {
-		return Capacity{}, err
-	}
-	capacity, err := l.AggregateDataset(ctx, userCapacityDataset)
-	if err != nil {
-		return Capacity{}, err
-	}
-
-	// Users are still read directly: the table lists one row per member, and a Dataset returns
-	// numbers, not records.
-	users, err := l.ListRecords(ctx, userMachineID)
-	if err != nil {
-		return Capacity{}, err
-	}
-	people, err := l.PersonNames(ctx)
-	if err != nil {
-		return Capacity{}, err
-	}
-	return buildCapacity(users, people, workload, capacity, datasetMeasureField(l.Machine(userMachineID), userCapacityDataset, measureTotalCapacity)), nil
-}
-
-// buildCapacity is the first screen composed from declared Datasets rather than a hand-written
-// count loop (007 §7.2-§7.4; the decomposition audit's P1). What used to be three literal field
-// ids and a `!= "done"` comparison in Go is now metadata/task.yaml's ds_task_workload and
-// metadata/user.yaml's ds_user_capacity; this function's remaining job is binding -- deciding
-// which Measure lands in which view-model field, which stays code by design (007 §11.3).
-//
-// TotalActive deliberately sums the per-member numbers instead of reading the Dataset's own
-// Total: those two differ, and the difference is visible. Total counts every open Task including
-// ones assigned to nobody (or to a since-deleted identity), while the table below it lists only
-// real Users -- so using Total would print a header number the rows underneath can't add up to.
-// capacityField is the Field mch_user's own ds_user_capacity Dataset already names
-// (`measures[].field`), so "which Field holds weekly capacity" is read from that declaration rather
-// than written here -- the same move that let teamcapacity.templ stop reading it itself (2026-09-28).
-func buildCapacity(users []*data.Record, people map[string]string, workload, capacity Aggregation, capacityField string) Capacity {
-	out := Capacity{
-		Members:       make([]rendering.MemberCapacity, 0, len(users)),
-		TotalCapacity: int(capacity.Total[measureTotalCapacity]),
-	}
-	for _, u := range users {
-		mine := workload.ByDimension[u.ID]
-		out.TotalActive += int(mine[measureTotalOpen])
-		out.Members = append(out.Members, rendering.MemberCapacity{
-			User:        u,
-			Name:        people[u.ID],
-			ActiveCards: int(mine[measureTotalOpen]),
-			TotalCards:  int(mine[measureTotal]),
-			Weekly:      DisplayString(u.Values[capacityField]),
-		})
-	}
-	return out
-}
-
 // maxCalendarWeeks bounds how far from this week the Calendar will navigate: ten years either way is more
 // than any plan reaches, and it keeps `?week=` from asking time.AddDate for a date it cannot represent.
 const maxCalendarWeeks = 520
@@ -752,149 +540,6 @@ func buildCalendarWeek(tasks []*data.Record, projects, people map[string]string,
 	}
 }
 
-// ActivityFeed is the cross-Machine event feed grouped by day (development-history.md Phase 14) -- the same
-// mch_activity data the dashboard shows as a flat tail, shaped for its own page.
-type ActivityFeed struct {
-	Today     []rendering.ActivityEntry
-	Yesterday []rendering.ActivityEntry
-	Earlier   []rendering.ActivityEntry
-}
-
-func GroupedActivity(ctx context.Context, l *Loader, now time.Time) (ActivityFeed, error) {
-	events, names, err := activityRows(ctx, l, activityFeedDataset)
-	if err != nil {
-		return ActivityFeed{}, err
-	}
-	return buildActivityFeed(events, names, now), nil
-}
-
-func buildActivityFeed(events []*data.Record, names map[string]string, now time.Time) ActivityFeed {
-	yesterday := now.AddDate(0, 0, -1)
-
-	var feed ActivityFeed
-	for _, e := range events {
-		entry := rendering.ActivityEntry{
-			Summary: DisplayString(e.Values["fld_summary"]),
-			Actor:   names[DisplayString(e.Values["fld_actor"])],
-		}
-		switch {
-		case SameDay(e.CreatedAt, now):
-			entry.When = e.CreatedAt.Format("15:04")
-			feed.Today = append(feed.Today, entry)
-		case SameDay(e.CreatedAt, yesterday):
-			entry.When = e.CreatedAt.Format("15:04")
-			feed.Yesterday = append(feed.Yesterday, entry)
-		default:
-			entry.When = e.CreatedAt.Format("2006-01-02 15:04")
-			feed.Earlier = append(feed.Earlier, entry)
-		}
-	}
-	return feed
-}
-
-// RecentActivity is the dashboard's flat newest-first tail of the same events.
-func RecentActivity(ctx context.Context, l *Loader) ([]rendering.ActivityEntry, error) {
-	events, names, err := activityRows(ctx, l, recentActivityDataset)
-	if err != nil {
-		return nil, err
-	}
-	entries := make([]rendering.ActivityEntry, 0, len(events))
-	for _, e := range events {
-		entries = append(entries, rendering.ActivityEntry{
-			Summary: DisplayString(e.Values["fld_summary"]),
-			Actor:   names[DisplayString(e.Values["fld_actor"])],
-			When:    e.CreatedAt.Format("2006-01-02 15:04"),
-		})
-	}
-	return entries, nil
-}
-
-// activityRows returns one activity Dataset's records plus an actor-id -> display-name map: the
-// shared read behind both activity shapes.
-//
-// **Newest-first and the cap are both declared now** (metadata/activity.yaml, 2026-09-29). This used
-// to read every mch_activity row, copy the slice, sort it in Go and reslice the first N -- and the
-// copy was load-bearing, because sorting the Loader's cached slice in place reordered mch_activity
-// for every later reader in the same request. None of that is here any more: the database orders and
-// bounds, and the Loader memoises the *selection* under its Dataset id rather than the Machine's, so
-// a whole-Machine read on the same request still sees every row in the Machine's own order.
-func activityRows(ctx context.Context, l *Loader, datasetID string) ([]*data.Record, map[string]string, error) {
-	// Both feeds filter on the Application the request is in. Outside any Application there is nothing to
-	// show, and an empty `application` parameter makes the selection refuse rather than list everyone's.
-	app, _ := rendering.CurrentApplication(ctx)
-	events, err := l.SelectDataset(ctx, datasetID, expression.Context{Parameters: map[string]string{"application": app.ID}})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	names, err := l.PersonNames(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	return events, names, nil
-}
-
-// AutomationRules describes this Application's real Constraint, Event, and Action metadata/
-// behavior as Trigger/Condition/Action rows (development-history.md Phase 14) -- a read-only description of
-// what already exists, not a generic automation engine and not fictional example workflows.
-//
-// It composes over metadata alone and touches no records, so it takes the Machines directly
-// rather than a Loader.
-func AutomationRules(machines []*domain.Machine) []rendering.AutomationRule {
-	var rules []rendering.AutomationRule
-	for _, m := range machines {
-		for _, c := range m.Constraints {
-			onField, _ := m.FieldByID(c.On)
-			relatedFieldName := c.BlockIf.Condition.Field
-			if related := findMachine(machines, c.BlockIf.RelatedMachine); related != nil {
-				if f, ok := related.FieldByID(c.BlockIf.Condition.Field); ok {
-					relatedFieldName = f.Name
-				}
-			}
-			rules = append(rules, rendering.AutomationRule{
-				Name:      c.ID,
-				Trigger:   fmt.Sprintf("%s's %s becomes %q", m.Name, onField.Name, c.WhenEquals),
-				Condition: fmt.Sprintf("a related %s (via its %s field) has %s %s %q", c.BlockIf.RelatedMachine, c.BlockIf.RelatedField, relatedFieldName, c.BlockIf.Condition.Op, c.BlockIf.Condition.Value),
-				Action:    "Block the transition (422)",
-			})
-		}
-	}
-
-	for _, m := range machines {
-		for _, e := range m.Events {
-			onField, _ := m.FieldByID(e.On)
-			trigger := fmt.Sprintf("%s's %s changes", m.Name, onField.Name)
-			if e.WhenEquals != "" {
-				trigger = fmt.Sprintf("%s's %s becomes %q", m.Name, onField.Name, e.WhenEquals)
-			}
-			rules = append(rules, rendering.AutomationRule{
-				Name:      e.ID,
-				Trigger:   trigger,
-				Condition: "(none)",
-				Action:    fmt.Sprintf("Run %s: %q", e.Then.Name, e.Then.Summary),
-			})
-		}
-	}
-
-	// The Approval Step's sequencing rule lives in internal/action rather than in Constraint
-	// metadata, so it has no Constraint to be derived from and is stated here instead.
-	return append(rules, rendering.AutomationRule{
-		Name:      "Approval Step sequencing",
-		Trigger:   "POST /machines/mch_approval_step/records/{id}/decide",
-		Condition: "sequential mode: every earlier-sequence step on the same Document is already approved; parallel mode: always",
-		Action:    "Record the decision; recompute the Document's aggregate status (approved once every step is approved, rejected if any step is)",
-	})
-}
-
-func findMachine(machines []*domain.Machine, id string) *domain.Machine {
-	for _, m := range machines {
-		if m.ID == id {
-			return m
-		}
-	}
-	return nil
-}
-
 // projectNames maps a Project's id to its display name, the join three screens need to label a
 // Task with the Project it belongs to.
 func projectNames(ctx context.Context, l *Loader) (map[string]string, error) {
@@ -914,29 +559,6 @@ func SameDay(a, b time.Time) bool {
 	ay, am, ad := a.Date()
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd
-}
-
-// datasetMeasureField is the Field a declared Measure sums or counts -- "which Field holds weekly
-// capacity" answered by mch_user's own ds_user_capacity rather than by a constant here.
-//
-// It is the same reading-what-is-declared move as domain.Machine's own ActionField/OrderField
-// accessors (2026-09-28), applied to the one declaration that already names this Field. Empty when the
-// Machine or the Dataset is absent, and the caller then renders "not set", which is what a person with
-// no declared capacity should read as anyway.
-func datasetMeasureField(m *domain.Machine, datasetID, measureID string) string {
-	if m == nil {
-		return ""
-	}
-	ds, ok := m.DatasetByID(datasetID)
-	if !ok {
-		return ""
-	}
-	for _, msr := range ds.Measures {
-		if msr.ID == measureID {
-			return msr.Field
-		}
-	}
-	return ""
 }
 
 // BoardSettings composes Case 19 PM06: the Lists a board groups by and the Labels its cards can carry, each

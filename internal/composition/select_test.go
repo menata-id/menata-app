@@ -66,7 +66,7 @@ func selectTestLoader(t *testing.T, suffix string, rows int) (*Loader, context.C
 // A `select: records` result is a *different set of rows for the same Machine* -- ordered and
 // bounded. Memoising it under machineID would make the next whole-Machine reader in the same request
 // receive ten rows where it needs all thirty. **The failure would be silent and would break a
-// different screen than the one being changed**: /dashboard reads ds_recent_activity (10 rows) and
+// different screen than the one being changed**: the Dashboard once read ds_recent_activity (10 rows) and
 // would then hand every later mch_activity reader that same truncated slice.
 func TestSelectDataset_doesNotPoisonTheWholeMachineMemo(t *testing.T) {
 	l, ctx := selectTestLoader(t, "memo", 30)

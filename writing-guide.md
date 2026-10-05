@@ -327,8 +327,9 @@ switcher; the switcher's look changed for **every** Machine with more than one V
 **Moving a card needs nothing declared.** Anyone who may edit a record can drag its card to another column or
 place in the same one, or use the pencil's *Move to list* / *Position*; both write the `group_by` Field and the
 card's order (`sort_order`). Nothing can be moved into the automatic "Other" column — it has no value to write.
-The same move is offered as a **Move…** panel on the record's own page, with nothing more to declare: any Machine that
-has a `board` View gets it, and it writes through that View.
+The same move is offered as a **Move…** panel in the ⋯ menu of the record's own page, with nothing more to declare:
+any Machine that has a `board` View gets it, and it writes through that View. That page also draws a breadcrumb
+(the Machine's heading, linking to the board, then the card's list) from the same View.
 
 Write the `name` yourself; don't expect the type to supply it. `table`/`cards` is the runtime
 engine's own vocabulary, and a string the user reads is the Application author's to write — the
@@ -707,7 +708,7 @@ There is no way to declare a new Service purely in YAML, the same limit §8 alre
 Action.
 
 An event is stamped with the Application that claims its Machine (`fld_application_id` on
-`mch_activity`), so a feed such as `ds_activity_feed` can declare
+`mch_activity`), so a feed can declare
 `where: { field: fld_application_id, op: equals, value: $parameters.application }` and show only the
 Application the request is in. A Machine no Application claims logs without one, and such an event
 appears in no feed.
@@ -1161,7 +1162,7 @@ no View at all, so putting them on one arrangement would have forced an arbitrar
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
 | `card_tags` | `{machine, via, tag}` | `machine` an installed join Machine; `via` a reference on it pointing back at this Machine; `tag` a reference on it naming the tag. The tag Machine needs `card_fields` with `title` and (for colour) `color` roles. Read by a board card's chips | Also drawn as chips under a record's own heading on its detail page. A Workspace that carries `mch_activity` and its `ds_record_activity` Dataset also gets a **History** section there (events naming this Machine and record, newest first, at most 50) — nothing to declare per Machine
 | `completion` | `{field: fld_*, done: <option>}` | `field` must be a `status` field and `done` one of its options. Read by a board card's date pill (`composition.IsComplete`) |
-| `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week, the Sprint dashboard's Attention list and the Dashboard's Project/pending-Document rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
+| `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week and the Dashboard's Project rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
 
 **There is no singular `view:` block any more.** It was one anonymous arrangement per Machine until
 2026-09-20; a second arrangement of the same records could not be expressed at all. If you write
@@ -1282,9 +1283,9 @@ unique across the whole application, not just within its file — screens name a
 nothing else, and the runtime knows which Machine's records that means.
 
 ```yaml
-# in task.yaml -- "how many Tasks does each assignee have, and how many are still open?"
+# "how many Tasks does each assignee have, and how many are still open?"
 datasets:
-  - id: ds_task_workload
+  - id: ds_task_by_assignee
     dimension: fld_assignee
     measures:
       - id: msr_total
@@ -1295,8 +1296,8 @@ datasets:
 ```
 
 A screen still decides which measure it displays where (that binding is Go), but the counting,
-grouping and filtering are metadata: changing `where.value` above changes Team Capacity's own
-numbers with no code edit.
+grouping and filtering are metadata: changing `where.value` above changes the figure a screen
+shows for it with no code edit.
 
 ### 12.8 Closed vocabularies — the complete list of values you may write
 
@@ -1431,8 +1432,9 @@ similar-looking metadata for a *different* Machine does not activate it.
 | — | **Conditional required** — "this Field is required only when a sibling Field holds a given value". `Constraint` has one shape (block a transition while a *related Machine* has a matching record), which cannot condition on a sibling Field of the same record. The one real case is `mch_approval_step`: `fld_assignee` is required when `fld_approver_type` is User and meaningless when it is Group, so the Field is declared optional and `internal/web`'s `parseStepInputs` enforces the pairing (Fase 6c-2). Upstream states the same rule as two conditional Constraints, so the shape is known — it is this runtime's Constraint that has to grow |
 | SLA badges (`sla_field`) | **A Page's own primary action** — the Approval Inbox's "+ New Document" button, and (2026-09-26) the Workspace menu's own "New application" link into the AI Metadata Assistant (Flow 2 gap study Tahap 8). `navigation:` declares menu *destinations*; it cannot say "this screen has a call to action pointing at that screen", nor can it declare a Workspace-level action that exists whether zero or ten Applications are installed. `nav_new_approval` was deleted on 2026-09-21 (owner instruction) precisely because declaring a submit form as a menu item was the wrong shape for it, which left the route and the label as literals in `approvalinbox.templ`/`documentsubmit.templ` and `appshell.templ`, and an entry each in `internal/conformance`'s `applicationSubScreens`. Forward-checkable pointer: 007 §12.3's `ActionBar` component, still unbuilt |
 | Declared Views (`views:` — `table`/`board`/`cards`/`stepper`) | A View composing *other* Views, rather than one Machine's own records, has one real case built (2026-09-26): `stepper` (`domain.ViewStepper`, menata-runtime's CAP-V20) renders a parent's own children as a sequential done/current/waiting progress indicator — `mch_approval_step`'s `vw_step_progress`, composed by `internal/rendering/detail.templ` via `domain.Machine.StepperView`, not selected by `?view=`. What's still hardcoded is the Review Document screen's own orchestration around it (Approve/Reject bar, signature canvas/placement) — see the row above |
-| Counting/summing a Machine's own records (`datasets:`), and — since 2026-09-28 — **which Field a composed screen shows in a row** (`card_fields:`, §7.1): My Tasks, the Calendar, the Sprint Attention list and the Dashboard's Project/pending-Document rows resolve title/status/date through Projection, and Team Capacity reads its weekly number out of `ds_user_capacity`'s own `field:` | Composed screens: Approval Inbox, Automation. What stays Go on the four migrated screens is their *layout* — which measure lands in which column, how rows are bucketed (overdue/today/upcoming), and the temporal predicate that selects the Pending and Attention lists, which `where:` cannot express. Board Settings reads a Label's name and colour through `mch_label`'s `title`/`color` card_fields and its three Datasets, so `projectionRatchet` is empty |
+| Counting/summing a Machine's own records (`datasets:`), and — since 2026-09-28 — **which Field a composed screen shows in a row** (`card_fields:`, §7.1): My Tasks, the Calendar and the Dashboard's Project rows resolve title/status/date through Projection | Composed screens: Approval Inbox. What stays Go on the migrated screens is their *layout* — which measure lands in which column and how rows are bucketed (overdue/today/upcoming), a temporal predicate that `where:` cannot express. Board Settings reads a Label's name and colour through `mch_label`'s `title`/`color` card_fields and its three Datasets, so `projectionRatchet` is empty |
 | Notifications (`send_notification`, in-app + email, `domain.Notify`) — a declared Event writes an `mch_notification` record and, if the recipient's own preference allows it, emails them | **A notification's own link target.** `internal/execution.notificationLinkFor` special-cases `mch_approval_step` → its `/review` route rather than the generic `/machines/{id}/records/{id}` detail page, which is explicitly "POC scaffolding no real approver should land on" (`detailBackLink`'s own reasoning). Every other Machine (`mch_document` today) gets the generic detail route. Forward-checkable pointer: a second notification-emitting Machine needing its own non-generic destination is the trigger to turn this into a declared Field rather than a per-Machine-id branch |
+| — | **The ⋯ menu's Share item** — a clipboard write of the page's own address, inline in `detail.templ`. A copy-to-clipboard gesture has no declarative form: it is 007 §12.3's `actions` slot, not built, the same class as the board's drag script. Listed per `CLAUDE.md`'s exception rule; revisit when `actions` lands |
 
 **A Page's own layout is the next row to move, and the plan for it is written** (2026-09-30):
 `menata-app-document`'s `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`

@@ -9,12 +9,11 @@ import (
 	"menata.app/internal/expression"
 )
 
-// taskWorkload is the shape metadata/task.yaml actually declares: count every record, count again
-// only the ones a filter keeps, both grouped by one Dimension. Using the real shape rather than a
-// synthetic one keeps this test honest about what Team Capacity depends on.
+// taskWorkload is a synthetic Dataset exercising Aggregate's whole surface: count every record, count
+// again only the ones a filter keeps, both grouped by one Dimension.
 func taskWorkload() domain.Dataset {
 	return domain.Dataset{
-		ID:        "ds_task_workload",
+		ID:        "ds_test_workload",
 		Dimension: "fld_assignee",
 		Measures: []domain.Measure{
 			{ID: "msr_total", Aggregate: domain.AggregateCount},
@@ -22,46 +21,6 @@ func taskWorkload() domain.Dataset {
 				Field: "fld_status", Op: expression.OpNotEquals, Value: "done",
 			}},
 		},
-	}
-}
-
-// taskByProject and taskByStatus mirror metadata/task.yaml's other two declarations, and
-// documentByStatus metadata/document.yaml's. internal/conformance.TestComposedScreenDatasetsAreDeclared
-// is what keeps these fixtures honest against the real files.
-func taskByProject() domain.Dataset {
-	return domain.Dataset{
-		ID:        "ds_task_by_project",
-		Dimension: "fld_project",
-		Measures: []domain.Measure{
-			{ID: "msr_total", Aggregate: domain.AggregateCount},
-			{ID: "msr_total_open", Aggregate: domain.AggregateCount, Where: &expression.Comparison{
-				Field: "fld_status", Op: expression.OpNotEquals, Value: "done",
-			}},
-		},
-	}
-}
-
-func taskByStatus() domain.Dataset {
-	return domain.Dataset{
-		ID:        "ds_task_by_status",
-		Dimension: "fld_status",
-		Measures:  []domain.Measure{{ID: "msr_total", Aggregate: domain.AggregateCount}},
-	}
-}
-
-func documentByStatus() domain.Dataset {
-	return domain.Dataset{
-		ID:        "ds_document_by_status",
-		Dimension: "fld_status",
-		Measures:  []domain.Measure{{ID: "msr_total", Aggregate: domain.AggregateCount}},
-	}
-}
-
-// userCapacity mirrors metadata/user.yaml's own declaration: a grand total, no dimension.
-func userCapacity() domain.Dataset {
-	return domain.Dataset{
-		ID:       "ds_user_capacity",
-		Measures: []domain.Measure{{ID: "msr_total_capacity", Aggregate: domain.AggregateSum, Field: "fld_weekly_capacity"}},
 	}
 }
 
@@ -108,11 +67,10 @@ func TestAggregate_groupSurvivesEveryMeasureFiltering(t *testing.T) {
 	}
 }
 
-// TestAggregate_sumWithoutDimension is the other real declaration (metadata/user.yaml): a grand
-// total with no breakdown. ByDimension must stay empty rather than inventing a single group.
+// TestAggregate_sumWithoutDimension is the no-breakdown case: a grand total with no dimension. ByDimension must stay empty rather than inventing a single group.
 func TestAggregate_sumWithoutDimension(t *testing.T) {
 	ds := domain.Dataset{
-		ID:       "ds_user_capacity",
+		ID:       "ds_test_total",
 		Measures: []domain.Measure{{ID: "msr_total_capacity", Aggregate: domain.AggregateSum, Field: "fld_weekly_capacity"}},
 	}
 	records := []*data.Record{

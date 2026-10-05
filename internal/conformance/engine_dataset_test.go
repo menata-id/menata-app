@@ -129,11 +129,10 @@ func TestEveryCastRoleProvidesItsEngineDatasets(t *testing.T) {
 // still install a screen whose Dataset its Machines do not declare and get the same 500.
 //
 // **It is a list and not a gate because the missing half is a question no scan answers**: which
-// Workspaces can reach the screen that selects through this id. `ds_recent_activity` and
-// `ds_activity_feed` are safe by accident of scope -- they sit on `mch_activity`, a shared runtime
-// reference every Workspace gets the same copy of, so no divergence is possible. The five Case 19 ids
-// sit on `mch_task`/`mch_user`/`mch_project`, and whether a Workspace reaches them depends on which
-// navigation routes its Applications declare -- a route-to-Dataset mapping that needs the static call
+// Workspaces can reach the screen that selects through this id. `ds_record_activity` is safe by
+// accident of scope -- it sits on `mch_activity`, a shared runtime reference every Workspace gets the
+// same copy of, so no divergence is possible. The Case 19 ids sit on `mch_task`/`mch_list`/`mch_label`, and whether a Workspace reaches them
+// depends on which navigation routes its Applications declare -- a route-to-Dataset mapping that needs the static call
 // graph walk `TestGetRoutesDoNotWrite` already performs, pointed at a different question.
 //
 // Recorded with that cost stated, so "the Dataset class is closed" is not read off a green run. The
@@ -142,24 +141,12 @@ func TestEveryCastRoleProvidesItsEngineDatasets(t *testing.T) {
 // Building the route-to-Dataset walk is the work; the trigger is a Case 19 Machine diverging between
 // Workspaces the way the approval Machines already have.
 var goNamedDatasetsWithNoEngineRequirement = map[string]string{
-	"ds_recent_activity": "on mch_activity, a shared runtime reference -- every Workspace gets the same copy, so it cannot diverge",
-	"ds_activity_feed":   "on mch_activity, same shared copy",
 	"ds_record_activity": "on mch_activity, same shared copy; and the detail page treats an absent Dataset as no section, not an error",
 	"ds_my_tasks":        "on mch_task (Task Tracker); reachable only from routes that Workspace's Applications declare",
-	"ds_task_workload":   "on mch_task; same",
 	"ds_all_tasks":       "on mch_task; same",
-	"ds_task_by_status":  "on mch_task; same",
-	"ds_user_capacity":   "on mch_user, a shared runtime reference",
 	"ds_board_lists":     "on mch_list (Project Management); reachable only from routes that Workspace's Applications declare",
 	"ds_board_labels":    "on mch_label; same",
 	"ds_label_usage":     "on mch_card_label; same",
-	// Not on this list and not required by the engine either: ds_document_by_status. Both real
-	// Workspaces happen to declare it on the Machine their approval Application casts, so adding it to
-	// Datasets would be correct -- and it is deliberately left out, because the Dashboard's Document
-	// tiles are declared by *Project Management*, not by the approval Application, so "the engine
-	// requires it" would be the wrong reason for a true statement. See the file comment: a name is not
-	// a reason.
-	"ds_document_by_status": "selected by the Dashboard, which Project Management declares -- not the approval engine's own screen, so the engine must not claim it",
 }
 
 // TestGoNamedDatasetsWithNoEngineRequirement keeps the list above honest in both directions: an id that

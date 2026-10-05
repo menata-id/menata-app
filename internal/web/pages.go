@@ -17,16 +17,10 @@ import (
 // internal/composition for the page's content, render it. The joins, rollups and SLA bucketing
 // they used to perform inline now live beside their own tests (development-history.md Phase 19 Step 3).
 
-// The two activity limits used to live here as dashboardActivityLimit (10) and activityFeedLimit
-// (50), with a comment explaining why a summary card shows fewer events than a dedicated feed.
-// Both are declared now -- ds_recent_activity and ds_activity_feed in metadata/activity.yaml -- and
-// the comment explaining the difference moved with them. How many rows a screen shows is application
-// behaviour, which 001 Principle #3 puts in metadata (ROADMAP.md "(c)" Slice A, 2026-09-29).
-
 // pageChrome resolves the three values every appShell-based screen in this file threads down to
 // its own rendering.XxxPage call -- workspace name, viewer, and the launcher's switch-workspace
 // href -- the same resolution showApprovalInbox already does inline (internal/web/approval.go),
-// pulled out here because these eight handlers all need exactly it and nothing more (no
+// pulled out here because these handlers all need exactly it and nothing more (no
 // workspaceRole: none of these screens has a role-gated link the way Workspace Home's "Manage
 // members" does).
 func pageChrome(ctx context.Context, req *http.Request, store *data.Store, cfg config.Config) (workspaceName string, viewer rendering.Viewer, switchWorkspaceHref string, err error) {
@@ -46,7 +40,7 @@ func showDashboard(store *data.Store, cfg config.Config) http.HandlerFunc {
 		ctx := req.Context()
 		machines := machinesFor(ctx)
 
-		d, err := composition.DashboardData(ctx, composition.NewLoader(store, machines), machineForDocument(ctx), time.Now())
+		d, err := composition.DashboardData(ctx, composition.NewLoader(store, machines), time.Now())
 		if err != nil {
 			serverError(w, err)
 			return
@@ -83,50 +77,6 @@ func showMyTasks(store *data.Store, cfg config.Config) http.HandlerFunc {
 	}
 }
 
-// showActivity is Case 19's cross-project event feed (development-history.md Phase 14,
-// project-activity.html): the same mch_activity data as the Dashboard's Recent Activity section,
-// grouped by day (Today/Yesterday/Earlier) instead of a flat top-10 list.
-func showActivity(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		machines := machinesFor(ctx)
-
-		feed, err := composition.GroupedActivity(ctx, composition.NewLoader(store, machines), time.Now())
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		render(ctx, w, rendering.ActivityPage(feed.Today, feed.Yesterday, feed.Earlier, workspaceName, viewer, switchHref))
-	}
-}
-
-// showSprintDashboard is Case 19's analytics view (development-history.md Phase 14, project-dashboard.html):
-// a real Task-status summary, a workload preview (reusing MemberCapacity from Team Capacity), and
-// an Attention Needed list of overdue/due-today Tasks (reusing My Tasks' own SLA bucketing).
-func showSprintDashboard(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		machines := machinesFor(ctx)
-
-		s, err := composition.SprintDashboard(ctx, composition.NewLoader(store, machines), time.Now())
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		render(ctx, w, rendering.SprintDashboardPage(s.Summary, s.Workload, s.Attention, workspaceName, viewer, switchHref))
-	}
-}
-
 // showCalendar is Case 19's week-grid Layout (Case 19 PM05): every mch_task due in one Monday-Sunday week,
 // one column per day. `?week=N` steps N weeks from the current one; anything that is not a number is this week.
 func showCalendar(store *data.Store, cfg config.Config) http.HandlerFunc {
@@ -149,28 +99,6 @@ func showCalendar(store *data.Store, cfg config.Config) http.HandlerFunc {
 	}
 }
 
-// showTeamCapacity is Case 19's Team Capacity screen (development-history.md Phase 14, project-team.html):
-// every mch_user with their declared weekly capacity (a new Number field on an existing Machine,
-// not a new mechanism) and how many mch_task are currently assigned to them, still open.
-func showTeamCapacity(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		machines := machinesFor(ctx)
-
-		c, err := composition.TeamCapacity(ctx, composition.NewLoader(store, machines))
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		render(ctx, w, rendering.TeamCapacityPage(c.Members, c.TotalCapacity, c.TotalActive, workspaceName, viewer, switchHref))
-	}
-}
-
 // showBoardSettings is Case 19 PM06: the Lists and Labels every board shares, composed from the three
 // Datasets that declare them.
 func showBoardSettings(store *data.Store, cfg config.Config) http.HandlerFunc {
@@ -189,20 +117,5 @@ func showBoardSettings(store *data.Store, cfg config.Config) http.HandlerFunc {
 			return
 		}
 		render(ctx, w, rendering.BoardSettingsPage(c, workspaceName, viewer, switchHref))
-	}
-}
-
-// showAutomation is Case 19's Workflow Automation screen (development-history.md Phase 14,
-// project-automation.html): a read-only Trigger/Condition/Action description of this
-// Application's real Constraint metadata and Action behavior.
-func showAutomation(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		render(ctx, w, rendering.AutomationPage(composition.AutomationRules(installedMachines(ctx)), workspaceName, viewer, switchHref))
 	}
 }

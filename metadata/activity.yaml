@@ -50,53 +50,15 @@ fields:
 # declared log_activity Event).
 append_only: true
 
-# The Dashboard's activity feed, declared rather than computed (007 §7.7-§7.9, ROADMAP.md's "(c)"
-# Slice A, 2026-09-29).
-#
-# **These two Datasets declared no filter when they were first built, which is why they were first**: they
-# proved the retrieval-bounding half -- `sort:` and `limit:` reaching the database -- with no expression
-# context involved. They filter by Application now (`$parameters.application`, the Application the request
-# is in), so the Project Management feed shows Project Management's events and Document Approval's stay
-# in Document Approval. Before that, `nav_activity` was declared by one Application and listed every
-# Application's events in the Workspace.
-#
-# Before this, composition.recentEvents read every mch_activity row, sorted them in Go and sliced the
-# first ten, with the ten itself living in internal/web as `dashboardActivityLimit`. Both the ordering
-# and the bound are application behaviour, which 001 Principle #3 puts in metadata.
-#
-# `field: created_at` is a **record column**, not a Field: mch_activity declares no timestamp of its
-# own, which is exactly the case that made domain.SortableColumns necessary (see its comment).
-# **Two Datasets rather than one with a parameter**, which is the same call ds_task_workload and
-# ds_task_by_status already made for the same reason: these are two screens' genuinely different
-# data requirements, not one requirement configured twice. The Dashboard's card can afford a tail of
-# ten; the dedicated feed can afford fifty. Those two numbers lived in internal/web as
-# `dashboardActivityLimit` and `activityFeedLimit`, with a comment explaining the difference -- the
-# distinction was always metadata, it was just written in Go.
-#
-# Parameterising the limit instead would have kept one Dataset and moved the bound back out of
-# metadata, which is the half 007 §7.9 puts in the Data Plane on purpose.
+# A record's own history, declared rather than computed (007 §7.7-§7.9).
 datasets:
-  - id: ds_recent_activity
-    select: records
-    where: { field: fld_application_id, op: equals, value: $parameters.application }
-    sort:
-      - { field: created_at, direction: desc }
-    limit: 10
-
-  - id: ds_activity_feed
-    select: records
-    where: { field: fld_application_id, op: equals, value: $parameters.application }
-    sort:
-      - { field: created_at, direction: desc }
-    limit: 50
-
   # One record's own history, for the "Comments and activity" block of a record's detail page (Case 19 PM02).
   # It is the first Dataset to read `$parameters.*`: the two names are the Machine and the record the page
   # is about, supplied by the route, and the filter is a conjunction because an activity row names its
   # subject as a Machine id *and* a record id (fld_record_id alone could match a different Machine's
   # record that happens to share an id).
   #
-  # `limit: 50` matches ds_activity_feed. A card with more history than that shows its newest fifty and
+  # `limit: 50` bounds it. A card with more history than that shows its newest fifty and
   # the screen says so, rather than reading as the whole story.
   - id: ds_record_activity
     select: records

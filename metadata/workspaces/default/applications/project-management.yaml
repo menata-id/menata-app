@@ -1,4 +1,4 @@
-# Project Management -- task boards, sprints and team views. Formerly the "Project Management"
+# Project Management -- task boards, a personal worklist, a calendar and a dashboard. Formerly the "Project Management"
 # navigation *group* inside the single app_task_tracker Application; Fase 3 (2026-09-20) promoted
 # it to a real Application, which is what ui-sample/nav-metadata.js has always called `case19`.
 #
@@ -10,7 +10,7 @@ name: Project Management
 # See document-approval.yaml's own comments for what these four are and why the count is declared
 # rather than summed. mch_task is this Application's work: the 13 its Machines total between them
 # is mostly lists, labels and join rows.
-description: Task boards, sprints and team capacity.
+description: Task boards, a personal worklist, a calendar and a dashboard.
 icon: board
 color: emerald
 summary_machine: mch_task
@@ -58,31 +58,6 @@ navigation:
     priority: 4
     icon: calendar
     description: Cards sit on the day they are due. Tick a circle to finish one; step through the weeks to see what is coming.
-  - id: nav_sprint
-    label: Sprint Dashboard
-    route: /sprint
-    priority: 5
-    icon: timer
-    description: A composed analytics view over real Task data -- no fabricated points or burndown.
-  - id: nav_team_capacity
-    label: Team Capacity
-    route: /team-capacity
-    priority: 6
-    icon: bar-chart
-    description: People, weekly capacity, and active work, composed from existing Member and Task data.
-  - id: nav_activity
-    label: Activity
-    route: /activity
-    priority: 7
-    icon: list
-    description: A cross-project feed of business events.
-  - id: nav_automation
-    label: Automation
-    route: /automation
-    priority: 8
-    icon: bolt
-    title: Workflow Automation
-    description: 'Trigger → Condition → Action, read from this Application''s own Constraint metadata and Action behavior -- not a generic automation builder.'
   - id: nav_board_settings
     label: Board Settings
     route: /board-settings

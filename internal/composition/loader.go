@@ -149,7 +149,7 @@ type Selection struct {
 	// plan for this slice had missed.** `limit:` means two different things in the four Datasets that
 	// declare it. For `ds_documents_with_steps` (500) and `ds_my_tasks` (200) it is a *safety cap* on a
 	// list that means to show everything, so a bound that bites makes the screen lie. For
-	// `ds_recent_activity` (10) and `ds_activity_feed` (50) it is the list's *meaning* -- "recent" is
+	// the Dashboard's activity tail and the Activity feed (`ds_recent_activity` at 10 and `ds_activity_feed` at 50, both removed 2026-10-05) it was the list's *meaning* -- "recent" is
 	// defined by the bound -- and mch_activity holds 30 records today, so a naive pass of this slice
 	// would have shipped a "results were truncated" warning onto the Dashboard's activity tail, where it
 	// is simply false.

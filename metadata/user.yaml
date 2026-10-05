@@ -25,16 +25,6 @@ fields:
     name: Weekly Capacity (hours)
     type: number
 
-# The team's total declared capacity, the other half of Team Capacity's numbers. No dimension:
-# this is a grand total, not a breakdown -- composition.Aggregate returns Total either way, so a
-# Dataset that needs no grouping simply omits it rather than declaring a dummy axis.
-datasets:
-  - id: ds_user_capacity
-    measures:
-      - id: msr_total_capacity
-        aggregate: sum
-        field: fld_weekly_capacity
-
 # permissions: the User Machine is this Workspace's member directory, so changing a row in it is
 # Workspace administration -- the same question /workspace-members answers, reached through the
 # generic CRUD screens instead.
