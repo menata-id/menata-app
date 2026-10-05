@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 )
 
 // ReadLog counts the reads one request issued, per target. It makes the throwaway probe Phase 6's
@@ -20,22 +21,78 @@ type ReadLog struct {
 	// queries is every statement the pool actually issued, counted by QueryTracer. total and
 	// byTarget are the named half, recorded by the Store methods themselves. The two are kept
 	// apart rather than merged because their disagreement is the useful signal: queries above
-	// total means something issued a statement without naming itself.
+	// total + writes + control means something issued a read without naming itself.
 	queries  int
+	writes   int
+	control  int
+	dbTime   time.Duration
 	total    int
 	byTarget map[string]int
 }
 
 // countQuery records one statement issued through the pool (QueryTracer). Unlike record it takes
 // no target: the tracer sees SQL text, not the Machine or table a caller meant, and naming a read
-// after the first token of its SQL would be a worse label than none.
-func (l *ReadLog) countQuery() {
+// after the first token of its SQL would be a worse label than none. It does take a kind, because
+// whether a statement is a write is answerable from that token (classifyStatement).
+func (l *ReadLog) countQuery(kind statementKind) {
 	if l == nil {
 		return
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.queries++
+	switch kind {
+	case kindWrite:
+		l.writes++
+	case kindControl:
+		l.control++
+	}
+}
+
+// Writes is how many INSERT/UPDATE/DELETE statements the request issued. They are not reads and
+// never name themselves, so they are accounted for here instead of showing up as Unnamed.
+func (l *ReadLog) Writes() int {
+	if l == nil {
+		return 0
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.writes
+}
+
+// Unnamed is the statements that were neither a named read, a write, nor transaction control: a
+// read issued by something that did not call record(). Zero is the healthy value, and on a write
+// request it is now as reachable as on a GET.
+func (l *ReadLog) Unnamed() int {
+	if l == nil {
+		return 0
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.queries - l.total - l.writes - l.control
+}
+
+// addDBTime accumulates one statement's elapsed time (QueryTracer.TraceQueryEnd).
+func (l *ReadLog) addDBTime(d time.Duration) {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.dbTime += d
+}
+
+// DBTime is the summed time of every finished statement. It is a *sum*, not a wall-clock span, so it
+// can exceed the request's own duration if statements ever overlap, and it excludes a statement
+// whose End was never reported. Compared with the request's total it says how much of a slow page
+// was the database and how much was everything else -- the one question the count alone cannot.
+func (l *ReadLog) DBTime() time.Duration {
+	if l == nil {
+		return 0
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.dbTime
 }
 
 // Queries is how many statements the pool issued for this request -- the driver's own count,

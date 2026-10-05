@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
@@ -255,7 +256,9 @@ func blockWritesToArchivedWorkspace(store *data.Store) func(http.Handler) http.H
 func queryDiagnostics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx, reads := data.WithReadLog(req.Context())
+		started := time.Now()
 		next.ServeHTTP(w, req.WithContext(ctx))
+		elapsed := time.Since(started)
 
 		if reads.Queries() == 0 {
 			return
@@ -270,15 +273,25 @@ func queryDiagnostics(next http.Handler) http.Handler {
 		}
 		// unnamed is the gap described above, printed only when there is one so a healthy line
 		// stays as short as it was.
-		gap := reads.Queries() - reads.Total()
+		gap := reads.Unnamed()
 		unnamed := ""
 		if gap > 0 {
 			unnamed = fmt.Sprintf(" unnamed=%d", gap)
 		}
-		log.Printf("%squeries=%d reads=%d repeated=%d%s %s [%s]",
+		// writes=, db= and total= close the line, after the bracket, so everything a periodic review parses by
+		// position (count fields, then the path) stays where it was. db is the summed statement time,
+		// total is the handler's wall time; total minus db is what the page spent outside the database.
+		log.Printf("%squeries=%d reads=%d repeated=%d%s %s [%s] writes=%d db=%s total=%s",
 			anomalyPrefix(req.Method, reads.Repeated(), gap),
-			reads.Queries(), reads.Total(), reads.Repeated(), unnamed, req.URL.Path, strings.Join(parts, ", "))
+			reads.Queries(), reads.Total(), reads.Repeated(), unnamed, req.URL.Path, strings.Join(parts, ", "), reads.Writes(),
+			formatMillis(reads.DBTime()), formatMillis(elapsed))
 	})
+}
+
+// formatMillis prints a duration as milliseconds with one decimal ("12.3ms"). Whole milliseconds
+// would show most database time as 0, which is the common case on a healthy page.
+func formatMillis(d time.Duration) string {
+	return fmt.Sprintf("%.1fms", float64(d)/float64(time.Millisecond))
 }
 
 // anomalyMarker is the token a periodic log review greps for.

@@ -529,3 +529,53 @@ func TestNoGetRouteVariantRepeatsAReadOrLeavesOneUnnamed(t *testing.T) {
 		}
 	}
 }
+
+var queryTimingPattern = regexp.MustCompile(`\] writes=\d+ db=([0-9.]+)ms total=([0-9.]+)ms$`)
+
+// TestDiagnosticLineReportsDurations holds the two timing fields the log review of 2026-10-05 found
+// missing (it could say how many statements a page ran but never how long it took). db must be
+// nonzero on a route that queries -- a tracer whose End never reports would print db=0.0ms on every
+// line and read as a fast database -- and total, the handler's wall time, must cover it. Both sit at
+// the end of the line so the positional fields a review script parses did not move.
+func TestDiagnosticLineReportsDurations(t *testing.T) {
+	h, cookie := newRouterTestSetup(t, "durations")
+	req := httptest.NewRequest(http.MethodGet, "/approval-inbox", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+	_, _, _, line := serveAndCount(t, h, req)
+	m := queryTimingPattern.FindStringSubmatch(strings.TrimSpace(line))
+	if m == nil {
+		t.Fatalf("diagnostic line carries no trailing `writes=N db=…ms total=…ms`:\n  %s", line)
+	}
+	db, _ := strconv.ParseFloat(m[1], 64)
+	total, _ := strconv.ParseFloat(m[2], 64)
+	if db <= 0 {
+		t.Errorf("db=%vms on a route that issued queries -- QueryTracer.TraceQueryEnd is not reporting", db)
+	}
+	if total < db {
+		t.Errorf("total=%vms is below db=%vms -- the two clocks disagree", total, db)
+	}
+}
+
+// TestAWriteRequestIsNotReportedUnnamed is the write-side counterpart of the GET sweep, which by
+// design cannot see one: /logout bumps the session generation (an UPDATE) and was marked
+// ANOMALY(unnamed) on every call -- 24 of the 171 anomalies in the 2026-10-05 log review, and in all,
+// 28 of 28 unnamed lines in that day's window were writes. `reads` counts reads, so before the
+// tracer classified INSERT/UPDATE/DELETE a healthy write could not pass.
+func TestAWriteRequestIsNotReportedUnnamed(t *testing.T) {
+	h, cookie := newRouterTestSetup(t, "writeunnamed")
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+	req.AddCookie(&http.Cookie{Name: authorization.CSRFCookieName, Value: "write-test-token"})
+	req.Header.Set("X-CSRF-Token", "write-test-token")
+	var c routeCase
+	_, _, _, line := serveAndCountStatus(t, h, req, &c)
+	if c.status != http.StatusSeeOther {
+		t.Fatalf("/logout returned %d (want 303) -- the request did not reach the handler", c.status)
+	}
+	if strings.Contains(line, "unnamed=") || strings.Contains(line, "ANOMALY") {
+		t.Errorf("a write request was reported as an anomaly:\n  %s", line)
+	}
+	if strings.Contains(line, "writes=0") {
+		t.Errorf("/logout reported no write -- the test is not reaching the UPDATE it stands for:\n  %s", line)
+	}
+}
