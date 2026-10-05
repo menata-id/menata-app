@@ -68,13 +68,8 @@ events:
       service: log_activity
       summary: "\"{fld_title}\" created"
 
-# Team Capacity's own workload numbers (007 §7.2 Dataset, §7.3 Dimension, §7.4 Measure),
-# generalized here from what internal/composition's buildCapacity used to count by hand in Go --
-# the decomposition audit's P1, with the same "count records, grouped by a field, optionally
-# filtered" shape found hand-written five separate times before the primitive was built (menata-
-# app-document's audits/2026-09-19-decomposition-maturity-audit.md §3.2, well past B1's second
-# real case). msr_total_open's own filter is an ordinary expression.Comparison, the same shape
-# cst_project_done_no_open_tasks's block_if.condition already uses -- no second filter syntax.
+# Declared Datasets (007 §7.2): what the Dashboard and My Tasks select through. Each is a
+# named selection or count, so a screen names a Dataset id and no query.
 datasets:
   # My Tasks' own selection (007 §7.7 Filter, ROADMAP.md "(c)" Slice B/C/D, 2026-09-29).
   #

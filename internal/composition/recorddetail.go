@@ -109,3 +109,23 @@ func (l *Loader) recordMove(ctx context.Context, m *domain.Machine, r *data.Reco
 		ViewID:   v.ID,
 	}, nil
 }
+
+// checklistFor is how a child collection becomes a to-do list instead of a table: its Machine declares
+// what "finished" means (`completion:`) and which Field is an item's text (a `title` card field), which
+// is everything a checklist needs, so nothing new is declared and a child Machine that lacks either keeps
+// its table. Nil for those.
+func checklistFor(m *domain.Machine, parentField string, records []*data.Record) *rendering.Checklist {
+	text := FieldForRole(m, domain.CardFieldRoleTitle)
+	if m.Completion == nil || text == "" {
+		return nil
+	}
+	c := &rendering.Checklist{ParentField: parentField, TextField: text}
+	for _, r := range records {
+		done := IsComplete(m, r)
+		if done {
+			c.Done++
+		}
+		c.Items = append(c.Items, rendering.ChecklistItem{ID: r.ID, Text: DisplayString(r.Values[text]), Complete: *cardComplete(m, r)})
+	}
+	return c
+}

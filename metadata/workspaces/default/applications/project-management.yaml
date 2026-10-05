@@ -24,6 +24,7 @@ machines:
   - mch_label
   - mch_task
   - mch_card_label
+  - mch_checklist_item
 
 navigation:
   # Board leads, matching the Case 19 mockup (PM01..PM06): Board / My Tasks / Dashboard / Calendar,

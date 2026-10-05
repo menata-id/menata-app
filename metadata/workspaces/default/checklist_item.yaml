@@ -1,0 +1,29 @@
+# mch_checklist_item is a Task's to-do list (Case 19 PM02 "Checklist"): each record is one item of one
+# mch_task. Nothing here is checklist-specific to the runtime -- it is a child collection (Phase 9) whose
+# Machine declares `completion:` and a `title` card field, which is what makes the Task's detail page draw
+# it as "2 of 4" rows with a completion circle and an add-item input instead of a table
+# (composition.checklistFor). Another Machine declaring the same two things gets the same screen.
+id: mch_checklist_item
+name: Checklist
+fields:
+  - id: fld_task
+    name: Task
+    type: relation
+    machine: mch_task
+    required: true
+  - id: fld_text
+    name: Item
+    type: text
+    required: true
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [todo, done]
+    default: todo
+
+completion: { field: fld_status, done: done }
+
+card_fields:
+  - { field: fld_text, role: title }
+  - { field: fld_status, role: status }

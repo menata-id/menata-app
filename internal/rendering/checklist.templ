@@ -1,0 +1,78 @@
+package rendering
+
+import (
+	"fmt"
+
+	"menata.app/internal/domain"
+)
+
+// Checklist is a child collection drawn the way Case 19's PM02 draws a card's to-do list: a count, one
+// row per item with its completion circle, and an input that adds the next. Composition resolves it
+// (composition.Loader.checklistFor) for a child Machine that declares `completion:` and a `title` card
+// field, so the page reads no Field id -- the item's text, the circle's write and the add form's two
+// inputs all arrive already named.
+type Checklist struct {
+	Items []ChecklistItem
+	Done  int
+	// ParentField is the Field naming the record the list belongs to; TextField is the one an item's
+	// text is typed into. The add form writes both.
+	ParentField string
+	TextField   string
+}
+
+// ChecklistItem is one row: its record id (the circle PATCHes it), its text, and the circle's own state.
+type ChecklistItem struct {
+	ID       string
+	Text     string
+	Complete CardComplete
+}
+
+// checklistProgress is the "2 of 4" beside the heading.
+func checklistProgress(c *Checklist) string {
+	return fmt.Sprintf("%d of %d", c.Done, len(c.Items))
+}
+
+// checklistSection draws one Checklist. The circle and the add form answer with HX-Refresh (the handlers
+// send it when a write comes from a page that is not the child Machine's own), since this section has no
+// fragment of its own to swap. canEdit only hides the controls; the server is what refuses the write.
+templ checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit bool) {
+	@stackLayout(domain.GapTight) {
+		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
+			<h2 class="m-0 text-base font-medium">{ m.Name }</h2>
+			<span class="text-xs text-slate-500">{ checklistProgress(c) }</span>
+		}
+		<ul class="m-0 flex list-none flex-col gap-1 p-0">
+			for _, it := range c.Items {
+				<li>
+					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+						if canEdit {
+							<form class="m-0 shrink-0" hx-patch={ fmt.Sprintf("/machines/%s/records/%s", m.ID, it.ID) } hx-swap="none">
+								<input type="hidden" name={ it.Complete.Field } value={ it.Complete.Next }/>
+								<button
+									type="submit"
+									aria-pressed={ fmt.Sprint(it.Complete.Done) }
+									aria-label={ completeLabel(it.Complete.Done, it.Text) }
+									class={ "grid size-5 place-items-center rounded-full border-2 text-white", templ.KV("border-emerald-600 bg-emerald-600", it.Complete.Done), templ.KV("border-slate-300 hover:border-emerald-600", !it.Complete.Done) }
+								>
+									if it.Complete.Done {
+										@icon("check", "size-3")
+									}
+								</button>
+							</form>
+						}
+						<span class={ "text-sm", templ.KV("text-slate-500 line-through", it.Complete.Done) }>{ it.Text }</span>
+					}
+				</li>
+			}
+		</ul>
+		if canEdit {
+			<form class="m-0" hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) } hx-swap="none">
+				<input type="hidden" name={ c.ParentField } value={ parentID }/>
+				@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
+					<input type="text" name={ c.TextField } required placeholder="Add an item" aria-label="Add an item" class={ controlField + " grow" }/>
+					<button type="submit" class={ controlSecondary }>Add</button>
+				}
+			</form>
+		}
+	}
+}

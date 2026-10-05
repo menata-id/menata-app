@@ -537,7 +537,7 @@ func (l *Loader) ChildSections(ctx context.Context, m *domain.Machine, recordID 
 		if err != nil {
 			return nil, err
 		}
-		sections = append(sections, rendering.ChildSection{Machine: cc.Machine, Records: records, Relations: relations})
+		sections = append(sections, rendering.ChildSection{Machine: cc.Machine, Records: records, Relations: relations, Checklist: checklistFor(cc.Machine, cc.Field.ID, records)})
 	}
 	return sections, nil
 }

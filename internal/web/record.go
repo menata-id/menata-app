@@ -67,8 +67,20 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 		}
 		execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machine, record, actor.ID)
 
+		if fromAnotherPage(req, machine) {
+			w.Header().Set("HX-Refresh", "true")
+			return
+		}
 		renderMachineBody(w, req, machines, machine, store, actor)
 	}
+}
+
+// fromAnotherPage says the request came from a screen that is not this Machine's own page -- a Task's
+// checklist adding an item from the Task's detail page -- so the Machine body it would answer with has
+// nowhere to be swapped in. A caller that names no page at all (a plain form post, a test) is not
+// "another page" and keeps the body.
+func fromAnotherPage(req *http.Request, machine *domain.Machine) bool {
+	return req.Header.Get("HX-Current-URL") != "" && !onMachinePage(req, machine)
 }
 
 // showRecordRow serves three different renderings of the same Record from one route, depending

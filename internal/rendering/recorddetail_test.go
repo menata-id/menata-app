@@ -172,3 +172,50 @@ func TestFieldInput_LongTextIsATextareaPrefilledWithItsValue(t *testing.T) {
 		t.Errorf("long_text drew %q, want a textarea holding the value", got)
 	}
 }
+
+func checklistFixture() *Checklist {
+	return &Checklist{ParentField: "fld_task", TextField: "fld_text", Done: 1, Items: []ChecklistItem{
+		{ID: "a", Text: "One", Complete: CardComplete{Field: "fld_status", Next: "todo", Done: true}},
+		{ID: "b", Text: "Two", Complete: CardComplete{Field: "fld_status", Next: "done"}},
+	}}
+}
+
+func renderChecklist(t *testing.T, canEdit bool) string {
+	t.Helper()
+	var buf strings.Builder
+	m := &domain.Machine{ID: "mch_checklist_item", Name: "Checklist"}
+	if err := checklistSection(m, "tsk_1", checklistFixture(), canEdit).Render(context.Background(), &buf); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
+}
+
+// The section says how far along the list is, writes each circle through the item's own record route, and adds
+// the next item through the Machine's create route naming the parent.
+func TestChecklistSection_DrawsCountCirclesAndAddForm(t *testing.T) {
+	out := renderChecklist(t, true)
+	for _, want := range []string{
+		"1 of 2",
+		`hx-patch="/machines/mch_checklist_item/records/a"`,
+		`name="fld_status" value="todo"`, `name="fld_status" value="done"`,
+		`hx-post="/machines/mch_checklist_item/records"`,
+		`name="fld_task" value="tsk_1"`, `name="fld_text"`, "Add an item",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("checklist is missing %q\n%s", want, out)
+		}
+	}
+}
+
+// Someone who cannot edit the Task sees the list and its count but no control that would be refused.
+func TestChecklistSection_HidesWritesFromSomeoneWhoCannotEdit(t *testing.T) {
+	out := renderChecklist(t, false)
+	if !strings.Contains(out, "One") || !strings.Contains(out, "1 of 2") {
+		t.Fatal("a read-only checklist must still show its items and count")
+	}
+	for _, banned := range []string{"hx-patch", "hx-post", "Add an item"} {
+		if strings.Contains(out, banned) {
+			t.Errorf("read-only checklist drew %q", banned)
+		}
+	}
+}

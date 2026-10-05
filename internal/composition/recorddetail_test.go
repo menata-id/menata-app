@@ -218,3 +218,53 @@ func TestRecordExtras_NoMoveWithoutABoardOrWithoutAKnownList(t *testing.T) {
 		t.Errorf("a card in a deleted list drew a Move panel (err %v)", err)
 	}
 }
+
+func checklistMachine() *domain.Machine {
+	return &domain.Machine{ID: "mch_checklist_item",
+		Fields: []domain.Field{
+			{ID: "fld_task", Type: domain.FieldTypeRelation, RelatedMachine: "mch_task"},
+			{ID: "fld_text", Type: domain.FieldTypeText},
+			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"todo", "done"}, Default: "todo"},
+		},
+		Completion: &domain.Completion{Field: "fld_status", Done: "done"},
+		CardFields: []domain.CardField{{Field: "fld_text", Role: domain.CardFieldRoleTitle}},
+	}
+}
+
+// A child Machine that says what finished means and which Field is an item's text is a checklist: the count
+// is the finished ones, each circle writes the opposite of what its item holds, and the add form is told which
+// Field names the parent.
+func TestChecklistFor_CountsFinishedItemsAndResolvesEachCircle(t *testing.T) {
+	m := checklistMachine()
+	recs := []*data.Record{
+		{ID: "a", Values: map[string]any{"fld_text": "One", "fld_status": "done"}},
+		{ID: "b", Values: map[string]any{"fld_text": "Two", "fld_status": "todo"}},
+	}
+	c := checklistFor(m, "fld_task", recs)
+	if c == nil {
+		t.Fatal("a Machine with completion and a title role was not drawn as a checklist")
+	}
+	if c.Done != 1 || len(c.Items) != 2 || c.ParentField != "fld_task" || c.TextField != "fld_text" {
+		t.Fatalf("checklist = %+v", c)
+	}
+	if got := c.Items[0].Complete; !got.Done || got.Next != "todo" || got.Field != "fld_status" {
+		t.Errorf("a finished item's circle = %+v, want to reopen it to todo", got)
+	}
+	if got := c.Items[1].Complete; got.Done || got.Next != "done" {
+		t.Errorf("an open item's circle = %+v, want to finish it", got)
+	}
+}
+
+// Either declaration missing keeps the table: a Machine with no completion has no finished items, and one with
+// no title role has no text to draw.
+func TestChecklistFor_NeedsBothDeclarations(t *testing.T) {
+	noCompletion := checklistMachine()
+	noCompletion.Completion = nil
+	noTitle := checklistMachine()
+	noTitle.CardFields = nil
+	for name, m := range map[string]*domain.Machine{"no completion": noCompletion, "no title role": noTitle} {
+		if checklistFor(m, "fld_task", nil) != nil {
+			t.Errorf("%s: drawn as a checklist", name)
+		}
+	}
+}
