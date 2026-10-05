@@ -55,6 +55,8 @@ type themeDoc struct {
 	Border map[string]string `yaml:"border"`
 	Tone   map[string]string `yaml:"tone"`
 	Ink    map[string]string `yaml:"ink"`
+
+	Background map[string]string `yaml:"background"`
 }
 
 // resolveTheme turns the declared block into domain.Theme, reporting every unknown role or step rather than
@@ -169,6 +171,21 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				continue
 			}
 			t.Ink[r] = s
+		}
+	}
+	if len(doc.Background) > 0 {
+		t.Background = map[domain.BackgroundRole]domain.BackgroundShade{}
+		for role, shade := range doc.Background {
+			r, s := domain.BackgroundRole(role), domain.BackgroundShade(shade)
+			if !domain.KnownBackgroundRoles[r] {
+				issues = append(issues, fmt.Sprintf("theme.background: %q is not a surface role this runtime realizes", role))
+				continue
+			}
+			if !domain.KnownBackgroundShades[s] {
+				issues = append(issues, fmt.Sprintf("theme.background.%s: %q is not a surface shade this runtime realizes", role, shade))
+				continue
+			}
+			t.Background[r] = s
 		}
 	}
 	return t, issues

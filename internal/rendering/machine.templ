@@ -368,7 +368,7 @@ templ avatar(initials, label string, size domain.AvatarSize, presence domain.Ava
 // `hint` (a qualifier under the label) and `tone` (a signal on the value) are optional; "" and the neutral
 // tone draw exactly what the two-input form always drew.
 templ metric(label, value, hint string, tone domain.BadgeTone) {
-	<div class={ radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), "bg-white p-3" }>
+	<div class={ radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), "p-3" }>
 		<div class={ textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis), metricValueClass(ctx, tone) }>{ value }</div>
 		<div class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ label }</div>
 		if hint != "" {
@@ -746,7 +746,7 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boar
 	{{ targets := MoveTargets(m, v, columns) }}
 	<div class="flex items-start gap-2.5 overflow-x-auto pb-2">
 		for _, col := range columns {
-			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class="flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2">
+			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200", backgroundClass(ctx, domain.BackgroundSunken), "p-2" }>
 				<header class="flex items-center gap-1.5 px-1">
 					<h3 class="m-0 text-xs font-medium text-slate-700">{ col.Label }</h3>
 					<span class="rounded-full bg-white px-1.5 text-2xs text-slate-500">{ fmt.Sprint(len(col.Records)) }</span>

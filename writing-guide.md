@@ -1403,6 +1403,10 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     body:      dark     # text people read or click                (default: dark)
 >     secondary: medium   # captions, descriptions, meta lines       (default: medium)
 >     faint:     light    # hints, placeholders, decoration          (default: light)
+>   background:
+>     raised: lightest    # cards, panels, the header and bottom bar   (default: lightest)
+>     base:   lighter     # the page behind everything                (default: lighter)
+>     sunken: light       # a board lane or recessed well             (default: light)
 > ```
 >
 > `tone:` maps each semantic tone to a **palette**, and a palette is a background *and* text colour as one
@@ -1414,6 +1418,11 @@ similar-looking metadata for a *different* Machine does not activate it.
 > that may be missed -- the default `light` shade is about 2.6:1 on white, below WCAG AA, so mapping real
 > content to it makes that content hard to read. Only the runtime's shared components (a Metric, a static
 > paragraph) follow `ink:`; text a screen draws by hand keeps its own colour.
+>
+> `background:` is the colour of light surfaces: three roles, three shades (`lightest` is white, `lighter` and
+> `light` step toward grey). Dark surfaces (the primary button, a menu) are not part of it. Like `ink:`, it
+> reaches what the runtime's own components draw -- panels and sections, the header and page, a board lane --
+> and not a card a screen draws by hand.
 >
 > `gap:` is the one category shaped differently: it maps a **spacing step straight to an amount**, because a
 > caller already says `tight` rather than a raw class — there is no role to invent. Amounts, smallest first:

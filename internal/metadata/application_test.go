@@ -1640,3 +1640,24 @@ func TestResolveTheme_ink(t *testing.T) {
 		t.Errorf("a Tailwind token is not a shade (007 §15.2); got %v", issues)
 	}
 }
+
+// TestResolveTheme_background holds the `theme.background` block's two closed sets, failing closed like the others.
+func TestResolveTheme_background(t *testing.T) {
+	th, issues := resolveTheme(&themeDoc{Background: map[string]string{"raised": "lighter", "sunken": "lightest"}})
+	if len(issues) != 0 {
+		t.Fatalf("a valid background block reported issues: %v", issues)
+	}
+	if th.Background[domain.BackgroundRaised] != domain.BackgroundShadeLighter || th.Background[domain.BackgroundSunken] != domain.BackgroundShadeLightest {
+		t.Errorf("declared entries not resolved: %v", th.Background)
+	}
+
+	_, issues = resolveTheme(&themeDoc{Background: map[string]string{"floating": "light"}})
+	if len(issues) != 1 || !strings.Contains(issues[0], "theme.background") || !strings.Contains(issues[0], "floating") {
+		t.Errorf("an unknown role should be one load issue naming it; got %v", issues)
+	}
+
+	_, issues = resolveTheme(&themeDoc{Background: map[string]string{"base": "slate-50"}})
+	if len(issues) != 1 || !strings.Contains(issues[0], "slate-50") {
+		t.Errorf("a Tailwind token is not a shade (007 §15.2); got %v", issues)
+	}
+}

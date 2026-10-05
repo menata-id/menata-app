@@ -126,7 +126,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 				});
 			</script>
 		</head>
-		<body hx-headers={ csrfHeadersAttr(ctx) } class="m-0 bg-slate-50 font-sans text-slate-900">
+		<body hx-headers={ csrfHeadersAttr(ctx) } class={ "m-0", backgroundClass(ctx, domain.BackgroundBase), "font-sans text-slate-900" }>
 			// Read-only banner (Flow 2 gap study Tahap 7) -- the "keep the UI honest" half of
 			// blockWritesToArchivedWorkspace (internal/web/middleware.go), which is what actually
 			// enforces it. One banner on every authenticated page rather than disabling each
@@ -154,7 +154,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// z-40 over the bottom bar's z-30 so the header always wins where they overlap. The
 			// menus themselves no longer depend on this: they are `popover` elements, which the
 			// browser paints in the top layer, above every z-index on the page.
-			<header class="sticky top-0 z-40 flex flex-col border-b border-slate-200 bg-white">
+			<header class={ "sticky top-0 z-40 flex flex-col border-b border-slate-200", backgroundClass(ctx, domain.BackgroundRaised) }>
 				<div class="flex h-15 shrink-0 items-center gap-2.5 px-4 sm:pr-7 sm:pl-9">
 					@appLauncher(workspaceName, switchWorkspaceHref, viewer, hasAppMenu)
 					// Two breadcrumb shapes, because the Flow 2 mockup has two. Inside an Application
@@ -453,7 +453,7 @@ templ navBadge(badge, class string) {
 // Four columns: three declared items (bottomBarItems) and "More", whose sheet is the one way out
 // of an Application on a phone -- see moreSheet.
 templ applicationBottomBar(items []navMenuItem, app domain.Application, workspaceName, switchWorkspaceHref string) {
-	<nav aria-label="Application" class="fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t border-slate-200 bg-white px-1 pb-3 sm:hidden">
+	<nav aria-label="Application" class={ "fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t border-slate-200", backgroundClass(ctx, domain.BackgroundRaised), "px-1 pb-3 sm:hidden" }>
 		for _, item := range items {
 			<a
 				href={ templ.SafeURL(item.Href) }
@@ -709,7 +709,7 @@ templ sheetPanel(id string, aboveBar bool, desktop string) {
 			aria-label="Close"
 			class="absolute inset-0 w-full cursor-default border-0 bg-slate-900/40 p-0 sm:hidden"
 		></button>
-		<div class={ "absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl bg-white p-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]", sheetPanelClasses(desktop) }>
+		<div class={ "absolute inset-x-0 bottom-0 max-h-full overflow-y-auto rounded-t-2xl", backgroundClass(ctx, domain.BackgroundRaised), "p-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.16)]", sheetPanelClasses(desktop) }>
 			<div class="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-200 sm:hidden"></div>
 			{ children... }
 		</div>

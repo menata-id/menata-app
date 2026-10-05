@@ -83,3 +83,40 @@ func TestThemeInkFor(t *testing.T) {
 		t.Errorf("an unknown shade should fall back to the default: got %q", got)
 	}
 }
+
+func TestDefaultThemeResolvesEveryBackgroundRole(t *testing.T) {
+	def := DefaultTheme()
+	for role := range KnownBackgroundRoles {
+		s, ok := def.Background[role]
+		if !ok || !KnownBackgroundShades[s] {
+			t.Errorf("DefaultTheme().Background[%q] = %q (present=%v), want a declared shade", role, s, ok)
+		}
+	}
+	if len(def.Background) != len(KnownBackgroundRoles) {
+		t.Errorf("DefaultTheme().Background holds %d entries and KnownBackgroundRoles declares %d", len(def.Background), len(KnownBackgroundRoles))
+	}
+	seen := map[BackgroundShade]BackgroundRole{}
+	for role, s := range def.Background {
+		if prev, dup := seen[s]; dup {
+			t.Errorf("roles %q and %q both default to shade %q", prev, role, s)
+		}
+		seen[s] = role
+	}
+}
+
+func TestThemeBackgroundFor(t *testing.T) {
+	if got := (Theme{}).BackgroundFor(BackgroundRaised); got != BackgroundShadeLightest {
+		t.Errorf("zero Theme: BackgroundFor(raised) = %q, want %q", got, BackgroundShadeLightest)
+	}
+	th := Theme{Background: map[BackgroundRole]BackgroundShade{BackgroundRaised: BackgroundShadeLighter}}
+	if got := th.BackgroundFor(BackgroundRaised); got != BackgroundShadeLighter {
+		t.Errorf("declared raised=lighter: got %q", got)
+	}
+	if got := th.BackgroundFor(BackgroundBase); got != BackgroundShadeLighter {
+		t.Errorf("an undeclared role must inherit its default: got %q", got)
+	}
+	bad := Theme{Background: map[BackgroundRole]BackgroundShade{BackgroundSunken: "purple"}}
+	if got := bad.BackgroundFor(BackgroundSunken); got != BackgroundShadeLight {
+		t.Errorf("an unknown shade should fall back to the default: got %q", got)
+	}
+}

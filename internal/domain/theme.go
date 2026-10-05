@@ -211,6 +211,52 @@ const (
 // KnownInkShades is the closed set.
 var KnownInkShades = map[InkShade]bool{InkShadeDarkest: true, InkShadeDark: true, InkShadeMedium: true, InkShadeLight: true}
 
+// BackgroundRole is what a surface is *for*, as a closed set — the eighth token category: **background
+// colour**, light surfaces only.
+//
+// Three roles, by elevation: `raised` is a card, a panel or a bar sitting on the page; `base` is the page
+// itself; `sunken` is a lane or well recessed into it.
+//
+// **Read per site (2026-10-05) before building, and the reading both kept and qualified the decision.** The
+// 153 uses the inventory counted are 78 white + 54 slate-50 + 38 slate-100 as plain backgrounds, and what is
+// *not* a surface role takes most of the count away: 39 are `hover:` targets (interaction state), 21 are a
+// grey chip's own fill (the `grey` TonePalette's pair), and 9 are `h-px` menu dividers (a rule, not a
+// surface). `raised` is the clean one — 69 of 78 white sites are the same idiom, a rounded bordered card.
+// `base` and `sunken` are thinner than their colours suggest: the page canvas is **two** sites, and the
+// slate-50 wells (table header bands, inset blocks, icon wells — about 16) sit *on* a raised card, so by
+// elevation they are `sunken` while by colour they are `base`. They stay hand-written: a default Theme that
+// gave `sunken` slate-50 could not draw the one slate-100 lane, and one that gave it slate-100 would move 16
+// screens, so the honest slice is the roles with a primitive or shared component to read them.
+//
+// **Dark surfaces are not a role** (D3): 17 uses that are three different jobs — the primary button, the
+// scrim, a menu — and a role needs one job. Likewise the `-50` tints belong to the BadgeTone palettes.
+type BackgroundRole string
+
+const (
+	// BackgroundRaised is a card, panel or bar sitting on the page.
+	BackgroundRaised BackgroundRole = "raised"
+	// BackgroundBase is the page behind everything else.
+	BackgroundBase BackgroundRole = "base"
+	// BackgroundSunken is a lane or well recessed into the page.
+	BackgroundSunken BackgroundRole = "sunken"
+)
+
+// KnownBackgroundRoles is the closed set.
+var KnownBackgroundRoles = map[BackgroundRole]bool{BackgroundRaised: true, BackgroundBase: true, BackgroundSunken: true}
+
+// BackgroundShade is how far a light surface is from white, named by presence rather than by palette number
+// (007 §15.2 keeps `slate-50` out of the logical plane).
+type BackgroundShade string
+
+const (
+	BackgroundShadeLightest BackgroundShade = "lightest"
+	BackgroundShadeLighter  BackgroundShade = "lighter"
+	BackgroundShadeLight    BackgroundShade = "light"
+)
+
+// KnownBackgroundShades is the closed set.
+var KnownBackgroundShades = map[BackgroundShade]bool{BackgroundShadeLightest: true, BackgroundShadeLighter: true, BackgroundShadeLight: true}
+
 // TonePalette is the colour family a semantic tone renders in — the sixth token category, and the one that
 // **moves an existing enum into the Theme rather than adding a new vocabulary**.
 //
@@ -278,6 +324,8 @@ type Theme struct {
 	Tone map[BadgeTone]TonePalette
 	// Ink maps each text-colour role to its shade.
 	Ink map[InkRole]InkShade
+	// Background maps each surface role to its shade.
+	Background map[BackgroundRole]BackgroundShade
 }
 
 // DefaultTheme is what the corpus renders today, so adopting Theme changes nothing until a Workspace declares
@@ -326,6 +374,11 @@ func DefaultTheme() Theme {
 			InkSecondary: InkShadeMedium,  // was text-slate-500 (and slate-600 as running text, folded)
 			InkFaint:     InkShadeLight,   // was text-slate-400
 		},
+		Background: map[BackgroundRole]BackgroundShade{
+			BackgroundRaised: BackgroundShadeLightest, // was bg-white
+			BackgroundBase:   BackgroundShadeLighter,  // was bg-slate-50
+			BackgroundSunken: BackgroundShadeLight,    // was bg-slate-100
+		},
 	}
 }
 
@@ -335,6 +388,14 @@ func (t Theme) InkFor(role InkRole) InkShade {
 		return s
 	}
 	return DefaultTheme().Ink[role]
+}
+
+// BackgroundFor resolves a surface role, falling back to the default for the same reason RadiusFor does.
+func (t Theme) BackgroundFor(role BackgroundRole) BackgroundShade {
+	if s, ok := t.Background[role]; ok && KnownBackgroundShades[s] {
+		return s
+	}
+	return DefaultTheme().Background[role]
 }
 
 // ToneFor resolves a semantic tone to its palette, falling back to the default for the same reason RadiusFor

@@ -407,3 +407,25 @@ func TestMetric_inkFollowsTheWorkspaceTheme(t *testing.T) {
 		t.Errorf("an undeclared role (strong) should keep its default; got %q", got)
 	}
 }
+
+// TestPanelLayout_backgroundFollowsTheWorkspaceTheme proves the raised surface is declarable with no
+// recompile, and that the default is exactly the `bg-white` the panel hardcoded before.
+func TestPanelLayout_backgroundFollowsTheWorkspaceTheme(t *testing.T) {
+	render := func(ctx context.Context) string {
+		var buf bytes.Buffer
+		if err := panelLayout().Render(templ.WithChildren(ctx, templ.Raw("x")), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	if def := render(context.Background()); !strings.Contains(def, "bg-white") {
+		t.Errorf("default panel lost bg-white; got %q", def)
+	}
+	ws := domain.Workspace{Slug: "test", Theme: domain.Theme{Background: map[domain.BackgroundRole]domain.BackgroundShade{
+		domain.BackgroundRaised: domain.BackgroundShadeLighter,
+	}}}
+	got := render(WithCurrentWorkspace(context.Background(), ws, "Test Workspace", false))
+	if !strings.Contains(got, "bg-slate-50") || strings.Contains(got, "bg-white") {
+		t.Errorf("a declared raised=lighter should recolour the panel; got %q", got)
+	}
+}

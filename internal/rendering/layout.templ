@@ -106,6 +106,20 @@ func inkClass(ctx context.Context, role domain.InkRole) string {
 	}
 }
 
+// backgroundClass maps a surface role through this request's Workspace theme, on the same terms as radiusClass.
+func backgroundClass(ctx context.Context, role domain.BackgroundRole) string {
+	switch CurrentWorkspace(ctx).Theme.BackgroundFor(role) {
+	case domain.BackgroundShadeLightest:
+		return "bg-white"
+	case domain.BackgroundShadeLighter:
+		return "bg-slate-50"
+	case domain.BackgroundShadeLight:
+		return "bg-slate-100"
+	default:
+		return "bg-white"
+	}
+}
+
 // toneClass maps a semantic tone to its background and text pair, through this request's Workspace theme.
 //
 // Returns both classes as one string because a palette **is** the pair: splitting them would let a Workspace
@@ -189,7 +203,7 @@ templ stackLayout(gap domain.Gap) {
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would
 // change what renders, and a primitive that quietly restyles its callers is worse than a repeated class.
 templ panelLayout() {
-	<section class={ radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), "bg-white p-4" }>
+	<section class={ radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), "p-4" }>
 		{ children... }
 	</section>
 }
@@ -207,7 +221,7 @@ templ panelLayout() {
 // It takes no title parameter. `sectionHeaderRow` (appshell.templ, 9 callers) is the heading half and takes
 // a link target; a Layout that accepted one would be a Layout that knows about routes.
 templ sectionLayout(gap domain.Gap) {
-	<section class={ "flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), "bg-white p-5" }>
+	<section class={ "flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), "p-5" }>
 		{ children... }
 	</section>
 }
