@@ -54,6 +54,7 @@ func createRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 		data.ApplyComputed(machine, values)
 
 		actor := currentActor(req, store, cfg)
+		data.ApplyStamps(machine, values, actor.ID)
 		if !allowsRecordCreate(w, machine, values, actor) {
 			return
 		}
@@ -218,7 +219,7 @@ func updateRecordForm(store *data.Store, files *storage.Store, mailer mail.Maile
 		if !ok {
 			return
 		}
-		if !carryForwardFiles(w, req, store, machine, id, uploaded, values) {
+		if !carryForwardFixedFields(w, req, store, machine, id, uploaded, values) {
 			return
 		}
 		record, ok := commitRecordUpdate(w, req, store, files, mailer, machines, machine, id, values, actor)
@@ -284,7 +285,7 @@ func patchRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer
 		values, submitted := maps.Clone(existing.Values), data.ValuesFromForm(machine, req.Form)
 		var changed int
 		for _, f := range machine.Fields {
-			if _, named := req.Form[f.ID]; named && f.Type != domain.FieldTypeFile {
+			if _, named := req.Form[f.ID]; named && f.Type != domain.FieldTypeFile && f.Stamp == "" {
 				values[f.ID] = submitted[f.ID]
 				changed++
 			}
@@ -394,7 +395,7 @@ func allowsRecordEdit(w http.ResponseWriter, req *http.Request, store *data.Stor
 
 // submittedValues reads the form body and merges in any freshly uploaded files. It returns the
 // uploaded set separately as well, because "which file fields did this request actually set" is
-// what carryForwardFiles needs and cannot recover from values alone.
+// what carryForwardFixedFields needs and cannot recover from values alone.
 func submittedValues(w http.ResponseWriter, req *http.Request, machine *domain.Machine, files *storage.Store) (values, uploaded map[string]any, ok bool) {
 	if err := parseRecordForm(req); err != nil {
 		http.Error(w, "invalid form body", http.StatusBadRequest)
@@ -412,11 +413,11 @@ func submittedValues(w http.ResponseWriter, req *http.Request, machine *domain.M
 	return values, uploaded, true
 }
 
-// carryForwardFiles keeps a file field that this request did not re-upload. A browser can't
+// carryForwardFixedFields keeps a file field that this request did not re-upload, and a stamped Field whatever it says. A browser can't
 // pre-fill <input type="file">, so "no new upload" must not be read as "clear the file" the way
 // an empty text input would be (development-history.md Phase 11).
-func carryForwardFiles(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, uploaded, values map[string]any) bool {
-	if err := carryForwardExistingFiles(req.Context(), store, machine, id, uploaded, values); err != nil {
+func carryForwardFixedFields(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, id string, uploaded, values map[string]any) bool {
+	if err := carryForwardStored(req.Context(), store, machine, id, uploaded, values); err != nil {
 		recordError(w, err)
 		return false
 	}
@@ -693,18 +694,20 @@ func rejectDangerousUpload(file multipart.File) (io.Reader, error) {
 	return io.MultiReader(bytes.NewReader(buf), file), nil
 }
 
-// carryForwardExistingFiles fills values with each FieldTypeFile field's current stored value,
-// for every such field uploaded didn't just set -- see handleFileUploads' caller for why. A
-// no-op (and no fetch) when machine has no file fields at all.
-func carryForwardExistingFiles(ctx context.Context, store *data.Store, machine *domain.Machine, recordID string, uploaded map[string]any, values map[string]any) error {
-	hasFileField := false
+// carryForwardStored fills values with the stored value of every Field an edit must not change by
+// omission or by saying otherwise: each FieldTypeFile field uploaded didn't just set -- see
+// handleFileUploads' caller for why -- and each stamped Field, which an edit may never overwrite (a
+// submitted value for it is replaced with the stored one, or dropped if the record never had one). A
+// no-op (and no fetch) when machine has neither.
+func carryForwardStored(ctx context.Context, store *data.Store, machine *domain.Machine, recordID string, uploaded map[string]any, values map[string]any) error {
+	fixed := false
 	for _, f := range machine.Fields {
-		if f.Type == domain.FieldTypeFile {
-			hasFileField = true
+		if f.Type == domain.FieldTypeFile || f.Stamp != "" {
+			fixed = true
 			break
 		}
 	}
-	if !hasFileField {
+	if !fixed {
 		return nil
 	}
 
@@ -713,10 +716,11 @@ func carryForwardExistingFiles(ctx context.Context, store *data.Store, machine *
 		return err
 	}
 	for _, f := range machine.Fields {
-		if f.Type != domain.FieldTypeFile {
+		if f.Stamp != "" {
+			delete(values, f.ID)
+		} else if f.Type != domain.FieldTypeFile {
 			continue
-		}
-		if _, justUploaded := uploaded[f.ID]; justUploaded {
+		} else if _, justUploaded := uploaded[f.ID]; justUploaded {
 			continue
 		}
 		if v, ok := existing.Values[f.ID]; ok {

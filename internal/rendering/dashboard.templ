@@ -47,6 +47,9 @@ type ActivityEntry struct {
 	Summary string
 	Actor   string
 	When    string
+	// Comment marks an entry someone wrote, as against one the runtime recorded: Summary is then what they
+	// said, and the feed draws it with the author named first.
+	Comment bool
 }
 
 // DashboardPage is Case 19 PM04: four headline tiles, then Tasks by project beside Open cards per person, and

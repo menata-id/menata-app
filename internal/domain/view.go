@@ -55,6 +55,11 @@ const (
 	// CardFieldRoleFile is a Field of type file holding a stored upload. A child Machine declaring it is
 	// drawn on its parent's detail page as an attachments list, one row per record.
 	CardFieldRoleFile CardFieldRole = "file"
+	// CardFieldRoleComment is a long_text Field holding what a comment says. A child Machine declaring it is
+	// drawn in its parent's "Comments and activity" feed, one entry per record, beside the parent's own events.
+	// Who wrote it is not a second role: it is the Machine's person Field that declares `stamp: current_user`,
+	// which validation requires.
+	CardFieldRoleComment CardFieldRole = "comment"
 )
 
 // TagColor is one entry of the closed palette a tag may be drawn in. A Workspace picks a name, never a
@@ -101,13 +106,14 @@ type CardTags struct {
 
 // KnownCardFieldRoles is the closed set of roles card_fields may declare.
 var KnownCardFieldRoles = map[CardFieldRole]bool{
-	CardFieldRoleTitle:  true,
-	CardFieldRolePerson: true,
-	CardFieldRoleMoney:  true,
-	CardFieldRoleStatus: true,
-	CardFieldRoleDate:   true,
-	CardFieldRoleColor:  true,
-	CardFieldRoleFile:   true,
+	CardFieldRoleTitle:   true,
+	CardFieldRolePerson:  true,
+	CardFieldRoleMoney:   true,
+	CardFieldRoleStatus:  true,
+	CardFieldRoleDate:    true,
+	CardFieldRoleColor:   true,
+	CardFieldRoleFile:    true,
+	CardFieldRoleComment: true,
 }
 
 // CardField names one of this Machine's own Fields to project onto a composed card (Approval

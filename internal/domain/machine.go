@@ -131,7 +131,26 @@ type Field struct {
 	// input (007 §4.4: Composition resolves the shape; a person does not type a total). Nil for an
 	// ordinary Field. Declared as `compute: {op: sum, fields: [...]}`; see FieldCompute.
 	Compute *FieldCompute
+	// Stamp makes this a stamped Field: the runtime writes it once, when the record is created, from the
+	// request's own context (FieldStampCurrentUser: the acting user), and it is never an input again -- a
+	// submitted value is overwritten on create and ignored on edit. "Who wrote this comment" is the first
+	// case, and the reason it is a Field property and not a form input: an input can name anyone, and an
+	// author a client may choose is not an author. Empty for an ordinary Field.
+	Stamp FieldStamp
 }
+
+// FieldStamp is what a stamped Field is stamped with. A closed vocabulary, like ComputeOp: a source is added
+// here, with its application in internal/data.ApplyStamps, when a real case needs it.
+type FieldStamp string
+
+const (
+	// FieldStampCurrentUser is the acting user's own record id (007 §9.2's `current_user`). Only a person
+	// Field can hold one.
+	FieldStampCurrentUser FieldStamp = "current_user"
+)
+
+// KnownFieldStamps is the closed set of sources a stamped Field may declare.
+var KnownFieldStamps = map[FieldStamp]bool{FieldStampCurrentUser: true}
 
 // ComputeOp is one operation a computed Field may declare. A closed registry, like KnownAggregates:
 // an operation is added here, with its evaluation below, when a real case needs it.
@@ -640,4 +659,15 @@ func (m *Machine) FieldByID(id string) (Field, bool) {
 		}
 	}
 	return Field{}, false
+}
+
+// StampedAuthorField is the id of the person Field this Machine stamps with the acting user -- who wrote a
+// comment, when the Machine is drawn as one. Empty when it declares none.
+func (m *Machine) StampedAuthorField() string {
+	for _, f := range m.Fields {
+		if f.Type == FieldTypePerson && f.Stamp == FieldStampCurrentUser {
+			return f.ID
+		}
+	}
+	return ""
 }

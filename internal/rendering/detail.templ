@@ -35,6 +35,18 @@ type RecordExtras struct {
 	ShowActivity       bool
 	Activity           []ActivityEntry
 	ActivityTruncation Truncation
+	// Comments is the "Write a comment" box, set when the record's Machine has a child Machine drawn as
+	// comments (a `comment` card role). It also makes the feed a section on its own, with or without an
+	// activity log.
+	Comments *CommentComposer
+}
+
+// CommentComposer is what the comment box writes: the child Machine's create route, the Field naming the
+// record it belongs to, and the one the text goes in. Who wrote it is not here -- the runtime stamps it.
+type CommentComposer struct {
+	MachineID   string
+	ParentField string
+	BodyField   string
 }
 
 // RecordMove is what a detail page needs to offer the move a board card offers: the same PATCH (the group
@@ -246,7 +258,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			@sectionHeaderRow("Signature Positions", "", "")
 			@signaturePlacementBlock(sigPlacement.View)
 		}
-		if extras.ShowActivity {
+		if extras.Comments != nil {
+			@commentsFeed(r.ID, extras, authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor))
+		} else if extras.ShowActivity {
 			@recordActivity(extras)
 		}
 	</div>
@@ -307,7 +321,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 
 // recordActivity is the record's own history, newest first -- what happened to this record, in the
 // words each event was logged with. It is read-only: an activity row is append-only, and what is *not*
-// here (a comment box) needs a writable Machine that no Workspace declares yet (Case 19 PM02).
+// here is a comment box, which a Machine with a comment child collection draws instead (commentsFeed).
 templ recordActivity(extras RecordExtras) {
 	@sectionLayout(domain.GapDefault) {
 		<h2 class="m-0 text-base font-medium">History</h2>

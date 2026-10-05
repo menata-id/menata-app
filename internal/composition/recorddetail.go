@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -41,35 +42,94 @@ func (l *Loader) RecordExtras(ctx context.Context, m *domain.Machine, r *data.Re
 		return out, err
 	}
 
-	if _, ok := l.Dataset(recordActivityDataset); !ok {
-		return out, nil
+	var events []*data.Record
+	if _, ok := l.Dataset(recordActivityDataset); ok {
+		sel, err := l.SelectRelated(ctx, recordActivityDataset, expression.Context{
+			Parameters: map[string]string{"machine": m.ID, "record": r.ID},
+		})
+		if err != nil {
+			return out, err
+		}
+		events = sel.Records
+		out.ShowActivity = true
+		out.ActivityTruncation = rendering.Truncation{Limit: sel.Limit, Hit: sel.Truncated}
 	}
-	sel, err := l.SelectRelated(ctx, recordActivityDataset, expression.Context{
-		Parameters: map[string]string{"machine": m.ID, "record": r.ID},
-	})
+
+	composer, comments, err := l.commentsFor(ctx, m, r)
 	if err != nil {
 		return out, err
+	}
+	out.Comments = composer
+	if !out.ShowActivity && composer == nil {
+		return out, nil
 	}
 	names, err := l.PersonNames(ctx)
 	if err != nil {
 		return out, err
 	}
-	out.ShowActivity = true
-	out.Activity = buildRecordActivity(sel.Records, names)
-	out.ActivityTruncation = rendering.Truncation{Limit: sel.Limit, Hit: sel.Truncated}
+	out.Activity = buildRecordActivity(events, comments, names)
 	return out, nil
 }
 
-// buildRecordActivity maps the selected events to what the page draws. The order is the Dataset's own
-// (newest first); nothing here sorts, and no clock is read -- a time is the event's own creation time.
-func buildRecordActivity(events []*data.Record, names map[string]string) []rendering.ActivityEntry {
-	out := make([]rendering.ActivityEntry, 0, len(events))
+// commentsFor finds the child collection that is this Machine's comments -- a Machine giving a long_text
+// Field the `comment` card role (validated to carry a stamped author) -- and reads its records for the
+// record. Nil composer when there is none, which is the ordinary case for most Machines. The records come
+// through the Loader's own memo, so ChildSections skipping the same collection costs nothing.
+func (l *Loader) commentsFor(ctx context.Context, m *domain.Machine, r *data.Record) (*rendering.CommentComposer, commentThread, error) {
+	for _, cc := range domain.FindChildCollections(l.machineSlice(), m.ID) {
+		if !isCommentMachine(cc.Machine) {
+			continue
+		}
+		records, err := l.ListRecordsBy(ctx, cc.Machine.ID, cc.Field.ID, r.ID)
+		if err != nil {
+			return nil, commentThread{}, err
+		}
+		body := cc.Machine.CardFieldFor(domain.CardFieldRoleComment)
+		return &rendering.CommentComposer{MachineID: cc.Machine.ID, ParentField: cc.Field.ID, BodyField: body},
+			commentThread{records: records, body: body, author: cc.Machine.StampedAuthorField()}, nil
+	}
+	return nil, commentThread{}, nil
+}
+
+// commentThread is a record's comments with the two Fields of their Machine a feed entry reads.
+type commentThread struct {
+	records      []*data.Record
+	body, author string
+}
+
+// isCommentMachine is whether a Machine is drawn as a thread of comments rather than as a table.
+func isCommentMachine(m *domain.Machine) bool {
+	return m.CardFieldFor(domain.CardFieldRoleComment) != "" && m.StampedAuthorField() != ""
+}
+
+// buildRecordActivity merges a record's events and its comments into the one feed the page draws, newest
+// first. Each side arrives in its own order, so this sorts on the records' creation times -- the only clock
+// either has; nothing here reads one. A comment names its author through the Machine's stamped Field.
+func buildRecordActivity(events []*data.Record, thread commentThread, names map[string]string) []rendering.ActivityEntry {
+	type dated struct {
+		at    time.Time
+		entry rendering.ActivityEntry
+	}
+	all := make([]dated, 0, len(events)+len(thread.records))
 	for _, e := range events {
-		out = append(out, rendering.ActivityEntry{
+		all = append(all, dated{e.CreatedAt, rendering.ActivityEntry{
 			Summary: DisplayString(e.Values["fld_summary"]),
 			Actor:   names[DisplayString(e.Values["fld_actor"])],
 			When:    e.CreatedAt.Format("2006-01-02 15:04"),
-		})
+		}})
+	}
+	for _, c := range thread.records {
+		all = append(all, dated{c.CreatedAt, rendering.ActivityEntry{
+			Summary: DisplayString(c.Values[thread.body]),
+			Actor:   names[DisplayString(c.Values[thread.author])],
+			When:    c.CreatedAt.Format("2006-01-02 15:04"),
+			Comment: true,
+		}})
+	}
+	slices.SortStableFunc(all, func(a, b dated) int { return b.at.Compare(a.at) })
+	out := make([]rendering.ActivityEntry, 0, len(all))
+	for _, d := range all {
+		out = append(out, d.entry)
 	}
 	return out
 }

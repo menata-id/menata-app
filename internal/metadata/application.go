@@ -422,6 +422,9 @@ func LoadApplication(path string) (*App, error) {
 	if err := validateComputedFieldsAreGenericallyWritten(app.Machines); err != nil {
 		return nil, err
 	}
+	if err := validateStampedFieldsAreGenericallyWritten(app.Machines); err != nil {
+		return nil, err
+	}
 
 	// The four cross-Machine validators below run over the Workspace's whole Machine set, not one
 	// Application's. That is not a widening for convenience: a Machine shared by two Applications

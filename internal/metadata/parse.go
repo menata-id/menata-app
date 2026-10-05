@@ -239,6 +239,8 @@ type fieldDoc struct {
 	Default string `yaml:"default"`
 	// Compute declares a computed Field -- see domain.FieldCompute.
 	Compute *computeDoc `yaml:"compute"`
+	// Stamp declares a stamped Field -- see domain.FieldStamp.
+	Stamp string `yaml:"stamp"`
 }
 
 type computeDoc struct {
@@ -366,6 +368,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			RelatedMachine: relatedMachine,
 			Default:        def,
 			Compute:        compute,
+			Stamp:          domain.FieldStamp(fd.Stamp),
 		})
 	}
 	for _, cd := range doc.Constraints {

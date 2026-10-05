@@ -1,0 +1,34 @@
+# mch_comment is a Task's discussion (Case 19 PM02 "Comments and activity"): each record is one comment on one
+# mch_task. A child collection (Phase 9) whose Machine gives one Field the `comment` card role, which is what
+# makes the Task's detail page draw it inside the "Comments and activity" feed -- beside the Task's own events,
+# newest first, under a "Write a comment" box -- instead of as a table (composition.RecordExtras).
+#
+# fld_author is stamped, not entered: `stamp: current_user` has the runtime write the acting user when the
+# comment is created and ignore anything a request says about it, so a comment cannot be written in someone
+# else's name. It is also what the feed reads to say who wrote it.
+#
+# append_only: the mockup draws no edit or delete on a comment, and a record of what was said is the same
+# integrity property mch_activity declares. Delete it here, and Permissions or a Workspace's own copy are
+# where an owner would say otherwise.
+id: mch_comment
+name: Comments
+fields:
+  - id: fld_task
+    name: Task
+    type: relation
+    machine: mch_task
+    required: true
+  - id: fld_body
+    name: Comment
+    type: long_text
+    required: true
+  - id: fld_author
+    name: Author
+    type: person
+    required: true
+    stamp: current_user
+
+card_fields:
+  - { field: fld_body, role: comment }
+
+append_only: true

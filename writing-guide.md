@@ -405,7 +405,7 @@ card_fields:
 ```
 
 Each entry names one of this Machine's own Fields plus the semantic **role** it renders as —
-`title`, `person`, `money`, `status`, `date`, `color` or `file` (`internal/domain.KnownCardFieldRoles`; `color` only on a tag Machine, see 7.06; `file` on a `file` Field of a child Machine, which draws it as an attachments list). The
+`title`, `person`, `money`, `status`, `date`, `color`, `file` or `comment` (`internal/domain.KnownCardFieldRoles`; `color` only on a tag Machine, see 7.06; `file` on a `file` Field of a child Machine, which draws it as an attachments list; `comment` on a `long_text` Field of a child Machine that also has a `stamp: current_user` person Field, which draws the Machine as the record's "Comments and activity" feed — copy `metadata/comment.yaml`). The
 renderer picks markup by role, not by the Field's storage type, so the same declaration works
 whether the underlying Field is plain text or a relation.
 
@@ -945,6 +945,7 @@ it a placeholder.
 | `machine` | `mch_*` | **Required when `type: relation`** |
 | `default` | string | Always quoted, even for numbers/booleans. Create-only. For a `status` field it must be one of its own `options` |
 | `compute` | `{op, fields[]}` | Makes a `number` field computed (2026-09-30): never an input, recalculated on every save through the generic create/edit routes. `op` ∈ `domain.KnownComputeOps` (`sum`); `fields` are number fields of the same machine that are not computed themselves. Cannot be `required` or have a `default`. Refused at load on a machine a workflow engine casts, or on `mch_user`/`mch_activity`/`mch_notification`, because those are written by Go routes that do not compute |
+| `stamp` | `current_user` | Makes a `person` field server-written (2026-10-05): when a record is created through the generic create routes the field is set to the acting user, whatever the request said; it is never an input, and an edit cannot change it. Cannot have a `default` or be `compute`d. Refused at load on a machine a workflow engine casts, or on `mch_user`/`mch_activity`/`mch_notification`. Needed by the `comment` card role, which is how a comment says who wrote it without trusting the client |
 
 ### 12.4 `constraints[]` — one shape
 
@@ -1163,7 +1164,7 @@ no View at all, so putting them on one arrangement would have forced an arbitrar
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
 | `card_tags` | `{machine, via, tag}` | `machine` an installed join Machine; `via` a reference on it pointing back at this Machine; `tag` a reference on it naming the tag. The tag Machine needs `card_fields` with `title` and (for colour) `color` roles. Read by a board card's chips | Also drawn as chips under a record's own heading on its detail page. A Workspace that carries `mch_activity` and its `ds_record_activity` Dataset also gets a **History** section there (events naming this Machine and record, newest first, at most 50) — nothing to declare per Machine
 | `completion` | `{field: fld_*, done: <option>}` | `field` must be a `status` field and `done` one of its options. Read by a board card's date pill (`composition.IsComplete`). A Machine that is a *child* of another (a relation to it) and declares this plus a `title` card field is drawn on the parent's detail page as a **checklist** — "2 of 4", a completion circle per item, an add-item input — rather than a table (`mch_checklist_item`); declare nothing else |
-| `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date\|color\|file}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week and the Dashboard's Project rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
+| `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date\|color\|file\|comment}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week and the Dashboard's Project rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
 
 **There is no singular `view:` block any more.** It was one anonymous arrangement per Machine until
 2026-09-20; a second arrangement of the same records could not be expressed at all. If you write
@@ -1306,7 +1307,7 @@ shows for it with no code edit.
 |---|---|---|
 | Field types | `text` `long_text` `number` `boolean` `date` `status` `person` `money` `relation` `file` | `domain.KnownFieldTypes` |
 | Layouts | `table` `board` | `domain.KnownLayouts` |
-| Card field roles | `title` `person` `money` `status` `date` `color` `file` | `domain.KnownCardFieldRoles` |
+| Card field roles | `title` `person` `money` `status` `date` `color` `file` `comment` | `domain.KnownCardFieldRoles` |
 | Aggregates | `count` `sum` | `domain.KnownAggregates` |
 | Actions | `decide` `edit` `delete` | `domain.KnownActions` |
 | Services | `log_activity` `rollup_parent_status` `send_notification` | `registry.Services` |

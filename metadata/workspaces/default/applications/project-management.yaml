@@ -25,6 +25,7 @@ machines:
   - mch_task
   - mch_card_label
   - mch_attachment
+  - mch_comment
   - mch_checklist_item
 
 navigation:

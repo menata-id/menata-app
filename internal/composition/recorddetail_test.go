@@ -23,7 +23,7 @@ func TestBuildRecordActivity_KeepsTheDatasetOrderAndNamesTheActor(t *testing.T) 
 		{Values: map[string]any{"fld_summary": "moved", "fld_actor": "usr_ana"}, CreatedAt: at},
 		{Values: map[string]any{"fld_summary": "created"}, CreatedAt: at.Add(-time.Hour)},
 	}
-	got := buildRecordActivity(events, map[string]string{"usr_ana": "Ana"})
+	got := buildRecordActivity(events, commentThread{}, map[string]string{"usr_ana": "Ana"})
 	if len(got) != 2 || got[0].Summary != "moved" || got[1].Summary != "created" {
 		t.Fatalf("order not preserved: %+v", got)
 	}
@@ -328,5 +328,63 @@ func TestHumanSizeAndKind(t *testing.T) {
 		if got := attachmentKind(key); got != want {
 			t.Errorf("attachmentKind(%q) = %q, want %q", key, got, want)
 		}
+	}
+}
+
+func TestBuildRecordActivity_MergesCommentsWithEventsNewestFirst(t *testing.T) {
+	at := time.Date(2026, 10, 3, 9, 0, 0, 0, time.UTC)
+	events := []*data.Record{
+		{Values: map[string]any{"fld_summary": "moved"}, CreatedAt: at.Add(2 * time.Hour)},
+		{Values: map[string]any{"fld_summary": "created"}, CreatedAt: at},
+	}
+	thread := commentThread{body: "fld_body", author: "fld_author", records: []*data.Record{
+		{Values: map[string]any{"fld_body": "looks good", "fld_author": "usr_ana"}, CreatedAt: at.Add(time.Hour)},
+	}}
+	got := buildRecordActivity(events, thread, map[string]string{"usr_ana": "Ana"})
+	if len(got) != 3 || got[0].Summary != "moved" || got[1].Summary != "looks good" || got[2].Summary != "created" {
+		t.Fatalf("merged order = %+v, want moved, looks good, created", got)
+	}
+	if !got[1].Comment || got[1].Actor != "Ana" || got[0].Comment || got[2].Comment {
+		t.Errorf("Comment/Actor flags wrong: %+v", got)
+	}
+}
+
+func commentsFixture(task *domain.Machine) *domain.Machine {
+	return &domain.Machine{ID: "mch_comment", Fields: []domain.Field{
+		{ID: "fld_task", Type: domain.FieldTypeRelation, RelatedMachine: task.ID},
+		{ID: "fld_body", Type: domain.FieldTypeLongText},
+		{ID: "fld_author", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID, Stamp: domain.FieldStampCurrentUser},
+	}, CardFields: []domain.CardField{{Field: "fld_body", Role: domain.CardFieldRoleComment}}}
+}
+
+// A Machine with a comment child collection gets the composer and its comments in the feed, with or without
+// an activity log, and the comments are not also a child table.
+func TestRecordExtras_CommentsJoinTheFeedAndAreNotAChildTable(t *testing.T) {
+	base, store, ctx := recordExtrasLoader(t, false)
+	task := base.Machine("mch_task")
+	l := NewLoader(store, map[string]*domain.Machine{"mch_task": task, "mch_comment": commentsFixture(task)})
+	if _, err := store.CreateRecord(ctx, "mch_comment", map[string]any{"fld_task": "rec_a", "fld_body": "ship it", "fld_author": "usr_ana"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateRecord(ctx, "mch_comment", map[string]any{"fld_task": "rec_b", "fld_body": "someone else's", "fld_author": "usr_ana"}); err != nil {
+		t.Fatal(err)
+	}
+
+	extras, err := l.RecordExtras(ctx, task, &data.Record{ID: "rec_a"})
+	if err != nil {
+		t.Fatalf("RecordExtras: %v", err)
+	}
+	if extras.Comments == nil || extras.Comments.MachineID != "mch_comment" || extras.Comments.ParentField != "fld_task" || extras.Comments.BodyField != "fld_body" {
+		t.Fatalf("composer = %+v", extras.Comments)
+	}
+	if len(extras.Activity) != 1 || extras.Activity[0].Summary != "ship it" || !extras.Activity[0].Comment {
+		t.Errorf("feed = %+v, want exactly this record's one comment", extras.Activity)
+	}
+	sections, err := l.ChildSections(ctx, task, "rec_a")
+	if err != nil {
+		t.Fatalf("ChildSections: %v", err)
+	}
+	if len(sections) != 0 {
+		t.Errorf("comments were also drawn as a child section: %+v", sections)
 	}
 }

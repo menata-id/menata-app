@@ -45,6 +45,7 @@ machines:
   - default/task.yaml
   - default/card_label.yaml
   - default/attachment.yaml
+  - default/comment.yaml
   - default/checklist_item.yaml
   - default/document.yaml
   - default/approval_step.yaml

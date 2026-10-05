@@ -263,3 +263,52 @@ func TestAttachmentsSection_HidesWritesFromSomeoneWhoCannotEdit(t *testing.T) {
 		}
 	}
 }
+
+func commentExtras() RecordExtras {
+	return RecordExtras{
+		ShowActivity: true,
+		Comments:     &CommentComposer{MachineID: "mch_comment", ParentField: "fld_task", BodyField: "fld_body"},
+		Activity: []ActivityEntry{
+			{Summary: "Looks good, shipping it.", Actor: "Ana Putri", When: "2026-10-03 09:20", Comment: true},
+			{Summary: `"Lock shooting schedule" moved`, When: "2026-10-03 08:00"},
+		},
+	}
+}
+
+func TestRecordDetail_CommentsFeedDrawsComposerCommentsAndHidableEvents(t *testing.T) {
+	html := renderDetail(t, commentExtras())
+	for _, want := range []string{
+		"Comments and activity", "Write a comment", `hx-post="/machines/mch_comment/records"`,
+		`name="fld_task" value="rec_1"`, `name="fld_body"`,
+		"Looks good, shipping it.", "Ana Putri", ">AP<", "Show details", "moved",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("detail is missing %q", want)
+		}
+	}
+	if strings.Contains(html, ">History<") {
+		t.Error("a record with a comment box still drew the plain History heading")
+	}
+	if strings.Contains(html, `name="fld_author"`) {
+		t.Error("the comment box offered an author input")
+	}
+	if !strings.Contains(html, "group-has-[:checked]/feed:block") {
+		t.Error("recorded events are not behind the Show details toggle")
+	}
+}
+
+func TestRecordDetail_CommentsFeedOffersNoToggleWhenThereAreNoEvents(t *testing.T) {
+	e := commentExtras()
+	e.Activity = e.Activity[:1]
+	if html := renderDetail(t, e); strings.Contains(html, "Show details") {
+		t.Error("a feed of only comments offered a toggle with nothing behind it")
+	}
+}
+
+func TestRecordDetail_CommentsFeedWithoutActivityLogStillDrawsTheBox(t *testing.T) {
+	e := commentExtras()
+	e.ShowActivity = false
+	if html := renderDetail(t, e); !strings.Contains(html, "Write a comment") {
+		t.Error("a Workspace with no activity log lost its comment box")
+	}
+}

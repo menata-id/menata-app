@@ -1,0 +1,86 @@
+package rendering
+
+import (
+	"menata.app/internal/domain"
+)
+
+// commentsFeed is PM02's "Comments and activity": the comments someone wrote and the events the runtime
+// recorded, in one list newest first, under a "Write a comment" box. Composition has already merged and
+// ordered them (composition.buildRecordActivity); this only draws. The events can be hidden with "Show
+// details" -- a checkbox the list reads through `has-`, so it needs no script and no request. canEdit hides
+// the box only; the create route is what refuses the write, and the author is stamped there, never sent.
+templ commentsFeed(parentID string, extras RecordExtras, canEdit bool) {
+	<div class="group/feed">
+		@stackLayout(domain.GapDefault) {
+			@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
+				<h2 class="m-0 text-base font-medium">Comments and activity</h2>
+				if hasEvents(extras.Activity) {
+					<label class="flex cursor-pointer items-center gap-1 text-xs text-slate-500">
+						<input type="checkbox" class="size-3.5"/>
+						Show details
+					</label>
+				}
+			}
+			if canEdit {
+				@commentBox(parentID, extras.Comments)
+			}
+			@truncationNotice(extras.ActivityTruncation)
+			if len(extras.Activity) == 0 {
+				<p class="m-0 text-sm text-slate-500">Nothing has happened to this record yet.</p>
+			} else {
+				<ul class="m-0 flex list-none flex-col gap-3 p-0">
+					for _, a := range extras.Activity {
+						if a.Comment {
+							<li>@commentRow(a)</li>
+						} else {
+							<li class="hidden group-has-[:checked]/feed:block">@eventRow(a)</li>
+						}
+					}
+				</ul>
+			}
+		}
+	</div>
+}
+
+func hasEvents(entries []ActivityEntry) bool {
+	for _, a := range entries {
+		if !a.Comment {
+			return true
+		}
+	}
+	return false
+}
+
+// commentBox is the "Write a comment" form: the child Machine's own create route, the record it belongs to
+// as a hidden input, and the text. There is no author input on purpose -- the runtime stamps who is acting.
+templ commentBox(parentID string, c *CommentComposer) {
+	<form class="m-0" hx-post={ "/machines/" + c.MachineID + "/records" } hx-swap="none">
+		<input type="hidden" name={ c.ParentField } value={ parentID }/>
+		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
+			<input type="text" name={ c.BodyField } required placeholder="Write a comment" aria-label="Write a comment" class={ controlField + " grow" }/>
+			<button type="submit" class={ controlSecondary }>Comment</button>
+		}
+	</form>
+}
+
+// commentRow is one comment: who, what they said, when. The author's initials are the avatar's content and
+// the full name its accessible label, as everywhere else an avatar is drawn.
+templ commentRow(a ActivityEntry) {
+	@rowLayout(domain.GapDefault, domain.RowAlignStretch, domain.RowJustifyStart) {
+		@avatar(personInitials(a.Actor, ""), a.Actor, domain.AvatarInline, domain.AvatarPresent)
+		@stackLayout(domain.GapTight) {
+			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
+				<span class="text-sm font-medium">{ a.Actor }</span>
+				<span class="text-xs text-slate-400">{ a.When }</span>
+			}
+			<p class="m-0 whitespace-pre-wrap text-sm text-slate-700">{ a.Summary }</p>
+		}
+	}
+}
+
+// eventRow is a recorded event, drawn as it is in the plain History list.
+templ eventRow(a ActivityEntry) {
+	@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
+		@activityEntryRow(a)
+	}
+}

@@ -145,6 +145,7 @@ func Validate(m *domain.Machine) error {
 
 	for _, f := range m.Fields {
 		issues = append(issues, validateCompute(f, fieldsByID)...)
+		issues = append(issues, validateStamp(f)...)
 	}
 
 	for _, c := range m.Constraints {
@@ -224,6 +225,14 @@ func Validate(m *domain.Machine) error {
 		}
 		if f, ok := fieldsByID[cf.Field]; ok && cf.Role == domain.CardFieldRoleFile && f.Type != domain.FieldTypeFile {
 			issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q has the file role, so it must be a file field, got %q", m.ID, cf.Field, f.Type))
+		}
+		if f, ok := fieldsByID[cf.Field]; ok && cf.Role == domain.CardFieldRoleComment {
+			if f.Type != domain.FieldTypeLongText {
+				issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q has the comment role, so it must be a long_text field, got %q", m.ID, cf.Field, f.Type))
+			}
+			if m.StampedAuthorField() == "" {
+				issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q has the comment role, so the machine needs a person field declaring `stamp: current_user` to say who wrote it", m.ID, cf.Field))
+			}
 		}
 	}
 
@@ -1259,6 +1268,37 @@ func sortableColumnList() string {
 	return strings.Join(names, ", ")
 }
 
+// validateStamp holds a stamped Field to what its application assumes: a known source, a person Field to
+// hold the user it names, and no default (the stamp is always what gets stored).
+func validateStamp(f domain.Field) []string {
+	if f.Stamp == "" {
+		return nil
+	}
+	var issues []string
+	if !domain.KnownFieldStamps[f.Stamp] {
+		issues = append(issues, fmt.Sprintf("field %q: stamp %q is not one of %v", f.ID, f.Stamp, sortedFieldStamps()))
+	}
+	if f.Stamp == domain.FieldStampCurrentUser && f.Type != domain.FieldTypePerson {
+		issues = append(issues, fmt.Sprintf("field %q: stamp: current_user is only valid on a person field, got type %q", f.ID, f.Type))
+	}
+	if f.Default != nil {
+		issues = append(issues, fmt.Sprintf("field %q: a stamped field cannot declare a default -- its value is always the stamp", f.ID))
+	}
+	if f.Compute != nil {
+		issues = append(issues, fmt.Sprintf("field %q: a field cannot be both computed and stamped", f.ID))
+	}
+	return issues
+}
+
+func sortedFieldStamps() []string {
+	names := make([]string, 0, len(domain.KnownFieldStamps))
+	for s := range domain.KnownFieldStamps {
+		names = append(names, string(s))
+	}
+	slices.Sort(names)
+	return names
+}
+
 // validateCompute holds a computed Field to the shape its evaluation assumes: a number, one known
 // operation, operands that are number Fields of this Machine and not computed themselves (so the
 // order of evaluation cannot matter and no cycle can exist), and none of the declarations that
@@ -1320,22 +1360,33 @@ func sortedComputeOps() []string {
 // write their Machines directly and would leave the value stale. Refusing here keeps "every write of
 // this Machine computes it" true by construction, instead of true until someone adds a route.
 func validateComputedFieldsAreGenericallyWritten(machines []*domain.Machine) error {
+	return validateFieldsAreGenericallyWritten(machines, "computed", func(f domain.Field) bool { return f.Compute != nil })
+}
+
+// validateStampedFieldsAreGenericallyWritten is the same refusal for a stamped Field: the acting user is
+// written by the generic create routes (record.go, api.go), and the engines' own screens and the runtime's
+// own writers would leave it empty.
+func validateStampedFieldsAreGenericallyWritten(machines []*domain.Machine) error {
+	return validateFieldsAreGenericallyWritten(machines, "stamped", func(f domain.Field) bool { return f.Stamp != "" })
+}
+
+func validateFieldsAreGenericallyWritten(machines []*domain.Machine, kind string, has func(domain.Field) bool) error {
 	var issues []string
 	for _, m := range machines {
-		var computed []string
+		var found []string
 		for _, f := range m.Fields {
-			if f.Compute != nil {
-				computed = append(computed, f.ID)
+			if has(f) {
+				found = append(found, f.ID)
 			}
 		}
-		if len(computed) == 0 {
+		if len(found) == 0 {
 			continue
 		}
 		switch {
 		case m.WorkflowRole != "":
-			issues = append(issues, fmt.Sprintf("machine %q declares computed field(s) %v, but it plays the %q role in a workflow engine whose own screens write it without computing", m.ID, computed, m.WorkflowRole))
+			issues = append(issues, fmt.Sprintf("machine %q declares %s field(s) %v, but it plays the %q role in a workflow engine whose own screens write it without applying them", m.ID, kind, found, m.WorkflowRole))
 		case m.ID == domain.UserMachineID || m.ID == "mch_activity" || m.ID == "mch_notification":
-			issues = append(issues, fmt.Sprintf("machine %q declares computed field(s) %v, but it is a runtime-level machine the runtime writes itself", m.ID, computed))
+			issues = append(issues, fmt.Sprintf("machine %q declares %s field(s) %v, but it is a runtime-level machine the runtime writes itself", m.ID, kind, found))
 		}
 	}
 	if len(issues) > 0 {

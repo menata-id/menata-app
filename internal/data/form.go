@@ -15,8 +15,8 @@ import (
 func ValuesFromForm(m *domain.Machine, form url.Values) map[string]any {
 	values := make(map[string]any, len(m.Fields))
 	for _, f := range m.Fields {
-		if f.Compute != nil {
-			continue // never an input; ApplyComputed derives it
+		if f.Compute != nil || f.Stamp != "" {
+			continue // never an input; ApplyComputed derives it, ApplyStamps stamps it
 		}
 		if f.Type == domain.FieldTypeBoolean {
 			values[f.ID] = form.Has(f.ID)

@@ -539,6 +539,11 @@ func (l *Loader) ChildSections(ctx context.Context, m *domain.Machine, recordID 
 		if m.CardTags != nil && cc.Machine.ID == m.CardTags.Machine {
 			continue
 		}
+		// A Machine drawn as comments is read into the record's "Comments and activity" feed by
+		// RecordExtras, not listed as a table of its own.
+		if isCommentMachine(cc.Machine) {
+			continue
+		}
 		records, err := l.ListRecordsBy(ctx, cc.Machine.ID, cc.Field.ID, recordID)
 		if err != nil {
 			return nil, err
