@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"time"
 
 	"menata.app/internal/authorization"
@@ -126,14 +127,15 @@ func showSprintDashboard(store *data.Store, cfg config.Config) http.HandlerFunc 
 	}
 }
 
-// showCalendar is Case 19's week-grid Layout (development-history.md Phase 14, project-calendar.html): every
-// mch_task whose fld_due_date falls in the current Monday-Sunday week, one column per day.
+// showCalendar is Case 19's week-grid Layout (Case 19 PM05): every mch_task due in one Monday-Sunday week,
+// one column per day. `?week=N` steps N weeks from the current one; anything that is not a number is this week.
 func showCalendar(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		machines := machinesFor(ctx)
 
-		days, err := composition.CalendarWeek(ctx, composition.NewLoader(store, machines), time.Now())
+		weekOffset, _ := strconv.Atoi(req.URL.Query().Get("week"))
+		c, err := composition.CalendarWeek(ctx, composition.NewLoader(store, machines), time.Now(), weekOffset)
 		if err != nil {
 			serverError(w, err)
 			return
@@ -143,7 +145,7 @@ func showCalendar(store *data.Store, cfg config.Config) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-		render(ctx, w, rendering.CalendarPage(days, workspaceName, viewer, switchHref))
+		render(ctx, w, rendering.CalendarPage(c, workspaceName, viewer, switchHref))
 	}
 }
 

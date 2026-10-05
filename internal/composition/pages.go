@@ -624,49 +624,127 @@ func buildCapacity(users []*data.Record, people map[string]string, workload, cap
 	return out
 }
 
-// CalendarWeek composes the Monday-Sunday week containing now, one column per day (ROADMAP.md
-// Phase 14). Tasks with no due date are simply absent -- a week grid has nowhere to put them.
-func CalendarWeek(ctx context.Context, l *Loader, now time.Time) ([]rendering.CalendarDay, error) {
-	tasks, err := l.ListRecords(ctx, taskMachineID)
+// maxCalendarWeeks bounds how far from this week the Calendar will navigate: ten years either way is more
+// than any plan reaches, and it keeps `?week=` from asking time.AddDate for a date it cannot represent.
+const maxCalendarWeeks = 520
+
+// CalendarWeek composes the Monday-Sunday week `weekOffset` weeks from the one containing now (0 is this
+// week, -1 the last), one column per day (Case 19 PM05). Tasks with no due date are simply absent -- a week
+// grid has nowhere to put them.
+//
+// The Tasks come from the same bounded selection the Dashboard counts (ds_all_tasks) instead of a whole-Machine
+// read, and Truncation says so when that bound bit: a calendar that silently dropped the tail of a large
+// Workspace would show an empty day for work that exists.
+func CalendarWeek(ctx context.Context, l *Loader, now time.Time, weekOffset int) (rendering.CalendarContent, error) {
+	sel, err := l.SelectRelated(ctx, dashboardTasksDataset, expression.Context{})
 	if err != nil {
-		return nil, err
+		return rendering.CalendarContent{}, err
 	}
+	m := l.Machine(taskMachineID)
+	weekOffset = clampWeekOffset(weekOffset)
+	inWeek := tasksDueInWeek(sel.Records, m, calendarWeekStart(now, weekOffset))
+
 	names, err := projectNames(ctx, l)
 	if err != nil {
-		return nil, err
+		return rendering.CalendarContent{}, err
 	}
-	return buildCalendarWeek(tasks, names, now, l.Machine(taskMachineID)), nil
+	people, err := l.PersonNames(ctx)
+	if err != nil {
+		return rendering.CalendarContent{}, err
+	}
+	tags, err := l.CardTagsFor(ctx, m, inWeek)
+	if err != nil {
+		return rendering.CalendarContent{}, err
+	}
+	c := buildCalendarWeek(inWeek, names, people, tags, now, weekOffset, m)
+	c.Truncation = rendering.Truncation{Hit: sel.Truncated, Limit: sel.Limit}
+	return c, nil
 }
 
-func buildCalendarWeek(tasks []*data.Record, projects map[string]string, now time.Time, taskMachine *domain.Machine) []rendering.CalendarDay {
-	byDate := make(map[string][]rendering.TaskRow)
-	for _, t := range tasks {
-		row := taskRow(t, projects, taskMachine, now)
-		due := row.DueText
-		if due == "" {
-			continue
-		}
-		byDate[due] = append(byDate[due], row)
+func clampWeekOffset(n int) int {
+	if n > maxCalendarWeeks {
+		return maxCalendarWeeks
 	}
+	if n < -maxCalendarWeeks {
+		return -maxCalendarWeeks
+	}
+	return n
+}
 
-	// Go's Weekday starts the week on Sunday; this grid starts on Monday, so Sunday needs the
-	// full week subtracted rather than a negative offset.
+// calendarWeekStart is the Monday of the week weekOffset weeks from now. Go's Weekday starts the week on
+// Sunday and this grid starts on Monday, so Sunday needs the full week subtracted rather than a negative
+// offset.
+func calendarWeekStart(now time.Time, weekOffset int) time.Time {
 	offset := int(now.Weekday()) - int(time.Monday)
 	if offset < 0 {
 		offset += 7
 	}
-	monday := now.AddDate(0, 0, -offset)
+	return now.AddDate(0, 0, -offset+7*weekOffset)
+}
 
+// tasksDueInWeek keeps the Tasks whose date falls in the seven days from monday, so the tag join below reads
+// chips for what the grid draws and not for every Task in the Workspace.
+func tasksDueInWeek(tasks []*data.Record, taskMachine *domain.Machine, monday time.Time) []*data.Record {
+	inWeek := make(map[string]bool, 7)
+	for i := 0; i < 7; i++ {
+		inWeek[monday.AddDate(0, 0, i).Format("2006-01-02")] = true
+	}
+	dateField := FieldForRole(taskMachine, domain.CardFieldRoleDate)
+	var out []*data.Record
+	for _, t := range tasks {
+		if inWeek[DisplayString(t.Values[dateField])] {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// calendarRange is the toolbar's "05 – 11 Oct 2026": the year and month are written once when both ends share
+// them, and each end carries its own when they do not.
+func calendarRange(first, last time.Time) string {
+	switch {
+	case first.Year() != last.Year():
+		return first.Format("02 Jan 2006") + " \u2013 " + last.Format("02 Jan 2006")
+	case first.Month() != last.Month():
+		return first.Format("02 Jan") + " \u2013 " + last.Format("02 Jan 2006")
+	default:
+		return first.Format("02") + " \u2013 " + last.Format("02 Jan 2006")
+	}
+}
+
+func buildCalendarWeek(tasks []*data.Record, projects, people map[string]string, tags map[string][]rendering.CardTag, now time.Time, weekOffset int, taskMachine *domain.Machine) rendering.CalendarContent {
+	dateField := FieldForRole(taskMachine, domain.CardFieldRoleDate)
+	personField := FieldForRole(taskMachine, domain.CardFieldRolePerson)
+	byDate := make(map[string][]rendering.TaskRow)
+	for _, t := range tasks {
+		row := taskRow(t, projects, taskMachine, now)
+		if row.DueText == "" {
+			continue
+		}
+		done := IsComplete(taskMachine, t)
+		row.Complete = cardComplete(taskMachine, t)
+		row.Date = experience.ResolveCardDate(t.Values[dateField], done, now)
+		row.Tags = tags[t.ID]
+		row.Assignee = people[DisplayString(t.Values[personField])]
+		byDate[row.DueText] = append(byDate[row.DueText], row)
+	}
+
+	monday := calendarWeekStart(now, weekOffset)
 	days := make([]rendering.CalendarDay, 0, 7)
 	for i := 0; i < 7; i++ {
 		day := monday.AddDate(0, 0, i)
 		days = append(days, rendering.CalendarDay{
-			Label:   day.Format("Mon Jan 2"),
+			Weekday: day.Format("Mon"),
+			Date:    day.Format("02 Jan"),
 			IsToday: SameDay(day, now),
 			Tasks:   byDate[day.Format("2006-01-02")],
 		})
 	}
-	return days
+	return rendering.CalendarContent{
+		Days:       days,
+		Range:      calendarRange(monday, monday.AddDate(0, 0, 6)),
+		WeekOffset: weekOffset,
+	}
 }
 
 // ActivityFeed is the cross-Machine event feed grouped by day (development-history.md Phase 14) -- the same

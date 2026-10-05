@@ -34,6 +34,10 @@ type TaskRow struct {
 	Date     experience.CardDate
 	ListName string
 	Tags     []CardTag
+	// Assignee is the display name of the Field in the `person` role, "" when nobody is assigned. Only the
+	// Calendar draws it (as an avatar); My Tasks lists the viewer's own Tasks, where it would say the same
+	// name on every row.
+	Assignee string
 }
 
 // MyTasksPage is Case 19's personal work queue (Case 19 PM03): every mch_task assigned to the current user,

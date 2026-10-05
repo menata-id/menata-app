@@ -57,7 +57,7 @@ navigation:
     route: /calendar
     priority: 4
     icon: calendar
-    description: Tasks due this week, across all Projects.
+    description: Cards sit on the day they are due. Tick a circle to finish one; step through the weeks to see what is coming.
   - id: nav_sprint
     label: Sprint Dashboard
     route: /sprint

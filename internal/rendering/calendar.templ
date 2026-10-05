@@ -1,47 +1,135 @@
 package rendering
 
-import "menata.app/internal/domain"
+import (
+	"context"
+	"fmt"
 
-// CalendarDay is one column of the Calendar's week grid (development-history.md Phase 14,
-// project-calendar.html): a date label and every Task due that day, reusing TaskRow exactly as
-// My Tasks does.
+	"menata.app/internal/domain"
+)
+
+// CalendarDay is one column of the Calendar's week grid (Case 19 PM05): the weekday and date it is headed
+// with and every Task due that day, reusing TaskRow exactly as My Tasks does.
 type CalendarDay struct {
-	Label   string
+	Weekday string
+	Date    string
 	IsToday bool
 	Tasks   []TaskRow
 }
 
-// CalendarPage is Case 19's week-grid Layout: mch_task filtered by fld_due_date falling in the
-// current week, one column per day -- composed from the same Task/Project data as My Tasks and
-// the Dashboard, reusing the board-column CSS shape already built for the Task board Layout
-// rather than inventing new grid CSS.
-templ CalendarPage(days []CalendarDay, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+// CalendarContent is everything the Calendar draws, already resolved by Composition (007 §4.4): the seven
+// days, the range label the toolbar shows, and where in time the grid sits. WeekOffset is relative to the
+// week containing "now" (0 is this week), which is what the previous/next links step -- the Page never
+// computes a date, so it never reads the clock (007 §4.6).
+type CalendarContent struct {
+	Days       []CalendarDay
+	Range      string
+	WeekOffset int
+	// Truncation is set when the Task selection hit its declared bound, in which case a day may be missing
+	// work that exists.
+	Truncation Truncation
+}
+
+// CalendarPage is Case 19 PM05: Tasks due in one Monday-Sunday week, one column per day, with previous/next
+// week and a way back to this one. Each card is the board's card in a smaller space -- tags, the completion
+// circle, the title, its date pill and the person -- and a finished one keeps its place but turns quiet.
+//
+// Month view and dragging a card to another day are in the mockup and not here: neither has a primitive yet
+// (007 §12.2 has no month grid; a drag that writes a date is §12.3's `actions`), and a toggle or a hint the
+// screen cannot honour would promise them.
+templ CalendarPage(c CalendarContent, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_calendar"), workspaceName, viewer, switchWorkspaceHref) {
 		@pageHeader("nav_calendar")
+		@truncationNotice(c.Truncation)
+		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
+				<a href={ templ.URL(calendarWeekHref(ctx, c.WeekOffset-1)) } aria-label="Previous week" class="grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+					@icon("chevron-left", "size-4")
+				</a>
+				<a href={ templ.URL(calendarWeekHref(ctx, c.WeekOffset+1)) } aria-label="Next week" class="grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+					@icon("chevron-right", "size-4")
+				</a>
+			}
+			<span class="text-sm font-medium">{ c.Range }</span>
+			if c.WeekOffset != 0 {
+				<a href={ templ.URL(calendarWeekHref(ctx, 0)) } class="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50">This week</a>
+			}
+		}
 		@gridLayout(domain.GapDefault, domain.GridCols1, domain.GridCols7) {
-			for _, d := range days {
-				<div class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3">
-					<div class="flex items-center gap-2">
-						<h3 class="m-0 text-sm font-medium">{ d.Label }</h3>
-						if d.IsToday {
-							<span class="rounded-full bg-blue-50 px-2 py-0.5 text-2xs font-medium text-blue-700">today</span>
-						}
-					</div>
+			for _, d := range c.Days {
+				<section aria-label={ d.Weekday + " " + d.Date } class={ "flex min-w-0 flex-col gap-2 rounded-lg border p-2", templ.KV("border-blue-200 bg-blue-50/40", d.IsToday), templ.KV("border-slate-200 bg-white", !d.IsToday) }>
+					<h3 class="m-0 flex items-baseline gap-1.5 px-1 text-xs">
+						<span class={ "font-medium", templ.KV("text-blue-700", d.IsToday), templ.KV("text-slate-700", !d.IsToday) }>{ d.Weekday }</span>
+						<span class="text-slate-400">{ d.Date }</span>
+					</h3>
 					if len(d.Tasks) == 0 {
-						<p class="m-0 text-xs text-slate-400">Nothing due.</p>
-					} else {
-						for _, t := range d.Tasks {
-							<div class="flex flex-col gap-1 rounded-md bg-slate-50 p-2">
-								<span class="text-sm">{ t.Title }</span>
-								<div class="flex items-center gap-1.5">
-									<span class="rounded-full bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ t.Status }</span>
-									<span class="text-2xs text-slate-400">{ t.ProjectName }</span>
-								</div>
-							</div>
-						}
+						<p class="m-0 px-1 text-xs text-slate-300" aria-label="Nothing due">&mdash;</p>
 					}
-				</div>
+					for _, t := range d.Tasks {
+						@calendarCard(t)
+					}
+				</section>
 			}
 		}
 	}
+}
+
+// calendarWeekHref is the Calendar's own route with the week it should show. The route is the navigation
+// item's, never retyped; the offset 0 is the bare route, so "This week" is the page's canonical address.
+func calendarWeekHref(ctx context.Context, offset int) string {
+	route := routeByID(ctx, "nav_calendar")
+	if offset == 0 {
+		return route
+	}
+	return fmt.Sprintf("%s?week=%d", route, offset)
+}
+
+// calendarCard is one Task in a day column. The circle PATCHes the Task's own record route and answers with a
+// page refresh (patchRecordForm sends HX-Refresh when the request did not come from the Machine's own page),
+// the same wiring My Tasks' row uses.
+templ calendarCard(t TaskRow) {
+	{{ done := t.Complete != nil && t.Complete.Done }}
+	<div class="flex flex-col gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-2 hover:shadow-sm">
+		if len(t.Tags) > 0 {
+			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
+				for _, tag := range t.Tags {
+					@tagChip(tag)
+				}
+			}
+		}
+		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
+			if t.Complete != nil {
+				<form class="m-0 shrink-0" hx-patch={ taskPatchURL(t) } hx-swap="none">
+					<input type="hidden" name={ t.Complete.Field } value={ t.Complete.Next }/>
+					<button
+						type="submit"
+						aria-pressed={ fmt.Sprint(done) }
+						aria-label={ completeLabel(done, t.Title) }
+						class={ "grid size-5 place-items-center rounded-full border-2 text-white", templ.KV("border-emerald-600 bg-emerald-600", done), templ.KV("border-slate-300 hover:border-emerald-600", !done) }
+					>
+						if done {
+							@icon("check", "size-3")
+						}
+					</button>
+				</form>
+			}
+			<a href={ templ.URL(taskPatchURL(t)) } class={ "min-w-0 grow text-sm leading-snug", templ.KV("text-slate-500", done), templ.KV("text-slate-900", !done) }>{ t.Title }</a>
+		}
+		if t.Date.Present || t.Assignee != "" {
+			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifySpread) {
+				if t.Date.Present {
+					<span class={ "inline-flex items-center gap-1 whitespace-nowrap rounded px-1.5 py-0.5 text-2xs", toneClass(ctx, t.Date.Tone) }>
+						if t.Date.Done {
+							@icon("check", "size-3")
+						} else {
+							@icon("calendar", "size-3")
+						}
+						{ t.Date.Label }
+					</span>
+				}
+				if t.Assignee != "" {
+					@avatar(personInitials(t.Assignee, ""), t.Assignee, domain.AvatarCompact, domain.AvatarPresent)
+				}
+			}
+		}
+	</div>
 }
