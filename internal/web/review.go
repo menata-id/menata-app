@@ -52,9 +52,13 @@ func showReviewDocument(store *data.Store, files *storage.Store, cfg config.Conf
 			return
 		}
 
-		// hasSignatureForGate is storage I/O the Composition plane must not perform (007 §20), so
-		// it is answered here and passed in -- the same reason pdfPages below is.
-		hasSignature, err := hasSignatureForGate(ctx, store, machine, actor.ID)
+		// Whether the viewer already has a saved signature is storage I/O the Composition plane must not
+		// perform (007 §20), so it is answered here and passed in -- the same reason pdfPages below is.
+		// It is asked unconditionally: reviewStep has resolved a Step by now, and the Machine in the URL
+		// is *not* a reliable stand-in for one (a Document id reaches this screen too), which is how a
+		// "true for any other Machine" shortcut here once hid the signature modal from every approver
+		// who opened a Document.
+		hasSignature, err := hasSavedSignature(ctx, store, actor.ID)
 		if err != nil {
 			serverError(w, err)
 			return

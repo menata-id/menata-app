@@ -43,23 +43,6 @@ func hasSavedSignature(ctx context.Context, store *data.Store, ownerID string) (
 	return len(sigs) > 0, nil
 }
 
-// hasSignatureForGate is the review screen's own render-time gate input
-// (rendering/reviewdocument.templ): whether actorID may Approve without the canvas modal appearing
-// first.
-//
-// It keeps its "true for every Machine other than mch_approval_step" arm although Fase 6b left it
-// exactly one caller, which already checks that itself. The arm is what makes the function safe to
-// call without knowing the Machine, and removing it would make a future third caller's omission
-// silent -- it would read as "this person has a signature" rather than "this question does not
-// apply here". Until Fase 6b it was called on *every* Machine's detail page, mch_task included;
-// that is the call the review screen took away.
-func hasSignatureForGate(ctx context.Context, store *data.Store, machine *domain.Machine, actorID string) (bool, error) {
-	if !action.IsStep(machine) {
-		return true, nil
-	}
-	return hasSavedSignature(ctx, store, actorID)
-}
-
 // updateSignaturePlacement moves or resizes one step's signature box (board 09).
 //
 // It exists because the question this screen asks is not the one mch_approval_step's edit

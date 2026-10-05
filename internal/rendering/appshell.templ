@@ -101,6 +101,30 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			@headMeta(title)
 			<script src={ assetURL("/vendor/htmx.min.js") } defer></script>
 			<script src={ assetURL("/vendor/hyperscript.min.js") } defer></script>
+			// htmx swaps nothing in for a 4xx/5xx, so a refused write (a 422 "signature required", a 403)
+			// looked exactly like a button that does nothing -- the Approve bug of 2026-10-05 was silent
+			// for that reason alone. One notice for every htmx request, instead of one per form.
+			<script>
+				document.addEventListener("htmx:responseError", function (e) {
+					var xhr = e.detail.xhr;
+					var msg = xhr.status >= 500
+						? "Something went wrong on our side. Please try again."
+						: (xhr.responseText || "").trim().slice(0, 300) || "That request was refused.";
+					var box = document.getElementById("htmx-error");
+					if (!box) {
+						box = document.createElement("div");
+						box.id = "htmx-error";
+						box.setAttribute("role", "alert");
+						box.className = "fixed inset-x-4 bottom-20 z-50 mx-auto max-w-md cursor-pointer rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg sm:bottom-6";
+						box.addEventListener("click", function () { box.hidden = true; });
+						document.body.appendChild(box);
+					}
+					box.textContent = msg;
+					box.hidden = false;
+					clearTimeout(box._t);
+					box._t = setTimeout(function () { box.hidden = true; }, 8000);
+				});
+			</script>
 		</head>
 		<body hx-headers={ csrfHeadersAttr(ctx) } class="m-0 bg-slate-50 font-sans text-slate-900">
 			// Read-only banner (Flow 2 gap study Tahap 7) -- the "keep the UI honest" half of

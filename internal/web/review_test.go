@@ -99,6 +99,61 @@ func TestShowReviewDocument_opensOnTheViewersOwnDecidedStep(t *testing.T) {
 	}
 }
 
+// TestShowReviewDocument_signatureGateFollowsTheViewerNotTheURLsMachine is the regression test for
+// an Approve button that did nothing (2026-10-05, a bug dating from 2026-09-24).
+//
+// The Review screen is reachable by a Document id as well as a Step id, and the render-time gate
+// asking "does this viewer already have a saved signature" used to be handed the *URL's* Machine.
+// For a Document that is not the Step Machine, and the gate's answer for any other Machine was
+// "yes" -- so an approver with no saved signature, opening the screen from My Documents, got a plain
+// Approve instead of the signature modal. The POST then carried no image, applyApprovalSignature
+// refused it with a 422, and htmx shows a 4xx to nobody: no error on screen, none in the log.
+//
+// Nothing caught it because every other test hands the renderer HasSignature directly, and the route
+// sweep asserts a status code (200) the broken page also returned. This one asserts the control
+// itself, for both id kinds, and in both signature states so that "always show the modal" cannot
+// pass either.
+func TestShowReviewDocument_signatureGateFollowsTheViewerNotTheURLsMachine(t *testing.T) {
+	s := newDecideStepTestSetup(t, "review_signature_gate")
+
+	const modal = "sig-approve-trigger"
+	for _, tc := range []struct {
+		name, machineID, recordID string
+	}{
+		{"by Document id", s.ids.document, s.documentID},
+		{"by Step id", s.ids.step, s.stepID},
+	} {
+		rec := getReviewAs(t, s, tc.machineID, tc.recordID, s.assignee)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET review %s = %d, want 200; body=%s", tc.name, rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), modal) {
+			t.Errorf("review %s, viewer has no saved signature: no signature modal trigger, so Approve would POST without an image and be refused with a 422 nobody sees", tc.name)
+		}
+	}
+
+	if _, err := s.store.CreateRecord(s.ctx, s.ids.signature, map[string]any{
+		action.FieldSignatureOwner: s.assignee,
+		action.FieldSignatureImage: "sig_test/fld_image/pre-existing.png",
+	}); err != nil {
+		t.Fatalf("CreateRecord(mch_signature): %v", err)
+	}
+	for _, tc := range []struct {
+		name, machineID, recordID string
+	}{
+		{"by Document id", s.ids.document, s.documentID},
+		{"by Step id", s.ids.step, s.stepID},
+	} {
+		rec := getReviewAs(t, s, tc.machineID, tc.recordID, s.assignee)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET review %s (saved) = %d, want 200; body=%s", tc.name, rec.Code, rec.Body.String())
+		}
+		if strings.Contains(rec.Body.String(), modal) {
+			t.Errorf("review %s, viewer already has a saved signature: still asks them to draw one", tc.name)
+		}
+	}
+}
+
 // getReviewAs issues the real GET through the real route, the same shape postDecideAs already uses
 // for the decide route -- this bug was only visible end to end, so the test is end to end.
 func getReviewAs(t *testing.T, s decideStepTestSetup, machineID, recordID, actorID string) *httptest.ResponseRecorder {
