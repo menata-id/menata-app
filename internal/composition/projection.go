@@ -8,16 +8,16 @@ import (
 	"menata.app/internal/rendering"
 )
 
-// RecordCards projects every record of a cards View (domain.ViewCards) through m's own
+// RecordCards projects every record of a cards or board View (domain.ViewCards, domain.ViewBoard) through m's own
 // card_fields, so the renderer receives a display-ready list and never resolves a value itself.
-// Returns nil for any other View kind, the same "the caller supplies only what this arrangement
+// A board draws each record as a card, so it needs the same projection. Returns nil for any other View kind, the same "the caller supplies only what this arrangement
 // needs" shape Loader.BoardColumns already has.
 //
 // This is the consumer Projection was missing. Its only previous one (PendingApprovalCard)
 // projects a list whose role-compatible Fields hold the same value on every row, so the primitive
 // could run without any of its output varying; here the projection is the card.
 func RecordCards(m *domain.Machine, v domain.View, records []*data.Record, relations rendering.RelationOptions) []rendering.RecordCard {
-	if v.EffectiveType() != domain.ViewCards {
+	if t := v.EffectiveType(); t != domain.ViewCards && t != domain.ViewBoard {
 		return nil
 	}
 	cards := make([]rendering.RecordCard, 0, len(records))

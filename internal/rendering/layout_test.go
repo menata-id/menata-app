@@ -292,6 +292,8 @@ func TestAvatar_rendersEachCallSiteCombination(t *testing.T) {
 			[]string{"size-8", "border-dashed", "border-slate-300", "text-slate-400"}, "bg-slate-200"},
 		{"workspacemembers (edit member header)", domain.AvatarLead, domain.AvatarPresent,
 			[]string{"size-10", "text-sm", "bg-slate-200"}, "border-dashed"},
+		{"board card (assignee)", domain.AvatarCompact, domain.AvatarPresent,
+			[]string{"size-6", "text-3xs", "bg-slate-200"}, "border-dashed"},
 	} {
 		var buf bytes.Buffer
 		if err := avatar("SI", "Silvia Indah Rini", tc.size, tc.presence).Render(context.Background(), &buf); err != nil {

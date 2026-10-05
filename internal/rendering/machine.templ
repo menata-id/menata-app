@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
@@ -330,8 +331,11 @@ templ statusBadge(label string, tone domain.BadgeTone) {
 // Tailwind needs the whole track list as one literal.
 func avatarClasses(size domain.AvatarSize, presence domain.AvatarPresence) string {
 	dim := "size-8 text-2xs"
-	if size == domain.AvatarLead {
+	switch size {
+	case domain.AvatarLead:
 		dim = "size-10 text-sm"
+	case domain.AvatarCompact:
+		dim = "size-6 text-3xs"
 	}
 	tone := "bg-slate-200 text-slate-700"
 	if presence == domain.AvatarPending {
@@ -445,6 +449,18 @@ templ MachinePage(m *domain.Machine, v domain.View, records []*data.Record, rela
 // caller-supplies-I/O reason as boardColumns -- the projection is resolved in
 // internal/composition, which this package cannot import.
 templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor, now time.Time) {
+	if v.EffectiveType() == domain.ViewBoard {
+		@boardScreen(m, v, records, relations, groups, boardColumns, cards)
+	} else {
+		@machineScreen(m, v, records, relations, groups, cards, actor, now)
+	}
+}
+
+// machineScreen is the generic Machine page: the Machine's own heading, its Field list, and its records
+// arranged by the selected View. A board View does not come through here -- it is a screen of its own
+// (boardScreen), because a board's header, create affordance and per-column composer are not a Fields
+// table with a different Layout under it.
+templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, cards []RecordCard, actor domain.Actor, now time.Time) {
 	<div class="flex flex-col gap-1">
 		<h1 class="m-0 text-xl font-medium">{ m.Name }</h1>
 		<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
@@ -484,8 +500,6 @@ templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, rela
 		@sectionHeaderRow(fmt.Sprintf("Records (%d)", len(records)), "", "")
 		@viewSwitcher(m, v)
 		switch v.EffectiveType() {
-			case domain.ViewBoard:
-				@boardLayout(m, v, records, relations, groups, boardColumns, actor, now)
 			case domain.ViewCards:
 				@cardsLayout(m, cards)
 			default:
@@ -534,12 +548,12 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 templ viewSwitcher(m *domain.Machine, selected domain.View) {
 	{{ views := selectableViews(m) }}
 	if len(views) > 1 {
-		<nav class="flex gap-2" aria-label="View">
+		<nav class="inline-flex gap-0.5 rounded-md border border-slate-200 bg-white p-0.5" aria-label="View">
 			for _, o := range views {
 				if o.ID == selected.ID {
-					<span class="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-medium text-white" aria-current="true">{ o.Name }</span>
+					<span class="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900" aria-current="true">{ o.Name }</span>
 				} else {
-					<a class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50" href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)) }>{ o.Name }</a>
+					<a class="rounded px-3 py-1 text-xs text-slate-500 hover:text-slate-900" href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, o.ID)) }>{ o.Name }</a>
 				}
 			}
 		</nav>
@@ -577,35 +591,171 @@ type RecordCard struct {
 	Fields []ProjectedField
 }
 
-// boardLayout groups records into columns by the selected View's own group_by and renders each
-// column as the same generic table primitive tableLayout already uses -- a board is not a new
-// renderer, it is Collection + Group Dimension + the existing Table renderer, reused per column
-// (006-runtime-model.md "View" lowering formula).
-templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, actor domain.Actor, now time.Time) {
-	<div class="flex gap-4 overflow-x-auto pb-2">
+// boardScreen is Case 19's Board page (PM01): a heading and a one-line summary, the View switcher beside a
+// "New <machine>" affordance, then the columns. It replaced a Fields table, a record count and an "Add
+// Record" row, none of which belong on a board.
+//
+// The heading is the navigation item that routes to this Machine (machineHeading), not the Machine's
+// name -- a Workspace's `nav_board` says "Board" and the Machine says "Task", and a screen titles itself
+// with what its own navigation calls it (the same rule pageHeader follows). The summary is computed from the
+// records and the View's own `group_by`: no count or Field name is typed here.
+templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard) {
+	@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
+		<div class="flex flex-col gap-1">
+			<h1 class="m-0 text-2xl font-medium">{ machineHeading(ctx, m) }</h1>
+			<p class="m-0 text-sm text-slate-500">{ boardSummary(m, v, len(records)) }</p>
+		</div>
+		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+			@viewSwitcher(m, v)
+			@newCardPopover(m, relations, groups)
+		}
+	}
+	@boardLayout(m, v, records, boardColumns, cards)
+}
+
+// boardSummary is "11 cards · grouped by List".
+func boardSummary(m *domain.Machine, v domain.View, count int) string {
+	s := fmt.Sprintf("%d cards", count)
+	if f, ok := m.FieldByID(v.GroupBy); ok {
+		s += " · grouped by " + f.Name
+	}
+	return s
+}
+
+// machineHeading is what the navigation item routing to this Machine calls itself, falling back to the
+// Machine's own name when none does. Resolved by route rather than by the request's path, because the
+// HTMX fragment a create returns is served from a POST URL and would otherwise lose its heading.
+func machineHeading(ctx context.Context, m *domain.Machine) string {
+	want := "/machines/" + m.ID
+	for _, item := range declaredNavigation(ctx) {
+		if path, _, _ := strings.Cut(item.Route, "?"); path == want && item.Heading != "" {
+			return item.Heading
+		}
+	}
+	return m.Name
+}
+
+// boardLayout groups records into columns by the selected View's own group_by and draws each as a
+// fixed-width column of cards (007 §12.2 -- Collection + Group Dimension, one column per group). Each
+// column ends in a composer that creates a record already placed in that group.
+templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boardColumns []experience.Column, cards []RecordCard) {
+	{{ byRecord := cardsByRecord(cards) }}
+	<div class="flex items-start gap-2.5 overflow-x-auto pb-2">
 		for _, col := range experience.GroupRecords(m, v, records, boardColumns) {
-			<div class="flex w-65 shrink-0 flex-col gap-2 rounded-lg bg-slate-100 p-3">
-				<h3 class="m-0 text-2xs font-medium tracking-wide text-slate-500 uppercase">{ col.Label } ({ fmt.Sprint(len(col.Records)) })</h3>
-				<table class="w-full border-collapse text-sm">
-					<tbody>
-						for _, r := range col.Records {
-							@RecordRow(m, r, relations, groups, actor, now)
-						}
-					</tbody>
-				</table>
+			<div role="group" aria-label={ col.Label } class="flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2">
+				<header class="flex items-center gap-1.5 px-1">
+					<h3 class="m-0 text-xs font-medium text-slate-700">{ col.Label }</h3>
+					<span class="rounded-full bg-white px-1.5 text-2xs text-slate-500">{ fmt.Sprint(len(col.Records)) }</span>
+				</header>
+				<div class="flex flex-col gap-2">
+					for _, r := range col.Records {
+						@boardCard(m, byRecord[r.ID])
+					}
+				</div>
+				@cardComposer(m, v, col)
 			</div>
 		}
 	</div>
-	<div class="flex flex-col gap-2">
-		<h3 class="m-0 text-2xs font-medium tracking-wide text-slate-500 uppercase">Add Record</h3>
-		<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-			<table class="w-full border-collapse text-sm">
-				<tbody>
-					@createFormRow(m, relations, groups)
-				</tbody>
-			</table>
-		</div>
-	</div>
+}
+
+func cardsByRecord(cards []RecordCard) map[string]RecordCard {
+	out := make(map[string]RecordCard, len(cards))
+	for _, c := range cards {
+		out[c.Record.ID] = c
+	}
+	return out
+}
+
+// cardRole is the display of a card's Field in one role, "" when its Machine declares none.
+func cardRole(c RecordCard, role domain.CardFieldRole) string {
+	for _, f := range c.Fields {
+		if f.Role == string(role) {
+			return f.Display
+		}
+	}
+	return ""
+}
+
+// boardCard is one record on a board: its title, its date and its person -- the three roles the
+// Machine's own card_fields declared, which is why this reads RecordCard and never a Field by id.
+templ boardCard(m *domain.Machine, c RecordCard) {
+	<a href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) } class="flex flex-col gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-2 text-slate-900 hover:shadow-sm">
+		<span class="text-sm leading-snug">{ cardRole(c, domain.CardFieldRoleTitle) }</span>
+		{{ date, person := cardRole(c, domain.CardFieldRoleDate), cardRole(c, domain.CardFieldRolePerson) }}
+		if date != "" || person != "" {
+			<span class="flex items-center justify-between gap-2">
+				if date != "" {
+					<span class="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-2xs text-slate-600">
+						@icon("calendar", "size-3")
+						{ date }
+					</span>
+				}
+				if person != "" {
+					<span class="ml-auto">
+						@avatar(personInitials(person, ""), person, domain.AvatarCompact, domain.AvatarPresent)
+					</span>
+				}
+			</span>
+		}
+	</a>
+}
+
+// cardTitleFieldID is the Field a composer's input fills: the Machine's `title` card role, or its first
+// Field when it declares no projection.
+func cardTitleFieldID(m *domain.Machine) string {
+	for _, cf := range m.CardFields {
+		if cf.Role == domain.CardFieldRoleTitle {
+			return cf.Field
+		}
+	}
+	if len(m.Fields) > 0 {
+		return m.Fields[0].ID
+	}
+	return ""
+}
+
+// cardComposer is a column's "Add a card": a title and, hidden, the group value that places the new record
+// in this column. It posts to the same create route the generic form does, so every default, permission and
+// validation that route applies applies here -- a composer is a smaller form, not a second way to write.
+templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
+	<details class="group">
+		<summary class="cursor-pointer list-none rounded-md px-1 py-1.5 text-xs text-slate-500 hover:text-slate-900 group-open:hidden">Add a card</summary>
+		<form
+			class="flex flex-col gap-2"
+			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
+			hx-target="#machine-body"
+			hx-swap="innerHTML"
+			hx-encoding="multipart/form-data"
+		>
+			<input type="hidden" name={ v.GroupBy } value={ col.ID }/>
+			<input type="text" name={ cardTitleFieldID(m) } required placeholder="Card title" aria-label="Card title" class={ controlField + " w-full" }/>
+			<button type="submit" class={ controlPrimary }>Add</button>
+		</form>
+	</details>
+}
+
+// newCardPopover is the header's "New <machine>" button: every editable Field of the Machine in one form.
+templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupOptions) {
+	<details class="relative">
+		<summary class="cursor-pointer list-none rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">{ "New " + strings.ToLower(m.Name) }</summary>
+		<form
+			class="absolute right-0 z-10 mt-2 flex w-72 flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-lg"
+			hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) }
+			hx-target="#machine-body"
+			hx-swap="innerHTML"
+			hx-encoding="multipart/form-data"
+		>
+			for _, f := range m.Fields {
+				if f.Compute == nil && f.Type != domain.FieldTypeFile {
+					<label class="flex flex-col gap-1 text-xs text-slate-500">
+						{ f.Name }
+						@fieldInput(f, nil, relations, groups)
+					</label>
+				}
+			}
+			<button type="submit" class={ controlPrimary }>Create</button>
+		</form>
+	</details>
 }
 
 // createFormRow is the record-creation form, shared by every Layout so a create form isn't

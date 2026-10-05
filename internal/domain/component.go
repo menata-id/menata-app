@@ -78,7 +78,7 @@ const (
 // `Gap` is a ladder and not a pixel count (§15.2: a logical declaration carrying `size: 40px` has smuggled a
 // physical choice into the plane that must not know about them).
 //
-// Two steps, because the four migrated sites use two. Named for the role the size plays rather than for the
+// Three steps: the four migrated sites used two, and a Board card (Case 19's PM01) is the third. Named for the role the size plays rather than for the
 // measurement, so a change of scale is not a change of vocabulary.
 type AvatarSize string
 
@@ -87,12 +87,15 @@ const (
 	AvatarInline AvatarSize = "inline"
 	// AvatarLead heads a detail screen, where the person is the subject rather than a row.
 	AvatarLead AvatarSize = "lead"
+	// AvatarCompact sits in the footer of a dense card, where a row-sized circle would outweigh the title.
+	AvatarCompact AvatarSize = "compact"
 )
 
 // KnownAvatarSizes is the closed set.
 var KnownAvatarSizes = map[AvatarSize]bool{
-	AvatarInline: true,
-	AvatarLead:   true,
+	AvatarInline:  true,
+	AvatarLead:    true,
+	AvatarCompact: true,
 }
 
 // AvatarPresence distinguishes a person who is here from one who has only been asked.

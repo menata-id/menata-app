@@ -314,6 +314,16 @@ other type rather than ignored — a declaration the runtime silently drops read
 working. `cards` requires its Machine to declare `card_fields` (§7.1), since a cards view over no
 projection would render empty cards forever.
 
+**What a `board` View draws (2026-10-05, Case 19 PM01).** Not the generic Machine page: a heading, a
+"N cards · grouped by <Field name>" summary computed from the records and `group_by`, the View switcher,
+a "New <machine name>" button, and one column per group with a count, a card per record and an "Add a
+card" composer that pre-fills the column's group. A record with no group lands in an automatic "Other"
+column. The heading is the `title:`/`label:` of the navigation item whose route is `/machines/<id>`, so
+rename the screen in the Application's `navigation:`, not in Go. A card shows what `card_fields` declares:
+`title`, a `date` pill and a `person` avatar (initials) — declare `{ field: fld_assignee, role: person }`
+to get the avatar. A Machine that declares `type: table` beside the board gets the segmented Board/Table
+switcher; the switcher's look changed for **every** Machine with more than one View.
+
 Write the `name` yourself; don't expect the type to supply it. `table`/`cards` is the runtime
 engine's own vocabulary, and a string the user reads is the Application author's to write — the
 same separation `name:` already has on a Machine and on a Field.
@@ -824,7 +834,7 @@ Navigation item keys:
 | `description` | string | The sentence under that heading. Optional; no subtitle renders when absent. Render with `descriptionByID("nav_xxx")` |
 | `route` | path | Must have a real handler in `internal/web/router.go` (gated by `TestNavigationRoutesAreRegistered`) |
 | `group` | string | Presentational label. First group declared stays inline; later ones collapse into a dropdown |
-| `priority` | int | |
+| `priority` | int | Orders the menu. The first four (`rendering.appMenuTabLimit`) are tabs on desktop; the rest collapse behind a "More" dropdown (hardcoded count -- no per-item overflow declaration exists yet, 007 §12.2). An Application with four or fewer items never shows it |
 | `badge` | closed set | Only `approval_inbox_pending` today |
 | `home_card` | bool | Marks the Workspace Home card's destination (`Application.HomeRoute`) |
 | `icon` | closed set | Drawn on the mobile bottom bar. Same vocabulary as an Application's own `icon` — see below |

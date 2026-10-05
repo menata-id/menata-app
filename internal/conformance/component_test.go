@@ -64,7 +64,7 @@ func TestComponentRegistryAndRenderersAgree(t *testing.T) {
 	// TestEveryBadgeToneHasAProducer.
 	for setName, members := range map[string][]string{
 		"KnownTonePalettes":    paletteIdents(),
-		"KnownAvatarSizes":     {"domain.AvatarInline", "domain.AvatarLead"},
+		"KnownAvatarSizes":     {"domain.AvatarInline", "domain.AvatarLead", "domain.AvatarCompact"},
 		"KnownAvatarPresences": {"domain.AvatarPresent", "domain.AvatarPending"},
 	} {
 		for _, ident := range members {
@@ -75,7 +75,7 @@ func TestComponentRegistryAndRenderersAgree(t *testing.T) {
 	}
 	// And the sets may not grow past what this gate enumerates. A range loop gives that for free; a hand-
 	// written list does not, so the count is asserted instead.
-	if got, want := len(domain.KnownAvatarSizes)+len(domain.KnownAvatarPresences), 4; got != want {
+	if got, want := len(domain.KnownAvatarSizes)+len(domain.KnownAvatarPresences), 5; got != want {
 		t.Errorf("the Avatar parameter sets now hold %d members, this gate enumerates %d -- add the new one above with its renderer arm", got, want)
 	}
 }

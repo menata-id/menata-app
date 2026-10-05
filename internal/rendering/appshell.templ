@@ -317,6 +317,35 @@ func bottomBarItems(menu []navMenuItem) []navMenuItem {
 	return menu[:min(3, len(menu))]
 }
 
+// appMenuTabLimit is how many of an Application's menu items applicationMenuRow draws as tabs
+// before the rest collapse behind a "More" dropdown -- the desktop twin of bottomBarItems' three.
+// Four because Project Management's mockup (Case 19 canvas, PM01..PM06) draws Board / My Tasks /
+// Dashboard / Calendar and then "More"; Document Approval declares three items, so it never
+// overflows. A Go literal describing behaviour the metadata cannot express yet (no per-item
+// "overflow" declaration exists): 007 §12.2 is the target, and writing-guide.md's "What comes free
+// vs. what's hardcoded today" table carries the row.
+const appMenuTabLimit = 4
+
+// splitAppMenu separates the tabs applicationMenuRow draws from the ones behind "More". Priority
+// order is already applied by defaultAppMenu, so the first appMenuTabLimit are the leading ones.
+func splitAppMenu(menu []navMenuItem) (tabs, overflow []navMenuItem) {
+	if len(menu) <= appMenuTabLimit {
+		return menu, nil
+	}
+	return menu[:appMenuTabLimit], menu[appMenuTabLimit:]
+}
+
+// anyActive reports whether one of items is the current page -- "More" is marked when the page
+// you are on lives inside it, so the strip never shows nothing selected.
+func anyActive(items []navMenuItem) bool {
+	for _, item := range items {
+		if item.Active {
+			return true
+		}
+	}
+	return false
+}
+
 // applicationMenuRow is appShell's header, second row: the current Application's own menu,
 // `hidden` below `sm` where applicationBottomBar takes over instead (owner spec,
 // ui-sample/README.md's "Menu Navigasi" -- see appShell's own doc comment above).
@@ -343,7 +372,8 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 			<span class="text-sm font-medium text-slate-900">{ app.Name }</span>
 		</span>
 		<span aria-hidden="true" class="mr-2 ml-1 h-5 w-px bg-slate-200"></span>
-		for _, item := range menu {
+		{{ tabs, overflow := splitAppMenu(menu) }}
+		for _, item := range tabs {
 			<a
 				href={ templ.SafeURL(item.Href) }
 				class={ "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !item.Active) }
@@ -355,10 +385,33 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 				@navBadge(item.Badge, "inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-blue-50 px-1.5 text-3xs font-medium text-blue-700 empty:hidden")
 			</a>
 		}
+		if len(overflow) > 0 {
+			<button
+				type="button"
+				popovertarget="menata-app-more-menu"
+				class={ "ml-auto flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium text-blue-700", anyActive(overflow)), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !anyActive(overflow)) }
+			>
+				More
+				@icon("chevron-down", "size-3.5")
+			</button>
+			@sheetPanel("menata-app-more-menu", true, "tabs") {
+				for _, item := range overflow {
+					<a
+						href={ templ.SafeURL(item.Href) }
+						class={ "flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-slate-50", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-700", !item.Active) }
+						if item.Active {
+							aria-current="page"
+						}
+					>
+						{ item.Label }
+					</a>
+				}
+			}
+		}
 		if hub, ok := settingsHubItem(app); ok {
 			<a
 				href={ templ.SafeURL(hub.Route) }
-				class="ml-auto flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+				class={ "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900", templ.KV("ml-auto", len(overflow) == 0) }
 			>
 				@icon(hub.Icon, "size-4")
 				{ hub.Label }
@@ -673,6 +726,8 @@ func sheetContainerClasses(desktop string) string {
 		return "sm:inset-auto sm:top-17 sm:right-auto sm:bottom-auto sm:left-9 sm:w-72"
 	case "right":
 		return "sm:inset-auto sm:top-17 sm:right-7 sm:bottom-auto sm:left-auto sm:w-72"
+	case "tabs":
+		return "sm:inset-auto sm:top-26 sm:right-7 sm:bottom-auto sm:left-auto sm:w-56"
 	default:
 		return ""
 	}

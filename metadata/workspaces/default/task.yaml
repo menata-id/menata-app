@@ -137,9 +137,13 @@ card_fields:
   - { field: fld_title, role: title }
   - { field: fld_status, role: status }
   - { field: fld_due_date, role: date }
+  - { field: fld_assignee, role: person }
 
 views:
   - id: vw_task_board
     name: Board
     type: board
     group_by: fld_list
+  - id: vw_task_table
+    name: Table
+    type: table
