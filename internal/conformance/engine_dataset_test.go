@@ -149,6 +149,9 @@ var goNamedDatasetsWithNoEngineRequirement = map[string]string{
 	"ds_all_tasks":       "on mch_task; same",
 	"ds_task_by_status":  "on mch_task; same",
 	"ds_user_capacity":   "on mch_user, a shared runtime reference",
+	"ds_board_lists":     "on mch_list (Project Management); reachable only from routes that Workspace's Applications declare",
+	"ds_board_labels":    "on mch_label; same",
+	"ds_label_usage":     "on mch_card_label; same",
 	// Not on this list and not required by the engine either: ds_document_by_status. Both real
 	// Workspaces happen to declare it on the Machine their approval Application casts, so adding it to
 	// Datasets would be correct -- and it is deliberately left out, because the Dashboard's Document

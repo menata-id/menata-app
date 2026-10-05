@@ -601,8 +601,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - Expanding beyond the first two applications into the wider portfolio of business cases this
   runtime is designed to support (HR, inventory, point of sale, e-commerce, helpdesk, and more).
 - **Composition-layer decomposition** -- Projection gate, Datasets (Team/Sprint/Dashboard) and the Case 19 migration onto `card_fields`
-  are done; `projectionRatchet` is down to one entry. Still open: My Tasks' counts (viewing identity, date against now) and
-  `boardsettings.templ`'s List colour, which waits on a second case. Audit: `menata-app-document`'s
+  are done; `projectionRatchet` is empty. Still open: My Tasks' counts (viewing identity, date against now). Audit: `menata-app-document`'s
   `audits/2026-09-19-decomposition-maturity-audit.md`; the migration narrative: `development-history.md`.
 - Re-evaluating `internal/composition/pages.go`'s Case 19 Machine-id/status-option constants
   (`taskMachineID`, the `todo`/`in_progress`/`done` switch) against the B1-B5 decomposition

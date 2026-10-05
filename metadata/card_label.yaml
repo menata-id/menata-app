@@ -14,3 +14,12 @@ fields:
     name: Label
     type: relation
     machine: mch_label
+
+# How many cards carry each Label -- Board Settings' "used on N cards" (Case 19 PM06). One count per Label,
+# grouped by the Field that names it, so the screen reads it by Label id and never loops over the pairs.
+datasets:
+  - id: ds_label_usage
+    dimension: fld_label
+    measures:
+      - id: msr_total
+        aggregate: count

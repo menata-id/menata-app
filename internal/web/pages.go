@@ -171,18 +171,14 @@ func showTeamCapacity(store *data.Store, cfg config.Config) http.HandlerFunc {
 	}
 }
 
-// showBoardSettings is the Lists/Labels catalog hub. It renders two Machines' records as-is, with
-// nothing to derive, which is why it reads them directly rather than through a composition step.
+// showBoardSettings is Case 19 PM06: the Lists and Labels every board shares, composed from the three
+// Datasets that declare them.
 func showBoardSettings(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		machines := machinesFor(ctx)
 
-		lists, err := store.ListRecords(ctx, "mch_list")
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		labels, err := store.ListRecords(ctx, "mch_label")
+		c, err := composition.BoardSettings(ctx, composition.NewLoader(store, machines))
 		if err != nil {
 			serverError(w, err)
 			return
@@ -192,8 +188,7 @@ func showBoardSettings(store *data.Store, cfg config.Config) http.HandlerFunc {
 			serverError(w, err)
 			return
 		}
-
-		render(ctx, w, rendering.BoardSettingsPage(lists, labels, workspaceName, viewer, switchHref))
+		render(ctx, w, rendering.BoardSettingsPage(c, workspaceName, viewer, switchHref))
 	}
 }
 

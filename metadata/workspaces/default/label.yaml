@@ -19,3 +19,10 @@ fields:
 card_fields:
   - { field: fld_name, role: title }
   - { field: fld_color, role: color }
+
+# Board Settings' own selection of Labels (Case 19 PM06). Records rather than counts: the screen draws each
+# one's name and colour through the card_fields above.
+datasets:
+  - id: ds_board_labels
+    select: records
+    limit: 200

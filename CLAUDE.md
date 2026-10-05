@@ -417,8 +417,9 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 - `TestRenderingUsesProjectionNotRawValues` — the one *ratchet* in this suite: a `.templ` file may
   not read a named field off a record (`Values["fld_..."]`, or the same laundered through a
   `action.Field*` constant) — Composition resolves the shape, a Page renders it (007 §4.4, §7.6).
-  One file is grandfathered in `projectionRatchet` (ten when it was written, seven for most of its
-  life, one since 2026-09-28) and **the list may only shrink**: adding an entry is not the way to
+  `projectionRatchet` grandfathered ten files when it was written, seven for most of its life, one from
+  2026-09-28, and **none since 2026-10-05** (Board Settings was the last; an empty ratchet is an ordinary
+  gate, so the map stays declared). **The list may only shrink**: adding an entry is not the way to
   pass, and an entry left behind after a file is migrated fails too. Read the count out of the test,
   not out of this line. Use
   `composition.ProjectCardFields`/`card_fields`; generic access (`Values[f.ID]` from ranging

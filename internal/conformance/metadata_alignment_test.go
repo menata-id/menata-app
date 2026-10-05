@@ -553,8 +553,12 @@ var composedScreenDatasets = map[string]map[string][]string{
 		// per-person bars are all derived from them through the Machine's own `completion:`.
 		"ds_all_tasks": {},
 	},
-	"user.yaml":     {"ds_user_capacity": {"msr_total_capacity"}},
-	"document.yaml": {"ds_document_by_status": {"msr_total"}},
+	"user.yaml": {"ds_user_capacity": {"msr_total_capacity"}},
+	// Board Settings (PM06): the Lists and Labels a board is built from, and how many cards carry each Label.
+	"list.yaml":       {"ds_board_lists": {}},
+	"label.yaml":      {"ds_board_labels": {}},
+	"card_label.yaml": {"ds_label_usage": {"msr_total"}},
+	"document.yaml":   {"ds_document_by_status": {"msr_total"}},
 	// The `select: records` Datasets (2026-09-29). They declare no measures, so the inner check is
 	// vacuous and the *existence* check is the whole point -- which is exactly what this table was
 	// written for. They were added to metadata and read by internal/composition without being listed

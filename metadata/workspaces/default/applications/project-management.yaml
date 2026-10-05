@@ -88,4 +88,4 @@ navigation:
     route: /board-settings
     priority: 9
     icon: settings
-    description: 'Lists (statuses) and labels shared across every Project''s board.'
+    description: 'The lists a board groups by, and the labels cards can carry. Both are ordinary records, shared by every project in this workspace.'

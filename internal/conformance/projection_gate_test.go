@@ -99,12 +99,11 @@ var projectionRatchet = map[string]string{
 	// from a declaration. Title/status/date come from card_fields; teamcapacity's weekly number
 	// comes from ds_user_capacity's own `field:`, which already declared it (datasetMeasureField).
 	//
-	// "boardsettings.templ" stays, and its reason is now different from the group's rather than a
-	// copy of it: it renders a List's name and its fld_color, and the closed role set
-	// (title/person/money/status/date) has no role that describes a colour token. Inventing one for
-	// a single case is what this repo's Method forbids -- the trigger is a second case
-	// (CLAUDE.md's "Deciding whether a literal is a metadata-hardcoding violation", step 3).
-	"boardsettings.templ": "no card_fields role describes fld_color; waits for a second case to justify one (007 §7.6)",
+	// "boardsettings.templ" left on 2026-10-05 (Case 19 PM06), and it was the last entry. It was here because
+	// no card_fields role described a colour token; `color` became that role when board cards drew their
+	// labels, and mch_label's own card_fields now declare it, so Board Settings reads a Label's name and
+	// palette entry through composition.BoardSettings like every other screen. The ratchet is empty and stays
+	// declared: an empty ratchet is an ordinary gate, and the next .templ to read a Field by id fails it.
 
 	// Case 3's bespoke Document Approval flow. These have a stronger claim to stay than the group
 	// above: the stepper and the signature canvas render an orchestration whose own logic is
