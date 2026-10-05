@@ -78,20 +78,21 @@ func textClass(ctx context.Context, role domain.TextRole) string {
 
 // layoutGap maps a declared Gap onto the spacing steps the measured corpus actually uses. An empty Gap is
 // GapDefault, resolved here rather than requiring every caller to say so.
-func layoutGap(g domain.Gap) string {
-	switch g {
-	case domain.GapTight:
+func layoutGap(ctx context.Context, g domain.Gap) string {
+	switch CurrentWorkspace(ctx).Theme.GapFor(g) {
+	case domain.GapAmountHalf:
+		return "gap-0.5"
+	case domain.GapAmountOne:
+		return "gap-1"
+	case domain.GapAmountTwo:
 		return "gap-2"
-	case domain.GapDefault:
+	case domain.GapAmountThree:
 		return "gap-3"
-	case domain.GapComfortable:
+	case domain.GapAmountFour:
 		return "gap-4"
-	case domain.GapLoose:
+	case domain.GapAmountFive:
 		return "gap-5"
 	default:
-		// An empty Gap is GapDefault. Named explicitly above rather than left to this branch, because the
-		// tightened vocabulary gate reads which kinds are *named* -- and a step hidden in a default arm is
-		// indistinguishable from one nothing uses.
 		return "gap-3"
 	}
 }
@@ -99,7 +100,7 @@ func layoutGap(g domain.Gap) string {
 // stackLayout is vertical flow -- `flex flex-col gap-N`, the shape counted 61 times across the bespoke
 // screens on 2026-10-02 and the reason this primitive was built first.
 templ stackLayout(gap domain.Gap) {
-	<div class={ "flex flex-col", layoutGap(gap) }>
+	<div class={ "flex flex-col", layoutGap(ctx, gap) }>
 		{ children... }
 	</div>
 }
@@ -138,7 +139,7 @@ templ panelLayout() {
 // It takes no title parameter. `sectionHeaderRow` (appshell.templ, 9 callers) is the heading half and takes
 // a link target; a Layout that accepted one would be a Layout that knows about routes.
 templ sectionLayout(gap domain.Gap) {
-	<section class={ "flex flex-col", layoutGap(gap), radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 bg-white p-5" }>
+	<section class={ "flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 bg-white p-5" }>
 		{ children... }
 	</section>
 }
@@ -188,7 +189,7 @@ func gridColsFromBreakpoint(c domain.GridCols) string {
 // call sites already wrote. That is why this migration is byte-identical rather than merely equivalent, and
 // byte-identical is what let it be verified instead of eyeballed.
 templ gridLayout(gap domain.Gap, mobile, columns domain.GridCols) {
-	<div class={ "grid", gridColsBelowBreakpoint(mobile), layoutGap(gap), gridColsFromBreakpoint(columns) }>
+	<div class={ "grid", gridColsBelowBreakpoint(mobile), layoutGap(ctx, gap), gridColsFromBreakpoint(columns) }>
 		{ children... }
 	</div>
 }
@@ -232,7 +233,7 @@ func splitTracks(side domain.SplitSide, aside domain.AsideWidth) string {
 // it -- which is why the inconsistency was worth finding, and why a primitive that has to pick one answer is
 // how it got found.
 templ splitLayout(gap domain.Gap, side domain.SplitSide, aside domain.AsideWidth) {
-	<div class={ "grid grid-cols-1", layoutGap(gap), splitTracks(side, aside) }>
+	<div class={ "grid grid-cols-1", layoutGap(ctx, gap), splitTracks(side, aside) }>
 		{ children... }
 	</div>
 }
@@ -260,7 +261,7 @@ func columnsAlign(a domain.ColumnsAlign) string {
 // `sm:justify-between` is not a parameter because all five use it. A closed set with one member is a constant
 // wearing an enum's clothes.
 templ columnsLayout(gap domain.Gap, align domain.ColumnsAlign) {
-	<div class={ "flex flex-col", layoutGap(gap), "sm:flex-row", columnsAlign(align), "sm:justify-between" }>
+	<div class={ "flex flex-col", layoutGap(ctx, gap), "sm:flex-row", columnsAlign(align), "sm:justify-between" }>
 		{ children... }
 	</div>
 }
@@ -279,9 +280,9 @@ templ columnsLayout(gap domain.Gap, align domain.ColumnsAlign) {
 // A real `<ul>`/`<li>` rather than divs: the list and its length are then announced without an explicit
 // role, which is what the contract's accessibility clause records.
 templ collection(gap domain.Gap, items []templ.Component) {
-	<ul class={ "flex flex-col", layoutGap(gap) }>
+	<ul class={ "flex flex-col", layoutGap(ctx, gap) }>
 		for _, it := range items {
-			<li class={ "flex flex-wrap items-center", layoutGap(gap), "text-sm" }>
+			<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "text-sm" }>
 				@it
 			</li>
 		}
@@ -345,16 +346,16 @@ func rowJustify(j domain.RowJustify) string {
 // Of the 22, **five render two pixels differently**: they used a gap one and a half steps wide, which folds
 // into `GapTight`. `domain.Gap` records why that was the right call rather than declaring a half-step.
 templ rowLayout(gap domain.Gap, align domain.RowAlign, justify domain.RowJustify) {
-	<div class={ rowClasses(gap, align, justify) }>
+	<div class={ rowClasses(ctx, gap, align, justify) }>
 		{ children... }
 	</div>
 }
 
 // rowClasses is the join described above rowAlign: `flex flex-wrap`, then each axis that is not its default,
 // then the gap -- the order all 24 call sites already wrote.
-func rowClasses(gap domain.Gap, align domain.RowAlign, justify domain.RowJustify) string {
+func rowClasses(ctx context.Context, gap domain.Gap, align domain.RowAlign, justify domain.RowJustify) string {
 	parts := []string{"flex flex-wrap"}
-	for _, c := range []string{rowAlign(align), rowJustify(justify), layoutGap(gap)} {
+	for _, c := range []string{rowAlign(align), rowJustify(justify), layoutGap(ctx, gap)} {
 		if c != "" {
 			parts = append(parts, c)
 		}

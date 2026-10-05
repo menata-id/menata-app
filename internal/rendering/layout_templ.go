@@ -86,20 +86,21 @@ func textClass(ctx context.Context, role domain.TextRole) string {
 
 // layoutGap maps a declared Gap onto the spacing steps the measured corpus actually uses. An empty Gap is
 // GapDefault, resolved here rather than requiring every caller to say so.
-func layoutGap(g domain.Gap) string {
-	switch g {
-	case domain.GapTight:
+func layoutGap(ctx context.Context, g domain.Gap) string {
+	switch CurrentWorkspace(ctx).Theme.GapFor(g) {
+	case domain.GapAmountHalf:
+		return "gap-0.5"
+	case domain.GapAmountOne:
+		return "gap-1"
+	case domain.GapAmountTwo:
 		return "gap-2"
-	case domain.GapDefault:
+	case domain.GapAmountThree:
 		return "gap-3"
-	case domain.GapComfortable:
+	case domain.GapAmountFour:
 		return "gap-4"
-	case domain.GapLoose:
+	case domain.GapAmountFive:
 		return "gap-5"
 	default:
-		// An empty Gap is GapDefault. Named explicitly above rather than left to this branch, because the
-		// tightened vocabulary gate reads which kinds are *named* -- and a step hidden in a default arm is
-		// indistinguishable from one nothing uses.
 		return "gap-3"
 	}
 }
@@ -127,7 +128,7 @@ func stackLayout(gap domain.Gap) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var2 = []any{"flex flex-col", layoutGap(gap)}
+		var templ_7745c5c3_Var2 = []any{"flex flex-col", layoutGap(ctx, gap)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var2...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -264,7 +265,7 @@ func sectionLayout(gap domain.Gap) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var8 = []any{"flex flex-col", layoutGap(gap), radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 bg-white p-5"}
+		var templ_7745c5c3_Var8 = []any{"flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 bg-white p-5"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -363,7 +364,7 @@ func gridLayout(gap domain.Gap, mobile, columns domain.GridCols) templ.Component
 			templ_7745c5c3_Var10 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var11 = []any{"grid", gridColsBelowBreakpoint(mobile), layoutGap(gap), gridColsFromBreakpoint(columns)}
+		var templ_7745c5c3_Var11 = []any{"grid", gridColsBelowBreakpoint(mobile), layoutGap(ctx, gap), gridColsFromBreakpoint(columns)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var11...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -456,7 +457,7 @@ func splitLayout(gap domain.Gap, side domain.SplitSide, aside domain.AsideWidth)
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var14 = []any{"grid grid-cols-1", layoutGap(gap), splitTracks(side, aside)}
+		var templ_7745c5c3_Var14 = []any{"grid grid-cols-1", layoutGap(ctx, gap), splitTracks(side, aside)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var14...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -533,7 +534,7 @@ func columnsLayout(gap domain.Gap, align domain.ColumnsAlign) templ.Component {
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var17 = []any{"flex flex-col", layoutGap(gap), "sm:flex-row", columnsAlign(align), "sm:justify-between"}
+		var templ_7745c5c3_Var17 = []any{"flex flex-col", layoutGap(ctx, gap), "sm:flex-row", columnsAlign(align), "sm:justify-between"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -601,7 +602,7 @@ func collection(gap domain.Gap, items []templ.Component) templ.Component {
 			templ_7745c5c3_Var19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var20 = []any{"flex flex-col", layoutGap(gap)}
+		var templ_7745c5c3_Var20 = []any{"flex flex-col", layoutGap(ctx, gap)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -624,7 +625,7 @@ func collection(gap domain.Gap, items []templ.Component) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, it := range items {
-			var templ_7745c5c3_Var22 = []any{"flex flex-wrap items-center", layoutGap(gap), "text-sm"}
+			var templ_7745c5c3_Var22 = []any{"flex flex-wrap items-center", layoutGap(ctx, gap), "text-sm"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var22...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -740,7 +741,7 @@ func rowLayout(gap domain.Gap, align domain.RowAlign, justify domain.RowJustify)
 			templ_7745c5c3_Var24 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var25 = []any{rowClasses(gap, align, justify)}
+		var templ_7745c5c3_Var25 = []any{rowClasses(ctx, gap, align, justify)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var25...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -776,9 +777,9 @@ func rowLayout(gap domain.Gap, align domain.RowAlign, justify domain.RowJustify)
 
 // rowClasses is the join described above rowAlign: `flex flex-wrap`, then each axis that is not its default,
 // then the gap -- the order all 24 call sites already wrote.
-func rowClasses(gap domain.Gap, align domain.RowAlign, justify domain.RowJustify) string {
+func rowClasses(ctx context.Context, gap domain.Gap, align domain.RowAlign, justify domain.RowJustify) string {
 	parts := []string{"flex flex-wrap"}
-	for _, c := range []string{rowAlign(align), rowJustify(justify), layoutGap(gap)} {
+	for _, c := range []string{rowAlign(align), rowJustify(justify), layoutGap(ctx, gap)} {
 		if c != "" {
 			parts = append(parts, c)
 		}
@@ -820,7 +821,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 372, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 373, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -838,7 +839,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 374, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 375, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -856,7 +857,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 376, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 377, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -915,7 +916,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var32 templ.SafeURL
 		templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 397, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 398, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 		if templ_7745c5c3_Err != nil {
@@ -928,7 +929,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var33 string
 		templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 397, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 398, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 		if templ_7745c5c3_Err != nil {

@@ -51,6 +51,7 @@ type themeDoc struct {
 	Radius map[string]string `yaml:"radius"`
 	Weight map[string]string `yaml:"weight"`
 	Text   map[string]string `yaml:"text"`
+	Gap    map[string]string `yaml:"gap"`
 }
 
 // resolveTheme turns the declared block into domain.Theme, reporting every unknown role or step rather than
@@ -105,6 +106,21 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				continue
 			}
 			t.Text[r] = x
+		}
+	}
+	if len(doc.Gap) > 0 {
+		t.Gap = map[domain.Gap]domain.GapAmount{}
+		for step, amount := range doc.Gap {
+			g, a := domain.Gap(step), domain.GapAmount(amount)
+			if !domain.KnownGaps[g] {
+				issues = append(issues, fmt.Sprintf("theme.gap: %q is not a spacing step this runtime realizes", step))
+				continue
+			}
+			if !domain.KnownGapAmounts[a] {
+				issues = append(issues, fmt.Sprintf("theme.gap.%s: %q is not a spacing amount this runtime realizes", step, amount))
+				continue
+			}
+			t.Gap[g] = a
 		}
 	}
 	return t, issues

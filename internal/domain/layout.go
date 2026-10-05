@@ -287,6 +287,39 @@ const (
 	GapLoose       Gap = "loose"
 )
 
+// GapAmount is how much space a Gap step actually renders — the fourth Theme category, and **the one with a
+// different shape from the other three.**
+//
+// Radius, weight and text all needed a *role* vocabulary invented for them, because their call sites carried a
+// raw class. `Gap` is already the role: a caller says `GapTight`, never `gap-2`. So its Theme entry maps the
+// existing step straight to an amount, and no second vocabulary is needed. Worth stating because the first
+// three slices established a pattern this one correctly breaks.
+//
+// Six amounts, all already in the shipped CSS bundle from hand-written use, so remapping emits nothing new.
+//
+// **What this slice deliberately does not do**: add the two steps the token inventory found missing. `gap-1`
+// (49 uses) and `gap-0.5` (24) sit below `GapTight`, but both live in hand-written markup rather than in a
+// primitive call — and `conformance.TestLayoutVocabularyIsRenderedAndUsed` requires every declared step to
+// have a caller. Declaring them now would be a vocabulary with nothing behind it, which that gate exists to
+// refuse. They arrive when a layout migration needs them, and a Workspace can already reach those amounts by
+// remapping an existing step.
+type GapAmount string
+
+const (
+	GapAmountHalf  GapAmount = "half"
+	GapAmountOne   GapAmount = "one"
+	GapAmountTwo   GapAmount = "two"
+	GapAmountThree GapAmount = "three"
+	GapAmountFour  GapAmount = "four"
+	GapAmountFive  GapAmount = "five"
+)
+
+// KnownGapAmounts is the closed set.
+var KnownGapAmounts = map[GapAmount]bool{
+	GapAmountHalf: true, GapAmountOne: true, GapAmountTwo: true,
+	GapAmountThree: true, GapAmountFour: true, GapAmountFive: true,
+}
+
 // KnownGaps is the closed set. An empty Gap means GapDefault, resolved where the layout is rendered.
 var KnownGaps = map[Gap]bool{
 	GapTight:       true,

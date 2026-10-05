@@ -128,7 +128,7 @@ var KnownTextScales = map[TextScale]bool{
 // **It holds no CSS and no business data.** 006's own warning is that a Theme "must not become a hidden
 // business or data dependency", so this is a mapping between two closed vocabularies and nothing else.
 //
-// **Radius, weight and text size only, and that is a measured boundary rather than a staged rollout.** The full token surface is
+// **Radius, weight, text size and gap only, and that is a measured boundary rather than a staged rollout.** The full token surface is
 // 2,507 usages over 104 values in nine categories (`menata-app-document`'s
 // `audits/2026-10-04-inventaris-token-design-system.md`). Radius is first because its ladder is the cleanest
 // — three values carry 95% of its uses — so this slice proves the whole mechanism, declaration included,
@@ -147,6 +147,9 @@ type Theme struct {
 	Weight map[WeightRole]WeightStep
 	// Text maps every text role to its step, on the same terms as the two above.
 	Text map[TextRole]TextScale
+	// Gap maps each spacing step to the amount it renders. Unlike the three above this needs no role
+	// vocabulary -- Gap already is the role. See domain.GapAmount.
+	Gap map[Gap]GapAmount
 }
 
 // DefaultTheme is what the corpus renders today, so adopting Theme changes nothing until a Workspace declares
@@ -170,7 +173,21 @@ func DefaultTheme() Theme {
 			RoleLabel:   TextTiny,   // was text-2xs
 			RoleEyebrow: TextMicro,  // was text-3xs
 		},
+		Gap: map[Gap]GapAmount{
+			GapTight:       GapAmountTwo,   // was gap-2
+			GapDefault:     GapAmountThree, // was gap-3
+			GapComfortable: GapAmountFour,  // was gap-4
+			GapLoose:       GapAmountFive,  // was gap-5
+		},
 	}
+}
+
+// GapFor resolves a spacing step, falling back to the default for the same reason RadiusFor does.
+func (t Theme) GapFor(g Gap) GapAmount {
+	if a, ok := t.Gap[g]; ok && KnownGapAmounts[a] {
+		return a
+	}
+	return DefaultTheme().Gap[g]
 }
 
 // TextFor resolves a text role, falling back to the default for the same reason RadiusFor does.
