@@ -76,3 +76,21 @@ datasets:
     sort:
       - { field: created_at, direction: desc }
     limit: 50
+
+  # One record's own history, for the "Comments and activity" block of a record's detail page (Case 19 PM02).
+  # It is the first Dataset to read `$parameters.*`: the two names are the Machine and the record the page
+  # is about, supplied by the route, and the filter is a conjunction because an activity row names its
+  # subject as a Machine id *and* a record id (fld_record_id alone could match a different Machine's
+  # record that happens to share an id).
+  #
+  # `limit: 50` matches ds_activity_feed. A card with more history than that shows its newest fifty and
+  # the screen says so, rather than reading as the whole story.
+  - id: ds_record_activity
+    select: records
+    where:
+      all:
+        - { field: fld_machine_id, op: equals, value: $parameters.machine }
+        - { field: fld_record_id, op: equals, value: $parameters.record }
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 50

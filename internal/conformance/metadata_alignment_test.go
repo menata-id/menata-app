@@ -564,7 +564,7 @@ var composedScreenDatasets = map[string]map[string][]string{
 	// written for. They were added to metadata and read by internal/composition without being listed
 	// here, so for three commits renaming ds_recent_activity in YAML would have compiled, passed every
 	// test, and 500'd /dashboard the next time someone opened it.
-	"activity.yaml": {"ds_recent_activity": {}, "ds_activity_feed": {}},
+	"activity.yaml": {"ds_recent_activity": {}, "ds_activity_feed": {}, "ds_record_activity": {}},
 }
 
 func TestComposedScreenDatasetsAreDeclared(t *testing.T) {

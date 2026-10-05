@@ -110,12 +110,17 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				return
 			}
 			sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
+			extras, err := ld.RecordExtras(req.Context(), machine, record)
+			if err != nil {
+				serverError(w, err)
+				return
+			}
 			workspaceName, viewer, switchHref, err := pageChrome(req.Context(), req, store, cfg)
 			if err != nil {
 				serverError(w, err)
 				return
 			}
-			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, groups, children, actor, sigPlacement, workspaceName, viewer, switchHref, time.Now()))
+			render(req.Context(), w, rendering.RecordDetailPage(machine, record, relations, groups, children, actor, sigPlacement, workspaceName, viewer, switchHref, extras, time.Now()))
 			return
 		}
 		if isDetailContext(req) {
@@ -125,7 +130,12 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				return
 			}
 			sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
-			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement, time.Now()))
+			extras, err := ld.RecordExtras(req.Context(), machine, record)
+			if err != nil {
+				serverError(w, err)
+				return
+			}
+			render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement, extras, time.Now()))
 			return
 		}
 		render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor, time.Now()))
@@ -477,7 +487,12 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 			return
 		}
 		sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
-		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement, time.Now()))
+		extras, err := ld.RecordExtras(req.Context(), machine, record)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		render(req.Context(), w, rendering.RecordDetailView(machine, record, relations, groups, children, actor, sigPlacement, extras, time.Now()))
 		return
 	}
 	render(req.Context(), w, rendering.RecordRow(machine, record, relations, groups, actor, time.Now()))

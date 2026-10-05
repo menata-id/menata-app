@@ -144,6 +144,7 @@ func TestEveryCastRoleProvidesItsEngineDatasets(t *testing.T) {
 var goNamedDatasetsWithNoEngineRequirement = map[string]string{
 	"ds_recent_activity": "on mch_activity, a shared runtime reference -- every Workspace gets the same copy, so it cannot diverge",
 	"ds_activity_feed":   "on mch_activity, same shared copy",
+	"ds_record_activity": "on mch_activity, same shared copy; and the detail page treats an absent Dataset as no section, not an error",
 	"ds_my_tasks":        "on mch_task (Task Tracker); reachable only from routes that Workspace's Applications declare",
 	"ds_task_workload":   "on mch_task; same",
 	"ds_all_tasks":       "on mch_task; same",

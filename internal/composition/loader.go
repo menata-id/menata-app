@@ -524,6 +524,11 @@ func (l *Loader) GroupOptions(ctx context.Context, m *domain.Machine) (rendering
 func (l *Loader) ChildSections(ctx context.Context, m *domain.Machine, recordID string) ([]rendering.ChildSection, error) {
 	var sections []rendering.ChildSection
 	for _, cc := range domain.FindChildCollections(l.machineSlice(), m.ID) {
+		// A Machine's declared tags are drawn as chips by RecordExtras; the join rows themselves are not a
+		// section a reader wants (a Task's "Card Label" table of two opaque ids).
+		if m.CardTags != nil && cc.Machine.ID == m.CardTags.Machine {
+			continue
+		}
 		records, err := l.ListRecordsBy(ctx, cc.Machine.ID, cc.Field.ID, recordID)
 		if err != nil {
 			return nil, err

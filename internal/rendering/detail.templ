@@ -20,6 +20,17 @@ type ChildSection struct {
 	Relations RelationOptions
 }
 
+// RecordExtras is what a record's detail page draws beside its own Fields, resolved by Composition
+// (Case 19 PM02): the tags its Machine declares and the record's own history. ShowActivity is separate
+// from len(Activity) because "this Workspace keeps no activity log" and "this record has no history yet"
+// are different answers, and only the second draws a section.
+type RecordExtras struct {
+	Tags               []CardTag
+	ShowActivity       bool
+	Activity           []ActivityEntry
+	ActivityTruncation Truncation
+}
+
 // DocumentSignaturePlacement is the composed placement view the Document's own detail page embeds
 // -- nil for every Machine other than mch_document.
 //
@@ -37,11 +48,11 @@ type DocumentSignaturePlacement struct {
 // actor is the viewing identity, needed only so an Action the viewer is not permitted to
 // perform isn't offered in the first place (development-history.md Phase 16) -- the server enforces the same
 // rule regardless, this only keeps the UI honest about it.
-templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, workspaceName string, viewer Viewer, switchWorkspaceHref string, now time.Time) {
+templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, workspaceName string, viewer Viewer, switchWorkspaceHref string, extras RecordExtras, now time.Time) {
 	@appShell(m.Name, workspaceName, viewer, switchWorkspaceHref) {
 		@detailBackLink(m)
 		<div id="record-detail" class="flex flex-col gap-4">
-			@RecordDetailView(m, r, relations, groups, children, actor, sigPlacement, now)
+			@RecordDetailView(m, r, relations, groups, children, actor, sigPlacement, extras, now)
 		</div>
 	}
 }
@@ -74,7 +85,7 @@ templ detailBackLink(m *domain.Machine) {
 // RecordDetailView is one Record's read-only detail: every Field as a label/value pair, plus one
 // section per child collection -- every record of another Machine that references this one
 // (development-history.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
-templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, now time.Time) {
+templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, extras RecordExtras, now time.Time) {
 	<div id="record-detail" class="flex flex-col gap-4">
 		<div class="flex flex-col gap-1">
 			<h1 class="m-0 text-xl font-medium">{ recordTitle(m, r) }</h1>
@@ -84,6 +95,13 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 				<code class="font-mono text-2xs text-slate-400">{ r.ID }</code>
 			}
 		</div>
+		if len(extras.Tags) > 0 {
+			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
+				for _, t := range extras.Tags {
+					@tagChip(t)
+				}
+			}
+		}
 		<dl class="m-0 grid grid-cols-1 gap-x-4 gap-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm sm:grid-cols-[10rem_1fr]">
 			for _, f := range m.Fields {
 				if !hiddenDetailField(m, f) {
@@ -182,7 +200,25 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			@sectionHeaderRow("Signature Positions", "", "")
 			@signaturePlacementBlock(sigPlacement.View)
 		}
+		if extras.ShowActivity {
+			@recordActivity(extras)
+		}
 	</div>
+}
+
+// recordActivity is the record's own history, newest first -- what happened to this record, in the
+// words each event was logged with. It is read-only: an activity row is append-only, and what is *not*
+// here (a comment box) needs a writable Machine that no Workspace declares yet (Case 19 PM02).
+templ recordActivity(extras RecordExtras) {
+	@sectionLayout(domain.GapDefault) {
+		<h2 class="m-0 text-base font-medium">History</h2>
+		@truncationNotice(extras.ActivityTruncation)
+		if len(extras.Activity) == 0 {
+			<p class="m-0 text-sm text-slate-500">Nothing has happened to this record yet.</p>
+		} else {
+			@activityFeedListRow(extras.Activity)
+		}
+	}
 }
 
 // pdfThumbnail is a small preview of a Document's own PDF (Step 3's internal/pdf, ROADMAP.md's UI

@@ -1146,7 +1146,7 @@ no View at all, so putting them on one arrangement would have forced an arbitrar
 | Key | Value | Notes |
 |---|---|---|
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
-| `card_tags` | `{machine, via, tag}` | `machine` an installed join Machine; `via` a reference on it pointing back at this Machine; `tag` a reference on it naming the tag. The tag Machine needs `card_fields` with `title` and (for colour) `color` roles. Read by a board card's chips |
+| `card_tags` | `{machine, via, tag}` | `machine` an installed join Machine; `via` a reference on it pointing back at this Machine; `tag` a reference on it naming the tag. The tag Machine needs `card_fields` with `title` and (for colour) `color` roles. Read by a board card's chips | Also drawn as chips under a record's own heading on its detail page. A Workspace that carries `mch_activity` and its `ds_record_activity` Dataset also gets a **History** section there (events naming this Machine and record, newest first, at most 50) — nothing to declare per Machine
 | `completion` | `{field: fld_*, done: <option>}` | `field` must be a `status` field and `done` one of its options. Read by a board card's date pill (`composition.IsComplete`) |
 | `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week, the Sprint dashboard's Attention list and the Dashboard's Project/pending-Document rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
 
