@@ -449,9 +449,18 @@ func newRouterTestSetup(t *testing.T, name string) (http.Handler, string) {
 // same two-lists-that-drift failure this package already gates elsewhere.
 func routerSetupParts(t *testing.T, name string) (http.Handler, string, context.Context, *data.Store, *storage.Store, domain.Workspace, string) {
 	t.Helper()
+	return routerSetupFor(t, name, "default")
+}
+
+// routerSetupFor is the fixture over one named manifest under metadata/workspaces/. Deps.Workspaces
+// holds **every** installed manifest, the way production does, with the one under test also keyed by
+// the throwaway Workspace's slug -- so a middleware that reasons across Workspaces (the owned-route
+// set) sees what it sees in production, not a map of one.
+func routerSetupFor(t *testing.T, name, manifest string) (http.Handler, string, context.Context, *data.Store, *storage.Store, domain.Workspace, string) {
+	t.Helper()
 	pool := tracedTestPool(t)
 	store := data.NewStore(pool)
-	cfg := config.Config{SessionSecret: name + "-secret", SecureCookies: false}
+	cfg := config.Config{SessionSecret: name + "-secret", SecureCookies: false, TemplatePath: realLibrary(t)}
 	ctx := context.Background()
 	email := name + "@example.com"
 
@@ -475,8 +484,10 @@ func routerSetupParts(t *testing.T, name string) (http.Handler, string, context.
 	// navigation. A Workspace with no Applications would make several screens panic in
 	// labelByID (they render a declared nav label) and would let requireApplicationAccess pass
 	// trivially -- measuring a shape production never serves.
-	machines, installed := loadRealMachines(t)
+	machines, installed := loadRealMachinesFrom(t, manifest)
 	installed.Slug = ws.Slug
+	all := allInstalledWorkspaces(t)
+	all[ws.Slug] = installed
 
 	// A real role in each Application that declares a vocabulary, rather than pointing
 	// cfg.AdminUserID at this member: the admin bypass would skip a branch every real request
@@ -500,7 +511,7 @@ func routerSetupParts(t *testing.T, name string) (http.Handler, string, context.
 		Store:              store,
 		Files:              files,
 		Cfg:                cfg,
-		Workspaces:         map[string]domain.Workspace{ws.Slug: installed},
+		Workspaces:         all,
 		DefaultWorkspaceID: ws.ID,
 	})
 	return h, sessionCookieValueForTest(t, cfg, actor.ID, 0), wsCtx, store, files, installed, actor.ID

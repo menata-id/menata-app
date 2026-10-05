@@ -806,6 +806,16 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   spot found by hand the day it was written (002 linked `architecture-benchmark.md` as if it were local).
   **Neither gate can check whether a status is true** — PROVEN versus PARTIAL is a judgement; a green run
   means the citations resolve.
+- `TestNoRouteBreaksInAWorkspaceThatDidNotInstallItsApplication` / `TestApplicationOwnedRoutesComeFromNavigation` /
+  `TestRequireInstalledApplication` -- the multi-Workspace half of the route sweeps (2026-10-05). Every other
+  sweep builds one Workspace (`default`, which installs everything), so a route that breaks only where an
+  Application is *absent* was outside their population: eight routes in each of four Workspaces panicked in
+  `routeByID` or answered 500, found by a throwaway probe. `requireInstalledApplication` answers 404 for a
+  route an Application owns in a Workspace that did not install it; the owned set is **derived** from
+  `navigation:` (installed Applications plus the template library), never listed. `routeByID` stays
+  fail-loud on purpose. `installedRoutesRatchet` starts **empty** -- read it out of the map. A fixture
+  detail worth knowing: `Config.TemplatePath` must be set or `/install-application` 500s for a reason that
+  is the fixture's, not the route's.
 - `TestInstalledNavigationExplainsItsHeadings` / `TestRuntimeScreensResolveTheirHeadings` /
   `TestRendererDoesNotResolveNavigationHeadings` — the navigation half of 001 #6's second clause, and the
   family that exists because **mutation showed the first fix was only half a fix**. A navigation item's

@@ -1,12 +1,14 @@
 package web
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/installer"
 	"menata.app/internal/rendering"
 )
 
@@ -158,6 +160,81 @@ func requireApplicationAccess(store *data.Store, cfg config.Config) func(http.Ha
 			}
 			if len(actor.Roles[app.ID]) == 0 {
 				http.Error(w, noRoleMessage(app, actor), http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, req)
+		})
+	}
+}
+
+// applicationOwnedRoutes is the set of paths that exist only because some Application declares them
+// in its `navigation:` -- the union over every installed Application in every Workspace, plus the
+// template library's, with the query string dropped (`/approval-inbox?tab=mine` is one path).
+//
+// Derived, never listed (001 #3): a hand-written list of "Task Tracker's routes" would be the second
+// copy of what `navigation:` already says. The library is part of the union so an Application no
+// Workspace happens to have installed still has its routes recognised as owned.
+//
+// A runtime screen is excluded even if some manifest were to declare its route, so this set can never
+// take a Workspace-level destination away.
+func applicationOwnedRoutes(workspaces map[string]domain.Workspace, library []domain.Application) map[string]bool {
+	owned := map[string]bool{}
+	add := func(apps []domain.Application) {
+		for _, app := range apps {
+			for _, item := range app.AllNavigation {
+				path, _, _ := strings.Cut(item.Route, "?")
+				if path != "" {
+					owned[path] = true
+				}
+			}
+		}
+	}
+	for _, ws := range workspaces {
+		add(ws.Applications)
+	}
+	add(library)
+	for _, s := range domain.RuntimeScreens {
+		delete(owned, s.Route)
+	}
+	return owned
+}
+
+// ownedApplicationRoutes reads the template library for applicationOwnedRoutes. A library that cannot
+// be read is logged and left out rather than failing the route table: the installed Applications are
+// still a correct (if smaller) union, and `/install-application` reports the same library error loudly
+// to whoever opens it.
+func ownedApplicationRoutes(d Deps) map[string]bool {
+	var library []domain.Application
+	templates, err := installer.Templates(d.Cfg.TemplatePath)
+	if err != nil {
+		log.Printf("owned routes: template library not read, using installed Applications only: %v", err)
+	}
+	for _, t := range templates {
+		library = append(library, *t.Application)
+	}
+	return applicationOwnedRoutes(d.Workspaces, library)
+}
+
+// requireInstalledApplication answers 404 for a route some Application owns when the request's
+// Workspace has not installed that Application.
+//
+// **It exists because those routes are registered globally and nothing else stopped them.**
+// `requireApplicationAccess` lets a request in no Application pass untouched (correctly: Workspace
+// Home has none), and so a request for `/calendar` in a Workspace that never installed Task Tracker
+// reached `showCalendar`, which asks `routeByID` for an id this Workspace does not have and panics --
+// or, for `/dashboard`, `/my-tasks`, `/sprint` and `/team-capacity`, answered 500. Measured
+// 2026-10-05: eight routes in each of four Workspaces. The shape is `ds_documents_with_steps` again,
+// a requirement that lived only in Go and was reachable only through the failure it caused.
+//
+// Placed after currentApplication, which already did the work: a route that resolved to an Application
+// is by construction installed here (it was found in this Workspace's own navigation), so this only
+// has to ask about the *unresolved* ones. `routeByID` stays fail-loud -- an absent id inside an
+// installed Application is a programmer error, and softening it would hide the next one.
+func requireInstalledApplication(owned map[string]bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if _, in := rendering.CurrentApplication(req.Context()); !in && owned[req.URL.Path] {
+				http.NotFound(w, req)
 				return
 			}
 			next.ServeHTTP(w, req)

@@ -175,7 +175,13 @@ func TestHandleFileUploads_allowsRealPDF(t *testing.T) {
 // per-request value needs neither.
 func loadRealMachines(t *testing.T) (map[string]*domain.Machine, domain.Workspace) {
 	t.Helper()
-	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "workspaces", "default.yaml"))
+	return loadRealMachinesFrom(t, "default")
+}
+
+// loadRealMachinesFrom loads one installed Workspace's manifest by file stem.
+func loadRealMachinesFrom(t *testing.T, manifest string) (map[string]*domain.Machine, domain.Workspace) {
+	t.Helper()
+	app, err := metadata.LoadApplication(filepath.Join("..", "..", "metadata", "workspaces", manifest+".yaml"))
 	if err != nil {
 		t.Fatalf("LoadApplication: %v", err)
 	}
