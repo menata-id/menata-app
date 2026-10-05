@@ -25,6 +25,14 @@ fields:
   - id: fld_actor
     name: Actor
     type: person
+  # Which Application the event happened in -- the Application that claims the Machine named by
+  # fld_machine_id, stamped by whoever writes the event (internal/web.logActivity, the log_activity
+  # service). Not required: an event about a Machine no Application claims (mch_user) belongs to none,
+  # and a row written before this Field existed has no value. Both are absent from every feed below,
+  # which is the point -- a feed shows *its Application's* history, not the Workspace's.
+  - id: fld_application_id
+    name: Application
+    type: text
 
 # append_only: a record of this Machine is never changed or removed once written -- by anyone,
 # including a Workspace admin (domain.Machine.AppendOnly).
@@ -45,9 +53,12 @@ append_only: true
 # The Dashboard's activity feed, declared rather than computed (007 §7.7-§7.9, ROADMAP.md's "(c)"
 # Slice A, 2026-09-29).
 #
-# **This Dataset declares no filter, and that is why it was the first one built.** It proves the
-# retrieval-bounding half -- `sort:` and `limit:` reaching the database -- with no expression context
-# and no conjunction involved, so a mistake in the shape could only be a mistake in that half.
+# **These two Datasets declared no filter when they were first built, which is why they were first**: they
+# proved the retrieval-bounding half -- `sort:` and `limit:` reaching the database -- with no expression
+# context involved. They filter by Application now (`$parameters.application`, the Application the request
+# is in), so the Project Management feed shows Project Management's events and Document Approval's stay
+# in Document Approval. Before that, `nav_activity` was declared by one Application and listed every
+# Application's events in the Workspace.
 #
 # Before this, composition.recentEvents read every mch_activity row, sorted them in Go and sliced the
 # first ten, with the ten itself living in internal/web as `dashboardActivityLimit`. Both the ordering
@@ -67,12 +78,14 @@ append_only: true
 datasets:
   - id: ds_recent_activity
     select: records
+    where: { field: fld_application_id, op: equals, value: $parameters.application }
     sort:
       - { field: created_at, direction: desc }
     limit: 10
 
   - id: ds_activity_feed
     select: records
+    where: { field: fld_application_id, op: equals, value: $parameters.application }
     sort:
       - { field: created_at, direction: desc }
     limit: 50

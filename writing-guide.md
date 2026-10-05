@@ -699,6 +699,12 @@ if your wording needs more than "a default, and one exception," that's not expre
 There is no way to declare a new Service purely in YAML, the same limit §8 already describes for
 Action.
 
+An event is stamped with the Application that claims its Machine (`fld_application_id` on
+`mch_activity`), so a feed such as `ds_activity_feed` can declare
+`where: { field: fld_application_id, op: equals, value: $parameters.application }` and show only the
+Application the request is in. A Machine no Application claims logs without one, and such an event
+appears in no feed.
+
 **A second, mutually exclusive Event shape fires on record creation instead of a field change** —
 `on_create: true` in place of `on:`/`when_equals:`. Real shipped example, `metadata/task.yaml`:
 

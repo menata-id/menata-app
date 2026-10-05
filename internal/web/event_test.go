@@ -121,6 +121,43 @@ func TestUpdateRecordForm_taskStatusChangeLogsActivity(t *testing.T) {
 	}
 }
 
+// An event carries the Application that claims its Machine, so each Application's feed can show only its
+// own history. Both writers are checked: the declared log_activity Event (internal/execution), through the
+// real PUT, and internal/web's own logActivity, called from a request with no current Application -- the
+// shape of a Workspace-level route, where stamping from the request instead of the Machine would write "".
+func TestActivityRowsCarryTheApplicationThatClaimsTheirMachine(t *testing.T) {
+	s := newEventTestSetup(t, "event_activity_application")
+	want := s.machines["mch_task"].ApplicationID
+	if want == "" {
+		t.Fatal("fixture: the real mch_task has no ApplicationID, so this test could not tell a stamp from an absence")
+	}
+
+	if rec := putTaskStatus(t, s, "in_progress"); rec.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	logActivity(rendering.WithCurrentWorkspace(s.ctx, testWorkspaceFor(s.machines), "Test Workspace", false),
+		s.store, "mch_task", s.taskID, s.actor, "written by internal/web")
+	logActivity(rendering.WithCurrentWorkspace(s.ctx, testWorkspaceFor(s.machines), "Test Workspace", false),
+		s.store, "mch_nobody_claims_this", "rec_x", s.actor, "an unclaimed Machine")
+
+	rows, err := s.store.ListRecordsBy(s.ctx, "mch_activity", "fld_record_id", s.taskID)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("ListRecordsBy = %d rows, err %v; want the Event's row and the handler's", len(rows), err)
+	}
+	for _, r := range rows {
+		if got := toDisplayString(r.Values["fld_application_id"]); got != want {
+			t.Errorf("event %q carries Application %q, want %q", toDisplayString(r.Values["fld_summary"]), got, want)
+		}
+	}
+	unclaimed, err := s.store.ListRecordsBy(s.ctx, "mch_activity", "fld_record_id", "rec_x")
+	if err != nil || len(unclaimed) != 1 {
+		t.Fatalf("unclaimed rows = %d, err %v", len(unclaimed), err)
+	}
+	if _, has := unclaimed[0].Values["fld_application_id"]; has {
+		t.Error("an event about a Machine no Application claims was stamped with one")
+	}
+}
+
 // TestUpdateRecordForm_taskStatusChangeToDoneUsesOverride covers Service.SummaryOverride: moving
 // to "done" reads "completed", not "moved from X to done" -- the one wording exception the old
 // hardcoded logTaskStatusMove had, reproduced here via then.summary_override_when/summary_override.

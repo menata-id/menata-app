@@ -819,8 +819,10 @@ func RecentActivity(ctx context.Context, l *Loader) ([]rendering.ActivityEntry, 
 // bounds, and the Loader memoises the *selection* under its Dataset id rather than the Machine's, so
 // a whole-Machine read on the same request still sees every row in the Machine's own order.
 func activityRows(ctx context.Context, l *Loader, datasetID string) ([]*data.Record, map[string]string, error) {
-	// No context needed: neither activity Dataset declares a filter.
-	events, err := l.SelectDataset(ctx, datasetID, expression.Context{})
+	// Both feeds filter on the Application the request is in. Outside any Application there is nothing to
+	// show, and an empty `application` parameter makes the selection refuse rather than list everyone's.
+	app, _ := rendering.CurrentApplication(ctx)
+	events, err := l.SelectDataset(ctx, datasetID, expression.Context{Parameters: map[string]string{"application": app.ID}})
 	if err != nil {
 		return nil, nil, err
 	}

@@ -97,6 +97,12 @@ func logActivity(ctx context.Context, store *data.Store, machineID, recordID, ac
 	if actorID != "" {
 		values["fld_actor"] = actorID
 	}
+	// The Application is the one that claims this Machine, never the one the request happens to be in: a
+	// Workspace-level route (POST /documents) has no current Application, and the event belongs to the
+	// Machine's regardless. A Machine no Application claims leaves the Field out.
+	if m := machinesFor(ctx)[machineID]; m != nil && m.ApplicationID != "" {
+		values["fld_application_id"] = m.ApplicationID
+	}
 	if _, err := store.CreateRecord(ctx, "mch_activity", values); err != nil {
 		log.Printf("failed to log activity (%s %s): %v", machineID, recordID, err)
 	}

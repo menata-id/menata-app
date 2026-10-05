@@ -40,7 +40,7 @@ func displayString(v any) string {
 // saved as a draft, a step being decided), while this one exists purely to be RunEvents/
 // RunCreateEvents/RunScheduledEvents' own ServiceLogActivity arm. Best-effort: a logging failure
 // must not fail the real operation it's describing, only get logged itself.
-func logActivity(ctx context.Context, store *data.Store, machineID, recordID, actorID, summary string) {
+func logActivity(ctx context.Context, store *data.Store, machineID, applicationID, recordID, actorID, summary string) {
 	values := map[string]any{
 		"fld_machine_id": machineID,
 		"fld_record_id":  recordID,
@@ -48,6 +48,9 @@ func logActivity(ctx context.Context, store *data.Store, machineID, recordID, ac
 	}
 	if actorID != "" {
 		values["fld_actor"] = actorID
+	}
+	if applicationID != "" {
+		values["fld_application_id"] = applicationID
 	}
 	if _, err := store.CreateRecord(ctx, "mch_activity", values); err != nil {
 		log.Printf("failed to log activity (%s %s): %v", machineID, recordID, err)
@@ -184,7 +187,7 @@ var serviceExecutors map[string]func(ctx context.Context, in serviceInput)
 func init() {
 	serviceExecutors = map[string]func(ctx context.Context, in serviceInput){
 		domain.ServiceLogActivity: func(ctx context.Context, in serviceInput) {
-			logActivity(ctx, in.svc.Store, in.machine.ID, in.record.ID, in.actorID, in.activitySummary)
+			logActivity(ctx, in.svc.Store, in.machine.ID, in.machine.ApplicationID, in.record.ID, in.actorID, in.activitySummary)
 		},
 		domain.ServiceSendNotification: func(ctx context.Context, in serviceInput) {
 			sendNotification(ctx, in.svc.Store, in.svc.Mailer, in.machine, in.record, *in.event.Then.Notify, in.summary)
