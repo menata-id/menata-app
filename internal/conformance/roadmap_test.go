@@ -61,7 +61,7 @@ var roadmapDiaryVocabulary = regexp.MustCompile(`\b[0-9a-f]{7,40}\b|\b[Mm]easure
 // Read the numbers out of this map, not out of any prose describing it.
 var roadmapDiaryLines = map[string]int{
 	"Shipped":     0,
-	"In progress": 14,
+	"In progress": 6,
 	"Planned":     2,
 }
 
@@ -78,14 +78,16 @@ var roadmapDiaryLines = map[string]int{
 // on 2026-09-30 over a ceiling with slack. When it feels obstructive, the answer is to move a paragraph
 // to the repo it belongs in -- which is the gate working, not the gate misfiring.
 //
-// `In progress` at 1,056 is the remaining debt and is expected to fall: it holds the 27 entries the
-// migration left because splitting them is a per-paragraph judgement (status belongs here, rationale
-// does not) rather than the two mechanical cases the migration covered -- a shipped feature still filed
-// under `In progress`/`Planned`, and an entry restating an audit that already exists in `audits/`.
+// `In progress` fell 1,056 -> 404 and `Planned` 150 -> 68 on 2026-10-05, when the per-paragraph split the
+// first migration left undone was done: shipped narratives and audit restatements moved to
+// `development-history.md` ("2026-10-05 -- Narrative moved out of ROADMAP.md"), leaving a feature-level
+// line and a pointer. What remains in `In progress` is the Case 03 port with its deferral table, which
+// code comments cite by row name and which is still the working backlog. `Shipped` **rose** 130 -> 138
+// on purpose: four bullets for features that had been shipped but only narrated under `In progress`.
 var roadmapSectionLines = map[string]int{
-	"Shipped":     130,
-	"In progress": 1056,
-	"Planned":     150,
+	"Shipped":     138,
+	"In progress": 404,
+	"Planned":     68,
 }
 
 func TestRoadmapStaysAReleasePlan(t *testing.T) {
