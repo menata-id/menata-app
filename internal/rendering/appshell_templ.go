@@ -604,7 +604,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 		}
 		tabs, overflow := splitAppMenu(menu)
 		for _, item := range tabs {
-			var templ_7745c5c3_Var17 = []any{"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !item.Active)}
+			var templ_7745c5c3_Var17 = []any{"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-500 hover:bg-slate-50 hover:text-slate-900", !item.Active)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -778,7 +778,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			}
 		}
 		if hub, ok := settingsHubItem(app); ok {
-			var templ_7745c5c3_Var28 = []any{"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900", templ.KV("ml-auto", len(overflow) == 0)}
+			var templ_7745c5c3_Var28 = []any{"flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900", templ.KV("ml-auto", len(overflow) == 0)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var28...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

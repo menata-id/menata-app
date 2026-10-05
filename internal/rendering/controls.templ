@@ -139,10 +139,10 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 			if key := toString(current); key != "" {
 				<div class="flex flex-col gap-1">
 					<a href={ templ.URL("/uploads/" + key) } target="_blank" class="truncate text-xs text-blue-600 hover:text-blue-700">{ storage.DisplayName(key) }</a>
-					<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-600"/>
+					<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-500"/>
 				</div>
 			} else {
-				<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-600"/>
+				<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-500"/>
 			}
 		default:
 			<input type="text" name={ f.ID } value={ toString(current) } class={ controlField + " w-full" }/>

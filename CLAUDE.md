@@ -770,7 +770,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `pending` variant, which needs an outstanding invitation the dev database does not have. Three of its four
   sites *were* reachable, which is the useful shape: diff what you can, pin what you cannot, and say which is
   which.
-- **Theme (006) is declarable for six token categories, and the bookkeeping rule its first one broke is worth more
+- **Theme (006) is declarable for seven token categories, and the bookkeeping rule its first one broke is worth more
   than the feature.** `domain.Theme` maps `RadiusRole` to `RadiusStep`; a `theme:` block in a Workspace
   manifest is validated by `metadata.resolveTheme` and read by `rendering.radiusClass`. **Verified live, not
   asserted**: a declared `surface: full` changed `sectionLayout`'s radius with no recompile, which is the only
@@ -783,7 +783,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   and it is the easiest to forget because no gate reads it.
   Also: the `theme:` key broke `installer.WorkspaceManifestCheckDoc` within minutes — the **third** instance,
   and the first its own plan had predicted by name. Check that mirror before the gate does.
-  **Six of nine are declarable** (radius, weight, text size, gap, border colour, semantic tone); **three remain** (text colour, background colour, padding -- shadow is deliberately not one), and the order they arrive in is measured, not chosen:
+  **Seven of nine are declarable** (radius, weight, text size, gap, border colour, semantic tone, text colour -- the last took four roles, not the decided three, because reading all 80 `slate-600`/`slate-700` sites showed `700` has its own job); **two remain** (background colour, padding -- shadow is deliberately not one), and the order they arrive in is measured, not chosen:
   `menata-app-document/audits/2026-10-04-inventaris-token-design-system.md` carries all 104 values with
   per-value counts and a verdict each. Two findings there change the plan — `domain.Gap` is **missing its two
   smallest steps** (`gap-1` 49 uses, `gap-0.5` 24, both below `tight`), and padding is **56** values, not 20.

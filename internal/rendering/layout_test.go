@@ -377,3 +377,33 @@ func TestStaticLink_rendersAnAnchorNotLiteralText(t *testing.T) {
 		t.Error("staticLink rendered its own call as text")
 	}
 }
+
+// TestMetric_inkFollowsTheWorkspaceTheme proves text colour is declarable, with no recompile, and that the
+// default is exactly what the Metric hardcoded before (`slate-900` value, `slate-500` label, `slate-400` hint).
+func TestMetric_inkFollowsTheWorkspaceTheme(t *testing.T) {
+	render := func(ctx context.Context) string {
+		var buf bytes.Buffer
+		if err := metric("Open", "7", "since Monday", domain.ToneNeutral).Render(ctx, &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	def := render(context.Background())
+	for _, want := range []string{"text-slate-900", "text-xs text-slate-500", "text-2xs text-slate-400"} {
+		if !strings.Contains(def, want) {
+			t.Errorf("default Metric lost %q; got %q", want, def)
+		}
+	}
+
+	ws := domain.Workspace{Slug: "test", Theme: domain.Theme{Ink: map[domain.InkRole]domain.InkShade{
+		domain.InkSecondary: domain.InkShadeDark,
+		domain.InkFaint:     domain.InkShadeMedium,
+	}}}
+	got := render(WithCurrentWorkspace(context.Background(), ws, "Test Workspace", false))
+	if !strings.Contains(got, "text-xs text-slate-700") || !strings.Contains(got, "text-2xs text-slate-500") {
+		t.Errorf("a declared ink theme should recolour the label and hint; got %q", got)
+	}
+	if !strings.Contains(got, "text-slate-900") {
+		t.Errorf("an undeclared role (strong) should keep its default; got %q", got)
+	}
+}

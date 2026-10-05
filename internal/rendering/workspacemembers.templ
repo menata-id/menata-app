@@ -111,7 +111,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			<p class="m-0 text-sm text-slate-500">No member matches "{ q }".</p>
 		}
 		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-			<div class="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600 sm:flex">
+			<div class="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex">
 				<span class="grow">Member</span>
 				<span class="w-32">Workspace role</span>
 				// "Application roles", plural and app-agnostic, is the board's own header: each cell
@@ -151,7 +151,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 							<span class="text-sm text-slate-400">—</span>
 						}
 						for _, app := range roleApps {
-							<span class="text-2xs text-slate-600">{ app.Name } · { displayRole(m.AppRoles[app.ID]) }</span>
+							<span class="text-2xs text-slate-500">{ app.Name } · { displayRole(m.AppRoles[app.ID]) }</span>
 						}
 					</div>
 					<div class="flex flex-wrap gap-1 sm:w-36">
@@ -171,7 +171,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
 					<div class="flex grow items-center gap-3">
 						@avatar(personInitials("", inv.Email), inv.Email, domain.AvatarInline, domain.AvatarPending)
-						<span class="truncate text-sm text-slate-600">{ inv.Email }</span>
+						<span class="truncate text-sm text-slate-500">{ inv.Email }</span>
 					</div>
 					<div class="sm:w-32">
 						<span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">Invited</span>

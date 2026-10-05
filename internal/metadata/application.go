@@ -54,6 +54,7 @@ type themeDoc struct {
 	Gap    map[string]string `yaml:"gap"`
 	Border map[string]string `yaml:"border"`
 	Tone   map[string]string `yaml:"tone"`
+	Ink    map[string]string `yaml:"ink"`
 }
 
 // resolveTheme turns the declared block into domain.Theme, reporting every unknown role or step rather than
@@ -153,6 +154,21 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				continue
 			}
 			t.Tone[n] = pal
+		}
+	}
+	if len(doc.Ink) > 0 {
+		t.Ink = map[domain.InkRole]domain.InkShade{}
+		for role, shade := range doc.Ink {
+			r, s := domain.InkRole(role), domain.InkShade(shade)
+			if !domain.KnownInkRoles[r] {
+				issues = append(issues, fmt.Sprintf("theme.ink: %q is not a text-colour role this runtime realizes", role))
+				continue
+			}
+			if !domain.KnownInkShades[s] {
+				issues = append(issues, fmt.Sprintf("theme.ink.%s: %q is not a text-colour shade this runtime realizes", role, shade))
+				continue
+			}
+			t.Ink[r] = s
 		}
 	}
 	return t, issues

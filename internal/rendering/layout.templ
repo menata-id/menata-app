@@ -90,6 +90,22 @@ func borderClass(ctx context.Context, role domain.BorderRole) string {
 	}
 }
 
+// inkClass maps a text-colour role through this request's Workspace theme, on the same terms as radiusClass.
+func inkClass(ctx context.Context, role domain.InkRole) string {
+	switch CurrentWorkspace(ctx).Theme.InkFor(role) {
+	case domain.InkShadeDarkest:
+		return "text-slate-900"
+	case domain.InkShadeDark:
+		return "text-slate-700"
+	case domain.InkShadeMedium:
+		return "text-slate-500"
+	case domain.InkShadeLight:
+		return "text-slate-400"
+	default:
+		return "text-slate-900"
+	}
+}
+
 // toneClass maps a semantic tone to its background and text pair, through this request's Workspace theme.
 //
 // Returns both classes as one string because a palette **is** the pair: splitting them would let a Workspace
@@ -124,7 +140,7 @@ func metricValueClass(ctx context.Context, tone domain.BadgeTone) string {
 	case domain.PaletteGreen:
 		return "text-emerald-700"
 	default:
-		return "text-slate-900"
+		return inkClass(ctx, domain.InkStrong)
 	}
 }
 
@@ -426,7 +442,7 @@ templ staticText(kind domain.StaticKind, text string) {
 		case domain.StaticHeading:
 			<h1 class="m-0 text-xl font-medium">{ text }</h1>
 		case domain.StaticParagraph:
-			<div class="text-sm text-slate-500">{ text }</div>
+			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>{ text }</div>
 	}
 }
 

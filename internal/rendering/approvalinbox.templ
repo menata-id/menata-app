@@ -273,7 +273,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 // table idiom -- this screen's rows are exactly as tabular as that one's.
 templ assignedTable(rows []AssignedRow) {
 	<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-		<div class="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600 sm:flex">
+		<div class="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex">
 			<span class="grow">Document</span>
 			<span class="w-32">From</span>
 			<span class="w-28">Requested</span>
@@ -287,7 +287,7 @@ templ assignedTable(rows []AssignedRow) {
 					<span class="truncate text-sm font-medium text-slate-900">{ r.Title }</span>
 					<span class="truncate text-2xs text-slate-400">{ r.Reference } · { r.DocumentType }</span>
 				</div>
-				<div class="text-xs text-slate-600 sm:w-32">{ r.From }</div>
+				<div class="text-xs text-slate-500 sm:w-32">{ r.From }</div>
 				<div class="text-xs text-slate-500 sm:w-28">
 					if r.RequestedAt != "" {
 						{ r.RequestedAt }
@@ -362,7 +362,7 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 		href={ templ.SafeURL(hrefPrefix + url.QueryEscape(f.Key)) }
 		class={ "rounded-full border px-3 py-1 text-xs",
 			templ.KV("border-slate-900 bg-slate-900 text-white", f.Active),
-			templ.KV("border-slate-300 text-slate-600 hover:border-slate-400", !f.Active) }
+			templ.KV("border-slate-300 text-slate-500 hover:border-slate-400", !f.Active) }
 	>
 		{ f.Label } ({ fmt.Sprint(f.Count) })
 	</a>

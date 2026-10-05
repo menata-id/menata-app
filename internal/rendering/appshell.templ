@@ -376,7 +376,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 		for _, item := range tabs {
 			<a
 				href={ templ.SafeURL(item.Href) }
-				class={ "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !item.Active) }
+				class={ "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-500 hover:bg-slate-50 hover:text-slate-900", !item.Active) }
 				if item.Active {
 					aria-current="page"
 				}
@@ -411,7 +411,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 		if hub, ok := settingsHubItem(app); ok {
 			<a
 				href={ templ.SafeURL(hub.Route) }
-				class={ "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900", templ.KV("ml-auto", len(overflow) == 0) }
+				class={ "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900", templ.KV("ml-auto", len(overflow) == 0) }
 			>
 				@icon(hub.Icon, "size-4")
 				{ hub.Label }

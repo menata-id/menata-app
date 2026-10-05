@@ -74,7 +74,7 @@ func ResendVerificationPage(message string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if message != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p class=\"text-2xs text-slate-600\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p class=\"text-2xs text-slate-500\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

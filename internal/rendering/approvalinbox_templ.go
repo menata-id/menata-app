@@ -556,7 +556,7 @@ func assignedTable(rows []AssignedRow) templ.Component {
 			templ_7745c5c3_Var13 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"overflow-hidden rounded-lg border border-slate-200 bg-white\"><div class=\"hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600 sm:flex\"><span class=\"grow\">Document</span> <span class=\"w-32\">From</span> <span class=\"w-28\">Requested</span> <span class=\"w-56\">Your decision</span> <span class=\"w-24\">Status</span> <span class=\"w-14\"></span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"overflow-hidden rounded-lg border border-slate-200 bg-white\"><div class=\"hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex\"><span class=\"grow\">Document</span> <span class=\"w-32\">From</span> <span class=\"w-28\">Requested</span> <span class=\"w-56\">Your decision</span> <span class=\"w-24\">Status</span> <span class=\"w-14\"></span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -600,7 +600,7 @@ func assignedTable(rows []AssignedRow) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</span></div><div class=\"text-xs text-slate-600 sm:w-32\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</span></div><div class=\"text-xs text-slate-500 sm:w-32\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -875,7 +875,7 @@ func filterChip(f FilterChip, hrefPrefix string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		var templ_7745c5c3_Var29 = []any{"rounded-full border px-3 py-1 text-xs",
 			templ.KV("border-slate-900 bg-slate-900 text-white", f.Active),
-			templ.KV("border-slate-300 text-slate-600 hover:border-slate-400", !f.Active)}
+			templ.KV("border-slate-300 text-slate-500 hover:border-slate-400", !f.Active)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var29...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

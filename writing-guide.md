@@ -1398,12 +1398,22 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     bad:     red         # failure / overdue                   (default: red)
 >     warn:    amber       # needs attention                     (default: amber)
 >     muted:   grey-faint  # de-emphasised                       (default: grey-faint)
+>   ink:
+>     strong:    darkest  # titles and the figures people scan for   (default: darkest)
+>     body:      dark     # text people read or click                (default: dark)
+>     secondary: medium   # captions, descriptions, meta lines       (default: medium)
+>     faint:     light    # hints, placeholders, decoration          (default: light)
 > ```
 >
 > `tone:` maps each semantic tone to a **palette**, and a palette is a background *and* text colour as one
 > pair -- you cannot declare one without the other, so a badge never becomes unreadable. Palettes:
 > `grey`, `grey-faint`, `blue`, `green`, `red`, `amber`. Like `gap:` it needs no role of its own, because the
 > tone *is* the role.
+>
+> `ink:` is text colour: four roles, four shades (`darkest`, `dark`, `medium`, `light`). Keep `faint` for text
+> that may be missed -- the default `light` shade is about 2.6:1 on white, below WCAG AA, so mapping real
+> content to it makes that content hard to read. Only the runtime's shared components (a Metric, a static
+> paragraph) follow `ink:`; text a screen draws by hand keeps its own colour.
 >
 > `gap:` is the one category shaped differently: it maps a **spacing step straight to an amount**, because a
 > caller already says `tight` rather than a raw class — there is no role to invent. Amounts, smallest first:

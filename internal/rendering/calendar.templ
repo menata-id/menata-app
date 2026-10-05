@@ -42,10 +42,10 @@ templ CalendarPage(c CalendarContent, workspaceName string, viewer Viewer, switc
 		@truncationNotice(c.Truncation)
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-				<a href={ templ.URL(calendarWeekHref(ctx, c.WeekOffset-1)) } aria-label="Previous week" class="grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+				<a href={ templ.URL(calendarWeekHref(ctx, c.WeekOffset-1)) } aria-label="Previous week" class="grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50">
 					@icon("chevron-left", "size-4")
 				</a>
-				<a href={ templ.URL(calendarWeekHref(ctx, c.WeekOffset+1)) } aria-label="Next week" class="grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+				<a href={ templ.URL(calendarWeekHref(ctx, c.WeekOffset+1)) } aria-label="Next week" class="grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50">
 					@icon("chevron-right", "size-4")
 				</a>
 			}

@@ -287,7 +287,7 @@ func WorkspaceMembersPage(members []data.Membership, names map[string]string, pe
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " <div class=\"overflow-hidden rounded-lg border border-slate-200 bg-white\"><div class=\"hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-600 sm:flex\"><span class=\"grow\">Member</span> <span class=\"w-32\">Workspace role</span><span class=\"w-44\">Application roles</span> <span class=\"w-36\">Source</span> <span class=\"w-16\"></span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " <div class=\"overflow-hidden rounded-lg border border-slate-200 bg-white\"><div class=\"hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex\"><span class=\"grow\">Member</span> <span class=\"w-32\">Workspace role</span><span class=\"w-44\">Application roles</span> <span class=\"w-36\">Source</span> <span class=\"w-16\"></span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -412,7 +412,7 @@ func WorkspaceMembersPage(members []data.Membership, names map[string]string, pe
 					}
 				}
 				for _, app := range roleApps {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<span class=\"text-2xs text-slate-600\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<span class=\"text-2xs text-slate-500\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -499,7 +499,7 @@ func WorkspaceMembersPage(members []data.Membership, names map[string]string, pe
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<span class=\"truncate text-sm text-slate-600\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<span class=\"truncate text-sm text-slate-500\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

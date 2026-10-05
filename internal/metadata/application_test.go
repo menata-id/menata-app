@@ -1619,3 +1619,24 @@ func TestResolveTheme_tone(t *testing.T) {
 		t.Errorf("an unknown palette should be one load issue naming it; got %v", issues)
 	}
 }
+
+// TestResolveTheme_ink holds the `theme.ink` block's two closed sets, failing closed like the other six.
+func TestResolveTheme_ink(t *testing.T) {
+	th, issues := resolveTheme(&themeDoc{Ink: map[string]string{"secondary": "light", "body": "darkest"}})
+	if len(issues) != 0 {
+		t.Fatalf("a valid ink block reported issues: %v", issues)
+	}
+	if th.Ink[domain.InkSecondary] != domain.InkShadeLight || th.Ink[domain.InkBody] != domain.InkShadeDarkest {
+		t.Errorf("declared entries not resolved: %v", th.Ink)
+	}
+
+	_, issues = resolveTheme(&themeDoc{Ink: map[string]string{"loud": "dark"}})
+	if len(issues) != 1 || !strings.Contains(issues[0], "theme.ink") || !strings.Contains(issues[0], "loud") {
+		t.Errorf("an unknown role should be one load issue naming it; got %v", issues)
+	}
+
+	_, issues = resolveTheme(&themeDoc{Ink: map[string]string{"faint": "slate-400"}})
+	if len(issues) != 1 || !strings.Contains(issues[0], "slate-400") {
+		t.Errorf("a Tailwind token is not a shade (007 §15.2); got %v", issues)
+	}
+}

@@ -370,9 +370,9 @@ templ avatar(initials, label string, size domain.AvatarSize, presence domain.Ava
 templ metric(label, value, hint string, tone domain.BadgeTone) {
 	<div class={ radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), "bg-white p-3" }>
 		<div class={ textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis), metricValueClass(ctx, tone) }>{ value }</div>
-		<div class={ textClass(ctx, domain.RoleMeta), "text-slate-500" }>{ label }</div>
+		<div class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ label }</div>
 		if hint != "" {
-			<div class="text-2xs text-slate-400">{ hint }</div>
+			<div class={ "text-2xs", inkClass(ctx, domain.InkFaint) }>{ hint }</div>
 		}
 	</div>
 }
@@ -1210,7 +1210,7 @@ templ projectedFieldValue(p ProjectedField) {
 	if p.Role == string(domain.CardFieldRoleStatus) {
 		<span class="rounded-full bg-blue-50 px-2 py-0.5 text-2xs text-blue-700">{ p.Display }</span>
 	} else {
-		<span class="text-slate-600">{ p.Display }</span>
+		<span class="text-slate-500">{ p.Display }</span>
 	}
 }
 

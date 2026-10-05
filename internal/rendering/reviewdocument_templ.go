@@ -1292,7 +1292,7 @@ func reviewSignatureLegend() templ.Component {
 			templ_7745c5c3_Var52 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"flex flex-wrap gap-3.5 text-3xs text-slate-600\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"flex flex-wrap gap-3.5 text-3xs text-slate-500\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1392,7 +1392,7 @@ func reviewDecisionBar(v ReviewView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			var templ_7745c5c3_Var57 = []any{"text-sm", templ.KV("text-red-600", v.SLAOverdue), templ.KV("text-slate-600", !v.SLAOverdue)}
+			var templ_7745c5c3_Var57 = []any{"text-sm", templ.KV("text-red-600", v.SLAOverdue), templ.KV("text-slate-500", !v.SLAOverdue)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var57...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1684,7 +1684,7 @@ func signatureModal(stepID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "\"></canvas><div class=\"mt-3 flex items-center justify-between gap-3\"><button type=\"button\" class=\"sig-modal-clear cursor-pointer text-xs text-blue-600 hover:text-blue-700\">Clear</button> <label class=\"flex cursor-pointer items-center gap-1.5 text-2xs text-slate-600\"><input type=\"checkbox\" name=\"save_signature\" class=\"size-4 accent-blue-500\"> Save my signature for next time</label></div><input type=\"hidden\" name=\"signature_image\" class=\"sig-modal-image\"><div class=\"mt-3 flex items-center justify-end gap-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "\"></canvas><div class=\"mt-3 flex items-center justify-between gap-3\"><button type=\"button\" class=\"sig-modal-clear cursor-pointer text-xs text-blue-600 hover:text-blue-700\">Clear</button> <label class=\"flex cursor-pointer items-center gap-1.5 text-2xs text-slate-500\"><input type=\"checkbox\" name=\"save_signature\" class=\"size-4 accent-blue-500\"> Save my signature for next time</label></div><input type=\"hidden\" name=\"signature_image\" class=\"sig-modal-image\"><div class=\"mt-3 flex items-center justify-end gap-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

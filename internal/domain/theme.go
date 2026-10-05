@@ -162,6 +162,55 @@ const (
 // KnownBorderShades is the closed set.
 var KnownBorderShades = map[BorderShade]bool{BorderFaint: true, BorderSoft: true, BorderDefined: true}
 
+// InkRole is how much a piece of text matters, as a closed set — the seventh token category: **text colour**.
+//
+// **Four roles, and the fourth was the finding.** The decision (D2) first said three — strong / secondary /
+// faint — folding `slate-600` (41) and `slate-700` (27) into their neighbours. Reading all 80 sites found
+// they do not have one job. `slate-600` as running text is the **twin of `slate-500`**: `workspacemembers`
+// renders the identical `{app.Name} · {role}` line at 600 on a member row and at 500 on an invitation row,
+// and `rolematrix` renders the same `text-xs leading-5` paragraph at both — an accident, folded. But
+// `slate-700` is the text of things you **read or act on** — menu items, a secondary button, a form label,
+// the `<code>` values of the inference screen, a comment's body — one step above secondary, and folding it
+// to 900 would darken 22 sites for no reason a reader could name. So it is `body`.
+//
+// **Excluded on purpose**: text *on a tinted chip* (23 sites at 600/700) is the `grey` TonePalette's job, not
+// an ink role — a chip's colour is the bg+text pair its component owns; and a hover target is interaction
+// state, not a role.
+//
+// **`faint` is for text that may be missed**: placeholders, hints, disabled and decorative text. `slate-400`
+// on white is about 2.6:1, below WCAG AA's 4.5:1, so a Workspace mapping real content to `faint` is
+// declaring text some readers cannot read. Whether the 100+ existing `slate-400` sites all qualify is a
+// review nobody has done.
+type InkRole string
+
+const (
+	// InkStrong is the text a screen is about: titles and the figures people scan for.
+	InkStrong InkRole = "strong"
+	// InkBody is the text of content and controls: what a person reads or clicks.
+	InkBody InkRole = "body"
+	// InkSecondary supports the content: captions, descriptions, meta lines.
+	InkSecondary InkRole = "secondary"
+	// InkFaint is text that may be missed without loss: hints, placeholders, decoration.
+	InkFaint InkRole = "faint"
+)
+
+// KnownInkRoles is the closed set.
+var KnownInkRoles = map[InkRole]bool{InkStrong: true, InkBody: true, InkSecondary: true, InkFaint: true}
+
+// InkShade is how dark a text colour is, named by weight of presence rather than by palette number —
+// `slate-700` is a Tailwind token and 007 §15.2 keeps those out of the logical plane.
+type InkShade string
+
+const (
+	InkShadeDarkest InkShade = "darkest"
+	InkShadeDark    InkShade = "dark"
+	InkShadeMedium  InkShade = "medium"
+	InkShadeLight   InkShade = "light"
+)
+
+// KnownInkShades is the closed set.
+var KnownInkShades = map[InkShade]bool{InkShadeDarkest: true, InkShadeDark: true, InkShadeMedium: true, InkShadeLight: true}
+
 // TonePalette is the colour family a semantic tone renders in — the sixth token category, and the one that
 // **moves an existing enum into the Theme rather than adding a new vocabulary**.
 //
@@ -200,7 +249,7 @@ var KnownTonePalettes = map[TonePalette]bool{
 // **It holds no CSS and no business data.** 006's own warning is that a Theme "must not become a hidden
 // business or data dependency", so this is a mapping between two closed vocabularies and nothing else.
 //
-// **Radius, weight, text size, gap, border colour and semantic tone only, and that is a measured boundary rather than a staged rollout.** The full token surface is
+// **Radius, weight, text size, gap, border colour, semantic tone and text colour only, and that is a measured boundary rather than a staged rollout.** The full token surface is
 // 2,507 usages over 104 values in nine categories (`menata-app-document`'s
 // `audits/2026-10-04-inventaris-token-design-system.md`). Radius is first because its ladder is the cleanest
 // — three values carry 95% of its uses — so this slice proves the whole mechanism, declaration included,
@@ -227,6 +276,8 @@ type Theme struct {
 	// Tone maps each semantic badge tone to the palette it renders in. Like Gap, this needs no role
 	// vocabulary: BadgeTone already is the role.
 	Tone map[BadgeTone]TonePalette
+	// Ink maps each text-colour role to its shade.
+	Ink map[InkRole]InkShade
 }
 
 // DefaultTheme is what the corpus renders today, so adopting Theme changes nothing until a Workspace declares
@@ -269,7 +320,21 @@ func DefaultTheme() Theme {
 			ToneWarn:    PaletteAmber,     // was bg-amber-50 text-amber-800
 			ToneMuted:   PaletteGreyFaint, // was bg-slate-50 text-slate-400
 		},
+		Ink: map[InkRole]InkShade{
+			InkStrong:    InkShadeDarkest, // was text-slate-900
+			InkBody:      InkShadeDark,    // was text-slate-700
+			InkSecondary: InkShadeMedium,  // was text-slate-500 (and slate-600 as running text, folded)
+			InkFaint:     InkShadeLight,   // was text-slate-400
+		},
 	}
+}
+
+// InkFor resolves a text-colour role, falling back to the default for the same reason RadiusFor does.
+func (t Theme) InkFor(role InkRole) InkShade {
+	if s, ok := t.Ink[role]; ok && KnownInkShades[s] {
+		return s
+	}
+	return DefaultTheme().Ink[role]
 }
 
 // ToneFor resolves a semantic tone to its palette, falling back to the default for the same reason RadiusFor

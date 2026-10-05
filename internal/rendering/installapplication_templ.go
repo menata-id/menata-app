@@ -303,7 +303,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					for _, r := range t.Renames {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<span class=\"text-2xs leading-5 text-slate-600\">This workspace already uses <code class=\"font-mono\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<span class=\"text-2xs leading-5 text-slate-500\">This workspace already uses <code class=\"font-mono\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -335,7 +335,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 						}
 					}
 					if len(t.AddShared) > 0 {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<span class=\"text-2xs leading-5 text-slate-600\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<span class=\"text-2xs leading-5 text-slate-500\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

@@ -521,7 +521,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 			templ_7745c5c3_Var19 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<div class=\"flex flex-col gap-2\"><div class=\"flex flex-wrap items-baseline gap-2 border-b border-slate-100 pb-1.5\"><h3 class=\"m-0 text-xs font-semibold tracking-wide text-slate-600\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<div class=\"flex flex-col gap-2\"><div class=\"flex flex-wrap items-baseline gap-2 border-b border-slate-100 pb-1.5\"><h3 class=\"m-0 text-xs font-semibold tracking-wide text-slate-500\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

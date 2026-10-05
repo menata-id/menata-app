@@ -415,7 +415,7 @@ func personLoadRow(p PersonLoad) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\"></div></div><span class=\"w-16 shrink-0 text-right text-xs whitespace-nowrap text-slate-600\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\"></div></div><span class=\"w-16 shrink-0 text-right text-xs whitespace-nowrap text-slate-500\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

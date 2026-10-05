@@ -130,7 +130,7 @@ func CalendarPage(c CalendarContent, workspaceName string, viewer Viewer, switch
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" aria-label=\"Previous week\" class=\"grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" aria-label=\"Previous week\" class=\"grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -151,7 +151,7 @@ func CalendarPage(c CalendarContent, workspaceName string, viewer Viewer, switch
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" aria-label=\"Next week\" class=\"grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" aria-label=\"Next week\" class=\"grid size-8 place-items-center rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

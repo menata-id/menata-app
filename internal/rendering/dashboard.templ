@@ -131,6 +131,6 @@ templ personLoadRow(p PersonLoad) {
 		>
 			<div class="h-full rounded-full bg-emerald-600" style={ progressWidth(p.Open, p.Total) }></div>
 		</div>
-		<span class="w-16 shrink-0 text-right text-xs whitespace-nowrap text-slate-600">{ fmt.Sprintf("%d of %d", p.Open, p.Total) }</span>
+		<span class="w-16 shrink-0 text-right text-xs whitespace-nowrap text-slate-500">{ fmt.Sprintf("%d of %d", p.Open, p.Total) }</span>
 	}
 }

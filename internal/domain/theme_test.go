@@ -45,3 +45,41 @@ func TestThemeToneFor(t *testing.T) {
 		t.Errorf("an unknown palette should fall back to the default: got %q", got)
 	}
 }
+
+func TestDefaultThemeResolvesEveryInkRole(t *testing.T) {
+	def := DefaultTheme()
+	for role := range KnownInkRoles {
+		s, ok := def.Ink[role]
+		if !ok || !KnownInkShades[s] {
+			t.Errorf("DefaultTheme().Ink[%q] = %q (present=%v), want a declared shade", role, s, ok)
+		}
+	}
+	if len(def.Ink) != len(KnownInkRoles) {
+		t.Errorf("DefaultTheme().Ink holds %d entries and KnownInkRoles declares %d", len(def.Ink), len(KnownInkRoles))
+	}
+	// The four roles are four distinct shades: two roles sharing a shade is the accident D2 exists to remove.
+	seen := map[InkShade]InkRole{}
+	for role, s := range def.Ink {
+		if prev, dup := seen[s]; dup {
+			t.Errorf("roles %q and %q both default to shade %q", prev, role, s)
+		}
+		seen[s] = role
+	}
+}
+
+func TestThemeInkFor(t *testing.T) {
+	if got := (Theme{}).InkFor(InkBody); got != InkShadeDark {
+		t.Errorf("zero Theme: InkFor(body) = %q, want %q", got, InkShadeDark)
+	}
+	th := Theme{Ink: map[InkRole]InkShade{InkSecondary: InkShadeLight}}
+	if got := th.InkFor(InkSecondary); got != InkShadeLight {
+		t.Errorf("declared secondary=light: got %q", got)
+	}
+	if got := th.InkFor(InkStrong); got != InkShadeDarkest {
+		t.Errorf("an undeclared role must inherit its default: got %q", got)
+	}
+	bad := Theme{Ink: map[InkRole]InkShade{InkSecondary: "purple"}}
+	if got := bad.InkFor(InkSecondary); got != InkShadeMedium {
+		t.Errorf("an unknown shade should fall back to the default: got %q", got)
+	}
+}
