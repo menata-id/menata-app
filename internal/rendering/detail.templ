@@ -182,6 +182,8 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 							{ RelationLabel(relations, f.RelatedMachine, toString(r.Values[f.ID])) }
 						} else if f.Type == domain.FieldTypeGroup {
 							{ GroupLabel(groups, toString(r.Values[f.ID])) }
+						} else if f.Type == domain.FieldTypeLongText {
+							<div class="whitespace-pre-wrap">{ toString(r.Values[f.ID]) }</div>
 						} else {
 							{ fmt.Sprint(r.Values[f.ID]) }
 						}

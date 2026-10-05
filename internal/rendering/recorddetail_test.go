@@ -145,3 +145,30 @@ func TestRecordDetailPage_BreadcrumbNamesTheBoardAndTheCurrentList(t *testing.T)
 		t.Error("a Machine with no board has no list to name, so it keeps its plain back link")
 	}
 }
+
+func TestRecordDetail_LongTextKeepsItsLineBreaks(t *testing.T) {
+	m := &domain.Machine{ID: "mch_task", Name: "Task", Fields: []domain.Field{
+		{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText},
+		{ID: "fld_description", Name: "Description", Type: domain.FieldTypeLongText},
+	}}
+	r := &data.Record{ID: "rec_1", Values: map[string]any{"fld_title": "T", "fld_description": "line one\nline two"}}
+	var buf bytes.Buffer
+	if err := RecordDetailView(m, r, nil, nil, nil, domain.Actor{ID: "usr_ana"}, nil, RecordExtras{}, time.Now()).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if !strings.Contains(buf.String(), `whitespace-pre-wrap">line one`+"\n"+`line two</div>`) {
+		t.Errorf("a long_text value is not drawn with its newline intact:\n%s", buf.String())
+	}
+}
+
+func TestFieldInput_LongTextIsATextareaPrefilledWithItsValue(t *testing.T) {
+	var buf bytes.Buffer
+	f := domain.Field{ID: "fld_description", Type: domain.FieldTypeLongText}
+	if err := fieldInput(f, "a\nb", nil, nil).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, `<textarea name="fld_description"`) || !strings.Contains(got, ">a\nb</textarea>") {
+		t.Errorf("long_text drew %q, want a textarea holding the value", got)
+	}
+}

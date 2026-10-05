@@ -5,6 +5,9 @@ fields:
     name: Title
     type: text
     required: true
+  - id: fld_description
+    name: Description
+    type: long_text
   - id: fld_status
     name: Status
     type: status

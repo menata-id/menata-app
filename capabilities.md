@@ -41,6 +41,7 @@ two is wrong, which is a finding rather than a resolution
 | Type | Meaning | Status | Proven by |
 |---|---|---|---|
 | `text` | Free-text string | Built | `mch_task.fld_title`, most Machines |
+| `long_text` | Free text that keeps its line breaks (a textarea; drawn with `whitespace-pre-wrap`) | Built (2026-10-05) | `mch_task.fld_description` (Case 19 PM02's Description); `rendering.TestFieldInput_LongTextIsATextareaPrefilledWithItsValue` |
 | `number` | Numeric value | Built | `mch_task.fld_priority`, `fld_sequence` |
 | `boolean` | True/false | Declared, not yet exercised | `internal/rendering` renders it (checkbox); no current Machine declares one |
 | `date` | Calendar date | Built | `mch_task.fld_due_date` |
@@ -346,7 +347,7 @@ browser, never as a build error:
   uncommitted edits to four of those mockups and produced a different stylesheet than CI built
   from the committed ones.
 
-**Not yet built, and drawn by the Project Management mockup:** the Task detail's long description,
+**Not yet built, and drawn by the Project Management mockup:** the Task detail's
 checklist, several attachments and comments; the ⋯ menu's Join, Copy, Watch and Archive and moving a card to
 another board; Calendar's Month view and drag-to-reschedule; Board Settings' reorder, rename and inline "+ New"
 gestures. A Timeline Layout is **not** on this list: no board of that mockup draws one.

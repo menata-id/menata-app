@@ -176,7 +176,8 @@ Each Field declares a `type:`. The full closed set the runtime understands
 
 | Type | Use it for | Notes |
 |---|---|---|
-| `text` | Short free text | Single-line only — no long-text/rich-text type yet |
+| `text` | Short free text | Single-line only |
+| `long_text` | Free text that keeps its line breaks | A multi-line input; stored as a plain string. No rich text |
 | `number` | A numeric value | |
 | `boolean` | True/false | Declared and rendered (a checkbox), but no shipped Machine uses one yet |
 | `date` | A calendar date | |
@@ -1303,7 +1304,7 @@ shows for it with no code edit.
 
 | Vocabulary | Values | Extended by |
 |---|---|---|
-| Field types | `text` `number` `boolean` `date` `status` `person` `money` `relation` `file` | `domain.KnownFieldTypes` |
+| Field types | `text` `long_text` `number` `boolean` `date` `status` `person` `money` `relation` `file` | `domain.KnownFieldTypes` |
 | Layouts | `table` `board` | `domain.KnownLayouts` |
 | Card field roles | `title` `person` `money` `status` `date` | `domain.KnownCardFieldRoles` |
 | Aggregates | `count` `sum` | `domain.KnownAggregates` |

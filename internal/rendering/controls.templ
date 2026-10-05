@@ -133,6 +133,8 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 			<input type="date" name={ f.ID } value={ toString(current) } class={ controlField + " w-full" }/>
 		case f.Type == domain.FieldTypeNumber:
 			<input type="number" step="any" name={ f.ID } value={ toString(current) } class={ controlField + " w-full" }/>
+		case f.Type == domain.FieldTypeLongText:
+			<textarea name={ f.ID } rows="5" class={ controlField + " w-full" }>{ toString(current) }</textarea>
 		case f.Type == domain.FieldTypeFile:
 			if key := toString(current); key != "" {
 				<div class="flex flex-col gap-1">

@@ -11,7 +11,11 @@ import (
 type FieldType string
 
 const (
-	FieldTypeText     FieldType = "text"
+	FieldTypeText FieldType = "text"
+	// FieldTypeLongText is free text that keeps its line breaks: a multi-line input, and a value drawn
+	// with its newlines intact (Case 19 PM02's Description). Stored as a plain string, so it validates
+	// and parses exactly like FieldTypeText -- only the control and the detail rendering differ.
+	FieldTypeLongText FieldType = "long_text"
 	FieldTypeNumber   FieldType = "number"
 	FieldTypeBoolean  FieldType = "boolean"
 	FieldTypeDate     FieldType = "date"
@@ -70,6 +74,7 @@ type FieldTypeSpec struct {
 // which internal/metadata/validate.go enforces by reading this map.
 var KnownFieldTypes = map[FieldType]FieldTypeSpec{
 	FieldTypeText:     {Label: "text"},
+	FieldTypeLongText: {Label: "long text (multi-line)"},
 	FieldTypeNumber:   {Label: "number"},
 	FieldTypeBoolean:  {Label: "boolean"},
 	FieldTypeDate:     {Label: "date"},
@@ -84,7 +89,7 @@ var KnownFieldTypes = map[FieldType]FieldTypeSpec{
 // FieldTypeLabels lists every type's label in a stable order, which is what a generated description needs
 // -- a map range would reorder the sentence between builds, and 007 §4.6 states determinism as a MUST.
 func FieldTypeLabels() []string {
-	order := []FieldType{FieldTypeText, FieldTypeNumber, FieldTypeBoolean, FieldTypeDate, FieldTypeStatus,
+	order := []FieldType{FieldTypeText, FieldTypeLongText, FieldTypeNumber, FieldTypeBoolean, FieldTypeDate, FieldTypeStatus,
 		FieldTypePerson, FieldTypeMoney, FieldTypeRelation, FieldTypeFile, FieldTypeGroup}
 	out := make([]string, 0, len(order))
 	for _, t := range order {
