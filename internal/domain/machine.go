@@ -575,6 +575,19 @@ func (m *Machine) DefaultView() View {
 	return m.Views[0]
 }
 
+// BoardView returns the first declared board View that groups by a Field -- the arrangement a card's own
+// "move" is defined against (the group Field is what a move writes, and a position is a place among the
+// cards of one group). False for a Machine with no such View, which is a Machine whose records cannot be
+// moved between lists at all.
+func (m *Machine) BoardView() (View, bool) {
+	for _, v := range m.Views {
+		if v.EffectiveType() == ViewBoard && v.GroupBy != "" {
+			return v, true
+		}
+	}
+	return View{}, false
+}
+
 // StepperView returns the first declared View of type ViewStepper, if m has one -- what a child
 // collection's own renderer (internal/rendering/detail.templ) checks to decide whether to compose
 // the sequential stepper instead of the generic child-collection table. Never more than one is

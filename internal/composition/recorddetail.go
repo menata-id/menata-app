@@ -2,9 +2,11 @@ package composition
 
 import (
 	"context"
+	"slices"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 )
@@ -30,6 +32,10 @@ func (l *Loader) RecordExtras(ctx context.Context, m *domain.Machine, r *data.Re
 		return out, err
 	}
 	out.Tags = tags[r.ID]
+
+	if out.Move, err = l.recordMove(ctx, m, r); err != nil {
+		return out, err
+	}
 
 	if _, ok := l.Dataset(recordActivityDataset); !ok {
 		return out, nil
@@ -62,4 +68,44 @@ func buildRecordActivity(events []*data.Record, names map[string]string) []rende
 		})
 	}
 	return out
+}
+
+// recordMove resolves the Move panel: the lists the record can go to and the place it holds in its own.
+// Nil for a Machine with no board View, and for a record whose group Field holds no list a value produces
+// (the board's synthetic "Other" column), since nothing can be moved *into* that and a panel that opened on
+// a blank List would lie about where the card is.
+//
+// Position is read from the record's own list only -- the cards sharing its group value, in the order a board
+// draws them -- not from the whole Machine, so the cost is one bounded statement whatever else exists.
+func (l *Loader) recordMove(ctx context.Context, m *domain.Machine, r *data.Record) (*rendering.RecordMove, error) {
+	v, ok := m.BoardView()
+	if !ok {
+		return nil, nil
+	}
+	columns, err := l.BoardColumns(ctx, m, v)
+	if err != nil {
+		return nil, err
+	}
+	if columns == nil {
+		columns = experience.GroupRecords(m, v, nil, nil)
+	}
+	targets := rendering.MoveTargets(m, v, columns)
+	current := DisplayString(r.Values[v.GroupBy])
+	if len(targets) == 0 || !slices.ContainsFunc(targets, func(t rendering.MoveTarget) bool { return t.Value == current }) {
+		return nil, nil
+	}
+	siblings, err := l.ListRecordsBy(ctx, m.ID, v.GroupBy, current)
+	if err != nil {
+		return nil, err
+	}
+	position := 1
+	for i, s := range siblings {
+		if s.ID == r.ID {
+			position = i + 1
+		}
+	}
+	return &rendering.RecordMove{
+		CardMove: rendering.CardMove{Field: v.GroupBy, Targets: targets, Current: current, Position: position},
+		ViewID:   v.ID,
+	}, nil
 }

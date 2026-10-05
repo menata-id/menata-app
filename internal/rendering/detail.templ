@@ -25,10 +25,20 @@ type ChildSection struct {
 // from len(Activity) because "this Workspace keeps no activity log" and "this record has no history yet"
 // are different answers, and only the second draws a section.
 type RecordExtras struct {
+	// Move is the record's own Move panel (PM02c), nil when its Machine has no board View to move within.
+	Move               *RecordMove
 	Tags               []CardTag
 	ShowActivity       bool
 	Activity           []ActivityEntry
 	ActivityTruncation Truncation
+}
+
+// RecordMove is what a detail page needs to offer the move a board card offers: the same PATCH (the group
+// Field and `position`), addressed to the board View it is defined against so the server places the card
+// the way a drop would. The panel is one contract with the card's and the drag's, not a third way to write.
+type RecordMove struct {
+	CardMove
+	ViewID string
 }
 
 // DocumentSignaturePlacement is the composed placement view the Document's own detail page embeds
@@ -177,6 +187,9 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 					hx-swap="outerHTML"
 				>Edit</button>
 			}
+			if extras.Move != nil && authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
+				@recordMovePanel(m, r, *extras.Move)
+			}
 			if deletable {
 				<button
 					class={ controlSecondary }
@@ -204,6 +217,35 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			@recordActivity(extras)
 		}
 	</div>
+}
+
+// recordMovePanel is the PM02c Move panel: List and Position, "the same result as dragging the card, for
+// anyone who would rather not drag -- or who is working by keyboard". A <details>, as the board card's own
+// edit panel is, so it opens and closes without script. It answers with HX-Refresh (this is not the
+// Machine's own page), which redraws the detail with the new List in its Fields and the move in History.
+templ recordMovePanel(m *domain.Machine, r *data.Record, mv RecordMove) {
+	<details class="relative">
+		<summary class={ controlSecondary + " cursor-pointer list-none" }>Move…</summary>
+		<form
+			class="absolute top-full left-0 z-10 mt-1 flex w-72 flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-lg"
+			hx-patch={ fmt.Sprintf("/machines/%s/records/%s?view=%s", m.ID, r.ID, mv.ViewID) }
+			hx-target="#record-detail"
+		>
+			<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+				List
+				<select name={ mv.Field } class={ controlField + " w-full" }>
+					for _, t := range mv.Targets {
+						<option value={ t.Value } selected?={ t.Value == mv.Current }>{ t.Label }</option>
+					}
+				</select>
+			</label>
+			<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+				Position
+				<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ controlField + " w-full" }/>
+			</label>
+			<button type="submit" class={ controlPrimary }>Move</button>
+		</form>
+	</details>
 }
 
 // recordActivity is the record's own history, newest first -- what happened to this record, in the

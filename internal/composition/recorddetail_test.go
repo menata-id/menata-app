@@ -193,3 +193,88 @@ func TestActivityFeedsRefuseWithoutAnApplication(t *testing.T) {
 		t.Error("RecentActivity outside an Application listed events instead of refusing")
 	}
 }
+
+// moveFixture is a Task Machine with a board View grouped by a relation to a List Machine, over a real database.
+func moveFixture(t *testing.T) (*Loader, *domain.Machine, context.Context, map[string]*data.Record) {
+	t.Helper()
+	_, store, ctx := recordExtrasLoader(t, false)
+	list := &domain.Machine{ID: "mch_list", Fields: []domain.Field{{ID: "fld_name", Type: domain.FieldTypeText}}}
+	task := &domain.Machine{ID: "mch_task",
+		Fields: []domain.Field{
+			{ID: "fld_title", Type: domain.FieldTypeText},
+			{ID: "fld_list", Type: domain.FieldTypeRelation, RelatedMachine: "mch_list"},
+		},
+		Views: []domain.View{{ID: "vw_table", Type: domain.ViewTable}, {ID: "vw_board", Type: domain.ViewBoard, GroupBy: "fld_list"}},
+	}
+	made := map[string]*data.Record{}
+	create := func(key, machine string, values map[string]any) {
+		r, err := store.CreateRecord(ctx, machine, values)
+		if err != nil {
+			t.Fatalf("create %s: %v", key, err)
+		}
+		made[key] = r
+	}
+	create("backlog", "mch_list", map[string]any{"fld_name": "Backlog"})
+	create("doing", "mch_list", map[string]any{"fld_name": "Doing"})
+	create("a", "mch_task", map[string]any{"fld_title": "A", "fld_list": made["backlog"].ID})
+	create("b", "mch_task", map[string]any{"fld_title": "B", "fld_list": made["backlog"].ID})
+	create("c", "mch_task", map[string]any{"fld_title": "C", "fld_list": made["backlog"].ID})
+	create("d", "mch_task", map[string]any{"fld_title": "D", "fld_list": made["doing"].ID})
+	return NewLoader(store, map[string]*domain.Machine{"mch_task": task, "mch_list": list}), task, ctx, made
+}
+
+// The detail page's Move panel is the board's own move: the lists a card may go to, the place this card holds
+// among the cards of its own list, and the board View the PATCH has to name so the server places it as a drop would.
+func TestRecordExtras_MoveNamesTheListsTheCurrentOneAndThePositionInIt(t *testing.T) {
+	l, task, ctx, made := moveFixture(t)
+	extras, err := l.RecordExtras(ctx, task, made["b"])
+	if err != nil {
+		t.Fatalf("RecordExtras: %v", err)
+	}
+	mv := extras.Move
+	if mv == nil {
+		t.Fatal("a Task on a board drew no Move panel")
+	}
+	if mv.ViewID != "vw_board" || mv.Field != "fld_list" {
+		t.Errorf("move addresses view %q field %q, want vw_board / fld_list", mv.ViewID, mv.Field)
+	}
+	if mv.Current != made["backlog"].ID || mv.Position != 2 {
+		t.Errorf("current %q position %d, want Backlog's id and 2 (B is the second card of its list)", mv.Current, mv.Position)
+	}
+	var labels []string
+	for _, tg := range mv.Targets {
+		labels = append(labels, tg.Label)
+	}
+	if !reflect.DeepEqual(labels, []string{"Backlog", "Doing"}) {
+		t.Errorf("targets = %v, want both Lists in board order", labels)
+	}
+}
+
+// Position is read from the record's own list: one bounded statement, not the whole Machine.
+func TestRecordExtras_MoveReadsOnlyTheRecordsOwnList(t *testing.T) {
+	l, task, ctx, made := moveFixture(t)
+	if _, err := l.RecordExtras(ctx, task, made["d"]); err != nil {
+		t.Fatalf("RecordExtras: %v", err)
+	}
+	if _, whole := l.listed["mch_task"]; whole {
+		t.Error("the Move panel read every Task to find one card's position")
+	}
+}
+
+// A Machine with no board View, or a card whose list no longer exists, is offered no move: a panel opening on a
+// blank List would say the card is somewhere it is not.
+func TestRecordExtras_NoMoveWithoutABoardOrWithoutAKnownList(t *testing.T) {
+	l, task, ctx, made := moveFixture(t)
+	task.Views = []domain.View{{ID: "vw_table", Type: domain.ViewTable}}
+	extras, err := l.RecordExtras(ctx, task, made["a"])
+	if err != nil || extras.Move != nil {
+		t.Errorf("a Machine with no board drew a Move panel (err %v)", err)
+	}
+
+	task.Views = []domain.View{{ID: "vw_board", Type: domain.ViewBoard, GroupBy: "fld_list"}}
+	orphan := &data.Record{ID: "rec_orphan", Values: map[string]any{"fld_list": "lst_deleted"}}
+	extras, err = l.RecordExtras(ctx, task, orphan)
+	if err != nil || extras.Move != nil {
+		t.Errorf("a card in a deleted list drew a Move panel (err %v)", err)
+	}
+}

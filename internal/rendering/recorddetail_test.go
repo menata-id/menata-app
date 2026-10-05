@@ -57,3 +57,45 @@ func TestRecordDetail_AnEmptyHistoryIsSaidAndATruncatedOneIsFlagged(t *testing.T
 		t.Error("a truncated history did not say so, so it would read as the whole story")
 	}
 }
+
+func moveForDetail() *RecordMove {
+	return &RecordMove{
+		ViewID: "vw_board",
+		CardMove: CardMove{Field: "fld_list", Current: "lst_b", Position: 3, Targets: []MoveTarget{
+			{Value: "lst_a", Label: "Backlog"}, {Value: "lst_b", Label: "Doing"},
+		}},
+	}
+}
+
+// The panel is the board card's move: the group Field and `position`, patched to the record naming the board View.
+func TestRecordDetail_MovePanelPatchesTheGroupFieldAndPositionThroughTheBoardView(t *testing.T) {
+	html := renderDetail(t, RecordExtras{Move: moveForDetail()})
+	for _, want := range []string{
+		"Move…", `hx-patch="/machines/mch_task/records/rec_1?view=vw_board"`,
+		`name="fld_list"`, `<option value="lst_b" selected>Doing</option>`, `<option value="lst_a">Backlog</option>`,
+		`name="position"`, `value="3"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("detail is missing %q", want)
+		}
+	}
+	if strings.Contains(renderDetail(t, RecordExtras{}), "Move…") {
+		t.Error("a Machine with nothing to move within drew a Move panel")
+	}
+}
+
+// Offering a move the server will refuse would only lie, so the panel follows the Edit permission.
+func TestRecordDetail_MovePanelIsHiddenFromAnActorWhoMayNotEdit(t *testing.T) {
+	m := &domain.Machine{ID: "mch_task", Name: "Task",
+		Fields:      []domain.Field{{ID: "fld_title", Name: "Title", Type: domain.FieldTypeText}, {ID: "fld_owner", Name: "Owner", Type: domain.FieldTypePerson}},
+		Permissions: []domain.Permission{{Action: domain.ActionEdit, ActorField: "fld_owner"}},
+	}
+	r := &data.Record{ID: "rec_1", Values: map[string]any{"fld_title": "T", "fld_owner": "usr_other"}}
+	var buf bytes.Buffer
+	if err := RecordDetailView(m, r, nil, nil, nil, domain.Actor{ID: "usr_ana"}, nil, RecordExtras{Move: moveForDetail()}, time.Now()).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if strings.Contains(buf.String(), "Move…") {
+		t.Error("an actor the Edit permission refuses was offered a move")
+	}
+}

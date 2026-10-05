@@ -254,6 +254,63 @@ func TestBoardCardMoveWritesListAndPosition(t *testing.T) {
 	}
 }
 
+// The Move panel on a Task's own page sends the board's PATCH from a page that is not the board: the Machine's
+// default View is not guaranteed to be the board, and HX-Current-URL names the detail page, so the panel names the
+// board View itself. Answered with HX-Refresh, since there is no Machine body on that page to swap in.
+func TestTaskDetailMovePanelMovesTheCardThroughTheBoardView(t *testing.T) {
+	h, cookie, ctx, store, _, _, actorID := routerSetupFor(t, "detailmove", "default")
+	mk := func(name string) string {
+		r, err := store.CreateRecord(ctx, "mch_list", map[string]any{"fld_name": name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.ID
+	}
+	backlog, shooting := mk("Backlog"), mk("Shooting")
+	card := func(title, list string) string {
+		r, err := store.CreateRecord(ctx, "mch_task", map[string]any{"fld_title": title, "fld_list": list, "fld_assignee": actorID, "fld_status": "todo"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.ID
+	}
+	a := card("A", backlog)
+	card("C", shooting)
+	card("D", shooting)
+
+	page := httptest.NewRequest(http.MethodGet, "/machines/mch_task/records/"+a, nil)
+	page.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+	pageRec := httptest.NewRecorder()
+	h.ServeHTTP(pageRec, page)
+	if pageRec.Code != http.StatusOK {
+		t.Fatalf("detail = %d\n%s", pageRec.Code, pageRec.Body.String())
+	}
+	body := pageRec.Body.String()
+	for _, want := range []string{"Move…", "/machines/mch_task/records/" + a + "?view=vw_task_board", `value="` + shooting + `"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("a Task's detail page is missing %q", want)
+		}
+	}
+
+	rec := patchCardFrom(t, h, cookie, a+"?view=vw_task_board", map[string]string{"fld_list": shooting, "position": "2"}, true, "http://x/machines/mch_task/records/"+a)
+	if rec.Code != http.StatusOK || rec.Header().Get("HX-Refresh") != "true" {
+		t.Fatalf("move from the detail page = %d, HX-Refresh %q", rec.Code, rec.Header().Get("HX-Refresh"))
+	}
+	rs, err := store.ListRecords(ctx, "mch_task")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got string
+	for _, r := range rs {
+		if r.Values["fld_list"] == shooting {
+			got += r.Values["fld_title"].(string)
+		}
+	}
+	if got != "CAD" {
+		t.Errorf("A moved to position 2 of Shooting: %s, want CAD", got)
+	}
+}
+
 // My Tasks sections the viewer's own Tasks and its circle PATCHes the same record route the board's does.
 // Written from /my-tasks there is no Machine body to swap in, so the answer is an HX-Refresh with no body --
 // and the Task moves from Next 7 days (or Later) to Completed on the redraw, which is the whole point.

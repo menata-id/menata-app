@@ -743,7 +743,7 @@ func machineHeading(ctx context.Context, m *domain.Machine) string {
 templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
 	{{ byRecord := cardsByRecord(cards) }}
 	{{ columns := experience.GroupRecords(m, v, records, boardColumns) }}
-	{{ targets := moveTargets(m, v, columns) }}
+	{{ targets := MoveTargets(m, v, columns) }}
 	<div class="flex items-start gap-2.5 overflow-x-auto pb-2">
 		for _, col := range columns {
 			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class="flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2">
@@ -789,7 +789,9 @@ func columnValue(m *domain.Machine, v domain.View, col experience.Column) string
 	return ""
 }
 
-func moveTargets(m *domain.Machine, v domain.View, cols []experience.Column) []MoveTarget {
+// MoveTargets is the lists a card of m can move to under v: one per column that a value produces. Exported
+// because a record's own detail page offers the same move as its board card and must not derive it twice.
+func MoveTargets(m *domain.Machine, v domain.View, cols []experience.Column) []MoveTarget {
 	var out []MoveTarget
 	for _, c := range cols {
 		if val := columnValue(m, v, c); val != "" {

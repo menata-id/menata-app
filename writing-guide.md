@@ -327,6 +327,8 @@ switcher; the switcher's look changed for **every** Machine with more than one V
 **Moving a card needs nothing declared.** Anyone who may edit a record can drag its card to another column or
 place in the same one, or use the pencil's *Move to list* / *Position*; both write the `group_by` Field and the
 card's order (`sort_order`). Nothing can be moved into the automatic "Other" column — it has no value to write.
+The same move is offered as a **Move…** panel on the record's own page, with nothing more to declare: any Machine that
+has a `board` View gets it, and it writes through that View.
 
 Write the `name` yourself; don't expect the type to supply it. `table`/`cards` is the runtime
 engine's own vocabulary, and a string the user reads is the Application author's to write — the
