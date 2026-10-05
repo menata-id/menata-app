@@ -87,7 +87,8 @@ type PlacementFields struct {
 // metadata/applications/document-approval.yaml already declares that route under nav_my_documents.
 //
 // What this has that the board does not: page navigation (the board shows only "Page 6 of 6"), a
-// width control, and an honest "Not placed yet" state -- every step on the board is pre-placed.
+// numeric width control beside the box's own resize corner, and an honest "Not placed yet" state --
+// every step on the board is pre-placed.
 templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Signature positions", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.URL("/machines/" + approvalMachineID(ctx, domain.WorkflowRoleDocument) + "/records/" + v.DocumentID) } class="text-xs text-blue-600 hover:text-blue-700">
@@ -101,51 +102,7 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 				make them.
 			</div>
 		</div>
-		// The htmx wiring stays on a wrapper and `splitLayout` sits inside it, rather than the primitive
-		// taking an id and four hx-* attributes. A Layout primitive that accepts arbitrary HTML attributes is
-		// what 007 §12.3 forbids by name -- "MUST NOT become 'generic' merely by accepting arbitrary
-		// properties" -- and this screen's self-refresh is behaviour, not layout.
-		//
-		// **The cost is one extra DOM node, and this is the only one of the five split sites that is not
-		// byte-identical after migration.** `hx-select="#sig-body"` plus `outerHTML` still replaces this
-		// wrapper, so the refresh is unchanged. Declaring the pair properly needs a Page tree where a node
-		// can carry an id and a behaviour binding separately, which is 007 §11.3 Binding plus Stage 3 of the
-		// Experience Plane plan (`menata-app-document`'s
-		// `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`).
-		<div
-			id="sig-body"
-			hx-trigger="htmx:afterRequest[detail.successful]"
-			hx-get={ placementPageHref(ctx, v.DocumentID, v.Page) }
-			hx-select="#sig-body"
-			hx-swap="outerHTML"
-		>
-			@splitLayout(domain.GapComfortable, domain.SplitAsideEnd, domain.AsideNarrow) {
-				@sectionLayout(domain.GapDefault) {
-					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
-						<h2 class="m-0 text-sm font-medium">{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</h2>
-						<span class="flex items-center gap-3 text-xs">
-							if v.Page > 1 {
-								@staticLink(placementPageHref(ctx, v.DocumentID, v.Page-1), "← Prev")
-							}
-							if v.Page < v.TotalPages {
-								@staticLink(placementPageHref(ctx, v.DocumentID, v.Page+1), "Next →")
-							}
-						</span>
-					}
-					<p class="m-0 text-2xs text-slate-500">Drag each box to its signature block.</p>
-					@placementCanvas(v, true)
-				}
-				<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
-					<h2 class="m-0 text-sm font-medium">Approval steps</h2>
-					for _, s := range v.Steps {
-						@placementStepCard(s, v.Page)
-					}
-					<p class="m-0 rounded-md bg-slate-50 p-3 text-2xs leading-5 text-slate-500">
-						Approvers are supplied by Groups. Changing group membership is managed separately.
-					</p>
-				</aside>
-			}
-		</div>
+		@placementBody(v)
 		<div class="flex justify-end">
 			<a
 				href={ templ.SafeURL(routeByID(ctx, "nav_my_documents")) }
@@ -158,64 +115,173 @@ templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewe
 	}
 }
 
-// placementCanvas is the rendered page with one marker per step placed on it.
+// placementBody is the pager, canvas and step sidebar -- everything inside #sig-body, shared by
+// SignaturePlacementPage and signaturePlacementBlock. Sharing it is not only tidiness: both
+// wrappers re-fetch *this page* and hx-select its #sig-body after every successful request, so the
+// detail page's embed was already being replaced by this markup on the first drag. Before
+// 2026-10-05 it rendered its own first, built for the deleted pageStyles stylesheet, so until that
+// first drag the embed showed unstyled class names and markers with no positioning at all.
 //
-// tailwind picks which styling the markers carry, because this Component is rendered under two
-// different shells -- appShell (this page) and pageShell (the Document detail page's embed) --
-// and Tailwind's Preflight and pageStyles deliberately do not meet on a page. The *positional*
-// rules are identical either way and are what the drag maths depends on; see placementMarker.
-templ placementCanvas(v PlacementView, tailwind bool) {
-	<div class={ "sig-canvas", templ.KV("relative inline-block w-full max-w-[480px]", tailwind) }>
+// The htmx wiring stays on a wrapper and `splitLayout` sits inside it, rather than the primitive
+// taking an id and four hx-* attributes. A Layout primitive that accepts arbitrary HTML attributes is
+// what 007 §12.3 forbids by name -- "MUST NOT become 'generic' merely by accepting arbitrary
+// properties" -- and this screen's self-refresh is behaviour, not layout.
+//
+// **The cost is one extra DOM node, and this is the only one of the five split sites that is not
+// byte-identical after migration.** `hx-select="#sig-body"` plus `outerHTML` still replaces this
+// wrapper, so the refresh is unchanged. Declaring the pair properly needs a Page tree where a node
+// can carry an id and a behaviour binding separately, which is 007 §11.3 Binding plus Stage 3 of the
+// Experience Plane plan (`menata-app-document`'s
+// `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`).
+templ placementBody(v PlacementView) {
+	<div
+		id="sig-body"
+		hx-trigger="htmx:afterRequest[detail.successful]"
+		hx-get={ placementPageHref(ctx, v.DocumentID, v.Page) }
+		hx-select="#sig-body"
+		hx-swap="outerHTML"
+	>
+		@splitLayout(domain.GapComfortable, domain.SplitAsideEnd, domain.AsideNarrow) {
+			@sectionLayout(domain.GapDefault) {
+				@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
+					<h2 class="m-0 text-sm font-medium">{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</h2>
+					<span class="flex items-center gap-3 text-xs">
+						if v.Page > 1 {
+							@staticLink(placementPageHref(ctx, v.DocumentID, v.Page-1), "← Prev")
+						}
+						if v.Page < v.TotalPages {
+							@staticLink(placementPageHref(ctx, v.DocumentID, v.Page+1), "Next →")
+						}
+					</span>
+				}
+				<p class="m-0 text-2xs text-slate-500">
+					Drag each box to its signature block, and its corner to resize it. Box size matches the
+					signature image.
+				</p>
+				@placementCanvas(v)
+			}
+			<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+				<h2 class="m-0 text-sm font-medium">Approval steps</h2>
+				for _, s := range v.Steps {
+					@placementStepCard(s, v.Page)
+				}
+				<p class="m-0 rounded-md bg-slate-50 p-3 text-2xs leading-5 text-slate-500">
+					Approvers are supplied by Groups. Changing group membership is managed separately.
+				</p>
+			</aside>
+		}
+	</div>
+}
+
+// signatureCanvasWidth/Height are the width-to-height ratio every signature image has, and so the
+// ratio of every placement box: compositeOne (internal/action/composite.go) scales an image to the
+// placed width and derives its height from the image's own aspect ratio, and every image is the
+// toDataURL of signatureModal's canvas, whose pixel size is these two constants. A box drawn at any
+// other ratio would show the user a height the stamp does not have -- which is exactly the complaint
+// that produced the box (owner, 2026-10-05: a width in percent, with nothing on screen showing what
+// it means). Change the canvas and the boxes follow; the two cannot disagree.
+const (
+	signatureCanvasWidth  = 400
+	signatureCanvasHeight = 160
+)
+
+// placementCanvas is the rendered page with one box per placed step on it.
+//
+// It used to take a `tailwind` flag, because the Document detail page's embed rendered under
+// pageStyles. That stylesheet is gone (3ca57ac), and the flag's false branch was left rendering
+// markers with no positioning utilities at all -- every one of them stacked in the canvas's corner.
+templ placementCanvas(v PlacementView) {
+	<div class="sig-canvas relative inline-block w-full max-w-[480px]">
 		<img
 			src={ placementPreviewHref(ctx, v.DocumentID, v.Page) }
 			alt={ fmt.Sprintf("Page %d of the document", v.Page) }
-			class={ templ.KV("block w-full rounded-md border border-slate-200", tailwind) }
+			class="block w-full rounded-md border border-slate-200"
 		/>
 		for _, s := range v.Steps {
 			if s.Placed && s.Page == v.Page {
-				@placementMarker(s, tailwind)
+				@placementMarker(s)
 			}
 		}
 	</div>
 }
 
-// placementMarker is one placed step's draggable marker.
+// placementMarker is one placed step's box: board 09's labelled, dashed rectangle, drawn at the
+// size the signature will actually be stamped -- its width is the step's own Width percentage of the
+// canvas, the same percentage of the page compositeOne scales the image to, and its height follows
+// signatureCanvasWidth/Height. Before 2026-10-05 it was a fixed 28px circle, so the width was a number in a
+// sidebar that nothing on the page illustrated (owner report: "tidak nampak di layar, sehingga user
+// tidak tahu apakah ukurannya segitu atau tidak").
 //
 // THE POSITIONAL CSS IS NOT DECORATION. The drag script writes the pointer's percentage straight
-// into left/top and relies on `transform: translate(-50%,-50%)` to centre the marker under the
+// into left/top and relies on `transform: translate(-50%,-50%)` to centre the box under the
 // cursor; `position:absolute` against the canvas's `position:relative` is what makes those
 // percentages mean anything; and `touch-action:none` is what stops a touch drag from being taken
-// as a page scroll. Those four are spelled out as utilities here rather than left to the
-// `.sig-marker` class, because that class only exists in pageStyles -- and a class carrying
-// behaviour across a shell boundary is exactly how board 10 ended up with a signature canvas that
-// silently lost `touch-action:none` when it moved to appShell in Fase 6b.
+// as a page scroll. They are utilities on the element rather than a `.sig-marker` rule, because a
+// class carrying behaviour across a shell boundary is exactly how board 10 ended up with a signature
+// canvas that silently lost `touch-action:none` when it moved to appShell in Fase 6b.
 //
 // Changing the anchor would silently move every stored placement: internal/action's compositing
-// reads the same percentages at stamp time. Board 09 draws a 112x56 labelled box instead of this
-// circle, which is a change of anchor unless the translate stays -- so the box may grow, but
-// around this centre.
-templ placementMarker(s PlacementStep, tailwind bool) {
+// reads X/Y as the *centre* of the stamp. That is why the box grows around the centre and why the
+// resize corner changes width symmetrically rather than pinning the opposite edge.
+//
+// The `sig-resize` corner is a child of the button, so the drag script must test for it before it
+// tests for the box -- see placementDragScript.
+templ placementMarker(s PlacementStep) {
 	if s.Editable {
 		<form hx-put={ fmt.Sprintf("/machines/%s/records/%s/signature-placement", approvalMachineID(ctx, domain.WorkflowRoleStep), s.StepID) } hx-swap="none">
 			@csrfHiddenInput()
 			<input type="hidden" name={ s.Fields.Page } value={ fmt.Sprint(s.Page) }/>
 			<input type="hidden" class="sig-x-input" name={ s.Fields.X } value={ fmt.Sprintf("%.1f", s.X) }/>
 			<input type="hidden" class="sig-y-input" name={ s.Fields.Y } value={ fmt.Sprintf("%.1f", s.Y) }/>
-			<input type="hidden" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) }/>
+			<input type="hidden" class="sig-w-input" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) }/>
 			<button
 				type="button"
-				class={ "sig-marker", templ.KV("absolute flex size-7 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-full border-2 border-white bg-blue-600 text-3xs font-medium text-white shadow", tailwind) }
-				style={ fmt.Sprintf("left:%.1f%%;top:%.1f%%", s.X, s.Y) }
-				aria-label={ fmt.Sprintf("Signature box step %d, %s, drag to move", s.Index, s.Approver) }
-			>{ fmt.Sprint(s.Index) }</button>
+				class="sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center gap-1.5 overflow-hidden rounded border-2 border-dashed border-blue-600 bg-blue-50/80 px-1.5 text-left"
+				style={ placementBoxStyle(s) }
+				aria-label={ fmt.Sprintf("Signature box step %d, %s, drag to move, drag the corner to resize", s.Index, s.Approver) }
+			>
+				@placementBoxLabel(s, true)
+				<span aria-hidden="true" class="sig-resize absolute right-0 bottom-0 size-3 cursor-nwse-resize rounded-tl-sm bg-blue-600"></span>
+			</button>
 		</form>
 	} else {
 		<span
-			class={ "sig-marker", templ.KV("absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-slate-400 text-3xs font-medium text-white", tailwind) }
-			style={ fmt.Sprintf("left:%.1f%%;top:%.1f%%", s.X, s.Y) }
+			class="sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 overflow-hidden rounded border-2 border-dashed border-slate-400 bg-slate-50/80 px-1.5"
+			style={ placementBoxStyle(s) }
 			aria-label={ fmt.Sprintf("Signature box step %d, %s", s.Index, s.Approver) }
-		>{ fmt.Sprint(s.Index) }</span>
+		>
+			@placementBoxLabel(s, false)
+		</span>
 	}
+}
+
+// placementBoxLabel is the box's own content: the step number, and who signs there. It truncates
+// rather than wraps, so a narrow box stays the size of the signature instead of growing to fit text.
+templ placementBoxLabel(s PlacementStep, editable bool) {
+	<span
+		aria-hidden="true"
+		class={ "flex size-4 shrink-0 items-center justify-center rounded-full text-3xs font-medium text-white",
+			templ.KV("bg-blue-600", editable), templ.KV("bg-slate-400", !editable) }
+	>{ fmt.Sprint(s.Index) }</span>
+	<span class="flex min-w-0 flex-col">
+		<span class="truncate text-3xs font-medium text-slate-700">
+			if s.Approver != "" {
+				{ s.Approver }
+			} else {
+				Unassigned
+			}
+		</span>
+		if s.ApproverKind != "" {
+			<span class="truncate text-3xs text-slate-500">{ s.ApproverKind }</span>
+		}
+	</span>
+}
+
+// placementBoxStyle is the per-record half of a box's geometry -- centre, width, and the ratio its
+// height follows. Inline because the numbers are per-record: a built class name would never reach
+// app.css.
+func placementBoxStyle(s PlacementStep) string {
+	return fmt.Sprintf("left:%.1f%%;top:%.1f%%;width:%.1f%%;aspect-ratio:%d/%d", s.X, s.Y, s.Width, signatureCanvasWidth, signatureCanvasHeight)
 }
 
 // placementStepCard is one step in the sidebar: who holds it, of which kind, and where its marker
@@ -318,24 +384,40 @@ templ widthControl(s PlacementStep, page int) {
 // Fields and touches nothing else (internal/web.updateSignaturePlacement), so there is nothing to
 // carry and no list to keep right.
 
-// placementDragScript is the drag behaviour, and it travels with whichever page renders a canvas.
+// placementDragScript is the drag and resize behaviour, and it travels with whichever page renders
+// a canvas.
 //
-// Event delegation rather than per-marker listeners, so a marker replaced by an HTMX swap still
+// Event delegation rather than per-marker listeners, so a box replaced by an HTMX swap still
 // drags without re-running any setup.
 //
-// The `if (!form) return` guard is new in Fase 6c-3 and fixes a real latent crash: a marker the
-// viewer may not edit renders as a bare <span> with no surrounding form, yet pointerdown matched
-// it by class, so the first pointermove threw a TypeError on form.querySelector and left the page
-// half-broken with nothing in the UI to say why.
+// The `!marker.closest("form")` guard fixes a real latent crash (Fase 6c-3): a box the viewer may
+// not edit renders as a bare <span> with no surrounding form, yet pointerdown matched it by class,
+// so the first pointermove threw a TypeError on form.querySelector and left the page half-broken
+// with nothing in the UI to say why.
+//
+// Two things changed when the circle became a box (2026-10-05). A move now keeps the pointer's
+// offset from the box's centre: a 28px circle could snap its centre under the pointer unnoticed, a
+// box a quarter of the page wide jumps visibly if grabbed near its edge. And a pointerdown on the
+// `.sig-resize` corner resizes instead of moving -- symmetrically about the centre, since X/Y are
+// the stamp's centre (see placementMarker) -- writing a whole-number width into the same Width
+// input the sidebar's number field submits, clamped to that field's own 5..100. The box's height
+// follows from its CSS aspect-ratio, so a vertical drag is converted back to the width it implies,
+// using the ratio measured off the rendered box rather than a second copy of signatureCanvasWidth/Height.
 templ placementDragScript() {
 	<script>
 		(function () {
-			var dragging = null;
+			var dragging = null, mode = "", offX = 0, offY = 0, sigAspect = 1;
 			document.addEventListener("pointerdown", function (e) {
 				var marker = e.target.closest(".sig-marker");
 				if (!marker || !marker.closest("form")) return;
+				var box = marker.getBoundingClientRect();
+				mode = e.target.closest(".sig-resize") ? "resize" : "move";
+				offX = e.clientX - (box.left + box.width / 2);
+				offY = e.clientY - (box.top + box.height / 2);
+				sigAspect = box.width / box.height;
 				dragging = marker;
 				marker.setPointerCapture(e.pointerId);
+				e.preventDefault();
 			});
 			document.addEventListener("pointermove", function (e) {
 				if (!dragging) return;
@@ -343,8 +425,18 @@ templ placementDragScript() {
 				var form = dragging.closest("form");
 				if (!canvas || !form) return;
 				var rect = canvas.getBoundingClientRect();
-				var x = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
-				var y = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
+				if (mode === "resize") {
+					var box = dragging.getBoundingClientRect();
+					var halfW = Math.abs(e.clientX - (box.left + box.width / 2));
+					var halfH = Math.abs(e.clientY - (box.top + box.height / 2));
+					var px = 2 * Math.max(halfW, halfH * sigAspect);
+					var w = Math.round(Math.min(100, Math.max(5, (px / rect.width) * 100)));
+					dragging.style.width = w + "%";
+					form.querySelector(".sig-w-input").value = w;
+					return;
+				}
+				var x = Math.min(100, Math.max(0, ((e.clientX - offX - rect.left) / rect.width) * 100));
+				var y = Math.min(100, Math.max(0, ((e.clientY - offY - rect.top) / rect.height) * 100));
 				dragging.style.left = x + "%";
 				dragging.style.top = y + "%";
 				form.querySelector(".sig-x-input").value = x.toFixed(1);
@@ -361,55 +453,15 @@ templ placementDragScript() {
 }
 
 // signaturePlacementBlock is the same placement UI embedded in the Document's own generic detail
-// page (detail.templ), which is still pageStyles.
-//
-// It is the pageStyles twin of SignaturePlacementPage's own body, sharing the composed
-// PlacementView and not the markup -- the split Fase 6b established for reviewProgress vs
-// approvalStepper, for the same reason: Preflight ties chrome to content, so one markup cannot
-// serve both until detail.templ ports. That page is the *generic* record view every Machine
-// shares, so porting it reaches far beyond Case 3 and belongs to whatever phase ports Project
-// Management.
+// page (detail.templ). It renders placementBody -- the same markup, not a twin of it -- because
+// that markup is what its own self-refresh swaps in anyway; see placementBody.
 //
 // The #sig-body wrapper re-fetches itself after any successful descendant request, which is what
-// keeps every marker and card current after a drag without a full page reload.
+// keeps every box and card current after a drag without a full page reload. The script sits
+// outside it so a swap does not re-insert it.
 templ signaturePlacementBlock(v PlacementView) {
-	<div
-		class="sig-layout"
-		id="sig-body"
-		hx-trigger="htmx:afterRequest[detail.successful]"
-		hx-get={ placementPageHref(ctx, v.DocumentID, v.Page) }
-		hx-select="#sig-body"
-		hx-swap="outerHTML"
-	>
-		<section>
-			<div class="sig-pager">
-				<strong>{ fmt.Sprintf("Page %d of %d", v.Page, v.TotalPages) }</strong>
-				<span>
-					if v.Page > 1 {
-						<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page-1)) }>← Prev</a>
-					}
-					if v.Page < v.TotalPages {
-						<a href={ templ.URL(placementPageHref(ctx, v.DocumentID, v.Page+1)) }>Next →</a>
-					}
-				</span>
-			</div>
-			@placementCanvas(v, false)
-		</section>
-		<aside>
-			<h2>Approval steps</h2>
-			for _, s := range v.Steps {
-				<div class="sig-step-card">
-					<strong>{ fmt.Sprintf("%d. %s", s.Index, s.Approver) }</strong>
-					<p class="m-0 text-xs text-slate-500">{ placementSubline(s) }</p>
-					if s.Editable {
-						@widthControl(s, v.Page)
-						@placeStepForm(s, v.Page)
-					}
-				</div>
-			}
-		</aside>
-		@placementDragScript()
-	</div>
+	@placementBody(v)
+	@placementDragScript()
 }
 
 // placementPageOrCurrent keeps a width-only edit from relocating an unplaced marker: it lands on
