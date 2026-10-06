@@ -1,5 +1,7 @@
 package rendering
 
+import "menata.app/internal/domain"
+
 // WorkspaceSettingsPage is the Workspace-level Settings hub (Flow 2 gap study Tahap 5,
 // 2026-09-25, M04a-Settings.dc.html) -- Application Settings hub's Workspace-level counterpart
 // (appsettings.templ's ApplicationSettingsPage), and considerably simpler: there is no per-viewer
@@ -36,7 +38,7 @@ package rendering
 templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_workspace_settings"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
-			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_workspace_settings") }</h1>
+			@staticText(domain.StaticHeading, titleByID(ctx, "nav_workspace_settings"))
 			<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_workspace_settings") }</p>
 		</div>
 		<div class="flex max-w-md flex-col gap-4">

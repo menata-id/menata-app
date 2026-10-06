@@ -8,6 +8,8 @@ package rendering
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "menata.app/internal/domain"
+
 // WorkspaceSettingsPage is the Workspace-level Settings hub (Flow 2 gap study Tahap 5,
 // 2026-09-25, M04a-Settings.dc.html) -- Application Settings hub's Workspace-level counterpart
 // (appsettings.templ's ApplicationSettingsPage), and considerably simpler: there is no per-viewer
@@ -74,29 +76,24 @@ func WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceH
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col gap-1\"><h1 class=\"m-0 text-xl font-medium\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col gap-1\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = staticText(domain.StaticHeading, titleByID(ctx, "nav_workspace_settings")).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p class=\"m-0 text-sm leading-6 text-slate-500\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(titleByID(ctx, "nav_workspace_settings"))
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(descriptionByID(ctx, "nav_workspace_settings"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacesettings.templ`, Line: 39, Col: 81}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacesettings.templ`, Line: 42, Col: 99}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</h1><p class=\"m-0 text-sm leading-6 text-slate-500\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(descriptionByID(ctx, "nav_workspace_settings"))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacesettings.templ`, Line: 40, Col: 99}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

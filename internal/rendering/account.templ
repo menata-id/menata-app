@@ -16,7 +16,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 	@appShell("Profile", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
 			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
-			<h1 class="m-0 text-xl font-medium">Profile</h1>
+			@staticText(domain.StaticHeading, "Profile")
 			<div class="text-sm text-slate-500">Manage your personal information.</div>
 		</div>
 		if errorMsg != "" {
@@ -68,7 +68,7 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 	@appShell("Notifications", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
 			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
-			<h1 class="m-0 text-xl font-medium">Notifications</h1>
+			@staticText(domain.StaticHeading, "Notifications")
 			<div class="text-sm text-slate-500">Choose which emails you want to receive. In-app notifications always appear regardless of these.</div>
 		</div>
 		<form method="POST" action="/account-notifications" class="flex flex-col gap-4">
@@ -118,7 +118,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 	@appShell("Security", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
 			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
-			<h1 class="m-0 text-xl font-medium">Security</h1>
+			@staticText(domain.StaticHeading, "Security")
 			<div class="text-sm text-slate-500">Manage your password and where you're signed in.</div>
 		</div>
 		@sectionLayout(domain.GapComfortable) {

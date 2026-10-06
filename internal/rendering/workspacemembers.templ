@@ -81,7 +81,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
-				<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_workspace_members") }</h1>
+				@staticText(domain.StaticHeading, labelByID(ctx, "nav_workspace_members"))
 				<div class="text-sm text-slate-500">Manage workspace membership and application access.</div>
 			</div>
 			<div class="flex items-center gap-4">

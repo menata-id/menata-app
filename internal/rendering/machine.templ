@@ -418,7 +418,7 @@ templ slaBadge(b experience.SLABadge) {
 // Workspace manifest, per development-history.md Phase 3's exit criterion.
 templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Machines", workspaceName, viewer, switchWorkspaceHref) {
-		<h1 class="m-0 text-xl font-medium">Machines</h1>
+		@staticText(domain.StaticHeading, "Machines")
 		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
 			for i, m := range machines {
 				<a
@@ -479,7 +479,7 @@ templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, rela
 // table with a different Layout under it.
 templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, cards []RecordCard, actor domain.Actor, now time.Time) {
 	<div class="flex flex-col gap-1">
-		<h1 class="m-0 text-xl font-medium">{ m.Name }</h1>
+		@staticText(domain.StaticHeading, m.Name)
 		<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
 	</div>
 	<section class="flex flex-col gap-2">

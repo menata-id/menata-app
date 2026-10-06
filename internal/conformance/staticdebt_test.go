@@ -130,3 +130,43 @@ func TestNoHandWrittenSubheading(t *testing.T) {
 		}
 	}
 }
+
+var eyebrowSpanTag = regexp.MustCompile(`(?s)<span\b((?:[^>{]|\{[^}]*\})*)>`)
+
+// TestNoHandWrittenHeadingOrEyebrow holds two floors at **zero**: a heading element at `text-xl` is a screen's
+// own title and goes through `@staticText(domain.StaticHeading, ...)`, and the blue `text-3xs` uppercase span is
+// `StaticEyebrow`, so `theme.text.heading` / `theme.text.eyebrow` move all of them together (both roles were
+// declarable and read by nothing until 2026-10-06). Counted syntactically with `//` comments stripped.
+// Deliberately **not** claimed: the two `<h1 text-2xl>` (a larger title, its own measurement), and appshell's
+// `font-medium` "Workspace" label, which carries a weight the Eyebrow kind does not accept.
+func TestNoHandWrittenHeadingOrEyebrow(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	hasToken := func(attrs, tok string) bool {
+		return regexp.MustCompile(`(?:^|[\s"])` + regexp.QuoteMeta(tok) + `(?:\s|")`).MatchString(attrs)
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := mutedParaNote.ReplaceAllString(string(b), "")
+		for _, m := range subheadingTag.FindAllStringSubmatch(src, -1) {
+			if hasToken(m[1], "text-xl") {
+				t.Errorf("%s: a hand-written heading at text-xl -- use `@staticText(domain.StaticHeading, text)` (007 §12.6; theme.text.heading)", e.Name())
+			}
+		}
+		for _, m := range eyebrowSpanTag.FindAllStringSubmatch(src, -1) {
+			if hasToken(m[1], "text-3xs") && hasToken(m[1], "tracking-wide") && hasToken(m[1], "text-blue-600") &&
+				hasToken(m[1], "uppercase") && !hasToken(m[1], "font-medium") {
+				t.Errorf("%s: a hand-written blue eyebrow -- use `@staticText(domain.StaticEyebrow, text)` (007 §12.6; theme.text.eyebrow)", e.Name())
+			}
+		}
+	}
+}

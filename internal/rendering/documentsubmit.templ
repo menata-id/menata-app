@@ -46,8 +46,8 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			← { labelByID(ctx, "nav_approval_inbox") }
 		</a>
 		<div class="flex flex-col gap-2">
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">Step 1 of 2</span>
-			<h1 class="m-0 text-xl font-medium">New Document</h1>
+			@staticText(domain.StaticEyebrow, "Step 1 of 2")
+			@staticText(domain.StaticHeading, "New Document")
 			<div class="text-sm text-slate-500">Submit a document for approval.</div>
 		</div>
 		<form

@@ -156,7 +156,19 @@ func SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</a><div class=\"flex flex-col gap-2\"><span class=\"text-3xs tracking-wide text-blue-600 uppercase\">Step 2 of 2</span><h1 class=\"m-0 text-xl font-medium\">Signature positions</h1><div class=\"text-sm text-slate-500\">Place one signature box for each approval step. Positions are saved per step, as you make them.</div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</a><div class=\"flex flex-col gap-2\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = staticText(domain.StaticEyebrow, "Step 2 of 2").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = staticText(domain.StaticHeading, "Signature positions").Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"text-sm text-slate-500\">Place one signature box for each approval step. Positions are saved per step, as you make them.</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -164,7 +176,7 @@ func SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " <div class=\"flex justify-end\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <div class=\"flex justify-end\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -173,7 +185,7 @@ func SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -186,7 +198,7 @@ func SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\" class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -199,7 +211,7 @@ func SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">Done →</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\">Done →</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -256,7 +268,7 @@ func placementBody(v PlacementView) templ.Component {
 			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div id=\"sig-body\" hx-trigger=\"htmx:afterRequest[detail.successful]\" hx-get=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div id=\"sig-body\" hx-trigger=\"htmx:afterRequest[detail.successful]\" hx-get=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -269,7 +281,7 @@ func placementBody(v PlacementView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" hx-select=\"#sig-body\" hx-swap=\"outerHTML\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" hx-select=\"#sig-body\" hx-swap=\"outerHTML\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -309,7 +321,7 @@ func placementBody(v PlacementView) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<h2 class=\"m-0 text-sm font-medium\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<h2 class=\"m-0 text-sm font-medium\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -322,7 +334,7 @@ func placementBody(v PlacementView) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</h2><span class=\"flex items-center gap-3 text-xs\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</h2><span class=\"flex items-center gap-3 text-xs\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -338,7 +350,7 @@ func placementBody(v PlacementView) templ.Component {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -348,7 +360,7 @@ func placementBody(v PlacementView) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " <p class=\"m-0 text-2xs text-slate-500\">Drag each box to its signature block, and its corner to resize it. Box size matches the signature image.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " <p class=\"m-0 text-2xs text-slate-500\">Drag each box to its signature block, and its corner to resize it. Box size matches the signature image.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -362,7 +374,7 @@ func placementBody(v PlacementView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " <aside class=\"flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5\"><h2 class=\"m-0 text-sm font-medium\">Approval steps</h2>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " <aside class=\"flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5\"><h2 class=\"m-0 text-sm font-medium\">Approval steps</h2>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -372,7 +384,7 @@ func placementBody(v PlacementView) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<p class=\"m-0 rounded-md bg-slate-50 p-3 text-2xs leading-5 text-slate-500\">Approvers are supplied by Groups. Changing group membership is managed separately.</p></aside>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<p class=\"m-0 rounded-md bg-slate-50 p-3 text-2xs leading-5 text-slate-500\">Approvers are supplied by Groups. Changing group membership is managed separately.</p></aside>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -382,7 +394,7 @@ func placementBody(v PlacementView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -428,7 +440,7 @@ func placementCanvas(v PlacementView) templ.Component {
 			templ_7745c5c3_Var14 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"sig-canvas relative inline-block w-full max-w-[480px]\"><img src=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"sig-canvas relative inline-block w-full max-w-[480px]\"><img src=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -441,7 +453,7 @@ func placementCanvas(v PlacementView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\" alt=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\" alt=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -454,7 +466,7 @@ func placementCanvas(v PlacementView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "\" class=\"block w-full rounded-md border border-slate-200\"> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\" class=\"block w-full rounded-md border border-slate-200\"> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -466,7 +478,7 @@ func placementCanvas(v PlacementView) templ.Component {
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -517,7 +529,7 @@ func placementMarker(s PlacementStep) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if s.Editable {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<form hx-put=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<form hx-put=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -530,7 +542,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\" hx-swap=\"none\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\" hx-swap=\"none\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -538,7 +550,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<input type=\"hidden\" name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<input type=\"hidden\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -551,7 +563,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -564,7 +576,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\"> <input type=\"hidden\" class=\"sig-x-input\" name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\"> <input type=\"hidden\" class=\"sig-x-input\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -577,7 +589,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -590,7 +602,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\"> <input type=\"hidden\" class=\"sig-y-input\" name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\"> <input type=\"hidden\" class=\"sig-y-input\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -603,7 +615,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -616,7 +628,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\"> <input type=\"hidden\" class=\"sig-w-input\" name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\"> <input type=\"hidden\" class=\"sig-w-input\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -629,7 +641,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -642,7 +654,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"> <button type=\"button\" class=\"sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center gap-1.5 overflow-hidden rounded border-2 border-dashed border-blue-600 bg-blue-50/80 px-1.5 text-left\" style=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\"> <button type=\"button\" class=\"sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center gap-1.5 overflow-hidden rounded border-2 border-dashed border-blue-600 bg-blue-50/80 px-1.5 text-left\" style=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -655,7 +667,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\" aria-label=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\" aria-label=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -668,7 +680,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -676,12 +688,12 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "<span aria-hidden=\"true\" class=\"sig-resize absolute right-0 bottom-0 size-3 cursor-nwse-resize rounded-tl-sm bg-blue-600\"></span></button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<span aria-hidden=\"true\" class=\"sig-resize absolute right-0 bottom-0 size-3 cursor-nwse-resize rounded-tl-sm bg-blue-600\"></span></button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<span class=\"sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 overflow-hidden rounded border-2 border-dashed border-slate-400 bg-slate-50/80 px-1.5\" style=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<span class=\"sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 overflow-hidden rounded border-2 border-dashed border-slate-400 bg-slate-50/80 px-1.5\" style=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -694,7 +706,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" aria-label=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" aria-label=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -707,7 +719,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -715,7 +727,7 @@ func placementMarker(s PlacementStep) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -753,7 +765,7 @@ func placementBoxLabel(s PlacementStep, editable bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<span aria-hidden=\"true\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<span aria-hidden=\"true\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -766,7 +778,7 @@ func placementBoxLabel(s PlacementStep, editable bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -779,7 +791,7 @@ func placementBoxLabel(s PlacementStep, editable bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "</span> <span class=\"flex min-w-0 flex-col\"><span class=\"truncate text-3xs font-medium text-slate-700\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</span> <span class=\"flex min-w-0 flex-col\"><span class=\"truncate text-3xs font-medium text-slate-700\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -794,17 +806,17 @@ func placementBoxLabel(s PlacementStep, editable bool) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "Unassigned")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "Unassigned")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if s.ApproverKind != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<span class=\"truncate text-3xs text-slate-500\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<span class=\"truncate text-3xs text-slate-500\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -817,12 +829,12 @@ func placementBoxLabel(s PlacementStep, editable bool) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -860,7 +872,7 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 			templ_7745c5c3_Var37 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "<div class=\"flex flex-col gap-2 rounded-md border border-slate-200 p-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<div class=\"flex flex-col gap-2 rounded-md border border-slate-200 p-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -876,7 +888,7 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<span aria-hidden=\"true\" class=\"flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-3xs font-medium text-slate-700\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<span aria-hidden=\"true\" class=\"flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-3xs font-medium text-slate-700\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -889,7 +901,7 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "</span> <span class=\"truncate text-sm\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</span> <span class=\"truncate text-sm\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -904,12 +916,12 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "Unassigned")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "Unassigned")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -923,7 +935,7 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<span class=\"text-2xs text-slate-400\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<span class=\"text-2xs text-slate-400\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -936,7 +948,7 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -945,7 +957,7 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -954,7 +966,7 @@ func placementStepCard(s PlacementStep, page int) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1045,7 +1057,7 @@ func placeStepForm(s PlacementStep, page int) templ.Component {
 			templ_7745c5c3_Var43 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<form hx-put=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<form hx-put=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1058,7 +1070,7 @@ func placeStepForm(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\" hx-swap=\"none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\" hx-swap=\"none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1066,7 +1078,7 @@ func placeStepForm(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<input type=\"hidden\" name=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<input type=\"hidden\" name=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1079,7 +1091,7 @@ func placeStepForm(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1092,7 +1104,7 @@ func placeStepForm(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\"> <input type=\"hidden\" name=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\"> <input type=\"hidden\" name=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1105,7 +1117,7 @@ func placeStepForm(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\" value=\"50\"> <input type=\"hidden\" name=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "\" value=\"50\"> <input type=\"hidden\" name=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1118,7 +1130,7 @@ func placeStepForm(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "\" value=\"50\"> <input type=\"hidden\" name=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\" value=\"50\"> <input type=\"hidden\" name=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1131,7 +1143,7 @@ func placeStepForm(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1144,22 +1156,22 @@ func placeStepForm(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "\"> <button type=\"submit\" class=\"cursor-pointer text-xs text-blue-600 hover:text-blue-700\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\"> <button type=\"submit\" class=\"cursor-pointer text-xs text-blue-600 hover:text-blue-700\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if s.Placed && s.Page == page {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "Re-centre on this page")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "Re-centre on this page")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "Place on this page")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "Place on this page")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "</button></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</button></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1190,7 +1202,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 			templ_7745c5c3_Var51 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<form hx-put=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<form hx-put=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1203,7 +1215,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "\" hx-trigger=\"change\" hx-swap=\"none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "\" hx-trigger=\"change\" hx-swap=\"none\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1211,7 +1223,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<input type=\"hidden\" name=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<input type=\"hidden\" name=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1224,7 +1236,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1237,7 +1249,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\"> <input type=\"hidden\" name=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\"> <input type=\"hidden\" name=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1250,7 +1262,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1263,7 +1275,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\"> <input type=\"hidden\" name=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "\"> <input type=\"hidden\" name=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1276,7 +1288,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1289,7 +1301,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "\"> <label class=\"sig-width-label flex items-center gap-1.5 text-2xs text-slate-500\">Width <input type=\"number\" name=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "\"> <label class=\"sig-width-label flex items-center gap-1.5 text-2xs text-slate-500\">Width <input type=\"number\" name=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1302,7 +1314,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1315,7 +1327,7 @@ func widthControl(s PlacementStep, page int) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "\" min=\"5\" max=\"100\" step=\"1\" class=\"w-16 rounded border border-slate-300 px-1.5 py-0.5 text-2xs\"> %</label></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "\" min=\"5\" max=\"100\" step=\"1\" class=\"w-16 rounded border border-slate-300 px-1.5 py-0.5 text-2xs\"> %</label></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1373,7 +1385,7 @@ func placementDragScript() templ.Component {
 			templ_7745c5c3_Var61 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<script>\n\t\t(function () {\n\t\t\tvar dragging = null, mode = \"\", offX = 0, offY = 0, sigAspect = 1;\n\t\t\tdocument.addEventListener(\"pointerdown\", function (e) {\n\t\t\t\tvar marker = e.target.closest(\".sig-marker\");\n\t\t\t\tif (!marker || !marker.closest(\"form\")) return;\n\t\t\t\tvar box = marker.getBoundingClientRect();\n\t\t\t\tmode = e.target.closest(\".sig-resize\") ? \"resize\" : \"move\";\n\t\t\t\toffX = e.clientX - (box.left + box.width / 2);\n\t\t\t\toffY = e.clientY - (box.top + box.height / 2);\n\t\t\t\tsigAspect = box.width / box.height;\n\t\t\t\tdragging = marker;\n\t\t\t\tmarker.setPointerCapture(e.pointerId);\n\t\t\t\te.preventDefault();\n\t\t\t});\n\t\t\tdocument.addEventListener(\"pointermove\", function (e) {\n\t\t\t\tif (!dragging) return;\n\t\t\t\tvar canvas = dragging.closest(\".sig-canvas\");\n\t\t\t\tvar form = dragging.closest(\"form\");\n\t\t\t\tif (!canvas || !form) return;\n\t\t\t\tvar rect = canvas.getBoundingClientRect();\n\t\t\t\tif (mode === \"resize\") {\n\t\t\t\t\tvar box = dragging.getBoundingClientRect();\n\t\t\t\t\tvar halfW = Math.abs(e.clientX - (box.left + box.width / 2));\n\t\t\t\t\tvar halfH = Math.abs(e.clientY - (box.top + box.height / 2));\n\t\t\t\t\tvar px = 2 * Math.max(halfW, halfH * sigAspect);\n\t\t\t\t\tvar w = Math.round(Math.min(100, Math.max(5, (px / rect.width) * 100)));\n\t\t\t\t\tdragging.style.width = w + \"%\";\n\t\t\t\t\tform.querySelector(\".sig-w-input\").value = w;\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tvar x = Math.min(100, Math.max(0, ((e.clientX - offX - rect.left) / rect.width) * 100));\n\t\t\t\tvar y = Math.min(100, Math.max(0, ((e.clientY - offY - rect.top) / rect.height) * 100));\n\t\t\t\tdragging.style.left = x + \"%\";\n\t\t\t\tdragging.style.top = y + \"%\";\n\t\t\t\tform.querySelector(\".sig-x-input\").value = x.toFixed(1);\n\t\t\t\tform.querySelector(\".sig-y-input\").value = y.toFixed(1);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"pointerup\", function () {\n\t\t\t\tif (!dragging) return;\n\t\t\t\tvar form = dragging.closest(\"form\");\n\t\t\t\tif (form) form.requestSubmit();\n\t\t\t\tdragging = null;\n\t\t\t});\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<script>\n\t\t(function () {\n\t\t\tvar dragging = null, mode = \"\", offX = 0, offY = 0, sigAspect = 1;\n\t\t\tdocument.addEventListener(\"pointerdown\", function (e) {\n\t\t\t\tvar marker = e.target.closest(\".sig-marker\");\n\t\t\t\tif (!marker || !marker.closest(\"form\")) return;\n\t\t\t\tvar box = marker.getBoundingClientRect();\n\t\t\t\tmode = e.target.closest(\".sig-resize\") ? \"resize\" : \"move\";\n\t\t\t\toffX = e.clientX - (box.left + box.width / 2);\n\t\t\t\toffY = e.clientY - (box.top + box.height / 2);\n\t\t\t\tsigAspect = box.width / box.height;\n\t\t\t\tdragging = marker;\n\t\t\t\tmarker.setPointerCapture(e.pointerId);\n\t\t\t\te.preventDefault();\n\t\t\t});\n\t\t\tdocument.addEventListener(\"pointermove\", function (e) {\n\t\t\t\tif (!dragging) return;\n\t\t\t\tvar canvas = dragging.closest(\".sig-canvas\");\n\t\t\t\tvar form = dragging.closest(\"form\");\n\t\t\t\tif (!canvas || !form) return;\n\t\t\t\tvar rect = canvas.getBoundingClientRect();\n\t\t\t\tif (mode === \"resize\") {\n\t\t\t\t\tvar box = dragging.getBoundingClientRect();\n\t\t\t\t\tvar halfW = Math.abs(e.clientX - (box.left + box.width / 2));\n\t\t\t\t\tvar halfH = Math.abs(e.clientY - (box.top + box.height / 2));\n\t\t\t\t\tvar px = 2 * Math.max(halfW, halfH * sigAspect);\n\t\t\t\t\tvar w = Math.round(Math.min(100, Math.max(5, (px / rect.width) * 100)));\n\t\t\t\t\tdragging.style.width = w + \"%\";\n\t\t\t\t\tform.querySelector(\".sig-w-input\").value = w;\n\t\t\t\t\treturn;\n\t\t\t\t}\n\t\t\t\tvar x = Math.min(100, Math.max(0, ((e.clientX - offX - rect.left) / rect.width) * 100));\n\t\t\t\tvar y = Math.min(100, Math.max(0, ((e.clientY - offY - rect.top) / rect.height) * 100));\n\t\t\t\tdragging.style.left = x + \"%\";\n\t\t\t\tdragging.style.top = y + \"%\";\n\t\t\t\tform.querySelector(\".sig-x-input\").value = x.toFixed(1);\n\t\t\t\tform.querySelector(\".sig-y-input\").value = y.toFixed(1);\n\t\t\t});\n\t\t\tdocument.addEventListener(\"pointerup\", function () {\n\t\t\t\tif (!dragging) return;\n\t\t\t\tvar form = dragging.closest(\"form\");\n\t\t\t\tif (form) form.requestSubmit();\n\t\t\t\tdragging = null;\n\t\t\t});\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

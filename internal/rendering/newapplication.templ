@@ -38,7 +38,7 @@ type ConversationTurn struct {
 templ NewApplicationPage(view ConversationView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("New application", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-2">
-			<h1 class="m-0 text-xl font-medium">New application</h1>
+			@staticText(domain.StaticHeading, "New application")
 			<div class="text-sm text-slate-500">Tell Menata what your team needs. It asks a few questions, shows what it will build, then generates a draft only you can see.</div>
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
@@ -234,9 +234,9 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)
 			}
 			if change.Kind == aiassist.KindNewApplication && change.Application != nil {
-				<h1 class="m-0 text-xl font-medium">{ change.Application.Name }</h1>
+				@staticText(domain.StaticHeading, change.Application.Name)
 			} else {
-				<h1 class="m-0 text-xl font-medium">Update { change.TargetAppID }</h1>
+				@staticText(domain.StaticHeading, "Update " + change.TargetAppID)
 			}
 			<div class="text-sm text-slate-500">Look it over before it becomes real. Generating does not publish anything by itself.</div>
 		</div>

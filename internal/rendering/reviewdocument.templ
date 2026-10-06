@@ -122,7 +122,7 @@ templ ReviewDocumentPage(v ReviewView, workspaceName string, viewer Viewer, swit
 				<code class="rounded bg-slate-100 px-2 py-0.5 text-2xs text-slate-600">{ v.Reference }</code>
 				@reviewStatusPill(v.Status)
 			}
-			<h1 class="m-0 text-xl font-medium">{ v.Title }</h1>
+			@staticText(domain.StaticHeading, v.Title)
 			<div class="text-sm text-slate-500">
 				{ v.DocumentType }
 				if v.SubmittedBy != "" {

@@ -519,11 +519,11 @@ func rowClasses(ctx context.Context, gap domain.Gap, align domain.RowAlign, just
 templ staticText(kind domain.StaticKind, text string) {
 	switch kind {
 		case domain.StaticEyebrow:
-			<span class="text-3xs tracking-wide text-blue-600 uppercase">{ text }</span>
+			<span class={ textClass(ctx, domain.RoleEyebrow), "tracking-wide text-blue-600 uppercase" }>{ text }</span>
 		case domain.StaticHeading:
-			<h1 class="m-0 text-xl font-medium">{ text }</h1>
+			<h1 class={ "m-0", textClass(ctx, domain.RoleHeading), weightClass(ctx, domain.WeightEmphasis) }>{ text }</h1>
 		case domain.StaticParagraph:
-			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>{ text }</div>
+			<div class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>{ text }</div>
 		case domain.StaticSubheading:
 			<h2 class={ "m-0", textClass(ctx, domain.RoleSubheading), weightClass(ctx, domain.WeightEmphasis) }>{ text }</h2>
 		case domain.StaticMessage:

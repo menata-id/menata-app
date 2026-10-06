@@ -147,16 +147,16 @@ templ ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, ac
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_app_settings")) } class="text-xs text-blue-600 hover:text-blue-800">
 					← { titleByID(ctx, "nav_app_settings") }
 				</a>
-				<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_app_settings_permissions") }</h1>
+				@staticText(domain.StaticHeading, titleByID(ctx, "nav_app_settings_permissions"))
 			} else {
-				<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_app_settings") }</h1>
+				@staticText(domain.StaticHeading, titleByID(ctx, "nav_app_settings"))
 				if descriptionByID(ctx, "nav_app_settings") != "" {
 					<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_app_settings") }</p>
 				}
 			}
 		</div>
 		<div class="hidden flex-col gap-1 sm:flex">
-			<h1 class="m-0 text-xl font-medium">{ titleByID(ctx, "nav_app_settings") }</h1>
+			@staticText(domain.StaticHeading, titleByID(ctx, "nav_app_settings"))
 			if descriptionByID(ctx, "nav_app_settings") != "" {
 				<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_app_settings") }</p>
 			}

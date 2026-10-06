@@ -20,7 +20,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
 			<div class="flex flex-col gap-2">
 				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
-				<h1 class="m-0 text-xl font-medium">{ labelByID(ctx, "nav_workspace_groups") }</h1>
+				@staticText(domain.StaticHeading, labelByID(ctx, "nav_workspace_groups"))
 				<div class="max-w-prose text-sm text-slate-500">
 					Assign a role to a Group once, then add or remove members — instead of editing every
 					person's own row. A member's effective role in an Application is their direct
@@ -90,7 +90,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 	@appShell(group.Name, workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID(ctx, "nav_workspace_groups") }</a>
 		<div class="flex items-center justify-between gap-3">
-			<h1 class="m-0 text-xl font-medium">{ group.Name }</h1>
+			@staticText(domain.StaticHeading, group.Name)
 			<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", group.MemberCount) }{ pluralS(group.MemberCount) }</span>
 		</div>
 		@sectionLayout(domain.GapComfortable) {

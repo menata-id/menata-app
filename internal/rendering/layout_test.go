@@ -577,3 +577,34 @@ func TestStaticSubheading_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 		t.Errorf("a declared subheading size and emphasis weight should move it; got %q", got)
 	}
 }
+
+// TestStaticHeadingEyebrowParagraph_followTheTheme pins the literals 23 h1, 2 eyebrow and the paragraph kind
+// wrote before they read the Theme (2026-10-06), and shows a declared role moving each. `heading` and
+// `eyebrow` were declarable and read by nothing until this.
+func TestStaticHeadingEyebrowParagraph_followTheTheme(t *testing.T) {
+	cases := []struct {
+		kind  domain.StaticKind
+		want  string
+		theme domain.Theme
+		moved string
+	}{
+		{domain.StaticHeading, `<h1 class="m-0 text-xl font-medium">T</h1>`,
+			domain.Theme{Text: map[domain.TextRole]domain.TextScale{domain.RoleHeading: domain.TextHuge}}, "text-2xl"},
+		{domain.StaticEyebrow, `<span class="text-3xs tracking-wide text-blue-600 uppercase">T</span>`,
+			domain.Theme{Text: map[domain.TextRole]domain.TextScale{domain.RoleEyebrow: domain.TextSmall}}, "text-xs tracking-wide"},
+		{domain.StaticParagraph, `<div class="text-sm text-slate-500">T</div>`,
+			domain.Theme{Text: map[domain.TextRole]domain.TextScale{domain.RoleBody: domain.TextSmall}}, "text-xs text-slate-500"},
+	}
+	for _, c := range cases {
+		var buf bytes.Buffer
+		if err := staticText(c.kind, "T").Render(context.Background(), &buf); err != nil {
+			t.Fatalf("%s: Render() error = %v", c.kind, err)
+		}
+		if buf.String() != c.want {
+			t.Errorf("%s rendered %q, want %q", c.kind, buf.String(), c.want)
+		}
+		if got := renderWithTheme(t, c.theme, staticText(c.kind, "T")); !strings.Contains(got, c.moved) {
+			t.Errorf("%s: declared theme should give %q; got %q", c.kind, c.moved, got)
+		}
+	}
+}
