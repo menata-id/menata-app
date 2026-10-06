@@ -257,11 +257,16 @@ read the Workspace's Theme: `buttonClasses` (behind the registered `button` Comp
 `fieldClasses` (2026-10-06: an input's radius, border, body size and ink from `radius.control`,
 `border.control`, `text.body` and `ink.strong`, byte-identical by default). The record table's body cell
 reads `border.divider` through `tableCellClasses`; `tableHeadCell` is still a literal constant (its rule is
-slate-200, the `surface` border, which nothing reads yet). Row separators in lists and tables (21 lines across 9
+slate-200, a region rule `surfaceClasses` does not draw). Row separators in lists and tables (21 lines across 9
 screens, 2026-10-06) read `borderClass(ctx, domain.BorderDivider)` and the four reset-weight headings read
 `weightClass(ctx, domain.WeightBody)`; `conformance.TestHandWrittenDividersOnlyShrink` holds the four that
-stay literal, each a region rule or the `divide-y` utility rather than a row separator. `fieldClasses` is a class reader and **not** a registered Component on
-purpose: an input's attributes (`name`, `value`, `required`, `placeholder`, `min`, `step`, a
+stay literal, each a region rule or the `divide-y` utility rather than a row separator. The look of a bordered surface (radius, outline, raised fill) reads `radius.surface`, `border.surface` and
+`background.raised` through `surfaceClasses` (2026-10-06: 34 hand-written `rounded-lg border border-slate-200 bg-white`
+sites in 18 screens moved to it, and `panelLayout`/`sectionLayout`/`metric` now compose it instead of repeating the
+four reads), byte-identical by default; `conformance.TestHandWrittenSurfacesOnlyShrink` holds the 4 that stay literal
+(three whose border colour is state-conditional, one `<dialog>` with no raised fill). `rounded-md` tiles, buttons and
+dashed empty states are other roles and are not counted. `fieldClasses` and `surfaceClasses` are class readers and
+**not** registered Components on purpose: an input's attributes (`name`, `value`, `required`, `placeholder`, `min`, `step`, a
 hyperscript handler) are 007 §11.3 Binding, which has no primitive, and accepting them would be
 §12.3's "arbitrary properties". `conformance.TestHandWrittenFieldsOnlyShrink` holds the 7 hand-written
 slate-300 inputs that remain, each with its reason.

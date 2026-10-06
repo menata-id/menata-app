@@ -82,7 +82,7 @@ templ InferencePage(v InferenceView, workspaceName string, viewer Viewer, switch
 // inferenceSummary states the one thing a reader wants before reading anything: is there something to
 // act on. Two statuses count as defects (undeclared, input unavailable) and two do not.
 templ inferenceSummary(v InferenceView) {
-	<section class="rounded-lg border border-slate-200 bg-white p-5">
+	<section class={ surfaceClasses(ctx), "p-5" }>
 		if v.Defects == 0 {
 			<div class="flex items-center gap-2 text-sm">
 				@statusBadge("nothing to act on", domain.ToneGood, domain.BadgeRegular)

@@ -834,3 +834,30 @@ func TestDividerAndBodyWeightFollowTheTheme(t *testing.T) {
 		t.Errorf("theme.weight.body should move a reset-weight heading; got %q", got)
 	}
 }
+
+func TestSurfaceClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
+	if got, want := surfaceClasses(context.Background()), "rounded-lg border border-slate-200 bg-white"; got != want {
+		t.Errorf("default surface must render the literal 34 sites carried; got %q, want %q", got, want)
+	}
+}
+
+func TestSurfaceClasses_followTheThemeAtAHandWrittenSite(t *testing.T) {
+	th := domain.Theme{
+		Radius:     map[domain.RadiusRole]domain.RadiusStep{domain.RadiusSurface: domain.RadiusStepSmall},
+		Border:     map[domain.BorderRole]domain.BorderShade{domain.BorderSurface: domain.BorderDefined},
+		Background: map[domain.BackgroundRole]domain.BackgroundShade{domain.BackgroundRaised: domain.BackgroundShadeLighter},
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+	if got, want := surfaceClasses(ctx), "rounded-md border border-slate-300 bg-slate-50"; got != want {
+		t.Errorf("a declared theme must move the surface recipe; got %q, want %q", got, want)
+	}
+
+	// roleMatrixApp was one of the 34 literal sites: it must follow the theme, not stay on slate-200.
+	var buf strings.Builder
+	if err := roleMatrixApp(RoleMatrixApp{Name: "App"}).Render(ctx, &buf); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if out := buf.String(); !strings.Contains(out, "rounded-md border border-slate-300 bg-slate-50") {
+		t.Errorf("a migrated hand-written surface did not follow the theme; got %q", out)
+	}
+}

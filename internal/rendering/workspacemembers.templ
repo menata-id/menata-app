@@ -89,7 +89,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", totalMembers) }{ pluralS(totalMembers) }</span>
 			</div>
 		}
-		<details class="rounded-lg border border-slate-200 bg-white">
+		<details class={ surfaceClasses(ctx) }>
 			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ Invite member</summary>
 			<form method="POST" action="/workspace-members/invite" class="flex flex-col gap-4 border-t border-slate-200 px-5 py-4">
 				@csrfHiddenInput()
@@ -110,7 +110,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 		if len(members) == 0 && q != "" {
 			<p class="m-0 text-sm text-slate-500">No member matches "{ q }".</p>
 		}
-		<div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+		<div class={ "overflow-hidden", surfaceClasses(ctx) }>
 			<div class="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex">
 				<span class="grow">Member</span>
 				<span class="w-32">Workspace role</span>

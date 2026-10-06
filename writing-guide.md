@@ -1390,7 +1390,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     comfortable: four   # (default: four)
 >     loose:       five   # (default: five)
 >   border:
->     surface: soft     # panels, sections, cards, tables (default: soft)
+>     surface: soft     # panels, sections, cards, table wrappers, popovers (default: soft)
 >     control: defined  # an input's own box  (default: defined)
 >     divider: faint    # row separators in lists and tables  (default: faint)
 >   tone:
@@ -1447,6 +1447,8 @@ similar-looking metadata for a *different* Machine does not activate it.
 >
 > The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
 > `medium` is the one no role claims by default.
+>
+> **`border.surface` moves every large-radius bordered surface, and only those.** Since 2026-10-06 that is the 34 hand-written cards, asides, fieldsets, table wrappers and popovers as well as the primitives' own (`surfaceClasses`). It does **not** move a `rounded-md` tile or button, a dashed empty state, a header or footer rule, or the four surfaces whose border changes with state (an overdue card, today's calendar column, an unread notification, the signature dialog) -- those keep slate-200 until a role exists for them.
 >
 > **Every key in this block changes pixels now.** `weight.body` and `border.divider` did not until 2026-10-06, when their readers were found to exist already (`weightClass`, `borderClass`) and every list row, table cell and reset-weight column heading was made to call them; neither needed a primitive. `radius.control` and `ink.body` started working on 2026-10-06, when the Button Component (007 §12.3) became their first reader, and `border.control` the same day, when every input began reading it through `fieldClasses`. **`border.control` does not move buttons**: a button's outline is slate-200 in the mockups and `border.control` is slate-300, so reading it there would shift fourteen buttons (owner decision D8). `conformance.TestEveryThemeRoleHasAReaderOrAReason` holds this list, which is empty: a key declared without a reader fails until it gets one.
 >

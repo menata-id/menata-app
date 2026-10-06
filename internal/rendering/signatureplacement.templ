@@ -160,7 +160,7 @@ templ placementBody(v PlacementView) {
 				</p>
 				@placementCanvas(v)
 			}
-			<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+			<aside class={ "flex h-fit flex-col gap-3", surfaceClasses(ctx), "p-5" }>
 				@staticText(domain.StaticPanelHeading, "Approval steps")
 				for _, s := range v.Steps {
 					@placementStepCard(s, v.Page)

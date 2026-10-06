@@ -168,7 +168,7 @@ func modeChecked(draftMode, opt string, i int) bool {
 // own re-render); "" means neither -- modeChecked's existing fallback to the Field's first option
 // covers it unchanged.
 templ modeFieldset(mode domain.Field, selected string) {
-	<fieldset id="mode-fieldset" class="m-0 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+	<fieldset id="mode-fieldset" class={ "m-0 flex flex-col gap-3", surfaceClasses(ctx), "p-5" }>
 		@modeFieldsetContent(mode, selected)
 	</fieldset>
 }
@@ -180,7 +180,7 @@ templ modeFieldset(mode domain.Field, selected string) {
 // conditionally on one element, and duplicating one wrapping <fieldset> tag around a shared
 // modeFieldsetContent is simpler than the alternative.
 templ modeFieldsetOOB(mode domain.Field, selected string) {
-	<fieldset id="mode-fieldset" hx-swap-oob="true" class="m-0 flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+	<fieldset id="mode-fieldset" hx-swap-oob="true" class={ "m-0 flex flex-col gap-3", surfaceClasses(ctx), "p-5" }>
 		@modeFieldsetContent(mode, selected)
 	</fieldset>
 }

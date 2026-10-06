@@ -24,7 +24,7 @@ import (
 templ approvalStepper(m *domain.Machine, seq *domain.Sequencing, parent *data.Record, steps []*data.Record, relations RelationOptions) {
 	{{ ordered := sortedBySequence(seq, steps) }}
 	{{ personField, hasPersonField := personFieldID(m) }}
-	<ul class="m-0 flex list-none flex-col rounded-lg border border-slate-200 bg-white p-2">
+	<ul class={ "m-0 flex list-none flex-col", surfaceClasses(ctx), "p-2" }>
 		for _, s := range ordered {
 			@approvalStepRow(seq, parent, s, ordered, relations, personField, hasPersonField)
 		}

@@ -53,7 +53,7 @@ templ authShell(title, heading, subtitle string) {
 // list), so it is a parameter rather than a second component; on a phone both go full-width
 // inside authShell's own gutter.
 templ authCard(widthClass string) {
-	<div class={ "w-full rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]", widthClass }>
+	<div class={ "w-full", surfaceClasses(ctx), "shadow-[0_1px_2px_rgba(15,23,42,0.04)]", widthClass }>
 		{ children... }
 	</div>
 }

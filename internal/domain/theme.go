@@ -149,7 +149,9 @@ var KnownTextScales = map[TextScale]bool{
 type BorderRole string
 
 const (
-	// BorderSurface outlines something content sits inside.
+	// BorderSurface outlines something content sits inside. Read through `rendering.surfaceClasses`, so a hand-written
+	// large-radius surface and `panelLayout`/`sectionLayout` move together; a `rounded-md` tile, a button's outline and
+	// the region rules in headers do not read it (measured 2026-10-06).
 	BorderSurface BorderRole = "surface"
 	// BorderControl outlines something a person types into or interacts with.
 	BorderControl BorderRole = "control"

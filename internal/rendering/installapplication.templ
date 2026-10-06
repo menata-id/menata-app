@@ -57,7 +57,7 @@ templ InstallApplicationPage(templates []InstallableTemplate, workspaceName stri
 			<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_install_application") }</p>
 		</div>
 		if len(templates) == 0 {
-			<div class="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-500">
+			<div class={ surfaceClasses(ctx), "p-5 text-sm text-slate-500" }>
 				There are no ready-made applications in this installation's template library.
 			</div>
 		}

@@ -42,7 +42,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 			<div class="text-sm text-slate-500">Tell Menata what your team needs. It asks a few questions, shows what it will build, then generates a draft only you can see.</div>
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
-			<section aria-label="Conversation" class="flex min-h-96 flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			<section aria-label="Conversation" class={ "flex min-h-96 flex-col gap-4", surfaceClasses(ctx), "p-5" }>
 				if len(view.Turns) == 0 {
 					@staticText(domain.StaticMessage, "What should this application do? Describe it the way you would explain it to a new colleague.")
 				}
@@ -88,7 +88,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 					<p id="thinking-note" class="hidden m-0 text-xs text-slate-400">Menata is thinking — this can take up to a minute.</p>
 				</div>
 			</section>
-			<aside aria-label="What will be built" class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
+			<aside aria-label="What will be built" class={ "flex flex-col gap-4", surfaceClasses(ctx), "p-5" }>
 				<div class="flex flex-col gap-1">
 					@staticText(domain.StaticPanelHeading, "What will be built")
 					<span class="text-xs text-slate-500">Updated as you answer.</span>
@@ -241,14 +241,14 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 			<div class="text-sm text-slate-500">Look it over before it becomes real. Generating does not publish anything by itself.</div>
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
-			<section class="rounded-lg border border-slate-200 bg-white p-5">
+			<section class={ surfaceClasses(ctx), "p-5" }>
 				if change.Kind == aiassist.KindUpdateApplication {
 					@updatePlan(plan)
 				} else {
 					@changeSummary(change)
 				}
 			</section>
-			<aside class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
+			<aside class={ "flex flex-col gap-3", surfaceClasses(ctx), "p-5" }>
 				@staticText(domain.StaticPanelHeading, "Before you publish")
 				if change.Kind == aiassist.KindNewApplication && change.Application != nil && change.Application.PublisherRole != "" {
 					<p class="m-0 text-xs text-slate-500">You'll hold the "{ change.Application.PublisherRole }" role in it once published, so you can open it right away. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>

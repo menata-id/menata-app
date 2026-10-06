@@ -125,7 +125,7 @@ func authCard(widthClass string) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var5 = []any{"w-full rounded-lg border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]", widthClass}
+		var templ_7745c5c3_Var5 = []any{"w-full", surfaceClasses(ctx), "shadow-[0_1px_2px_rgba(15,23,42,0.04)]", widthClass}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

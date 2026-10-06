@@ -444,3 +444,67 @@ func TestHandWrittenDividersOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// handWrittenSurfaceFloors are the `.templ` sites that still write the surface recipe by hand -- a class set holding
+// `rounded-lg`, `border` and the literal `border-slate-200` -- instead of reading `surfaceClasses(ctx)`. The
+// eighth directive ratchet (2026-10-06; find the readers, migrate, then gate): 34 sites in 18 files moved, and
+// until they did a Workspace's `theme.border.surface` recoloured only what `panelLayout`/`sectionLayout` drew.
+//
+// **What this does not count, stated so the next slice does not rediscover it:** the 21 `rounded-md` +
+// `border-slate-200` sites (8 with `bg-white`) are not the surface role -- they are buttons, a read-only input,
+// and nested selectable tiles, three jobs a widening to `RadiusSurface` would shift by 2px. They need a decision
+// about what role a tile is (and D8 for the buttons) before they can be counted as debt rather than as a
+// different thing. Dashed empty states (`border-slate-300`) and red danger zones are other border colours.
+var handWrittenSurfaceFloors = map[string]int{
+	"approvalinbox.templ":  1, // border colour is conditional (red when overdue); a reader would have to take the state
+	"calendar.templ":       1, // today's column swaps the border and fill; same shape
+	"notifications.templ":  1, // an unread row swaps the border and fill; same shape
+	"reviewdocument.templ": 1, // a <dialog> with no raised fill: the user agent paints its Canvas, and adding bg-white would be a change
+}
+
+var (
+	surfaceClassAttr = regexp.MustCompile(`class="([^"]*)"`)
+	surfaceLiteral   = regexp.MustCompile(`"([^"]*)"`)
+)
+
+func TestHandWrittenSurfacesOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	actual := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := joinClassExpressions(comment.ReplaceAllString(string(b), ""))
+		for _, m := range surfaceClassAttr.FindAllStringSubmatch(src, -1) {
+			set := map[string]bool{}
+			for _, tok := range strings.Fields(m[1]) {
+				set[tok] = true
+			}
+			if set["rounded-lg"] && set["border"] && set["border-slate-200"] {
+				actual[e.Name()]++
+			}
+		}
+	}
+	for _, f := range sortedFileNames(actual) {
+		switch w := handWrittenSurfaceFloors[f]; {
+		case actual[f] > w:
+			t.Errorf("%s: %d hand-written surface site(s), frozen at %d -- use `surfaceClasses(ctx)` so `theme.radius.surface`, `theme.border.surface` and `theme.background.raised` move it; a site whose border colour is conditional or whose fill is not the raised one goes in handWrittenSurfaceFloors with its reason", f, actual[f], w)
+		case actual[f] < w:
+			t.Errorf("%s: %d hand-written surface site(s), down from %d -- lower the entry in this file to lock the migration in", f, actual[f], w)
+		}
+	}
+	for _, f := range sortedFileNames(handWrittenSurfaceFloors) {
+		if _, still := actual[f]; !still {
+			t.Errorf("handWrittenSurfaceFloors still names %s, which no longer has one -- remove the entry", f)
+		}
+	}
+}

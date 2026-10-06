@@ -262,6 +262,21 @@ templ stackLayout(gap domain.Gap) {
 // class sat in app.css for a day, sourced by nothing but the sentence saying it should not be.
 // `conformance.TestNoClassLivesOnlyInAComment` holds this now, and found two more the same way.
 
+// surfaceClasses is the look of something content sits inside: the surface radius, a one-pixel edge in the
+// surface border role, and the raised fill. Padding is deliberately not part of it -- it is the one thing the
+// callers disagree about (`panel`, `section`, a table wrapper with none, a popover) -- so each site keeps its own.
+//
+// **It is a class reader and not a registered Component**, for `fieldClasses`' reason: the sites using it are a
+// `<section>`, an `<aside>`, a `<fieldset>`, a `<details>`, a `<ul>` and a link, and choosing the element is not
+// something the vocabulary has a word for. Before it, 34 hand-written sites carried this recipe as a literal, so a
+// Workspace declaring `theme.border.surface` recoloured the surfaces `panelLayout`/`sectionLayout` drew and left
+// every other one on slate-200. Joined in the old literal's order, so the default theme renders the same bytes.
+func surfaceClasses(ctx context.Context) string {
+	return strings.Join([]string{
+		radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised),
+	}, " ")
+}
+
 // panelLayout is the bordered, padded surface twelve sites across six screens carried as one identical
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would
@@ -270,7 +285,7 @@ templ stackLayout(gap domain.Gap) {
 // **Measured 2026-10-06: it has one live caller.** The twelve sites above were rewritten into other shapes since
 // (the Case 19 restyles), so the panel/section padding difference is one site wide today.
 templ panelLayout() {
-	<section class={ radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), paddingClass(ctx, domain.PaddingPanel) }>
+	<section class={ surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
 		{ children... }
 	</section>
 }
@@ -288,7 +303,7 @@ templ panelLayout() {
 // It takes no title parameter. `sectionHeaderRow` (appshell.templ, 9 callers) is the heading half and takes
 // a link target; a Layout that accepted one would be a Layout that knows about routes.
 templ sectionLayout(gap domain.Gap) {
-	<section class={ "flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), paddingClass(ctx, domain.PaddingSection) }>
+	<section class={ "flex flex-col", layoutGap(ctx, gap), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 		{ children... }
 	</section>
 }
