@@ -167,7 +167,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					var templ_7745c5c3_Var8 = []any{controlField}
+					var templ_7745c5c3_Var8 = []any{fieldClasses(ctx)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -224,7 +224,7 @@ func DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOptio
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					var templ_7745c5c3_Var12 = []any{controlField}
+					var templ_7745c5c3_Var12 = []any{fieldClasses(ctx)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -828,7 +828,7 @@ func wizardSelect(id, name string, options []string, placeholder, selected strin
 			templ_7745c5c3_Var34 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var35 = []any{controlField}
+		var templ_7745c5c3_Var35 = []any{fieldClasses(ctx)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var35...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1026,7 +1026,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFiel
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var43 = []any{"approver-type px-2 " + controlField}
+		var templ_7745c5c3_Var43 = []any{"approver-type px-2 " + fieldClasses(ctx)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var43...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1133,7 +1133,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFiel
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var50 = []any{approverUserClass(prefill.ApproverType == domain.ActorKindGroup)}
+		var templ_7745c5c3_Var50 = []any{approverUserClass(ctx, prefill.ApproverType == domain.ActorKindGroup)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var50...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1214,7 +1214,7 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFiel
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var55 = []any{approverGroupClass(prefill.ApproverType != domain.ActorKindGroup)}
+		var templ_7745c5c3_Var55 = []any{approverGroupClass(ctx, prefill.ApproverType != domain.ActorKindGroup)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var55...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1303,15 +1303,15 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFiel
 // "hidden" placed right after the arm's own class name, matching the literal string shape this
 // markup always had, now decided from prefill.ApproverType instead of unconditionally hiding the
 // Group arm the way every row did before StepPrefill existed.
-func approverUserClass(hide bool) string {
+func approverUserClass(ctx context.Context, hide bool) string {
 	class := "approver-user"
 	if hide {
 		class += " hidden"
 	}
-	return class + " min-w-44 grow " + controlField
+	return class + " min-w-44 grow " + fieldClasses(ctx)
 }
 
-func approverGroupClass(hide bool) string {
+func approverGroupClass(ctx context.Context, hide bool) string {
 	class := "approver-group"
 	if hide {
 		class += " hidden"

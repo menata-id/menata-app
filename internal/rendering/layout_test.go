@@ -782,3 +782,34 @@ func TestButton_reproducesTheUnreachedReviewAndInstallSites(t *testing.T) {
 		}
 	}
 }
+
+func TestFieldClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
+	const want = "h-9 rounded-md border border-slate-300 bg-white px-3 font-sans text-sm text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
+	if got := fieldClasses(context.Background()); got != want {
+		t.Errorf("default field rendered %q, want the pre-migration controlField literal %q", got, want)
+	}
+}
+
+// TestFieldClasses_followTheTheme is what gives `BorderControl` its first reader: a key that validates and
+// changes nothing is the failure `TestEveryThemeRoleHasAReaderOrAReason` exists to catch. It also pins what
+// must not move -- the white fill and the focus ring are not roles.
+func TestFieldClasses_followTheTheme(t *testing.T) {
+	th := domain.Theme{
+		Radius: map[domain.RadiusRole]domain.RadiusStep{domain.RadiusControl: domain.RadiusStepFull},
+		Border: map[domain.BorderRole]domain.BorderShade{domain.BorderControl: domain.BorderSoft},
+		Ink:    map[domain.InkRole]domain.InkShade{domain.InkStrong: domain.InkShadeMedium},
+		Text:   map[domain.TextRole]domain.TextScale{domain.RoleBody: domain.TextSmall},
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+	got := fieldClasses(ctx)
+	for _, want := range []string{"rounded-full", "border-slate-200", "text-slate-500", "text-xs", "bg-white", "focus:outline-blue-300"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("a declared theme should yield %q; got %q", want, got)
+		}
+	}
+	for _, gone := range []string{"rounded-md", "border-slate-300", "text-slate-900", "text-sm"} {
+		if strings.Contains(got, gone) {
+			t.Errorf("%q should have moved with the theme; got %q", gone, got)
+		}
+	}
+}

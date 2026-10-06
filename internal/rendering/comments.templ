@@ -57,7 +57,7 @@ templ commentBox(parentID string, c *CommentComposer) {
 	<form class="m-0" hx-post={ "/machines/" + c.MachineID + "/records" } hx-swap="none">
 		<input type="hidden" name={ c.ParentField } value={ parentID }/>
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-			<input type="text" name={ c.BodyField } required placeholder="Write a comment" aria-label="Write a comment" class={ controlField + " grow" }/>
+			<input type="text" name={ c.BodyField } required placeholder="Write a comment" aria-label="Write a comment" class={ fieldClasses(ctx) + " grow" }/>
 			@button("Comment", domain.ButtonSecondary, "", "")
 		}
 	</form>

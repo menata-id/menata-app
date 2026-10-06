@@ -1391,7 +1391,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     loose:       five   # (default: five)
 >   border:
 >     surface: soft     # panels, sections, cards, tables (default: soft)
->     control: defined  # inputs and other controls  [declared, nothing reads it yet]  (default: defined)
+>     control: defined  # an input's own box  (default: defined)
 >     divider: faint    # row separators  [declared, nothing reads it yet]  (default: faint)
 >   tone:
 >     neutral: grey        # a badge with no particular meaning  (default: grey)
@@ -1448,7 +1448,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 > The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
 > `medium` is the one no role claims by default.
 >
-> **Three keys load and change nothing today**, and they are marked `[declared, nothing reads it yet]` above: `weight.body`, `border.control` and `border.divider`. They style inputs, table rows and reset-weight text, which no shared primitive draws yet. `radius.control` and `ink.body` started working on 2026-10-06, when the Button Component (007 §12.3) became their first reader. `border.control` stays unread on purpose: a button's outline is slate-200 in the mockups and `border.control` is slate-300, so reading it would shift fourteen buttons (owner decision D8). `conformance.TestEveryThemeRoleHasAReaderOrAReason` holds this list, so a key leaves it only by gaining a reader.
+> **Two keys load and change nothing today**, and they are marked `[declared, nothing reads it yet]` above: `weight.body` and `border.divider`. They style reset-weight text and row separators, which no shared primitive draws yet. `radius.control` and `ink.body` started working on 2026-10-06, when the Button Component (007 §12.3) became their first reader, and `border.control` the same day, when every input began reading it through `fieldClasses`. **`border.control` does not move buttons**: a button's outline is slate-200 in the mockups and `border.control` is slate-300, so reading it there would shift fourteen buttons (owner decision D8). `conformance.TestEveryThemeRoleHasAReaderOrAReason` holds this list, so a key leaves it only by gaining a reader.
 >
 > Every role, step and palette is a closed set: an unknown value is a **load error**, not a silent
 > default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the

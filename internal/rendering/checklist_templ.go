@@ -349,7 +349,7 @@ func checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit 
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					var templ_7745c5c3_Var20 = []any{controlField + " grow"}
+					var templ_7745c5c3_Var20 = []any{fieldClasses(ctx) + " grow"}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

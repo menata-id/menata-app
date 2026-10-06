@@ -59,14 +59,14 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			@sectionLayout(domain.GapComfortable) {
 				@staticText(domain.StaticPanelHeading, "Document")
 				@field("doc_title", "Title") {
-					<input id="doc_title" type="text" name="fld_title" value={ draft.Title } required class={ controlField }/>
+					<input id="doc_title" type="text" name="fld_title" value={ draft.Title } required class={ fieldClasses(ctx) }/>
 				}
 				@field("doc_type", documentType.Name) {
 					<select
 						id="doc_type"
 						name={ documentType.ID }
 						required
-						class={ controlField }
+						class={ fieldClasses(ctx) }
 						hx-get="/documents/new/approval-flow-template"
 						hx-trigger="change"
 						hx-target="#approver-rows"
@@ -221,7 +221,7 @@ templ field(forID, label string) {
 // (a Draft's own stored value, when DocumentSubmitPage is reopened via "Continue"); "" selects
 // none, leaving the placeholder shown, exactly as every fresh-wizard call already behaved.
 templ wizardSelect(id, name string, options []string, placeholder, selected string) {
-	<select id={ id } name={ name } required class={ controlField }>
+	<select id={ id } name={ name } required class={ fieldClasses(ctx) }>
 		<option value="">{ placeholder }</option>
 		for _, opt := range options {
 			<option value={ opt } selected?={ opt == selected }>{ opt }</option>
@@ -300,7 +300,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFie
 		<select
 			name={ fields.ApproverType }
 			aria-label="Approver type"
-			class={ "approver-type px-2 " + controlField }
+			class={ "approver-type px-2 " + fieldClasses(ctx) }
 			_="on change if my value is 'Group' then remove .hidden from the next <.approver-group/> then add .hidden to the next <.approver-user/> else add .hidden to the next <.approver-group/> then remove .hidden from the next <.approver-user/> end"
 		>
 			<option value={ domain.ActorKindUser } selected?={ prefill.ApproverType != domain.ActorKindGroup }>{ domain.ActorKindUser }</option>
@@ -309,7 +309,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFie
 		<select
 			name={ fields.Assignee }
 			aria-label="Approver"
-			class={ approverUserClass(prefill.ApproverType == domain.ActorKindGroup) }
+			class={ approverUserClass(ctx, prefill.ApproverType == domain.ActorKindGroup) }
 		>
 			<option value="">Select a person…</option>
 			for _, opt := range approvers[domain.UserMachineID] {
@@ -319,7 +319,7 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFie
 		<select
 			name={ fields.ApproverGroup }
 			aria-label="Approver group"
-			class={ approverGroupClass(prefill.ApproverType != domain.ActorKindGroup) }
+			class={ approverGroupClass(ctx, prefill.ApproverType != domain.ActorKindGroup) }
 		>
 			<option value="">Select a group…</option>
 			for _, opt := range groups {
@@ -338,15 +338,15 @@ templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFie
 // "hidden" placed right after the arm's own class name, matching the literal string shape this
 // markup always had, now decided from prefill.ApproverType instead of unconditionally hiding the
 // Group arm the way every row did before StepPrefill existed.
-func approverUserClass(hide bool) string {
+func approverUserClass(ctx context.Context, hide bool) string {
 	class := "approver-user"
 	if hide {
 		class += " hidden"
 	}
-	return class + " min-w-44 grow " + controlField
+	return class + " min-w-44 grow " + fieldClasses(ctx)
 }
 
-func approverGroupClass(hide bool) string {
+func approverGroupClass(ctx context.Context, hide bool) string {
 	class := "approver-group"
 	if hide {
 		class += " hidden"

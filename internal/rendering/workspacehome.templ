@@ -222,7 +222,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 		</div>
 		<form method="GET" action="/new-application" class="flex gap-2.5">
 			<label for="idea" class="sr-only">Describe the application you need</label>
-			<input id="idea" type="text" name="idea" placeholder="e.g. Leave requests approved by a supervisor, then HR" class={ controlField + " grow" }/>
+			<input id="idea" type="text" name="idea" placeholder="e.g. Leave requests approved by a supervisor, then HR" class={ fieldClasses(ctx) + " grow" }/>
 			@button("Start →", domain.ButtonPrimary, "", "")
 		</form>
 		if len(suggestions) > 0 {

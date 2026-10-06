@@ -327,3 +327,60 @@ func TestHandWrittenButtonsOnlyShrink(t *testing.T) {
 	check("buttonClasses call(s)", "use `@button(label, variant, name, value)`. If this one carries hx-* wiring, an href, a hook class or spacing the Component must not accept, say so in handWrittenButtonFloors rather than widening the contract", floors, handWrittenButtonFloors)
 	check("hand-written h-9 button(s)", "use `@button(...)`; a literal button is the shape the Component replaces", literals, handWrittenButtonLiterals)
 }
+
+// handWrittenFieldFloors are the `.templ` sites that draw an `<input>`/`<select>`/`<textarea>` with a literal
+// `border-slate-300` instead of `fieldClasses(ctx)`. Each is a floor with its reason: the first six are the
+// 15px / `h-10.5` mobile touch-target inputs (controls.templ's own header records that as a decision, not
+// drift -- `fieldClasses` is `h-9` / `text-sm`, and a size is not a Theme role yet), and the last is a 4rem
+// number box inside a row of controls. Counted 2026-10-06 by the tag's own `class="..."` token set, `//` lines
+// removed. **What the pattern cannot see**, stated rather than hidden: an input whose class arrives from a Go
+// function (`approverUserClass` reads `fieldClasses`, so it is fine), and the read-only email box in
+// account.templ, which is slate-200 on slate-50 -- a disabled look, not an input's own box.
+var handWrittenFieldFloors = map[string]int{
+	"account.templ":            1, // 15px mobile target
+	"authshell.templ":          2, // pre-auth kit (authField, authPasswordField)
+	"login.templ":              2, // pre-auth, 15px mobile target
+	"signatureplacement.templ": 1, // w-16 number box, px-1.5 py-0.5 text-2xs
+	"workspacemembers.templ":   1, // h-10.5 invite-role select
+}
+
+var fieldTagOpen = regexp.MustCompile(`(?s)<(?:input|select|textarea)\b(?:[^>{]|\{[^}]*\})*>`)
+var fieldTagClass = regexp.MustCompile(`\bclass="([^"]*)"`)
+
+func TestHandWrittenFieldsOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	has300 := regexp.MustCompile(`(?:^|\s)border-slate-300(?:\s|$)`)
+	actual := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := mutedParaNote.ReplaceAllString(string(b), "")
+		for _, tag := range fieldTagOpen.FindAllString(src, -1) {
+			if m := fieldTagClass.FindStringSubmatch(tag); m != nil && has300.MatchString(m[1]) {
+				actual[e.Name()]++
+			}
+		}
+	}
+	for _, f := range sortedFileNames(actual) {
+		switch w := handWrittenFieldFloors[f]; {
+		case actual[f] > w:
+			t.Errorf("%s: %d hand-written field(s), frozen at %d -- use `fieldClasses(ctx)` so `theme.radius.control`, `theme.border.control` and the ink roles move it; if this one carries a size or spacing the reader must not accept, say so in handWrittenFieldFloors", f, actual[f], w)
+		case actual[f] < w:
+			t.Errorf("%s: %d hand-written field(s), down from %d -- lower the entry in this file to lock the migration in", f, actual[f], w)
+		}
+	}
+	for _, f := range sortedFileNames(handWrittenFieldFloors) {
+		if _, still := actual[f]; !still {
+			t.Errorf("handWrittenFieldFloors still names %s, which no longer has one -- remove the entry", f)
+		}
+	}
+}

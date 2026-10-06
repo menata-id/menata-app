@@ -253,7 +253,7 @@ func commentBox(parentID string, c *CommentComposer) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			var templ_7745c5c3_Var9 = []any{controlField + " grow"}
+			var templ_7745c5c3_Var9 = []any{fieldClasses(ctx) + " grow"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var9...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

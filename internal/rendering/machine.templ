@@ -916,7 +916,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 						@icon("pencil", "size-3.5")
 					</summary>
 					<form class="flex flex-col gap-1.5" hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
-						<input type="text" name={ cardTitleFieldID(m) } value={ title } required aria-label="Card title" class={ controlField + " w-full" }/>
+						<input type="text" name={ cardTitleFieldID(m) } value={ title } required aria-label="Card title" class={ fieldClasses(ctx) + " w-full" }/>
 						<span class="flex gap-1.5">
 							@button("Save", domain.ButtonPrimary, "", "")
 							<button type="button" class={ buttonClasses(ctx, domain.ButtonSecondary) } onclick="this.closest('details').open=false">Cancel</button>
@@ -926,7 +926,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 						<form class="mt-2 flex flex-col gap-1.5 border-t border-slate-200 pt-2" hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
 							<label class="flex flex-col gap-1 text-2xs text-slate-500">
 								Move to list
-								<select name={ mv.Field } class={ controlField + " w-full" }>
+								<select name={ mv.Field } class={ fieldClasses(ctx) + " w-full" }>
 									for _, t := range mv.Targets {
 										<option value={ t.Value } selected?={ t.Value == mv.Current }>{ t.Label }</option>
 									}
@@ -934,7 +934,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 							</label>
 							<label class="flex flex-col gap-1 text-2xs text-slate-500">
 								Position
-								<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ controlField + " w-full" }/>
+								<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ fieldClasses(ctx) + " w-full" }/>
 							</label>
 							@button("Move", domain.ButtonSecondary, "", "")
 						</form>
@@ -1011,7 +1011,7 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 			hx-encoding="multipart/form-data"
 		>
 			<input type="hidden" name={ v.GroupBy } value={ col.ID }/>
-			<input type="text" name={ cardTitleFieldID(m) } required placeholder="Card title" aria-label="Card title" class={ controlField + " w-full" }/>
+			<input type="text" name={ cardTitleFieldID(m) } required placeholder="Card title" aria-label="Card title" class={ fieldClasses(ctx) + " w-full" }/>
 			@button("Add", domain.ButtonPrimary, "", "")
 		</form>
 	</details>

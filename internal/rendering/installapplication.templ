@@ -115,7 +115,7 @@ templ installableCard(t InstallableTemplate) {
 				<input type="hidden" name="template" value={ t.ApplicationID }/>
 				if len(t.Roles) > 0 {
 					<label for={ "role-" + t.ApplicationID } class="text-2xs text-slate-500">Your role here</label>
-					<select id={ "role-" + t.ApplicationID } name="role" class={ controlField }>
+					<select id={ "role-" + t.ApplicationID } name="role" class={ fieldClasses(ctx) }>
 						for _, role := range t.Roles {
 							<option value={ role }>{ role }</option>
 						}

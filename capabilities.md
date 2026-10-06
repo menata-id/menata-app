@@ -252,10 +252,15 @@ Measured at the edge before and after: `/home` and `/approval-inbox` used to arr
 `Service-Worker-Navigation-Preload: true`, one request per navigation instead of three.
 
 **One control vocabulary, since 2026-09-24.** `controls.templ` holds one literal class string per
-control kind -- `controlPrimary`, `controlSecondary`, `controlDanger`, `controlField`, plus
-`tableCell`/`tableHeadCell` -- and every `appShell` screen reads them instead of hand-writing its
-own. They are constants rather than components, so they are not in the table above: that table is
-gated on each entry being a real `templ` function, and a class string is not one.
+control kind and every `appShell` screen reads them instead of hand-writing its own. Two of them
+read the Workspace's Theme: `buttonClasses` (behind the registered `button` Component) and
+`fieldClasses` (2026-10-06: an input's radius, border, body size and ink from `radius.control`,
+`border.control`, `text.body` and `ink.strong`, byte-identical by default). `tableCell`/`tableHeadCell`
+are still literal constants. `fieldClasses` is a class reader and **not** a registered Component on
+purpose: an input's attributes (`name`, `value`, `required`, `placeholder`, `min`, `step`, a
+hyperscript handler) are 007 §11.3 Binding, which has no primitive, and accepting them would be
+§12.3's "arbitrary properties". `conformance.TestHandWrittenFieldsOnlyShrink` holds the 7 hand-written
+slate-300 inputs that remain, each with its reason.
 
 It was added against a measurement, not a preference. While two stylesheets existed, a control
 written twice was written in two different systems and the duplication was invisible. With one
@@ -265,7 +270,7 @@ and **six different text inputs**, some with a focus ring and some without. Two 
 were introduced by the very change that made them countable, which is the argument for fixing it
 before the next screen adds a seventh.
 
-`controlField` deliberately carries no width: every caller has an opinion (`w-full` in a table
+`fieldClasses` deliberately carries no width: every caller has an opinion (`w-full` in a table
 cell, `min-w-44 grow` in the wizard's approver row, `w-36` for a filter), and baking one in would
 make each of them fight it with a second width utility whose winner depends on the order Tailwind
 happens to emit them in.

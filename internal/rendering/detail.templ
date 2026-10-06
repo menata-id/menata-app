@@ -303,7 +303,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 					>
 						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
 							List
-							<select name={ move.Field } class={ controlField + " w-full" }>
+							<select name={ move.Field } class={ fieldClasses(ctx) + " w-full" }>
 								for _, t := range move.Targets {
 									<option value={ t.Value } selected?={ t.Value == move.Current }>{ t.Label }</option>
 								}
@@ -311,7 +311,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 						</label>
 						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
 							Position
-							<input type="number" name="position" min="1" value={ fmt.Sprint(move.Position) } class={ controlField + " w-full" }/>
+							<input type="number" name="position" min="1" value={ fmt.Sprint(move.Position) } class={ fieldClasses(ctx) + " w-full" }/>
 						</label>
 						@button("Move", domain.ButtonPrimary, "", "")
 					</form>
@@ -327,7 +327,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 					>
 						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
 							Title
-							<input type="text" name={ cp.TitleField } value={ cp.Title } required class={ controlField + " w-full" }/>
+							<input type="text" name={ cp.TitleField } value={ cp.Title } required class={ fieldClasses(ctx) + " w-full" }/>
 						</label>
 						@button("Copy", domain.ButtonPrimary, "", "")
 					</form>
