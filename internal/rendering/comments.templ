@@ -13,7 +13,7 @@ templ commentsFeed(parentID string, extras RecordExtras, canEdit bool) {
 	<div class="group/feed">
 		@stackLayout(domain.GapDefault) {
 			@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
-				<h2 class="m-0 text-base font-medium">Comments and activity</h2>
+				@staticText(domain.StaticSubheading, "Comments and activity")
 				if hasEvents(extras.Activity) {
 					<label class="flex cursor-pointer items-center gap-1 text-xs text-slate-500">
 						<input type="checkbox" class="size-3.5"/>

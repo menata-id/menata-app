@@ -556,3 +556,24 @@ func TestStaticMessageAndNote_defaultIsTheLiteralEachSiteReplaced(t *testing.T) 
 		t.Errorf("a declared meta size and secondary ink should move a note; got %q", got)
 	}
 }
+
+// TestStaticSubheading_defaultIsTheLiteralEachSiteReplaced pins the pre-migration `<h2>` string beside the new
+// output and a declared theme moving it. Seven sites moved (2026-10-06); the live diff reaches Board Settings,
+// the board's History and Comments, and the checklist/attachments sections that the dev database populates.
+func TestStaticSubheading_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
+	var buf bytes.Buffer
+	if err := staticText(domain.StaticSubheading, "Lists").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if want := `<h2 class="m-0 text-base font-medium">Lists</h2>`; buf.String() != want {
+		t.Errorf("subheading rendered %q, want %q", buf.String(), want)
+	}
+
+	th := domain.Theme{
+		Text:   map[domain.TextRole]domain.TextScale{domain.RoleSubheading: domain.TextLarge},
+		Weight: map[domain.WeightRole]domain.WeightStep{domain.WeightEmphasis: domain.WeightStepNormal},
+	}
+	if got := renderWithTheme(t, th, staticText(domain.StaticSubheading, "Lists")); !strings.Contains(got, "text-xl font-normal") {
+		t.Errorf("a declared subheading size and emphasis weight should move it; got %q", got)
+	}
+}

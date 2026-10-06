@@ -38,7 +38,7 @@ func attachmentMeta(it AttachmentItem) string {
 // urgency (domain.BadgeTone), and a file's type is in the chip's text. canEdit only hides the controls.
 templ attachmentsSection(m *domain.Machine, parentID string, a *Attachments, canEdit bool) {
 	@stackLayout(domain.GapTight) {
-		<h2 class="m-0 text-base font-medium">{ m.Name }</h2>
+		@staticText(domain.StaticSubheading, m.Name)
 		<ul class="m-0 flex list-none flex-col p-0">
 			for _, it := range a.Items {
 				<li class="border-t border-slate-100 py-2.5 first:border-t-0">

@@ -99,3 +99,34 @@ func TestHandWrittenMutedParagraphsOnlyShrink(t *testing.T) {
 		t.Fatal("no hand-written muted paragraph found anywhere -- either every one uses staticText (say so in capabilities.md and keep this gate as an ordinary one) or the pattern has stopped matching")
 	}
 }
+
+var subheadingTag = regexp.MustCompile(`(?s)<h[1-6]\b((?:[^>{]|\{[^}]*\})*)>`)
+
+// TestNoHandWrittenSubheading holds the floor at **zero**: a heading element at `text-base` is a section's own
+// title and goes through `@staticText(domain.StaticSubheading, ...)`, so a Workspace declaring
+// `theme.text.subheading` moves all of them together. Counted syntactically over `<h1>`..`<h6>` with `//`
+// comments stripped; what it cannot see is a section title drawn as a `<span>` or `<div>` (two `text-base`
+// non-headings exist and are not this role: a menu label and a monogram), and the 23 body-sized `<h2>` panel
+// titles are a different job it deliberately does not claim.
+func TestNoHandWrittenSubheading(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := mutedParaNote.ReplaceAllString(string(b), "")
+		for _, m := range subheadingTag.FindAllStringSubmatch(src, -1) {
+			if regexp.MustCompile(`(?:^|[\s"])text-base(?:\s|")`).MatchString(m[1]) {
+				t.Errorf("%s: a hand-written heading at text-base -- use `@staticText(domain.StaticSubheading, text)` (007 §12.6; theme.text.subheading)", e.Name())
+			}
+		}
+	}
+}

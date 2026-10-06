@@ -72,11 +72,12 @@ var KnownWeightSteps = map[WeightStep]bool{WeightStepNormal: true, WeightStepMed
 // TextRole is what a piece of text *is*, as a closed set — the third token category and the largest (497
 // uses over 7 values).
 //
-// **Six roles, each one a size a primitive already hardcoded.** Measured: `sm` 194, `xs` 108, `2xs` 94,
-// `3xs` 64, `xl` 24, `base` 11, `2xl` 2. The six below are those minus `base`, which has **no consistent
-// role** across its 11 sites and so stays hand-written — the same verdict `font-semibold` got, for the same
-// reason: a token needs a meaning, not just a count. `2xl` is kept despite 2 uses because both are `metric`'s
-// value, which is one clear role.
+// **Seven roles, each one a size a primitive already hardcoded.** Measured: `sm` 194, `xs` 108, `2xs` 94,
+// `3xs` 64, `xl` 24, `base` 11, `2xl` 2. Six were declared first, without `base`: its 11 sites had **no
+// consistent role** *as counted*, so it stayed hand-written — a token needs a meaning, not just a count.
+// Reading them (2026-10-06) split the 11: seven are one section's own title (RoleSubheading), two are a
+// monogram and a menu label that are not headings, and the count had hidden that. `2xl` is kept despite 2
+// uses because both are `metric`'s value, which is one clear role.
 //
 // Named for the job, not the measurement (007 §4.2): `text-sm` is a measurement, `body` is a meaning.
 type TextRole string
@@ -84,8 +85,13 @@ type TextRole string
 const (
 	// RoleDisplay is a headline number — the one thing on a tile a reader sees first.
 	RoleDisplay TextRole = "display"
-	// RoleHeading is a screen's or a section's own title.
+	// RoleHeading is a screen's own title.
 	RoleHeading TextRole = "heading"
+	// RoleSubheading is the title of one section inside a screen, below the screen's own RoleHeading: "Lists",
+	// "Comments and activity", "History". It is the `base` size, which sat unclaimed for as long as the type
+	// ladder existed; reading the seven `<h2 text-base font-medium>` sites (2026-10-06) found one job, and it
+	// is not the panel title -- the 23 `text-sm font-medium` headings are body-sized and stay RoleBody.
+	RoleSubheading TextRole = "subheading"
 	// RoleBody is ordinary prose and row content. The most common by far (194 uses).
 	RoleBody TextRole = "body"
 	// RoleMeta is secondary information beside something else — a date, a count, a project name.
@@ -98,13 +104,13 @@ const (
 
 // KnownTextRoles is the closed set.
 var KnownTextRoles = map[TextRole]bool{
-	RoleDisplay: true, RoleHeading: true, RoleBody: true,
+	RoleDisplay: true, RoleHeading: true, RoleSubheading: true, RoleBody: true,
 	RoleMeta: true, RoleLabel: true, RoleEyebrow: true,
 }
 
 // TextScale is a step on the type ladder, named by **amount in plain words** rather than by framework token —
 // 007 §15.2 forbids the logical plane embedding a class, and `2xs` is Tailwind's spelling. Seven steps,
-// because seven sizes are in use; `medium` is the one no role claims (the 11 `base` sites).
+// because seven sizes are in use; `medium` is claimed by RoleSubheading alone.
 type TextScale string
 
 const (
@@ -449,12 +455,13 @@ func DefaultTheme() Theme {
 			WeightEmphasis: WeightStepMedium, // was font-medium
 		},
 		Text: map[TextRole]TextScale{
-			RoleDisplay: TextHuge,   // was text-2xl
-			RoleHeading: TextLarge,  // was text-xl
-			RoleBody:    TextNormal, // was text-sm
-			RoleMeta:    TextSmall,  // was text-xs
-			RoleLabel:   TextTiny,   // was text-2xs
-			RoleEyebrow: TextMicro,  // was text-3xs
+			RoleDisplay:    TextHuge,   // was text-2xl
+			RoleHeading:    TextLarge,  // was text-xl
+			RoleSubheading: TextMedium, // was text-base
+			RoleBody:       TextNormal, // was text-sm
+			RoleMeta:       TextSmall,  // was text-xs
+			RoleLabel:      TextTiny,   // was text-2xs
+			RoleEyebrow:    TextMicro,  // was text-3xs
 		},
 		Gap: map[Gap]GapAmount{
 			GapTight:       GapAmountTwo,   // was gap-2

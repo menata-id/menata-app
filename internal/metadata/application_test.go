@@ -1687,3 +1687,18 @@ func TestResolveTheme_padding(t *testing.T) {
 		t.Errorf("a Tailwind token is not an amount (007 §15.2); got %v", issues)
 	}
 }
+
+// TestResolveTheme_textSubheading holds the seventh text role: declarable, and still failing closed on a size
+// that is a Tailwind spelling rather than an amount (007 §15.2).
+func TestResolveTheme_textSubheading(t *testing.T) {
+	th, issues := resolveTheme(&themeDoc{Text: map[string]string{"subheading": "large"}})
+	if len(issues) != 0 {
+		t.Fatalf("a valid text block reported issues: %v", issues)
+	}
+	if th.Text[domain.RoleSubheading] != domain.TextLarge {
+		t.Errorf("declared subheading not resolved: %v", th.Text)
+	}
+	if _, issues = resolveTheme(&themeDoc{Text: map[string]string{"subheading": "text-base"}}); len(issues) != 1 {
+		t.Errorf("a Tailwind token is not a text scale; got %v", issues)
+	}
+}

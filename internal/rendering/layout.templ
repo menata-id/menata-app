@@ -524,6 +524,8 @@ templ staticText(kind domain.StaticKind, text string) {
 			<h1 class="m-0 text-xl font-medium">{ text }</h1>
 		case domain.StaticParagraph:
 			<div class={ "text-sm", inkClass(ctx, domain.InkSecondary) }>{ text }</div>
+		case domain.StaticSubheading:
+			<h2 class={ "m-0", textClass(ctx, domain.RoleSubheading), weightClass(ctx, domain.WeightEmphasis) }>{ text }</h2>
 		case domain.StaticMessage:
 			<p class={ "m-0", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkSecondary) }>{ text }</p>
 		case domain.StaticNote:

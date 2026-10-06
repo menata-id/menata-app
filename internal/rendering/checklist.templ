@@ -38,7 +38,7 @@ func checklistProgress(c *Checklist) string {
 templ checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit bool) {
 	@stackLayout(domain.GapTight) {
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
-			<h2 class="m-0 text-base font-medium">{ m.Name }</h2>
+			@staticText(domain.StaticSubheading, m.Name)
 			<span class="text-xs text-slate-500">{ checklistProgress(c) }</span>
 		}
 		<ul class="m-0 flex list-none flex-col gap-1 p-0">

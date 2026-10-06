@@ -47,7 +47,7 @@ templ BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer Vie
 		@pageHeader("nav_board_settings")
 		@sectionLayout(domain.GapDefault) {
 			<div class="flex items-baseline justify-between gap-3">
-				<h2 class="m-0 text-base font-medium">Lists</h2>
+				@staticText(domain.StaticSubheading, "Lists")
 				<a href={ templ.URL(c.ListsHref) } class="text-sm text-blue-600 hover:text-blue-700">Manage lists &rarr;</a>
 			</div>
 			@truncationNotice(c.ListsTruncation)
@@ -67,7 +67,7 @@ templ BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer Vie
 		}
 		@sectionLayout(domain.GapDefault) {
 			<div class="flex items-baseline justify-between gap-3">
-				<h2 class="m-0 text-base font-medium">Labels</h2>
+				@staticText(domain.StaticSubheading, "Labels")
 				<a href={ templ.URL(c.LabelsHref) } class="text-sm text-blue-600 hover:text-blue-700">Manage labels &rarr;</a>
 			</div>
 			@truncationNotice(c.LabelsTruncation)

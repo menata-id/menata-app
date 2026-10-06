@@ -1377,7 +1377,8 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     emphasis: medium  # headings, labels, values      (default: medium)
 >   text:
 >     display: huge     # a tile's headline number   (default: huge)
->     heading: large    # a screen or section title  (default: large)
+>     heading: large    # a screen's own title        (default: large)
+>     subheading: medium  # one section's title inside a screen (default: medium)
 >     body:    normal   # prose and row content      (default: normal)
 >     meta:    small    # dates, counts, names       (default: small)
 >     label:   tiny     # badge and pill text        (default: tiny)

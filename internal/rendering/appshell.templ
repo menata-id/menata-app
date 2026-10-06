@@ -1059,7 +1059,7 @@ templ activityEntryRow(a ActivityEntry) {
 
 templ sectionHeaderRow(title, linkHref, linkLabel string) {
 	<div class="flex items-center justify-between">
-		<h2 class="m-0 text-base font-medium">{ title }</h2>
+		@staticText(domain.StaticSubheading, title)
 		if linkHref != "" {
 			<a href={ templ.URL(linkHref) } class="text-sm text-blue-600 hover:text-blue-700">{ linkLabel }</a>
 		}

@@ -350,7 +350,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 // here is a comment box, which a Machine with a comment child collection draws instead (commentsFeed).
 templ recordActivity(extras RecordExtras) {
 	@sectionLayout(domain.GapDefault) {
-		<h2 class="m-0 text-base font-medium">History</h2>
+		@staticText(domain.StaticSubheading, "History")
 		@truncationNotice(extras.ActivityTruncation)
 		if len(extras.Activity) == 0 {
 			@staticText(domain.StaticMessage, "Nothing has happened to this record yet.")

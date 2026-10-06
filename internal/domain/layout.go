@@ -370,6 +370,10 @@ const (
 	// 2xs sibling (16 sites in 6 files by exact class literal, captions under a control) is a third thing that no role names
 	// and is left hand-written rather than stretched over `label`, whose job is the text *inside* a badge.
 	StaticNote StaticKind = "note"
+	// StaticSubheading is the title of one section inside a screen: an `<h2>` at the subheading role in the
+	// emphasis weight. The screen's own title is `heading`; a panel's title is body-sized and stays hand-written
+	// (23 sites, a different job). Seven sites moved to it, measured by reading each one's surroundings.
+	StaticSubheading StaticKind = "subheading"
 )
 
 // KnownStaticKinds is the closed set.
@@ -380,4 +384,6 @@ var KnownStaticKinds = map[StaticKind]bool{
 	StaticLink:      true,
 	StaticMessage:   true,
 	StaticNote:      true,
+
+	StaticSubheading: true,
 }
