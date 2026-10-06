@@ -1369,11 +1369,11 @@ similar-looking metadata for a *different* Machine does not activate it.
 > ```yaml
 > theme:
 >   radius:
->     control: small    # inputs, buttons      (default: small  -> rounded-md)
+>     control: small    # inputs, buttons  [declared, nothing reads it yet]  (default: small)
 >     surface: large    # panels, sections     (default: large  -> rounded-lg)
 >     pill:    full     # badges, avatars      (default: full   -> rounded-full)
 >   weight:
->     body:     normal  # text explicitly unemphasised  (default: normal)
+>     body:     normal  # text explicitly unemphasised  [declared, nothing reads it yet]  (default: normal)
 >     emphasis: medium  # headings, labels, values      (default: medium)
 >   text:
 >     display: huge     # a tile's headline number   (default: huge)
@@ -1391,8 +1391,8 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     loose:       five   # (default: five)
 >   border:
 >     surface: soft     # panels, sections, cards, tables (default: soft)
->     control: defined  # inputs and other controls       (default: defined)
->     divider: faint    # row separators in lists/tables  (default: faint)
+>     control: defined  # inputs and other controls  [declared, nothing reads it yet]  (default: defined)
+>     divider: faint    # row separators  [declared, nothing reads it yet]  (default: faint)
 >   tone:
 >     neutral: grey        # a badge with no particular meaning  (default: grey)
 >     info:    blue        # informational                       (default: blue)
@@ -1402,7 +1402,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     muted:   grey-faint  # de-emphasised                       (default: grey-faint)
 >   ink:
 >     strong:    darkest  # titles and the figures people scan for   (default: darkest)
->     body:      dark     # text people read or click                (default: dark)
+>     body:      dark     # text people read or click  [declared, nothing reads it yet]  (default: dark)
 >     secondary: medium   # captions, descriptions, meta lines       (default: medium)
 >     faint:     light    # hints, placeholders, decoration          (default: light)
 >   background:
@@ -1447,6 +1447,8 @@ similar-looking metadata for a *different* Machine does not activate it.
 >
 > The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
 > `medium` is the one no role claims by default.
+>
+> **Five keys load and change nothing today**, and they are marked `[declared, nothing reads it yet]` above: `radius.control`, `weight.body`, `border.control`, `border.divider` and `ink.body`. They style buttons, inputs and table rows, which no shared primitive draws yet; they will start working when a Button/Field Component exists (007 §12.3). `conformance.TestEveryThemeRoleHasAReaderOrAReason` holds this list, so a key leaves it only by gaining a reader.
 >
 > Every role, step and palette is a closed set: an unknown value is a **load error**, not a silent
 > default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the
