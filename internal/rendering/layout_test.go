@@ -861,3 +861,33 @@ func TestSurfaceClasses_followTheThemeAtAHandWrittenSite(t *testing.T) {
 		t.Errorf("a migrated hand-written surface did not follow the theme; got %q", out)
 	}
 }
+
+func TestTableHeadCellClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
+	const old = "border-b border-slate-200 px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
+	if got := tableHeadCellClasses(context.Background()); got != old {
+		t.Errorf("default table head cell must render the constant it replaced; got %q, want %q", got, old)
+	}
+}
+
+func TestRegionRules_followBorderSurfaceAtAHandWrittenSite(t *testing.T) {
+	th := domain.Theme{Border: map[domain.BorderRole]domain.BorderShade{domain.BorderSurface: domain.BorderDefined}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+	if got := tableHeadCellClasses(ctx); !strings.HasPrefix(got, "border-b border-slate-300 ") {
+		t.Errorf("a table head rule must follow border.surface; got %q", got)
+	}
+
+	// roleMatrixApp carries three of the thirteen region rules (header, column head, "happens on its own"),
+	// beside its surface edge: four slate-300 borders and no slate-200 left to prove a site was missed.
+	app := RoleMatrixApp{Name: "App", Roles: []string{"approver"}, RolesSummary: "Approver", Automatic: []string{"x"}}
+	var buf strings.Builder
+	if err := roleMatrixApp(app).Render(ctx, &buf); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := buf.String()
+	if n := strings.Count(out, "border-slate-300"); n != 4 {
+		t.Errorf("want the surface edge and three region rules on slate-300, got %d in %q", n, out)
+	}
+	if strings.Contains(out, "border-slate-200") {
+		t.Errorf("a region rule stayed on slate-200 under a declared border.surface: %q", out)
+	}
+}

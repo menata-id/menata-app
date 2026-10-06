@@ -154,7 +154,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// z-40 over the bottom bar's z-30 so the header always wins where they overlap. The
 			// menus themselves no longer depend on this: they are `popover` elements, which the
 			// browser paints in the top layer, above every z-index on the page.
-			<header class={ "sticky top-0 z-40 flex flex-col border-b border-slate-200", backgroundClass(ctx, domain.BackgroundRaised) }>
+			<header class={ "sticky top-0 z-40 flex flex-col border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised) }>
 				<div class="flex h-15 shrink-0 items-center gap-2.5 px-4 sm:pr-7 sm:pl-9">
 					@appLauncher(workspaceName, switchWorkspaceHref, viewer, hasAppMenu)
 					// Two breadcrumb shapes, because the Flow 2 mockup has two. Inside an Application
@@ -453,7 +453,7 @@ templ navBadge(badge, class string) {
 // Four columns: three declared items (bottomBarItems) and "More", whose sheet is the one way out
 // of an Application on a phone -- see moreSheet.
 templ applicationBottomBar(items []navMenuItem, app domain.Application, workspaceName, switchWorkspaceHref string) {
-	<nav aria-label="Application" class={ "fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t border-slate-200", backgroundClass(ctx, domain.BackgroundRaised), "px-1 pb-3 sm:hidden" }>
+	<nav aria-label="Application" class={ "fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), "px-1 pb-3 sm:hidden" }>
 		for _, item := range items {
 			<a
 				href={ templ.SafeURL(item.Href) }

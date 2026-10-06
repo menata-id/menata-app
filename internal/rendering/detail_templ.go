@@ -1313,7 +1313,7 @@ func ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor, 
 			return templ_7745c5c3_Err
 		}
 		for _, f := range cc.Machine.Fields {
-			var templ_7745c5c3_Var63 = []any{tableHeadCell}
+			var templ_7745c5c3_Var63 = []any{tableHeadCellClasses(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var63...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1338,7 +1338,7 @@ func ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor, 
 			var templ_7745c5c3_Var65 string
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(f.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 384, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/detail.templ`, Line: 384, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 			if templ_7745c5c3_Err != nil {
@@ -1349,7 +1349,7 @@ func ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor, 
 				return templ_7745c5c3_Err
 			}
 		}
-		var templ_7745c5c3_Var66 = []any{tableHeadCell}
+		var templ_7745c5c3_Var66 = []any{tableHeadCellClasses(ctx)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var66...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

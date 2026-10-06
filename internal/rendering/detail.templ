@@ -381,9 +381,9 @@ templ ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor,
 				<thead>
 					<tr>
 						for _, f := range cc.Machine.Fields {
-							<th class={ tableHeadCell }>{ f.Name }</th>
+							<th class={ tableHeadCellClasses(ctx) }>{ f.Name }</th>
 						}
-						<th class={ tableHeadCell }></th>
+						<th class={ tableHeadCellClasses(ctx) }></th>
 					</tr>
 				</thead>
 				<tbody>

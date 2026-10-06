@@ -256,8 +256,8 @@ control kind and every `appShell` screen reads them instead of hand-writing its 
 read the Workspace's Theme: `buttonClasses` (behind the registered `button` Component) and
 `fieldClasses` (2026-10-06: an input's radius, border, body size and ink from `radius.control`,
 `border.control`, `text.body` and `ink.strong`, byte-identical by default). The record table's body cell
-reads `border.divider` through `tableCellClasses`; `tableHeadCell` is still a literal constant (its rule is
-slate-200, a region rule `surfaceClasses` does not draw). Row separators in lists and tables (21 lines across 9
+reads `border.divider` through `tableCellClasses`; the head cell reads `border.surface` through `tableHeadCellClasses`, as do the other twelve
+region rules (a card's header and footer rule, the page's top bar and bottom nav; 2026-10-06, `conformance.TestNoHandWrittenRegionRule`, zero floors). Row separators in lists and tables (21 lines across 9
 screens, 2026-10-06) read `borderClass(ctx, domain.BorderDivider)` and the four reset-weight headings read
 `weightClass(ctx, domain.WeightBody)`; `conformance.TestHandWrittenDividersOnlyShrink` holds the four that
 stay literal, each a region rule or the `divide-y` utility rather than a row separator. The look of a bordered surface (radius, outline, raised fill) reads `radius.surface`, `border.surface` and

@@ -184,7 +184,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 		// M04a-Settings.dc.html, not to Members directly. Fixed here rather than left stale a second
 		// time: this row now opens the hub, same as workspaceMenu's own settings row.
 		if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-			<div class="mt-2 flex items-center gap-3 border-t border-slate-200 pt-4 text-sm text-slate-500">
+			<div class={ "mt-2 flex items-center gap-3 border-t", borderClass(ctx, domain.BorderSurface), "pt-4 text-sm text-slate-500" }>
 				// Only when there is a role to name. displayRole renders "—" for an empty one, which
 				// reads fine in a table cell and reads broken inside a pill -- and empty is exactly
 				// the shared admin credential's case, which still sees this row because it can open

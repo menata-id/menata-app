@@ -91,7 +91,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 		}
 		<details class={ surfaceClasses(ctx) }>
 			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ Invite member</summary>
-			<form method="POST" action="/workspace-members/invite" class="flex flex-col gap-4 border-t border-slate-200 px-5 py-4">
+			<form method="POST" action="/workspace-members/invite" class={ "flex flex-col gap-4 border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
 				@csrfHiddenInput()
 				// Email and roles only. The invitee's own name is theirs to state when they accept
 				// (rendering.AcceptInvitePage) -- an admin typing a stranger's name into a record
@@ -111,7 +111,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			<p class="m-0 text-sm text-slate-500">No member matches "{ q }".</p>
 		}
 		<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-			<div class="hidden items-center gap-4 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex">
+			<div class={ "hidden items-center gap-4 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
 				<span class="grow">Member</span>
 				<span class="w-32">Workspace role</span>
 				// "Application roles", plural and app-agnostic, is the board's own header: each cell

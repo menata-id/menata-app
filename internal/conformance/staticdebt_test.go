@@ -508,3 +508,49 @@ func TestHandWrittenSurfacesOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// TestNoHandWrittenRegionRule is a zero-floor gate (2026-10-06): no class set in `internal/rendering` may hold
+// `border-t`, `border-b` or `border-y` beside a literal `border-slate-200`. A rule that bounds a region -- a card's
+// header, a table's head, the page's top bar and bottom nav -- reads `borderClass(ctx, domain.BorderSurface)`, so
+// `theme.border.surface` moves the frame's rules together with the box they sit in. Thirteen sites moved (twelve
+// literals and `tableHeadCell`, whose seven callers now go through `tableHeadCellClasses`); none was a floor, because
+// none swaps its colour by state. A row separator is a different job and reads `divider` (`tableCellClasses`).
+//
+// **No new role was added, and that is a decision with a way back.** A `region` role would default to the same
+// slate-200 as `surface` and nothing declares a reason to separate them; if an author needs a faint box with firm
+// rules (or the reverse), that is the case that earns the role. Blind spots, stated: a rule arriving from a Go
+// function rather than a `class` attribute, and a variant-prefixed token (`sm:border-b`), which the census found none of.
+func TestNoHandWrittenRegionRule(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	seen := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := joinClassExpressions(comment.ReplaceAllString(string(b), ""))
+		for _, m := range surfaceClassAttr.FindAllStringSubmatch(src, -1) {
+			set := map[string]bool{}
+			for _, tok := range strings.Fields(m[1]) {
+				set[tok] = true
+			}
+			if set["border"] || set["border-slate-200"] {
+				seen++
+			}
+			if (set["border-t"] || set["border-b"] || set["border-y"]) && set["border-slate-200"] {
+				t.Errorf("%s: a hand-written region rule (%q) -- use `borderClass(ctx, domain.BorderSurface)` so `theme.border.surface` moves it", e.Name(), m[1])
+			}
+		}
+	}
+	if seen == 0 {
+		t.Fatal("no class set holding a border was found anywhere -- the scan is looking at the wrong text")
+	}
+}

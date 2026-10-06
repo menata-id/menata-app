@@ -33,13 +33,14 @@ import (
 // label -- a bigger touch target for a screen someone reaches on a phone before they have an
 // account, which is a real decision rather than drift, and it already lives in named components.
 // Unifying the two sizes would be undoing that decision, not removing a duplicate.
-const (
-	// tableHeadCell is the generic record table's header cell, kept beside the controls because a
-	// table that half matches the rest of a screen is the same defect in a different element. Its
-	// rule is slate-200, the `surface` border, and nothing reads that role yet; the body cell
-	// (tableCellClasses) reads `divider`.
-	tableHeadCell = "border-b border-slate-200 px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
-)
+
+// tableHeadCellClasses is the generic record table's header cell, kept beside the controls because a table that
+// half matches the rest of a screen is the same defect in a different element. Its rule reads `surface`, the same
+// role as the table's box, where the body cell (tableCellClasses) reads `divider`: a head rule bounds the header
+// region, a body rule separates rows. Joined in the old literal's order so the default theme renders the same bytes.
+func tableHeadCellClasses(ctx context.Context) string {
+	return "border-b " + borderClass(ctx, domain.BorderSurface) + " px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
+}
 
 // fieldClasses is the one place an input's look is decided, and the first reader of `BorderControl` -- the
 // Theme key `unreadThemeRoles` listed because only a Field draws "an input's own box". It also reads

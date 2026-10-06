@@ -488,9 +488,9 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 			<table class="w-full border-collapse text-sm">
 				<thead>
 					<tr>
-						<th class={ tableHeadCell }>Field</th>
-						<th class={ tableHeadCell }>Type</th>
-						<th class={ tableHeadCell }>Required</th>
+						<th class={ tableHeadCellClasses(ctx) }>Field</th>
+						<th class={ tableHeadCellClasses(ctx) }>Type</th>
+						<th class={ tableHeadCellClasses(ctx) }>Required</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -533,9 +533,9 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 			<thead>
 				<tr>
 					for _, f := range m.Fields {
-						<th class={ tableHeadCell }>{ f.Name }</th>
+						<th class={ tableHeadCellClasses(ctx) }>{ f.Name }</th>
 					}
-					<th class={ tableHeadCell }></th>
+					<th class={ tableHeadCellClasses(ctx) }></th>
 				</tr>
 			</thead>
 			<tbody>
@@ -923,7 +923,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 						</span>
 					</form>
 					if mv.Field != "" && len(mv.Targets) > 0 {
-						<form class="mt-2 flex flex-col gap-1.5 border-t border-slate-200 pt-2" hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
+						<form class={ "mt-2 flex flex-col gap-1.5 border-t", borderClass(ctx, domain.BorderSurface), "pt-2" } hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
 							<label class="flex flex-col gap-1 text-2xs text-slate-500">
 								Move to list
 								<select name={ mv.Field } class={ fieldClasses(ctx) + " w-full" }>

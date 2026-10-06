@@ -69,7 +69,7 @@ type RoleMatrixRow struct {
 // none has ever been declared.
 templ roleMatrixApp(app RoleMatrixApp) {
 	<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-		<div class="flex flex-col gap-1 border-b border-slate-200 px-4 py-4">
+		<div class={ "flex flex-col gap-1 border-b", borderClass(ctx, domain.BorderSurface), "px-4 py-4" }>
 			<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
 				<span class="text-[15px] font-medium">{ app.Name }</span>
 				if len(app.Roles) > 0 {
@@ -94,7 +94,7 @@ templ roleMatrixApp(app RoleMatrixApp) {
 				in the workspace can do everything in it.
 			</p>
 		} else {
-			<div class="hidden gap-6 border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-3xs tracking-wide text-slate-500 uppercase sm:grid sm:grid-cols-[320px_minmax(0,1fr)]">
+			<div class={ "hidden gap-6 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-3xs tracking-wide text-slate-500 uppercase sm:grid sm:grid-cols-[320px_minmax(0,1fr)]" }>
 				<span>What you can do</span>
 				<span>Who can do it</span>
 			</div>
@@ -120,7 +120,7 @@ templ roleMatrixApp(app RoleMatrixApp) {
 			}
 		}
 		if len(app.Automatic) > 0 {
-			<div class="border-t border-slate-200 bg-slate-50/50 px-4 py-3.5">
+			<div class={ "border-t", borderClass(ctx, domain.BorderSurface), "bg-slate-50/50 px-4 py-3.5" }>
 				<div class="mb-1.5 text-3xs tracking-wide text-slate-400 uppercase">Happens on its own</div>
 				for _, line := range app.Automatic {
 					<p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">{ line }</p>

@@ -250,7 +250,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 		path, rawQuery := CurrentPath(ctx)
 		menu := defaultAppMenu(currentApp.AllNavigation, path, rawQuery)
 		hasAppMenu := inApp && len(menu) > 0
-		var templ_7745c5c3_Var10 = []any{"sticky top-0 z-40 flex flex-col border-b border-slate-200", backgroundClass(ctx, domain.BackgroundRaised)}
+		var templ_7745c5c3_Var10 = []any{"sticky top-0 z-40 flex flex-col border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var10...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -970,7 +970,7 @@ func applicationBottomBar(items []navMenuItem, app domain.Application, workspace
 			templ_7745c5c3_Var39 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var40 = []any{"fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t border-slate-200", backgroundClass(ctx, domain.BackgroundRaised), "px-1 pb-3 sm:hidden"}
+		var templ_7745c5c3_Var40 = []any{"fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), "px-1 pb-3 sm:hidden"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var40...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
