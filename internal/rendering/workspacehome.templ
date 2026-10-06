@@ -140,9 +140,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 						// that gives way -- board M03 shows the pending badge and nothing else.
 						<span class="flex shrink-0 justify-end text-xs sm:w-30">
 							if app.ShowPending && app.PendingCount > 0 {
-								<span class="rounded-full bg-blue-50 px-2.5 py-1 whitespace-nowrap text-blue-700">
-									{ fmt.Sprintf("%d pending", app.PendingCount) }
-								</span>
+								@statusBadge(fmt.Sprintf("%d pending", app.PendingCount), domain.ToneInfo, domain.BadgeRegular)
 							} else if app.ShowCount {
 								<span class="hidden whitespace-nowrap text-slate-400 sm:inline">
 									{ fmt.Sprintf("%d %s", app.Count, app.CountLabel) }{ pluralS(app.Count) }
@@ -277,7 +275,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow) {
 				<span class="text-[15px] font-medium">{ r.Name }</span>
 				<span class="text-xs leading-4.5 text-slate-500">Generated from your description. Review it before anyone else can open it.</span>
 			</span>
-			<span class="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs whitespace-nowrap text-amber-700">Draft</span>
+			@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)
 		</a>
 	}
 }

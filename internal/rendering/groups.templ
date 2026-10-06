@@ -57,7 +57,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 						}
 						for _, app := range roleApps {
 							if role, ok := g.Grants[app.ID]; ok {
-								<span class="rounded-full bg-blue-50 px-2.5 py-1 text-2xs text-blue-700">{ app.Name } · { role }</span>
+								@statusBadge(app.Name+" · "+role, domain.ToneInfo, domain.BadgeRegular)
 							}
 						}
 					}

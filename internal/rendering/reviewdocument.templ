@@ -229,7 +229,7 @@ templ reviewProgress(steps []StepApprover) {
 								}
 							</span>
 							if s.IsYou {
-								<span class="rounded-full bg-blue-50 px-2 py-0.5 text-3xs text-blue-700">You</span>
+								@statusBadge("You", domain.ToneInfo, domain.BadgeCompact)
 							}
 						</span>
 						<span class="text-2xs text-slate-400">{ reviewStepStatusLine(s) }</span>

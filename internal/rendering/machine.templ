@@ -498,7 +498,7 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 						<tr>
 							<td class={ tableCell }>{ f.Name }</td>
 							<td class={ tableCell }>
-								<span class="rounded-full bg-blue-50 px-2 py-0.5 text-2xs text-blue-700">{ string(f.Type) }</span>
+								@statusBadge(string(f.Type), domain.ToneInfo, domain.BadgeCompact)
 							</td>
 							<td class={ tableCell }>
 								if f.Required {
@@ -1218,7 +1218,7 @@ type ProjectedField struct {
 templ projectedFieldValue(p ProjectedField) {
 	<span class="text-slate-400">{ p.Label }</span>
 	if p.Role == string(domain.CardFieldRoleStatus) {
-		<span class="rounded-full bg-blue-50 px-2 py-0.5 text-2xs text-blue-700">{ p.Display }</span>
+		@statusBadge(p.Display, domain.ToneInfo, domain.BadgeCompact)
 	} else {
 		<span class="text-slate-500">{ p.Display }</span>
 	}

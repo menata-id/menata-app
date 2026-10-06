@@ -174,7 +174,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 						<span class="truncate text-sm text-slate-500">{ inv.Email }</span>
 					</div>
 					<div class="sm:w-32">
-						<span class="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-700">Invited</span>
+						@statusBadge("Invited", domain.ToneWarn, domain.BadgeRegular)
 					</div>
 					<div class="flex flex-col gap-1 sm:w-44">
 						if len(roleApps) == 0 {
@@ -342,7 +342,7 @@ templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 		@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 			for _, app := range roleApps {
 				for _, role := range effective[app.ID] {
-					<span class="rounded-full bg-blue-50 px-2.5 py-1 text-2xs text-blue-700">{ app.Name } · { role }</span>
+					@statusBadge(app.Name+" · "+role, domain.ToneInfo, domain.BadgeRegular)
 				}
 			}
 			for _, g := range m.Groups {

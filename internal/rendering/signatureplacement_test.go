@@ -110,3 +110,18 @@ func TestApproverKindBadge_rendersNothingForAnUnknownKind(t *testing.T) {
 		t.Errorf("empty kind rendered %q, want nothing", buf.String())
 	}
 }
+
+func TestApproverKindBadge_userIsInfoAndGroupIsNeutral(t *testing.T) {
+	for kind, want := range map[string]string{
+		domain.ActorKindUser:  "bg-blue-50 text-blue-700",
+		domain.ActorKindGroup: "bg-slate-100 text-slate-600",
+	} {
+		var buf bytes.Buffer
+		if err := approverKindBadge(kind).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render(%q) error = %v", kind, err)
+		}
+		if !strings.Contains(buf.String(), want) || !strings.Contains(buf.String(), ">"+kind+"<") {
+			t.Errorf("kind %q rendered %q, want tone classes %q around the kind text", kind, buf.String(), want)
+		}
+	}
+}

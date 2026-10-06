@@ -693,6 +693,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   that page unreliable noise. It took six fetches of the *baseline* to see it flip once. Fixed with sorted
   keys, held by `TestSearchBox_hiddenInputsRenderInAStableOrder`, which renders 50 times because one render of
   a two-key map passes about half the time.
+- `TestHandWrittenChipsOnlyShrink` -- the second directive ratchet, beside `TestHandWrittenLayoutSitesOnlyShrink`, built **after** 25 chips moved to `statusBadge` (2026-10-05; build, migrate, then gate). It counts a `<span>`/`<code>`/`<li>` that is `rounded` with a `-50`/`-100` tint, `px-` and a small text size, including `templ.KV` conditional classes. Four floors remain with a reason each (uppercase typography, the selected tab, a `<code>`). **The first pattern allowed any element and matched ~13 files** -- alert paragraphs, buttons, wells -- so it was narrowed before anything was frozen; what it cannot see (`div`/`a` chips, `pl-`/`pr-` pills) is stated in the test. Mutation-proved for both the plain and `templ.KV` forms.
 - `TestComponentRegistryAndRenderersAgree` / `TestRegisteredComponentsStayBounded` /
   `TestRenderingDoesNotReadTheClock` — the **Component contract** family (007 §12.3, §13, §14), Stage 2 of
   the Experience Plane, 2026-10-03. `registry.Components` is the catalogue: identity, the §13 contract, and a

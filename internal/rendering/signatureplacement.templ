@@ -312,11 +312,11 @@ templ placementStepCard(s PlacementStep, page int) {
 // resolves that absence to ActorKindUser, so an empty value here means something genuinely unknown.
 templ approverKindBadge(kind string) {
 	if kind != "" {
-		<span
-			class={ "rounded-full px-2 py-0.5 text-3xs",
-				templ.KV("bg-blue-50 text-blue-700", kind == domain.ActorKindUser),
-				templ.KV("bg-slate-100 text-slate-600", kind != domain.ActorKindUser) }
-		>{ kind }</span>
+		if kind == domain.ActorKindUser {
+			@statusBadge(kind, domain.ToneInfo, domain.BadgeCompact)
+		} else {
+			@statusBadge(kind, domain.ToneNeutral, domain.BadgeCompact)
+		}
 	}
 }
 
