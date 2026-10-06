@@ -80,7 +80,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 	@appShell(labelByID(ctx, "nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
 		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
 			<div class="flex flex-col gap-2">
-				<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
+				@staticText(domain.StaticOverline, "Administration")
 				@staticText(domain.StaticHeading, labelByID(ctx, "nav_workspace_members"))
 				<div class="text-sm text-slate-500">Manage workspace membership and application access.</div>
 			</div>

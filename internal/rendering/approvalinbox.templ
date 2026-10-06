@@ -218,12 +218,12 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 					// apart from Submitted is what makes "Continue" discoverable instead of an
 					// oddly-blank card sitting among real submissions.
 					if len(drafts) > 0 {
-						<span class="text-3xs tracking-wide text-slate-400 uppercase">Drafts</span>
+						@staticText(domain.StaticOverline, "Drafts")
 						@pendingApprovalCardGrid(drafts)
 					}
 					if len(mine) > 0 {
 						if len(drafts) > 0 {
-							<span class="text-3xs tracking-wide text-slate-400 uppercase">Submitted</span>
+							@staticText(domain.StaticOverline, "Submitted")
 						}
 						@pendingApprovalCardGrid(mine)
 					}

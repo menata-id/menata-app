@@ -133,7 +133,7 @@ func TestNoHandWrittenSubheading(t *testing.T) {
 
 var eyebrowSpanTag = regexp.MustCompile(`(?s)<span\b((?:[^>{]|\{[^}]*\})*)>`)
 
-// TestNoHandWrittenHeadingOrEyebrow holds two floors at **zero**: a heading element at `text-xl` is a screen's
+// TestNoHandWrittenHeadingOrEyebrow holds three floors (the third, the faint overline, joined 2026-10-06) at **zero**: a heading element at `text-xl` is a screen's
 // own title and goes through `@staticText(domain.StaticHeading, ...)`, and the blue `text-3xs` uppercase span is
 // `StaticEyebrow`, so `theme.text.heading` / `theme.text.eyebrow` move all of them together (both roles were
 // declarable and read by nothing until 2026-10-06). Counted syntactically with `//` comments stripped.
@@ -166,6 +166,10 @@ func TestNoHandWrittenHeadingOrEyebrow(t *testing.T) {
 			if hasToken(m[1], "text-3xs") && hasToken(m[1], "tracking-wide") && hasToken(m[1], "text-blue-600") &&
 				hasToken(m[1], "uppercase") && !hasToken(m[1], "font-medium") {
 				t.Errorf("%s: a hand-written blue eyebrow -- use `@staticText(domain.StaticEyebrow, text)` (007 §12.6; theme.text.eyebrow)", e.Name())
+			}
+			if hasToken(m[1], "text-3xs") && hasToken(m[1], "tracking-wide") && hasToken(m[1], "text-slate-400") &&
+				hasToken(m[1], "uppercase") && !hasToken(m[1], "font-medium") {
+				t.Errorf("%s: a hand-written faint overline -- use `@staticText(domain.StaticOverline, text)` (007 §12.6; theme.text.eyebrow, ink faint)", e.Name())
 			}
 		}
 	}

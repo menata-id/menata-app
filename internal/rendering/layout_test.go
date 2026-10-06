@@ -608,3 +608,23 @@ func TestStaticHeadingEyebrowParagraph_followTheTheme(t *testing.T) {
 		}
 	}
 }
+
+// TestStaticOverline_defaultIsTheLiteralEachSiteReplaced pins the nine-site pre-migration `<span>` (Account x3,
+// Administration x3, Drafts, Submitted, SLA) and shows the eyebrow role and the faint ink each moving it.
+func TestStaticOverline_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
+	var buf bytes.Buffer
+	if err := staticText(domain.StaticOverline, "Account").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if want := `<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>`; buf.String() != want {
+		t.Errorf("overline rendered %q, want %q", buf.String(), want)
+	}
+	th := domain.Theme{
+		Text: map[domain.TextRole]domain.TextScale{domain.RoleEyebrow: domain.TextSmall},
+		Ink:  map[domain.InkRole]domain.InkShade{domain.InkFaint: domain.InkShadeDarkest},
+	}
+	got := renderWithTheme(t, th, staticText(domain.StaticOverline, "Account"))
+	if !strings.Contains(got, "text-xs") || !strings.Contains(got, "text-slate-900") {
+		t.Errorf("a declared eyebrow size and faint ink should move it; got %q", got)
+	}
+}

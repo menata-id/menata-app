@@ -15,7 +15,7 @@ import "menata.app/internal/domain"
 templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorkspaceHref, errorMsg string) {
 	@appShell("Profile", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
-			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
+			@staticText(domain.StaticOverline, "Account")
 			@staticText(domain.StaticHeading, "Profile")
 			<div class="text-sm text-slate-500">Manage your personal information.</div>
 		</div>
@@ -67,7 +67,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bool, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Notifications", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
-			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
+			@staticText(domain.StaticOverline, "Account")
 			@staticText(domain.StaticHeading, "Notifications")
 			<div class="text-sm text-slate-500">Choose which emails you want to receive. In-app notifications always appear regardless of these.</div>
 		</div>
@@ -117,7 +117,7 @@ templ notificationToggle(name, label string, checked bool) {
 templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, passwordErr, passwordOK, signOutOK string) {
 	@appShell("Security", workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
-			<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>
+			@staticText(domain.StaticOverline, "Account")
 			@staticText(domain.StaticHeading, "Security")
 			<div class="text-sm text-slate-500">Manage your password and where you're signed in.</div>
 		</div>

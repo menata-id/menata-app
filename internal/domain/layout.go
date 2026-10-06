@@ -374,6 +374,12 @@ const (
 	// emphasis weight. The screen's own title is `heading`; a panel's title is body-sized and stays hand-written
 	// (23 sites, a different job). Seven sites moved to it, measured by reading each one's surroundings.
 	StaticSubheading StaticKind = "subheading"
+	// StaticOverline is the eyebrow's faint sibling: the same uppercase line at the eyebrow role, in the faint ink
+	// instead of the accent blue -- "Account", "Administration", "Drafts", "SLA". The eyebrow names what a screen
+	// belongs to and is accent-coloured; an overline is a quiet label above a block. Nine sites moved to it
+	// (exact class literal, the pattern each shares). Not claimed: the `px-3 pb-1 font-medium` menu-group
+	// labels (per-site padding and a weight) and the unspaced `text-3xs text-slate-400 uppercase` form labels.
+	StaticOverline StaticKind = "overline"
 )
 
 // KnownStaticKinds is the closed set.
@@ -386,4 +392,5 @@ var KnownStaticKinds = map[StaticKind]bool{
 	StaticNote:      true,
 
 	StaticSubheading: true,
+	StaticOverline:   true,
 }

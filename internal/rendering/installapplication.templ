@@ -52,7 +52,7 @@ type InstallRename struct {
 templ InstallApplicationPage(templates []InstallableTemplate, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_install_application"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
-			<span class="text-3xs tracking-wide text-slate-400 uppercase">Administration</span>
+			@staticText(domain.StaticOverline, "Administration")
 			@staticText(domain.StaticHeading, titleByID(ctx, "nav_install_application"))
 			<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_install_application") }</p>
 		</div>
