@@ -387,6 +387,11 @@ const (
 	// `subheading: normal` to see it. Twenty-three sites moved. Not claimed: an `<h3>` (the kind cannot choose its
 	// element) and a red `Remove from workspace` (a colour the kind does not accept).
 	StaticPanelHeading StaticKind = "panel-heading"
+	// StaticCaption is the help line under a block's title or a control: a `<p>` at the caption role in the
+	// secondary ink. Plain one-line text only -- the 8 sites that moved. Hand-written on purpose: multi-line and
+	// conditional text, a sentence with an inline `<span>`, and three whose apostrophe `{ text }` would escape
+	// to `&#39;` (not byte-identical, the same floor StaticMessage and StaticNote carry).
+	StaticCaption StaticKind = "caption"
 )
 
 // KnownStaticKinds is the closed set.
@@ -402,4 +407,5 @@ var KnownStaticKinds = map[StaticKind]bool{
 	StaticOverline:   true,
 
 	StaticPanelHeading: true,
+	StaticCaption:      true,
 }

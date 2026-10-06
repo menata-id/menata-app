@@ -180,3 +180,71 @@ func TestNoHandWrittenHeadingOrEyebrow(t *testing.T) {
 		}
 	}
 }
+
+// handWrittenCaptions counts the help lines still drawn as a hand-written `<p>` instead of
+// `staticText(domain.StaticCaption, ...)`, per file, **shrink-only** -- built after eight sites moved
+// (2026-10-06). The population is counted by class *set* (a `<p>` holding `m-0`, `text-2xs`, `text-slate-500`, any
+// extras), not by the exact literal the census used: the literal found 16, the set finds more, and the
+// difference is the lesson `handWrittenMutedParagraphs` already records.
+//
+// **Every floor carries something `StaticCaption` must not accept**, none is debt:
+//   - plain-text sentences with an apostrophe (`account`, `groups`): `{ text }` escapes `'` to `&#39;`, equivalent
+//     HTML and not identical bytes.
+//   - multi-line or conditional text, or text with an inline `<span>`/expression run (`signatureplacement`,
+//     `workspacemembers`, `documentsubmit`, `account`'s "Not enabled (planned)"): whitespace and markup inside the
+//     run are part of today's output, and a Static kind is a leaf.
+//   - extra classes (`mb-2`, `leading-5`, `rounded-md bg-slate-50 p-3`): spacing and surfaces are Layout's (§12.2).
+//
+// Counting method: syntactic over the opening `<p>` with `//` comments stripped. It cannot see a caption drawn as
+// a `<span>`/`<div>`/`<label>` (20+ exist and several are not captions at all), so it states what is present
+// and concludes nothing about absence.
+var handWrittenCaptions = map[string]int{
+	"account.templ":            3, // :78 `mb-2` spacing; :127 apostrophe escapes to &#39;; :161 inline <span>
+	"documentsubmit.templ":     2, // :102 multi-line with an expression run; :190 multi-line text
+	"groups.templ":             1, // apostrophe ("Group's")
+	"reviewdocument.templ":     1, // `leading-5` plus an inline staticLink
+	"signatureplacement.templ": 2, // :157 multi-line text; :168 bordered well (`rounded-md bg-slate-50 p-3 leading-5`)
+	"workspacemembers.templ":   2, // :271 conditional branches; :337 apostrophe, multi-line
+}
+
+var captionPara = regexp.MustCompile(`(?s)<p\b[^>]*\bclass="([^"]*)"`)
+
+func TestHandWrittenCaptionsOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	has := func(attrs, tok string) bool {
+		return regexp.MustCompile(`(?:^|\s)` + regexp.QuoteMeta(tok) + `(?:\s|$)`).MatchString(attrs)
+	}
+	actual := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := mutedParaNote.ReplaceAllString(string(b), "")
+		for _, m := range captionPara.FindAllStringSubmatch(src, -1) {
+			if has(m[1], "m-0") && has(m[1], "text-2xs") && has(m[1], "text-slate-500") {
+				actual[e.Name()]++
+			}
+		}
+	}
+	for _, f := range sortedFileNames(actual) {
+		switch w := handWrittenCaptions[f]; {
+		case actual[f] > w:
+			t.Errorf("%s: %d hand-written caption(s), frozen at %d -- use `@staticText(domain.StaticCaption, text)`. If this one carries markup, a conditional, a quote or spacing the kind must not accept, say which in handWrittenCaptions rather than widening it", f, actual[f], w)
+		case actual[f] < w:
+			t.Errorf("%s: %d hand-written caption(s), down from %d -- lower the entry in this file to lock the migration in", f, actual[f], w)
+		}
+	}
+	for _, f := range sortedFileNames(handWrittenCaptions) {
+		if _, still := actual[f]; !still {
+			t.Errorf("handWrittenCaptions still lists %s, which no longer has one -- remove the entry", f)
+		}
+	}
+}

@@ -82,7 +82,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 				@field("doc_file", "PDF file") {
 					<input id="doc_file" type="file" name="fld_file" accept="application/pdf" required?={ draft.ID == "" } class="text-sm"/>
 					if draft.ID != "" {
-						<p class="m-0 text-2xs text-slate-500">Current file: { draft.FileName } — choose a new file to replace it.</p>
+						@staticText(domain.StaticCaption, "Current file: " + draft.FileName + " — choose a new file to replace it.")
 					}
 				}
 			}

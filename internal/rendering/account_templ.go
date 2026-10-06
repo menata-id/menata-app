@@ -545,7 +545,11 @@ func SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pass
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<p class=\"m-0 text-2xs text-slate-500\">Sign every other session out, keeping this one.</p></div>")
+				templ_7745c5c3_Err = staticText(domain.StaticCaption, "Sign every other session out, keeping this one.").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

@@ -314,7 +314,7 @@ templ reviewSignaturePanel(v ReviewView) {
 			}
 		}
 		if v.SignaturePage == 0 {
-			<p class="m-0 text-2xs text-slate-500">No signature position has been placed for this document yet.</p>
+			@staticText(domain.StaticCaption, "No signature position has been placed for this document yet.")
 		} else {
 			<div class="relative overflow-hidden rounded-md border border-slate-200 bg-slate-50">
 				<img src={ v.SignaturePreviewHref } alt={ fmt.Sprintf("Page %d of the document", v.SignaturePage) } class="block w-full"/>

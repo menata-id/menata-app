@@ -229,7 +229,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 			@sectionLayout(domain.GapComfortable) {
 				<div class="flex flex-col gap-1">
 					@staticText(domain.StaticPanelHeading, "Workspace role")
-					<p class="m-0 text-2xs text-slate-500">Controls workspace administration, independent of application permissions.</p>
+					@staticText(domain.StaticCaption, "Controls workspace administration, independent of application permissions.")
 				</div>
 				@workspaceRoleChoice("admin", "Can manage members, groups and workspace settings.", m.WorkspaceRole == "admin")
 				@workspaceRoleChoice("member", "No workspace administration.", m.WorkspaceRole == "member")
@@ -237,7 +237,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 			@sectionLayout(domain.GapComfortable) {
 				<div class="flex flex-col gap-1">
 					@staticText(domain.StaticPanelHeading, "Application access")
-					<p class="m-0 text-2xs text-slate-500">Assign the role this user receives directly in each application.</p>
+					@staticText(domain.StaticCaption, "Assign the role this user receives directly in each application.")
 				</div>
 				for _, app := range roleApps {
 					@columnsLayout(domain.GapTight, domain.ColumnsAlignCenter) {
@@ -329,10 +329,10 @@ templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 	@sectionLayout(domain.GapComfortable) {
 		<div class="flex flex-col gap-1">
 			@staticText(domain.StaticPanelHeading, "Effective access")
-			<p class="m-0 text-2xs text-slate-500">Direct roles combined with roles inherited from Groups.</p>
+			@staticText(domain.StaticCaption, "Direct roles combined with roles inherited from Groups.")
 		</div>
 		if len(m.Groups) == 0 {
-			<p class="m-0 text-2xs text-slate-500">This member belongs to no Group, so their effective access is exactly the direct assignment above.</p>
+			@staticText(domain.StaticCaption, "This member belongs to no Group, so their effective access is exactly the direct assignment above.")
 		} else {
 			<p class="m-0 text-2xs text-slate-500">
 				Group-derived access cannot be removed from this screen; change the Group's own membership or roles instead.

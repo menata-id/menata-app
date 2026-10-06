@@ -145,7 +145,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 		@sectionLayout(domain.GapComfortable) {
 			<div class="flex flex-col gap-1">
 				@staticText(domain.StaticPanelHeading, "Other devices")
-				<p class="m-0 text-2xs text-slate-500">Sign every other session out, keeping this one.</p>
+				@staticText(domain.StaticCaption, "Sign every other session out, keeping this one.")
 			</div>
 			if signOutOK != "" {
 				<p class="m-0 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{ signOutOK }</p>

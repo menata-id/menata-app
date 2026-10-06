@@ -1702,3 +1702,16 @@ func TestResolveTheme_textSubheading(t *testing.T) {
 		t.Errorf("a Tailwind token is not a text scale; got %v", issues)
 	}
 }
+
+func TestResolveTheme_textCaption(t *testing.T) {
+	th, issues := resolveTheme(&themeDoc{Text: map[string]string{"caption": "small"}})
+	if len(issues) != 0 {
+		t.Fatalf("a valid text block reported issues: %v", issues)
+	}
+	if th.Text[domain.RoleCaption] != domain.TextSmall {
+		t.Errorf("declared caption not resolved: %v", th.Text)
+	}
+	if _, issues = resolveTheme(&themeDoc{Text: map[string]string{"caption": "text-xs"}}); len(issues) != 1 {
+		t.Errorf("a Tailwind token is not a text scale; got %v", issues)
+	}
+}

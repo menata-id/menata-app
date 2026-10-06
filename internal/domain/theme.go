@@ -72,7 +72,7 @@ var KnownWeightSteps = map[WeightStep]bool{WeightStepNormal: true, WeightStepMed
 // TextRole is what a piece of text *is*, as a closed set — the third token category and the largest (497
 // uses over 7 values).
 //
-// **Seven roles, each one a size a primitive already hardcoded.** Measured: `sm` 194, `xs` 108, `2xs` 94,
+// **Eight roles, each one a size a primitive already hardcoded (caption shares `2xs` with label).** Measured: `sm` 194, `xs` 108, `2xs` 94,
 // `3xs` 64, `xl` 24, `base` 11, `2xl` 2. Six were declared first, without `base`: its 11 sites had **no
 // consistent role** *as counted*, so it stayed hand-written — a token needs a meaning, not just a count.
 // Reading them (2026-10-06) split the 11: seven are one section's own title (RoleSubheading), two are a
@@ -100,12 +100,17 @@ const (
 	RoleLabel TextRole = "label"
 	// RoleEyebrow is the small uppercase line naming what a screen belongs to.
 	RoleEyebrow TextRole = "eyebrow"
+	// RoleCaption is the help line under a block's title or a control: one sentence saying what the thing above it
+	// does ("Choose a strong password you don't use elsewhere."). Same default size as RoleLabel and a different
+	// job -- a label is the text *inside* a badge, a caption is prose *beside* a block -- so a Workspace can size
+	// them apart. Eight sites moved to it (2026-10-06).
+	RoleCaption TextRole = "caption"
 )
 
 // KnownTextRoles is the closed set.
 var KnownTextRoles = map[TextRole]bool{
 	RoleDisplay: true, RoleHeading: true, RoleSubheading: true, RoleBody: true,
-	RoleMeta: true, RoleLabel: true, RoleEyebrow: true,
+	RoleMeta: true, RoleLabel: true, RoleEyebrow: true, RoleCaption: true,
 }
 
 // TextScale is a step on the type ladder, named by **amount in plain words** rather than by framework token —
@@ -462,6 +467,7 @@ func DefaultTheme() Theme {
 			RoleMeta:       TextSmall,  // was text-xs
 			RoleLabel:      TextTiny,   // was text-2xs
 			RoleEyebrow:    TextMicro,  // was text-3xs
+			RoleCaption:    TextTiny,   // was text-2xs, beside RoleLabel
 		},
 		Gap: map[Gap]GapAmount{
 			GapTight:       GapAmountTwo,   // was gap-2

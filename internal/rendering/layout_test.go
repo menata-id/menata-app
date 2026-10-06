@@ -651,3 +651,24 @@ func TestStaticPanelHeading_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 		t.Errorf("subheading must not follow the body role; got %q", sub)
 	}
 }
+
+func TestStaticCaption_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
+	var buf bytes.Buffer
+	if err := staticText(domain.StaticCaption, "Help").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if want := `<p class="m-0 text-2xs text-slate-500">Help</p>`; buf.String() != want {
+		t.Errorf("caption rendered %q, want %q", buf.String(), want)
+	}
+	th := domain.Theme{
+		Text: map[domain.TextRole]domain.TextScale{domain.RoleCaption: domain.TextNormal},
+		Ink:  map[domain.InkRole]domain.InkShade{domain.InkSecondary: domain.InkShadeDarkest},
+	}
+	got := renderWithTheme(t, th, staticText(domain.StaticCaption, "Help"))
+	if !strings.Contains(got, "text-sm") || strings.Contains(got, "text-2xs") {
+		t.Errorf("a declared caption size should move it; got %q", got)
+	}
+	if label := renderWithTheme(t, th, statusBadge("Open", domain.ToneNeutral, domain.BadgeRegular)); strings.Contains(label, "text-sm") {
+		t.Errorf("label must not follow the caption role; got %q", label)
+	}
+}

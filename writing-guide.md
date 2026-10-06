@@ -1383,6 +1383,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     meta:    small    # dates, counts, names       (default: small)
 >     label:   tiny     # badge and pill text        (default: tiny)
 >     eyebrow: micro    # the uppercase line above a title (default: micro)
+    caption: tiny     # the help line under a panel title or control (default: tiny)
 >   gap:
 >     tight:       two    # (default: two)
 >     default:     three  # (default: three)

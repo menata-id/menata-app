@@ -528,6 +528,8 @@ templ staticText(kind domain.StaticKind, text string) {
 			<span class={ textClass(ctx, domain.RoleEyebrow), "tracking-wide", inkClass(ctx, domain.InkFaint), "uppercase" }>{ text }</span>
 		case domain.StaticPanelHeading:
 			<h2 class={ "m-0", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis) }>{ text }</h2>
+		case domain.StaticCaption:
+			<p class={ "m-0", textClass(ctx, domain.RoleCaption), inkClass(ctx, domain.InkSecondary) }>{ text }</p>
 		case domain.StaticSubheading:
 			<h2 class={ "m-0", textClass(ctx, domain.RoleSubheading), weightClass(ctx, domain.WeightEmphasis) }>{ text }</h2>
 		case domain.StaticMessage:
