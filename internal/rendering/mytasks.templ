@@ -51,7 +51,7 @@ templ MyTasksPage(overdue, next7, later, completed []TaskRow, workspaceName stri
 		@taskSection("Later", "", later)
 		@taskSection("Completed", "", completed)
 		if len(overdue)+len(next7)+len(later)+len(completed) == 0 {
-			<p class="m-0 text-sm text-slate-500">Nothing is assigned to you.</p>
+			@staticText(domain.StaticMessage, "Nothing is assigned to you.")
 		}
 	}
 }

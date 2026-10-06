@@ -26,7 +26,7 @@ templ commentsFeed(parentID string, extras RecordExtras, canEdit bool) {
 			}
 			@truncationNotice(extras.ActivityTruncation)
 			if len(extras.Activity) == 0 {
-				<p class="m-0 text-sm text-slate-500">Nothing has happened to this record yet.</p>
+				@staticText(domain.StaticMessage, "Nothing has happened to this record yet.")
 			} else {
 				<ul class="m-0 flex list-none flex-col gap-3 p-0">
 					for _, a := range extras.Activity {

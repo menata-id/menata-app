@@ -353,7 +353,7 @@ templ recordActivity(extras RecordExtras) {
 		<h2 class="m-0 text-base font-medium">History</h2>
 		@truncationNotice(extras.ActivityTruncation)
 		if len(extras.Activity) == 0 {
-			<p class="m-0 text-sm text-slate-500">Nothing has happened to this record yet.</p>
+			@staticText(domain.StaticMessage, "Nothing has happened to this record yet.")
 		} else {
 			@activityFeedListRow(extras.Activity)
 		}

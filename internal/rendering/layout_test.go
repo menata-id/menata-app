@@ -522,3 +522,37 @@ func TestPaddingClassCoversEveryLadderAmount(t *testing.T) {
 		}
 	}
 }
+
+// TestStaticMessageAndNote_defaultIsTheLiteralEachSiteReplaced pins the pre-migration `<p>` string beside the
+// new output, and a declared theme moving both. The live render-diff reached five of the eleven migrated
+// sites (Board Settings' two notes, My Tasks, New Application's lead-in, the board summary); the empty states
+// ("No lists yet.", "Nothing has happened to this record yet.") and New Application's publish notes need
+// data the dev database does not hold, so this table is the proof for those.
+func TestStaticMessageAndNote_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
+	for _, tc := range []struct {
+		kind domain.StaticKind
+		want string // copied from the hand-written `<p>` each site carried before 2026-10-06
+	}{
+		{domain.StaticMessage, `<p class="m-0 text-sm text-slate-500">hi</p>`},
+		{domain.StaticNote, `<p class="m-0 text-xs text-slate-500">hi</p>`},
+	} {
+		var buf bytes.Buffer
+		if err := staticText(tc.kind, "hi").Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render(%q) error = %v", tc.kind, err)
+		}
+		if buf.String() != tc.want {
+			t.Errorf("%s rendered %q, want %q", tc.kind, buf.String(), tc.want)
+		}
+	}
+
+	th := domain.Theme{
+		Text: map[domain.TextRole]domain.TextScale{domain.RoleBody: domain.TextMedium, domain.RoleMeta: domain.TextNormal},
+		Ink:  map[domain.InkRole]domain.InkShade{domain.InkSecondary: domain.InkShadeDark},
+	}
+	if got := renderWithTheme(t, th, staticText(domain.StaticMessage, "hi")); !strings.Contains(got, "text-base text-slate-700") {
+		t.Errorf("a declared body size and secondary ink should move a message; got %q", got)
+	}
+	if got := renderWithTheme(t, th, staticText(domain.StaticNote, "hi")); !strings.Contains(got, "text-sm text-slate-700") {
+		t.Errorf("a declared meta size and secondary ink should move a note; got %q", got)
+	}
+}

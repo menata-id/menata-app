@@ -640,7 +640,7 @@ templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, rela
 	@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
 		<div class="flex flex-col gap-1">
 			<h1 class="m-0 text-2xl font-medium">{ machineHeading(ctx, m) }</h1>
-			<p class="m-0 text-sm text-slate-500">{ boardSummary(m, v, len(records)) }</p>
+			@staticText(domain.StaticMessage, boardSummary(m, v, len(records)))
 		</div>
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
 			@viewSwitcher(m, v)

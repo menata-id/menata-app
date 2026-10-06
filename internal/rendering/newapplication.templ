@@ -44,7 +44,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
 			<section aria-label="Conversation" class="flex min-h-96 flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
 				if len(view.Turns) == 0 {
-					<p class="m-0 text-sm text-slate-500">What should this application do? Describe it the way you would explain it to a new colleague.</p>
+					@staticText(domain.StaticMessage, "What should this application do? Describe it the way you would explain it to a new colleague.")
 				}
 				for _, t := range view.Turns {
 					@conversationBubble(t)
@@ -253,9 +253,9 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				if change.Kind == aiassist.KindNewApplication && change.Application != nil && change.Application.PublisherRole != "" {
 					<p class="m-0 text-xs text-slate-500">You'll hold the "{ change.Application.PublisherRole }" role in it once published, so you can open it right away. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>
 				} else if change.Kind == aiassist.KindNewApplication {
-					<p class="m-0 text-xs text-slate-500">This application declares no roles, so nothing gates who can open it. Access for everyone is a Settings change, made after publishing, not part of this step.</p>
+					@staticText(domain.StaticNote, "This application declares no roles, so nothing gates who can open it. Access for everyone is a Settings change, made after publishing, not part of this step.")
 				} else {
-					<p class="m-0 text-xs text-slate-500">Nothing that holds records is removed: machines, fields, options, roles and permissions can only be added or relabelled. Who holds which role does not change.</p>
+					@staticText(domain.StaticNote, "Nothing that holds records is removed: machines, fields, options, roles and permissions can only be added or relabelled. Who holds which role does not change.")
 				}
 				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/publish") } class="flex flex-col gap-2">
 					@csrfHiddenInput()

@@ -52,7 +52,7 @@ templ BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer Vie
 			</div>
 			@truncationNotice(c.ListsTruncation)
 			if len(c.Lists) == 0 {
-				<p class="m-0 text-sm text-slate-500">No lists yet.</p>
+				@staticText(domain.StaticMessage, "No lists yet.")
 			} else {
 				<ol class="m-0 flex list-none flex-col gap-1.5 p-0 text-sm">
 					for i, l := range c.Lists {
@@ -63,7 +63,7 @@ templ BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer Vie
 					}
 				</ol>
 			}
-			<p class="m-0 text-xs text-slate-500">The order here is the order of the columns on a board. Renaming a list keeps every card that sits in it.</p>
+			@staticText(domain.StaticNote, "The order here is the order of the columns on a board. Renaming a list keeps every card that sits in it.")
 		}
 		@sectionLayout(domain.GapDefault) {
 			<div class="flex items-baseline justify-between gap-3">
@@ -72,7 +72,7 @@ templ BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer Vie
 			</div>
 			@truncationNotice(c.LabelsTruncation)
 			if len(c.Labels) == 0 {
-				<p class="m-0 text-sm text-slate-500">No labels yet.</p>
+				@staticText(domain.StaticMessage, "No labels yet.")
 			} else {
 				<ul class="m-0 flex list-none flex-col gap-1.5 p-0 text-sm">
 					for _, l := range c.Labels {
@@ -83,7 +83,7 @@ templ BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer Vie
 					}
 				</ul>
 			}
-			<p class="m-0 text-xs text-slate-500">Colours come from one shared palette, so a label looks the same on every board and stays readable on a small card.</p>
+			@staticText(domain.StaticNote, "Colours come from one shared palette, so a label looks the same on every board and stays readable on a small card.")
 		}
 	}
 }

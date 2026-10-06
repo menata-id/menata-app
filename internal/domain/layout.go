@@ -357,6 +357,19 @@ const (
 	// So the primitive is the sites carrying **no size at all**, which inherit their context. Everything with a
 	// size is per-site typography and stays hand-written, the same reason seven `row` sites do.
 	StaticLink StaticKind = "link"
+	// StaticMessage is a muted sentence that stands on its own: an empty state ("No lists yet."), a lead-in
+	// under a form's title. Drawn at the body role in the secondary ink, so a Workspace that restyles either
+	// moves every message together.
+	StaticMessage StaticKind = "message"
+	// StaticNote is the same muted sentence one step smaller: the explanatory footnote closing a section
+	// ("The order here is the order of the columns on a board."). The meta role, secondary ink.
+	//
+	// **Two kinds and not one with a size input, because the size is the meaning.** A message is what a
+	// section says in place of its content; a note is what it says *about* its content. Measured by reading
+	// the sites (2026-10-06): 7 messages and 4 notes were a bare sentence in a `<p class="m-0 ...">`, and the
+	// 2xs sibling (16 sites in 6 files by exact class literal, captions under a control) is a third thing that no role names
+	// and is left hand-written rather than stretched over `label`, whose job is the text *inside* a badge.
+	StaticNote StaticKind = "note"
 )
 
 // KnownStaticKinds is the closed set.
@@ -365,4 +378,6 @@ var KnownStaticKinds = map[StaticKind]bool{
 	StaticHeading:   true,
 	StaticParagraph: true,
 	StaticLink:      true,
+	StaticMessage:   true,
+	StaticNote:      true,
 }
