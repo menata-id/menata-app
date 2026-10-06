@@ -1,7 +1,9 @@
 package rendering
 
 import (
+	"context"
 	"sort"
+	"strings"
 
 	"menata.app/internal/domain"
 	"menata.app/internal/storage"
@@ -31,17 +33,6 @@ import (
 // account, which is a real decision rather than drift, and it already lives in named components.
 // Unifying the two sizes would be undoing that decision, not removing a duplicate.
 const (
-	// controlPrimary is the one affirmative action on a screen: Save, Add, Approve, Continue.
-	controlPrimary = "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-800"
-
-	// controlSecondary is everything beside it: Cancel, Edit, Delete, a link styled as a button.
-	controlSecondary = "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-4 font-sans text-sm text-slate-700 hover:bg-slate-50"
-
-	// controlDanger is a destructive decision the screen wants read before it is clicked -- today
-	// only Reject. Deliberately not used for Delete: a row's Delete is ordinary and reversible by
-	// re-creating the record, while Reject ends an approval.
-	controlDanger = "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-red-200 bg-white px-4 font-sans text-sm text-red-700 hover:bg-red-50"
-
 	// controlField is one text/date/number input or select. The focus ring is part of the
 	// definition, not decoration: half the inputs in the app carried it and half did not, and the
 	// half without were the ones nobody had looked at since they were written.
@@ -59,6 +50,52 @@ const (
 	tableCell     = "border-b border-slate-100 px-3 py-2 align-middle"
 	tableHeadCell = "border-b border-slate-200 px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
 )
+
+// buttonClasses is the one place a button's look is decided, and the first reader of `RadiusControl` and
+// `InkBody` -- two Theme keys that were valid YAML with no effect until it existed.
+//
+// It replaces `controlPrimary`/`controlSecondary`/`controlDanger`, three literal strings read by 36 sites. Each
+// fragment below is still literal text in a scanned file, which is what Tailwind's scanner needs; what changed
+// is that the radius, the text size, the weight and (for the secondary variant) the ink come from the
+// Workspace's theme, joined **in the order the old literal wrote them** so the default theme renders the same
+// bytes (`TestButtonClasses_defaultIsTheLiteralEachSiteReplaced`).
+//
+// **What is deliberately still a literal, and why each is a finding rather than debt.**
+//   - The primary fill (`bg-slate-900`, `text-white`) is a dark surface, and D3 declined to make those a role:
+//     the 17 dark surfaces are three different jobs.
+//   - The danger border and ink (`red-200`, `red-700`) are a tone, and a tone is a palette pair a Component
+//     owns, not an ink role; a button's background is white where the `red` palette's is tinted.
+//   - **The border of `secondary` is `slate-200`, which is not what `BorderControl` defaults to** (`slate-300`,
+//     "an input's own box"). Reading the role would turn 14 buttons one shade darker; the mockups lean the other
+//     way (5 of 8 bordered buttons use 200). That moves pixels and is the owner's call (D8), exactly as D6 and
+//     D7 are, so `BorderControl` stays listed as unread until a Field reads it.
+//
+// A site that cannot be the `button` Component -- an `<a>`, an `hx-*` trigger, a `<summary>`, a button a script
+// finds by class -- still draws its own tag and calls this for the look, so it moves with the Theme too.
+// `conformance.TestHandWrittenButtonsOnlyShrink` holds how many of those remain, with a reason each.
+func buttonClasses(ctx context.Context, variant domain.ButtonVariant) string {
+	const prefix = "inline-flex h-9 cursor-pointer items-center justify-center"
+	radius := radiusClass(ctx, domain.RadiusControl)
+	text := textClass(ctx, domain.RoleBody)
+	switch variant {
+	case domain.ButtonPrimary:
+		return strings.Join([]string{prefix, radius, "border-0 bg-slate-900 px-4 font-sans", text, weightClass(ctx, domain.WeightEmphasis), "text-white hover:bg-slate-800"}, " ")
+	case domain.ButtonDanger:
+		return strings.Join([]string{prefix, radius, "border border-red-200 bg-white px-4 font-sans", text, "text-red-700 hover:bg-red-50"}, " ")
+	default:
+		return strings.Join([]string{prefix, radius, "border border-slate-200 bg-white px-4 font-sans", text, inkClass(ctx, domain.InkBody), "hover:bg-slate-50"}, " ")
+	}
+}
+
+// button is the registered renderer for `domain.ComponentButton`: a real `<button type="submit">` with a
+// label and, optionally, the native name/value pair it posts. **Its signature is the contract's teeth** -- four
+// strings and a closed variant, no `any` to parse and no attribute map to pass `hx-*` through, which is what
+// §12.3 forbids by name ("MUST NOT become generic merely by accepting arbitrary properties").
+//
+// The attribute order is `type`, `name`, `value`, `class`: the order the 17 migrated sites already wrote.
+templ button(label string, variant domain.ButtonVariant, name, value string) {
+	<button type="submit" if name != "" { name={ name } value={ value } } class={ buttonClasses(ctx, variant) }>{ label }</button>
+}
 
 // searchBox is a plain GET form posting `q` back to path -- Enter submits it natively in every
 // browser, matching every other filter on these screens (a filter chip is a plain <a>, this is a

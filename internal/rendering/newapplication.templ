@@ -83,7 +83,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 						<input type="hidden" name="session" value={ view.SessionID }/>
 						<label for="msg" class="sr-only">Your answer</label>
 						<input id="msg" type="text" name="message" required value={ view.PrefillIdea } placeholder="Type your answer…" class={ controlField + " grow" }/>
-						<button id="send-btn" type="submit" class={ controlPrimary }>Send</button>
+						<button id="send-btn" type="submit" class={ buttonClasses(ctx, domain.ButtonPrimary) }>Send</button>
 					</form>
 					<p id="thinking-note" class="hidden m-0 text-xs text-slate-400">Menata is thinking — this can take up to a minute.</p>
 				</div>
@@ -97,7 +97,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 					<p class="m-0 text-xs text-slate-400">Nothing to show yet -- keep answering.</p>
 				} else {
 					@changeSummary(view.Summary)
-					<a href={ templ.SafeURL("/new-application/" + view.SessionID + "/review") } class={ controlPrimary + " justify-center" }>
+					<a href={ templ.SafeURL("/new-application/" + view.SessionID + "/review") } class={ buttonClasses(ctx, domain.ButtonPrimary) + " justify-center" }>
 						Review →
 					</a>
 				}
@@ -259,7 +259,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				}
 				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/publish") } class="flex flex-col gap-2">
 					@csrfHiddenInput()
-					<button type="submit" class={ controlPrimary }>Publish to workspace</button>
+					@button("Publish to workspace", domain.ButtonPrimary, "", "")
 				</form>
 				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/discard") }>
 					@csrfHiddenInput()

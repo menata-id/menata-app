@@ -19,15 +19,14 @@ import (
 // does one naming a constant that no longer exists. A new role arrives with its reader or lands here with a
 // reason, which is the Theme-side form of "a primitive arrives with the uses it replaces".
 //
-// All five need a Component, not a token (007 §12.3): the elements they style (a button, an input, a table
-// row) are drawn by no primitive today, so there is nowhere for a reader to live that is not a hand-written
-// screen. Declaring one without a reader would be the shape-before-need this repo has removed three times.
+// All three need a Component, not a token (007 §12.3): the elements they style (an input, a table row, a
+// run of reset-weight text) are drawn by no primitive today, so there is nowhere for a reader to live that is
+// not a hand-written screen. `RadiusControl` and `InkBody` left on 2026-10-06 when Button became the first
+// Component to read them. Declaring one without a reader would be the shape-before-need this repo has removed three times.
 var unreadThemeRoles = map[string]string{
-	"RadiusControl": "the corner of a button or input; a Button/Field Component (007 §12.3) would read it",
 	"WeightBody":    "text explicitly reset to normal weight; no primitive draws such text",
-	"BorderControl": "the outline of an input or button; a Field/Button Component would read it",
+	"BorderControl": "the outline of an input; Button does not read it because its outline is slate-200 (the mockups), not slate-300 -- owner decision D8, and a Field control would be its first reader",
 	"BorderDivider": "the rule between rows of a list or table; a divider Component or a table primitive would read it",
-	"InkBody":       "the colour of content and controls; most of it sits on elements no primitive draws",
 }
 
 var themeRoleLineComment = regexp.MustCompile(`//[^\n]*`)

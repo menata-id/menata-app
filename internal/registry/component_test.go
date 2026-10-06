@@ -159,3 +159,31 @@ func TestMetricAcceptsHintAndToneButOnlyDeclaredTones(t *testing.T) {
 		t.Error("a Metric with an undeclared tone passed validation")
 	}
 }
+
+// TestValidateButton holds the contract's one cross-input rule and its closed set. `name` and `value` are the
+// native pair a submit button posts, and half a pair is a defect with a different symptom each way: a name with
+// no value posts an empty string the handler cannot tell from "not clicked", and a value with no name is
+// dropped by the browser. A validator that only checked required inputs would pass both.
+func TestValidateButton(t *testing.T) {
+	ok := map[string]string{"label": "Save", "variant": "primary"}
+	if issues := ValidateComponentUse(domain.ComponentButton, ok); len(issues) != 0 {
+		t.Errorf("a label and a variant is a valid Button, got %v", issues)
+	}
+	pair := map[string]string{"label": "Reject", "variant": "danger", "name": "decision", "value": "rejected"}
+	if issues := ValidateComponentUse(domain.ComponentButton, pair); len(issues) != 0 {
+		t.Errorf("a complete name/value pair is valid, got %v", issues)
+	}
+	for name, in := range map[string]map[string]string{
+		"name without value": {"label": "x", "variant": "primary", "name": "intent"},
+		"value without name": {"label": "x", "variant": "primary", "value": "draft"},
+		"unknown variant":    {"label": "x", "variant": "ghost"},
+		"no label":           {"variant": "primary"},
+		"no variant":         {"label": "x"},
+		"hx attribute":       {"label": "x", "variant": "primary", "hx-get": "/x"},
+		"class":              {"label": "x", "variant": "primary", "class": "mr-1"},
+	} {
+		if issues := ValidateComponentUse(domain.ComponentButton, in); len(issues) == 0 {
+			t.Errorf("%s must be refused, but validated clean", name)
+		}
+	}
+}

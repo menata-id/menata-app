@@ -223,7 +223,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 		<form method="GET" action="/new-application" class="flex gap-2.5">
 			<label for="idea" class="sr-only">Describe the application you need</label>
 			<input id="idea" type="text" name="idea" placeholder="e.g. Leave requests approved by a supervisor, then HR" class={ controlField + " grow" }/>
-			<button type="submit" class={ controlPrimary }>Start →</button>
+			@button("Start →", domain.ButtonPrimary, "", "")
 		</form>
 		if len(suggestions) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {

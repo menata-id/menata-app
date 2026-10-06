@@ -72,7 +72,40 @@ const (
 	// Second Component with a slot, after `Collection`. The slot is why this is two inputs rather than the six
 	// `authField` took: a Field labels a control, it does not know what kind of control.
 	ComponentField ComponentType = "Field"
+	// ComponentButton is §12.3's own `Button`: one action a person takes, drawn as a control.
+	//
+	// **The vocabulary existed as three strings.** `controlPrimary`, `controlSecondary` and `controlDanger` were
+	// read by 36 sites in 16 files, so the *look* of a button was already one decision; what was missing was
+	// that nothing a Workspace declared could reach it (five Theme keys were valid YAML with no reader) and that
+	// a screen could not compose one without hand-writing the tag. It takes the plain case only -- label,
+	// variant, and the native `name`/`value` pair a submit button posts -- and leaves behaviour (`hx-*`), the
+	// choice of element and per-site spacing to the sites that need them, which still draw their own tag but
+	// read the same classes through `rendering.buttonClasses`.
+	ComponentButton ComponentType = "Button"
 )
+
+// ButtonVariant is what a button means to the person reading the screen, as a closed set -- not how it looks,
+// which is `rendering.buttonClasses`' job and the Workspace's Theme's to move (§4.2: a semantic declaration
+// carries `primary`, never a colour).
+type ButtonVariant string
+
+const (
+	// ButtonPrimary is the one affirmative action on a screen: Save, Add, Approve, Continue.
+	ButtonPrimary ButtonVariant = "primary"
+	// ButtonSecondary is every action beside it: Cancel, Edit, Delete, a link styled as a button.
+	ButtonSecondary ButtonVariant = "secondary"
+	// ButtonDanger is a destructive decision the screen wants read before it is clicked -- today only Reject.
+	// Deliberately not used for Delete: a row's Delete is ordinary and reversible by re-creating the record,
+	// while Reject ends an approval.
+	ButtonDanger ButtonVariant = "danger"
+)
+
+// KnownButtonVariants is the closed set.
+var KnownButtonVariants = map[ButtonVariant]bool{
+	ButtonPrimary:   true,
+	ButtonSecondary: true,
+	ButtonDanger:    true,
+}
 
 // AvatarSize is how large an avatar circle is, as a closed set rather than a number -- the same reason
 // `Gap` is a ladder and not a pixel count (§15.2: a logical declaration carrying `size: 40px` has smuggled a

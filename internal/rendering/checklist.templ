@@ -70,7 +70,7 @@ templ checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit
 				<input type="hidden" name={ c.ParentField } value={ parentID }/>
 				@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 					<input type="text" name={ c.TextField } required placeholder="Add an item" aria-label="Add an item" class={ controlField + " grow" }/>
-					<button type="submit" class={ controlSecondary }>Add</button>
+					@button("Add", domain.ButtonSecondary, "", "")
 				}
 			</form>
 		}

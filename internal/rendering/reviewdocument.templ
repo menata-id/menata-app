@@ -464,11 +464,11 @@ templ reviewDecisionBar(v ReviewView) {
 		</span>
 		if v.CanDecide {
 			<form hx-post={ fmt.Sprintf("/machines/%s/records/%s/decide", approvalMachineID(ctx, domain.WorkflowRoleStep), v.StepID) } class="flex gap-2">
-				<button type="submit" name="decision" value={ action.DecisionRejected } class={ controlDanger }>Reject</button>
+				@button("Reject", domain.ButtonDanger, "decision", action.DecisionRejected)
 				if v.HasSignature {
-					<button type="submit" name="decision" value={ action.DecisionApproved } class={ controlPrimary }>Approve</button>
+					@button("Approve", domain.ButtonPrimary, "decision", action.DecisionApproved)
 				} else {
-					<button type="button" class={ "sig-approve-trigger " + controlPrimary } data-modal={ "sig-modal-" + v.StepID }>Approve</button>
+					<button type="button" class={ "sig-approve-trigger " + buttonClasses(ctx, domain.ButtonPrimary) } data-modal={ "sig-modal-" + v.StepID }>Approve</button>
 					@signatureModal(v.StepID)
 				}
 			</form>
@@ -520,8 +520,8 @@ templ signatureModal(stepID string) {
 		</div>
 		<input type="hidden" name="signature_image" class="sig-modal-image"/>
 		<div class="mt-3 flex items-center justify-end gap-2">
-			<button type="button" class={ "sig-modal-cancel " + controlSecondary }>Cancel</button>
-			<button type="submit" name="decision" value={ action.DecisionApproved } class={ "sig-modal-approve " + controlPrimary }>Approve</button>
+			<button type="button" class={ "sig-modal-cancel " + buttonClasses(ctx, domain.ButtonSecondary) }>Cancel</button>
+			<button type="submit" name="decision" value={ action.DecisionApproved } class={ "sig-modal-approve " + buttonClasses(ctx, domain.ButtonPrimary) }>Approve</button>
 		</div>
 	</dialog>
 	<script>

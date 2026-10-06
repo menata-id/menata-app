@@ -918,8 +918,8 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 					<form class="flex flex-col gap-1.5" hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
 						<input type="text" name={ cardTitleFieldID(m) } value={ title } required aria-label="Card title" class={ controlField + " w-full" }/>
 						<span class="flex gap-1.5">
-							<button type="submit" class={ controlPrimary }>Save</button>
-							<button type="button" class={ controlSecondary } onclick="this.closest('details').open=false">Cancel</button>
+							@button("Save", domain.ButtonPrimary, "", "")
+							<button type="button" class={ buttonClasses(ctx, domain.ButtonSecondary) } onclick="this.closest('details').open=false">Cancel</button>
 						</span>
 					</form>
 					if mv.Field != "" && len(mv.Targets) > 0 {
@@ -936,7 +936,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 								Position
 								<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ controlField + " w-full" }/>
 							</label>
-							<button type="submit" class={ controlSecondary }>Move</button>
+							@button("Move", domain.ButtonSecondary, "", "")
 						</form>
 					}
 				</details>
@@ -1012,7 +1012,7 @@ templ cardComposer(m *domain.Machine, v domain.View, col experience.Column) {
 		>
 			<input type="hidden" name={ v.GroupBy } value={ col.ID }/>
 			<input type="text" name={ cardTitleFieldID(m) } required placeholder="Card title" aria-label="Card title" class={ controlField + " w-full" }/>
-			<button type="submit" class={ controlPrimary }>Add</button>
+			@button("Add", domain.ButtonPrimary, "", "")
 		</form>
 	</details>
 }
@@ -1036,7 +1036,7 @@ templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupO
 					</label>
 				}
 			}
-			<button type="submit" class={ controlPrimary }>Create</button>
+			@button("Create", domain.ButtonPrimary, "", "")
 		</form>
 	</details>
 }
@@ -1057,7 +1057,7 @@ templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOp
 				</td>
 			}
 			<td class="border-b border-slate-100 px-3 pt-3 pb-2 align-middle whitespace-nowrap">
-				<button type="submit" class={ controlPrimary }>Add</button>
+				@button("Add", domain.ButtonPrimary, "", "")
 			</td>
 		</form>
 	</tr>
@@ -1097,7 +1097,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 		<td class="border-b border-slate-100 px-3 py-2 align-middle whitespace-nowrap">
 			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
-					class={ controlSecondary + " mr-1" }
+					class={ buttonClasses(ctx, domain.ButtonSecondary) + " mr-1" }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"
@@ -1106,7 +1106,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 			{{ deletable, _ := action.CanDelete(m, r.Values, nil) }}
 			if deletable && authorization.AllowsAction(m, domain.ActionDelete, r.Values, actor) {
 				<button
-					class={ controlSecondary }
+					class={ buttonClasses(ctx, domain.ButtonSecondary) }
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"
@@ -1136,10 +1136,10 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 				</td>
 			}
 			<td class="border-b border-slate-100 px-3 py-2 align-middle whitespace-nowrap">
-				<button type="submit" class={ controlPrimary + " mr-1" }>Save</button>
+				<button type="submit" class={ buttonClasses(ctx, domain.ButtonPrimary) + " mr-1" }>Save</button>
 				<button
 					type="button"
-					class={ controlSecondary }
+					class={ buttonClasses(ctx, domain.ButtonSecondary) }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target={ "#record-" + r.ID }
 					hx-swap="outerHTML"

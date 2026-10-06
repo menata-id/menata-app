@@ -1685,6 +1685,11 @@ func uiNode(n ir.UINode) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+			case domain.ComponentButton:
+				templ_7745c5c3_Err = button(n.Props["label"], domain.ButtonVariant(n.Props["variant"]), n.Props["name"], n.Props["value"]).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
 		}
 		return nil

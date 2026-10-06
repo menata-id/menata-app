@@ -238,7 +238,7 @@ func ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, draf
 					return templ_7745c5c3_Err
 				}
 				if tab != TabAssigned {
-					var templ_7745c5c3_Var5 = []any{controlPrimary}
+					var templ_7745c5c3_Var5 = []any{buttonClasses(ctx, domain.ButtonPrimary)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

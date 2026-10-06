@@ -248,3 +248,82 @@ func TestHandWrittenCaptionsOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// handWrittenButtonFloors are the `.templ` sites that still style a button-shaped element by calling
+// buttonClasses directly instead of `@button(...)`. Each is a floor with its reason, not debt: the Button
+// Component's contract accepts a label, a variant and a name/value pair, and these carry something it must not
+// (007 §12.3 -- a Component may not accept arbitrary properties). Counted 2026-10-06 by `buttonClasses(` in
+// each .templ outside controls.templ, `//` lines removed.
+var handWrittenButtonFloors = map[string]int{
+	"approvalinbox.templ":      1, // hx-* wiring on the button
+	"attachments.templ":        1, // a <label> wrapping a file input, not a <button>
+	"detail.templ":             5, // an <a> anchor (2), hx-* buttons (2), a <summary> disclosure trigger
+	"machine.templ":            5, // the onclick Cancel, hx-* buttons, and per-site mr-1 spacing
+	"newapplication.templ":     2, // id="send-btn" (a script hook) and an <a> with justify-center
+	"reviewdocument.templ":     3, // sig-* hook classes and data-modal: control behaviour, not a name/value pair
+	"signatureplacement.templ": 1, // hx-* wiring on the button
+}
+
+// handWrittenButtonLiterals are `<button class="h-9 ...">` written out by hand, with no buttonClasses call.
+// They are NOT the Button Component's shape -- `px-3` against its `px-4`, and a slate-300 outline against its
+// slate-200 -- so folding them in would shift pixels, and which border role an outline belongs to is owner
+// decision D8. Frozen so that a *new* one fails and names what to use; the four are the migration D8 unlocks.
+var handWrittenButtonLiterals = map[string]int{
+	"chooseworkspace.templ":  1,
+	"notifications.templ":    1,
+	"workspacemembers.templ": 2,
+}
+
+var (
+	buttonClassesCall = regexp.MustCompile(`buttonClasses\(`)
+	buttonLiteralOpen = regexp.MustCompile(`(?s)<button\b[^>]*?\bclass="([^"]*)"`)
+)
+
+func TestHandWrittenButtonsOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	has := func(attrs, tok string) bool {
+		return regexp.MustCompile(`(?:^|\s)` + regexp.QuoteMeta(tok) + `(?:\s|$)`).MatchString(attrs)
+	}
+	floors, literals := map[string]int{}, map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := mutedParaNote.ReplaceAllString(string(b), "")
+		if e.Name() != "controls.templ" {
+			if n := len(buttonClassesCall.FindAllString(src, -1)); n > 0 {
+				floors[e.Name()] = n
+			}
+		}
+		for _, m := range buttonLiteralOpen.FindAllStringSubmatch(src, -1) {
+			if has(m[1], "h-9") && (has(m[1], "bg-white") || has(m[1], "bg-slate-900")) {
+				literals[e.Name()]++
+			}
+		}
+	}
+	check := func(label, use string, actual, frozen map[string]int) {
+		for _, f := range sortedFileNames(actual) {
+			switch w := frozen[f]; {
+			case actual[f] > w:
+				t.Errorf("%s: %d %s, frozen at %d -- %s", f, actual[f], label, w, use)
+			case actual[f] < w:
+				t.Errorf("%s: %d %s, down from %d -- lower the entry in this file to lock the migration in", f, actual[f], label, w)
+			}
+		}
+		for _, f := range sortedFileNames(frozen) {
+			if _, still := actual[f]; !still {
+				t.Errorf("the %s list still names %s, which no longer has one -- remove the entry", label, f)
+			}
+		}
+	}
+	check("buttonClasses call(s)", "use `@button(label, variant, name, value)`. If this one carries hx-* wiring, an href, a hook class or spacing the Component must not accept, say so in handWrittenButtonFloors rather than widening the contract", floors, handWrittenButtonFloors)
+	check("hand-written h-9 button(s)", "use `@button(...)`; a literal button is the shape the Component replaces", literals, handWrittenButtonLiterals)
+}

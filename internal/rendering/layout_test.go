@@ -672,3 +672,113 @@ func TestStaticCaption_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 		t.Errorf("label must not follow the caption role; got %q", label)
 	}
 }
+
+// TestButtonClasses_defaultIsTheLiteralEachSiteReplaced pins the three strings `controlPrimary`,
+// `controlSecondary` and `controlDanger` held, so a default theme is provably the same bytes. They are written
+// out here rather than read from the code, because a test that reads the answer from the thing under test
+// cannot fail.
+func TestButtonClasses_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
+	ctx := context.Background()
+	for variant, want := range map[domain.ButtonVariant]string{
+		domain.ButtonPrimary:   "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-800",
+		domain.ButtonSecondary: "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-4 font-sans text-sm text-slate-700 hover:bg-slate-50",
+		domain.ButtonDanger:    "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-red-200 bg-white px-4 font-sans text-sm text-red-700 hover:bg-red-50",
+	} {
+		if got := buttonClasses(ctx, variant); got != want {
+			t.Errorf("%s button rendered %q, want %q", variant, got, want)
+		}
+	}
+}
+
+// TestButtonClasses_followTheTheme is the part that makes `RadiusControl` and `InkBody` readable at all: a key
+// that validates and changes nothing is the failure `TestEveryThemeRoleHasAReaderOrAReason` exists to catch,
+// and this is the test that the reader it found actually reads. It also pins what must NOT move -- the primary
+// fill is a dark surface and the danger ink is a tone, neither an ink role.
+func TestButtonClasses_followTheTheme(t *testing.T) {
+	th := domain.Theme{
+		Radius: map[domain.RadiusRole]domain.RadiusStep{domain.RadiusControl: domain.RadiusStepFull},
+		Ink:    map[domain.InkRole]domain.InkShade{domain.InkBody: domain.InkShadeMedium},
+		Text:   map[domain.TextRole]domain.TextScale{domain.RoleBody: domain.TextSmall},
+		Weight: map[domain.WeightRole]domain.WeightStep{domain.WeightEmphasis: domain.WeightStepNormal},
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+	primary := buttonClasses(ctx, domain.ButtonPrimary)
+	secondary := buttonClasses(ctx, domain.ButtonSecondary)
+	danger := buttonClasses(ctx, domain.ButtonDanger)
+	for name, got := range map[string]string{"primary": primary, "secondary": secondary, "danger": danger} {
+		if !strings.Contains(got, "rounded-full") || strings.Contains(got, "rounded-md") {
+			t.Errorf("%s: a declared control radius should move the button; got %q", name, got)
+		}
+		if !strings.Contains(got, "text-xs") || strings.Contains(got, "text-sm") {
+			t.Errorf("%s: a declared body size should move the label; got %q", name, got)
+		}
+	}
+	if !strings.Contains(secondary, "text-slate-500") || strings.Contains(secondary, "text-slate-700") {
+		t.Errorf("secondary: body ink should move its text; got %q", secondary)
+	}
+	if !strings.Contains(primary, "font-normal") || strings.Contains(primary, "font-medium") {
+		t.Errorf("primary: emphasis weight should move its label; got %q", primary)
+	}
+	if !strings.Contains(primary, "text-white") || !strings.Contains(danger, "text-red-700") {
+		t.Errorf("primary text and danger ink must not follow the body ink role; primary %q danger %q", primary, danger)
+	}
+}
+
+// TestButton_rendersTheNamePairOnlyWhenGiven pins the attribute order the 17 migrated sites already wrote
+// (`type`, `name`, `value`, `class`) and the absence of a stray empty `name=""` on the 13 that carry none.
+func TestButton_rendersTheNamePairOnlyWhenGiven(t *testing.T) {
+	render := func(c templ.Component) string {
+		var buf bytes.Buffer
+		if err := c.Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	plain := render(button("Add", domain.ButtonPrimary, "", ""))
+	if strings.Contains(plain, "name=") || strings.Contains(plain, "value=") {
+		t.Errorf("a button with no pair must not render name/value; got %q", plain)
+	}
+	if want := `<button type="submit" class="` + buttonClasses(context.Background(), domain.ButtonPrimary) + `">Add</button>`; plain != want {
+		t.Errorf("plain button rendered %q, want %q", plain, want)
+	}
+	pair := render(button("Save as draft", domain.ButtonSecondary, "intent", "draft"))
+	if !strings.HasPrefix(pair, `<button type="submit" name="intent" value="draft" class="`) {
+		t.Errorf("a pair must render between type and class; got %q", pair)
+	}
+	if arrow := render(button("Continue →", domain.ButtonPrimary, "", "")); !strings.Contains(arrow, ">Continue →</button>") {
+		t.Errorf("the label must reach the page unescaped for a plain arrow; got %q", arrow)
+	}
+}
+
+// TestButton_reproducesTheUnreachedReviewAndInstallSites pins, byte for byte, three migrated sites that no
+// screen in the dev database reaches (no pending step for the viewer, no installable template), so a live
+// render-diff could not have caught a wrong argument there. The expected strings are the pre-migration
+// literals written out by hand, not derived from buttonClasses.
+func TestButton_reproducesTheUnreachedReviewAndInstallSites(t *testing.T) {
+	render := func(c templ.Component) string {
+		var buf bytes.Buffer
+		if err := c.Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	const prefix = "inline-flex h-9 cursor-pointer items-center justify-center"
+	for name, c := range map[string]struct{ got, want string }{
+		"reject": {
+			render(button("Reject", domain.ButtonDanger, "decision", "rejected")),
+			`<button type="submit" name="decision" value="rejected" class="` + prefix + ` rounded-md border border-red-200 bg-white px-4 font-sans text-sm text-red-700 hover:bg-red-50">Reject</button>`,
+		},
+		"approve": {
+			render(button("Approve", domain.ButtonPrimary, "decision", "approved")),
+			`<button type="submit" name="decision" value="approved" class="` + prefix + ` rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-800">Approve</button>`,
+		},
+		"install": {
+			render(button("Install", domain.ButtonPrimary, "", "")),
+			`<button type="submit" class="` + prefix + ` rounded-md border-0 bg-slate-900 px-4 font-sans text-sm font-medium text-white hover:bg-slate-800">Install</button>`,
+		},
+	} {
+		if c.got != c.want {
+			t.Errorf("%s:\n got  %s\n want %s", name, c.got, c.want)
+		}
+	}
+}

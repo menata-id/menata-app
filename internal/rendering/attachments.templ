@@ -69,7 +69,7 @@ templ attachmentsSection(m *domain.Machine, parentID string, a *Attachments, can
 		if canEdit {
 			<form class="m-0" hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) } hx-encoding="multipart/form-data" hx-trigger="change" hx-swap="none">
 				<input type="hidden" name={ a.ParentField } value={ parentID }/>
-				<label class={ controlSecondary, "cursor-pointer" }>
+				<label class={ buttonClasses(ctx, domain.ButtonSecondary), "cursor-pointer" }>
 					Add an attachment
 					<input type="file" name={ a.FileField } required class="sr-only"/>
 				</label>

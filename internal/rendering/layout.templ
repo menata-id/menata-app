@@ -667,6 +667,8 @@ templ uiNode(n ir.UINode) {
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:
 					@avatar(n.Props["initials"], n.Props["label"], domain.AvatarSize(n.Props["size"]), domain.AvatarPresence(n.Props["presence"]))
+				case domain.ComponentButton:
+					@button(n.Props["label"], domain.ButtonVariant(n.Props["variant"]), n.Props["name"], n.Props["value"])
 			}
 	}
 }

@@ -46,6 +46,47 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentMetric:      {Contract: metricContract, Validate: validateMetric},
 	domain.ComponentCollection:  {Contract: collectionContract, Validate: validateCollection},
 	domain.ComponentField:       {Contract: fieldContract, Validate: validateField},
+	domain.ComponentButton:      {Contract: buttonContract, Validate: validateButton},
+}
+
+// buttonContract is §12.3's `Button`, and the first contract whose `Actions` is not empty.
+//
+// **Four inputs, and two of them are one input.** `name` and `value` are the native pair a submit button posts
+// with its form -- `intent=draft`, `decision=approved` -- and they are meaningful only together: a name with
+// no value posts an empty string the handler cannot tell from "not clicked", and a value with no name is
+// dropped by the browser. The validator holds that; the four hand-written sites that carried the pair never
+// did. That is 007 §11.3's Binding in its smallest honest form, not a way to pass arbitrary attributes: there
+// is no `hx-*`, no `id`, no `class`, and `checkDeclaredInputs` refuses all three by name.
+//
+// `type` is not an input. Every site that migrates is a submit, and the ones that are not (`onclick` closing a
+// `<details>`, a `data-modal` trigger) are behaviour -- §12.3's `actions` -- which is a capability this
+// contract does not claim.
+var buttonContract = domain.ComponentContract{
+	Type: domain.ComponentButton,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "variant", Kind: "ButtonVariant", Required: true},
+		{Name: "name", Kind: "string"},
+		{Name: "value", Kind: "string"},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          []string{"submit"},
+	Accessibility:    "the label is the accessible name, so it is required and never an icon alone; the element is a real <button type=\"submit\">, focusable and activated by Enter and Space without a role or a script",
+	Renderer:         "button",
+}
+
+// validateButton checks a use against the declared inputs, the closed variant set, and the one cross-input
+// rule: `name` and `value` arrive together or not at all.
+func validateButton(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(buttonContract, inputs, "Button")
+	if v := inputs["variant"]; v != "" && !domain.KnownButtonVariants[domain.ButtonVariant(v)] {
+		issues = append(issues, fmt.Sprintf("Button variant %q is not one of the declared variants", v))
+	}
+	if (inputs["name"] == "") != (inputs["value"] == "") {
+		issues = append(issues, "Button `name` and `value` are one pair: a name without a value posts an empty string, and a value without a name is dropped by the browser")
+	}
+	return issues
 }
 
 // fieldContract is §12.3's `Field`: a label bound to one control, which fills the slot.

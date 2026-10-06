@@ -229,11 +229,11 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 		{{ deletable, blockedReason := canDeleteInView(m, r, children, actor) }}
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 			if action.IsDocument(m) {
-				<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)) } class={ controlSecondary }>Signature Positions</a>
+				<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/signature-placement", m.ID, r.ID)) } class={ buttonClasses(ctx, domain.ButtonSecondary) }>Signature Positions</a>
 			}
 			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
-					class={ controlSecondary }
+					class={ buttonClasses(ctx, domain.ButtonSecondary) }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s/edit", m.ID, r.ID) }
 					hx-target="#record-detail"
 					hx-swap="outerHTML"
@@ -242,7 +242,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			@recordActionsMenu(m, r, extras.Move != nil && authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor), extras.Move, authorization.AllowsAction(m, domain.ActionCreate, r.Values, actor), extras.Copy)
 			if deletable {
 				<button
-					class={ controlSecondary }
+					class={ buttonClasses(ctx, domain.ButtonSecondary) }
 					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target="#record-detail"
 					hx-confirm="Delete this record?"
@@ -288,7 +288,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 // nothing declares yet, and are not drawn.
 templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *RecordMove, canCopy bool, cp *RecordCopy) {
 	<details class="relative">
-		<summary aria-label="Card actions" class={ controlSecondary + " cursor-pointer list-none" }>⋯</summary>
+		<summary aria-label="Card actions" class={ buttonClasses(ctx, domain.ButtonSecondary) + " cursor-pointer list-none" }>⋯</summary>
 		<div class="absolute top-full left-0 z-10 mt-1 flex w-72 flex-col gap-1 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
 			if canMove && move != nil {
 				<details>
@@ -313,7 +313,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 							Position
 							<input type="number" name="position" min="1" value={ fmt.Sprint(move.Position) } class={ controlField + " w-full" }/>
 						</label>
-						<button type="submit" class={ controlPrimary }>Move</button>
+						@button("Move", domain.ButtonPrimary, "", "")
 					</form>
 				</details>
 			}
@@ -329,7 +329,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 							Title
 							<input type="text" name={ cp.TitleField } value={ cp.Title } required class={ controlField + " w-full" }/>
 						</label>
-						<button type="submit" class={ controlPrimary }>Copy</button>
+						@button("Copy", domain.ButtonPrimary, "", "")
 					</form>
 				</details>
 			}
@@ -419,10 +419,10 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 				}
 			</dl>
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-				<button type="submit" class={ controlPrimary }>Save</button>
+				@button("Save", domain.ButtonPrimary, "", "")
 				<button
 					type="button"
-					class={ controlSecondary }
+					class={ buttonClasses(ctx, domain.ButtonSecondary) }
 					hx-get={ fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID) }
 					hx-target="#record-detail"
 					hx-swap="outerHTML"

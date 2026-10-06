@@ -114,9 +114,9 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			</label>
 			<div class="flex justify-end gap-2">
 				if draft.ID == "" {
-					<button type="submit" name="intent" value="draft" class={ controlSecondary }>Save as draft</button>
+					@button("Save as draft", domain.ButtonSecondary, "intent", "draft")
 				}
-				<button type="submit" name="intent" value="submit" class={ controlPrimary }>Continue →</button>
+				@button("Continue →", domain.ButtonPrimary, "intent", "submit")
 			</div>
 		</form>
 	}

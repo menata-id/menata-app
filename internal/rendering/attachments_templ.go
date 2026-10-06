@@ -288,7 +288,7 @@ func attachmentsSection(m *domain.Machine, parentID string, a *Attachments, canE
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var16 = []any{controlSecondary, "cursor-pointer"}
+				var templ_7745c5c3_Var16 = []any{buttonClasses(ctx, domain.ButtonSecondary), "cursor-pointer"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

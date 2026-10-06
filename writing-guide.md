@@ -1369,7 +1369,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 > ```yaml
 > theme:
 >   radius:
->     control: small    # inputs, buttons  [declared, nothing reads it yet]  (default: small)
+>     control: small    # buttons  (default: small)
 >     surface: large    # panels, sections     (default: large  -> rounded-lg)
 >     pill:    full     # badges, avatars      (default: full   -> rounded-full)
 >   weight:
@@ -1402,7 +1402,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     muted:   grey-faint  # de-emphasised                       (default: grey-faint)
 >   ink:
 >     strong:    darkest  # titles and the figures people scan for   (default: darkest)
->     body:      dark     # text people read or click  [declared, nothing reads it yet]  (default: dark)
+>     body:      dark     # text people read or click  (default: dark; read by the secondary Button)
 >     secondary: medium   # captions, descriptions, meta lines       (default: medium)
 >     faint:     light    # hints, placeholders, decoration          (default: light)
 >   background:
@@ -1448,7 +1448,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 > The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
 > `medium` is the one no role claims by default.
 >
-> **Five keys load and change nothing today**, and they are marked `[declared, nothing reads it yet]` above: `radius.control`, `weight.body`, `border.control`, `border.divider` and `ink.body`. They style buttons, inputs and table rows, which no shared primitive draws yet; they will start working when a Button/Field Component exists (007 §12.3). `conformance.TestEveryThemeRoleHasAReaderOrAReason` holds this list, so a key leaves it only by gaining a reader.
+> **Three keys load and change nothing today**, and they are marked `[declared, nothing reads it yet]` above: `weight.body`, `border.control` and `border.divider`. They style inputs, table rows and reset-weight text, which no shared primitive draws yet. `radius.control` and `ink.body` started working on 2026-10-06, when the Button Component (007 §12.3) became their first reader. `border.control` stays unread on purpose: a button's outline is slate-200 in the mockups and `border.control` is slate-300, so reading it would shift fourteen buttons (owner decision D8). `conformance.TestEveryThemeRoleHasAReaderOrAReason` holds this list, so a key leaves it only by gaining a reader.
 >
 > Every role, step and palette is a closed set: an unknown value is a **load error**, not a silent
 > default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the

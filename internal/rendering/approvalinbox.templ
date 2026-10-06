@@ -183,7 +183,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 			if tab != TabAssigned {
 				<a
 					href="/documents/new"
-					class={ controlPrimary }
+					class={ buttonClasses(ctx, domain.ButtonPrimary) }
 				>
 					+ New Document
 				</a>
