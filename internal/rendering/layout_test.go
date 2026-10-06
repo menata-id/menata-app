@@ -459,3 +459,66 @@ func TestPanelLayout_backgroundFollowsTheWorkspaceTheme(t *testing.T) {
 		t.Errorf("a declared raised=lighter should recolour the panel; got %q", got)
 	}
 }
+
+func renderWithTheme(t *testing.T, th domain.Theme, c templ.Component) string {
+	t.Helper()
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+	var buf bytes.Buffer
+	if err := c.Render(templ.WithChildren(ctx, templ.Raw("x")), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	return buf.String()
+}
+
+// TestPaddingFollowsTheWorkspaceTheme pins the **pre-migration literal beside the intended one** for all three
+// primitives: the default must be byte-for-byte the class each hardcoded, and a declaration must replace it
+// with no recompile. Section and panel stay different by default (D6) and become one by declaration.
+func TestPaddingFollowsTheWorkspaceTheme(t *testing.T) {
+	cases := []struct {
+		name      string
+		c         templ.Component
+		was       string
+		declared  map[domain.PaddingRole]domain.PaddingAmount
+		wantAfter string
+	}{
+		{"panel", panelLayout(), "p-4", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingPanel: domain.PaddingAmountFive}, "p-5"},
+		{"section", sectionLayout(domain.GapDefault), "p-5", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingSection: domain.PaddingAmountFour}, "p-4"},
+		{"badge", statusBadge("x", domain.ToneNeutral, domain.BadgeRegular), "px-2.5 py-1", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingBadgeX: domain.PaddingAmountThree, domain.PaddingBadgeY: domain.PaddingAmountTwo}, "px-3 py-2"},
+		{"compact badge", statusBadge("x", domain.ToneNeutral, domain.BadgeCompact), "px-2 py-0.5", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingBadgeCompactX: domain.PaddingAmountOneHalf, domain.PaddingBadgeCompactY: domain.PaddingAmountOne}, "px-1.5 py-1"},
+	}
+	for _, c := range cases {
+		def := renderWithTheme(t, domain.Theme{}, c.c)
+		if !strings.Contains(def, `"`+c.was+`"`) && !strings.Contains(def, " "+c.was+" ") && !strings.Contains(def, c.was+`"`) && !strings.Contains(def, `"`+c.was+" ") {
+			t.Errorf("%s: default lost %q; got %q", c.name, c.was, def)
+		}
+		got := renderWithTheme(t, domain.Theme{Padding: c.declared}, c.c)
+		if !strings.Contains(got, c.wantAfter) || strings.Contains(got, c.was) {
+			t.Errorf("%s: a declared padding should replace %q with %q; got %q", c.name, c.was, c.wantAfter, got)
+		}
+	}
+}
+
+// TestPaddingClassCoversEveryLadderAmount: a ladder member with no case would fall to the default and look
+// like a Theme that quietly ignores a valid declaration.
+func TestPaddingClassCoversEveryLadderAmount(t *testing.T) {
+	amounts := []domain.PaddingAmount{domain.PaddingAmountHalf, domain.PaddingAmountOne, domain.PaddingAmountOneHalf, domain.PaddingAmountTwo,
+		domain.PaddingAmountTwoHalf, domain.PaddingAmountThree, domain.PaddingAmountFour, domain.PaddingAmountFive}
+	prefix := map[domain.PaddingAxis]string{domain.PaddingAxisAll: "p-", domain.PaddingAxisX: "px-", domain.PaddingAxisY: "py-"}
+	for role := range domain.KnownPaddingRoles {
+		seen := map[string]domain.PaddingAmount{}
+		for _, a := range amounts {
+			if !domain.PaddingAmountAllowed(role.Axis(), a) {
+				continue
+			}
+			ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: domain.Theme{Padding: map[domain.PaddingRole]domain.PaddingAmount{role: a}}}, "W", false)
+			cls := paddingClass(ctx, role)
+			if !strings.HasPrefix(cls, prefix[role.Axis()]) {
+				t.Errorf("%s=%s rendered %q, want prefix %q", role, a, cls, prefix[role.Axis()])
+			}
+			if prev, dup := seen[cls]; dup {
+				t.Errorf("%s: amounts %q and %q both render %q -- a case is missing", role, prev, a, cls)
+			}
+			seen[cls] = a
+		}
+	}
+}

@@ -1407,6 +1407,13 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     raised: lightest    # cards, panels, the header and bottom bar   (default: lightest)
 >     base:   lighter     # the page behind everything                (default: lighter)
 >     sunken: light       # a board lane or recessed well             (default: light)
+>   padding:
+>     panel:           four      # the bordered panel                  (default: four)
+>     section:         five      # a titled, stacked section           (default: five)
+>     badge-x:         two-half  # a badge's side room                 (default: two-half)
+>     badge-y:         one       # a badge's top and bottom room       (default: one)
+>     badge-compact-x: two       # the compact badge, sides            (default: two)
+>     badge-compact-y: half      # the compact badge, top and bottom   (default: half)
 > ```
 >
 > `tone:` maps each semantic tone to a **palette**, and a palette is a background *and* text colour as one
@@ -1424,6 +1431,14 @@ similar-looking metadata for a *different* Machine does not activate it.
 > reaches what the runtime's own components draw -- panels and sections, the header and page, a board lane --
 > and not a card a screen draws by hand.
 >
+> `padding:` is the room inside a surface, and **a role names a place, not a number of sides**: `panel` and
+> `section` pad all four, a badge pads its two axes separately (`badge-x`, `badge-y`). Amounts, smallest
+> first: `half`, `one`, `one-half`, `two`, `two-half`, `three`, `four`, `five` -- except that `panel` and `section`
+> start at `two`, since nothing smaller exists on a surface. An amount off a role's ladder is a load error.
+> `panel` and `section` differ by default (four and five); declaring both the same is how you see on your own
+> Workspace what merging them would look like. Only the runtime's own panels, sections and badges follow
+> `padding:` -- the ~400 other padding sites on hand-written screens do not.
+>
 > `gap:` is the one category shaped differently: it maps a **spacing step straight to an amount**, because a
 > caller already says `tight` rather than a raw class — there is no role to invent. Amounts, smallest first:
 > `half`, `one`, `two`, `three`, `four`, `five`.
@@ -1434,7 +1449,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 > Every role, step and palette is a closed set: an unknown value is a **load error**, not a silent
 > default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the
 > default — which is exactly what the app rendered before Theme existed, so adding the key changes nothing
-> until you change a value. Three other token categories (text colour, background colour, padding) are **not** declarable yet, and shadow is deliberately not a category (six uses in total); the order they arrive in is set by
+> until you change a value. All nine token categories are declarable; shadow is deliberately not a tenth (six uses in total). The inventory and the order they arrived in:
 > `menata-app-document/audits/2026-10-04-inventaris-token-design-system.md`.
 
 > **A screen's own layout is on neither side yet, and that is worth stating so nothing here is

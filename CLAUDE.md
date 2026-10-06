@@ -771,7 +771,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   `pending` variant, which needs an outstanding invitation the dev database does not have. Three of its four
   sites *were* reachable, which is the useful shape: diff what you can, pin what you cannot, and say which is
   which.
-- **Theme (006) is declarable for eight token categories, and the bookkeeping rule its first one broke is worth more
+- **Theme (006) is declarable for all nine token categories, and the bookkeeping rule its first one broke is worth more
   than the feature.** `domain.Theme` maps `RadiusRole` to `RadiusStep`; a `theme:` block in a Workspace
   manifest is validated by `metadata.resolveTheme` and read by `rendering.radiusClass`. **Verified live, not
   asserted**: a declared `surface: full` changed `sectionLayout`'s radius with no recompile, which is the only
@@ -784,10 +784,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   and it is the easiest to forget because no gate reads it.
   Also: the `theme:` key broke `installer.WorkspaceManifestCheckDoc` within minutes — the **third** instance,
   and the first its own plan had predicted by name. Check that mirror before the gate does.
-  **Eight of nine are declarable** (radius, weight, text size, gap, border colour, semantic tone, text colour, background colour -- the last took four roles, not the decided three, because reading all 80 `slate-600`/`slate-700` sites showed `700` has its own job); **one remains** (padding -- shadow is deliberately not one), and the order they arrive in is measured, not chosen:
+  **All nine are declarable** (radius, weight, text size, gap, border colour, semantic tone, text colour, background colour -- the last took four roles, not the decided three, because reading all 80 `slate-600`/`slate-700` sites showed `700` has its own job -- and padding, 2026-10-06); shadow is deliberately not a tenth. The order they arrived in was measured, not chosen:
   `menata-app-document/audits/2026-10-04-inventaris-token-design-system.md` carries all 104 values with
   per-value counts and a verdict each. Two findings there change the plan — `domain.Gap` is **missing its two
   smallest steps** (`gap-1` 49 uses, `gap-0.5` 24, both below `tight`), and padding is **56** values, not 20.
+  **Padding (D4–D6) is declared as six roles, not 56 values, and three things changed on measurement.** `px` and `py` came out as the *same* eight-amount set over what a primitive can reach (the two ladders differ in each role's default, not in membership); the all-sides ladder is the smaller one and stops at `five`, because a base `p-6` had no site and the first build emitted exactly that one new class (`app.css` is byte-identical to HEAD now). `panel` (four) and `section` (five) **stay different by default** -- D6 is an owner decision, and a Workspace can declare them equal to see it -- and measuring found `panelLayout` has **one** live caller, so the debt is one site wide, not twelve. The one-offs (`pt-18`, `pb-24`, `pr-11`) are excluded in `domain.PaddingRole`'s comment because each is sized by another element.
 - `TestNoClassLivesOnlyInAComment` — **Tailwind scans the `.templ` files as text, so a comment naming a
   utility class emits that class.** Nothing in `make css` knows what a Go comment is. Three leaks were found
   this way, all self-inflicted and all invisible: the comment recording that the first Experience Plane pass

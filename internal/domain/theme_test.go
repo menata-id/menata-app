@@ -120,3 +120,52 @@ func TestThemeBackgroundFor(t *testing.T) {
 		t.Errorf("an unknown shade should fall back to the default: got %q", got)
 	}
 }
+
+func TestDefaultThemeResolvesEveryPaddingRoleOnItsOwnLadder(t *testing.T) {
+	def := DefaultTheme()
+	for role := range KnownPaddingRoles {
+		a, ok := def.Padding[role]
+		if !ok || !PaddingAmountAllowed(role.Axis(), a) {
+			t.Errorf("DefaultTheme().Padding[%q] = %q (present=%v), want an amount on the %q ladder", role, a, ok, role.Axis())
+		}
+	}
+	if len(def.Padding) != len(KnownPaddingRoles) {
+		t.Errorf("DefaultTheme().Padding holds %d entries and KnownPaddingRoles declares %d", len(def.Padding), len(KnownPaddingRoles))
+	}
+}
+
+// The all-sides ladder is the one that differs: three small amounts have no site anywhere, and admitting
+// them would put classes in the bundle nothing uses. x and y are one set today, deliberately.
+func TestPaddingLadders(t *testing.T) {
+	for _, a := range []PaddingAmount{PaddingAmountHalf, PaddingAmountOne, PaddingAmountOneHalf} {
+		if PaddingAmountAllowed(PaddingAxisAll, a) {
+			t.Errorf("all-sides ladder admits %q, which no site uses", a)
+		}
+		if !PaddingAmountAllowed(PaddingAxisX, a) || !PaddingAmountAllowed(PaddingAxisY, a) {
+			t.Errorf("x and y ladders must admit %q", a)
+		}
+	}
+	if PaddingAmountAllowed(PaddingAxisAll, "six") {
+		t.Error("six has no un-prefixed site, so admitting it would emit a class nothing uses")
+	}
+	if PaddingAmountAllowed(PaddingAxisAll, "huge") || PaddingAmountAllowed("diagonal", PaddingAmountTwo) {
+		t.Error("an unknown amount or axis must be refused")
+	}
+}
+
+func TestThemePaddingFor(t *testing.T) {
+	if got := (Theme{}).PaddingFor(PaddingPanel); got != PaddingAmountFour {
+		t.Errorf("zero Theme: PaddingFor(panel) = %q, want %q", got, PaddingAmountFour)
+	}
+	th := Theme{Padding: map[PaddingRole]PaddingAmount{PaddingPanel: PaddingAmountFive}}
+	if got := th.PaddingFor(PaddingPanel); got != PaddingAmountFive {
+		t.Errorf("declared panel=five: got %q", got)
+	}
+	if got := th.PaddingFor(PaddingSection); got != PaddingAmountFive {
+		t.Errorf("an undeclared role must inherit its default: got %q", got)
+	}
+	off := Theme{Padding: map[PaddingRole]PaddingAmount{PaddingBadgeX: "six"}}
+	if got := off.PaddingFor(PaddingBadgeX); got != PaddingAmountTwoHalf {
+		t.Errorf("an amount off the axis ladder should fall back to the default: got %q", got)
+	}
+}

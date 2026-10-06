@@ -1661,3 +1661,29 @@ func TestResolveTheme_background(t *testing.T) {
 		t.Errorf("a Tailwind token is not a shade (007 §15.2); got %v", issues)
 	}
 }
+
+// TestResolveTheme_padding holds the `theme.padding` block: a closed role set, and an amount ladder per axis.
+func TestResolveTheme_padding(t *testing.T) {
+	th, issues := resolveTheme(&themeDoc{Padding: map[string]string{"panel": "five", "badge-y": "one-half"}})
+	if len(issues) != 0 {
+		t.Fatalf("a valid padding block reported issues: %v", issues)
+	}
+	if th.Padding[domain.PaddingPanel] != domain.PaddingAmountFive || th.Padding[domain.PaddingBadgeY] != domain.PaddingAmountOneHalf {
+		t.Errorf("declared entries not resolved: %v", th.Padding)
+	}
+
+	_, issues = resolveTheme(&themeDoc{Padding: map[string]string{"gutter": "two"}})
+	if len(issues) != 1 || !strings.Contains(issues[0], "theme.padding") || !strings.Contains(issues[0], "gutter") {
+		t.Errorf("an unknown role should be one load issue naming it; got %v", issues)
+	}
+
+	_, issues = resolveTheme(&themeDoc{Padding: map[string]string{"panel": "one"}})
+	if len(issues) != 1 || !strings.Contains(issues[0], `"all"`) {
+		t.Errorf("an amount off the all-sides ladder should name the ladder; got %v", issues)
+	}
+
+	_, issues = resolveTheme(&themeDoc{Padding: map[string]string{"badge-x": "p-4"}})
+	if len(issues) != 1 || !strings.Contains(issues[0], "p-4") {
+		t.Errorf("a Tailwind token is not an amount (007 §15.2); got %v", issues)
+	}
+}

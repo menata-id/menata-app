@@ -45,8 +45,7 @@ type App struct {
 // block held the Workspace's own id and name, and neither belongs in a file any more (see
 // domain.Workspace.Slug). What is left is a single scalar naming the target, so a nesting level
 // that once carried four keys would now carry one.
-// themeDoc is the `theme:` block. One sub-block per token category; only `radius` exists today, and the
-// others arrive one slice each in the order `menata-app-document`'s token inventory sets.
+// themeDoc is the `theme:` block. One sub-block per token category; all nine categories are declarable.
 type themeDoc struct {
 	Radius map[string]string `yaml:"radius"`
 	Weight map[string]string `yaml:"weight"`
@@ -57,6 +56,7 @@ type themeDoc struct {
 	Ink    map[string]string `yaml:"ink"`
 
 	Background map[string]string `yaml:"background"`
+	Padding    map[string]string `yaml:"padding"`
 }
 
 // resolveTheme turns the declared block into domain.Theme, reporting every unknown role or step rather than
@@ -186,6 +186,21 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				continue
 			}
 			t.Background[r] = s
+		}
+	}
+	if len(doc.Padding) > 0 {
+		t.Padding = map[domain.PaddingRole]domain.PaddingAmount{}
+		for role, amount := range doc.Padding {
+			r, a := domain.PaddingRole(role), domain.PaddingAmount(amount)
+			if !domain.KnownPaddingRoles[r] {
+				issues = append(issues, fmt.Sprintf("theme.padding: %q is not a padding role this runtime realizes", role))
+				continue
+			}
+			if !domain.PaddingAmountAllowed(r.Axis(), a) {
+				issues = append(issues, fmt.Sprintf("theme.padding.%s: %q is not an amount on the %q padding ladder", role, amount, r.Axis()))
+				continue
+			}
+			t.Padding[r] = a
 		}
 	}
 	return t, issues

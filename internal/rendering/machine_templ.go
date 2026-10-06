@@ -443,7 +443,7 @@ func statusBadge(label string, tone domain.BadgeTone, size domain.BadgeSize) tem
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var7 = []any{"inline-flex items-center", badgePadding(size), "whitespace-nowrap", textClass(ctx, domain.RoleLabel), radiusClass(ctx, domain.RadiusPill), toneClass(ctx, tone)}
+		var templ_7745c5c3_Var7 = []any{"inline-flex items-center", badgePadding(ctx, size), "whitespace-nowrap", textClass(ctx, domain.RoleLabel), radiusClass(ctx, domain.RadiusPill), toneClass(ctx, tone)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -485,11 +485,11 @@ func statusBadge(label string, tone domain.BadgeTone, size domain.BadgeSize) tem
 // badgePadding is the one place a badge's room is chosen. An unset or unknown size is the regular one rather
 // than no padding at all -- a badge with no padding is a cut-off label, which is a defect that renders instead
 // of one that fails.
-func badgePadding(size domain.BadgeSize) string {
+func badgePadding(ctx context.Context, size domain.BadgeSize) string {
 	if size == domain.BadgeCompact {
-		return "px-2 py-0.5"
+		return paddingClass(ctx, domain.PaddingBadgeCompactX) + " " + paddingClass(ctx, domain.PaddingBadgeCompactY)
 	}
-	return "px-2.5 py-1"
+	return paddingClass(ctx, domain.PaddingBadgeX) + " " + paddingClass(ctx, domain.PaddingBadgeY)
 }
 
 // avatarClasses maps an avatar's two closed parameters onto the circle it draws. Two switches rather than one

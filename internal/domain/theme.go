@@ -290,12 +290,117 @@ var KnownTonePalettes = map[TonePalette]bool{
 	PaletteGreen: true, PaletteRed: true, PaletteAmber: true,
 }
 
+// PaddingRole names a place a primitive pads itself -- the ninth and last Theme category.
+//
+// **Roles carry an axis, which is how D4's two ladders are held.** `panel` and `section` pad all four sides;
+// a badge pads its two axes separately because they are chosen separately (a regular badge is wider than it is
+// tall by a factor the compact one does not share). Four badge roles rather than one role with two numbers keeps
+// the Theme a flat role-to-amount map like its other eight, at the price of a longer list.
+//
+// **Only what a primitive draws is a role.** 416 padding sites over 67 values exist in `internal/rendering`;
+// the ones drawn by `panelLayout`, `sectionLayout` and `statusBadge` have a single
+// owner, so they are the ones that can follow a Workspace's declaration. The rest are hand-written and do not,
+// the limit every category above carries. Three groups of those are not padding in the sense a role would mean,
+// and are excluded on purpose rather than left as an unexplained tail (D5): `pt-18`/`sm:pt-28` on the auth shell
+// is a vertical offset that places a card, `pb-24` on the main column is clearance for the fixed mobile bar
+// (tied to that bar's own height), and `pr-11` on a password input is room for its trailing button. Each is
+// sized by *another element*, so none is a design-system step.
+type PaddingRole string
+
+const (
+	// PaddingPanel is `panelLayout`'s padding on all sides.
+	PaddingPanel PaddingRole = "panel"
+	// PaddingSection is `sectionLayout`'s. It is a separate role from PaddingPanel because the corpus holds
+	// two values (D6): merging them is one line in a Workspace manifest, but doing it as the default would
+	// move 12 or 21 screens, and that is an owner decision rather than a side effect of this slice.
+	PaddingSection PaddingRole = "section"
+	// PaddingBadgeX / PaddingBadgeY are a regular badge's horizontal and vertical room.
+	PaddingBadgeX PaddingRole = "badge-x"
+	PaddingBadgeY PaddingRole = "badge-y"
+	// PaddingBadgeCompactX / PaddingBadgeCompactY are the compact badge's.
+	PaddingBadgeCompactX PaddingRole = "badge-compact-x"
+	PaddingBadgeCompactY PaddingRole = "badge-compact-y"
+)
+
+// KnownPaddingRoles is the closed set.
+var KnownPaddingRoles = map[PaddingRole]bool{
+	PaddingPanel: true, PaddingSection: true,
+	PaddingBadgeX: true, PaddingBadgeY: true,
+	PaddingBadgeCompactX: true, PaddingBadgeCompactY: true,
+}
+
+// PaddingAxis is which sides a role pads.
+type PaddingAxis string
+
+const (
+	PaddingAxisAll PaddingAxis = "all"
+	PaddingAxisX   PaddingAxis = "x"
+	PaddingAxisY   PaddingAxis = "y"
+)
+
+// Axis is the sides this role pads.
+func (r PaddingRole) Axis() PaddingAxis {
+	switch r {
+	case PaddingBadgeX, PaddingBadgeCompactX:
+		return PaddingAxisX
+	case PaddingBadgeY, PaddingBadgeCompactY:
+		return PaddingAxisY
+	default:
+		return PaddingAxisAll
+	}
+}
+
+// PaddingAmount is how much room a padding role renders -- on the same terms as GapAmount: names, not Tailwind
+// classes (007 §15.2), and every one already present in the shipped CSS bundle from hand-written use, so
+// remapping a role emits nothing new.
+type PaddingAmount string
+
+const (
+	PaddingAmountHalf    PaddingAmount = "half"
+	PaddingAmountOne     PaddingAmount = "one"
+	PaddingAmountOneHalf PaddingAmount = "one-half"
+	PaddingAmountTwo     PaddingAmount = "two"
+	PaddingAmountTwoHalf PaddingAmount = "two-half"
+	PaddingAmountThree   PaddingAmount = "three"
+	PaddingAmountFour    PaddingAmount = "four"
+	PaddingAmountFive    PaddingAmount = "five"
+)
+
+// PaddingAmountAllowed reports whether an amount is on the ladder for an axis.
+//
+// **Two ladders, and the second one is the finding.** D4 asked for `px` and `py` to be separate ladders because
+// their distributions differ (`px-3` 50 and `px-4` 45 against `py-2` 24, `py-1.5` 19 and `py-2.5` 16). Counted
+// again on 2026-10-06 over the amounts a primitive can reach, the *membership* of the two is identical -- eight
+// amounts, half to five, all present on both -- so the distribution difference lives in each role's default and
+// not in a different set. What genuinely differs is the all-sides ladder: `p-0.5`, `p-1` and `p-1.5` have no
+// site anywhere, and admitting them would put three classes in the bundle that nothing uses, which is exactly
+// what `GapAmount` refuses. The same reason holds the top of it at five: `p-6` is hand-written only behind a
+// breakpoint, so a base `p-6` would be the one new class this slice emitted, and the first build showed exactly
+// that before it was removed. So x and y share a case here on purpose, and a divergence is one case away.
+func PaddingAmountAllowed(axis PaddingAxis, a PaddingAmount) bool {
+	switch axis {
+	case PaddingAxisX, PaddingAxisY:
+		switch a {
+		case PaddingAmountHalf, PaddingAmountOne, PaddingAmountOneHalf, PaddingAmountTwo,
+			PaddingAmountTwoHalf, PaddingAmountThree, PaddingAmountFour, PaddingAmountFive:
+			return true
+		}
+	case PaddingAxisAll:
+		switch a {
+		case PaddingAmountTwo, PaddingAmountTwoHalf, PaddingAmountThree, PaddingAmountFour,
+			PaddingAmountFive:
+			return true
+		}
+	}
+	return false
+}
+
 // Theme is a Workspace's declared token set (006 "Theme": typography, spacing, icons, branding, tokens).
 //
 // **It holds no CSS and no business data.** 006's own warning is that a Theme "must not become a hidden
 // business or data dependency", so this is a mapping between two closed vocabularies and nothing else.
 //
-// **Radius, weight, text size, gap, border colour, semantic tone and text colour only, and that is a measured boundary rather than a staged rollout.** The full token surface is
+// **All nine categories are declarable (radius, weight, text size, gap, border colour, semantic tone, text colour, background colour, padding), and each is read only by the primitives that draw it -- a measured boundary rather than a staged rollout.** The full token surface is
 // 2,507 usages over 104 values in nine categories (`menata-app-document`'s
 // `audits/2026-10-04-inventaris-token-design-system.md`). Radius is first because its ladder is the cleanest
 // — three values carry 95% of its uses — so this slice proves the whole mechanism, declaration included,
@@ -326,6 +431,8 @@ type Theme struct {
 	Ink map[InkRole]InkShade
 	// Background maps each surface role to its shade.
 	Background map[BackgroundRole]BackgroundShade
+	// Padding maps each padding role to the amount it renders; validity is per axis (PaddingAmountAllowed).
+	Padding map[PaddingRole]PaddingAmount
 }
 
 // DefaultTheme is what the corpus renders today, so adopting Theme changes nothing until a Workspace declares
@@ -378,6 +485,14 @@ func DefaultTheme() Theme {
 			BackgroundRaised: BackgroundShadeLightest, // was bg-white
 			BackgroundBase:   BackgroundShadeLighter,  // was bg-slate-50
 			BackgroundSunken: BackgroundShadeLight,    // was bg-slate-100
+		},
+		Padding: map[PaddingRole]PaddingAmount{
+			PaddingPanel:         PaddingAmountFour,    // was p-4
+			PaddingSection:       PaddingAmountFive,    // was p-5
+			PaddingBadgeX:        PaddingAmountTwoHalf, // was px-2.5
+			PaddingBadgeY:        PaddingAmountOne,     // was py-1
+			PaddingBadgeCompactX: PaddingAmountTwo,     // was px-2
+			PaddingBadgeCompactY: PaddingAmountHalf,    // was py-0.5
 		},
 	}
 }
@@ -448,4 +563,14 @@ func (t Theme) RadiusFor(role RadiusRole) RadiusStep {
 		return s
 	}
 	return DefaultTheme().Radius[role]
+}
+
+// PaddingFor resolves a padding role, falling back to the default for the same reason RadiusFor does. An amount
+// off the role's axis ladder falls back too: the loader refuses one, so reaching here with it means a Theme built
+// in Go, and an unknown amount would otherwise render no padding class at all.
+func (t Theme) PaddingFor(role PaddingRole) PaddingAmount {
+	if a, ok := t.Padding[role]; ok && PaddingAmountAllowed(role.Axis(), a) {
+		return a
+	}
+	return DefaultTheme().Padding[role]
 }

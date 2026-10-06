@@ -128,6 +128,70 @@ func backgroundClass(ctx context.Context, role domain.BackgroundRole) string {
 	}
 }
 
+// paddingClass maps a padding role through this request's Workspace theme, on the same terms as radiusClass.
+// **Three switches, one per axis**, because Tailwind needs each class as a literal and the ladders differ: the
+// all-sides ladder has no half, one or one-and-a-half step (`domain.PaddingAmountAllowed`), so a shared switch
+// would put classes in the bundle that nothing uses.
+func paddingClass(ctx context.Context, role domain.PaddingRole) string {
+	a := CurrentWorkspace(ctx).Theme.PaddingFor(role)
+	switch role.Axis() {
+	case domain.PaddingAxisX:
+		switch a {
+		case domain.PaddingAmountHalf:
+			return "px-0.5"
+		case domain.PaddingAmountOne:
+			return "px-1"
+		case domain.PaddingAmountOneHalf:
+			return "px-1.5"
+		case domain.PaddingAmountTwo:
+			return "px-2"
+		case domain.PaddingAmountTwoHalf:
+			return "px-2.5"
+		case domain.PaddingAmountThree:
+			return "px-3"
+		case domain.PaddingAmountFour:
+			return "px-4"
+		case domain.PaddingAmountFive:
+			return "px-5"
+		}
+		return "px-2.5"
+	case domain.PaddingAxisY:
+		switch a {
+		case domain.PaddingAmountHalf:
+			return "py-0.5"
+		case domain.PaddingAmountOne:
+			return "py-1"
+		case domain.PaddingAmountOneHalf:
+			return "py-1.5"
+		case domain.PaddingAmountTwo:
+			return "py-2"
+		case domain.PaddingAmountTwoHalf:
+			return "py-2.5"
+		case domain.PaddingAmountThree:
+			return "py-3"
+		case domain.PaddingAmountFour:
+			return "py-4"
+		case domain.PaddingAmountFive:
+			return "py-5"
+		}
+		return "py-1"
+	default:
+		switch a {
+		case domain.PaddingAmountTwo:
+			return "p-2"
+		case domain.PaddingAmountTwoHalf:
+			return "p-2.5"
+		case domain.PaddingAmountThree:
+			return "p-3"
+		case domain.PaddingAmountFour:
+			return "p-4"
+		case domain.PaddingAmountFive:
+			return "p-5"
+		}
+		return "p-4"
+	}
+}
+
 // toneClass maps a semantic tone to its background and text pair, through this request's Workspace theme.
 //
 // Returns both classes as one string because a palette **is** the pair: splitting them would let a Workspace
@@ -259,6 +323,9 @@ func stackLayout(gap domain.Gap) templ.Component {
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would
 // change what renders, and a primitive that quietly restyles its callers is worse than a repeated class.
+//
+// **Measured 2026-10-06: it has one live caller.** The twelve sites above were rewritten into other shapes since
+// (the Case 19 restyles), so the panel/section padding difference is one site wide today.
 func panelLayout() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -280,7 +347,7 @@ func panelLayout() templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var5 = []any{radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), "p-4"}
+		var templ_7745c5c3_Var5 = []any{radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), paddingClass(ctx, domain.PaddingPanel)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -318,11 +385,11 @@ func panelLayout() templ.Component {
 // sites across nine screens carried as one class string, usually holding a heading as their first child
 // (21 of 25 measured `<section>` blocks do).
 //
-// **Why `p-5` here and `p-4` in `panelLayout`.** They are two paddings for what is arguably one idea, and
-// that is the owner's decision rather than an oversight: keeping them separate is the only option where no
-// screen moves, and `domain.LayoutSection` records the argument for merging them. **Do not unify these
-// without saying which 12 or 21 screens shift** -- the correlation between the padding and whether the
-// surface stacks internally suggests the 4px is an accident, but acting on that is a visual change.
+// **Why a different padding here than in `panelLayout`.** They are two roles for what is arguably one idea
+// (`domain.PaddingSection`, `domain.PaddingPanel`), and keeping them separate is the only default where no
+// screen moves; `domain.LayoutSection` records the argument for merging them. Merging is now one line in a
+// Workspace's own `theme.padding`, so the owner can see it on a real Workspace before deciding for the default.
+// **Do not unify the defaults without saying which 12 or 21 screens shift.**
 //
 // It takes no title parameter. `sectionHeaderRow` (appshell.templ, 9 callers) is the heading half and takes
 // a link target; a Layout that accepted one would be a Layout that knows about routes.
@@ -347,7 +414,7 @@ func sectionLayout(gap domain.Gap) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var8 = []any{"flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), "p-5"}
+		var templ_7745c5c3_Var8 = []any{"flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), paddingClass(ctx, domain.PaddingSection)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -903,7 +970,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 455, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 522, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -921,7 +988,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 457, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 524, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -957,7 +1024,7 @@ func staticText(kind domain.StaticKind, text string) templ.Component {
 			var templ_7745c5c3_Var32 string
 			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 459, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 526, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 			if templ_7745c5c3_Err != nil {
@@ -1016,7 +1083,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var34 templ.SafeURL
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinURLErrs(templ.URL(href))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 480, Col: 26}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 547, Col: 26}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 		if templ_7745c5c3_Err != nil {
@@ -1029,7 +1096,7 @@ func staticLink(href, text string) templ.Component {
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(text)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 480, Col: 77}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/layout.templ`, Line: 547, Col: 77}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 		if templ_7745c5c3_Err != nil {
