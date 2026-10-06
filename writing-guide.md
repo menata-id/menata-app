@@ -1373,7 +1373,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     surface: large    # panels, sections     (default: large  -> rounded-lg)
 >     pill:    full     # badges, avatars      (default: full   -> rounded-full)
 >   weight:
->     body:     normal  # text explicitly unemphasised  [declared, nothing reads it yet]  (default: normal)
+>     body:     normal  # text explicitly unemphasised  (table column headings and group headers)  (default: normal)
 >     emphasis: medium  # headings, labels, values      (default: medium)
 >   text:
 >     display: huge     # a tile's headline number   (default: huge)
@@ -1392,7 +1392,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >   border:
 >     surface: soft     # panels, sections, cards, tables (default: soft)
 >     control: defined  # an input's own box  (default: defined)
->     divider: faint    # row separators  [declared, nothing reads it yet]  (default: faint)
+>     divider: faint    # row separators in lists and tables  (default: faint)
 >   tone:
 >     neutral: grey        # a badge with no particular meaning  (default: grey)
 >     info:    blue        # informational                       (default: blue)
@@ -1448,7 +1448,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 > The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
 > `medium` is the one no role claims by default.
 >
-> **Two keys load and change nothing today**, and they are marked `[declared, nothing reads it yet]` above: `weight.body` and `border.divider`. They style reset-weight text and row separators, which no shared primitive draws yet. `radius.control` and `ink.body` started working on 2026-10-06, when the Button Component (007 §12.3) became their first reader, and `border.control` the same day, when every input began reading it through `fieldClasses`. **`border.control` does not move buttons**: a button's outline is slate-200 in the mockups and `border.control` is slate-300, so reading it there would shift fourteen buttons (owner decision D8). `conformance.TestEveryThemeRoleHasAReaderOrAReason` holds this list, so a key leaves it only by gaining a reader.
+> **Every key in this block changes pixels now.** `weight.body` and `border.divider` did not until 2026-10-06, when their readers were found to exist already (`weightClass`, `borderClass`) and every list row, table cell and reset-weight column heading was made to call them; neither needed a primitive. `radius.control` and `ink.body` started working on 2026-10-06, when the Button Component (007 §12.3) became their first reader, and `border.control` the same day, when every input began reading it through `fieldClasses`. **`border.control` does not move buttons**: a button's outline is slate-200 in the mockups and `border.control` is slate-300, so reading it there would shift fourteen buttons (owner decision D8). `conformance.TestEveryThemeRoleHasAReaderOrAReason` holds this list, which is empty: a key declared without a reader fails until it gets one.
 >
 > Every role, step and palette is a closed set: an unknown value is a **load error**, not a silent
 > default, so a typo cannot ship as a missing style. Omitting the block, or any role in it, inherits the

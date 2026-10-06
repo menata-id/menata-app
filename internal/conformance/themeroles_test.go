@@ -19,14 +19,13 @@ import (
 // does one naming a constant that no longer exists. A new role arrives with its reader or lands here with a
 // reason, which is the Theme-side form of "a primitive arrives with the uses it replaces".
 //
-// Both need a primitive, not a token (007 §12.3): the elements they style (a table row, a run of reset-weight
-// text) are drawn by no primitive today, so there is nowhere for a reader to live that is not a hand-written
-// screen. `RadiusControl` and `InkBody` left on 2026-10-06 when Button became the first Component to read
-// them, and `BorderControl` left the same day when `fieldClasses` read it for every input. Declaring one without a reader would be the shape-before-need this repo has removed three times.
-var unreadThemeRoles = map[string]string{
-	"WeightBody":    "text explicitly reset to normal weight; no primitive draws such text",
-	"BorderDivider": "the rule between rows of a list or table; a divider Component or a table primitive would read it",
-}
+// The map is empty since 2026-10-06 and stays declared: an empty list is an ordinary gate, and the next
+// declarable role with no reader fails until it either gets one or lands here. `WeightBody` and `BorderDivider`
+// were its last two entries, listed as needing "a divider Component or a table primitive" -- a claim nobody had
+// checked against the readers, because `borderClass` and `weightClass` already mapped both and only had no
+// caller. Twenty-one `.templ` lines (and the five `tableCell` uses) needed a call, not a primitive. `RadiusControl` and `InkBody` left when Button read
+// them, `BorderControl` when `fieldClasses` did.
+var unreadThemeRoles = map[string]string{}
 
 var themeRoleLineComment = regexp.MustCompile(`//[^\n]*`)
 

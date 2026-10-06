@@ -813,3 +813,24 @@ func TestFieldClasses_followTheTheme(t *testing.T) {
 		}
 	}
 }
+
+func TestTableCellClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
+	const was = "border-b border-slate-100 px-3 py-2 align-middle"
+	if got := tableCellClasses(context.Background()); got != was {
+		t.Errorf("the default theme must render the pre-migration literal\n got  %q\n want %q", got, was)
+	}
+}
+
+func TestDividerAndBodyWeightFollowTheTheme(t *testing.T) {
+	th := domain.Theme{
+		Border: map[domain.BorderRole]domain.BorderShade{domain.BorderDivider: domain.BorderDefined},
+		Weight: map[domain.WeightRole]domain.WeightStep{domain.WeightBody: domain.WeightStepMedium},
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+	if got := tableCellClasses(ctx); !strings.Contains(got, "border-slate-300") || strings.Contains(got, "border-slate-100") {
+		t.Errorf("theme.border.divider should move a table cell's rule; got %q", got)
+	}
+	if got := weightClass(ctx, domain.WeightBody); got != "font-medium" {
+		t.Errorf("theme.weight.body should move a reset-weight heading; got %q", got)
+	}
+}

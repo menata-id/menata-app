@@ -41,7 +41,7 @@ templ attachmentsSection(m *domain.Machine, parentID string, a *Attachments, can
 		@staticText(domain.StaticSubheading, m.Name)
 		<ul class="m-0 flex list-none flex-col p-0">
 			for _, it := range a.Items {
-				<li class="border-t border-slate-100 py-2.5 first:border-t-0">
+				<li class={ "border-t", borderClass(ctx, domain.BorderDivider), "py-2.5 first:border-t-0" }>
 					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
 						<span aria-hidden="true" class={ "grid h-8 w-11 shrink-0 place-items-center rounded-md text-2xs font-medium tracking-wide", toneClass(ctx, domain.ToneNeutral) }>{ it.Kind }</span>
 						<span class="flex min-w-0 grow flex-col gap-0.5">

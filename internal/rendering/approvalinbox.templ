@@ -282,7 +282,7 @@ templ assignedTable(rows []AssignedRow) {
 			<span class="w-14"></span>
 		</div>
 		for _, r := range rows {
-			<div class="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
+			<div class={ "flex flex-col gap-2 border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4" }>
 				<div class="flex min-w-0 grow flex-col gap-0.5">
 					<span class="truncate text-sm font-medium text-slate-900">{ r.Title }</span>
 					<span class="truncate text-2xs text-slate-400">{ r.Reference } · { r.DocumentType }</span>

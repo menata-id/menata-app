@@ -382,7 +382,7 @@ func inferenceStepBlock(n InferenceStep) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, row := range n.Rows {
-				var templ_7745c5c3_Var12 = []any{"border-t border-slate-100 align-top",
+				var templ_7745c5c3_Var12 = []any{"border-t", borderClass(ctx, domain.BorderDivider), "align-top",
 					templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable")}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
 				if templ_7745c5c3_Err != nil {
@@ -555,7 +555,7 @@ func inferenceRoleBlock(r InferenceRole) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, row := range r.Rows {
-			var templ_7745c5c3_Var20 = []any{"border-t border-slate-100 align-top",
+			var templ_7745c5c3_Var20 = []any{"border-t", borderClass(ctx, domain.BorderDivider), "align-top",
 				templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable")}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
 			if templ_7745c5c3_Err != nil {

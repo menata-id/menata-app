@@ -121,7 +121,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				<span class="w-16"></span>
 			</div>
 			for _, m := range members {
-				<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
+				<div class={ "flex flex-col gap-3 border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4" }>
 					<div class="flex grow items-center gap-3">
 						@avatar(personInitials(names[m.UserRecordID], m.Email), avatarLabel(names[m.UserRecordID], m.Email), domain.AvatarInline, domain.AvatarPresent)
 						<span class="flex min-w-0 flex-col gap-0.5">
@@ -168,7 +168,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				</div>
 			}
 			for _, inv := range pending {
-				<div class="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
+				<div class={ "flex flex-col gap-3 border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4" }>
 					<div class="flex grow items-center gap-3">
 						@avatar(personInitials("", inv.Email), inv.Email, domain.AvatarInline, domain.AvatarPending)
 						<span class="truncate text-sm text-slate-500">{ inv.Email }</span>

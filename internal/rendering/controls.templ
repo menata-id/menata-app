@@ -34,10 +34,10 @@ import (
 // account, which is a real decision rather than drift, and it already lives in named components.
 // Unifying the two sizes would be undoing that decision, not removing a duplicate.
 const (
-	// tableCell / tableHeadCell are the generic record table's own two cells, kept beside the
-	// controls because a table that half matches the rest of a screen is the same defect in a
-	// different element.
-	tableCell     = "border-b border-slate-100 px-3 py-2 align-middle"
+	// tableHeadCell is the generic record table's header cell, kept beside the controls because a
+	// table that half matches the rest of a screen is the same defect in a different element. Its
+	// rule is slate-200, the `surface` border, and nothing reads that role yet; the body cell
+	// (tableCellClasses) reads `divider`.
 	tableHeadCell = "border-b border-slate-200 px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
 )
 
@@ -68,6 +68,12 @@ func fieldClasses(ctx context.Context) string {
 	}, " ")
 }
 
+// tableCellClasses is the generic record table's body cell: the first caller of the `divider` border role, which
+// separates rows. Joined in the old literal's order so the default theme renders the same bytes.
+func tableCellClasses(ctx context.Context) string {
+	return "border-b " + borderClass(ctx, domain.BorderDivider) + " px-3 py-2 align-middle"
+}
+
 // buttonClasses is the one place a button's look is decided, and the first reader of `RadiusControl` and
 // `InkBody` -- two Theme keys that were valid YAML with no effect until it existed.
 //
@@ -85,7 +91,7 @@ func fieldClasses(ctx context.Context) string {
 //   - **The border of `secondary` is `slate-200`, which is not what `BorderControl` defaults to** (`slate-300`,
 //     "an input's own box"). Reading the role would turn 14 buttons one shade darker; the mockups lean the other
 //     way (5 of 8 bordered buttons use 200). That moves pixels and is the owner's call (D8), exactly as D6 and
-//     D7 are, so `BorderControl` stays listed as unread until a Field reads it.
+//     D7 are, so the Button keeps a literal slate-200 until the owner chooses (`BorderControl` has a reader regardless: `fieldClasses`).
 //
 // A site that cannot be the `button` Component -- an `<a>`, an `hx-*` trigger, a `<summary>`, a button a script
 // finds by class -- still draws its own tag and calls this for the look, so it moves with the Theme too.

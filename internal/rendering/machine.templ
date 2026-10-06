@@ -423,7 +423,7 @@ templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewe
 			for i, m := range machines {
 				<a
 					href={ templ.URL("/machines/" + m.ID) }
-					class={ "flex items-center gap-3 px-4 py-3 text-sm text-slate-900 hover:bg-slate-50", templ.KV("border-t border-slate-100", i > 0) }
+					class={ "flex items-center gap-3 px-4 py-3 text-sm text-slate-900 hover:bg-slate-50", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 				>
 					<span class="grow font-medium">{ m.Name }</span>
 					<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
@@ -496,11 +496,11 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 				<tbody>
 					for _, f := range m.Fields {
 						<tr>
-							<td class={ tableCell }>{ f.Name }</td>
-							<td class={ tableCell }>
+							<td class={ tableCellClasses(ctx) }>{ f.Name }</td>
+							<td class={ tableCellClasses(ctx) }>
 								@statusBadge(string(f.Type), domain.ToneInfo, domain.BadgeCompact)
 							</td>
-							<td class={ tableCell }>
+							<td class={ tableCellClasses(ctx) }>
 								if f.Required {
 									<span class="text-xs font-medium text-red-600">yes</span>
 								} else {
@@ -1052,11 +1052,11 @@ templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOp
 			hx-encoding="multipart/form-data"
 		>
 			for _, f := range m.Fields {
-				<td class="border-b border-slate-100 px-3 pt-3 pb-2 align-middle">
+				<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 pt-3 pb-2 align-middle" }>
 					@fieldInput(f, nil, relations, groups)
 				</td>
 			}
-			<td class="border-b border-slate-100 px-3 pt-3 pb-2 align-middle whitespace-nowrap">
+			<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 pt-3 pb-2 align-middle whitespace-nowrap" }>
 				@button("Add", domain.ButtonPrimary, "", "")
 			</td>
 		</form>
@@ -1078,7 +1078,7 @@ templ createFormRow(m *domain.Machine, relations RelationOptions, groups GroupOp
 templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor, now time.Time) {
 	<tr id={ "record-" + r.ID }>
 		for i, f := range m.Fields {
-			<td class={ tableCell }>
+			<td class={ tableCellClasses(ctx) }>
 				if i == 0 {
 					<a class="font-medium text-blue-600 hover:text-blue-700" href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
 				} else if f.ID == m.SLAField {
@@ -1094,7 +1094,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 				}
 			</td>
 		}
-		<td class="border-b border-slate-100 px-3 py-2 align-middle whitespace-nowrap">
+		<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 py-2 align-middle whitespace-nowrap" }>
 			if authorization.AllowsAction(m, domain.ActionEdit, r.Values, actor) {
 				<button
 					class={ buttonClasses(ctx, domain.ButtonSecondary) + " mr-1" }
@@ -1131,11 +1131,11 @@ templ RecordEditRow(m *domain.Machine, r *data.Record, relations RelationOptions
 			hx-encoding="multipart/form-data"
 		>
 			for _, f := range m.Fields {
-				<td class={ tableCell }>
+				<td class={ tableCellClasses(ctx) }>
 					@fieldInput(f, r.Values[f.ID], relations, groups)
 				</td>
 			}
-			<td class="border-b border-slate-100 px-3 py-2 align-middle whitespace-nowrap">
+			<td class={ "border-b", borderClass(ctx, domain.BorderDivider), "px-3 py-2 align-middle whitespace-nowrap" }>
 				<button type="submit" class={ buttonClasses(ctx, domain.ButtonPrimary) + " mr-1" }>Save</button>
 				<button
 					type="button"

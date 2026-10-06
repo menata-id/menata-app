@@ -384,3 +384,63 @@ func TestHandWrittenFieldsOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// handWrittenDividerFloors are the `.templ` sites that still write the divider shade (`border-slate-100`,
+// `divide-slate-100`) or a reset to normal weight (`font-normal`) as a literal instead of reading
+// `borderClass(ctx, domain.BorderDivider)` / `weightClass(ctx, domain.WeightBody)`. Counted 2026-10-06 over each
+// file's tokens with `//` lines removed, `layout.templ` excluded because it is where the readers live. Each is a
+// floor with its reason, and none is a missing capability:
+//   - appshell.templ, inference.templ, newapplication.templ: a rule between a *region* and the next (the nav strip
+//     under the header, a heading's underline, a card body above its footer), not between rows of a list or table.
+//     `BorderDivider`'s own comment says rows; reading it here would make the role mean two things.
+//   - mytasks.templ: `divide-y divide-slate-100` is Tailwind's sibling-selector form, a different class family from
+//     `border-*`; a second reader for one site is the "second ladder for two sites" boundary.
+//
+// **The measurement this slice made has a blind spot worth stating**: the other ratchets read `class="..."`, and
+// splicing a Theme reader into a literal turns it into `class={ "a", reader(ctx), "b" }`. Three layout sites left
+// `TestHandWrittenLayoutSitesOnlyShrink`'s count that way without being migrated, so it now joins class
+// expressions first (`joinClassExpressions`). The chip, field, button and paragraph ratchets were not widened: none
+// of their sites was touched here, and widening them is the same one-line change when one is.
+var handWrittenDividerFloors = map[string]int{
+	"appshell.templ":       1, // region rule under the header
+	"inference.templ":      1, // heading underline
+	"mytasks.templ":        1, // divide-y utility
+	"newapplication.templ": 1, // card body / footer rule
+}
+
+var dividerToken = regexp.MustCompile(`(?:^|[\s"])(?:(?:border|divide)-slate-100|font-normal)(?:[\s"]|$)`)
+
+func TestHandWrittenDividersOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	actual := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		if n := len(dividerToken.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
+			actual[e.Name()] = n
+		}
+	}
+	for _, f := range sortedFileNames(actual) {
+		switch w := handWrittenDividerFloors[f]; {
+		case actual[f] > w:
+			t.Errorf("%s: %d literal divider/normal-weight token(s), frozen at %d -- read `borderClass(ctx, domain.BorderDivider)` or `weightClass(ctx, domain.WeightBody)` so `theme.border.divider` / `theme.weight.body` move it; a site that is not a row separator goes in handWrittenDividerFloors with its reason", f, actual[f], w)
+		case actual[f] < w:
+			t.Errorf("%s: %d literal divider/normal-weight token(s), down from %d -- lower the entry in this file to lock the migration in", f, actual[f], w)
+		}
+	}
+	for _, f := range sortedFileNames(handWrittenDividerFloors) {
+		if _, still := actual[f]; !still {
+			t.Errorf("handWrittenDividerFloors still names %s, which no longer has one -- remove the entry", f)
+		}
+	}
+}

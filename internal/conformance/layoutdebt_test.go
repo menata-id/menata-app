@@ -105,6 +105,9 @@ func TestHandWrittenLayoutSitesOnlyShrink(t *testing.T) {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
 		s := string(b)
+		if e.Name() != "layout.templ" { // the primitives' own renderers are what the patterns point *at*
+			s = joinClassExpressions(s)
+		}
 		splits := len(layoutSitePatterns["split"].FindAllString(s, -1))
 		for kind, pat := range layoutSitePatterns {
 			n := len(pat.FindAllString(s, -1))
@@ -161,4 +164,25 @@ func sortedFileNames[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+var (
+	classExpression = regexp.MustCompile(`class=\{([^}]*)\}`)
+	stringLiteral   = regexp.MustCompile(`"([^"]*)"`)
+)
+
+// joinClassExpressions rewrites `class={ "a", themeReader(ctx), "b" }` as `class="a b"`, so that a site whose
+// literal was split to splice a Theme reader into it is still seen by the patterns above, which read the
+// `class="..."` form. Without it a migration to `borderClass`/`weightClass` made a hand-written layout site
+// vanish from the count while staying hand-written -- a ratchet that fell by three and measured an edit to the
+// attribute, not a migration to a primitive. Only string literals are kept; the readers' own output is not
+// layout vocabulary.
+func joinClassExpressions(src string) string {
+	return classExpression.ReplaceAllStringFunc(src, func(m string) string {
+		var parts []string
+		for _, lit := range stringLiteral.FindAllStringSubmatch(m, -1) {
+			parts = append(parts, lit[1])
+		}
+		return `class="` + strings.Join(parts, " ") + `"`
+	})
 }

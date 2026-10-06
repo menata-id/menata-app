@@ -48,7 +48,7 @@ var KnownRadiusSteps = map[RadiusStep]bool{RadiusStepSmall: true, RadiusStepLarg
 type WeightRole string
 
 const (
-	// WeightBody is ordinary text, explicitly unemphasised — the 11 sites that reset an inherited weight.
+	// WeightBody is ordinary text, explicitly unemphasised — the four sites that reset an inherited weight (three `<th>`, one group header; re-measured 2026-10-06 by grepping `font-normal`).
 	WeightBody WeightRole = "body"
 	// WeightEmphasis is a heading, a label, a value: the thing a reader should land on. 170 uses, so this is
 	// the default a primitive reaches for.

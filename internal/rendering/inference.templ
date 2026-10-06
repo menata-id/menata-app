@@ -142,7 +142,7 @@ templ inferenceStepBlock(n InferenceStep) {
 				<tbody>
 					for _, row := range n.Rows {
 						<tr
-							class={ "border-t border-slate-100 align-top",
+							class={ "border-t", borderClass(ctx, domain.BorderDivider), "align-top",
 								templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }
 						>
 							<td class="py-1.5 pr-3"><code>{ row.Derivation }</code></td>
@@ -191,7 +191,7 @@ templ inferenceRoleBlock(r InferenceRole) {
 				<tbody>
 					for _, row := range r.Rows {
 						<tr
-							class={ "border-t border-slate-100 align-top",
+							class={ "border-t", borderClass(ctx, domain.BorderDivider), "align-top",
 								templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }
 						>
 							<td class="py-1.5 pr-3"><code>{ row.Derivation }</code></td>
