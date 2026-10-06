@@ -228,7 +228,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapComfortable) {
 				<div class="flex flex-col gap-1">
-					<h2 class="m-0 text-sm font-medium">Workspace role</h2>
+					@staticText(domain.StaticPanelHeading, "Workspace role")
 					<p class="m-0 text-2xs text-slate-500">Controls workspace administration, independent of application permissions.</p>
 				</div>
 				@workspaceRoleChoice("admin", "Can manage members, groups and workspace settings.", m.WorkspaceRole == "admin")
@@ -236,7 +236,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 			}
 			@sectionLayout(domain.GapComfortable) {
 				<div class="flex flex-col gap-1">
-					<h2 class="m-0 text-sm font-medium">Application access</h2>
+					@staticText(domain.StaticPanelHeading, "Application access")
 					<p class="m-0 text-2xs text-slate-500">Assign the role this user receives directly in each application.</p>
 				</div>
 				for _, app := range roleApps {
@@ -328,7 +328,7 @@ templ roleSelect(id string, app RoleApplication, selected string) {
 templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 	@sectionLayout(domain.GapComfortable) {
 		<div class="flex flex-col gap-1">
-			<h2 class="m-0 text-sm font-medium">Effective access</h2>
+			@staticText(domain.StaticPanelHeading, "Effective access")
 			<p class="m-0 text-2xs text-slate-500">Direct roles combined with roles inherited from Groups.</p>
 		</div>
 		if len(m.Groups) == 0 {

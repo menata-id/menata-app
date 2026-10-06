@@ -628,3 +628,26 @@ func TestStaticOverline_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 		t.Errorf("a declared eyebrow size and faint ink should move it; got %q", got)
 	}
 }
+
+// TestStaticPanelHeading_defaultIsTheLiteralEachSiteReplaced pins the 23-site pre-migration `<h2>` and shows the
+// body role and the emphasis weight each moving it, independently of `subheading`.
+func TestStaticPanelHeading_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
+	var buf bytes.Buffer
+	if err := staticText(domain.StaticPanelHeading, "Password").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if want := `<h2 class="m-0 text-sm font-medium">Password</h2>`; buf.String() != want {
+		t.Errorf("panel-heading rendered %q, want %q", buf.String(), want)
+	}
+	th := domain.Theme{
+		Text:   map[domain.TextRole]domain.TextScale{domain.RoleBody: domain.TextLarge},
+		Weight: map[domain.WeightRole]domain.WeightStep{domain.WeightEmphasis: domain.WeightStepNormal},
+	}
+	got := renderWithTheme(t, th, staticText(domain.StaticPanelHeading, "Password"))
+	if !strings.Contains(got, "text-xl font-normal") {
+		t.Errorf("a declared body size and emphasis weight should move it; got %q", got)
+	}
+	if sub := renderWithTheme(t, th, staticText(domain.StaticSubheading, "Lists")); strings.Contains(sub, "text-xl") {
+		t.Errorf("subheading must not follow the body role; got %q", sub)
+	}
+}

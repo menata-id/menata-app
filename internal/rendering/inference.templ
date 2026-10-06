@@ -107,7 +107,7 @@ templ inferenceSummary(v InferenceView) {
 templ inferenceEngineBlock(e InferenceEngine) {
 	@sectionLayout(domain.GapDefault) {
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-			<h2 class="m-0 text-sm font-medium">{ e.Engine }</h2>
+			@staticText(domain.StaticPanelHeading, e.Engine)
 			if e.Defects > 0 {
 				@statusBadge(pluralRows(e.Defects)+" to act on", domain.ToneBad, domain.BadgeRegular)
 			}
@@ -124,7 +124,7 @@ templ inferenceEngineBlock(e InferenceEngine) {
 templ inferenceStepBlock(n InferenceStep) {
 	@sectionLayout(domain.GapDefault) {
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-			<h2 class="m-0 text-sm font-medium">{ n.Step }</h2>
+			@staticText(domain.StaticPanelHeading, n.Step)
 			if n.Defects > 0 {
 				@statusBadge(pluralRows(n.Defects)+" to act on", domain.ToneBad, domain.BadgeRegular)
 			}

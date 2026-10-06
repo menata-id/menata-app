@@ -57,7 +57,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 		>
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapComfortable) {
-				<h2 class="m-0 text-sm font-medium">Document</h2>
+				@staticText(domain.StaticPanelHeading, "Document")
 				@field("doc_title", "Title") {
 					<input id="doc_title" type="text" name="fld_title" value={ draft.Title } required class={ controlField }/>
 				}
@@ -90,7 +90,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 				@modeFieldset(mode, draft.Mode)
 				@sectionLayout(domain.GapComfortable) {
 					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
-						<h2 class="m-0 text-sm font-medium">Approval steps</h2>
+						@staticText(domain.StaticPanelHeading, "Approval steps")
 						<button
 							type="button"
 							hx-get="/documents/new/approver-row"

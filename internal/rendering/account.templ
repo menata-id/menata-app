@@ -74,7 +74,7 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 		<form method="POST" action="/account-notifications" class="flex flex-col gap-4">
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapTight) {
-				<h2 class="m-0 text-sm font-medium">Document Approval</h2>
+				@staticText(domain.StaticPanelHeading, "Document Approval")
 				<p class="m-0 mb-2 text-2xs text-slate-500">Emails about approvals you're involved in.</p>
 				@notificationToggle("notify_assigned", "A document is assigned to me for approval", notifyAssigned)
 				@notificationToggle("notify_decided", "My submitted document is approved or rejected", notifyDecided)
@@ -123,7 +123,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 		</div>
 		@sectionLayout(domain.GapComfortable) {
 			<div class="flex flex-col gap-1">
-				<h2 class="m-0 text-sm font-medium">Password</h2>
+				@staticText(domain.StaticPanelHeading, "Password")
 				<p class="m-0 text-2xs text-slate-500">Choose a strong password you don't use elsewhere.</p>
 			</div>
 			if passwordErr != "" {
@@ -144,7 +144,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 		}
 		@sectionLayout(domain.GapComfortable) {
 			<div class="flex flex-col gap-1">
-				<h2 class="m-0 text-sm font-medium">Other devices</h2>
+				@staticText(domain.StaticPanelHeading, "Other devices")
 				<p class="m-0 text-2xs text-slate-500">Sign every other session out, keeping this one.</p>
 			</div>
 			if signOutOK != "" {
@@ -157,7 +157,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 		}
 		<section class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-5">
 			<div class="flex flex-col gap-1">
-				<h2 class="m-0 text-sm font-medium">Two-factor authentication</h2>
+				@staticText(domain.StaticPanelHeading, "Two-factor authentication")
 				<p class="m-0 text-2xs text-slate-500">Not enabled <span class="text-3xs text-slate-300">(planned)</span></p>
 			</div>
 			<button disabled class="shrink-0 cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-400">Enable</button>

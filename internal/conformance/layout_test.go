@@ -70,7 +70,12 @@ func TestLayoutVocabularyIsRenderedAndUsed(t *testing.T) {
 		}
 	}
 	for kind := range domain.KnownStaticKinds {
-		if !strings.Contains(layout, "domain.Static"+strings.ToUpper(string(kind)[:1])+string(kind)[1:]) {
+		// A kind is named in Go by title-casing each hyphen-separated word: "panel-heading" is StaticPanelHeading.
+		var ident strings.Builder
+		for _, word := range strings.Split(string(kind), "-") {
+			ident.WriteString(strings.ToUpper(word[:1]) + word[1:])
+		}
+		if !strings.Contains(layout, "domain.Static"+ident.String()) {
 			t.Errorf("domain.KnownStaticKinds declares %q and staticText has no case for it", kind)
 		}
 	}

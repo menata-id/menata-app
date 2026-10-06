@@ -380,6 +380,13 @@ const (
 	// (exact class literal, the pattern each shares). Not claimed: the `px-3 pb-1 font-medium` menu-group
 	// labels (per-site padding and a weight) and the unspaced `text-3xs text-slate-400 uppercase` form labels.
 	StaticOverline StaticKind = "overline"
+	// StaticPanelHeading is the title of one block inside a section, aside or form: an `<h2>` at the body role in
+	// the emphasis weight ("Password", "Approval steps", "Members"). It is body-sized, one step below
+	// StaticSubheading, and the two are deliberately separate kinds: both are "a block's title", and whether they
+	// should be one is an owner decision (D7) that would move 7 or 23 screens -- a Workspace can declare
+	// `subheading: normal` to see it. Twenty-three sites moved. Not claimed: an `<h3>` (the kind cannot choose its
+	// element) and a red `Remove from workspace` (a colour the kind does not accept).
+	StaticPanelHeading StaticKind = "panel-heading"
 )
 
 // KnownStaticKinds is the closed set.
@@ -393,4 +400,6 @@ var KnownStaticKinds = map[StaticKind]bool{
 
 	StaticSubheading: true,
 	StaticOverline:   true,
+
+	StaticPanelHeading: true,
 }

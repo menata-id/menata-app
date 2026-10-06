@@ -133,7 +133,7 @@ func TestNoHandWrittenSubheading(t *testing.T) {
 
 var eyebrowSpanTag = regexp.MustCompile(`(?s)<span\b((?:[^>{]|\{[^}]*\})*)>`)
 
-// TestNoHandWrittenHeadingOrEyebrow holds three floors (the third, the faint overline, joined 2026-10-06) at **zero**: a heading element at `text-xl` is a screen's
+// TestNoHandWrittenHeadingOrEyebrow holds four floors (the faint overline and the panel title joined 2026-10-06) at **zero**: a heading element at `text-xl` is a screen's
 // own title and goes through `@staticText(domain.StaticHeading, ...)`, and the blue `text-3xs` uppercase span is
 // `StaticEyebrow`, so `theme.text.heading` / `theme.text.eyebrow` move all of them together (both roles were
 // declarable and read by nothing until 2026-10-06). Counted syntactically with `//` comments stripped.
@@ -160,6 +160,12 @@ func TestNoHandWrittenHeadingOrEyebrow(t *testing.T) {
 		for _, m := range subheadingTag.FindAllStringSubmatch(src, -1) {
 			if hasToken(m[1], "text-xl") {
 				t.Errorf("%s: a hand-written heading at text-xl -- use `@staticText(domain.StaticHeading, text)` (007 §12.6; theme.text.heading)", e.Name())
+			}
+		}
+		for _, m := range subheadingTag.FindAllStringSubmatch(src, -1) {
+			if strings.HasPrefix(strings.TrimSpace(m[0]), "<h2") && hasToken(m[1], "text-sm") && hasToken(m[1], "font-medium") &&
+				hasToken(m[1], "m-0") && !hasToken(m[1], "text-red-700") {
+				t.Errorf("%s: a hand-written panel title -- use `@staticText(domain.StaticPanelHeading, text)` (007 §12.6; theme.text.body + emphasis weight)", e.Name())
 			}
 		}
 		for _, m := range eyebrowSpanTag.FindAllStringSubmatch(src, -1) {

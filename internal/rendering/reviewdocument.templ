@@ -181,7 +181,7 @@ func reviewStatusTone(status string) domain.BadgeTone {
 templ reviewDocumentCard(v ReviewView) {
 	@sectionLayout(domain.GapComfortable) {
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
-			<h2 class="m-0 text-sm font-medium">Document</h2>
+			@staticText(domain.StaticPanelHeading, "Document")
 			if v.FileHref != "" {
 				<div class="flex gap-2">
 					<a href={ templ.SafeURL(v.FileHref) } target="_blank" class="flex h-8 items-center rounded-md border border-slate-200 px-3 text-xs hover:border-blue-300">View PDF</a>
@@ -214,7 +214,7 @@ templ reviewDocumentCard(v ReviewView) {
 // is the part worth sharing -- see StepApprover's own doc comment.
 templ reviewProgress(steps []StepApprover) {
 	@sectionLayout(domain.GapComfortable) {
-		<h2 class="m-0 text-sm font-medium">Approval Progress</h2>
+		@staticText(domain.StaticPanelHeading, "Approval Progress")
 		<ol class="m-0 flex list-none flex-col gap-4 p-0">
 			for i, s := range steps {
 				<li aria-label={ s.Label + ", " + approverStateLabel(s.State) } class="flex items-start gap-3">
@@ -308,7 +308,7 @@ func reviewStepStatusLine(s StepApprover) string {
 templ reviewSignaturePanel(v ReviewView) {
 	<aside class="flex h-fit flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
-			<h2 class="m-0 text-sm font-medium">Signature positions</h2>
+			@staticText(domain.StaticPanelHeading, "Signature positions")
 			if v.SignatureStepCount > 0 {
 				@statusBadge(fmt.Sprintf("%d of %d signed", v.SignatureSignedCount, v.SignatureStepCount), domain.ToneNeutral, domain.BadgeRegular)
 			}

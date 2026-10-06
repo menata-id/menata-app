@@ -90,7 +90,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 			</section>
 			<aside aria-label="What will be built" class="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-5">
 				<div class="flex flex-col gap-1">
-					<h2 class="m-0 text-sm font-medium">What will be built</h2>
+					@staticText(domain.StaticPanelHeading, "What will be built")
 					<span class="text-xs text-slate-500">Updated as you answer.</span>
 				</div>
 				if !view.ReadyToReview {
@@ -249,7 +249,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				}
 			</section>
 			<aside class="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-5">
-				<h2 class="m-0 text-sm font-medium">Before you publish</h2>
+				@staticText(domain.StaticPanelHeading, "Before you publish")
 				if change.Kind == aiassist.KindNewApplication && change.Application != nil && change.Application.PublisherRole != "" {
 					<p class="m-0 text-xs text-slate-500">You'll hold the "{ change.Application.PublisherRole }" role in it once published, so you can open it right away. Access for everyone else is a Settings change, made after publishing, not part of this step.</p>
 				} else if change.Kind == aiassist.KindNewApplication {

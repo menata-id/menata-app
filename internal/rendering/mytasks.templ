@@ -60,7 +60,7 @@ templ taskSection(heading, hint string, rows []TaskRow) {
 	if len(rows) > 0 {
 		@stackLayout(domain.GapTight) {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
-				<h2 class="m-0 text-sm font-medium">{ heading }</h2>
+				@staticText(domain.StaticPanelHeading, heading)
 				@statusBadge(fmt.Sprint(len(rows)), domain.ToneNeutral, domain.BadgeCompact)
 				if hint != "" {
 					<span class="text-xs text-slate-400">{ hint }</span>

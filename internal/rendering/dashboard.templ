@@ -64,7 +64,7 @@ templ DashboardPage(c DashboardContent, workspaceName string, viewer Viewer, swi
 
 		@splitLayout(domain.GapComfortable, domain.SplitAsideEnd, domain.AsideWide) {
 			@stackLayout(domain.GapTight) {
-				<h2 class="m-0 text-sm font-medium">Tasks by project</h2>
+				@staticText(domain.StaticPanelHeading, "Tasks by project")
 				<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
 					<table class="w-full min-w-[360px] border-collapse text-left">
 						<thead>
@@ -96,7 +96,7 @@ templ DashboardPage(c DashboardContent, workspaceName string, viewer Viewer, swi
 
 			@stackLayout(domain.GapTight) {
 				<div class="flex flex-col gap-0.5">
-					<h2 class="m-0 text-sm font-medium">Open cards per person</h2>
+					@staticText(domain.StaticPanelHeading, "Open cards per person")
 					<span class="text-xs text-slate-500">Bar shows cards still open out of everything assigned.</span>
 				</div>
 				<div class="rounded-lg border border-slate-200 bg-white px-4">
