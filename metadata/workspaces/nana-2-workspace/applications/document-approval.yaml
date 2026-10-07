@@ -222,3 +222,29 @@ navigation:
     route: /document-approval/settings/permissions
     settings_hub_member: true
     icon: settings
+  # A screen declared rather than written: no Go function draws it. `page:` (007 §12.4) is the body only --
+  # the heading above it comes from title:/description: like every other item's. Each Metric below is a
+  # template, expanded into one per value of ds_document_by_status's Dimension (fld_status), labelled by
+  # that value and carrying msr_total; a status with no Document shows an explicit 0. The route is
+  # /pages/<this id>: the one generic handler finds the item by it.
+  - id: nav_documents_by_status
+    label: By Status
+    title: Documents by status
+    description: How many documents sit in each status.
+    route: /pages/nav_documents_by_status
+    priority: 4
+    icon: file-text
+    page:
+      layout: stack
+      gap: default
+      children:
+        - layout: grid
+          gap: default
+          mobile: 2
+          columns: 4
+          children:
+            - component: Metric
+              binding:
+                dataset: ds_document_by_status
+                measure: msr_total
+                rows: dimension
