@@ -1,0 +1,17 @@
+package rendering
+
+import "menata.app/internal/ir"
+
+// DeclaredScreen is the one generic screen: the shell, the header every composed screen shares, and a UI IR
+// tree built from a navigation item's `page:` (007 §12.4, §15). It names no Machine, no Field and no Dataset --
+// every value arrives resolved in `body`, the same division `uiNode` states -- and it is the reason a new
+// declared screen costs YAML and no Go.
+//
+// Named `DeclaredScreen`, not `…Page`, on purpose: `TestBespokeScreensOnlyShrink` counts `…Page(` functions as
+// screens somebody wrote by hand, and this is the opposite of one.
+templ DeclaredScreen(navID string, body ir.UINode, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(titleByID(ctx, navID), workspaceName, viewer, switchWorkspaceHref) {
+		@pageHeader(navID)
+		@uiNode(body)
+	}
+}

@@ -291,6 +291,8 @@ type navItemDoc struct {
 	// ordinary navigation item, unchanged from before either field existed.
 	SettingsHub       bool `yaml:"settings_hub"`
 	SettingsHubMember bool `yaml:"settings_hub_member"`
+	// Page -- see domain.NavigationItem.Page. Optional; absent means a bespoke Go screen.
+	Page *pageNodeDoc `yaml:"page"`
 }
 
 // Workspaces is every installed Workspace manifest, keyed by the slug it names. A Workspace whose
@@ -461,6 +463,9 @@ func LoadApplication(path string) (*App, error) {
 		return nil, err
 	}
 	if err := validatePermissionRoles(app.Workspace.Applications, app.Machines); err != nil {
+		return nil, err
+	}
+	if err := validatePages(app.Workspace.Applications, app.Machines); err != nil {
 		return nil, err
 	}
 	if err := validateNavigationIDsAreUnique(app.Workspace); err != nil {
@@ -747,6 +752,11 @@ func validateWorkflowDatasets(applications []domain.Application, machines []*dom
 func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 	var items []domain.NavigationItem
 	for _, n := range docs {
+		var page *domain.PageNode
+		if n.Page != nil {
+			p := n.Page.toDomain()
+			page = &p
+		}
 		items = append(items, domain.NavigationItem{
 			ID:                n.ID,
 			Label:             n.Label,
@@ -760,6 +770,7 @@ func toNavigationItems(docs []navItemDoc) []domain.NavigationItem {
 			Description:       n.Description,
 			SettingsHub:       n.SettingsHub,
 			SettingsHubMember: n.SettingsHubMember,
+			Page:              page,
 		})
 	}
 	return items

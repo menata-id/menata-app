@@ -904,6 +904,7 @@ Navigation item keys:
 | `badge` | closed set | Only `approval_inbox_pending` today |
 | `home_card` | bool | Marks the Workspace Home card's destination (`Application.HomeRoute`) |
 | `icon` | closed set | Drawn on the mobile bottom bar. Same vocabulary as an Application's own `icon` — see below |
+| `page` | node tree | Optional (2026-10-07): declares the screen's **body**, so no Go renders it. The `route` must then be `/pages/<this id>`. See **`page:` — declaring a screen's body** below |
 
 **Icon names** (`domain.KnownIcons`, drawn by `internal/rendering/icons.templ`). A name, never a
 glyph or a path: metadata says *which* icon, the runtime says how it is drawn, so the whole set is
@@ -925,6 +926,65 @@ This replaced `icon: "▣"`, a single literal character, on 2026-09-24. A charac
 carry a consistent stroke weight across a set, because it belongs to whichever font happened to
 have that codepoint — which is why the convention's own declaration comment had always called
 it a placeholder.
+
+### 12.1a `page:` — declaring a screen's body
+
+A navigation item may carry a `page:` block. The runtime then renders `/pages/<nav id>` with one generic
+handler: **no Go function, no `.templ`, no per-screen route** (007 §12.4, §15.1). The header (eyebrow,
+`<h1>`, subtitle) is **not written in `page:`**; it comes from the item's own `title:`/`description:`
+(`label:` when there is no title), so a heading is never stated twice (001 #8).
+
+A node is a mapping with **exactly one** of three discriminators, whose value is the type:
+
+| Key | Value | Meaning |
+|---|---|---|
+| `layout:` | `stack`, `row`, `grid`, `split`, `panel` | Arranges `children:`. Properties: `stack` `gap`; `row` `gap`, `align`, `justify`; `grid` `gap`, `mobile`, `columns`; `split` `gap`, `side`, `aside`; `panel` none |
+| `static:` | `eyebrow`, `heading`, `paragraph` | Text that is the same for everyone. Property: `text` |
+| `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, ...) | Drawn from its contract; properties are that Component's declared inputs |
+
+`children:` is a list of nodes. The root must be a `layout:`. Any key a node's type does not declare is a
+**load error**, not an ignored typo (`ir.Validate`, 007 §15.3), and the same sweep refuses a cycle, a tree
+deeper than `ir.MaxDepth`, and a Component input its own validator rejects.
+
+**`binding:` — the only way a number gets into a page.** A `component: Metric` may carry
+`binding: {dataset: ds_x, measure: msr_y, rows: dimension}`. It then stands for **one Metric per value of
+that Dataset's Dimension**: `label` is the value, `value` is the Measure. Rules, all checked at load:
+
+- the Dataset must be an **aggregate** one (no `select: records`) that some Machine in the Workspace
+  declares, with that Measure and a `dimension:`;
+- `label` and `value` may not also be written on the node — a typed figure beside a bound one is the
+  number the author typed, which is what `binding:` exists to avoid;
+- rows follow the Dimension's declared option order, then any unseen values sorted; a declared option with
+  no record shows an explicit `0`;
+- there is no expression and no path (007 §9.2): a Dataset, a Measure and a mode.
+
+Only `Metric` is bindable (`domain.BindableComponents`). Cost: one query per distinct Dataset, however many
+nodes bind it.
+
+```yaml
+- id: nav_documents_by_status
+  label: By Status
+  title: Documents by status
+  description: How many documents sit in each status.
+  route: /pages/nav_documents_by_status
+  page:
+    layout: stack
+    gap: default
+    children:
+      - layout: grid
+        gap: default
+        mobile: 2
+        columns: 4
+        children:
+          - component: Metric
+            binding: {dataset: ds_document_by_status, measure: msr_total, rows: dimension}
+```
+
+**What it is not.** It does not migrate an existing screen: a bespoke Go screen stays bespoke until its
+own route is replaced, and the two screens declared this way are new ones. There is no write side
+(a form input's `name=` is 007 §11.3 Binding, still unbuilt), no per-viewer filter (`$current_user`), and
+no ordered comparison. **Installing copies**, so a Dataset a `page:` binds must exist in the Machine your
+Workspace's own copy declares; the loader refuses the Workspace otherwise.
 
 ### 12.2 A Machine file
 

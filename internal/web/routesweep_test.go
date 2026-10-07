@@ -223,6 +223,22 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 	if f.uploaded != "" {
 		add("/uploads/*", "/uploads/"+f.uploaded, http.StatusOK, "a stored file is served back")
 	}
+	// /pages/{navID} renders a navigation item's declared `page:`. `default` declares none, so its 200 arm is
+	// absent here and held instead by TestDeclaredPageRendersItsBindingAsRows against a Workspace that does;
+	// this sweep still owns the refusals, which are the half a "render something for every id" bug would break:
+	// an id naming nothing, and an id naming a real navigation item that has no body (a bespoke screen's).
+	add("/pages/{navID}", "/pages/nav_does_not_exist", http.StatusNotFound, "an id that names no navigation item is not found")
+	pageCase := false
+	for _, app := range f.ws.Applications {
+		for _, item := range app.AllNavigation {
+			if item.Page != nil {
+				add("/pages/{navID}", "/pages/"+item.ID, http.StatusOK, "a navigation item declaring `page:` renders its body")
+			} else if !pageCase {
+				add("/pages/{navID}", "/pages/"+item.ID, http.StatusNotFound, "a navigation item with no `page:` is a bespoke screen, not a page")
+				pageCase = true
+			}
+		}
+	}
 	// /new-application/{session}/review is the AI assistant's own review screen, and an unknown session
 	// is the case this sweep covers. Its happy path is covered by
 	// TestShowNewApplicationReview_rendersTheProposalAndRefusesAnotherWorkspaces, which reuses the

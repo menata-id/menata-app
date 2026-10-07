@@ -115,6 +115,11 @@ type NavigationItem struct {
 	// row stays plain text links, so an item with no Icon still renders fully there. Optional:
 	// only the items a bottom bar actually shows (appshell.templ's bottomBarItems) need one.
 	Icon string
+	// Page, when non-nil, is the screen's declared body (`page:`, 007 §12.4). The item's route must be
+	// `/pages/<ID>`, which the one generic handler renders; its header still comes from Heading and
+	// Description above, so a Page never restates them (001 #8). Nil is every item that existed before the
+	// key did, and means a bespoke Go screen renders the route.
+	Page *PageNode
 }
 
 // HomeCardRoute returns the route of items' one HomeCard item, or "" if none is marked --

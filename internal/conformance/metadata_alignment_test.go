@@ -72,6 +72,15 @@ type declaredWorkspace struct {
 	machines map[string]bool
 }
 
+func (w declaredWorkspace) declaresPage(navID string) bool {
+	for _, item := range w.items {
+		if item.ID == navID && item.Page != nil {
+			return true
+		}
+	}
+	return false
+}
+
 // declaredWorkspaces loads every installed Workspace. The directory is scanned for the same reason the
 // loader scans it: dropping a manifest in installs a Workspace, so a gate naming one filename covers
 // whichever Workspace it happened to be written for.
@@ -154,6 +163,18 @@ func TestNavigationRoutesAreRegistered(t *testing.T) {
 					t.Errorf("%s declares %q, but router.go registers no /machines/{machineID} handler", w.manifest, item.Route)
 				} else if !w.machines[id] {
 					t.Errorf("%s declares navigation route %q, but that Workspace installs no Machine %q -- the screen would 404", w.manifest, item.Route, id)
+				}
+				continue
+			}
+			// A declared page is the second shape registered under a pattern (`/pages/{navID}`), and it is
+			// held more strictly than a literal match for the same reason: the id must name a navigation
+			// item *this Workspace installs* that declares `page:`. A route naming an item with no body
+			// answers 404 from the generic handler, and a literal-handler check could never see that.
+			if id, ok := strings.CutPrefix(path, "/pages/"); ok && !strings.Contains(id, "/") {
+				if !registered["/pages/{navID}"] {
+					t.Errorf("%s declares %q, but router.go registers no /pages/{navID} handler", w.manifest, item.Route)
+				} else if !w.declaresPage(id) {
+					t.Errorf("%s declares navigation route %q, but that Workspace has no navigation item %q declaring `page:` -- the screen would 404", w.manifest, item.Route, id)
 				}
 				continue
 			}

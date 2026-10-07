@@ -161,10 +161,12 @@ func TestBespokeScreensOnlyShrink(t *testing.T) {
 // *not* hold: `internal/installer`'s check-doc mirror carries navigation as `[]any`, so a new nav key
 // cannot break it -- measured by probe on 2026-10-07 (a tolerated `page` key failed nothing but the
 // route-registration gate), not assumed.
-var pageBlockDeferral = &struct{ reason, pointer string }{
-	reason:  "a nav item cannot declare its body: `ir.UINode` carries resolved Props and no Binding, so a Metric in YAML could only hold a hand-typed figure",
-	pointer: "007 §12.4, §15.1, §11.3 (read side); menata-app-document/audits/2026-10-07-rencana-page-yaml-dan-gate-yang-akan-terkena.md",
-}
+//
+// **Cleared 2026-10-07**, when `navItemDoc` gained `page` and `/pages/{navID}` gained its consumers. The
+// entry it held said a Metric in YAML "could only hold a hand-typed figure"; `binding:` (a Dataset, a Measure
+// and `rows: dimension`) is what ended that. The map stays declared, like any emptied ratchet, so the
+// next capability that is declared-but-deferred has a place to say so.
+var pageBlockDeferral *struct{ reason, pointer string }
 
 var navItemDocBody = regexp.MustCompile(`(?s)type navItemDoc struct \{(.*?)\n\}`)
 var yamlPageTag = regexp.MustCompile("`yaml:\"page(,[^\"]*)?\"`")

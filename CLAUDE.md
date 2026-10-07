@@ -578,6 +578,17 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   a scratchpad probe found two (the loader's strict decode, and `TestNavigationRoutesAreRegistered` once the route
   is `/pages/…`); `installer`'s mirror carries navigation as `[]any`, so a nav key cannot break it. Predicting which
   gates bite from reading is wrong often enough here that the probe comes first. Seven mutations, all biting.
+
+  **The deferral is cleared (2026-10-07) and `page:` exists** (007 §12.4/§15, `writing-guide.md` §12.1a): a navigation
+  item's `page:` is validated at load (`metadata.validatePages`: route `/pages/<id>`, root a layout, Binding against the
+  Workspace's own Datasets, `ir.Lower` + `ir.Validate`, each Component's registered validator), lowered per request by
+  `composition.DeclaredPage`, and drawn by one handler (`web.showDeclaredPage`) through `rendering.DeclaredScreen` --
+  named so `TestBespokeScreensOnlyShrink`'s `…Page(` pattern does not count it. `pageBlockDeferral` is nil and the gate
+  that held it now only checks the four documents. **Say plainly what it is not:** no existing screen was migrated, the
+  two consumers (`nav_documents_by_status` in nana-workspace and nana-2-workspace) are new, and Binding is the **read
+  side only** (`{dataset, measure, rows: dimension}`, `Metric` only). Never write "screen X is declarative" on the
+  strength of this. **Installing copies**, so a library change to a bound Dataset reaches no earlier Workspace -- the load
+  error on a missing Dataset is what stands in for remembering.
 - `TestDocumentApprovalCouplingOnlyShrinks` — the third *ratchet*. `documentApprovalCoupling`
   freezes how many times each file outside `internal/action` names Document Approval's own
   Machine-id constants — frozen at 67 across 18 files on 2026-09-28 and **emptied the same day**, by
