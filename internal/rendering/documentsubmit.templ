@@ -192,7 +192,7 @@ templ modeFieldsetContent(mode domain.Field, selected string) {
 		decide independently.
 	</p>
 	for i, opt := range mode.Options {
-		<label class="flex cursor-pointer items-center gap-2.5 rounded-md border border-slate-200 p-3 text-sm hover:border-blue-300">
+		<label class={ "flex cursor-pointer items-center gap-2.5", tileClasses(ctx), "p-3 text-sm hover:border-blue-300" }>
 			<input type="radio" name={ mode.ID } value={ opt } checked?={ modeChecked(selected, opt, i) } class="size-4 accent-blue-500"/>
 			{ opt }
 		</label>
@@ -292,7 +292,7 @@ type StepPrefill struct {
 // future change event, so a row rendered already-Group needs the right starting classes, not just
 // the right starting <select> value.
 templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFields, prefill StepPrefill) {
-	<div class="approver-row flex flex-wrap items-center gap-2 rounded-md border border-slate-200 p-2.5 [counter-increment:approver-step]">
+	<div class={ "approver-row flex flex-wrap items-center gap-2", tileClasses(ctx), "p-2.5 [counter-increment:approver-step]" }>
 		<span
 			aria-hidden="true"
 			class="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-3xs font-medium text-white before:[content:counter(approver-step)]"

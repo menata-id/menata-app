@@ -450,11 +450,11 @@ func TestHandWrittenDividersOnlyShrink(t *testing.T) {
 // eighth directive ratchet (2026-10-06; find the readers, migrate, then gate): 34 sites in 18 files moved, and
 // until they did a Workspace's `theme.border.surface` recoloured only what `panelLayout`/`sectionLayout` drew.
 //
-// **What this does not count, stated so the next slice does not rediscover it:** the 21 `rounded-md` +
-// `border-slate-200` sites (8 with `bg-white`) are not the surface role -- they are buttons, a read-only input,
-// and nested selectable tiles, three jobs a widening to `RadiusSurface` would shift by 2px. They need a decision
-// about what role a tile is (and D8 for the buttons) before they can be counted as debt rather than as a
-// different thing. Dashed empty states (`border-slate-300`) and red danger zones are other border colours.
+// **What this does not count, stated so the next slice does not rediscover it:** the `rounded-md` +
+// `border-slate-200` sites are not the surface role -- they were buttons, a read-only input and nested tiles, three
+// jobs a widening to `RadiusSurface` would shift by 2px. The eleven tiles moved to `tileClasses(ctx)` and are counted by
+// `TestHandWrittenTilesOnlyShrink` below; the rest wait on D8. Dashed empty states (`border-slate-300`) and red
+// danger zones are other border colours.
 var handWrittenSurfaceFloors = map[string]int{
 	"approvalinbox.templ":  1, // border colour is conditional (red when overdue); a reader would have to take the state
 	"calendar.templ":       1, // today's column swaps the border and fill; same shape
@@ -552,5 +552,65 @@ func TestNoHandWrittenRegionRule(t *testing.T) {
 	}
 	if seen == 0 {
 		t.Fatal("no class set holding a border was found anywhere -- the scan is looking at the wrong text")
+	}
+}
+
+// handWrittenTileFloors are the `.templ` sites still writing `rounded-md border border-slate-200` by hand after the
+// eleven tiles moved to `tileClasses(ctx)` (2026-10-07; read, migrate, then gate -- no primitive). **None of the ten is
+// a tile**, which is the finding: the census that found 21 sites sorted them by reading into 11 tiles, 7 controls and
+// 3 that are neither, and the reading is what the floors below record. The seven controls are outlines that wait on
+// owner decision D8 (which border role a button's outline is): moving them would shift buttons. The other three are an
+// image frame, an image edge and a segmented control's track, none of which is a box holding content.
+var handWrittenTileFloors = map[string]int{
+	"account.templ":            2, // a read-only email box and a disabled Enable button: controls (D8), the first on slate-50 as a disabled look
+	"calendar.templ":           3, // previous / next / this-week: button-shaped links (D8)
+	"reviewdocument.templ":     3, // View PDF / Download are button-shaped links (D8); the third is a clipped image frame on slate-50
+	"signatureplacement.templ": 1, // the edge of a rendered page image, not a box holding content
+	"machine.templ":            1, // the track of the Board/List/Calendar view switch, a segmented control (D8's family)
+}
+
+// TestHandWrittenTilesOnlyShrink counts a class set holding `rounded-md`, `border` and the literal `border-slate-200`
+// after `joinClassExpressions`, so a tile that reads `tileClasses(ctx)` leaves the count while a control does not.
+// Blind spots, stated: a tile whose radius or border arrives from a Go function, and a `slate-200` edge on a
+// `rounded-lg` box (that is `TestHandWrittenSurfacesOnlyShrink`'s population).
+func TestHandWrittenTilesOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	actual := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := joinClassExpressions(comment.ReplaceAllString(string(b), ""))
+		for _, m := range surfaceClassAttr.FindAllStringSubmatch(src, -1) {
+			set := map[string]bool{}
+			for _, tok := range strings.Fields(m[1]) {
+				set[tok] = true
+			}
+			if set["rounded-md"] && set["border"] && set["border-slate-200"] {
+				actual[e.Name()]++
+			}
+		}
+	}
+	for _, f := range sortedFileNames(actual) {
+		switch w := handWrittenTileFloors[f]; {
+		case actual[f] > w:
+			t.Errorf("%s: %d hand-written small-box site(s), frozen at %d -- a tile (a box holding content) reads `tileClasses(ctx)` so `theme.radius.control` and `theme.border.surface` move it; a button-shaped outline waits on D8 and goes in handWrittenTileFloors with its reason", f, actual[f], w)
+		case actual[f] < w:
+			t.Errorf("%s: %d hand-written small-box site(s), down from %d -- lower the entry in this file to lock the migration in", f, actual[f], w)
+		}
+	}
+	for _, f := range sortedFileNames(handWrittenTileFloors) {
+		if _, still := actual[f]; !still {
+			t.Errorf("handWrittenTileFloors still names %s, which no longer has one -- remove the entry", f)
+		}
 	}
 }

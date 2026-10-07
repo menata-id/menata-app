@@ -56,7 +56,7 @@ templ BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer Vie
 			} else {
 				<ol class="m-0 flex list-none flex-col gap-1.5 p-0 text-sm">
 					for i, l := range c.Lists {
-						<li class="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2">
+						<li class={ "flex items-center gap-3", tileClasses(ctx), "px-3 py-2" }>
 							<span class="w-5 text-xs text-slate-400">{ fmt.Sprint(i + 1) }</span>
 							<span>{ l.Name }</span>
 						</li>
@@ -76,7 +76,7 @@ templ BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer Vie
 			} else {
 				<ul class="m-0 flex list-none flex-col gap-1.5 p-0 text-sm">
 					for _, l := range c.Labels {
-						<li class="flex items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2">
+						<li class={ "flex items-center justify-between gap-3", tileClasses(ctx), "px-3 py-2" }>
 							@tagChip(CardTag{Label: l.Name, Color: l.Color})
 							<span class="text-xs text-slate-500">{ labelUsage(l.Records) }</span>
 						</li>

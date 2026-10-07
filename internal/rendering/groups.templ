@@ -104,7 +104,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 					<p class="m-0 text-sm text-slate-400">This Workspace has no members to add.</p>
 				}
 				for _, m := range members {
-					<label class="flex cursor-pointer items-center gap-3 rounded-md border border-slate-200 p-3 hover:border-blue-300">
+					<label class={ "flex cursor-pointer items-center gap-3", tileClasses(ctx), "p-3 hover:border-blue-300" }>
 						<input type="checkbox" name="member" value={ m.UserRecordID } checked?={ m.InGroup } class="size-4 accent-blue-500"/>
 						@avatar(personInitials("", m.Email), m.Email, domain.AvatarInline, domain.AvatarPresent)
 						<span class="truncate text-sm">{ m.Email }</span>

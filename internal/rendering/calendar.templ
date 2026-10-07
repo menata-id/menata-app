@@ -88,7 +88,7 @@ func calendarWeekHref(ctx context.Context, offset int) string {
 // the same wiring My Tasks' row uses.
 templ calendarCard(t TaskRow) {
 	{{ done := t.Complete != nil && t.Complete.Done }}
-	<div class="flex flex-col gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-2 hover:shadow-sm">
+	<div class={ "flex flex-col gap-1.5", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "px-2.5 py-2 hover:shadow-sm" }>
 		if len(t.Tags) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 				for _, tag := range t.Tags {

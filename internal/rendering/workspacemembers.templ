@@ -294,7 +294,7 @@ templ removeFromWorkspaceSection(m data.Membership) {
 // sentence explaining what holding it means, which the board puts under every option rather than
 // leaving "admin" and "member" to speak for themselves.
 templ workspaceRoleChoice(role, description string, selected bool) {
-	<label class="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 p-3 hover:border-blue-300">
+	<label class={ "flex cursor-pointer items-start gap-3", tileClasses(ctx), "p-3 hover:border-blue-300" }>
 		<input type="radio" name="workspace_role" value={ role } checked?={ selected } class="mt-0.5 size-4 accent-blue-500"/>
 		<span class="flex flex-col gap-1">
 			<span class="text-sm font-medium">{ displayRole(role) }</span>

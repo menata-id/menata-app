@@ -151,7 +151,7 @@ type BorderRole string
 const (
 	// BorderSurface outlines something content sits inside. Read through `rendering.surfaceClasses`, so a hand-written
 	// large-radius surface and `panelLayout`/`sectionLayout` move together; the thirteen rules that bound a region (a header, a table's head, the page's top bar and bottom nav) read it through
-	// `borderClass` too, and a `rounded-md` tile and a button's outline do not (measured 2026-10-06).
+	// `borderClass` too, as does the edge of the eleven small boxes inside a surface (`tileClasses`, 2026-10-07); a button's outline does not.
 	BorderSurface BorderRole = "surface"
 	// BorderControl outlines something a person types into or interacts with.
 	BorderControl BorderRole = "control"

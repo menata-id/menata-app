@@ -277,6 +277,18 @@ func surfaceClasses(ctx context.Context) string {
 	}, " ")
 }
 
+// tileClasses is the look of a small box that sits inside a surface -- a selectable option, a list item, a card in a
+// column: the control radius and a one-pixel edge in the surface border role. **Two readings, both chosen so that the
+// default theme moves nothing.** The radius is `control`, not `surface`, because the default steps differ (a tile has
+// always been one step tighter than the box around it) and reading `surface` would have rounded eleven screens by two
+// more pixels; the edge is `surface`, because a tile is an outlined box and not a control's rim (`BorderControl` is
+// darker) nor a row separator (`BorderDivider` is fainter). The fill is left to the site -- some tiles are raised, some
+// transparent -- and the four raised ones read `backgroundClass(ctx, domain.BackgroundRaised)` beside it. A tile whose
+// radius should differ from a control's is the case that would earn a `tile` radius role; nothing declares one yet.
+func tileClasses(ctx context.Context) string {
+	return strings.Join([]string{radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface)}, " ")
+}
+
 // panelLayout is the bordered, padded surface twelve sites across six screens carried as one identical
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would

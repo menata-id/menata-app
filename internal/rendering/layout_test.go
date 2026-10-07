@@ -891,3 +891,55 @@ func TestRegionRules_followBorderSurfaceAtAHandWrittenSite(t *testing.T) {
 		t.Errorf("a region rule stayed on slate-200 under a declared border.surface: %q", out)
 	}
 }
+
+func TestTileClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
+	if got, want := tileClasses(context.Background()), "rounded-md border border-slate-200"; got != want {
+		t.Errorf("default tile must render the literal 11 sites carried; got %q, want %q", got, want)
+	}
+}
+
+// ChooseWorkspacePage holds two of the eleven tiles and renders before a Workspace exists, so it also pins that
+// the readers fall back to the default theme there.
+func TestTiles_followTheThemeAtHandWrittenSites(t *testing.T) {
+	choices := []WorkspaceChoice{
+		{ID: "ws_live", Name: "Live Co", Role: "member"},
+		{ID: "ws_old", Name: "Old Co", Role: "admin", Archived: true, ArchivedAt: "12 Jul 2026"},
+	}
+	render := func(ctx context.Context) string {
+		var buf strings.Builder
+		if err := ChooseWorkspacePage(choices, "", "/switch-workspace", "/home", "Back", false, "a@b.c").Render(ctx, &buf); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		return buf.String()
+	}
+
+	// The tails anchor each tile: the page's own surface wrapper carries the same radius/border/fill triple.
+	tiles := func(radius, edge, fill string) []string {
+		return []string{
+			"gap-3 " + radius + " border " + edge + " " + fill + " p-4 text-left",
+			"gap-3 " + radius + " border " + edge + " " + fill + " p-3.5",
+		}
+	}
+	out := render(context.Background())
+	for _, want := range tiles("rounded-md", "border-slate-200", "bg-white") {
+		if !strings.Contains(out, want) {
+			t.Errorf("default theme must keep the tile on the literal it replaced: missing %q", want)
+		}
+	}
+
+	th := domain.Theme{
+		Radius:     map[domain.RadiusRole]domain.RadiusStep{domain.RadiusControl: domain.RadiusStepLarge},
+		Border:     map[domain.BorderRole]domain.BorderShade{domain.BorderSurface: domain.BorderDefined},
+		Background: map[domain.BackgroundRole]domain.BackgroundShade{domain.BackgroundRaised: domain.BackgroundShadeLighter},
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+	out = render(ctx)
+	for _, want := range tiles("rounded-lg", "border-slate-300", "bg-slate-50") {
+		if !strings.Contains(out, want) {
+			t.Errorf("a declared theme must move the tile: missing %q", want)
+		}
+	}
+	if strings.Contains(out, "border-slate-200") {
+		t.Errorf("a tile stayed on the literal edge colour under a declared theme")
+	}
+}

@@ -264,8 +264,12 @@ stay literal, each a region rule or the `divide-y` utility rather than a row sep
 `background.raised` through `surfaceClasses` (2026-10-06: 34 hand-written `rounded-lg border border-slate-200 bg-white`
 sites in 18 screens moved to it, and `panelLayout`/`sectionLayout`/`metric` now compose it instead of repeating the
 four reads), byte-identical by default; `conformance.TestHandWrittenSurfacesOnlyShrink` holds the 4 that stay literal
-(three whose border colour is state-conditional, one `<dialog>` with no raised fill). `rounded-md` tiles, buttons and
-dashed empty states are other roles and are not counted. `fieldClasses` and `surfaceClasses` are class readers and
+(three whose border colour is state-conditional, one `<dialog>` with no raised fill). The small box that sits inside a
+surface -- a selectable option, a list item, a card in a column -- reads `radius.control` and `border.surface` through
+`tileClasses` (2026-10-07: 11 `rounded-md border border-slate-200` sites in 8 screens, the four raised ones also reading
+`background.raised`), byte-identical by default; `conformance.TestHandWrittenTilesOnlyShrink` holds the 10 same-shaped
+sites that are not tiles (seven button-shaped outlines waiting on D8, an image frame, an image edge, a segmented
+control's track). Dashed empty states are another role and are not counted. `fieldClasses` and `surfaceClasses` are class readers and
 **not** registered Components on purpose: an input's attributes (`name`, `value`, `required`, `placeholder`, `min`, `step`, a
 hyperscript handler) are 007 §11.3 Binding, which has no primitive, and accepting them would be
 §12.3's "arbitrary properties". `conformance.TestHandWrittenFieldsOnlyShrink` holds the 7 hand-written
