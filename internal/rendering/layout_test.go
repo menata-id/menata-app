@@ -472,7 +472,8 @@ func renderWithTheme(t *testing.T, th domain.Theme, c templ.Component) string {
 
 // TestPaddingFollowsTheWorkspaceTheme pins the **pre-migration literal beside the intended one** for all three
 // primitives: the default must be byte-for-byte the class each hardcoded, and a declaration must replace it
-// with no recompile. Section and panel stay different by default (D6) and become one by declaration.
+// with no recompile. Section and panel are equal by default since D6 (2026-10-07; panel was p-4) and a Workspace
+// can still declare them apart.
 func TestPaddingFollowsTheWorkspaceTheme(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -481,7 +482,7 @@ func TestPaddingFollowsTheWorkspaceTheme(t *testing.T) {
 		declared  map[domain.PaddingRole]domain.PaddingAmount
 		wantAfter string
 	}{
-		{"panel", panelLayout(), "p-4", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingPanel: domain.PaddingAmountFive}, "p-5"},
+		{"panel", panelLayout(), "p-5", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingPanel: domain.PaddingAmountFour}, "p-4"},
 		{"section", sectionLayout(domain.GapDefault), "p-5", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingSection: domain.PaddingAmountFour}, "p-4"},
 		{"badge", statusBadge("x", domain.ToneNeutral, domain.BadgeRegular), "px-2.5 py-1", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingBadgeX: domain.PaddingAmountThree, domain.PaddingBadgeY: domain.PaddingAmountTwo}, "px-3 py-2"},
 		{"compact badge", statusBadge("x", domain.ToneNeutral, domain.BadgeCompact), "px-2 py-0.5", map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingBadgeCompactX: domain.PaddingAmountOneHalf, domain.PaddingBadgeCompactY: domain.PaddingAmountOne}, "px-1.5 py-1"},
@@ -986,5 +987,25 @@ func TestAuthenticatedFields_followTheThemeAtHandWrittenSites(t *testing.T) {
 	sel := sites["invite role select"](themed)
 	if !strings.Contains(sel, "h-10.5 rounded-lg border border-slate-200 bg-white px-3") {
 		t.Errorf("roleSelect did not move with radius.control + border.control")
+	}
+}
+
+// TestSecondaryButtonOutlineReadsTheSurfaceBorder pins owner decision D8 (2026-10-07): a secondary button's outline
+// is the surface edge, so declaring `border.surface` moves it and declaring `border.control` does not (that key is
+// an input's own rim). The default stays the slate-200 the literal wrote.
+func TestSecondaryButtonOutlineReadsTheSurfaceBorder(t *testing.T) {
+	if got := buttonClasses(context.Background(), domain.ButtonSecondary); !strings.Contains(got, "border-slate-200") {
+		t.Fatalf("default secondary outline must stay slate-200; got %q", got)
+	}
+	at := func(role domain.BorderRole) string {
+		th := domain.Theme{Border: map[domain.BorderRole]domain.BorderShade{role: domain.BorderFaint}}
+		ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+		return buttonClasses(ctx, domain.ButtonSecondary)
+	}
+	if got := at(domain.BorderSurface); !strings.Contains(got, "border-slate-100") || strings.Contains(got, "border-slate-200") {
+		t.Errorf("a declared border.surface should move the secondary outline; got %q", got)
+	}
+	if got := at(domain.BorderControl); !strings.Contains(got, "border-slate-200") {
+		t.Errorf("border.control must not move a button's outline; got %q", got)
 	}
 }

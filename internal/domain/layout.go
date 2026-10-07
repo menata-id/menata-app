@@ -77,10 +77,12 @@ const (
 	// has none and none of its 12 callers stacks immediately, while all 17 `section` sites stack with a gap --
 	// and the padding correlates with it, which usually means the padding is the accident.
 	//
-	// **The owner chose to keep them separate (2026-10-03), and the defence is risk rather than taste**: it is
-	// the only option where *no screen moves*, and three of the six slices that day already moved pixels.
-	// §12.2 lists both names, so two primitives is within the vocabulary. Recorded here with the argument
-	// against it so the next reader does not "fix" the padding and silently restyle 12 or 21 screens.
+	// **The owner chose to keep them separate (2026-10-03), and the defence was risk rather than taste**: it was
+	// the only option where *no screen moved*. **Decided again 2026-10-07 (D6): the two primitives stay, the
+	// default padding is equal (p-5).** Measured that day, `panelLayout` is reached only by the UI IR walker's
+	// `case LayoutPanel` and no tree builds a panel node, so equalising moved no rendered screen; and once the
+	// padding ladder existed, two steps for one idea sat inside the token set itself, the case this comment's
+	// own earlier reasoning named as the one that would reopen it.
 	LayoutSection LayoutKind = "section"
 )
 
@@ -383,7 +385,7 @@ const (
 	// StaticPanelHeading is the title of one block inside a section, aside or form: an `<h2>` at the body role in
 	// the emphasis weight ("Password", "Approval steps", "Members"). It is body-sized, one step below
 	// StaticSubheading, and the two are deliberately separate kinds: both are "a block's title", and whether they
-	// should be one is an owner decision (D7) that would move 7 or 23 screens -- a Workspace can declare
+	// should be one was owner decision D7, decided 2026-10-07 to stay two (merging would move 7 or 23 screens) -- a Workspace can declare
 	// `subheading: normal` to see it. Twenty-three sites moved. Not claimed: an `<h3>` (the kind cannot choose its
 	// element) and a red `Remove from workspace` (a colour the kind does not accept).
 	StaticPanelHeading StaticKind = "panel-heading"

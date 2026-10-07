@@ -279,7 +279,7 @@ templ removeFromWorkspaceSection(m data.Membership) {
 		if m.Deactivated {
 			<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/reactivate") }>
 				@csrfHiddenInput()
-				<button type="submit" class="h-9 cursor-pointer rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">Reactivate member</button>
+				<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm text-slate-900 hover:bg-slate-50" }>Reactivate member</button>
 			</form>
 		} else {
 			<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/deactivate") } hx-confirm="Deactivate this member? They will no longer be able to open this workspace.">

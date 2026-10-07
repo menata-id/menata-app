@@ -154,12 +154,12 @@ func TestPaddingLadders(t *testing.T) {
 }
 
 func TestThemePaddingFor(t *testing.T) {
-	if got := (Theme{}).PaddingFor(PaddingPanel); got != PaddingAmountFour {
-		t.Errorf("zero Theme: PaddingFor(panel) = %q, want %q", got, PaddingAmountFour)
+	if got := (Theme{}).PaddingFor(PaddingPanel); got != PaddingAmountFive {
+		t.Errorf("zero Theme: PaddingFor(panel) = %q, want %q (equal to section since D6)", got, PaddingAmountFive)
 	}
-	th := Theme{Padding: map[PaddingRole]PaddingAmount{PaddingPanel: PaddingAmountFive}}
-	if got := th.PaddingFor(PaddingPanel); got != PaddingAmountFive {
-		t.Errorf("declared panel=five: got %q", got)
+	th := Theme{Padding: map[PaddingRole]PaddingAmount{PaddingPanel: PaddingAmountFour}}
+	if got := th.PaddingFor(PaddingPanel); got != PaddingAmountFour {
+		t.Errorf("declared panel=four: got %q", got)
 	}
 	if got := th.PaddingFor(PaddingSection); got != PaddingAmountFive {
 		t.Errorf("an undeclared role must inherit its default: got %q", got)

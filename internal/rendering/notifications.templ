@@ -27,7 +27,7 @@ templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Vie
 			if hasUnread(rows) {
 				<form method="POST" action="/notifications/mark-all-read">
 					@csrfHiddenInput()
-					<button type="submit" class="flex h-9 shrink-0 cursor-pointer items-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 hover:bg-slate-50">Mark all as read</button>
+					<button type="submit" class={ "flex h-9 shrink-0 cursor-pointer items-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm font-medium text-slate-900 hover:bg-slate-50" }>Mark all as read</button>
 				</form>
 			}
 		</div>

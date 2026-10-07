@@ -129,7 +129,7 @@ templ ChooseWorkspacePage(choices []WorkspaceChoice, errorMsg string, action, ba
 								<form method="POST" action={ templ.SafeURL(action + "/restore") }>
 									@csrfHiddenInput()
 									<input type="hidden" name="workspace_id" value={ c.ID }/>
-									<button type="submit" class="h-9 cursor-pointer rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 hover:bg-slate-50">Restore</button>
+									<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm text-slate-900 hover:bg-slate-50" }>Restore</button>
 								</form>
 							</div>
 						}

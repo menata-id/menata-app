@@ -565,7 +565,7 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 templ viewSwitcher(m *domain.Machine, selected domain.View) {
 	{{ views := selectableViews(m) }}
 	if len(views) > 1 {
-		<nav class="inline-flex gap-0.5 rounded-md border border-slate-200 bg-white p-0.5" aria-label="View">
+		<nav class={ "inline-flex gap-0.5", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-0.5" } aria-label="View">
 			for _, o := range views {
 				if o.ID == selected.ID {
 					<span class="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900" aria-current="true">{ o.Name }</span>

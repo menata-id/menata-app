@@ -266,8 +266,10 @@ var handWrittenButtonFloors = map[string]int{
 
 // handWrittenButtonLiterals are `<button class="h-9 ...">` written out by hand, with no buttonClasses call.
 // They are NOT the Button Component's shape -- `px-3` against its `px-4`, and a slate-300 outline against its
-// slate-200 -- so folding them in would shift pixels, and which border role an outline belongs to is owner
-// decision D8. Frozen so that a *new* one fails and names what to use; the four are the migration D8 unlocks.
+// slate-200 -- so folding them in would shift pixels. **D8 was decided 2026-10-07 (outline = `border.surface`),
+// and it did not move these four into `@button`**: three read `border.control` and `radius.control` now (a slate-300
+// outline is a control's rim, kept as it was) and stay floors; the fourth is a red `Deactivate` that stays literal. They are counted after
+// `joinClassExpressions`, because splicing a reader into the class made them invisible to the old pattern.
 var handWrittenButtonLiterals = map[string]int{
 	"chooseworkspace.templ":  1,
 	"notifications.templ":    1,
@@ -303,7 +305,7 @@ func TestHandWrittenButtonsOnlyShrink(t *testing.T) {
 				floors[e.Name()] = n
 			}
 		}
-		for _, m := range buttonLiteralOpen.FindAllStringSubmatch(src, -1) {
+		for _, m := range buttonLiteralOpen.FindAllStringSubmatch(joinClassExpressions(src), -1) {
 			if has(m[1], "h-9") && (has(m[1], "bg-white") || has(m[1], "bg-slate-900")) {
 				literals[e.Name()]++
 			}
@@ -562,12 +564,16 @@ func TestNoHandWrittenRegionRule(t *testing.T) {
 // 3 that are neither, and the reading is what the floors below record. The seven controls are outlines that wait on
 // owner decision D8 (which border role a button's outline is): moving them would shift buttons. The other three are an
 // image frame, an image edge and a segmented control's track, none of which is a box holding content.
+//
+// **Updated 2026-10-07 after D8 (a button's outline reads `border.surface`).** Seven sites left: the calendar's
+// three controls, `reviewdocument`'s View PDF / Download, the disabled Enable button (all `tileClasses`) and the
+// view switch's track (`tileClasses` + `background.raised`), byte-identical by default. **Three remain and none is
+// button-shaped**: a read-only email box (a field on slate-50, a disabled look), a clipped image frame, and the
+// edge of a rendered page image.
 var handWrittenTileFloors = map[string]int{
-	"account.templ":            2, // a read-only email box and a disabled Enable button: controls (D8), the first on slate-50 as a disabled look
-	"calendar.templ":           3, // previous / next / this-week: button-shaped links (D8)
-	"reviewdocument.templ":     3, // View PDF / Download are button-shaped links (D8); the third is a clipped image frame on slate-50
+	"account.templ":            1, // a read-only email box: a field on slate-50 as a disabled look, not a tile or a button
+	"reviewdocument.templ":     1, // a clipped image frame on slate-50
 	"signatureplacement.templ": 1, // the edge of a rendered page image, not a box holding content
-	"machine.templ":            1, // the track of the Board/List/Calendar view switch, a segmented control (D8's family)
 }
 
 // TestHandWrittenTilesOnlyShrink counts a class set holding `rounded-md`, `border` and the literal `border-slate-200`
@@ -604,7 +610,7 @@ func TestHandWrittenTilesOnlyShrink(t *testing.T) {
 	for _, f := range sortedFileNames(actual) {
 		switch w := handWrittenTileFloors[f]; {
 		case actual[f] > w:
-			t.Errorf("%s: %d hand-written small-box site(s), frozen at %d -- a tile (a box holding content) reads `tileClasses(ctx)` so `theme.radius.control` and `theme.border.surface` move it; a button-shaped outline waits on D8 and goes in handWrittenTileFloors with its reason", f, actual[f], w)
+			t.Errorf("%s: %d hand-written small-box site(s), frozen at %d -- a tile (a box holding content) reads `tileClasses(ctx)` so `theme.radius.control` and `theme.border.surface` move it; a button-shaped outline reads `tileClasses(ctx)` too (D8, 2026-10-07); anything that is neither goes in handWrittenTileFloors with its reason", f, actual[f], w)
 		case actual[f] < w:
 			t.Errorf("%s: %d hand-written small-box site(s), down from %d -- lower the entry in this file to lock the migration in", f, actual[f], w)
 		}

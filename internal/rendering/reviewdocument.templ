@@ -184,8 +184,8 @@ templ reviewDocumentCard(v ReviewView) {
 			@staticText(domain.StaticPanelHeading, "Document")
 			if v.FileHref != "" {
 				<div class="flex gap-2">
-					<a href={ templ.SafeURL(v.FileHref) } target="_blank" class="flex h-8 items-center rounded-md border border-slate-200 px-3 text-xs hover:border-blue-300">View PDF</a>
-					<a href={ templ.SafeURL(v.FileHref) } download class="flex h-8 items-center rounded-md border border-slate-200 px-3 text-xs hover:border-blue-300">Download</a>
+					<a href={ templ.SafeURL(v.FileHref) } target="_blank" class={ "flex h-8 items-center", tileClasses(ctx), "px-3 text-xs hover:border-blue-300" }>View PDF</a>
+					<a href={ templ.SafeURL(v.FileHref) } download class={ "flex h-8 items-center", tileClasses(ctx), "px-3 text-xs hover:border-blue-300" }>Download</a>
 				</div>
 			}
 		}

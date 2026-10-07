@@ -323,9 +323,10 @@ type PaddingRole string
 const (
 	// PaddingPanel is `panelLayout`'s padding on all sides.
 	PaddingPanel PaddingRole = "panel"
-	// PaddingSection is `sectionLayout`'s. It is a separate role from PaddingPanel because the corpus holds
-	// two values (D6): merging them is one line in a Workspace manifest, but doing it as the default would
-	// move 12 or 21 screens, and that is an owner decision rather than a side effect of this slice.
+	// PaddingSection is `sectionLayout`'s. It stays a separate role from PaddingPanel so a Workspace can still
+	// declare them apart, but **the defaults are equal since D6 (owner, 2026-10-07)**: the corpus held two
+	// values for one idea, panel's p-4 had no rendered caller left to move, and two steps inside one token set
+	// was harder to defend than two numbers in two primitives.
 	PaddingSection PaddingRole = "section"
 	// PaddingBadgeX / PaddingBadgeY are a regular badge's horizontal and vertical room.
 	PaddingBadgeX PaddingRole = "badge-x"
@@ -502,7 +503,7 @@ func DefaultTheme() Theme {
 			BackgroundSunken: BackgroundShadeLight,    // was bg-slate-100
 		},
 		Padding: map[PaddingRole]PaddingAmount{
-			PaddingPanel:         PaddingAmountFour,    // was p-4
+			PaddingPanel:         PaddingAmountFive,    // was p-4 until D6 (2026-10-07); now equal to section
 			PaddingSection:       PaddingAmountFive,    // was p-5
 			PaddingBadgeX:        PaddingAmountTwoHalf, // was px-2.5
 			PaddingBadgeY:        PaddingAmountOne,     // was py-1

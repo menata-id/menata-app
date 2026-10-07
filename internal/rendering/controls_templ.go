@@ -97,10 +97,10 @@ func tableCellClasses(ctx context.Context) string {
 //     the 17 dark surfaces are three different jobs.
 //   - The danger border and ink (`red-200`, `red-700`) are a tone, and a tone is a palette pair a Component
 //     owns, not an ink role; a button's background is white where the `red` palette's is tinted.
-//   - **The border of `secondary` is `slate-200`, which is not what `BorderControl` defaults to** (`slate-300`,
-//     "an input's own box"). Reading the role would turn 14 buttons one shade darker; the mockups lean the other
-//     way (5 of 8 bordered buttons use 200). That moves pixels and is the owner's call (D8), exactly as D6 and
-//     D7 are, so the Button keeps a literal slate-200 until the owner chooses (`BorderControl` has a reader regardless: `fieldClasses`).
+//   - **The border of `secondary` reads `BorderSurface`, not `BorderControl` (owner decision D8, 2026-10-07).**
+//     The two default to slate-200 and slate-300; the mockups lean to 200 (5 of 8 bordered buttons), so reading
+//     `surface` moves no button while `control` would have darkened 14. A button is something clicked and an
+//     input is something typed into, which is why they are two keys: a Workspace wanting one line declares both.
 //
 // A site that cannot be the `button` Component -- an `<a>`, an `hx-*` trigger, a `<summary>`, a button a script
 // finds by class -- still draws its own tag and calls this for the look, so it moves with the Theme too.
@@ -115,7 +115,7 @@ func buttonClasses(ctx context.Context, variant domain.ButtonVariant) string {
 	case domain.ButtonDanger:
 		return strings.Join([]string{prefix, radius, "border border-red-200 bg-white px-4 font-sans", text, "text-red-700 hover:bg-red-50"}, " ")
 	default:
-		return strings.Join([]string{prefix, radius, "border border-slate-200 bg-white px-4 font-sans", text, inkClass(ctx, domain.InkBody), "hover:bg-slate-50"}, " ")
+		return strings.Join([]string{prefix, radius, "border", borderClass(ctx, domain.BorderSurface), "bg-white px-4 font-sans", text, inkClass(ctx, domain.InkBody), "hover:bg-slate-50"}, " ")
 	}
 }
 

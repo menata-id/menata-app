@@ -306,11 +306,10 @@ templ panelLayout() {
 // sites across nine screens carried as one class string, usually holding a heading as their first child
 // (21 of 25 measured `<section>` blocks do).
 //
-// **Why a different padding here than in `panelLayout`.** They are two roles for what is arguably one idea
-// (`domain.PaddingSection`, `domain.PaddingPanel`), and keeping them separate is the only default where no
-// screen moves; `domain.LayoutSection` records the argument for merging them. Merging is now one line in a
-// Workspace's own `theme.padding`, so the owner can see it on a real Workspace before deciding for the default.
-// **Do not unify the defaults without saying which 12 or 21 screens shift.**
+// **Same padding as `panelLayout` by default since D6 (owner, 2026-10-07).** They stay two roles
+// (`domain.PaddingSection`, `domain.PaddingPanel`) so a Workspace can declare them apart, but both default to
+// p-5: the panel's p-4 had no rendered caller left to move, and two steps for one idea inside the token set was
+// the harder thing to defend. `domain.LayoutSection` records the argument.
 //
 // It takes no title parameter. `sectionHeaderRow` (appshell.templ, 9 callers) is the heading half and takes
 // a link target; a Layout that accepted one would be a Layout that knows about routes.
