@@ -292,13 +292,16 @@ var documentApprovalConstant = regexp.MustCompile(`action\.(Document|Step|Signat
 // **A deferral is a measurement with an expiry date.** "Primitive unbuilt" is checkable -- grep for the
 // accessor -- and this one was checked only when someone asked whether the remainder could be finished.
 //
-// What is left is `rendering/detail.templ` (1): it compares a Field id to decide whether to draw a page
-// thumbnail, and the derived Field would have to be threaded into an already ten-parameter page
-// signature. That is a props decision, not a missing primitive -- said that way so the next reader does
-// not inherit the same "unbuilt" framing this entry just had to retract.
-var documentApprovalFieldCoupling = map[string]int{
-	"rendering/detail.templ": 1,
-}
+// **Empty since 2026-10-07**, when the last site -- `rendering/detail.templ`'s page thumbnail -- read the
+// Field instead of naming it. That entry had been recorded as "a props decision on a ten-parameter
+// signature" and as "a presentation question, not the compositing one"; both were wrong, and measuring was
+// what showed it. The context already carries the Workspace (`approvalMachineID` reads it), so no parameter
+// was needed; and the thumbnail is an <img> of `/pdf-preview`, whose handler reads
+// `action.CompositeFields(step).SourceField`, so asking that declaration which Field the preview shows is the
+// same question rather than a nearby one. `rendering.documentPreviewField` does that, held by
+// `TestRecordDetail_pdfThumbnailFollowsTheCompositeSourceField`. An empty map stays declared, like any other
+// emptied ratchet: the next file to name an `action.Field*` constant fails.
+var documentApprovalFieldCoupling = map[string]int{}
 
 var documentApprovalFieldConstant = regexp.MustCompile(`action\.Field[A-Za-z]+`)
 

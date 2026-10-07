@@ -553,8 +553,6 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   corrections: `menata-app-document`'s
   `audits/2026-09-29-kajian-pekerjaan-tersisa-dan-prioritas.md`,
   `audits/2026-09-29-kajian-seleksi-record-terdeklarasi.md` and `development-history.md`.
-- **Document Approval's last Field reference** -- `rendering/detail.templ` names a Field id to decide a
-  PDF thumbnail. A props decision on a ten-parameter signature, not a missing primitive.
 - **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Adding an Application screen
   is writing Go today -- 36 of 38 navigation items point at a bespoke route, which 007 §12.4 forbids
   normatively. Seven of §12.2's eight Layouts, five §12.3 Components, Slot, UI IR, ten Static kinds and

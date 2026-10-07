@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"context"
 	"menata.app/internal/experience"
 	"time"
 	"fmt"
@@ -171,36 +172,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 							@slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now))
 						} else if f.Type == domain.FieldTypeFile {
 							@fileLink(r.Values[f.ID])
-							// The last Field-id literal in documentApprovalFieldCoupling (1 of 1), and it is
-							// **a props decision, not a missing primitive** -- said that way because the
-							// entry above it in that gate spent three stages claiming the opposite about the
-							// wizard's form bindings and had to retract it.
-							//
-							// The value *is* derivable: the compositing Event already declares which Field
-							// holds the Document's PDF (action.CompositeFields(...).SourceField, which
-							// composition/review.go reads for exactly this Document). Two things stop it
-							// being read here. It lives on the **step** Machine and this page holds only the
-							// record's own, so the handler would have to resolve it into an eleventh
-							// parameter on a signature already at ten -- which wants a props struct, a change
-							// to every caller of a generic page, and is out of proportion to one thumbnail.
-							//
-							// And it would answer a *different question*. "Which file gets a preview" is
-							// presentation; "which file the signing composites onto" is workflow. They name
-							// the same Field today and need not: an approval Application that composites no
-							// PDF would silently lose its thumbnail while the file is still a PDF. Deriving
-							// from the nearest-looking declaration is the mistake Stage D named in place
-							// (CLAUDE.md, "derive or declare").
-							//
-							// So it stays a literal, under CLAUDE.md's decision path step 2, with all three
-							// obligations met rather than the none it carried until 2026-09-30: the missing
-							// capability is a *presentation* declaration for "preview this file" (a
-							// card_fields role, or a Field-level flag); the forward-checkable pointer is
-							// 007 §7.6 Projection and §12.3 Component boundedness, which is where such a
-							// role would have to fit; and it is listed in writing-guide.md's "What comes
-							// free vs. what's hardcoded today" table. The trigger for building it is a
-							// second case -- a second Machine wanting a file previewed -- per step 3, not
-							// taste.
-							if action.IsDocument(m) && f.ID == action.FieldDocumentFile {
+							if action.IsDocument(m) && f.ID == documentPreviewField(ctx) {
 								@pdfThumbnail(m.ID, r.ID)
 							}
 						} else if f.IsReference() {
@@ -363,6 +335,16 @@ templ recordActivity(extras RecordExtras) {
 // pdfThumbnail is a small preview of a Document's own PDF (Step 3's internal/pdf, ROADMAP.md's UI
 // mockup conformance audit) -- the capability already existed, reachable only from the
 // signature-placement screen; this is the detail page's own use of the same route, not a new one.
+// documentPreviewField is the Field /pdf-preview renders for a Document: `source_field` on the Event that
+// triggers the compositing Service, read from the step Machine the request's Application casts. The
+// thumbnail is an <img> of that route's own output, so asking the route's declaration which Field it shows
+// keeps the two from disagreeing by construction. "" when no step Machine is cast or none declares the
+// Event -- no Field matches, so no thumbnail is drawn for a route that would answer with an error.
+func documentPreviewField(ctx context.Context) string {
+	app, _ := CurrentApplication(ctx)
+	return action.CompositeFields(CurrentWorkspace(ctx).MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleStep, app.ID)).SourceField
+}
+
 templ pdfThumbnail(machineID, recordID string) {
 	<div class="mt-2">
 		<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/pdf-preview", machineID, recordID)) } target="_blank">

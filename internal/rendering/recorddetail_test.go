@@ -340,3 +340,47 @@ func TestRecordDetail_CopyPanelIsHiddenFromAnActorWhoMayNotCreate(t *testing.T) 
 		t.Error("an actor the create permission refuses was offered a copy")
 	}
 }
+
+// TestRecordDetail_pdfThumbnailFollowsTheCompositeSourceField pins what replaced the last Field-id literal in
+// documentApprovalFieldCoupling: the thumbnail sits beside the Field /pdf-preview renders, which is the step
+// Machine's own `source_field`, so a Document whose file Field is not called fld_file still gets its preview,
+// and a Field that merely shares the old name does not.
+func TestRecordDetail_pdfThumbnailFollowsTheCompositeSourceField(t *testing.T) {
+	doc := &domain.Machine{
+		ID: "mch_surat", Name: "Surat", WorkflowEngine: domain.WorkflowEngineDocumentApproval, WorkflowRole: domain.WorkflowRoleDocument,
+		Fields: []domain.Field{
+			{ID: "fld_berkas", Name: "Berkas", Type: domain.FieldTypeFile},
+			{ID: "fld_file", Name: "Lampiran", Type: domain.FieldTypeFile},
+		},
+	}
+	step := func(source string) *domain.Machine {
+		return stepMachineBound(&domain.Machine{
+			ID: "mch_langkah", Name: "Langkah",
+			Events: []domain.Event{{ID: "evt_composite", Then: domain.Service{
+				Name: domain.ServiceCompositeSignedDocument, Composite: &domain.Composite{SourceField: source},
+			}}},
+		})
+	}
+	r := &data.Record{ID: "rec_1", Values: map[string]any{"fld_berkas": "k1", "fld_file": "k2"}}
+	render := func(ctx context.Context) string {
+		var buf bytes.Buffer
+		if err := RecordDetailView(doc, r, nil, nil, nil, domain.Actor{ID: "usr_ana"}, nil, RecordExtras{}, time.Now()).Render(ctx, &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	const thumb = "/pdf-preview?page=1"
+
+	if got := strings.Count(render(approvalWorkspaceCtx(doc, step("fld_berkas"))), thumb); got != 1 {
+		t.Errorf("source_field fld_berkas: want one thumbnail, got %d", got)
+	}
+	if out := render(approvalWorkspaceCtx(doc, step("fld_berkas"))); strings.Index(out, thumb) < strings.Index(out, "Berkas") || strings.Index(out, thumb) > strings.Index(out, "Lampiran") {
+		t.Errorf("the thumbnail must sit under Berkas (the declared source), not under Lampiran")
+	}
+	if got := strings.Count(render(approvalWorkspaceCtx(doc, step("fld_file"))), thumb); got != 1 {
+		t.Errorf("source_field fld_file: want one thumbnail, got %d", got)
+	}
+	if got := strings.Count(render(approvalWorkspaceCtx(doc)), thumb); got != 0 {
+		t.Errorf("no step Machine cast: the route has nothing to render, want no thumbnail, got %d", got)
+	}
+}

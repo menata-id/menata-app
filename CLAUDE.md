@@ -542,7 +542,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   makes the number drop") false as the gate stood — so the gate was extended rather than the claim
   restated. **Read the current numbers out of the map, not out of this line** — the trajectory since is
   129 → 126 → 78 (Stage D's derivations) → 43 (the signature shape) → 29 (Stage E1's wizard
-  derivations) → 11 (Stage E2's flow-template shape) → 9 → 4 → **1**.
+  derivations) → 11 (Stage E2's flow-template shape) → 9 → 4 → 1 → **0** (2026-10-07; the map is empty, and stays declared).
 
   This line used to end "and none of it is a derivation away: a step's *label*, which nothing declares
   at all, and a form input's `name=`, which is 007 §11.3 Binding with no primitive yet." **Both halves
@@ -551,8 +551,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   free-text stand-in for a job title, so it was deleted rather than declared. The `name=` attributes
   were not waiting on a primitive at all: the *read* side of that same form had derived those ids from
   `action.DeclaredFields` since it was written, and Stage D had already shipped the exact shape next
-  door (`rendering.PlacementFields`), so the fix was a struct and a parameter. What is left is
-  `rendering/detail.templ` (1), a props decision on an already-ten-parameter signature.
+  door (`rendering.PlacementFields`), so the fix was a struct and a parameter. The last one,
+  `rendering/detail.templ`'s page thumbnail, was recorded as "a props decision on a ten-parameter signature" and as
+  "presentation, not the compositing question"; **both were wrong, again.** ctx already carries the Workspace, so no
+  parameter was needed, and the thumbnail is an `<img>` of `/pdf-preview`, whose handler reads
+  `action.CompositeFields(step).SourceField` -- the same question, not a nearby one. `rendering.documentPreviewField`
+  reads it (2026-10-07). The gate counts `action.Field*` constants only: literal id strings in
+  `internal/web/document.go` are outside it.
 
   **The rule to carry, since this line asserted the opposite twice:** a deferral is a measurement with
   an expiry date. "No primitive yet" is grep-checkable in a minute; "nothing declares it" is answerable
