@@ -57,6 +57,7 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 	"GroupsPage":               {"workspace", "Workspace groups, registered as a fixed literal"},
 	"GroupDetailPage":          {"workspace", "Workspace groups, registered as a fixed literal"},
 	"NotificationsPage":        {"workspace", "the person's inbox across Applications"},
+	"InferencePage":            {"workspace", "nav_inference is in domain.RuntimeScreens (the runtime owns it, not an Application) and its subject is a runtime artifact, not a Dataset; read 2026-10-07"},
 	"InstallApplicationPage":   {"workspace", "installs into the Workspace; form binding is 007 §11.3 (item 3), unbuilt"},
 	"NewApplicationPage":       {"workspace", "the AI assistant's prompt form; form binding is 007 §11.3 (item 3), unbuilt"},
 	"NewApplicationReviewPage": {"workspace", "the AI assistant's review pane; form binding is 007 §11.3 (item 3), unbuilt"},
@@ -74,12 +75,11 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 
 	// candidate: an Application's own screen, declared by that Application's `navigation:`. These are what
 	// `page:` is for. Tahap 0.2 reads each to decide Jalur A (figures are Dataset measures) or B.
-	"DashboardPage":           {"candidate", "nav_dashboard; figures come from composition.buildDashboard over one Task selection, not aggregate Datasets (plan §2.2)"},
-	"MyTasksPage":             {"candidate", "nav_my_tasks (plan Tahap 0.2 reads it)"},
-	"CalendarPage":            {"candidate", "nav_calendar (plan Tahap 0.2 reads it)"},
-	"BoardSettingsPage":       {"candidate", "nav_board_settings (plan Tahap 0.2 reads it)"},
-	"ApplicationSettingsPage": {"candidate", "nav_app_settings (plan Tahap 0.2 reads it)"},
-	"InferencePage":           {"candidate", "assistant inference inspector (plan Tahap 0.2 decides whether a nav item owns it)"},
+	"DashboardPage":           {"candidate", "nav_dashboard; read 2026-10-07: every figure is Go over one ds_all_tasks selection (grouping per project and person, an overdue test against `now`) -- no aggregate Dataset exists for it, so not Jalur A"},
+	"MyTasksPage":             {"candidate", "nav_my_tasks; read 2026-10-07: ds_my_tasks selects records, bucketing by date is Go, each row carries a PATCH form (write side, 007 §11.3 unbuilt) -- not Jalur A"},
+	"CalendarPage":            {"candidate", "nav_calendar; read 2026-10-07: week grid bucketed in Go from ds_all_tasks, ?week= parameter, PATCH form per card -- not Jalur A"},
+	"BoardSettingsPage":       {"candidate", "nav_board_settings; read 2026-10-07: the nearest to Jalur A -- read-only, three Datasets, the one aggregate in the library (ds_label_usage) -- but needs a collection Binding over select:records, a per-row join of two Datasets by record id (007 §7.5), and tagChip is not a registered Component"},
+	"ApplicationSettingsPage": {"candidate", "nav_app_settings; read 2026-10-07: reads no Dataset and no record -- links plus a role matrix derived from Machine permissions at request time; a candidate for `page:` as static/link nodes, never for Jalur A"},
 }
 
 var bespokeScreenCategories = map[string]bool{
