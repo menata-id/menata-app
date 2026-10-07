@@ -482,7 +482,7 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 		@staticText(domain.StaticHeading, m.Name)
 		<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
 	</div>
-	<section class="flex flex-col gap-2">
+	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow("Fields", "", "")
 		<div class={ "overflow-x-auto", surfaceClasses(ctx) }>
 			<table class="w-full border-collapse text-sm">
@@ -512,8 +512,8 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 				</tbody>
 			</table>
 		</div>
-	</section>
-	<section class="flex flex-col gap-2">
+	}
+	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow(fmt.Sprintf("Records (%d)", len(records)), "", "")
 		@viewSwitcher(m, v)
 		switch v.EffectiveType() {
@@ -522,7 +522,7 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 			default:
 				@tableLayout(m, records, relations, groups, actor, now)
 		}
-	</section>
+	}
 }
 
 // tableLayout is the generic flat-list Layout: every Field as a column, every Record as a row,

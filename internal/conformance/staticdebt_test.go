@@ -342,9 +342,16 @@ func TestHandWrittenButtonsOnlyShrink(t *testing.T) {
 // pattern cannot see**, stated rather than hidden: an input whose class arrives from a Go function
 // (`approverUserClass` reads `fieldClasses`, so it is fine), and the read-only email box in account.templ, which is
 // slate-200 on slate-50 -- a disabled look, not an input's own box.
+//
+// **These four are a boundary, not debt, and the entry must not be "fixed" by calling `fieldClasses(ctx)` here.**
+// That call would compile and drop this count to zero -- a ctx with no Workspace falls back to `DefaultTheme()` --
+// while no declaration could ever reach the page: a ratchet falling by an edit to an attribute, not by a
+// capability. The way back is a runtime-level theme loaded before any Workspace exists (a new metadata key, loader
+// support and the installer mirror), worth building only when a cross-Workspace branding need is real; there is
+// no such case in `menata-app-document`'s `case-portfolio.md` (grepped for brand|theme|logo|login, 2026-10-07: one unrelated hit). Until then the four stay literal and say so.
 var handWrittenFieldFloors = map[string]int{
-	"authshell.templ": 2, // pre-auth kit (authField, authPasswordField)
-	"login.templ":     2, // pre-auth, 15px mobile target
+	"authshell.templ": 2, // pre-auth kit (authField, authPasswordField); no Workspace on ctx, 007 §12.6 has no runtime-level Theme
+	"login.templ":     2, // pre-auth sign-in; the same boundary, and a 15px mobile target the kit shares
 }
 
 var fieldTagOpen = regexp.MustCompile(`(?s)<(?:input|select|textarea)\b(?:[^>{]|\{[^}]*\})*>`)
@@ -555,6 +562,48 @@ func TestNoHandWrittenRegionRule(t *testing.T) {
 	}
 	if seen == 0 {
 		t.Fatal("no class set holding a border was found anywhere -- the scan is looking at the wrong text")
+	}
+}
+
+// TestNoHandWrittenDividedRow is a zero-floor gate (2026-10-07): no class set in `internal/rendering` may hold
+// `last:border-b-0` beside `sm:flex-row`. That pair is a divided list's row -- stacked on a phone, cells side by side
+// from `sm:`, a rule under each but the last -- and it reads `dividedRowClasses(ctx, gap)`, so `theme.border.divider`
+// and `theme.gap` move every such list together. Three sites carried one literal (approvalinbox, workspacemembers
+// twice); the `columns` pattern in `TestHandWrittenLayoutSitesOnlyShrink` could not hold them after the reader
+// replaced the literal, so this keeps the shape from coming back unnoticed. Blind spots, stated: a row arriving from
+// a Go function other than the reader, and one written without `last:border-b-0`.
+func TestNoHandWrittenDividedRow(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	seen := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := joinClassExpressions(comment.ReplaceAllString(string(b), ""))
+		for _, m := range surfaceClassAttr.FindAllStringSubmatch(src, -1) {
+			set := map[string]bool{}
+			for _, tok := range strings.Fields(m[1]) {
+				set[tok] = true
+			}
+			if set["flex"] {
+				seen++
+			}
+			if set["last:border-b-0"] && set["sm:flex-row"] {
+				t.Errorf("%s: a hand-written divided row (%q) -- use `dividedRowClasses(ctx, gap)` so the theme moves it", e.Name(), m[1])
+			}
+		}
+	}
+	if seen == 0 {
+		t.Fatal("no class set holding flex was found anywhere -- the scan is looking at the wrong text")
 	}
 }
 

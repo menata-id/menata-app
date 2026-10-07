@@ -69,6 +69,19 @@ func fieldClasses(ctx context.Context) string {
 	}, " ")
 }
 
+// dividedRowClasses is one row of a divided list that has column headers above it: a stack on a phone, the
+// cells side by side from `sm:`, a divider rule under every row but the last. Three sites carried this as one
+// literal (approvalinbox, and workspacemembers twice) and differed only in the gap, which is the parameter.
+// It is a class reader and not a Layout for the reason `surfaceClasses` is not one: the rule and the padding
+// are not layout, and a `columnsLayout` taking them would accept arbitrary classes (007 §12.3). Joined in the
+// old literal's order so the default theme renders the same bytes.
+func dividedRowClasses(ctx context.Context, gap domain.Gap) string {
+	return strings.Join([]string{
+		"flex flex-col", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider),
+		"px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4",
+	}, " ")
+}
+
 // tableCellClasses is the generic record table's body cell: the first caller of the `divider` border role, which
 // separates rows. Joined in the old literal's order so the default theme renders the same bytes.
 func tableCellClasses(ctx context.Context) string {

@@ -1009,3 +1009,41 @@ func TestSecondaryButtonOutlineReadsTheSurfaceBorder(t *testing.T) {
 		t.Errorf("border.control must not move a button's outline; got %q", got)
 	}
 }
+
+// TestSectionMigration_defaultsAreTheLiteralsEachSiteReplaced pins the pre-migration literal beside the
+// primitive's default for the sites a live diff cannot reach (2026-10-07). `inferenceSummary` was reached and
+// byte-identical; `newapplication`'s change summary needs an AI session, and `ChildSectionView` needs a child
+// collection, neither of which the dev database holds.
+func TestSectionMigration_defaultsAreTheLiteralsEachSiteReplaced(t *testing.T) {
+	// was `<section class={ surfaceClasses(ctx), "p-5" }>` (inference.templ, newapplication.templ)
+	if got, want := renderWithTheme(t, domain.Theme{}, panelLayout()),
+		`<section class="rounded-lg border border-slate-200 bg-white p-5">x</section>`; got != want {
+		t.Errorf("panelLayout default = %q, want %q", got, want)
+	}
+	// was `<section class="flex flex-col gap-2">` (detail.templ, machine.templ x2); the element is now a <div>
+	if got, want := renderWithTheme(t, domain.Theme{}, stackLayout(domain.GapTight)),
+		`<div class="flex flex-col gap-2">x</div>`; got != want {
+		t.Errorf("stackLayout(GapTight) default = %q, want %q", got, want)
+	}
+}
+
+// TestDividedRowClasses_defaultsAreTheLiteralsThreeSitesReplaced pins the pre-migration literal beside the
+// reader's output (2026-10-07): approvalinbox (gap-2) and workspacemembers x2 (gap-3) each wrote
+// `flex flex-col gap-N border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4`.
+// A declared `border.divider` and `gap` must move it with no recompile.
+func TestDividedRowClasses_defaultsAreTheLiteralsThreeSitesReplaced(t *testing.T) {
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test"}, "Test Workspace", false)
+	for gap, want := range map[domain.Gap]string{
+		domain.GapTight:   "flex flex-col gap-2 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4",
+		domain.GapDefault: "flex flex-col gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4",
+	} {
+		if got := dividedRowClasses(ctx, gap); got != want {
+			t.Errorf("dividedRowClasses(%v) = %q, want %q", gap, got, want)
+		}
+	}
+	th := domain.Theme{Border: map[domain.BorderRole]domain.BorderShade{domain.BorderDivider: domain.BorderDefined}}
+	ctx = WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+	if got := dividedRowClasses(ctx, domain.GapTight); !strings.Contains(got, "border-slate-300") || strings.Contains(got, "border-slate-100") {
+		t.Errorf("a declared border.divider should move the row rule; got %q", got)
+	}
+}

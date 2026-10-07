@@ -374,7 +374,7 @@ templ pdfThumbnail(machineID, recordID string) {
 // ChildSectionView renders one child collection: a compact table of the child Machine's records,
 // each row the same generic RecordRow used everywhere else.
 templ ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor, now time.Time) {
-	<section class="flex flex-col gap-2">
+	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow(fmt.Sprintf("%s (%d)", cc.Machine.Name, len(cc.Records)), "", "")
 		<div class={ "overflow-x-auto", surfaceClasses(ctx) }>
 			<table class="w-full border-collapse text-sm">
@@ -393,7 +393,7 @@ templ ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor,
 				</tbody>
 			</table>
 		</div>
-	</section>
+	}
 }
 
 // RecordDetailEdit is one Record's detail in edit mode: the same Field set as an inline form.

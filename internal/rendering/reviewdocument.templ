@@ -451,33 +451,35 @@ templ reviewSignatureLegend() {
 // record. That read is why detail.templ sat in the projection ratchet; moving the bar here (where
 // the values arrive already resolved) is what lets that entry go.
 templ reviewDecisionBar(v ReviewView) {
-	<div class={ "flex flex-col gap-3", surfaceClasses(ctx), "p-4 sm:flex-row sm:items-center sm:justify-between" }>
-		<span class="flex items-center gap-2">
-			@staticText(domain.StaticOverline, "SLA")
-			if v.SLALabel == "" {
-				<span class="text-sm text-slate-400">No due date</span>
-			} else {
-				<span class={ "text-sm", templ.KV("text-red-600", v.SLAOverdue), templ.KV("text-slate-500", !v.SLAOverdue) }>
-					{ v.SLALabel }
-				</span>
-			}
-		</span>
-		if v.CanDecide {
-			<form hx-post={ fmt.Sprintf("/machines/%s/records/%s/decide", approvalMachineID(ctx, domain.WorkflowRoleStep), v.StepID) } class="flex gap-2">
-				@button("Reject", domain.ButtonDanger, "decision", action.DecisionRejected)
-				if v.HasSignature {
-					@button("Approve", domain.ButtonPrimary, "decision", action.DecisionApproved)
+	@panelLayout() {
+		@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
+			<span class="flex items-center gap-2">
+				@staticText(domain.StaticOverline, "SLA")
+				if v.SLALabel == "" {
+					<span class="text-sm text-slate-400">No due date</span>
 				} else {
-					<button type="button" class={ "sig-approve-trigger " + buttonClasses(ctx, domain.ButtonPrimary) } data-modal={ "sig-modal-" + v.StepID }>Approve</button>
-					@signatureModal(v.StepID)
+					<span class={ "text-sm", templ.KV("text-red-600", v.SLAOverdue), templ.KV("text-slate-500", !v.SLAOverdue) }>
+						{ v.SLALabel }
+					</span>
 				}
-			</form>
-		} else if v.Decision != action.DecisionPending {
-			@statusBadge(v.Decision, domain.ToneNeutral, domain.BadgeRegular)
-		} else {
-			<span class="text-2xs text-slate-400">Awaiting its own assignee's decision</span>
+			</span>
+			if v.CanDecide {
+				<form hx-post={ fmt.Sprintf("/machines/%s/records/%s/decide", approvalMachineID(ctx, domain.WorkflowRoleStep), v.StepID) } class="flex gap-2">
+					@button("Reject", domain.ButtonDanger, "decision", action.DecisionRejected)
+					if v.HasSignature {
+						@button("Approve", domain.ButtonPrimary, "decision", action.DecisionApproved)
+					} else {
+						<button type="button" class={ "sig-approve-trigger " + buttonClasses(ctx, domain.ButtonPrimary) } data-modal={ "sig-modal-" + v.StepID }>Approve</button>
+						@signatureModal(v.StepID)
+					}
+				</form>
+			} else if v.Decision != action.DecisionPending {
+				@statusBadge(v.Decision, domain.ToneNeutral, domain.BadgeRegular)
+			} else {
+				<span class="text-2xs text-slate-400">Awaiting its own assignee's decision</span>
+			}
 		}
-	</div>
+	}
 }
 
 // signatureModal is the canvas dialog reviewDecisionBar opens when the viewer has no signature on

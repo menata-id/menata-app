@@ -241,13 +241,13 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 			<div class="text-sm text-slate-500">Look it over before it becomes real. Generating does not publish anything by itself.</div>
 		</div>
 		@splitLayout(domain.GapLoose, domain.SplitAsideEnd, domain.AsideWide) {
-			<section class={ surfaceClasses(ctx), "p-5" }>
+			@panelLayout() {
 				if change.Kind == aiassist.KindUpdateApplication {
 					@updatePlan(plan)
 				} else {
 					@changeSummary(change)
 				}
-			</section>
+			}
 			<aside class={ "flex flex-col gap-3", surfaceClasses(ctx), "p-5" }>
 				@staticText(domain.StaticPanelHeading, "Before you publish")
 				if change.Kind == aiassist.KindNewApplication && change.Application != nil && change.Application.PublisherRole != "" {

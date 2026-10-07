@@ -558,8 +558,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Adding an Application screen
   is writing Go today -- 36 of 38 navigation items point at a bespoke route, which 007 §12.4 forbids
   normatively. Seven of §12.2's eight Layouts, five §12.3 Components, Slot, UI IR, ten Static kinds and
-  all nine Theme categories are built (2026-10-02/06); 13 layout sites remain. Next: a Button/Field
-  Component (five Theme keys wait on it), then a `page:` block in YAML. Plan and corrections:
+  all nine Theme categories are built (2026-10-02/07); the 18 hand-written layout sites left are each a
+  documented floor, not debt. Next: a `page:` block in YAML. Plan and corrections:
   `menata-app-document`'s `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`.
 - Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
   native app, no app-store install required.

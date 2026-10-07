@@ -82,7 +82,7 @@ templ InferencePage(v InferenceView, workspaceName string, viewer Viewer, switch
 // inferenceSummary states the one thing a reader wants before reading anything: is there something to
 // act on. Two statuses count as defects (undeclared, input unavailable) and two do not.
 templ inferenceSummary(v InferenceView) {
-	<section class={ surfaceClasses(ctx), "p-5" }>
+	@panelLayout() {
 		if v.Defects == 0 {
 			<div class="flex items-center gap-2 text-sm">
 				@statusBadge("nothing to act on", domain.ToneGood, domain.BadgeRegular)
@@ -101,7 +101,7 @@ templ inferenceSummary(v InferenceView) {
 			<strong>input unavailable</strong> means the declaration exists but the caller had nothing to resolve it against.
 			<strong>not applicable</strong> is correct and the most common: the question belongs to a different role, or the feature is not installed here.
 		</p>
-	</section>
+	}
 }
 
 templ inferenceEngineBlock(e InferenceEngine) {

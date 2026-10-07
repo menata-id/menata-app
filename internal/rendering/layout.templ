@@ -499,7 +499,8 @@ func rowJustify(j domain.RowJustify) string {
 // rowLayout is horizontal flow that wraps -- the second most common shape in the corpus after `stack`, and the
 // last of §12.2's measured-in-use primitives to be built.
 //
-// **22 of its 33 sites migrate, and the other eleven are a floor rather than debt**, in three kinds:
+// **22 of its 33 sites migrate, and the other eleven are a floor rather than debt**, in three kinds (nine remain
+// after later migrations; `handWrittenLayoutSites` in `internal/conformance` reads each of them by name):
 //
 //   - **seven carry non-layout classes on the same element** -- typography (`text-sm`, `text-3xs
 //     text-slate-600`), decoration (`border-b … pb-1.5`) or sizing (`sm:w-32`). Absorbing them would mean this

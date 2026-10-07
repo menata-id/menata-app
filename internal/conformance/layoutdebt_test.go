@@ -26,24 +26,38 @@ import (
 // be the ~50%-false-finding shape this repo has deleted twice. What the syntax cannot tell apart is noted
 // per entry instead.
 //
-// **Neither remaining floor is zero, and that is a finding rather than a shortfall.** A site stays
+// **Every remaining entry is a floor, and that is a finding rather than a shortfall.** A site stays
 // hand-written when absorbing it would make the primitive accept something it must not: a CSS class string
-// (007 §12.3's "arbitrary properties", §15.2's framework classes), a second gap ladder for two sites, or a
-// choice of HTML element the vocabulary has no word for. Each entry below says which. Reading the floor as
-// debt would push exactly the wrong change.
+// (007 §12.3's "arbitrary properties", §15.2's framework classes), a second gap ladder for two sites, a
+// choice of HTML element the vocabulary has no word for, or an `aria-label` that makes a `<section>` a
+// landmark. Each entry below says which, site by site. Reading the floor as debt would push exactly the
+// wrong change. `grid` and `columns` have reached zero: `grid`'s key is *absent* rather than empty, because
+// an entry naming a kind with no sites fails too.
 //
 // Measured 2026-10-03 across every `.templ`, after two earlier measurements got the population wrong --
 // the first counted frequency and not uniformity, the second counted uniformity and not parameterisability
-// (see `domain.LayoutKind`'s retraction). **45 sites in 20 files -> 35**, over three slices the same
-// day: `grid` (5), `split` (5), `row` (22), then `columns` (5) and `section` (17). `grid`'s key is *absent* rather than zero, because an entry
-// naming a kind with no sites fails too.
+// (see `domain.LayoutKind`'s retraction). 45 sites in 20 files then; **read the current numbers out of the
+// map below**, which is what the 2026-10-07 slices (section 14 -> 8, columns 4 -> 0, row re-read) moved.
 var handWrittenLayoutSites = map[string]map[string]int{
-	// `row`: horizontal flow that wraps. **22 of 33 sites migrated on 2026-10-03; these eleven are the
-	// floor.** Three kinds, none of them debt: seven carry typography, decoration or sizing on the same
-	// element (absorbing them would make the primitive take a CSS class string -- 007 §12.3, §15.2); two want
-	// an asymmetric column/row gap the single Gap ladder cannot express; and two are not a `<div>` at all (a
-	// `<form>` and a `<span>`), which is the one genuine missing capability here -- choosing the element needs
-	// §12.5 Slot or a Component, i.e. Stage 2. `rendering.rowLayout`'s comment carries the per-site reasons.
+	// `row`: horizontal flow that wraps. **24 of 33 sites migrated; the nine left are read one by one below
+	// (2026-10-07), and the earlier "eleven, two of them needing a capability" was a count of kinds, not of
+	// sites.** Re-read: four are not a `<div>`, but only **one** of those four is a bare element swap -- the
+	// others carry typography, an asymmetric gap or a form binding as well, so an element enum would fix one site
+	// of nine and be shape-before-need for the rest. None is debt:
+	//   - `appsettings` (a `<span>`, `text-sm text-slate-400`): element and typography together.
+	//   - `inference` (`border-b border-slate-100 pb-1.5`): a heading underline, which
+	//     `TestHandWrittenDividersOnlyShrink` already reads as a region rule rather than a row separator.
+	//   - `installapplication` (a `<form method action>`): element plus 007 §11.3 Binding, which has no primitive.
+	//   - `machine` (a `<span>`, `gap-x-2 gap-y-1`, `text-xs`): element, an asymmetric gap and typography.
+	//   - `reviewdocument` x2: line ~223 is a `<span>` and the **only pure element swap** among the nine; the
+	//     signature legend carries `text-3xs text-slate-500`.
+	//   - `rolematrix` (`gap-x-3 gap-y-1`): an asymmetric gap; `machine`'s is `gap-x-2`, so the two are not even
+	//     one case, and a second Gap ladder for two different pairs is the thing §12.3 stops.
+	//   - `workspacemembers` x2 (`sm:w-32`, `sm:w-36`): a cell's width in a column the header row above fixes;
+	//     sizing, which is not layout.
+	// Building nothing is the result, and it is the boundary working: each site stays hand-written because
+	// absorbing it would make the primitive accept a CSS class string, a second gap ladder, or an element choice
+	// the vocabulary has no word for (§12.5 Slot / §12.3 Component, Stage 2).
 	"row": {
 		"appsettings.templ": 1, "inference.templ": 1, "installapplication.templ": 1, "machine.templ": 1,
 		"reviewdocument.templ": 2, "rolematrix.templ": 1, "workspacemembers.templ": 2,
@@ -54,20 +68,29 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	"split": {
 		"rolematrix.templ": 1,
 	},
-	// `columns`: content that stacks on a phone and sits side by side from `sm:` up. Five of its nine sites
-	// migrated on 2026-10-03; these four did not -- three carry `border-b`/padding and are `Collection`'s item
-	// shape rather than a bare columns, one is a panel that becomes columns.
-	"columns": {
-		"approvalinbox.templ": 1, "reviewdocument.templ": 1, "workspacemembers.templ": 2,
-	},
-	// `section`: a titled grouping of content (§12.2). **Unbuilt, and the largest remaining population** --
-	// measured only after the owner pointed out that Document Approval visibly uses it. 34 sites: 25
-	// hand-written `<section class=` plus `sectionHeaderRow`'s nine callers, which is the same concept with
-	// its heading already extracted. `layout.templ`'s one is `panelLayout` itself and is the floor.
+	// `columns` has no entry: its last four sites left on 2026-10-07 and an entry naming a kind with no sites
+	// fails. Three were one divided-list row (`dividedRowClasses`, a class reader -- `border-b` and `px-4` are not
+	// layout, so a `columnsLayout` taking them would accept arbitrary classes, 007 §12.3), and one was a panel that
+	// becomes columns (`panelLayout{ columnsLayout }`). `TestNoHandWrittenDividedRow` holds the first shape at zero.
+	// `section`: a bordered, padded surface that is also a `<section>` (§12.2). **Built (`sectionLayout`,
+	// `panelLayout`) and migrated 2026-10-07: 14 -> 8**, and the 8 are a floor, in three kinds:
+	//   - `layout.templ` (2): the two renderers themselves, which the pattern points *at*.
+	//   - four **named regions** -- `calendar` (a day cell whose border swaps by state), `newapplication`'s
+	//     conversation pane (`min-h-96`), and two on `workspacehome` (a clipped link list; the add-application
+	//     card). Each carries `aria-label`/`aria-labelledby`, which makes the `<section>` a landmark, and a
+	//     Layout accepting arbitrary attributes is what 007 §12.3 forbids by name -- the same reason the
+	//     `row` filter groups keep `role="group"` on a wrapper. **These four were invisible to the old
+	//     pattern** (`<section class=` cannot match `<section aria-label=... class=`), so the count that read
+	//     14 was an undercount of the same kind this gate has had before.
+	//   - two **not a stacking surface**: `account`'s Two-factor row (a non-wrapping row; `rowLayout` always
+	//     wraps) and `workspacemembers`' Remove-from-workspace zone (a `border-red-200` edge -- red is the
+	//     tone palette's family, not the slate-shade ladder `border.*` roles climb; `workspacesettings`' own
+	//     Danger zone is the second case and, being a `<div>`, is outside this pattern).
+	// `sectionHeaderRow`'s five callers were counted here until 2026-10-07 and are not any more: it is the
+	// heading a section *holds*, not a layout, and every caller now sits inside `stackLayout`.
 	"section": {
-		"account.templ": 1, "detail.templ": 4, "inference.templ": 1, "layout.templ": 2,
-		"machine.templ": 4, "newapplication.templ": 1,
-		"workspacemembers.templ": 1,
+		"account.templ": 1, "calendar.templ": 1, "layout.templ": 2, "newapplication.templ": 1,
+		"workspacehome.templ": 2, "workspacemembers.templ": 1,
 	},
 }
 
@@ -84,7 +107,7 @@ var layoutSitePatterns = map[string]*regexp.Regexp{
 	// recorded twice as having "zero measured uses" and has nine; `section` was dismissed as overlapping
 	// `panel` and has 34. A directive gate that under-reports by four times directs nothing.
 	"columns": regexp.MustCompile(`class="[^"]*(?:sm|md|lg):flex-row`),
-	"section": regexp.MustCompile(`<section class=|@sectionHeaderRow\(`),
+	"section": regexp.MustCompile(`<section\b[^>]*\bclass=`),
 }
 
 // TestHandWrittenLayoutSitesOnlyShrink is the directive half of the Experience Plane work.
@@ -122,11 +145,11 @@ func TestHandWrittenLayoutSitesOnlyShrink(t *testing.T) {
 	}
 
 	advice := map[string]string{
-		"row":     "use `rowLayout` (domain.RowAlign x RowJustify x Gap, all closed sets) -- unless this site is one of the eleven kinds of floor, in which case say which in the entry above rather than widening the primitive",
+		"row":     "use `rowLayout` (domain.RowAlign x RowJustify x Gap, all closed sets) -- unless this site is one of the nine read in the entry above, in which case say which in the entry above rather than widening the primitive",
 		"grid":    "use `gridLayout` (domain.GridCols x Gap)",
 		"split":   "use §12.2's `split` via `splitLayout` (domain.SplitSide x AsideWidth x Gap)",
-		"columns": "use §12.2's `columns` via `columnsLayout` (domain.ColumnsAlign x Gap) -- unless this site is a list row or a panel, which are the four that stayed",
-		"section": "use §12.2's `section` via `sectionLayout(Gap)` -- unless this site is one of the eight floor cases named in the entry above",
+		"columns": "use §12.2's `columns` via `columnsLayout` (domain.ColumnsAlign x Gap); a divided list row is `dividedRowClasses`",
+		"section": "use §12.2's `section` via `sectionLayout(Gap)` (stacks) or `panelLayout()` (does not), or `stackLayout` when there is no surface -- unless this site is one of the floor kinds named in the entry above",
 	}
 
 	for _, kind := range []string{"grid", "row", "split", "columns", "section"} {

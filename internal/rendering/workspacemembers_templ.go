@@ -379,7 +379,7 @@ func WorkspaceMembersPage(members []data.Membership, names map[string]string, pe
 				return templ_7745c5c3_Err
 			}
 			for _, m := range members {
-				var templ_7745c5c3_Var19 = []any{"flex flex-col gap-3 border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"}
+				var templ_7745c5c3_Var19 = []any{dividedRowClasses(ctx, domain.GapDefault)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var19...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -557,7 +557,7 @@ func WorkspaceMembersPage(members []data.Membership, names map[string]string, pe
 				}
 			}
 			for _, inv := range pending {
-				var templ_7745c5c3_Var27 = []any{"flex flex-col gap-3 border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"}
+				var templ_7745c5c3_Var27 = []any{dividedRowClasses(ctx, domain.GapDefault)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var27...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

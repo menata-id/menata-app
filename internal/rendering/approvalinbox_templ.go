@@ -596,7 +596,7 @@ func assignedTable(rows []AssignedRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, r := range rows {
-			var templ_7745c5c3_Var17 = []any{"flex flex-col gap-2 border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"}
+			var templ_7745c5c3_Var17 = []any{dividedRowClasses(ctx, domain.GapTight)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

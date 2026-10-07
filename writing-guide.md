@@ -1468,7 +1468,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 > to "one generic vocabulary, still reached from Go" — a real step and not the left column. What the
 > left column requires is §15.1's pipeline running from metadata, which is unbuilt. Forward pointer:
 > 007 §12.4's normative rule (a View MUST NOT be the universal composition primitive) and
-> `conformance.TestHandWrittenLayoutSitesOnlyShrink`, which carries the 51 sites still hand-written.
+> `conformance.TestHandWrittenLayoutSitesOnlyShrink`, which carries the sites still hand-written (read the count out of the map; each remaining one is a floor with its reason).
 
 | Generic (any Machine, metadata only) | Hardcoded to specific Machines (real Go code required for a new one) |
 |---|---|
