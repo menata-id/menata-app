@@ -1490,8 +1490,8 @@ similar-looking metadata for a *different* Machine does not activate it.
 **A Page's own layout is the next row to move, and the plan for it is written** (2026-09-30):
 `menata-app-document`'s `audits/2026-09-30-kajian-ui-ir-untuk-apa-dan-bagaimana-merealisasikannya.md`
 carries the staged plan, the farthest capability 001-007 authorises, and its boundary. Today a Page's
-arrangement is Go: 36 of 38 navigation items point at a bespoke route, which 007 §12.4 forbids
-normatively. What will move is the *arrangement* (Layout §12.2, Static Content §12.6, then bounded
+arrangement is Go: 33 of the 38 navigation items installed across Workspaces (nine distinct in the
+library; measured 2026-10-07) point at a bespoke route, which 007 §12.4 forbids normatively. What will move is the *arrangement* (Layout §12.2, Static Content §12.6, then bounded
 Components §12.3) -- **not** styling, which stays Theme (006) and must not arrive through composition,
 and not the eight identity/lifecycle screens, which 001 #9 keeps in the runtime.
 

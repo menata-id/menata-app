@@ -564,6 +564,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   by querying the Field. Neither survives being written down and trusted — and a *frozen* count is what
   makes stale prose beside it read as settled. When a stage ships a primitive, re-measure every deferral
   phrased that way, not only the ones the stage names.
+- `TestBespokeScreensOnlyShrink` / `TestPageBlockDeferralStaysTrueAndLandsDocumented` -- the two steering
+  gates of the `page:` block (2026-10-07; plan `menata-app-document`'s
+  `audits/2026-10-07-rencana-page-yaml-dan-gate-yang-akan-terkena.md`), installed **before** the primitive and
+  testing nothing that does not exist yet. The first is a directive ratchet over the `templ …Page(` functions
+  in `internal/rendering`: a closed map, a category and a reason per entry, **34 across five categories, 6 of
+  them `candidate`** (read the numbers out of the map); a new function fails and says to ask whether `page:` can
+  declare it, and an entry whose function is gone fails until deleted. Its categories are a *reading*, not a
+  measurement, and `candidate` is a hypothesis the plan's Tahap 0.2 tests. The second is a declared deferral in
+  `declaredPlaceholders`' shape that fails both ways: it must exist while `navItemDoc` has no `page` key, and the day
+  the key lands it must go **and** `writing-guide.md`, `capabilities.md` and 007 must mention `` `page:` `` -- the
+  four-document rule `theme:` broke. **The probe is the part to carry:** the plan predicted 22 gates would bite and
+  a scratchpad probe found two (the loader's strict decode, and `TestNavigationRoutesAreRegistered` once the route
+  is `/pages/…`); `installer`'s mirror carries navigation as `[]any`, so a nav key cannot break it. Predicting which
+  gates bite from reading is wrong often enough here that the probe comes first. Seven mutations, all biting.
 - `TestDocumentApprovalCouplingOnlyShrinks` — the third *ratchet*. `documentApprovalCoupling`
   freezes how many times each file outside `internal/action` names Document Approval's own
   Machine-id constants — frozen at 67 across 18 files on 2026-09-28 and **emptied the same day**, by
