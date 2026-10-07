@@ -33,7 +33,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 						name="name"
 						value={ name }
 						required
-						class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-900 outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm"
+						class={ "h-10.5", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-[15px]", inkClass(ctx, domain.InkStrong), "outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300 sm:h-9.5 sm:text-sm" }
 					/>
 				</div>
 				<div class="flex flex-col gap-2">

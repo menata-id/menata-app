@@ -943,3 +943,48 @@ func TestTiles_followTheThemeAtHandWrittenSites(t *testing.T) {
 		t.Errorf("a tile stayed on the literal edge colour under a declared theme")
 	}
 }
+
+func TestAuthenticatedFields_followTheThemeAtHandWrittenSites(t *testing.T) {
+	render := func(ctx context.Context, c templ.Component) string {
+		var buf strings.Builder
+		if err := c.Render(ctx, &buf); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+		return buf.String()
+	}
+	app := RoleApplication{ID: "app_x", Name: "X", Field: "role_x", Roles: []string{"approver"}}
+	sites := map[string]func(context.Context) string{
+		"account name field": func(ctx context.Context) string {
+			return render(ctx, ProfilePage("Ana", "a@b.c", "WS", Viewer{}, "/switch", ""))
+		},
+		"invite role select": func(ctx context.Context) string { return render(ctx, roleSelect("r1", app, "")) },
+		"signature width box": func(ctx context.Context) string {
+			return render(ctx, widthControl(PlacementStep{StepID: "s1", Width: 20}, 1))
+		},
+	}
+	th := domain.Theme{
+		Radius: map[domain.RadiusRole]domain.RadiusStep{domain.RadiusControl: domain.RadiusStepLarge},
+		Border: map[domain.BorderRole]domain.BorderShade{domain.BorderControl: domain.BorderSoft},
+	}
+	themed := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
+
+	// Anchors are each field's own tail, so a neighbouring surface carrying a similar edge cannot satisfy them.
+	for name, draw := range sites {
+		def := draw(context.Background())
+		if !strings.Contains(def, "border-slate-300") {
+			t.Errorf("%s: the default theme must keep the edge on the literal it replaced (border-slate-300)", name)
+		}
+		got := draw(themed)
+		if strings.Contains(got, "border-slate-300") && name != "account name field" {
+			t.Errorf("%s: stayed on border-slate-300 under a declared border.control", name)
+		}
+	}
+	acct := sites["account name field"](themed)
+	if !strings.Contains(acct, "h-10.5 rounded-lg border border-slate-200 bg-white px-3") {
+		t.Errorf("account name field did not move with radius.control + border.control:\n%s", acct)
+	}
+	sel := sites["invite role select"](themed)
+	if !strings.Contains(sel, "h-10.5 rounded-lg border border-slate-200 bg-white px-3") {
+		t.Errorf("roleSelect did not move with radius.control + border.control")
+	}
+}

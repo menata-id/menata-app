@@ -272,8 +272,9 @@ sites that are not tiles (seven button-shaped outlines waiting on D8, an image f
 control's track). Dashed empty states are another role and are not counted. `fieldClasses` and `surfaceClasses` are class readers and
 **not** registered Components on purpose: an input's attributes (`name`, `value`, `required`, `placeholder`, `min`, `step`, a
 hyperscript handler) are 007 §11.3 Binding, which has no primitive, and accepting them would be
-§12.3's "arbitrary properties". `conformance.TestHandWrittenFieldsOnlyShrink` holds the 7 hand-written
-slate-300 inputs that remain, each with its reason.
+§12.3's "arbitrary properties". `conformance.TestHandWrittenFieldsOnlyShrink` holds the 4 hand-written
+slate-300 inputs that remain; all are on pre-auth screens (sign in, register, ...) that render with no Workspace on ctx, so no
+`theme:` block can reach them. Account's name field, the invite-role select and the signature width box read `border.control`.
 
 It was added against a measurement, not a preference. While two stylesheets existed, a control
 written twice was written in two different systems and the duplication was invisible. With one

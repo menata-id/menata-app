@@ -310,7 +310,7 @@ templ roleSelect(id string, app RoleApplication, selected string) {
 	<select
 		id={ id }
 		name={ app.Field }
-		class="h-10.5 rounded-md border border-slate-300 bg-white px-3 text-[15px] sm:h-9.5 sm:w-56 sm:text-sm"
+		class={ "h-10.5", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-[15px] sm:h-9.5 sm:w-56 sm:text-sm" }
 	>
 		<option value="" selected?={ selected == "" }>{ displayRole("") }</option>
 		for _, r := range app.Roles {

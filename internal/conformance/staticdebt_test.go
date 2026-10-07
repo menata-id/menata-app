@@ -329,19 +329,20 @@ func TestHandWrittenButtonsOnlyShrink(t *testing.T) {
 }
 
 // handWrittenFieldFloors are the `.templ` sites that draw an `<input>`/`<select>`/`<textarea>` with a literal
-// `border-slate-300` instead of `fieldClasses(ctx)`. Each is a floor with its reason: the first six are the
-// 15px / `h-10.5` mobile touch-target inputs (controls.templ's own header records that as a decision, not
-// drift -- `fieldClasses` is `h-9` / `text-sm`, and a size is not a Theme role yet), and the last is a 4rem
-// number box inside a row of controls. Counted 2026-10-06 by the tag's own `class="..."` token set, `//` lines
-// removed. **What the pattern cannot see**, stated rather than hidden: an input whose class arrives from a Go
-// function (`approverUserClass` reads `fieldClasses`, so it is fine), and the read-only email box in
-// account.templ, which is slate-200 on slate-50 -- a disabled look, not an input's own box.
+// `border-slate-300` instead of reading `border.control`. **The four that remain are all on pre-auth screens, and
+// that is the reason rather than the 15px size** (2026-10-07): `currentWorkspace` is installed only inside the
+// authenticated route group (`internal/web/router.go`), so sign in, register, password reset, accept-invite and choose-workspace
+// render with no Workspace on ctx and no `theme:` block can reach them. The earlier note called all seven "a size is
+// not a Theme role yet"; the three authenticated ones (account's name field, the invite-role select, the signature
+// width box) never needed the size to be a role -- they kept `h-10.5`/`text-[15px]` as literals and now read
+// `radius.control`, `border.control` and `ink.strong` around them. Counted by the tag's own class token set after
+// `joinClassExpressions` (so a spliced site that still carries the literal is seen), `//` lines removed. **What the
+// pattern cannot see**, stated rather than hidden: an input whose class arrives from a Go function
+// (`approverUserClass` reads `fieldClasses`, so it is fine), and the read-only email box in account.templ, which is
+// slate-200 on slate-50 -- a disabled look, not an input's own box.
 var handWrittenFieldFloors = map[string]int{
-	"account.templ":            1, // 15px mobile target
-	"authshell.templ":          2, // pre-auth kit (authField, authPasswordField)
-	"login.templ":              2, // pre-auth, 15px mobile target
-	"signatureplacement.templ": 1, // w-16 number box, px-1.5 py-0.5 text-2xs
-	"workspacemembers.templ":   1, // h-10.5 invite-role select
+	"authshell.templ": 2, // pre-auth kit (authField, authPasswordField)
+	"login.templ":     2, // pre-auth, 15px mobile target
 }
 
 var fieldTagOpen = regexp.MustCompile(`(?s)<(?:input|select|textarea)\b(?:[^>{]|\{[^}]*\})*>`)
@@ -363,7 +364,7 @@ func TestHandWrittenFieldsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := mutedParaNote.ReplaceAllString(string(b), "")
+		src := joinClassExpressions(mutedParaNote.ReplaceAllString(string(b), ""))
 		for _, tag := range fieldTagOpen.FindAllString(src, -1) {
 			if m := fieldTagClass.FindStringSubmatch(tag); m != nil && has300.MatchString(m[1]) {
 				actual[e.Name()]++
