@@ -63,7 +63,7 @@ const validPage = `
     route: /pages/nav_by_status
     page:
       layout: grid
-      columns: "3"
+      columns: "4"
       mobile: "1"
       gap: default
       children:

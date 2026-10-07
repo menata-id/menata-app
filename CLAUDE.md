@@ -589,6 +589,14 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   side only** (`{dataset, measure, rows: dimension}`, `Metric` only). Never write "screen X is declarative" on the
   strength of this. **Installing copies**, so a library change to a bound Dataset reaches no earlier Workspace -- the load
   error on a missing Dataset is what stands in for remembering.
+  **Post-primitive gates (2026-10-07):** `TestEveryInstalledPageLowersAndValidates` (every installed `page:` re-checked
+  against `ir.Validate`, not only by the loader) and `TestDeclaredPagePipelineHasNoPerScreenBranch` (no nav/Machine/
+  Application/Dataset/Field id literal in the six files between YAML and pixels). **The probe is why the first exists and
+  what it found:** with the loader's `validatePages` call disabled, only one unit test failed -- no gate over installed
+  manifests -- and raising an installed page's `columns` to 9 passed even the new sweep, because `ir.Validate` checked
+  property *keys* and never *values*, so a bad `columns`/`gap` loaded and rendered as the default. `ir.layoutPropValues`
+  now closes it (read from `domain.Known*`), and `rendering.gridColsFromProp`'s "ir.Validate refuses a bad tree" comment
+  is true for the first time. A page's layout values are closed; Component values already were (registered validators).
 - `TestDocumentApprovalCouplingOnlyShrinks` — the third *ratchet*. `documentApprovalCoupling`
   freezes how many times each file outside `internal/action` names Document Approval's own
   Machine-id constants — frozen at 67 across 18 files on 2026-09-28 and **emptied the same day**, by

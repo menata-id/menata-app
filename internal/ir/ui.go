@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"strconv"
 
 	"menata.app/internal/domain"
 )
@@ -144,9 +145,11 @@ func validate(n UINode, depth int, ancestry map[string]bool, issues *[]string) {
 	// (4) bindings outside the permitted scope. Props are the binding surface this node has, and the
 	// permitted scope is "what this node's type declares". Fail closed, the way 007 §9.2's allowed-context
 	// rule does: an unrecognised key is a rejection, not a value the renderer quietly ignores.
-	for k := range n.Props {
+	for k, v := range n.Props {
 		if !propAllowed(n, k) {
 			*issues = append(*issues, fmt.Sprintf("%s %q carries property %q, which its type does not declare (007 §15.3, binding outside the permitted scope)", n.Kind, n.Type, k))
+		} else if !propValueAllowed(n, k, v) {
+			*issues = append(*issues, fmt.Sprintf("%s %q property %q is %q, which is not one of its closed values -- the renderer would fall back to the default and the declaration would silently say something else", n.Kind, n.Type, k, v))
 		}
 	}
 
@@ -215,6 +218,41 @@ var allowedProps = map[string][]string{
 	"component/Collection":  {"gap"},
 	"component/Field":       {"label", "for"},
 	"component/Button":      {"label", "variant", "name", "value"},
+}
+
+// layoutPropValues is the closed value set of each Layout property, read from the vocabulary in `domain` so a
+// new member is one place. An empty value is the default every renderer resolves, so it is accepted.
+//
+// **Why a value is checked and not only a key.** A key outside `allowedProps` was already a rejection, but a
+// declared key with an unknown value (`columns: 9`, `gap: huge`) reached the renderer, whose closed parse
+// falls back to the default: a declaration that loads, renders and silently does something other than what it
+// says. Probed 2026-10-07 by raising an installed page's `columns` to 9 with the loader's page check disabled --
+// the sweep stayed green, because nothing past the key was read.
+var layoutPropValues = map[string]func(string) bool{
+	"gap":     func(v string) bool { return domain.KnownGaps[domain.Gap(v)] },
+	"align":   func(v string) bool { return domain.KnownRowAligns[domain.RowAlign(v)] },
+	"justify": func(v string) bool { return domain.KnownRowJustifies[domain.RowJustify(v)] },
+	"side":    func(v string) bool { return domain.KnownSplitSides[domain.SplitSide(v)] },
+	"aside":   func(v string) bool { return domain.KnownAsideWidths[domain.AsideWidth(v)] },
+	"mobile":  gridColsKnown,
+	"columns": gridColsKnown,
+}
+
+func gridColsKnown(v string) bool {
+	for c := range domain.KnownGridCols {
+		if strconv.Itoa(int(c)) == v {
+			return true
+		}
+	}
+	return false
+}
+
+func propValueAllowed(n UINode, key, value string) bool {
+	if n.Kind != NodeLayout || value == "" {
+		return true
+	}
+	check, ok := layoutPropValues[key]
+	return !ok || check(value)
 }
 
 func propAllowed(n UINode, key string) bool {

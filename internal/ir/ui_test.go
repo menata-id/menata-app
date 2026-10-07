@@ -102,3 +102,23 @@ func TestValidateRefusesUnknownTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateRefusesAnUnknownLayoutPropertyValue(t *testing.T) {
+	grid := func(props map[string]string) UINode {
+		return UINode{Kind: NodeLayout, Type: "grid", Props: props, Children: []UINode{heading("x")}}
+	}
+	for _, props := range []map[string]string{
+		{"columns": "9"}, {"mobile": "3"}, {"gap": "huge"}, {"columns": "four"},
+	} {
+		if issues := Validate(grid(props)); len(issues) == 0 {
+			t.Errorf("Validate accepted grid %v -- the renderer would fall back to its default and the declaration would silently mean something else", props)
+		}
+	}
+	for _, props := range []map[string]string{
+		nil, {"gap": "default"}, {"columns": "4", "mobile": "2"}, {"gap": ""},
+	} {
+		if issues := Validate(grid(props)); len(issues) != 0 {
+			t.Errorf("Validate refused grid %v: %v", props, issues)
+		}
+	}
+}
