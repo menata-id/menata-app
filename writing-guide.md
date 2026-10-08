@@ -939,7 +939,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 | Key | Value | Meaning |
 |---|---|---|
 | `layout:` | `stack`, `row`, `grid`, `split`, `panel` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `stack` `gap`; `row` `gap`, `align`, `justify`; `grid` `gap`, `mobile`, `columns`; `split` `gap`, `side`, `aside`; `panel` none |
-| `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. `link` is **not yet** available on a page: it needs a destination, and a page has no way to declare one (`ir.TestValidateAcceptsEveryStaticKindWithItsText` holds that list) |
+| `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
 | `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
 `children:` is a list of nodes. The root must be a `layout:`. Any key a node's type does not declare is a
@@ -976,6 +976,25 @@ Machine already said about its shape. Rules, all checked at load:
 - a role whose Field is a **reference** to another Machine is refused: resolving it reads the whole related
   Machine (007 §20), which a list would repeat per page view. Ask for a role backed by a plain Field;
 - a role the Machine does not declare is a load error, not a blank cell.
+
+**`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and
+nothing else:
+
+```yaml
+- static: link
+  to: nav_approval_inbox
+```
+
+The route is read from that item's `route:` and the words default to its `label:`, so renaming either in
+`navigation:` moves every page that links to it. Rules, all load errors:
+
+- `to:` is required on a `link` and valid on nothing else;
+- `href:` is not a property a page may write -- a route is declared once, in `navigation:` (001 #3, #8);
+- the id must be an item in **the same Application's** `navigation:`, including one in a hidden group (the list
+  is read before `hidden_nav_groups` filtering, as `rendering.routeByID` reads it);
+- `text:` may be written when the link should say something other than the item's label.
+
+A link to a *record* (one row of a list opening its own detail screen) is not available yet.
 
 ```yaml
 - component: Collection

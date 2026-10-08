@@ -87,12 +87,11 @@ func TestValidateAcceptsTheHeaderTree(t *testing.T) {
 	}
 }
 
-// heldOutStaticKinds are the Static kinds a node may not yet carry text for, each with the reason. `link` needs a
-// destination as well as text and a page has no way to declare one (the plan's Tahap 2); every other kind is
-// text-only. An entry whose kind has since gained a property entry fails, so the list cannot outlive its reason.
-var heldOutStaticKinds = map[domain.StaticKind]string{
-	domain.StaticLink: "a link needs a destination, which a declared page cannot yet give it",
-}
+// heldOutStaticKinds are the Static kinds a node may not yet carry text for, each with the reason. It is empty
+// since `link` gained `to:` (Tahap 2a, 2026-10-08) and stays declared: the next kind that cannot be declared
+// yet is named here instead of being absent from allowedProps unnoticed. An entry whose kind has since gained
+// a property entry fails, so the list cannot outlive its reason.
+var heldOutStaticKinds = map[domain.StaticKind]string{}
 
 // TestValidateAcceptsEveryStaticKindWithItsText closes the gap that made a drawn Static kind unreachable from
 // YAML: `ir.Validate` accepts a kind as a type via domain.KnownStaticKinds, but a node's properties are checked

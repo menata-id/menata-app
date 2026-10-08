@@ -1656,12 +1656,13 @@ func uiNode(n ir.UINode) templ.Component {
 				}
 			}
 		case ir.NodeStatic:
-			if domain.StaticKind(n.Type) == domain.StaticLink {
+			switch domain.StaticKind(n.Type) {
+			case domain.StaticLink:
 				templ_7745c5c3_Err = staticLink(n.Props["href"], n.Props["text"]).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-			} else {
+			default:
 				templ_7745c5c3_Err = staticText(domain.StaticKind(n.Type), n.Props["text"]).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

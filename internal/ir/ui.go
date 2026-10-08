@@ -218,6 +218,7 @@ var allowedProps = map[string][]string{
 	"static/caption":        {"text"},
 	"static/message":        {"text"},
 	"static/note":           {"text"},
+	"static/link":           {"href", "text"},
 	"component/StatusBadge": {"label", "tone"},
 	"component/Avatar":      {"initials", "label", "size", "presence"},
 	"component/Metric":      {"label", "value", "hint", "tone"},

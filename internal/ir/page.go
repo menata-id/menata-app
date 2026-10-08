@@ -25,11 +25,31 @@ type RowResolver func(b domain.PageBinding) ([]Row, error)
 // something the Dataset's Machine does not project), not an empty string.
 type RecordResolver func(b domain.PageBinding) ([]map[string]string, error)
 
-// Resolver is what Lower may ask the outside world. Either half may be nil when the tree has no Binding of
-// that mode; a Binding Lower cannot answer is an error rather than a panic.
+// RouteResolver answers a `to:`: the route and the label of the navigation item named navID, or ok=false when
+// the Application declares none. It is injected for the same reason the two above are, and it is a closure
+// over *data* (the Application's `navigation:`), so it carries no id of its own.
+type RouteResolver func(navID string) (route, label string, ok bool)
+
+// NavigationRoutes is the RouteResolver over a list of navigation items. It is given
+// `domain.Application.AllNavigation` -- the list frozen before `hidden_nav_groups` filtering, the same list
+// `rendering.routeByID` reads -- so a link to an item in a hidden group still resolves.
+func NavigationRoutes(items []domain.NavigationItem) RouteResolver {
+	return func(navID string) (string, string, bool) {
+		for _, it := range items {
+			if it.ID == navID {
+				return it.Route, it.Label, true
+			}
+		}
+		return "", "", false
+	}
+}
+
+// Resolver is what Lower may ask the outside world. Any part may be nil when the tree has no use of it (no
+// Binding of that mode, no `to:`); asking for one that is nil is an error rather than a panic.
 type Resolver struct {
 	Rows    RowResolver
 	Records RecordResolver
+	Route   RouteResolver
 }
 
 // Lower turns a declared `page:` into UI IR (007 §15.1's "Build UI IR"), expanding every Binding through
@@ -80,6 +100,10 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 			return nil, err
 		}
 	}
+	props, err := lowerLink(n, props, r, path)
+	if err != nil {
+		return nil, err
+	}
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
 	for i, c := range n.Children {
 		kids, err := lower(c, r, fmt.Sprintf("%s.children[%d]", path, i), record)
@@ -89,6 +113,43 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 		out.Children = append(out.Children, kids...)
 	}
 	return []UINode{out}, nil
+}
+
+// lowerLink resolves a `static: link`'s destination. A link names its target by navigation item id (`to:`) and
+// never by route, so `href` is not a property an author may write: it is the one thing this step produces.
+// `text` defaults to the item's own label -- the words the menu already uses for that screen -- and may be
+// written (or taken `from:` a record) when the link should say something else. `to:` on any other node is
+// refused rather than ignored, for the reason `from:` outside a template is.
+func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path string) (map[string]string, error) {
+	isLink := n.Kind == string(NodeStatic) && n.Type == string(domain.StaticLink)
+	if !isLink {
+		if n.To != "" {
+			return nil, fmt.Errorf("%s: to: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
+		}
+		return props, nil
+	}
+	if n.To == "" {
+		return nil, fmt.Errorf("%s: a link names its destination with to: <navigation item id>", path)
+	}
+	if _, written := props["href"]; written {
+		return nil, fmt.Errorf("%s: a link's destination is to: <navigation item id>, never a typed href -- a route is declared once, in navigation (001 #3, #8)", path)
+	}
+	if r.Route == nil {
+		return nil, fmt.Errorf("%s: no resolver for routes", path)
+	}
+	route, label, ok := r.Route(n.To)
+	if !ok {
+		return nil, fmt.Errorf("%s: to: %s names no navigation item in this Application", path, n.To)
+	}
+	out := make(map[string]string, len(props)+2)
+	for k, v := range props {
+		out[k] = v
+	}
+	out["href"] = route
+	if _, has := out["text"]; !has && n.From["text"] == "" {
+		out["text"] = label
+	}
+	return out, nil
 }
 
 func fillFrom(n domain.PageNode, record map[string]string, path string) (map[string]string, error) {

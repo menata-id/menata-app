@@ -24,8 +24,12 @@ import (
 //
 // viewerID is the viewing identity's own record id, handed to `$current_user` filters. A Dataset that filters
 // on it and receives "" fails closed in `predicatesFor` rather than listing everyone's records.
-func DeclaredPage(ctx context.Context, l *Loader, viewerID string, page domain.PageNode) (ir.UINode, error) {
+//
+// navigation is the Application's `AllNavigation`, which a `to:` resolves against; a page is a body the
+// Application declared, so its links reach that Application's own screens.
+func DeclaredPage(ctx context.Context, l *Loader, viewerID string, navigation []domain.NavigationItem, page domain.PageNode) (ir.UINode, error) {
 	return ir.Lower(page, ir.Resolver{
+		Route: ir.NavigationRoutes(navigation),
 		Rows: func(b domain.PageBinding) ([]ir.Row, error) {
 			return bindingRows(ctx, l, b)
 		},

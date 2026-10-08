@@ -30,7 +30,7 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 				continue
 			}
 			viewerID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), viewerID, *item.Page)
+			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), viewerID, app.AllNavigation, *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return

@@ -60,7 +60,7 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 				if want := "/pages/" + item.ID; item.Route != want {
 					t.Errorf("%s: route is %q but a page is rendered at %q", where, item.Route, want)
 				}
-				res := metadata.PlaceholderResolver()
+				res := metadata.PlaceholderResolver(app.AllNavigation)
 				rows, records := res.Rows, res.Records
 				declared := func(b domain.PageBinding) {
 					if _, ok := datasets[b.Dataset]; !ok {
@@ -297,5 +297,51 @@ func TestRecordsBindingProblemsSeesEachFault(t *testing.T) {
 		if got := recordsBindingProblems(page, owner); len(got) == 0 {
 			t.Errorf("%s: no problem reported", name)
 		}
+	}
+}
+
+// TestEveryInstalledLinkNamesANavigationItemAndTypesNoRoute holds Tahap 2a's rule against the real manifests:
+// a `static: link` on an installed page names its destination with `to:`, that id is one the same Application
+// declares, and the node carries no `href` of its own. It asserts the *declaration* directly instead of
+// leaning on `ir.Lower`'s refusals, so it still fails if Lower stopped checking, and it fails when no installed
+// page holds a link, so it cannot pass by measuring nothing.
+func TestEveryInstalledLinkNamesANavigationItemAndTypesNoRoute(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+	links := 0
+	for _, slug := range sortedKeys(wss) {
+		for _, app := range wss[slug].Workspace.Applications {
+			declared := map[string]bool{}
+			for _, it := range app.AllNavigation {
+				declared[it.ID] = true
+			}
+			var walk func(n domain.PageNode, where string)
+			walk = func(n domain.PageNode, where string) {
+				if n.Kind == "static" && n.Type == string(domain.StaticLink) {
+					links++
+					if !declared[n.To] {
+						t.Errorf("%s: link to %q names no navigation item of this Application", where, n.To)
+					}
+					if _, typed := n.Props["href"]; typed {
+						t.Errorf("%s: link carries a typed href; its destination is to: <navigation id>", where)
+					}
+				} else if n.To != "" {
+					t.Errorf("%s: to: on a node that is not a link", where)
+				}
+				for _, c := range n.Children {
+					walk(c, where)
+				}
+			}
+			for _, item := range app.AllNavigation {
+				if item.Page != nil {
+					walk(*item.Page, slug+"/"+app.ID+"/"+item.ID)
+				}
+			}
+		}
+	}
+	if links == 0 {
+		t.Fatal("no installed page declares a `static: link` -- this gate is measuring nothing")
 	}
 }

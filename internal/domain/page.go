@@ -22,7 +22,12 @@ type PageNode struct {
 	// record the enclosing records-bound Collection is drawing: `{text: title}` means "this node's text is
 	// that record's title". Valid only inside such a Collection's item template -- `ir.Lower` refuses it
 	// anywhere else, and the property it names may not also be written on the node.
-	From     map[string]string
+	From map[string]string
+	// To is the navigation item a `static: link` points at (`to: nav_approval_inbox`). A link's destination is
+	// never a typed route (001 #3, #8): `ir.Lower` resolves it from the Application's own `navigation:`, so
+	// renaming a route in one place moves every page that links to it. Valid only on a `link`, which in turn
+	// has no other way to name a destination.
+	To       string
 	Children []PageNode
 }
 

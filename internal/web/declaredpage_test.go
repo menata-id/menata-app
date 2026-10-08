@@ -124,6 +124,29 @@ func TestDeclaredPageListsRecordsFromTheMachinesProjection(t *testing.T) {
 	}
 }
 
+// TestDeclaredPageLinkComesFromNavigationNotFromTheYAML: the page writes `to: nav_approval_inbox` and nothing
+// else, so the href and the words must be what the Application's own navigation declares. Expected values are
+// read out of the loaded navigation rather than typed, which is the property under test.
+func TestDeclaredPageLinkComesFromNavigationNotFromTheYAML(t *testing.T) {
+	h, cookie, _, _, _, ws, _ := routerSetupFor(t, "declaredlink", "nana-2-workspace")
+	var route, label string
+	for _, app := range ws.Applications {
+		for _, item := range app.AllNavigation {
+			if item.ID == "nav_approval_inbox" {
+				route, label = item.Route, item.Label
+			}
+		}
+	}
+	if route == "" || label == "" {
+		t.Fatal("nana-2-workspace declares no nav_approval_inbox with a route and a label")
+	}
+	body := getPage(t, h, cookie, "/pages/nav_documents_by_status")
+	want := regexp.MustCompile(`<a href="` + regexp.QuoteMeta(route) + `"[^>]*>` + regexp.QuoteMeta(label) + `</a>`)
+	if !want.MatchString(body) {
+		t.Errorf("no link to %s reading %q reached the page", route, label)
+	}
+}
+
 func getPage(t *testing.T, h http.Handler, cookie, path string) string {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, path, nil)

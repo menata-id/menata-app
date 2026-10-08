@@ -184,6 +184,11 @@ func TestPage_faultsAreRefusedAtLoad(t *testing.T) {
 		{"from outside any records template", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: paragraph\n          from: { text: title }\n"), "from: is valid only"},
 		{"from as a list", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: paragraph\n          from: [title]\n"), "from: is a mapping"},
 		{"from with an expression value", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: paragraph\n          from: { text: [title] }\n"), "names one Projection role"},
+		{"link to an item the Application does not declare", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: link\n          to: nav_missing\n"), "nav_missing"},
+		{"link with a typed href", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: link\n          to: nav_p\n          href: /typed\n"), "never a typed href"},
+		{"link with no destination", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: link\n          text: x\n"), "to: <navigation item id>"},
+		{"to on a node that is not a link", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: paragraph\n          to: nav_p\n"), "only on static: link"},
+		{"to as a route", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: link\n          to: [nav_p]\n"), "never a route"},
 		{"depth beyond the maximum", item("/pages/nav_p", deep(12)), "depth"},
 	}
 	for _, c := range cases {
@@ -196,6 +201,14 @@ func TestPage_faultsAreRefusedAtLoad(t *testing.T) {
 				t.Errorf("error = %v; want it to mention %q", err, c.want)
 			}
 		})
+	}
+}
+
+func TestPage_aLinkResolvesAgainstTheApplicationsOwnNavigation(t *testing.T) {
+	nav := "  - id: nav_other\n    label: Other\n    route: /other\n" +
+		"  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n        - static: link\n          to: nav_other\n"
+	if err := pageFixture(t, nav); err != nil {
+		t.Fatalf("a link to a declared sibling must load: %v", err)
 	}
 }
 

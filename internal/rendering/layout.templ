@@ -675,10 +675,11 @@ templ uiNode(n ir.UINode) {
 					}
 			}
 		case ir.NodeStatic:
-			if domain.StaticKind(n.Type) == domain.StaticLink {
-				@staticLink(n.Props["href"], n.Props["text"])
-			} else {
-				@staticText(domain.StaticKind(n.Type), n.Props["text"])
+			switch domain.StaticKind(n.Type) {
+				case domain.StaticLink:
+					@staticLink(n.Props["href"], n.Props["text"])
+				default:
+					@staticText(domain.StaticKind(n.Type), n.Props["text"])
 			}
 		case ir.NodeComponent:
 			switch domain.ComponentType(n.Type) {

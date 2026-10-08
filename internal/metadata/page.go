@@ -24,7 +24,7 @@ import (
 // ones the node's type does not declare. The strictness lives in one place, the one that already knows the
 // vocabulary.
 //
-// The reserved keys are the three discriminators, `children`, `binding` and `from`. Exactly one discriminator per
+// The reserved keys are the three discriminators, `children`, `binding`, `from` and `to`. Exactly one discriminator per
 // node: `layout:`, `static:` or `component:`, whose value is the type.
 type pageNodeDoc struct {
 	kind     string
@@ -32,6 +32,7 @@ type pageNodeDoc struct {
 	props    map[string]string
 	binding  *pageBindingDoc
 	from     map[string]string
+	to       string
 	children []pageNodeDoc
 }
 
@@ -72,6 +73,11 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return err
 			}
 			p.from = f
+		case "to":
+			if val.Kind != yaml.ScalarNode || val.Value == "" {
+				return fmt.Errorf("line %d: to: names one navigation item id, such as nav_approval_inbox -- never a route", key.Line)
+			}
+			p.to = val.Value
 		case "binding":
 			b, err := decodePageBinding(val)
 			if err != nil {
@@ -139,7 +145,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -159,8 +165,12 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 // row, and one record that projects every role in `domain.KnownCardFieldRoles`. A `from:` naming anything
 // outside that vocabulary therefore fails to lower, which is how a typo in a role is a load error. Exported so
 // the conformance sweep over installed manifests asks the same question the loader does.
-func PlaceholderResolver() ir.Resolver {
+//
+// Routes are **not** a placeholder: a `to:` is resolved against the Application's real navigation, because
+// whether that item exists is exactly what is being checked, and no database is needed to know.
+func PlaceholderResolver(navigation []domain.NavigationItem) ir.Resolver {
 	return ir.Resolver{
+		Route: ir.NavigationRoutes(navigation),
 		Rows: func(domain.PageBinding) ([]ir.Row, error) {
 			return []ir.Row{{Label: "label", Value: "0"}}, nil
 		},
@@ -228,7 +238,7 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 				continue
 			}
 			issues = append(issues, bindingIssues(*item.Page, datasets, byID, where)...)
-			issues = append(issues, shapeIssues(*item.Page, where)...)
+			issues = append(issues, shapeIssues(*item.Page, app.AllNavigation, where)...)
 		}
 	}
 	if len(issues) > 0 {
@@ -332,9 +342,9 @@ func slicesHasMeasure(ds domain.Dataset, id string) bool {
 	return false
 }
 
-func shapeIssues(root domain.PageNode, where string) []string {
+func shapeIssues(root domain.PageNode, navigation []domain.NavigationItem, where string) []string {
 	ensureIRVocabulary()
-	tree, err := ir.Lower(root, PlaceholderResolver())
+	tree, err := ir.Lower(root, PlaceholderResolver(navigation))
 	if err != nil {
 		return []string{fmt.Sprintf("%s: %v", where, err)}
 	}

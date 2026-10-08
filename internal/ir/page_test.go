@@ -203,3 +203,62 @@ func TestLower_aRecordsBindingNeedsARecordResolver(t *testing.T) {
 		t.Error("Lower accepted a records binding with no record resolver")
 	}
 }
+
+func linkTo(navID string, props map[string]string) domain.PageNode {
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "link", To: navID, Props: props}}}
+}
+
+func navFixture(route string) Resolver {
+	return Resolver{Route: NavigationRoutes([]domain.NavigationItem{{ID: "nav_x", Label: "The Label", Route: route}})}
+}
+
+func TestLower_linkResolvesItsRouteAndDefaultsItsTextToTheNavigationLabel(t *testing.T) {
+	tree, err := Lower(linkTo("nav_x", nil), navFixture("/somewhere"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := tree.Children[0].Props
+	if got["href"] != "/somewhere" || got["text"] != "The Label" {
+		t.Errorf("props = %v; want href=/somewhere text=The Label", got)
+	}
+	if issues := Validate(tree); len(issues) != 0 {
+		t.Errorf("a resolved link must validate: %v", issues)
+	}
+}
+
+// The same page over two navigations links to two routes: the destination is data, not part of the tree.
+func TestLower_theSamePageLinksWhereverTheNavigationPointsIt(t *testing.T) {
+	a, _ := Lower(linkTo("nav_x", nil), navFixture("/one"))
+	b, _ := Lower(linkTo("nav_x", nil), navFixture("/two"))
+	if a.Children[0].Props["href"] != "/one" || b.Children[0].Props["href"] != "/two" {
+		t.Errorf("hrefs = %q, %q; want /one, /two", a.Children[0].Props["href"], b.Children[0].Props["href"])
+	}
+}
+
+func TestLower_aWrittenTextOverridesTheLabelButAWrittenHrefIsRefused(t *testing.T) {
+	tree, err := Lower(linkTo("nav_x", map[string]string{"text": "Go there"}), navFixture("/r"))
+	if err != nil || tree.Children[0].Props["text"] != "Go there" {
+		t.Errorf("err=%v props=%v; want the written text kept", err, tree.Children[0].Props)
+	}
+	if _, err := Lower(linkTo("nav_x", map[string]string{"href": "/typed"}), navFixture("/r")); err == nil || !strings.Contains(err.Error(), "href") {
+		t.Errorf("err = %v; want a typed href refused", err)
+	}
+}
+
+func TestLower_refusesALinkThatIsNotWellFormed(t *testing.T) {
+	for name, c := range map[string]struct {
+		root domain.PageNode
+		res  Resolver
+		want string
+	}{
+		"unknown target":   {linkTo("nav_missing", nil), navFixture("/r"), "nav_missing"},
+		"no target":        {linkTo("", nil), navFixture("/r"), "to:"},
+		"no resolver":      {linkTo("nav_x", nil), Resolver{}, "resolver"},
+		"to on a non-link": {domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{Kind: "static", Type: "paragraph", To: "nav_x"}}}, navFixture("/r"), "only on static: link"},
+	} {
+		if _, err := Lower(c.root, c.res); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v; want it to mention %q", name, err, c.want)
+		}
+	}
+}

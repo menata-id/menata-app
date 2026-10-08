@@ -74,7 +74,7 @@ func declaredRowsOf(tree ir.UINode) (out [][2]string) {
 // Declared option order, a declared option with no record as an explicit 0, and a value no option names last.
 func TestDeclaredPage_rowsFollowOptionOrderAndKeepEmptyOptions(t *testing.T) {
 	l, ctx := declaredPageLoader(t, "order", map[string]int{"approved": 2, "draft": 1, "legacy": 3})
-	tree, err := DeclaredPage(ctx, l, "", boundMetricGrid(1))
+	tree, err := DeclaredPage(ctx, l, "", nil, boundMetricGrid(1))
 	if err != nil {
 		t.Fatalf("DeclaredPage: %v", err)
 	}
@@ -87,13 +87,13 @@ func TestDeclaredPage_rowsFollowOptionOrderAndKeepEmptyOptions(t *testing.T) {
 // A map ranges differently every run (007 §4.6), so one call passing proves little: 40 fresh loaders.
 func TestDeclaredPage_rowOrderIsDeterministic(t *testing.T) {
 	l, ctx := declaredPageLoader(t, "determinism", map[string]int{"zeta": 1, "alpha": 1, "mid": 1, "approved": 1})
-	first, err := DeclaredPage(ctx, l, "", boundMetricGrid(1))
+	first, err := DeclaredPage(ctx, l, "", nil, boundMetricGrid(1))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for i := range 40 {
 		l2 := NewLoader(l.store, l.machines)
-		again, err := DeclaredPage(ctx, l2, "", boundMetricGrid(1))
+		again, err := DeclaredPage(ctx, l2, "", nil, boundMetricGrid(1))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -107,11 +107,11 @@ func TestDeclaredPage_rowOrderIsDeterministic(t *testing.T) {
 // read, and an unbound tree is none.
 func TestDeclaredPage_queryCostIsFlatInNodeCount(t *testing.T) {
 	l1, ctx1 := declaredPageLoader(t, "cost1", map[string]int{"draft": 1})
-	if _, err := DeclaredPage(ctx1, l1, "", boundMetricGrid(1)); err != nil {
+	if _, err := DeclaredPage(ctx1, l1, "", nil, boundMetricGrid(1)); err != nil {
 		t.Fatal(err)
 	}
 	l10, ctx10 := declaredPageLoader(t, "cost10", map[string]int{"draft": 1})
-	if _, err := DeclaredPage(ctx10, l10, "", boundMetricGrid(10)); err != nil {
+	if _, err := DeclaredPage(ctx10, l10, "", nil, boundMetricGrid(10)); err != nil {
 		t.Fatal(err)
 	}
 	if l1.Reads() != 1 || l10.Reads() != 1 {
@@ -119,7 +119,7 @@ func TestDeclaredPage_queryCostIsFlatInNodeCount(t *testing.T) {
 	}
 	lNone, ctxNone := declaredPageLoader(t, "cost0", nil)
 	static := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "x"}}}}
-	if _, err := DeclaredPage(ctxNone, lNone, "", static); err != nil {
+	if _, err := DeclaredPage(ctxNone, lNone, "", nil, static); err != nil {
 		t.Fatal(err)
 	}
 	if lNone.Reads() != 0 {
@@ -178,7 +178,7 @@ func itemTexts(tree ir.UINode) (out []string) {
 // Field id, and the limit bounds the list.
 func TestDeclaredPage_recordsFollowTheDatasetSortAndLimit(t *testing.T) {
 	l, ctx := recordListLoader(t, "reclist", []string{"charlie", "alpha", "bravo", "delta"}, 3)
-	tree, err := DeclaredPage(ctx, l, "", recordList())
+	tree, err := DeclaredPage(ctx, l, "", nil, recordList())
 	if err != nil {
 		t.Fatalf("DeclaredPage: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestDeclaredPage_recordsFollowTheDatasetSortAndLimit(t *testing.T) {
 // 007 §20: the page reads the Dataset once however many records it holds, and once however many nodes name it.
 func TestDeclaredPage_recordsQueryCostIsFlatInRecordCount(t *testing.T) {
 	few, ctxFew := recordListLoader(t, "reccost1", []string{"a"}, 50)
-	if _, err := DeclaredPage(ctxFew, few, "", recordList()); err != nil {
+	if _, err := DeclaredPage(ctxFew, few, "", nil, recordList()); err != nil {
 		t.Fatal(err)
 	}
 	titles := make([]string, 30)
@@ -199,7 +199,7 @@ func TestDeclaredPage_recordsQueryCostIsFlatInRecordCount(t *testing.T) {
 		titles[i] = string(rune('a'+i%26)) + string(rune('a'+i/26))
 	}
 	many, ctxMany := recordListLoader(t, "reccost30", titles, 50)
-	if _, err := DeclaredPage(ctxMany, many, "", recordList()); err != nil {
+	if _, err := DeclaredPage(ctxMany, many, "", nil, recordList()); err != nil {
 		t.Fatal(err)
 	}
 	if few.Reads() != many.Reads() || many.Reads() != 1 {
@@ -212,7 +212,7 @@ func TestDeclaredPage_recordsRefuseARoleTheMachineDoesNotProject(t *testing.T) {
 	l, ctx := recordListLoader(t, "recrole", []string{"a"}, 5)
 	page := recordList()
 	page.Children[0].Children[0].Children[0].From = map[string]string{"text": "money"}
-	if _, err := DeclaredPage(ctx, l, "", page); err == nil {
+	if _, err := DeclaredPage(ctx, l, "", nil, page); err == nil {
 		t.Fatal("DeclaredPage accepted a from: role the Machine does not project")
 	}
 }
@@ -222,10 +222,10 @@ func TestDeclaredPage_recordsOnAPerViewerDatasetNeedTheViewer(t *testing.T) {
 	l, ctx := recordListLoader(t, "recviewer", []string{"a", "b"}, 5)
 	ds := &l.machines["mch_declared_page_recviewer"].Datasets[0]
 	ds.Where = &expression.Predicate{All: []expression.Comparison{{Field: "fld_title", Op: expression.OpEquals, Value: expression.SentinelCurrentUser}}}
-	if _, err := DeclaredPage(ctx, l, "", recordList()); err == nil {
+	if _, err := DeclaredPage(ctx, l, "", nil, recordList()); err == nil {
 		t.Fatal("a $current_user Dataset answered for an unknown viewer")
 	}
-	tree, err := DeclaredPage(ctx, NewLoader(l.store, l.machines), "a", recordList())
+	tree, err := DeclaredPage(ctx, NewLoader(l.store, l.machines), "a", nil, recordList())
 	if err != nil {
 		t.Fatal(err)
 	}

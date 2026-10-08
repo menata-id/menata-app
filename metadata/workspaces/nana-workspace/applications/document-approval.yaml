@@ -269,3 +269,7 @@ navigation:
                   tone: info
                   from:
                     label: status
+        # A link names its destination by navigation item id, never by route: to: resolves against this
+        # Application's own navigation, and its text defaults to that item's label (the menu's own words).
+        - static: link
+          to: nav_approval_inbox
