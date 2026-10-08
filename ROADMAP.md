@@ -559,8 +559,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Components, Slot, UI IR, ten Static kinds and all nine Theme categories are built (2026-10-02/07); the
   18 hand-written layout sites left are each a documented floor, not debt. A `page:` block in YAML now
   declares a screen's body (2026-10-07; new screens only, none migrated): `menata-app-document`'s `audits/2026-10-07-rencana-page-yaml-dan-gate-yang-akan-terkena.md`.
-- Installable as a PWA (Progressive Web App) -- add to home screen on a phone and open it like a
-  native app, no app-store install required.
+- Installable as a PWA, Play-ready (TWA: `ANDROID_PACKAGE_NAME` + `ANDROID_CERT_FINGERPRINTS` serve `/.well-known/assetlinks.json`).
+  Account deletion anonymizes the identity (`/account-delete`; public `/delete-account`); a privacy policy page is still owed.
 - **Per-user/role navigation filtering** -- one case is a hand-named stand-in (`hiddenNavIDs`, `membersHiddenFor`); the declared form
   (`requires_role:` on a navigation item) waits for a *second* real case, most likely an item gated on an Application role.
 - **A filter that reads the viewing identity, not a literal** -- `$current_user` now exists in `datasets:`; three Go screens

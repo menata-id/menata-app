@@ -238,6 +238,9 @@ var runtimeLevelRoutes = map[string]bool{
 	// notification can concern any of them.
 	"/account-notifications": true,
 	"/notifications":         true,
+	// /account-delete: the signed-in identity's own deletion (anonymization), reached from the Security
+	// page. Same criterion as /account-security -- the person's credential, owned by no Application.
+	"/account-delete": true,
 }
 
 var templHref = regexp.MustCompile(`href="(/[^"{]*)"`)

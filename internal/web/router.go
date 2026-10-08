@@ -130,6 +130,7 @@ func Routes(d Deps) http.Handler {
 	})
 	r.Get("/manifest.json", serveManifest)
 	r.Get("/sw.js", serveServiceWorker)
+	r.Get("/.well-known/assetlinks.json", serveAssetLinks(d.Cfg))
 	// STATIC FILES, AND THE ONE PLACE THIS APP COMPRESSES.
 	//
 	// Measured 2026-09-22: hyperscript.min.js 369kB -> 67kB, htmx.min.js 51kB -> 16kB,
@@ -167,6 +168,7 @@ func Routes(d Deps) http.Handler {
 		sr.Handle("/vendor/*", staticAssets("vendor", "static/vendor"))
 	})
 	r.Get("/login", showLogin)
+	r.Get("/delete-account", showDeleteAccountInfo)
 	r.Post("/login", rateLimitLogin(loginLimiter, submitLogin(d.Store, d.Cfg)))
 	r.Get("/register", showRegistration)
 	r.Post("/register", rateLimitByAddress(registrationLimiter, "too many registration attempts -- try again later", submitRegistration(d.UserMachine, d.Store, d.Mailer, d.Cfg)))
@@ -241,6 +243,8 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/account-security", showSecurity(d.Store, d.Cfg))
 		pr.Post("/account-security/change-password", submitChangePassword(d.Store, d.Cfg))
 		pr.Post("/account-security/sign-out-other-devices", submitSignOutOtherDevices(d.Store, d.Cfg))
+		pr.Get("/account-delete", showDeleteAccount(d.Store, d.Cfg))
+		pr.Post("/account-delete", submitDeleteAccount(d.Store, d.Files, d.Workspaces, d.Cfg))
 		// Account menu's own "Workspaces" section (Flow 2 canvas re-audit -- ROADMAP.md,
 		// 2026-09-27), fetched lazily by accountMenu's own hx-get, not on every appShell render.
 		pr.Get("/api/account-menu/workspaces", showAccountMenuWorkspaces(d.Store, d.Cfg))

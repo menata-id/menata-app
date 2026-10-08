@@ -116,20 +116,22 @@ func TestRoutesRegistersCSRFProtect(t *testing.T) {
 // on r that isn't in this list is exactly the mistake TestUngatedRoutesAreOnlyTheKnownPublicSet
 // exists to catch: a route meant to sit behind requireAuth, accidentally added to r instead of pr.
 var knownPublicRoutes = map[string]bool{
-	"/health":              true,
-	"/manifest.json":       true,
-	"/sw.js":               true,
-	"/icons/*":             true,
-	"/css/*":               true,
-	"/vendor/*":            true,
-	"/login":               true,
-	"/register":            true,
-	"/verify-email":        true,
-	"/resend-verification": true,
-	"/forgot-password":     true,
-	"/reset-password":      true,
-	"/accept-invite":       true,
-	"/choose-workspace":    true,
+	"/health":                      true,
+	"/manifest.json":               true,
+	"/sw.js":                       true,
+	"/.well-known/assetlinks.json": true,
+	"/delete-account":              true,
+	"/icons/*":                     true,
+	"/css/*":                       true,
+	"/vendor/*":                    true,
+	"/login":                       true,
+	"/register":                    true,
+	"/verify-email":                true,
+	"/resend-verification":         true,
+	"/forgot-password":             true,
+	"/reset-password":              true,
+	"/accept-invite":               true,
+	"/choose-workspace":            true,
 	// Restore's pre-session entry point (Flow 2 gap study Tahap 7) -- reached the same way
 	// /choose-workspace itself is, before any Workspace-scoped session exists: the pending-email
 	// cookie names who is acting, checked inside the handler itself

@@ -1,0 +1,86 @@
+package rendering
+
+import "menata.app/internal/domain"
+
+// DeleteAccountPage is the signed-in confirmation for account deletion, which anonymizes rather than
+// erases (data.AnonymizeIdentity): the page says plainly what goes and what stays, because a person
+// agreeing to a deletion is owed the true list, not a reassuring one. blockers, when set, are the
+// reasons the deletion was refused on submit; passwordErr is a wrong confirmation password.
+templ DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref string, blockers []string, passwordErr string) {
+	@appShell("Delete account", workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-1">
+			@staticText(domain.StaticOverline, "Account")
+			@staticText(domain.StaticHeading, "Delete account")
+			<div class="text-sm text-slate-500">This signs you out everywhere and cannot be undone.</div>
+		</div>
+		@sectionLayout(domain.GapComfortable) {
+			@deletionFacts()
+			if len(blockers) > 0 {
+				<div role="alert" class="flex flex-col gap-1 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+					<p class="m-0 font-medium">Your account can't be deleted yet.</p>
+					<ul class="m-0 flex list-disc flex-col gap-1 pl-5">
+						for _, b := range blockers {
+							<li>{ b }</li>
+						}
+					</ul>
+				</div>
+			}
+			if passwordErr != "" {
+				<p class="m-0 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{ passwordErr }</p>
+			}
+			<form method="POST" action="/account-delete" class="flex flex-col gap-4">
+				@csrfHiddenInput()
+				@authField("delete-password", "password", "Confirm with your password", "password", "current-password", false)
+				<div class="flex justify-end">
+					@button("Delete my account", domain.ButtonDanger, "", "")
+				</div>
+			</form>
+		}
+	}
+}
+
+// DeleteAccountInfoPage is the public page that explains how to ask for deletion, for the app-store
+// listing's "delete account URL". done is set on the redirect that follows a completed deletion.
+templ DeleteAccountInfoPage(done bool) {
+	@authShell("Delete your account", "Menata", "Delete your account") {
+		@authCard("max-w-xl") {
+			<div class="flex flex-col gap-4 px-4 py-5 text-sm sm:p-6">
+				if done {
+					<p role="status" class="m-0 rounded-md bg-emerald-50 px-3 py-2 text-emerald-700">Your account has been deleted and you have been signed out.</p>
+				}
+				<div class="flex flex-col gap-2">
+					<p class="m-0 font-medium">How to delete your account</p>
+					<ol class="m-0 flex list-decimal flex-col gap-1 pl-5 text-slate-700">
+						<li><a href="/login" class="text-blue-600 hover:text-blue-700">Sign in</a> to Menata. If you've forgotten your password, <a href="/forgot-password" class="text-blue-600 hover:text-blue-700">reset it</a> first.</li>
+						<li>Open your account menu, then Security, then Delete account.</li>
+						<li>Enter your password and confirm.</li>
+					</ol>
+				</div>
+				@deletionFacts()
+			</div>
+		}
+	}
+}
+
+// deletionFacts is the shared statement of what deletion does, shown before and during the request.
+templ deletionFacts() {
+	<div class="flex flex-col gap-3 text-sm text-slate-700">
+		<div class="flex flex-col gap-1">
+			<p class="m-0 font-medium">Removed</p>
+			<ul class="m-0 flex list-disc flex-col gap-1 pl-5">
+				<li>Your email address, name and password. The address becomes free to register again.</li>
+				<li>Your access to every workspace, your roles and group memberships.</li>
+				<li>Invitations addressed to you.</li>
+				<li>Your saved signature images.</li>
+				<li>What you typed to the AI assistant.</li>
+			</ul>
+		</div>
+		<div class="flex flex-col gap-1">
+			<p class="m-0 font-medium">Kept, without your name</p>
+			<ul class="m-0 flex list-disc flex-col gap-1 pl-5">
+				<li>Documents, tasks and other records you created, and approval decisions you made. They stay in their workspace, attributed to "Deleted user", because the people you worked with still need that history.</li>
+				<li>A name copied onto a decision when it was made, and a signature already placed on a finished PDF, remain part of that document.</li>
+			</ul>
+		</div>
+	</div>
+}

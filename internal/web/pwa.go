@@ -1,13 +1,26 @@
 package web
 
-import "net/http"
+import (
+	"encoding/json"
+	"net/http"
+
+	"menata.app/internal/config"
+)
 
 // manifestJSON is the Web App Manifest that makes this app installable (ROADMAP.md's "Installable
 // as a PWA"). The name is the platform's own brand ("Menata App", the same suffix pageShell's
 // <title> already hardcodes), not Deps.AppName -- that resolves to the current metadata
 // Application's own name (e.g. "Task Tracker"), a different, narrower thing. start_url is /home
 // (Phase 21's Workspace Home), where an authenticated identity actually lands today.
+//
+// "id" pins the app's identity to the start_url it already had: with no id the browser derives it
+// from start_url, so spelling it out changes nothing for existing installs while keeping a later
+// start_url change from orphaning them. The two "maskable" entries reuse the same files on purpose:
+// the glyph is a full-bleed blue square with the "M" inside the central 40%, well within the 80%
+// safe zone Android crops to, so no second artwork is needed. Google Play's Trusted Web Activity
+// wrapper reads this same manifest (see serveAssetLinks).
 const manifestJSON = `{
+  "id": "/home",
   "name": "Menata App",
   "short_name": "Menata",
   "start_url": "/home",
@@ -16,7 +29,9 @@ const manifestJSON = `{
   "theme_color": "#2563EB",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }`
 
@@ -90,4 +105,37 @@ func serveServiceWorker(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Content-Type", "application/javascript")
 	_, _ = w.Write([]byte(serviceWorkerJS))
+}
+
+// serveAssetLinks publishes Digital Asset Links for the Google Play (Trusted Web Activity) build of
+// this PWA. Without this file Chrome shows the TWA with its address bar, as an ordinary browser tab.
+// The package name and signing fingerprints are deployment facts that exist only after the app is
+// registered in Play Console, so they come from config (ANDROID_PACKAGE_NAME,
+// ANDROID_CERT_FINGERPRINTS) rather than from a literal here; with either unset the route is a 404,
+// because an assetlinks.json naming no package would claim nothing and read as a bug.
+func serveAssetLinks(cfg config.Config) http.HandlerFunc {
+	type target struct {
+		Namespace    string   `json:"namespace"`
+		PackageName  string   `json:"package_name"`
+		Fingerprints []string `json:"sha256_cert_fingerprints"`
+	}
+	type statement struct {
+		Relation []string `json:"relation"`
+		Target   target   `json:"target"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		if cfg.AndroidPackageName == "" || len(cfg.AndroidCertFingerprints) == 0 {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]statement{{
+			Relation: []string{"delegate_permission/common.handle_all_urls"},
+			Target: target{
+				Namespace:    "android_app",
+				PackageName:  cfg.AndroidPackageName,
+				Fingerprints: cfg.AndroidCertFingerprints,
+			},
+		}})
+	}
 }

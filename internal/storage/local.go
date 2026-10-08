@@ -77,6 +77,19 @@ func (s *Store) Path(key string) (string, error) {
 	return abs, nil
 }
 
+// Remove deletes the file stored under key. A key with no file is not an error: the goal is that
+// nothing remains, and a record may already have outlived its file.
+func (s *Store) Remove(key string) error {
+	path, err := s.Path(key)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
 // Size is the byte length of the file stored under key, or 0 when it cannot be read (a record may outlive its
 // file; a missing size is drawn as nothing rather than failing the page).
 func (s *Store) Size(key string) int64 {

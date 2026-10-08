@@ -46,6 +46,8 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 	"ProfilePage":              {"identity", "the person's own name/email/credential -- owner-only identity data, no Application's"},
 	"AccountNotificationsPage": {"identity", "the person's own notification preferences, no Application's"},
 	"SecurityPage":             {"identity", "the person's own credential, no Application's"},
+	"DeleteAccountPage":        {"identity", "the person's own account deletion (anonymization), no Application's"},
+	"DeleteAccountInfoPage":    {"identity", "public, pre-auth: the URL an app-store listing names for deletion requests"},
 
 	// workspace: runtime chrome registered as fixed literals in router.go, owned by no Application's
 	// `navigation:` (see runtimeLevelRoutes). Needs a Workspace-level `page:` to be declarable, which

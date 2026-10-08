@@ -5,6 +5,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds process-level configuration.
@@ -59,6 +60,16 @@ type Config struct {
 	// ShowMembersAndGroups already uses).
 	GeminiAPIKey string
 
+	// AndroidPackageName and AndroidCertFingerprints publish this origin's Digital Asset Links
+	// (/.well-known/assetlinks.json), the proof Chrome asks for before a Trusted Web Activity -- the
+	// Google Play wrapper around this PWA -- may open it without a browser address bar. The package
+	// name is the one chosen in Play Console; the fingerprints are the SHA-256 of the key Play
+	// *signs the release with* (Play Console > App integrity > App signing, not the upload keystore),
+	// comma-separated so the upload and signing keys may both be listed. Either empty means no
+	// Android app is declared: the route answers 404 rather than publishing a half-declared link.
+	AndroidPackageName      string
+	AndroidCertFingerprints []string
+
 	// ScheduleIntervalMinutes is how often cmd/server's own ticker calls
 	// execution.RunScheduledEvents (the SLA-breach reminder, Flow 2 canvas re-audit 2026-09-27) --
 	// the first, and so far only, schedule-shaped Event this runtime evaluates. 15 minutes by
@@ -88,6 +99,8 @@ func Load() Config {
 		SMTPFrom:                getenv("SMTP_FROM", ""),
 		AppBaseURL:              getenv("APP_BASE_URL", "http://localhost:"+port),
 		GeminiAPIKey:            getenv("GEMINI_API_KEY", ""),
+		AndroidPackageName:      getenv("ANDROID_PACKAGE_NAME", ""),
+		AndroidCertFingerprints: splitList(getenv("ANDROID_CERT_FINGERPRINTS", "")),
 		ScheduleIntervalMinutes: getenvInt("SCHEDULE_INTERVAL_MINUTES", 15),
 	}
 }
@@ -97,6 +110,16 @@ func getenv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func splitList(v string) []string {
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func getenvInt(key string, fallback int) int {
