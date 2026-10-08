@@ -29,9 +29,14 @@ fields:
     name: Parent
     type: relation
     machine: mch_doc
+  - id: fld_color
+    name: Color
+    type: status
+    options: [blue, amber]
 card_fields:
   - { field: fld_title, role: title }
   - { field: fld_status, role: status }
+  - { field: fld_color, role: color }
   - { field: fld_parent, role: person }
 datasets:
   - id: ds_by_status
@@ -289,5 +294,26 @@ func TestPage_aListOfLinkLoadsAndItsDatasetIsHeldAtLoad(t *testing.T) {
 	}
 	if err := pageFixture(t, strings.Replace(page("ds_rows"), "list_of: ds_rows", "list_of: ds_rows\n          to: nav_p", 1)); err == nil {
 		t.Error("a link naming both to: and list_of: loaded; it has two destinations")
+	}
+}
+
+// TestPage_aRecordsTemplateCanFillATagFromTheRecord: a Tag's label and colour may each come from a Projection
+// role, which is the whole of binding a record's label to the registered Component. The load-time check
+// stands in a placeholder for the record, and the palette check must not refuse that placeholder: whether a
+// real record's value is in the palette is the data's question, answered at render by the neutral fallback.
+func TestPage_aRecordsTemplateCanFillATagFromTheRecord(t *testing.T) {
+	page := "      layout: stack\n      children:\n        - component: Collection\n          gap: tight\n          binding: { dataset: ds_rows, rows: records }\n          children:\n            - component: Tag\n              from: { label: title, color: color }\n"
+	if err := pageFixture(t, "  - id: nav_t\n    label: T\n    route: /pages/nav_t\n    page:\n"+page); err != nil {
+		t.Fatalf("a Tag filled from a record was refused: %v", err)
+	}
+}
+
+// TestPage_aTagColourMayNotComeFromARoleThatIsNotAPalette: only the `color` role is a palette entry, so
+// wiring a title (or any other role) into a Tag's colour is refused at load rather than drawn slate for ever.
+func TestPage_aTagColourMayNotComeFromARoleThatIsNotAPalette(t *testing.T) {
+	page := "      layout: stack\n      children:\n        - component: Collection\n          gap: tight\n          binding: { dataset: ds_rows, rows: records }\n          children:\n            - component: Tag\n              from: { label: title, color: title }\n"
+	err := pageFixture(t, "  - id: nav_t\n    label: T\n    route: /pages/nav_t\n    page:\n"+page)
+	if err == nil || !strings.Contains(err.Error(), "palette") {
+		t.Fatalf("error = %v; want a refusal naming the palette", err)
 	}
 }

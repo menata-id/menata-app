@@ -285,3 +285,45 @@ func TestDeclaredPageSaysItsEmptyWordsOnlyWhenTheListIsEmpty(t *testing.T) {
 		t.Errorf("the list has a document and still says %q", words)
 	}
 }
+
+// TestDeclaredPageDrawsEachLabelAsATagInItsOwnColour: the page writes `from: {label: title, color: color}` and
+// no Field, so the chip's words and its colour must be what the Label Machine's Projection says about each
+// record. Two labels with different palette entries must draw different chips; a record whose colour is not a
+// palette entry (data that arrived unchecked) still draws, in the renderer's neutral colour, rather than
+// failing the page. The label Machine and its role fields are read from the loaded Workspace.
+func TestDeclaredPageDrawsEachLabelAsATagInItsOwnColour(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredtag", "default")
+	var label *domain.Machine
+	for _, m := range ws.Machines {
+		if m.CardFieldFor(domain.CardFieldRoleColor) != "" {
+			label = m
+		}
+	}
+	if label == nil {
+		t.Fatal("default installs no Machine projecting a color role")
+	}
+	titleField, colorField := label.CardFieldFor(domain.CardFieldRoleTitle), label.CardFieldFor(domain.CardFieldRoleColor)
+	for name, colour := range map[string]string{"Tag-probe-blue": string(domain.TagBlue), "Tag-probe-rose": string(domain.TagRose), "Tag-probe-odd": "chartreuse"} {
+		rec, err := store.CreateRecord(ctx, label.ID, map[string]any{titleField: name, colorField: colour})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", name, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, label.ID, rec.ID) })
+	}
+
+	body := getPage(t, h, cookie, "/pages/nav_board_labels")
+	chip := func(name string) string {
+		m := regexp.MustCompile(`<span class="inline-flex[^"]*"><span class="[^"]*" aria-hidden="true"></span>\s*` + name + `\s*</span>`).FindString(body)
+		if m == "" {
+			t.Fatalf("no Tag reading %q reached the page", name)
+		}
+		return m
+	}
+	blue, rose, odd := chip("Tag-probe-blue"), chip("Tag-probe-rose"), chip("Tag-probe-odd")
+	if !strings.Contains(blue, "text-blue-600") || !strings.Contains(rose, "text-rose-700") {
+		t.Errorf("a label did not draw in its own palette colour:\n%s\n%s", blue, rose)
+	}
+	if !strings.Contains(odd, "text-slate-600") {
+		t.Errorf("a colour outside the palette must fall back to the neutral chip:\n%s", odd)
+	}
+}

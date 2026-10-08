@@ -168,7 +168,8 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 }
 
 // PlaceholderResolver stands in for the database when only a tree's *shape* is being checked: one dimension
-// row, and one record that projects every role in `domain.KnownCardFieldRoles`. A `from:` naming anything
+// row, and one record that projects every role in `domain.KnownCardFieldRoles` (each "x", except `color`,
+// which is a palette entry). A `from:` naming anything
 // outside that vocabulary therefore fails to lower, which is how a typo in a role is a load error. Exported so
 // the conformance sweep over installed manifests asks the same question the loader does.
 //
@@ -188,6 +189,10 @@ func PlaceholderResolver(navigation []domain.NavigationItem) ir.Resolver {
 			for role := range domain.KnownCardFieldRoles {
 				rec[string(role)] = "x"
 			}
+			// The one role whose contract is a closed set: a record's `color` is a palette entry by
+			// definition, so a Tag filled from it must validate. Every other role stays "x", which is how
+			// `from: {color: title}` is a load error -- a title is not a palette entry.
+			rec[string(domain.CardFieldRoleColor)] = string(domain.TagSlate)
 			return []map[string]string{rec}, nil
 		},
 	}

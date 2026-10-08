@@ -67,3 +67,28 @@ navigation:
     priority: 9
     icon: settings
     description: 'The lists a board groups by, and the labels cards can carry. Both are ordinary records, shared by every project in this workspace.'
+  # A screen declared rather than written, beside Board Settings: every Label as the registered Tag, name and
+  # colour taken from the Label Machine's own card_fields (title, color) -- so this names no Field, and a
+  # colour is a palette entry the Machine chose, never a class typed here.
+  - id: nav_board_labels
+    label: All labels
+    title: All labels
+    description: Every label a card can carry, in its own colour.
+    route: /pages/nav_board_labels
+    priority: 10
+    icon: settings
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Collection
+          gap: tight
+          empty: No labels yet.
+          binding:
+            dataset: ds_board_labels
+            rows: records
+          children:
+            - component: Tag
+              from:
+                label: title
+                color: color

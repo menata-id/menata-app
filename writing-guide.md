@@ -1078,13 +1078,31 @@ record's sub-screen (`/review`, `/edit`), which would need a second reserved wor
 **`component: Tag`** (2026-10-08) draws a name as a pill with a colour dot: `label` is required, `color` is
 optional and, when written, must be one of the palette (`blue`, `purple`, `amber`, `slate`, `emerald`, `cyan`,
 `rose`). A colour outside it is a load error; there is no hex value and no class. The dot is decoration, so the
-label is always what names the tag. It takes written text only; a tag taken from a record's own label is not
-bindable on a page yet, and the boards, calendar and record detail keep drawing theirs from their Machines.
+label is always what names the tag. It takes written text, or -- inside a records-bound `Collection` -- a
+record's own label and colour (below); the boards, calendar and record detail keep drawing theirs from their
+Machines.
 
 ```yaml
 - component: Tag
   label: Urgent
   color: amber
+```
+
+**A Tag taken from each record (3c-2, 2026-10-08).** As the one template child of a `Collection` bound with
+`rows: records`, a Tag takes both inputs from the Machine's `card_fields`: `from: {label: title, color: color}`.
+The `color` role is a `status` Field whose options are the palette, so it is the one role a Tag's `color:` may
+come from -- `from: {color: title}` is a load error (a title is not a palette entry), and `from: {label: color}`
+loads, since `label` accepts any text. The page names no Field and no colour. A record whose stored colour is
+not in the palette (data written before the Field was a `status`) still draws, in the neutral slate chip.
+
+```yaml
+- component: Collection
+  gap: tight
+  empty: No labels yet.
+  binding: {dataset: ds_board_labels, rows: records}
+  children:
+    - component: Tag
+      from: {label: title, color: color}
 ```
 
 **What it is not.** It does not migrate an existing screen: a bespoke Go screen stays bespoke until its
