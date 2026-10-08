@@ -27,8 +27,23 @@ type PageNode struct {
 	// never a typed route (001 #3, #8): `ir.Lower` resolves it from the Application's own `navigation:`, so
 	// renaming a route in one place moves every page that links to it. Valid only on a `link`, which in turn
 	// has no other way to name a destination.
-	To       string
+	To string
+	// ListOf is the Dataset whose Machine a `static: link` opens the generic list page of
+	// (`list_of: ds_recent_documents` -> `MachineListRoute(<that Dataset's source>)`). It is the second way a
+	// link names a destination, for the screens that have no navigation item: a Machine claimed by no
+	// Application's `navigation:` still has a page, and a typed `/machines/<id>` would be a route retyped
+	// (001 #3, #8). The Dataset is the declared handle on the Machine, the way a Binding's is, so the same
+	// load-time check (it exists in this Workspace) applies. Valid only on a `link`, and never beside `to:`.
+	ListOf   string
 	Children []PageNode
+}
+
+// MachineListRoute is the runtime's generic page for a Machine (`GET /machines/{machineID}`), the list of its
+// records and where one is created. It belongs to the runtime the way `/home` does, not to an Application, so
+// it is assembled in one place and not read from `navigation:`; the page it names still answers for itself
+// who may see it, since a link is an address and not a grant.
+func MachineListRoute(machineID string) string {
+	return "/machines/" + machineID
 }
 
 // PageBinding is 007 §11.3's read side in its narrowest honest form: a node takes its content from one

@@ -67,6 +67,13 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 						t.Errorf("%s: binding names dataset %q, which this Workspace does not declare -- the page would answer 500 on every visit", where, b.Dataset)
 					}
 				}
+				res.Source = func(id string) (string, bool) {
+					ds, ok := datasets[id]
+					if !ok {
+						t.Errorf("%s: list_of names dataset %q, which this Workspace does not declare -- the link would point nowhere", where, id)
+					}
+					return ds.Source, ok
+				}
 				res.Rows = func(b domain.PageBinding) ([]ir.Row, error) { declared(b); return rows(b) }
 				res.Records = func(b domain.PageBinding) ([]map[string]string, error) { declared(b); return records(b) }
 				tree, err := ir.Lower(*item.Page, res)
@@ -306,7 +313,7 @@ func TestRecordsBindingProblemsSeesEachFault(t *testing.T) {
 }
 
 // TestEveryInstalledLinkNamesItsDestinationOnce holds Tahap 2a's rule against the real manifests:
-// a `static: link` on an installed page names its destination with `to:`, that id is one the same Application
+// a `static: link` on an installed page names its destination with `to:` (or `list_of:` / a record's `href`), that id is one the same Application
 // declares, and the node carries no `href` of its own. It asserts the *declaration* directly instead of
 // leaning on `ir.Lower`'s refusals, so it still fails if Lower stopped checking, and it fails when no installed
 // page holds a link, so it cannot pass by measuring nothing.
@@ -315,7 +322,7 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
-	links, recordLinks := 0, 0
+	links, recordLinks, listLinks := 0, 0, 0
 	for _, slug := range sortedKeys(wss) {
 		for _, app := range wss[slug].Workspace.Applications {
 			declared := map[string]bool{}
@@ -327,6 +334,13 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 				if n.Kind == "static" && n.Type == string(domain.StaticLink) {
 					links++
 					switch role, fromHref := n.From["href"]; {
+					case n.ListOf != "" && (n.To != "" || fromHref):
+						t.Errorf("%s: link names list_of: %s and a second destination", where, n.ListOf)
+					case n.ListOf != "":
+						listLinks++
+						if n.Props["text"] == "" {
+							t.Errorf("%s: a list_of link has no menu label to default its text to, so it must write text:", where)
+						}
 					case fromHref && n.To != "":
 						t.Errorf("%s: link names both to: %s and from: href", where, n.To)
 					case fromHref && role != domain.PageRecordRole:
@@ -339,8 +353,8 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 					if _, typed := n.Props["href"]; typed {
 						t.Errorf("%s: link carries a typed href; its destination is to: <navigation id>", where)
 					}
-				} else if n.To != "" {
-					t.Errorf("%s: to: on a node that is not a link", where)
+				} else if n.To != "" || n.ListOf != "" {
+					t.Errorf("%s: to:/list_of: on a node that is not a link", where)
 				}
 				for _, c := range n.Children {
 					walk(c, where)
@@ -358,5 +372,8 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 	}
 	if recordLinks == 0 {
 		t.Fatal("no installed page declares a link to a record -- half of this gate is measuring nothing")
+	}
+	if listLinks == 0 {
+		t.Fatal("no installed page declares a list_of link -- that third of this gate is measuring nothing")
 	}
 }

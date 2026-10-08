@@ -187,6 +187,40 @@ func TestDeclaredPageRecordLinkOpensTheRecordsOwnFullPage(t *testing.T) {
 	}
 }
 
+// TestDeclaredPageListOfLinkOpensTheMachinesOwnListPage: the page writes `list_of: <Dataset>` and some words, and
+// the href must be the runtime's list page of the Machine that Dataset reads. The expected route is built from
+// the loaded Dataset's own source, so the property under test is "the Dataset, not the YAML, names the Machine",
+// and the route it points at must be one that renders and refuses an anonymous request.
+func TestDeclaredPageListOfLinkOpensTheMachinesOwnListPage(t *testing.T) {
+	h, cookie, _, _, _, ws, _ := routerSetupFor(t, "declaredlistof", "nana-2-workspace")
+	var source string
+	for _, m := range ws.Machines {
+		for _, ds := range m.Datasets {
+			if ds.ID == "ds_recent_documents" {
+				source = ds.Source
+			}
+		}
+	}
+	if source == "" {
+		t.Fatal("nana-2-workspace declares no ds_recent_documents")
+	}
+	route := domain.MachineListRoute(source)
+	body := getPage(t, h, cookie, "/pages/nav_documents_by_status")
+	want := regexp.MustCompile(`<a href="` + regexp.QuoteMeta(route) + `"[^>]*>All documents</a>`)
+	if !want.MatchString(body) {
+		t.Errorf("no link to %s reading %q reached the page", route, "All documents")
+	}
+
+	if followed := getPage(t, h, cookie, route); !strings.Contains(strings.ToLower(followed), "<html") {
+		t.Error("following the link did not render a full page")
+	}
+	anon := httptest.NewRecorder()
+	h.ServeHTTP(anon, httptest.NewRequest(http.MethodGet, route, nil))
+	if anon.Code == http.StatusOK {
+		t.Errorf("the linked route answered %d with no session, and must refuse (a link is an address, not a grant)", anon.Code)
+	}
+}
+
 func getPage(t *testing.T, h http.Handler, cookie, path string) string {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, path, nil)

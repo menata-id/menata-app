@@ -44,12 +44,18 @@ func NavigationRoutes(items []domain.NavigationItem) RouteResolver {
 	}
 }
 
+// SourceResolver answers a `list_of:`: the id of the Machine the named Dataset reads, or ok=false when this
+// Workspace declares no such Dataset. It returns the Machine and not a route, so the route is assembled in one
+// place (`domain.MachineListRoute`) however many resolvers there are.
+type SourceResolver func(datasetID string) (machineID string, ok bool)
+
 // Resolver is what Lower may ask the outside world. Any part may be nil when the tree has no use of it (no
 // Binding of that mode, no `to:`); asking for one that is nil is an error rather than a panic.
 type Resolver struct {
 	Rows    RowResolver
 	Records RecordResolver
 	Route   RouteResolver
+	Source  SourceResolver
 }
 
 // Lower turns a declared `page:` into UI IR (007 §15.1's "Build UI IR"), expanding every Binding through
@@ -139,10 +145,16 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		if n.To != "" {
 			return nil, fmt.Errorf("%s: to: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
 		}
+		if n.ListOf != "" {
+			return nil, fmt.Errorf("%s: list_of: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
+		}
 		return props, nil
 	}
 	if _, written := n.Props["href"]; written {
-		return nil, fmt.Errorf("%s: a link's destination is to: <navigation item id> or, inside a record template, from: {href: %s}; never a typed href -- a route is declared once (001 #3, #8)", path, domain.PageRecordRole)
+		return nil, fmt.Errorf("%s: a link's destination is to: <navigation item id>, list_of: <dataset id> or, inside a record template, from: {href: %s}; never a typed href -- a route is declared once (001 #3, #8)", path, domain.PageRecordRole)
+	}
+	if n.ListOf != "" {
+		return lowerListOf(n, props, r, path)
 	}
 	if role, fromHref := n.From["href"]; fromHref {
 		if n.To != "" {
@@ -157,7 +169,7 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		return props, nil
 	}
 	if n.To == "" {
-		return nil, fmt.Errorf("%s: a link names its destination with to: <navigation item id>, or from: {href: %s} inside a record template", path, domain.PageRecordRole)
+		return nil, fmt.Errorf("%s: a link names its destination with to: <navigation item id>, list_of: <dataset id>, or from: {href: %s} inside a record template", path, domain.PageRecordRole)
 	}
 	if r.Route == nil {
 		return nil, fmt.Errorf("%s: no resolver for routes", path)
@@ -174,6 +186,34 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 	if _, has := out["text"]; !has && n.From["text"] == "" {
 		out["text"] = label
 	}
+	return out, nil
+}
+
+// lowerListOf resolves a link to the generic list page of a Dataset's Machine. It has no menu label to default
+// its text to -- the Machine has no navigation item, which is why this form exists -- so the text is written
+// (or taken `from:` a role), and one destination only: a link that named `to:` as well would be two.
+func lowerListOf(n domain.PageNode, props map[string]string, r Resolver, path string) (map[string]string, error) {
+	if n.To != "" {
+		return nil, fmt.Errorf("%s: a link has one destination, and this one names both to: %s and list_of: %s", path, n.To, n.ListOf)
+	}
+	if _, fromHref := n.From["href"]; fromHref {
+		return nil, fmt.Errorf("%s: a link has one destination, and this one names both list_of: %s and from: href", path, n.ListOf)
+	}
+	if _, hasText := props["text"]; !hasText {
+		return nil, fmt.Errorf("%s: a link to a Machine's list has no menu label to default its text to, so it writes text:", path)
+	}
+	if r.Source == nil {
+		return nil, fmt.Errorf("%s: no resolver for dataset sources", path)
+	}
+	machineID, ok := r.Source(n.ListOf)
+	if !ok {
+		return nil, fmt.Errorf("%s: list_of: %s names no dataset in this Workspace", path, n.ListOf)
+	}
+	out := make(map[string]string, len(props)+1)
+	for k, v := range props {
+		out[k] = v
+	}
+	out["href"] = domain.MachineListRoute(machineID)
 	return out, nil
 }
 

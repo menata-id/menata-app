@@ -273,6 +273,12 @@ navigation:
                   tone: info
                   from:
                     label: status
+        # list_of: is the other way to name a destination, for a Machine no navigation item points at: the
+        # runtime's own list page of the Machine this Dataset reads. A Dataset id, never a route, and it has
+        # no menu label to default to, so the words are written.
+        - static: link
+          list_of: ds_recent_documents
+          text: All documents
         # A link names its destination by navigation item id, never by route: to: resolves against this
         # Application's own navigation, and its text defaults to that item's label (the menu's own words).
         - static: link

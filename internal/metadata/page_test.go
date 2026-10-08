@@ -275,3 +275,19 @@ func deep(n int) string {
 	}
 	return b.String()
 }
+
+func TestPage_aListOfLinkLoadsAndItsDatasetIsHeldAtLoad(t *testing.T) {
+	page := func(dataset string) string {
+		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n        - static: link\n          list_of: " + dataset + "\n          text: All of them\n"
+	}
+	if err := pageFixture(t, page("ds_rows")); err != nil {
+		t.Fatalf("a link to a declared Dataset's Machine must load: %v", err)
+	}
+	err := pageFixture(t, page("ds_missing"))
+	if err == nil || !strings.Contains(err.Error(), "ds_missing") {
+		t.Fatalf("err = %v; want a Dataset this Workspace does not declare refused at load, naming it", err)
+	}
+	if err := pageFixture(t, strings.Replace(page("ds_rows"), "list_of: ds_rows", "list_of: ds_rows\n          to: nav_p", 1)); err == nil {
+		t.Error("a link naming both to: and list_of: loaded; it has two destinations")
+	}
+}

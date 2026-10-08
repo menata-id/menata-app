@@ -1020,8 +1020,22 @@ listed on a page. Rules, all load errors:
 - `href` may be taken from `record` only, never from a Projection role, so a page cannot turn a text Field into
   an address;
 - `record` is valid for nothing but a link's `href` (not as `text:`, not on another node);
-- a link has one destination: `to:` or `from: {href: record}`, not both, and never a typed `href:`;
+- a link has one destination: `to:`, `list_of:` or `from: {href: record}`, never two of them and never a typed `href:`;
 - a record link has no menu label to default its text to, so `text` must come from a role (or be written).
+
+**A link to a Machine's list — `list_of:`.** A Machine no navigation item points at still has the runtime's own list
+page (`/machines/<id>`, where its records are listed and created). Name it by a Dataset that reads the Machine:
+
+```yaml
+- static: link
+  list_of: ds_recent_documents
+  text: All documents
+```
+
+The Dataset is the declared handle on the Machine, so the page types no route and no Machine id. Rules, all load
+errors: the Dataset must exist in **this Workspace**; `text:` is required (the Machine has no menu label to default
+to, which is why this form exists beside `to:`); `list_of:` is valid on a `link` and nothing else, never beside `to:`
+or `from: {href: record}`, and never with a typed `href:`.
 
 A link is an address, not a grant: the page lists only the records its Dataset selects (`$current_user` fails
 closed), and following the link still goes through that route's own authorization. Not available: a link to a

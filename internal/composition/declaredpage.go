@@ -30,6 +30,10 @@ import (
 func DeclaredPage(ctx context.Context, l *Loader, viewerID string, navigation []domain.NavigationItem, page domain.PageNode) (ir.UINode, error) {
 	return ir.Lower(page, ir.Resolver{
 		Route: ir.NavigationRoutes(navigation),
+		Source: func(datasetID string) (string, bool) {
+			ds, ok := l.Dataset(datasetID)
+			return ds.Source, ok
+		},
 		Rows: func(b domain.PageBinding) ([]ir.Row, error) {
 			return bindingRows(ctx, l, b)
 		},

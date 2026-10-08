@@ -24,7 +24,7 @@ import (
 // ones the node's type does not declare. The strictness lives in one place, the one that already knows the
 // vocabulary.
 //
-// The reserved keys are the three discriminators, `children`, `binding`, `from` and `to`. Exactly one discriminator per
+// The reserved keys are the three discriminators, `children`, `binding`, `from`, `to` and `list_of`. Exactly one discriminator per
 // node: `layout:`, `static:` or `component:`, whose value is the type.
 type pageNodeDoc struct {
 	kind     string
@@ -33,6 +33,7 @@ type pageNodeDoc struct {
 	binding  *pageBindingDoc
 	from     map[string]string
 	to       string
+	listOf   string
 	children []pageNodeDoc
 }
 
@@ -78,6 +79,11 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return fmt.Errorf("line %d: to: names one navigation item id, such as nav_approval_inbox -- never a route", key.Line)
 			}
 			p.to = val.Value
+		case "list_of":
+			if val.Kind != yaml.ScalarNode || val.Value == "" {
+				return fmt.Errorf("line %d: list_of: names one dataset id, such as ds_recent_documents -- never a route", key.Line)
+			}
+			p.listOf = val.Value
 		case "binding":
 			b, err := decodePageBinding(val)
 			if err != nil {
@@ -145,7 +151,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -171,6 +177,9 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 func PlaceholderResolver(navigation []domain.NavigationItem) ir.Resolver {
 	return ir.Resolver{
 		Route: ir.NavigationRoutes(navigation),
+		// Any dataset id resolves here: whether this Workspace declares it is `bindingIssues`' question, which
+		// has the Workspace's Datasets, and this resolver only needs a Machine to name.
+		Source: func(string) (string, bool) { return "machine", true },
 		Rows: func(domain.PageBinding) ([]ir.Row, error) {
 			return []ir.Row{{Label: "label", Value: "0"}}, nil
 		},
@@ -267,6 +276,11 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 			if b.Rows == domain.PageRowsDimension && ds.Dimension == "" {
 				issues = append(issues, fmt.Sprintf("%s: page: dataset %q declares no dimension, so it has no rows to expand", where, b.Dataset))
 			}
+		}
+	}
+	if n.ListOf != "" {
+		if _, ok := datasets[n.ListOf]; !ok {
+			issues = append(issues, fmt.Sprintf("%s: page: list_of names dataset %q, which no machine in this workspace declares", where, n.ListOf))
 		}
 	}
 	for _, c := range n.Children {

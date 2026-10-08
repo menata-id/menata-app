@@ -334,3 +334,60 @@ func TestLower_emptyIsRefusedWhereABindingCannotProduceNothing(t *testing.T) {
 		t.Fatal("Lower accepted empty: on a Collection that holds its own children")
 	}
 }
+
+func listOfLink(dataset string, props map[string]string) domain.PageNode {
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "link", ListOf: dataset, Props: props}}}
+}
+
+func sourceFixture(sources map[string]string) Resolver {
+	return Resolver{Source: func(id string) (string, bool) { m, ok := sources[id]; return m, ok }}
+}
+
+// The href is the runtime's generic page for the Machine the Dataset reads; the author wrote a Dataset id
+// and some words, and the route is built where every other Machine route is.
+func TestLower_aListOfLinkTakesItsRouteFromTheDatasetsMachine(t *testing.T) {
+	tree, err := Lower(listOfLink("ds_x", map[string]string{"text": "All of them"}), sourceFixture(map[string]string{"ds_x": "mch_y"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := tree.Children[0].Props
+	if got["href"] != domain.MachineListRoute("mch_y") || got["text"] != "All of them" {
+		t.Errorf("props = %v; want href=%s text=All of them", got, domain.MachineListRoute("mch_y"))
+	}
+	if issues := Validate(tree); len(issues) != 0 {
+		t.Errorf("a resolved link must validate: %v", issues)
+	}
+	other, _ := Lower(listOfLink("ds_x", map[string]string{"text": "t"}), sourceFixture(map[string]string{"ds_x": "mch_z"}))
+	if other.Children[0].Props["href"] == got["href"] {
+		t.Error("the same page over a different source Machine linked to the same route -- the route is not coming from the resolver")
+	}
+}
+
+func TestLower_refusesAListOfLinkThatIsNotWellFormed(t *testing.T) {
+	res := sourceFixture(map[string]string{"ds_x": "mch_y"})
+	both := listOfLink("ds_x", map[string]string{"text": "t"})
+	both.Children[0].To = "nav_x"
+	fromHref := recordLinkTemplate(map[string]string{"href": domain.PageRecordRole}, map[string]string{"text": "t"}, "")
+	fromHref.Children[0].Children[0].ListOf = "ds_x"
+	inTemplate := Resolver{Source: res.Source, Records: func(domain.PageBinding) ([]map[string]string, error) {
+		return []map[string]string{{domain.PageRecordRole: "/r"}}, nil
+	}}
+	for name, c := range map[string]struct {
+		root domain.PageNode
+		res  Resolver
+		want string
+	}{
+		"unknown dataset": {listOfLink("ds_missing", map[string]string{"text": "t"}), res, "ds_missing"},
+		"no text":         {listOfLink("ds_x", nil), res, "text"},
+		"typed href":      {listOfLink("ds_x", map[string]string{"text": "t", "href": "/machines/mch_y"}), res, "href"},
+		"no resolver":     {listOfLink("ds_x", map[string]string{"text": "t"}), Resolver{}, "resolver"},
+		"beside to":       {both, res, "one destination"},
+		"beside from":     {fromHref, inTemplate, "one destination"},
+		"on a non-link":   {domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{Kind: "static", Type: "paragraph", ListOf: "ds_x"}}}, res, "only on static: link"},
+	} {
+		if _, err := Lower(c.root, c.res); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v; want it to mention %q", name, err, c.want)
+		}
+	}
+}
