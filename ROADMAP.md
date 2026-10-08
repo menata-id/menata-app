@@ -558,7 +558,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Plan: `menata-app-document`'s `audits/2026-10-08-rencana-ui-ir-jangka-dekat-static-kind-dan-link.md`. **Next actions, in priority order:**
   1. Static kinds on a page (`subheading`, `message`, `note`, `caption`, `overline`, `panel-heading`) -- wiring only; the renderers exist.
   2. `link` to a navigation item (`to:`) and to a record, so a list item is clickable.
-  3. First migration of a bespoke screen. Application Settings is not links and text: it needs viewer-role visibility (007 has no section for it), a role-matrix Component and a row Component. Board Settings needs a Relation-backed `from:`. Choose which first (owner).
+  3. First migration of a bespoke screen: neither candidate is clean (Application Settings needs conditional visibility, a role-matrix and a row Component; Board Settings needs six things). Build the shared parts first, each with a consumer that exists now: 3a Collection empty state + truncation notice (consumed by the recent-documents page), 3b a registered `Tag` Component (5 existing `tagChip` sites), 3c the rest of Board Settings.
   4. Page parameters (`$parameters`); a recent-documents page in the library template (owner decision).
   5. Write-side Binding (007 §11.3): the largest item; opens My Tasks, Calendar and every form's `name=`. Needs a written plan first.
 - Installable as a PWA, Play-ready (TWA: `ANDROID_PACKAGE_NAME` + `ANDROID_CERT_FINGERPRINTS` serve `/.well-known/assetlinks.json`).
