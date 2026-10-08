@@ -587,7 +587,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   that held it now only checks the four documents. **Say plainly what it is not:** no existing screen was migrated, the
   two consumers (`nav_documents_by_status` in nana-workspace and nana-2-workspace) are new, and Binding is the **read
   side only** (`{dataset, measure, rows: dimension}` on a `Metric`, and from 2026-10-08 `{dataset, rows: records}` on a
-  `Collection` whose one template child takes `from: {property: role}` out of the Machine's `card_fields`). Never write "screen X is declarative" on the
+  `Collection` whose one template child takes `from: {property: role}` out of the Machine's `card_fields`). **Static text on a page is nine roles, not three** (2026-10-08; `link` is held out until a page can declare a destination): the renderer drew all of them, and `ir.allowedProps` -- a second list beside `domain.KnownStaticKinds` -- was missing seven, which `ir.TestValidateAcceptsEveryStaticKindWithItsText` now holds (mutation-proved on `note` and `eyebrow`). Never write "screen X is declarative" on the
   strength of this. **Installing copies**, so a library change to a bound Dataset reaches no earlier Workspace -- the load
   error on a missing Dataset is what stands in for remembering.
   **Post-primitive gates (2026-10-07):** `TestEveryInstalledPageLowersAndValidates` (every installed `page:` re-checked

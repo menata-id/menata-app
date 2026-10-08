@@ -87,6 +87,39 @@ func TestValidateAcceptsTheHeaderTree(t *testing.T) {
 	}
 }
 
+// heldOutStaticKinds are the Static kinds a node may not yet carry text for, each with the reason. `link` needs a
+// destination as well as text and a page has no way to declare one (the plan's Tahap 2); every other kind is
+// text-only. An entry whose kind has since gained a property entry fails, so the list cannot outlive its reason.
+var heldOutStaticKinds = map[domain.StaticKind]string{
+	domain.StaticLink: "a link needs a destination, which a declared page cannot yet give it",
+}
+
+// TestValidateAcceptsEveryStaticKindWithItsText closes the gap that made a drawn Static kind unreachable from
+// YAML: `ir.Validate` accepts a kind as a type via domain.KnownStaticKinds, but a node's properties are checked
+// against allowedProps, a second list. Seven kinds were in the first and not the second, so a page could not
+// declare a subheading although the renderer drew one -- no gate saw it, because each list was individually valid.
+func TestValidateAcceptsEveryStaticKindWithItsText(t *testing.T) {
+	for kind := range domain.KnownStaticKinds {
+		node := UINode{Kind: NodeLayout, Type: "stack", Props: map[string]string{"gap": "tight"},
+			Children: []UINode{{Kind: NodeStatic, Type: string(kind), Props: map[string]string{"text": "x"}}}}
+		issues := Validate(node)
+		if reason, held := heldOutStaticKinds[kind]; held {
+			if len(issues) == 0 {
+				t.Errorf("static kind %q is listed as held out (%s) but now validates with text -- remove it from heldOutStaticKinds", kind, reason)
+			}
+			continue
+		}
+		if len(issues) != 0 {
+			t.Errorf("static kind %q is drawn by the renderer but a node of it with text fails validation: %v -- add static/%s to allowedProps", kind, issues, kind)
+		}
+	}
+	for kind := range heldOutStaticKinds {
+		if !domain.KnownStaticKinds[kind] {
+			t.Errorf("heldOutStaticKinds names %q, which is no longer a Static kind", kind)
+		}
+	}
+}
+
 // TestValidateRefusesUnknownTypes is the fail-closed half, which 007 §9.2 states for expression context and
 // §14 states for the registry: an unknown type string is refused, never resolved. Without this a typo renders
 // a blank node and nothing reports it.

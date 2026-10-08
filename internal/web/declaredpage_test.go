@@ -119,6 +119,9 @@ func TestDeclaredPageListsRecordsFromTheMachinesProjection(t *testing.T) {
 	if !strings.Contains(body, "Zeta recent-list probe") {
 		t.Error("the newest document's title, resolved through the Machine's Projection, is not in the list")
 	}
+	if !strings.Contains(body, "Recent documents") {
+		t.Error("the page's declared `static: subheading` did not reach the screen")
+	}
 }
 
 func getPage(t *testing.T, h http.Handler, cookie, path string) string {

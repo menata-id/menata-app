@@ -939,7 +939,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 | Key | Value | Meaning |
 |---|---|---|
 | `layout:` | `stack`, `row`, `grid`, `split`, `panel` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `stack` `gap`; `row` `gap`, `align`, `justify`; `grid` `gap`, `mobile`, `columns`; `split` `gap`, `side`, `aside`; `panel` none |
-| `static:` | `eyebrow`, `heading`, `paragraph` | Text that is the same for everyone. Property: `text` |
+| `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. `link` is **not yet** available on a page: it needs a destination, and a page has no way to declare one (`ir.TestValidateAcceptsEveryStaticKindWithItsText` holds that list) |
 | `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
 `children:` is a list of nodes. The root must be a `layout:`. Any key a node's type does not declare is a
