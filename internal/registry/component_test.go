@@ -187,3 +187,44 @@ func TestValidateButton(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateTag holds the palette and the one required input. `color` is optional because an untagged colour
+// is a real state the renderer draws in the neutral entry; a *declared* colour outside the palette is a
+// mistake, and a validator that checked only required inputs would let `chartreuse` through to be drawn slate.
+func TestValidateTag(t *testing.T) {
+	for name, in := range map[string]map[string]string{
+		"label alone":       {"label": "Bug"},
+		"label and palette": {"label": "Bug", "color": "rose"},
+	} {
+		if issues := ValidateComponentUse(domain.ComponentTag, in); len(issues) != 0 {
+			t.Errorf("%s is a valid Tag, got %v", name, issues)
+		}
+	}
+	for _, c := range domain.KnownTagColors {
+		if issues := ValidateComponentUse(domain.ComponentTag, map[string]string{"label": "x", "color": string(c)}); len(issues) != 0 {
+			t.Errorf("palette entry %q must validate, got %v", c, issues)
+		}
+	}
+	for name, in := range map[string]map[string]string{
+		"no label":      {"color": "blue"},
+		"unknown color": {"label": "x", "color": "chartreuse"},
+		"a hex value":   {"label": "x", "color": "#ff0000"},
+		"class":         {"label": "x", "class": "mr-1"},
+		"tone":          {"label": "x", "tone": "info"},
+	} {
+		if issues := ValidateComponentUse(domain.ComponentTag, in); len(issues) == 0 {
+			t.Errorf("%s must be refused, but validated clean", name)
+		}
+	}
+}
+
+func TestTagContractRequiresAnAccessibleName(t *testing.T) {
+	for _, in := range tagContract.Inputs {
+		if in.Name == "label" && !in.Required {
+			t.Error("a Tag's label is its accessible name (the dot is aria-hidden); it must be required")
+		}
+		if in.Name == "color" && in.Required {
+			t.Error("color is optional: an uncoloured tag is drawn in the neutral palette entry")
+		}
+	}
+}

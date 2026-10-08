@@ -225,6 +225,7 @@ var allowedProps = map[string][]string{
 	"component/Collection":  {"gap", "empty"},
 	"component/Field":       {"label", "for"},
 	"component/Button":      {"label", "variant", "name", "value"},
+	"component/Tag":         {"label", "color"},
 }
 
 // layoutPropValues is the closed value set of each Layout property, read from the vocabulary in `domain` so a

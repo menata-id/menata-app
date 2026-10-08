@@ -431,7 +431,7 @@ func RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptio
 				}
 				ctx = templ.InitializeContext(ctx)
 				for _, t := range extras.Tags {
-					templ_7745c5c3_Err = tagChip(t).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = tagChip(t.Label, t.Color).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

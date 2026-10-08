@@ -47,6 +47,40 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentCollection:  {Contract: collectionContract, Validate: validateCollection},
 	domain.ComponentField:       {Contract: fieldContract, Validate: validateField},
 	domain.ComponentButton:      {Contract: buttonContract, Validate: validateButton},
+	domain.ComponentTag:         {Contract: tagContract, Validate: validateTag},
+}
+
+// tagContract is §12.3's `Tag`: a label and, optionally, an entry of the closed palette.
+//
+// **Two inputs, and the second is optional on purpose.** An untagged colour is a real state -- a label whose
+// Machine declares no `color` role, or whose value is not in the palette, is drawn in the neutral slate entry --
+// so requiring `color` would make a page author state what the data layer already defaults. The validator holds
+// the palette instead: a *declared* colour that is not an entry is a mistake, where the renderer's fallback for
+// data that arrives unknown is a kindness. Same asymmetry `Avatar`'s `presence` has.
+//
+// What the contract forces that a reviewer would not have asked for: `label` is **required**. The five sites
+// always had one, but the type allowed a `CardTag{}` and drew an empty coloured dot -- an element that says
+// nothing to a screen reader (the dot is `aria-hidden`) and nothing to a person who cannot tell the hues apart.
+var tagContract = domain.ComponentContract{
+	Type: domain.ComponentTag,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "color", Kind: "TagColor"},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "the label is the accessible name and is required; the colour dot is aria-hidden and the palette is the only colour vocabulary, so colour never carries the tag's meaning by itself",
+	Renderer:         "tagChip",
+}
+
+// validateTag checks a use against the declared inputs and the closed palette.
+func validateTag(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(tagContract, inputs, "Tag")
+	if v := inputs["color"]; v != "" && !domain.IsTagColor(v) {
+		issues = append(issues, fmt.Sprintf("Tag color %q is not an entry of the palette", v))
+	}
+	return issues
 }
 
 // buttonContract is §12.3's `Button`, and the first contract whose `Actions` is not empty.

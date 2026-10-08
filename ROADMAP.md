@@ -553,12 +553,12 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   corrections: `menata-app-document`'s
   `audits/2026-09-29-kajian-pekerjaan-tersisa-dan-prioritas.md`,
   `audits/2026-09-29-kajian-seleksi-record-terdeklarasi.md` and `development-history.md`.
-- **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Layouts, six Components, UI IR, ten Static kinds, all nine
+- **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Layouts, seven Components, UI IR, ten Static kinds, all nine
   Theme categories and a `page:` block with read-side Binding (`rows: dimension`, `rows: records`) are built; no bespoke screen is migrated yet.
   Plan: `menata-app-document`'s `audits/2026-10-08-rencana-ui-ir-jangka-dekat-static-kind-dan-link.md`. **Next actions, in priority order:**
   1. Static kinds on a page (`subheading`, `message`, `note`, `caption`, `overline`, `panel-heading`) -- wiring only; the renderers exist.
   2. `link` to a navigation item (`to:`) and to a record, so a list item is clickable.
-  3. First migration of a bespoke screen: neither candidate is clean (Application Settings needs conditional visibility, a role-matrix and a row Component; Board Settings needs six things). Build the shared parts first, each with a consumer that exists now: 3a Collection `empty:` (*shipped 2026-10-08*, consumed by the recent-documents page; the truncation notice moved to 3c, because that page's `limit: 5` is a window and a notice would be false), 3b a registered `Tag` Component (5 existing `tagChip` sites), 3c the rest of Board Settings, including an author-opted truncation notice.
+  3. First migration of a bespoke screen: neither candidate is clean (Application Settings needs conditional visibility, a role-matrix and a row Component; Board Settings needs six things). Build the shared parts first, each with a consumer that exists now: 3a Collection `empty:` (*shipped 2026-10-08*, consumed by the recent-documents page; the truncation notice moved to 3c, because that page's `limit: 5` is a window and a notice would be false), 3b a registered `Tag` Component (*shipped 2026-10-08*: the seventh, over the 5 existing `tagChip` sites; no page binds a record's label to it yet), 3c the rest of Board Settings, including an author-opted truncation notice.
   4. Page parameters (`$parameters`); a recent-documents page in the library template (owner decision).
   5. Write-side Binding (007 §11.3): the largest item; opens My Tasks, Calendar and every form's `name=`. Needs a written plan first.
 - Installable as a PWA, Play-ready (TWA: `ANDROID_PACKAGE_NAME` + `ANDROID_CERT_FINGERPRINTS` serve `/.well-known/assetlinks.json`).

@@ -77,7 +77,7 @@ templ BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer Vie
 				<ul class="m-0 flex list-none flex-col gap-1.5 p-0 text-sm">
 					for _, l := range c.Labels {
 						<li class={ "flex items-center justify-between gap-3", tileClasses(ctx), "px-3 py-2" }>
-							@tagChip(CardTag{Label: l.Name, Color: l.Color})
+							@tagChip(l.Name, l.Color)
 							<span class="text-xs text-slate-500">{ labelUsage(l.Records) }</span>
 						</li>
 					}

@@ -670,3 +670,51 @@ func TestHandWrittenTilesOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// tagTint matches the translucent fill a tag chip is drawn with (`bg-blue-600/10`), which is the palette's
+// signature: a status badge, a button and a surface use a solid -50/-100 tint or white, never a /10 one.
+var tagTint = regexp.MustCompile(`^bg-[a-z]+-[0-9]+/10$`)
+
+// TestNoHandWrittenTag is a zero-floor gate (2026-10-08): no class set in `internal/rendering` may hold
+// `rounded-full` beside a `bg-<colour>-<step>/10` fill. That pair is a tag chip, and it reads
+// `@tagChip(label, color)` -- the renderer of `domain.ComponentTag` -- so the closed palette stays the only
+// place a tag's colour is decided. Five sites drew a tag, all through one function, so the migration moved no
+// markup; the gate exists because the existing chip ratchet counts `-50`/`-100` tints and could not see this
+// shape at all (measured: every `/10` fill in the tree sits in `tagClasses`, none in a class attribute).
+// Blind spots, stated: a fill arriving from a Go function other than `tagClasses`, and a chip written without
+// `rounded-full`.
+func TestNoHandWrittenTag(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	seen := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := joinClassExpressions(comment.ReplaceAllString(string(b), ""))
+		for _, m := range surfaceClassAttr.FindAllStringSubmatch(src, -1) {
+			rounded, tint := false, false
+			for _, tok := range strings.Fields(m[1]) {
+				rounded = rounded || tok == "rounded-full"
+				tint = tint || tagTint.MatchString(tok)
+			}
+			if rounded {
+				seen++
+			}
+			if rounded && tint {
+				t.Errorf("%s: a hand-written tag (%q) -- use `@tagChip(label, color)` so the palette stays the one place a tag's colour is decided", e.Name(), m[1])
+			}
+		}
+	}
+	if seen == 0 {
+		t.Fatal("no class set holding rounded-full was found anywhere -- the scan is looking at the wrong text")
+	}
+}

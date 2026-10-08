@@ -11,6 +11,7 @@ import (
 
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
+	"menata.app/internal/ir"
 )
 
 // TestGridLayout_rendersTheClassStringEachCallSiteReplaced pins what `gridLayout` emits for every
@@ -1064,5 +1065,42 @@ func TestCollection_drawsItsEmptyWordsInPlaceOfAnEmptyList(t *testing.T) {
 	}
 	if got := render("Nothing here yet.", []templ.Component{staticText(domain.StaticParagraph, "one")}); strings.Contains(got, "Nothing here yet.") || !strings.Contains(got, "<li") {
 		t.Errorf("with an item: want the list and not the words; got %q", got)
+	}
+}
+
+// TestTagChip_reproducesThePreMigrationMarkup pins, byte for byte, what `tagChip(CardTag)` drew before it took
+// two bounded parameters. The expected string is the old literal written out by hand, not derived from
+// tagClasses, so a change to the markup fails here rather than passing against itself.
+func TestTagChip_reproducesThePreMigrationMarkup(t *testing.T) {
+	render := func(c templ.Component) string {
+		var buf bytes.Buffer
+		if err := c.Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	got := render(tagChip("Bug", domain.TagRose))
+	want := `<span class="inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-2xs border-rose-700/20 bg-rose-700/10 text-rose-700">` +
+		`<span class="size-1.5 rounded-full bg-rose-700" aria-hidden="true"></span> Bug</span>`
+	if strings.Join(strings.Fields(got), " ") != strings.Join(strings.Fields(want), " ") {
+		t.Errorf("tagChip rendered\n%s\nwant\n%s", got, want)
+	}
+	if unknown := render(tagChip("Legacy", "chartreuse")); !strings.Contains(unknown, "bg-slate-600/10 text-slate-600") {
+		t.Errorf("a colour outside the palette must fall back to the neutral entry, got %s", unknown)
+	}
+}
+
+// TestUINode_drawsATagFromItsDeclaredProps: the walker arm hands a declared Tag's two props to the same
+// renderer the five existing sites use, so a page and a board card draw one chip.
+func TestUINode_drawsATagFromItsDeclaredProps(t *testing.T) {
+	var buf bytes.Buffer
+	n := ir.UINode{Kind: ir.NodeComponent, Type: string(domain.ComponentTag), Props: map[string]string{"label": "Urgent", "color": "amber"}}
+	if err := uiNode(n).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	for _, want := range []string{"Urgent", "bg-amber-700/10 text-amber-700", "size-1.5 rounded-full bg-amber-700"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("declared Tag missing %q:\n%s", want, buf.String())
+		}
 	}
 }

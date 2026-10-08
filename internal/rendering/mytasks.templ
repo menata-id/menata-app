@@ -106,7 +106,7 @@ templ myTaskRow(t TaskRow) {
 				@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 					<span class="text-2xs text-slate-400">{ t.ProjectName }</span>
 					for _, tag := range t.Tags {
-						@tagChip(tag)
+						@tagChip(tag.Label, tag.Color)
 					}
 				}
 			}

@@ -147,6 +147,33 @@ children:
 
 // Each case is one fault the loader must refuse, named by the rejection it exercises. The positive test above
 // is what stops this table from passing because the validator refuses everything.
+// TestPage_aTagLoadsAndItsPaletteIsHeldAtLoad: a page may declare `component: Tag`, and the closed palette is
+// checked where every other Component's input is -- at load, through the registered validator -- so
+// `chartreuse` is a refusal and not a chip silently drawn slate.
+func TestPage_aTagLoadsAndItsPaletteIsHeldAtLoad(t *testing.T) {
+	tag := func(props string) string {
+		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n        - component: Tag\n" + props
+	}
+	for name, props := range map[string]string{
+		"label alone":       "          label: Urgent\n",
+		"label and palette": "          label: Urgent\n          color: amber\n",
+	} {
+		if err := pageFixture(t, tag(props)); err != nil {
+			t.Errorf("%s: a valid Tag was refused: %v", name, err)
+		}
+	}
+	for name, c := range map[string]struct{ props, want string }{
+		"colour outside the palette": {"          label: Urgent\n          color: chartreuse\n", "chartreuse"},
+		"no label":                   {"          color: amber\n", "label"},
+		"a class":                    {"          label: Urgent\n          class: mr-1\n", "class"},
+	} {
+		err := pageFixture(t, tag(c.props))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error = %v; want a refusal mentioning %q", name, err, c.want)
+		}
+	}
+}
+
 func TestPage_faultsAreRefusedAtLoad(t *testing.T) {
 	item := func(route, page string) string {
 		return "  - id: nav_p\n    label: P\n    route: " + route + "\n    page:\n" + page

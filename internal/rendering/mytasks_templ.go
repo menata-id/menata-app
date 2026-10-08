@@ -510,7 +510,7 @@ func myTaskRow(t TaskRow) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					for _, tag := range t.Tags {
-						templ_7745c5c3_Err = tagChip(tag).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = tagChip(tag.Label, tag.Color).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

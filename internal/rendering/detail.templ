@@ -159,7 +159,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 		if len(extras.Tags) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 				for _, t := range extras.Tags {
-					@tagChip(t)
+					@tagChip(t.Label, t.Color)
 				}
 			}
 		}

@@ -297,7 +297,7 @@ func BoardSettingsPage(c BoardSettingsContent, workspaceName string, viewer View
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = tagChip(CardTag{Label: l.Name, Color: l.Color}).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = tagChip(l.Name, l.Color).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

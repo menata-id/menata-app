@@ -846,18 +846,22 @@ func tagClasses(c domain.TagColor) (chip, dot string) {
 		return "border-cyan-700/20 bg-cyan-700/10 text-cyan-700", "bg-cyan-700"
 	case domain.TagRose:
 		return "border-rose-700/20 bg-rose-700/10 text-rose-700", "bg-rose-700"
+	case domain.TagSlate:
+		fallthrough
 	default:
 		return "border-slate-600/20 bg-slate-600/10 text-slate-600", "bg-slate-600"
 	}
 }
 
-// tagChip is a tag drawn as a pill with a colour dot. Its colour is a palette name, never a value, so the
-// same label reads the same on every board.
-templ tagChip(t CardTag) {
-	{{ chip, dot := tagClasses(t.Color) }}
+// tagChip is the registered renderer for `domain.ComponentTag`: a tag drawn as a pill with a colour dot. Its
+// colour is a palette name, never a value, so the same label reads the same on every board. **Two bounded
+// parameters**: a string and a closed palette name, with no record to read a tag out of -- composition resolves
+// `CardTag` before it gets here, and the callers pass its two fields.
+templ tagChip(label string, color domain.TagColor) {
+	{{ chip, dot := tagClasses(color) }}
 	<span class={ "inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-2xs", chip }>
 		<span class={ "size-1.5 rounded-full", dot } aria-hidden="true"></span>
-		{ t.Label }
+		{ label }
 	</span>
 }
 
@@ -885,7 +889,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 		if len(c.Tags) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 				for _, t := range c.Tags {
-					@tagChip(t)
+					@tagChip(t.Label, t.Color)
 				}
 			}
 		}

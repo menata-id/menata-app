@@ -92,7 +92,7 @@ templ calendarCard(t TaskRow) {
 		if len(t.Tags) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 				for _, tag := range t.Tags {
-					@tagChip(tag)
+					@tagChip(tag.Label, tag.Color)
 				}
 			}
 		}

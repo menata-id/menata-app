@@ -1729,6 +1729,11 @@ func uiNode(n ir.UINode) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+			case domain.ComponentTag:
+				templ_7745c5c3_Err = tagChip(n.Props["label"], domain.TagColor(n.Props["color"])).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
 			}
 		}
 		return nil

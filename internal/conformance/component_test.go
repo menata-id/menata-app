@@ -68,6 +68,7 @@ func TestComponentRegistryAndRenderersAgree(t *testing.T) {
 		"KnownAvatarPresences": {"domain.AvatarPresent", "domain.AvatarPending"},
 		"KnownBadgeSizes":      {"domain.BadgeRegular", "domain.BadgeCompact"},
 		"KnownButtonVariants":  {"domain.ButtonPrimary", "domain.ButtonSecondary", "domain.ButtonDanger"},
+		"KnownTagColors":       {"domain.TagBlue", "domain.TagPurple", "domain.TagAmber", "domain.TagSlate", "domain.TagEmerald", "domain.TagCyan", "domain.TagRose"},
 	} {
 		for _, ident := range members {
 			if !strings.Contains(rendering, ident) {
@@ -77,8 +78,8 @@ func TestComponentRegistryAndRenderersAgree(t *testing.T) {
 	}
 	// And the sets may not grow past what this gate enumerates. A range loop gives that for free; a hand-
 	// written list does not, so the count is asserted instead.
-	if got, want := len(domain.KnownAvatarSizes)+len(domain.KnownAvatarPresences)+len(domain.KnownBadgeSizes)+len(domain.KnownButtonVariants), 10; got != want {
-		t.Errorf("the Avatar, Badge and Button parameter sets now hold %d members, this gate enumerates %d -- add the new one above with its renderer arm", got, want)
+	if got, want := len(domain.KnownAvatarSizes)+len(domain.KnownAvatarPresences)+len(domain.KnownBadgeSizes)+len(domain.KnownButtonVariants)+len(domain.KnownTagColors), 17; got != want {
+		t.Errorf("the Avatar, Badge, Button and Tag parameter sets now hold %d members, this gate enumerates %d -- add the new one above with its renderer arm", got, want)
 	}
 }
 

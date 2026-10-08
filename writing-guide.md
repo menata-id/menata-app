@@ -940,7 +940,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 |---|---|---|
 | `layout:` | `stack`, `row`, `grid`, `split`, `panel` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `stack` `gap`; `row` `gap`, `align`, `justify`; `grid` `gap`, `mobile`, `columns`; `split` `gap`, `side`, `aside`; `panel` none |
 | `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
-| `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, ...) | Drawn from its contract; properties are that Component's declared inputs |
+| `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
 `children:` is a list of nodes. The root must be a `layout:`. Any key a node's type does not declare is a
 **load error**, not an ignored typo (`ir.Validate`, 007 §15.3), and the same sweep refuses a cycle, a tree
@@ -1059,6 +1059,18 @@ record's sub-screen (`/review`, `/edit`), which would need a second reserved wor
         children:
           - component: Metric
             binding: {dataset: ds_document_by_status, measure: msr_total, rows: dimension}
+```
+
+**`component: Tag`** (2026-10-08) draws a name as a pill with a colour dot: `label` is required, `color` is
+optional and, when written, must be one of the palette (`blue`, `purple`, `amber`, `slate`, `emerald`, `cyan`,
+`rose`). A colour outside it is a load error; there is no hex value and no class. The dot is decoration, so the
+label is always what names the tag. It takes written text only; a tag taken from a record's own label is not
+bindable on a page yet, and the boards, calendar and record detail keep drawing theirs from their Machines.
+
+```yaml
+- component: Tag
+  label: Urgent
+  color: amber
 ```
 
 **What it is not.** It does not migrate an existing screen: a bespoke Go screen stays bespoke until its

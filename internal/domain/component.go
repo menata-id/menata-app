@@ -82,6 +82,14 @@ const (
 	// choice of element and per-site spacing to the sites that need them, which still draw their own tag but
 	// read the same classes through `rendering.buttonClasses`.
 	ComponentButton ComponentType = "Button"
+	// ComponentTag is §12.3's own `Tag`: a name set against a record, drawn as a pill with a colour dot.
+	//
+	// **It already existed unregistered, five times.** `rendering.tagChip(CardTag)` drew a board card's labels,
+	// the calendar's, the record detail's, My Tasks' and Board Settings' list, every one passing the same
+	// resolved `{Label, Color}`. Registering it names what was there. The colour is an entry of the closed
+	// palette (`TagColor`, 007 §15.2: a Workspace picks a name, never a value), and the label is always drawn,
+	// so the colour is never the only thing that says which tag this is.
+	ComponentTag ComponentType = "Tag"
 )
 
 // ButtonVariant is what a button means to the person reading the screen, as a closed set -- not how it looks,
