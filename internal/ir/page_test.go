@@ -310,3 +310,27 @@ func TestLower_refusesARecordLinkThatCouldLeakOrFabricateAnAddress(t *testing.T)
 		}
 	}
 }
+
+func TestLower_emptyWordsAreCarriedOntoTheCollectionWhetherOrNotItIsEmpty(t *testing.T) {
+	bound := listBound(rowTemplate())
+	bound.Props = map[string]string{"gap": "tight", "empty": "No documents yet."}
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{bound}}
+	for name, rec := range map[string]Resolver{"none": fixedRecords(), "some": fixedRecords(map[string]string{"title": "t", "status": "s"})} {
+		got, err := Lower(root, rec)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got.Children[0].Props["empty"] != "No documents yet." {
+			t.Errorf("%s: empty did not reach the lowered Collection: %+v", name, got.Children[0].Props)
+		}
+	}
+}
+
+func TestLower_emptyIsRefusedWhereABindingCannotProduceNothing(t *testing.T) {
+	unbound := domain.PageNode{Kind: "component", Type: "Collection", Props: map[string]string{"gap": "tight", "empty": "none"},
+		Children: []domain.PageNode{{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "x"}}}}
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{unbound}}
+	if _, err := Lower(root, fixedRecords()); err == nil {
+		t.Fatal("Lower accepted empty: on a Collection that holds its own children")
+	}
+}

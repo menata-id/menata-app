@@ -100,6 +100,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 			return nil, err
 		}
 	}
+	if _, written := n.Props[collectionEmptyProp]; written && n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentCollection) {
+		return nil, fmt.Errorf("%s: %s: is the words shown when a records binding lists nothing, so it is valid only on a Collection bound with rows: %s -- a Collection that holds its own children is empty by being written empty", path, collectionEmptyProp, domain.PageRowsRecords)
+	}
 	props, err := lowerLink(n, props, r, path)
 	if err != nil {
 		return nil, err
@@ -120,6 +123,11 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 // `text` defaults to the item's own label -- the words the menu already uses for that screen -- and may be
 // written (or taken `from:` a record) when the link should say something else. `to:` on any other node is
 // refused rather than ignored, for the reason `from:` outside a template is.
+// collectionEmptyProp is the one Collection property that is about the *binding's* result and not about the
+// list's shape: what to say when the Dataset has no records. It is written by the author (words are content)
+// and is meaningful only where a binding can produce zero items.
+const collectionEmptyProp = "empty"
+
 func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path string) (map[string]string, error) {
 	isLink := n.Kind == string(NodeStatic) && n.Type == string(domain.StaticLink)
 	for prop, role := range n.From {

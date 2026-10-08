@@ -359,7 +359,7 @@ func TestAvatar_rendersEachCallSiteCombination(t *testing.T) {
 func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 	var buf bytes.Buffer
 	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
-	if err := collection(domain.GapTight, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -373,10 +373,10 @@ func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 		t.Errorf("collection did not render its slot children; got %q", got)
 	}
 
-	// An empty collection still renders the list, not nothing: a screen showing "no rows" decides that
-	// itself, and a Component that vanished would make the empty state the Component's business.
+	// With no `empty` words an empty collection still renders the list, not nothing: the two hand-written
+	// callers say "no rows" themselves, and a Component that vanished would change what they draw.
 	buf.Reset()
-	if err := collection(domain.GapTight, nil).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if got := buf.String(); !strings.Contains(got, "<ul") || strings.Contains(got, "<li") {
@@ -1045,5 +1045,24 @@ func TestDividedRowClasses_defaultsAreTheLiteralsThreeSitesReplaced(t *testing.T
 	ctx = WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
 	if got := dividedRowClasses(ctx, domain.GapTight); !strings.Contains(got, "border-slate-300") || strings.Contains(got, "border-slate-100") {
 		t.Errorf("a declared border.divider should move the row rule; got %q", got)
+	}
+}
+
+// TestCollection_drawsItsEmptyWordsInPlaceOfAnEmptyList: the words are the author's (content), the Component
+// only decides *when* they show -- no items -- and what shape they take: the shared `message` role, so a
+// Theme that restyles messages restyles this too. With items the words must not appear at all.
+func TestCollection_drawsItsEmptyWordsInPlaceOfAnEmptyList(t *testing.T) {
+	render := func(empty string, items []templ.Component) string {
+		var buf bytes.Buffer
+		if err := collection(domain.GapTight, empty, items).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	if got := render("Nothing here yet.", nil); !strings.Contains(got, "Nothing here yet.") || strings.Contains(got, "<ul") {
+		t.Errorf("no items: want the words and no list; got %q", got)
+	}
+	if got := render("Nothing here yet.", []templ.Component{staticText(domain.StaticParagraph, "one")}); strings.Contains(got, "Nothing here yet.") || !strings.Contains(got, "<li") {
+		t.Errorf("with an item: want the list and not the words; got %q", got)
 	}
 }

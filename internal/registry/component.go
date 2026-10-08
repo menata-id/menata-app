@@ -126,11 +126,12 @@ var collectionContract = domain.ComponentContract{
 	Type: domain.ComponentCollection,
 	Inputs: []domain.ComponentInput{
 		{Name: "gap", Kind: "Gap", Required: true},
+		{Name: "empty", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"item"},
 	Actions:          nil,
-	Accessibility:    "renders a real <ul>/<li>, so the list and its length are announced without an explicit role",
+	Accessibility:    "renders a real <ul>/<li>, so the list and its length are announced without an explicit role; with no items and an `empty` text it renders that text in place of an empty list, so a screen-reader user hears why nothing is there rather than an empty list",
 	Renderer:         "collection",
 }
 

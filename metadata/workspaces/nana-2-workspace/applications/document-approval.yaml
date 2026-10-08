@@ -257,6 +257,8 @@ navigation:
         # `status` is whichever Field the Machine projects first in that role (the document type).
         - component: Collection
           gap: tight
+          # `empty` is the words shown when the Dataset lists no records; the Component only decides when.
+          empty: No documents yet.
           binding:
             dataset: ds_recent_documents
             rows: records

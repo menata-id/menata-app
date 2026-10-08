@@ -213,3 +213,41 @@ func countByStatus(t *testing.T, ctx context.Context, store *data.Store, machine
 	}
 	return out
 }
+
+// TestDeclaredPageSaysItsEmptyWordsOnlyWhenTheListIsEmpty: a fresh Workspace holds no documents, so the
+// recent list is empty and must say what the page declared; once a document exists the words must go. The
+// expected text is read out of the loaded navigation, so the property under test is "the page's own words
+// reach the screen", not a literal.
+func TestDeclaredPageSaysItsEmptyWordsOnlyWhenTheListIsEmpty(t *testing.T) {
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredempty", "nana-2-workspace")
+
+	var words string
+	var find func(n domain.PageNode)
+	find = func(n domain.PageNode) {
+		if n.Type == string(domain.ComponentCollection) && n.Props["empty"] != "" {
+			words = n.Props["empty"]
+		}
+		for _, c := range n.Children {
+			find(c)
+		}
+	}
+	for _, app := range ws.Applications {
+		for _, item := range app.AllNavigation {
+			if item.ID == "nav_documents_by_status" && item.Page != nil {
+				find(*item.Page)
+			}
+		}
+	}
+	if words == "" {
+		t.Fatal("nana-2-workspace's page declares no `empty:` on its Collection")
+	}
+
+	if body := getPage(t, h, cookie, "/pages/nav_documents_by_status"); !strings.Contains(body, words) {
+		t.Errorf("an empty list did not say %q", words)
+	}
+
+	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
+	if body := getPage(t, h, cookie, "/pages/nav_documents_by_status"); strings.Contains(body, words) {
+		t.Errorf("the list has a document and still says %q", words)
+	}
+}

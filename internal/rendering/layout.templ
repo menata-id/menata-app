@@ -454,14 +454,22 @@ templ columnsLayout(gap domain.Gap, align domain.ColumnsAlign) {
 //
 // A real `<ul>`/`<li>` rather than divs: the list and its length are then announced without an explicit
 // role, which is what the contract's accessibility clause records.
-templ collection(gap domain.Gap, items []templ.Component) {
-	<ul class={ "flex flex-col", layoutGap(ctx, gap) }>
-		for _, it := range items {
-			<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "text-sm" }>
-				@it
-			</li>
-		}
-	</ul>
+//
+// `empty` is what to say when there are no items: the words are drawn as a `message` in place of an empty
+// `<ul>`. "" keeps the old behaviour (an empty list), which the two hand-written callers rely on because they
+// say it themselves.
+templ collection(gap domain.Gap, empty string, items []templ.Component) {
+	if len(items) == 0 && empty != "" {
+		@staticText(domain.StaticMessage, empty)
+	} else {
+		<ul class={ "flex flex-col", layoutGap(ctx, gap) }>
+			for _, it := range items {
+				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "text-sm" }>
+					@it
+				</li>
+			}
+		</ul>
+	}
 }
 
 // rowAlign and rowJustify map the two flexbox axes. Both return "" for their default member, and
@@ -690,7 +698,7 @@ templ uiNode(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:
-					@collection(domain.Gap(n.Props["gap"]), uiChildComponents(n))
+					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], uiChildComponents(n))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:

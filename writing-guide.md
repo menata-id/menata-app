@@ -977,6 +977,14 @@ Machine already said about its shape. Rules, all checked at load:
   Machine (007 §20), which a list would repeat per page view. Ask for a role backed by a plain Field;
 - a role the Machine does not declare is a load error, not a blank cell.
 
+A records-bound Collection may also carry `empty: <words>`: what the page says when the Dataset lists no
+records (the words are drawn as a `message`, **in place of** the list, and never beside a non-empty one). The
+Component only decides *when*; the words are the page's. Without `empty:` an empty list draws nothing, as
+before. `empty:` is a load error anywhere but a Collection bound with `rows: records` -- an unbound Collection
+or a `rows: dimension` Metric cannot produce nothing. **There is no truncation notice**, on purpose: a Dataset's
+`limit:` is a safety cap in one Dataset and a window ("the latest five") in another, nothing declares which, and a
+"showing the first N" line over a window is false.
+
 **`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and
 nothing else:
 
@@ -1023,6 +1031,7 @@ record's sub-screen (`/review`, `/edit`), which would need a second reserved wor
 - component: Collection
   gap: tight
   binding: {dataset: ds_recent_documents, rows: records}
+  empty: No documents yet.
   children:
     - layout: row
       children:
