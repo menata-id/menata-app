@@ -109,6 +109,9 @@ func modeFieldFor(stepMachine *domain.Machine) string {
 func showDocumentSubmit(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
+		if _, ok := requireMachineForDocument(w, ctx); !ok {
+			return
+		}
 		machines := machinesFor(ctx)
 		opts, err := readWizardOptions(req, machines, store)
 		if err != nil {
@@ -132,6 +135,9 @@ func showDocumentSubmit(store *data.Store, cfg config.Config) http.HandlerFunc {
 // data and never a different set.
 func newApproverRow(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		if _, ok := requireMachineForDocument(w, req.Context()); !ok {
+			return
+		}
 		machines := machinesFor(req.Context())
 		opts, err := readWizardOptions(req, machines, store)
 		if err != nil {
@@ -740,6 +746,9 @@ func saveApprovalFlowTemplate(ctx context.Context, store *data.Store, templateMa
 // than leaves stale rows from whatever was picked before.
 func showApprovalFlowTemplateRows(store *data.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
+		if _, ok := requireMachineForDocument(w, req.Context()); !ok {
+			return
+		}
 		machines := machinesFor(req.Context())
 		opts, err := readWizardOptions(req, machines, store)
 		if err != nil {
