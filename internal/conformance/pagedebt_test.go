@@ -81,7 +81,7 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 	"MyTasksPage":             {"candidate", "nav_my_tasks; read 2026-10-07: ds_my_tasks selects records, bucketing by date is Go, each row carries a PATCH form (write side, 007 §11.3 unbuilt) -- not Jalur A"},
 	"CalendarPage":            {"candidate", "nav_calendar; read 2026-10-07: week grid bucketed in Go from ds_all_tasks, ?week= parameter, PATCH form per card -- not Jalur A"},
 	"BoardSettingsPage":       {"candidate", "nav_board_settings; read 2026-10-07: the nearest to Jalur A -- read-only, three Datasets, the one aggregate in the library (ds_label_usage) -- but needs a collection Binding over select:records, a per-row join of two Datasets by record id (007 §7.5), and tagChip is not a registered Component"},
-	"ApplicationSettingsPage": {"candidate", "nav_app_settings; read 2026-10-07: reads no Dataset and no record -- links plus a role matrix derived from Machine permissions at request time; a candidate for `page:` as static/link nodes, never for Jalur A"},
+	"ApplicationSettingsPage": {"candidate", "nav_app_settings; read 2026-10-07: reads no Dataset and no record -- links plus a role matrix derived from Machine permissions at request time; re-read 2026-10-08: NOT static/link nodes alone -- rows shown by viewer role and by len(app.Roles) (007 has no visibility concept), a role-matrix with no Component, a row with one clean site, and a desktop/mobile pair of routes; never Jalur A"},
 }
 
 var bespokeScreenCategories = map[string]bool{
