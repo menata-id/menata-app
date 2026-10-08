@@ -89,6 +89,38 @@ func TestDeclaredPageQueryCostIsFlatInRecordCount(t *testing.T) {
 	}
 }
 
+// TestDeclaredPageListsRecordsFromTheMachinesProjection: the Collection bound with `rows: records` shows each
+// record's title as the Machine's own Projection resolves it, and the newest first. Titles are read out of the
+// records through the Machine's `card_fields`, so no Field id appears here either.
+func TestDeclaredPageListsRecordsFromTheMachinesProjection(t *testing.T) {
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredlist", "nana-2-workspace")
+	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
+
+	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	if doc == nil {
+		t.Fatal("nana-2-workspace casts no document role")
+	}
+	var titleField string
+	for _, cf := range doc.CardFields {
+		if cf.Role == domain.CardFieldRoleTitle {
+			titleField = cf.Field
+		}
+	}
+	if titleField == "" {
+		t.Fatal("the document Machine projects no title role")
+	}
+	rec, err := store.CreateRecord(ctx, doc.ID, map[string]any{titleField: "Zeta recent-list probe"})
+	if err != nil {
+		t.Fatalf("CreateRecord: %v", err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, doc.ID, rec.ID) })
+
+	body := getPage(t, h, cookie, "/pages/nav_documents_by_status")
+	if !strings.Contains(body, "Zeta recent-list probe") {
+		t.Error("the newest document's title, resolved through the Machine's Projection, is not in the list")
+	}
+}
+
 func getPage(t *testing.T, h http.Handler, cookie, path string) string {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, path, nil)

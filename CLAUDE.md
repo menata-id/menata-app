@@ -586,11 +586,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   named so `TestBespokeScreensOnlyShrink`'s `…Page(` pattern does not count it. `pageBlockDeferral` is nil and the gate
   that held it now only checks the four documents. **Say plainly what it is not:** no existing screen was migrated, the
   two consumers (`nav_documents_by_status` in nana-workspace and nana-2-workspace) are new, and Binding is the **read
-  side only** (`{dataset, measure, rows: dimension}`, `Metric` only). Never write "screen X is declarative" on the
+  side only** (`{dataset, measure, rows: dimension}` on a `Metric`, and from 2026-10-08 `{dataset, rows: records}` on a
+  `Collection` whose one template child takes `from: {property: role}` out of the Machine's `card_fields`). Never write "screen X is declarative" on the
   strength of this. **Installing copies**, so a library change to a bound Dataset reaches no earlier Workspace -- the load
   error on a missing Dataset is what stands in for remembering.
   **Post-primitive gates (2026-10-07):** `TestEveryInstalledPageLowersAndValidates` (every installed `page:` re-checked
-  against `ir.Validate`, not only by the loader) and `TestDeclaredPagePipelineHasNoPerScreenBranch` (no nav/Machine/
+  against `ir.Validate`, not only by the loader; since 2026-10-08 also every `rows: records` binding against the owning Machine, by `recordsBindingProblems`, independently of `metadata`'s own check -- the probe showed disabling that check failed only a fixture unit test) and `TestDeclaredPagePipelineHasNoPerScreenBranch` (no nav/Machine/
   Application/Dataset/Field id literal in the six files between YAML and pixels). **The probe is why the first exists and
   what it found:** with the loader's `validatePages` call disabled, only one unit test failed -- no gate over installed
   manifests -- and raising an installed page's `columns` to 9 passed even the new sweep, because `ir.Validate` checked

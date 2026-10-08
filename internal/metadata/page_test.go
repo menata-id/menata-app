@@ -25,6 +25,14 @@ fields:
   - id: fld_title
     name: Title
     type: text
+  - id: fld_parent
+    name: Parent
+    type: relation
+    machine: mch_doc
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_parent, role: person }
 datasets:
   - id: ds_by_status
     dimension: fld_status
@@ -38,6 +46,13 @@ datasets:
   - id: ds_rows
     select: records
     limit: 10
+  - id: ds_by_param
+    select: records
+    limit: 10
+    where:
+      field: fld_title
+      op: equals
+      value: $parameters.title
 `)
 	writeFile(t, dir, "app.yaml", `
 workspace: default
@@ -74,6 +89,32 @@ const validPage = `
 func TestPage_validDeclarationLoads(t *testing.T) {
 	if err := pageFixture(t, validPage); err != nil {
 		t.Fatalf("a valid page: was refused: %v", err)
+	}
+}
+
+const validListPage = `
+  - id: nav_list
+    label: List
+    route: /pages/nav_list
+    page:
+      layout: stack
+      children:
+        - component: Collection
+          gap: tight
+          binding: { dataset: ds_rows, rows: records }
+          children:
+            - layout: row
+              children:
+                - static: paragraph
+                  from: { text: title }
+                - component: StatusBadge
+                  tone: info
+                  from: { label: status }
+`
+
+func TestPage_recordsBindingLoads(t *testing.T) {
+	if err := pageFixture(t, validListPage); err != nil {
+		t.Fatalf("a valid records page was refused: %v", err)
 	}
 }
 
@@ -134,6 +175,15 @@ func TestPage_faultsAreRefusedAtLoad(t *testing.T) {
 		{"bound node with children", item("/pages/nav_p", "      layout: stack\n      children:\n        - component: Metric\n          binding: { dataset: ds_by_status, measure: msr_total, rows: dimension }\n          children:\n            - static: paragraph\n              text: x\n"), "holds no children"},
 		{"static node holding a child", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: heading\n          text: x\n          children:\n            - static: paragraph\n              text: y\n"), "slot/type mismatch"},
 		{"leaf component holding a child", item("/pages/nav_p", "      layout: stack\n      children:\n        - component: Avatar\n          initials: AB\n          label: Ab\n          children:\n            - static: paragraph\n              text: y\n"), "declares no slots"},
+		{"records binding on an aggregate dataset", item("/pages/nav_p", list("ds_by_status", "title")), "is an aggregate"},
+		{"records binding filtering on a request parameter", item("/pages/nav_p", list("ds_by_param", "title")), "no request parameters"},
+		{"records binding names no dataset", item("/pages/nav_p", list("ds_missing", "title")), "ds_missing"},
+		{"from names a role no machine projects", item("/pages/nav_p", list("ds_rows", "nonesuch")), "nonesuch"},
+		{"from names a role this machine does not declare", item("/pages/nav_p", list("ds_rows", "money")), "declares no card_fields role"},
+		{"from names a reference-backed role", item("/pages/nav_p", list("ds_rows", "person")), "reference to another machine"},
+		{"from outside any records template", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: paragraph\n          from: { text: title }\n"), "from: is valid only"},
+		{"from as a list", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: paragraph\n          from: [title]\n"), "from: is a mapping"},
+		{"from with an expression value", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: paragraph\n          from: { text: [title] }\n"), "names one Projection role"},
 		{"depth beyond the maximum", item("/pages/nav_p", deep(12)), "depth"},
 	}
 	for _, c := range cases {
@@ -151,6 +201,12 @@ func TestPage_faultsAreRefusedAtLoad(t *testing.T) {
 
 func bound(ds, ms string) string {
 	return "      layout: stack\n      children:\n        - component: Metric\n          binding: { dataset: " + ds + ", measure: " + ms + ", rows: dimension }\n"
+}
+
+// list is a records-bound Collection over dataset, whose one item paragraph takes its text from role.
+func list(dataset, role string) string {
+	return "      layout: stack\n      children:\n        - component: Collection\n          gap: tight\n          binding: { dataset: " + dataset +
+		", rows: records }\n          children:\n            - static: paragraph\n              from: { text: " + role + " }\n"
 }
 
 // deep nests stacks n levels below the root, past ir.MaxDepth.

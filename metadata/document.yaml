@@ -303,6 +303,15 @@ datasets:
       - id: msr_total
         aggregate: count
 
+  # The newest Documents as records, for a `page:` list (rows: records). `limit: 5` is the list's meaning --
+  # "the latest five" -- and not a completeness claim, so a page shows no truncation notice for it.
+  - id: ds_recent_documents
+    select: records
+    sort:
+      - field: created_at
+        direction: desc
+    limit: 5
+
 # How a Document's records look wherever they appear -- the detail page selects no View, so
 # these are Machine-level rather than per-arrangement.
 sla_field: fld_due_date

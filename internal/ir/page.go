@@ -13,14 +13,27 @@ type Row struct {
 	Value string
 }
 
-// RowResolver answers a Binding. It is injected, not imported, for the reason `knownComponents` is: this
-// package is a representation (§15), not a data reader, and `conformance` forbids it `internal/data`. The
-// loader passes a placeholder resolver to check a tree's *shape* without a database; the handler passes one
-// that reads the Dataset.
+// RowResolver answers a dimension Binding. It is injected, not imported, for the reason `knownComponents` is:
+// this package is a representation (§15), not a data reader, and `conformance` forbids it `internal/data`.
+// The loader passes a placeholder resolver to check a tree's *shape* without a database; the handler passes
+// one that reads the Dataset.
 type RowResolver func(b domain.PageBinding) ([]Row, error)
 
+// RecordResolver answers a records Binding: one map per record, keyed by Projection role (`title`, `status`,
+// `date`...) and holding that role's display string, already resolved and formatted. Lower places those
+// strings and decides nothing about them; **a role the map lacks is a fault of the declaration** (it asked for
+// something the Dataset's Machine does not project), not an empty string.
+type RecordResolver func(b domain.PageBinding) ([]map[string]string, error)
+
+// Resolver is what Lower may ask the outside world. Either half may be nil when the tree has no Binding of
+// that mode; a Binding Lower cannot answer is an error rather than a panic.
+type Resolver struct {
+	Rows    RowResolver
+	Records RecordResolver
+}
+
 // Lower turns a declared `page:` into UI IR (007 §15.1's "Build UI IR"), expanding every Binding through
-// resolve and nothing else -- it decides no layout, formats no value, and reads no data itself.
+// the Resolver and nothing else -- it decides no layout, formats no value, and reads no data itself.
 //
 // **A bound node is a template for its rows.** `component: Metric` with a `binding:` becomes one Metric per
 // row, each `label` the Dimension's value and `value` the Measure's, in the resolver's order. The author
@@ -28,11 +41,17 @@ type RowResolver func(b domain.PageBinding) ([]Row, error)
 // the author typed" this whole key exists to avoid), and the check is here so it cannot be forgotten by a
 // caller. Other properties (`hint`, `tone`) are copied to every row.
 //
+// **A records-bound Collection is a template for its items.** It holds exactly one child, and that child
+// (with everything under it) is cloned once per record, each `from:` property filled from the record's
+// Projection role. The author writes neither the property nor a second source for it, for the same reason.
+// `from:` is meaningful only inside such a template, so one anywhere else is refused here rather than being
+// ignored by a renderer that never looks.
+//
 // Faults that are about the *declaration* (a binding on a node that cannot take one, a missing dataset name,
-// a bound node holding children) are returned as errors; faults about the *tree* (unknown types, cycles,
-// depth) are `Validate`'s, so the five §15.3 rejections stay in one place.
-func Lower(root domain.PageNode, resolve RowResolver) (UINode, error) {
-	nodes, err := lower(root, resolve, "page")
+// a bound node holding the wrong children, a `from:` outside a template) are returned as errors; faults about
+// the *tree* (unknown types, cycles, depth) are `Validate`'s, so the five §15.3 rejections stay in one place.
+func Lower(root domain.PageNode, r Resolver) (UINode, error) {
+	nodes, err := lower(root, r, "page", nil)
 	if err != nil {
 		return UINode{}, err
 	}
@@ -42,13 +61,28 @@ func Lower(root domain.PageNode, resolve RowResolver) (UINode, error) {
 	return nodes[0], nil
 }
 
-func lower(n domain.PageNode, resolve RowResolver, path string) ([]UINode, error) {
+// lower expands one node. record is non-nil exactly while lowering inside a records template, which is what
+// makes `from:` legal and a nested Binding illegal.
+func lower(n domain.PageNode, r Resolver, path string, record map[string]string) ([]UINode, error) {
 	if n.Binding != nil {
-		return lowerBound(n, resolve, path)
+		if record != nil {
+			return nil, fmt.Errorf("%s: a binding inside a record template is not supported -- the item is one record, and a second Dataset would be a join the page has no grammar for", path)
+		}
+		return lowerBound(n, r, path)
 	}
-	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: n.Props}
+	props := n.Props
+	if len(n.From) > 0 {
+		if record == nil {
+			return nil, fmt.Errorf("%s: from: is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageRowsRecords)
+		}
+		var err error
+		if props, err = fillFrom(n, record, path); err != nil {
+			return nil, err
+		}
+	}
+	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
 	for i, c := range n.Children {
-		kids, err := lower(c, resolve, fmt.Sprintf("%s.children[%d]", path, i))
+		kids, err := lower(c, r, fmt.Sprintf("%s.children[%d]", path, i), record)
 		if err != nil {
 			return nil, err
 		}
@@ -57,37 +91,108 @@ func lower(n domain.PageNode, resolve RowResolver, path string) ([]UINode, error
 	return []UINode{out}, nil
 }
 
-func lowerBound(n domain.PageNode, resolve RowResolver, path string) ([]UINode, error) {
+func fillFrom(n domain.PageNode, record map[string]string, path string) (map[string]string, error) {
+	props := make(map[string]string, len(n.Props)+len(n.From))
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	for prop, role := range n.From {
+		if _, written := n.Props[prop]; written {
+			return nil, fmt.Errorf("%s: %q comes from %q, so it may not also be written on the node", path, prop, role)
+		}
+		v, ok := record[role]
+		if !ok {
+			return nil, fmt.Errorf("%s: from: %s names the role %q, which the bound Dataset's Machine does not project", path, prop, role)
+		}
+		props[prop] = v
+	}
+	return props, nil
+}
+
+func lowerBound(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	b := n.Binding
-	if NodeKind(n.Kind) != NodeComponent || !domain.BindableComponents[domain.ComponentType(n.Type)] {
+	if NodeKind(n.Kind) != NodeComponent {
 		return nil, fmt.Errorf("%s: a binding is only valid on a bindable component, and %s %q is not one", path, n.Kind, n.Type)
 	}
-	if b.Dataset == "" || b.Measure == "" {
-		return nil, fmt.Errorf("%s: a binding names a dataset and a measure", path)
+	mode, ok := domain.BindableComponents[domain.ComponentType(n.Type)]
+	if !ok {
+		return nil, fmt.Errorf("%s: a binding is only valid on a bindable component, and %s %q is not one", path, n.Kind, n.Type)
 	}
-	if b.Rows != domain.PageRowsDimension {
-		return nil, fmt.Errorf("%s: binding rows %q is not %q, the only mode there is", path, b.Rows, domain.PageRowsDimension)
+	if b.Rows != mode {
+		return nil, fmt.Errorf("%s: component %q takes a binding with rows: %s, not %q", path, n.Type, mode, b.Rows)
+	}
+	if b.Dataset == "" {
+		return nil, fmt.Errorf("%s: a binding names a dataset", path)
+	}
+	if mode == domain.PageRowsRecords {
+		return lowerRecords(n, r, path)
+	}
+	return lowerDimension(n, r, path)
+}
+
+func lowerDimension(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	b := n.Binding
+	if b.Measure == "" {
+		return nil, fmt.Errorf("%s: a binding names a dataset and a measure", path)
 	}
 	if len(n.Children) > 0 {
 		return nil, fmt.Errorf("%s: a bound node is a template for its rows and holds no children", path)
+	}
+	if len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: from: is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageRowsRecords)
 	}
 	for _, supplied := range []string{"label", "value"} {
 		if _, ok := n.Props[supplied]; ok {
 			return nil, fmt.Errorf("%s: %q comes from the binding, so it may not also be written on the node", path, supplied)
 		}
 	}
-	rows, err := resolve(*b)
+	if r.Rows == nil {
+		return nil, fmt.Errorf("%s: no resolver for dimension rows", path)
+	}
+	rows, err := r.Rows(*b)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]UINode, 0, len(rows))
-	for _, r := range rows {
+	for _, row := range rows {
 		props := make(map[string]string, len(n.Props)+2)
 		for k, v := range n.Props {
 			props[k] = v
 		}
-		props["label"], props["value"] = r.Label, r.Value
+		props["label"], props["value"] = row.Label, row.Value
 		out = append(out, UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props})
 	}
 	return out, nil
+}
+
+func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	b := n.Binding
+	if b.Measure != "" {
+		return nil, fmt.Errorf("%s: a records binding takes no measure -- it lists records, it does not aggregate them", path)
+	}
+	if len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: from: is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageRowsRecords)
+	}
+	if len(n.Children) != 1 {
+		return nil, fmt.Errorf("%s: a records-bound collection holds exactly one child, the item template cloned for each record, and has %d", path, len(n.Children))
+	}
+	if r.Records == nil {
+		return nil, fmt.Errorf("%s: no resolver for records", path)
+	}
+	records, err := r.Records(*b)
+	if err != nil {
+		return nil, err
+	}
+	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: n.Props}
+	for i, rec := range records {
+		if rec == nil {
+			rec = map[string]string{} // lower reads non-nil as "inside a template"
+		}
+		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec)
+		if err != nil {
+			return nil, fmt.Errorf("record %d: %w", i, err)
+		}
+		out.Children = append(out.Children, items...)
+	}
+	return []UINode{out}, nil
 }

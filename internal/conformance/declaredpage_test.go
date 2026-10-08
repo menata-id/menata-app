@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"menata.app/internal/domain"
@@ -42,9 +43,11 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 	for _, slug := range sortedKeys(wss) {
 		ws := wss[slug].Workspace
 		datasets := map[string]domain.Dataset{}
+		owner := map[string]*domain.Machine{}
 		for _, m := range ws.Machines {
 			for _, ds := range m.Datasets {
 				datasets[ds.ID] = ds
+				owner[ds.ID] = m
 			}
 		}
 		for _, app := range ws.Applications {
@@ -57,17 +60,24 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 				if want := "/pages/" + item.ID; item.Route != want {
 					t.Errorf("%s: route is %q but a page is rendered at %q", where, item.Route, want)
 				}
-				tree, err := ir.Lower(*item.Page, func(b domain.PageBinding) ([]ir.Row, error) {
+				res := metadata.PlaceholderResolver()
+				rows, records := res.Rows, res.Records
+				declared := func(b domain.PageBinding) {
 					if _, ok := datasets[b.Dataset]; !ok {
 						t.Errorf("%s: binding names dataset %q, which this Workspace does not declare -- the page would answer 500 on every visit", where, b.Dataset)
 					}
-					return []ir.Row{{Label: "label", Value: "0"}}, nil
-				})
+				}
+				res.Rows = func(b domain.PageBinding) ([]ir.Row, error) { declared(b); return rows(b) }
+				res.Records = func(b domain.PageBinding) ([]map[string]string, error) { declared(b); return records(b) }
+				tree, err := ir.Lower(*item.Page, res)
 				if err != nil {
 					t.Errorf("%s: does not lower: %v", where, err)
 					continue
 				}
 				for _, msg := range ir.Validate(tree) {
+					t.Errorf("%s: %s", where, msg)
+				}
+				for _, msg := range recordsBindingProblems(*item.Page, owner) {
 					t.Errorf("%s: %s", where, msg)
 				}
 			}
@@ -190,4 +200,102 @@ func pageBindings(n domain.PageNode) []domain.PageBinding {
 		out = append(out, pageBindings(c)...)
 	}
 	return out
+}
+
+// recordsBindingProblems re-checks every `rows: records` Binding of a page against the Machine that owns its
+// Dataset, **without calling `metadata`'s own check**: the probe of 2026-10-08 disabled that call and only a
+// unit test over a fixture failed, so a Workspace shipping a list the loader no longer vetted would have stayed
+// green until a visitor got a 500 or a blank cell.
+//
+// It holds the three things a list can be wrong about that `ir.Lower` over a placeholder cannot see: the Dataset
+// selects records, it filters on no `$parameters` value (a page has no route parameters), and every `from:`
+// role under the Binding is one the Machine declares in `card_fields` whose Field is not a reference (007 §20).
+func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machine) []string {
+	var out []string
+	var walk func(n domain.PageNode)
+	walk = func(n domain.PageNode) {
+		if n.Binding != nil && n.Binding.Rows == domain.PageRowsRecords {
+			m := owner[n.Binding.Dataset]
+			if m == nil {
+				out = append(out, "records binding names dataset "+n.Binding.Dataset+", which no Machine of this Workspace declares")
+			} else {
+				var ds domain.Dataset
+				for _, d := range m.Datasets {
+					if d.ID == n.Binding.Dataset {
+						ds = d
+					}
+				}
+				if ds.Select != domain.SelectRecords {
+					out = append(out, "records binding over "+ds.ID+", which is an aggregate")
+				}
+				for _, c := range ds.Where.Comparisons() {
+					if strings.HasPrefix(c.Value, "$parameters.") {
+						out = append(out, "dataset "+ds.ID+" filters on "+c.Value+", which a page cannot supply")
+					}
+				}
+				for _, role := range fromRolesUnder(n.Children) {
+					fieldID := m.CardFieldFor(domain.CardFieldRole(role))
+					f, ok := m.FieldByID(fieldID)
+					switch {
+					case fieldID == "" || !ok:
+						out = append(out, "from: "+role+" -- "+m.ID+" declares no such card_fields role")
+					case f.IsReference():
+						out = append(out, "from: "+role+" -- the Field behind it is a reference, which would read a whole Machine (007 §20)")
+					}
+				}
+			}
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	walk(page)
+	return out
+}
+
+func fromRolesUnder(nodes []domain.PageNode) []string {
+	var out []string
+	for _, n := range nodes {
+		for _, role := range n.From {
+			out = append(out, role)
+		}
+		out = append(out, fromRolesUnder(n.Children)...)
+	}
+	return out
+}
+
+// A gate that cannot fail is the failure this file exists to prevent, so the helper is held against faults.
+func TestRecordsBindingProblemsSeesEachFault(t *testing.T) {
+	m := &domain.Machine{
+		ID:     "mch_x",
+		Fields: []domain.Field{{ID: "fld_t", Type: domain.FieldTypeText}, {ID: "fld_r", Type: domain.FieldTypeRelation, RelatedMachine: "mch_y"}},
+		CardFields: []domain.CardField{
+			{Field: "fld_t", Role: domain.CardFieldRoleTitle},
+			{Field: "fld_r", Role: domain.CardFieldRolePerson},
+		},
+		Datasets: []domain.Dataset{
+			{ID: "ds_list", Source: "mch_x", Select: domain.SelectRecords, Limit: 5},
+			{ID: "ds_agg", Source: "mch_x", Dimension: "fld_t"},
+		},
+	}
+	owner := map[string]*domain.Machine{"ds_list": m, "ds_agg": m}
+	list := func(ds, role string) domain.PageNode {
+		return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{
+			Kind: "component", Type: "Collection", Binding: &domain.PageBinding{Dataset: ds, Rows: domain.PageRowsRecords},
+			Children: []domain.PageNode{{Kind: "static", Type: "paragraph", From: map[string]string{"text": role}}},
+		}}}
+	}
+	if got := recordsBindingProblems(list("ds_list", "title"), owner); len(got) != 0 {
+		t.Errorf("a sound list reported %v", got)
+	}
+	for name, page := range map[string]domain.PageNode{
+		"aggregate dataset": list("ds_agg", "title"),
+		"unknown dataset":   list("ds_none", "title"),
+		"undeclared role":   list("ds_list", "money"),
+		"reference role":    list("ds_list", "person"),
+	} {
+		if got := recordsBindingProblems(page, owner); len(got) == 0 {
+			t.Errorf("%s: no problem reported", name)
+		}
+	}
 }

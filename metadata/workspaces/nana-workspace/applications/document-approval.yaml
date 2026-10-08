@@ -248,3 +248,22 @@ navigation:
                 dataset: ds_document_by_status
                 measure: msr_total
                 rows: dimension
+        # The same page also lists records: a Collection bound with rows: records is a template for its items.
+        # Its one child is cloned per record of ds_recent_documents, and each from: takes a Projection role
+        # (card_fields) of the Document Machine -- so this names no Field, and a title is never typed here.
+        # `status` is whichever Field the Machine projects first in that role (the document type).
+        - component: Collection
+          gap: tight
+          binding:
+            dataset: ds_recent_documents
+            rows: records
+          children:
+            - layout: row
+              children:
+                - static: paragraph
+                  from:
+                    text: title
+                - component: StatusBadge
+                  tone: info
+                  from:
+                    label: status

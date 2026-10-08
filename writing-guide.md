@@ -958,8 +958,38 @@ that Dataset's Dimension**: `label` is the value, `value` is the Measure. Rules,
   no record shows an explicit `0`;
 - there is no expression and no path (007 §9.2): a Dataset, a Measure and a mode.
 
-Only `Metric` is bindable (`domain.BindableComponents`). Cost: one query per distinct Dataset, however many
-nodes bind it.
+Only `Metric` (`rows: dimension`) and `Collection` (`rows: records`) are bindable (`domain.BindableComponents`).
+Cost: one query per distinct Dataset, however many nodes bind it.
+
+**`rows: records` — a list of a Machine's records.** A `component: Collection` may carry
+`binding: {dataset: ds_x, rows: records}` and **exactly one child**, the item template. The template is cloned once
+per record, in the Dataset's own `sort:` order, and a node inside it fills a property from the record with
+`from: {property: role}`, where `role` is a Projection role (`title`, `status`, `person`, `money`, `date`) the
+Machine declares in `card_fields:` -- so the page names no Field, and what a list shows of a record is what its
+Machine already said about its shape. Rules, all checked at load:
+
+- the Dataset must be `select: records` (so it already carries the `limit:` 007 §7.9 requires -- **the limit is
+  the list's meaning, "the latest five", and no truncation notice is drawn**), and may filter on `$current_user`
+  but **not** on `$parameters.*`: a page has no request parameters, so such a Dataset is refused;
+- `from:` is valid only inside a records-bound Collection's template, a property cannot be both written and
+  `from:`, and a records binding does not nest inside a template;
+- a role whose Field is a **reference** to another Machine is refused: resolving it reads the whole related
+  Machine (007 §20), which a list would repeat per page view. Ask for a role backed by a plain Field;
+- a role the Machine does not declare is a load error, not a blank cell.
+
+```yaml
+- component: Collection
+  gap: tight
+  binding: {dataset: ds_recent_documents, rows: records}
+  children:
+    - layout: row
+      children:
+        - static: paragraph
+          from: {text: title}
+        - component: StatusBadge
+          tone: info
+          from: {label: status}
+```
 
 ```yaml
 - id: nav_documents_by_status
@@ -982,8 +1012,8 @@ nodes bind it.
 
 **What it is not.** It does not migrate an existing screen: a bespoke Go screen stays bespoke until its
 own route is replaced, and the two screens declared this way are new ones. There is no write side
-(a form input's `name=` is 007 §11.3 Binding, still unbuilt), no per-viewer filter (`$current_user`), and
-no ordered comparison. **Installing copies**, so a Dataset a `page:` binds must exist in the Machine your
+(a form input's `name=` is 007 §11.3 Binding, still unbuilt), no filter by a request parameter, no
+list item that links to its record, and no ordered comparison. **Installing copies**, so a Dataset a `page:` binds must exist in the Machine your
 Workspace's own copy declares; the loader refuses the Workspace otherwise.
 
 ### 12.2 A Machine file

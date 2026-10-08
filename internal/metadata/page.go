@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"gopkg.in/yaml.v3"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 	"menata.app/internal/ir"
 	"menata.app/internal/registry"
 )
@@ -22,13 +24,14 @@ import (
 // ones the node's type does not declare. The strictness lives in one place, the one that already knows the
 // vocabulary.
 //
-// The reserved keys are the three discriminators, `children` and `binding`. Exactly one discriminator per
+// The reserved keys are the three discriminators, `children`, `binding` and `from`. Exactly one discriminator per
 // node: `layout:`, `static:` or `component:`, whose value is the type.
 type pageNodeDoc struct {
 	kind     string
 	typ      string
 	props    map[string]string
 	binding  *pageBindingDoc
+	from     map[string]string
 	children []pageNodeDoc
 }
 
@@ -63,6 +66,12 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 			if err := val.Decode(&p.children); err != nil {
 				return err
 			}
+		case "from":
+			f, err := decodePageFrom(val)
+			if err != nil {
+				return err
+			}
+			p.from = f
 		case "binding":
 			b, err := decodePageBinding(val)
 			if err != nil {
@@ -83,6 +92,26 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 		return fmt.Errorf("line %d: a page node needs exactly one of %v", n.Line, pageDiscriminators)
 	}
 	return nil
+}
+
+// decodePageFrom reads `from: {text: title}`: a property of this node, and the Projection role it takes from
+// the record. Only scalars on both sides -- the same "no grammar" rule a binding follows (007 §9.2).
+func decodePageFrom(n *yaml.Node) (map[string]string, error) {
+	if n.Kind != yaml.MappingNode || len(n.Content) == 0 {
+		return nil, fmt.Errorf("line %d: from: is a mapping of a property to the Projection role it takes, such as {text: title}", n.Line)
+	}
+	out := map[string]string{}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		key, val := n.Content[i], n.Content[i+1]
+		if val.Kind != yaml.ScalarNode || val.Value == "" {
+			return nil, fmt.Errorf("line %d: from.%s: names one Projection role, not an expression or a list", key.Line, key.Value)
+		}
+		if _, dup := out[key.Value]; dup {
+			return nil, fmt.Errorf("line %d: from.%s: declared more than once", key.Line, key.Value)
+		}
+		out[key.Value] = val.Value
+	}
+	return out, nil
 }
 
 func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
@@ -117,10 +146,32 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 	if p.binding != nil {
 		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows}
 	}
+	if len(p.from) > 0 {
+		out.From = p.from
+	}
 	for _, c := range p.children {
 		out.Children = append(out.Children, c.toDomain())
 	}
 	return out
+}
+
+// PlaceholderResolver stands in for the database when only a tree's *shape* is being checked: one dimension
+// row, and one record that projects every role in `domain.KnownCardFieldRoles`. A `from:` naming anything
+// outside that vocabulary therefore fails to lower, which is how a typo in a role is a load error. Exported so
+// the conformance sweep over installed manifests asks the same question the loader does.
+func PlaceholderResolver() ir.Resolver {
+	return ir.Resolver{
+		Rows: func(domain.PageBinding) ([]ir.Row, error) {
+			return []ir.Row{{Label: "label", Value: "0"}}, nil
+		},
+		Records: func(domain.PageBinding) ([]map[string]string, error) {
+			rec := map[string]string{}
+			for role := range domain.KnownCardFieldRoles {
+				rec[string(role)] = "x"
+			}
+			return []map[string]string{rec}, nil
+		},
+	}
 }
 
 var registerIRVocabulary sync.Once
@@ -155,7 +206,9 @@ func ensureIRVocabulary() {
 // a value.
 func validatePages(applications []domain.Application, machines []*domain.Machine) error {
 	datasets := map[string]domain.Dataset{}
+	byID := map[string]*domain.Machine{}
 	for _, m := range machines {
+		byID[m.ID] = m
 		for _, ds := range m.Datasets {
 			datasets[ds.ID] = ds
 		}
@@ -174,7 +227,7 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 				issues = append(issues, fmt.Sprintf("%s: page: the root must be a layout, not %s %q", where, item.Page.Kind, item.Page.Type))
 				continue
 			}
-			issues = append(issues, bindingIssues(*item.Page, datasets, where)...)
+			issues = append(issues, bindingIssues(*item.Page, datasets, byID, where)...)
 			issues = append(issues, shapeIssues(*item.Page, where)...)
 		}
 	}
@@ -186,15 +239,17 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 	return nil
 }
 
-func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, where string) []string {
+func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machines map[string]*domain.Machine, where string) []string {
 	var issues []string
 	if b := n.Binding; b != nil {
 		ds, ok := datasets[b.Dataset]
 		switch {
 		case !ok:
 			issues = append(issues, fmt.Sprintf("%s: page: binding names dataset %q, which no machine in this workspace declares", where, b.Dataset))
+		case b.Rows == domain.PageRowsRecords:
+			issues = append(issues, recordsBindingIssues(n, ds, machines[ds.Source], where)...)
 		case ds.Select != "":
-			issues = append(issues, fmt.Sprintf("%s: page: binding dataset %q selects records, and only an aggregate dataset has measures to bind", where, b.Dataset))
+			issues = append(issues, fmt.Sprintf("%s: page: binding dataset %q selects records, and a dimension binding needs an aggregate dataset with measures (use rows: %s on a Collection to list records)", where, b.Dataset, domain.PageRowsRecords))
 		default:
 			if !slicesHasMeasure(ds, b.Measure) {
 				issues = append(issues, fmt.Sprintf("%s: page: dataset %q declares no measure %q", where, b.Dataset, b.Measure))
@@ -205,9 +260,67 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, where 
 		}
 	}
 	for _, c := range n.Children {
-		issues = append(issues, bindingIssues(c, datasets, where)...)
+		issues = append(issues, bindingIssues(c, datasets, machines, where)...)
 	}
 	return issues
+}
+
+// recordsBindingIssues is what a records binding asks of its Dataset and of the Machine it reads.
+//
+//   - the Dataset **selects records** -- an aggregate has no rows to list;
+//   - it filters on nothing a page cannot supply: `$current_user` is the viewer and is fine, a
+//     `$parameters.<name>` is a route value and a page has no route parameters (007 §9.2, fail closed);
+//   - every `from:` role in the item template is one the Dataset's Machine declares in `card_fields`, and the
+//     Field behind it **is not a reference**. A reference Field resolves through `rendering.RelationOptions`,
+//     which is a read of the whole related Machine (007 §20: no plane may read everything and trim later), so
+//     it is refused here until a records binding can follow a declared Relation instead.
+func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.Machine, where string) []string {
+	var issues []string
+	if ds.Select != domain.SelectRecords {
+		issues = append(issues, fmt.Sprintf("%s: page: rows: %s needs a dataset that selects records, and %q is an aggregate", where, domain.PageRowsRecords, ds.ID))
+	}
+	for _, c := range ds.Where.Comparisons() {
+		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) {
+			issues = append(issues, fmt.Sprintf("%s: page: dataset %q filters on %s, and a page has no request parameters to supply", where, ds.ID, c.Value))
+		}
+	}
+	if source == nil {
+		return issues
+	}
+	for _, role := range sortedKeys(fromRoles(n.Children)) {
+		fieldID := source.CardFieldFor(domain.CardFieldRole(role))
+		f, ok := source.FieldByID(fieldID)
+		switch {
+		case fieldID == "" || !ok:
+			issues = append(issues, fmt.Sprintf("%s: page: from: %s -- machine %q declares no card_fields role %q", where, role, source.ID, role))
+		case f.IsReference():
+			issues = append(issues, fmt.Sprintf("%s: page: from: %s -- role %q is a reference to another machine, which a page cannot yet resolve without reading that whole machine (007 §20)", where, role, role))
+		}
+	}
+	return issues
+}
+
+// fromRoles collects every Projection role named by a `from:` anywhere under nodes.
+func fromRoles(nodes []domain.PageNode) map[string]bool {
+	out := map[string]bool{}
+	for _, n := range nodes {
+		for _, role := range n.From {
+			out[role] = true
+		}
+		for role := range fromRoles(n.Children) {
+			out[role] = true
+		}
+	}
+	return out
+}
+
+func sortedKeys(m map[string]bool) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func slicesHasMeasure(ds domain.Dataset, id string) bool {
@@ -221,9 +334,7 @@ func slicesHasMeasure(ds domain.Dataset, id string) bool {
 
 func shapeIssues(root domain.PageNode, where string) []string {
 	ensureIRVocabulary()
-	tree, err := ir.Lower(root, func(domain.PageBinding) ([]ir.Row, error) {
-		return []ir.Row{{Label: "label", Value: "0"}}, nil
-	})
+	tree, err := ir.Lower(root, PlaceholderResolver())
 	if err != nil {
 		return []string{fmt.Sprintf("%s: %v", where, err)}
 	}
