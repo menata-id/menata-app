@@ -268,11 +268,12 @@ transitions:
     from: rejected
     to: approved
 
-# The Dashboard's Document status tiles (007 §7.2-§7.4), generalized from what buildDashboard
-# used to count with a hardcoded `switch` over three literal status values. The switch's other
-# job -- collecting the in_review Documents themselves into a list -- is record *selection*, not
-# aggregation, so it stays code: selecting records by a predicate is 007 §8's Query Model, which
-# has no real forcing condition yet (menata-app-document's decomposition audit §7).
+# Datasets a Document screen reads. `ds_documents_with_steps` serves the approval engine's own screens;
+# `ds_document_by_status` serves a `page:` that counts Documents per status (007 §12.4) -- a Binding names it
+# in YAML, so no Go function selects it. The comment that used to sit here described a Dashboard tile set
+# that was removed with that screen (dfbc09c), and the Dataset went with it; it is back because a declared
+# page reads it, which is why the library has to carry it: installing copies, so a Workspace that installs
+# this template without it cannot take the page.
 datasets:
   # Documents with their own Approval Steps attached (007 §7.5 Relation, Tahap A, 2026-09-29).
   #
@@ -295,6 +296,12 @@ datasets:
       - id: rel_steps
         machine: mch_approval_step
         via: fld_document
+
+  - id: ds_document_by_status
+    dimension: fld_status
+    measures:
+      - id: msr_total
+        aggregate: count
 
 # How a Document's records look wherever they appear -- the detail page selects no View, so
 # these are Machine-level rather than per-arrangement.

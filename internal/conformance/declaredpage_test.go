@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/installer"
 	"menata.app/internal/ir"
 	"menata.app/internal/metadata"
 	"menata.app/internal/registry"
@@ -115,4 +116,78 @@ func TestDeclaredPagePipelineHasNoPerScreenBranch(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestInstalledPageDatasetsExistInTheLibraryTemplate holds the half of "installing copies" that the load
+// error cannot: that error fires for a Workspace whose own copy lacks a bound Dataset, and says nothing
+// about the *template* the next Workspace will be copied from. A page's Dataset reached the two Nana
+// Workspaces' copies on 2026-10-07 while `metadata/document.yaml` had lost it (dfbc09c removed it with the
+// Dashboard that was its last Go reader), so anyone installing Document Approval afresh would have been
+// handed a template that could not carry the page its siblings run.
+//
+// Scope, stated so a green run is not over-read: it checks a Dataset's presence by id on the library Machine
+// of the same id. A Machine that is not a library one (generated, or renamed on install) is skipped, and it
+// does not check that the library *also* offers the page -- only that nothing the page needs is missing.
+func TestInstalledPageDatasetsExistInTheLibraryTemplate(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+	templates, err := installer.Templates(filepath.Join(repoRoot(), "metadata"))
+	if err != nil {
+		t.Fatalf("read the template library: %v", err)
+	}
+	library := map[string]*domain.Machine{}
+	for _, tm := range templates {
+		for _, m := range tm.Machines {
+			library[m.Machine.ID] = m.Machine
+		}
+	}
+
+	checked := 0
+	for _, slug := range sortedKeys(wss) {
+		ws := wss[slug].Workspace
+		owner := map[string]string{} // dataset id -> Machine id declaring it, in this Workspace
+		for _, m := range ws.Machines {
+			for _, ds := range m.Datasets {
+				owner[ds.ID] = m.ID
+			}
+		}
+		for _, app := range ws.Applications {
+			for _, item := range app.AllNavigation {
+				if item.Page == nil {
+					continue
+				}
+				for _, b := range pageBindings(*item.Page) {
+					lib, ok := library[owner[b.Dataset]]
+					if !ok {
+						continue
+					}
+					checked++
+					found := false
+					for _, ds := range lib.Datasets {
+						found = found || ds.ID == b.Dataset
+					}
+					if !found {
+						t.Errorf("%s/%s binds %q, which the library's %s does not declare -- a Workspace installing that template afresh could not take this page",
+							slug, item.ID, b.Dataset, lib.ID)
+					}
+				}
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no installed page binds a Dataset owned by a library Machine -- this gate is measuring nothing")
+	}
+}
+
+func pageBindings(n domain.PageNode) []domain.PageBinding {
+	var out []domain.PageBinding
+	if n.Binding != nil {
+		out = append(out, *n.Binding)
+	}
+	for _, c := range n.Children {
+		out = append(out, pageBindings(c)...)
+	}
+	return out
 }

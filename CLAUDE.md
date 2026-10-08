@@ -597,6 +597,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   property *keys* and never *values*, so a bad `columns`/`gap` loaded and rendered as the default. `ir.layoutPropValues`
   now closes it (read from `domain.Known*`), and `rendering.gridColsFromProp`'s "ir.Validate refuses a bad tree" comment
   is true for the first time. A page's layout values are closed; Component values already were (registered validators).
+  `TestInstalledPageDatasetsExistInTheLibraryTemplate` (2026-10-08) closes the copy-model half: the page's Dataset had reached two Workspaces' copies while `metadata/document.yaml` had lost it (removed with the Dashboard, its last Go reader), so a fresh install could not take the page. Mutation-proved; it skips Machines that are not library ones.
 - `TestDocumentApprovalCouplingOnlyShrinks` — the third *ratchet*. `documentApprovalCoupling`
   freezes how many times each file outside `internal/action` names Document Approval's own
   Machine-id constants — frozen at 67 across 18 files on 2026-09-28 and **emptied the same day**, by
