@@ -147,6 +147,46 @@ func TestDeclaredPageLinkComesFromNavigationNotFromTheYAML(t *testing.T) {
 	}
 }
 
+// TestDeclaredPageRecordLinkOpensTheRecordsOwnFullPage: each listed title links to the runtime's route for that
+// record, and that route -- which the page neither declares nor authorizes -- renders a **whole page** when
+// followed (Tahap 0 of 2b: the handler's name was no proof it was not a fragment) and refuses a request with no
+// session. The expected route is built from the seeded record's own ids, not read back out of the page.
+func TestDeclaredPageRecordLinkOpensTheRecordsOwnFullPage(t *testing.T) {
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredrecordlink", "nana-2-workspace")
+	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
+	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	if doc == nil {
+		t.Fatal("nana-2-workspace casts no document role")
+	}
+	titleField := doc.CardFieldFor(domain.CardFieldRoleTitle)
+	if titleField == "" {
+		t.Fatal("the document Machine projects no title role")
+	}
+	rec, err := store.CreateRecord(ctx, doc.ID, map[string]any{titleField: "Record-link probe"})
+	if err != nil {
+		t.Fatalf("CreateRecord: %v", err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, doc.ID, rec.ID) })
+
+	route := "/machines/" + doc.ID + "/records/" + rec.ID
+	body := getPage(t, h, cookie, "/pages/nav_documents_by_status")
+	want := regexp.MustCompile(`<a href="` + regexp.QuoteMeta(route) + `"[^>]*>Record-link probe</a>`)
+	if !want.MatchString(body) {
+		t.Errorf("the title does not link to %s", route)
+	}
+
+	followed := getPage(t, h, cookie, route)
+	if !strings.Contains(strings.ToLower(followed), "<html") || !strings.Contains(followed, "Record-link probe") {
+		t.Errorf("following the link did not render a full page for the record")
+	}
+
+	anon := httptest.NewRecorder()
+	h.ServeHTTP(anon, httptest.NewRequest(http.MethodGet, route, nil))
+	if anon.Code == http.StatusOK || strings.Contains(anon.Body.String(), "Record-link probe") {
+		t.Errorf("the linked route answered %d with no session, and must refuse (a link is an address, not a grant)", anon.Code)
+	}
+}
+
 func getPage(t *testing.T, h http.Handler, cookie, path string) string {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, path, nil)

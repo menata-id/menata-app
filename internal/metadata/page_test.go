@@ -189,6 +189,10 @@ func TestPage_faultsAreRefusedAtLoad(t *testing.T) {
 		{"link with no destination", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: link\n          text: x\n"), "to: <navigation item id>"},
 		{"to on a node that is not a link", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: paragraph\n          to: nav_p\n"), "only on static: link"},
 		{"to as a route", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: link\n          to: [nav_p]\n"), "never a route"},
+		{"record link takes href from a Projection role", item("/pages/nav_p", recordLink("{ text: title, href: title }")), "only"},
+		{"record link shows the route as text", item("/pages/nav_p", recordLink("{ text: record, href: record }")), "valid only as a link's href"},
+		{"record link with nothing to say", item("/pages/nav_p", recordLink("{ href: record }")), "text"},
+		{"record link to a role the machine does not declare", item("/pages/nav_p", recordLink("{ text: money, href: record }")), "declares no card_fields role"},
 		{"depth beyond the maximum", item("/pages/nav_p", deep(12)), "depth"},
 	}
 	for _, c := range cases {
@@ -210,6 +214,17 @@ func TestPage_aLinkResolvesAgainstTheApplicationsOwnNavigation(t *testing.T) {
 	if err := pageFixture(t, nav); err != nil {
 		t.Fatalf("a link to a declared sibling must load: %v", err)
 	}
+}
+
+func TestPage_aRecordLinkLoadsAndNamesNoRoleForTheRoute(t *testing.T) {
+	if err := pageFixture(t, "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n"+recordLink("{ text: title, href: record }")); err != nil {
+		t.Fatalf("a link whose href is the reserved record word must load: %v", err)
+	}
+}
+
+// recordLink is a records-bound Collection over ds_rows whose one item is a link taking `from`.
+func recordLink(from string) string {
+	return "      layout: stack\n      children:\n" + "        - component: Collection\n          gap: tight\n          binding: { dataset: ds_rows, rows: records }\n          children:\n            - static: link\n              from: " + from + "\n"
 }
 
 func bound(ds, ms string) string {

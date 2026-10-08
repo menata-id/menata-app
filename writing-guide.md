@@ -994,7 +994,30 @@ The route is read from that item's `route:` and the words default to its `label:
   is read before `hidden_nav_groups` filtering, as `rendering.routeByID` reads it);
 - `text:` may be written when the link should say something other than the item's label.
 
-A link to a *record* (one row of a list opening its own detail screen) is not available yet.
+**A link to a record — `from: {href: record}`.** Inside the item template of a records-bound `Collection`, a
+link takes its words from a Projection role and its address from the one reserved word `record`:
+
+```yaml
+- static: link
+  from:
+    text: title
+    href: record
+```
+
+`record` is the runtime's own route to that record (`/machines/<Machine>/records/<id>`, the full detail page),
+so the page types no route and no Machine id. It is a reserved word and **not** a `card_fields` role: a role says
+what a Machine declares about its records, and every Machine would otherwise have to declare a "link" to be
+listed on a page. Rules, all load errors:
+
+- `href` may be taken from `record` only, never from a Projection role, so a page cannot turn a text Field into
+  an address;
+- `record` is valid for nothing but a link's `href` (not as `text:`, not on another node);
+- a link has one destination: `to:` or `from: {href: record}`, not both, and never a typed `href:`;
+- a record link has no menu label to default its text to, so `text` must come from a role (or be written).
+
+A link is an address, not a grant: the page lists only the records its Dataset selects (`$current_user` fails
+closed), and following the link still goes through that route's own authorization. Not available: a link to a
+record's sub-screen (`/review`, `/edit`), which would need a second reserved word and a case that asks for it.
 
 ```yaml
 - component: Collection

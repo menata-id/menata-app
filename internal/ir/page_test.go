@@ -262,3 +262,51 @@ func TestLower_refusesALinkThatIsNotWellFormed(t *testing.T) {
 		}
 	}
 }
+
+func recordLinkTemplate(from map[string]string, props map[string]string, to string) domain.PageNode {
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		listBound(domain.PageNode{Kind: "static", Type: "link", From: from, Props: props, To: to})}}
+}
+
+// A link inside a records template takes its text from a Projection role and its address from the reserved
+// `record` word, each item getting its own record's route.
+func TestLower_aRecordLinkTakesItsRouteFromTheRecordNotFromTheYAML(t *testing.T) {
+	tree, err := Lower(recordLinkTemplate(map[string]string{"text": "title", "href": domain.PageRecordRole}, nil, ""), fixedRecords(
+		map[string]string{"title": "A", domain.PageRecordRole: "/machines/m/records/1"},
+		map[string]string{"title": "B", domain.PageRecordRole: "/machines/m/records/2"},
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := tree.Children[0].Children
+	if len(items) != 2 {
+		t.Fatalf("items = %d, want 2", len(items))
+	}
+	for i, want := range []string{"/machines/m/records/1", "/machines/m/records/2"} {
+		if got := items[i].Props["href"]; got != want {
+			t.Errorf("item %d href = %q, want %q", i, got, want)
+		}
+	}
+}
+
+func TestLower_refusesARecordLinkThatCouldLeakOrFabricateAnAddress(t *testing.T) {
+	rec := map[string]string{"title": "A", "status": "s", domain.PageRecordRole: "/machines/m/records/1"}
+	for name, c := range map[string]struct {
+		root domain.PageNode
+		want string
+	}{
+		"href from a projection role": {recordLinkTemplate(map[string]string{"text": "title", "href": "title"}, nil, ""), "only"},
+		"record as text":              {recordLinkTemplate(map[string]string{"text": domain.PageRecordRole}, nil, "nav_x"), "valid only as a link's href"},
+		"record on a paragraph":       {domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{listBound(domain.PageNode{Kind: "static", Type: "paragraph", From: map[string]string{"text": domain.PageRecordRole}})}}, "valid only as a link's href"},
+		"to and record together":      {recordLinkTemplate(map[string]string{"text": "title", "href": domain.PageRecordRole}, nil, "nav_x"), "one destination"},
+		"typed href beside record":    {recordLinkTemplate(map[string]string{"text": "title", "href": domain.PageRecordRole}, map[string]string{"href": "/typed"}, ""), "may not also be written"},
+		"no text to show":             {recordLinkTemplate(map[string]string{"href": domain.PageRecordRole}, nil, ""), "text"},
+		"record outside a template":   {domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{Kind: "static", Type: "link", From: map[string]string{"text": "title", "href": domain.PageRecordRole}}}}, "item template"},
+	} {
+		res := fixedRecords(rec)
+		res.Route = NavigationRoutes([]domain.NavigationItem{{ID: "nav_x", Label: "L", Route: "/r"}})
+		if _, err := Lower(c.root, res); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v; want it to mention %q", name, err, c.want)
+		}
+	}
+}

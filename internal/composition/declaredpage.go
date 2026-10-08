@@ -60,9 +60,19 @@ func bindingRecords(ctx context.Context, l *Loader, viewerID string, b domain.Pa
 	}
 	out := make([]map[string]string, 0, len(records))
 	for _, r := range records {
-		out = append(out, ProjectedByRole(src, r, rendering.RelationOptions{}))
+		item := ProjectedByRole(src, r, rendering.RelationOptions{})
+		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
+		out = append(out, item)
 	}
 	return out, nil
+}
+
+// RecordRoute is the runtime's generic route to one record (`GET /machines/{machineID}/records/{id}`, which
+// renders the full detail page unless the request is htmx). It is the runtime's own, like `/home`, and not an
+// Application's, so it is assembled here and not read from `navigation:`. Opening it still goes through that
+// route's own authorization: a link is an address, not a grant.
+func RecordRoute(machineID, recordID string) string {
+	return "/machines/" + machineID + "/records/" + recordID
 }
 
 // bindingRows is one Binding's rows: the Dataset's Dimension values, each with the Measure's number.

@@ -256,7 +256,12 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 func fromRolesUnder(nodes []domain.PageNode) []string {
 	var out []string
 	for _, n := range nodes {
-		for _, role := range n.From {
+		for prop, role := range n.From {
+			// The reserved word is the record's route, not a Projection role; it is judged where it is used
+			// (a link's href) by TestEveryInstalledLinkNamesItsDestinationOnce, and by ir.Lower for any other prop.
+			if role == domain.PageRecordRole && n.Kind == "static" && n.Type == string(domain.StaticLink) && prop == "href" {
+				continue
+			}
 			out = append(out, role)
 		}
 		out = append(out, fromRolesUnder(n.Children)...)
@@ -300,17 +305,17 @@ func TestRecordsBindingProblemsSeesEachFault(t *testing.T) {
 	}
 }
 
-// TestEveryInstalledLinkNamesANavigationItemAndTypesNoRoute holds Tahap 2a's rule against the real manifests:
+// TestEveryInstalledLinkNamesItsDestinationOnce holds Tahap 2a's rule against the real manifests:
 // a `static: link` on an installed page names its destination with `to:`, that id is one the same Application
 // declares, and the node carries no `href` of its own. It asserts the *declaration* directly instead of
 // leaning on `ir.Lower`'s refusals, so it still fails if Lower stopped checking, and it fails when no installed
 // page holds a link, so it cannot pass by measuring nothing.
-func TestEveryInstalledLinkNamesANavigationItemAndTypesNoRoute(t *testing.T) {
+func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
-	links := 0
+	links, recordLinks := 0, 0
 	for _, slug := range sortedKeys(wss) {
 		for _, app := range wss[slug].Workspace.Applications {
 			declared := map[string]bool{}
@@ -321,7 +326,14 @@ func TestEveryInstalledLinkNamesANavigationItemAndTypesNoRoute(t *testing.T) {
 			walk = func(n domain.PageNode, where string) {
 				if n.Kind == "static" && n.Type == string(domain.StaticLink) {
 					links++
-					if !declared[n.To] {
+					switch role, fromHref := n.From["href"]; {
+					case fromHref && n.To != "":
+						t.Errorf("%s: link names both to: %s and from: href", where, n.To)
+					case fromHref && role != domain.PageRecordRole:
+						t.Errorf("%s: link takes href from %q; only the reserved %q is an address", where, role, domain.PageRecordRole)
+					case fromHref:
+						recordLinks++
+					case !declared[n.To]:
 						t.Errorf("%s: link to %q names no navigation item of this Application", where, n.To)
 					}
 					if _, typed := n.Props["href"]; typed {
@@ -343,5 +355,8 @@ func TestEveryInstalledLinkNamesANavigationItemAndTypesNoRoute(t *testing.T) {
 	}
 	if links == 0 {
 		t.Fatal("no installed page declares a `static: link` -- this gate is measuring nothing")
+	}
+	if recordLinks == 0 {
+		t.Fatal("no installed page declares a link to a record -- half of this gate is measuring nothing")
 	}
 }

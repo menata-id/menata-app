@@ -122,17 +122,34 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 // refused rather than ignored, for the reason `from:` outside a template is.
 func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path string) (map[string]string, error) {
 	isLink := n.Kind == string(NodeStatic) && n.Type == string(domain.StaticLink)
+	for prop, role := range n.From {
+		if role == domain.PageRecordRole && !(isLink && prop == "href") {
+			return nil, fmt.Errorf("%s: from: %s names %q, which is valid only as a link's href", path, prop, role)
+		}
+	}
 	if !isLink {
 		if n.To != "" {
 			return nil, fmt.Errorf("%s: to: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
 		}
 		return props, nil
 	}
-	if n.To == "" {
-		return nil, fmt.Errorf("%s: a link names its destination with to: <navigation item id>", path)
+	if _, written := n.Props["href"]; written {
+		return nil, fmt.Errorf("%s: a link's destination is to: <navigation item id> or, inside a record template, from: {href: %s}; never a typed href -- a route is declared once (001 #3, #8)", path, domain.PageRecordRole)
 	}
-	if _, written := props["href"]; written {
-		return nil, fmt.Errorf("%s: a link's destination is to: <navigation item id>, never a typed href -- a route is declared once, in navigation (001 #3, #8)", path)
+	if role, fromHref := n.From["href"]; fromHref {
+		if n.To != "" {
+			return nil, fmt.Errorf("%s: a link has one destination, and this one names both to: %s and from: href", path, n.To)
+		}
+		if role != domain.PageRecordRole {
+			return nil, fmt.Errorf("%s: a link's href may be taken from %q only, not from a Projection role %q", path, domain.PageRecordRole, role)
+		}
+		if _, hasText := props["text"]; !hasText {
+			return nil, fmt.Errorf("%s: a link to a record has no menu label to default its text to, so it takes text from a role (from: {text: title})", path)
+		}
+		return props, nil
+	}
+	if n.To == "" {
+		return nil, fmt.Errorf("%s: a link names its destination with to: <navigation item id>, or from: {href: %s} inside a record template", path, domain.PageRecordRole)
 	}
 	if r.Route == nil {
 		return nil, fmt.Errorf("%s: no resolver for routes", path)

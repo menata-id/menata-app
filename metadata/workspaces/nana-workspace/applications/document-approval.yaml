@@ -253,6 +253,7 @@ navigation:
         # The same page also lists records: a Collection bound with rows: records is a template for its items.
         # Its one child is cloned per record of ds_recent_documents, and each from: takes a Projection role
         # (card_fields) of the Document Machine -- so this names no Field, and a title is never typed here.
+        # `href: record` is the one reserved word beside the roles: the runtime's own route to that record.
         # `status` is whichever Field the Machine projects first in that role (the document type).
         - component: Collection
           gap: tight
@@ -262,9 +263,10 @@ navigation:
           children:
             - layout: row
               children:
-                - static: paragraph
+                - static: link
                   from:
                     text: title
+                    href: record
                 - component: StatusBadge
                   tone: info
                   from:

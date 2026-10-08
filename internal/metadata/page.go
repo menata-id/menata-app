@@ -175,7 +175,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem) ir.Resolver {
 			return []ir.Row{{Label: "label", Value: "0"}}, nil
 		},
 		Records: func(domain.PageBinding) ([]map[string]string, error) {
-			rec := map[string]string{}
+			rec := map[string]string{domain.PageRecordRole: "/x"}
 			for role := range domain.KnownCardFieldRoles {
 				rec[string(role)] = "x"
 			}
@@ -315,7 +315,9 @@ func fromRoles(nodes []domain.PageNode) map[string]bool {
 	out := map[string]bool{}
 	for _, n := range nodes {
 		for _, role := range n.From {
-			out[role] = true
+			if role != domain.PageRecordRole { // reserved: the record's route, not a Projection role
+				out[role] = true
+			}
 		}
 		for role := range fromRoles(n.Children) {
 			out[role] = true

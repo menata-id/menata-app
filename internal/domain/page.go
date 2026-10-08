@@ -54,6 +54,14 @@ const (
 	PageRowsRecords   = "records"
 )
 
+// PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a
+// `static: link` inside a records template takes the record's own generic route
+// (`/machines/<Machine>/records/<id>`, which the runtime owns the way it owns `/home`). It is a reserved word
+// rather than a `card_fields` role because a role describes what a Machine says about a record, and every
+// Machine would otherwise have to declare a "link" to be listed on a page; and it is valid for nothing but a
+// link's `href`, so a record's route is never shown as text or handed to another property.
+const PageRecordRole = "record"
+
 // BindableComponents maps each registered Component a Binding may supply to the one Rows mode it takes. A
 // Binding on any other node, or in the other mode, is a load error rather than a property the renderer
 // ignores.
