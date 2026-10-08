@@ -553,12 +553,14 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   corrections: `menata-app-document`'s
   `audits/2026-09-29-kajian-pekerjaan-tersisa-dan-prioritas.md`,
   `audits/2026-09-29-kajian-seleksi-record-terdeklarasi.md` and `development-history.md`.
-- **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Adding an Application screen
-  is writing Go today -- 33 of 38 installed navigation items (nine distinct in the library) point at a
-  bespoke route, which 007 §12.4 forbids normatively. Seven of §12.2's eight Layouts, five §12.3
-  Components, Slot, UI IR, ten Static kinds and all nine Theme categories are built (2026-10-02/07); the
-  18 hand-written layout sites left are each a documented floor, not debt. A `page:` block in YAML now
-  declares a screen's body (2026-10-07; new screens only, none migrated): `menata-app-document`'s `audits/2026-10-07-rencana-page-yaml-dan-gate-yang-akan-terkena.md`.
+- **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Layouts, six Components, UI IR, ten Static kinds, all nine
+  Theme categories and a `page:` block with read-side Binding (`rows: dimension`, `rows: records`) are built; no bespoke screen is migrated yet.
+  Plan: `menata-app-document`'s `audits/2026-10-08-rencana-ui-ir-jangka-dekat-static-kind-dan-link.md`. **Next actions, in priority order:**
+  1. Static kinds on a page (`subheading`, `message`, `note`, `caption`, `overline`, `panel-heading`) -- wiring only; the renderers exist.
+  2. `link` to a navigation item (`to:`) and to a record, so a list item is clickable.
+  3. First migration of a bespoke screen: Application Settings (links and text), then Board Settings (needs a Relation-backed `from:`).
+  4. Page parameters (`$parameters`); a recent-documents page in the library template (owner decision).
+  5. Write-side Binding (007 §11.3): the largest item; opens My Tasks, Calendar and every form's `name=`. Needs a written plan first.
 - Installable as a PWA, Play-ready (TWA: `ANDROID_PACKAGE_NAME` + `ANDROID_CERT_FINGERPRINTS` serve `/.well-known/assetlinks.json`).
   Account deletion anonymizes the identity (`/account-delete`; public `/delete-account`); a privacy policy page is still owed.
 - **Per-user/role navigation filtering** -- one case is a hand-named stand-in (`hiddenNavIDs`, `membersHiddenFor`); the declared form
@@ -587,11 +589,8 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   without needing Filter/Projection/Aggregate pushdown first. Its own trigger arrives sooner than
   theirs — one list screen past ~200 rows, `capabilities.md`'s own volume-threshold harness
   (`make threshold`) is what would confirm it's been reached.
-- **Background/scheduled jobs -- ~~planned~~ the first real case shipped 2026-09-27** (SLA-breach
-  notifications that don't depend on someone opening the page -- "SLA-breach reminder via a
-  scheduler primitive" entry below). A `time.Ticker` goroutine in `cmd/server/main.go` is the
-  mechanism; a second, unrelated background job is the trigger to reconsider whether that stays
-  sufficient (e.g. a dedicated worker process), not before.
+- **Background/scheduled jobs** -- the first case shipped 2026-09-27 (SLA-breach notifications; a `time.Ticker` in `cmd/server/main.go`).
+  A second, unrelated job is the trigger to reconsider a dedicated worker process.
 - Expanding beyond the first two applications into the wider portfolio of business cases this
   runtime is designed to support (HR, inventory, point of sale, e-commerce, helpdesk, and more).
 - **Composition-layer decomposition** -- Projection gate, Datasets (the Dashboard) and the Case 19 migration onto `card_fields`
