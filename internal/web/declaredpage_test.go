@@ -356,7 +356,7 @@ func TestDeclaredPageNumbersTheBoardListsInColumnOrder(t *testing.T) {
 	}
 
 	body := getPage(t, h, cookie, "/pages/nav_board_lists")
-	if !strings.Contains(body, `<ol class="m-0 flex list-none flex-col p-0 gap-2">`) {
+	if !strings.Contains(body, `<ol class="m-0 list-none overflow-hidden p-0 rounded-lg`) {
 		t.Fatalf("the Collection did not draw an <ol>:\n%s", body)
 	}
 	nums := regexp.MustCompile(`aria-hidden="true">(\d+)</span>`).FindAllStringSubmatch(body, -1)

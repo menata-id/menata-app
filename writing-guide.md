@@ -1175,6 +1175,18 @@ error on any node but a Collection bound with `rows: records`, and `truncated:` 
 is what the runtime puts on the lowered tree when the claim and the cut both hold. **Installing copies**, so the
 Dataset's `limit:` in your Workspace's own Machine copy is the number the notice shows.
 
+**One surface, rows ruled between (2026-10-09).** A `Collection` takes `divided: true` (or `false`; anything else
+is a load error). Instead of one loose tile per item it draws **one** bordered surface whose items are separated by
+a thin rule -- the look of a settings list. It combines with `ordered: true` (the position number sits in the row's
+first column) and takes its colours from the Theme (`border.surface`, `border.divider`), so a page names no class.
+
+```yaml
+- component: Collection
+  ordered: true
+  divided: true
+  binding: {dataset: ds_board_lists, rows: records}
+```
+
 **What it is not.** It does not migrate an existing screen: a bespoke Go screen stays bespoke until its
 own route is replaced, and the screens declared this way are new ones. There is no write side
 (a form input's `name=` is 007 §11.3 Binding, still unbuilt), no filter by a request parameter,

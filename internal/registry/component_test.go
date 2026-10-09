@@ -242,6 +242,19 @@ func TestCollectionOrderedIsABooleanNotAFreeString(t *testing.T) {
 	}
 }
 
+// TestCollectionDividedIsABooleanNotAFreeString: same posture as `ordered`, so `divided: yes` is refused at load
+// instead of silently drawing the floating list.
+func TestCollectionDividedIsABooleanNotAFreeString(t *testing.T) {
+	for _, v := range []string{"", "true", "false"} {
+		if issues := ValidateComponentUse(domain.ComponentCollection, map[string]string{"gap": "tight", "divided": v}); len(issues) != 0 {
+			t.Errorf("divided %q refused: %v", v, issues)
+		}
+	}
+	if issues := ValidateComponentUse(domain.ComponentCollection, map[string]string{"gap": "tight", "divided": "yes"}); len(issues) == 0 {
+		t.Error("divided: yes passed validation")
+	}
+}
+
 // TestCollectionTruncatedIsAPositiveWholeNumber: it is the bound a list was cut at, so zero, a negative or
 // words name no bound and are refused rather than drawn as a notice about nothing.
 func TestCollectionTruncatedIsAPositiveWholeNumber(t *testing.T) {

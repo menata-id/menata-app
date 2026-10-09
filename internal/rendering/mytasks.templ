@@ -134,7 +134,7 @@ func taskPatchURL(t TaskRow) string {
 }
 
 templ taskRowList(rows []TaskRow, sla bool) {
-	@collection(domain.GapTight, "", false, Truncation{}, taskItems(rows, sla))
+	@collection(domain.GapTight, "", false, false, Truncation{}, taskItems(rows, sla))
 }
 
 // taskItems fills the Collection's item slot. `sla` stays a parameter of the *item*, not of the list: it

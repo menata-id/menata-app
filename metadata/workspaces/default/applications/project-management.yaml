@@ -85,6 +85,7 @@ navigation:
           gap: tight
           empty: No labels yet.
           complete: true
+          divided: true
           binding:
             dataset: ds_board_labels
             rows: records
@@ -113,6 +114,7 @@ navigation:
           ordered: true
           empty: No lists yet.
           complete: true
+          divided: true
           binding:
             dataset: ds_board_lists
             rows: records
@@ -140,6 +142,7 @@ navigation:
           gap: tight
           empty: No labels yet.
           complete: true
+          divided: true
           binding:
             dataset: ds_labels_with_cards
             rows: records

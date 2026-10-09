@@ -464,6 +464,11 @@ templ columnsLayout(gap domain.Gap, align domain.ColumnsAlign) {
 // position; it is typography through two Theme roles (`meta`, `faint`), `w-5` keeps the items aligned past
 // nine, and it is counted by the renderer, so a page names no number.
 //
+// `divided` draws the items as rows of one surface, a rule between neighbours, instead of floating apart: the
+// shape every mockup list (Board Settings' Lists and Labels) has. The surface is `surfaceClasses` and the rule
+// reads the `divider` border role, so both follow the Workspace's theme; no gap separates the rows, because the
+// rule does. `gap` still sets the space inside a row, between its own parts.
+//
 // `truncated` is the bound that cut the list short, drawn after it by the same `truncationNotice` the
 // hand-written lists use, so a bound reads one way on every screen. It is the zero value for every list that
 // did not claim completeness (or was not cut), and `truncationNotice` draws nothing for it.
@@ -475,14 +480,31 @@ func truncationFromProp(limit string) Truncation {
 	return Truncation{Limit: n, Hit: true}
 }
 
-templ collection(gap domain.Gap, empty string, ordered bool, truncated Truncation, items []templ.Component) {
-	@collectionBody(gap, empty, ordered, items)
+templ collection(gap domain.Gap, empty string, ordered bool, divided bool, truncated Truncation, items []templ.Component) {
+	@collectionBody(gap, empty, ordered, divided, items)
 	@truncationNotice(truncated)
 }
 
-templ collectionBody(gap domain.Gap, empty string, ordered bool, items []templ.Component) {
+templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, items []templ.Component) {
 	if len(items) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
+	} else if divided && ordered {
+		<ol class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
+			for i, it := range items {
+				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 text-sm last:border-b-0" }>
+					<span class={ "w-5", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkFaint) } aria-hidden="true">{ strconv.Itoa(i + 1) }</span>
+					@it
+				</li>
+			}
+		</ol>
+	} else if divided {
+		<ul class={ "m-0 list-none overflow-hidden p-0", surfaceClasses(ctx) }>
+			for _, it := range items {
+				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 text-sm last:border-b-0" }>
+					@it
+				</li>
+			}
+		</ul>
 	} else if ordered {
 		<ol class={ "m-0 flex list-none flex-col p-0", layoutGap(ctx, gap) }>
 			for i, it := range items {
@@ -729,7 +751,7 @@ templ uiNode(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:
-					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", truncationFromProp(n.Props["truncated"]), uiChildComponents(n))
+					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", truncationFromProp(n.Props["truncated"]), uiChildComponents(n))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:

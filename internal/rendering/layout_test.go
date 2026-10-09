@@ -360,7 +360,7 @@ func TestAvatar_rendersEachCallSiteCombination(t *testing.T) {
 func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 	var buf bytes.Buffer
 	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
-	if err := collection(domain.GapTight, "", false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -377,7 +377,7 @@ func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 	// With no `empty` words an empty collection still renders the list, not nothing: the two hand-written
 	// callers say "no rows" themselves, and a Component that vanished would change what they draw.
 	buf.Reset()
-	if err := collection(domain.GapTight, "", false, Truncation{}, nil).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, false, Truncation{}, nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if got := buf.String(); !strings.Contains(got, "<ul") || strings.Contains(got, "<li") {
@@ -1055,7 +1055,7 @@ func TestDividedRowClasses_defaultsAreTheLiteralsThreeSitesReplaced(t *testing.T
 func TestCollection_drawsItsEmptyWordsInPlaceOfAnEmptyList(t *testing.T) {
 	render := func(empty string, items []templ.Component) string {
 		var buf bytes.Buffer
-		if err := collection(domain.GapTight, empty, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+		if err := collection(domain.GapTight, empty, false, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
 		return buf.String()
@@ -1113,7 +1113,7 @@ func TestUINode_drawsATagFromItsDeclaredProps(t *testing.T) {
 func TestCollection_orderedDrawsAnOlWithOneOrdinalPerItem(t *testing.T) {
 	var buf bytes.Buffer
 	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
-	if err := collection(domain.GapTight, "", true, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", true, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -1131,11 +1131,47 @@ func TestCollection_orderedDrawsAnOlWithOneOrdinalPerItem(t *testing.T) {
 	}
 
 	buf.Reset()
-	if err := collection(domain.GapTight, "", false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if strings.Contains(buf.String(), "aria-hidden") {
 		t.Errorf("an unordered collection draws no ordinal; got %q", buf.String())
+	}
+}
+
+// TestCollection_dividedDrawsOneSurfaceWithARuleBetweenRows pins the mockup's list shape (PM06): one bordered,
+// raised surface, each row padded and ruled in the divider role, the last row ruleless. Expected strings are
+// written out, not derived from the readers. Ordered keeps the `<ol>` and the counted ordinal; undivided draws
+// neither the surface nor the rule.
+func TestCollection_dividedDrawsOneSurfaceWithARuleBetweenRows(t *testing.T) {
+	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
+	render := func(ordered, divided bool) string {
+		var buf bytes.Buffer
+		if err := collection(domain.GapTight, "", ordered, divided, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	got := render(false, true)
+	for _, want := range []string{
+		`<ul class="m-0 list-none overflow-hidden p-0 rounded-lg border border-slate-200 bg-white">`,
+		`<li class="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 text-sm last:border-b-0">`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("divided collection missing %q; got %q", want, got)
+		}
+	}
+	if n := strings.Count(got, "<li "); n != 2 {
+		t.Errorf("want one <li> per item, got %d", n)
+	}
+	ord := render(true, true)
+	if !strings.Contains(ord, `<ol class="m-0 list-none overflow-hidden p-0 rounded-lg`) || !strings.Contains(ord, `aria-hidden="true">2</span>`) {
+		t.Errorf("a divided, ordered collection keeps its <ol> and counted ordinals; got %q", ord)
+	}
+	for _, plain := range []string{render(false, false), render(true, false)} {
+		if strings.Contains(plain, "rounded-lg") || strings.Contains(plain, "border-b") {
+			t.Errorf("an undivided collection draws no surface and no rule; got %q", plain)
+		}
 	}
 }
 
