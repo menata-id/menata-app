@@ -1105,10 +1105,27 @@ not in the palette (data written before the Field was a `status`) still draws, i
       from: {label: title, color: color}
 ```
 
+**A numbered list (3c-3, 2026-10-09).** A `Collection` takes `ordered: true` (or `false`; anything else is a
+load error). It draws an `<ol>` and a position number before each item -- `1`, `2`, `3` -- counted by the
+renderer in the order the Dataset lists its records, so the page writes no number and the numbers can never
+disagree with the order. Use it when position is the content, as with a board's columns; a plain list stays a
+`<ul>`. The number is hidden from assistive technology because `<ol>` already announces each item's position.
+
+```yaml
+- component: Collection
+  gap: tight
+  ordered: true
+  empty: No lists yet.
+  binding: {dataset: ds_board_lists, rows: records}
+  children:
+    - static: link
+      from: {text: title, href: record}
+```
+
 **What it is not.** It does not migrate an existing screen: a bespoke Go screen stays bespoke until its
-own route is replaced, and the two screens declared this way are new ones. There is no write side
-(a form input's `name=` is 007 §11.3 Binding, still unbuilt), no filter by a request parameter, no
-list item that links to its record, and no ordered comparison. **Installing copies**, so a Dataset a `page:` binds must exist in the Machine your
+own route is replaced, and the screens declared this way are new ones. There is no write side
+(a form input's `name=` is 007 §11.3 Binding, still unbuilt), no filter by a request parameter,
+and no ordered comparison. **Installing copies**, so a Dataset a `page:` binds must exist in the Machine your
 Workspace's own copy declares; the loader refuses the Workspace otherwise.
 
 ### 12.2 A Machine file

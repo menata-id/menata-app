@@ -360,7 +360,7 @@ func TestAvatar_rendersEachCallSiteCombination(t *testing.T) {
 func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 	var buf bytes.Buffer
 	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
-	if err := collection(domain.GapTight, "", items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -377,7 +377,7 @@ func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 	// With no `empty` words an empty collection still renders the list, not nothing: the two hand-written
 	// callers say "no rows" themselves, and a Component that vanished would change what they draw.
 	buf.Reset()
-	if err := collection(domain.GapTight, "", nil).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if got := buf.String(); !strings.Contains(got, "<ul") || strings.Contains(got, "<li") {
@@ -1055,7 +1055,7 @@ func TestDividedRowClasses_defaultsAreTheLiteralsThreeSitesReplaced(t *testing.T
 func TestCollection_drawsItsEmptyWordsInPlaceOfAnEmptyList(t *testing.T) {
 	render := func(empty string, items []templ.Component) string {
 		var buf bytes.Buffer
-		if err := collection(domain.GapTight, empty, items).Render(context.Background(), &buf); err != nil {
+		if err := collection(domain.GapTight, empty, false, items).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
 		return buf.String()
@@ -1102,5 +1102,39 @@ func TestUINode_drawsATagFromItsDeclaredProps(t *testing.T) {
 		if !strings.Contains(buf.String(), want) {
 			t.Errorf("declared Tag missing %q:\n%s", want, buf.String())
 		}
+	}
+}
+
+// TestCollection_orderedDrawsAnOlWithOneOrdinalPerItem pins the shape Board Settings' list drew by hand: an
+// `<ol>` (no bullets, no margin), and each item preceded by its position, in the `meta` size and `faint` ink.
+// The expected strings are written out, not derived from the readers, so a change to the markup fails here.
+// The ordinal is aria-hidden because the `<ol>` already announces position; an unordered collection draws no
+// ordinal at all.
+func TestCollection_orderedDrawsAnOlWithOneOrdinalPerItem(t *testing.T) {
+	var buf bytes.Buffer
+	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
+	if err := collection(domain.GapTight, "", true, items).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, `<ol class="m-0 flex list-none flex-col p-0 gap-2">`) || strings.Contains(got, "<ul") {
+		t.Errorf("ordered collection should be an <ol>; got %q", got)
+	}
+	for _, n := range []string{"1", "2"} {
+		want := `<span class="w-5 text-xs text-slate-400" aria-hidden="true">` + n + `</span>`
+		if !strings.Contains(got, want) {
+			t.Errorf("missing ordinal %q; got %q", want, got)
+		}
+	}
+	if strings.Contains(got, ">3<") {
+		t.Errorf("two items must not produce a third ordinal; got %q", got)
+	}
+
+	buf.Reset()
+	if err := collection(domain.GapTight, "", false, items).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if strings.Contains(buf.String(), "aria-hidden") {
+		t.Errorf("an unordered collection draws no ordinal; got %q", buf.String())
 	}
 }

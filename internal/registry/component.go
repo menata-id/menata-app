@@ -161,16 +161,21 @@ var collectionContract = domain.ComponentContract{
 	Inputs: []domain.ComponentInput{
 		{Name: "gap", Kind: "Gap", Required: true},
 		{Name: "empty", Kind: "string"},
+		{Name: "ordered", Kind: "bool"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"item"},
 	Actions:          nil,
-	Accessibility:    "renders a real <ul>/<li>, so the list and its length are announced without an explicit role; with no items and an `empty` text it renders that text in place of an empty list, so a screen-reader user hears why nothing is there rather than an empty list",
+	Accessibility:    "renders a real <ul>/<li>, or an <ol>/<li> when `ordered` is true, so the list and its length (and, ordered, each item's position) are announced without an explicit role -- the drawn ordinal is aria-hidden for that reason, never the only carrier of the position; with no items and an `empty` text it renders that text in place of an empty list, so a screen-reader user hears why nothing is there rather than an empty list",
 	Renderer:         "collection",
 }
 
 func validateCollection(inputs map[string]string) []string {
-	return checkDeclaredInputs(collectionContract, inputs, "Collection")
+	issues := checkDeclaredInputs(collectionContract, inputs, "Collection")
+	if v := inputs["ordered"]; v != "" && v != "true" && v != "false" {
+		issues = append(issues, fmt.Sprintf("Collection ordered %q is not true or false", v))
+	}
+	return issues
 }
 
 // metricContract is §12.3's `Metric`: a resolved number and the question it answers.

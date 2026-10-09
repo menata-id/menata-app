@@ -327,3 +327,53 @@ func TestDeclaredPageDrawsEachLabelAsATagInItsOwnColour(t *testing.T) {
 		t.Errorf("a colour outside the palette must fall back to the neutral chip:\n%s", odd)
 	}
 }
+
+// TestDeclaredPageNumbersTheBoardListsInColumnOrder: `ordered: true` on a Collection draws an <ol> whose
+// position numbers are counted by the renderer. The page writes no number, so the proof is that three Lists
+// created in a known order appear in that order and that the numbers across the whole page run 1..N without a
+// gap -- whatever else the dev database holds.
+func TestDeclaredPageNumbersTheBoardListsInColumnOrder(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredordered", "default")
+	var list *domain.Machine
+	for _, m := range ws.Machines {
+		for _, ds := range m.Datasets {
+			if ds.ID == "ds_board_lists" {
+				list = m
+			}
+		}
+	}
+	if list == nil {
+		t.Fatal("default installs no Machine providing ds_board_lists")
+	}
+	titleField := list.CardFieldFor(domain.CardFieldRoleTitle)
+	names := []string{"Ord-probe-first", "Ord-probe-second", "Ord-probe-third"}
+	for _, name := range names {
+		rec, err := store.CreateRecord(ctx, list.ID, map[string]any{titleField: name})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", name, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, list.ID, rec.ID) })
+	}
+
+	body := getPage(t, h, cookie, "/pages/nav_board_lists")
+	if !strings.Contains(body, `<ol class="m-0 flex list-none flex-col p-0 gap-2">`) {
+		t.Fatalf("the Collection did not draw an <ol>:\n%s", body)
+	}
+	nums := regexp.MustCompile(`aria-hidden="true">(\d+)</span>`).FindAllStringSubmatch(body, -1)
+	for i, m := range nums {
+		if m[1] != strconv.Itoa(i+1) {
+			t.Fatalf("position numbers must run 1..N in order; item %d is numbered %s", i+1, m[1])
+		}
+	}
+	last := -1
+	for _, name := range names {
+		at := strings.Index(body, name)
+		if at < 0 {
+			t.Fatalf("list %q did not reach the page", name)
+		}
+		if at < last {
+			t.Errorf("list %q appears before an earlier-created one; the order is the Dataset's", name)
+		}
+		last = at
+	}
+}

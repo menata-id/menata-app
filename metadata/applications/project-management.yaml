@@ -82,3 +82,30 @@ navigation:
               from:
                 label: title
                 color: color
+
+  # A second screen declared rather than written: the board's Lists in column order, numbered. The number is
+  # the Collection's `ordered`, counted by the renderer; each name is the List Machine's own `title`, linked to
+  # the record's page. "All lists" because Board Settings types the word "Lists" itself.
+  - id: nav_board_lists
+    label: All lists
+    title: All lists
+    description: The columns of a board, in the order they appear.
+    route: /pages/nav_board_lists
+    priority: 10
+    icon: settings
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Collection
+          gap: tight
+          ordered: true
+          empty: No lists yet.
+          binding:
+            dataset: ds_board_lists
+            rows: records
+          children:
+            - static: link
+              from:
+                text: title
+                href: record

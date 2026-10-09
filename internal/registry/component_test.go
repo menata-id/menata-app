@@ -228,3 +228,16 @@ func TestTagContractRequiresAnAccessibleName(t *testing.T) {
 		}
 	}
 }
+
+// TestCollectionOrderedIsABooleanNotAFreeString: `ordered` is true or false (or absent), so a typo such as
+// `ordered: yes` is refused at load instead of silently drawing an unordered list.
+func TestCollectionOrderedIsABooleanNotAFreeString(t *testing.T) {
+	for _, v := range []string{"", "true", "false"} {
+		if issues := ValidateComponentUse(domain.ComponentCollection, map[string]string{"gap": "tight", "ordered": v}); len(issues) != 0 {
+			t.Errorf("ordered %q refused: %v", v, issues)
+		}
+	}
+	if issues := ValidateComponentUse(domain.ComponentCollection, map[string]string{"gap": "tight", "ordered": "yes"}); len(issues) == 0 {
+		t.Error("ordered: yes passed validation")
+	}
+}

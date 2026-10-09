@@ -1036,7 +1036,7 @@ func summaryTileTree(items []SummaryItem) ir.UINode {
 // activityFeedListRow is the activity feed as a `Collection` whose item slot holds one entry row. It and
 // `taskRowList` were structurally identical and are the two independent callers `Collection` arrived with.
 templ activityFeedListRow(entries []ActivityEntry) {
-	@collection(domain.GapTight, "", activityItems(entries))
+	@collection(domain.GapTight, "", false, activityItems(entries))
 }
 
 // activityItems fills the item slot, one composed component per entry. A plain Go helper rather than a templ

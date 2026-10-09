@@ -458,9 +458,23 @@ templ columnsLayout(gap domain.Gap, align domain.ColumnsAlign) {
 // `empty` is what to say when there are no items: the words are drawn as a `message` in place of an empty
 // `<ul>`. "" keeps the old behaviour (an empty list), which the two hand-written callers rely on because they
 // say it themselves.
-templ collection(gap domain.Gap, empty string, items []templ.Component) {
+//
+// `ordered` draws an `<ol>` and a leading position number per item (Board Settings' lists: position is the content,
+// "the order here is the order of the columns"). The number is `aria-hidden` because `<ol>` already announces
+// position; it is typography through two Theme roles (`meta`, `faint`), `w-5` keeps the items aligned past
+// nine, and it is counted by the renderer, so a page names no number.
+templ collection(gap domain.Gap, empty string, ordered bool, items []templ.Component) {
 	if len(items) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
+	} else if ordered {
+		<ol class={ "m-0 flex list-none flex-col p-0", layoutGap(ctx, gap) }>
+			for i, it := range items {
+				<li class={ "flex flex-wrap items-center", layoutGap(ctx, gap), "text-sm" }>
+					<span class={ "w-5", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkFaint) } aria-hidden="true">{ strconv.Itoa(i + 1) }</span>
+					@it
+				</li>
+			}
+		</ol>
 	} else {
 		<ul class={ "flex flex-col", layoutGap(ctx, gap) }>
 			for _, it := range items {
@@ -698,7 +712,7 @@ templ uiNode(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:
-					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], uiChildComponents(n))
+					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", uiChildComponents(n))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:
