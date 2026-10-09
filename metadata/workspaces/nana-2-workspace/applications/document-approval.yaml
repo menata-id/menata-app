@@ -283,3 +283,35 @@ navigation:
         # Application's own navigation, and its text defaults to that item's label (the menu's own words).
         - static: link
           to: nav_approval_inbox
+  # Filtered by the request: /pages/nav_documents_in_status?status=<a status>. The Collection names no parameter;
+  # ds_documents_in_status reads `$parameters.status`, which is where the request's query value goes. The
+  # empty words serve a request with no status as well as a status with no Document, since both list nothing.
+  - id: nav_documents_in_status
+    label: In a Status
+    title: Documents in a status
+    description: The documents in the status named in the address, as ?status=.
+    route: /pages/nav_documents_in_status
+    priority: 5
+    icon: file-text
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Collection
+          gap: tight
+          complete: true
+          empty: No documents to show. Name a status in the address, as ?status=.
+          binding:
+            dataset: ds_documents_in_status
+            rows: records
+          children:
+            - layout: row
+              children:
+                - static: link
+                  from:
+                    text: title
+                    href: record
+                - component: StatusBadge
+                  tone: info
+                  from:
+                    label: status

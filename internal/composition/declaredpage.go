@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
@@ -25,9 +26,13 @@ import (
 // viewerID is the viewing identity's own record id, handed to `$current_user` filters. A Dataset that filters
 // on it and receives "" fails closed in `predicatesFor` rather than listing everyone's records.
 //
+// params are the request's query values (007 §9.2 `parameters`). A page declares none of them: the names are the
+// `$parameters.<name>` its bound Datasets filter on, so what a request may supply is whatever the Datasets
+// already say and nothing a page author could mistype. A name no bound Dataset reads is never looked at.
+//
 // navigation is the Application's `AllNavigation`, which a `to:` resolves against; a page is a body the
 // Application declared, so its links reach that Application's own screens.
-func DeclaredPage(ctx context.Context, l *Loader, viewerID string, navigation []domain.NavigationItem, page domain.PageNode) (ir.UINode, error) {
+func DeclaredPage(ctx context.Context, l *Loader, viewerID string, params map[string]string, navigation []domain.NavigationItem, page domain.PageNode) (ir.UINode, error) {
 	return ir.Lower(page, ir.Resolver{
 		Route: ir.NavigationRoutes(navigation),
 		Source: func(datasetID string) (string, bool) {
@@ -38,7 +43,7 @@ func DeclaredPage(ctx context.Context, l *Loader, viewerID string, navigation []
 			return bindingRows(ctx, l, b)
 		},
 		Records: func(b domain.PageBinding) (ir.RecordSet, error) {
-			return bindingRecords(ctx, l, viewerID, b)
+			return bindingRecords(ctx, l, viewerID, params, b)
 		},
 	})
 }
@@ -50,7 +55,7 @@ func DeclaredPage(ctx context.Context, l *Loader, viewerID string, navigation []
 // Machine already declared about its shape, and the page names no Field. `RelationOptions` is deliberately
 // empty: the loader refuses a `from:` whose role is a reference Field, because resolving one means reading the
 // whole related Machine. Order is the Dataset's declared `sort:`, applied by the database.
-func bindingRecords(ctx context.Context, l *Loader, viewerID string, b domain.PageBinding) (ir.RecordSet, error) {
+func bindingRecords(ctx context.Context, l *Loader, viewerID string, params map[string]string, b domain.PageBinding) (ir.RecordSet, error) {
 	ds, ok := l.Dataset(b.Dataset)
 	if !ok {
 		return ir.RecordSet{}, fmt.Errorf("composition: page binding names dataset %q, which no machine declares", b.Dataset)
@@ -59,9 +64,20 @@ func bindingRecords(ctx context.Context, l *Loader, viewerID string, b domain.Pa
 	if src == nil {
 		return ir.RecordSet{}, fmt.Errorf("composition: dataset %q reads machine %q, which this Workspace does not install", b.Dataset, ds.Source)
 	}
+	// A Dataset filtering on a parameter this request did not send lists nothing and reads nothing: fail closed
+	// (007 §9.2) without an error, because an absent query value is an ordinary request and not a fault. The
+	// page's `empty:` words are what the viewer sees, so an author writes them for this case too.
+	where := expression.Context{CurrentUser: viewerID, Parameters: params}
+	for _, c := range ds.Where.Comparisons() {
+		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) {
+			if _, ok := where.Resolve(c.Value); !ok {
+				return ir.RecordSet{}, nil
+			}
+		}
+	}
 	// SelectRelated, not SelectDataset: the Relations the Dataset declares (007 §7.5) are how a record's child
 	// count is known, and the lookup is one bounded query per Relation however many records there are.
-	sel, err := l.SelectRelated(ctx, b.Dataset, expression.Context{CurrentUser: viewerID})
+	sel, err := l.SelectRelated(ctx, b.Dataset, where)
 	if err != nil {
 		return ir.RecordSet{}, err
 	}

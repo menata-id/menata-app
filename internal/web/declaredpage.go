@@ -30,7 +30,7 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 				continue
 			}
 			viewerID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), viewerID, app.AllNavigation, *item.Page)
+			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), viewerID, queryParams(req), app.AllNavigation, *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return
@@ -45,4 +45,14 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 		}
 		http.NotFound(w, req)
 	}
+}
+
+// queryParams is the request's query string as one value per name (the first, as net/http's Get does).
+func queryParams(req *http.Request) map[string]string {
+	q := req.URL.Query()
+	out := make(map[string]string, len(q))
+	for k := range q {
+		out[k] = q.Get(k)
+	}
+	return out
 }

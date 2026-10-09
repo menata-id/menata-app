@@ -134,6 +134,15 @@ func TestPage_recordsBindingLoads(t *testing.T) {
 	}
 }
 
+// A page's request is its query string, so a Dataset filtering on `$parameters.<name>` is bindable (007 §9.2).
+// It was a load error while a page had no way to supply one; the refusal now would silently disable a
+// declared capability.
+func TestPage_aRecordsBindingMayFilterOnARequestParameter(t *testing.T) {
+	if err := pageFixture(t, strings.Replace(validListPage, "ds_rows", "ds_by_param", 1)); err != nil {
+		t.Fatalf("a records page over a parameter-filtered dataset was refused: %v", err)
+	}
+}
+
 func TestPage_loweredTreeIsWhatTheAuthorDeclared(t *testing.T) {
 	var doc pageNodeDoc
 	if err := yaml.Unmarshal([]byte(`
@@ -219,7 +228,6 @@ func TestPage_faultsAreRefusedAtLoad(t *testing.T) {
 		{"static node holding a child", item("/pages/nav_p", "      layout: stack\n      children:\n        - static: heading\n          text: x\n          children:\n            - static: paragraph\n              text: y\n"), "slot/type mismatch"},
 		{"leaf component holding a child", item("/pages/nav_p", "      layout: stack\n      children:\n        - component: Avatar\n          initials: AB\n          label: Ab\n          children:\n            - static: paragraph\n              text: y\n"), "declares no slots"},
 		{"records binding on an aggregate dataset", item("/pages/nav_p", list("ds_by_status", "title")), "is an aggregate"},
-		{"records binding filtering on a request parameter", item("/pages/nav_p", list("ds_by_param", "title")), "no request parameters"},
 		{"records binding names no dataset", item("/pages/nav_p", list("ds_missing", "title")), "ds_missing"},
 		{"from names a role no machine projects", item("/pages/nav_p", list("ds_rows", "nonesuch")), "nonesuch"},
 		{"from names a role this machine does not declare", item("/pages/nav_p", list("ds_rows", "money")), "declares no card_fields role"},

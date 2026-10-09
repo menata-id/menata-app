@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 
 	"menata.app/internal/domain"
@@ -214,9 +213,8 @@ func pageBindings(n domain.PageNode) []domain.PageBinding {
 // unit test over a fixture failed, so a Workspace shipping a list the loader no longer vetted would have stayed
 // green until a visitor got a 500 or a blank cell.
 //
-// It holds the three things a list can be wrong about that `ir.Lower` over a placeholder cannot see: the Dataset
-// selects records, it filters on no `$parameters` value (a page has no route parameters), and every `from:`
-// role under the Binding is one the Machine declares in `card_fields` whose Field is not a reference (007 §20).
+// It holds the two things a list can be wrong about that `ir.Lower` over a placeholder cannot see: the Dataset
+// selects records, and every `from:` role under the Binding is one the Machine declares in `card_fields` whose Field is not a reference (007 §20).
 func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machine) []string {
 	var out []string
 	var walk func(n domain.PageNode)
@@ -234,11 +232,6 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 				}
 				if ds.Select != domain.SelectRecords {
 					out = append(out, "records binding over "+ds.ID+", which is an aggregate")
-				}
-				for _, c := range ds.Where.Comparisons() {
-					if strings.HasPrefix(c.Value, "$parameters.") {
-						out = append(out, "dataset "+ds.ID+" filters on "+c.Value+", which a page cannot supply")
-					}
 				}
 				for _, role := range fromRolesUnder(n.Children) {
 					fieldID := m.CardFieldFor(domain.CardFieldRole(role))

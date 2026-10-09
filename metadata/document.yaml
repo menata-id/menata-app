@@ -312,6 +312,20 @@ datasets:
         direction: desc
     limit: 5
 
+  # Documents whose status is the one the request names (`?status=Pending`), for a `page:` list. A page declares
+  # no parameter: the name is the `$parameters.status` read here, and a request that sends none lists nothing
+  # (007 §9.2, fail closed). `limit: 200` is a safety cap, not a window, so the page may claim it is complete.
+  - id: ds_documents_in_status
+    select: records
+    where:
+      field: fld_status
+      op: equals
+      value: $parameters.status
+    sort:
+      - field: created_at
+        direction: desc
+    limit: 200
+
 # How a Document's records look wherever they appear -- the detail page selects no View, so
 # these are Machine-level rather than per-arrangement.
 sla_field: fld_due_date

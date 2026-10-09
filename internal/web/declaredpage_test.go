@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -443,5 +444,55 @@ func TestDeclaredPageSaysHowManyCardsCarryEachLabel(t *testing.T) {
 	}
 	if got := after("Count-probe-two"); !strings.Contains(got, "used on 2 cards<") {
 		t.Errorf("two cards must read the plural wording:\n%s", got)
+	}
+}
+
+// TestDeclaredPageTakesItsFilterFromTheQueryString serves `/pages/nav_documents_in_status` end to end: the
+// request's `?status=` is the Dataset's `$parameters.status`, so only that status's Documents are listed; a
+// request with no status lists none (fail closed, 007 §9.2) and is a 200 rather than a fault; and the value is
+// compared as data. The Field and its values are read out of the Dataset's own `where:` and the Machine's
+// options, so the test names neither.
+func TestDeclaredPageTakesItsFilterFromTheQueryString(t *testing.T) {
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredparam", "nana-2-workspace")
+	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
+
+	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	if doc == nil {
+		t.Fatal("nana-2-workspace casts no document role")
+	}
+	var statusField, titleField string
+	for _, ds := range doc.Datasets {
+		if ds.ID == "ds_documents_in_status" {
+			statusField = ds.Where.Comparisons()[0].Field
+		}
+	}
+	for _, cf := range doc.CardFields {
+		if cf.Role == domain.CardFieldRoleTitle {
+			titleField = cf.Field
+		}
+	}
+	f, ok := doc.FieldByID(statusField)
+	if statusField == "" || titleField == "" || !ok || len(f.Options) < 2 {
+		t.Fatalf("the Document Machine does not offer a two-valued status filter (status=%q title=%q)", statusField, titleField)
+	}
+	for i, title := range []string{"Paramprobe in first status", "Paramprobe in second status"} {
+		rec, err := store.CreateRecord(ctx, doc.ID, map[string]any{titleField: title, statusField: f.Options[i]})
+		if err != nil {
+			t.Fatalf("CreateRecord: %v", err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, doc.ID, rec.ID) })
+	}
+
+	body := getPage(t, h, cookie, "/pages/nav_documents_in_status?status="+url.QueryEscape(f.Options[0]))
+	if !strings.Contains(body, "Paramprobe in first status") || strings.Contains(body, "Paramprobe in second status") {
+		t.Errorf("?status=%s must list that status's Document and no other", f.Options[0])
+	}
+	body = getPage(t, h, cookie, "/pages/nav_documents_in_status")
+	if strings.Contains(body, "Paramprobe") {
+		t.Error("a request naming no status listed Documents; it must list none")
+	}
+	body = getPage(t, h, cookie, "/pages/nav_documents_in_status?status="+url.QueryEscape("x' OR '1'='1"))
+	if strings.Contains(body, "Paramprobe") {
+		t.Error("a status that is not one listed Documents")
 	}
 }

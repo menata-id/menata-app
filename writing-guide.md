@@ -970,7 +970,11 @@ Machine already said about its shape. Rules, all checked at load:
 
 - the Dataset must be `select: records` (so it already carries the `limit:` 007 §7.9 requires -- **the limit is
   the list's meaning, "the latest five", and no truncation notice is drawn unless the page writes `complete: true`**), and may filter on `$current_user`
-  but **not** on `$parameters.*`: a page has no request parameters, so such a Dataset is refused;
+  and on `$parameters.<name>`. A page's request parameters are its **query string**, and a page declares none of
+  them: the names are whatever its bound Datasets' `where:` reads (`value: $parameters.status` is
+  `/pages/<id>?status=...`). A request that sends no such value lists **nothing and reads nothing** (007 §9.2,
+  fail closed -- an absent value is an ordinary request, not "everyone"), so write `empty:` words that serve both
+  that and a value matching nothing; the value is compared as data;
 - `from:` is valid only inside a records-bound Collection's template, a property cannot be both written and
   `from:`, and a records binding does not nest inside a template;
 - a role whose Field is a **reference** to another Machine is refused: resolving it reads the whole related

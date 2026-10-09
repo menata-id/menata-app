@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-	"strings"
 	"sync"
 
 	"gopkg.in/yaml.v3"
 
 	"menata.app/internal/domain"
-	"menata.app/internal/expression"
 	"menata.app/internal/ir"
 	"menata.app/internal/registry"
 )
@@ -335,8 +333,8 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 // recordsBindingIssues is what a records binding asks of its Dataset and of the Machine it reads.
 //
 //   - the Dataset **selects records** -- an aggregate has no rows to list;
-//   - it filters on nothing a page cannot supply: `$current_user` is the viewer and is fine, a
-//     `$parameters.<name>` is a route value and a page has no route parameters (007 §9.2, fail closed);
+//   - it may filter on `$current_user` (the viewer) and on `$parameters.<name>` (a query value of the page's
+//     own request); a request that sends no such value lists nothing, which is 007 §9.2's fail closed;
 //   - every `from:` role in the item template is one the Dataset's Machine declares in `card_fields`, and the
 //     Field behind it **is not a reference**. A reference Field resolves through `rendering.RelationOptions`,
 //     which is a read of the whole related Machine (007 §20: no plane may read everything and trim later), so
@@ -345,11 +343,6 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	var issues []string
 	if ds.Select != domain.SelectRecords {
 		issues = append(issues, fmt.Sprintf("%s: page: rows: %s needs a dataset that selects records, and %q is an aggregate", where, domain.PageRowsRecords, ds.ID))
-	}
-	for _, c := range ds.Where.Comparisons() {
-		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) {
-			issues = append(issues, fmt.Sprintf("%s: page: dataset %q filters on %s, and a page has no request parameters to supply", where, ds.ID, c.Value))
-		}
 	}
 	if source == nil {
 		return issues
