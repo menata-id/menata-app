@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
@@ -29,8 +28,7 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 			if item.ID != navID || item.Page == nil {
 				continue
 			}
-			viewerID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), viewerID, queryParams(req), app.AllNavigation, *item.Page)
+			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), queryParams(req), app.AllNavigation, *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return

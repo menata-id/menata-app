@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"menata.app/internal/authorization"
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
 	"menata.app/internal/ir"
@@ -23,8 +24,9 @@ import (
 // `select: records` Dataset always is, by the `limit:` it is required to declare (§7.9), and **reaches the
 // database once per Dataset however many nodes name it**.
 //
-// viewerID is the viewing identity's own record id, handed to `$current_user` filters. A Dataset that filters
-// on it and receives "" fails closed in `predicatesFor` rather than listing everyone's records.
+// viewer is the acting identity. Its ID is handed to `$current_user` filters (a Dataset that filters on it and
+// receives "" fails closed in `predicatesFor` rather than listing everyone's records), and the whole Actor
+// answers a Form's `create` Permission: a form the viewer may not submit is not drawn.
 //
 // params are the request's query values (007 §9.2 `parameters`). A page declares none of them: the names are the
 // `$parameters.<name>` its bound Datasets filter on, so what a request may supply is whatever the Datasets
@@ -32,7 +34,7 @@ import (
 //
 // navigation is the Application's `AllNavigation`, which a `to:` resolves against; a page is a body the
 // Application declared, so its links reach that Application's own screens.
-func DeclaredPage(ctx context.Context, l *Loader, viewerID string, params map[string]string, navigation []domain.NavigationItem, page domain.PageNode) (ir.UINode, error) {
+func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, navigation []domain.NavigationItem, page domain.PageNode) (ir.UINode, error) {
 	return ir.Lower(page, ir.Resolver{
 		Route: ir.NavigationRoutes(navigation),
 		Source: func(datasetID string) (string, bool) {
@@ -43,9 +45,36 @@ func DeclaredPage(ctx context.Context, l *Loader, viewerID string, params map[st
 			return bindingRows(ctx, l, b)
 		},
 		Records: func(b domain.PageBinding) (ir.RecordSet, error) {
-			return bindingRecords(ctx, l, viewerID, params, b)
+			return bindingRecords(ctx, l, viewer.ID, params, b)
+		},
+		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
+			return bindingForm(l, viewer, b)
 		},
 	})
+}
+
+// bindingForm is one write Binding: the route a Machine is created through and the controls its Fields ask for.
+// Nothing here is read from the database -- a form is the Machine's shape, not its records -- so it costs no query
+// however many forms a page holds.
+//
+// `Permitted` is the viewer's `create` Permission evaluated against no record (there is none yet), so a
+// Permission that depends on a record's own Field answers false and the form is hidden: fail closed. The create
+// route evaluates the real values and refuses on its own, which is why this is courtesy and not the enforcement.
+func bindingForm(l *Loader, viewer domain.Actor, b domain.PageBinding) (ir.FormSpec, error) {
+	ds, ok := l.Dataset(b.Dataset)
+	if !ok {
+		return ir.FormSpec{}, fmt.Errorf("composition: page binding names dataset %q, which no machine declares", b.Dataset)
+	}
+	src := l.Machine(ds.Source)
+	if src == nil {
+		return ir.FormSpec{}, fmt.Errorf("composition: dataset %q names machine %q, which this Workspace does not install", b.Dataset, ds.Source)
+	}
+	inputs, _ := src.CreateFormInputs()
+	return ir.FormSpec{
+		Route:     domain.FormRoute(src.ID),
+		Permitted: authorization.AllowsAction(src, domain.ActionCreate, nil, viewer),
+		Inputs:    inputs,
+	}, nil
 }
 
 // bindingRecords is one records Binding: each record of the Dataset, as its Machine's own Projection roles,

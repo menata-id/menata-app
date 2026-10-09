@@ -303,6 +303,19 @@ func rendererSignature(src, name string) string {
 //
 // **Narrowing `Validate` is not the way to pass.** A tree with a `row` node is not invalid; refusing it would
 // make the IR reject legitimate composition to match a renderer that is behind. The walker gets the arm.
+func componentConstantFor(t *testing.T, typ string) string {
+	t.Helper()
+	src, err := os.ReadFile(filepath.Join(repoRoot(), "internal", "domain", "component.go"))
+	if err != nil {
+		t.Fatalf("read domain/component.go: %v", err)
+	}
+	m := regexp.MustCompile(`(?m)^\s*(Component\w+)\s+ComponentType\s*=\s*"` + regexp.QuoteMeta(typ) + `"`).FindStringSubmatch(string(src))
+	if m == nil {
+		t.Fatalf("no ComponentType constant has the value %q in internal/domain/component.go", typ)
+	}
+	return "domain." + m[1]
+}
+
 func TestEveryAcceptedNodeTypeHasAWalkerArm(t *testing.T) {
 	src, err := os.ReadFile(filepath.Join(repoRoot(), "internal", "ir", "ui.go"))
 	if err != nil {
@@ -331,7 +344,9 @@ func TestEveryAcceptedNodeTypeHasAWalkerArm(t *testing.T) {
 		seen[key] = true
 		name := ident[kind] + strings.ToUpper(typ[:1]) + typ[1:]
 		if kind == "component" {
-			name = ident[kind] + typ // ComponentStatusBadge, ComponentAvatar
+			// By the constant's *value*, not by assuming the name equals the type: `Input` is
+			// `domain.ComponentFormInput` because `ComponentInput` is already the contract-input struct.
+			name = componentConstantFor(t, typ)
 		}
 		if !strings.Contains(walker, "case "+name+":") {
 			t.Errorf("internal/ir accepts %q and internal/rendering's uiNode has no `case %s:` -- a valid tree containing it renders nothing, silently. Add the arm; do not narrow Validate", key, name)

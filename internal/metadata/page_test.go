@@ -451,3 +451,35 @@ func TestPage_aLinkingMetricMustSendAParameterTheDestinationReads(t *testing.T) 
 		}
 	}
 }
+
+func TestWriteBindingIssues(t *testing.T) {
+	ds := domain.Dataset{ID: "ds_x", Source: "mch_x", Select: domain.SelectRecords}
+	node := domain.PageNode{Kind: "component", Type: "Form", Binding: &domain.PageBinding{Dataset: "ds_x", Write: domain.PageWriteCreate}}
+	datasets := map[string]domain.Dataset{"ds_x": ds}
+	check := func(m *domain.Machine) string {
+		machines := map[string]*domain.Machine{}
+		if m != nil {
+			machines["mch_x"] = m
+		}
+		return strings.Join(bindingIssues(node, datasets, machines, "w"), "\n")
+	}
+	text := domain.Field{ID: "f1", Name: "Name", Type: domain.FieldTypeText, Required: true}
+	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{text}}); got != "" {
+		t.Errorf("a Machine a form can ask for was refused: %s", got)
+	}
+	if got := check(nil); !strings.Contains(got, "does not install") {
+		t.Errorf("a Dataset whose Machine is absent: %q", got)
+	}
+	stamped := domain.Field{ID: "f2", Name: "By", Type: domain.FieldTypeText, Stamp: domain.FieldStampCurrentUser}
+	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{stamped}}); !strings.Contains(got, "no Field a form can ask for") {
+		t.Errorf("a Machine with only stamped Fields: %q", got)
+	}
+	ref := domain.Field{ID: "f3", Name: "Owner", Type: domain.FieldTypeRelation, RelatedMachine: "mch_y", Required: true}
+	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{text, ref}}); !strings.Contains(got, `requires field "f3"`) {
+		t.Errorf("a required reference no form can ask for: %q", got)
+	}
+	ref.Required = false
+	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{text, ref}}); got != "" {
+		t.Errorf("an optional reference is simply not asked for, got %q", got)
+	}
+}

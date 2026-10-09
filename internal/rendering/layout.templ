@@ -760,6 +760,12 @@ templ uiNode(n ir.UINode) {
 					@button(n.Props["label"], domain.ButtonVariant(n.Props["variant"]), n.Props["name"], n.Props["value"])
 				case domain.ComponentTag:
 					@tagChip(n.Props["label"], domain.TagColor(n.Props["color"]))
+				case domain.ComponentForm:
+					@form(n.Props["submit"], n.Props["action"]) {
+						@uiChildren(n)
+					}
+				case domain.ComponentFormInput:
+					@formInput(n.Props["id"], n.Props["name"], n.Props["kind"], n.Props["options"], n.Props["value"], n.Props["required"] == "true")
 			}
 	}
 }

@@ -61,6 +61,22 @@ func NavigationRoutes(items []domain.NavigationItem) RouteResolver {
 // place (`domain.MachineListRoute`) however many resolvers there are.
 type SourceResolver func(datasetID string) (machineID string, ok bool)
 
+// FormSpec is a write Binding's answer: where the form posts, whether this viewer may create at all, and the
+// controls the Machine asks for. It is plain data -- no Machine, no Actor -- so the representation stays free of
+// the things that decided it (the resolver applied the viewer's create Permission and the Machine's Fields).
+//
+// Permitted is the viewer's own answer: a form the viewer may not submit is **not drawn**, the way the generic
+// pages hide a "New" button, rather than drawn and refused. The route still refuses on its own, so this is
+// courtesy and not enforcement.
+type FormSpec struct {
+	Route     string
+	Permitted bool
+	Inputs    []domain.FormInput
+}
+
+// FormResolver answers a write Binding (`write: create`).
+type FormResolver func(b domain.PageBinding) (FormSpec, error)
+
 // Resolver is what Lower may ask the outside world. Any part may be nil when the tree has no use of it (no
 // Binding of that mode, no `to:`); asking for one that is nil is an error rather than a panic.
 type Resolver struct {
@@ -68,6 +84,7 @@ type Resolver struct {
 	Records RecordResolver
 	Route   RouteResolver
 	Source  SourceResolver
+	Form    FormResolver
 }
 
 // Lower turns a declared `page:` into UI IR (007 §15.1's "Build UI IR"), expanding every Binding through
@@ -110,6 +127,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 			return nil, fmt.Errorf("%s: a binding inside a record template is not supported -- the item is one record, and a second Dataset would be a join the page has no grammar for", path)
 		}
 		return lowerBound(n, r, path)
+	}
+	if n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentFormInput) {
+		return nil, fmt.Errorf("%s: Input is produced by lowering a bound Form, never written: a control's name= is its Machine's Field id, and a typed one is exactly the retyped identifier a Binding exists to remove (007 §11.3)", path)
 	}
 	props := n.Props
 	if len(n.From) > 0 {
@@ -342,6 +362,9 @@ func fillFrom(n domain.PageNode, record map[string]string, path string) (map[str
 
 func lowerBound(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	b := n.Binding
+	if b.Write != "" {
+		return lowerForm(n, r, path)
+	}
 	if NodeKind(n.Kind) != NodeComponent {
 		return nil, fmt.Errorf("%s: a binding is only valid on a bindable component, and %s %q is not one", path, n.Kind, n.Type)
 	}
@@ -466,4 +489,95 @@ func dimensionRoute(n domain.PageNode, r Resolver, path string) (string, error) 
 		return "", fmt.Errorf("%s: to: %s names no navigation item in this Application", path, n.To)
 	}
 	return route, nil
+}
+
+// formActionProp is the one Form property lowering produces and an author never writes. The route a form posts
+// to is the Machine's create route, derived from the bound Dataset; a typed one would be a route retyped, and
+// would let a page aim a form at anything (001 #3, #8).
+const formActionProp = "action"
+
+// lowerForm turns a `Form` bound with `write: create` into `Form{ Field{ Input }... }`, one Field per control the
+// Machine asks for. The author writes the submit label and the Dataset; everything a hand-written form would
+// type -- the route, each `name=`, each control's kind, its options, its default -- comes from the Machine, which
+// is what 007 §11.3 means by a Binding.
+//
+// A viewer who may not create gets **no node**, and a page whose only child is such a Form is then a layout with
+// no children, which `Validate` refuses at request time as it refuses any other empty layout.
+func lowerForm(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	b := n.Binding
+	mode, ok := domain.WritableComponents[domain.ComponentType(n.Type)]
+	if NodeKind(n.Kind) != NodeComponent || !ok {
+		return nil, fmt.Errorf("%s: write: is only valid on a writable component, and %s %q is not one", path, n.Kind, n.Type)
+	}
+	if b.Write != mode {
+		return nil, fmt.Errorf("%s: component %q takes a binding with write: %s, not %q", path, n.Type, mode, b.Write)
+	}
+	if b.Dataset == "" {
+		return nil, fmt.Errorf("%s: a binding names a dataset", path)
+	}
+	if b.Rows != "" || b.Measure != "" {
+		return nil, fmt.Errorf("%s: write: is a mode of its own and takes neither rows: nor measure: -- a form writes a record, it does not read a list", path)
+	}
+	if len(n.Children) > 0 {
+		return nil, fmt.Errorf("%s: a bound Form's controls come from its Machine's Fields, so it holds no children", path)
+	}
+	if len(n.From) > 0 || n.To != "" || n.ListOf != "" || n.Param != "" || n.Count != nil {
+		return nil, fmt.Errorf("%s: a Form takes only its submit label and its binding; from:, to:, list_of:, param: and count: belong to other nodes", path)
+	}
+	if _, typed := n.Props[formActionProp]; typed {
+		return nil, fmt.Errorf("%s: a Form's action is its Machine's create route, derived from the dataset; never typed -- a route is declared once (001 #3, #8)", path)
+	}
+	if r.Form == nil {
+		return nil, fmt.Errorf("%s: no resolver for forms", path)
+	}
+	spec, err := r.Form(*b)
+	if err != nil {
+		return nil, err
+	}
+	if !spec.Permitted {
+		return nil, nil
+	}
+	if len(spec.Inputs) == 0 {
+		return nil, fmt.Errorf("%s: dataset %q reads a Machine with no Field a form can ask for", path, b.Dataset)
+	}
+	props := make(map[string]string, len(n.Props)+1)
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	props[formActionProp] = spec.Route
+	form := UINode{Kind: NodeComponent, Type: string(domain.ComponentForm), Props: props}
+	for i, in := range spec.Inputs {
+		id := formControlID(path, i)
+		ctl := map[string]string{"id": id, "name": in.FieldID, "kind": string(in.Kind)}
+		if in.Required {
+			ctl["required"] = "true"
+		}
+		if in.Default != "" {
+			ctl["value"] = in.Default
+		}
+		if in.Kind == domain.InputSelect {
+			ctl["options"] = strings.Join(in.Options, domain.InputOptionsSep)
+		}
+		form.Children = append(form.Children, UINode{
+			Kind: NodeComponent, Type: string(domain.ComponentField),
+			Props:    map[string]string{"label": in.Label, "for": id},
+			Children: []UINode{{Kind: NodeComponent, Type: string(domain.ComponentFormInput), Props: ctl}},
+		})
+	}
+	return []UINode{form}, nil
+}
+
+// formControlID is the DOM id a Field's label names, derived from the Form's place in the tree and the control's
+// position -- deterministic (007 §4.6), unique per page, and never typed by an author.
+func formControlID(path string, i int) string {
+	var b strings.Builder
+	b.WriteString("ctl-")
+	for _, r := range path {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('-')
+		}
+	}
+	return b.String() + "-" + strconv.Itoa(i)
 }

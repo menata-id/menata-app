@@ -97,6 +97,11 @@ navigation:
                     href: record
             - static: note
               text: The order here is the order of the columns on a board. Renaming a list keeps every card that sits in it.
+            - component: Form
+              submit: Add list
+              binding:
+                dataset: ds_board_lists
+                write: create
         - layout: stack
           gap: default
           children:
@@ -134,3 +139,8 @@ navigation:
                         other: used on {n} cards
             - static: note
               text: Colours come from one shared palette, so a label looks the same on every board and stays readable on a small card.
+            - component: Form
+              submit: Add label
+              binding:
+                dataset: ds_board_labels
+                write: create

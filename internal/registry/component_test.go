@@ -290,3 +290,83 @@ func TestMetricHrefIsARouteOfThisApplication(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateForm(t *testing.T) {
+	ok := map[string]string{"submit": "Add label", "action": "/machines/mch_label/records"}
+	if issues := ValidateComponentUse(domain.ComponentForm, ok); len(issues) != 0 {
+		t.Fatalf("a complete Form was refused: %v", issues)
+	}
+	with := func(k, v string) map[string]string {
+		m := map[string]string{}
+		for a, b := range ok {
+			m[a] = b
+		}
+		if v == "" {
+			delete(m, k)
+		} else {
+			m[k] = v
+		}
+		return m
+	}
+	for name, tc := range map[string]struct {
+		inputs map[string]string
+		want   string
+	}{
+		"no submit label":           {with("submit", ""), `requires input "submit"`},
+		"no destination":            {with("action", ""), `requires input "action"`},
+		"an external action":        {with("action", "https://example.com/x"), "not a Machine's create route"},
+		"a protocol-relative one":   {with("action", "//example.com/machines/m/records"), "not a Machine's create route"},
+		"another route of the app":  {with("action", "/machines/mch_label/records/rec_1"), "not a Machine's create route"},
+		"a nested machine path":     {with("action", "/machines/a/b/records"), "not a Machine's create route"},
+		"an empty machine id":       {with("action", "/machines//records"), "not a Machine's create route"},
+		"an undeclared hx property": {with("hx-post", "/x"), `no declared input "hx-post"`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			issues := ValidateComponentUse(domain.ComponentForm, tc.inputs)
+			if !strings.Contains(strings.Join(issues, "\n"), tc.want) {
+				t.Errorf("want an issue containing %q, got %v", tc.want, issues)
+			}
+		})
+	}
+}
+
+func TestValidateFormInput(t *testing.T) {
+	good := []map[string]string{
+		{"id": "c0", "name": "fld_name", "kind": "text", "required": "true"},
+		{"id": "c1", "name": "fld_color", "kind": "select", "options": "blue\npurple", "value": "blue"},
+		{"id": "c2", "name": "fld_done", "kind": "boolean", "value": "true"},
+	}
+	for _, in := range good {
+		if issues := ValidateComponentUse(domain.ComponentFormInput, in); len(issues) != 0 {
+			t.Errorf("%v was refused: %v", in, issues)
+		}
+	}
+	for name, tc := range map[string]struct {
+		inputs map[string]string
+		want   string
+	}{
+		"no name":                     {map[string]string{"id": "c", "kind": "text"}, `requires input "name"`},
+		"no kind":                     {map[string]string{"id": "c", "name": "f"}, `requires input "kind"`},
+		"a kind outside the set":      {map[string]string{"id": "c", "name": "f", "kind": "color"}, "is not one of the declared kinds"},
+		"options on a text control":   {map[string]string{"id": "c", "name": "f", "kind": "text", "options": "a\nb"}, "belong to a select"},
+		"required that is not a bool": {map[string]string{"id": "c", "name": "f", "kind": "text", "required": "yes"}, "is not true or false"},
+		"a class":                     {map[string]string{"id": "c", "name": "f", "kind": "text", "class": "x"}, `no declared input "class"`},
+		"no id":                       {map[string]string{"name": "f", "kind": "text"}, `requires input "id"`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			issues := ValidateComponentUse(domain.ComponentFormInput, tc.inputs)
+			if !strings.Contains(strings.Join(issues, "\n"), tc.want) {
+				t.Errorf("want an issue containing %q, got %v", tc.want, issues)
+			}
+		})
+	}
+}
+
+func TestFormIsSlottedAndInputIsALeaf(t *testing.T) {
+	if got := Components[domain.ComponentForm].Contract.Slots; len(got) != 1 || got[0] != "field" {
+		t.Errorf("Form slots = %v, want [field]", got)
+	}
+	if got := Components[domain.ComponentFormInput].Contract.Slots; len(got) != 0 {
+		t.Errorf("Input is a leaf and declares slots %v", got)
+	}
+}

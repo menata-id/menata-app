@@ -134,6 +134,50 @@ templ button(label string, variant domain.ButtonVariant, name, value string) {
 	<button type="submit" if name != "" { name={ name } value={ value } } class={ buttonClasses(ctx, variant) }>{ label }</button>
 }
 
+// form is a registered Component: a POST to the Machine's create route, its controls in the `field` slot, and
+// one primary Button. The author supplied the submit label; `action` was derived from the bound Dataset's Machine.
+//
+// `hx-swap="none"` because the create route answers a form posted from any page other than its Machine's own
+// with `HX-Refresh: true`: the page re-reads and shows the new record, and a refusal (422/403) surfaces through
+// the shell's shared `htmx:responseError` notice with the form left as typed. CSRF travels in the `hx-headers`
+// the body already carries, so the form holds no token field of its own.
+templ form(submit, action string) {
+	<form hx-post={ action } hx-swap="none">
+		@stackLayout(domain.GapDefault) {
+			{ children... }
+			<div>
+				@button(submit, domain.ButtonPrimary, "", "")
+			</div>
+		}
+	</form>
+}
+
+// formInput is the control a bound Form lowers each of its Machine's Fields to. Every property -- name, kind,
+// choices, default, requiredness -- arrived derived from that Field, so this renders no `name=` of its own
+// choosing. It reads the same `fieldClasses` the Machine pages' controls do, which is why a Theme change moves
+// both. A boolean is a checkbox and never `required` (an unticked box is a valid answer).
+templ formInput(id, name, kind, options, value string, required bool) {
+	switch domain.InputKind(kind) {
+		case domain.InputSelect:
+			<select id={ id } name={ name } required?={ required } class={ fieldClasses(ctx) + " w-full" }>
+				<option value=""></option>
+				for _, opt := range strings.Split(options, domain.InputOptionsSep) {
+					<option value={ opt } selected?={ opt == value }>{ opt }</option>
+				}
+			</select>
+		case domain.InputBoolean:
+			<input id={ id } type="checkbox" name={ name } checked?={ value == "true" } class="size-4 accent-blue-600"/>
+		case domain.InputDate:
+			<input id={ id } type="date" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
+		case domain.InputNumber:
+			<input id={ id } type="number" step="any" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
+		case domain.InputLongText:
+			<textarea id={ id } name={ name } rows="5" required?={ required } class={ fieldClasses(ctx) + " w-full" }>{ value }</textarea>
+		default:
+			<input id={ id } type="text" name={ name } value={ value } required?={ required } class={ fieldClasses(ctx) + " w-full" }/>
+	}
+}
+
 // searchBox is a plain GET form posting `q` back to path -- Enter submits it natively in every
 // browser, matching every other filter on these screens (a filter chip is a plain <a>, this is a
 // plain <form>), so the feature needs no script at all.

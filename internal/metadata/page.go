@@ -42,6 +42,7 @@ type pageBindingDoc struct {
 	Dataset string
 	Measure string
 	Rows    string
+	Write   string
 }
 
 var pageDiscriminators = []string{"layout", "static", "component"}
@@ -166,7 +167,7 @@ func decodePageCount(n *yaml.Node) (*domain.PageCount, error) {
 
 func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 	if n.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("line %d: binding: is a mapping of dataset, measure and rows", n.Line)
+		return nil, fmt.Errorf("line %d: binding: is a mapping of dataset, measure, rows and write", n.Line)
 	}
 	b := &pageBindingDoc{}
 	for i := 0; i+1 < len(n.Content); i += 2 {
@@ -181,8 +182,10 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 			b.Measure = val.Value
 		case "rows":
 			b.Rows = val.Value
+		case "write":
+			b.Write = val.Value
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write)", key.Line, key.Value)
 		}
 	}
 	return b, nil
@@ -194,7 +197,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 		out.Props = nil
 	}
 	if p.binding != nil {
-		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows}
+		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write}
 	}
 	if len(p.from) > 0 {
 		out.From = p.from
@@ -221,6 +224,14 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 		Source: func(string) (string, bool) { return "machine", true },
 		Rows: func(domain.PageBinding) ([]ir.Row, error) {
 			return []ir.Row{{Label: "label", Value: "0"}}, nil
+		},
+		// A form's shape is checked with one text control: whether the real Machine can be written by a form at
+		// all is `bindingIssues`' question, which has the Machine and this resolver does not.
+		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
+			return ir.FormSpec{
+				Route: domain.FormRoute("machine"), Permitted: true,
+				Inputs: []domain.FormInput{{FieldID: "x", Label: "x", Kind: domain.InputText}},
+			}, nil
 		},
 		Records: func(b domain.PageBinding) (ir.RecordSet, error) {
 			rec := map[string]string{domain.PageRecordRole: "/x"}
@@ -314,6 +325,8 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		switch {
 		case !ok:
 			issues = append(issues, fmt.Sprintf("%s: page: binding names dataset %q, which no machine in this workspace declares", where, b.Dataset))
+		case b.Write != "":
+			issues = append(issues, writeBindingIssues(*b, ds, machines[ds.Source], where)...)
 		case b.Rows == domain.PageRowsRecords:
 			issues = append(issues, recordsBindingIssues(n, ds, machines[ds.Source], where)...)
 		case ds.Select != "":
@@ -334,6 +347,28 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 	}
 	for _, c := range n.Children {
 		issues = append(issues, bindingIssues(c, datasets, machines, where)...)
+	}
+	return issues
+}
+
+// writeBindingIssues is what a `write: create` binding asks of its Dataset's Machine: that it exists, and that a
+// form can be built for it. The Dataset is only the *name* of the Machine here (a form reads nothing), and a
+// Field a form cannot ask for (a reference, a group) is fine when it is optional but a load error when it is
+// required -- a form that can never be submitted validly is refused when the manifest loads, not when someone
+// presses the button.
+func writeBindingIssues(b domain.PageBinding, ds domain.Dataset, source *domain.Machine, where string) []string {
+	if source == nil {
+		return []string{fmt.Sprintf("%s: page: write: dataset %q names machine %q, which this workspace does not install", where, ds.ID, ds.Source)}
+	}
+	var issues []string
+	inputs, unsupported := source.CreateFormInputs()
+	if len(inputs) == 0 {
+		issues = append(issues, fmt.Sprintf("%s: page: write: machine %q has no Field a form can ask for", where, source.ID))
+	}
+	for _, f := range unsupported {
+		if f.Required {
+			issues = append(issues, fmt.Sprintf("%s: page: write: machine %q requires field %q, which is a %s -- a page form cannot ask for it yet, so no form could be submitted", where, source.ID, f.ID, f.Type))
+		}
 	}
 	return issues
 }

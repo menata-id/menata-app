@@ -591,3 +591,100 @@ func TestLower_refusesALinkingMetricThatIsNotWellFormed(t *testing.T) {
 		}
 	}
 }
+
+func formBound(props map[string]string) domain.PageNode {
+	return domain.PageNode{
+		Kind: "component", Type: string(domain.ComponentForm), Props: props,
+		Binding: &domain.PageBinding{Dataset: "ds_a", Write: domain.PageWriteCreate},
+	}
+}
+
+func formResolver(spec FormSpec) Resolver {
+	return Resolver{Form: func(domain.PageBinding) (FormSpec, error) { return spec, nil }}
+}
+
+func formPage(n domain.PageNode) domain.PageNode {
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{n}}
+}
+
+func TestLower_formBecomesAFieldPerInputWithEverythingTheMachineDecided(t *testing.T) {
+	spec := FormSpec{Route: "/machines/mch_x/records", Permitted: true, Inputs: []domain.FormInput{
+		{FieldID: "fld_name", Label: "Name", Kind: domain.InputText, Required: true},
+		{FieldID: "fld_color", Label: "Colour", Kind: domain.InputSelect, Default: "blue", Options: []string{"blue", "red"}},
+	}}
+	got, err := Lower(formPage(formBound(map[string]string{"submit": "Add label"})), formResolver(spec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := got.Children[0]
+	if f.Type != "Form" || f.Props["action"] != spec.Route || f.Props["submit"] != "Add label" || len(f.Children) != 2 {
+		t.Fatalf("form = %+v", f)
+	}
+	in := f.Children[1].Children[0]
+	if in.Props["id"] != f.Children[1].Props["for"] {
+		t.Errorf("the control's id must be what its label names: %v vs %v", in.Props, f.Children[1].Props)
+	}
+	if in.Type != "Input" || in.Props["name"] != "fld_color" || in.Props["kind"] != "select" || in.Props["value"] != "blue" ||
+		in.Props["options"] != "blue"+domain.InputOptionsSep+"red" {
+		t.Errorf("select input = %+v", in)
+	}
+	first := f.Children[0].Children[0]
+	if first.Props["required"] != "true" || f.Children[0].Props["label"] != "Name" {
+		t.Errorf("first = %+v / %+v", f.Children[0], first)
+	}
+	if f.Children[0].Props["for"] == "" || f.Children[0].Props["for"] == f.Children[1].Props["for"] {
+		t.Errorf("label targets must be set and distinct: %v %v", f.Children[0].Props, f.Children[1].Props)
+	}
+}
+
+func TestLower_aViewerWhoMayNotCreateGetsNoFormAtAll(t *testing.T) {
+	spec := FormSpec{Route: "/machines/mch_x/records", Permitted: false, Inputs: []domain.FormInput{{FieldID: "f", Label: "F", Kind: domain.InputText}}}
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "x"}},
+		formBound(map[string]string{"submit": "Add"}),
+	}}
+	got, err := Lower(root, formResolver(spec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Children) != 1 {
+		t.Errorf("children = %+v, want only the paragraph", got.Children)
+	}
+}
+
+func TestLower_refusesAFormThatIsNotWellFormed(t *testing.T) {
+	spec := FormSpec{Route: "/machines/mch_x/records", Permitted: true, Inputs: []domain.FormInput{{FieldID: "f", Label: "F", Kind: domain.InputText}}}
+	ok := formBound(map[string]string{"submit": "Add"})
+	cases := map[string]func(n *domain.PageNode){
+		"typed action":      func(n *domain.PageNode) { n.Props["action"] = "/machines/mch_y/records" },
+		"children":          func(n *domain.PageNode) { n.Children = []domain.PageNode{{Kind: "component", Type: "Input"}} },
+		"rows beside write": func(n *domain.PageNode) { n.Binding.Rows = domain.PageRowsRecords },
+		"measure":           func(n *domain.PageNode) { n.Binding.Measure = "m" },
+		"unknown mode":      func(n *domain.PageNode) { n.Binding.Write = "update" },
+		"no dataset":        func(n *domain.PageNode) { n.Binding.Dataset = "" },
+		"from":              func(n *domain.PageNode) { n.From = map[string]string{"label": "x"} },
+		"on a Metric":       func(n *domain.PageNode) { n.Type = string(domain.ComponentMetric) },
+	}
+	for name, mutate := range cases {
+		n := ok
+		n.Props = map[string]string{"submit": "Add"}
+		b := *ok.Binding
+		n.Binding = &b
+		mutate(&n)
+		if _, err := Lower(formPage(n), formResolver(spec)); err == nil {
+			t.Errorf("%s: want an error", name)
+		}
+	}
+	if _, err := Lower(formPage(ok), Resolver{}); err == nil {
+		t.Error("a Form with no resolver must be refused")
+	}
+}
+
+func TestLower_anInputIsNeverWrittenByAnAuthor(t *testing.T) {
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "component", Type: string(domain.ComponentFormInput), Props: map[string]string{"name": "fld_x", "kind": "text"}},
+	}}
+	if _, err := Lower(root, Resolver{}); err == nil || !strings.Contains(err.Error(), "never written") {
+		t.Errorf("err = %v", err)
+	}
+}

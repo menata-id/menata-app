@@ -90,7 +90,46 @@ const (
 	// palette (`TagColor`, 007 §15.2: a Workspace picks a name, never a value), and the label is always drawn,
 	// so the colour is never the only thing that says which tag this is.
 	ComponentTag ComponentType = "Tag"
+	// ComponentForm is §12.3's own `Form` and 007 §11.3's write side: one create form over a Dataset's Machine.
+	//
+	// **An author names a Dataset and a submit label, and nothing else.** The route it posts to, the Fields it
+	// asks for and the kind of control each takes are all derived from the Machine (`Machine.CreateFormInputs`),
+	// so a page holds no `name=` and no route, and the generic create route -- permission, validation, defaults,
+	// events -- is the only thing that writes. The slot is `field`; lowering fills it, an author does not.
+	ComponentForm ComponentType = "Form"
+	// ComponentFormInput is the control a `Field` labels inside a `Form`. **Lowering emits it; an author may not
+	// write it**, because an author-typed control is a hand-typed `name=`, which is exactly what §11.3's Binding
+	// exists to remove (`ir.dimensionRoute` refuses a typed `href` for the same reason). Named `FormInput` and
+	// not `Input` because `ComponentInput` is already a contract's declared input.
+	ComponentFormInput ComponentType = "Input"
 )
+
+// InputKind is the shape of control an `Input` draws, as a closed set. It is a semantic ("a date"), never an
+// HTML attribute: the renderer decides the element, so a Theme can change a control without a page noticing.
+type InputKind string
+
+const (
+	InputText     InputKind = "text"
+	InputLongText InputKind = "longtext"
+	InputNumber   InputKind = "number"
+	InputDate     InputKind = "date"
+	InputBoolean  InputKind = "boolean"
+	InputSelect   InputKind = "select"
+)
+
+// KnownInputKinds is the closed set.
+var KnownInputKinds = map[InputKind]bool{
+	InputText:     true,
+	InputLongText: true,
+	InputNumber:   true,
+	InputDate:     true,
+	InputBoolean:  true,
+	InputSelect:   true,
+}
+
+// InputOptionsSep joins a select's options into the one string property an `Input` carries them in. A newline,
+// because an option is a status name and a comma is a character a status may hold.
+const InputOptionsSep = "\n"
 
 // ButtonVariant is what a button means to the person reading the screen, as a closed set -- not how it looks,
 // which is `rendering.buttonClasses`' job and the Workspace's Theme's to move (§4.2: a semantic declaration

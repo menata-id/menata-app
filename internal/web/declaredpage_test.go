@@ -543,3 +543,83 @@ func TestDeclaredPageStatusTilesOpenTheDocumentsInThatStatus(t *testing.T) {
 		t.Errorf("following the %q tile must list that status's Document and no other", f.Options[1])
 	}
 }
+
+// TestDeclaredPageFormCreatesARecordThroughTheGenericRoute: `component: Form` with `write: create` is the
+// write side of a Binding (007 §11.3). The page writes a submit label and a Dataset; the route it posts to, each
+// control's `name=`, the Color select's options and its default all come from the Label Machine. Posting it is
+// the *existing* create route -- no handler was added for pages -- so what is proved here is that the form the
+// page drew is one that route accepts, answers `HX-Refresh` for (a screen other than the Machine's own), and
+// refuses when a required Field is missing.
+func TestDeclaredPageFormCreatesARecordThroughTheGenericRoute(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredform", "default")
+	var label *domain.Machine
+	for _, m := range ws.Machines {
+		for _, ds := range m.Datasets {
+			if ds.ID == "ds_board_labels" {
+				label = m
+			}
+		}
+	}
+	if label == nil {
+		t.Fatal("default installs no Machine providing ds_board_labels")
+	}
+	nameField := label.CardFieldFor(domain.CardFieldRoleTitle)
+	colorField := label.CardFieldFor(domain.CardFieldRoleColor)
+	colour, _ := label.FieldByID(colorField)
+
+	body := getPage(t, h, cookie, "/pages/nav_board_settings")
+	action := domain.FormRoute(label.ID)
+	if !strings.Contains(body, `hx-post="`+action+`"`) {
+		t.Fatalf("no form posts to the Label Machine's create route %s", action)
+	}
+	if !regexp.MustCompile(`<input id="[^"]+" type="text" name="` + nameField + `" value="" required`).MatchString(body) {
+		t.Errorf("the required text Field did not become a required text input named by the Field id")
+	}
+	sel := regexp.MustCompile(`(?s)<select id="[^"]+" name="` + colorField + `" required.*?</select>`).FindString(body)
+	if sel == "" {
+		t.Fatalf("the status Field did not become a required select")
+	}
+	for _, opt := range colour.Options {
+		if !strings.Contains(sel, `value="`+opt+`"`) {
+			t.Errorf("select lacks the Field's option %q", opt)
+		}
+	}
+	if !strings.Contains(sel, `value="`+colour.Default.(string)+`" selected`) {
+		t.Errorf("the Field's default %v is not the selected option", colour.Default)
+	}
+
+	post := func(vals url.Values) *httptest.ResponseRecorder {
+		tok := csrfTokenFor(t, h, "/login")
+		req := httptest.NewRequest(http.MethodPost, action, strings.NewReader(vals.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.Header.Set("HX-Current-URL", "http://x/pages/nav_board_settings")
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+
+	const made = "Form-probe-label"
+	t.Cleanup(func() {
+		recs, _ := store.ListRecords(ctx, label.ID)
+		for _, r := range recs {
+			if r.Values[nameField] == made {
+				_ = store.DeleteRecord(ctx, label.ID, r.ID)
+			}
+		}
+	})
+	refused := post(url.Values{nameField: {""}, colorField: {"blue"}})
+	if refused.Code != http.StatusUnprocessableEntity {
+		t.Errorf("an empty required Field answered %d, want 422", refused.Code)
+	}
+	ok := post(url.Values{nameField: {made}, colorField: {"blue"}})
+	if ok.Code != http.StatusOK || ok.Header().Get("HX-Refresh") != "true" {
+		t.Fatalf("a valid form answered %d with HX-Refresh=%q", ok.Code, ok.Header().Get("HX-Refresh"))
+	}
+	if after := getPage(t, h, cookie, "/pages/nav_board_settings"); !strings.Contains(after, made) {
+		t.Error("the created label does not appear on the page after the refresh")
+	}
+}

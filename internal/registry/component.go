@@ -50,6 +50,84 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentField:       {Contract: fieldContract, Validate: validateField},
 	domain.ComponentButton:      {Contract: buttonContract, Validate: validateButton},
 	domain.ComponentTag:         {Contract: tagContract, Validate: validateTag},
+	domain.ComponentForm:        {Contract: formContract, Validate: validateForm},
+	domain.ComponentFormInput:   {Contract: formInputContract, Validate: validateFormInput},
+}
+
+// formContract is §12.3's `Form`, the write side of 007 §11.3 in its narrowest honest form: a submit label, the
+// route it posts to, and a `field` slot lowering fills.
+//
+// **`action` is a declared input an author may not write.** It is required here because a Form with no
+// destination submits to the page it is on; `ir.Lower` is what fills it, from the bound Dataset's Machine, and
+// refuses a typed one for the reason it refuses a typed `href` (001 #3, #8). The validator pins its shape to the
+// runtime's own create route, so a hand-built tree cannot aim a form somewhere else.
+//
+// What the contract forces that a reviewer would not have asked for: `submit` is required, so a form never has
+// a button with no name, and the Component draws the button itself through `Button` -- an author cannot leave
+// a form with no way to send it, nor with a differently-styled one.
+var formContract = domain.ComponentContract{
+	Type: domain.ComponentForm,
+	Inputs: []domain.ComponentInput{
+		{Name: "submit", Kind: "string", Required: true},
+		{Name: "action", Kind: "route", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            []string{"field"},
+	Actions:          []string{"submit"},
+	Accessibility:    "a real <form> with a real submit <button>, so Enter in a text control sends it without a script; every control inside is labelled by a Field whose `for` names it",
+	Renderer:         "form",
+}
+
+// validateForm checks a use against the declared inputs and the one shape `action` may take.
+func validateForm(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(formContract, inputs, "Form")
+	if a := inputs["action"]; a != "" {
+		id := strings.TrimSuffix(strings.TrimPrefix(a, "/machines/"), "/records")
+		if !strings.HasPrefix(a, "/machines/") || !strings.HasSuffix(a, "/records") || id == "" || strings.Contains(id, "/") {
+			issues = append(issues, fmt.Sprintf("Form action %q is not a Machine's create route (/machines/<id>/records)", a))
+		}
+	}
+	return issues
+}
+
+// formInputContract is the control inside a `Form`'s `Field`. It has no slot and no action: it is a leaf whose
+// every property was decided by the Machine's Field, which is the point of it.
+//
+// **`name` is an input here, and it is the one place a `name=` is allowed to exist** -- because it arrives
+// derived, from `Field.ID`, and never typed. `kind` is a closed set; `options` belongs to a select and to
+// nothing else, so a text control carrying choices is a declaration that says something the control cannot do.
+var formInputContract = domain.ComponentContract{
+	Type: domain.ComponentFormInput,
+	Inputs: []domain.ComponentInput{
+		{Name: "id", Kind: "string", Required: true},
+		{Name: "name", Kind: "string", Required: true},
+		{Name: "kind", Kind: "InputKind", Required: true},
+		{Name: "options", Kind: "string"},
+		{Name: "value", Kind: "string"},
+		{Name: "required", Kind: "bool"},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    "a native control, named by the Field that labels it; `required` is the native attribute, so a screen reader announces it and the browser refuses an empty submit before the server is asked",
+	Renderer:         "formInput",
+}
+
+// validateFormInput checks a use against the declared inputs, the closed kind set, and that `options` appears
+// only on a select.
+func validateFormInput(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(formInputContract, inputs, "Input")
+	kind := domain.InputKind(inputs["kind"])
+	if inputs["kind"] != "" && !domain.KnownInputKinds[kind] {
+		issues = append(issues, fmt.Sprintf("Input kind %q is not one of the declared kinds", inputs["kind"]))
+	}
+	if inputs["options"] != "" && kind != domain.InputSelect {
+		issues = append(issues, fmt.Sprintf("Input options belong to a select, not to a %q control", inputs["kind"]))
+	}
+	if v := inputs["required"]; v != "" && v != "true" && v != "false" {
+		issues = append(issues, fmt.Sprintf("Input required %q is not true or false", v))
+	}
+	return issues
 }
 
 // tagContract is §12.3's `Tag`: a label and, optionally, an entry of the closed palette.

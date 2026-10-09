@@ -95,6 +95,10 @@ type PageBinding struct {
 	Dataset string
 	Measure string
 	Rows    string
+	// Write is the write-side mode (007 §11.3): `create` binds a `Form` to the Dataset's Machine, so that
+	// submitting it creates a record through the generic create route. It is a mode of its own and never beside
+	// Rows or Measure, which read.
+	Write string
 }
 
 // The two Rows modes.
@@ -102,6 +106,17 @@ const (
 	PageRowsDimension = "dimension"
 	PageRowsRecords   = "records"
 )
+
+// PageWriteCreate is the one write mode there is. `update` and `delete` act on a record, so they belong inside a
+// records template and are not built; naming them here before a consumer exists would be a word with nothing
+// behind it.
+const PageWriteCreate = "create"
+
+// WritableComponents maps each registered Component a Binding may write through to its one Write mode, the way
+// BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
+var WritableComponents = map[ComponentType]string{
+	ComponentForm: PageWriteCreate,
+}
 
 // PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a
 // `static: link` inside a records template takes the record's own generic route

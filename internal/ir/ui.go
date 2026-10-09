@@ -226,6 +226,8 @@ var allowedProps = map[string][]string{
 	"component/Field":       {"label", "for"},
 	"component/Button":      {"label", "variant", "name", "value"},
 	"component/Tag":         {"label", "color"},
+	"component/Form":        {"submit", "action"},
+	"component/Input":       {"id", "name", "kind", "options", "value", "required"},
 }
 
 // layoutPropValues is the closed value set of each Layout property, read from the vocabulary in `domain` so a
