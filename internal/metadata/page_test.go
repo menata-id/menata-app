@@ -461,7 +461,7 @@ func TestWriteBindingIssues(t *testing.T) {
 		if m != nil {
 			machines["mch_x"] = m
 		}
-		return strings.Join(bindingIssues(node, datasets, machines, "w"), "\n")
+		return strings.Join(bindingIssues(node, datasets, machines, nil, "w"), "\n")
 	}
 	text := domain.Field{ID: "f1", Name: "Name", Type: domain.FieldTypeText, Required: true}
 	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{text}}); got != "" {
@@ -481,5 +481,31 @@ func TestWriteBindingIssues(t *testing.T) {
 	ref.Required = false
 	if got := check(&domain.Machine{ID: "mch_x", Fields: []domain.Field{text, ref}}); got != "" {
 		t.Errorf("an optional reference is simply not asked for, got %q", got)
+	}
+}
+
+// `write: update` acts on the record of the Collection it sits in. Outside one it has no record; with a dataset
+// it would be a second Collection; over a Machine with nothing an edit form can ask for it could never draw.
+func TestUpdateBindingIssues(t *testing.T) {
+	text := domain.Field{ID: "f1", Name: "Name", Type: domain.FieldTypeText}
+	editable := &domain.Machine{ID: "mch_x", Fields: []domain.Field{text}}
+	boolOnly := &domain.Machine{ID: "mch_x", Fields: []domain.Field{{ID: "f2", Name: "Done", Type: domain.FieldTypeBoolean}}}
+	node := func(dataset string) domain.PageNode {
+		return domain.PageNode{Kind: "component", Type: "Form", Binding: &domain.PageBinding{Dataset: dataset, Write: domain.PageWriteUpdate}}
+	}
+	issues := func(n domain.PageNode, item *domain.Machine) string {
+		return strings.Join(bindingIssues(n, nil, nil, item, "w"), "\n")
+	}
+	if got := issues(node(""), editable); got != "" {
+		t.Errorf("an update Form inside a Collection of an editable Machine was refused: %s", got)
+	}
+	if got := issues(node(""), nil); !strings.Contains(got, "acts on a record") {
+		t.Errorf("an update Form outside a records Collection: %q", got)
+	}
+	if got := issues(node("ds_other"), editable); !strings.Contains(got, "takes no dataset") {
+		t.Errorf("an update Form naming a dataset: %q", got)
+	}
+	if got := issues(node(""), boolOnly); !strings.Contains(got, "no Field an edit form can ask for") {
+		t.Errorf("an update Form over a Machine with only booleans: %q", got)
 	}
 }

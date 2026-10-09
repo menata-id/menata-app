@@ -297,3 +297,36 @@ func TestDeclaredPage_recordsFilterOnARequestParameterAndFailClosedWithout(t *te
 		}
 	}
 }
+
+// An `update` Form's permission is answered per record, from the record already in hand: a Permission naming an
+// actor Field lets the owner of one record edit it and not the next, and an append-only Machine is offered no form
+// at all. The route and the starting values are the record's own.
+func TestRecordEditFormIsPerRecordAndRefusesAppendOnly(t *testing.T) {
+	m := &domain.Machine{
+		ID: "mch_note",
+		Fields: []domain.Field{
+			{ID: "fld_title", Type: domain.FieldTypeText, Required: true},
+			{ID: "fld_owner", Type: domain.FieldTypePerson},
+		},
+		Permissions: []domain.Permission{{ID: "perm_edit", Action: domain.ActionEdit, ActorField: "fld_owner"}},
+	}
+	mine := &data.Record{ID: "rec_mine", Values: map[string]any{"fld_title": "Mine", "fld_owner": "usr_me"}}
+	theirs := &data.Record{ID: "rec_theirs", Values: map[string]any{"fld_title": "Theirs", "fld_owner": "usr_other"}}
+	viewer := domain.Actor{ID: "usr_me"}
+
+	a, b := recordEditForm(m, mine, viewer), recordEditForm(m, theirs, viewer)
+	if !a.Permitted || b.Permitted {
+		t.Errorf("Permitted = %v / %v, want true for the viewer's own record and false for another's", a.Permitted, b.Permitted)
+	}
+	if a.Route != "/machines/mch_note/records/rec_mine" || a.Method != domain.FormMethodPatch {
+		t.Errorf("route/method = %q %q", a.Route, a.Method)
+	}
+	if len(a.Inputs) == 0 || a.Inputs[0].Default != "Mine" {
+		t.Errorf("inputs do not start as the record's own values: %+v", a.Inputs)
+	}
+
+	m.AppendOnly = true
+	if recordEditForm(m, mine, viewer).Permitted {
+		t.Error("an append-only Machine was offered an edit form")
+	}
+}

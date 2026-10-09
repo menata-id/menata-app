@@ -1155,8 +1155,35 @@ is one a form cannot ask yet (a reference to another Machine, a group). An *opti
 left out. **Who sees it:** a viewer without the Machine's `create` Permission gets no Form at all (nothing is hidden
 by CSS), and the route still refuses a forged post. **When a post is refused** (validation 422, permission 403) the
 shell's shared error notice says so and the form keeps what was typed; a success refreshes the page, so the new
-record appears in the list beside it. Not built: editing, deleting, reordering (T3, T5), and reference Fields (T4).
+record appears in the list beside it. Not built: deleting, reordering (T3b, T5), and reference Fields (T4).
 **Installing copies**, so add the Form to your Workspace's own copy of the Application.
+
+**A form that edits the record beside it (T3a, 2026-10-09).** Inside the item template of a records `Collection`,
+a `Form` with `binding: {write: update}` and **no dataset** edits *that item's* record: it starts as the record's
+own values and PATCHes the runtime's generic route (`PATCH /machines/<id>/records/<rid>`), so the state model, write
+guards, `edit` Permission and events run exactly as on the record's own page. The page names neither the route nor a
+Field; the controls are the Machine's own editable Fields, in declared order.
+
+```yaml
+- component: Collection
+  binding: {dataset: ds_board_lists, rows: records}
+  children:
+    - layout: stack
+      children:
+        - static: link
+          from: {text: title, href: record}
+        - component: Form
+          submit: Rename
+          binding: {write: update}     # no dataset: the record is the Collection's current one
+```
+
+Refused at load: `update` outside a records Collection's item template (there is no record to edit), `update` with a
+`dataset:` (it would be a second Collection, a join), and a Machine with nothing an edit form can ask for. **What an
+edit form leaves out, and why:** computed, stamped, file, group, status and reference Fields, and **checkboxes** --
+an unticked box sends nothing, and the route reads "nothing" as `false`, so a form that did not mean to touch a
+checkbox would clear it. The route changes only the Fields the request names. **Who sees it** is decided per record
+(`edit` Permission evaluated against that record's values; an append-only Machine is never offered one), the route
+still enforces.
 
 **A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
 may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,

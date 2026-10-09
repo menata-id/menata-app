@@ -96,8 +96,9 @@ type PageBinding struct {
 	Measure string
 	Rows    string
 	// Write is the write-side mode (007 §11.3): `create` binds a `Form` to the Dataset's Machine, so that
-	// submitting it creates a record through the generic create route. It is a mode of its own and never beside
-	// Rows or Measure, which read.
+	// submitting it creates a record through the generic create route; `update` binds one inside a records
+	// template to the item's own record, through the generic patch route. It is a mode of its own and never
+	// beside Rows or Measure, which read.
 	Write string
 }
 
@@ -107,15 +108,20 @@ const (
 	PageRowsRecords   = "records"
 )
 
-// PageWriteCreate is the one write mode there is. `update` and `delete` act on a record, so they belong inside a
-// records template and are not built; naming them here before a consumer exists would be a word with nothing
-// behind it.
-const PageWriteCreate = "create"
+// The write modes. `create` binds a Form to a Dataset's Machine. `update` is valid only inside the item template
+// of a records Collection, where the record it changes is the item's own and the Dataset is the Collection's, so
+// a binding there names no dataset of its own (a second one would be a join the page has no grammar for).
+// `delete` acts on a record too and is not built; naming it before a consumer exists would be a word with
+// nothing behind it.
+const (
+	PageWriteCreate = "create"
+	PageWriteUpdate = "update"
+)
 
-// WritableComponents maps each registered Component a Binding may write through to its one Write mode, the way
-// BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
-var WritableComponents = map[ComponentType]string{
-	ComponentForm: PageWriteCreate,
+// WritableComponents maps each registered Component a Binding may write through to the Write modes it takes, the
+// way BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
+var WritableComponents = map[ComponentType][]string{
+	ComponentForm: {PageWriteCreate, PageWriteUpdate},
 }
 
 // PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a

@@ -623,3 +623,76 @@ func TestDeclaredPageFormCreatesARecordThroughTheGenericRoute(t *testing.T) {
 		t.Error("the created label does not appear on the page after the refresh")
 	}
 }
+
+// TestDeclaredPageRenameFormPatchesTheRecordItSitsBesideAndStartsAsItsName: `write: update` inside a records
+// template. Two Lists are created; each item must carry a form that PATCHes *its own* record's generic route and
+// starts as *its own* name, the patch must change that record and only that one, and the route's own refusal
+// (an empty required Field) must still hold -- the page declared a form, it did not become the write path.
+func TestDeclaredPageRenameFormPatchesTheRecordItSitsBesideAndStartsAsItsName(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredrename", "default")
+	var list *domain.Machine
+	for _, m := range ws.Machines {
+		for _, ds := range m.Datasets {
+			if ds.ID == "ds_board_lists" {
+				list = m
+			}
+		}
+	}
+	if list == nil {
+		t.Fatal("default installs no Machine providing ds_board_lists")
+	}
+	nameField := list.CardFieldFor(domain.CardFieldRoleTitle)
+	mk := func(name string) *data.Record {
+		rec, err := store.CreateRecord(ctx, list.ID, map[string]any{nameField: name})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", name, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, list.ID, rec.ID) })
+		return rec
+	}
+	first, second := mk("Rename-probe-first"), mk("Rename-probe-second")
+
+	body := getPage(t, h, cookie, "/pages/nav_board_settings")
+	for _, rec := range []*data.Record{first, second} {
+		route := "/machines/" + list.ID + "/records/" + rec.ID
+		re := regexp.MustCompile(`(?s)<form hx-patch="` + regexp.QuoteMeta(route) + `".*?</form>`)
+		form := re.FindString(body)
+		if form == "" {
+			t.Fatalf("no form patches %s", route)
+		}
+		if !strings.Contains(form, `name="`+nameField+`" value="`+rec.Values[nameField].(string)+`" required`) {
+			t.Errorf("the form for %s does not start as its own name:\n%s", rec.ID, form)
+		}
+		if strings.Contains(form, "hx-post") {
+			t.Errorf("an update form must not also post: %s", form)
+		}
+	}
+
+	patch := func(id string, vals url.Values) *httptest.ResponseRecorder {
+		tok := csrfTokenFor(t, h, "/login")
+		req := httptest.NewRequest(http.MethodPatch, "/machines/"+list.ID+"/records/"+id, strings.NewReader(vals.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.Header.Set("HX-Current-URL", "http://x/pages/nav_board_settings")
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+	if refused := patch(first.ID, url.Values{nameField: {""}}); refused.Code != http.StatusUnprocessableEntity {
+		t.Errorf("an emptied required Field answered %d, want 422", refused.Code)
+	}
+	ok := patch(first.ID, url.Values{nameField: {"Rename-probe-renamed"}})
+	if ok.Code != http.StatusOK || ok.Header().Get("HX-Refresh") != "true" {
+		t.Fatalf("a valid rename answered %d with HX-Refresh=%q", ok.Code, ok.Header().Get("HX-Refresh"))
+	}
+	after := getPage(t, h, cookie, "/pages/nav_board_settings")
+	if !strings.Contains(after, "Rename-probe-renamed") {
+		t.Error("the new name does not appear after the refresh")
+	}
+	if !strings.Contains(after, "Rename-probe-second") {
+		t.Error("renaming one list changed another")
+	}
+}

@@ -247,7 +247,13 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			for _, rel := range datasets[b.Dataset].Relations {
 				rec[domain.PageCountRole(rel.ID)] = "0"
 			}
-			return ir.RecordSet{Records: []map[string]string{rec}}, nil
+			// One edit form, text-shaped, for the same reason the create form's is: whether the real Machine
+			// has anything to edit is `updateBindingIssues`' question, which has the Machine.
+			edit := ir.FormSpec{
+				Route: domain.FormRoute("machine") + "/x", Method: domain.FormMethodPatch, Permitted: true,
+				Inputs: []domain.FormInput{{FieldID: "x", Label: "x", Kind: domain.InputText}},
+			}
+			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}}, nil
 		},
 	}
 }
@@ -305,7 +311,7 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 				issues = append(issues, fmt.Sprintf("%s: page: the root must be a layout, not %s %q", where, item.Page.Kind, item.Page.Type))
 				continue
 			}
-			issues = append(issues, bindingIssues(*item.Page, datasets, byID, where)...)
+			issues = append(issues, bindingIssues(*item.Page, datasets, byID, nil, where)...)
 			issues = append(issues, shapeIssues(*item.Page, app.AllNavigation, datasets, where)...)
 			issues = append(issues, paramLinkIssues(*item.Page, app.AllNavigation, datasets, where)...)
 		}
@@ -318,9 +324,15 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 	return nil
 }
 
-func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machines map[string]*domain.Machine, where string) []string {
+// bindingIssues walks a page for what its Bindings ask of the Workspace. `item` is the Machine of the records
+// Collection the walk is inside (nil outside one): the only place an `update` Binding is valid, since it has no
+// dataset of its own and edits that Collection's current record.
+func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machines map[string]*domain.Machine, item *domain.Machine, where string) []string {
 	var issues []string
-	if b := n.Binding; b != nil {
+	childItem := item
+	if b := n.Binding; b != nil && b.Write == domain.PageWriteUpdate {
+		issues = append(issues, updateBindingIssues(*b, item, where)...)
+	} else if b != nil {
 		ds, ok := datasets[b.Dataset]
 		switch {
 		case !ok:
@@ -329,6 +341,7 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 			issues = append(issues, writeBindingIssues(*b, ds, machines[ds.Source], where)...)
 		case b.Rows == domain.PageRowsRecords:
 			issues = append(issues, recordsBindingIssues(n, ds, machines[ds.Source], where)...)
+			childItem = machines[ds.Source]
 		case ds.Select != "":
 			issues = append(issues, fmt.Sprintf("%s: page: binding dataset %q selects records, and a dimension binding needs an aggregate dataset with measures (use rows: %s on a Collection to list records)", where, b.Dataset, domain.PageRowsRecords))
 		default:
@@ -346,9 +359,23 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		}
 	}
 	for _, c := range n.Children {
-		issues = append(issues, bindingIssues(c, datasets, machines, where)...)
+		issues = append(issues, bindingIssues(c, datasets, machines, childItem, where)...)
 	}
 	return issues
+}
+
+// updateBindingIssues is what a `write: update` binding asks: to sit inside a records Collection, to name no
+// dataset of its own, and that the Machine of the records has something an edit form can ask for.
+func updateBindingIssues(b domain.PageBinding, item *domain.Machine, where string) []string {
+	switch {
+	case item == nil:
+		return []string{fmt.Sprintf("%s: page: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", where, domain.PageWriteUpdate, domain.PageRowsRecords)}
+	case b.Dataset != "":
+		return []string{fmt.Sprintf("%s: page: write: %s takes no dataset -- it edits the record of the Collection it sits in, and %q would be a second one (a join)", where, domain.PageWriteUpdate, b.Dataset)}
+	case len(item.EditFormInputs(nil)) == 0:
+		return []string{fmt.Sprintf("%s: page: write: %s: machine %q has no Field an edit form can ask for (booleans, statuses, references, groups, files, computed and stamped Fields are not drawn)", where, domain.PageWriteUpdate, item.ID)}
+	}
+	return nil
 }
 
 // writeBindingIssues is what a `write: create` binding asks of its Dataset's Machine: that it exists, and that a

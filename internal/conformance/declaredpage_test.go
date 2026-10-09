@@ -478,7 +478,9 @@ func TestNoPageClaimsCompletenessOverAWindow(t *testing.T) {
 // declares its words (`submit`), a Dataset and the write mode, and nothing else. No `action`, `href`, `name`,
 // `method` or `id` -- the route is `domain.FormRoute(<the Dataset's Machine>)` and the controls are the
 // Machine's own askable Fields, so a page that typed either would be a second write path beside the generic
-// one. It reads the declaration directly instead of leaning on `ir.lowerForm`'s refusals, re-derives that the
+// one. A Form bound `write: update` (T3) additionally sits inside a records Collection and names **no** Dataset:
+// the record is the Collection's and the Machine is that Collection's Dataset's, so a Dataset there could only
+// name a different one. It reads the declaration directly instead of leaning on `ir.lowerForm`'s refusals, re-derives that the
 // Machine can be asked (`CreateFormInputs`), and fails when no installed page holds a Form, so it cannot pass by
 // measuring nothing. It does **not** require the Dataset to select records: the loader treats a write binding's
 // Dataset as a handle to its Machine, and inventing a stricter rule here would be a gate ahead of the primitive.
@@ -487,7 +489,7 @@ func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
-	forms := 0
+	forms, updates := 0, 0
 	for _, slug := range sortedKeys(wss) {
 		ws := wss[slug].Workspace
 		machineOf := map[string]*domain.Machine{}
@@ -497,8 +499,8 @@ func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
 			}
 		}
 		for _, app := range ws.Applications {
-			var walk func(n domain.PageNode, where string)
-			walk = func(n domain.PageNode, where string) {
+			var walk func(n domain.PageNode, where string, item *domain.Machine)
+			walk = func(n domain.PageNode, where string, item *domain.Machine) {
 				if n.Kind == "component" && n.Type == string(domain.ComponentForm) {
 					forms++
 					for _, key := range []string{"action", "href", "name", "method", "id", "kind", "options", "value", "required"} {
@@ -513,8 +515,18 @@ func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
 						t.Errorf("%s: a Form lists its own children; its Fields are the Machine's", where)
 					}
 					switch {
+					case n.Binding != nil && n.Binding.Write == domain.PageWriteUpdate:
+						updates++
+						switch {
+						case item == nil:
+							t.Errorf("%s: write: update outside the item template of a records Collection", where)
+						case n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "":
+							t.Errorf("%s: write: update edits the Collection's own record and names no dataset, rows or measure", where)
+						case len(item.EditFormInputs(nil)) == 0:
+							t.Errorf("%s: machine %s has no Field an edit form can ask for", where, item.ID)
+						}
 					case n.Binding == nil || n.Binding.Write != domain.PageWriteCreate:
-						t.Errorf("%s: a Form is bound with write: %s", where, domain.PageWriteCreate)
+						t.Errorf("%s: a Form is bound with write: %s or %s", where, domain.PageWriteCreate, domain.PageWriteUpdate)
 					case n.Binding.Rows != "" || n.Binding.Measure != "":
 						t.Errorf("%s: a Form's binding writes; it names no rows or measure", where)
 					case machineOf[n.Binding.Dataset] == nil:
@@ -533,18 +545,25 @@ func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
 				} else if n.Kind == "component" && n.Type == string(domain.ComponentFormInput) {
 					t.Errorf("%s: Input is produced by lowering a Form and is never written", where)
 				}
+				childItem := item
+				if n.Binding != nil && n.Binding.Rows == domain.PageRowsRecords {
+					childItem = machineOf[n.Binding.Dataset]
+				}
 				for _, c := range n.Children {
-					walk(c, where)
+					walk(c, where, childItem)
 				}
 			}
-			for _, item := range app.AllNavigation {
-				if item.Page != nil {
-					walk(*item.Page, slug+"/"+app.ID+"/"+item.ID)
+			for _, nav := range app.AllNavigation {
+				if nav.Page != nil {
+					walk(*nav.Page, slug+"/"+app.ID+"/"+nav.ID, nil)
 				}
 			}
 		}
 	}
 	if forms == 0 {
 		t.Fatal("no installed page declares a Form -- this gate is measuring nothing")
+	}
+	if updates == 0 {
+		t.Fatal("no installed page declares a `write: update` Form -- the update half of this gate is measuring nothing")
 	}
 }

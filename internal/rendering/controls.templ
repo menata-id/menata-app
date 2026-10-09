@@ -134,15 +134,16 @@ templ button(label string, variant domain.ButtonVariant, name, value string) {
 	<button type="submit" if name != "" { name={ name } value={ value } } class={ buttonClasses(ctx, variant) }>{ label }</button>
 }
 
-// form is a registered Component: a POST to the Machine's create route, its controls in the `field` slot, and
-// one primary Button. The author supplied the submit label; `action` was derived from the bound Dataset's Machine.
+// form is a registered Component: a POST to the Machine's create route -- or, when lowering derived a `method`,
+// a PATCH of one record -- its controls in the `field` slot, and one primary Button. The author supplied the
+// submit label; `action` (and `method`) were derived from the bound Machine.
 //
-// `hx-swap="none"` because the create route answers a form posted from any page other than its Machine's own
+// `hx-swap="none"` because the create route (and the patch route) answers a form sent from any page other than its Machine's own
 // with `HX-Refresh: true`: the page re-reads and shows the new record, and a refusal (422/403) surfaces through
 // the shell's shared `htmx:responseError` notice with the form left as typed. CSRF travels in the `hx-headers`
 // the body already carries, so the form holds no token field of its own.
-templ form(submit, action string) {
-	<form hx-post={ action } hx-swap="none">
+templ form(submit, action, method string) {
+	<form if method == domain.FormMethodPatch { hx-patch={ action } } else { hx-post={ action } } hx-swap="none">
 		@stackLayout(domain.GapDefault) {
 			{ children... }
 			<div>

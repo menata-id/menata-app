@@ -95,10 +95,17 @@ navigation:
                 dataset: ds_board_lists
                 rows: records
               children:
-                - static: link
-                  from:
-                    text: title
-                    href: record
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - component: Form
+                      submit: Rename
+                      binding:
+                        write: update
             - static: note
               text: The order here is the order of the columns on a board. Renaming a list keeps every card that sits in it.
             - component: Form
@@ -128,19 +135,26 @@ navigation:
                 dataset: ds_labels_with_cards
                 rows: records
               children:
-                - layout: row
+                - layout: stack
                   gap: tight
-                  align: center
                   children:
-                    - component: Tag
-                      from:
-                        label: title
-                        color: color
-                    - static: caption
-                      count:
-                        of: rel_label_cards
-                        one: used on {n} card
-                        other: used on {n} cards
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: Tag
+                          from:
+                            label: title
+                            color: color
+                        - static: caption
+                          count:
+                            of: rel_label_cards
+                            one: used on {n} card
+                            other: used on {n} cards
+                    - component: Form
+                      submit: Rename
+                      binding:
+                        write: update
             - static: note
               text: Colours come from one shared palette, so a label looks the same on every board and stays readable on a small card.
             - component: Form

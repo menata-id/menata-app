@@ -312,14 +312,18 @@ func TestValidateForm(t *testing.T) {
 		inputs map[string]string
 		want   string
 	}{
-		"no submit label":           {with("submit", ""), `requires input "submit"`},
-		"no destination":            {with("action", ""), `requires input "action"`},
-		"an external action":        {with("action", "https://example.com/x"), "not a Machine's create route"},
-		"a protocol-relative one":   {with("action", "//example.com/machines/m/records"), "not a Machine's create route"},
-		"another route of the app":  {with("action", "/machines/mch_label/records/rec_1"), "not a Machine's create route"},
-		"a nested machine path":     {with("action", "/machines/a/b/records"), "not a Machine's create route"},
-		"an empty machine id":       {with("action", "/machines//records"), "not a Machine's create route"},
-		"an undeclared hx property": {with("hx-post", "/x"), `no declared input "hx-post"`},
+		"no submit label":             {with("submit", ""), `requires input "submit"`},
+		"no destination":              {with("action", ""), `requires input "action"`},
+		"an external action":          {with("action", "https://example.com/x"), "not a Machine's create route"},
+		"a protocol-relative one":     {with("action", "//example.com/machines/m/records"), "not a Machine's create route"},
+		"another route of the app":    {with("action", "/machines/mch_label/records/rec_1"), "not a Machine's create route"},
+		"a nested machine path":       {with("action", "/machines/a/b/records"), "not a Machine's create route"},
+		"an empty machine id":         {with("action", "/machines//records"), "not a Machine's create route"},
+		"an undeclared hx property":   {with("hx-post", "/x"), `no declared input "hx-post"`},
+		"a patch of the create route": {with("method", "patch"), "not a Machine's create route"},
+		"a verb that is not derived":  {with("method", "delete"), "is not one the runtime derives"},
+		"a patch of a nested path":    {map[string]string{"submit": "Rename", "method": "patch", "action": "/machines/m/records/r/x"}, "not a Machine's create route"},
+		"a patch with no record id":   {map[string]string{"submit": "Rename", "method": "patch", "action": "/machines/m/records/"}, "not a Machine's create route"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			issues := ValidateComponentUse(domain.ComponentForm, tc.inputs)
@@ -327,6 +331,13 @@ func TestValidateForm(t *testing.T) {
 				t.Errorf("want an issue containing %q, got %v", tc.want, issues)
 			}
 		})
+	}
+}
+
+func TestValidateFormAcceptsAPatchOfOneRecord(t *testing.T) {
+	in := map[string]string{"submit": "Rename", "method": "patch", "action": "/machines/mch_label/records/rec_1"}
+	if issues := ValidateComponentUse(domain.ComponentForm, in); len(issues) != 0 {
+		t.Errorf("a record's patch route was refused: %v", issues)
 	}
 }
 

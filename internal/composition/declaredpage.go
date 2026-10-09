@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"menata.app/internal/authorization"
+	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
 	"menata.app/internal/ir"
@@ -45,7 +46,7 @@ func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params ma
 			return bindingRows(ctx, l, b)
 		},
 		Records: func(b domain.PageBinding) (ir.RecordSet, error) {
-			return bindingRecords(ctx, l, viewer.ID, params, b)
+			return bindingRecords(ctx, l, viewer, params, b)
 		},
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
 			return bindingForm(l, viewer, b)
@@ -84,7 +85,8 @@ func bindingForm(l *Loader, viewer domain.Actor, b domain.PageBinding) (ir.FormS
 // Machine already declared about its shape, and the page names no Field. `RelationOptions` is deliberately
 // empty: the loader refuses a `from:` whose role is a reference Field, because resolving one means reading the
 // whole related Machine. Order is the Dataset's declared `sort:`, applied by the database.
-func bindingRecords(ctx context.Context, l *Loader, viewerID string, params map[string]string, b domain.PageBinding) (ir.RecordSet, error) {
+func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, b domain.PageBinding) (ir.RecordSet, error) {
+	viewerID := viewer.ID
 	ds, ok := l.Dataset(b.Dataset)
 	if !ok {
 		return ir.RecordSet{}, fmt.Errorf("composition: page binding names dataset %q, which no machine declares", b.Dataset)
@@ -112,15 +114,33 @@ func bindingRecords(ctx context.Context, l *Loader, viewerID string, params map[
 	}
 	records := sel.Records
 	out := make([]map[string]string, 0, len(records))
+	edits := make([]ir.FormSpec, 0, len(records))
 	for _, r := range records {
 		item := ProjectedByRole(src, r, rendering.RelationOptions{})
 		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
+		edits = append(edits, recordEditForm(src, r, viewer))
 		for _, rel := range ds.Relations {
 			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(sel.Related(rel.ID, r.ID)))
 		}
 		out = append(out, item)
 	}
-	return ir.RecordSet{Records: out, Truncated: sel.Truncated, Limit: sel.Limit}, nil
+	return ir.RecordSet{Records: out, Edits: edits, Truncated: sel.Truncated, Limit: sel.Limit}, nil
+}
+
+// recordEditForm is what an `update` Form inside a records template needs of one record: the route that patches
+// it, the controls starting as its current values, and whether this viewer may edit *it*.
+//
+// `Permitted` evaluates the Machine's `edit` Permission against this record's own values, so a Permission that
+// reads a Field of the record answers per record. It is a courtesy -- the patch route runs the same check, the
+// state model, the write guards and the Events -- and an append-only Machine is never offered a form, because
+// its route refuses every write. It costs no query: the record is already in hand.
+func recordEditForm(src *domain.Machine, r *data.Record, viewer domain.Actor) ir.FormSpec {
+	return ir.FormSpec{
+		Route:     RecordRoute(src.ID, r.ID),
+		Method:    domain.FormMethodPatch,
+		Permitted: !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer),
+		Inputs:    src.EditFormInputs(r.Values),
+	}
 }
 
 // RecordRoute is the runtime's generic route to one record (`GET /machines/{machineID}/records/{id}`, which

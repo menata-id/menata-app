@@ -3,6 +3,7 @@ package ir
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -31,8 +32,14 @@ type RecordResolver func(b domain.PageBinding) (RecordSet, error)
 // RecordSet is a records Binding's answer: the records, and whether the Dataset's own `limit:` cut them short.
 // Truncated and Limit travel with the records because they are one read's two facts -- asking for the bound
 // separately would be a second read, or a second opinion about the first (001 #8).
+//
+// Edits is the answer to an `update` Form inside the item template, one per record and in the same order: where
+// that record is patched, whether this viewer may edit *it* (a Permission may read the record's own Field, so the
+// answer differs per record), and the controls starting as its current values. It is empty when the resolver has
+// nothing to say, which makes an update Form in the template an error and not a form posting nowhere.
 type RecordSet struct {
 	Records   []map[string]string
+	Edits     []FormSpec
 	Truncated bool
 	Limit     int
 }
@@ -69,7 +76,9 @@ type SourceResolver func(datasetID string) (machineID string, ok bool)
 // pages hide a "New" button, rather than drawn and refused. The route still refuses on its own, so this is
 // courtesy and not enforcement.
 type FormSpec struct {
-	Route     string
+	Route string
+	// Method is the verb the route takes (`domain.FormMethodPost`, `domain.FormMethodPatch`); empty means post.
+	Method    string
 	Permitted bool
 	Inputs    []domain.FormInput
 }
@@ -106,7 +115,7 @@ type Resolver struct {
 // a bound node holding the wrong children, a `from:` outside a template) are returned as errors; faults about
 // the *tree* (unknown types, cycles, depth) are `Validate`'s, so the five §15.3 rejections stay in one place.
 func Lower(root domain.PageNode, r Resolver) (UINode, error) {
-	nodes, err := lower(root, r, "page", nil)
+	nodes, err := lower(root, r, "page", nil, nil)
 	if err != nil {
 		return UINode{}, err
 	}
@@ -118,7 +127,10 @@ func Lower(root domain.PageNode, r Resolver) (UINode, error) {
 
 // lower expands one node. record is non-nil exactly while lowering inside a records template, which is what
 // makes `from:` legal and a nested Binding illegal.
-func lower(n domain.PageNode, r Resolver, path string, record map[string]string) ([]UINode, error) {
+func lower(n domain.PageNode, r Resolver, path string, record map[string]string, edit *FormSpec) ([]UINode, error) {
+	if n.Binding != nil && n.Binding.Write == domain.PageWriteUpdate {
+		return lowerUpdateForm(n, path, record, edit)
+	}
 	if n.Binding != nil {
 		if n.Count != nil {
 			return nil, fmt.Errorf("%s: count: counts a Relation's children for one record, so it belongs on a static node inside the item template, not on the bound node", path)
@@ -159,7 +171,7 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 	}
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
 	for i, c := range n.Children {
-		kids, err := lower(c, r, fmt.Sprintf("%s.children[%d]", path, i), record)
+		kids, err := lower(c, r, fmt.Sprintf("%s.children[%d]", path, i), record, edit)
 		if err != nil {
 			return nil, err
 		}
@@ -458,7 +470,11 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		if rec == nil {
 			rec = map[string]string{} // lower reads non-nil as "inside a template"
 		}
-		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec)
+		var edit *FormSpec
+		if i < len(set.Edits) {
+			edit = &set.Edits[i]
+		}
+		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec, edit)
 		if err != nil {
 			return nil, fmt.Errorf("record %d: %w", i, err)
 		}
@@ -491,10 +507,41 @@ func dimensionRoute(n domain.PageNode, r Resolver, path string) (string, error) 
 	return route, nil
 }
 
-// formActionProp is the one Form property lowering produces and an author never writes. The route a form posts
-// to is the Machine's create route, derived from the bound Dataset; a typed one would be a route retyped, and
-// would let a page aim a form at anything (001 #3, #8).
-const formActionProp = "action"
+// Form properties lowering produces and an author never writes. The route a form sends to and the verb it uses
+// come from the bound Machine, and a typed one would be a route retyped, and would let a page aim a form at
+// anything (001 #3, #8).
+const (
+	formActionProp = "action"
+	formMethodProp = "method"
+)
+
+// checkFormNode is what any bound Form asks of what its author wrote, whichever mode it is bound in: a
+// writable component in the mode it takes, no read-side keys, no children, and no property lowering derives.
+func checkFormNode(n domain.PageNode, path string) error {
+	b := n.Binding
+	modes, ok := domain.WritableComponents[domain.ComponentType(n.Type)]
+	if NodeKind(n.Kind) != NodeComponent || !ok {
+		return fmt.Errorf("%s: write: is only valid on a writable component, and %s %q is not one", path, n.Kind, n.Type)
+	}
+	if !slices.Contains(modes, b.Write) {
+		return fmt.Errorf("%s: component %q takes a binding with write: %s, not %q", path, n.Type, strings.Join(modes, " or "), b.Write)
+	}
+	if b.Rows != "" || b.Measure != "" {
+		return fmt.Errorf("%s: write: is a mode of its own and takes neither rows: nor measure: -- a form writes a record, it does not read a list", path)
+	}
+	if len(n.Children) > 0 {
+		return fmt.Errorf("%s: a bound Form's controls come from its Machine's Fields, so it holds no children", path)
+	}
+	if len(n.From) > 0 || n.To != "" || n.ListOf != "" || n.Param != "" || n.Count != nil {
+		return fmt.Errorf("%s: a Form takes only its submit label and its binding; from:, to:, list_of:, param: and count: belong to other nodes", path)
+	}
+	for _, derived := range []string{formActionProp, formMethodProp} {
+		if _, typed := n.Props[derived]; typed {
+			return fmt.Errorf("%s: a Form's %s is derived from the bound Machine, never typed -- a route is declared once (001 #3, #8)", path, derived)
+		}
+	}
+	return nil
+}
 
 // lowerForm turns a `Form` bound with `write: create` into `Form{ Field{ Input }... }`, one Field per control the
 // Machine asks for. The author writes the submit label and the Dataset; everything a hand-written form would
@@ -504,28 +551,15 @@ const formActionProp = "action"
 // A viewer who may not create gets **no node**, and a page whose only child is such a Form is then a layout with
 // no children, which `Validate` refuses at request time as it refuses any other empty layout.
 func lowerForm(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
-	b := n.Binding
-	mode, ok := domain.WritableComponents[domain.ComponentType(n.Type)]
-	if NodeKind(n.Kind) != NodeComponent || !ok {
-		return nil, fmt.Errorf("%s: write: is only valid on a writable component, and %s %q is not one", path, n.Kind, n.Type)
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
 	}
-	if b.Write != mode {
-		return nil, fmt.Errorf("%s: component %q takes a binding with write: %s, not %q", path, n.Type, mode, b.Write)
+	b := n.Binding
+	if b.Write != domain.PageWriteCreate {
+		return nil, fmt.Errorf("%s: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", path, b.Write, domain.PageRowsRecords)
 	}
 	if b.Dataset == "" {
 		return nil, fmt.Errorf("%s: a binding names a dataset", path)
-	}
-	if b.Rows != "" || b.Measure != "" {
-		return nil, fmt.Errorf("%s: write: is a mode of its own and takes neither rows: nor measure: -- a form writes a record, it does not read a list", path)
-	}
-	if len(n.Children) > 0 {
-		return nil, fmt.Errorf("%s: a bound Form's controls come from its Machine's Fields, so it holds no children", path)
-	}
-	if len(n.From) > 0 || n.To != "" || n.ListOf != "" || n.Param != "" || n.Count != nil {
-		return nil, fmt.Errorf("%s: a Form takes only its submit label and its binding; from:, to:, list_of:, param: and count: belong to other nodes", path)
-	}
-	if _, typed := n.Props[formActionProp]; typed {
-		return nil, fmt.Errorf("%s: a Form's action is its Machine's create route, derived from the dataset; never typed -- a route is declared once (001 #3, #8)", path)
 	}
 	if r.Form == nil {
 		return nil, fmt.Errorf("%s: no resolver for forms", path)
@@ -534,17 +568,46 @@ func lowerForm(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	if err != nil {
 		return nil, err
 	}
+	return buildForm(n, path, spec, domain.PageWriteCreate, b.Dataset)
+}
+
+// lowerUpdateForm turns a `Form` bound with `write: update` into the same tree, patching the item's own record.
+// It takes no dataset: the record is the Collection's current one and the Machine is the Collection's, so a
+// dataset here could only name a different one -- a join -- and is refused. What the record's route is, whether
+// this viewer may edit it and what each control starts as were decided by the resolver when it listed the
+// records, which is why this reads `edit` and asks nothing.
+func lowerUpdateForm(n domain.PageNode, path string, record map[string]string, edit *FormSpec) ([]UINode, error) {
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	if record == nil {
+		return nil, fmt.Errorf("%s: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageWriteUpdate, domain.PageRowsRecords)
+	}
+	if n.Binding.Dataset != "" {
+		return nil, fmt.Errorf("%s: write: %s takes no dataset -- it edits the record of the Collection it sits in, and a second dataset would be a join the page has no grammar for", path, domain.PageWriteUpdate)
+	}
+	if edit == nil {
+		return nil, fmt.Errorf("%s: the Collection's resolver supplied no update form for this record", path)
+	}
+	return buildForm(n, path, *edit, domain.PageWriteUpdate, "the record's Machine")
+}
+
+// buildForm is the tree both modes lower to. A viewer the spec does not permit gets no node.
+func buildForm(n domain.PageNode, path string, spec FormSpec, mode, what string) ([]UINode, error) {
 	if !spec.Permitted {
 		return nil, nil
 	}
 	if len(spec.Inputs) == 0 {
-		return nil, fmt.Errorf("%s: dataset %q reads a Machine with no Field a form can ask for", path, b.Dataset)
+		return nil, fmt.Errorf("%s: %s reads a Machine with no Field a form can ask for", path, what)
 	}
-	props := make(map[string]string, len(n.Props)+1)
+	props := make(map[string]string, len(n.Props)+2)
 	for k, v := range n.Props {
 		props[k] = v
 	}
 	props[formActionProp] = spec.Route
+	if mode == domain.PageWriteUpdate {
+		props[formMethodProp] = domain.FormMethodPatch
+	}
 	form := UINode{Kind: NodeComponent, Type: string(domain.ComponentForm), Props: props}
 	for i, in := range spec.Inputs {
 		id := formControlID(path, i)

@@ -226,7 +226,7 @@ var allowedProps = map[string][]string{
 	"component/Field":       {"label", "for"},
 	"component/Button":      {"label", "variant", "name", "value"},
 	"component/Tag":         {"label", "color"},
-	"component/Form":        {"submit", "action"},
+	"component/Form":        {"submit", "action", "method"},
 	"component/Input":       {"id", "name", "kind", "options", "value", "required"},
 }
 

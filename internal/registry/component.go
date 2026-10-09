@@ -70,6 +70,7 @@ var formContract = domain.ComponentContract{
 	Inputs: []domain.ComponentInput{
 		{Name: "submit", Kind: "string", Required: true},
 		{Name: "action", Kind: "route", Required: true},
+		{Name: "method", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"field"},
@@ -78,14 +79,30 @@ var formContract = domain.ComponentContract{
 	Renderer:         "form",
 }
 
-// validateForm checks a use against the declared inputs and the one shape `action` may take.
+// validateForm checks a use against the declared inputs and the two shapes `action` may take: a Machine's create
+// route (`/machines/<id>/records`) for a post, and one of its records (`/machines/<id>/records/<id>`) for the
+// patch that `method` names. Anything else -- a path elsewhere, a verb beyond those two -- is refused, so a
+// hand-built tree cannot aim a form somewhere the generic routes do not own.
 func validateForm(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(formContract, inputs, "Form")
-	if a := inputs["action"]; a != "" {
-		id := strings.TrimSuffix(strings.TrimPrefix(a, "/machines/"), "/records")
-		if !strings.HasPrefix(a, "/machines/") || !strings.HasSuffix(a, "/records") || id == "" || strings.Contains(id, "/") {
-			issues = append(issues, fmt.Sprintf("Form action %q is not a Machine's create route (/machines/<id>/records)", a))
-		}
+	a := inputs["action"]
+	if a == "" {
+		return issues
+	}
+	method := inputs["method"]
+	if method != "" && method != domain.FormMethodPatch {
+		issues = append(issues, fmt.Sprintf("Form method %q is not one the runtime derives (%s)", method, domain.FormMethodPatch))
+	}
+	parts := strings.Split(strings.TrimPrefix(a, "/machines/"), "/")
+	valid := strings.HasPrefix(a, "/machines/") && parts[0] != "" && len(parts) >= 2 && parts[1] == "records"
+	switch {
+	case valid && method == domain.FormMethodPatch:
+		valid = len(parts) == 3 && parts[2] != ""
+	case valid:
+		valid = len(parts) == 2
+	}
+	if !valid {
+		issues = append(issues, fmt.Sprintf("Form action %q is not a Machine's create route (/machines/<id>/records) or, with method %s, one of its records (/machines/<id>/records/<id>)", a, domain.FormMethodPatch))
 	}
 	return issues
 }

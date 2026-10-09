@@ -660,7 +660,7 @@ func TestLower_refusesAFormThatIsNotWellFormed(t *testing.T) {
 		"children":          func(n *domain.PageNode) { n.Children = []domain.PageNode{{Kind: "component", Type: "Input"}} },
 		"rows beside write": func(n *domain.PageNode) { n.Binding.Rows = domain.PageRowsRecords },
 		"measure":           func(n *domain.PageNode) { n.Binding.Measure = "m" },
-		"unknown mode":      func(n *domain.PageNode) { n.Binding.Write = "update" },
+		"unknown mode":      func(n *domain.PageNode) { n.Binding.Write = "delete" },
 		"no dataset":        func(n *domain.PageNode) { n.Binding.Dataset = "" },
 		"from":              func(n *domain.PageNode) { n.From = map[string]string{"label": "x"} },
 		"on a Metric":       func(n *domain.PageNode) { n.Type = string(domain.ComponentMetric) },
@@ -686,5 +686,78 @@ func TestLower_anInputIsNeverWrittenByAnAuthor(t *testing.T) {
 	}}
 	if _, err := Lower(root, Resolver{}); err == nil || !strings.Contains(err.Error(), "never written") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+// updateInTemplate is a records Collection whose one item is an update Form; the resolver answers two records,
+// the second of which this viewer may not edit.
+func updateInTemplate(edits []FormSpec) (domain.PageNode, Resolver) {
+	coll := domain.PageNode{
+		Kind: "component", Type: string(domain.ComponentCollection),
+		Binding: &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords},
+		Children: []domain.PageNode{{
+			Kind: "component", Type: string(domain.ComponentForm), Props: map[string]string{"submit": "Rename"},
+			Binding: &domain.PageBinding{Write: domain.PageWriteUpdate},
+		}},
+	}
+	res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{{"title": "a"}, {"title": "b"}}, Edits: edits}, nil
+	}}
+	return formPage(coll), res
+}
+
+func TestLower_updateFormPatchesTheItemsOwnRecordAndStartsAsItsValues(t *testing.T) {
+	in := func(v string) []domain.FormInput {
+		return []domain.FormInput{{FieldID: "fld_name", Label: "Name", Kind: domain.InputText, Required: true, Default: v}}
+	}
+	root, res := updateInTemplate([]FormSpec{
+		{Route: "/machines/mch_x/records/r1", Method: domain.FormMethodPatch, Permitted: true, Inputs: in("alpha")},
+		{Route: "/machines/mch_x/records/r2", Method: domain.FormMethodPatch, Permitted: false, Inputs: in("beta")},
+	})
+	got, err := Lower(root, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := got.Children[0].Children
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want only the record this viewer may edit", len(items))
+	}
+	f := items[0]
+	if f.Props["action"] != "/machines/mch_x/records/r1" || f.Props["method"] != domain.FormMethodPatch || f.Props["submit"] != "Rename" {
+		t.Errorf("form props = %v", f.Props)
+	}
+	if v := f.Children[0].Children[0].Props["value"]; v != "alpha" {
+		t.Errorf("control starts as %q, want the record's own value", v)
+	}
+}
+
+func TestLower_refusesAnUpdateFormThatCouldNotBeBuiltHonestly(t *testing.T) {
+	edit := []FormSpec{{Route: "/machines/mch_x/records/r", Method: domain.FormMethodPatch, Permitted: true, Inputs: []domain.FormInput{{FieldID: "f", Label: "F", Kind: domain.InputText}}}}
+	cases := map[string]struct {
+		mutate func(n *domain.PageNode)
+		edits  []FormSpec
+		want   string
+	}{
+		"a dataset of its own": {func(n *domain.PageNode) { n.Children[0].Binding.Dataset = "ds_b" }, append(edit, edit...), "no dataset"},
+		"typed method":         {func(n *domain.PageNode) { n.Children[0].Props["method"] = "patch" }, append(edit, edit...), "method"},
+		"typed action":         {func(n *domain.PageNode) { n.Children[0].Props["action"] = "/x" }, append(edit, edit...), "action"},
+		"no resolver answer":   {func(n *domain.PageNode) {}, nil, "no update form"},
+	}
+	for name, tc := range cases {
+		root, res := updateInTemplate(tc.edits)
+		tc.mutate(&root.Children[0])
+		if _, err := Lower(root, res); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want it to contain %q", name, err, tc.want)
+		}
+	}
+	outside := formBound(map[string]string{"submit": "Rename"})
+	outside.Binding = &domain.PageBinding{Write: domain.PageWriteUpdate}
+	if _, err := Lower(formPage(outside), formResolver(edit[0])); err == nil || !strings.Contains(err.Error(), "item template") {
+		t.Errorf("an update Form outside a records template: err = %v", err)
+	}
+	asCreate := formBound(map[string]string{"submit": "Add"})
+	asCreate.Binding.Write = domain.PageWriteUpdate
+	if _, err := Lower(formPage(asCreate), formResolver(edit[0])); err == nil {
+		t.Error("an update Form naming a dataset outside a template must be refused")
 	}
 }
