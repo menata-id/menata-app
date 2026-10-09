@@ -463,7 +463,24 @@ templ columnsLayout(gap domain.Gap, align domain.ColumnsAlign) {
 // "the order here is the order of the columns"). The number is `aria-hidden` because `<ol>` already announces
 // position; it is typography through two Theme roles (`meta`, `faint`), `w-5` keeps the items aligned past
 // nine, and it is counted by the renderer, so a page names no number.
-templ collection(gap domain.Gap, empty string, ordered bool, items []templ.Component) {
+//
+// `truncated` is the bound that cut the list short, drawn after it by the same `truncationNotice` the
+// hand-written lists use, so a bound reads one way on every screen. It is the zero value for every list that
+// did not claim completeness (or was not cut), and `truncationNotice` draws nothing for it.
+func truncationFromProp(limit string) Truncation {
+	n, err := strconv.Atoi(limit)
+	if err != nil || n <= 0 {
+		return Truncation{}
+	}
+	return Truncation{Limit: n, Hit: true}
+}
+
+templ collection(gap domain.Gap, empty string, ordered bool, truncated Truncation, items []templ.Component) {
+	@collectionBody(gap, empty, ordered, items)
+	@truncationNotice(truncated)
+}
+
+templ collectionBody(gap domain.Gap, empty string, ordered bool, items []templ.Component) {
 	if len(items) == 0 && empty != "" {
 		@staticText(domain.StaticMessage, empty)
 	} else if ordered {
@@ -712,7 +729,7 @@ templ uiNode(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:
-					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", uiChildComponents(n))
+					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", truncationFromProp(n.Props["truncated"]), uiChildComponents(n))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:

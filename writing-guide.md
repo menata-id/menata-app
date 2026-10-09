@@ -969,7 +969,7 @@ Machine declares in `card_fields:` -- so the page names no Field, and what a lis
 Machine already said about its shape. Rules, all checked at load:
 
 - the Dataset must be `select: records` (so it already carries the `limit:` 007 §7.9 requires -- **the limit is
-  the list's meaning, "the latest five", and no truncation notice is drawn**), and may filter on `$current_user`
+  the list's meaning, "the latest five", and no truncation notice is drawn unless the page writes `complete: true`**), and may filter on `$current_user`
   but **not** on `$parameters.*`: a page has no request parameters, so such a Dataset is refused;
 - `from:` is valid only inside a records-bound Collection's template, a property cannot be both written and
   `from:`, and a records binding does not nest inside a template;
@@ -981,9 +981,10 @@ A records-bound Collection may also carry `empty: <words>`: what the page says w
 records (the words are drawn as a `message`, **in place of** the list, and never beside a non-empty one). The
 Component only decides *when*; the words are the page's. Without `empty:` an empty list draws nothing, as
 before. `empty:` is a load error anywhere but a Collection bound with `rows: records` -- an unbound Collection
-or a `rows: dimension` Metric cannot produce nothing. **There is no truncation notice**, on purpose: a Dataset's
-`limit:` is a safety cap in one Dataset and a window ("the latest five") in another, nothing declares which, and a
-"showing the first N" line over a window is false.
+or a `rows: dimension` Metric cannot produce nothing. There is no *automatic* truncation notice, on purpose: a
+Dataset's `limit:` is a safety cap in one Dataset and a window ("the latest five") in another, nothing declares
+which, and a "showing the first N" line over a window is false. A page that knows its list is a cap opts in with
+`complete: true` (below).
 
 **`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and
 nothing else:
@@ -1153,6 +1154,26 @@ what English and Indonesian need -- a language with more plural categories is a 
 **Cost:** the Relation is a lookup (one bounded query for the children of every listed record), and it loads the
 child rows to count them; that strategy is invisible to metadata and may become a `COUNT ... GROUP BY` later.
 **Installing copies**, so the Dataset and its Relation must be in your Workspace's own Machine copy.
+
+**A truncation notice, only when you claim it (3c-5, 2026-10-09).** A Dataset's `limit:` is a safety cap in
+one Dataset and a window in another, and nothing on the Dataset says which -- so the runtime never guesses. A
+records `Collection` over a Dataset whose `limit:` is only a cap may say so itself:
+
+```yaml
+- component: Collection
+  complete: true            # "this list shows every record its Dataset matches"
+  binding: {dataset: ds_board_labels, rows: records}
+```
+
+`complete: true` is **your claim**, not a measurement. When the claim holds and the Dataset's bound actually cut
+the list, the Collection draws a notice after it ("showing the first 200") and the number is the Dataset's own
+`limit:`; when nothing was cut, nothing is drawn. Never write `complete: true` over a window (`ds_recent_documents`'
+`limit: 5` is "the latest five" -- a notice there would say the list is incomplete when it is exactly what was
+asked for); `internal/conformance`'s `windowDatasets` names the Datasets known to be windows and
+`TestNoPageClaimsCompletenessOverAWindow` refuses the combination. `complete:` takes `true` or `false`, is a load
+error on any node but a Collection bound with `rows: records`, and `truncated:` is not a key you can write -- it
+is what the runtime puts on the lowered tree when the claim and the cut both hold. **Installing copies**, so the
+Dataset's `limit:` in your Workspace's own Machine copy is the number the notice shows.
 
 **What it is not.** It does not migrate an existing screen: a bespoke Go screen stays bespoke until its
 own route is replaced, and the screens declared this way are new ones. There is no write side

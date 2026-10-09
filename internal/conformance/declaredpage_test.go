@@ -75,7 +75,7 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 					return ds.Source, ok
 				}
 				res.Rows = func(b domain.PageBinding) ([]ir.Row, error) { declared(b); return rows(b) }
-				res.Records = func(b domain.PageBinding) ([]map[string]string, error) { declared(b); return records(b) }
+				res.Records = func(b domain.PageBinding) (ir.RecordSet, error) { declared(b); return records(b) }
 				tree, err := ir.Lower(*item.Page, res)
 				if err != nil {
 					t.Errorf("%s: does not lower: %v", where, err)
@@ -375,5 +375,64 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 	}
 	if listLinks == 0 {
 		t.Fatal("no installed page declares a list_of link -- that third of this gate is measuring nothing")
+	}
+}
+
+// windowDatasets are Datasets whose `limit:` is their *meaning*, not a safety cap: "recent" is defined by the
+// bound, so a notice that more exist would state something false (the argument in
+// `composition.Selection.Limit`). Nothing declares which kind a `limit:` is, so a page opts in with
+// `complete: true` and this list is the other half -- the judgement that a particular Dataset is not one a
+// page may claim to be complete over. A closed list with a reason per entry, `perViewerDatasets`' shape,
+// because "is this limit a window" is a judgement no scan can make.
+var windowDatasets = map[string]string{
+	"ds_recent_documents": "limit: 5 is what \"recent\" means; the page lists the five latest, not every document",
+}
+
+// TestNoPageClaimsCompletenessOverAWindow sweeps the installed pages for `complete: true` and refuses one whose
+// Collection is bound to a window. It also fails if nothing claims completeness at all (a gate measuring
+// nothing) and if an entry names a Dataset no installed Workspace declares (a stale reason).
+func TestNoPageClaimsCompletenessOverAWindow(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+	claims, declared := 0, map[string]bool{}
+	for _, slug := range sortedKeys(wss) {
+		ws := wss[slug].Workspace
+		for _, m := range ws.Machines {
+			for _, ds := range m.Datasets {
+				declared[ds.ID] = true
+			}
+		}
+		for _, app := range ws.Applications {
+			for _, item := range app.AllNavigation {
+				if item.Page == nil {
+					continue
+				}
+				var walk func(n domain.PageNode)
+				walk = func(n domain.PageNode) {
+					if n.Props["complete"] == "true" {
+						claims++
+						if n.Binding != nil {
+							if why, window := windowDatasets[n.Binding.Dataset]; window {
+								t.Errorf("%s/%s/%s: complete: true over %s, which is a window -- %s", slug, app.ID, item.ID, n.Binding.Dataset, why)
+							}
+						}
+					}
+					for _, c := range n.Children {
+						walk(c)
+					}
+				}
+				walk(*item.Page)
+			}
+		}
+	}
+	if claims == 0 {
+		t.Fatal("no installed page declares `complete: true` -- this gate is measuring nothing")
+	}
+	for id := range windowDatasets {
+		if !declared[id] {
+			t.Errorf("windowDatasets names %s, which no installed Workspace declares -- delete the entry", id)
+		}
 	}
 }

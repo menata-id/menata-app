@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -231,5 +232,32 @@ func TestDeclaredPage_recordsOnAPerViewerDatasetNeedTheViewer(t *testing.T) {
 	}
 	if got := itemTexts(tree); !reflect.DeepEqual(got, []string{"a/draft"}) {
 		t.Errorf("items = %v, want only the viewer's", got)
+	}
+}
+
+// A page that claims its list is complete is told by the Data Plane whether the Dataset's own `limit:` bit,
+// through the real loader and a real database: four records under a limit of three is cut, under five is not.
+func TestDeclaredPage_completeNamesTheDatasetsBoundOnlyWhenItBit(t *testing.T) {
+	for name, c := range map[string]struct {
+		limit    int
+		complete string
+		want     string
+	}{
+		"cut and claimed":     {3, "true", "3"},
+		"not cut and claimed": {5, "true", ""},
+		"cut, no claim":       {3, "", ""},
+	} {
+		l, ctx := recordListLoader(t, "complete"+strings.ReplaceAll(name, " ", ""), []string{"charlie", "alpha", "bravo", "delta"}, c.limit)
+		page := recordList()
+		if c.complete != "" {
+			page.Children[0].Props["complete"] = c.complete
+		}
+		tree, err := DeclaredPage(ctx, l, "", nil, page)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got := tree.Children[0].Props["truncated"]; got != c.want {
+			t.Errorf("%s: truncated = %q, want %q", name, got, c.want)
+		}
 	}
 }

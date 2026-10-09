@@ -217,7 +217,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 		Rows: func(domain.PageBinding) ([]ir.Row, error) {
 			return []ir.Row{{Label: "label", Value: "0"}}, nil
 		},
-		Records: func(b domain.PageBinding) ([]map[string]string, error) {
+		Records: func(b domain.PageBinding) (ir.RecordSet, error) {
 			rec := map[string]string{domain.PageRecordRole: "/x"}
 			for role := range domain.KnownCardFieldRoles {
 				rec[string(role)] = "x"
@@ -231,7 +231,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			for _, rel := range datasets[b.Dataset].Relations {
 				rec[domain.PageCountRole(rel.ID)] = "0"
 			}
-			return []map[string]string{rec}, nil
+			return ir.RecordSet{Records: []map[string]string{rec}}, nil
 		},
 	}
 }

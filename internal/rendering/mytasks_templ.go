@@ -624,7 +624,7 @@ func taskRowList(rows []TaskRow, sla bool) templ.Component {
 			templ_7745c5c3_Var27 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = collection(domain.GapTight, "", false, taskItems(rows, sla)).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = collection(domain.GapTight, "", false, Truncation{}, taskItems(rows, sla)).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -6,6 +6,10 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"menata.app/internal/domain"
+	"menata.app/internal/ir"
+	"menata.app/internal/registry"
 )
 
 // pageFixture loads a one-Machine Workspace whose Application declares `nav` as its navigation, so each test
@@ -351,5 +355,59 @@ func TestPage_aCountBlockWithAnUnknownKeyIsRefused(t *testing.T) {
 	nav := strings.Replace(countPage("rel_children", "ds_with_children"), "other:", "many:", 1)
 	if err := pageFixture(t, nav); err == nil {
 		t.Fatal("count: with a key it does not declare loaded")
+	}
+}
+
+func completePage(value string) string {
+	return "  - id: nav_k\n    label: K\n    route: /pages/nav_k\n    page:\n      layout: stack\n      children:\n        - component: Collection\n          gap: tight\n          complete: " + value + "\n          binding: { dataset: ds_rows, rows: records }\n          children:\n            - static: link\n              from: { text: title, href: record }\n"
+}
+
+// TestPage_aListMayClaimItIsCompleteAndNothingElseMayBeSaidAboutItsBound: `complete: true|false` loads on a
+// records-bound Collection (the load-time placeholder is never cut short, so the claim is only checked for
+// meaning); anything else, or the runtime-produced `truncated:` typed by hand, is a load error.
+func TestPage_aListMayClaimItIsCompleteAndNothingElseMayBeSaidAboutItsBound(t *testing.T) {
+	for _, v := range []string{"true", "false"} {
+		if err := pageFixture(t, completePage(v)); err != nil {
+			t.Errorf("complete: %s was refused: %v", v, err)
+		}
+	}
+	if err := pageFixture(t, completePage("yes")); err == nil {
+		t.Error("complete: yes loaded")
+	}
+	typed := strings.Replace(completePage("true"), "complete: true", "truncated: 5", 1)
+	if err := pageFixture(t, typed); err == nil {
+		t.Error("a hand-written truncated: loaded; it is the runtime's to produce")
+	}
+}
+
+// TestPage_aListCutShortByItsBoundStillValidates: the loader only ever lowers a page against a placeholder that
+// is never cut short, so the `truncated` prop lowering produces at request time is otherwise never seen by
+// `ir.Validate` or the Collection's registered validator. This lowers against a cut selection and runs both.
+func TestPage_aListCutShortByItsBoundStillValidates(t *testing.T) {
+	ensureIRVocabulary()
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{
+		Kind: "component", Type: "Collection", Props: map[string]string{"gap": "tight", "complete": "true"},
+		Binding:  &domain.PageBinding{Dataset: "ds_rows", Rows: domain.PageRowsRecords},
+		Children: []domain.PageNode{{Kind: "static", Type: "paragraph", From: map[string]string{"text": "title"}}},
+	}}}
+	res := PlaceholderResolver(nil, nil)
+	inner := res.Records
+	res.Records = func(b domain.PageBinding) (ir.RecordSet, error) {
+		set, err := inner(b)
+		set.Truncated, set.Limit = true, 200
+		return set, err
+	}
+	tree, err := ir.Lower(root, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tree.Children[0].Props["truncated"]; got != "200" {
+		t.Fatalf("truncated = %q, want 200", got)
+	}
+	if issues := ir.Validate(tree); len(issues) != 0 {
+		t.Errorf("a cut list's tree does not validate: %v", issues)
+	}
+	if issues := registry.ValidateComponentUse(domain.ComponentCollection, tree.Children[0].Props); len(issues) != 0 {
+		t.Errorf("a cut list's Collection is refused by its own validator: %v", issues)
 	}
 }

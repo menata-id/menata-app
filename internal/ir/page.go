@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"menata.app/internal/domain"
@@ -24,7 +25,16 @@ type RowResolver func(b domain.PageBinding) ([]Row, error)
 // `date`...) and holding that role's display string, already resolved and formatted. Lower places those
 // strings and decides nothing about them; **a role the map lacks is a fault of the declaration** (it asked for
 // something the Dataset's Machine does not project), not an empty string.
-type RecordResolver func(b domain.PageBinding) ([]map[string]string, error)
+type RecordResolver func(b domain.PageBinding) (RecordSet, error)
+
+// RecordSet is a records Binding's answer: the records, and whether the Dataset's own `limit:` cut them short.
+// Truncated and Limit travel with the records because they are one read's two facts -- asking for the bound
+// separately would be a second read, or a second opinion about the first (001 #8).
+type RecordSet struct {
+	Records   []map[string]string
+	Truncated bool
+	Limit     int
+}
 
 // RouteResolver answers a `to:`: the route and the label of the navigation item named navID, or ok=false when
 // the Application declares none. It is injected for the same reason the two above are, and it is a closure
@@ -113,6 +123,11 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 	if _, written := n.Props[collectionEmptyProp]; written && n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentCollection) {
 		return nil, fmt.Errorf("%s: %s: is the words shown when a records binding lists nothing, so it is valid only on a Collection bound with rows: %s -- a Collection that holds its own children is empty by being written empty", path, collectionEmptyProp, domain.PageRowsRecords)
 	}
+	for _, p := range []string{collectionCompleteProp, collectionTruncatedProp} {
+		if _, written := n.Props[p]; written && n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentCollection) {
+			return nil, fmt.Errorf("%s: %s: speaks of a Dataset's limit, so it is valid only on a Collection bound with rows: %s", path, p, domain.PageRowsRecords)
+		}
+	}
 	props, err := lowerCount(n, props, record, path)
 	if err != nil {
 		return nil, err
@@ -182,6 +197,43 @@ func lowerCount(n domain.PageNode, props map[string]string, record map[string]st
 // list's shape: what to say when the Dataset has no records. It is written by the author (words are content)
 // and is meaningful only where a binding can produce zero items.
 const collectionEmptyProp = "empty"
+
+// The two halves of an author-opted truncation notice. `complete` is written by the author: *this list claims to
+// show every record its Dataset matches*, which is the one fact nothing else declares -- a `limit:` is a safety
+// cap on one Dataset and the definition of "recent" on another, and only the screen knows which (the argument in
+// `composition.Selection.Limit`). `truncated` is what lowering produces, the Dataset's bound once it has bitten,
+// for the renderer to name; it is never written by an author, since a hand-typed bound would be a notice about
+// nothing.
+const (
+	collectionCompleteProp  = "complete"
+	collectionTruncatedProp = "truncated"
+)
+
+// lowerComplete consumes `complete` and, when the author claimed completeness and the bound actually bit, puts
+// the bound where the renderer reads it. It never copies `complete` onto the node: the lowered tree carries the
+// outcome, not the claim, so a list that was not cut short is byte-identical to one that made no claim.
+func lowerComplete(n domain.PageNode, set RecordSet, path string) (map[string]string, error) {
+	if _, written := n.Props[collectionTruncatedProp]; written {
+		return nil, fmt.Errorf("%s: %s: is produced by the runtime when a %s: true list is cut short by its Dataset's limit, and is never written", path, collectionTruncatedProp, collectionCompleteProp)
+	}
+	v, claimed := n.Props[collectionCompleteProp]
+	if !claimed {
+		return n.Props, nil
+	}
+	if v != "true" && v != "false" {
+		return nil, fmt.Errorf("%s: %s: %q is not true or false", path, collectionCompleteProp, v)
+	}
+	props := make(map[string]string, len(n.Props))
+	for k, val := range n.Props {
+		if k != collectionCompleteProp {
+			props[k] = val
+		}
+	}
+	if v == "true" && set.Truncated && set.Limit > 0 {
+		props[collectionTruncatedProp] = strconv.Itoa(set.Limit)
+	}
+	return props, nil
+}
 
 func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path string) (map[string]string, error) {
 	isLink := n.Kind == string(NodeStatic) && n.Type == string(domain.StaticLink)
@@ -354,12 +406,16 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 	if r.Records == nil {
 		return nil, fmt.Errorf("%s: no resolver for records", path)
 	}
-	records, err := r.Records(*b)
+	set, err := r.Records(*b)
 	if err != nil {
 		return nil, err
 	}
-	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: n.Props}
-	for i, rec := range records {
+	props, err := lowerComplete(n, set, path)
+	if err != nil {
+		return nil, err
+	}
+	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
+	for i, rec := range set.Records {
 		if rec == nil {
 			rec = map[string]string{} // lower reads non-nil as "inside a template"
 		}

@@ -241,3 +241,18 @@ func TestCollectionOrderedIsABooleanNotAFreeString(t *testing.T) {
 		t.Error("ordered: yes passed validation")
 	}
 }
+
+// TestCollectionTruncatedIsAPositiveWholeNumber: it is the bound a list was cut at, so zero, a negative or
+// words name no bound and are refused rather than drawn as a notice about nothing.
+func TestCollectionTruncatedIsAPositiveWholeNumber(t *testing.T) {
+	for _, v := range []string{"", "1", "200"} {
+		if issues := ValidateComponentUse(domain.ComponentCollection, map[string]string{"gap": "tight", "truncated": v}); len(issues) != 0 {
+			t.Errorf("truncated %q refused: %v", v, issues)
+		}
+	}
+	for _, v := range []string{"0", "-3", "many", "2.5"} {
+		if issues := ValidateComponentUse(domain.ComponentCollection, map[string]string{"gap": "tight", "truncated": v}); len(issues) == 0 {
+			t.Errorf("truncated %q passed validation", v)
+		}
+	}
+}

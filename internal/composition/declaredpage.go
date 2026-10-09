@@ -37,32 +37,33 @@ func DeclaredPage(ctx context.Context, l *Loader, viewerID string, navigation []
 		Rows: func(b domain.PageBinding) ([]ir.Row, error) {
 			return bindingRows(ctx, l, b)
 		},
-		Records: func(b domain.PageBinding) ([]map[string]string, error) {
+		Records: func(b domain.PageBinding) (ir.RecordSet, error) {
 			return bindingRecords(ctx, l, viewerID, b)
 		},
 	})
 }
 
-// bindingRecords is one records Binding: each record of the Dataset, as its Machine's own Projection roles.
+// bindingRecords is one records Binding: each record of the Dataset, as its Machine's own Projection roles,
+// with the Dataset's bound when it bit (`Selection.Truncated`, which a page may then say -- `complete: true`).
 //
 // The Projection is the Machine's `card_fields` (007 §7.6), so what a page can show of a record is what the
 // Machine already declared about its shape, and the page names no Field. `RelationOptions` is deliberately
 // empty: the loader refuses a `from:` whose role is a reference Field, because resolving one means reading the
 // whole related Machine. Order is the Dataset's declared `sort:`, applied by the database.
-func bindingRecords(ctx context.Context, l *Loader, viewerID string, b domain.PageBinding) ([]map[string]string, error) {
+func bindingRecords(ctx context.Context, l *Loader, viewerID string, b domain.PageBinding) (ir.RecordSet, error) {
 	ds, ok := l.Dataset(b.Dataset)
 	if !ok {
-		return nil, fmt.Errorf("composition: page binding names dataset %q, which no machine declares", b.Dataset)
+		return ir.RecordSet{}, fmt.Errorf("composition: page binding names dataset %q, which no machine declares", b.Dataset)
 	}
 	src := l.Machine(ds.Source)
 	if src == nil {
-		return nil, fmt.Errorf("composition: dataset %q reads machine %q, which this Workspace does not install", b.Dataset, ds.Source)
+		return ir.RecordSet{}, fmt.Errorf("composition: dataset %q reads machine %q, which this Workspace does not install", b.Dataset, ds.Source)
 	}
 	// SelectRelated, not SelectDataset: the Relations the Dataset declares (007 §7.5) are how a record's child
 	// count is known, and the lookup is one bounded query per Relation however many records there are.
 	sel, err := l.SelectRelated(ctx, b.Dataset, expression.Context{CurrentUser: viewerID})
 	if err != nil {
-		return nil, err
+		return ir.RecordSet{}, err
 	}
 	records := sel.Records
 	out := make([]map[string]string, 0, len(records))
@@ -74,7 +75,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewerID string, b domain.Pa
 		}
 		out = append(out, item)
 	}
-	return out, nil
+	return ir.RecordSet{Records: out, Truncated: sel.Truncated, Limit: sel.Limit}, nil
 }
 
 // RecordRoute is the runtime's generic route to one record (`GET /machines/{machineID}/records/{id}`, which

@@ -21,7 +21,7 @@ func fixedRows(rows ...Row) Resolver {
 }
 
 func fixedRecords(recs ...map[string]string) Resolver {
-	return Resolver{Records: func(domain.PageBinding) ([]map[string]string, error) { return recs, nil }}
+	return Resolver{Records: func(domain.PageBinding) (RecordSet, error) { return RecordSet{Records: recs}, nil }}
 }
 
 // listBound is the shape a records binding is written in: a Collection whose one child is the item template.
@@ -181,7 +181,7 @@ func TestLower_refusesARecordsDeclarationThatIsNotWellFormed(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			if _, err := Lower(n, Resolver{
 				Rows:    func(domain.PageBinding) ([]Row, error) { return []Row{{"a", "1"}}, nil },
-				Records: func(domain.PageBinding) ([]map[string]string, error) { return []map[string]string{rec}, nil },
+				Records: func(domain.PageBinding) (RecordSet, error) { return RecordSet{Records: []map[string]string{rec}}, nil },
 			}); err == nil {
 				t.Fatal("Lower accepted it")
 			}
@@ -370,8 +370,8 @@ func TestLower_refusesAListOfLinkThatIsNotWellFormed(t *testing.T) {
 	both.Children[0].To = "nav_x"
 	fromHref := recordLinkTemplate(map[string]string{"href": domain.PageRecordRole}, map[string]string{"text": "t"}, "")
 	fromHref.Children[0].Children[0].ListOf = "ds_x"
-	inTemplate := Resolver{Source: res.Source, Records: func(domain.PageBinding) ([]map[string]string, error) {
-		return []map[string]string{{domain.PageRecordRole: "/r"}}, nil
+	inTemplate := Resolver{Source: res.Source, Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{{domain.PageRecordRole: "/r"}}}, nil
 	}}
 	for name, c := range map[string]struct {
 		root domain.PageNode
@@ -461,5 +461,75 @@ func TestLowerCountIsRefusedWhereItCannotMeanAThing(t *testing.T) {
 				t.Fatalf("want an error mentioning %q, got %v", tc.want, err)
 			}
 		})
+	}
+}
+
+func completeList(complete string) domain.PageNode {
+	bound := listBound(rowTemplate())
+	bound.Props = map[string]string{"gap": "tight"}
+	if complete != "" {
+		bound.Props["complete"] = complete
+	}
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{bound}}
+}
+
+func truncatedRecords(truncated bool, limit int) Resolver {
+	rec := map[string]string{"title": "t", "status": "s"}
+	return Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{rec}, Truncated: truncated, Limit: limit}, nil
+	}}
+}
+
+// The author claims completeness; lowering turns the claim into the bound only when the bound bit, and never
+// copies the claim itself onto the node. A list that was not cut short is the same node as one that claimed
+// nothing.
+func TestLowerCompleteNamesTheBoundOnlyWhenItBit(t *testing.T) {
+	for name, c := range map[string]struct {
+		complete  string
+		truncated bool
+		want      string
+	}{
+		"claimed and cut":       {"true", true, "200"},
+		"claimed, not cut":      {"true", false, ""},
+		"not claimed, cut":      {"", true, ""},
+		"explicitly not, cut":   {"false", true, ""},
+		"claimed, cut, no size": {"true", true, ""},
+	} {
+		limit := 200
+		if name == "claimed, cut, no size" {
+			limit = 0
+		}
+		got, err := Lower(completeList(c.complete), truncatedRecords(c.truncated, limit))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		props := got.Children[0].Props
+		if props["truncated"] != c.want {
+			t.Errorf("%s: truncated = %q, want %q", name, props["truncated"], c.want)
+		}
+		if _, leaked := props["complete"]; leaked {
+			t.Errorf("%s: the claim reached the lowered node: %+v", name, props)
+		}
+	}
+}
+
+func TestLowerCompleteIsRefusedWhereItCannotMeanAThing(t *testing.T) {
+	unbound := func(prop string) domain.PageNode {
+		return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{
+			Kind: "component", Type: "Collection", Props: map[string]string{"gap": "tight", prop: "true"},
+			Children: []domain.PageNode{{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "x"}}}}}}
+	}
+	authored := completeList("true")
+	authored.Children[0].Props["truncated"] = "5"
+	notBool := completeList("yes")
+	for name, root := range map[string]domain.PageNode{
+		"complete on a Collection holding its own children":  unbound("complete"),
+		"truncated on a Collection holding its own children": unbound("truncated"),
+		"a hand-written truncated on a bound list":           authored,
+		"complete that is not true or false":                 notBool,
+	} {
+		if _, err := Lower(root, truncatedRecords(true, 3)); err == nil {
+			t.Errorf("%s: Lower accepted it", name)
+		}
 	}
 }

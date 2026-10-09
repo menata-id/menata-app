@@ -360,7 +360,7 @@ func TestAvatar_rendersEachCallSiteCombination(t *testing.T) {
 func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 	var buf bytes.Buffer
 	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
-	if err := collection(domain.GapTight, "", false, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -377,7 +377,7 @@ func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 	// With no `empty` words an empty collection still renders the list, not nothing: the two hand-written
 	// callers say "no rows" themselves, and a Component that vanished would change what they draw.
 	buf.Reset()
-	if err := collection(domain.GapTight, "", false, nil).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, Truncation{}, nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if got := buf.String(); !strings.Contains(got, "<ul") || strings.Contains(got, "<li") {
@@ -1055,7 +1055,7 @@ func TestDividedRowClasses_defaultsAreTheLiteralsThreeSitesReplaced(t *testing.T
 func TestCollection_drawsItsEmptyWordsInPlaceOfAnEmptyList(t *testing.T) {
 	render := func(empty string, items []templ.Component) string {
 		var buf bytes.Buffer
-		if err := collection(domain.GapTight, empty, false, items).Render(context.Background(), &buf); err != nil {
+		if err := collection(domain.GapTight, empty, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
 		return buf.String()
@@ -1113,7 +1113,7 @@ func TestUINode_drawsATagFromItsDeclaredProps(t *testing.T) {
 func TestCollection_orderedDrawsAnOlWithOneOrdinalPerItem(t *testing.T) {
 	var buf bytes.Buffer
 	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
-	if err := collection(domain.GapTight, "", true, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", true, Truncation{}, items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -1131,10 +1131,36 @@ func TestCollection_orderedDrawsAnOlWithOneOrdinalPerItem(t *testing.T) {
 	}
 
 	buf.Reset()
-	if err := collection(domain.GapTight, "", false, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if strings.Contains(buf.String(), "aria-hidden") {
 		t.Errorf("an unordered collection draws no ordinal; got %q", buf.String())
+	}
+}
+
+// TestUINode_aCollectionNamesItsBoundOnlyWhenTheLoweredTreeCarriesOne: the walker hands the `truncated` prop to
+// the same notice the hand-written lists use, after the list; a Collection without one draws no notice.
+func TestUINode_aCollectionNamesItsBoundOnlyWhenTheLoweredTreeCarriesOne(t *testing.T) {
+	item := ir.UINode{Kind: ir.NodeStatic, Type: string(domain.StaticParagraph), Props: map[string]string{"text": "one"}}
+	render := func(props map[string]string) string {
+		var buf bytes.Buffer
+		n := ir.UINode{Kind: ir.NodeComponent, Type: string(domain.ComponentCollection), Props: props, Children: []ir.UINode{item}}
+		if err := uiNode(n).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	cut := render(map[string]string{"gap": "tight", "truncated": "200"})
+	if !strings.Contains(cut, "Showing the first 200 only") {
+		t.Errorf("a cut list did not name its bound:\n%s", cut)
+	}
+	if strings.Index(cut, "</ul>") > strings.Index(cut, "Showing the first") {
+		t.Errorf("the notice should follow the list:\n%s", cut)
+	}
+	for _, props := range []map[string]string{{"gap": "tight"}, {"gap": "tight", "truncated": "nonsense"}} {
+		if got := render(props); strings.Contains(got, "Showing the first") {
+			t.Errorf("props %v drew a notice:\n%s", props, got)
+		}
 	}
 }

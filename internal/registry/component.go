@@ -3,6 +3,7 @@ package registry
 import (
 	"fmt"
 	"sort"
+	"strconv"
 
 	"menata.app/internal/domain"
 )
@@ -162,11 +163,12 @@ var collectionContract = domain.ComponentContract{
 		{Name: "gap", Kind: "Gap", Required: true},
 		{Name: "empty", Kind: "string"},
 		{Name: "ordered", Kind: "bool"},
+		{Name: "truncated", Kind: "int"},
 	},
 	DataRequirements: nil,
 	Slots:            []string{"item"},
 	Actions:          nil,
-	Accessibility:    "renders a real <ul>/<li>, or an <ol>/<li> when `ordered` is true, so the list and its length (and, ordered, each item's position) are announced without an explicit role -- the drawn ordinal is aria-hidden for that reason, never the only carrier of the position; with no items and an `empty` text it renders that text in place of an empty list, so a screen-reader user hears why nothing is there rather than an empty list",
+	Accessibility:    "renders a real <ul>/<li>, or an <ol>/<li> when `ordered` is true, so the list and its length (and, ordered, each item's position) are announced without an explicit role -- the drawn ordinal is aria-hidden for that reason, never the only carrier of the position; with no items and an `empty` text it renders that text in place of an empty list, so a screen-reader user hears why nothing is there rather than an empty list; with `truncated` (the bound that cut the list short) it adds a paragraph after the list naming that bound, in words, so a reader who cannot see the list's end is told it is not the end",
 	Renderer:         "collection",
 }
 
@@ -174,6 +176,11 @@ func validateCollection(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(collectionContract, inputs, "Collection")
 	if v := inputs["ordered"]; v != "" && v != "true" && v != "false" {
 		issues = append(issues, fmt.Sprintf("Collection ordered %q is not true or false", v))
+	}
+	if v := inputs["truncated"]; v != "" {
+		if n, err := strconv.Atoi(v); err != nil || n <= 0 {
+			issues = append(issues, fmt.Sprintf("Collection truncated %q is not a positive whole number", v))
+		}
 	}
 	return issues
 }
