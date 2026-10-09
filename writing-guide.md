@@ -1133,6 +1133,31 @@ disagree with the order. Use it when position is the content, as with a board's 
       from: {text: title, href: record}
 ```
 
+**A form that creates a record (T1, 2026-10-09; 007 §11.3 write side).** A `Form` with
+`binding: {dataset: <id>, write: create}` asks for one new record of the Machine that Dataset reads, and submits it
+through the runtime's own generic create route (`POST /machines/<id>/records`) -- the same route a Machine's list
+page uses, so defaults, computed Fields, stamps, the `create` Permission, validation and `on_create` events all run
+exactly as there. The page names **neither the route nor a single Field**: the controls are the Machine's own
+askable Fields (text, long text, number, date, checkbox, select with its declared options), in declared order, each
+with its label and a `required` mark taken from the Field.
+
+```yaml
+- component: Form
+  submit: Add label            # the button's words; required
+  binding:
+    dataset: ds_board_labels   # must be installed in this Workspace; the Machine it reads is the one written
+    write: create
+```
+
+Things a Form refuses, at load: `write:` with `rows:`/`measure:`, a Dataset that is not installed, `children:` (the
+fields are derived, never written), a typed `action:` or `component: Input`, and a Machine whose **required** Field
+is one a form cannot ask yet (a reference to another Machine, a group). An *optional* Field of that kind is simply
+left out. **Who sees it:** a viewer without the Machine's `create` Permission gets no Form at all (nothing is hidden
+by CSS), and the route still refuses a forged post. **When a post is refused** (validation 422, permission 403) the
+shell's shared error notice says so and the form keeps what was typed; a success refreshes the page, so the new
+record appears in the list beside it. Not built: editing, deleting, reordering (T3, T5), and reference Fields (T4).
+**Installing copies**, so add the Form to your Workspace's own copy of the Application.
+
 **A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
 may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,
 with the author's own words around it.
