@@ -10,6 +10,10 @@ machines:
   - nana-workspace/signature.yaml
   - nana-workspace/approval_flow_template.yaml
   - nana-workspace/approval_flow_template_step.yaml
+  - nana-workspace/board.yaml
+  - nana-workspace/list.yaml
+  - nana-workspace/card.yaml
 
 applications:
   - nana-workspace/applications/document-approval.yaml
+  - nana-workspace/applications/project_management.yaml

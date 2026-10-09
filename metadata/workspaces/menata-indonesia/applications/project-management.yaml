@@ -1,0 +1,140 @@
+# Installed from metadata/applications/project-management.yaml on 2026-10-07.
+# This is this Workspace's own copy: editing it changes nothing anywhere else, and the
+# template it came from is unchanged (internal/installer).
+
+# Project Management -- task boards, a personal worklist, a calendar and a dashboard. Formerly the "Project Management"
+# navigation *group* inside the single app_task_tracker Application; Fase 3 (2026-09-20) promoted
+# it to a real Application, which is what ui-sample/nav-metadata.js has always called `case19`.
+#
+# Unlike Document Approval this declares no show_nav, so it keeps its own menu chrome -- the same
+# distinction nav-metadata.js draws by giving case19 no showNav field at all.
+id: app_project_management
+name: Project Management
+
+# See document-approval.yaml's own comments for what these four are and why the count is declared
+# rather than summed. mch_task is this Application's work: the 13 its Machines total between them
+# is mostly lists, labels and join rows.
+description: Task boards, a personal worklist, a calendar and a dashboard.
+icon: board
+color: emerald
+summary_machine: mch_task
+
+# See document-approval.yaml's own machines: comment for what this list is and is not. mch_user
+# and mch_activity are shared across Applications and therefore claimed by neither, staying
+# Workspace-level.
+machines:
+  - mch_project
+  - mch_list
+  - mch_label
+  - mch_task
+  - mch_card_label
+  - mch_attachment
+  - mch_comment
+  - mch_checklist_item
+
+navigation:
+  - id: nav_my_tasks
+    label: My Tasks
+    route: /my-tasks
+    priority: 1
+    home_card: true
+    icon: check-square
+    description: Everything assigned to you, from every board in this workspace. Tick a circle to finish a task without opening it.
+  # Moved here from document-approval.yaml (2026-09-21): the page composes Projects, Tasks and
+  # their Activity -- this Application's Machines -- and had only ever been declared over there
+  # because both Applications were one before Fase 3 split them.
+  - id: nav_dashboard
+    label: Dashboard
+    route: /dashboard
+    priority: 1
+    icon: dashboard
+    description: How much work is open, overdue and finished, by project and by person. A card counts as finished only when its circle is ticked, so overdue never includes work that is already done.
+  - id: nav_calendar
+    label: Calendar
+    route: /calendar
+    priority: 2
+    icon: calendar
+    description: Cards sit on the day they are due. Tick a circle to finish one; step through the weeks to see what is coming.
+  # Board Settings, declared rather than written (Case 19 PM06): the Lists a board groups by beside the Labels
+  # its cards carry, each a Subheading and a link to that Machine's own list page over a divided Collection.
+  # Every name, colour and count is the Machine's own card_fields / Relation -- this page names no Field, no
+  # route and no class. Not declared, deliberately: reordering and per-row Rename/Edit are writes, and a
+  # handle the page cannot honour would promise them (007 §12.3 `actions`).
+  - id: nav_board_settings
+    label: Board Settings
+    route: /pages/nav_board_settings
+    priority: 4
+    icon: settings
+    description: 'The lists a board groups by, and the labels cards can carry. Both are ordinary records, shared by every project in this workspace.'
+    page:
+      layout: split
+      gap: default
+      side: end
+      aside: wide
+      children:
+        - layout: stack
+          gap: default
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: subheading
+                  text: Lists
+                - static: link
+                  list_of: ds_board_lists
+                  text: Manage lists →
+            - component: Collection
+              gap: tight
+              ordered: true
+              empty: No lists yet.
+              complete: true
+              divided: true
+              binding:
+                dataset: ds_board_lists
+                rows: records
+              children:
+                - static: link
+                  from:
+                    text: title
+                    href: record
+            - static: note
+              text: The order here is the order of the columns on a board. Renaming a list keeps every card that sits in it.
+        - layout: stack
+          gap: default
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: subheading
+                  text: Labels
+                - static: link
+                  list_of: ds_board_labels
+                  text: Manage labels →
+            - component: Collection
+              gap: tight
+              empty: No labels yet.
+              complete: true
+              divided: true
+              binding:
+                dataset: ds_labels_with_cards
+                rows: records
+              children:
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - component: Tag
+                      from:
+                        label: title
+                        color: color
+                    - static: caption
+                      count:
+                        of: rel_label_cards
+                        one: used on {n} card
+                        other: used on {n} cards
+            - static: note
+              text: Colours come from one shared palette, so a label looks the same on every board and stays readable on a small card.

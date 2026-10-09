@@ -1,0 +1,31 @@
+id: mch_board
+name: Board
+fields:
+  - id: fld_board_name
+    name: Name
+    type: text
+    required: true
+  - id: fld_board_description
+    name: Description
+    type: text
+permissions:
+  - id: prm_board_create
+    action: create
+    roles:
+      - admin
+      - member
+  - id: prm_board_edit
+    action: edit
+    roles:
+      - admin
+      - member
+  - id: prm_board_delete
+    action: delete
+    roles:
+      - admin
+events:
+  - id: evt_board_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: Board "{fld_board_name}" dibuat

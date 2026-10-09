@@ -1,0 +1,28 @@
+id: mch_list
+name: List
+fields:
+  - id: fld_list_name
+    name: Name
+    type: text
+    required: true
+  - id: fld_list_board
+    name: Board
+    type: relation
+    required: true
+    machine: mch_board
+permissions:
+  - id: prm_list_create
+    action: create
+    roles:
+      - admin
+      - member
+  - id: prm_list_edit
+    action: edit
+    roles:
+      - admin
+      - member
+  - id: prm_list_delete
+    action: delete
+    roles:
+      - admin
+      - member

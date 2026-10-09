@@ -1,0 +1,48 @@
+id: mch_card
+name: Card
+fields:
+  - id: fld_card_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_card_list
+    name: List
+    type: relation
+    required: true
+    machine: mch_list
+  - id: fld_card_assignee
+    name: Assignee
+    type: person
+  - id: fld_card_due_date
+    name: Due Date
+    type: date
+  - id: fld_card_status
+    name: Status
+    type: status
+    required: true
+    options:
+      - To Do
+      - In Progress
+      - Done
+permissions:
+  - id: prm_card_create
+    action: create
+    roles:
+      - admin
+      - member
+  - id: prm_card_edit
+    action: edit
+    roles:
+      - admin
+      - member
+  - id: prm_card_delete
+    action: delete
+    roles:
+      - admin
+      - member
+events:
+  - id: evt_card_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: Card "{fld_card_title}" dibuat

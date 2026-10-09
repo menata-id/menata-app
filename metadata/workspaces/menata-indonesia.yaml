@@ -1,0 +1,18 @@
+# Created with this Workspace. Installing an Application adds to the lists below.
+workspace: menata-indonesia
+
+machines:
+  - ../activity.yaml
+  - ../notification.yaml
+  - ../user.yaml
+  - menata-indonesia/project.yaml
+  - menata-indonesia/list.yaml
+  - menata-indonesia/label.yaml
+  - menata-indonesia/task.yaml
+  - menata-indonesia/card_label.yaml
+  - menata-indonesia/attachment.yaml
+  - menata-indonesia/comment.yaml
+  - menata-indonesia/checklist_item.yaml
+
+applications:
+  - menata-indonesia/applications/project-management.yaml

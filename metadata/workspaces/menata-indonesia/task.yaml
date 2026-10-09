@@ -1,0 +1,142 @@
+# Installed from metadata/task.yaml on 2026-10-07.
+# This is this Workspace's own copy: editing it changes nothing anywhere else, and the
+# template it came from is unchanged (internal/installer).
+
+id: mch_task
+name: Task
+fields:
+  - id: fld_title
+    name: Title
+    type: text
+    required: true
+  - id: fld_description
+    name: Description
+    type: long_text
+  - id: fld_status
+    name: Status
+    type: status
+    required: true
+    options: [todo, in_progress, done]
+    default: todo
+  - id: fld_assignee
+    name: Assignee
+    type: person
+  - id: fld_due_date
+    name: Due Date
+    type: date
+  - id: fld_priority
+    name: Priority
+    type: number
+  - id: fld_project
+    name: Project
+    type: relation
+    machine: mch_project
+  - id: fld_list
+    name: List
+    type: relation
+    machine: mch_list
+
+# A Task's own status move gets logged to the Project Activity feed (ROADMAP.md Phase 14),
+# generalized here (2026-09-19) from what used to be hardcoded Go (internal/web's
+# currentTaskStatus/logTaskStatusMove) into the first real declared Event -- the second known
+# "write happened, log it" case (alongside record-created logging and the Document-approval
+# decide cascade) that justified building the primitive at all (007 §4.1 Composition over
+# Specialization). summary_override_when/summary_override reproduce the old code's one wording
+# exception (moving to "done" reads "completed", not "moved from X to Y") without generalizing
+# Service.Summary into a full templating language.
+events:
+  - id: evt_task_status_changed
+    on: fld_status
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" moved from {old} to {new}"
+      summary_override_when: done
+      summary_override: "\"{fld_title}\" completed"
+  # A Task moved to another List (Case 19 PM01/PM02: a drag, or the Move panel). `{old}`/`{new}` name the
+  # Lists, not their ids -- a `relation` Field's value is resolved through the related Machine's own
+  # `card_fields: title` (execution.relationTitles), so no template has to know which Machine it points at.
+  - id: evt_task_list_changed
+    on: fld_list
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" moved from {old} to {new}"
+  # A Task logs its own creation (2026-09-19), generalized from internal/web's own hardcoded
+  # logRecordCreated switch into the same declared Event mechanism evt_task_status_changed above
+  # already proved -- the on_create shape's own worked example.
+  - id: evt_task_created
+    on_create: true
+    then:
+      service: log_activity
+      summary: "\"{fld_title}\" created"
+
+# Declared Datasets (007 §7.2): what the Dashboard and My Tasks select through. Each is a
+# named selection or count, so a screen names a Dataset id and no query.
+datasets:
+  # My Tasks' own selection (007 §7.7 Filter, ROADMAP.md "(c)" Slice B/C/D, 2026-09-29).
+  #
+  # **Only the assignee is a filter here.** buildMyTasks also reads fld_status, but `done` is a
+  # *bucket* -- completed Tasks still render, in their own section -- so pushing `status != done`
+  # into the query would empty that section. The plan for this slice predicted this Dataset would
+  # need a conjunction and the code says otherwise; bucketing is not filtering.
+  #
+  # `limit: 200` is the cost of requiring a bound (domain.Dataset.Limit's own comment). This list had
+  # none: it showed every Task assigned to you. Two hundred is chosen as a number past which a
+  # personal worklist has a different problem than pagination, and it is declared rather than
+  # implied so the day it truncates someone's list, the number is findable.
+  #
+  # No `sort:`, deliberately -- that keeps the Store's own sort_order ordering, which is what this
+  # screen showed before. Declaring an ordering here would be a change of behaviour wearing the
+  # clothes of a migration.
+  - id: ds_my_tasks
+    select: records
+    where:
+      field: fld_assignee
+      op: equals
+      value: $current_user
+    limit: 200
+
+  # The Dashboard's whole Task set, as records rather than counts (2026-10-05, Case 19 PM04). It replaces
+  # ds_task_by_project, which counted `msr_total_open` with `value: done` -- a second statement of which
+  # status means finished, beside `completion:` below. The Dashboard's own subtitle says a card is
+  # finished only when its circle is ticked, so every figure on it (open, overdue, completed, per project,
+  # per person) has to read the one declaration; counting records is how it does.
+  #
+  # `limit: 1000` is the cost of requiring a bound. A Dashboard that sums past it would understate every
+  # tile, so the screen renders the truncation notice rather than a smaller number that looks complete.
+  - id: ds_all_tasks
+    select: records
+    limit: 1000
+
+# card_fields: what a Task's own records show wherever a screen renders them without picking
+# Fields itself (007 §7.6 Projection). Added 2026-09-28, when the Case 19 screens stopped reading
+# fld_title/fld_status/fld_due_date off the record in their own .templ files: My Tasks, Calendar and
+# the Dashboard render their own markup -- a row, a calendar cell, a table cell -- but the *shape*
+# they render is this declaration, resolved once by composition.ProjectCardFields.
+#
+# Three roles, from the closed set (domain.KnownCardFieldRoles): what to call it, what state it is
+# in, and when it is due. Nothing here says how any of them is drawn.
+# completion: which status value means a Task is finished (domain.Completion). A card's date pill reads
+# it -- a finished card shows its date green with a check, never overdue -- and it is what the hover
+# circle on a card will write. Nothing else in the runtime knew which option was terminal: the Dashboard
+# still compares against a literal "done" in internal/composition/pages.go (P3).
+completion: { field: fld_status, done: done }
+
+# card_tags: the chips a board card shows above its title -- the mch_card_label records pointing at it
+# (007 §7.5's Relation shape: machine + via) and the label each one names (`tag`). What a chip *looks*
+# like is mch_label's own card_fields, not this block.
+card_tags: { machine: mch_card_label, via: fld_task, tag: fld_label }
+
+card_fields:
+  - { field: fld_title, role: title }
+  - { field: fld_status, role: status }
+  - { field: fld_due_date, role: date }
+  - { field: fld_assignee, role: person }
+
+views:
+  - id: vw_task_board
+    name: Board
+    type: board
+    group_by: fld_list
+  - id: vw_task_table
+    name: Table
+    type: table

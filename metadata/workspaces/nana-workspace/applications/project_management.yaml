@@ -1,0 +1,17 @@
+id: app_project_management
+name: Project Management
+machines:
+  - mch_board
+  - mch_list
+  - mch_card
+roles:
+  - admin
+  - member
+description: Aplikasi manajemen proyek bergaya Trello untuk mengatur board, list, dan card.
+icon: board
+color: blue
+navigation:
+  - id: nav_project_management
+    label: Card
+    route: /machines/mch_card
+    home_card: true
