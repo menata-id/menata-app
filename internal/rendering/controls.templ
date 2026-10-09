@@ -134,6 +134,22 @@ templ button(label string, variant domain.ButtonVariant, name, value string) {
 	<button type="submit" if name != "" { name={ name } value={ value } } class={ buttonClasses(ctx, variant) }>{ label }</button>
 }
 
+// requestButton is the registered renderer for `domain.ComponentButton`, and the one signature that names every
+// input its contract declares (`TestRegisteredComponentsStayBounded` reads it): `button` is the submit button the
+// seventeen hand-written sites call with four strings, and this is the same Component with the three inputs a
+// lowered page adds. When lowering derived a `method` of delete the Button is a request instead of a submit:
+// `hx-swap="none"` because the generic delete route answers a request from a declared page with
+// `HX-Refresh: true`, so the list re-reads without the record; a refusal (403/422) surfaces through the shell's
+// shared `htmx:responseError` notice. `confirm` is the author's sentence and the browser asks it before anything
+// is sent (`hx-confirm`). `type="button"` so a delete placed inside a form's subtree never submits it.
+templ requestButton(label string, variant domain.ButtonVariant, name, value, action, method, confirm string) {
+	if method == domain.ButtonMethodDelete {
+		<button type="button" hx-delete={ action } hx-swap="none" hx-confirm={ confirm } class={ buttonClasses(ctx, variant) }>{ label }</button>
+	} else {
+		@button(label, variant, name, value)
+	}
+}
+
 // form is a registered Component: a POST to the Machine's create route -- or, when lowering derived a `method`,
 // a PATCH of one record -- its controls in the `field` slot, and one primary Button. The author supplied the
 // submit label; `action` (and `method`) were derived from the bound Machine.

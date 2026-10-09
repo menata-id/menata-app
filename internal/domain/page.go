@@ -111,17 +111,19 @@ const (
 // The write modes. `create` binds a Form to a Dataset's Machine. `update` is valid only inside the item template
 // of a records Collection, where the record it changes is the item's own and the Dataset is the Collection's, so
 // a binding there names no dataset of its own (a second one would be a join the page has no grammar for).
-// `delete` acts on a record too and is not built; naming it before a consumer exists would be a word with
-// nothing behind it.
+// `delete` acts on a record in the same place and on the same terms, through a `Button` and not a `Form`: there is
+// nothing to ask, only a consequence to confirm.
 const (
 	PageWriteCreate = "create"
 	PageWriteUpdate = "update"
+	PageWriteDelete = "delete"
 )
 
 // WritableComponents maps each registered Component a Binding may write through to the Write modes it takes, the
 // way BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
 var WritableComponents = map[ComponentType][]string{
-	ComponentForm: {PageWriteCreate, PageWriteUpdate},
+	ComponentForm:   {PageWriteCreate, PageWriteUpdate},
+	ComponentButton: {PageWriteDelete},
 }
 
 // PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a

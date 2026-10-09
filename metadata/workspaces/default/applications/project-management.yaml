@@ -112,6 +112,12 @@ navigation:
                       submit: Rename
                       binding:
                         write: update
+                    - component: Button
+                      label: Delete
+                      variant: secondary
+                      confirm: Delete this list? This cannot be undone.
+                      binding:
+                        write: delete
             - static: note
               text: The order here is the order of the columns on a board. Renaming a list keeps every card that sits in it.
             - component: Form
@@ -161,6 +167,12 @@ navigation:
                       submit: Rename
                       binding:
                         write: update
+                    - component: Button
+                      label: Delete
+                      variant: secondary
+                      confirm: Delete this label? This cannot be undone.
+                      binding:
+                        write: delete
             - static: note
               text: Colours come from one shared palette, so a label looks the same on every board and stays readable on a small card.
             - component: Form

@@ -318,6 +318,14 @@ func patchRecordForm(store *data.Store, files *storage.Store, mailer mail.Mailer
 	}
 }
 
+// fromDeclaredPage says the request was sent from a `page:` screen (`/pages/<nav id>`), which draws its own
+// records and has no Machine row to swap an answer into. Narrower than fromAnotherPage on purpose: the three
+// hand-written delete sites keep answering an empty body.
+func fromDeclaredPage(req *http.Request) bool {
+	current, err := url.Parse(req.Header.Get("HX-Current-URL"))
+	return err == nil && strings.HasPrefix(current.Path, "/pages/")
+}
+
 // onMachinePage says whether the person who sent this fragment request is looking at the Machine's own page
 // (HX-Current-URL), the only place the Machine body it would answer with can be swapped in. A write from
 // another screen -- a task's circle on My Tasks -- is answered with an HX-Refresh instead, so that screen
@@ -545,6 +553,12 @@ func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 			// The record is gone; nothing left on this page to show. Send the visitor back to
 			// the Machine's own list/board.
 			w.Header().Set("HX-Redirect", "/machines/"+machine.ID)
+			return
+		}
+		if fromDeclaredPage(req) {
+			// A delete Button on a declared page has no row to remove: the page re-reads and draws the list
+			// without the record, the way the create and patch routes answer the same page.
+			w.Header().Set("HX-Refresh", "true")
 			return
 		}
 		// Empty response: HTMX swaps the row's outerHTML with nothing, removing it.

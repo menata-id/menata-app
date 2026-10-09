@@ -509,3 +509,26 @@ func TestUpdateBindingIssues(t *testing.T) {
 		t.Errorf("an update Form over a Machine with only booleans: %q", got)
 	}
 }
+
+func TestDeleteBindingIssues(t *testing.T) {
+	deletable := &domain.Machine{ID: "mch_x"}
+	logOnly := &domain.Machine{ID: "mch_log", AppendOnly: true}
+	node := func(dataset string) domain.PageNode {
+		return domain.PageNode{Kind: "component", Type: "Button", Binding: &domain.PageBinding{Dataset: dataset, Write: domain.PageWriteDelete}}
+	}
+	issues := func(n domain.PageNode, item *domain.Machine) string {
+		return strings.Join(bindingIssues(n, nil, nil, item, "w"), "\n")
+	}
+	if got := issues(node(""), deletable); got != "" {
+		t.Errorf("a delete Button inside a Collection of a deletable Machine was refused: %s", got)
+	}
+	if got := issues(node(""), nil); !strings.Contains(got, "acts on a record") {
+		t.Errorf("a delete Button outside a records Collection: %q", got)
+	}
+	if got := issues(node("ds_other"), deletable); !strings.Contains(got, "takes no dataset") {
+		t.Errorf("a delete Button naming a dataset: %q", got)
+	}
+	if got := issues(node(""), logOnly); !strings.Contains(got, "append-only") {
+		t.Errorf("a delete Button over an append-only Machine: %q", got)
+	}
+}

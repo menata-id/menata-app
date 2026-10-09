@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"menata.app/internal/action"
 	"menata.app/internal/authorization"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -115,16 +116,18 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	records := sel.Records
 	out := make([]map[string]string, 0, len(records))
 	edits := make([]ir.FormSpec, 0, len(records))
+	deletes := make([]ir.RecordAction, 0, len(records))
 	for _, r := range records {
 		item := ProjectedByRole(src, r, rendering.RelationOptions{})
 		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
 		edits = append(edits, recordEditForm(src, r, viewer))
+		deletes = append(deletes, recordDeleteAction(src, r, viewer))
 		for _, rel := range ds.Relations {
 			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(sel.Related(rel.ID, r.ID)))
 		}
 		out = append(out, item)
 	}
-	return ir.RecordSet{Records: out, Edits: edits, Truncated: sel.Truncated, Limit: sel.Limit}, nil
+	return ir.RecordSet{Records: out, Edits: edits, Deletes: deletes, Truncated: sel.Truncated, Limit: sel.Limit}, nil
 }
 
 // recordEditForm is what an `update` Form inside a records template needs of one record: the route that patches
@@ -140,6 +143,20 @@ func recordEditForm(src *domain.Machine, r *data.Record, viewer domain.Actor) ir
 		Method:    domain.FormMethodPatch,
 		Permitted: !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer),
 		Inputs:    src.EditFormInputs(r.Values),
+	}
+}
+
+// recordDeleteAction is what a `delete` Button inside a records template needs of one record: the route that
+// deletes it and whether this viewer may. `Permitted` is the delete route's own two checks evaluated in hand --
+// the Machine's `delete` Permission against this record's values, and `action.CanDelete`'s business-state rule --
+// and an append-only Machine is never offered one. It is a courtesy, as recordEditForm's is: the route runs the
+// same checks again, and for a Document, whose rule also reads its Approval Steps, the route is the stricter of
+// the two (this passes none, which CanDelete answers from the status alone).
+func recordDeleteAction(src *domain.Machine, r *data.Record, viewer domain.Actor) ir.RecordAction {
+	deletable, _ := action.CanDelete(src, r.Values, nil)
+	return ir.RecordAction{
+		Route:     RecordRoute(src.ID, r.ID),
+		Permitted: !src.AppendOnly && deletable && authorization.AllowsAction(src, domain.ActionDelete, r.Values, viewer),
 	}
 }
 

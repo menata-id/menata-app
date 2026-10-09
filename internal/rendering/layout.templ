@@ -757,7 +757,7 @@ templ uiNode(n ir.UINode) {
 				case domain.ComponentAvatar:
 					@avatar(n.Props["initials"], n.Props["label"], domain.AvatarSize(n.Props["size"]), domain.AvatarPresence(n.Props["presence"]))
 				case domain.ComponentButton:
-					@button(n.Props["label"], domain.ButtonVariant(n.Props["variant"]), n.Props["name"], n.Props["value"])
+					@requestButton(n.Props["label"], domain.ButtonVariant(n.Props["variant"]), n.Props["name"], n.Props["value"], n.Props["action"], n.Props["method"], n.Props["confirm"])
 				case domain.ComponentTag:
 					@tagChip(n.Props["label"], domain.TagColor(n.Props["color"]))
 				case domain.ComponentForm:

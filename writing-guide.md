@@ -1155,7 +1155,7 @@ is one a form cannot ask yet (a reference to another Machine, a group). An *opti
 left out. **Who sees it:** a viewer without the Machine's `create` Permission gets no Form at all (nothing is hidden
 by CSS), and the route still refuses a forged post. **When a post is refused** (validation 422, permission 403) the
 shell's shared error notice says so and the form keeps what was typed; a success refreshes the page, so the new
-record appears in the list beside it. Not built: deleting, reordering (T3b, T5), and reference Fields (T4).
+record appears in the list beside it. Not built: reordering (T5) and reference Fields (T4).
 **Installing copies**, so add the Form to your Workspace's own copy of the Application.
 
 **A form that edits the record beside it (T3a, 2026-10-09).** Inside the item template of a records `Collection`,
@@ -1184,6 +1184,27 @@ an unticked box sends nothing, and the route reads "nothing" as `false`, so a fo
 checkbox would clear it. The route changes only the Fields the request names. **Who sees it** is decided per record
 (`edit` Permission evaluated against that record's values; an append-only Machine is never offered one), the route
 still enforces.
+
+**A button that deletes the record beside it (T3b, 2026-10-09).** In the same place, a `Button` with
+`binding: {write: delete}` and a written `confirm:` sends `DELETE /machines/<id>/records/<rid>` for *that item's*
+record, after the browser has asked the `confirm` sentence. State what will happen in it: a delete with no
+consequence named is a load error.
+
+```yaml
+        - component: Button
+          label: Delete
+          variant: secondary
+          confirm: Delete this list? This cannot be undone.
+          binding: {write: delete}     # no dataset, like update
+```
+
+Refused at load: `delete` outside a records Collection's item template, `delete` with a `dataset:`, a Machine that
+is append-only, no `confirm`, and a typed `action`, `method`, `name` or `value` (the route and the verb are the
+runtime's). **Who sees it** is decided per record (the Machine's `delete` Permission against that record's values,
+plus the business-state rule the generic route applies -- an approved Document, a decided step -- so a record that
+route would refuse gets no button); the route still enforces, and a refusal shows through the shell's error notice.
+A successful delete refreshes the page, so the list is re-read without the record. It is the same route the record's own
+page uses, so whatever deleting does to related records happens here too; word `confirm` for that.
 
 **A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
 may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,

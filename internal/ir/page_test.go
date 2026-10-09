@@ -761,3 +761,69 @@ func TestLower_refusesAnUpdateFormThatCouldNotBeBuiltHonestly(t *testing.T) {
 		t.Error("an update Form naming a dataset outside a template must be refused")
 	}
 }
+
+// deleteInTemplate is a records Collection whose one item is a delete Button; the resolver answers two records,
+// the second of which this viewer may not delete.
+func deleteInTemplate(deletes []RecordAction) (domain.PageNode, Resolver) {
+	coll := domain.PageNode{
+		Kind: "component", Type: string(domain.ComponentCollection),
+		Binding: &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords},
+		Children: []domain.PageNode{{
+			Kind: "component", Type: string(domain.ComponentButton),
+			Props:   map[string]string{"label": "Delete", "variant": "secondary", "confirm": "Delete this record?"},
+			Binding: &domain.PageBinding{Write: domain.PageWriteDelete},
+		}},
+	}
+	res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{{"title": "a"}, {"title": "b"}}, Deletes: deletes}, nil
+	}}
+	return formPage(coll), res
+}
+
+func TestLower_deleteButtonSendsDeleteToTheItemsOwnRecordAndOnlyWhenPermitted(t *testing.T) {
+	root, res := deleteInTemplate([]RecordAction{
+		{Route: "/machines/mch_x/records/r1", Permitted: true},
+		{Route: "/machines/mch_x/records/r2", Permitted: false},
+	})
+	got, err := Lower(root, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := got.Children[0].Children
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want only the record this viewer may delete", len(items))
+	}
+	p := items[0].Props
+	if p["action"] != "/machines/mch_x/records/r1" || p["method"] != domain.ButtonMethodDelete || p["confirm"] != "Delete this record?" || p["label"] != "Delete" {
+		t.Errorf("button props = %v", p)
+	}
+}
+
+func TestLower_refusesADeleteButtonThatCouldNotBeBuiltHonestly(t *testing.T) {
+	del := []RecordAction{{Route: "/machines/mch_x/records/r", Permitted: true}, {Route: "/machines/mch_x/records/r", Permitted: true}}
+	cases := map[string]struct {
+		mutate  func(n *domain.PageNode)
+		deletes []RecordAction
+		want    string
+	}{
+		"a dataset of its own": {func(n *domain.PageNode) { n.Children[0].Binding.Dataset = "ds_b" }, del, "no dataset"},
+		"no confirm":           {func(n *domain.PageNode) { delete(n.Children[0].Props, "confirm") }, del, "confirm"},
+		"typed method":         {func(n *domain.PageNode) { n.Children[0].Props["method"] = "delete" }, del, "method"},
+		"typed action":         {func(n *domain.PageNode) { n.Children[0].Props["action"] = "/x" }, del, "action"},
+		"typed name":           {func(n *domain.PageNode) { n.Children[0].Props["name"] = "x" }, del, "name"},
+		"no resolver answer":   {func(n *domain.PageNode) {}, nil, "no delete"},
+	}
+	for name, tc := range cases {
+		root, res := deleteInTemplate(tc.deletes)
+		tc.mutate(&root.Children[0])
+		if _, err := Lower(root, res); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want it to contain %q", name, err, tc.want)
+		}
+	}
+	outside := domain.PageNode{Kind: "component", Type: string(domain.ComponentButton),
+		Props:   map[string]string{"label": "Delete", "variant": "secondary", "confirm": "Sure?"},
+		Binding: &domain.PageBinding{Write: domain.PageWriteDelete}}
+	if _, err := Lower(formPage(outside), Resolver{}); err == nil || !strings.Contains(err.Error(), "item template") {
+		t.Errorf("a delete Button outside a records template: err = %v", err)
+	}
+}

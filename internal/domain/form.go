@@ -29,6 +29,9 @@ const (
 	FormMethodPatch = "patch"
 )
 
+// ButtonMethodDelete is the verb a `Button` bound with `write: delete` sends. Derived, never written, like a Form's.
+const ButtonMethodDelete = "delete"
+
 // CreateFormInputs is every control a create form for m asks for, and the Fields it cannot yet draw.
 //
 // The rule is the generic create form's own (`rendering.newCardPopover`): a Field is asked for unless it is

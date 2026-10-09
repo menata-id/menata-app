@@ -2027,7 +2027,7 @@ func uiNode(n ir.UINode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			case domain.ComponentButton:
-				templ_7745c5c3_Err = button(n.Props["label"], domain.ButtonVariant(n.Props["variant"]), n.Props["name"], n.Props["value"]).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = requestButton(n.Props["label"], domain.ButtonVariant(n.Props["variant"]), n.Props["name"], n.Props["value"], n.Props["action"], n.Props["method"], n.Props["confirm"]).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

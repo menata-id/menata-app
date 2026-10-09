@@ -696,3 +696,74 @@ func TestDeclaredPageRenameFormPatchesTheRecordItSitsBesideAndStartsAsItsName(t 
 		t.Error("renaming one list changed another")
 	}
 }
+
+// TestDeclaredPageDeleteButtonDeletesTheRecordItSitsBesideAndRefreshesThePage: `write: delete` inside a records
+// template. Each item carries a button that sends DELETE to *its own* record's generic route, asking the author's
+// `confirm:` sentence first; the route (not the page) deletes, and answers `HX-Refresh: true` to a request sent
+// from a declared page so the list re-reads. A request from the Machine's own page keeps the empty body the three
+// hand-written delete sites rely on.
+func TestDeclaredPageDeleteButtonDeletesTheRecordItSitsBesideAndRefreshesThePage(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declareddelete", "default")
+	var list *domain.Machine
+	for _, m := range ws.Machines {
+		for _, ds := range m.Datasets {
+			if ds.ID == "ds_board_lists" {
+				list = m
+			}
+		}
+	}
+	if list == nil {
+		t.Fatal("default installs no Machine providing ds_board_lists")
+	}
+	nameField := list.CardFieldFor(domain.CardFieldRoleTitle)
+	mk := func(name string) *data.Record {
+		rec, err := store.CreateRecord(ctx, list.ID, map[string]any{nameField: name})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", name, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, list.ID, rec.ID) })
+		return rec
+	}
+	first, second := mk("Delete-probe-first"), mk("Delete-probe-second")
+
+	body := getPage(t, h, cookie, "/pages/nav_board_settings")
+	for _, rec := range []*data.Record{first, second} {
+		route := "/machines/" + list.ID + "/records/" + rec.ID
+		re := regexp.MustCompile(`<button[^>]*hx-delete="` + regexp.QuoteMeta(route) + `"[^>]*>[^<]*</button>`)
+		btn := re.FindString(body)
+		if btn == "" {
+			t.Fatalf("no button deletes %s", route)
+		}
+		if !strings.Contains(btn, `hx-confirm="Delete this list? This cannot be undone."`) || !strings.Contains(btn, `type="button"`) || !strings.Contains(btn, `hx-swap="none"`) {
+			t.Errorf("the delete button is not the confirmed request the page declared: %s", btn)
+		}
+	}
+
+	del := func(id, from string) *httptest.ResponseRecorder {
+		tok := csrfTokenFor(t, h, "/login")
+		req := httptest.NewRequest(http.MethodDelete, "/machines/"+list.ID+"/records/"+id, nil)
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.Header.Set("HX-Current-URL", from)
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+	ok := del(first.ID, "http://x/pages/nav_board_settings")
+	if ok.Code != http.StatusOK || ok.Header().Get("HX-Refresh") != "true" {
+		t.Fatalf("a delete from the declared page answered %d with HX-Refresh=%q", ok.Code, ok.Header().Get("HX-Refresh"))
+	}
+	after := getPage(t, h, cookie, "/pages/nav_board_settings")
+	if strings.Contains(after, "Delete-probe-first") {
+		t.Error("the deleted list still appears after the refresh")
+	}
+	if !strings.Contains(after, "Delete-probe-second") {
+		t.Error("deleting one list removed another")
+	}
+	own := del(second.ID, "http://x/machines/"+list.ID)
+	if own.Code != http.StatusOK || own.Header().Get("HX-Refresh") != "" || own.Body.Len() != 0 {
+		t.Errorf("a delete from the Machine's own page answered %d, HX-Refresh=%q, %d body bytes -- the hand-written sites' contract moved", own.Code, own.Header().Get("HX-Refresh"), own.Body.Len())
+	}
+}

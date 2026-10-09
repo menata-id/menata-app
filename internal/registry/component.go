@@ -199,12 +199,15 @@ var buttonContract = domain.ComponentContract{
 		{Name: "variant", Kind: "ButtonVariant", Required: true},
 		{Name: "name", Kind: "string"},
 		{Name: "value", Kind: "string"},
+		{Name: "confirm", Kind: "string"},
+		{Name: "action", Kind: "string"},
+		{Name: "method", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,
-	Actions:          []string{"submit"},
-	Accessibility:    "the label is the accessible name, so it is required and never an icon alone; the element is a real <button type=\"submit\">, focusable and activated by Enter and Space without a role or a script",
-	Renderer:         "button",
+	Actions:          []string{"submit", "delete"},
+	Accessibility:    "the label is the accessible name, so it is required and never an icon alone; the element is a real <button>, focusable and activated by Enter and Space without a role or a script; a delete states its consequence in `confirm`, which the browser asks before anything is sent",
+	Renderer:         "requestButton",
 }
 
 // validateButton checks a use against the declared inputs, the closed variant set, and the one cross-input
@@ -216,6 +219,37 @@ func validateButton(inputs map[string]string) []string {
 	}
 	if (inputs["name"] == "") != (inputs["value"] == "") {
 		issues = append(issues, "Button `name` and `value` are one pair: a name without a value posts an empty string, and a value without a name is dropped by the browser")
+	}
+	return append(issues, buttonRequestIssues(inputs)...)
+}
+
+// buttonRequestIssues holds the rules of the one Button that sends a request instead of submitting a form.
+// `action` and `method` are derived by lowering and arrive together; the only verb is delete, because it is the
+// only write that asks a person nothing (an edit is a Form). `confirm` is required with them, and meaningless
+// without: it is the sentence a person reads before a record is gone.
+func buttonRequestIssues(inputs map[string]string) []string {
+	action, method, confirm := inputs["action"], inputs["method"], inputs["confirm"]
+	var issues []string
+	if (action == "") != (method == "") {
+		issues = append(issues, "Button `action` and `method` are one pair: a route with no verb, or a verb with no route, sends nothing")
+	}
+	if action == "" {
+		if confirm != "" {
+			issues = append(issues, "Button `confirm` asks before a request is sent, and this Button sends none")
+		}
+		return issues
+	}
+	if method != domain.ButtonMethodDelete {
+		issues = append(issues, fmt.Sprintf("Button method %q is not one the runtime derives (only %q)", method, domain.ButtonMethodDelete))
+	}
+	if confirm == "" {
+		issues = append(issues, "a Button that sends a delete states its consequence in `confirm`")
+	}
+	if inputs["name"] != "" {
+		issues = append(issues, "a Button that sends a request posts no name/value pair")
+	}
+	if !strings.HasPrefix(action, "/machines/") {
+		issues = append(issues, fmt.Sprintf("Button action %q is not a route the runtime derives (/machines/<id>/records/<id>)", action))
 	}
 	return issues
 }

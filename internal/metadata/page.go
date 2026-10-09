@@ -253,7 +253,10 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 				Route: domain.FormRoute("machine") + "/x", Method: domain.FormMethodPatch, Permitted: true,
 				Inputs: []domain.FormInput{{FieldID: "x", Label: "x", Kind: domain.InputText}},
 			}
-			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}}, nil
+			// One delete the viewer may do, for the same reason: whether the real Machine can be deleted from is
+			// `deleteBindingIssues`' question.
+			del := ir.RecordAction{Route: domain.FormRoute("machine") + "/x", Permitted: true}
+			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}}, nil
 		},
 	}
 }
@@ -332,6 +335,8 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 	childItem := item
 	if b := n.Binding; b != nil && b.Write == domain.PageWriteUpdate {
 		issues = append(issues, updateBindingIssues(*b, item, where)...)
+	} else if b != nil && b.Write == domain.PageWriteDelete {
+		issues = append(issues, deleteBindingIssues(*b, item, where)...)
 	} else if b != nil {
 		ds, ok := datasets[b.Dataset]
 		switch {
@@ -374,6 +379,22 @@ func updateBindingIssues(b domain.PageBinding, item *domain.Machine, where strin
 		return []string{fmt.Sprintf("%s: page: write: %s takes no dataset -- it edits the record of the Collection it sits in, and %q would be a second one (a join)", where, domain.PageWriteUpdate, b.Dataset)}
 	case len(item.EditFormInputs(nil)) == 0:
 		return []string{fmt.Sprintf("%s: page: write: %s: machine %q has no Field an edit form can ask for (booleans, statuses, references, groups, files, computed and stamped Fields are not drawn)", where, domain.PageWriteUpdate, item.ID)}
+	}
+	return nil
+}
+
+// deleteBindingIssues is what a `write: delete` binding asks: to sit inside a records Collection, to name no
+// dataset of its own, and a Machine whose records can be deleted at all. An append-only Machine refuses every
+// write, so a Button for it would be drawn for no viewer: a load error is the honest answer, as it is for a
+// form with nothing to ask.
+func deleteBindingIssues(b domain.PageBinding, item *domain.Machine, where string) []string {
+	switch {
+	case item == nil:
+		return []string{fmt.Sprintf("%s: page: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", where, domain.PageWriteDelete, domain.PageRowsRecords)}
+	case b.Dataset != "":
+		return []string{fmt.Sprintf("%s: page: write: %s takes no dataset -- it deletes the record of the Collection it sits in, and %q would be a second one (a join)", where, domain.PageWriteDelete, b.Dataset)}
+	case item.AppendOnly:
+		return []string{fmt.Sprintf("%s: page: write: %s: machine %q is append-only, so no record of it can be deleted", where, domain.PageWriteDelete, item.ID)}
 	}
 	return nil
 }

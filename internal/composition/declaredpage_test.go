@@ -330,3 +330,29 @@ func TestRecordEditFormIsPerRecordAndRefusesAppendOnly(t *testing.T) {
 		t.Error("an append-only Machine was offered an edit form")
 	}
 }
+
+// A `delete` Button's permission is answered per record from the record in hand, by the delete route's own two
+// checks: the Machine's `delete` Permission against the record's values and `action.CanDelete`'s business-state
+// rule. An append-only Machine is offered none. The route is the record's own generic one.
+func TestRecordDeleteActionIsPerRecordAndRefusesAppendOnly(t *testing.T) {
+	m := &domain.Machine{
+		ID:          "mch_note",
+		Fields:      []domain.Field{{ID: "fld_title", Type: domain.FieldTypeText}, {ID: "fld_owner", Type: domain.FieldTypePerson}},
+		Permissions: []domain.Permission{{ID: "perm_delete", Action: domain.ActionDelete, ActorField: "fld_owner"}},
+	}
+	mine := &data.Record{ID: "rec_mine", Values: map[string]any{"fld_owner": "usr_me"}}
+	theirs := &data.Record{ID: "rec_theirs", Values: map[string]any{"fld_owner": "usr_other"}}
+	viewer := domain.Actor{ID: "usr_me"}
+
+	a, b := recordDeleteAction(m, mine, viewer), recordDeleteAction(m, theirs, viewer)
+	if !a.Permitted || b.Permitted {
+		t.Errorf("Permitted = %v / %v, want true for the viewer's own record and false for another's", a.Permitted, b.Permitted)
+	}
+	if a.Route != "/machines/mch_note/records/rec_mine" {
+		t.Errorf("route = %q", a.Route)
+	}
+	m.AppendOnly = true
+	if recordDeleteAction(m, mine, viewer).Permitted {
+		t.Error("an append-only Machine was offered a delete")
+	}
+}

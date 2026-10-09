@@ -37,11 +37,30 @@ type RecordResolver func(b domain.PageBinding) (RecordSet, error)
 // that record is patched, whether this viewer may edit *it* (a Permission may read the record's own Field, so the
 // answer differs per record), and the controls starting as its current values. It is empty when the resolver has
 // nothing to say, which makes an update Form in the template an error and not a form posting nowhere.
+//
+// Deletes is the same for a `delete` Button: one per record, in order.
 type RecordSet struct {
 	Records   []map[string]string
 	Edits     []FormSpec
+	Deletes   []RecordAction
 	Truncated bool
 	Limit     int
+}
+
+// RecordAction is the answer to a record-level write that asks nothing -- a delete: where the request goes and
+// whether this viewer may make it. Like FormSpec it is plain data, and `Permitted` is courtesy: the route and
+// `action.CanDelete` are the guards.
+type RecordAction struct {
+	Route     string
+	Permitted bool
+}
+
+// RecordWrites is what a records Collection's resolver decided about one record's writes, handed down to the
+// nodes of that record's item template. A nil field means the resolver said nothing, which makes the matching
+// binding an error and not a control wired to nowhere.
+type RecordWrites struct {
+	Edit   *FormSpec
+	Delete *RecordAction
 }
 
 // RouteResolver answers a `to:`: the route and the label of the navigation item named navID, or ok=false when
@@ -127,9 +146,12 @@ func Lower(root domain.PageNode, r Resolver) (UINode, error) {
 
 // lower expands one node. record is non-nil exactly while lowering inside a records template, which is what
 // makes `from:` legal and a nested Binding illegal.
-func lower(n domain.PageNode, r Resolver, path string, record map[string]string, edit *FormSpec) ([]UINode, error) {
+func lower(n domain.PageNode, r Resolver, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteUpdate {
-		return lowerUpdateForm(n, path, record, edit)
+		return lowerUpdateForm(n, path, record, writes)
+	}
+	if n.Binding != nil && n.Binding.Write == domain.PageWriteDelete {
+		return lowerDeleteButton(n, path, record, writes)
 	}
 	if n.Binding != nil {
 		if n.Count != nil {
@@ -171,7 +193,7 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
 	for i, c := range n.Children {
-		kids, err := lower(c, r, fmt.Sprintf("%s.children[%d]", path, i), record, edit)
+		kids, err := lower(c, r, fmt.Sprintf("%s.children[%d]", path, i), record, writes)
 		if err != nil {
 			return nil, err
 		}
@@ -470,11 +492,14 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		if rec == nil {
 			rec = map[string]string{} // lower reads non-nil as "inside a template"
 		}
-		var edit *FormSpec
+		writes := &RecordWrites{}
 		if i < len(set.Edits) {
-			edit = &set.Edits[i]
+			writes.Edit = &set.Edits[i]
 		}
-		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec, edit)
+		if i < len(set.Deletes) {
+			writes.Delete = &set.Deletes[i]
+		}
+		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec, writes)
 		if err != nil {
 			return nil, fmt.Errorf("record %d: %w", i, err)
 		}
@@ -527,17 +552,17 @@ func checkFormNode(n domain.PageNode, path string) error {
 		return fmt.Errorf("%s: component %q takes a binding with write: %s, not %q", path, n.Type, strings.Join(modes, " or "), b.Write)
 	}
 	if b.Rows != "" || b.Measure != "" {
-		return fmt.Errorf("%s: write: is a mode of its own and takes neither rows: nor measure: -- a form writes a record, it does not read a list", path)
+		return fmt.Errorf("%s: write: is a mode of its own and takes neither rows: nor measure: -- a write acts on a record, it does not read a list", path)
 	}
 	if len(n.Children) > 0 {
-		return fmt.Errorf("%s: a bound Form's controls come from its Machine's Fields, so it holds no children", path)
+		return fmt.Errorf("%s: a bound %s holds no children -- a Form's controls come from its Machine's Fields and a Button is a leaf", path, n.Type)
 	}
 	if len(n.From) > 0 || n.To != "" || n.ListOf != "" || n.Param != "" || n.Count != nil {
-		return fmt.Errorf("%s: a Form takes only its submit label and its binding; from:, to:, list_of:, param: and count: belong to other nodes", path)
+		return fmt.Errorf("%s: a bound write takes only its words and its binding; from:, to:, list_of:, param: and count: belong to other nodes", path)
 	}
 	for _, derived := range []string{formActionProp, formMethodProp} {
 		if _, typed := n.Props[derived]; typed {
-			return fmt.Errorf("%s: a Form's %s is derived from the bound Machine, never typed -- a route is declared once (001 #3, #8)", path, derived)
+			return fmt.Errorf("%s: %s is derived from the bound Machine, never typed -- a route is declared once (001 #3, #8)", path, derived)
 		}
 	}
 	return nil
@@ -576,7 +601,7 @@ func lowerForm(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 // dataset here could only name a different one -- a join -- and is refused. What the record's route is, whether
 // this viewer may edit it and what each control starts as were decided by the resolver when it listed the
 // records, which is why this reads `edit` and asks nothing.
-func lowerUpdateForm(n domain.PageNode, path string, record map[string]string, edit *FormSpec) ([]UINode, error) {
+func lowerUpdateForm(n domain.PageNode, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
 	if err := checkFormNode(n, path); err != nil {
 		return nil, err
 	}
@@ -586,10 +611,52 @@ func lowerUpdateForm(n domain.PageNode, path string, record map[string]string, e
 	if n.Binding.Dataset != "" {
 		return nil, fmt.Errorf("%s: write: %s takes no dataset -- it edits the record of the Collection it sits in, and a second dataset would be a join the page has no grammar for", path, domain.PageWriteUpdate)
 	}
-	if edit == nil {
+	if writes == nil || writes.Edit == nil {
 		return nil, fmt.Errorf("%s: the Collection's resolver supplied no update form for this record", path)
 	}
-	return buildForm(n, path, *edit, domain.PageWriteUpdate, "the record's Machine")
+	return buildForm(n, path, *writes.Edit, domain.PageWriteUpdate, "the record's Machine")
+}
+
+// Button properties a delete Button's lowering derives. `confirm` is the one thing an author writes beyond the
+// label: the sentence a person reads before the record is gone.
+const buttonConfirmProp = "confirm"
+
+// lowerDeleteButton turns a `Button` bound with `write: delete` into a Button that sends `DELETE` to the item's
+// own record route. Like `update` it takes no dataset and is valid only inside a records template. **`confirm:`
+// is required**: a destructive request that names no consequence is the one thing a page must not be able to
+// declare, and all three hand-written delete sites it replaces confirm. A viewer the resolver does not permit
+// gets no node.
+func lowerDeleteButton(n domain.PageNode, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	if record == nil {
+		return nil, fmt.Errorf("%s: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageWriteDelete, domain.PageRowsRecords)
+	}
+	if n.Binding.Dataset != "" {
+		return nil, fmt.Errorf("%s: write: %s takes no dataset -- it deletes the record of the Collection it sits in, and a second dataset would be a join the page has no grammar for", path, domain.PageWriteDelete)
+	}
+	if n.Props[buttonConfirmProp] == "" {
+		return nil, fmt.Errorf("%s: a delete Button states what it will do in confirm: -- a destructive request with no consequence named is not declarable", path)
+	}
+	for _, p := range []string{"name", "value"} {
+		if _, typed := n.Props[p]; typed {
+			return nil, fmt.Errorf("%s: a delete Button sends a request and posts no %s/value pair", path, p)
+		}
+	}
+	if writes == nil || writes.Delete == nil {
+		return nil, fmt.Errorf("%s: the Collection's resolver supplied no delete for this record", path)
+	}
+	if !writes.Delete.Permitted {
+		return nil, nil
+	}
+	props := make(map[string]string, len(n.Props)+2)
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	props[formActionProp] = writes.Delete.Route
+	props[formMethodProp] = domain.ButtonMethodDelete
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
 }
 
 // buildForm is the tree both modes lower to. A viewer the spec does not permit gets no node.
