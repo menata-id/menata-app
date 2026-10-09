@@ -473,3 +473,78 @@ func TestNoPageClaimsCompletenessOverAWindow(t *testing.T) {
 		}
 	}
 }
+
+// TestEveryInstalledFormNamesNoRouteOrField holds T1's rule against the real manifests: an installed `Form`
+// declares its words (`submit`), a Dataset and the write mode, and nothing else. No `action`, `href`, `name`,
+// `method` or `id` -- the route is `domain.FormRoute(<the Dataset's Machine>)` and the controls are the
+// Machine's own askable Fields, so a page that typed either would be a second write path beside the generic
+// one. It reads the declaration directly instead of leaning on `ir.lowerForm`'s refusals, re-derives that the
+// Machine can be asked (`CreateFormInputs`), and fails when no installed page holds a Form, so it cannot pass by
+// measuring nothing. It does **not** require the Dataset to select records: the loader treats a write binding's
+// Dataset as a handle to its Machine, and inventing a stricter rule here would be a gate ahead of the primitive.
+func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+	forms := 0
+	for _, slug := range sortedKeys(wss) {
+		ws := wss[slug].Workspace
+		machineOf := map[string]*domain.Machine{}
+		for i := range ws.Machines {
+			for _, ds := range ws.Machines[i].Datasets {
+				machineOf[ds.ID] = ws.Machines[i]
+			}
+		}
+		for _, app := range ws.Applications {
+			var walk func(n domain.PageNode, where string)
+			walk = func(n domain.PageNode, where string) {
+				if n.Kind == "component" && n.Type == string(domain.ComponentForm) {
+					forms++
+					for _, key := range []string{"action", "href", "name", "method", "id", "kind", "options", "value", "required"} {
+						if _, typed := n.Props[key]; typed {
+							t.Errorf("%s: a Form writes %q itself; the route and the controls come from the Dataset's Machine", where, key)
+						}
+					}
+					if n.Props["submit"] == "" {
+						t.Errorf("%s: a Form has no submit words", where)
+					}
+					if len(n.Children) != 0 {
+						t.Errorf("%s: a Form lists its own children; its Fields are the Machine's", where)
+					}
+					switch {
+					case n.Binding == nil || n.Binding.Write != domain.PageWriteCreate:
+						t.Errorf("%s: a Form is bound with write: %s", where, domain.PageWriteCreate)
+					case n.Binding.Rows != "" || n.Binding.Measure != "":
+						t.Errorf("%s: a Form's binding writes; it names no rows or measure", where)
+					case machineOf[n.Binding.Dataset] == nil:
+						t.Errorf("%s: a Form's Dataset %q is not in this Workspace", where, n.Binding.Dataset)
+					default:
+						inputs, unsupported := machineOf[n.Binding.Dataset].CreateFormInputs()
+						if len(inputs) == 0 {
+							t.Errorf("%s: machine %s has no Field a form can ask for", where, machineOf[n.Binding.Dataset].ID)
+						}
+						for _, f := range unsupported {
+							if f.Required {
+								t.Errorf("%s: machine %s requires %s, a %s the form cannot ask", where, machineOf[n.Binding.Dataset].ID, f.ID, f.Type)
+							}
+						}
+					}
+				} else if n.Kind == "component" && n.Type == string(domain.ComponentFormInput) {
+					t.Errorf("%s: Input is produced by lowering a Form and is never written", where)
+				}
+				for _, c := range n.Children {
+					walk(c, where)
+				}
+			}
+			for _, item := range app.AllNavigation {
+				if item.Page != nil {
+					walk(*item.Page, slug+"/"+app.ID+"/"+item.ID)
+				}
+			}
+		}
+	}
+	if forms == 0 {
+		t.Fatal("no installed page declares a Form -- this gate is measuring nothing")
+	}
+}

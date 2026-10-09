@@ -718,3 +718,65 @@ func TestNoHandWrittenTag(t *testing.T) {
 		t.Fatal("no class set holding rounded-full was found anywhere -- the scan is looking at the wrong text")
 	}
 }
+
+// handWrittenCreateForms counts the `hx-post` attributes that post to a Machine's generic create route
+// (`/machines/<id>/records`, nothing after `records`) in a hand-written `.templ`, per file, **shrink-only** --
+// the directive ratchet beside `TestEveryInstalledFormNamesNoRouteOrField`, installed after `Form` shipped
+// (T1, 2026-10-09; build, migrate, then gate). A page now declares a create form with `component: Form` and
+// `binding: {dataset, write: create}`; a new hand-written one should ask whether that can express it.
+//
+// **Every entry is a floor with the thing a bound Form does not carry yet**, none is a verdict:
+//   - `machine.templ` x3: `cardComposer` (one text input, a hidden group value and a disclosure), `newCardPopover`
+//     (every Field, including reference and group Fields whose options are another Machine's records -- T4) and
+//     `createFormRow` (a table row of inputs, same reference options).
+//   - `comments.templ`, `checklist.templ`: a child Machine's create, with the parent record's id as a hidden input.
+//     That is a form *inside a record*, which `write: create` does not yet express (T3).
+//   - `attachments.templ`: a `multipart/form-data` file upload submitted on `change`; a Form skips file Fields.
+//
+// Counting method: syntactic -- an `hx-post={ ... }` expression naming `/machines/` and ending the route at
+// `/records"`, with `//` comments stripped. It cannot see a plain `<form method="POST" action=...>` (those post
+// to bespoke routes such as `/workspace-members/...`, not the generic one), a route assembled in a Go helper, or
+// a create driven from script; it states what is present and concludes nothing about absence.
+var handWrittenCreateForms = map[string]int{
+	"attachments.templ": 1, // multipart file upload on change; a Form skips file Fields
+	"checklist.templ":   1, // child Machine create carrying the parent record id (T3)
+	"comments.templ":    1, // child Machine create carrying the parent record id (T3)
+	"machine.templ":     3, // card composer; every-Field popover and table row with reference options (T4)
+}
+
+var createPost = regexp.MustCompile(`hx-post=\{[^}\n]*/machines/[^}\n]*/records"[^}\n]*\}`)
+
+func TestHandWrittenCreateFormsOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	actual := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		if n := len(createPost.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
+			actual[e.Name()] = n
+		}
+	}
+	for _, f := range sortedFileNames(actual) {
+		switch w := handWrittenCreateForms[f]; {
+		case actual[f] > w:
+			t.Errorf("%s: %d hand-written create form(s), frozen at %d -- declare it with `component: Form` and `binding: {dataset, write: create}` (007 §11.3). If it carries something a bound Form does not yet, say which in handWrittenCreateForms rather than widening it", f, actual[f], w)
+		case actual[f] < w:
+			t.Errorf("%s: %d hand-written create form(s), down from %d -- lower the entry in this file to lock the migration in", f, actual[f], w)
+		}
+	}
+	for _, f := range sortedFileNames(handWrittenCreateForms) {
+		if _, still := actual[f]; !still {
+			t.Errorf("handWrittenCreateForms still lists %s, which no longer has one -- remove the entry", f)
+		}
+	}
+}
