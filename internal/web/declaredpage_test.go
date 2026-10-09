@@ -377,3 +377,71 @@ func TestDeclaredPageNumbersTheBoardListsInColumnOrder(t *testing.T) {
 		last = at
 	}
 }
+
+// TestDeclaredPageSaysHowManyCardsCarryEachLabel: `count:` over a declared Relation. Two Labels are created,
+// one carried by one card and one by two, and the page must say "used on 1 card" and "used on 2 cards" --
+// the singular and the plural both, from one declaration that writes no number.
+func TestDeclaredPageSaysHowManyCardsCarryEachLabel(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredcount", "default")
+	byID := map[string]*domain.Machine{}
+	for _, m := range ws.Machines {
+		byID[m.ID] = m
+	}
+	var label, join *domain.Machine
+	for _, m := range ws.Machines {
+		for _, ds := range m.Datasets {
+			if ds.ID == "ds_labels_with_cards" {
+				label = m
+				for _, rel := range ds.Relations {
+					join = byID[rel.Machine]
+				}
+			}
+		}
+	}
+	if label == nil || join == nil {
+		t.Fatal("default installs no Machine providing ds_labels_with_cards")
+	}
+	titleField := label.CardFieldFor(domain.CardFieldRoleTitle)
+	var viaField string
+	for _, f := range join.Fields {
+		if f.IsReference() && f.RelatedMachine == label.ID {
+			viaField = f.ID
+		}
+	}
+	if viaField == "" {
+		t.Fatalf("%s has no reference to %s", join.ID, label.ID)
+	}
+	for name, cards := range map[string]int{"Count-probe-one": 1, "Count-probe-two": 2} {
+		rec, err := store.CreateRecord(ctx, label.ID, map[string]any{titleField: name})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", name, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, label.ID, rec.ID) })
+		for i := 0; i < cards; i++ {
+			pair, err := store.CreateRecord(ctx, join.ID, map[string]any{viaField: rec.ID})
+			if err != nil {
+				t.Fatalf("CreateRecord pair: %v", err)
+			}
+			t.Cleanup(func() { _ = store.DeleteRecord(ctx, join.ID, pair.ID) })
+		}
+	}
+
+	body := getPage(t, h, cookie, "/pages/nav_label_usage")
+	after := func(name string) string {
+		i := strings.Index(body, name)
+		if i < 0 {
+			t.Fatalf("label %q did not reach the page", name)
+		}
+		rest := body[i:]
+		if j := strings.Index(rest, "</li>"); j >= 0 {
+			rest = rest[:j]
+		}
+		return rest
+	}
+	if got := after("Count-probe-one"); !strings.Contains(got, "used on 1 card<") {
+		t.Errorf("one card must read the singular wording:\n%s", got)
+	}
+	if got := after("Count-probe-two"); !strings.Contains(got, "used on 2 cards<") {
+		t.Errorf("two cards must read the plural wording:\n%s", got)
+	}
+}

@@ -60,7 +60,7 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 				if want := "/pages/" + item.ID; item.Route != want {
 					t.Errorf("%s: route is %q but a page is rendered at %q", where, item.Route, want)
 				}
-				res := metadata.PlaceholderResolver(app.AllNavigation)
+				res := metadata.PlaceholderResolver(app.AllNavigation, datasets)
 				rows, records := res.Rows, res.Records
 				declared := func(b domain.PageBinding) {
 					if _, ok := datasets[b.Dataset]; !ok {

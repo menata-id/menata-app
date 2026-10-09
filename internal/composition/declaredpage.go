@@ -58,14 +58,20 @@ func bindingRecords(ctx context.Context, l *Loader, viewerID string, b domain.Pa
 	if src == nil {
 		return nil, fmt.Errorf("composition: dataset %q reads machine %q, which this Workspace does not install", b.Dataset, ds.Source)
 	}
-	records, err := l.SelectDataset(ctx, b.Dataset, expression.Context{CurrentUser: viewerID})
+	// SelectRelated, not SelectDataset: the Relations the Dataset declares (007 §7.5) are how a record's child
+	// count is known, and the lookup is one bounded query per Relation however many records there are.
+	sel, err := l.SelectRelated(ctx, b.Dataset, expression.Context{CurrentUser: viewerID})
 	if err != nil {
 		return nil, err
 	}
+	records := sel.Records
 	out := make([]map[string]string, 0, len(records))
 	for _, r := range records {
 		item := ProjectedByRole(src, r, rendering.RelationOptions{})
 		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
+		for _, rel := range ds.Relations {
+			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(sel.Related(rel.ID, r.ID)))
+		}
 		out = append(out, item)
 	}
 	return out, nil

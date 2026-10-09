@@ -51,6 +51,13 @@ datasets:
   - id: ds_rows
     select: records
     limit: 10
+  - id: ds_with_children
+    select: records
+    limit: 10
+    relations:
+      - id: rel_children
+        machine: mch_doc
+        via: fld_parent
   - id: ds_by_param
     select: records
     limit: 10
@@ -315,5 +322,34 @@ func TestPage_aTagColourMayNotComeFromARoleThatIsNotAPalette(t *testing.T) {
 	err := pageFixture(t, "  - id: nav_t\n    label: T\n    route: /pages/nav_t\n    page:\n"+page)
 	if err == nil || !strings.Contains(err.Error(), "palette") {
 		t.Fatalf("error = %v; want a refusal naming the palette", err)
+	}
+}
+
+func countPage(of, bound string) string {
+	return "  - id: nav_c\n    label: C\n    route: /pages/nav_c\n    page:\n      layout: stack\n      children:\n        - component: Collection\n          gap: tight\n          binding: { dataset: " + bound + ", rows: records }\n          children:\n            - static: caption\n              count: { of: " + of + ", one: \"{n} child\", other: \"{n} children\" }\n"
+}
+
+// TestPage_aCountNamesARelationTheBoundDatasetDeclares: `count: {of: rel_...}` loads exactly when the
+// Dataset the enclosing Collection is bound to declares that Relation (007 §7.5). A Relation of a *different*
+// Dataset is not enough -- the count travels with the bound Dataset's selection.
+func TestPage_aCountNamesARelationTheBoundDatasetDeclares(t *testing.T) {
+	if err := pageFixture(t, countPage("rel_children", "ds_with_children")); err != nil {
+		t.Fatalf("a count over a declared Relation was refused: %v", err)
+	}
+	for name, nav := range map[string]string{
+		"a Relation no Dataset declares":            countPage("rel_nope", "ds_with_children"),
+		"a bound Dataset that declares no Relation": countPage("rel_children", "ds_rows"),
+	} {
+		err := pageFixture(t, nav)
+		if err == nil || !strings.Contains(err.Error(), "does not declare") {
+			t.Errorf("%s: error = %v; want a refusal saying the Dataset does not declare it", name, err)
+		}
+	}
+}
+
+func TestPage_aCountBlockWithAnUnknownKeyIsRefused(t *testing.T) {
+	nav := strings.Replace(countPage("rel_children", "ds_with_children"), "other:", "many:", 1)
+	if err := pageFixture(t, nav); err == nil {
+		t.Fatal("count: with a key it does not declare loaded")
 	}
 }

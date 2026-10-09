@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"strings"
 
 	"menata.app/internal/domain"
 )
@@ -91,6 +92,9 @@ func Lower(root domain.PageNode, r Resolver) (UINode, error) {
 // makes `from:` legal and a nested Binding illegal.
 func lower(n domain.PageNode, r Resolver, path string, record map[string]string) ([]UINode, error) {
 	if n.Binding != nil {
+		if n.Count != nil {
+			return nil, fmt.Errorf("%s: count: counts a Relation's children for one record, so it belongs on a static node inside the item template, not on the bound node", path)
+		}
 		if record != nil {
 			return nil, fmt.Errorf("%s: a binding inside a record template is not supported -- the item is one record, and a second Dataset would be a join the page has no grammar for", path)
 		}
@@ -109,7 +113,11 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 	if _, written := n.Props[collectionEmptyProp]; written && n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentCollection) {
 		return nil, fmt.Errorf("%s: %s: is the words shown when a records binding lists nothing, so it is valid only on a Collection bound with rows: %s -- a Collection that holds its own children is empty by being written empty", path, collectionEmptyProp, domain.PageRowsRecords)
 	}
-	props, err := lowerLink(n, props, r, path)
+	props, err := lowerCount(n, props, record, path)
+	if err != nil {
+		return nil, err
+	}
+	props, err = lowerLink(n, props, r, path)
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +130,47 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string)
 		out.Children = append(out.Children, kids...)
 	}
 	return []UINode{out}, nil
+}
+
+// lowerCount turns `count: {of, one, other}` into the node's `text`: the number of children the record's
+// declared Relation found, chosen between the two wordings and substituted into `{n}`. The author writes the
+// words and never the number, for the reason a bound Metric's value is never typed; so `text` may not also be
+// written or taken `from:`, and `of` must be a Relation the bound Dataset declares -- which is the case
+// exactly when the record carries its count (`domain.PageCountRole`), so the check needs no second list.
+func lowerCount(n domain.PageNode, props map[string]string, record map[string]string, path string) (map[string]string, error) {
+	c := n.Count
+	if c == nil {
+		return props, nil
+	}
+	if NodeKind(n.Kind) != NodeStatic {
+		return nil, fmt.Errorf("%s: count: produces text, so it is valid only on a static node", path)
+	}
+	if record == nil {
+		return nil, fmt.Errorf("%s: count: is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageRowsRecords)
+	}
+	if c.Of == "" || c.Other == "" {
+		return nil, fmt.Errorf("%s: count: names the Relation it counts (of:) and the words for every number but one (other:)", path)
+	}
+	if !strings.Contains(c.Other, domain.PageCountToken) {
+		return nil, fmt.Errorf("%s: count.other must carry %s, or the number is never shown", path, domain.PageCountToken)
+	}
+	if _, written := props["text"]; written {
+		return nil, fmt.Errorf("%s: text comes from count:, so it may not also be written or taken from a record", path)
+	}
+	raw, ok := record[domain.PageCountRole(c.Of)]
+	if !ok {
+		return nil, fmt.Errorf("%s: count: of: names the Relation %q, which the bound Dataset does not declare in relations:", path, c.Of)
+	}
+	words := c.Other
+	if raw == "1" && c.One != "" {
+		words = c.One
+	}
+	out := make(map[string]string, len(props)+1)
+	for k, v := range props {
+		out[k] = v
+	}
+	out["text"] = strings.ReplaceAll(words, domain.PageCountToken, raw)
+	return out, nil
 }
 
 // lowerLink resolves a `static: link`'s destination. A link names its target by navigation item id (`to:`) and

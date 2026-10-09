@@ -34,8 +34,36 @@ type PageNode struct {
 	// Application's `navigation:` still has a page, and a typed `/machines/<id>` would be a route retyped
 	// (001 #3, #8). The Dataset is the declared handle on the Machine, the way a Binding's is, so the same
 	// load-time check (it exists in this Workspace) applies. Valid only on a `link`, and never beside `to:`.
-	ListOf   string
+	ListOf string
+	// Count is the words a `static` node says about how many children of the record a declared Relation
+	// (007 §7.5) found: `count: {of: rel_label_cards, one: "used on {n} card", other: "used on {n} cards"}`.
+	// The number is never written by the author -- it comes from the Relation the bound Dataset declares --
+	// and neither is the node's `text`, which this produces. Valid only on a `static` node inside a
+	// records-bound Collection's item template; `ir.Lower` refuses it anywhere else.
+	Count    *PageCount
 	Children []PageNode
+}
+
+// PageCount is a node's plural text over a Relation's child count. Of is a Relation id of the Dataset the
+// enclosing Collection is bound to; Other is required and is the text for every n but 1 (zero included, since
+// "used on 0 cards" is the English plural and a count that vanishes at zero makes the page's shape depend on
+// the data); One is optional and, when absent, Other serves n == 1 too. `{n}` is the one substitution -- a
+// number, never an expression (007 §9.2). Two forms are what English and Indonesian need; a language with
+// more plural categories is a capability nobody has asked for.
+type PageCount struct {
+	Of    string
+	One   string
+	Other string
+}
+
+// PageCountToken is the single substitution a PageCount text may carry.
+const PageCountToken = "{n}"
+
+// PageCountRole is the key under which a record's child count for one Relation travels in the record map a
+// records Binding hands to `ir.Lower`. Like PageRecordRole it is reserved: the colon cannot appear in a
+// Projection role, so a count is never mistaken for a `card_fields` role and a role never for a count.
+func PageCountRole(relationID string) string {
+	return "count:" + relationID
 }
 
 // MachineListRoute is the runtime's generic page for a Machine (`GET /machines/{machineID}`), the list of its

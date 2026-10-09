@@ -1122,6 +1122,38 @@ disagree with the order. Use it when position is the content, as with a board's 
       from: {text: title, href: record}
 ```
 
+**A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
+may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,
+with the author's own words around it.
+
+```yaml
+# metadata/label.yaml -- the Dataset declares the Relation; the page only names it
+datasets:
+  - id: ds_labels_with_cards
+    select: records
+    limit: 200
+    relations:
+      - {id: rel_label_cards, machine: mch_card_label, via: fld_label}
+
+# the page
+- component: Collection
+  binding: {dataset: ds_labels_with_cards, rows: records}
+  children:
+    - static: caption
+      count:
+        of: rel_label_cards          # a Relation of the Dataset the Collection is bound to
+        one: used on {n} card        # optional; serves exactly 1
+        other: used on {n} cards     # required; serves 0 and every number above 1; must carry {n}
+```
+
+The page writes the words and never the number, so `text:` (written or `from:`) beside `count:` is a load error,
+as is `count:` outside a records template, on a non-`static` node, or with an `of:` the bound Dataset does not
+declare. `{n}` is the one substitution; there is no expression and no arithmetic (007 §9.2). Two wordings are
+what English and Indonesian need -- a language with more plural categories is a capability no one has asked for.
+**Cost:** the Relation is a lookup (one bounded query for the children of every listed record), and it loads the
+child rows to count them; that strategy is invisible to metadata and may become a `COUNT ... GROUP BY` later.
+**Installing copies**, so the Dataset and its Relation must be in your Workspace's own Machine copy.
+
 **What it is not.** It does not migrate an existing screen: a bespoke Go screen stays bespoke until its
 own route is replaced, and the screens declared this way are new ones. There is no write side
 (a form input's `name=` is 007 §11.3 Binding, still unbuilt), no filter by a request parameter,

@@ -34,6 +34,7 @@ type pageNodeDoc struct {
 	from     map[string]string
 	to       string
 	listOf   string
+	count    *domain.PageCount
 	children []pageNodeDoc
 }
 
@@ -84,6 +85,12 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return fmt.Errorf("line %d: list_of: names one dataset id, such as ds_recent_documents -- never a route", key.Line)
 			}
 			p.listOf = val.Value
+		case "count":
+			c, err := decodePageCount(val)
+			if err != nil {
+				return err
+			}
+			p.count = c
 		case "binding":
 			b, err := decodePageBinding(val)
 			if err != nil {
@@ -126,6 +133,32 @@ func decodePageFrom(n *yaml.Node) (map[string]string, error) {
 	return out, nil
 }
 
+// decodePageCount reads `count: {of, one, other}`. The wording is checked in `ir.Lower` where the record is
+// known; here only the shape of the block is.
+func decodePageCount(n *yaml.Node) (*domain.PageCount, error) {
+	if n.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("line %d: count: is a mapping of of, one and other", n.Line)
+	}
+	c := &domain.PageCount{}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		key, val := n.Content[i], n.Content[i+1]
+		if val.Kind != yaml.ScalarNode {
+			return nil, fmt.Errorf("line %d: count.%s: a single value, not an expression or a list", key.Line, key.Value)
+		}
+		switch key.Value {
+		case "of":
+			c.Of = val.Value
+		case "one":
+			c.One = val.Value
+		case "other":
+			c.Other = val.Value
+		default:
+			return nil, fmt.Errorf("line %d: %q is not a key count declares (of, one, other)", key.Line, key.Value)
+		}
+	}
+	return c, nil
+}
+
 func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 	if n.Kind != yaml.MappingNode {
 		return nil, fmt.Errorf("line %d: binding: is a mapping of dataset, measure and rows", n.Line)
@@ -151,7 +184,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Count: p.count}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -175,7 +208,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 //
 // Routes are **not** a placeholder: a `to:` is resolved against the Application's real navigation, because
 // whether that item exists is exactly what is being checked, and no database is needed to know.
-func PlaceholderResolver(navigation []domain.NavigationItem) ir.Resolver {
+func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string]domain.Dataset) ir.Resolver {
 	return ir.Resolver{
 		Route: ir.NavigationRoutes(navigation),
 		// Any dataset id resolves here: whether this Workspace declares it is `bindingIssues`' question, which
@@ -184,7 +217,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem) ir.Resolver {
 		Rows: func(domain.PageBinding) ([]ir.Row, error) {
 			return []ir.Row{{Label: "label", Value: "0"}}, nil
 		},
-		Records: func(domain.PageBinding) ([]map[string]string, error) {
+		Records: func(b domain.PageBinding) ([]map[string]string, error) {
 			rec := map[string]string{domain.PageRecordRole: "/x"}
 			for role := range domain.KnownCardFieldRoles {
 				rec[string(role)] = "x"
@@ -193,6 +226,11 @@ func PlaceholderResolver(navigation []domain.NavigationItem) ir.Resolver {
 			// definition, so a Tag filled from it must validate. Every other role stays "x", which is how
 			// `from: {color: title}` is a load error -- a title is not a palette entry.
 			rec[string(domain.CardFieldRoleColor)] = string(domain.TagSlate)
+			// A count exists exactly for the Relations the bound Dataset declares, so a `count: {of: ...}`
+			// naming any other fails to lower -- the same way a mistyped role does.
+			for _, rel := range datasets[b.Dataset].Relations {
+				rec[domain.PageCountRole(rel.ID)] = "0"
+			}
 			return []map[string]string{rec}, nil
 		},
 	}
@@ -252,7 +290,7 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 				continue
 			}
 			issues = append(issues, bindingIssues(*item.Page, datasets, byID, where)...)
-			issues = append(issues, shapeIssues(*item.Page, app.AllNavigation, where)...)
+			issues = append(issues, shapeIssues(*item.Page, app.AllNavigation, datasets, where)...)
 		}
 	}
 	if len(issues) > 0 {
@@ -363,9 +401,9 @@ func slicesHasMeasure(ds domain.Dataset, id string) bool {
 	return false
 }
 
-func shapeIssues(root domain.PageNode, navigation []domain.NavigationItem, where string) []string {
+func shapeIssues(root domain.PageNode, navigation []domain.NavigationItem, datasets map[string]domain.Dataset, where string) []string {
 	ensureIRVocabulary()
-	tree, err := ir.Lower(root, PlaceholderResolver(navigation))
+	tree, err := ir.Lower(root, PlaceholderResolver(navigation, datasets))
 	if err != nil {
 		return []string{fmt.Sprintf("%s: %v", where, err)}
 	}

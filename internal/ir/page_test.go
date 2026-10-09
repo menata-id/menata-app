@@ -391,3 +391,75 @@ func TestLower_refusesAListOfLinkThatIsNotWellFormed(t *testing.T) {
 		}
 	}
 }
+
+func countNode(c domain.PageCount) domain.PageNode {
+	return domain.PageNode{Kind: "static", Type: "caption", Count: &c}
+}
+
+func countText(t *testing.T, c domain.PageCount, counts ...string) []string {
+	t.Helper()
+	recs := make([]map[string]string, 0, len(counts))
+	for _, n := range counts {
+		recs = append(recs, map[string]string{domain.PageCountRole("rel_x"): n})
+	}
+	tree, err := Lower(domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{listBound(countNode(c))}}, fixedRecords(recs...))
+	if err != nil {
+		t.Fatalf("Lower: %v", err)
+	}
+	var out []string
+	for _, k := range tree.Children[0].Children {
+		out = append(out, k.Props["text"])
+	}
+	return out
+}
+
+// TestLowerCountChoosesTheWordingAndSubstitutesTheNumber: the author writes words, the Relation writes the
+// number; one serves exactly 1, other serves 0 and every larger number.
+func TestLowerCountChoosesTheWordingAndSubstitutesTheNumber(t *testing.T) {
+	c := domain.PageCount{Of: "rel_x", One: "{n} card", Other: "{n} cards"}
+	got := strings.Join(countText(t, c, "0", "1", "2", "12"), "|")
+	if want := "0 cards|1 card|2 cards|12 cards"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	if got := countText(t, domain.PageCount{Of: "rel_x", Other: "{n} items"}, "1"); got[0] != "1 items" {
+		t.Fatalf("with no one:, other serves 1 too; got %q", got[0])
+	}
+}
+
+func TestLowerCountIsRefusedWhereItCannotMeanAThing(t *testing.T) {
+	good := domain.PageCount{Of: "rel_x", Other: "{n} cards"}
+	rec := map[string]string{domain.PageCountRole("rel_x"): "3"}
+	cases := map[string]struct {
+		node domain.PageNode
+		want string
+	}{
+		"outside a template": {countNode(good), "item template"},
+		"a relation the dataset does not declare": {
+			countNode(domain.PageCount{Of: "rel_missing", Other: "{n}"}), "does not declare",
+		},
+		"no number in the words": {countNode(domain.PageCount{Of: "rel_x", Other: "many cards"}), "{n}"},
+		"no other:":              {countNode(domain.PageCount{Of: "rel_x", One: "{n} card"}), "other:"},
+		"text also written": {domain.PageNode{Kind: "static", Type: "caption", Count: &good,
+			Props: map[string]string{"text": "typed"}}, "may not also"},
+		"text also taken from a role": {domain.PageNode{Kind: "static", Type: "caption", Count: &good,
+			From: map[string]string{"text": "title"}}, "may not also"},
+		"on a component": {domain.PageNode{Kind: "component", Type: "Tag", Count: &good}, "static"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var err error
+			if name == "outside a template" {
+				_, err = Lower(domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{tc.node}}, Resolver{})
+			} else {
+				full := map[string]string{"title": "x"}
+				for k, v := range rec {
+					full[k] = v
+				}
+				_, err = Lower(domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{listBound(tc.node)}}, fixedRecords(full))
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("want an error mentioning %q, got %v", tc.want, err)
+			}
+		})
+	}
+}
