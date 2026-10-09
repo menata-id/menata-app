@@ -311,7 +311,7 @@ func TestDeclaredPageDrawsEachLabelAsATagInItsOwnColour(t *testing.T) {
 		t.Cleanup(func() { _ = store.DeleteRecord(ctx, label.ID, rec.ID) })
 	}
 
-	body := getPage(t, h, cookie, "/pages/nav_board_labels")
+	body := getPage(t, h, cookie, "/pages/nav_board_settings")
 	chip := func(name string) string {
 		m := regexp.MustCompile(`<span class="inline-flex[^"]*"><span class="[^"]*" aria-hidden="true"></span>\s*` + name + `\s*</span>`).FindString(body)
 		if m == "" {
@@ -355,7 +355,7 @@ func TestDeclaredPageNumbersTheBoardListsInColumnOrder(t *testing.T) {
 		t.Cleanup(func() { _ = store.DeleteRecord(ctx, list.ID, rec.ID) })
 	}
 
-	body := getPage(t, h, cookie, "/pages/nav_board_lists")
+	body := getPage(t, h, cookie, "/pages/nav_board_settings")
 	if !strings.Contains(body, `<ol class="m-0 list-none overflow-hidden p-0 rounded-lg`) {
 		t.Fatalf("the Collection did not draw an <ol>:\n%s", body)
 	}
@@ -426,7 +426,7 @@ func TestDeclaredPageSaysHowManyCardsCarryEachLabel(t *testing.T) {
 		}
 	}
 
-	body := getPage(t, h, cookie, "/pages/nav_label_usage")
+	body := getPage(t, h, cookie, "/pages/nav_board_settings")
 	after := func(name string) string {
 		i := strings.Index(body, name)
 		if i < 0 {

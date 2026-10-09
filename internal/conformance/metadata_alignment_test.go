@@ -575,10 +575,6 @@ var composedScreenDatasets = map[string]map[string][]string{
 		// per-person bars are all derived from them through the Machine's own `completion:`.
 		"ds_all_tasks": {},
 	},
-	// Board Settings (PM06): the Lists and Labels a board is built from, and how many cards carry each Label.
-	"list.yaml":       {"ds_board_lists": {}},
-	"label.yaml":      {"ds_board_labels": {}},
-	"card_label.yaml": {"ds_label_usage": {"msr_total"}},
 	// The `select: records` Dataset a record's detail page reads its history through. It declares no
 	// measures, so the *existence* check is the whole point.
 	"activity.yaml": {"ds_record_activity": {}},

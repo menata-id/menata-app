@@ -102,7 +102,7 @@ var projectionRatchet = map[string]string{
 	// "boardsettings.templ" left on 2026-10-05 (Case 19 PM06), and it was the last entry. It was here because
 	// no card_fields role described a colour token; `color` became that role when board cards drew their
 	// labels, and mch_label's own card_fields now declare it, so Board Settings reads a Label's name and
-	// palette entry through composition.BoardSettings like every other screen. The ratchet is empty and stays
+	// palette entry through the Projection like every other screen (and, since 2026-10-09, as a declared `page:`). The ratchet is empty and stays
 	// declared: an empty ratchet is an ordinary gate, and the next .templ to read a Field by id fails it.
 
 	// Case 3's bespoke Document Approval flow. These have a stronger claim to stay than the group

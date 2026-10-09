@@ -98,24 +98,3 @@ func showCalendar(store *data.Store, cfg config.Config) http.HandlerFunc {
 		render(ctx, w, rendering.CalendarPage(c, workspaceName, viewer, switchHref))
 	}
 }
-
-// showBoardSettings is Case 19 PM06: the Lists and Labels every board shares, composed from the three
-// Datasets that declare them.
-func showBoardSettings(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		machines := machinesFor(ctx)
-
-		c, err := composition.BoardSettings(ctx, composition.NewLoader(store, machines))
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		render(ctx, w, rendering.BoardSettingsPage(c, workspaceName, viewer, switchHref))
-	}
-}

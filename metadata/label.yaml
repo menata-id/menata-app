@@ -27,9 +27,9 @@ datasets:
     select: records
     limit: 200
 
-  # Labels with the cards that carry each, for a `page:` that says "used on N cards" (rows: records plus a
-  # `count:` over this Relation). The same Labels as ds_board_labels, kept apart so Board Settings' own read
-  # does not pay for a lookup it never uses. `via: fld_label` is the join Machine's reference back to a Label.
+  # Labels with the cards that carry each, for Board Settings' `page:` -- a Tag per Label (rows: records) and a
+  # "used on N cards" caption (a `count:` over this Relation). The same Labels as ds_board_labels, which stays
+  # for the "Manage labels" link's destination. `via: fld_label` is the join Machine's reference back to a Label.
   - id: ds_labels_with_cards
     select: records
     limit: 200

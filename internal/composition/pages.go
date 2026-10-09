@@ -31,11 +31,6 @@ const (
 const (
 	dashboardTasksDataset = "ds_all_tasks"
 	myTasksDataset        = "ds_my_tasks"
-	// Board Settings' three (Case 19 PM06): the Lists and Labels a board is built from, and how many cards
-	// carry each Label.
-	boardListsDataset  = "ds_board_lists"
-	boardLabelsDataset = "ds_board_labels"
-	labelUsageDataset  = "ds_label_usage"
 	// The one declared Relation (007 §7.5, Tahap A) and its id. The Dataset id is domain's, not a
 	// literal here: registry.KnownWorkflowEngines declares that the approval engine's `document` role must
 	// provide it, so the selector and the requirement are one string (001 #8). Two agreeing literals is
@@ -559,57 +554,4 @@ func SameDay(a, b time.Time) bool {
 	ay, am, ad := a.Date()
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd
-}
-
-// BoardSettings composes Case 19 PM06: the Lists a board groups by and the Labels its cards can carry, each
-// Label with how many cards carry it. Every figure and name is declared -- the two selections are Datasets
-// (`ds_board_lists`, `ds_board_labels`), a Label's name and colour are its Machine's own `title` and `color`
-// card_fields, and the usage count is `ds_label_usage` read by Label id -- so no Field id is named here.
-//
-// A Label whose colour is missing or outside the palette is drawn in the neutral entry, as CardTagsFor does
-// for a chip: dropping it would hide that the Label exists. The two links to the Machines' own pages are
-// built from each Dataset's source, because the generic Machine page is where a List or Label is created,
-// renamed and reordered -- this screen is the overview, not a second editor.
-func BoardSettings(ctx context.Context, l *Loader) (rendering.BoardSettingsContent, error) {
-	listSel, err := l.SelectRelated(ctx, boardListsDataset, expression.Context{})
-	if err != nil {
-		return rendering.BoardSettingsContent{}, err
-	}
-	labelSel, err := l.SelectRelated(ctx, boardLabelsDataset, expression.Context{})
-	if err != nil {
-		return rendering.BoardSettingsContent{}, err
-	}
-	usage, err := l.AggregateDataset(ctx, labelUsageDataset)
-	if err != nil {
-		return rendering.BoardSettingsContent{}, err
-	}
-	listDS, _ := l.Dataset(boardListsDataset)
-	labelDS, _ := l.Dataset(boardLabelsDataset)
-	return buildBoardSettings(l.Machine(listDS.Source), listSel, l.Machine(labelDS.Source), labelSel, usage), nil
-}
-
-func buildBoardSettings(listMachine *domain.Machine, lists Selection, labelMachine *domain.Machine, labels Selection, usage Aggregation) rendering.BoardSettingsContent {
-	c := rendering.BoardSettingsContent{
-		ListsHref:        "/machines/" + listMachine.ID,
-		LabelsHref:       "/machines/" + labelMachine.ID,
-		ListsTruncation:  rendering.Truncation{Limit: lists.Limit, Hit: lists.Truncated},
-		LabelsTruncation: rendering.Truncation{Limit: labels.Limit, Hit: labels.Truncated},
-	}
-	listTitle := FieldForRole(listMachine, domain.CardFieldRoleTitle)
-	for _, r := range lists.Records {
-		c.Lists = append(c.Lists, rendering.SettingsList{Name: DisplayString(r.Values[listTitle])})
-	}
-	labelTitle, labelColor := FieldForRole(labelMachine, domain.CardFieldRoleTitle), FieldForRole(labelMachine, domain.CardFieldRoleColor)
-	for _, r := range labels.Records {
-		color := domain.TagSlate
-		if v := DisplayString(r.Values[labelColor]); domain.IsTagColor(v) {
-			color = domain.TagColor(v)
-		}
-		c.Labels = append(c.Labels, rendering.SettingsLabel{
-			Name:    DisplayString(r.Values[labelTitle]),
-			Color:   color,
-			Records: int(usage.ByDimension[r.ID][measureTotal]),
-		})
-	}
-	return c
 }

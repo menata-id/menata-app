@@ -250,7 +250,6 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/api/account-menu/workspaces", showAccountMenuWorkspaces(d.Store, d.Cfg))
 		pr.Get("/dashboard", showDashboard(d.Store, d.Cfg))
 		pr.Get("/my-tasks", showMyTasks(d.Store, d.Cfg))
-		pr.Get("/board-settings", showBoardSettings(d.Store, d.Cfg))
 		// Notifications (Flow 2 gap study Tahap 6) -- Workspace-level runtime routes, same category
 		// as /dashboard and /account-profile: reachable by any authenticated member regardless of
 		// Application access, since a notification can concern any Application's own Machine.
