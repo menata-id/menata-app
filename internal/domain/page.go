@@ -40,7 +40,13 @@ type PageNode struct {
 	// The number is never written by the author -- it comes from the Relation the bound Dataset declares --
 	// and neither is the node's `text`, which this produces. Valid only on a `static` node inside a
 	// records-bound Collection's item template; `ir.Lower` refuses it anywhere else.
-	Count    *PageCount
+	Count *PageCount
+	// Param is the query-string parameter a dimension-bound Metric carries its row's Dimension value in when it
+	// links (`to: nav_documents_in_status`, `param: status` -> `/pages/nav_documents_in_status?status=<value>`).
+	// It is the other end of a destination's `$parameters.<name>`: the page that reads the parameter declares
+	// the name in its Dataset, this names it again only where a value is sent, and the loader checks the two
+	// agree. Valid only beside `to:` on a Metric bound with rows: dimension; `ir.Lower` refuses it anywhere else.
+	Param    string
 	Children []PageNode
 }
 

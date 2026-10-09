@@ -753,7 +753,7 @@ templ uiNode(n ir.UINode) {
 				case domain.ComponentCollection:
 					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", truncationFromProp(n.Props["truncated"]), uiChildComponents(n))
 				case domain.ComponentMetric:
-					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], domain.BadgeTone(n.Props["tone"]))
+					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], n.Props["href"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:
 					@avatar(n.Props["initials"], n.Props["label"], domain.AvatarSize(n.Props["size"]), domain.AvatarPresence(n.Props["presence"]))
 				case domain.ComponentButton:

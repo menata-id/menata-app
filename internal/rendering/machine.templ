@@ -377,7 +377,17 @@ templ avatar(initials, label string, size domain.AvatarSize, presence domain.Ava
 //
 // `hint` (a qualifier under the label) and `tone` (a signal on the value) are optional; "" and the neutral
 // tone draw exactly what the two-input form always drew.
-templ metric(label, value, hint string, tone domain.BadgeTone) {
+templ metric(label, value, hint, href string, tone domain.BadgeTone) {
+	if href != "" {
+		<a href={ templ.URL(href) } class="block no-underline">
+			@metricTile(label, value, hint, tone)
+		</a>
+	} else {
+		@metricTile(label, value, hint, tone)
+	}
+}
+
+templ metricTile(label, value, hint string, tone domain.BadgeTone) {
 	<div class={ surfaceClasses(ctx), "p-3" }>
 		<div class={ textClass(ctx, domain.RoleDisplay), weightClass(ctx, domain.WeightEmphasis), metricValueClass(ctx, tone) }>{ value }</div>
 		<div class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ label }</div>

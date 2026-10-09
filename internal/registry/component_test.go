@@ -269,3 +269,24 @@ func TestCollectionTruncatedIsAPositiveWholeNumber(t *testing.T) {
 		}
 	}
 }
+
+// A Metric that links carries a resolved route, never anything else: a scheme-bearing or protocol-relative
+// href would send a viewer off the application from a tile that looks like part of it.
+func TestMetricHrefIsARouteOfThisApplication(t *testing.T) {
+	base := map[string]string{"label": "draft", "value": "3"}
+	with := func(href string) map[string]string {
+		m := map[string]string{"href": href}
+		for k, v := range base {
+			m[k] = v
+		}
+		return m
+	}
+	if issues := ValidateComponentUse(domain.ComponentMetric, with("/pages/nav_x?status=draft")); len(issues) != 0 {
+		t.Errorf("a route with a query was refused: %v", issues)
+	}
+	for _, bad := range []string{"https://example.com", "//example.com", "javascript:alert(1)", "pages/x"} {
+		if issues := ValidateComponentUse(domain.ComponentMetric, with(bad)); len(issues) == 0 {
+			t.Errorf("Metric href %q passed validation", bad)
+		}
+	}
+}

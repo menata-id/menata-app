@@ -419,3 +419,35 @@ func TestPage_aListCutShortByItsBoundStillValidates(t *testing.T) {
 		t.Errorf("a cut list's Collection is refused by its own validator: %v", issues)
 	}
 }
+
+const linkingMetricPage = `
+  - id: nav_overview
+    label: Overview
+    route: /pages/nav_overview
+    page:
+      layout: stack
+      children:
+        - component: Metric
+          binding: { dataset: ds_by_status, measure: msr_total, rows: dimension }
+          to: nav_list
+          param: title
+`
+
+// A Metric that sends ?title= must land on a page whose Dataset reads $parameters.title; otherwise the link
+// draws, works, and filters nothing -- which no test of either page alone would see.
+func TestPage_aLinkingMetricMustSendAParameterTheDestinationReads(t *testing.T) {
+	good := linkingMetricPage + strings.Replace(validListPage, "ds_rows", "ds_by_param", 1)
+	if err := pageFixture(t, good); err != nil {
+		t.Fatalf("a linking Metric over a page that reads the parameter was refused: %v", err)
+	}
+	for name, nav := range map[string]string{
+		"destination reads no parameter": linkingMetricPage + validListPage,
+		"destination reads another":      strings.Replace(linkingMetricPage, "param: title", "param: other", 1) + strings.Replace(validListPage, "ds_rows", "ds_by_param", 1),
+		"destination has no page":        linkingMetricPage + "\n  - id: nav_list\n    label: List\n    route: /somewhere\n",
+	} {
+		err := pageFixture(t, nav)
+		if err == nil || !strings.Contains(err.Error(), "filtering on $parameters.") {
+			t.Errorf("%s: err = %v, want the parameter mismatch reported", name, err)
+		}
+	}
+}

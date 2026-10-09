@@ -2017,7 +2017,7 @@ func uiNode(n ir.UINode) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			case domain.ComponentMetric:
-				templ_7745c5c3_Err = metric(n.Props["label"], n.Props["value"], n.Props["hint"], domain.BadgeTone(n.Props["tone"])).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = metric(n.Props["label"], n.Props["value"], n.Props["hint"], n.Props["href"], domain.BadgeTone(n.Props["tone"])).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

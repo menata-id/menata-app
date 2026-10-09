@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -242,6 +243,9 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 			return nil, fmt.Errorf("%s: from: %s names %q, which is valid only as a link's href", path, prop, role)
 		}
 	}
+	if n.Param != "" { // lowerLink sees only unbound nodes, and a bound Metric is the only node that takes one
+		return nil, fmt.Errorf("%s: param: carries a row's value into a destination, so it is valid only beside to: on a Metric bound with rows: %s", path, domain.PageRowsDimension)
+	}
 	if !isLink {
 		if n.To != "" {
 			return nil, fmt.Errorf("%s: to: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
@@ -376,17 +380,26 @@ func lowerDimension(n domain.PageNode, r Resolver, path string) ([]UINode, error
 	if r.Rows == nil {
 		return nil, fmt.Errorf("%s: no resolver for dimension rows", path)
 	}
+	route, err := dimensionRoute(n, r, path)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := r.Rows(*b)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]UINode, 0, len(rows))
 	for _, row := range rows {
-		props := make(map[string]string, len(n.Props)+2)
+		props := make(map[string]string, len(n.Props)+3)
 		for k, v := range n.Props {
 			props[k] = v
 		}
 		props["label"], props["value"] = row.Label, row.Value
+		if route != "" {
+			// The row's Dimension value travels as data: url.Values escapes it, and the destination compares it
+			// as a bind parameter (007 §9.2), so a value holding `&` or a quote reaches it as itself.
+			props["href"] = route + "?" + url.Values{n.Param: {row.Label}}.Encode()
+		}
 		out = append(out, UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props})
 	}
 	return out, nil
@@ -399,6 +412,9 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 	}
 	if len(n.From) > 0 {
 		return nil, fmt.Errorf("%s: from: is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageRowsRecords)
+	}
+	if n.To != "" || n.Param != "" {
+		return nil, fmt.Errorf("%s: to:/param: belong on a Metric bound with rows: %s; a records-bound Collection links through its item template", path, domain.PageRowsDimension)
 	}
 	if len(n.Children) != 1 {
 		return nil, fmt.Errorf("%s: a records-bound collection holds exactly one child, the item template cloned for each record, and has %d", path, len(n.Children))
@@ -426,4 +442,28 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		out.Children = append(out.Children, items...)
 	}
 	return []UINode{out}, nil
+}
+
+// dimensionRoute resolves a bound Metric's `to:` to the route its rows link to, or "" when the node links
+// nowhere. A link carries a value, so `to:` and `param:` are one declaration: either alone is a fault, because a
+// destination with no parameter would be a link to the same page for every row, and a parameter with no
+// destination would be sent nowhere. A typed `href` is refused as a link's is -- a route is declared once.
+func dimensionRoute(n domain.PageNode, r Resolver, path string) (string, error) {
+	if _, written := n.Props["href"]; written {
+		return "", fmt.Errorf("%s: a Metric's destination is to: <navigation item id> with param:; never a typed href -- a route is declared once (001 #3, #8)", path)
+	}
+	if n.To == "" && n.Param == "" {
+		return "", nil
+	}
+	if n.To == "" || n.Param == "" {
+		return "", fmt.Errorf("%s: a bound Metric that links names both to: <navigation item id> and param: <query parameter>", path)
+	}
+	if r.Route == nil {
+		return "", fmt.Errorf("%s: no resolver for routes", path)
+	}
+	route, _, ok := r.Route(n.To)
+	if !ok {
+		return "", fmt.Errorf("%s: to: %s names no navigation item in this Application", path, n.To)
+	}
+	return route, nil
 }

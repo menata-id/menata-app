@@ -496,3 +496,50 @@ func TestDeclaredPageTakesItsFilterFromTheQueryString(t *testing.T) {
 		t.Error("a status that is not one listed Documents")
 	}
 }
+
+// TestDeclaredPageStatusTilesOpenTheDocumentsInThatStatus: the overview's Metrics link to the filtered page with
+// the row's own status as ?status=, and following one lists exactly the Documents in it -- the two ends of
+// `$parameters.status` joined through a real request, which neither page's own test can show.
+func TestDeclaredPageStatusTilesOpenTheDocumentsInThatStatus(t *testing.T) {
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredtile", "nana-2-workspace")
+	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
+
+	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	if doc == nil {
+		t.Fatal("nana-2-workspace casts no document role")
+	}
+	var statusField, titleField string
+	for _, ds := range doc.Datasets {
+		if ds.ID == "ds_documents_in_status" {
+			statusField = ds.Where.Comparisons()[0].Field
+		}
+	}
+	for _, cf := range doc.CardFields {
+		if cf.Role == domain.CardFieldRoleTitle {
+			titleField = cf.Field
+		}
+	}
+	f, ok := doc.FieldByID(statusField)
+	if statusField == "" || titleField == "" || !ok || len(f.Options) < 2 {
+		t.Fatalf("the Document Machine does not offer a two-valued status filter (status=%q title=%q)", statusField, titleField)
+	}
+	for i, title := range []string{"Tileprobe in first status", "Tileprobe in second status"} {
+		rec, err := store.CreateRecord(ctx, doc.ID, map[string]any{titleField: title, statusField: f.Options[i]})
+		if err != nil {
+			t.Fatalf("CreateRecord: %v", err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, doc.ID, rec.ID) })
+	}
+
+	overview := getPage(t, h, cookie, "/pages/nav_documents_by_status")
+	for _, option := range f.Options {
+		href := `href="/pages/nav_documents_in_status?status=` + url.QueryEscape(option) + `"`
+		if !strings.Contains(overview, href) {
+			t.Errorf("no status tile links to %s", href)
+		}
+	}
+	followed := getPage(t, h, cookie, "/pages/nav_documents_in_status?status="+url.QueryEscape(f.Options[1]))
+	if !strings.Contains(followed, "Tileprobe in second status") || strings.Contains(followed, "Tileprobe in first status") {
+		t.Errorf("following the %q tile must list that status's Document and no other", f.Options[1])
+	}
+}

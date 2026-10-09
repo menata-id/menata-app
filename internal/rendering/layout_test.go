@@ -414,7 +414,7 @@ func TestStaticLink_rendersAnAnchorNotLiteralText(t *testing.T) {
 func TestMetric_inkFollowsTheWorkspaceTheme(t *testing.T) {
 	render := func(ctx context.Context) string {
 		var buf bytes.Buffer
-		if err := metric("Open", "7", "since Monday", domain.ToneNeutral).Render(ctx, &buf); err != nil {
+		if err := metric("Open", "7", "since Monday", "", domain.ToneNeutral).Render(ctx, &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
 		return buf.String()
@@ -1198,5 +1198,25 @@ func TestUINode_aCollectionNamesItsBoundOnlyWhenTheLoweredTreeCarriesOne(t *test
 		if got := render(props); strings.Contains(got, "Showing the first") {
 			t.Errorf("props %v drew a notice:\n%s", props, got)
 		}
+	}
+}
+
+// A Metric with no href is byte-for-byte what it was before the input existed; one with an href is the same
+// tile inside one anchor, and the anchor carries the href through templ's URL sanitiser.
+func TestMetric_hrefWrapsTheSameTileInOneAnchor(t *testing.T) {
+	render := func(href string) string {
+		var buf bytes.Buffer
+		if err := metric("Open", "7", "since Monday", href, domain.ToneNeutral).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	plain := render("")
+	if strings.Contains(plain, "<a") {
+		t.Errorf("a Metric with no destination drew an anchor: %q", plain)
+	}
+	linked := render("/pages/nav_x?status=in+review")
+	if !strings.HasPrefix(linked, `<a href="/pages/nav_x?status=in+review"`) || strings.Count(linked, "<a ") != 1 || !strings.Contains(linked, plain) {
+		t.Errorf("a linking Metric is not the plain tile inside one anchor; got %q", linked)
 	}
 }

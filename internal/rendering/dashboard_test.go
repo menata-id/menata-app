@@ -12,7 +12,7 @@ import (
 func renderMetric(t *testing.T, hint string, tone domain.BadgeTone) string {
 	t.Helper()
 	var buf bytes.Buffer
-	if err := metric("Overdue", "3", hint, tone).Render(context.Background(), &buf); err != nil {
+	if err := metric("Overdue", "3", hint, "", tone).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	return buf.String()

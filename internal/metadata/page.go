@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"fmt"
+	"menata.app/internal/expression"
 	"slices"
 	"sort"
 	"sync"
@@ -22,7 +23,7 @@ import (
 // ones the node's type does not declare. The strictness lives in one place, the one that already knows the
 // vocabulary.
 //
-// The reserved keys are the three discriminators, `children`, `binding`, `from`, `to` and `list_of`. Exactly one discriminator per
+// The reserved keys are the three discriminators, `children`, `binding`, `from`, `to`, `param` and `list_of`. Exactly one discriminator per
 // node: `layout:`, `static:` or `component:`, whose value is the type.
 type pageNodeDoc struct {
 	kind     string
@@ -32,6 +33,7 @@ type pageNodeDoc struct {
 	from     map[string]string
 	to       string
 	listOf   string
+	param    string
 	count    *domain.PageCount
 	children []pageNodeDoc
 }
@@ -78,6 +80,11 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return fmt.Errorf("line %d: to: names one navigation item id, such as nav_approval_inbox -- never a route", key.Line)
 			}
 			p.to = val.Value
+		case "param":
+			if val.Kind != yaml.ScalarNode || val.Value == "" {
+				return fmt.Errorf("line %d: param: names one query parameter, such as status -- the name a destination page's Dataset reads as $parameters.<name>", key.Line)
+			}
+			p.param = val.Value
 		case "list_of":
 			if val.Kind != yaml.ScalarNode || val.Value == "" {
 				return fmt.Errorf("line %d: list_of: names one dataset id, such as ds_recent_documents -- never a route", key.Line)
@@ -182,7 +189,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Count: p.count}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -289,6 +296,7 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 			}
 			issues = append(issues, bindingIssues(*item.Page, datasets, byID, where)...)
 			issues = append(issues, shapeIssues(*item.Page, app.AllNavigation, datasets, where)...)
+			issues = append(issues, paramLinkIssues(*item.Page, app.AllNavigation, datasets, where)...)
 		}
 	}
 	if len(issues) > 0 {
@@ -417,4 +425,45 @@ func shapeIssues(root domain.PageNode, navigation []domain.NavigationItem, datas
 	}
 	walk(tree)
 	return issues
+}
+
+// paramLinkIssues checks the one thing `ir.Lower` cannot: that a Metric's `to:` + `param:` sends a value the
+// destination actually reads. The destination is a page whose bound Datasets name `$parameters.<param>` in
+// their `where:`; a link carrying `?status=` to a page that reads no such parameter would draw a working link
+// that filters nothing, which no test of either page alone would notice. An unknown `to:` is `ir.Lower`'s to
+// report, so it is skipped here rather than reported twice.
+func paramLinkIssues(n domain.PageNode, navigation []domain.NavigationItem, datasets map[string]domain.Dataset, where string) []string {
+	var issues []string
+	if n.To != "" && n.Param != "" {
+		for _, dest := range navigation {
+			if dest.ID != n.To {
+				continue
+			}
+			if dest.Page == nil || !pageReadsParameter(*dest.Page, n.Param, datasets) {
+				issues = append(issues, fmt.Sprintf("%s: page: to: %s with param: %s, but that page binds no Dataset filtering on $parameters.%s", where, n.To, n.Param, n.Param))
+			}
+		}
+	}
+	for _, c := range n.Children {
+		issues = append(issues, paramLinkIssues(c, navigation, datasets, where)...)
+	}
+	return issues
+}
+
+func pageReadsParameter(n domain.PageNode, param string, datasets map[string]domain.Dataset) bool {
+	if n.Binding != nil {
+		if ds, ok := datasets[n.Binding.Dataset]; ok {
+			for _, c := range ds.Where.Comparisons() {
+				if c.Value == expression.SentinelParameterPrefix+param {
+					return true
+				}
+			}
+		}
+	}
+	for _, c := range n.Children {
+		if pageReadsParameter(c, param, datasets) {
+			return true
+		}
+	}
+	return false
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"menata.app/internal/domain"
 )
@@ -209,6 +210,9 @@ var metricContract = domain.ComponentContract{
 		{Name: "value", Kind: "string", Required: true},
 		{Name: "hint", Kind: "string"},
 		{Name: "tone", Kind: "BadgeTone"},
+		// Optional: a Metric that links is a resolved destination, never a typed one -- `ir.Lower` builds it from
+		// a navigation item and a row's value, and refuses an author-written href.
+		{Name: "href", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,
@@ -221,6 +225,9 @@ func validateMetric(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(metricContract, inputs, "Metric")
 	if tone := inputs["tone"]; tone != "" && !domain.KnownBadgeTones[domain.BadgeTone(tone)] {
 		issues = append(issues, fmt.Sprintf("Metric tone %q is not one of the declared tones", tone))
+	}
+	if href := inputs["href"]; href != "" && (!strings.HasPrefix(href, "/") || strings.HasPrefix(href, "//")) {
+		issues = append(issues, fmt.Sprintf("Metric href %q is not a route of this application (it starts with a single /)", href))
 	}
 	return issues
 }

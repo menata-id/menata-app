@@ -248,6 +248,10 @@ navigation:
                 dataset: ds_document_by_status
                 measure: msr_total
                 rows: dimension
+              # Each status tile opens the documents in that status: the row's own value goes to
+              # nav_documents_in_status as ?status=, which that page's Dataset reads as $parameters.status.
+              to: nav_documents_in_status
+              param: status
         - static: subheading
           text: Recent documents
         # The same page also lists records: a Collection bound with rows: records is a template for its items.

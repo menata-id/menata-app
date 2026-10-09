@@ -315,12 +315,20 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
-	links, recordLinks, listLinks := 0, 0, 0
+	links, recordLinks, listLinks, metricLinks := 0, 0, 0, 0
 	for _, slug := range sortedKeys(wss) {
+		datasets := map[string]domain.Dataset{}
+		for _, m := range wss[slug].Workspace.Machines {
+			for _, ds := range m.Datasets {
+				datasets[ds.ID] = ds
+			}
+		}
 		for _, app := range wss[slug].Workspace.Applications {
 			declared := map[string]bool{}
+			pageOf := map[string]*domain.PageNode{}
 			for _, it := range app.AllNavigation {
 				declared[it.ID] = true
+				pageOf[it.ID] = it.Page
 			}
 			var walk func(n domain.PageNode, where string)
 			walk = func(n domain.PageNode, where string) {
@@ -346,7 +354,22 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 					if _, typed := n.Props["href"]; typed {
 						t.Errorf("%s: link carries a typed href; its destination is to: <navigation id>", where)
 					}
-				} else if n.To != "" || n.ListOf != "" {
+				} else if n.Kind == "component" && n.Type == string(domain.ComponentMetric) && n.Binding != nil && n.Binding.Rows == domain.PageRowsDimension && (n.To != "" || n.Param != "") {
+					// A bound Metric that links: the row's value goes to the destination as ?param=, so the
+					// destination has to exist, name the parameter, and bind a Dataset that reads it.
+					metricLinks++
+					switch {
+					case n.To == "" || n.Param == "":
+						t.Errorf("%s: a linking Metric names both to: and param:", where)
+					case !declared[n.To]:
+						t.Errorf("%s: Metric to %q names no navigation item of this Application", where, n.To)
+					case pageOf[n.To] == nil || !pageBindsParameter(*pageOf[n.To], n.Param, datasets):
+						t.Errorf("%s: Metric sends ?%s= to %s, whose page binds no Dataset filtering on $parameters.%s -- the link would filter nothing", where, n.Param, n.To, n.Param)
+					}
+					if _, typed := n.Props["href"]; typed {
+						t.Errorf("%s: Metric carries a typed href; its destination is to: with param:", where)
+					}
+				} else if n.To != "" || n.ListOf != "" || n.Param != "" {
 					t.Errorf("%s: to:/list_of: on a node that is not a link", where)
 				}
 				for _, c := range n.Children {
@@ -369,6 +392,27 @@ func TestEveryInstalledLinkNamesItsDestinationOnce(t *testing.T) {
 	if listLinks == 0 {
 		t.Fatal("no installed page declares a list_of link -- that third of this gate is measuring nothing")
 	}
+	if metricLinks == 0 {
+		t.Fatal("no installed page declares a linking Metric -- that fourth of this gate is measuring nothing")
+	}
+}
+
+// pageBindsParameter reports whether any Dataset a page binds filters on `$parameters.<param>`. It reads the
+// Dataset's own `where:` rather than asking the loader's check, so it still fails if that check is removed.
+func pageBindsParameter(n domain.PageNode, param string, datasets map[string]domain.Dataset) bool {
+	if n.Binding != nil {
+		for _, c := range datasets[n.Binding.Dataset].Where.Comparisons() {
+			if c.Value == "$parameters."+param {
+				return true
+			}
+		}
+	}
+	for _, c := range n.Children {
+		if pageBindsParameter(c, param, datasets) {
+			return true
+		}
+	}
+	return false
 }
 
 // windowDatasets are Datasets whose `limit:` is their *meaning*, not a safety cap: "recent" is defined by the

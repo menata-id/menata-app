@@ -956,7 +956,13 @@ that Dataset's Dimension**: `label` is the value, `value` is the Measure. Rules,
   number the author typed, which is what `binding:` exists to avoid;
 - rows follow the Dimension's declared option order, then any unseen values sorted; a declared option with
   no record shows an explicit `0`;
-- there is no expression and no path (007 §9.2): a Dataset, a Measure and a mode.
+- there is no expression and no path (007 §9.2): a Dataset, a Measure and a mode;
+- a bound Metric may **link each of its rows** with `to: <navigation item id>` and `param: <name>` together:
+  every tile becomes `<route>?<name>=<the row's own value>`, the value escaped as data. The destination must be
+  a page of the same Application that binds a Dataset filtering on `$parameters.<name>` -- checked at load,
+  because a link carrying `?status=` to a page that reads no such parameter would draw, work, and filter
+  nothing. `href` is never written (a route is declared once); `to:`/`param:` on any other node is a load error.
+  Worked example: `nav_documents_by_status`'s tiles open `nav_documents_in_status`.
 
 Only `Metric` (`rows: dimension`) and `Collection` (`rows: records`) are bindable (`domain.BindableComponents`).
 Cost: one query per distinct Dataset, however many nodes bind it.

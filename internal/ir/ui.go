@@ -221,7 +221,7 @@ var allowedProps = map[string][]string{
 	"static/link":           {"href", "text"},
 	"component/StatusBadge": {"label", "tone"},
 	"component/Avatar":      {"initials", "label", "size", "presence"},
-	"component/Metric":      {"label", "value", "hint", "tone"},
+	"component/Metric":      {"label", "value", "hint", "tone", "href"},
 	"component/Collection":  {"gap", "empty", "ordered", "divided", "truncated"},
 	"component/Field":       {"label", "for"},
 	"component/Button":      {"label", "variant", "name", "value"},

@@ -533,3 +533,61 @@ func TestLowerCompleteIsRefusedWhereItCannotMeanAThing(t *testing.T) {
 		}
 	}
 }
+
+func linkingMetric(to, param string, props map[string]string) domain.PageNode {
+	n := metricBound(props)
+	n.To, n.Param = to, param
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{n}}
+}
+
+func rowsAndRoutes(route string, rows ...Row) Resolver {
+	r := navFixture(route)
+	r.Rows = func(domain.PageBinding) ([]Row, error) { return rows, nil }
+	return r
+}
+
+// The destination is a navigation item and the value is the row's own Dimension value, escaped as data: a
+// status holding `&` or a space must arrive at the other page as itself.
+func TestLower_aLinkingMetricCarriesEachRowsValueToItsDestination(t *testing.T) {
+	tree, err := Lower(linkingMetric("nav_x", "status", nil), rowsAndRoutes("/pages/nav_x", Row{Label: "in review & more", Value: "3"}, Row{Label: "draft", Value: "1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"/pages/nav_x?status=in+review+%26+more", "/pages/nav_x?status=draft"}
+	for i, w := range want {
+		if got := tree.Children[i].Props["href"]; got != w {
+			t.Errorf("row %d href = %q, want %q", i, got, w)
+		}
+	}
+	plain, err := Lower(linkingMetric("", "", nil), rowsAndRoutes("/pages/nav_x", Row{Label: "draft", Value: "1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, has := plain.Children[0].Props["href"]; has {
+		t.Error("a Metric that declares no destination acquired an href")
+	}
+}
+
+func TestLower_refusesALinkingMetricThatIsNotWellFormed(t *testing.T) {
+	res := rowsAndRoutes("/pages/nav_x", Row{Label: "draft", Value: "1"})
+	collection := listBound(rowTemplate())
+	collection.To, collection.Param = "nav_x", "status"
+	link := linkTo("nav_x", nil)
+	link.Children[0].Param = "status"
+	for name, tc := range map[string]struct {
+		root domain.PageNode
+		want string
+	}{
+		"to without param":    {linkingMetric("nav_x", "", nil), "both to:"},
+		"param without to":    {linkingMetric("", "status", nil), "both to:"},
+		"unknown destination": {linkingMetric("nav_nope", "status", nil), "names no navigation item"},
+		"typed href":          {linkingMetric("nav_x", "status", map[string]string{"href": "/x"}), "never a typed href"},
+		"on a records list":   {domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{collection}}, "belong on a Metric"},
+		"param on a link":     {link, "param: carries a row's value"},
+	} {
+		_, err := Lower(tc.root, res)
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want it to contain %q", name, err, tc.want)
+		}
+	}
+}
