@@ -46,8 +46,24 @@ type PageNode struct {
 	// It is the other end of a destination's `$parameters.<name>`: the page that reads the parameter declares
 	// the name in its Dataset, this names it again only where a value is sent, and the loader checks the two
 	// agree. Valid only beside `to:` on a Metric bound with rows: dimension; `ir.Lower` refuses it anywhere else.
-	Param    string
+	Param string
+	// When makes the node appear only for the records it holds for (007 §15.2, "conditional visibility"):
+	// `when: {role: status, is_not: $done}`. It is a statement about the record's own Projection role, so it
+	// is valid only inside a records-bound Collection's item template, and a node it hides is not lowered at
+	// all -- its children are not either, which is what makes it a visibility rule and not a CSS class.
+	When     *PageCondition
 	Children []PageNode
+}
+
+// PageCondition is a record-scoped test on a Projection role: Role is a `card_fields` role, and exactly one of Is
+// and IsNot is set. The operand is a literal value or one of the two sentinels a transition's `becomes:` already
+// uses (PageTransitionDone, PageTransitionReopen), resolved from the Machine's `completion:` -- so a page says "not
+// done" without retyping the word the Machine already declares (001 #8). No grammar beyond that (007 §9.2): one
+// role, one comparison, no `and`/`or`.
+type PageCondition struct {
+	Role  string
+	Is    string
+	IsNot string
 }
 
 // PageCount is a node's plural text over a Relation's child count. Of is a Relation id of the Dataset the

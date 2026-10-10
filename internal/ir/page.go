@@ -46,8 +46,12 @@ type RecordSet struct {
 	Deletes     []RecordAction
 	Moves       []RecordMove
 	Transitions []RecordTransition
-	Truncated   bool
-	Limit       int
+	// Done and Reopen are the Machine's `completion:` values, what the `$done`/`$reopen` of a `when:` mean ("" when
+	// it declares none). ShapeOnly marks the load-time placeholder, for which every `when:` holds.
+	Done, Reopen string
+	ShapeOnly    bool
+	Truncated    bool
+	Limit        int
 }
 
 // RecordTransition is the answer for a `transition` Button: the record's route, the status Field a transition moves
@@ -92,6 +96,47 @@ type RecordWrites struct {
 	Move   *RecordMove
 	// Transition is the status move this record's resolver offered.
 	Transition *RecordTransition
+	// Done, Reopen and ShapeOnly are the RecordSet's, shared by every record: what a `when:` sentinel means.
+	Done, Reopen string
+	ShapeOnly    bool
+}
+
+// conditionHolds answers a `when:` for one record. The role must be one the bound Machine projects (the same
+// refusal `from:` makes), a sentinel resolves from the Machine's `completion:`, and a shape-only set (the
+// load-time placeholder) answers true for every condition, so a node a real record would hide is still
+// validated -- otherwise the placeholder's one record would hide it from the load check for good.
+func conditionHolds(c domain.PageCondition, record map[string]string, writes *RecordWrites, path string) (bool, error) {
+	if record == nil {
+		return false, fmt.Errorf("%s: when: is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageRowsRecords)
+	}
+	if (c.Is == "") == (c.IsNot == "") {
+		return false, fmt.Errorf("%s: when: takes exactly one of is: and is_not:", path)
+	}
+	have, ok := record[c.Role]
+	if !ok {
+		return false, fmt.Errorf("%s: when: names the role %q, which the bound Dataset's Machine does not project", path, c.Role)
+	}
+	operand, negate := c.Is, false
+	if c.IsNot != "" {
+		operand, negate = c.IsNot, true
+	}
+	switch operand {
+	case domain.PageTransitionDone:
+		if writes != nil {
+			operand = writes.Done
+		}
+	case domain.PageTransitionReopen:
+		if writes != nil {
+			operand = writes.Reopen
+		}
+	}
+	if operand == "" || operand == domain.PageTransitionDone || operand == domain.PageTransitionReopen {
+		return false, fmt.Errorf("%s: when: %s needs the Machine to declare a `completion:`, and this one declares none", path, operand)
+	}
+	if writes != nil && writes.ShapeOnly {
+		return true, nil
+	}
+	return (have == operand) != negate, nil
 }
 
 // RouteResolver answers a `to:`: the route and the label of the navigation item named navID, or ok=false when
@@ -182,6 +227,12 @@ func Lower(root domain.PageNode, r Resolver) (UINode, error) {
 // lower expands one node. record is non-nil exactly while lowering inside a records template, which is what
 // makes `from:` legal and a nested Binding illegal.
 func lower(n domain.PageNode, r Resolver, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
+	if n.When != nil {
+		show, err := conditionHolds(*n.When, record, writes, path)
+		if err != nil || !show {
+			return nil, err
+		}
+	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteUpdate {
 		return lowerUpdateForm(n, path, record, writes)
 	}
@@ -581,7 +632,7 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		if rec == nil {
 			rec = map[string]string{} // lower reads non-nil as "inside a template"
 		}
-		writes := &RecordWrites{}
+		writes := &RecordWrites{Done: set.Done, Reopen: set.Reopen, ShapeOnly: set.ShapeOnly}
 		if i < len(set.Edits) {
 			writes.Edit = &set.Edits[i]
 		}

@@ -144,12 +144,18 @@ navigation:
                       label: Mark done
                       variant: secondary
                       becomes: $done
+                      when:
+                        role: status
+                        is_not: $done
                       binding:
                         write: transition
                     - component: Button
                       label: Reopen
                       variant: secondary
                       becomes: $reopen
+                      when:
+                        role: status
+                        is: $done
                       binding:
                         write: transition
   - id: nav_calendar

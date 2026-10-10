@@ -644,3 +644,71 @@ func TestTransitionBindingIssues(t *testing.T) {
 		t.Errorf("a Machine with no status role: %q", got)
 	}
 }
+
+func TestConditionIssues(t *testing.T) {
+	task := &domain.Machine{
+		ID: "mch_x",
+		Fields: []domain.Field{
+			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"todo", "done"}, Default: "todo"},
+			{ID: "fld_title", Type: domain.FieldTypeText},
+		},
+		CardFields: []domain.CardField{{Field: "fld_status", Role: domain.CardFieldRoleStatus}, {Field: "fld_title", Role: domain.CardFieldRoleTitle}},
+		Completion: &domain.Completion{Field: "fld_status", Done: "done"},
+	}
+	issues := func(c domain.PageCondition, item *domain.Machine) string {
+		return strings.Join(conditionIssues(c, item, "w"), "\n")
+	}
+	for _, c := range []domain.PageCondition{
+		{Role: "status", Is: domain.PageTransitionDone},
+		{Role: "status", IsNot: domain.PageTransitionReopen},
+		{Role: "status", Is: "todo"},
+		{Role: "title", Is: "anything: a Field with no options takes any literal"},
+	} {
+		if got := issues(c, task); got != "" {
+			t.Errorf("%+v was refused: %s", c, got)
+		}
+	}
+	for name, tc := range map[string]struct {
+		c    domain.PageCondition
+		item *domain.Machine
+		want string
+	}{
+		"outside a records Collection": {domain.PageCondition{Role: "status", Is: "todo"}, nil, "item template"},
+		"role the Machine lacks":       {domain.PageCondition{Role: "date", Is: "x"}, task, "no card_fields"},
+		"misspelt option":              {domain.PageCondition{Role: "status", Is: "finished"}, task, "not an option"},
+		"sentinel over another Field":  {domain.PageCondition{Role: "title", Is: domain.PageTransitionDone}, task, "reads fld_title"},
+	} {
+		if got := issues(tc.c, tc.item); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: %q, want it to mention %q", name, got, tc.want)
+		}
+	}
+	noCompletion := *task
+	noCompletion.Completion = nil
+	if got := issues(domain.PageCondition{Role: "status", Is: domain.PageTransitionDone}, &noCompletion); !strings.Contains(got, "completion") {
+		t.Errorf("a sentinel over a Machine with no completion: %q", got)
+	}
+}
+
+// TestBindingIssuesWalksIntoWhen: the walk, and not only the helper, asks every `when:` -- a misspelt status under
+// a records Collection must be a load error.
+func TestBindingIssuesWalksIntoWhen(t *testing.T) {
+	task := &domain.Machine{
+		ID:         "mch_x",
+		Fields:     []domain.Field{{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"todo", "done"}}},
+		CardFields: []domain.CardField{{Field: "fld_status", Role: domain.CardFieldRoleStatus}},
+	}
+	ds := map[string]domain.Dataset{"ds_x": {ID: "ds_x", Source: "mch_x", Select: domain.SelectRecords}}
+	page := func(is string) domain.PageNode {
+		return domain.PageNode{Kind: "component", Type: "Collection",
+			Binding: &domain.PageBinding{Dataset: "ds_x", Rows: domain.PageRowsRecords},
+			Children: []domain.PageNode{{Kind: "static", Type: "text", Props: map[string]string{"text": "t"},
+				When: &domain.PageCondition{Role: "status", Is: is}}}}
+	}
+	machines := map[string]*domain.Machine{"mch_x": task}
+	if got := bindingIssues(page("done"), ds, machines, nil, "w"); len(got) != 0 {
+		t.Errorf("a real option was refused: %v", got)
+	}
+	if got := strings.Join(bindingIssues(page("finished"), ds, machines, nil, "w"), "\n"); !strings.Contains(got, "not an option") {
+		t.Errorf("a misspelt option reached no check: %q", got)
+	}
+}

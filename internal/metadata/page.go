@@ -36,6 +36,7 @@ type pageNodeDoc struct {
 	listOf   string
 	param    string
 	count    *domain.PageCount
+	when     *domain.PageCondition
 	children []pageNodeDoc
 }
 
@@ -98,6 +99,12 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return err
 			}
 			p.count = c
+		case "when":
+			w, err := decodePageWhen(val)
+			if err != nil {
+				return err
+			}
+			p.when = w
 		case "binding":
 			b, err := decodePageBinding(val)
 			if err != nil {
@@ -166,6 +173,34 @@ func decodePageCount(n *yaml.Node) (*domain.PageCount, error) {
 	return c, nil
 }
 
+// decodePageWhen reads `when: {role: status, is_not: $done}`: one role and exactly one comparison, both scalars.
+func decodePageWhen(n *yaml.Node) (*domain.PageCondition, error) {
+	if n.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("line %d: when: is a mapping of role and one of is / is_not", n.Line)
+	}
+	c := &domain.PageCondition{}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		key, val := n.Content[i], n.Content[i+1]
+		if val.Kind != yaml.ScalarNode || val.Value == "" {
+			return nil, fmt.Errorf("line %d: when.%s: a single value, not an expression or a list -- a condition has no grammar (007 §9.2)", key.Line, key.Value)
+		}
+		switch key.Value {
+		case "role":
+			c.Role = val.Value
+		case "is":
+			c.Is = val.Value
+		case "is_not":
+			c.IsNot = val.Value
+		default:
+			return nil, fmt.Errorf("line %d: %q is not a key when declares (role, is, is_not)", key.Line, key.Value)
+		}
+	}
+	if c.Role == "" || (c.Is == "") == (c.IsNot == "") {
+		return nil, fmt.Errorf("line %d: when: names a role and exactly one of is: and is_not:", n.Line)
+	}
+	return c, nil
+}
+
 func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 	if n.Kind != yaml.MappingNode {
 		return nil, fmt.Errorf("line %d: binding: is a mapping of dataset, measure, rows and write", n.Line)
@@ -193,7 +228,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, When: p.when}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -266,7 +301,9 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 				Route: domain.FormRoute("machine") + "/x", Field: "x", Done: "x", Reopen: "x",
 				Allows: func(string) (bool, bool) { return true, true },
 			}
-			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}, Moves: []ir.RecordMove{mv}, Transitions: []ir.RecordTransition{tr}}, nil
+			// ShapeOnly: every `when:` holds here, so the nodes a real record would hide are still checked. Whether
+			// the role and the operand are right for the real Machine is `conditionIssues`' question.
+			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}, Moves: []ir.RecordMove{mv}, Transitions: []ir.RecordTransition{tr}, Done: "x", Reopen: "x", ShapeOnly: true}, nil
 		},
 	}
 }
@@ -371,6 +408,9 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 				issues = append(issues, fmt.Sprintf("%s: page: dataset %q declares no dimension, so it has no rows to expand", where, b.Dataset))
 			}
 		}
+	}
+	if n.When != nil {
+		issues = append(issues, conditionIssues(*n.When, item, where)...)
 	}
 	if n.ListOf != "" {
 		if _, ok := datasets[n.ListOf]; !ok {
@@ -531,6 +571,38 @@ func transitionBindingIssues(n domain.PageNode, item *domain.Machine, where stri
 	}
 	if !slices.Contains(field.Options, target) {
 		return []string{fmt.Sprintf("%s: page: becomes: %q is not an option of %s on machine %q (options: %s)", where, target, fieldID, item.ID, strings.Join(field.Options, ", "))}
+	}
+	return nil
+}
+
+// conditionIssues is what a `when:` asks of the Machine of the records it sits over: that it projects the role, that
+// a sentinel has a `completion:` to resolve from, and -- when the role's Field has options -- that a literal is one of
+// them, so a misspelt status is a load error and not a node that is silently never (or always) drawn.
+func conditionIssues(c domain.PageCondition, item *domain.Machine, where string) []string {
+	if item == nil {
+		return []string{fmt.Sprintf("%s: page: when: is valid only inside the item template of a Collection bound with rows: %s", where, domain.PageRowsRecords)}
+	}
+	fieldID := item.CardFieldFor(domain.CardFieldRole(c.Role))
+	field, ok := item.FieldByID(fieldID)
+	if fieldID == "" || !ok {
+		return []string{fmt.Sprintf("%s: page: when: role %q -- machine %q declares no card_fields entry for it", where, c.Role, item.ID)}
+	}
+	operand := c.Is
+	if operand == "" {
+		operand = c.IsNot
+	}
+	switch operand {
+	case domain.PageTransitionDone, domain.PageTransitionReopen:
+		if item.Completion == nil {
+			return []string{fmt.Sprintf("%s: page: when: %s needs machine %q to declare a `completion:`", where, operand, item.ID)}
+		}
+		if field.ID != item.Completion.Field {
+			return []string{fmt.Sprintf("%s: page: when: %s is a value of %s, and role %q reads %s", where, operand, item.Completion.Field, c.Role, field.ID)}
+		}
+		return nil
+	}
+	if len(field.Options) > 0 && !slices.Contains(field.Options, operand) {
+		return []string{fmt.Sprintf("%s: page: when: %q is not an option of %s on machine %q (options: %s)", where, operand, field.ID, item.ID, strings.Join(field.Options, ", "))}
 	}
 	return nil
 }

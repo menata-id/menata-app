@@ -1053,6 +1053,21 @@ func TestDeclaredPageTransitionButtonsMoveTheStatusAndAreDrawnOnlyWhereTheMoveIs
 		return rec
 	}
 	open, finished := mk("Move-probe-open", task.ReopenValue()), mk("Move-probe-finished", task.Completion.Done)
+	// A third status that is neither the finished value nor the reopen value: `Allows` alone would offer it
+	// Reopen (a move to the reopen value is a change), and `when: {role: status, is: $done}` is what stops that.
+	middle := ""
+	if statusField, ok := task.FieldByID(task.CardFieldFor(domain.CardFieldRoleStatus)); ok {
+		for _, o := range statusField.Options {
+			if o != task.Completion.Done && o != task.ReopenValue() {
+				middle = o
+				break
+			}
+		}
+	}
+	var inProgress *data.Record
+	if middle != "" {
+		inProgress = mk("Move-probe-middle", middle)
+	}
 
 	// button finds the Button of one record's route that sets the status to value, "" when there is none.
 	button := func(body string, rec *data.Record, value string) string {
@@ -1079,6 +1094,14 @@ func TestDeclaredPageTransitionButtonsMoveTheStatusAndAreDrawnOnlyWhereTheMoveIs
 	}
 	if button(body, finished, task.ReopenValue()) == "" {
 		t.Error("a finished Task is offered no Reopen")
+	}
+	if inProgress != nil {
+		if button(body, inProgress, task.Completion.Done) == "" {
+			t.Error("an unfinished Task is offered no Mark done")
+		}
+		if button(body, inProgress, task.ReopenValue()) != "" {
+			t.Error("an unfinished, not-yet-open Task is offered Reopen: the `when:` on that Button did not hide it")
+		}
 	}
 
 	patch := func(rec *data.Record, vals url.Values) *httptest.ResponseRecorder {

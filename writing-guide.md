@@ -1359,8 +1359,28 @@ Machine, over a Machine with no `status` role over a Field that has options, a `
 `$done`/`$reopen` over a Machine with no `completion:`, and a typed `action`, `method`, `name`, `value` or `confirm`.
 **Who sees it** is per record: a button is drawn only where the move is a change the viewer may make -- not toward
 the value the record already holds, not where the Machine's declared edges refuse it, not where the viewer's `edit`
-Permission does not reach that record. (Showing "Reopen" only on finished tasks falls out of that for a Machine with
-edges; a Machine with none offers it on every other status until a page can say when a node is visible, 007 §15.2.)
+Permission does not reach that record. (A Machine with no `transitions:` edges would offer "Reopen" on every status
+but the reopen value; say when a node is visible with `when:`, next.)
+
+**A node that is drawn only for some records (K11, 2026-10-10).** Any node inside a records Collection's item template
+may carry `when: {role: <card_fields role>, is: <value>}` or `is_not: <value>` -- exactly one of the two. The node, and
+everything under it, is drawn for the records the test holds for and not for the others. The operand is a literal or
+`$done` / `$reopen`, the same two words a transition's `becomes:` takes, read from the Machine's `completion:`.
+
+```yaml
+        - component: Button
+          label: Reopen
+          becomes: $reopen
+          when: {role: status, is: $done}     # only on finished tasks
+          binding: {write: transition}
+```
+
+Refused at load: `when:` anywhere but inside a records Collection's item template, a role the Machine does not project, a
+literal that is not an option of the role's Field (when it has options), `$done`/`$reopen` over a Machine with no
+`completion:` or over a role other than the completion Field, and both `is` and `is_not` or neither. **What it is not:** one
+role and one comparison -- no `and`/`or`, no comparing two roles, and no test on the viewer or the Application (a node
+shown only to an admin is a different scope, 007 §15.2, and is not built). It hides a node; it is not a permission --
+a Button's own rule (Permission, `transitions:`) still decides whether it is drawn for that viewer.
 
 **A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
 may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,

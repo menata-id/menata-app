@@ -1059,3 +1059,80 @@ func TestLower_refusesATransitionButtonThatCouldNotBeBuiltHonestly(t *testing.T)
 		t.Errorf("a transition Button outside a records template: err = %v", err)
 	}
 }
+
+// whenTemplate is a records Collection whose item template is one Text node under a `when:`.
+func whenTemplate(c *domain.PageCondition, set RecordSet) (domain.PageNode, Resolver) {
+	coll := domain.PageNode{
+		Kind: "component", Type: string(domain.ComponentCollection),
+		Binding:  &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords},
+		Children: []domain.PageNode{{Kind: "static", Type: "text", Props: map[string]string{"text": "hi"}, When: c}},
+	}
+	return formPage(coll), Resolver{Records: func(domain.PageBinding) (RecordSet, error) { return set, nil }}
+}
+
+func statusRecords(statuses ...string) []map[string]string {
+	out := make([]map[string]string, 0, len(statuses))
+	for _, s := range statuses {
+		out = append(out, map[string]string{"status": s})
+	}
+	return out
+}
+
+func TestLower_whenDropsTheNodeForTheRecordsItDoesNotHoldFor(t *testing.T) {
+	set := RecordSet{Records: statusRecords("todo", "done", "doing"), Done: "done", Reopen: "todo"}
+	count := func(c domain.PageCondition) int {
+		root, res := whenTemplate(&c, set)
+		got, err := Lower(root, res)
+		if err != nil {
+			t.Fatalf("%+v: %v", c, err)
+		}
+		return len(got.Children[0].Children)
+	}
+	for _, tc := range []struct {
+		c    domain.PageCondition
+		want int
+	}{
+		{domain.PageCondition{Role: "status", Is: domain.PageTransitionDone}, 1},
+		{domain.PageCondition{Role: "status", IsNot: domain.PageTransitionDone}, 2},
+		{domain.PageCondition{Role: "status", Is: domain.PageTransitionReopen}, 1},
+		{domain.PageCondition{Role: "status", IsNot: domain.PageTransitionReopen}, 2},
+		{domain.PageCondition{Role: "status", Is: "doing"}, 1},
+		{domain.PageCondition{Role: "status", IsNot: "doing"}, 2},
+	} {
+		if got := count(tc.c); got != tc.want {
+			t.Errorf("%+v: %d nodes, want %d", tc.c, got, tc.want)
+		}
+	}
+}
+
+func TestLower_whenIsRefusedWhereItCouldNotBeHonest(t *testing.T) {
+	set := RecordSet{Records: statusRecords("todo"), Done: "done", Reopen: "todo"}
+	for name, tc := range map[string]struct {
+		c    domain.PageCondition
+		set  RecordSet
+		want string
+	}{
+		"both operands":    {domain.PageCondition{Role: "status", Is: "a", IsNot: "b"}, set, "exactly one"},
+		"neither operand":  {domain.PageCondition{Role: "status"}, set, "exactly one"},
+		"unprojected role": {domain.PageCondition{Role: "priority", Is: "a"}, set, "does not project"},
+		"no completion":    {domain.PageCondition{Role: "status", Is: domain.PageTransitionDone}, RecordSet{Records: statusRecords("todo")}, "completion"},
+	} {
+		root, res := whenTemplate(&tc.c, tc.set)
+		if _, err := Lower(root, res); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want it to mention %q", name, err, tc.want)
+		}
+	}
+	outside := domain.PageNode{Kind: "static", Type: "text", Props: map[string]string{"text": "hi"}, When: &domain.PageCondition{Role: "status", Is: "a"}}
+	if _, err := Lower(formPage(outside), Resolver{}); err == nil || !strings.Contains(err.Error(), "item template") {
+		t.Errorf("a when: outside a records template: %v", err)
+	}
+}
+
+func TestLower_whenHoldsForEveryNodeInAShapeOnlySet(t *testing.T) {
+	set := RecordSet{Records: statusRecords("x"), Done: "x", Reopen: "x", ShapeOnly: true}
+	root, res := whenTemplate(&domain.PageCondition{Role: "status", IsNot: domain.PageTransitionDone}, set)
+	got, err := Lower(root, res)
+	if err != nil || len(got.Children[0].Children) != 1 {
+		t.Errorf("a shape-only set must keep the node so its subtree is validated: err = %v", err)
+	}
+}

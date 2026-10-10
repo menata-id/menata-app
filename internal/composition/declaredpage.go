@@ -144,7 +144,11 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		}
 		out = append(out, item)
 	}
-	return ir.RecordSet{Records: out, Edits: edits, Deletes: deletes, Moves: moves, Transitions: transitions, Truncated: sel.Truncated, Limit: sel.Limit}, nil
+	set := ir.RecordSet{Records: out, Edits: edits, Deletes: deletes, Moves: moves, Transitions: transitions, Truncated: sel.Truncated, Limit: sel.Limit}
+	if src.Completion != nil {
+		set.Done, set.Reopen = src.Completion.Done, src.ReopenValue()
+	}
+	return set, nil
 }
 
 // recordPeople is the display name of every person the listed records name in a `person` Field, as the
