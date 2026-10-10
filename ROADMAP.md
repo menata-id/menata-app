@@ -545,60 +545,55 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   gaps the re-run found (all shipped): `development-history.md`, "2026-10-05 -- Narrative moved out of ROADMAP.md".
 
 ## Planned
+Only items that qualify now, in priority order. `Kxx` is the row in `menata-app-document`'s
+`audits/2026-10-10-kajian-kritis-arsitektur-struktur-dan-jalan-menuju-selesai.md` §10, which carries each item's
+reason, what done means, and the criteria (C defect, A agreed architecture with a consumer today, N new capability
+past `capability-lifecycle.md` §2). Items waiting on a trigger, and the six owner decisions D1-D6, are listed
+there and are deliberately not here.
 
-- **Kajian: what is left, and in what order** (owner request, 2026-09-29). Declared record selection
-  (`select: records`, 007 §7.7-§7.9) and the first declared Relation (§7.5) shipped from it, and 001
-  #6's second clause -- *inference must be inspectable* -- closed with `/inference`.
-  The classification of every remaining read site, the three rejected alternatives and the measured
-  corrections: `menata-app-document`'s
-  `audits/2026-09-29-kajian-pekerjaan-tersisa-dan-prioritas.md`,
-  `audits/2026-09-29-kajian-seleksi-record-terdeklarasi.md` and `development-history.md`.
-- **The Experience Plane becomes composable** (007 §12, §15; 005 Phase 5). Layouts, seven Components, UI IR, ten Static kinds, all nine
-  Theme categories and a `page:` block with read-side Binding (`rows: dimension`, `rows: records`) are built; no bespoke screen is migrated yet.
-  Plan: `menata-app-document`'s `audits/2026-10-08-rencana-ui-ir-jangka-dekat-static-kind-dan-link.md`. **Next actions, in priority order:**
-  1. Static kinds on a page (`subheading`, `message`, `note`, `caption`, `overline`, `panel-heading`) -- wiring only; the renderers exist.
-  2. `link` to a navigation item (`to:`) and to a record, so a list item is clickable.
-  3. First migration of a bespoke screen: neither candidate is clean (Application Settings needs conditional visibility, a role-matrix and a row Component; Board Settings needs six things). Build the shared parts first, each with a consumer that exists now: 3a Collection `empty:` (*shipped 2026-10-08*, consumed by the recent-documents page; the truncation notice moved to 3c, because that page's `limit: 5` is a window and a notice would be false), 3b a registered `Tag` Component (*shipped 2026-10-08*: the seventh, over the 5 existing `tagChip` sites; no page binds a record's label to it yet), 3c the rest of Board Settings in whole sub-slices: 3c-1 a link to a Machine's list page, `list_of:` (*shipped 2026-10-08*, consumed by an "All documents" link on the recent-documents page); 3c-2 binding a record's label and colour to `Tag` (*shipped 2026-10-08*, consumed by an "All labels" page in the `default` Workspace's Project Management); 3c-3 an ordered list, `ordered: true` on a Collection (*shipped 2026-10-09*, consumed by an "All lists" page beside the labels one); 3c-4 a Relation-derived count with plural text, `count: {of, one, other}` on a static node (*shipped 2026-10-09*, consumed by a "Label usage" page); 3c-5 an author-opted truncation notice, `complete: true` on a records Collection (*shipped 2026-10-09*, consumed by the three pages whose Datasets are `limit: 200` caps); 3c-6 a Collection drawn as one divided surface, `divided: true` (*shipped 2026-10-09*, the same three pages, matching the Board Settings mockup). **Board Settings migrated 2026-10-09** (`nav_board_settings` is a declared `page:`; its bespoke screen, route and composition were deleted).
-  4. Page parameters (`$parameters`) -- shipped 2026-10-09: a `page:` Dataset may filter on a query-string value, and a request that sends none lists nothing. The status tiles of `nav_documents_by_status` now link to it with the row's value (2026-10-09). (The recent-documents page joined the Document Approval library template 2026-10-09.) A `person` role on a records list also resolves to the member's name (2026-10-10).
-  5. Write-side Binding (007 §11.3): started 2026-10-09 -- a `page:` `Form` with `write: create` creates a record through the generic route ("Add list"/"Add label" in Board Settings). Update is built too (a Rename form beside each list/label in Board Settings), and so are delete (a confirmed Delete button beside each) and reorder (Move up/down on each List, through a generic `POST /machines/<id>/records/<rid>/move`). **One slice remains:** (T4) reference Fields in a `Form`, whose options are another Machine's records, which starts by choosing a consumer that exists and by checking the whole-Machine-read ratchet. Plan and findings: `menata-app-document`'s `development-history.md`.
-- Installable as a PWA, Play-ready (TWA: `ANDROID_PACKAGE_NAME` + `ANDROID_CERT_FINGERPRINTS` serve `/.well-known/assetlinks.json`).
-  Account deletion anonymizes the identity (`/account-delete`; public `/delete-account`); a privacy policy page is still owed.
-- **Per-user/role navigation filtering** -- one case is a hand-named stand-in (`hiddenNavIDs`, `membersHiddenFor`); the declared form
-  (`requires_role:` on a navigation item) waits for a *second* real case, most likely an item gated on an Application role.
-- **A filter that reads the viewing identity, not a literal** -- `$current_user` now exists in `datasets:`; three Go screens
-  (`PersonalTasks`, `ApprovalInbox`, `AssignedToMe`) still scope to "mine" by hand, and `AssignedToMe`'s two-armed test is not
-  `where:`'s shape. Rationale for why the third case did not generalize it: `development-history.md`.
-- **Ordered comparison operators: what remains** -- `lt`/`lte`/`gt`/`gte` and the `$today` sentinel are built in a records Dataset's
-  `where:` (2026-10-10; "Past due" on `nav_documents_by_status`). Still open: My Tasks' Overdue/Due-today counts (hand-written),
-  hour-scale SLA wording (needs a datetime Field), `$today` in a constraint condition, and money Fields. `$today`, a conjunction and `$done` now work in a `Measure.Where`, and a `Metric` can show one figure (`rows: total`; `nav_task_figures`) -- Stage 1 of moving the Dashboard to `page:`; its project table, per-person bars and derived hints are the stages still ahead, and the Dashboard stays bespoke until they land.
-- **Metadata hot reload and change classification** — tracked in `capabilities.md`'s limits as two
-  separate deliberate deferrals (a `*.yaml` edit needs a restart; deleting a Field silently orphans
-  its data in every record's JSONB) and in the companion repo's own
-  `guides/metadata-hot-reload-safety.md`, but named in no plan at all until now. Neither is
-  urgent while the manifest ships with the binary; both stop being optional the moment metadata is
-  edited by someone who cannot restart the process, which is the actual end state this runtime is
-  for.
-- **Pagination on record lists** — search itself shipped 2026-09-25 ("In progress", above), checked
-  against the Flow 2 mockup rather than assumed: no board shows pagination controls, so it stays
-  here. **Pagination is also the cheapest answer to the data-path cost measured in the study
-  above** (007 §7.9): it breaks the "a page costs what the Machine holds" relationship outright,
-  without needing Filter/Projection/Aggregate pushdown first. Its own trigger arrives sooner than
-  theirs — one list screen past ~200 rows, `capabilities.md`'s own volume-threshold harness
-  (`make threshold`) is what would confirm it's been reached.
-- **Background/scheduled jobs** -- the first case shipped 2026-09-27 (SLA-breach notifications; a `time.Ticker` in `cmd/server/main.go`).
-  A second, unrelated job is the trigger to reconsider a dedicated worker process.
-- Expanding beyond the first two applications into the wider portfolio of business cases this
-  runtime is designed to support (HR, inventory, point of sale, e-commerce, helpdesk, and more).
-- **Composition-layer decomposition** -- Projection gate, Datasets (the Dashboard) and the Case 19 migration onto `card_fields`
-  are done; `projectionRatchet` is empty. Still open: My Tasks' counts (viewing identity, date against now). Audit: `menata-app-document`'s
-  `audits/2026-09-19-decomposition-maturity-audit.md`; the migration narrative: `development-history.md`.
-- Re-evaluating `internal/composition/pages.go`'s Case 19 Machine-id/status-option constants
-  (`taskMachineID`, the `todo`/`in_progress`/`done` switch) against the B1-B5 decomposition
-  criteria now that `card_fields` (Projection) has shipped -- flagged, not decided, in
-  `menata-app-document`'s `audits/2026-09-19-metadata-hardcoding-gate-mapping.md`; these predate
-  the "exception needs a forward-checkable pointer" convention (`CLAUDE.md`), so this is also the
-  first case of applying that convention retroactively. Owner decision, not assumed here.
+**P0 -- defects, no dependencies**
+- K01 Event-created notifications carry their Field defaults (`fld_read`) -- capabilities "Field default value".
+- K02 The AI schema's Field types come from `KnownFieldTypes` (`long_text` missing today).
+- K03 Rate limiters read the client address from the trusted proxy -- `capability-lifecycle.md` §3b.
+- K04 Password-reset tokens are single-use -- §3b.
+- K05 `make deploy`: build, restart, compare the running binary, smoke five routes.
+- K06 Fonts and icons fingerprinted, or `assets.go`'s comment corrected.
+- K07 Stale numbers out of CLAUDE.md, writing-guide, capabilities, getting-started and code comments.
+- K08 `TestWholeMachineReadsOnlyShrink` counts `loader.go`, `internal/web` and `internal/execution` too.
 
+**P1 -- a broken Workspace never stops another (005 Failure Handling, 001 #9)**
+- K09 Metadata loads per Workspace; a broken one is marked unavailable, startup is not fatal, every error names
+  its file and every validator stage reports.
+- K10 Reload per Workspace with an admin action; a reload failing after a write rolls it back (005 Hot Reload).
+  Its storage shape waits on owner decision D1.
+
+**P2 -- the Experience Plane meets 007 §12.4**
+- K11 Conditional visibility on a `page:` node (007 §15.2) -- consumer: Application Settings.
+- K12 A `Table` Component (006 View lowering) -- consumers: the hand-written tables.
+- K13 `write: transition`, a Button moving a status through `CheckTransitions` (007 §11.3) -- consumer: My Tasks.
+- K14 Date arithmetic in expressions, `$today +/- n` (007 §9) -- consumers: My Tasks, Calendar.
+- K15 Dashboard, My Tasks, Calendar and Application Settings migrate to `page:` (re-check each screen first).
+- K16 The AI schema is generated from the loader's grammar; an edit mode for installed Applications; YAML at
+  review (001 #16) -- full scope waits on owner decision D2.
+- K17 `columns`, `section` and `StatusBadge.size` writable; writing-guide §12.1a generated from `allowedProps`.
+
+**P3 -- bounded work (007 §18.8, §28)**
+- K18 Inbox, Assigned and Review find a submitter through a parameterised Dataset, not the whole activity log.
+- K19 PDF page rasterisation cached (over the 100 ms interactive budget today).
+- K20 `statement_timeout` and `http.Server` timeouts.
+
+**P4 -- new capability with evidence**
+- K21 A Permission that reads a Field on the parent record -- starts as a `capability-lifecycle.md` §5 proposal.
+
+**Carried over**
+- PWA / Play-ready (TWA env vars); a privacy policy page is still owed. Per-user navigation filtering
+  (`requires_role:`) waits for a second real case, likely an Application role.
+- Three Go screens still scope to "mine" by hand (`PersonalTasks`, `ApprovalInbox`, `AssignedToMe`); the Case 19
+  constants in `internal/composition/pages.go` await a B1-B5 owner decision.
+- Ordered comparisons left: My Tasks counts, hour-scale SLA (needs a datetime Field), `$today` in constraints, money.
+  Deleting a Field still orphans its data; change classification rides with K09-K10.
+- A second unrelated background job triggers a dedicated worker; the wider portfolio (HR, inventory, POS,
+  e-commerce, helpdesk) follows the triggered capabilities in §10.
 ---
 
 Full build history, architecture decisions, and audit records live in the private

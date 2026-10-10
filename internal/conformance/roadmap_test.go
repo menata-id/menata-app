@@ -62,7 +62,7 @@ var roadmapDiaryVocabulary = regexp.MustCompile(`\b[0-9a-f]{7,40}\b|\b[Mm]easure
 var roadmapDiaryLines = map[string]int{
 	"Shipped":     0,
 	"In progress": 6,
-	"Planned":     2,
+	"Planned":     0,
 }
 
 // roadmapSectionLines freezes each section's size, which is the README's own word -- "short". It
@@ -84,10 +84,12 @@ var roadmapDiaryLines = map[string]int{
 // line and a pointer. What remains in `In progress` is the Case 03 port with its deferral table, which
 // code comments cite by row name and which is still the working backlog. `Shipped` **rose** 130 -> 138
 // on purpose: four bullets for features that had been shipped but only narrated under `In progress`.
+// `Planned` fell 60 -> 55 (and its diary lines 2 -> 0) on 2026-10-10, when it became the prioritised
+// work list K01-K21 whose reasons live in the companion repo's 2026-10-10 audit §10.
 var roadmapSectionLines = map[string]int{
 	"Shipped":     138,
 	"In progress": 400,
-	"Planned":     60,
+	"Planned":     55,
 }
 
 func TestRoadmapStaysAReleasePlan(t *testing.T) {
