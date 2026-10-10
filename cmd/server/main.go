@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -140,6 +141,11 @@ type dynamicHandler struct {
 	// without a process restart, the same property current already gives request handling.
 	schedulerState atomic.Pointer[schedulerSnapshot]
 
+	// unavailable is the last load's set of Workspace slugs whose manifest did not load (K09). Guarded by mu.
+	// Reload consults it to tell "this Workspace was already broken" (tolerated) from "this reload broke it"
+	// (rejected, so the live table stays as it was).
+	unavailable map[string]bool
+
 	cfg                config.Config
 	store              *data.Store
 	files              *storage.Store
@@ -199,29 +205,47 @@ func (dh *dynamicHandler) Reload() error {
 	dh.mu.Lock()
 	defer dh.mu.Unlock()
 
-	userMachine, workspaces, err := loadMetadataState(dh.cfg)
+	userMachine, workspaces, failures, err := loadMetadataState(dh.cfg)
 	if err != nil {
 		return err
 	}
+	// First build: every failure is tolerated, the process serves what loaded (K09). Later: a Workspace that
+	// loaded before and fails now was broken by whatever triggered this reload, so the change is rejected and
+	// the live table stays untouched -- exactly what a failed reload did before it was per-Workspace.
+	// A Workspace already unavailable stays unavailable without blocking an unrelated publish.
+	if dh.current.Load() != nil {
+		for _, f := range failures {
+			if !dh.unavailable[f.Slug] {
+				return f.Err
+			}
+		}
+	}
+	unavailable := make(map[string]bool, len(failures))
+	for _, f := range failures {
+		unavailable[f.Slug] = true
+		log.Printf("WORKSPACE UNAVAILABLE %q: %v", f.Slug, f.Err)
+	}
 
 	deps := web.Deps{
-		UserMachine:        userMachine,
-		Store:              dh.store,
-		Files:              dh.files,
-		Mailer:             dh.mailer,
-		Cfg:                dh.cfg,
-		Workspaces:         workspaces,
-		DefaultWorkspaceID: dh.defaultWorkspaceID,
-		AIClient:           dh.aiClient,
-		ReloadMetadata:     dh.Reload,
+		UserMachine:           userMachine,
+		Store:                 dh.store,
+		Files:                 dh.files,
+		Mailer:                dh.mailer,
+		Cfg:                   dh.cfg,
+		Workspaces:            workspaces,
+		UnavailableWorkspaces: unavailable,
+		DefaultWorkspaceID:    dh.defaultWorkspaceID,
+		AIClient:              dh.aiClient,
+		ReloadMetadata:        dh.Reload,
 	}
 	handler := web.Routes(deps)
 	dh.current.Store(&handler)
+	dh.unavailable = unavailable
 	dh.schedulerState.Store(&schedulerSnapshot{workspaces: workspaces})
 	return nil
 }
 
-// loadMetadataState loads every installed Workspace, for both the first build and every later
+// loadMetadataState loads every installed Workspace it can, for both the first build and every later
 // Reload. Each Workspace carries its own Machines (domain.Workspace.Machines) -- nothing is
 // unioned across Workspaces any more.
 //
@@ -234,10 +258,10 @@ func (dh *dynamicHandler) Reload() error {
 // same mch_user file. Absent, it is fatal rather than nil: /register would otherwise fail on the
 // first real sign-up rather than at boot, and a runtime that cannot create a person cannot do
 // anything else either.
-func loadMetadataState(cfg config.Config) (userMachine *domain.Machine, workspaces map[string]domain.Workspace, err error) {
-	installed, err := metadata.LoadWorkspaces(cfg.MetadataPath)
+func loadMetadataState(cfg config.Config) (userMachine *domain.Machine, workspaces map[string]domain.Workspace, failures []metadata.WorkspaceFailure, err error) {
+	installed, failures, err := metadata.LoadWorkspacesTolerant(cfg.MetadataPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	workspaces = make(map[string]domain.Workspace, len(installed))
@@ -250,9 +274,15 @@ func loadMetadataState(cfg config.Config) (userMachine *domain.Machine, workspac
 		}
 	}
 	if userMachine == nil {
-		return nil, nil, fmt.Errorf("no installed Workspace declares %s -- every Workspace needs it, since a membership points at one of its records", domain.UserMachineID)
+		// Still fatal, and the one load failure that should be: with no Workspace loaded there is nothing to
+		// serve, and the failures below are why. They are in the error rather than lost.
+		msg := fmt.Sprintf("no installed Workspace declares %s -- every Workspace needs it, since a membership points at one of its records", domain.UserMachineID)
+		for _, f := range failures {
+			msg += "\n  " + f.Err.Error()
+		}
+		return nil, nil, nil, errors.New(msg)
 	}
-	return userMachine, workspaces, nil
+	return userMachine, workspaces, failures, nil
 }
 
 // defaultWorkspaceID resolves requireAuth's fallback Workspace: the one slugged "default".

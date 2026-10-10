@@ -61,6 +61,11 @@ type Deps struct {
 	// rendering.CurrentApplication.
 	Workspaces map[string]domain.Workspace
 
+	// UnavailableWorkspaces holds the slugs whose manifest did not load (K09, 005 Failure Handling). A request
+	// resolving to one is answered 503 by blockUnavailableWorkspace; every other Workspace is served as normal.
+	// The reasons are logged at load, not carried here, so a page never prints a file path to a member.
+	UnavailableWorkspaces map[string]bool
+
 	// DefaultWorkspaceID is this manifest's own declared Workspace (the default Workspace row) --
 	// requireAuth's fallback Workspace for a session whose subject isn't a real mch_user record id
 	// (development-history.md Phase 21 Step 4).
@@ -212,6 +217,7 @@ func Routes(d Deps) http.Handler {
 		pr.Use(requireActiveMembership(d.Store, d.Cfg))
 		// Workspace first, then Application: currentApplication reads the Workspace this
 		// resolves, and requireApplicationAccess reads the Application that resolves.
+		pr.Use(blockUnavailableWorkspace(d.Store, d.UnavailableWorkspaces))
 		pr.Use(currentWorkspace(d.Store, d.Workspaces))
 		pr.Use(currentApplication())
 		pr.Use(requireInstalledApplication(ownedRoutes))

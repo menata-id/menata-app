@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -319,12 +320,39 @@ type Workspaces map[string]*App
 // would claim to be that Workspace's installation, and picking one silently would make the
 // Applications a Workspace has depend on how its files happen to sort.
 func LoadWorkspaces(dir string) (Workspaces, error) {
+	loaded, failures, err := LoadWorkspacesTolerant(dir)
+	if err != nil {
+		return nil, err
+	}
+	if len(failures) > 0 {
+		return nil, failures[0].Err
+	}
+	return loaded, nil
+}
+
+// WorkspaceFailure is one manifest that did not load. Slug is the manifest's file stem, which is the
+// convention (`metadata/workspaces/<slug>.yaml`) and the only name available for a file that never parsed.
+type WorkspaceFailure struct {
+	Slug string
+	Path string
+	// Err names Path and carries every issue the validation stages found.
+	Err error
+}
+
+// LoadWorkspacesTolerant loads every manifest it can and reports each one it cannot, instead of stopping at
+// the first (K09; 005 Failure Handling: "existing valid applications should remain stable while invalid
+// changes are rejected", 001 #9). The error return is only for a directory that cannot be read at all.
+//
+// Failures come back in file-name order, so the same broken tree reports the same way twice. Two manifests
+// naming one Workspace fail the second, not both: the first is still a complete installation.
+func LoadWorkspacesTolerant(dir string) (Workspaces, []WorkspaceFailure, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("read workspace manifests %s: %w", dir, err)
+		return nil, nil, fmt.Errorf("read workspace manifests %s: %w", dir, err)
 	}
 
 	loaded := Workspaces{}
+	var failures []WorkspaceFailure
 	from := map[string]string{}
 	for _, e := range entries {
 		name := e.Name()
@@ -332,20 +360,39 @@ func LoadWorkspaces(dir string) (Workspaces, error) {
 			continue
 		}
 		path := filepath.Join(dir, name)
-		app, err := LoadApplication(path)
+		fail := func(err error) {
+			if !strings.Contains(err.Error(), path) {
+				err = fmt.Errorf("%s: %w", path, err)
+			}
+			failures = append(failures, WorkspaceFailure{Slug: strings.TrimSuffix(strings.TrimSuffix(name, ".yaml"), ".yml"), Path: path, Err: err})
+		}
+		app, err := loadApplicationRecovering(path)
 		if err != nil {
-			return nil, err
+			fail(err)
+			continue
 		}
 		slug := app.Workspace.Slug
 		if earlier, taken := from[slug]; taken {
-			return nil, &ValidationError{Issues: []string{fmt.Sprintf(
+			fail(&ValidationError{Issues: []string{fmt.Sprintf(
 				"workspace %q is installed by two manifests (%s and %s) -- one Workspace has one installation",
-				slug, earlier, path)}}
+				slug, earlier, path)}})
+			continue
 		}
 		from[slug] = path
 		loaded[slug] = app
 	}
-	return loaded, nil
+	return loaded, failures, nil
+}
+
+// loadApplicationRecovering is LoadApplication that turns a panic into an error. The stages are wrapped
+// individually (runStages); this covers the parse and per-file code before them.
+func loadApplicationRecovering(path string) (app *App, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			app, err = nil, fmt.Errorf("loading panicked: %v", r)
+		}
+	}()
+	return LoadApplication(path)
 }
 
 // LoadApplicationFile reads and validates one Application file on its own, outside any Workspace --
@@ -459,53 +506,33 @@ func LoadApplication(path string) (*App, error) {
 	stampWorkflowRoles(app.Workspace.Applications, app.Machines)
 	// After stamping, because it asks each cast Machine a question -- and before the Dataset validators
 	// below, so "the engine needs this Dataset" is reported ahead of "this Dataset is malformed".
-	if err := validateWorkflowDatasets(app.Workspace.Applications, app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validatePermissionRoles(app.Workspace.Applications, app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validatePages(app.Workspace.Applications, app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validateNavigationIDsAreUnique(app.Workspace); err != nil {
-		return nil, err
-	}
-	// After stampWorkflowRoles, because it asks which Machines an engine casts.
-	if err := validateComputedFieldsAreGenericallyWritten(app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validateStampedFieldsAreGenericallyWritten(app.Machines); err != nil {
-		return nil, err
-	}
-
-	// The four cross-Machine validators below run over the Workspace's whole Machine set, not one
-	// Application's. That is not a widening for convenience: a Machine shared by two Applications
-	// (mch_user, mch_activity) has exactly one declaration, so a per-Application scope would ask
-	// the same question twice and make dataset-id uniqueness incoherent -- the same declaration
-	// living in two scopes at once. See validateDatasetIDsAreUnique's own doc comment.
-	if err := validateDatasetRelations(app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validateCardTags(app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validateRelationTargets(app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validateConstraintTargets(app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validateDatasetIDsAreUnique(app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validateRollupTargets(app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validateCompositeTargets(app.Machines); err != nil {
-		return nil, err
-	}
-	if err := validateSequencingModes(app.Machines); err != nil {
+	//
+	// Every stage from here runs even when an earlier one failed, and the result is one error listing all of
+	// them (K09, 005 Failure Handling). They are independent questions over
+	// the same finished Machine set -- none consumes another's output -- so stopping at the first made an
+	// author fix one fault, reload, and meet the next. The four cross-Machine ones below run over the
+	// Workspace's whole Machine set, not one Application's. That is not a widening for convenience: a Machine
+	// shared by two Applications (mch_user, mch_activity) has exactly one declaration, so a per-Application
+	// scope would ask the same question twice and make dataset-id uniqueness incoherent -- the same
+	// declaration living in two scopes at once. See validateDatasetIDsAreUnique's own doc comment.
+	apps, machines := app.Workspace.Applications, app.Machines
+	if err := runStages([]stage{
+		{"workflow datasets", func() error { return validateWorkflowDatasets(apps, machines) }},
+		{"permission roles", func() error { return validatePermissionRoles(apps, machines) }},
+		{"pages", func() error { return validatePages(apps, machines) }},
+		{"navigation ids", func() error { return validateNavigationIDsAreUnique(app.Workspace) }},
+		// After stampWorkflowRoles, because it asks which Machines an engine casts.
+		{"computed fields", func() error { return validateComputedFieldsAreGenericallyWritten(machines) }},
+		{"stamped fields", func() error { return validateStampedFieldsAreGenericallyWritten(machines) }},
+		{"dataset relations", func() error { return validateDatasetRelations(machines) }},
+		{"card tags", func() error { return validateCardTags(machines) }},
+		{"relation targets", func() error { return validateRelationTargets(machines) }},
+		{"constraint targets", func() error { return validateConstraintTargets(machines) }},
+		{"dataset ids", func() error { return validateDatasetIDsAreUnique(machines) }},
+		{"rollup targets", func() error { return validateRollupTargets(machines) }},
+		{"composite targets", func() error { return validateCompositeTargets(machines) }},
+		{"sequencing modes", func() error { return validateSequencingModes(machines) }},
+	}); err != nil {
 		return nil, err
 	}
 
@@ -1134,4 +1161,44 @@ func validateConstraintTargets(machines []*domain.Machine) error {
 		return &ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+// stage is one named validation over a loaded Workspace.
+type stage struct {
+	name string
+	run  func() error
+}
+
+// runStages runs every stage and returns one ValidationError holding what all of them found, or nil. A stage
+// that panics is reported as a failure of that stage rather than taking the process down: a validator reading
+// a Machine another stage already found malformed is exactly the input that tends to expose a nil it assumed
+// away, and "one broken Workspace must not stop the others" (K09) includes the load itself.
+func runStages(stages []stage) error {
+	var issues []string
+	for _, st := range stages {
+		for _, msg := range runStage(st) {
+			issues = append(issues, msg)
+		}
+	}
+	if len(issues) == 0 {
+		return nil
+	}
+	return &ValidationError{Issues: issues}
+}
+
+func runStage(st stage) (issues []string) {
+	defer func() {
+		if r := recover(); r != nil {
+			issues = []string{fmt.Sprintf("validation stage %q panicked: %v -- the metadata it was reading is malformed in a way no earlier check caught", st.name, r)}
+		}
+	}()
+	err := st.run()
+	if err == nil {
+		return nil
+	}
+	var ve *ValidationError
+	if errors.As(err, &ve) {
+		return ve.Issues
+	}
+	return []string{err.Error()}
 }
