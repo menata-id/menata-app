@@ -573,7 +573,6 @@ there and are deliberately not here.
 **P3 -- bounded work (007 §18.8, §28)**
 - K18 Inbox, Assigned and Review find a submitter through a parameterised Dataset, not the whole activity log.
 - K19 PDF page rasterisation cached (over the 100 ms interactive budget today).
-- K20 `statement_timeout` and `http.Server` timeouts.
 
 **P4 -- new capability with evidence**
 - K21 A Permission that reads a Field on the parent record -- starts as a `capability-lifecycle.md` §5 proposal.
