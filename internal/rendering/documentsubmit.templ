@@ -47,7 +47,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 		</a>
 		<div class="flex flex-col gap-2">
 			@staticText(domain.StaticEyebrow, "Step 1 of 2")
-			@staticText(domain.StaticHeading, "New Document")
+			@staticText(domain.StaticHeading, "Document details")
 			<div class="text-sm text-slate-500">Submit a document for approval.</div>
 		</div>
 		<form
@@ -110,8 +110,9 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 			}
 			<label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
 				<input type="checkbox" name="save_as_default_flow" value="1" checked class="size-4 accent-blue-500"/>
-				Save this as the default approval flow for this document type
+				<span>Save this as the default approval flow for <span id="default-flow-type" class="font-medium">{ defaultFlowTypeLabel(draft.DocumentType) }</span></span>
 			</label>
+			@staticText(domain.StaticCaption, "New submissions of this "+documentType.Name+" will start pre-filled with these steps and mode. Still editable per document before it's sent.")
 			<div class="flex justify-end gap-2">
 				if draft.ID == "" {
 					@button("Save as draft", domain.ButtonSecondary, "intent", "draft")
@@ -293,6 +294,9 @@ type StepPrefill struct {
 // the right starting <select> value.
 templ ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFields, prefill StepPrefill) {
 	<div class={ "approver-row flex flex-wrap items-center gap-2", tileClasses(ctx), "p-2.5 [counter-increment:approver-step]" }>
+		// Board 08's "Step N approver" label. The number is the same CSS counter the circle reads, for the
+		// same reason it is not passed from Go: rows are added, removed and reordered in the browser.
+		<span class="w-full text-2xs text-slate-500">Step <span class="before:[content:counter(approver-step)]"></span> approver</span>
 		<span
 			aria-hidden="true"
 			class="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-3xs font-medium text-white before:[content:counter(approver-step)]"
@@ -360,7 +364,7 @@ func approverGroupClass(ctx context.Context, hide bool) string {
 // #approver-rows' own innerHTML, plus modeFieldsetOOB updating the Mode picker independently --
 // the response is two sibling fragments, not one, because the hx-target/hx-swap on the doc_type
 // <select> can only ever point at one of them.
-templ ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, fields StepFields, mode domain.Field, steps []StepPrefill, selectedMode string) {
+templ ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, fields StepFields, mode domain.Field, steps []StepPrefill, selectedMode, documentType string) {
 	if len(steps) == 0 {
 		@ApproverRow(approvers, groups, fields, StepPrefill{})
 	} else {
@@ -369,4 +373,14 @@ templ ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, f
 		}
 	}
 	@modeFieldsetOOB(mode, selectedMode)
+	<span id="default-flow-type" hx-swap-oob="true" class="font-medium">{ defaultFlowTypeLabel(documentType) }</span>
+}
+
+// defaultFlowTypeLabel is the checkbox label's own name for the Document Type the flow would be saved
+// under: the type's name once one is chosen ("Contract documents"), a neutral phrase before then.
+func defaultFlowTypeLabel(documentType string) string {
+	if documentType == "" {
+		return "this document type"
+	}
+	return documentType + " documents"
 }

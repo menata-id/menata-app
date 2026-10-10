@@ -183,7 +183,7 @@ navigation:
   - id: nav_my_documents
     label: My Doc
     title: My documents
-    description: Everything you created, newest first.
+    description: Everything you created. Drafts stay on top until you submit them; submitted documents are listed newest first.
     route: /approval-inbox?tab=mine
     priority: 2
     icon: file-text

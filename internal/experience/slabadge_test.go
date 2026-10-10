@@ -52,6 +52,29 @@ func TestResolveSLABadge(t *testing.T) {
 	}
 }
 
+// TestResolveSLABadgeDetailIsDayScale holds the card footer's sentence (S1a, board 07): days, never
+// hours, because a due date is a bare calendar date. Urgent is the line between "label above the
+// title" and "footer only" -- today and overdue are urgent, tomorrow is not.
+func TestResolveSLABadgeDetailIsDayScale(t *testing.T) {
+	now := time.Date(2026, 10, 3, 14, 30, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		due        string
+		wantDetail string
+		wantUrgent bool
+	}{
+		{"2026-09-30", "SLA breached · 3 days", true},
+		{"2026-10-02", "SLA breached · 1 day", true},
+		{"2026-10-03", "Due by the end of today", true},
+		{"2026-10-04", "1 day remaining", false},
+		{"2026-10-09", "6 days remaining", false},
+	} {
+		got := ResolveSLABadge(tc.due, now)
+		if got.Detail != tc.wantDetail || got.Urgent != tc.wantUrgent {
+			t.Errorf("ResolveSLABadge(%s) = {Detail %q, Urgent %v}, want {%q, %v}", tc.due, got.Detail, got.Urgent, tc.wantDetail, tc.wantUrgent)
+		}
+	}
+}
+
 // TestResolveSLABadgeIsDeterministic is the §4.6 half, asserted rather than assumed.
 //
 // The whole reason this function exists is that the two renderers it replaced called `EvaluateSLA(due,

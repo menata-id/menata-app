@@ -61,6 +61,9 @@ type StepApprover struct {
 	// IsYou marks the step belonging to the viewer, which board 10 badges with a "You" pill. The
 	// inbox card has no use for it: every card there is already the viewer's own.
 	IsYou bool
+	// SignaturePage is the page this step's signature is placed on, 0 when none was chosen. Set only
+	// for the Review screen (composition.buildReview); the inbox card does not draw it.
+	SignaturePage int
 }
 
 // PendingApprovalCard is one "pending my approval" card (board 07's own grid). Richer than the
@@ -96,6 +99,9 @@ type PendingApprovalCard struct {
 	// Approvers is every step's approver and state, ordered by fld_sequence.
 	Approvers []StepApprover
 	Href      string
+	// Action is the footer link's words ("Review →", "Continue →", "View →"), written by composition
+	// because which one is true depends on the Document's state and on who is looking (board 07).
+	Action string
 	// CardFields is mch_approval_step's own card_fields (007 §7.6 Projection), resolved by
 	// composition.ProjectCardFields. Still empty: mch_approval_step declares none, so this branch
 	// has never been taken. Fase 5 gave Projection its first real consumer on mch_document's
@@ -123,7 +129,15 @@ type AssignedRow struct {
 	// filter chips and assignedDecisionPill both key on.
 	DecisionKey   string
 	DecisionLabel string
-	Href          string
+	// Via names the Group the step came through, "" for a step assigned to the viewer directly. Drawn
+	// on every Group row, whatever state it is in -- it used to be appended to the not-yet label only.
+	Via string
+	// SLA is the Document's due-date reading, set only on a row still waiting for the viewer.
+	SLA experience.SLABadge
+	// Action is the row's link words: "Review →" when the decision is the viewer's, "" otherwise, where
+	// the link reads "View".
+	Action string
+	Href   string
 }
 
 // ApprovalInboxPage is Case 3's worklist, ported to ui-sample/case-03-flow1/07-approval-inbox.html
@@ -185,7 +199,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 					href="/documents/new"
 					class={ buttonClasses(ctx, domain.ButtonPrimary) }
 				>
-					+ New Document
+					+ New document
 				</a>
 			}
 		}
@@ -248,6 +262,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 					}
 				} else {
 					@assignedTable(assigned)
+					@staticText(domain.StaticNote, "Waiting items also appear in your Inbox. This page keeps the full history, including decisions you already made.")
 				}
 			default:
 				{{ inboxChipPrefix := routeByID(ctx, "nav_approval_inbox") + "?filter=" }}
@@ -297,12 +312,24 @@ templ assignedTable(rows []AssignedRow) {
 				</div>
 				<div class="sm:w-56">
 					@assignedDecisionLabel(r.DecisionKey, r.DecisionLabel)
+					if r.SLA.Present {
+						<div class={ "text-2xs", templ.KV("text-red-700", r.SLA.Urgent), templ.KV("text-slate-400", !r.SLA.Urgent) }>{ r.SLA.Detail }</div>
+					}
+					if r.Via != "" {
+						<div class="text-2xs text-slate-400">via { r.Via }</div>
+					}
 				</div>
 				<div class="sm:w-24">
 					@reviewStatusPill(r.Status)
 				</div>
 				<div class="sm:w-14">
-					<a href={ templ.SafeURL(r.Href) } class="text-sm text-blue-600 hover:text-blue-700">View</a>
+					<a href={ templ.SafeURL(r.Href) } class="text-sm text-blue-600 hover:text-blue-700">
+							if r.Action != "" {
+								{ r.Action }
+							} else {
+								View
+							}
+						</a>
 				</div>
 			</div>
 		}
@@ -389,7 +416,10 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 			templ.KV("border-slate-200", !overdue) }
 	>
 		<a href={ templ.SafeURL(c.Href) } class="flex flex-col gap-3">
-			if c.SLA.Present {
+			// The pill above the title is for a card that needs attention now (board 07: overdue or
+			// due today). A card with days to spare carries its remaining time in the footer only, so
+			// a screen of calm cards is not a screen of amber labels.
+			if c.SLA.Present && c.SLA.Urgent {
 				<span
 					class={ "self-start rounded-full px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase",
 						templ.KV("bg-red-50 text-red-700", overdue),
@@ -436,7 +466,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 						}
 					</ul>
 				}
-				@approvalProgress(c.Approved, c.TotalSteps)
+				@approvalProgress(c.Status, c.Approved, c.TotalSteps)
 			}
 			if len(c.CardFields) > 0 {
 				@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
@@ -446,6 +476,25 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 				}
 			}
 		</a>
+		// Footer (board 07): the time left on the left, the card's one action on the right. It sits
+		// outside the <a> above because a link cannot contain a link, and the Revise form below is
+		// a second interactive element for the same reason.
+		if c.SLA.Present || c.Action != "" {
+			<div class="flex items-center justify-between gap-3">
+				<span
+					class={ "text-xs",
+						templ.KV("font-medium text-red-700", overdue),
+						templ.KV("text-slate-500", !overdue) }
+				>
+					if c.SLA.Present {
+						{ c.SLA.Detail }
+					}
+				</span>
+				if c.Action != "" {
+					<a href={ templ.SafeURL(c.Href) } class="text-sm text-blue-600 hover:text-blue-700">{ c.Action }</a>
+				}
+			</div>
+		}
 		// Revise (Flow 2 mockup: My Documents' Rejected row) -- a POST, not a link, so it cannot be
 		// the inner <a> above. Moves the Document back to Draft and clears its own Approval Steps;
 		// see internal/web.reviseDocument's own doc comment for why that's a deliberate, documented
@@ -504,11 +553,13 @@ func approverStateLabel(state string) string {
 	}
 }
 
-// approvalProgress is board 07's progress bar. role="progressbar" with an aria-valuetext saying
-// "N of M approved" -- the count in words, because a percentage alone tells a screen-reader user
-// nothing about how many approvals remain.
-templ approvalProgress(approved, total int) {
-	<div class="flex items-center gap-2">
+// approvalProgress is board 07's progress bar with its status line beneath. role="progressbar" with
+// an aria-valuetext saying "N of M approved" -- the count in words, because a percentage alone tells a
+// screen-reader user nothing about how many approvals remain. The visible line carries the Document's
+// state before the count ("Ongoing · 1 of 3 approved"), so the bar is no longer the only thing saying
+// where the document stands.
+templ approvalProgress(status string, approved, total int) {
+	<div class="flex flex-col gap-1.5">
 		<div
 			role="progressbar"
 			aria-label="Approval progress"
@@ -516,12 +567,28 @@ templ approvalProgress(approved, total int) {
 			aria-valuemin="0"
 			aria-valuemax="100"
 			aria-valuetext={ fmt.Sprintf("%d of %d approved", approved, total) }
-			class="h-1.5 grow overflow-hidden rounded-full bg-slate-100"
+			class="h-1.5 overflow-hidden rounded-full bg-slate-100"
 		>
 			<div class="h-full rounded-full bg-emerald-500" style={ progressWidth(approved, total) }></div>
 		</div>
-		<span class="text-2xs whitespace-nowrap text-slate-400">{ fmt.Sprintf("%d of %d approved", approved, total) }</span>
+		<span class="text-2xs text-slate-400">{ approvalStatusLine(status, approved, total) }</span>
 	</div>
+}
+
+// approvalStatusLine names the Document's state, then the count. in_review reads "Ongoing" -- the
+// board's word -- and a settled Document reads its own status; a status this does not know prints
+// the count alone rather than guessing a word for it.
+func approvalStatusLine(status string, approved, total int) string {
+	count := fmt.Sprintf("%d of %d approved", approved, total)
+	switch status {
+	case "in_review":
+		return "Ongoing · " + count
+	case "approved":
+		return "Approved · " + count
+	case "rejected":
+		return "Rejected · " + count
+	}
+	return count
 }
 
 func progressPercent(approved, total int) int {

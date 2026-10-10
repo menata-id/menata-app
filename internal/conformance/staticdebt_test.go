@@ -45,9 +45,10 @@ var handWrittenMutedParagraphs = map[string]int{
 	"inference.templ":          3,
 	"installapplication.templ": 1,
 	"newapplication.templ":     1,
-	"rolematrix.templ":         3,
-	"workspacemembers.templ":   1,
-	"workspacesettings.templ":  1,
+	// 4th: board 06's closing sentence carries an inline link to the Members screen, which a Static kind must not accept.
+	"rolematrix.templ":        4,
+	"workspacemembers.templ":  1,
+	"workspacesettings.templ": 1,
 }
 
 var (

@@ -11,6 +11,7 @@ import (
 	"menata.app/internal/behavior"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 )
@@ -155,7 +156,7 @@ func buildAssigned(sel Selection, activities []*data.Record, names, myGroupNames
 			requestedAt = sub.at.Format("2 Jan 2006")
 		}
 
-		key, label := assignedDecision(seq, doc, s, siblings, via, f)
+		key, label := assignedDecision(seq, doc, s, siblings, f)
 		switch key {
 		case AssignedWaiting:
 			out.WaitingCount++
@@ -165,6 +166,14 @@ func buildAssigned(sel Selection, activities []*data.Record, names, myGroupNames
 			out.ApprovedCount++
 		case AssignedRejected:
 			out.RejectedCount++
+		}
+
+		// The time left is only worth a line while the decision is still the viewer's to make.
+		var sla experience.SLABadge
+		link := ""
+		if key == AssignedWaiting {
+			sla = experience.ResolveSLABadge(doc.Values["fld_due_date"], now)
+			link = "Review →"
 		}
 
 		built = append(built, assignedRow{
@@ -178,6 +187,9 @@ func buildAssigned(sel Selection, activities []*data.Record, names, myGroupNames
 				Status:        DisplayString(doc.Values[f.DocumentStatus]),
 				DecisionKey:   key,
 				DecisionLabel: label,
+				Via:           via,
+				SLA:           sla,
+				Action:        link,
 				// The Review screen, not this Document's generic record page -- the same
 				// destination My Documents links since 2026-09-24, and for the same reason
 				// (rendering.detailBackLink): composition.ReviewStepForDocument resolves which
@@ -207,7 +219,7 @@ type assignedRow struct {
 // stepBelongsTo reports whether s is viewerID's own step -- directly assigned, or held by a Group
 // they belong to (CAP-F24's two-armed shape, the same one authorization.AllowsAction's dynamic
 // gate evaluates for decide/edit/delete). via names the Group when it is that arm, "" when it is
-// the direct one -- assignedDecision's own "· via {group}" clause reads it.
+// the direct one -- AssignedRow.Via carries it.
 func stepBelongsTo(s *data.Record, viewerID string, myGroups map[string]string, f action.EngineFields) (via string, mine bool) {
 	if DisplayString(s.Values[f.ActorType]) == "Group" {
 		group := DisplayString(s.Values[f.ActorGroup])
@@ -220,10 +232,11 @@ func stepBelongsTo(s *data.Record, viewerID string, myGroups map[string]string, 
 }
 
 // assignedDecision is the YOUR DECISION column: which of the four states s is in, and the sentence
-// naming it. Approved/rejected read the step's own fld_decision directly; a still-pending step
+// naming it. The Group a step came through is not part of the sentence: it is AssignedRow.Via, drawn
+// on every Group row whatever its state (board 07b). Approved/rejected read the step's own fld_decision directly; a still-pending step
 // asks the same question the Inbox's own decision bar asks (behavior.CanAct) to tell "waiting for
 // you" from "waiting on someone earlier in the chain".
-func assignedDecision(seq *domain.Sequencing, doc, step *data.Record, siblings []*data.Record, via string, f action.EngineFields) (key, label string) {
+func assignedDecision(seq *domain.Sequencing, doc, step *data.Record, siblings []*data.Record, f action.EngineFields) (key, label string) {
 	switch DisplayString(step.Values[f.Decision]) {
 	case action.DecisionApproved:
 		if at := step.UpdatedAt; !at.IsZero() {
@@ -240,9 +253,5 @@ func assignedDecision(seq *domain.Sequencing, doc, step *data.Record, siblings [
 		return AssignedWaiting, "Waiting for your decision"
 	}
 	seqLabel := DisplayString(step.Values[f.Order])
-	label = fmt.Sprintf("Not yet your turn — step %s of %d", seqLabel, len(siblings))
-	if via != "" {
-		label += " · via " + via
-	}
-	return AssignedNotYet, label
+	return AssignedNotYet, fmt.Sprintf("Not yet your turn — step %s of %d", seqLabel, len(siblings))
 }

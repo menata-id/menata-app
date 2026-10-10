@@ -127,5 +127,15 @@ templ roleMatrixApp(app RoleMatrixApp) {
 				}
 			</div>
 		}
+		// Board 06's closing sentence: two rules no Application's roles can reach. Who manages people is the
+		// Workspace's (the Members screen, named by id so its label cannot drift), and the activity history
+		// is append-only for everyone -- mch_activity declares append_only.
+		<div class={ "border-t", borderClass(ctx, domain.BorderSurface), "px-4 py-3.5" }>
+			<p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">
+				Some rules aren’t this application’s to decide: who can manage people is set in
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_members") }</a>,
+				and the activity history can’t be changed by anyone.
+			</p>
+		</div>
 	</div>
 }

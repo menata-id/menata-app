@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 )
 
 // pendingCardFixture is the minimal PendingApprovalCard needed to render pendingApprovalCard
@@ -76,7 +77,7 @@ func assignedNavFixture() context.Context {
 }
 
 // TestApprovalInboxPage_AssignedTabRendersRows is the third tab's own proof: given a real
-// AssignedRow, the page renders its heading, the row's own fields, and no "+ New Document" button
+// AssignedRow, the page renders its heading, the row's own fields, and no "+ New document" button
 // -- the one piece of chrome this tab deliberately drops (ApprovalInboxPage's own doc comment: a
 // worklist over other people's documents is not a place to start one).
 func TestApprovalInboxPage_AssignedTabRendersRows(t *testing.T) {
@@ -88,7 +89,8 @@ func TestApprovalInboxPage_AssignedTabRendersRows(t *testing.T) {
 		RequestedAt:   "17 Sep 2026",
 		Status:        "in_review",
 		DecisionKey:   "not_yet",
-		DecisionLabel: "Not yet your turn — step 2 of 3 · via Legal Group",
+		DecisionLabel: "Not yet your turn — step 2 of 3",
+		Via:           "Legal Group",
 		Href:          "/machines/mch_document/records/doc_1/review",
 	}}
 	filters := []FilterChip{{Key: "all", Label: "All", Count: 1, Active: true}}
@@ -101,14 +103,14 @@ func TestApprovalInboxPage_AssignedTabRendersRows(t *testing.T) {
 	html := buf.String()
 	for _, want := range []string{
 		"Assigned to me", "Lead Actor Contract Amendment", "Rina Nur", "17 Sep 2026",
-		"Not yet your turn", "Legal Group", "/machines/mch_document/records/doc_1/review",
+		"Not yet your turn", "via Legal Group", "Waiting items also appear in your Inbox", "/machines/mch_document/records/doc_1/review",
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("rendered page missing %q", want)
 		}
 	}
-	if strings.Contains(html, "+ New Document") {
-		t.Error("Assigned to me rendered the \"+ New Document\" button, want none")
+	if strings.Contains(html, "+ New document") {
+		t.Error("Assigned to me rendered the \"+ New document\" button, want none")
 	}
 }
 
@@ -124,5 +126,39 @@ func TestApprovalInboxPage_AssignedTabEmptyState(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "No document has asked for your approval yet.") {
 		t.Error("empty Assigned to me did not render its own empty-state message")
+	}
+}
+
+// TestPendingApprovalCard_SLALabelOnlyWhenUrgent holds board 07's two places for time: the pill above the
+// title is for a card that needs attention now, and the footer carries the detail either way.
+func TestPendingApprovalCard_SLALabelOnlyWhenUrgent(t *testing.T) {
+	render := func(c PendingApprovalCard) string {
+		var buf bytes.Buffer
+		if err := pendingApprovalCard(c).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	base := PendingApprovalCard{Title: "Contract", Status: "in_review", Approved: 1, TotalSteps: 3, Href: "/r", Action: "Review →"}
+
+	calm := base
+	calm.SLA = experience.SLABadge{Label: "6 days left", Tone: domain.ToneNeutral, Detail: "6 days remaining", Present: true}
+	html := render(calm)
+	if strings.Contains(html, "6 days left") {
+		t.Error("a card with days to spare drew its pill above the title")
+	}
+	for _, want := range []string{"6 days remaining", "Review →", "Ongoing · 1 of 3 approved"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("calm card missing %q", want)
+		}
+	}
+
+	late := base
+	late.SLA = experience.SLABadge{Label: "OVERDUE", Tone: domain.ToneBad, Detail: "SLA breached · 3 days", Urgent: true, Present: true}
+	html = render(late)
+	for _, want := range []string{"OVERDUE", "SLA breached · 3 days"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("overdue card missing %q", want)
+		}
 	}
 }

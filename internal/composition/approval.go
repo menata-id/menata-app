@@ -327,6 +327,7 @@ func buildInbox(sel Selection, activities []*data.Record, names map[string]strin
 			SLA:          experience.ResolveSLABadge(doc.Values["fld_due_date"], now),
 			Approvers:    stepStates(seq, doc, stepsByDoc[docID], names, "", f),
 			Href:         fmt.Sprintf("/machines/%s/records/%s/review", stepMachine.ID, s.ID),
+			Action:       "Review →",
 			CardFields:   cardFields,
 		})
 		inbox.Buckets = append(inbox.Buckets, bucket)
@@ -378,10 +379,20 @@ func buildInbox(sel Selection, activities []*data.Record, names map[string]strin
 			SLA:          experience.ResolveSLABadge(d.Values["fld_due_date"], now),
 			Approvers:    stepStates(seq, d, stepsByDoc[d.ID], names, userID, f),
 			Href:         reviewHref(docMachine.ID, d.ID, len(stepsByDoc[d.ID]), status),
+			Action:       mineAction(status),
 		})
 	}
 
 	return inbox
+}
+
+// mineAction is the footer link on a My Documents card: a draft is picked up where it was left,
+// anything submitted is looked at.
+func mineAction(status string) string {
+	if status == "draft" {
+		return "Continue →"
+	}
+	return "View →"
 }
 
 // approvedCount is how many of a Document's own Approval Steps are already approved -- shared by

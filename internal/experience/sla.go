@@ -19,9 +19,7 @@ const (
 // EvaluateSLA compares due against now (both truncated to the day, so "due today" isn't overdue
 // by a few hours) and returns the badge status plus its display label.
 func EvaluateSLA(due, now time.Time) (SLAStatus, string) {
-	d := truncateToDay(due)
-	n := truncateToDay(now)
-	days := int(d.Sub(n).Hours() / 24)
+	days := daysUntil(due, now)
 
 	if days < 0 {
 		return SLAOverdue, "OVERDUE"
@@ -33,6 +31,30 @@ func EvaluateSLA(due, now time.Time) (SLAStatus, string) {
 		return SLAOK, "1 day left"
 	}
 	return SLAOK, fmt.Sprintf("%d days left", days)
+}
+
+// daysUntil is whole calendar days from now to due: negative once overdue, 0 on the due date itself.
+func daysUntil(due, now time.Time) int {
+	return int(truncateToDay(due).Sub(truncateToDay(now)).Hours() / 24)
+}
+
+// slaDetail is the day-scale sentence a card's footer carries beside its action ("SLA breached · 3
+// days", "5 days remaining"). The mockup draws hours ("SLA breached · 4h"); a due date is a bare
+// calendar date (`type: date`), so this says days and never invents a clock time -- hour precision
+// waits on a datetime Field type (see rendering.ApprovalInboxPage).
+func slaDetail(days int) string {
+	switch {
+	case days < -1:
+		return fmt.Sprintf("SLA breached · %d days", -days)
+	case days == -1:
+		return "SLA breached · 1 day"
+	case days == 0:
+		return "Due by the end of today"
+	case days == 1:
+		return "1 day remaining"
+	default:
+		return fmt.Sprintf("%d days remaining", days)
+	}
 }
 
 func truncateToDay(t time.Time) time.Time {
@@ -62,8 +84,12 @@ func truncateToDay(t time.Time) time.Time {
 // `Present` distinguishes "no due date" from "due today": an unset or unparseable value renders nothing at
 // all, which is the behaviour both former renderers already had and the one thing about them worth keeping.
 type SLABadge struct {
-	Label   string
-	Tone    domain.BadgeTone
+	Label string
+	Tone  domain.BadgeTone
+	// Detail is the same standing as a sentence for a card's footer (slaDetail); Urgent is whether the
+	// date is today or already past, which is when a card also draws the label above its title.
+	Detail  string
+	Urgent  bool
 	Present bool
 }
 
@@ -89,7 +115,8 @@ func ResolveSLABadge(value any, now time.Time) SLABadge {
 	if status == SLAOverdue {
 		tone = domain.ToneBad
 	}
-	return SLABadge{Label: label, Tone: tone, Present: true}
+	days := daysUntil(due, now)
+	return SLABadge{Label: label, Tone: tone, Detail: slaDetail(days), Urgent: days <= 0, Present: true}
 }
 
 // CardDate is the resolved input for a date pill on a card: the short date text, a tone, and whether the

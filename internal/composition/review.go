@@ -180,6 +180,11 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 	// derived v.Steps above (orderedBySequence over the same siblings), so the two slices line up
 	// index for index -- signatureBoxes relies on that rather than re-deriving it a second time.
 	ordered := orderedBySequence(siblings, f)
+	for i, s := range ordered {
+		if p, _, _, _, ok := placementOf(stepMachine, s); ok {
+			v.Steps[i].SignaturePage = p
+		}
+	}
 	boxes, page, signed, total := signatureBoxes(ordered, v.Steps, stepMachine, f, savedSignatures)
 	v.SignatureBoxes = boxes
 	v.SignatureSignedCount = signed

@@ -878,16 +878,17 @@ func TestRegionRules_followBorderSurfaceAtAHandWrittenSite(t *testing.T) {
 		t.Errorf("a table head rule must follow border.surface; got %q", got)
 	}
 
-	// roleMatrixApp carries three of the thirteen region rules (header, column head, "happens on its own"),
-	// beside its surface edge: four slate-300 borders and no slate-200 left to prove a site was missed.
+	// roleMatrixApp carries four of the thirteen region rules (header, column head, "happens on its own",
+	// the closing sentence), beside its surface edge: five slate-300 borders and no slate-200 left to prove
+	// a site was missed.
 	app := RoleMatrixApp{Name: "App", Roles: []string{"approver"}, RolesSummary: "Approver", Automatic: []string{"x"}}
 	var buf strings.Builder
 	if err := roleMatrixApp(app).Render(ctx, &buf); err != nil {
 		t.Fatalf("render: %v", err)
 	}
 	out := buf.String()
-	if n := strings.Count(out, "border-slate-300"); n != 4 {
-		t.Errorf("want the surface edge and three region rules on slate-300, got %d in %q", n, out)
+	if n := strings.Count(out, "border-slate-300"); n != 5 {
+		t.Errorf("want the surface edge and four region rules on slate-300, got %d in %q", n, out)
 	}
 	if strings.Contains(out, "border-slate-200") {
 		t.Errorf("a region rule stayed on slate-200 under a declared border.surface: %q", out)

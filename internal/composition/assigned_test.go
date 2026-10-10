@@ -58,6 +58,9 @@ func TestBuildAssigned_ActionableStepIsWaiting(t *testing.T) {
 	if got.WaitingCount != 1 {
 		t.Errorf("WaitingCount = %d, want 1", got.WaitingCount)
 	}
+	if got.Rows[0].Action != "Review →" {
+		t.Errorf("Action = %q, want the waiting row's Review link", got.Rows[0].Action)
+	}
 	if got.Rows[0].DecisionLabel != "Waiting for your decision" {
 		t.Errorf("DecisionLabel = %q", got.Rows[0].DecisionLabel)
 	}
@@ -98,8 +101,14 @@ func TestBuildAssigned_GroupHeldStepIsMineWhenIAmAMember(t *testing.T) {
 	if got.Rows[0].DecisionKey != AssignedNotYet {
 		t.Fatalf("DecisionKey = %q, want %q (locked behind step 1)", got.Rows[0].DecisionKey, AssignedNotYet)
 	}
-	if want := "Not yet your turn — step 2 of 2 · via Legal Group"; got.Rows[0].DecisionLabel != want {
+	if want := "Not yet your turn — step 2 of 2"; got.Rows[0].DecisionLabel != want {
 		t.Errorf("DecisionLabel = %q, want %q", got.Rows[0].DecisionLabel, want)
+	}
+	if got.Rows[0].Via != "Legal Group" {
+		t.Errorf("Via = %q, want the Group the step came through", got.Rows[0].Via)
+	}
+	if got.Rows[0].Action != "" || got.Rows[0].SLA.Present {
+		t.Errorf("a row that is not the viewer's turn carries Action %q / SLA %+v, want neither", got.Rows[0].Action, got.Rows[0].SLA)
 	}
 }
 

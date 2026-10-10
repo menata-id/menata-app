@@ -233,6 +233,9 @@ templ reviewProgress(steps []StepApprover) {
 							}
 						</span>
 						<span class="text-2xs text-slate-400">{ reviewStepStatusLine(s) }</span>
+						if s.SignaturePage > 0 {
+							<span class="text-2xs text-slate-400">{ reviewStepSignatureLine(s) }</span>
+						}
 					</span>
 				</li>
 			}
@@ -290,6 +293,17 @@ func reviewStepStatusLine(s StepApprover) string {
 	default:
 		return who + " · Waiting"
 	}
+}
+
+// reviewStepSignatureLine is the second sub-line (board 10): which page the step signs, and for the
+// viewer's own still-open step, when the mark appears. A decided step has no "stamped when you
+// approve" -- it already was.
+func reviewStepSignatureLine(s StepApprover) string {
+	line := fmt.Sprintf("Signature on page %d", s.SignaturePage)
+	if s.IsYou && s.State == "current" {
+		line += " · stamped when you approve"
+	}
+	return line
 }
 
 // reviewSignaturePanel is the board's right column: every sibling Approval Step's own signature

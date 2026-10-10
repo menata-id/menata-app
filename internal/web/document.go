@@ -778,7 +778,7 @@ func showApprovalFlowTemplateRows(store *data.Store) http.HandlerFunc {
 		if template != nil {
 			selectedMode = toDisplayString(template.Values[action.FlowTemplateFields(approvalMachine(req.Context(), domain.WorkflowRoleFlowTemplate)).ModeField])
 		}
-		render(req.Context(), w, rendering.ApprovalFlowTemplateRows(opts.approvers, opts.groups, opts.stepFields, opts.mode, prefills, selectedMode))
+		render(req.Context(), w, rendering.ApprovalFlowTemplateRows(opts.approvers, opts.groups, opts.stepFields, opts.mode, prefills, selectedMode, documentType))
 	}
 }
 
