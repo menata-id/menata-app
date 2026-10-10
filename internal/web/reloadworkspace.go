@@ -37,6 +37,15 @@ func submitReloadWorkspace(store *data.Store, cfg config.Config, reload func(slu
 			serverError(w, errors.New("this process has no reload hook configured"))
 			return
 		}
+		// A hand edit is not a write the runtime made, so no snapshot was taken for it: take one now, before the
+		// reload, unless the newest already holds exactly this state.
+		if manifestPath, _, err := workspaceInstallation(req.Context(), store, cfg); err == nil && cfg.BackupDir != "" {
+			if out, err := installer.SnapshotWorkspaceIfChanged(manifestPath, cfg.BackupDir, time.Now()); err != nil {
+				log.Printf("snapshot before reloading %s failed: %v", filepath.Base(manifestPath), err)
+			} else if out != "" {
+				log.Printf("snapshot %s", out)
+			}
+		}
 		if err := reloadCurrentWorkspace(req.Context(), store, reload); err != nil {
 			http.Error(w, fmt.Sprintf("this workspace was not reloaded and keeps serving what it had: %v", err), http.StatusUnprocessableEntity)
 			return

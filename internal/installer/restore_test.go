@@ -147,3 +147,28 @@ func TestRestoreSnapshot_refusesWhatIsNotThisWorkspacesOwn(t *testing.T) {
 		}
 	}
 }
+
+func TestSnapshotWorkspaceIfChanged_skipsWhatTheNewestSnapshotAlreadyHolds(t *testing.T) {
+	manifest, backups, _ := restoreFixture(t)
+	first, err := SnapshotWorkspaceIfChanged(manifest, backups, time.Unix(1_700_000_000, 0))
+	if err != nil || first == "" {
+		t.Fatalf("the first call must snapshot: %q, %v", first, err)
+	}
+	if again, err := SnapshotWorkspaceIfChanged(manifest, backups, time.Unix(1_700_000_100, 0)); err != nil || again != "" {
+		t.Fatalf("an unchanged tree was snapshotted again: %q, %v", again, err)
+	}
+	body, _ := os.ReadFile(manifest)
+	os.WriteFile(manifest, append(body, []byte("# hand edit\n")...), 0o644)
+	if edited, err := SnapshotWorkspaceIfChanged(manifest, backups, time.Unix(1_700_000_200, 0)); err != nil || edited == "" {
+		t.Fatalf("a hand edit was not snapshotted: %q, %v", edited, err)
+	}
+	own := filepath.Join(filepath.Dir(manifest), "acme")
+	os.MkdirAll(own, 0o755)
+	os.WriteFile(filepath.Join(own, "new.txt"), []byte("x"), 0o644)
+	if added, err := SnapshotWorkspaceIfChanged(manifest, backups, time.Unix(1_700_000_300, 0)); err != nil || added == "" {
+		t.Fatalf("a new file in the Workspace's directory was not snapshotted: %q, %v", added, err)
+	}
+	if list, _ := ListSnapshots(manifest, backups); len(list) != 3 {
+		t.Errorf("%d snapshots, want 3", len(list))
+	}
+}

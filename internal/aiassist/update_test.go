@@ -336,3 +336,87 @@ func TestUpdate_aFieldStillInUseCannotBeRemoved(t *testing.T) {
 		t.Fatalf("Write = %v, want a still-used rejection", err)
 	}
 }
+
+// TestPreview_isTheWritersOwnOutputAndWritesNothingLive: the preview runs the real Write on a staged copy, so a
+// new Machine appears as an added file, an edited one as a diff naming the new Field, a removal waiting for
+// confirmation is previewed as removed, and the live files are byte-identical afterwards.
+func TestPreview_isTheWritersOwnOutputAndWritesNothingLive(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	snapshotTree := func() map[string]string {
+		out := map[string]string{}
+		root := filepath.Dir(manifestPath)
+		filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+			if err == nil && !info.IsDir() {
+				b, _ := os.ReadFile(p)
+				out[p] = string(b)
+			}
+			return nil
+		})
+		return out
+	}
+	before := snapshotTree()
+
+	change := update(t, manifestPath, func(a *GeneratedApplication) {
+		a.Machines[0].Fields = append(a.Machines[0].Fields, GeneratedField{ID: "fld_kota", Name: "Kota", Type: "text"})
+		a.Machines = append(a.Machines, GeneratedMachine{ID: "mch_baru", Name: "Baru", Fields: []GeneratedField{{ID: "fld_x", Name: "X", Type: "text"}}})
+	})
+	files, err := Preview(manifestPath, change)
+	if err != nil {
+		t.Fatalf("Preview: %v", err)
+	}
+	byPath := map[string]FileChange{}
+	for _, f := range files {
+		byPath[f.Path] = f
+	}
+	if f, ok := byPath["nana-2/baru.yaml"]; !ok || f.Status != "added" || !strings.Contains(f.Diff, "+id: mch_baru") {
+		t.Errorf("the new Machine file is not previewed as added: %+v (all: %v)", f, files)
+	}
+	var edited FileChange
+	for _, f := range files {
+		if f.Status == "changed" && strings.Contains(f.Diff, "+") && strings.Contains(f.Diff, "fld_kota") {
+			edited = f
+		}
+	}
+	if edited.Path == "" || !strings.Contains(edited.Diff, "+  - id: fld_kota") || strings.Contains(edited.Diff, "-  - id: fld_nama_cabang") {
+		t.Errorf("the edited Machine is not previewed as a diff adding fld_kota that keeps the rest: %+v", files)
+	}
+
+	// A removal that has not been confirmed is previewed as made.
+	removal := update(t, manifestPath, func(a *GeneratedApplication) {
+		a.Machines[0].Fields = append(a.Machines[0].Fields, GeneratedField{ID: "fld_tmp", Name: "Tmp", Type: "text"})
+	})
+	publish(t, manifestPath, removal)
+	before = snapshotTree()
+	drop := update(t, manifestPath, func(a *GeneratedApplication) { a.Machines[0].Fields = a.Machines[0].Fields[:1] })
+	files, err = Preview(manifestPath, drop)
+	if err != nil {
+		t.Fatalf("Preview of an unconfirmed removal: %v", err)
+	}
+	if len(files) != 1 || !strings.Contains(files[0].Diff, "-  - id: fld_tmp") {
+		t.Errorf("an unconfirmed removal is not shown as removed: %+v", files)
+	}
+	after := snapshotTree()
+	if len(after) != len(before) {
+		t.Errorf("Preview left %d files, had %d", len(after), len(before))
+	}
+	for p, b := range before {
+		if after[p] != b {
+			t.Errorf("Preview changed live file %s", p)
+		}
+	}
+}
+
+func TestUnifiedDiff_marksOnlyWhatChangedAndKeepsContext(t *testing.T) {
+	a := "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n"
+	b := "1\n2\n3\n4\n5\nsix\n7\n8\n9\n10\n11\n12\n"
+	got := unifiedDiff(a, b)
+	if !strings.Contains(got, "-6\n+six\n") || strings.Contains(got, "-1\n") || strings.Contains(got, "+1\n") {
+		t.Errorf("diff = %q", got)
+	}
+	if strings.Contains(got, " 12\n") || strings.Contains(got, " 1\n") {
+		t.Errorf("lines more than three away from a change are shown: %q", got)
+	}
+	if unifiedDiff("x\n", "x\n") != " x\n" && unifiedDiff("x\n", "x\n") != "" {
+		t.Errorf("an unchanged file is not an empty diff")
+	}
+}
