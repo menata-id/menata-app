@@ -51,7 +51,7 @@ func main() {
 	// The tracer is paired with the pool here because it is the one place that may hold both:
 	// internal/db must not import internal/data (plane rule), and internal/data does not build
 	// pools. data.QueryTracer counts every statement against the request's own ReadLog.
-	pool, err := db.Connect(ctx, cfg.DatabaseURL, data.NewQueryTracer())
+	pool, err := db.Connect(ctx, cfg.DatabaseURL, data.NewQueryTracer(), time.Duration(cfg.StatementTimeoutSeconds)*time.Second)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
@@ -72,8 +72,28 @@ func main() {
 	go runScheduler(ctx, dh, store, time.Duration(cfg.ScheduleIntervalMinutes)*time.Minute)
 
 	log.Printf("menata-app listening on :%s (metadata: %s)", cfg.Port, cfg.MetadataPath)
-	if err := http.ListenAndServe(":"+cfg.Port, dh); err != nil {
+	if err := newServer(":"+cfg.Port, dh).ListenAndServe(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+// newServer is the http.Server with every timeout set (K20, 007 §18.8). http.ListenAndServe sets none, so a
+// client that opens a connection and sends a byte a minute held a goroutine and a file descriptor forever.
+//
+//   - ReadHeaderTimeout is the slow-header (Slowloris) bound and the one that matters most.
+//   - ReadTimeout covers the body, which is a file upload at its largest: generous, not tight.
+//   - WriteTimeout must outlast the slowest legitimate handler, which is a Gemini call (60s, aiassist's own
+//     client timeout) plus its database work, so it sits at two minutes. A tighter value would cut off the
+//     AI assistant mid-answer; TestServerTimeoutsOutlastTheAIClient holds the relationship.
+//   - IdleTimeout reaps keep-alive connections the proxy left behind.
+func newServer(addr string, h http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           h,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 }
 
