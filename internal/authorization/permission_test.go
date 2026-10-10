@@ -372,3 +372,70 @@ func TestDocumentCreateExcludesReviewer(t *testing.T) {
 		t.Error("a submitter creating a document in their own name must be allowed")
 	}
 }
+
+// The parent arm (K21): "only the Document's own submitter may add steps to it", declared on the step.
+func parentGatedStep() *domain.Machine {
+	m := stepMachine(domain.Permission{
+		ID: "prm_create_step", Action: domain.ActionCreate,
+		ParentActor: &domain.ParentActorGate{ViaField: "fld_document", ActorField: "fld_submitted_by"},
+	})
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_document", Name: "Document", Type: domain.FieldTypeRelation, RelatedMachine: "mch_document"})
+	return m
+}
+
+func TestAllowsActionWithParents_onlyTheParentsActorPasses(t *testing.T) {
+	m := parentGatedStep()
+	values := map[string]any{"fld_document": "doc_1"}
+	parents := map[string]map[string]any{"fld_document": {"fld_submitted_by": "rec_rina"}}
+
+	if !AllowsActionWithParents(m, domain.ActionCreate, values, domain.Actor{ID: "rec_rina"}, parents) {
+		t.Error("the Document's submitter was refused")
+	}
+	if AllowsActionWithParents(m, domain.ActionCreate, values, domain.Actor{ID: "rec_maya"}, parents) {
+		t.Error("someone who is not the Document's submitter was allowed")
+	}
+}
+
+// The arm can only restrict: a caller that never resolved the parent is refused, not waved through.
+func TestAllowsAction_aParentArmWithoutAParentFailsClosed(t *testing.T) {
+	m := parentGatedStep()
+	values := map[string]any{"fld_document": "doc_1"}
+	if AllowsAction(m, domain.ActionCreate, values, domain.Actor{ID: "rec_rina"}) {
+		t.Error("AllowsAction, given no parent, allowed a Permission that reads one")
+	}
+	if AllowsActionWithParents(m, domain.ActionCreate, values, domain.Actor{ID: "rec_rina"}, map[string]map[string]any{}) {
+		t.Error("an unresolved parent was treated as a match")
+	}
+	empty := map[string]map[string]any{"fld_document": {"fld_submitted_by": ""}}
+	if AllowsActionWithParents(m, domain.ActionCreate, values, domain.Actor{ID: ""}, empty) {
+		t.Error("an empty actor matched an empty submitter")
+	}
+}
+
+func TestAllowsActionWithParents_isANDedWithRoles(t *testing.T) {
+	m := parentGatedStep()
+	m.Permissions[0].Roles = []string{"submitter"}
+	m.ApplicationID = "app_x"
+	parents := map[string]map[string]any{"fld_document": {"fld_submitted_by": "rec_rina"}}
+	holder := domain.Actor{ID: "rec_rina", Roles: map[string][]string{"app_x": {"submitter"}}}
+	if !AllowsActionWithParents(m, domain.ActionCreate, map[string]any{"fld_document": "doc_1"}, holder, parents) {
+		t.Fatal("the submitter holding the role was refused")
+	}
+	if AllowsActionWithParents(m, domain.ActionCreate, map[string]any{"fld_document": "doc_1"}, domain.Actor{ID: "rec_rina"}, parents) {
+		t.Error("the parent's actor without the role was allowed -- the arms must all hold")
+	}
+}
+
+func TestParentRefs_namesWhatToFetch(t *testing.T) {
+	m := parentGatedStep()
+	refs := ParentRefs(m, domain.ActionCreate, map[string]any{"fld_document": "doc_1"})
+	if len(refs) != 1 || refs[0] != (ParentRef{ViaField: "fld_document", MachineID: "mch_document", RecordID: "doc_1"}) {
+		t.Errorf("ParentRefs = %+v", refs)
+	}
+	if got := ParentRefs(m, domain.ActionCreate, map[string]any{}); len(got) != 0 {
+		t.Errorf("a create naming no parent still asked to fetch one: %+v", got)
+	}
+	if got := ParentRefs(m, domain.ActionEdit, map[string]any{"fld_document": "doc_1"}); len(got) != 0 {
+		t.Errorf("an action with no parent arm asked to fetch: %+v", got)
+	}
+}

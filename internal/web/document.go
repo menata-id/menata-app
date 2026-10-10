@@ -180,7 +180,7 @@ func submitDocumentWizard(store *data.Store, files *storage.Store, cfg config.Co
 		if !applySubmissionEffect(w, docMachine, values, actor.ID, isDraft) {
 			return
 		}
-		if !allowsRecordCreate(w, docMachine, values, actor) {
+		if !allowsRecordCreate(w, req, store, docMachine, values, actor) {
 			return
 		}
 		if !validRecord(w, req, store, docMachine, values) {
@@ -379,7 +379,7 @@ func continueDocumentWizard(store *data.Store, files *storage.Store, cfg config.
 			return
 		}
 		actor := currentActor(req, store, cfg)
-		if !recordEditAllowed(machine, existing.Values, actor) {
+		if !recordEditAllowed(req.Context(), store, machine, existing.Values, actor) {
 			http.Error(w, "not allowed to edit this record", http.StatusForbidden)
 			return
 		}

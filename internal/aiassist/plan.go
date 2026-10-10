@@ -76,7 +76,7 @@ func describeMachine(m *domain.Machine) GeneratedMachine {
 func expressiblePermission(p domain.Permission) bool {
 	switch p.Action {
 	case domain.ActionCreate, domain.ActionEdit, domain.ActionDelete:
-		return p.ActorField == "" && p.DynamicActor == nil
+		return p.ActorField == "" && p.DynamicActor == nil && p.ParentActor == nil
 	}
 	return false
 }

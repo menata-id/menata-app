@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sort"
 	"strings"
 	"testing"
@@ -734,5 +735,62 @@ func TestReviewShowsTheSubmitterFromTheDocumentsOwnField(t *testing.T) {
 	}
 	if !strings.Contains(review(), "submitted by") {
 		t.Error("the Review screen does not name the submitter once the Document's own Field holds one")
+	}
+}
+
+// TestAddingAStepIsRefusedToAnyoneButTheDocumentsSubmitter is K21 through the real router: prm_create_step's
+// parent_actor reads the Document's submitter Field, so the same person is allowed on their own Document and
+// refused on someone else's, with the role held in both.
+func TestAddingAStepIsRefusedToAnyoneButTheDocumentsSubmitter(t *testing.T) {
+	h, cookie, fx := newPerRecordSweepSetup(t, "stepparent")
+	doc := fx.ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	step := fx.ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleStep, "")
+	if doc == nil || step == nil {
+		t.Fatal("this Workspace casts no document/step role")
+	}
+	field := doc.ActorFieldFor(domain.ActionCreate)
+	parentField, ok := step.ReferenceFieldTo(doc.ID)
+	if field == "" || !ok {
+		t.Fatalf("submitter field %q / parent field ok=%v -- the fixture cannot exercise the rule", field, ok)
+	}
+	var gated bool
+	for _, p := range step.PermissionsFor(domain.ActionCreate) {
+		gated = gated || p.ParentActor != nil
+	}
+	if !gated {
+		t.Skip("this Workspace's step Machine declares no parent_actor on create")
+	}
+
+	setSubmitter := func(id string) {
+		record, err := fx.store.GetRecord(fx.ctx, doc.ID, fx.records[doc.ID])
+		if err != nil {
+			t.Fatal(err)
+		}
+		record.Values[field] = id
+		if _, err := fx.store.UpdateRecord(fx.ctx, doc.ID, record.ID, record.Values); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tok := csrfTokenFor(t, h, "/machines/"+step.ID+"/records")
+	addStep := func() *httptest.ResponseRecorder {
+		form := url.Values{parentField.ID: {fx.records[doc.ID]}}
+		req := httptest.NewRequest(http.MethodPost, "/machines/"+step.ID+"/records", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+
+	setSubmitter("someone-else")
+	if rec := addStep(); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "not allowed to create") {
+		t.Fatalf("on someone else's Document: %d %q, want 403 not allowed to create", rec.Code, rec.Body.String())
+	}
+	setSubmitter(fx.actorID)
+	if rec := addStep(); rec.Code == http.StatusForbidden {
+		t.Errorf("on their own Document the submitter was refused: %d %q", rec.Code, rec.Body.String())
 	}
 }

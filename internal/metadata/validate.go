@@ -505,7 +505,7 @@ func validatePermission(m *domain.Machine, p domain.Permission, fieldsByID map[s
 	}
 
 	switch {
-	case p.ActorField == "" && p.DynamicActor == nil && len(p.Roles) == 0 && p.WorkspaceRole == "":
+	case p.ActorField == "" && p.DynamicActor == nil && p.ParentActor == nil && len(p.Roles) == 0 && p.WorkspaceRole == "":
 		issues = append(issues, fmt.Sprintf("permission %q: declares no actor_field, no actor_*_field gate, no roles and no workspace_role -- a permission that gates on nothing protects nothing", p.ID))
 	case p.ActorField == "":
 		// Role-only, workspace-role-only or dynamic-gate-only: checked above/below instead.
@@ -525,6 +525,7 @@ func validatePermission(m *domain.Machine, p domain.Permission, fieldsByID map[s
 	}
 
 	issues = append(issues, validateDynamicActor(m, p, fieldsByID)...)
+	issues = append(issues, validateParentActorVia(m, p, fieldsByID)...)
 
 	return issues
 }
@@ -1463,4 +1464,28 @@ func validateFieldsAreGenericallyWritten(machines []*domain.Machine, kind string
 		return &ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+// validateParentActorVia checks the half of a parent_actor gate this Machine can answer alone: `via` is a
+// relation Field of the Machine declaring the Permission. Whether the Field named on the *parent* exists is a
+// cross-Machine question (validateParentActors). Both are load errors for the reason the dynamic gate's are: a
+// gate reading a Field that is not there compares the actor against nothing and refuses everyone, which looks
+// exactly like a rule working.
+func validateParentActorVia(m *domain.Machine, p domain.Permission, fieldsByID map[string]domain.Field) []string {
+	pa := p.ParentActor
+	if pa == nil {
+		return nil
+	}
+	var issues []string
+	if pa.ViaField == "" || pa.ActorField == "" {
+		return []string{fmt.Sprintf("permission %q: parent_actor needs both via and field", p.ID)}
+	}
+	via, ok := fieldsByID[pa.ViaField]
+	switch {
+	case !ok:
+		issues = append(issues, fmt.Sprintf("permission %q: parent_actor.via %q is not a field of machine %q", p.ID, pa.ViaField, m.ID))
+	case via.Type != domain.FieldTypeRelation:
+		issues = append(issues, fmt.Sprintf("permission %q: parent_actor.via %q must be a relation field pointing at the parent Machine, got %q", p.ID, pa.ViaField, via.Type))
+	}
+	return issues
 }

@@ -532,6 +532,27 @@ record being created in somebody else's name. Before it existed, any member coul
 signature record naming anyone as owner — and `fld_owner` is what selects whose signature gets
 composited onto an approved PDF.
 
+**`parent_actor` is the arm that reads a record this one points at** (K21). "Only this Document's submitter
+may add a step to it" is a rule about the *parent*, declared on the child:
+
+```yaml
+permissions:
+  - id: prm_create_step
+    action: create
+    roles: [approver, submitter]
+    parent_actor:
+      via: fld_document            # a relation field of THIS Machine; its value is the parent's id
+      field: fld_submitted_by      # a person field on the Machine `via` points at
+```
+
+The acting person must be the value of `field` on that parent, in addition to every other arm of the same
+Permission (it is a requirement like `roles` and `actor_field`, never an alternative to them). At `create` the
+parent id is read from what the request submits. Both names are checked at load: `via` must be a relation of
+this Machine and `field` a `person` Field of its target. It can only *restrict* — a screen that has not been
+taught to read the parent (a hand-written button, a `.templ`) refuses rather than allows, so a missing
+button is the symptom of a call site not resolving parents, not of a rule failing open. The generic
+create, edit and delete routes resolve parents; the approval engine's own `decide`/`revise` do not yet.
+
 **A Permission can also require a *Workspace* role**, which is a different namespace from an
 Application's `roles:`:
 

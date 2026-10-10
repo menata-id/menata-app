@@ -17,7 +17,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"menata.app/internal/action"
-	"menata.app/internal/authorization"
 	"menata.app/internal/behavior"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
@@ -73,7 +72,7 @@ func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Stor
 
 	actor := currentActor(req, store, cfg)
 	data.ApplyStamps(machine, values, actor.ID)
-	if !allowsRecordCreate(w, machine, values, actor) || !validRecord(w, req, store, machine, values) {
+	if !allowsRecordCreate(w, req, store, machine, values, actor) || !validRecord(w, req, store, machine, values) {
 		return nil, actor, false
 	}
 	record, err := store.CreateRecord(req.Context(), machine.ID, values)
@@ -178,7 +177,7 @@ func editRecordRow(store *data.Store, cfg config.Config) http.HandlerFunc {
 			return
 		}
 		actor := currentActor(req, store, cfg)
-		if !recordEditAllowed(machine, record.Values, actor) {
+		if !recordEditAllowed(req.Context(), store, machine, record.Values, actor) {
 			http.Error(w, "not allowed to edit this record", http.StatusForbidden)
 			return
 		}
@@ -385,8 +384,8 @@ func placeCard(w http.ResponseWriter, req *http.Request, store *data.Store, mach
 // record yet and must fetch it) and editRecordRow (which already fetched it to render the edit
 // form) call this instead of each re-stating the same check with its own copy of the error
 // string, code-review finding 2026-09-19.
-func recordEditAllowed(machine *domain.Machine, values map[string]any, actor domain.Actor) bool {
-	return len(machine.PermissionsFor(domain.ActionEdit)) == 0 || authorization.AllowsAction(machine, domain.ActionEdit, values, actor)
+func recordEditAllowed(ctx context.Context, store *data.Store, machine *domain.Machine, values map[string]any, actor domain.Actor) bool {
+	return len(machine.PermissionsFor(domain.ActionEdit)) == 0 || allowsActionResolvingParents(ctx, store, machine, domain.ActionEdit, values, actor)
 }
 
 // allowsRecordEdit enforces any declared domain.ActionEdit Permission before the generic update
@@ -403,7 +402,7 @@ func allowsRecordEdit(w http.ResponseWriter, req *http.Request, store *data.Stor
 		recordError(w, err)
 		return false
 	}
-	if !recordEditAllowed(machine, existing.Values, actor) {
+	if !recordEditAllowed(req.Context(), store, machine, existing.Values, actor) {
 		http.Error(w, "not allowed to edit this record", http.StatusForbidden)
 		return false
 	}
@@ -675,7 +674,7 @@ func deleteAllowed(ctx context.Context, store *data.Store, machine *domain.Machi
 		}
 	}
 
-	if permissionGoverned && !authorization.AllowsAction(machine, domain.ActionDelete, existing.Values, actor) {
+	if permissionGoverned && !allowsActionResolvingParents(ctx, store, machine, domain.ActionDelete, existing.Values, actor) {
 		return false, http.StatusForbidden, "not allowed to delete this record", nil
 	}
 	return true, 0, "", nil
@@ -836,11 +835,11 @@ func carryForwardStored(ctx context.Context, store *data.Store, machine *domain.
 //
 // Skips the check entirely when no create Permission is declared, the same fast path
 // recordEditAllowed takes, so declaring one on one Machine costs nothing on every other create.
-func allowsRecordCreate(w http.ResponseWriter, machine *domain.Machine, values map[string]any, actor domain.Actor) bool {
+func allowsRecordCreate(w http.ResponseWriter, req *http.Request, store *data.Store, machine *domain.Machine, values map[string]any, actor domain.Actor) bool {
 	if len(machine.PermissionsFor(domain.ActionCreate)) == 0 {
 		return true
 	}
-	if !authorization.AllowsAction(machine, domain.ActionCreate, values, actor) {
+	if !allowsActionResolvingParents(req.Context(), store, machine, domain.ActionCreate, values, actor) {
 		http.Error(w, "not allowed to create this record", http.StatusForbidden)
 		return false
 	}

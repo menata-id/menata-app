@@ -41,15 +41,56 @@ import (
 //   - A record whose actor field is empty or is not a record id satisfies nothing: an
 //     unassigned record is actionable by no one, rather than by everyone.
 func AllowsAction(m *domain.Machine, action string, values map[string]any, actor domain.Actor) bool {
+	return AllowsActionWithParents(m, action, values, actor, nil)
+}
+
+// AllowsActionWithParents is AllowsAction for a Machine whose Permissions reach into a parent record
+// (domain.Permission.ParentActor, K21). parents maps each `via` Field id to the parent's already-fetched
+// values -- fetched by the caller, named by ParentRefs, so this stays the pure function the rest of the file
+// documents (and callable from a .templ, which may do no I/O).
+//
+// A Permission with a parent arm and no entry for its `via` is refused. That is the fail-closed direction on
+// purpose: the arm can only restrict, so a call site that never learned to resolve parents denies visibly
+// instead of allowing silently.
+func AllowsActionWithParents(m *domain.Machine, action string, values map[string]any, actor domain.Actor, parents map[string]map[string]any) bool {
 	for _, p := range m.PermissionsFor(action) {
 		if actor.ID == "" {
 			return false
 		}
-		if !allowsOne(m.ApplicationID, p, values, actor) {
+		if !allowsOne(m.ApplicationID, p, values, actor, parents) {
 			return false
 		}
 	}
 	return true
+}
+
+// ParentRef is one parent record a Permission needs read before it can be decided.
+type ParentRef struct {
+	// ViaField is the key AllowsActionWithParents expects the fetched values under.
+	ViaField string
+	// MachineID and RecordID say which record to fetch.
+	MachineID, RecordID string
+}
+
+// ParentRefs lists the parent records the Permissions governing action need, resolved from the values the
+// action is performed on (for ActionCreate, the values being submitted). A Permission whose `via` holds no id
+// contributes nothing: the caller has nothing to fetch, and AllowsActionWithParents then refuses it.
+func ParentRefs(m *domain.Machine, action string, values map[string]any) []ParentRef {
+	var out []ParentRef
+	seen := map[string]bool{}
+	for _, p := range m.PermissionsFor(action) {
+		if p.ParentActor == nil || seen[p.ParentActor.ViaField] {
+			continue
+		}
+		seen[p.ParentActor.ViaField] = true
+		via, ok := m.FieldByID(p.ParentActor.ViaField)
+		id, _ := values[p.ParentActor.ViaField].(string)
+		if !ok || id == "" || via.RelatedMachine == "" {
+			continue
+		}
+		out = append(out, ParentRef{ViaField: via.ID, MachineID: via.RelatedMachine, RecordID: id})
+	}
+	return out
 }
 
 // allowsOne resolves a single Permission against one record: the dynamic actor gate when this
@@ -61,7 +102,7 @@ func AllowsAction(m *domain.Machine, action string, values map[string]any, actor
 // declared on an existing Permission without rewriting a single stored record, and the existing
 // tests kept passing unchanged, which is the evidence that the old behaviour really is preserved
 // rather than the claim that it is.
-func allowsOne(applicationID string, p domain.Permission, values map[string]any, actor domain.Actor) bool {
+func allowsOne(applicationID string, p domain.Permission, values map[string]any, actor domain.Actor, parents map[string]map[string]any) bool {
 	// The Workspace arm, first, because it reads nothing at all -- not the record, not the
 	// Application. A Permission requiring admin is refused for a member before anything else is
 	// resolved.
@@ -73,6 +114,10 @@ func allowsOne(applicationID string, p domain.Permission, values map[string]any,
 		return false
 	}
 	if !holdsOneOf(applicationID, p.Roles, actor) {
+		return false
+	}
+	// The parent arm, ANDed with the rest: it restricts and never grants (domain.Permission.ParentActor).
+	if p.ParentActor != nil && !isActor(parents[p.ParentActor.ViaField][p.ParentActor.ActorField], actor.ID) {
 		return false
 	}
 	if p.DynamicActor != nil {

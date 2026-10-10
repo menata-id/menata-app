@@ -528,6 +528,7 @@ func LoadApplication(path string) (*App, error) {
 		{"card tags", func() error { return validateCardTags(machines) }},
 		{"relation targets", func() error { return validateRelationTargets(machines) }},
 		{"constraint targets", func() error { return validateConstraintTargets(machines) }},
+		{"parent actors", func() error { return validateParentActors(machines) }},
 		{"dataset ids", func() error { return validateDatasetIDsAreUnique(machines) }},
 		{"rollup targets", func() error { return validateRollupTargets(machines) }},
 		{"composite targets", func() error { return validateCompositeTargets(machines) }},
@@ -1201,4 +1202,40 @@ func runStage(st stage) (issues []string) {
 		return ve.Issues
 	}
 	return []string{err.Error()}
+}
+
+// validateParentActors is the cross-Machine half of parent_actor: the Field it names must exist on the Machine
+// `via` points at, and must be a reference to a person (the only thing an actor can equal).
+func validateParentActors(machines []*domain.Machine) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
+	var issues []string
+	for _, m := range machines {
+		for _, p := range m.Permissions {
+			if p.ParentActor == nil {
+				continue
+			}
+			via, ok := m.FieldByID(p.ParentActor.ViaField)
+			if !ok || via.Type != domain.FieldTypeRelation {
+				continue // reported per Machine by validateParentActorVia
+			}
+			parent, ok := byID[via.RelatedMachine]
+			if !ok {
+				continue // reported by validateRelationTargets
+			}
+			f, ok := parent.FieldByID(p.ParentActor.ActorField)
+			switch {
+			case !ok:
+				issues = append(issues, fmt.Sprintf("machine %q permission %q: parent_actor.field %q is not a field of %q, which %q points at", m.ID, p.ID, p.ParentActor.ActorField, parent.ID, p.ParentActor.ViaField))
+			case f.Type != domain.FieldTypePerson:
+				issues = append(issues, fmt.Sprintf("machine %q permission %q: parent_actor.field %q on %q must be a person field, got %q -- an actor can only equal a person", m.ID, p.ID, p.ParentActor.ActorField, parent.ID, f.Type))
+			}
+		}
+	}
+	if len(issues) > 0 {
+		return &ValidationError{Issues: issues}
+	}
+	return nil
 }

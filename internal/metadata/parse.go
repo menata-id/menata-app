@@ -326,6 +326,14 @@ type permissionDoc struct {
 	ActorTypeField  string   `yaml:"actor_type_field"`
 	ActorUserField  string   `yaml:"actor_user_field"`
 	ActorGroupField string   `yaml:"actor_group_field"`
+	// ParentActor is domain.Permission.ParentActor: `parent_actor: {via: <relation field>, field: <person field
+	// on the related Machine>}`.
+	ParentActor *parentActorDoc `yaml:"parent_actor"`
+}
+
+type parentActorDoc struct {
+	Via   string `yaml:"via"`
+	Field string `yaml:"field"`
 }
 
 // Parse decodes Runtime Metadata YAML describing a single Machine. It performs structural
@@ -467,6 +475,9 @@ func Parse(data []byte) (*domain.Machine, error) {
 				ActorUserField:  pd.ActorUserField,
 				ActorGroupField: pd.ActorGroupField,
 			}
+		}
+		if pd.ParentActor != nil {
+			perm.ParentActor = &domain.ParentActorGate{ViaField: pd.ParentActor.Via, ActorField: pd.ParentActor.Field}
 		}
 		m.Permissions = append(m.Permissions, perm)
 	}

@@ -52,7 +52,7 @@ func createRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 
 		actor := currentActor(req, store, cfg)
 		data.ApplyStamps(machine, values, actor.ID)
-		if !allowsRecordCreate(w, machine, values, actor) {
+		if !allowsRecordCreate(w, req, store, machine, values, actor) {
 			return
 		}
 		if !validRecord(w, req, store, machine, values) {

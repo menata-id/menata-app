@@ -105,6 +105,19 @@ type Permission struct {
 	// was a step deciding for itself, at submission, which of the two applies -- board 08's own
 	// User/Group toggle, and board 09's note "Approvers are supplied by Groups".
 	DynamicActor *DynamicActorGate
+	// ParentActor is a second, separate requirement: the acting identity must be the value of a Field on the
+	// record this one *points at* (007 §27 Q3's "one generic primitive"; K21, 2026-10-10). "Only this
+	// Document's submitter may add steps to it" is the case that named it -- a rule about the parent, declared
+	// on the child, which no other arm can say because every other arm reads the record acted on or the actor.
+	//
+	// It is ANDed with every other arm of the same Permission, like Roles and ActorField are, not an
+	// alternative to them: a Permission is a list of things that must all hold. Nil for every Permission that
+	// does not reach across records.
+	//
+	// It can only ever *restrict*. authorization.AllowsAction has no parent to read and so refuses a
+	// Permission carrying this arm; only AllowsActionWithParents, given the parent's values, can pass it. A
+	// call site that forgets to resolve the parent therefore denies, visibly, rather than allowing silently.
+	ParentActor *ParentActorGate
 	// Roles are Application roles, any one of which the actor must hold for this Permission to
 	// pass (ROADMAP.md Case 03 Fase 7). Empty means this Permission states nothing about roles,
 	// which is every Permission written before Fase 7 -- so adding the arm changed no existing
@@ -241,4 +254,14 @@ func (m *Machine) PermissionsFor(action string) []Permission {
 		}
 	}
 	return out
+}
+
+// ParentActorGate names the parent a Permission reads and the Field on it that must hold the actor.
+type ParentActorGate struct {
+	// ViaField is a relation Field of the Machine declaring the Permission; its value is the parent's id and
+	// its RelatedMachine is the parent's Machine. For ActionCreate the record does not exist yet, so the value
+	// is read from what the request is submitting, the same reading ActorField takes at creation.
+	ViaField string
+	// ActorField is a person Field on the parent Machine whose value the acting identity must match.
+	ActorField string
 }
