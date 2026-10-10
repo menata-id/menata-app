@@ -40,32 +40,19 @@ templ attachmentsSection(m *domain.Machine, parentID string, a *Attachments, can
 	@stackLayout(domain.GapTight) {
 		@staticText(domain.StaticSubheading, m.Name)
 		<ul class="m-0 flex list-none flex-col p-0">
-			for _, it := range a.Items {
-				<li class={ "border-t", borderClass(ctx, domain.BorderDivider), "py-2.5 first:border-t-0" }>
-					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
-						<span aria-hidden="true" class={ "grid h-8 w-11 shrink-0 place-items-center rounded-md text-2xs font-medium tracking-wide", toneClass(ctx, domain.ToneNeutral) }>{ it.Kind }</span>
-						<span class="flex min-w-0 grow flex-col gap-0.5">
-							<span class="truncate text-sm">{ it.Name }</span>
-							<span class="text-xs text-slate-400">{ attachmentMeta(it) }</span>
-						</span>
-						<a href={ templ.URL("/uploads/" + it.Key) } target="_blank" class="shrink-0 text-xs text-blue-600 hover:text-blue-700">Download</a>
-						if canEdit {
-							<button
-								type="button"
-								hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, it.ID) }
-								hx-target="closest li"
-								hx-swap="outerHTML"
-								hx-confirm={ "Remove " + it.Name + "?" }
-								aria-label={ "Remove " + it.Name }
-								class="grid size-7 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-							>
-								@icon("trash", "size-4")
-							</button>
-						}
-					}
-				</li>
+			for _, it := range foldHead(a.Items, foldAfter) {
+				@attachmentRow(m, it, canEdit)
 			}
 		</ul>
+		if len(a.Items) > foldAfter {
+			@foldedRest(fmt.Sprintf("Show all %d attachments", len(a.Items))) {
+				<ul class="m-0 flex list-none flex-col p-0">
+					for _, it := range foldTail(a.Items, foldAfter) {
+						@attachmentRow(m, it, canEdit)
+					}
+				</ul>
+			}
+		}
 		if canEdit {
 			<form class="m-0" hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) } hx-encoding="multipart/form-data" hx-trigger="change" hx-swap="none">
 				<input type="hidden" name={ a.ParentField } value={ parentID }/>
@@ -76,4 +63,32 @@ templ attachmentsSection(m *domain.Machine, parentID string, a *Attachments, can
 			</form>
 		}
 	}
+}
+
+// attachmentRow is one uploaded file, shared by the rows always shown and the ones folded behind "Show all". The
+// remove button targets its own <li>, which is why the row stays an <li> in either list.
+templ attachmentRow(m *domain.Machine, it AttachmentItem, canEdit bool) {
+	<li class={ "border-t", borderClass(ctx, domain.BorderDivider), "py-2.5 first:border-t-0" }>
+		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+			<span aria-hidden="true" class={ "grid h-8 w-11 shrink-0 place-items-center rounded-md text-2xs font-medium tracking-wide", toneClass(ctx, domain.ToneNeutral) }>{ it.Kind }</span>
+			<span class="flex min-w-0 grow flex-col gap-0.5">
+				<span class="truncate text-sm">{ it.Name }</span>
+				<span class="text-xs text-slate-400">{ attachmentMeta(it) }</span>
+			</span>
+			<a href={ templ.URL("/uploads/" + it.Key) } target="_blank" class="shrink-0 text-xs text-blue-600 hover:text-blue-700">Download</a>
+			if canEdit {
+				<button
+					type="button"
+					hx-delete={ fmt.Sprintf("/machines/%s/records/%s", m.ID, it.ID) }
+					hx-target="closest li"
+					hx-swap="outerHTML"
+					hx-confirm={ "Remove " + it.Name + "?" }
+					aria-label={ "Remove " + it.Name }
+					class="grid size-7 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+				>
+					@icon("trash", "size-4")
+				</button>
+			}
+		}
+	</li>
 }

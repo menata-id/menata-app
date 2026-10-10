@@ -42,29 +42,19 @@ templ checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit
 			<span class="text-xs text-slate-500">{ checklistProgress(c) }</span>
 		}
 		<ul class="m-0 flex list-none flex-col gap-1 p-0">
-			for _, it := range c.Items {
-				<li>
-					@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
-						if canEdit {
-							<form class="m-0 shrink-0" hx-patch={ fmt.Sprintf("/machines/%s/records/%s", m.ID, it.ID) } hx-swap="none">
-								<input type="hidden" name={ it.Complete.Field } value={ it.Complete.Next }/>
-								<button
-									type="submit"
-									aria-pressed={ fmt.Sprint(it.Complete.Done) }
-									aria-label={ completeLabel(it.Complete.Done, it.Text) }
-									class={ "grid size-5 place-items-center rounded-full border-2 text-white", templ.KV("border-emerald-600 bg-emerald-600", it.Complete.Done), templ.KV("border-slate-300 hover:border-emerald-600", !it.Complete.Done) }
-								>
-									if it.Complete.Done {
-										@icon("check", "size-3")
-									}
-								</button>
-							</form>
-						}
-						<span class={ "text-sm", templ.KV("text-slate-500 line-through", it.Complete.Done) }>{ it.Text }</span>
-					}
-				</li>
+			for _, it := range foldHead(c.Items, foldAfter) {
+				@checklistItem(m, it, canEdit)
 			}
 		</ul>
+		if len(c.Items) > foldAfter {
+			@foldedRest(fmt.Sprintf("Show all %d items", len(c.Items))) {
+				<ul class="m-0 flex list-none flex-col gap-1 p-0">
+					for _, it := range foldTail(c.Items, foldAfter) {
+						@checklistItem(m, it, canEdit)
+					}
+				</ul>
+			}
+		}
 		if canEdit {
 			<form class="m-0" hx-post={ fmt.Sprintf("/machines/%s/records", m.ID) } hx-swap="none">
 				<input type="hidden" name={ c.ParentField } value={ parentID }/>
@@ -75,4 +65,28 @@ templ checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit
 			</form>
 		}
 	}
+}
+
+// checklistItem is one row of a checklist, shared by the rows always shown and the ones folded behind "Show all".
+templ checklistItem(m *domain.Machine, it ChecklistItem, canEdit bool) {
+	<li>
+		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+			if canEdit {
+				<form class="m-0 shrink-0" hx-patch={ fmt.Sprintf("/machines/%s/records/%s", m.ID, it.ID) } hx-swap="none">
+					<input type="hidden" name={ it.Complete.Field } value={ it.Complete.Next }/>
+					<button
+						type="submit"
+						aria-pressed={ fmt.Sprint(it.Complete.Done) }
+						aria-label={ completeLabel(it.Complete.Done, it.Text) }
+						class={ "grid size-5 place-items-center rounded-full border-2 text-white", templ.KV("border-emerald-600 bg-emerald-600", it.Complete.Done), templ.KV("border-slate-300 hover:border-emerald-600", !it.Complete.Done) }
+					>
+						if it.Complete.Done {
+							@icon("check", "size-3")
+						}
+					</button>
+				</form>
+			}
+			<span class={ "text-sm", templ.KV("text-slate-500 line-through", it.Complete.Done) }>{ it.Text }</span>
+		}
+	</li>
 }

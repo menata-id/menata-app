@@ -192,7 +192,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 						} else if f.Type == domain.FieldTypeGroup {
 							{ GroupLabel(groups, toString(r.Values[f.ID])) }
 						} else if f.Type == domain.FieldTypeLongText {
-							<div class="whitespace-pre-wrap">{ toString(r.Values[f.ID]) }</div>
+							@longText(toString(r.Values[f.ID]))
 						} else {
 							{ fmt.Sprint(r.Values[f.ID]) }
 						}
@@ -505,4 +505,24 @@ func canDeleteInView(m *domain.Machine, r *data.Record, children []ChildSection,
 		return false, "not allowed"
 	}
 	return ok, reason
+}
+
+// longTextFold is how many characters of a long_text value show before "Read more".
+const longTextFold = 280
+
+// longText draws a long_text value in full when it is short, and as its opening plus "Read more" when it is not.
+// The whole text is already in the page, so opening it asks for nothing; the summary stands in for the opening
+// and hides once open, leaving the full text.
+templ longText(text string) {
+	if len([]rune(text)) <= longTextFold {
+		<div class="whitespace-pre-wrap">{ text }</div>
+	} else {
+		<details class="group/fold">
+			<summary class="cursor-pointer list-none group-open/fold:hidden">
+				<span class="whitespace-pre-wrap">{ string([]rune(text)[:longTextFold]) }…</span>
+				<span class="text-xs text-blue-600 hover:text-blue-700"> Read more</span>
+			</summary>
+			<div class="whitespace-pre-wrap">{ text }</div>
+		</details>
+	}
 }

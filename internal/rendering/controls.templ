@@ -130,6 +130,39 @@ func buttonClasses(ctx context.Context, variant domain.ButtonVariant) string {
 // §12.3 forbids by name ("MUST NOT become generic merely by accepting arbitrary properties").
 //
 // The attribute order is `type`, `name`, `value`, `class`: the order the 17 migrated sites already wrote.
+// foldAfter is how many rows of a long list stay visible before the rest folds behind foldedRest; commentsFold
+// is the same for a comment feed, whose rows are taller.
+const (
+	foldAfter    = 5
+	commentsFold = 3
+)
+
+// foldHead and foldTail split a list at n: the rows kept in view and the rows folded away. Either is empty when
+// the list is shorter, so a short list draws exactly what it drew before.
+func foldHead[T any](rows []T, n int) []T {
+	if len(rows) <= n {
+		return rows
+	}
+	return rows[:n]
+}
+
+func foldTail[T any](rows []T, n int) []T {
+	if len(rows) <= n {
+		return nil
+	}
+	return rows[n:]
+}
+
+// foldedRest keeps the tail of a long list out of sight until asked for: a <details> whose summary says what is
+// behind it ("Show all 8 items") and hides itself once open, so it needs no script and no request. It is a
+// disclosure, not a Component a Page can declare -- what is folded and after how many rows is the caller's.
+templ foldedRest(summary string) {
+	<details class="group/fold">
+		<summary class="cursor-pointer list-none text-xs text-blue-600 hover:text-blue-700 group-open/fold:hidden">{ summary }</summary>
+		{ children... }
+	</details>
+}
+
 templ button(label string, variant domain.ButtonVariant, name, value string) {
 	<button type="submit" if name != "" { name={ name } value={ value } } class={ buttonClasses(ctx, variant) }>{ label }</button>
 }
