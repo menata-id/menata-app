@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"menata.app/internal/rendering"
@@ -86,5 +88,44 @@ func TestAssetURLChangesWithContent(t *testing.T) {
 	// renders a page without building a router working.
 	if got := rendering.AssetURLForTest("/icons/favicon-32.png"); got != "/icons/favicon-32.png" {
 		t.Errorf("unfingerprinted path = %q, want it unchanged", got)
+	}
+}
+
+// TestFontsAndIconsAreRevalidatedNotImmutable holds what assets.go's comment claims for the files a page does
+// not name by hash: every face app.css names and every icon the head or manifest names is served, and served
+// `no-cache` rather than immutable. A year-long max-age on a URL that does not change with its bytes is the
+// setting that causes the stale-asset bug, so the day someone widens the fingerprint pattern to cover a
+// directory without hashing it, this fails. It reads the repo's own files by a path relative to the package, so
+// a missing file fails instead of skipping.
+func TestFontsAndIconsAreRevalidatedNotImmutable(t *testing.T) {
+	css, err := os.ReadFile("../../static/css/app.css")
+	if err != nil {
+		t.Fatalf("read app.css: %v", err)
+	}
+	faces := regexp.MustCompile(`url\((/vendor/[^)]+\.woff2)\)`).FindAllStringSubmatch(string(css), -1)
+	if len(faces) == 0 {
+		t.Fatal("app.css names no woff2 face under /vendor/ -- the font half of this test would measure nothing")
+	}
+	var urls []string
+	for _, f := range faces {
+		urls = append(urls, f[1])
+	}
+	for _, icon := range []string{"favicon-32.png", "icon-180.png", "icon-192.png", "icon-512.png"} {
+		urls = append(urls, "/icons/"+icon)
+	}
+
+	handlers := map[string]http.Handler{
+		"vendor": staticAssets("vendor", "../../static/vendor"),
+		"icons":  staticAssets("icons", "../../static/icons"),
+	}
+	for _, u := range urls {
+		rec := httptest.NewRecorder()
+		handlers[strings.Split(u, "/")[1]].ServeHTTP(rec, httptest.NewRequest(http.MethodGet, u, nil))
+		if rec.Code != http.StatusOK {
+			t.Errorf("%s: status %d, want 200", u, rec.Code)
+		}
+		if got := rec.Header().Get("Cache-Control"); got != "no-cache" {
+			t.Errorf("%s: Cache-Control = %q, want no-cache -- its URL does not change with its bytes", u, got)
+		}
 	}
 }

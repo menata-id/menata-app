@@ -14,8 +14,13 @@ import (
 
 // fingerprintedAssets are the static files a rendered page names by URL, and therefore the only
 // ones a stale copy can break a page with. Everything else under static/ is reached *from* these
-// (app.css names the Ubuntu woff2 faces; the icons are named by the manifest), and those are
-// content-addressed by the sheet that names them rather than by a page.
+// (app.css names the Ubuntu woff2 faces; the icons are named by the page head and the manifest), and
+// **those are not content-addressed at all**: a face is named by weight and subset, an icon by size,
+// and neither URL moves when the bytes do. They are safe a different way -- they are served
+// `no-cache` (staticAssets, below), so a replaced font or icon is picked up on the next request at the
+// price of a conditional request per file. Fingerprinting them would need the hash inside app.css's
+// `url(...)`s, i.e. rewriting the sheet whose own hash is computed from its bytes; that has not been
+// built, and `TestFontsAndIconsAreRevalidatedNotImmutable` holds the cheaper guarantee instead.
 //
 // Keyed by the URL path a page emits, which is also the key rendering.assetURL looks up -- one
 // list, so a file added here and forgotten in the renderer is impossible rather than silent.
