@@ -122,6 +122,34 @@ navigation:
                   children:
                     - component: Metric
                       binding: { dataset: ds_open_by_assignee, measure: msr_open, rows: dimension }
+        # Recent activity (S2.7, Case 19 PM04): the newest events of this Application. The Dataset reads the
+        # Application the page is drawn in from the runtime, so this names no Application id; "Open activity
+        # feed" is not drawn because no such page exists.
+        - layout: section
+          gap: default
+          children:
+            - static: subheading
+              text: Recent activity
+            - component: Collection
+              gap: tight
+              divided: true
+              empty: No activity yet.
+              binding:
+                dataset: ds_recent_activity
+                rows: records
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - static: message
+                      from:
+                        text: title
+                    - static: caption
+                      from:
+                        text: person
+
   # Status moves as a declared page (K13, 2026-10-10): each Task assigned to you with a Mark done and a Reopen
   # Button, both `write: transition`. A Button names the status it moves to (`becomes:`; `$done` / `$reopen` read
   # the Machine's `completion:`), never a Field or a route, and is drawn only on a Task for which that move is

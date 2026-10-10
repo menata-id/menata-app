@@ -69,3 +69,23 @@ datasets:
     sort:
       - { field: created_at, direction: desc }
     limit: 50
+
+  # The newest events of the Application a page is drawn in, for a "Recent activity" panel (Case 19 PM04, S2.7).
+  # `$parameters.application` is not typed by a visitor: the declared-page route sets it to the request's own
+  # Application id and overwrites anything the query string says (internal/web.showDeclaredPage), so a page in one
+  # Application cannot be pointed at another's history. `limit: 10` is what "recent" means, not a safety cap -- a
+  # window, registered in internal/conformance's windowDatasets so no page may claim to be complete over it. An event
+  # written before fld_application_id existed has no value and appears in no panel, the same as in no feed.
+  - id: ds_recent_activity
+    select: records
+    where:
+      all:
+        - { field: fld_application_id, op: equals, value: $parameters.application }
+    sort:
+      - { field: created_at, direction: desc }
+    limit: 10
+
+# What a record of this Machine is when a page draws it as one line (007 §7.6 Projection): its summary, and who did it.
+card_fields:
+  - { field: fld_summary, role: title }
+  - { field: fld_actor, role: person }

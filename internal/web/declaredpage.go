@@ -29,7 +29,7 @@ func showDeclaredPage(store *data.Store, cfg config.Config) http.HandlerFunc {
 			if item.ID != navID || item.Page == nil {
 				continue
 			}
-			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), queryParams(req), time.Now(), app.AllNavigation, *item.Page)
+			body, err := composition.DeclaredPage(ctx, composition.NewLoader(store, machinesFor(ctx)), currentActor(req, store, cfg), pageParams(req, app.ID), time.Now(), app.AllNavigation, *item.Page)
 			if err != nil {
 				serverError(w, err)
 				return
@@ -53,5 +53,14 @@ func queryParams(req *http.Request) map[string]string {
 	for k := range q {
 		out[k] = q.Get(k)
 	}
+	return out
+}
+
+// pageParams is queryParams plus the one name the runtime owns: `application`, the Application the page is drawn
+// in. It is set last so a query string cannot supply it -- `?application=app_other` would otherwise read another
+// Application's events through a Dataset that filters on it (ds_recent_activity).
+func pageParams(req *http.Request, applicationID string) map[string]string {
+	out := queryParams(req)
+	out["application"] = applicationID
 	return out
 }

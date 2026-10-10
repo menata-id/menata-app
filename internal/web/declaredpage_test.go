@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1305,6 +1306,46 @@ func TestDeclaredPageFilesEachTaskInItsOwnBucket(t *testing.T) {
 			if got := strings.Contains(text, title); got != (name == home) {
 				t.Errorf("%s: in %q = %v, want it only in %q", title, name, got, home)
 			}
+		}
+	}
+}
+
+// TestDeclaredPageRecentActivityShowsOnlyThisApplicationsNewestTen: the panel reads ds_recent_activity, whose
+// `$parameters.application` the runtime sets to the page's own Application. Eleven events of this Application
+// show the newest ten, another Application's event never shows, and a query string naming that other
+// Application does not change it -- the name is the runtime's, not the visitor's.
+func TestDeclaredPageRecentActivityShowsOnlyThisApplicationsNewestTen(t *testing.T) {
+	h, cookie, ctx, store, _, _, _ := routerSetupFor(t, "declaredactivity", "default")
+	add := func(summary, app string) {
+		rec, err := store.CreateRecord(ctx, "mch_activity", map[string]any{
+			"fld_machine_id": "mch_task", "fld_record_id": "x", "fld_summary": summary, "fld_application_id": app,
+		})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", summary, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_activity", rec.ID) })
+		time.Sleep(2 * time.Millisecond) // created_at orders the window; keep the inserts apart
+	}
+	for i := 1; i <= 11; i++ {
+		add(fmt.Sprintf("Pmact-%02d", i), "app_project_management")
+	}
+	add("Pmact-foreign", "app_document_approval")
+
+	for _, path := range []string{"/pages/nav_task_figures", "/pages/nav_task_figures?application=app_document_approval"} {
+		body := getPage(t, h, cookie, path)
+		if strings.Contains(body, "Pmact-foreign") {
+			t.Errorf("%s: another Application's event is drawn", path)
+		}
+		if strings.Contains(body, "Pmact-01<") {
+			t.Errorf("%s: the eleventh-newest event is drawn; the window is ten", path)
+		}
+		for _, want := range []string{"Pmact-02<", "Pmact-11<"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("%s: %q missing from the panel", path, want)
+			}
+		}
+		if strings.Index(body, "Pmact-11<") > strings.Index(body, "Pmact-02<") {
+			t.Errorf("%s: the newest event is not first", path)
 		}
 	}
 }

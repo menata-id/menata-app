@@ -436,6 +436,7 @@ func pageBindsParameter(n domain.PageNode, param string, datasets map[string]dom
 // because "is this limit a window" is a judgement no scan can make.
 var windowDatasets = map[string]string{
 	"ds_recent_documents": "limit: 5 is what \"recent\" means; the page lists the five latest, not every document",
+	"ds_recent_activity":  "limit: 10 is what \"recent\" means; the panel shows the ten newest events, not the whole log",
 }
 
 // TestNoPageClaimsCompletenessOverAWindow sweeps the installed pages for `complete: true` and refuses one whose
