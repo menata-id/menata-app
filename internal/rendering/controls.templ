@@ -39,7 +39,14 @@ import (
 // role as the table's box, where the body cell (tableCellClasses) reads `divider`: a head rule bounds the header
 // region, a body rule separates rows. Joined in the old literal's order so the default theme renders the same bytes.
 func tableHeadCellClasses(ctx context.Context) string {
-	return "border-b " + borderClass(ctx, domain.BorderSurface) + " px-3 py-2 text-left text-2xs font-medium tracking-wide text-slate-500 uppercase"
+	return tableHeadCellClassesFor(ctx, domain.TableAlignStart)
+}
+
+// tableHeadCellClassesFor is the same cell with the edge its text sits on swapped into the one slot that holds it,
+// so a column of figures aligns right without a second, competing text-align utility whose winner would depend on
+// the order Tailwind emits them (the reason fieldClasses returns no width).
+func tableHeadCellClassesFor(ctx context.Context, a domain.TableAlign) string {
+	return "border-b " + borderClass(ctx, domain.BorderSurface) + " px-3 py-2 " + tableAlignClass(a) + " text-2xs font-medium tracking-wide text-slate-500 uppercase"
 }
 
 // fieldClasses is the one place an input's look is decided, and the first reader of `BorderControl` -- the

@@ -67,32 +67,23 @@ templ DashboardPage(c DashboardContent, workspaceName string, viewer Viewer, swi
 		@splitLayout(domain.GapComfortable, domain.SplitAsideEnd, domain.AsideWide) {
 			@stackLayout(domain.GapTight) {
 				@staticText(domain.StaticPanelHeading, "Tasks by project")
-				<div class={ "overflow-x-auto", surfaceClasses(ctx) }>
-					<table class="w-full min-w-[360px] border-collapse text-left">
-						<thead>
-							<tr class={ "border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50" }>
-								<th scope="col" class={ "px-4 py-2 text-3xs", weightClass(ctx, domain.WeightBody), "tracking-wide text-slate-500 uppercase" }>Project</th>
-								<th scope="col" class={ "w-20 px-4 py-2 text-right text-3xs", weightClass(ctx, domain.WeightBody), "tracking-wide text-slate-500 uppercase" }>Total</th>
-								<th scope="col" class={ "w-20 px-4 py-2 text-right text-3xs", weightClass(ctx, domain.WeightBody), "tracking-wide text-slate-500 uppercase" }>Open</th>
-							</tr>
-						</thead>
-						<tbody>
-							for _, s := range c.Projects {
-								<tr class={ "border-b", borderClass(ctx, domain.BorderDivider), "text-sm last:border-b-0" }>
-									<td class="px-4 py-2.5">
-										@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
-											<span>{ s.Name }</span>
-											if s.Status != "" {
-												@statusBadge(s.Status, domain.ToneMuted, domain.BadgeRegular)
-											}
+				<div class={ surfaceClasses(ctx) }>
+					@dataTable("Tasks by project", []TableColumn{{Header: "Project"}, {Header: "Total", Align: domain.TableAlignEnd}, {Header: "Open", Align: domain.TableAlignEnd}}) {
+						for _, s := range c.Projects {
+							<tr>
+								<td class={ tableCellClasses(ctx) }>
+									@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
+										<span>{ s.Name }</span>
+										if s.Status != "" {
+											@statusBadge(s.Status, domain.ToneMuted, domain.BadgeRegular)
 										}
-									</td>
-									<td class="px-4 py-2.5 text-right">{ fmt.Sprint(s.TotalTasks) }</td>
-									<td class="px-4 py-2.5 text-right">{ fmt.Sprint(s.OpenTasks) }</td>
-								</tr>
-							}
-						</tbody>
-					</table>
+									}
+								</td>
+								<td class={ tableCellClasses(ctx), tableAlignClass(domain.TableAlignEnd) }>{ fmt.Sprint(s.TotalTasks) }</td>
+								<td class={ tableCellClasses(ctx), tableAlignClass(domain.TableAlignEnd) }>{ fmt.Sprint(s.OpenTasks) }</td>
+							</tr>
+						}
+					}
 				</div>
 			}
 

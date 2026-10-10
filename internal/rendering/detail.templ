@@ -387,22 +387,12 @@ templ pdfThumbnail(machineID, recordID string) {
 templ ChildSectionView(cc ChildSection, groups GroupOptions, actor domain.Actor, now time.Time) {
 	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow(fmt.Sprintf("%s (%d)", cc.Machine.Name, len(cc.Records)), "", "")
-		<div class={ "overflow-x-auto", surfaceClasses(ctx) }>
-			<table class="w-full border-collapse text-sm">
-				<thead>
-					<tr>
-						for _, f := range cc.Machine.Fields {
-							<th class={ tableHeadCellClasses(ctx) }>{ f.Name }</th>
-						}
-						<th class={ tableHeadCellClasses(ctx) }></th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, rec := range cc.Records {
-						@RecordRow(cc.Machine, rec, cc.Relations, groups, actor, now)
-					}
-				</tbody>
-			</table>
+		<div class={ surfaceClasses(ctx) }>
+			@dataTable(cc.Machine.Name, recordTableColumns(cc.Machine.Fields)) {
+				for _, rec := range cc.Records {
+					@RecordRow(cc.Machine, rec, cc.Relations, groups, actor, now)
+				}
+			}
 		</div>
 	}
 }

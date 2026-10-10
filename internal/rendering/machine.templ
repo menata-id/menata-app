@@ -494,33 +494,24 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 	</div>
 	@stackLayout(domain.GapTight) {
 		@sectionHeaderRow("Fields", "", "")
-		<div class={ "overflow-x-auto", surfaceClasses(ctx) }>
-			<table class="w-full border-collapse text-sm">
-				<thead>
+		<div class={ surfaceClasses(ctx) }>
+			@dataTable("Fields", []TableColumn{{Header: "Field"}, {Header: "Type"}, {Header: "Required"}}) {
+				for _, f := range m.Fields {
 					<tr>
-						<th class={ tableHeadCellClasses(ctx) }>Field</th>
-						<th class={ tableHeadCellClasses(ctx) }>Type</th>
-						<th class={ tableHeadCellClasses(ctx) }>Required</th>
+						<td class={ tableCellClasses(ctx) }>{ f.Name }</td>
+						<td class={ tableCellClasses(ctx) }>
+							@statusBadge(string(f.Type), domain.ToneInfo, domain.BadgeCompact)
+						</td>
+						<td class={ tableCellClasses(ctx) }>
+							if f.Required {
+								<span class="text-xs font-medium text-red-600">yes</span>
+							} else {
+								<span class="text-xs text-slate-400">no</span>
+							}
+						</td>
 					</tr>
-				</thead>
-				<tbody>
-					for _, f := range m.Fields {
-						<tr>
-							<td class={ tableCellClasses(ctx) }>{ f.Name }</td>
-							<td class={ tableCellClasses(ctx) }>
-								@statusBadge(string(f.Type), domain.ToneInfo, domain.BadgeCompact)
-							</td>
-							<td class={ tableCellClasses(ctx) }>
-								if f.Required {
-									<span class="text-xs font-medium text-red-600">yes</span>
-								} else {
-									<span class="text-xs text-slate-400">no</span>
-								}
-							</td>
-						</tr>
-					}
-				</tbody>
-			</table>
+				}
+			}
 		</div>
 	}
 	@stackLayout(domain.GapTight) {
@@ -538,23 +529,13 @@ templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, re
 // tableLayout is the generic flat-list Layout: every Field as a column, every Record as a row,
 // plus a create-form row (007 §12.2 "Layout is a generic structural composition primitive").
 templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationOptions, groups GroupOptions, actor domain.Actor, now time.Time) {
-	<div class={ "overflow-x-auto", surfaceClasses(ctx) }>
-		<table class="w-full border-collapse text-sm">
-			<thead>
-				<tr>
-					for _, f := range m.Fields {
-						<th class={ tableHeadCellClasses(ctx) }>{ f.Name }</th>
-					}
-					<th class={ tableHeadCellClasses(ctx) }></th>
-				</tr>
-			</thead>
-			<tbody>
-				for _, r := range records {
-					@RecordRow(m, r, relations, groups, actor, now)
-				}
-				@createFormRow(m, relations, groups)
-			</tbody>
-		</table>
+	<div class={ surfaceClasses(ctx) }>
+		@dataTable(m.Name+" records", recordTableColumns(m.Fields)) {
+			for _, r := range records {
+				@RecordRow(m, r, relations, groups, actor, now)
+			}
+			@createFormRow(m, relations, groups)
+		}
 	</div>
 }
 

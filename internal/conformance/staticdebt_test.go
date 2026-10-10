@@ -781,3 +781,40 @@ func TestHandWrittenCreateFormsOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// TestNoHandWrittenTable is a zero-floor gate, installed after `dataTable` replaced the six hand-written
+// `<table>` elements (K12 stage 1, 2026-10-10; build, migrate, then gate): the only `<table>` in
+// `internal/rendering` is the one in `table.templ`. A table drawn by hand loses what the renderer forces -- an
+// accessible name, `scope="col"` headers, the Theme-read cell rules -- and none of the six replaced had a name.
+// Comments are stripped first, so prose naming the tag does not count; the sanity check requires exactly one
+// real site so the scan cannot pass by reading the wrong text.
+func TestNoHandWrittenTable(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	tag := regexp.MustCompile(`<table[\s>]`)
+	owner := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		n := len(tag.FindAllString(comment.ReplaceAllString(string(b), ""), -1))
+		if e.Name() == "table.templ" {
+			owner = n
+			continue
+		}
+		if n > 0 {
+			t.Errorf("%s: %d hand-written <table> -- use `@dataTable(label, columns)` so the table has an accessible name, scoped headers and the Theme's cell rules", e.Name(), n)
+		}
+	}
+	if owner != 1 {
+		t.Fatalf("table.templ holds %d <table> elements, want exactly 1 -- the scan is looking at the wrong text or dataTable moved", owner)
+	}
+}

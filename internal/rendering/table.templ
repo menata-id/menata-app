@@ -1,0 +1,57 @@
+package rendering
+
+import "menata.app/internal/domain"
+
+// TableColumn is one column of a Table: the words in its header and which edge its text sits on. A cell does not
+// repeat either -- the cell is drawn by the caller, which asks `tableCellClasses`/`tableAlignClass` for its look.
+type TableColumn struct {
+	Header string
+	Align  domain.TableAlign
+}
+
+// tableAlignClass is the edge a column's text sits on, for a header cell and for each body cell of that column.
+func tableAlignClass(a domain.TableAlign) string {
+	if a == domain.TableAlignEnd {
+		return "text-right"
+	}
+	return "text-left"
+}
+
+// dataTable is the one `<table>` this tree draws (007 §12.3 `Table`; 006 "List View = Collection + Projection +
+// Table renderer"). It owns the element, the header row and the scroll box; **the rows are a slot**, because the
+// generic record table's row is a whole `<tr>` with its own htmx wiring (`RecordRow`) and the Dashboard's holds a
+// badge beside a name. A Table that took cells as data would be a different function per screen.
+//
+// `label` is the table's accessible name. None of the six tables this replaced had one, so a screen-reader user
+// reached "table, 3 columns" and was told nothing about which; making it a required input is what a contract can
+// force that a reviewer reading six screens did not. Each header is `scope="col"` for the same reason.
+//
+// The frame (`surfaceClasses`) is the caller's, not the table's: three of the six sit in a panel that already has
+// one, and a bordered box inside a bordered box is a defect, not a choice. The scroll box is the table's, since a
+// table wider than a phone must scroll itself rather than the page.
+templ dataTable(label string, columns []TableColumn) {
+	<div class="overflow-x-auto">
+		<table class="w-full border-collapse text-sm" aria-label={ label }>
+			<thead>
+				<tr>
+					for _, c := range columns {
+						<th scope="col" class={ tableHeadCellClassesFor(ctx, c.Align) }>{ c.Header }</th>
+					}
+				</tr>
+			</thead>
+			<tbody>
+				{ children... }
+			</tbody>
+		</table>
+	</div>
+}
+
+// recordTableColumns is the generic record table's columns: one per Field, named by it, then an unnamed one for the
+// row's own actions (edit, delete) -- the shape `tableLayout` and `ChildSectionView` both drew by hand.
+func recordTableColumns(fields []domain.Field) []TableColumn {
+	cols := make([]TableColumn, 0, len(fields)+1)
+	for _, f := range fields {
+		cols = append(cols, TableColumn{Header: f.Name})
+	}
+	return append(cols, TableColumn{})
+}

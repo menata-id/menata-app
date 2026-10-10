@@ -129,39 +129,26 @@ templ inferenceStepBlock(n InferenceStep) {
 				@statusBadge(pluralRows(n.Defects)+" to act on", domain.ToneBad, domain.BadgeRegular)
 			}
 		}
-		<div class="overflow-x-auto">
-			<table class="w-full min-w-[560px] border-collapse text-xs">
-				<thead>
-					<tr class="text-left text-slate-500">
-						<th class="py-1 pr-3 font-medium">What was resolved</th>
-						<th class="py-1 pr-3 font-medium">Resolved to</th>
-						<th class="py-1 pr-3 font-medium">Read from</th>
-						<th class="py-1 font-medium">Status</th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, row := range n.Rows {
-						<tr
-							class={ "border-t", borderClass(ctx, domain.BorderDivider), "align-top",
-								templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }
-						>
-							<td class="py-1.5 pr-3"><code>{ row.Derivation }</code></td>
-							<td class="py-1.5 pr-3">
-								if row.Value != "" {
-									<code class="text-slate-700">{ row.Value }</code>
-								} else {
-									<span class="text-slate-400">&mdash;</span>
-								}
-							</td>
-							<td class="py-1.5 pr-3 text-slate-500">{ row.From }</td>
-							<td class="py-1.5">
-								@statusBadge(row.Status, row.Tone, domain.BadgeRegular)
-							</td>
-						</tr>
-					}
-				</tbody>
-			</table>
-		</div>
+		@dataTable(n.Step, inferenceColumns("What was resolved")) {
+			for _, row := range n.Rows {
+				<tr class={ templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }>
+					<td class={ tableCellClasses(ctx) }><code>{ row.Derivation }</code></td>
+					<td class={ tableCellClasses(ctx) }>
+						if row.Value != "" {
+							<code class="text-slate-700">{ row.Value }</code>
+						} else {
+							// Rendered as a visible dash, never a guessed default: an empty
+							// derivation that looks ordinary is precisely the /review 404.
+							<span class="text-slate-400">&mdash;</span>
+						}
+					</td>
+					<td class={ tableCellClasses(ctx), "text-slate-500" }>{ row.From }</td>
+					<td class={ tableCellClasses(ctx) }>
+						@statusBadge(row.Status, row.Tone, domain.BadgeRegular)
+					</td>
+				</tr>
+			}
+		}
 	}
 }
 
@@ -178,41 +165,26 @@ templ inferenceRoleBlock(r InferenceRole) {
 				<span class="text-2xs text-slate-400">optional role</span>
 			}
 		</div>
-		<div class="overflow-x-auto">
-			<table class="w-full min-w-[560px] border-collapse text-xs">
-				<thead>
-					<tr class="text-left text-slate-500">
-						<th class="py-1 pr-3 font-medium">Derivation</th>
-						<th class="py-1 pr-3 font-medium">Resolved to</th>
-						<th class="py-1 pr-3 font-medium">Read from</th>
-						<th class="py-1 font-medium">Status</th>
-					</tr>
-				</thead>
-				<tbody>
-					for _, row := range r.Rows {
-						<tr
-							class={ "border-t", borderClass(ctx, domain.BorderDivider), "align-top",
-								templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }
-						>
-							<td class="py-1.5 pr-3"><code>{ row.Derivation }</code></td>
-							<td class="py-1.5 pr-3">
-								if row.Value != "" {
-									<code class="text-slate-700">{ row.Value }</code>
-								} else {
-									// Rendered as a visible dash, never a guessed default: an empty
-									// derivation that looks ordinary is precisely the /review 404.
-									<span class="text-slate-400">&mdash;</span>
-								}
-							</td>
-							<td class="py-1.5 pr-3 text-slate-500">{ row.From }</td>
-							<td class="py-1.5">
-								@statusBadge(row.Status, row.Tone, domain.BadgeRegular)
-							</td>
-						</tr>
-					}
-				</tbody>
-			</table>
-		</div>
+		@dataTable(r.Role, inferenceColumns("Derivation")) {
+			for _, row := range r.Rows {
+				<tr class={ templ.KV("text-slate-400", !row.IsDefect && row.Status == "not applicable") }>
+					<td class={ tableCellClasses(ctx) }><code>{ row.Derivation }</code></td>
+					<td class={ tableCellClasses(ctx) }>
+						if row.Value != "" {
+							<code class="text-slate-700">{ row.Value }</code>
+						} else {
+							// Rendered as a visible dash, never a guessed default: an empty
+							// derivation that looks ordinary is precisely the /review 404.
+							<span class="text-slate-400">&mdash;</span>
+						}
+					</td>
+					<td class={ tableCellClasses(ctx), "text-slate-500" }>{ row.From }</td>
+					<td class={ tableCellClasses(ctx) }>
+						@statusBadge(row.Status, row.Tone, domain.BadgeRegular)
+					</td>
+				</tr>
+			}
+		}
 	</div>
 }
 
@@ -223,4 +195,10 @@ func pluralRows(n int) string {
 		return "1 derivation"
 	}
 	return strconv.Itoa(n) + " derivations"
+}
+
+// inferenceColumns is the four columns both explanation tables share, differing only in what the first is called
+// ("What was resolved" for a step, "Derivation" for a role).
+func inferenceColumns(first string) []TableColumn {
+	return []TableColumn{{Header: first}, {Header: "Resolved to"}, {Header: "Read from"}, {Header: "Status"}}
 }
