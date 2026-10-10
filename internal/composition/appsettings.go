@@ -1,6 +1,7 @@
 package composition
 
 import (
+	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
 )
@@ -29,6 +30,7 @@ func ApplicationSettingsHub(app domain.Application, hub domain.NavigationItem, i
 		AppDescription: app.Description,
 		MachineCount:   len(app.Machines),
 		RoleCount:      len(app.Roles),
+		MembersHref:    hub.Route + "/members",
 		// Members & roles and Groups are admin destinations: hidden rather than offered-then-403, the
 		// convention appshell.templ's workspaceMenu already uses for the same two screens.
 		ShowMembersAndGroups: showAccess && isWorkspaceAdmin,
@@ -50,4 +52,43 @@ func SettingsHubOf(app domain.Application, navID string) (domain.NavigationItem,
 		}
 	}
 	return domain.NavigationItem{}, false
+}
+
+// ApplicationMembers composes an Application's Members & roles page (ROADMAP.md S2.2): every Workspace
+// member with the one role this Application gives them directly, the roles a Group adds on top, and how
+// many active members hold any. It reads the Application's own id, name and `roles:`; nothing about
+// which Application it is.
+//
+// The direct role is what the page's select edits, so Direct is the stored row alone. GroupRoles is
+// EffectiveRoles minus that direct role, so a person who holds "approver" both ways is shown it once,
+// as their direct role -- the same union rule the Workspace pages already use (data.EffectiveRoles).
+func ApplicationMembers(app domain.Application, hub domain.NavigationItem, members []data.Membership, names map[string]string) rendering.ApplicationMembersView {
+	view := rendering.ApplicationMembersView{
+		HubRoute: hub.Route,
+		HubTitle: hub.Heading,
+		PostBase: hub.Route + "/members",
+		App:      rendering.RoleApplication{ID: app.ID, Name: app.Name, Field: "role", Roles: app.Roles},
+	}
+	for _, m := range members {
+		direct := m.AppRoles[app.ID]
+		effective := data.EffectiveRoles(m.AppRoles, m.Groups)[app.ID]
+		var viaGroup []string
+		for _, role := range effective {
+			if role != direct {
+				viaGroup = append(viaGroup, role)
+			}
+		}
+		view.Rows = append(view.Rows, rendering.ApplicationMemberRow{
+			UserRecordID: m.UserRecordID, Name: names[m.UserRecordID], Email: m.Email,
+			Direct: direct, GroupRoles: viaGroup, Deactivated: m.Deactivated,
+		})
+		if m.Deactivated {
+			continue
+		}
+		view.Active++
+		if len(effective) > 0 {
+			view.Covered++
+		}
+	}
+	return view
 }

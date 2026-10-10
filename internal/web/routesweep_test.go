@@ -265,6 +265,28 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 	if !hubCase {
 		t.Fatal("this Workspace installs no Settings hub -- the 200 arm of /settings/{navID} would measure nothing")
 	}
+	// /settings/{navID}/members is an Application's Members & roles (S2.2). Same shape: a 200 for every
+	// hub whose Application declares roles, and the refusals -- an id naming nothing, and a hub of an
+	// Application with no roles to assign.
+	add("/settings/{navID}/members", "/settings/nav_does_not_exist/members", http.StatusNotFound, "an id that names no hub is not found")
+	membersCase, noRolesCase := false, false
+	for _, app := range f.ws.Applications {
+		for _, item := range app.AllNavigation {
+			if !item.SettingsHub {
+				continue
+			}
+			if len(app.Roles) > 0 {
+				add("/settings/{navID}/members", "/settings/"+item.ID+"/members", http.StatusOK, "a hub of an Application declaring roles lists its members and their role")
+				membersCase = true
+			} else if !noRolesCase {
+				add("/settings/{navID}/members", "/settings/"+item.ID+"/members", http.StatusNotFound, "an Application with no roles has no roles to assign")
+				noRolesCase = true
+			}
+		}
+	}
+	if !membersCase {
+		t.Fatal("this Workspace installs no Settings hub over an Application with roles -- the 200 arm of /settings/{navID}/members would measure nothing")
+	}
 	// /new-application/{session}/review is the AI assistant's own review screen, and an unknown session
 	// is the case this sweep covers. Its happy path is covered by
 	// TestShowNewApplicationReview_rendersTheProposalAndRefusesAnotherWorkspaces, which reuses the
@@ -627,6 +649,13 @@ func (f perRecordFixture) concrete(route string) string {
 	}
 	url = strings.ReplaceAll(url, "{userRecordID}", f.memberID)
 	url = strings.ReplaceAll(url, "{groupID}", f.groupID)
+	for _, app := range f.ws.Applications {
+		for _, item := range app.AllNavigation {
+			if item.SettingsHub && len(app.Roles) > 0 {
+				url = strings.ReplaceAll(url, "{navID}", item.ID)
+			}
+		}
+	}
 	url = strings.ReplaceAll(url, "{session}", "no-such-session")
 	url = strings.ReplaceAll(url, "{slug}", "no-such-workspace")
 	return url

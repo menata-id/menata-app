@@ -15,6 +15,8 @@ const permissionsSection = "permissions"
 const (
 	permissionsTitle       = "Permissions"
 	permissionsDescription = "Who can do what in this application."
+	membersRolesTitle      = "Members & roles"
+	membersRolesBlurb      = "Who can use this application, and with which role."
 )
 
 // pageTitle is the <title> tag ApplicationSettingsPage renders -- the hub's own title normally, the
@@ -52,6 +54,9 @@ type SettingsHubView struct {
 	// ShowMembersAndGroups additionally requires the viewer to be a Workspace admin -- hidden, not
 	// shown-then-403. Permissions itself carries no such gate: it is read-only for any member.
 	ShowMembersAndGroups bool
+	// MembersHref is this Application's own Members & roles page (S2.2): the hub's route plus
+	// /members, so it needs no navigation item of its own and names no Application.
+	MembersHref string
 	// Members are the Application's own settings_hub_member items, in declaration order.
 	Members []SettingsMember
 	// About: the Application's own name and description and what it holds.
@@ -105,15 +110,15 @@ templ settingsPlaceholderRow(label, description string) {
 // on hub.ShowAccess/ShowMembersAndGroups -- never on which nav items happen to be declared. Shared
 // verbatim between the desktop sidebar and the mobile list so the two can never disagree.
 //
-// Members & roles resolves its href and label from its own declared identity (nav_workspace_members,
-// a runtime screen); its description is this row's own framing text, since that screen declares none
-// to reuse.
+// Members & roles points at this Application's own scoped page (hub.MembersHref, S2.2) and, like
+// Permissions, carries the runtime's own title and description -- it is a runtime view of the
+// Application's `roles:`, not a navigation item the Application declares.
 templ settingsAccessRows(hub SettingsHubView, showingDetail bool) {
 	if hub.ShowAccess {
 		<div class="flex flex-col gap-0.5">
 			<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Access</h2>
 			if hub.ShowMembersAndGroups {
-				@settingsRow(routeByID(ctx, "nav_workspace_members"), labelByID(ctx, "nav_workspace_members"), "Who can use this application, and with which role.", false)
+				@settingsRow(hub.MembersHref, membersRolesTitle, membersRolesBlurb, false)
 			}
 			@settingsRow(permissionsHref(hub), permissionsTitle, permissionsDescription, showingDetail)
 		</div>

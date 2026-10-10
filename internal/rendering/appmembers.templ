@@ -1,0 +1,105 @@
+package rendering
+
+import (
+	"fmt"
+
+	"menata.app/internal/domain"
+)
+
+// ApplicationMembersView is one Application's Members & roles page (ROADMAP.md S2.2), resolved by
+// composition.ApplicationMembers. Nothing in it is specific to one Application: App carries the
+// Application's own id, name and role vocabulary, so the page draws the same way for any Application
+// that declares `roles:`.
+type ApplicationMembersView struct {
+	// HubRoute and HubTitle send the page's back link to the Settings hub it belongs under.
+	HubRoute string
+	HubTitle string
+	// PostBase is where a row's form posts: the page's own address, a member's id is appended.
+	PostBase string
+	App      RoleApplication
+	Rows     []ApplicationMemberRow
+	// Covered counts the active members holding some role here, directly or through a Group; Active is
+	// the active members; Total is every row, a deactivated member included.
+	Covered int
+	Active  int
+}
+
+// ApplicationMemberRow is one Workspace member as this Application sees them. Direct is the role this
+// page edits; GroupRoles are the roles a Group grants, shown beside it and not editable here.
+type ApplicationMemberRow struct {
+	UserRecordID string
+	Name         string
+	Email        string
+	Direct       string
+	GroupRoles   []string
+	Deactivated  bool
+}
+
+// membersCoverage is the "22 of 24 members have access" sentence. Phrased on active members: a
+// deactivated one holds a role but cannot act on it, and counting them would flatter the number.
+func membersCoverage(v ApplicationMembersView) string {
+	return fmt.Sprintf("%d of %d active %s have access to %s.", v.Covered, v.Active, pluralWord(v.Active, "member", "members"), v.App.Name)
+}
+
+func pluralWord(n int, one, other string) string {
+	if n == 1 {
+		return one
+	}
+	return other
+}
+
+// ApplicationMembersPage draws who holds which role in one Application, with the role editable in
+// place: one form per row, no script, so the same markup serves the phone and the desktop.
+//
+// Only this Application's role is editable here. Everything that reaches across Applications -- the
+// Workspace role, inviting, removing, deactivating -- stays on the Workspace Members page, and is
+// reached by a link, not repeated (S2.2: actions that cross Application boundaries are outbound
+// links). A role a Group grants is shown and left alone: it is changed on the Group.
+templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(membersRolesTitle, workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-1">
+			<a href={ templ.SafeURL(v.HubRoute) } class="text-xs text-blue-600 hover:text-blue-800">← { v.HubTitle }</a>
+			@staticText(domain.StaticHeading, membersRolesTitle)
+			@staticText(domain.StaticMessage, membersRolesBlurb)
+		</div>
+		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
+			@staticText(domain.StaticCaption, membersCoverage(v))
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">{ labelByID(ctx, "nav_workspace_members") } →</a>
+		}
+		<div class={ "overflow-hidden", surfaceClasses(ctx) }>
+			if len(v.Rows) == 0 {
+				<div class="px-4 py-6">
+					@staticText(domain.StaticMessage, "This Workspace has no members yet.")
+				</div>
+			}
+			for _, row := range v.Rows {
+				<div class={ dividedRowClasses(ctx, domain.GapDefault) }>
+					<div class="flex grow items-center gap-3">
+						@avatar(personInitials(row.Name, row.Email), avatarLabel(row.Name, row.Email), domain.AvatarInline, domain.AvatarPresent)
+						<span class="flex min-w-0 flex-col gap-0.5">
+							if row.Name != "" && row.Name != row.Email {
+								<span class="truncate text-sm">{ row.Name }</span>
+								<span class="truncate text-2xs text-slate-400">{ row.Email }</span>
+							} else {
+								<span class="truncate text-sm">{ row.Email }</span>
+							}
+							if row.Deactivated {
+								<span class="text-2xs text-slate-400">Deactivated</span>
+							}
+							for _, role := range row.GroupRoles {
+								<span class="text-2xs text-slate-500">+ { role } through a Group</span>
+							}
+						</span>
+					</div>
+					<form method="POST" action={ templ.SafeURL(v.PostBase + "/" + row.UserRecordID) } class="flex items-center gap-2">
+						@csrfHiddenInput()
+						<label for={ "role_" + row.UserRecordID } class="sr-only">{ v.App.Name } role for { row.Email }</label>
+						@roleSelect("role_"+row.UserRecordID, v.App, row.Direct)
+						@button("Save", domain.ButtonSecondary, "", "")
+					</form>
+				</div>
+			}
+		</div>
+		@staticText(domain.StaticNote, "Only workspace admins can change roles. The Workspace role, invitations and removing someone are on the Workspace members page.")
+	}
+}

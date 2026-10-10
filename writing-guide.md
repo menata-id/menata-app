@@ -973,9 +973,16 @@ What the page draws is derived, never written into a template:
 
 | section | present when | reads |
 |---|---|---|
-| Access (Members & roles for a Workspace admin, Permissions) | the Application declares `roles:` | `roles:`, the viewer's Workspace role |
+| Access (Members & roles for a Workspace admin, Permissions) | the Application declares `roles:` | `roles:`, the viewer's Workspace role; Members & roles links to `<hub route>/members` |
 | Configuration | at least one `settings_hub_member` item | each item's `label`, `description`, `route`, in declaration order |
 | About | always | the Application's name, description, machine and role counts |
+
+**Members & roles** is the hub's own sub-address, `/settings/<hub id>/members`, not a navigation item: it lists
+every Workspace member with this Application's role in a select (`roles:` is the vocabulary) and saves one row
+at a time to `POST /settings/<hub id>/members/<user record id>`. It reads and writes the same `app_roles` row the
+Workspace's Edit member screen does, so a role set in either place is the role shown in the other. A Workspace
+admin only (403 otherwise); 404 for a hub whose Application declares no `roles:`. A member whose role comes
+through a Group is annotated, and the select shows only the *direct* role. Nothing to write in YAML.
 
 A member is a row; it needs no code. There is no Permissions item to declare: its page is the runtime's own
 role matrix and is reached as `?section=permissions` on the hub. An Application with no `roles:` has no Access

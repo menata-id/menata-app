@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -90,7 +91,32 @@ func applicationForPath(ws domain.Workspace, path string) (domain.Application, b
 		// helpful: /machines/mch_activity/... is Workspace-level however it was reached.
 		return domain.Application{}, false
 	}
+	if hubID, ok := settingsHubIDFromPath(path); ok {
+		// /settings/{navID}/members... belongs to the Application whose hub item is navID. The hub's own
+		// route is a navigation route and resolves below; these sub-addresses are the runtime's, so they
+		// are found through the hub they hang under.
+		for _, app := range ws.Applications {
+			if _, found := composition.SettingsHubOf(app, hubID); found {
+				return app, true
+			}
+		}
+		return domain.Application{}, false
+	}
 	return ws.ApplicationForRoute(path)
+}
+
+// settingsHubIDFromPath extracts {navID} from /settings/{navID}/<anything>. The hub's own address,
+// /settings/{navID}, has no further segment and is resolved by navigation like any other route.
+func settingsHubIDFromPath(path string) (string, bool) {
+	rest, ok := strings.CutPrefix(path, "/settings/")
+	if !ok {
+		return "", false
+	}
+	id, tail, found := strings.Cut(rest, "/")
+	if !found || id == "" || tail == "" {
+		return "", false
+	}
+	return id, true
 }
 
 // machineIDFromPath extracts the Machine id from any /machines/{machineID}/... route, including

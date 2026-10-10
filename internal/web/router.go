@@ -312,6 +312,10 @@ func Routes(d Deps) http.Handler {
 			// Workspace being archived, same admin gate as the hub itself.
 			ar.Post("/workspace-settings/archive", submitArchiveWorkspace(d.Store, d.Cfg))
 			ar.Get("/workspace-members", showWorkspaceMembers(d.Store, d.Cfg))
+			// An Application's own Members & roles (S2.2): one role column, scoped to the Application the
+			// hub belongs to. Same admin gate as the Workspace page it narrows.
+			ar.Get("/settings/{navID}/members", showApplicationMembers(d.Store, d.Cfg))
+			ar.Post("/settings/{navID}/members/{userRecordID}", submitApplicationMemberRole(d.Store))
 			ar.Post("/workspace-members/invite", submitInviteMember(d.Store, d.Mailer, d.Cfg))
 			ar.Post("/workspace-members/revoke-invite", submitRevokeInvite(d.Store))
 			ar.Get("/workspace-members/{userRecordID}/edit", showEditMember(d.Store, d.Cfg))
