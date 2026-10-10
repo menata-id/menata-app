@@ -435,7 +435,7 @@ var wholeMachineReadRatchet = map[string]int{
 	"composition/assigned.go": 1,
 	"composition/loader.go":   4,
 	"composition/pages.go":    2,
-	"composition/review.go":   2,
+	"composition/review.go":   1,
 	"execution/events.go":     1,
 	"web/api.go":              1,
 	"web/machine.go":          1,

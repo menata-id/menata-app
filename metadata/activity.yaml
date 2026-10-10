@@ -69,3 +69,19 @@ datasets:
     sort:
       - { field: created_at, direction: desc }
     limit: 50
+
+  # The earliest events of one record, oldest first -- what a screen reads to learn who submitted it and when
+  # (K18). A submission is the first event logged for a record (Phase 13 logs it at creation), so the
+  # oldest few are enough and the rest of the log is never read. `ds_record_activity` above cannot serve:
+  # it is newest-first and capped at 50, which for a long-lived record would cut off exactly the event
+  # wanted. `limit: 5` is a window by design, not a safety cap; the reader takes the first event that
+  # names an actor, so a few leading actor-less rows (a system-written event) do not hide the submitter.
+  - id: ds_record_first_events
+    select: records
+    where:
+      all:
+        - { field: fld_machine_id, op: equals, value: $parameters.machine }
+        - { field: fld_record_id, op: equals, value: $parameters.record }
+    sort:
+      - { field: created_at, direction: asc }
+    limit: 5

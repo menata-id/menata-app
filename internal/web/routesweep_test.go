@@ -146,6 +146,11 @@ type perRecordFixture struct {
 	memberID string
 	groupID  string
 	uploaded string // a stored file key, for /uploads/*
+
+	// ctx and store are the Workspace-scoped handles the fixture was seeded through, kept so a test can write
+	// one more record (an activity event) the sweep itself does not need.
+	ctx   context.Context
+	store *data.Store
 }
 
 // cases builds every request this sweep makes.
@@ -408,7 +413,7 @@ func newPerRecordSweepSetup(t *testing.T, name string) (http.Handler, string, pe
 
 	seeded := seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
 
-	fx := perRecordFixture{ws: ws, records: seeded, actorID: actorID}
+	fx := perRecordFixture{ws: ws, records: seeded, actorID: actorID, ctx: ctx, store: store}
 
 	// The extras the role-gated routes need to be *valid*: a Document with a real PDF (pdf-preview
 	// rasterizes it) and at least one Approval Step pointing at it (the Review screen opens on one).
@@ -665,5 +670,38 @@ func TestPDFPreviewIsCachedByContentAndRevalidates(t *testing.T) {
 	}
 	if stale := get(`"not-the-etag"`); stale.Code != http.StatusOK {
 		t.Errorf("a mismatched If-None-Match = %d, want a full 200", stale.Code)
+	}
+}
+
+// TestReviewShowsTheSubmitterFromTheDocumentsFirstEvent is K18's behaviour: the Review screen reads the
+// Document's earliest logged event through ds_record_first_events, not the whole activity log, and still
+// names who submitted it.
+func TestReviewShowsTheSubmitterFromTheDocumentsFirstEvent(t *testing.T) {
+	h, cookie, fx := newPerRecordSweepSetup(t, "reviewsubmitter")
+	doc := fx.ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	step := fx.ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleStep, "")
+	if doc == nil || step == nil {
+		t.Fatal("this Workspace casts no document/step role")
+	}
+	review := func() string {
+		req := httptest.NewRequest(http.MethodGet, "/machines/"+step.ID+"/records/"+fx.records[step.ID]+"/review", nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("review = %d", rec.Code)
+		}
+		return rec.Body.String()
+	}
+	if strings.Contains(review(), "submitted by") {
+		t.Fatal("the Document has no logged event yet but the screen names a submitter")
+	}
+	if _, err := fx.store.CreateRecord(fx.ctx, "mch_activity", map[string]any{
+		"fld_machine_id": doc.ID, "fld_record_id": fx.records[doc.ID], "fld_summary": "submitted", "fld_actor": fx.actorID,
+	}); err != nil {
+		t.Fatalf("log the submission: %v", err)
+	}
+	if !strings.Contains(review(), "submitted by") {
+		t.Error("the Review screen does not name the submitter after the Document's first event was logged")
 	}
 }

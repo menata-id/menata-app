@@ -11,9 +11,14 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
+	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
+
+// firstEventsDataset is metadata/activity.yaml's earliest-events-of-one-record Dataset; its id is named from Go,
+// so a Workspace carrying mch_activity must declare it (it does: activity.yaml is one shared file).
+const firstEventsDataset = "ds_record_first_events"
 
 // ReviewDocument composes board 10 (ui-sample/case-03-flow1/10-review-document.html, Fase 6b):
 // one Approval Step, seen by the person who has to decide it, with the Document it belongs to.
@@ -51,9 +56,18 @@ func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine, sig
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
-	activities, err := l.ListRecords(ctx, "mch_activity")
-	if err != nil {
-		return rendering.ReviewView{}, err
+	// Only this Document's earliest events, through a Dataset (K18) -- not the whole activity log filtered in
+	// Go. Absent when the Workspace carries no activity log: the screen then shows no submitter, the same
+	// answer an unlogged Document already got.
+	var activities []*data.Record
+	if _, ok := l.Dataset(firstEventsDataset); ok {
+		sel, err := l.SelectRelated(ctx, firstEventsDataset, expression.Context{
+			Parameters: map[string]string{"machine": docMachine.ID, "record": documentID},
+		})
+		if err != nil {
+			return rendering.ReviewView{}, err
+		}
+		activities = sel.Records
 	}
 	names, err := l.PersonNames(ctx)
 	if err != nil {

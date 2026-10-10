@@ -571,7 +571,7 @@ there and are deliberately not here.
 - K17 `columns`, `section` and `StatusBadge.size` writable; writing-guide §12.1a generated from `allowedProps`.
 
 **P3 -- bounded work (007 §18.8, §28)**
-- K18 Inbox, Assigned and Review find a submitter through a parameterised Dataset, not the whole activity log.
+- K18 Review now reads its submitter through a per-record Dataset; Inbox and Assigned still read the whole activity log and need set membership in `where:` (a proposal under `capability-lifecycle.md` §5, not a Dataset).
 
 **P4 -- new capability with evidence**
 - K21 A Permission that reads a Field on the parent record -- starts as a `capability-lifecycle.md` §5 proposal.
