@@ -595,6 +595,21 @@ func (s *Store) SetCredential(ctx context.Context, email, passwordHash string) e
 	return nil
 }
 
+// ReplaceCredentialIf sets a new password hash only while the stored one is still oldHash, in one statement.
+// A password-reset link is single-use because of this predicate (K04): two submissions of the same link race
+// on the row, and the second finds the hash already changed. ErrCredentialNotFound covers both a missing
+// account and a changed hash -- to the caller they are the same answer, "this link no longer works".
+func (s *Store) ReplaceCredentialIf(ctx context.Context, email, oldHash, newHash string) error {
+	ct, err := s.pool.Exec(ctx, `UPDATE credentials SET password_hash = $3 WHERE email = $1 AND password_hash = $2`, email, oldHash, newHash)
+	if err != nil {
+		return fmt.Errorf("replace credential: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrCredentialNotFound
+	}
+	return nil
+}
+
 // SetFullName replaces an identity's own full name (migration 010). An UPDATE, not an upsert, for
 // the same reason SetCredential is one: the only caller is the Profile screen, acting for an
 // identity that is already signed in, so an email with no credential row reaching here is a bug to

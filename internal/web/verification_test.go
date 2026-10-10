@@ -127,7 +127,7 @@ func TestShowVerifyEmail_tokenTaggedForPasswordResetIsRejected(t *testing.T) {
 	cfg := verificationTestConfig()
 	// A password-reset token must not double as a verification token, even for the same email
 	// and secret -- see authorization.TestTokenTags_notInterchangeable.
-	resetToken := authorization.NewPasswordResetToken(cfg.SessionSecret, email)
+	resetToken := authorization.NewPasswordResetToken(cfg.SessionSecret, email, hash)
 	req := httptest.NewRequest(http.MethodGet, "/verify-email?token="+url.QueryEscape(resetToken), nil)
 	rec := httptest.NewRecorder()
 

@@ -44,20 +44,23 @@ func TestEmailVerificationToken_roundTrip(t *testing.T) {
 }
 
 func TestPasswordResetToken_roundTrip(t *testing.T) {
-	token := NewPasswordResetToken("s3cret", "person@example.com")
-	email, ok := VerifyPasswordResetToken("s3cret", token)
-	if !ok || email != "person@example.com" {
-		t.Errorf("VerifyPasswordResetToken() = (%q, %v), want (person@example.com, true)", email, ok)
+	token := NewPasswordResetToken("s3cret", "person@example.com", "hash-1")
+	email, stamp, ok := VerifyPasswordResetToken("s3cret", token)
+	if !ok || email != "person@example.com" || stamp != PasswordResetStamp("hash-1") {
+		t.Errorf("VerifyPasswordResetToken() = (%q, %q, %v), want (person@example.com, stamp of hash-1, true)", email, stamp, ok)
+	}
+	if PasswordResetStamp("hash-1") == PasswordResetStamp("hash-2") {
+		t.Error("two different password hashes share a stamp -- a changed password would not retire the link")
 	}
 }
 
 func TestTokenTags_notInterchangeable(t *testing.T) {
 	verifyToken := NewEmailVerificationToken("s3cret", "person@example.com")
-	if _, ok := VerifyPasswordResetToken("s3cret", verifyToken); ok {
+	if _, _, ok := VerifyPasswordResetToken("s3cret", verifyToken); ok {
 		t.Error("VerifyPasswordResetToken(a verification token) ok = true, want false -- tokens must not be interchangeable")
 	}
 
-	resetToken := NewPasswordResetToken("s3cret", "person@example.com")
+	resetToken := NewPasswordResetToken("s3cret", "person@example.com", "hash-1")
 	if _, ok := VerifyEmailVerificationToken("s3cret", resetToken); ok {
 		t.Error("VerifyEmailVerificationToken(a reset token) ok = true, want false -- tokens must not be interchangeable")
 	}

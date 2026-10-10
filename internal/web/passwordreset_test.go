@@ -113,7 +113,7 @@ func TestSubmitResetPassword_validToken_updatesPasswordVerifiesAndLogsIn(t *test
 	}
 
 	cfg := passwordResetTestConfig()
-	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email)
+	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email, oldHash)
 	form := url.Values{"token": {token}, "password": {"a-brand-new-password"}}
 	req := httptest.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -225,7 +225,7 @@ func TestSubmitResetPassword_shortPassword_rerendersFormWithoutChanging(t *testi
 	}
 
 	cfg := passwordResetTestConfig()
-	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email)
+	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email, oldHash)
 	form := url.Values{"token": {token}, "password": {"short"}}
 	req := httptest.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -270,7 +270,7 @@ func TestSubmitResetPassword_invalidatesExistingSessions(t *testing.T) {
 		t.Fatalf("CurrentSessionGeneration (before): %v", err)
 	}
 
-	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email)
+	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email, oldHash)
 	form := url.Values{"token": {token}, "password": {"a-brand-new-password"}}
 	req := httptest.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -313,7 +313,7 @@ func TestSubmitResetPassword_noCredentialRow_rejected(t *testing.T) {
 	// a brand-new credential no one asked for.
 
 	cfg := passwordResetTestConfig()
-	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email)
+	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email, "no-such-hash")
 	form := url.Values{"token": {token}, "password": {"a-brand-new-password"}}
 	req := httptest.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -323,5 +323,47 @@ func TestSubmitResetPassword_noCredentialRow_rejected(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
+// TestSubmitResetPassword_linkIsSingleUse is K04: the second submission of the same link is refused, and it
+// cannot overwrite the password the first one chose.
+func TestSubmitResetPassword_linkIsSingleUse(t *testing.T) {
+	pool := authTestPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+	const email = "reset_singleuse_test@example.com"
+	newTestMember(t, pool, store, "Reset Single Use Test", "reset-singleuse-test-workspace", email)
+	oldHash, err := authorization.HashPassword("the-old-password")
+	if err != nil {
+		t.Fatalf("HashPassword: %v", err)
+	}
+	if err := store.CreateCredential(ctx, email, "Test Person", oldHash, true); err != nil {
+		t.Fatalf("CreateCredential: %v", err)
+	}
+	cfg := passwordResetTestConfig()
+	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email, oldHash)
+
+	submit := func(password string) int {
+		form := url.Values{"token": {token}, "password": {password}}
+		req := httptest.NewRequest(http.MethodPost, "/reset-password", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		submitResetPassword(store, cfg)(rec, req)
+		return rec.Code
+	}
+	if code := submit("the-first-new-password"); code != http.StatusSeeOther {
+		t.Fatalf("first use: status = %d, want %d", code, http.StatusSeeOther)
+	}
+	afterFirst, err := store.GetCredential(ctx, email)
+	if err != nil {
+		t.Fatalf("GetCredential: %v", err)
+	}
+	if code := submit("an-attackers-password"); code != http.StatusBadRequest {
+		t.Errorf("second use of the same link: status = %d, want %d", code, http.StatusBadRequest)
+	}
+	afterSecond, _ := store.GetCredential(ctx, email)
+	if afterSecond == nil || afterSecond.PasswordHash != afterFirst.PasswordHash {
+		t.Error("the second use changed the password -- a spent link still works")
 	}
 }

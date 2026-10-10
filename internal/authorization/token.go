@@ -1,7 +1,9 @@
 package authorization
 
 import (
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"strconv"
 	"strings"
 	"time"
@@ -63,18 +65,35 @@ func VerifyEmailVerificationToken(secret, token string) (email string, ok bool) 
 	return strings.TrimPrefix(value, tokenTagVerify), true
 }
 
-// NewPasswordResetToken builds a 30-minute link token for a password-reset request (Step E).
-func NewPasswordResetToken(secret, email string) string {
-	return newSignedToken(secret, tokenTagReset+email, 30*time.Minute)
+// PasswordResetStamp fingerprints the password a reset link was issued against. It is carried inside the
+// signed token, so a link stops working the moment the password changes -- by this very link or any other
+// route -- without the server storing anything per link (capability-lifecycle.md §3b, K04). A hash of the
+// stored hash, not the hash itself, because the token travels in an email.
+func PasswordResetStamp(passwordHash string) string {
+	sum := sha256.Sum256([]byte(passwordHash))
+	return hex.EncodeToString(sum[:8])
 }
 
-// VerifyPasswordResetToken returns the email a reset token names, if valid and unexpired.
-func VerifyPasswordResetToken(secret, token string) (email string, ok bool) {
+// NewPasswordResetToken builds a 30-minute, single-use link token for a password-reset request (Step E).
+// passwordHash is the credential's current hash: the token is valid only while it still is.
+func NewPasswordResetToken(secret, email, passwordHash string) string {
+	return newSignedToken(secret, tokenTagReset+email+"|"+PasswordResetStamp(passwordHash), 30*time.Minute)
+}
+
+// VerifyPasswordResetToken returns the email a reset token names and the stamp of the password it was issued
+// against, if valid and unexpired. The caller must compare stamp with PasswordResetStamp of the credential's
+// current hash; a token whose stamp differs has already been used (or the password changed since).
+func VerifyPasswordResetToken(secret, token string) (email, stamp string, ok bool) {
 	value, ok := verifySignedToken(secret, token)
 	if !ok || !strings.HasPrefix(value, tokenTagReset) {
-		return "", false
+		return "", "", false
 	}
-	return strings.TrimPrefix(value, tokenTagReset), true
+	rest := strings.TrimPrefix(value, tokenTagReset)
+	idx := strings.LastIndex(rest, "|")
+	if idx < 0 {
+		return "", "", false
+	}
+	return rest[:idx], rest[idx+1:], true
 }
 
 // NewInviteToken builds a 7-day link token for a Workspace member invitation (security audit

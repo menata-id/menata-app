@@ -31,8 +31,8 @@ func submitForgotPassword(store *data.Store, mailer mail.Mailer, cfg config.Conf
 			return
 		}
 		email := normalizeEmail(req.FormValue("email"))
-		if _, err := store.GetCredential(req.Context(), email); err == nil {
-			sendPasswordResetEmail(req.Context(), mailer, cfg, email)
+		if cred, err := store.GetCredential(req.Context(), email); err == nil {
+			sendPasswordResetEmail(req.Context(), mailer, cfg, email, cred.PasswordHash)
 		}
 		render(req.Context(), w, rendering.ForgotPasswordPage("If that email has an account, we've sent a link to reset your password."))
 	}
@@ -41,10 +41,10 @@ func submitForgotPassword(store *data.Store, mailer mail.Mailer, cfg config.Conf
 // sendPasswordResetEmail builds and sends (or, via mail.LogMailer, logs) email's reset link.
 // Best-effort, same posture as sendVerificationEmail: a failed send is logged, not returned as an
 // error.
-func sendPasswordResetEmail(ctx context.Context, mailer mail.Mailer, cfg config.Config, email string) {
-	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email)
+func sendPasswordResetEmail(ctx context.Context, mailer mail.Mailer, cfg config.Config, email, passwordHash string) {
+	token := authorization.NewPasswordResetToken(cfg.SessionSecret, email, passwordHash)
 	link := cfg.AppBaseURL + "/reset-password?token=" + url.QueryEscape(token)
-	body := fmt.Sprintf("Reset your Menata App password by clicking this link (valid 30 minutes):\n\n%s\n\nIf you didn't request this, you can ignore this email -- your password won't change.", link)
+	body := fmt.Sprintf("Reset your Menata App password by clicking this link (valid 30 minutes, one use):\n\n%s\n\nIf you didn't request this, you can ignore this email -- your password won't change.", link)
 	if err := mailer.Send(ctx, email, "Reset your password - Menata App", body); err != nil {
 		log.Printf("failed to send password reset email to %s: %v", email, err)
 	}
@@ -66,8 +66,19 @@ func submitResetPassword(store *data.Store, cfg config.Config) http.HandlerFunc 
 		token := req.FormValue("token")
 		password := req.FormValue("password")
 
-		email, ok := authorization.VerifyPasswordResetToken(cfg.SessionSecret, token)
+		email, stamp, ok := authorization.VerifyPasswordResetToken(cfg.SessionSecret, token)
 		if !ok {
+			http.Error(w, "invalid or expired reset link", http.StatusBadRequest)
+			return
+		}
+		// Single use (K04): the link is valid only against the password it was issued for. Checked before the
+		// length rule so a spent link is refused as spent, and enforced again inside the UPDATE below.
+		cred, err := store.GetCredential(req.Context(), email)
+		if err != nil || authorization.PasswordResetStamp(cred.PasswordHash) != stamp {
+			if err != nil && !errors.Is(err, data.ErrCredentialNotFound) {
+				serverError(w, err)
+				return
+			}
 			http.Error(w, "invalid or expired reset link", http.StatusBadRequest)
 			return
 		}
@@ -81,7 +92,7 @@ func submitResetPassword(store *data.Store, cfg config.Config) http.HandlerFunc 
 			serverError(w, err)
 			return
 		}
-		if err := store.SetCredential(req.Context(), email, hash); err != nil {
+		if err := store.ReplaceCredentialIf(req.Context(), email, cred.PasswordHash, hash); err != nil {
 			if errors.Is(err, data.ErrCredentialNotFound) {
 				http.Error(w, "invalid or expired reset link", http.StatusBadRequest)
 				return
