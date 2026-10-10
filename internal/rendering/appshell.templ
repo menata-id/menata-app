@@ -749,7 +749,7 @@ func sheetPanelClasses(desktop string) string {
 }
 
 // accountMenu is the avatar's own menu (Account menu port, 2026-09-21, from
-// ui-sample/nav-chrome.js's accountHTML): identity, Profile, Security, Sign out. Page-internal --
+// ui-sample/nav-chrome.js's accountHTML): identity, Profile, Security, Notifications, Sign out. Page-internal --
 // capabilities.md's own promotion rule ("earns a row here only once a second... Page needs the
 // identical shape") -- since appShell is its only caller; it does not yet get a "Shared rendering
 // components" row of its own.
@@ -772,12 +772,10 @@ func sheetPanelClasses(desktop string) string {
 // reason. Sign out reuses pageShell's own logout form shape (machine.templ) -- appShell-based
 // screens had no sign-out at all before this.
 //
-// Notifications (`/account-notifications`) is deliberately NOT listed here, even though it is the
-// same kind of runtime-level route: the owner asked to remove the duplicate entry point once the
-// Application Settings hub's own "Notifications" row (appsettings.templ's settingsStaticSections)
-// started linking to it -- one real destination, reached from where it's actually grouped by
-// Application, not two. The route and runtimeLevelRoutes entry both stay; only this menu item is
-// gone.
+// Notifications (`/account-notifications`) is listed beside them: it is the same kind of route, and
+// it was reached only from the Application Settings hub's own row until S2.1 (2026-10-10) removed
+// that row -- a per-Application row linking to a personal page -- which would otherwise have left the
+// page with no link at all. A per-Application notification policy is S3.3.
 // notificationBell is the header's own entry point into /notifications (Flow 2 gap study Tahap 6)
 // -- a plain link, not a popover, since the destination is a real page rather than a short menu.
 // The badge mirrors navBadge's own shape exactly (empty:hidden, hx-get/hx-trigger=load) but isn't
@@ -827,6 +825,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 			}
 			<a href="/account-profile" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Profile</a>
 			<a href="/account-security" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Security</a>
+			<a href="/account-notifications" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Notifications</a>
 			<div class="my-1 h-px bg-slate-100"></div>
 			// Workspaces (AccountMenu.dc.html, Flow 2 canvas re-audit -- ROADMAP.md, 2026-09-27):
 			// loaded lazily, not threaded through appShell's own parameters, because appShell

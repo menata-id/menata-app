@@ -5,27 +5,49 @@ import (
 	"menata.app/internal/rendering"
 )
 
-// ApplicationSettingsHub composes an Application's Settings hub (ROADMAP.md "In progress",
-// "Application Settings hub"): which of its own real sections have anything to show.
+// ApplicationSettingsHub composes an Application's Settings hub (ROADMAP.md S2.1) from what the
+// Application declares about itself, so the hub names no Application:
 //
-// Deliberately two booleans, not a generic list of declared items to iterate: Phase 1's own
-// 2026-09-25 correction is what this function exists to honor -- the Access section is derived
-// from app.Roles and the viewer's own Workspace role here, never from a nav item's mere existence
-// (an Application declaring nav_app_settings_permissions and later removing all its roles would
-// otherwise leave a dead-looking row that nothing catches). A generic, metadata-iterated row list
-// would also be exactly the "shape before need" this repo's own decomposition criteria warn
-// against -- only one real Application has ever needed this hub.
-func ApplicationSettingsHub(app domain.Application, isWorkspaceAdmin bool) rendering.SettingsHubView {
+//   - the heading and description are the hub item's own (domain.NavigationItem.Heading/Description);
+//   - Access exists exactly when the Application declares `roles:` -- derived from app.Roles and the
+//     viewer's own Workspace role, never from a nav item's mere existence (an Application removing
+//     all its roles would otherwise leave a dead-looking row nothing catches);
+//   - Configuration is one row per `settings_hub_member` item, in declaration order, each reading its
+//     own route, label and description (001 #3: a row is added by declaring an item, not by editing
+//     a template);
+//   - About is the Application's own name, description and counts. An install date and the template
+//     an Application came from are not stored anywhere, so the hub says nothing about them rather
+//     than inventing a value.
+func ApplicationSettingsHub(app domain.Application, hub domain.NavigationItem, isWorkspaceAdmin bool) rendering.SettingsHubView {
 	showAccess := len(app.Roles) > 0
-	return rendering.SettingsHubView{
-		// ShowAccess is len(app.Roles) > 0 -- an Application declaring no roles has nothing to
-		// configure access for, so the whole section is absent, not three empty-looking rows. Same
-		// derivation internal/composition/rolematrix.go's own "Access" row already uses.
-		ShowAccess: showAccess,
-		// ShowMembersAndGroups additionally requires the viewer to be a Workspace admin -- hidden,
-		// not shown-then-403, the same convention internal/rendering/appshell.templ's workspaceMenu
-		// already uses for these same two destinations (its own `!= WorkspaceRoleMember` gate).
-		// Permissions itself carries no such gate: it is read-only information for any member.
+	view := rendering.SettingsHubView{
+		HubRoute:       hub.Route,
+		Title:          hub.Heading,
+		Description:    hub.Description,
+		ShowAccess:     showAccess,
+		AppName:        app.Name,
+		AppDescription: app.Description,
+		MachineCount:   len(app.Machines),
+		RoleCount:      len(app.Roles),
+		// Members & roles and Groups are admin destinations: hidden rather than offered-then-403, the
+		// convention appshell.templ's workspaceMenu already uses for the same two screens.
 		ShowMembersAndGroups: showAccess && isWorkspaceAdmin,
 	}
+	for _, item := range app.AllNavigation {
+		if item.SettingsHubMember {
+			view.Members = append(view.Members, rendering.SettingsMember{Href: item.Route, Label: item.Label, Description: item.Description})
+		}
+	}
+	return view
+}
+
+// SettingsHubOf finds the Settings hub item of app that has the given navigation id, or false. It
+// searches the unfiltered navigation (AllNavigation), the list routeByID reads.
+func SettingsHubOf(app domain.Application, navID string) (domain.NavigationItem, bool) {
+	for _, item := range app.AllNavigation {
+		if item.SettingsHub && item.ID == navID {
+			return item, true
+		}
+	}
+	return domain.NavigationItem{}, false
 }

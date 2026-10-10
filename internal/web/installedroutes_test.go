@@ -51,7 +51,7 @@ func realLibraryApplications(t *testing.T) []domain.Application {
 func TestApplicationOwnedRoutesComeFromNavigation(t *testing.T) {
 	owned := applicationOwnedRoutes(allInstalledWorkspaces(t), realLibraryApplications(t))
 
-	for _, want := range []string{"/calendar", "/dashboard", "/approval-inbox", "/document-approval/settings"} {
+	for _, want := range []string{"/calendar", "/dashboard", "/approval-inbox", "/settings/nav_app_settings"} {
 		if !owned[want] {
 			t.Errorf("%s is declared by an Application's navigation but is not owned", want)
 		}

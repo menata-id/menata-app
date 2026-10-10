@@ -3,6 +3,8 @@ package web
 import (
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
+
 	"menata.app/internal/authorization"
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
@@ -11,27 +13,26 @@ import (
 	"menata.app/internal/rendering"
 )
 
-// showApplicationSettings serves an Application's Settings hub (ROADMAP.md "In progress",
-// "Application Settings hub") and its Permissions sub-page from one handler factory, activeSection
-// naming which: "" for the hub itself (/document-approval/settings), "permissions" for
-// /document-approval/settings/permissions. Both routes render the identical
-// rendering.ApplicationSettingsPage; activeSection is only ever a rendering decision (which the
-// mobile view shows), never a different data pipeline, since the desktop layout renders the same
-// content either way (see that function's own doc comment).
+// showApplicationSettings serves any Application's Settings hub at /settings/{navID} (ROADMAP.md S2.1),
+// the way showDeclaredPage serves /pages/{navID}: the id names a navigation item carrying
+// `settings_hub: true`, found in the request's own Application. An id that names no such item -- or
+// one belonging to an Application this Workspace has not installed -- is a 404, never a guess.
+// `?section=permissions` selects the Permissions view, which only changes what a phone shows; the
+// desktop layout draws the same content either way.
 //
-// Gated by requireApplicationAccess alone, like every other Document Approval route -- not
-// requireWorkspaceAdmin -- because this page is read-only information for any member; the two rows
-// that actually manage state (Members & roles, Groups) stay pointed at their already-admin-gated
-// destinations and are hidden rather than offered-then-403 (composition.ApplicationSettingsHub's
-// own ShowMembersAndGroups).
-func showApplicationSettings(activeSection string, store *data.Store, cfg config.Config) http.HandlerFunc {
+// Gated by requireApplicationAccess alone, not requireWorkspaceAdmin: the page is read-only
+// information for any member, and the two rows that manage state stay pointed at their already-
+// admin-gated destinations and are hidden rather than offered-then-403.
+func showApplicationSettings(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		app, ok := rendering.CurrentApplication(ctx)
 		if !ok {
-			// Declared in this Application's own navigation (metadata/applications/document-
-			// approval.yaml), so currentApplication resolves it for every real request; this is
-			// only reachable if the route were somehow hit outside that middleware chain.
+			http.NotFound(w, req)
+			return
+		}
+		hubItem, ok := composition.SettingsHubOf(app, chi.URLParam(req, "navID"))
+		if !ok {
 			http.NotFound(w, req)
 			return
 		}
@@ -45,9 +46,9 @@ func showApplicationSettings(activeSection string, store *data.Store, cfg config
 		isAdmin := chrome.WorkspaceRole != domain.WorkspaceRoleMember
 
 		render(ctx, w, rendering.ApplicationSettingsPage(
-			composition.ApplicationSettingsHub(app, isAdmin),
+			composition.ApplicationSettingsHub(app, hubItem, isAdmin),
 			composition.RoleMatrixForApplication(app, installedMachines(ctx)),
-			activeSection, chrome.WorkspaceName, chrome.Viewer(), switchHref,
+			req.URL.Query().Get("section"), chrome.WorkspaceName, chrome.Viewer(), switchHref,
 		))
 	}
 }

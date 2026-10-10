@@ -927,6 +927,40 @@ carry a consistent stroke weight across a set, because it belongs to whichever f
 have that codepoint — which is why the convention's own declaration comment had always called
 it a placeholder.
 
+### 12.1b `settings_hub` / `settings_hub_member` — an Application's Settings page
+
+Mark one navigation item `settings_hub: true` and the runtime draws that Application's Settings page for it.
+The route is `/settings/<the item's own id>`, which one generic handler serves the way `/pages/<id>` is served;
+a route of that shape naming an item that is not a hub is a load-time-checked 404 (`TestNavigationRoutesAreRegistered`).
+
+```yaml
+- id: nav_tally_settings
+  label: Settings
+  title: Tally settings              # the page heading
+  description: Applies to Tally only.
+  route: /settings/nav_tally_settings
+  icon: settings
+  settings_hub: true
+- id: nav_tally_units               # one row under "Configuration"
+  label: Units
+  description: What a count is measured in.
+  route: /machines/mch_unit        # any real destination of this Application
+  settings_hub_member: true
+```
+
+What the page draws is derived, never written into a template:
+
+| section | present when | reads |
+|---|---|---|
+| Access (Members & roles for a Workspace admin, Permissions) | the Application declares `roles:` | `roles:`, the viewer's Workspace role |
+| Configuration | at least one `settings_hub_member` item | each item's `label`, `description`, `route`, in declaration order |
+| About | always | the Application's name, description, machine and role counts |
+
+A member is a row; it needs no code. There is no Permissions item to declare: its page is the runtime's own
+role matrix and is reached as `?section=permissions` on the hub. An Application with no `roles:` has no Access
+section and no matrix. The page does not say when an Application was installed or from which template -- nothing
+stores either. `TestSettingsHubNamesNoApplication` keeps the files that draw it free of any one Application's words.
+
 ### 12.1a `page:` — declaring a screen's body
 
 A navigation item may carry a `page:` block. The runtime then renders `/pages/<nav id>` with one generic

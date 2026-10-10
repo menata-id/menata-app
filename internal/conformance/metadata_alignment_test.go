@@ -81,6 +81,15 @@ func (w declaredWorkspace) declaresPage(navID string) bool {
 	return false
 }
 
+func (w declaredWorkspace) declaresSettingsHub(navID string) bool {
+	for _, item := range w.items {
+		if item.ID == navID && item.SettingsHub {
+			return true
+		}
+	}
+	return false
+}
+
 // declaredWorkspaces loads every installed Workspace. The directory is scanned for the same reason the
 // loader scans it: dropping a manifest in installs a Workspace, so a gate naming one filename covers
 // whichever Workspace it happened to be written for.
@@ -175,6 +184,16 @@ func TestNavigationRoutesAreRegistered(t *testing.T) {
 					t.Errorf("%s declares %q, but router.go registers no /pages/{navID} handler", w.manifest, item.Route)
 				} else if !w.declaresPage(id) {
 					t.Errorf("%s declares navigation route %q, but that Workspace has no navigation item %q declaring `page:` -- the screen would 404", w.manifest, item.Route, id)
+				}
+				continue
+			}
+			// An Application's Settings hub is the third pattern-registered shape (`/settings/{navID}`): the
+			// id must name a `settings_hub` item that this Workspace installs, or the screen would 404.
+			if id, ok := strings.CutPrefix(path, "/settings/"); ok && !strings.Contains(id, "/") {
+				if !registered["/settings/{navID}"] {
+					t.Errorf("%s declares %q, but router.go registers no /settings/{navID} handler", w.manifest, item.Route)
+				} else if !w.declaresSettingsHub(id) {
+					t.Errorf("%s declares navigation route %q, but that Workspace has no navigation item %q marked `settings_hub` -- the screen would 404", w.manifest, item.Route, id)
 				}
 				continue
 			}

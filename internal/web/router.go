@@ -281,13 +281,10 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/machines/{machineID}/records/{id}/continue-submit", showDocumentContinue(d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/continue-submit", continueDocumentWizard(d.Store, d.Files, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/revise", reviseDocument(d.Store, d.Cfg))
-		// nav_app_settings / nav_app_settings_permissions (metadata/applications/document-
-		// approval.yaml) -- the Application Settings hub and its Permissions sub-page
-		// (ROADMAP.md "Application Settings hub"), one handler factory for both. Gated by
-		// requireApplicationAccess above like every other Document Approval route, not
-		// requireWorkspaceAdmin: the page is read-only information for any member.
-		pr.Get("/document-approval/settings", showApplicationSettings("", d.Store, d.Cfg))
-		pr.Get("/document-approval/settings/permissions", showApplicationSettings("permissions", d.Store, d.Cfg))
+		// An Application's Settings hub, found by the navigation id in the path (the item carrying
+		// `settings_hub: true`), the way /pages/{navID} finds a declared page. Gated by
+		// requireApplicationAccess like every other Application route.
+		pr.Get("/settings/{navID}", showApplicationSettings(d.Store, d.Cfg))
 		pr.Get("/machines/{machineID}", showMachinePage(d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records", createRecordForm(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}", showRecordRow(d.Store, d.Files, d.Cfg))

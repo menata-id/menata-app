@@ -244,6 +244,26 @@ func (f perRecordFixture) cases(t *testing.T) []routeCase {
 			}
 		}
 	}
+	// /settings/{navID} draws an Application's Settings hub. The 200 arm is every installed hub; the
+	// refusals are the half a "draw something for every id" bug would break: an id naming nothing, and
+	// an id naming a real navigation item that is not a hub.
+	add("/settings/{navID}", "/settings/nav_does_not_exist", http.StatusNotFound, "an id that names no navigation item is not found")
+	hubCase, nonHubCase := false, false
+	for _, app := range f.ws.Applications {
+		for _, item := range app.AllNavigation {
+			if item.SettingsHub {
+				add("/settings/{navID}", "/settings/"+item.ID, http.StatusOK, "a navigation item marked `settings_hub` renders its Application's hub")
+				add("/settings/{navID}", "/settings/"+item.ID+"?section=permissions", http.StatusOK, "and so does its Permissions view")
+				hubCase = true
+			} else if !nonHubCase && item.Page == nil && !item.SettingsHubMember {
+				add("/settings/{navID}", "/settings/"+item.ID, http.StatusNotFound, "a navigation item that is not a hub is not a Settings screen")
+				nonHubCase = true
+			}
+		}
+	}
+	if !hubCase {
+		t.Fatal("this Workspace installs no Settings hub -- the 200 arm of /settings/{navID} would measure nothing")
+	}
 	// /new-application/{session}/review is the AI assistant's own review screen, and an unknown session
 	// is the case this sweep covers. Its happy path is covered by
 	// TestShowNewApplicationReview_rendersTheProposalAndRefusesAnotherWorkspaces, which reuses the
