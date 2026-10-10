@@ -563,8 +563,8 @@ there and are deliberately not here.
 - K13 `write: transition`, a Button moving a status through `CheckTransitions` (007 §11.3) -- consumer: My Tasks.
 - K14 Date arithmetic in expressions, `$today +/- n` (007 §9) -- consumers: My Tasks, Calendar.
 - K15 Dashboard, My Tasks, Calendar and Application Settings migrate to `page:` (re-check each screen first).
-- K16 The AI schema is generated from the loader's grammar; an edit mode for installed Applications; YAML at
-  review (001 #16) -- full scope waits on owner decision D2.
+- K16 AI schema from the loader's grammar (D2 = option G). Field types and colours done; owed: the rest of the
+  schema, removals and renames with confirmation in an installed Application, YAML at review.
 - K17 `columns`, `section` and `StatusBadge.size` writable; writing-guide §12.1a generated from `allowedProps`.
 
 **P3 -- bounded work (007 §18.8, §28)**

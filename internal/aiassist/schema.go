@@ -96,6 +96,17 @@ var generatedFieldSchema = geminiSchema{
 	},
 }
 
+// applicationColorEnum is domain.KnownApplicationColors, sorted. It was a literal of four names that the loader's
+// own list could outgrow without the model ever hearing of it (K16; the same drift K02 found in the field types).
+func applicationColorEnum() []string {
+	names := make([]string, 0, len(domain.KnownApplicationColors))
+	for name := range domain.KnownApplicationColors {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 func computeOpEnum() []string {
 	ops := make([]string, 0, len(domain.KnownComputeOps))
 	for op := range domain.KnownComputeOps {
@@ -165,7 +176,7 @@ var generatedApplicationSchema = geminiSchema{
 		"name":        stringSchema,
 		"description": stringSchema,
 		"icon":        {Type: "STRING", Enum: declarableIconEnum(), Description: "In an update, leave out unless the person asked for an icon."},
-		"color":       {Type: "STRING", Enum: []string{"blue", "emerald", "amber", "slate"}, Description: "In an update, leave out unless the person asked for a color."},
+		"color":       {Type: "STRING", Enum: applicationColorEnum(), Description: "In an update, leave out unless the person asked for a color."},
 		"roles":       {Type: "ARRAY", Items: &stringSchema},
 		"publisher_role": {
 			Type:        "STRING",
