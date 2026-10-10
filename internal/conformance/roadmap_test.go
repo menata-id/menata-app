@@ -85,11 +85,14 @@ var roadmapDiaryLines = map[string]int{
 // code comments cite by row name and which is still the working backlog. `Shipped` **rose** 130 -> 138
 // on purpose: four bullets for features that had been shipped but only narrated under `In progress`.
 // `Planned` fell 60 -> 55 (and its diary lines 2 -> 0) on 2026-10-10, when it became the prioritised
-// work list K01-K21 whose reasons live in the companion repo's 2026-10-10 audit §10.
+// work list K01-K21 whose reasons live in the companion repo's 2026-10-10 audit §10. Later that day
+// `Planned` **rose** 54 -> 62, at the owner's request, to schedule the mockup canvas's work plan as
+// feature-level lines (the "Mockup canvas" group), and `In progress` fell 399 -> 393 as its canvas
+// bullet gave its list to that group -- a raise the owner asked for, not one this gate excuses.
 var roadmapSectionLines = map[string]int{
 	"Shipped":     138,
-	"In progress": 399,
-	"Planned":     54,
+	"In progress": 393,
+	"Planned":     62,
 }
 
 func TestRoadmapStaysAReleasePlan(t *testing.T) {

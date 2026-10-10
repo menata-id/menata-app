@@ -533,15 +533,9 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   Measurements and the conditional refusal in full:
   `menata-app-document`'s `audits/2026-09-22-lapisan-query-dan-indeks-kajian.md`.
 - **The owner's mockup canvas -- "Flow 2 mockup" (2026-09-23), "Flow 2 canvas re-audit" (2026-09-27), and the 72-artboard
-  review (2026-10-10).** The canvas grew from 39 boards to five pages: account, Workspace, Applications, Case 03 and Case 19.
-  Still open from 2026-09-27: hour-precision SLA (a datetime Field), uploaded byte size, SLA-breach triggers beyond the two
-  shipped, owner Q3; the canvas now draws one signature box per Group-held step. The 2026-10-10 review adds, in priority
-  order: two visible defects (Applications listed that the viewer cannot open; board-card controls unreachable on touch),
-  ~30 small copy and layout deltas, a generic Application Settings frame (seven boards; K11's consumer), per-Application
-  Members & roles, Workspace settings navigation, a mobile bar without the parked "More" sheet; then new capability --
-  account deletion with a grace period, Application deactivation, per-Application notification policy, Case 19 card
-  actions. Sixteen owner decisions gate parts of it. Detail and the work plan: `menata-app-document`'s
-  `audits/2026-10-10-kajian-gap-mockup-kanvas-72-artboard.md` and `audits/2026-10-10-rencana-pengerjaan-gap-mockup-kanvas.md`.
+  review (2026-10-10).** The canvas grew from 39 boards to five pages; its work is scheduled under `## Planned`, "Mockup
+  canvas". Still open from 2026-09-27: hour-precision SLA (a datetime Field), uploaded byte size, owner Q3. Detail:
+  `menata-app-document`'s `audits/2026-10-10-kajian-gap-mockup-kanvas-72-artboard.md`.
 
 ## Planned
 Only items that qualify now, in priority order. `Kxx` is the row in `menata-app-document`'s
@@ -564,6 +558,14 @@ there and are deliberately not here.
   its file and every validator stage reports.
 - K10 Reload per Workspace with an admin action; a reload failing after a write rolls it back (005 Hot Reload).
   Its storage shape waits on owner decision D1.
+
+**Mockup canvas -- 72 artboards (`Sx`: slices in `menata-app-document`'s `audits/2026-10-10-rencana-pengerjaan-gap-mockup-kanvas.md`)**
+- S0 (defects, any time) Applications listed only when the viewer can open them; board-card controls reachable on touch.
+- S1 Copy and layout deltas per canvas page. S2.1 A generic Application Settings frame, rows declared per Application
+  (K11's consumer); S2.2 per-Application Members & roles inside it.
+- S2.3-S2.8 Workspace settings navigation, a mobile bar without "More", account menu, My Documents table, PM activity
+  panel, touch and keyboard drag -- several wait on owner decisions M-D1..M-D7.
+- S3 Proposal first: account deletion with a grace period, Application deactivation, per-Application notifications, card actions.
 
 **P2 -- the Experience Plane meets 007 §12.4**
 - K11 Conditional visibility on a `page:` node (007 §15.2) -- consumer: Application Settings.
