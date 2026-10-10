@@ -2,6 +2,7 @@ package experience
 
 import (
 	"fmt"
+	"strings"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -11,8 +12,11 @@ import (
 // column comes from a relation-based grouping (development-history.md Phase 10's ordered Lists); empty for
 // the original status-Options grouping (Phase 5), which keys by Label instead.
 type Column struct {
-	ID      string
-	Label   string
+	ID    string
+	Label string
+	// Hint is one line of help drawn under the heading; only the synthetic "Other" column carries one,
+	// because it is the column nobody declared and so the one a reader asks about.
+	Hint    string
 	Records []*data.Record
 }
 
@@ -51,7 +55,7 @@ func GroupRecords(m *domain.Machine, v domain.View, records []*data.Record, colu
 		idx, known := index[value]
 		if !known {
 			if otherIndex == -1 {
-				columns = append(columns, Column{Label: "Other"})
+				columns = append(columns, Column{Label: "Other", Hint: otherHint(m, v)})
 				otherIndex = len(columns) - 1
 			}
 			idx = otherIndex
@@ -59,6 +63,15 @@ func GroupRecords(m *domain.Machine, v domain.View, records []*data.Record, colu
 		columns[idx].Records = append(columns[idx].Records, r)
 	}
 	return columns
+}
+
+// otherHint says what lands in the synthetic "Other" column, in the words the View's own group Field uses.
+func otherHint(m *domain.Machine, v domain.View) string {
+	f, ok := m.FieldByID(v.GroupBy)
+	if !ok {
+		return ""
+	}
+	return "Cards with no " + strings.ToLower(f.Name) + " land here."
 }
 
 // PlaceBefore answers "where does a card go": given the 1-based position a person asked for inside the

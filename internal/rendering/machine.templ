@@ -650,7 +650,7 @@ templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, rela
 	@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
 		<div class="flex flex-col gap-1">
 			<h1 class="m-0 text-2xl font-medium">{ machineHeading(ctx, m) }</h1>
-			@staticText(domain.StaticMessage, boardSummary(m, v, len(records)))
+			@staticText(domain.StaticMessage, boardSummary(m, v, len(records), cards))
 		</div>
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
 			@viewSwitcher(m, v)
@@ -735,11 +735,21 @@ templ boardDragScript() {
 	</script>
 }
 
-// boardSummary is "11 cards · grouped by List".
-func boardSummary(m *domain.Machine, v domain.View, count int) string {
+// boardSummary is "11 cards · grouped by List · 2 complete". The last clause is drawn only for a Machine that
+// declares a completion (domain.Machine.Completion), so a Machine with no such idea says nothing about it.
+func boardSummary(m *domain.Machine, v domain.View, count int, cards []RecordCard) string {
 	s := fmt.Sprintf("%d cards", count)
 	if f, ok := m.FieldByID(v.GroupBy); ok {
 		s += " · grouped by " + f.Name
+	}
+	if m.Completion != nil {
+		done := 0
+		for _, c := range cards {
+			if c.Complete != nil && c.Complete.Done {
+				done++
+			}
+		}
+		s += fmt.Sprintf(" · %d complete", done)
 	}
 	return s
 }
@@ -771,6 +781,9 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boar
 					<h3 class="m-0 text-xs font-medium text-slate-700">{ col.Label }</h3>
 					<span class="rounded-full bg-white px-1.5 text-2xs text-slate-500">{ fmt.Sprint(len(col.Records)) }</span>
 				</header>
+				if col.Hint != "" {
+					@staticText(domain.StaticCaption, col.Hint)
+				}
 				<div data-cards class="flex flex-col gap-2">
 					for i, r := range col.Records {
 						@boardCard(m, byRecord[r.ID], actor, CardMove{Field: v.GroupBy, Targets: targets, Current: columnValue(m, v, col), Position: i + 1})

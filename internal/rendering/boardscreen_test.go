@@ -76,6 +76,7 @@ func TestBoardScreen_rendersColumnsCardsAndSummary(t *testing.T) {
 	got := renderBoard(t)
 	for _, want := range []string{
 		"3 cards · grouped by List",
+		"Cards with no list land here.",
 		`aria-label="Backlog"`, `aria-label="Shooting"`, `aria-label="Other"`,
 		`href="/machines/mch_task/records/rec_1"`,
 		"Write the script", "12 Oct",
@@ -269,4 +270,19 @@ func TestBoardScreen_moveOffersEveryRealListAndNeverOther(t *testing.T) {
 
 func authorizationAllowsEdit(m *domain.Machine, c RecordCard, a domain.Actor) bool {
 	return authorization.AllowsAction(m, domain.ActionEdit, c.Record.Values, a)
+}
+
+// The summary counts finished cards only for a Machine that declares a completion, and counts what the
+// cards say is done rather than recomputing it.
+func TestBoardSummary_countsCompleteOnlyWhereACompletionIsDeclared(t *testing.T) {
+	m, v := boardMachine()
+	cards := []RecordCard{{Complete: &CardComplete{Done: true}}, {Complete: &CardComplete{}}, {Complete: &CardComplete{Done: true}}}
+	m.Completion = nil
+	if got := boardSummary(m, v, 3, cards); strings.Contains(got, "complete") {
+		t.Errorf("summary = %q, want no completion clause for a Machine that declares none", got)
+	}
+	m.Completion = &domain.Completion{Field: "fld_status", Done: "done"}
+	if got := boardSummary(m, v, 3, cards); !strings.HasSuffix(got, "grouped by List · 2 complete") {
+		t.Errorf("summary = %q, want it to end \"grouped by List · 2 complete\"", got)
+	}
 }
