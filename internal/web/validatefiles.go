@@ -47,3 +47,42 @@ func submitValidateFiles(store *data.Store, cfg config.Config) http.HandlerFunc 
 		}
 	}
 }
+
+// submitApplyFiles is the same door as submitValidateFiles with the write: it replaces a file this Workspace already
+// has (installer.ApplyFiles: validated on a staged copy, written through a rollback set, load-verified), after
+// saving a snapshot, then reloads that Workspace. 422 with the loader's error when it would not load or the path is
+// not an existing file; nothing is left changed in that case.
+func submitApplyFiles(store *data.Store, cfg config.Config, reload func(slug string) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if reload == nil {
+			serverError(w, errors.New("this process has no reload hook configured"))
+			return
+		}
+		req.Body = http.MaxBytesReader(w, req.Body, maxValidateBytes)
+		if err := req.ParseForm(); err != nil {
+			http.Error(w, "the upload is missing or larger than the limit", http.StatusRequestEntityTooLarge)
+			return
+		}
+		manifestPath, _, err := workspaceInstallation(req.Context(), store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		snapshotBeforeWrite(cfg, manifestPath)
+		err = installer.ApplyFiles(manifestPath, map[string][]byte{strings.TrimSpace(req.PostFormValue("path")): []byte(req.PostFormValue("yaml"))})
+		var rejected *installer.RejectedError
+		switch {
+		case errors.As(err, &rejected):
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			return
+		case err != nil:
+			serverError(w, err)
+			return
+		}
+		if err := reloadCurrentWorkspace(req.Context(), store, reload); err != nil {
+			serverError(w, fmt.Errorf("the file was written but the live reload failed -- a process restart will pick it up: %w", err))
+			return
+		}
+		redirectTo(w, req, "/home")
+	}
+}

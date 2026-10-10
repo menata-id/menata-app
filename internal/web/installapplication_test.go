@@ -391,3 +391,42 @@ func TestReloadWorkspaceSnapshotsAHandEditOnce(t *testing.T) {
 		t.Fatalf("ListSnapshots = %v, %v; want the hand edit saved exactly once across three reloads", list, err)
 	}
 }
+
+// TestApplyFilesRouteReplacesAnExistingFileSnapshotsFirstAndRefusesWhatWouldNotLoad drives POST
+// /workspace-settings/apply as the admin: a good replacement lands and the previous state is snapshotted, a file the
+// loader rejects answers 422 and leaves the live file as it was, and a path the Workspace does not have is refused.
+func TestApplyFilesRouteReplacesAnExistingFileSnapshotsFirstAndRefusesWhatWouldNotLoad(t *testing.T) {
+	s := newInstallTestSetup(t, "applyroute")
+	s.deps.Cfg.BackupDir = t.TempDir()
+	s.handler = Routes(s.deps)
+	live := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	before, err := os.ReadFile(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	apply := func(path, body string) *httptest.ResponseRecorder {
+		return s.postTo(t, "/workspace-settings/apply", url.Values{"path": {path}, "yaml": {body}})
+	}
+
+	if bad := apply("document.yaml", strings.Replace(string(before), "type: text", "type: bogus", 1)); bad.Code != http.StatusUnprocessableEntity {
+		t.Errorf("a file the loader rejects answered %d, want 422", bad.Code)
+	}
+	if got, _ := os.ReadFile(live); string(got) != string(before) {
+		t.Error("a refused apply changed the live file")
+	}
+	if missing := apply("nothere.yaml", "id: x\n"); missing.Code != http.StatusUnprocessableEntity {
+		t.Errorf("a file the Workspace does not have answered %d, want 422", missing.Code)
+	}
+
+	edited := string(before) + "  - id: fld_extra\n    name: Extra\n    type: text\n"
+	if ok := apply("document.yaml", edited); ok.Code != http.StatusSeeOther && ok.Code != http.StatusOK {
+		t.Fatalf("a good replacement answered %d: %s", ok.Code, ok.Body.String())
+	}
+	if got, _ := os.ReadFile(live); string(got) != edited {
+		t.Errorf("the file was not replaced: %q", got)
+	}
+	snaps, err := installer.ListSnapshots(s.manifestPath, s.deps.Cfg.BackupDir)
+	if err != nil || len(snaps) == 0 {
+		t.Errorf("no snapshot was taken before the write: %v, %v", snaps, err)
+	}
+}

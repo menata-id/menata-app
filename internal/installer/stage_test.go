@@ -87,3 +87,42 @@ func TestStageWorkspace_copiesOnlyThisWorkspacesOwnFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestApplyFiles_replacesOnlyWhatLoadsAndPutsBackWhatDoesNot(t *testing.T) {
+	manifest := stageFixture(t)
+	own := filepath.Join(filepath.Dir(manifest), "acme")
+	live := filepath.Join(own, "doc.yaml")
+	edited := stagedDoc + "  - id: fld_note\n    name: Note\n    type: text\n"
+
+	if err := ApplyFiles(manifest, map[string][]byte{"doc.yaml": []byte(edited)}); err != nil {
+		t.Fatalf("a good replacement: %v", err)
+	}
+	if got, _ := os.ReadFile(live); string(got) != edited {
+		t.Errorf("the file was not replaced: %q", got)
+	}
+
+	bad := []byte(strings.Replace(stagedDoc, "type: text", "type: bogus", 1))
+	err := ApplyFiles(manifest, map[string][]byte{"doc.yaml": bad})
+	var rejected *RejectedError
+	if !errors.As(err, &rejected) {
+		t.Fatalf("a file the loader rejects: err = %v, want a RejectedError", err)
+	}
+	if got, _ := os.ReadFile(live); string(got) != edited {
+		t.Errorf("a refused apply changed the live file: %q", got)
+	}
+
+	os.WriteFile(filepath.Join(own, "stray.yaml"), []byte("id: mch_stray\nname: Stray\nfields:\n  - id: fld_a\n    name: A\n    type: text\n"), 0o644)
+	for name, want := range map[string]string{
+		"brand-new.yaml": "not a file this workspace has", // adding is install's job
+		"stray.yaml":     "nothing in this workspace loads",
+		"../user.yaml":   "not a .yaml path inside",
+	} {
+		err := ApplyFiles(manifest, map[string][]byte{name: []byte("id: x\n")})
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: err = %v, want one containing %q", name, err, want)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(own, "brand-new.yaml")); err == nil {
+		t.Error("a refused new file was created")
+	}
+}

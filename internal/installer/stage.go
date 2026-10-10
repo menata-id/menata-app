@@ -135,3 +135,51 @@ func ValidateFiles(manifestPath string, files map[string][]byte) (unreferenced [
 	}
 	return unreferenced, nil
 }
+
+// ApplyFiles replaces files the Workspace already has with hand-written YAML, once ValidateFiles would pass them: the
+// emergency door of D2 (the assistant is the front one). It is deliberately replace-only. Adding a file also means
+// listing it in a manifest or an Application, which is what install and the assistant do and verify; accepting a
+// path nothing references would leave clutter the loader never reads. A path the Workspace's own directory does not
+// hold is refused, and so is a file nothing loads.
+//
+// Order: validate on a staged copy, write the real files through a WriteSet, read the Workspace back through
+// metadata.LoadApplication, and put every file back if that fails. The caller snapshots first (the handler does,
+// like every other write) and reloads afterwards.
+func ApplyFiles(manifestPath string, files map[string][]byte) error {
+	slug := strings.TrimSuffix(filepath.Base(manifestPath), filepath.Ext(manifestPath))
+	ownDir := filepath.Join(filepath.Dir(manifestPath), slug)
+	for name := range files {
+		clean := path.Clean(filepath.ToSlash(name))
+		if clean == "." || path.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../") || !strings.HasSuffix(clean, ".yaml") {
+			return Rejected(fmt.Errorf("%q is not a .yaml path inside the workspace's own directory", name))
+		}
+		if info, err := os.Stat(filepath.Join(ownDir, filepath.FromSlash(clean))); err != nil || !info.Mode().IsRegular() {
+			return Rejected(fmt.Errorf("%q is not a file this workspace has: only an existing file can be replaced here; a new Machine or Application is added by installing a template or through the assistant", name))
+		}
+	}
+	unreferenced, err := ValidateFiles(manifestPath, files)
+	if err != nil {
+		return err
+	}
+	if len(unreferenced) > 0 {
+		return Rejected(fmt.Errorf("nothing in this workspace loads %s, so replacing it would change nothing", strings.Join(unreferenced, ", ")))
+	}
+
+	written := NewWriteSet()
+	for name := range files {
+		if err := written.Note(filepath.Join(ownDir, filepath.FromSlash(path.Clean(filepath.ToSlash(name))))); err != nil {
+			return err
+		}
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(ownDir, filepath.FromSlash(path.Clean(filepath.ToSlash(name)))), body, 0o644); err != nil {
+			written.Rollback()
+			return fmt.Errorf("write %s: %w", name, err)
+		}
+	}
+	if _, err := metadata.LoadApplication(manifestPath); err != nil {
+		written.Rollback()
+		return Rejected(fmt.Errorf("the files were written but the workspace does not load, so they were put back: %w", err))
+	}
+	return nil
+}
