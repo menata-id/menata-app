@@ -34,13 +34,33 @@ func displayString(v any) string {
 	return string(b)
 }
 
+// activityMachineID and notificationMachineID name the two shared runtime Machines this package writes
+// itself (domain.Machine.IsUnbound... lists the same pair); they are names, never identity checks.
+const (
+	activityMachineID     = "mch_activity"
+	notificationMachineID = "mch_notification"
+)
+
+// createDeclared writes a record the runtime composes itself, after filling in the Field defaults its
+// Machine declares -- the step every create route in internal/web takes (data.ApplyDefaults) and these
+// writes skipped. That skip was a live defect (2026-10-10 audit, K01): notification.yaml declares
+// `fld_read: default: unread`, the unread count reads `fld_read == "unread"`, and every notification an
+// Event wrote carried no fld_read at all, so none was ever counted unread. machines may lack the Machine
+// (a caller with no Workspace set, or a fixture); the write still happens, undefaulted, as before.
+func createDeclared(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, machineID string, values map[string]any) (*data.Record, error) {
+	if m := machines[machineID]; m != nil {
+		data.ApplyDefaults(m, values)
+	}
+	return store.CreateRecord(ctx, machineID, values)
+}
+
 // logActivity appends one mch_activity record -- a duplicate of internal/web's own logActivity,
 // kept in both places rather than shared for the same reason displayString is: internal/web's
 // copy is called from many places that have nothing to do with Event dispatch (a document being
 // saved as a draft, a step being decided), while this one exists purely to be RunEvents/
 // RunCreateEvents/RunScheduledEvents' own ServiceLogActivity arm. Best-effort: a logging failure
 // must not fail the real operation it's describing, only get logged itself.
-func logActivity(ctx context.Context, store *data.Store, machineID, applicationID, recordID, actorID, summary string) {
+func logActivity(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, machineID, applicationID, recordID, actorID, summary string) {
 	values := map[string]any{
 		"fld_machine_id": machineID,
 		"fld_record_id":  recordID,
@@ -52,7 +72,7 @@ func logActivity(ctx context.Context, store *data.Store, machineID, applicationI
 	if applicationID != "" {
 		values["fld_application_id"] = applicationID
 	}
-	if _, err := store.CreateRecord(ctx, "mch_activity", values); err != nil {
+	if _, err := createDeclared(ctx, store, machines, activityMachineID, values); err != nil {
 		log.Printf("failed to log activity (%s %s): %v", machineID, recordID, err)
 	}
 }
@@ -67,7 +87,7 @@ func logActivity(ctx context.Context, store *data.Store, machineID, applicationI
 // own doc comment: no cross-record resolution built yet). Empty is a normal outcome, not an error
 // -- a Group-held Approval Step (CAP-F24) has no single person to notify, named and skipped here
 // rather than solved.
-func sendNotification(ctx context.Context, store *data.Store, mailer mail.Mailer, machine *domain.Machine, record *data.Record, notify domain.Notify, message string) {
+func sendNotification(ctx context.Context, store *data.Store, mailer mail.Mailer, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, notify domain.Notify, message string) {
 	recipientID := fmt.Sprint(record.Values[notify.RecipientField])
 	if recipientID == "" || recipientID == "<nil>" {
 		return
@@ -78,7 +98,7 @@ func sendNotification(ctx context.Context, store *data.Store, mailer mail.Mailer
 		"fld_message":   message,
 		"fld_link":      notificationLinkFor(machine, record.ID),
 	}
-	if _, err := store.CreateRecord(ctx, "mch_notification", values); err != nil {
+	if _, err := createDeclared(ctx, store, machines, notificationMachineID, values); err != nil {
 		log.Printf("failed to create notification for %s: %v", recipientID, err)
 	}
 
@@ -187,10 +207,10 @@ var serviceExecutors map[string]func(ctx context.Context, in serviceInput)
 func init() {
 	serviceExecutors = map[string]func(ctx context.Context, in serviceInput){
 		domain.ServiceLogActivity: func(ctx context.Context, in serviceInput) {
-			logActivity(ctx, in.svc.Store, in.machine.ID, in.machine.ApplicationID, in.record.ID, in.actorID, in.activitySummary)
+			logActivity(ctx, in.svc.Store, in.machines, in.machine.ID, in.machine.ApplicationID, in.record.ID, in.actorID, in.activitySummary)
 		},
 		domain.ServiceSendNotification: func(ctx context.Context, in serviceInput) {
-			sendNotification(ctx, in.svc.Store, in.svc.Mailer, in.machine, in.record, *in.event.Then.Notify, in.summary)
+			sendNotification(ctx, in.svc.Store, in.svc.Mailer, in.machines, in.machine, in.record, *in.event.Then.Notify, in.summary)
 		},
 		domain.ServiceRollupParentStatus: func(ctx context.Context, in serviceInput) {
 			rollUpParentStatus(ctx, in.svc, in.machines, in.machine, in.record, in.actorID, in.event.On, *in.event.Then.Rollup)
@@ -217,11 +237,11 @@ func runService(ctx context.Context, in serviceInput) {
 // established for field-change Events. renderEventSummary is reused as-is with oldValues nil: a
 // creation Event's own summary template only ever uses {field_id} placeholders, never
 // {old}/{new}, so nil resolves harmlessly.
-func RunCreateEvents(ctx context.Context, svc Services, machine *domain.Machine, record *data.Record, actorID string) {
+func RunCreateEvents(ctx context.Context, svc Services, machines map[string]*domain.Machine, machine *domain.Machine, record *data.Record, actorID string) {
 	for _, e := range behavior.MatchedCreateEvents(machine) {
 		summary := renderEventSummary(e, machine, nil, record.Values)
 		runService(ctx, serviceInput{
-			svc: svc, machine: machine, record: record, actorID: actorID, event: e,
+			svc: svc, machines: machines, machine: machine, record: record, actorID: actorID, event: e,
 			summary: summary, activitySummary: summary,
 		})
 	}
@@ -260,6 +280,10 @@ func RunEvents(ctx context.Context, svc Services, machines map[string]*domain.Ma
 // true of mch_document's two today. A second, differently-conditioned schedule Event on the same
 // Machine would need its own marker text to stay distinguishable, not a new mechanism.
 func RunScheduledEvents(ctx context.Context, store *data.Store, mailer mail.Mailer, machines []*domain.Machine, now time.Time) error {
+	byID := make(map[string]*domain.Machine, len(machines))
+	for _, m := range machines {
+		byID[m.ID] = m
+	}
 	for _, machine := range machines {
 		hasSchedule := false
 		for _, e := range machine.Events {
@@ -298,7 +322,7 @@ func RunScheduledEvents(ctx context.Context, store *data.Store, mailer mail.Mail
 				// activitySummary is the *marker*, not the rendered summary: it is this path's dedup
 				// key (see scheduleMarker), and the two differ here and nowhere else.
 				runService(ctx, serviceInput{
-					svc: Services{Store: store, Mailer: mailer}, machine: machine, record: record, event: e,
+					svc: Services{Store: store, Mailer: mailer}, machines: byID, machine: machine, record: record, event: e,
 					summary: renderEventSummary(e, machine, nil, record.Values), activitySummary: marker,
 				})
 			}

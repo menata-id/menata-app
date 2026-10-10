@@ -52,7 +52,7 @@ func TestSendNotification_groupHeldStepIsANoop(t *testing.T) {
 	record := &data.Record{ID: "rec_fixture", Values: map[string]any{"fld_assignee": ""}}
 
 	spy := &spyMailer{}
-	sendNotification(wsCtx, store, spy, machine, record, domain.Notify{RecipientField: "fld_assignee", PreferenceKey: "assigned"}, "You have a new approval request")
+	sendNotification(wsCtx, store, spy, nil, machine, record, domain.Notify{RecipientField: "fld_assignee", PreferenceKey: "assigned"}, "You have a new approval request")
 
 	notifications, err := store.ListRecords(wsCtx, "mch_notification")
 	if err != nil {
@@ -99,7 +99,7 @@ func TestSendNotification_respectsEmailPreference(t *testing.T) {
 	// notify_decided = false: the in-app row still appears, no email goes out.
 	record := &data.Record{ID: "rec_doc_1", Values: map[string]any{"fld_submitted_by": recipient.ID}}
 	spy := &spyMailer{}
-	sendNotification(wsCtx, store, spy, machine, record, notify, "Your document was rejected")
+	sendNotification(wsCtx, store, spy, nil, machine, record, notify, "Your document was rejected")
 
 	notifications, err := store.ListRecordsBy(wsCtx, "mch_notification", "fld_recipient", recipient.ID)
 	if err != nil {
@@ -117,9 +117,67 @@ func TestSendNotification_respectsEmailPreference(t *testing.T) {
 		t.Fatalf("UpdateNotificationPreferences: %v", err)
 	}
 	record2 := &data.Record{ID: "rec_doc_2", Values: map[string]any{"fld_submitted_by": recipient.ID}}
-	sendNotification(wsCtx, store, spy, machine, record2, notify, "Your document was approved")
+	sendNotification(wsCtx, store, spy, nil, machine, record2, notify, "Your document was approved")
 	if len(spy.sent) != 1 || spy.sent[0] != email {
 		t.Errorf("sendNotification(notify_decided=true) sent to %v, want exactly [%q]", spy.sent, email)
+	}
+}
+
+// notificationMachineFixture carries the one declaration of metadata/notification.yaml these tests read:
+// fld_read's `default: unread`. Kept to that Field (plus the three the write sets) because the assertion
+// is about defaults reaching a runtime-composed write, not about the Machine's other rules.
+func notificationMachineFixture() *domain.Machine {
+	return &domain.Machine{
+		ID: notificationMachineID,
+		Fields: []domain.Field{
+			{ID: "fld_recipient", Name: "Recipient", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
+			{ID: "fld_message", Name: "Message", Type: domain.FieldTypeText},
+			{ID: "fld_link", Name: "Link", Type: domain.FieldTypeText},
+			{ID: "fld_read", Name: "Read", Type: domain.FieldTypeStatus, Options: []string{"unread", "read"}, Required: true, Default: "unread"},
+		},
+	}
+}
+
+// TestRunCreateEvents_notificationCarriesItsDeclaredDefaults is K01 of the 2026-10-10 audit: a
+// notification written by an Event must carry the Field defaults its Machine declares, exactly as one
+// written through a create route does. Before the fix every Event-written notification lacked fld_read,
+// so the unread count (fld_read == "unread") never counted it.
+func TestRunCreateEvents_notificationCarriesItsDeclaredDefaults(t *testing.T) {
+	pool := testPool(t)
+	store := data.NewStore(pool)
+	ctx := context.Background()
+
+	ws, err := store.CreateWorkspace(ctx, "Notify Default Test", "notify-default-test-workspace")
+	if err != nil {
+		t.Fatalf("CreateWorkspace: %v", err)
+	}
+	cleanupTest(t, pool, ws.ID, "unused_notify_default_test@example.com")
+	wsCtx := data.WithWorkspaceScope(ctx, ws.ID)
+
+	recipient, err := store.CreateRecord(wsCtx, domain.UserMachineID, map[string]any{"fld_name": "Notify Default"})
+	if err != nil {
+		t.Fatalf("CreateRecord(recipient): %v", err)
+	}
+	machine := notificationTestMachine("mch_step_fixture", "fld_assignee")
+	machine.Events = []domain.Event{{
+		ID: "evt_created_notify", OnCreate: true,
+		Then: domain.Service{Name: domain.ServiceSendNotification, Summary: "You have a new request",
+			Notify: &domain.Notify{RecipientField: "fld_assignee", PreferenceKey: "assigned"}},
+	}}
+	machines := map[string]*domain.Machine{machine.ID: machine, notificationMachineID: notificationMachineFixture()}
+	record := &data.Record{ID: "rec_created", Values: map[string]any{"fld_assignee": recipient.ID}}
+
+	RunCreateEvents(wsCtx, Services{Store: store, Mailer: &spyMailer{}}, machines, machine, record, "")
+
+	notifications, err := store.ListRecordsBy(wsCtx, notificationMachineID, "fld_recipient", recipient.ID)
+	if err != nil {
+		t.Fatalf("ListRecordsBy(mch_notification): %v", err)
+	}
+	if len(notifications) != 1 {
+		t.Fatalf("RunCreateEvents wrote %d notifications, want 1", len(notifications))
+	}
+	if got := displayString(notifications[0].Values["fld_read"]); got != "unread" {
+		t.Errorf("Event-written notification has fld_read %q, want the declared default \"unread\"", got)
 	}
 }
 
@@ -153,7 +211,7 @@ func TestSendNotification_respectsSLABreachPreference(t *testing.T) {
 	notify := domain.Notify{RecipientField: "fld_submitted_by", PreferenceKey: "sla_breach"}
 	record := &data.Record{ID: "rec_doc_sla_1", Values: map[string]any{"fld_submitted_by": recipient.ID}}
 	spy := &spyMailer{}
-	sendNotification(wsCtx, store, spy, machine, record, notify, "Your submitted document is overdue for approval")
+	sendNotification(wsCtx, store, spy, nil, machine, record, notify, "Your submitted document is overdue for approval")
 
 	notifications, err := store.ListRecordsBy(wsCtx, "mch_notification", "fld_recipient", recipient.ID)
 	if err != nil {

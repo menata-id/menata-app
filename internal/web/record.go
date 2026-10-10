@@ -81,7 +81,7 @@ func createFromValues(w http.ResponseWriter, req *http.Request, store *data.Stor
 		serverError(w, err)
 		return nil, actor, false
 	}
-	execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machine, record, actor.ID)
+	execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machinesFor(req.Context()), machine, record, actor.ID)
 	return record, actor, true
 }
 

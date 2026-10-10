@@ -552,7 +552,6 @@ past `capability-lifecycle.md` §2). Items waiting on a trigger, and the six own
 there and are deliberately not here.
 
 **P0 -- defects, no dependencies**
-- K01 Event-created notifications carry their Field defaults (`fld_read`) -- capabilities "Field default value".
 - K02 The AI schema's Field types come from `KnownFieldTypes` (`long_text` missing today).
 - K03 Rate limiters read the client address from the trusted proxy -- `capability-lifecycle.md` §3b.
 - K04 Password-reset tokens are single-use -- §3b.

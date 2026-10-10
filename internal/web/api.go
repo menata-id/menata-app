@@ -67,7 +67,7 @@ func createRecord(store *data.Store, files *storage.Store, mailer mail.Mailer, c
 		// Parity with createRecordForm's own logging -- found while adding update/delete parity
 		// below: the JSON path had silently never logged Activity for a Document/Task/Project
 		// created through it, unlike its form-based sibling.
-		execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machine, record, actor.ID)
+		execution.RunCreateEvents(req.Context(), execution.Services{Store: store, Mailer: mailer, Files: files}, machinesFor(req.Context()), machine, record, actor.ID)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
