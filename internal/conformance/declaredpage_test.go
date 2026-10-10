@@ -61,7 +61,7 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 					t.Errorf("%s: route is %q but a page is rendered at %q", where, item.Route, want)
 				}
 				res := metadata.PlaceholderResolver(app.AllNavigation, datasets)
-				rows, records := res.Rows, res.Records
+				rows, records, total := res.Rows, res.Records, res.Total
 				declared := func(b domain.PageBinding) {
 					if _, ok := datasets[b.Dataset]; !ok {
 						t.Errorf("%s: binding names dataset %q, which this Workspace does not declare -- the page would answer 500 on every visit", where, b.Dataset)
@@ -76,6 +76,7 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 				}
 				res.Rows = func(b domain.PageBinding) ([]ir.Row, error) { declared(b); return rows(b) }
 				res.Records = func(b domain.PageBinding) (ir.RecordSet, error) { declared(b); return records(b) }
+				res.Total = func(b domain.PageBinding) (string, error) { declared(b); return total(b) }
 				tree, err := ir.Lower(*item.Page, res)
 				if err != nil {
 					t.Errorf("%s: does not lower: %v", where, err)
@@ -673,5 +674,113 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 	}
 	if moves == 0 {
 		t.Fatal("no installed page declares a move Button -- the move half of this gate is measuring nothing")
+	}
+}
+
+// TestEveryInstalledTotalNamesAMeasureItsDatasetDeclares is the `rows: total` Binding's gate (2026-10-10, Stage 1
+// of the Dashboard's move to `page:`), installed after its one consumer exists. It re-checks every installed
+// total against the Machine that owns its Dataset, **without calling `metadata`'s own check**, for the reason
+// `recordsBindingProblems` states: a loader that stopped vetting would otherwise leave a tile that answers 500.
+//
+// What a total can be wrong about, and nothing a placeholder resolver can see: the Dataset is an aggregate (a
+// `select: records` Dataset has no Measures to total), it declares the named Measure, and the figure's label is
+// written while its value is not. It also holds that no installed Measure still carries a literal `$done` --
+// Normalize replaces it with the Machine's `completion:` value, so one that survived would be compared as the
+// text "$done" and count nothing, which reads exactly like a page with no finished work.
+func TestEveryInstalledTotalNamesAMeasureItsDatasetDeclares(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+	totals := 0
+	for _, slug := range sortedKeys(wss) {
+		ws := wss[slug].Workspace
+		owner := map[string]domain.Dataset{}
+		for _, m := range ws.Machines {
+			for _, ds := range m.Datasets {
+				owner[ds.ID] = ds
+				for _, ms := range ds.Measures {
+					for _, c := range ms.Where.Comparisons() {
+						if c.Value == "$done" {
+							t.Errorf("%s: dataset %s measure %s still compares against the literal $done", slug, ds.ID, ms.ID)
+						}
+					}
+				}
+			}
+		}
+		for _, app := range ws.Applications {
+			for _, item := range app.AllNavigation {
+				if item.Page == nil {
+					continue
+				}
+				for _, p := range totalBindingProblems(*item.Page, owner, &totals) {
+					t.Errorf("%s/%s/%s: %s", slug, app.ID, item.ID, p)
+				}
+			}
+		}
+	}
+	if totals == 0 {
+		t.Fatal("no installed page declares a `rows: total` Metric -- this gate is measuring nothing")
+	}
+}
+
+func totalBindingProblems(n domain.PageNode, datasets map[string]domain.Dataset, count *int) []string {
+	var out []string
+	if b := n.Binding; b != nil && b.Rows == domain.PageRowsTotal {
+		*count++
+		ds, ok := datasets[b.Dataset]
+		switch {
+		case !ok:
+			out = append(out, "total names dataset "+b.Dataset+", which no Machine of this Workspace declares")
+		case ds.Select != "":
+			out = append(out, "total over "+ds.ID+", which selects records and so has no Measure to total")
+		default:
+			found := false
+			for _, ms := range ds.Measures {
+				found = found || ms.ID == b.Measure
+			}
+			if !found {
+				out = append(out, "total names measure "+b.Measure+", which "+ds.ID+" does not declare")
+			}
+		}
+		if strings.TrimSpace(n.Props["label"]) == "" {
+			out = append(out, "a total writes its own label: there is no Dimension value to name it")
+		}
+		if _, typed := n.Props["value"]; typed {
+			out = append(out, "a total's value comes from its Measure and is never typed")
+		}
+	}
+	for _, c := range n.Children {
+		out = append(out, totalBindingProblems(c, datasets, count)...)
+	}
+	return out
+}
+
+// The gate must bite on each fault it names; a gate never shown to fail is not yet a gate.
+func TestTotalBindingProblemsSeesEachFault(t *testing.T) {
+	datasets := map[string]domain.Dataset{
+		"ds_agg":  {ID: "ds_agg", Measures: []domain.Measure{{ID: "msr_n"}}},
+		"ds_recs": {ID: "ds_recs", Select: domain.SelectRecords},
+	}
+	node := func(ds, measure string, props map[string]string) domain.PageNode {
+		return domain.PageNode{Kind: "component", Type: "Metric", Props: props,
+			Binding: &domain.PageBinding{Dataset: ds, Measure: measure, Rows: domain.PageRowsTotal}}
+	}
+	cases := map[string]domain.PageNode{
+		"missing dataset": node("ds_gone", "msr_n", map[string]string{"label": "x"}),
+		"records dataset": node("ds_recs", "msr_n", map[string]string{"label": "x"}),
+		"missing measure": node("ds_agg", "msr_gone", map[string]string{"label": "x"}),
+		"no label":        node("ds_agg", "msr_n", nil),
+		"typed value":     node("ds_agg", "msr_n", map[string]string{"label": "x", "value": "9"}),
+	}
+	for name, n := range cases {
+		var c int
+		if len(totalBindingProblems(n, datasets, &c)) == 0 {
+			t.Errorf("%s: no problem reported", name)
+		}
+	}
+	var c int
+	if got := totalBindingProblems(node("ds_agg", "msr_n", map[string]string{"label": "x"}), datasets, &c); len(got) != 0 || c != 1 {
+		t.Errorf("a sound total reported %v (counted %d)", got, c)
 	}
 }

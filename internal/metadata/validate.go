@@ -727,7 +727,9 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			// resolve must be refused here, because at runtime it would become a literal -- a filter
 			// comparing a Field against the string "$current_usr" matches nothing, renders an empty
 			// list, and is indistinguishable from a screen that legitimately has no rows.
-			if expression.IsSentinel(c.Value) && !expression.KnownSentinel(c.Value) {
+			if c.Value == expression.SentinelDone {
+				issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, doneIssue(m, c)))
+			} else if expression.IsSentinel(c.Value) && !expression.KnownSentinel(c.Value) {
 				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s, %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelToday, expression.SentinelParameterPrefix))
 			}
 		}
@@ -787,21 +789,24 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			}
 		}
 
-		if ms.Where != nil {
-			whereField, ok := fieldsByID[ms.Where.Field]
+		for _, c := range ms.Where.Comparisons() {
+			whereField, ok := fieldsByID[c.Field]
 			if !ok {
-				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.field %q is not a field of machine %q", ds.ID, ms.ID, ms.Where.Field, m.ID))
-			} else if whereField.ViolatesOptions(ms.Where.Value) {
-				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q is not one of field %q's options %v", ds.ID, ms.ID, ms.Where.Value, ms.Where.Field, whereField.Options))
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.field %q is not a field of machine %q", ds.ID, ms.ID, c.Field, m.ID))
+			} else if !expression.IsSentinel(c.Value) && whereField.ViolatesOptions(c.Value) {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q is not one of field %q's options %v", ds.ID, ms.ID, c.Value, c.Field, whereField.Options))
 			}
-			if !expression.KnownOps[ms.Where.Op] {
-				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.op %q is not a known operator", ds.ID, ms.ID, ms.Where.Op))
+			if !expression.KnownOps[c.Op] {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.op %q is not a known operator", ds.ID, ms.ID, c.Op))
 			}
 			if ok {
-				if expression.IsSentinel(ms.Where.Value) {
-					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q names a runtime context value, which only a `select: records` Dataset's `where:` resolves -- here it would be compared as a literal", ds.ID, ms.ID, ms.Where.Value))
-				} else {
-					for _, msg := range orderedComparisonIssues(whereField, *ms.Where) {
+				switch {
+				case c.Value == expression.SentinelDone:
+					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, doneIssue(m, c)))
+				case expression.IsSentinel(c.Value) && c.Value != expression.SentinelToday:
+					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q names a runtime context value an aggregate cannot resolve -- it has no viewer and no request parameters, only %s and %s", ds.ID, ms.ID, c.Value, expression.SentinelToday, expression.SentinelDone))
+				default:
+					for _, msg := range orderedComparisonIssues(whereField, c) {
 						issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, msg))
 					}
 				}
@@ -810,6 +815,20 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 	}
 
 	return issues
+}
+
+// doneIssue explains why a `$done` survived Normalize, which stamps every one it can answer: this Machine
+// declares no `completion:`, or the comparison is on some other Field, or its operator is not an equality.
+// Reaching here means the value would otherwise be compared as the literal string "$done" and match nothing.
+func doneIssue(m *domain.Machine, c expression.Comparison) string {
+	switch {
+	case m.Completion == nil:
+		return fmt.Sprintf("value %s means \"the finished value\", but machine %q declares no `completion:` to read it from", expression.SentinelDone, m.ID)
+	case c.Field != m.Completion.Field:
+		return fmt.Sprintf("value %s is the finished value of field %q (the machine's `completion:`), not of %q", expression.SentinelDone, m.Completion.Field, c.Field)
+	default:
+		return fmt.Sprintf("value %s is a state, so only `equals` and `not_equals` can ask about it, not %q", expression.SentinelDone, c.Op)
+	}
 }
 
 // orderedComparisonIssues checks what an ordered operator (`lt`/`lte`/`gt`/`gte`) is asked to order. It

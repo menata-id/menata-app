@@ -741,7 +741,7 @@ func (l *Loader) Dataset(datasetID string) (domain.Dataset, bool) {
 // Records come through ListRecords, so a screen that also needs the same Machine's records for
 // something a Dataset can't express (a list of rows, not a count) pays for one read, not two:
 // the Loader's own per-request memo serves the second caller.
-func (l *Loader) AggregateDataset(ctx context.Context, datasetID string) (Aggregation, error) {
+func (l *Loader) AggregateDataset(ctx context.Context, datasetID string, where expression.Context) (Aggregation, error) {
 	ds, ok := l.Dataset(datasetID)
 	if !ok {
 		return Aggregation{}, fmt.Errorf("composition: no machine declares dataset %s", datasetID)
@@ -750,7 +750,7 @@ func (l *Loader) AggregateDataset(ctx context.Context, datasetID string) (Aggreg
 	if err != nil {
 		return Aggregation{}, err
 	}
-	return Aggregate(ds, records), nil
+	return Aggregate(ds, records, where)
 }
 
 // DisplayString renders a stored field value as text. Records hold JSONB-decoded values, so a

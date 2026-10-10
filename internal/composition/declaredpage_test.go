@@ -391,3 +391,71 @@ func TestRecordMoveIsPerRecordAndRefusesAppendOnly(t *testing.T) {
 		t.Errorf("an append-only Machine was offered a move: %+v", e)
 	}
 }
+
+func totalMetric(measure, label, tone string) domain.PageNode {
+	props := map[string]string{"label": label}
+	if tone != "" {
+		props["tone"] = tone
+	}
+	return domain.PageNode{Kind: "component", Type: "Metric", Props: props,
+		Binding: &domain.PageBinding{Dataset: "ds_by_status", Measure: measure, Rows: domain.PageRowsTotal}}
+}
+
+// A total is the Measure over every record, filtered by the Measure's own conjunction; a zero draws no tone.
+func TestDeclaredPage_totalsFollowTheMeasureAndDropToneOnZero(t *testing.T) {
+	l, ctx := declaredPageLoader(t, "totals", map[string]int{"draft": 2, "in_review": 1, "approved": 3})
+	m := l.machines["mch_declared_page_totals"]
+	m.Datasets[0].Measures = append(m.Datasets[0].Measures,
+		domain.Measure{ID: "msr_open", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{
+			{Field: "fld_status", Op: expression.OpNotEquals, Value: "approved"},
+			{Field: "fld_status", Op: expression.OpNotEquals, Value: "rejected"},
+		}}},
+		domain.Measure{ID: "msr_rejected", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{
+			{Field: "fld_status", Op: expression.OpEquals, Value: "rejected"},
+		}}})
+	root := domain.PageNode{Kind: "layout", Type: "grid", Props: map[string]string{"gap": "default"}, Children: []domain.PageNode{
+		totalMetric("msr_total", "All", ""),
+		totalMetric("msr_open", "Open", "warn"),
+		totalMetric("msr_rejected", "Rejected", "bad"),
+	}}
+	tree, err := DeclaredPage(ctx, l, domain.Actor{}, nil, testToday, nil, root)
+	if err != nil {
+		t.Fatalf("DeclaredPage: %v", err)
+	}
+	type fig struct{ label, value, tone string }
+	var got []fig
+	for _, c := range tree.Children {
+		got = append(got, fig{c.Props["label"], c.Props["value"], c.Props["tone"]})
+	}
+	want := []fig{{"All", "6", ""}, {"Open", "3", "warn"}, {"Rejected", "0", ""}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("figures = %v, want %v", got, want)
+	}
+}
+
+// `$today` in a Measure is the request's injected date: the same records answer differently on a different day.
+func TestDeclaredPage_aTotalResolvesTodayFromTheInjectedClock(t *testing.T) {
+	l, ctx := declaredPageLoader(t, "totals_today", map[string]int{"draft": 1})
+	m := l.machines["mch_declared_page_totals_today"]
+	m.Fields = append(m.Fields, domain.Field{ID: "fld_due", Type: domain.FieldTypeDate})
+	m.Datasets[0].Measures = append(m.Datasets[0].Measures, domain.Measure{ID: "msr_past", Aggregate: domain.AggregateCount,
+		Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_due", Op: expression.OpLessThan, Value: expression.SentinelToday}}}})
+	store := l.store
+	if _, err := store.CreateRecord(ctx, m.ID, map[string]any{"fld_status": "draft", "fld_due": "2026-10-05"}); err != nil {
+		t.Fatal(err)
+	}
+	root := domain.PageNode{Kind: "layout", Type: "grid", Props: map[string]string{"gap": "default"}, Children: []domain.PageNode{totalMetric("msr_past", "Past", "")}}
+	value := func(now time.Time) string {
+		tree, err := DeclaredPage(ctx, NewLoader(l.store, l.machines), domain.Actor{}, nil, now, nil, root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tree.Children[0].Props["value"]
+	}
+	if got := value(testToday); got != "1" {
+		t.Errorf("on %s the past-due count = %s, want 1", testToday.Format("2006-01-02"), got)
+	}
+	if got := value(time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)); got != "0" {
+		t.Errorf("a week earlier the past-due count = %s, want 0", got)
+	}
+}

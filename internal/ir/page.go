@@ -124,7 +124,11 @@ type Resolver struct {
 	Route   RouteResolver
 	Source  SourceResolver
 	Form    FormResolver
+	Total   TotalResolver
 }
+
+// TotalResolver answers a `rows: total` Binding: the Measure's figure over the whole Dataset, already formatted.
+type TotalResolver func(b domain.PageBinding) (string, error)
 
 // Lower turns a declared `page:` into UI IR (007 §15.1's "Build UI IR"), expanding every Binding through
 // the Resolver and nothing else -- it decides no layout, formats no value, and reads no data itself.
@@ -416,18 +420,21 @@ func lowerBound(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	if NodeKind(n.Kind) != NodeComponent {
 		return nil, fmt.Errorf("%s: a binding is only valid on a bindable component, and %s %q is not one", path, n.Kind, n.Type)
 	}
-	mode, ok := domain.BindableComponents[domain.ComponentType(n.Type)]
+	modes, ok := domain.BindableComponents[domain.ComponentType(n.Type)]
 	if !ok {
 		return nil, fmt.Errorf("%s: a binding is only valid on a bindable component, and %s %q is not one", path, n.Kind, n.Type)
 	}
-	if b.Rows != mode {
-		return nil, fmt.Errorf("%s: component %q takes a binding with rows: %s, not %q", path, n.Type, mode, b.Rows)
+	if !slices.Contains(modes, b.Rows) {
+		return nil, fmt.Errorf("%s: component %q takes a binding with rows: %s, not %q", path, n.Type, strings.Join(modes, " or "), b.Rows)
 	}
 	if b.Dataset == "" {
 		return nil, fmt.Errorf("%s: a binding names a dataset", path)
 	}
-	if mode == domain.PageRowsRecords {
+	switch b.Rows {
+	case domain.PageRowsRecords:
 		return lowerRecords(n, r, path)
+	case domain.PageRowsTotal:
+		return lowerTotal(n, r, path)
 	}
 	return lowerDimension(n, r, path)
 }
@@ -474,6 +481,51 @@ func lowerDimension(n domain.PageNode, r Resolver, path string) ([]UINode, error
 		out = append(out, UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props})
 	}
 	return out, nil
+}
+
+// lowerTotal turns a Metric bound with `rows: total` into one Metric whose `value` is the Measure's figure over
+// the whole Dataset. There is no Dimension value to name it, so the author **writes** `label` -- the opposite of
+// dimension mode, where writing it is the fault -- and `value` is the one thing they may not write.
+//
+// `tone:` is a **signal**, not a colour: it is drawn only when the figure is not zero, so "Overdue" is red when
+// something is overdue and plain when nothing is. A tone that stayed on a zero would cry wolf on exactly the
+// page's good news. (A figure the resolver formats as "0" is the zero; the resolver, not this, owns formatting.)
+func lowerTotal(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	b := n.Binding
+	if b.Measure == "" {
+		return nil, fmt.Errorf("%s: a binding names a dataset and a measure", path)
+	}
+	if len(n.Children) > 0 {
+		return nil, fmt.Errorf("%s: a bound node holds no children", path)
+	}
+	if len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: from: is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageRowsRecords)
+	}
+	if n.To != "" || n.Param != "" {
+		return nil, fmt.Errorf("%s: to:/param: carry a row's value into a destination, and rows: %s has no rows", path, domain.PageRowsTotal)
+	}
+	if _, ok := n.Props["value"]; ok {
+		return nil, fmt.Errorf("%s: \"value\" comes from the binding, so it may not also be written on the node", path)
+	}
+	if n.Props["label"] == "" {
+		return nil, fmt.Errorf("%s: rows: %s has no Dimension value to name the figure, so the node writes its own label", path, domain.PageRowsTotal)
+	}
+	if r.Total == nil {
+		return nil, fmt.Errorf("%s: no resolver for a total", path)
+	}
+	value, err := r.Total(*b)
+	if err != nil {
+		return nil, err
+	}
+	props := make(map[string]string, len(n.Props)+1)
+	for k, v := range n.Props {
+		props[k] = v
+	}
+	props["value"] = value
+	if value == "0" {
+		delete(props, "tone")
+	}
+	return []UINode{{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}}, nil
 }
 
 func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) {

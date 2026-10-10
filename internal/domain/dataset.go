@@ -28,17 +28,17 @@ var KnownAggregates = map[AggregateKind]bool{
 // AggregateCount (which counts records, not a Field's values) -- internal/metadata.validateDataset
 // enforces both directions.
 //
-// Where is the optional filter predicate, and it is deliberately the same expression.Comparison a
-// Constraint's block_if.condition already uses rather than a second, parallel filter syntax: the
-// hand-written aggregations this primitive replaces filter with exactly `status != done`, which is
-// expression.OpNotEquals spelled as Go. Reusing the evaluator instead of writing a new one is the
-// B3 outcome the workflow-behavior decomposition criteria ask for -- the existing primitive
-// already fits, so no new one is built.
+// Where is the optional filter, and it is deliberately the same expression.Predicate a `select: records`
+// Dataset's `where:` already is rather than a second, parallel filter syntax: the hand-written
+// aggregations this primitive replaces filter with `status != done`, which is expression.OpNotEquals
+// spelled as Go, and "overdue" is two of them at once (not finished, and past its date), which is why it
+// is a conjunction and not one Comparison (2026-10-10). A measure resolves `$today` and `$done` and no other
+// context value: an aggregate has no viewer and no request parameters to resolve them against.
 type Measure struct {
 	ID        string
 	Aggregate AggregateKind
 	Field     string
-	Where     *expression.Comparison
+	Where     *expression.Predicate
 }
 
 // Dataset is a named, reusable semantic data definition over one Machine's own records (007 §7.2

@@ -950,3 +950,45 @@ func TestDeclaredPageMoveButtonsReorderTheListAndRefreshThePage(t *testing.T) {
 		t.Errorf("a move of a record that does not exist answered %d, want 404", got.Code)
 	}
 }
+
+// TestDeclaredPageTotalsCountEachFigureFromItsMeasure: "Task figures" is four Metrics bound with `rows: total`,
+// and each figure is a Measure's `where:` over the Task Machine -- open is "not $done", overdue is "not $done
+// AND due before $today", completed is "$done". Five tasks sit on either side of every boundary (a finished one
+// that is late, a late open one, one due today, one in the future, one undated), so a figure that treated
+// "finished" as a literal, dropped the conjunction, or compared the date with <= instead of < shows a number the
+// records contradict. The workspace is created for the test, so the figures are exactly these five.
+func TestDeclaredPageTotalsCountEachFigureFromItsMeasure(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredtotals", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil || task.Completion == nil {
+		t.Fatal("default installs no mch_task with a completion: block")
+	}
+	day := func(offset int) string { return time.Now().AddDate(0, 0, offset).Format("2006-01-02") }
+	for title, v := range map[string]map[string]any{
+		"Fig-done-late":    {"fld_status": task.Completion.Done, "fld_due_date": day(-4)},
+		"Fig-open-late":    {"fld_status": "todo", "fld_due_date": day(-2)},
+		"Fig-open-today":   {"fld_status": "in_progress", "fld_due_date": day(0)},
+		"Fig-open-future":  {"fld_status": "todo", "fld_due_date": day(5)},
+		"Fig-open-undated": {"fld_status": "todo"},
+	} {
+		v["fld_title"] = title
+		rec, err := store.CreateRecord(ctx, task.ID, v)
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+
+	body := getPage(t, h, cookie, "/pages/nav_task_figures")
+	for label, want := range map[string]int{"All cards": 5, "Open": 4, "Overdue": 1, "Completed": 1} {
+		pair := regexp.MustCompile(`>` + strconv.Itoa(want) + `</div><div[^>]*>` + regexp.QuoteMeta(label) + `</div>`)
+		if !pair.MatchString(body) {
+			t.Errorf("no Metric shows %q with a value of %d", label, want)
+		}
+	}
+}

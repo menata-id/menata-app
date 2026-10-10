@@ -964,8 +964,44 @@ that Dataset's Dimension**: `label` is the value, `value` is the Measure. Rules,
   nothing. `href` is never written (a route is declared once); `to:`/`param:` on any other node is a load error.
   Worked example: `nav_documents_by_status`'s tiles open `nav_documents_in_status`.
 
-Only `Metric` (`rows: dimension`) and `Collection` (`rows: records`) are bindable (`domain.BindableComponents`).
-Cost: one query per distinct Dataset, however many nodes bind it.
+Only `Metric` (`rows: dimension` or `rows: total`) and `Collection` (`rows: records`) are bindable
+(`domain.BindableComponents`). Cost: one query per distinct Dataset, however many nodes bind it.
+
+**`rows: total` — one figure over the whole Dataset.** A `component: Metric` bound
+`{dataset: ds_x, measure: msr_y, rows: total}` is a single Metric holding that Measure's figure, for an
+aggregate Dataset. It reads the Measure's whole-Dataset total, which a Dimension does not change, so the Dataset
+needs none (`ds_task_figures` has none). There is no
+Dimension value to name the figure, so **the node writes its own `label:`** (a load error if it does not, and
+`value:` is still never written), and it takes no `to:`/`param:` (there are no rows to link). `tone:` is a signal
+and is drawn only while the figure is not `0` -- "Overdue: 0" is not a problem, so it is not red. Worked example,
+four figures of the Task Machine (`nav_task_figures`):
+
+```yaml
+# metadata/task.yaml -- the Measures
+- id: ds_task_figures
+  measures:
+    - { id: msr_all, aggregate: count }
+    - { id: msr_open, aggregate: count, where: { field: fld_status, op: not_equals, value: $done } }
+    - id: msr_overdue
+      aggregate: count
+      where:
+        all:
+          - { field: fld_status, op: not_equals, value: $done }
+          - { field: fld_due_date, op: lt, value: $today }
+
+# the Application -- the page
+- component: Metric
+  label: Overdue
+  tone: bad
+  binding: { dataset: ds_task_figures, measure: msr_overdue, rows: total }
+```
+
+A Measure's `where:` takes the same one-level `all:` conjunction a records Dataset does, and two sentinels:
+`$today` (the request's date, against a date Field) and **`$done`** -- whatever the Machine's own `completion:`
+block names as finished, so "finished" is declared once, there, and never retyped as `done` or `closed`. `$done`
+is accepted only as `equals`/`not_equals` against the completion Field itself, and a Machine with no `completion:`
+refuses it at load. `$current_user` and `$parameters.<name>` are refused in a Measure: an aggregate has no viewer
+and no request, so they would be compared as literal text and count nothing.
 
 **`rows: records` — a list of a Machine's records.** A `component: Collection` may carry
 `binding: {dataset: ds_x, rows: records}` and **exactly one child**, the item template. The template is cloned once

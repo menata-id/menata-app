@@ -570,7 +570,7 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   `where:`'s shape. Rationale for why the third case did not generalize it: `development-history.md`.
 - **Ordered comparison operators: what remains** -- `lt`/`lte`/`gt`/`gte` and the `$today` sentinel are built in a records Dataset's
   `where:` (2026-10-10; "Past due" on `nav_documents_by_status`). Still open: My Tasks' Overdue/Due-today counts (hand-written),
-  hour-scale SLA wording (needs a datetime Field), `$today` in a `Measure.Where` or a constraint condition, and money Fields.
+  hour-scale SLA wording (needs a datetime Field), `$today` in a constraint condition, and money Fields. `$today`, a conjunction and `$done` now work in a `Measure.Where`, and a `Metric` can show one figure (`rows: total`; `nav_task_figures`) -- Stage 1 of moving the Dashboard to `page:`; its project table, per-person bars and derived hints are the stages still ahead, and the Dashboard stays bespoke until they land.
 - **Metadata hot reload and change classification** — tracked in `capabilities.md`'s limits as two
   separate deliberate deferrals (a `*.yaml` edit needs a restart; deleting a Field silently orphans
   its data in every record's JSONB) and in the companion repo's own

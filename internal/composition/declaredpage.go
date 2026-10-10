@@ -48,7 +48,10 @@ func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params ma
 			return ds.Source, ok
 		},
 		Rows: func(b domain.PageBinding) ([]ir.Row, error) {
-			return bindingRows(ctx, l, b)
+			return bindingRows(ctx, l, now, b)
+		},
+		Total: func(b domain.PageBinding) (string, error) {
+			return bindingTotal(ctx, l, now, b)
 		},
 		Records: func(b domain.PageBinding) (ir.RecordSet, error) {
 			return bindingRecords(ctx, l, viewer, params, now, b)
@@ -231,7 +234,7 @@ func RecordRoute(machineID, recordID string) string {
 // different order every run, and 007 §4.6 makes the same input rendering differently a MUST NOT. A declared
 // option with no record is a row of 0 rather than an absent one: "no document is rejected" is an answer, and
 // a count that vanishes when it reaches zero makes the page's shape depend on the data.
-func bindingRows(ctx context.Context, l *Loader, b domain.PageBinding) ([]ir.Row, error) {
+func bindingRows(ctx context.Context, l *Loader, now time.Time, b domain.PageBinding) ([]ir.Row, error) {
 	ds, ok := l.Dataset(b.Dataset)
 	if !ok {
 		return nil, fmt.Errorf("composition: page binding names dataset %q, which no machine declares", b.Dataset)
@@ -239,7 +242,7 @@ func bindingRows(ctx context.Context, l *Loader, b domain.PageBinding) ([]ir.Row
 	if ds.Dimension == "" {
 		return nil, fmt.Errorf("composition: dataset %q has no dimension to expand", b.Dataset)
 	}
-	agg, err := l.AggregateDataset(ctx, b.Dataset)
+	agg, err := l.AggregateDataset(ctx, b.Dataset, aggregateContext(now))
 	if err != nil {
 		return nil, err
 	}
@@ -272,6 +275,25 @@ func bindingRows(ctx context.Context, l *Loader, b domain.PageBinding) ([]ir.Row
 		rows = append(rows, ir.Row{Label: k, Value: formatMeasure(agg.ByDimension[k][b.Measure])})
 	}
 	return rows, nil
+}
+
+// bindingTotal is one `rows: total` Binding: the Measure's figure over every record the Dataset reads.
+func bindingTotal(ctx context.Context, l *Loader, now time.Time, b domain.PageBinding) (string, error) {
+	agg, err := l.AggregateDataset(ctx, b.Dataset, aggregateContext(now))
+	if err != nil {
+		return "", err
+	}
+	v, ok := agg.Total[b.Measure]
+	if !ok {
+		return "", fmt.Errorf("composition: dataset %q declares no measure %q", b.Dataset, b.Measure)
+	}
+	return formatMeasure(v), nil
+}
+
+// aggregateContext is what a Measure's `where:` may resolve: the request's date and nothing else. An aggregate
+// has no viewer and no request parameters, and metadata refuses a Measure that names either.
+func aggregateContext(now time.Time) expression.Context {
+	return expression.Context{Today: now.Format("2006-01-02")}
 }
 
 func formatMeasure(v float64) string {

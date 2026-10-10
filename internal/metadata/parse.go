@@ -188,10 +188,10 @@ type sortDoc struct {
 }
 
 type measureDoc struct {
-	ID        string         `yaml:"id"`
-	Aggregate string         `yaml:"aggregate"`
-	Field     string         `yaml:"field"`
-	Where     *comparisonDoc `yaml:"where"`
+	ID        string        `yaml:"id"`
+	Aggregate string        `yaml:"aggregate"`
+	Field     string        `yaml:"field"`
+	Where     *predicateDoc `yaml:"where"`
 }
 
 // comparisonDoc is the YAML serialization of an expression.Comparison.
@@ -507,13 +507,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 				Aggregate: domain.AggregateKind(md.Aggregate),
 				Field:     md.Field,
 			}
-			if md.Where != nil {
-				ms.Where = &expression.Comparison{
-					Field: md.Where.Field,
-					Op:    expression.Op(md.Where.Op),
-					Value: md.Where.Value,
-				}
-			}
+			ms.Where = md.Where.predicate()
 			ds.Measures = append(ds.Measures, ms)
 		}
 		m.Datasets = append(m.Datasets, ds)

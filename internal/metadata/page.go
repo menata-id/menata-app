@@ -225,6 +225,8 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 		Rows: func(domain.PageBinding) ([]ir.Row, error) {
 			return []ir.Row{{Label: "label", Value: "0"}}, nil
 		},
+		// A non-zero figure, so a `tone:` on a total is checked rather than dropped as a zero's would be.
+		Total: func(domain.PageBinding) (string, error) { return "1", nil },
 		// A form's shape is checked with one text control: whether the real Machine can be written by a form at
 		// all is `bindingIssues`' question, which has the Machine and this resolver does not.
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {

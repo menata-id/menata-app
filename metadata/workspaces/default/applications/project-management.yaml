@@ -55,6 +55,42 @@ navigation:
     priority: 3
     icon: dashboard
     description: How much work is open, overdue and finished, by project and by person. A card counts as finished only when its circle is ticked, so overdue never includes work that is already done.
+  # The Dashboard's four figures as a declared page (Stage 1 of moving nav_dashboard to `page:`, 2026-10-10).
+  # Each Metric is a Measure of ds_task_figures bound with `rows: total`; the label is written because a
+  # total has no Dimension value to name it, and `tone` draws only while the figure is not zero. This is
+  # NOT the Dashboard: it has no per-project table, no per-person bars and none of the derived hints
+  # ("In 3 projects", "42% of all cards") -- those are the stages still ahead (ROADMAP "Dashboard").
+  - id: nav_task_figures
+    label: Task figures
+    route: /pages/nav_task_figures
+    priority: 9
+    icon: dashboard
+    description: How many cards exist, how many are still open, how many are past due and how many are finished.
+    page:
+      layout: stack
+      gap: default
+      children:
+        - layout: grid
+          gap: default
+          mobile: 2
+          columns: 4
+          children:
+            - component: Metric
+              label: All cards
+              binding: { dataset: ds_task_figures, measure: msr_all, rows: total }
+            - component: Metric
+              label: Open
+              hint: Not finished yet
+              binding: { dataset: ds_task_figures, measure: msr_open, rows: total }
+            - component: Metric
+              label: Overdue
+              hint: Past its due date
+              tone: bad
+              binding: { dataset: ds_task_figures, measure: msr_overdue, rows: total }
+            - component: Metric
+              label: Completed
+              tone: good
+              binding: { dataset: ds_task_figures, measure: msr_completed, rows: total }
   - id: nav_calendar
     label: Calendar
     route: /calendar

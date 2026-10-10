@@ -40,6 +40,11 @@ const (
 	SentinelCurrentUser = "$current_user"
 	// SentinelToday is 007 §9.2's `today`: the request's date, resolved by the caller.
 	SentinelToday = "$today"
+	// SentinelDone is "the value that means finished" for the Machine the comparison is on. It is **not** a
+	// Context value: the Machine's own `completion:` answers it, so `metadata.Normalize` replaces it with that
+	// declared value at load and Resolve never sees one. KnownSentinel deliberately does not list it, so one
+	// that survives Normalize (no `completion:`, another Field) is refused rather than compared as text.
+	SentinelDone = "$done"
 	// SentinelParameterPrefix is `$parameters.<name>`; the name after the dot is the key.
 	SentinelParameterPrefix = "$parameters."
 )

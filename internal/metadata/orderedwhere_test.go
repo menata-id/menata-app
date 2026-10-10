@@ -54,14 +54,82 @@ func TestDatasetWhere_orderedOperatorsAreCheckedAgainstTheField(t *testing.T) {
 	}
 }
 
-func TestMeasureWhere_refusesAContextValueNothingResolves(t *testing.T) {
+func measureIssues(m *domain.Machine, fields map[string]domain.Field, cs ...expression.Comparison) string {
+	ds := domain.Dataset{ID: "ds_t", Source: m.ID, Dimension: "fld_due",
+		Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: cs}}}}
+	return strings.Join(validateDataset(m, ds, fields, map[string]bool{}), "; ")
+}
+
+// A Measure resolves `$today` (the request's injected date) and nothing else: an aggregate has no viewer and no
+// request parameters, so `$current_user` there would be compared as the literal text and count nothing.
+func TestMeasureWhere_resolvesTodayAndRefusesTheRest(t *testing.T) {
+	m := &domain.Machine{ID: "mch_x"}
+	fields := map[string]domain.Field{
+		"fld_due":  {ID: "fld_due", Type: domain.FieldTypeDate},
+		"fld_name": {ID: "fld_name", Type: domain.FieldTypeText},
+	}
+	if got := measureIssues(m, fields, expression.Comparison{Field: "fld_due", Op: expression.OpLessThan, Value: expression.SentinelToday}); got != "" {
+		t.Errorf("a measure comparing a date against $today was refused: %q", got)
+	}
+	for _, v := range []string{expression.SentinelCurrentUser, "$parameters.x"} {
+		got := measureIssues(m, fields, expression.Comparison{Field: "fld_name", Op: expression.OpEquals, Value: v})
+		if !strings.Contains(got, "cannot resolve") {
+			t.Errorf("a measure comparing against %s was accepted: %q", v, got)
+		}
+	}
+	if got := measureIssues(m, fields, expression.Comparison{Field: "fld_name", Op: expression.OpLessThan, Value: expression.SentinelToday}); got == "" {
+		t.Error("$today against a text Field was accepted")
+	}
+}
+
+// Every comparison of a conjunction is checked, not only the first.
+func TestMeasureWhere_checksEveryComparison(t *testing.T) {
 	m := &domain.Machine{ID: "mch_x"}
 	fields := map[string]domain.Field{"fld_due": {ID: "fld_due", Type: domain.FieldTypeDate}}
-	ds := domain.Dataset{ID: "ds_t", Source: "mch_x", Dimension: "fld_due",
-		Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount,
-			Where: &expression.Comparison{Field: "fld_due", Op: expression.OpLessThan, Value: expression.SentinelToday}}}}
-	got := strings.Join(validateDataset(m, ds, fields, map[string]bool{}), "; ")
-	if !strings.Contains(got, "only a `select: records` Dataset's `where:` resolves") {
-		t.Errorf("a measure comparing against $today was accepted: %q", got)
+	got := measureIssues(m, fields,
+		expression.Comparison{Field: "fld_due", Op: expression.OpLessThan, Value: expression.SentinelToday},
+		expression.Comparison{Field: "fld_gone", Op: expression.OpEquals, Value: "x"})
+	if !strings.Contains(got, `where.field "fld_gone" is not a field`) {
+		t.Errorf("a second comparison naming no Field was accepted: %q", got)
+	}
+}
+
+// `$done` is the value the Machine's own `completion:` names. Normalize stamps it where it can answer, and
+// Validate refuses the ones it cannot -- otherwise "$done" would be compared as text and match nothing.
+func TestDone_isStampedFromCompletionAndRefusedWhereItCannotBeAnswered(t *testing.T) {
+	status := domain.Field{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"todo", "done"}}
+	build := func(completion *domain.Completion, field string, op expression.Op) *domain.Machine {
+		cmp := expression.Comparison{Field: field, Op: op, Value: expression.SentinelDone}
+		return &domain.Machine{ID: "mch_x", Fields: []domain.Field{status, {ID: "fld_other", Type: domain.FieldTypeText}}, Completion: completion,
+			Datasets: []domain.Dataset{
+				{ID: "ds_rec", Source: "mch_x", Select: domain.SelectRecords, Limit: 5, Where: &expression.Predicate{All: []expression.Comparison{cmp}}},
+				{ID: "ds_agg", Source: "mch_x", Measures: []domain.Measure{{ID: "msr_n", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{cmp}}}}},
+			}}
+	}
+	done := &domain.Completion{Field: "fld_status", Done: "done"}
+
+	m := Normalize(build(done, "fld_status", expression.OpNotEquals))
+	if got := m.Datasets[0].Where.All[0].Value; got != "done" {
+		t.Errorf("a records Dataset's $done = %q after Normalize, want the completion value", got)
+	}
+	if got := m.Datasets[1].Measures[0].Where.All[0].Value; got != "done" {
+		t.Errorf("a Measure's $done = %q after Normalize, want the completion value", got)
+	}
+	if got := Normalize(Normalize(build(done, "fld_status", expression.OpNotEquals))).Datasets[0].Where.All[0].Value; got != "done" {
+		t.Errorf("Normalize is not idempotent over $done: %q", got)
+	}
+
+	fields := map[string]domain.Field{"fld_status": status, "fld_other": {ID: "fld_other", Type: domain.FieldTypeText}}
+	for name, bad := range map[string]*domain.Machine{
+		"no completion": Normalize(build(nil, "fld_status", expression.OpNotEquals)),
+		"another Field": Normalize(build(done, "fld_other", expression.OpEquals)),
+		"ordered op":    Normalize(build(done, "fld_status", expression.OpLessThan)),
+	} {
+		for _, ds := range bad.Datasets {
+			got := strings.Join(validateDataset(bad, ds, fields, map[string]bool{}), "; ")
+			if !strings.Contains(got, "$done") {
+				t.Errorf("%s, dataset %s: a $done nothing could answer was accepted: %q", name, ds.ID, got)
+			}
+		}
 	}
 }

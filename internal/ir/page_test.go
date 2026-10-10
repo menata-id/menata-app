@@ -902,3 +902,70 @@ func TestLower_refusesAMoveButtonThatCouldNotBeBuiltHonestly(t *testing.T) {
 		t.Errorf("a move Button outside a records template: err = %v", err)
 	}
 }
+
+func metricTotal(props map[string]string) domain.PageNode {
+	return domain.PageNode{
+		Kind: "component", Type: string(domain.ComponentMetric), Props: props,
+		Binding: &domain.PageBinding{Dataset: "ds_a", Measure: "msr_b", Rows: domain.PageRowsTotal},
+	}
+}
+
+func fixedTotal(v string) Resolver {
+	return Resolver{Total: func(domain.PageBinding) (string, error) { return v, nil }}
+}
+
+func lowerOne(t *testing.T, n domain.PageNode, r Resolver) (UINode, error) {
+	t.Helper()
+	return Lower(domain.PageNode{Kind: "layout", Type: "grid", Props: map[string]string{"gap": "default"}, Children: []domain.PageNode{n}}, r)
+}
+
+// A total is one Metric: the author's words and hint, the resolver's figure.
+func TestLower_totalIsOneMetricWithTheWrittenLabelAndTheResolversFigure(t *testing.T) {
+	got, err := lowerOne(t, metricTotal(map[string]string{"label": "Open", "hint": "Not finished yet"}), fixedTotal("7"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{"label": "Open", "hint": "Not finished yet", "value": "7"}
+	if len(got.Children) != 1 || !reflect.DeepEqual(got.Children[0].Props, want) {
+		t.Errorf("got %+v, want one Metric with %v", got.Children, want)
+	}
+}
+
+// tone is a signal: drawn when there is something to signal, dropped on a zero.
+func TestLower_totalToneIsDrawnOnlyWhenTheFigureIsNotZero(t *testing.T) {
+	for figure, wantTone := range map[string]string{"3": "bad", "0": ""} {
+		got, err := lowerOne(t, metricTotal(map[string]string{"label": "Overdue", "tone": "bad"}), fixedTotal(figure))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tone := got.Children[0].Props["tone"]; tone != wantTone {
+			t.Errorf("figure %s: tone = %q, want %q", figure, tone, wantTone)
+		}
+	}
+}
+
+func TestLower_refusesATotalThatIsNotWellFormed(t *testing.T) {
+	cases := map[string]func(*domain.PageNode){
+		"no label to name the figure": func(n *domain.PageNode) { delete(n.Props, "label") },
+		"a typed value":               func(n *domain.PageNode) { n.Props["value"] = "99" },
+		"no measure":                  func(n *domain.PageNode) { n.Binding.Measure = "" },
+		"a destination":               func(n *domain.PageNode) { n.To = "nav_x"; n.Param = "p" },
+		"a child":                     func(n *domain.PageNode) { n.Children = []domain.PageNode{{Kind: "static", Type: "paragraph"}} },
+		"a from":                      func(n *domain.PageNode) { n.From = map[string]string{"hint": "title"} },
+	}
+	for name, mutate := range cases {
+		n := metricTotal(map[string]string{"label": "Open"})
+		mutate(&n)
+		if _, err := lowerOne(t, n, fixedTotal("1")); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if _, err := lowerOne(t, metricTotal(map[string]string{"label": "Open"}), Resolver{}); err == nil {
+		t.Error("a total with no resolver was accepted")
+	}
+	coll := listBound(rowTemplate())
+	coll.Binding.Rows = domain.PageRowsTotal
+	if _, err := lowerOne(t, coll, fixedTotal("1")); err == nil || !strings.Contains(err.Error(), "rows: records") {
+		t.Errorf("a Collection bound with rows: total was accepted: %v", err)
+	}
+}

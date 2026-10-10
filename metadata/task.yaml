@@ -103,6 +103,30 @@ datasets:
     select: records
     limit: 1000
 
+  # The Dashboard's four headline figures as Measures, so a `page:` can show each one as a Metric bound with
+  # `rows: total` (2026-10-10). Both ends are read from declarations rather than restated: "finished" is
+  # `$done`, the `completion:` block below, and "overdue" is not-finished AND due before `$today` -- the same
+  # two facts `composition.isOverdue` tests per record in Go.
+  #
+  # No `select:`, so this reads the Machine's whole record set (it has no `limit:` to truncate it): a count
+  # that silently stopped at a bound would understate every tile.
+  - id: ds_task_figures
+    measures:
+      - id: msr_all
+        aggregate: count
+      - id: msr_open
+        aggregate: count
+        where: { field: fld_status, op: not_equals, value: $done }
+      - id: msr_overdue
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_due_date, op: lt, value: $today }
+      - id: msr_completed
+        aggregate: count
+        where: { field: fld_status, op: equals, value: $done }
+
 # card_fields: what a Task's own records show wherever a screen renders them without picking
 # Fields itself (007 §7.6 Projection). Added 2026-09-28, when the Case 19 screens stopped reading
 # fld_title/fld_status/fld_due_date off the record in their own .templ files: My Tasks, Calendar and

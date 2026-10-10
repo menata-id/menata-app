@@ -1,6 +1,9 @@
 package metadata
 
-import "menata.app/internal/domain"
+import (
+	"menata.app/internal/domain"
+	"menata.app/internal/expression"
+)
 
 // Normalize applies the inferences a *domain.Machine carries regardless of how it was built.
 //
@@ -31,5 +34,37 @@ func Normalize(m *domain.Machine) *domain.Machine {
 			m.Fields[i].RelatedMachine = domain.UserMachineID
 		}
 	}
+	stampCompletion(m)
 	return m
+}
+
+// stampCompletion replaces `$done` with the value the Machine's own `completion:` declares, in every Dataset
+// `where:` and every Measure `where:` that asks about the completion Field with an equality. It is the answer
+// to "not finished" that does not restate the finished value (001 #8): a Dataset says `fld_status not_equals
+// $done`, and renaming the terminal option edits one line, in `completion:`.
+//
+// Resolved here and not at request time because the answer is a property of the Machine, not of the request,
+// and because a `where:` is evaluated in two places (the SQL pushdown and the Go aggregate) that would each
+// have had to know it. A `$done` this cannot answer is left as written, and Validate refuses it by name.
+func stampCompletion(m *domain.Machine) {
+	if m.Completion == nil {
+		return
+	}
+	stamp := func(p *expression.Predicate) {
+		if p == nil {
+			return
+		}
+		for i := range p.All {
+			c := &p.All[i]
+			if c.Value == expression.SentinelDone && c.Field == m.Completion.Field && (c.Op == expression.OpEquals || c.Op == expression.OpNotEquals) {
+				c.Value = m.Completion.Done
+			}
+		}
+	}
+	for i := range m.Datasets {
+		stamp(m.Datasets[i].Where)
+		for j := range m.Datasets[i].Measures {
+			stamp(m.Datasets[i].Measures[j].Where)
+		}
+	}
 }

@@ -102,10 +102,13 @@ type PageBinding struct {
 	Write string
 }
 
-// The two Rows modes.
+// The Rows modes. `dimension` is a Metric per Dimension value, `records` a Collection item per record, and
+// `total` one Metric holding a Measure's figure over the whole Dataset -- the mode for a number that has no
+// breakdown, whose label the author writes because there is no Dimension value to name it (2026-10-10).
 const (
 	PageRowsDimension = "dimension"
 	PageRowsRecords   = "records"
+	PageRowsTotal     = "total"
 )
 
 // The write modes. `create` binds a Form to a Dataset's Machine. `update` is valid only inside the item template
@@ -137,15 +140,15 @@ var WritableComponents = map[ComponentType][]string{
 // link's `href`, so a record's route is never shown as text or handed to another property.
 const PageRecordRole = "record"
 
-// BindableComponents maps each registered Component a Binding may supply to the one Rows mode it takes. A
-// Binding on any other node, or in the other mode, is a load error rather than a property the renderer
+// BindableComponents maps each registered Component a Binding may supply to the Rows modes it takes. A
+// Binding on any other node, or in a mode not listed, is a load error rather than a property the renderer
 // ignores.
 //
 // Vocabulary (a closed map of strings), so it lives here and not in `internal/registry`
-// (`conformance.TestDomainHoldsVocabularyAndRegistryHoldsDispatch`). `Metric` takes dimension rows: it is the
-// Component whose contract is "a label and a resolved number". `Collection` takes records: it is the one with
-// an `item` slot, so a list of already-composed items is exactly what a record set is.
-var BindableComponents = map[ComponentType]string{
-	ComponentMetric:     PageRowsDimension,
-	ComponentCollection: PageRowsRecords,
+// (`conformance.TestDomainHoldsVocabularyAndRegistryHoldsDispatch`). `Metric` takes dimension rows or one
+// total: it is the Component whose contract is "a label and a resolved number". `Collection` takes records: it
+// is the one with an `item` slot, so a list of already-composed items is exactly what a record set is.
+var BindableComponents = map[ComponentType][]string{
+	ComponentMetric:     {PageRowsDimension, PageRowsTotal},
+	ComponentCollection: {PageRowsRecords},
 }
