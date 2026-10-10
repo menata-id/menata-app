@@ -264,7 +264,7 @@ func UnreadNotificationCount(ctx context.Context, l *Loader, viewerID string) (i
 // cannot express. Its counts are filtered by the viewing identity (assignee == userID), and a
 // declared where: is a comparison against a literal, not against a value supplied per request --
 // so a Dataset would need parameterized filters. Its other two counts (Overdue, DueToday) compare
-// a due date against now, which the equals/not_equals vocabulary cannot express at any level.
+// a due date against now, which a Measure's `where` still cannot (`$today` is refused there).
 //
 // **This comment used to end "neither has a second case yet", and that was already false when it
 // was written** (kajian 2026-09-29, ROADMAP.md). Seven exported functions in this package take a
@@ -276,10 +276,10 @@ func UnreadNotificationCount(ctx context.Context, l *Loader, viewerID string) (i
 // step 3 fires on the *second* case of a shape, and this is the seventh.
 //
 // **The two halves are not equally ripe, which is why only one moved.** The identity half's trigger
-// is met seven times over. The date half has roughly two cases (this screen and
-// experience.EvaluateSLA's own day truncation), so `lt`/`gt` in internal/expression stays parked --
-// B5 still refuses it. Whoever builds the identity filter should not take the date one along for
-// the ride on the strength of this comment.
+// is met seven times over. The date half was parked here at two cases; `lt`/`lte`/`gt`/`gte` and
+// `$today` shipped 2026-10-10 (internal/expression) with the documents page's "Past due" list as
+// consumer. This screen's own Overdue/Due-today counts are still hand-written: they exclude finished
+// Tasks, which a Dataset can state only by restating `completion:` (001 #8).
 //
 // **And "seven cases" is right about the coupling and wrong as a forcing case -- measured 2026-09-29,
 // after this comment had already carried the number through three answers unchecked.** All seven do
