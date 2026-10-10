@@ -295,6 +295,9 @@ permissions:
   - id: prm_create_step
     action: create
     roles: [approver, submitter]
+    parent_actor:
+      via: fld_document
+      field: fld_submitted_by
   - id: prm_decide_own_step
     action: decide
     roles: [approver]
