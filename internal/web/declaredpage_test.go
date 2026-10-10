@@ -992,3 +992,32 @@ func TestDeclaredPageTotalsCountEachFigureFromItsMeasure(t *testing.T) {
 		}
 	}
 }
+
+// TestProjectManagementSettingsHubListsItsDeclaredMemberAndNoAccess: the Application's Settings page is drawn
+// from its own navigation (S2.1b). Board Settings is a declared member, so its row links to the screen it
+// always was; Project Management declares no roles, so the hub has no Access section, and the page names no
+// other Application's words.
+func TestProjectManagementSettingsHubListsItsDeclaredMemberAndNoAccess(t *testing.T) {
+	h, cookie, _, _, _, _, _ := routerSetupFor(t, "pmsettingshub", "default")
+	body := getPage(t, h, cookie, "/settings/nav_pm_settings")
+	_, config, found := strings.Cut(body, "Configuration")
+	if !found {
+		t.Fatal("the hub has no Configuration section")
+	}
+	for _, want := range []string{`href="/pages/nav_board_settings"`, "Lists &amp; labels"} {
+		if !strings.Contains(config, want) {
+			t.Errorf("the Configuration section does not contain %q", want)
+		}
+	}
+	if !strings.Contains(body, "Project Management") {
+		t.Error("the About section does not name the Application")
+	}
+	for _, banned := range []string{"Members &amp; roles", "Permissions", "Approval flow"} {
+		if strings.Contains(body, banned) {
+			t.Errorf("the Project Management hub contains %q, which belongs to another Application's hub", banned)
+		}
+	}
+	if page := getPage(t, h, cookie, "/pages/nav_board_settings"); !strings.Contains(page, `href="/settings/nav_pm_settings"`) {
+		t.Error("a Project Management screen does not link to the Application's Settings hub")
+	}
+}

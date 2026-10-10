@@ -93,10 +93,11 @@ navigation:
   # route and no class. Each List also carries Rename, Move up/down and Delete, all writes through the
   # runtime's generic record routes (007 §11.3); the Labels carry no order, so no Move.
   - id: nav_board_settings
-    label: Board Settings
+    label: Lists & labels
     route: /pages/nav_board_settings
     priority: 4
     icon: settings
+    settings_hub_member: true
     description: 'The lists a board groups by, and the labels cards can carry. Both are ordinary records, shared by every project in this workspace.'
     page:
       layout: split
@@ -218,3 +219,14 @@ navigation:
               binding:
                 dataset: ds_board_labels
                 write: create
+
+  # This Application's Settings page, drawn by the runtime from this list (007 §12.4; writing-guide.md
+  # §12.1b): every settings_hub_member item is a row under Configuration, About reads the name and
+  # description above, and there is no Access section because this Application declares no `roles:`.
+  - id: nav_pm_settings
+    label: Settings
+    title: Project Management settings
+    description: Applies to this application only.
+    route: /settings/nav_pm_settings
+    icon: settings
+    settings_hub: true
