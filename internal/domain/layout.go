@@ -89,18 +89,20 @@ const (
 // ColumnsAlign is how a columns layout aligns its children on the cross axis **once it is a row**. Below the
 // breakpoint it is a stack and alignment does not apply.
 //
-// Two members, which is what the five migrated sites use: `end` for a heading beside its action (they sit on
-// one baseline at the bottom), `center` for row content. The main axis is not a parameter -- all five push
-// their children apart, so a `justify` enum would be a value with one case.
+// Three members: `end` for a heading beside its action (they sit on one baseline at the bottom), `center`
+// for row content, and `start` for a sidebar beside a screen, which must hang from the top rather than stretch
+// or sink (the Workspace settings frame, S2.3). The main axis is not a parameter -- every site pushes its
+// children apart, so a `justify` enum would be a value with one case.
 type ColumnsAlign string
 
 const (
 	ColumnsAlignEnd    ColumnsAlign = "end"
 	ColumnsAlignCenter ColumnsAlign = "center"
+	ColumnsAlignStart  ColumnsAlign = "start"
 )
 
 // KnownColumnsAligns is the closed set.
-var KnownColumnsAligns = map[ColumnsAlign]bool{ColumnsAlignEnd: true, ColumnsAlignCenter: true}
+var KnownColumnsAligns = map[ColumnsAlign]bool{ColumnsAlignEnd: true, ColumnsAlignCenter: true, ColumnsAlignStart: true}
 
 // RowAlign is a row's cross-axis alignment, as a closed set.
 //

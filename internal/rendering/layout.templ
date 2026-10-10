@@ -420,6 +420,8 @@ func columnsAlign(a domain.ColumnsAlign) string {
 		return "sm:items-end"
 	case domain.ColumnsAlignCenter:
 		return "sm:items-center"
+	case domain.ColumnsAlignStart:
+		return "sm:items-start"
 	default:
 		return "sm:items-center"
 	}

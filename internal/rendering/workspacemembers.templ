@@ -75,6 +75,7 @@ func personInitials(name, email string) string {
 // its owner ever states one, when they accept.
 templ WorkspaceMembersPage(members []data.Membership, names map[string]string, pending []data.PendingInvite, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref, q string, totalMembers int) {
 	@appShell(labelByID(ctx, "nav_workspace_members"), workspaceName, viewer, switchWorkspaceHref) {
+		@workspaceSettingsFrame(wsSectionMembers) {
 		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
 			<div class="flex flex-col gap-2">
 				@staticText(domain.StaticHeading, titleByID(ctx, "nav_workspace_members"))
@@ -193,6 +194,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			}
 		</div>
 		@staticText(domain.StaticNote, "Only workspace admins can invite, edit or remove people. Roles and groups inside an application are managed in that application’s Settings.")
+		}
 	}
 }
 
@@ -220,6 +222,7 @@ templ workspaceRoleBadge(role string) {
 // direct half.
 templ EditMemberPage(m data.Membership, name string, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
 	@appShell("Edit member", workspaceName, viewer, switchWorkspaceHref) {
+		@workspaceSettingsFrame(wsSectionMembers) {
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
 			← { labelByID(ctx, "nav_workspace_members") }
 		</a>
@@ -263,6 +266,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 		</form>
 		@removeFromWorkspaceSection(m, workspaceName)
 		@effectiveAccessPanel(m, roleApps)
+		}
 	}
 }
 

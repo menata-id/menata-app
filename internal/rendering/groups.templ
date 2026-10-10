@@ -17,6 +17,7 @@ import "menata.app/internal/domain"
 // filters nothing is worse than none.
 templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
 	@appShell(labelByID(ctx, "nav_workspace_groups"), workspaceName, viewer, switchWorkspaceHref) {
+		@workspaceSettingsFrame(wsSectionGroups) {
 		@columnsLayout(domain.GapComfortable, domain.ColumnsAlignEnd) {
 			<div class="flex flex-col gap-2">
 				@staticText(domain.StaticOverline, "Administration")
@@ -64,6 +65,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 				</a>
 			}
 		}
+		}
 	}
 }
 
@@ -88,6 +90,7 @@ type GroupMemberChoice struct {
 // assignment".
 templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
 	@appShell(group.Name, workspaceName, viewer, switchWorkspaceHref) {
+		@workspaceSettingsFrame(wsSectionGroups) {
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID(ctx, "nav_workspace_groups") }</a>
 		<div class="flex items-center justify-between gap-3">
 			@staticText(domain.StaticHeading, group.Name)
@@ -140,5 +143,6 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 			@csrfHiddenInput()
 			<button type="submit" class="cursor-pointer text-xs text-red-600 hover:text-red-700">Delete this group</button>
 		</form>
+		}
 	}
 }
