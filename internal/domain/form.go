@@ -35,6 +35,10 @@ const ButtonMethodDelete = "delete"
 // ButtonMethodPost is the verb a `Button` bound with `write: move` sends. Derived, never written.
 const ButtonMethodPost = "post"
 
+// ButtonMethodPatch is the verb a `Button` bound with `write: transition` sends: a PATCH of one Field of the record,
+// carried as the Button's own name/value pair. Derived, never written.
+const ButtonMethodPatch = "patch"
+
 // The two directions a `write: move` Button names. A direction is relative to the order the records are listed in,
 // which for a move is the Machine's own (`sort_order`), so "up" is toward the first record.
 const (

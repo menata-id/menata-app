@@ -969,3 +969,93 @@ func TestLower_refusesATotalThatIsNotWellFormed(t *testing.T) {
 		t.Errorf("a Collection bound with rows: total was accepted: %v", err)
 	}
 }
+
+func transitionInTemplate(becomes string, ts []RecordTransition) (domain.PageNode, Resolver) {
+	coll := domain.PageNode{
+		Kind: "component", Type: string(domain.ComponentCollection),
+		Binding: &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords},
+		Children: []domain.PageNode{{
+			Kind: "component", Type: string(domain.ComponentButton),
+			Props:   map[string]string{"label": "Go", "variant": "secondary", "becomes": becomes},
+			Binding: &domain.PageBinding{Write: domain.PageWriteTransition},
+		}},
+	}
+	res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{{"title": "a"}, {"title": "b"}}, Transitions: ts}, nil
+	}}
+	return formPage(coll), res
+}
+
+func transitionTo(route string, current string) RecordTransition {
+	return RecordTransition{Route: route, Field: "fld_status", Done: "done", Reopen: "todo",
+		Allows: func(target string) (bool, bool) {
+			switch target {
+			case "todo", "in_progress", "done":
+				return target != current, true
+			}
+			return false, false
+		}}
+}
+
+func TestLower_transitionButtonPatchesTheStatusFieldAndIsDrawnOnlyWhereTheMoveIsAllowed(t *testing.T) {
+	ts := []RecordTransition{transitionTo("/machines/mch_x/records/r1", "todo"), transitionTo("/machines/mch_x/records/r2", "done")}
+	root, res := transitionInTemplate(domain.PageTransitionDone, ts)
+	got, err := Lower(root, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := got.Children[0].Children
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want one: a finished record is not offered Mark done", len(items))
+	}
+	p := items[0].Props
+	if p["action"] != "/machines/mch_x/records/r1" || p["method"] != domain.ButtonMethodPatch || p["name"] != "fld_status" || p["value"] != "done" || p["becomes"] != "" || p["confirm"] != "" {
+		t.Errorf("button props = %v", p)
+	}
+	root, res = transitionInTemplate(domain.PageTransitionReopen, ts)
+	got, err = Lower(root, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if items = got.Children[0].Children; len(items) != 1 || items[0].Props["action"] != "/machines/mch_x/records/r2" || items[0].Props["value"] != "todo" {
+		t.Errorf("$reopen items = %+v, want only the finished record, writing the Machine's reopen value", items)
+	}
+	root, res = transitionInTemplate("in_progress", ts)
+	if got, err = Lower(root, res); err != nil || len(got.Children[0].Children) != 2 {
+		t.Errorf("a literal option: err = %v, items = %d, want both records", err, len(got.Children[0].Children))
+	}
+}
+
+func TestLower_refusesATransitionButtonThatCouldNotBeBuiltHonestly(t *testing.T) {
+	ts := []RecordTransition{transitionTo("/r1", "todo"), transitionTo("/r2", "todo")}
+	cases := map[string]struct {
+		becomes string
+		mutate  func(n *domain.PageNode)
+		ts      []RecordTransition
+		want    string
+	}{
+		"a dataset of its own": {"done", func(n *domain.PageNode) { n.Children[0].Binding.Dataset = "ds_b" }, ts, "no dataset"},
+		"no becomes":           {"", func(n *domain.PageNode) { delete(n.Children[0].Props, "becomes") }, ts, "becomes"},
+		"not an option":        {"blocked", func(n *domain.PageNode) {}, ts, "not an option"},
+		"a confirm":            {"done", func(n *domain.PageNode) { n.Children[0].Props["confirm"] = "Sure?" }, ts, "confirm"},
+		"typed name":           {"done", func(n *domain.PageNode) { n.Children[0].Props["name"] = "fld_x" }, ts, "name"},
+		"typed value":          {"done", func(n *domain.PageNode) { n.Children[0].Props["value"] = "done" }, ts, "value"},
+		"typed method":         {"done", func(n *domain.PageNode) { n.Children[0].Props["method"] = "patch" }, ts, "method"},
+		"typed action":         {"done", func(n *domain.PageNode) { n.Children[0].Props["action"] = "/x" }, ts, "action"},
+		"no resolver answer":   {"done", func(n *domain.PageNode) {}, nil, "no transition"},
+		"no completion":        {domain.PageTransitionDone, func(n *domain.PageNode) {}, []RecordTransition{{Route: "/r", Field: "f", Allows: ts[0].Allows}, {Route: "/r", Field: "f", Allows: ts[0].Allows}}, "completion"},
+	}
+	for name, tc := range cases {
+		root, res := transitionInTemplate(tc.becomes, tc.ts)
+		tc.mutate(&root.Children[0])
+		if _, err := Lower(root, res); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want it to contain %q", name, err, tc.want)
+		}
+	}
+	outside := domain.PageNode{Kind: "component", Type: string(domain.ComponentButton),
+		Props:   map[string]string{"label": "Go", "variant": "secondary", "becomes": "done"},
+		Binding: &domain.PageBinding{Write: domain.PageWriteTransition}}
+	if _, err := Lower(formPage(outside), Resolver{}); err == nil || !strings.Contains(err.Error(), "item template") {
+		t.Errorf("a transition Button outside a records template: err = %v", err)
+	}
+}

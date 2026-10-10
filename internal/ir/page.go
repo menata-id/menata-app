@@ -38,14 +38,32 @@ type RecordResolver func(b domain.PageBinding) (RecordSet, error)
 // answer differs per record), and the controls starting as its current values. It is empty when the resolver has
 // nothing to say, which makes an update Form in the template an error and not a form posting nowhere.
 //
-// Deletes is the same for a `delete` Button: one per record, in order. Moves is the same for a `move` Button.
+// Deletes is the same for a `delete` Button: one per record, in order. Moves is the same for a `move` Button, and
+// Transitions for a `transition` Button.
 type RecordSet struct {
-	Records   []map[string]string
-	Edits     []FormSpec
-	Deletes   []RecordAction
-	Moves     []RecordMove
-	Truncated bool
-	Limit     int
+	Records     []map[string]string
+	Edits       []FormSpec
+	Deletes     []RecordAction
+	Moves       []RecordMove
+	Transitions []RecordTransition
+	Truncated   bool
+	Limit       int
+}
+
+// RecordTransition is the answer for a `transition` Button: the record's route, the status Field a transition moves
+// (the Machine's `status` Projection role), and which target values are worth offering this viewer for *this*
+// record. Allows answers for one target: known=false when it is no option of that Field, and otherwise whether
+// moving this record there is a change the state model and the `edit` Permission would let through -- so a target
+// equal to the current value is not allowed, and a Button for it is not drawn. It is a function over data the
+// resolver already holds (the way a RouteResolver is) so a load-time placeholder can answer for any target.
+// Done and Reopen are the Machine's `completion:` read for the two sentinels, "" when it declares none.
+// Courtesy, as the others: the patch route asks again.
+type RecordTransition struct {
+	Route  string
+	Field  string
+	Done   string
+	Reopen string
+	Allows func(target string) (allowed, known bool)
 }
 
 // RecordAction is the answer to a record-level write that asks nothing -- a delete: where the request goes and
@@ -72,6 +90,8 @@ type RecordWrites struct {
 	Edit   *FormSpec
 	Delete *RecordAction
 	Move   *RecordMove
+	// Transition is the status move this record's resolver offered.
+	Transition *RecordTransition
 }
 
 // RouteResolver answers a `to:`: the route and the label of the navigation item named navID, or ok=false when
@@ -170,6 +190,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteMove {
 		return lowerMoveButton(n, path, record, writes)
+	}
+	if n.Binding != nil && n.Binding.Write == domain.PageWriteTransition {
+		return lowerTransitionButton(n, path, record, writes)
 	}
 	if n.Binding != nil {
 		if n.Count != nil {
@@ -568,6 +591,9 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		if i < len(set.Moves) {
 			writes.Move = &set.Moves[i]
 		}
+		if i < len(set.Transitions) {
+			writes.Transition = &set.Transitions[i]
+		}
 		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec, writes)
 		if err != nil {
 			return nil, fmt.Errorf("record %d: %w", i, err)
@@ -769,6 +795,69 @@ func lowerMoveButton(n domain.PageNode, path string, record map[string]string, w
 	}
 	props[formActionProp] = domain.RecordMoveRoute(writes.Move.Route, dir)
 	props[formMethodProp] = domain.ButtonMethodPost
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+}
+
+// buttonBecomesProp is the one thing an author writes on a transition Button beyond its label: the status it moves
+// the record to. Lowering consumes it into the derived name/value pair, so it never reaches the renderer.
+const buttonBecomesProp = "becomes"
+
+// lowerTransitionButton turns a `Button` bound with `write: transition` into a Button that sends `PATCH` of the
+// record's status Field to the value `becomes:` names: an option of that Field, or `$done` / `$reopen`, which are
+// read from the Machine's `completion:` so a page never retypes which status means finished. It takes no dataset
+// and is valid only inside a records template. It asks nothing (`confirm:` is refused -- it is undone by the opposite
+// transition), and a record the move is not allowed on, or a viewer the resolver does not permit, gets no node.
+// The Field is the Machine's, never typed: `name:` and `value:` are refused as a typed route is.
+func lowerTransitionButton(n domain.PageNode, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	if record == nil {
+		return nil, fmt.Errorf("%s: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageWriteTransition, domain.PageRowsRecords)
+	}
+	if n.Binding.Dataset != "" {
+		return nil, fmt.Errorf("%s: write: %s takes no dataset -- it changes the status of the record of the Collection it sits in, and %q would be a join the page has no grammar for", path, domain.PageWriteTransition, n.Binding.Dataset)
+	}
+	becomes := n.Props[buttonBecomesProp]
+	if becomes == "" {
+		return nil, fmt.Errorf("%s: a transition Button names the status it moves to in %s: -- a status option, %s or %s", path, buttonBecomesProp, domain.PageTransitionDone, domain.PageTransitionReopen)
+	}
+	for _, p := range []string{"name", "value", "confirm"} {
+		if _, typed := n.Props[p]; typed {
+			return nil, fmt.Errorf("%s: a transition Button sends a request and asks nothing, and its Field and value come from the Machine and %s:, so it takes no %s", path, buttonBecomesProp, p)
+		}
+	}
+	if writes == nil || writes.Transition == nil || writes.Transition.Allows == nil {
+		return nil, fmt.Errorf("%s: the Collection's resolver supplied no transition for this record", path)
+	}
+	t := writes.Transition
+	target := becomes
+	switch becomes {
+	case domain.PageTransitionDone:
+		target = t.Done
+	case domain.PageTransitionReopen:
+		target = t.Reopen
+	}
+	if target == "" {
+		return nil, fmt.Errorf("%s: becomes: %s needs the Machine to declare a `completion:`, and this one declares none", path, becomes)
+	}
+	allowed, known := t.Allows(target)
+	if !known {
+		return nil, fmt.Errorf("%s: becomes: %q is not an option of the Machine's status Field", path, target)
+	}
+	if !allowed {
+		return nil, nil
+	}
+	props := make(map[string]string, len(n.Props)+3)
+	for k, v := range n.Props {
+		if k != buttonBecomesProp {
+			props[k] = v
+		}
+	}
+	props[formActionProp] = t.Route
+	props[formMethodProp] = domain.ButtonMethodPatch
+	props["name"] = t.Field
+	props["value"] = target
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
 }
 

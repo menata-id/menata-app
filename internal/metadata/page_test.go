@@ -594,3 +594,53 @@ func TestRecordsBindingRefusesAMoveOverAFilteredOrSortedDataset(t *testing.T) {
 		t.Errorf("a sorted Dataset under a move was accepted: %q", got)
 	}
 }
+
+func TestTransitionBindingIssues(t *testing.T) {
+	task := &domain.Machine{
+		ID: "mch_x",
+		Fields: []domain.Field{
+			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"todo", "done"}, Default: "todo"},
+		},
+		CardFields: []domain.CardField{{Field: "fld_status", Role: domain.CardFieldRoleStatus}},
+		Completion: &domain.Completion{Field: "fld_status", Done: "done"},
+	}
+	node := func(dataset, becomes string) domain.PageNode {
+		return domain.PageNode{Kind: "component", Type: "Button",
+			Props:   map[string]string{"becomes": becomes},
+			Binding: &domain.PageBinding{Dataset: dataset, Write: domain.PageWriteTransition}}
+	}
+	issues := func(n domain.PageNode, item *domain.Machine) string {
+		return strings.Join(bindingIssues(n, nil, nil, item, "w"), "\n")
+	}
+	for _, becomes := range []string{domain.PageTransitionDone, domain.PageTransitionReopen, "todo"} {
+		if got := issues(node("", becomes), task); got != "" {
+			t.Errorf("becomes %q was refused: %s", becomes, got)
+		}
+	}
+	if got := issues(node("", "done"), nil); !strings.Contains(got, "acts on a record") {
+		t.Errorf("outside a records Collection: %q", got)
+	}
+	if got := issues(node("ds_other", "done"), task); !strings.Contains(got, "takes no dataset") {
+		t.Errorf("naming a dataset: %q", got)
+	}
+	if got := issues(node("", "blocked"), task); !strings.Contains(got, "not an option") {
+		t.Errorf("a target that is no option: %q", got)
+	}
+	logOnly := *task
+	logOnly.AppendOnly = true
+	if got := issues(node("", "done"), &logOnly); !strings.Contains(got, "append-only") {
+		t.Errorf("an append-only Machine: %q", got)
+	}
+	noCompletion := *task
+	noCompletion.Completion = nil
+	for _, becomes := range []string{domain.PageTransitionDone, domain.PageTransitionReopen} {
+		if got := issues(node("", becomes), &noCompletion); !strings.Contains(got, "completion") {
+			t.Errorf("%s over a Machine with no completion: %q", becomes, got)
+		}
+	}
+	noStatus := *task
+	noStatus.CardFields = nil
+	if got := issues(node("", "done"), &noStatus); !strings.Contains(got, "card_fields") {
+		t.Errorf("a Machine with no status role: %q", got)
+	}
+}

@@ -94,6 +94,54 @@ navigation:
               label: Due in 7 days
               hint: Today included
               binding: { dataset: ds_task_figures, measure: msr_due_week, rows: total }
+  # Status moves as a declared page (K13, 2026-10-10): each Task assigned to you with a Mark done and a Reopen
+  # Button, both `write: transition`. A Button names the status it moves to (`becomes:`; `$done` / `$reopen` read
+  # the Machine's `completion:`), never a Field or a route, and is drawn only on a Task for which that move is
+  # allowed -- so "Mark done" is gone from a finished Task and "Reopen" from one still at its starting status.
+  # An experimental consumer, not My Tasks: that screen's migration (K15) supersedes it.
+  - id: nav_task_moves
+    label: Task moves
+    route: /pages/nav_task_moves
+    priority: 9
+    icon: check-square
+    description: Your tasks, each with a button that moves its status. A finished task offers Reopen, an unfinished one offers Mark done.
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Collection
+          gap: tight
+          divided: true
+          empty: Nothing is assigned to you.
+          binding:
+            dataset: ds_my_tasks
+            rows: records
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - static: link
+                  from:
+                    text: title
+                    href: record
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - component: Button
+                      label: Mark done
+                      variant: secondary
+                      becomes: $done
+                      binding:
+                        write: transition
+                    - component: Button
+                      label: Reopen
+                      variant: secondary
+                      becomes: $reopen
+                      binding:
+                        write: transition
   - id: nav_calendar
     label: Calendar
     route: /calendar

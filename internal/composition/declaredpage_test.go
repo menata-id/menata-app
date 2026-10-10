@@ -459,3 +459,60 @@ func TestDeclaredPage_aTotalResolvesTodayFromTheInjectedClock(t *testing.T) {
 		t.Errorf("a week earlier the past-due count = %s, want 0", got)
 	}
 }
+
+// A `transition` Button is offered per record: only toward an option of the status Field, never toward the value the
+// record already holds, never where the Machine's declared edges refuse the move, only to a viewer who may edit
+// *that* record, and never for an append-only Machine. The Field is the Machine's `status` role and `$done` is its
+// `completion:`, so the page names neither.
+func TestRecordTransitionIsPerRecordAndFollowsTheStateModel(t *testing.T) {
+	m := &domain.Machine{
+		ID: "mch_note",
+		Fields: []domain.Field{
+			{ID: "fld_title", Type: domain.FieldTypeText},
+			{ID: "fld_owner", Type: domain.FieldTypePerson},
+			{ID: "fld_status", Type: domain.FieldTypeStatus, Options: []string{"todo", "doing", "done"}, Default: "todo"},
+		},
+		CardFields:  []domain.CardField{{Field: "fld_status", Role: domain.CardFieldRoleStatus}},
+		Completion:  &domain.Completion{Field: "fld_status", Done: "done"},
+		Permissions: []domain.Permission{{ID: "perm_edit", Action: domain.ActionEdit, ActorField: "fld_owner"}},
+		Transitions: []domain.Transition{
+			{ID: "t1", Field: "fld_status", From: "todo", To: "doing", Action: domain.ActionEdit},
+			{ID: "t2", Field: "fld_status", From: "doing", To: "done", Action: domain.ActionEdit},
+		},
+	}
+	todo := &data.Record{ID: "rec_a", Values: map[string]any{"fld_owner": "usr_me", "fld_status": "todo"}}
+	doing := &data.Record{ID: "rec_b", Values: map[string]any{"fld_owner": "usr_me", "fld_status": "doing"}}
+	theirs := &data.Record{ID: "rec_c", Values: map[string]any{"fld_owner": "usr_other", "fld_status": "todo"}}
+	viewer := domain.Actor{ID: "usr_me"}
+
+	a := recordTransition(m, todo, viewer)
+	if a.Route != "/machines/mch_note/records/rec_a" || a.Field != "fld_status" || a.Done != "done" || a.Reopen != "todo" {
+		t.Errorf("answer = %+v", a)
+	}
+	check := func(label string, tr interface{ Allows(string) (bool, bool) }, target string, wantAllowed, wantKnown bool) {
+	}
+	_ = check
+	cases := []struct {
+		name           string
+		rec            *data.Record
+		target         string
+		allowed, known bool
+	}{
+		{"declared edge", todo, "doing", true, true},
+		{"the value it already holds", todo, "todo", false, true},
+		{"an edge the state model does not declare", todo, "done", false, true},
+		{"the next edge", doing, "done", true, true},
+		{"not an option", todo, "blocked", false, false},
+		{"another's record", theirs, "doing", false, true},
+	}
+	for _, tc := range cases {
+		got, known := recordTransition(m, tc.rec, viewer).Allows(tc.target)
+		if got != tc.allowed || known != tc.known {
+			t.Errorf("%s: Allows(%q) = %v, %v; want %v, %v", tc.name, tc.target, got, known, tc.allowed, tc.known)
+		}
+	}
+	m.AppendOnly = true
+	if got, _ := recordTransition(m, doing, viewer).Allows("done"); got {
+		t.Error("an append-only Machine was offered a transition")
+	}
+}

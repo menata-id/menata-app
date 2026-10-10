@@ -205,8 +205,8 @@ var buttonContract = domain.ComponentContract{
 	},
 	DataRequirements: nil,
 	Slots:            nil,
-	Actions:          []string{"submit", "delete", "move"},
-	Accessibility:    "the label is the accessible name, so it is required and never an icon alone; the element is a real <button>, focusable and activated by Enter and Space without a role or a script; a delete states its consequence in `confirm`, which the browser asks before anything is sent; a move's label names the direction in words, since an arrow alone is not a name",
+	Actions:          []string{"submit", "delete", "move", "transition"},
+	Accessibility:    "the label is the accessible name, so it is required and never an icon alone; the element is a real <button>, focusable and activated by Enter and Space without a role or a script; a delete states its consequence in `confirm`, which the browser asks before anything is sent; a move's label names the direction in words, since an arrow alone is not a name; a transition's label names the status it moves to",
 	Renderer:         "requestButton",
 }
 
@@ -224,10 +224,11 @@ func validateButton(inputs map[string]string) []string {
 }
 
 // buttonRequestIssues holds the rules of the one Button that sends a request instead of submitting a form.
-// `action` and `method` are derived by lowering and arrive together; the verbs are delete and post (a move), the
-// two writes that ask a person nothing (an edit is a Form). `confirm` is required with a delete, and meaningless
-// without one: it is the sentence a person reads before a record is gone. A move is undone by the opposite
-// button, so it asks nothing.
+// `action` and `method` are derived by lowering and arrive together; the verbs are delete, post (a move) and patch (a
+// status transition), the writes that ask a person nothing (an edit is a Form). `confirm` is required with a delete,
+// and meaningless without one: it is the sentence a person reads before a record is gone. A move and a transition
+// are undone by their opposite button, so they ask nothing. A patch carries the Field it sets as the Button's own
+// name/value pair, and is the one request Button that does.
 func buttonRequestIssues(inputs map[string]string) []string {
 	action, method, confirm := inputs["action"], inputs["method"], inputs["confirm"]
 	var issues []string
@@ -249,11 +250,18 @@ func buttonRequestIssues(inputs map[string]string) []string {
 		if confirm != "" {
 			issues = append(issues, "a Button that sends a move asks nothing, so it takes no `confirm`")
 		}
+	case domain.ButtonMethodPatch:
+		if confirm != "" {
+			issues = append(issues, "a Button that sends a status transition asks nothing, so it takes no `confirm`")
+		}
+		if inputs["name"] == "" {
+			issues = append(issues, "a Button that sends a status transition carries the Field it sets and the value as its name/value pair")
+		}
 	default:
-		issues = append(issues, fmt.Sprintf("Button method %q is not one the runtime derives (%q or %q)", method, domain.ButtonMethodDelete, domain.ButtonMethodPost))
+		issues = append(issues, fmt.Sprintf("Button method %q is not one the runtime derives (%q, %q or %q)", method, domain.ButtonMethodDelete, domain.ButtonMethodPost, domain.ButtonMethodPatch))
 	}
-	if inputs["name"] != "" {
-		issues = append(issues, "a Button that sends a request posts no name/value pair")
+	if inputs["name"] != "" && method != domain.ButtonMethodPatch {
+		issues = append(issues, "a Button that sends a delete or a move posts no name/value pair")
 	}
 	if !strings.HasPrefix(action, "/machines/") {
 		issues = append(issues, fmt.Sprintf("Button action %q is not a route the runtime derives (/machines/<id>/records/<id>[/move])", action))

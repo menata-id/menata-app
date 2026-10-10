@@ -188,6 +188,10 @@ func TestValidateButton(t *testing.T) {
 		"unknown verb":       {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "put", "confirm": "Sure?"},
 		"move that asks":     {"label": "x", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post", "confirm": "Sure?"},
 		"foreign route":      {"label": "x", "variant": "secondary", "action": "/elsewhere", "method": "delete", "confirm": "Sure?"},
+		"patch that asks":    {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "f", "value": "v", "confirm": "Sure?"},
+		"patch no pair":      {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch"},
+		"patch name only":    {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "f"},
+		"post with a pair":   {"label": "x", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post", "name": "f", "value": "v"},
 		"request and name":   {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete", "confirm": "Sure?", "name": "a", "value": "b"},
 	} {
 		if issues := ValidateComponentUse(domain.ComponentButton, in); len(issues) == 0 {
@@ -197,6 +201,10 @@ func TestValidateButton(t *testing.T) {
 	move := map[string]string{"label": "Move up", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post"}
 	if issues := ValidateComponentUse(domain.ComponentButton, move); len(issues) != 0 {
 		t.Errorf("a lowered move Button is valid, got %v", issues)
+	}
+	transition := map[string]string{"label": "Mark done", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "fld_status", "value": "done"}
+	if issues := ValidateComponentUse(domain.ComponentButton, transition); len(issues) != 0 {
+		t.Errorf("a lowered transition Button is valid, got %v", issues)
 	}
 	del := map[string]string{"label": "Delete", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete", "confirm": "Delete this record?"}
 	if issues := ValidateComponentUse(domain.ComponentButton, del); len(issues) != 0 {

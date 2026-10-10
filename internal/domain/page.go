@@ -123,13 +123,26 @@ const (
 	PageWriteUpdate = "update"
 	PageWriteDelete = "delete"
 	PageWriteMove   = "move"
+	// PageWriteTransition is a `Button` that moves the record's status Field (the Machine's `status` Projection role)
+	// to the value `becomes:` names, through the same generic patch route as an edit, so the state model's declared
+	// edges (`CheckTransitions`) and the `edit` Permission are its guards. Drawn only on a record for which that
+	// move is allowed, which is also why a "Reopen" and a "Mark done" Button can sit side by side: one shows.
+	PageWriteTransition = "transition"
+)
+
+// The two words a transition Button's `becomes:` may use instead of a status option, both read from the Machine's own
+// `completion:` block so "finished" is declared once there and never retyped in a page: `$done` is the finished
+// value, `$reopen` is what finishing's opposite writes (`Machine.ReopenValue`).
+const (
+	PageTransitionDone   = "$done"
+	PageTransitionReopen = "$reopen"
 )
 
 // WritableComponents maps each registered Component a Binding may write through to the Write modes it takes, the
 // way BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
 var WritableComponents = map[ComponentType][]string{
 	ComponentForm:   {PageWriteCreate, PageWriteUpdate},
-	ComponentButton: {PageWriteDelete, PageWriteMove},
+	ComponentButton: {PageWriteDelete, PageWriteMove, PageWriteTransition},
 }
 
 // PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a

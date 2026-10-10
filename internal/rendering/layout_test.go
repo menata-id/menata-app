@@ -1221,3 +1221,27 @@ func TestMetric_hrefWrapsTheSameTileInOneAnchor(t *testing.T) {
 		t.Errorf("a linking Metric is not the plain tile inside one anchor; got %q", linked)
 	}
 }
+
+// TestRequestButton_patchSendsTheNamePairAsOneJSONObjectAndAsksNothing: a transition Button is a PATCH whose body is
+// the one Field it sets. The pair travels in `hx-vals` as JSON built by encoding/json (a value with a quote must
+// not break out of the attribute), the swap is `none` like the other request Buttons, and no `hx-confirm` is drawn.
+func TestRequestButton_patchSendsTheNamePairAsOneJSONObjectAndAsksNothing(t *testing.T) {
+	var buf bytes.Buffer
+	if err := requestButton("Mark done", domain.ButtonSecondary, "fld_status", `do"ne`, "/machines/m/records/r", domain.ButtonMethodPatch, "").Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	got := buf.String()
+	for _, want := range []string{`type="button"`, `hx-patch="/machines/m/records/r"`, `hx-swap="none"`, `hx-vals="{&#34;fld_status&#34;:&#34;do\&#34;ne&#34;}"`, ">Mark done</button>"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in %s", want, got)
+		}
+	}
+	for _, banned := range []string{"hx-confirm", "hx-delete", "hx-post", "hx-target"} {
+		if strings.Contains(got, banned) {
+			t.Errorf("a patch Button drew %q: %s", banned, got)
+		}
+	}
+	if requestVals("a", "b") != `{"a":"b"}` {
+		t.Errorf("requestVals = %q", requestVals("a", "b"))
+	}
+}

@@ -1027,3 +1027,79 @@ func TestProjectManagementSettingsHubListsItsDeclaredMemberAndNoAccess(t *testin
 		t.Error("a Project Management screen does not link to the Application's Settings hub")
 	}
 }
+
+// TestDeclaredPageTransitionButtonsMoveTheStatusAndAreDrawnOnlyWhereTheMoveIsAnChange: `write: transition` inside a
+// records template. Two of the viewer's Tasks, one open and one finished, must each carry only the Button that is a
+// change for *them* ("Mark done" on the open one, "Reopen" on the finished one); the Button must send a PATCH of the
+// Machine's own status Field to the value its `completion:` names, which the generic route accepts and answers with
+// `HX-Refresh`; and after it the same Task is offered the opposite. Another person's Task is not listed at all.
+func TestDeclaredPageTransitionButtonsMoveTheStatusAndAreDrawnOnlyWhereTheMoveIsAnChange(t *testing.T) {
+	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declaredtransition", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil || task.Completion == nil {
+		t.Fatal("default installs no mch_task with a completion: block")
+	}
+	mk := func(title, status string) *data.Record {
+		rec, err := store.CreateRecord(ctx, task.ID, map[string]any{"fld_title": title, "fld_status": status, "fld_assignee": actorID})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+		return rec
+	}
+	open, finished := mk("Move-probe-open", task.ReopenValue()), mk("Move-probe-finished", task.Completion.Done)
+
+	// button finds the Button of one record's route that sets the status to value, "" when there is none.
+	button := func(body string, rec *data.Record, value string) string {
+		route := "/machines/" + task.ID + "/records/" + rec.ID
+		re := regexp.MustCompile(`<button[^>]*hx-patch="` + regexp.QuoteMeta(route) + `"[^>]*>[^<]*</button>`)
+		for _, b := range re.FindAllString(body, -1) {
+			if strings.Contains(b, `&#34;`+task.CardFieldFor(domain.CardFieldRoleStatus)+`&#34;:&#34;`+value+`&#34;`) {
+				return b
+			}
+		}
+		return ""
+	}
+	const page = "/pages/nav_task_moves"
+	body := getPage(t, h, cookie, page)
+	markDone := button(body, open, task.Completion.Done)
+	if markDone == "" || !strings.Contains(markDone, "Mark done") || !strings.Contains(markDone, `hx-swap="none"`) || !strings.Contains(markDone, `type="button"`) || strings.Contains(markDone, "hx-confirm") {
+		t.Fatalf("the open Task is offered no plain Mark done request:\n%s", body)
+	}
+	if button(body, open, task.ReopenValue()) != "" {
+		t.Error("an open Task is offered Reopen, which would write the value it already holds")
+	}
+	if button(body, finished, task.Completion.Done) != "" {
+		t.Error("a finished Task is offered Mark done")
+	}
+	if button(body, finished, task.ReopenValue()) == "" {
+		t.Error("a finished Task is offered no Reopen")
+	}
+
+	patch := func(rec *data.Record, vals url.Values) *httptest.ResponseRecorder {
+		tok := csrfTokenFor(t, h, "/login")
+		req := httptest.NewRequest(http.MethodPatch, "/machines/"+task.ID+"/records/"+rec.ID, strings.NewReader(vals.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.Header.Set("HX-Current-URL", "http://x"+page)
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec2 := httptest.NewRecorder()
+		h.ServeHTTP(rec2, req)
+		return rec2
+	}
+	statusField := task.CardFieldFor(domain.CardFieldRoleStatus)
+	if got := patch(open, url.Values{statusField: {task.Completion.Done}}); got.Code != http.StatusOK || got.Header().Get("HX-Refresh") != "true" {
+		t.Fatalf("the Button's request answered %d with HX-Refresh=%q", got.Code, got.Header().Get("HX-Refresh"))
+	}
+	body = getPage(t, h, cookie, page)
+	if button(body, open, task.Completion.Done) != "" || button(body, open, task.ReopenValue()) == "" {
+		t.Error("after finishing a Task the page still offers Mark done, or no Reopen")
+	}
+}

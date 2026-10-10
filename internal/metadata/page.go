@@ -5,6 +5,7 @@ import (
 	"menata.app/internal/expression"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 
 	"gopkg.in/yaml.v3"
@@ -259,7 +260,13 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			// `deleteBindingIssues`' question.
 			del := ir.RecordAction{Route: domain.FormRoute("machine") + "/x", Permitted: true}
 			mv := ir.RecordMove{Route: domain.FormRoute("machine") + "/x", Up: true, Down: true}
-			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}, Moves: []ir.RecordMove{mv}}, nil
+			// A transition that is allowed to anywhere, with the two sentinels answering: whether the real
+			// Machine has a status Field, that option, and a `completion:` is `transitionBindingIssues`' question.
+			tr := ir.RecordTransition{
+				Route: domain.FormRoute("machine") + "/x", Field: "x", Done: "x", Reopen: "x",
+				Allows: func(string) (bool, bool) { return true, true },
+			}
+			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}, Moves: []ir.RecordMove{mv}, Transitions: []ir.RecordTransition{tr}}, nil
 		},
 	}
 }
@@ -342,6 +349,8 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		issues = append(issues, deleteBindingIssues(*b, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteMove {
 		issues = append(issues, moveBindingIssues(*b, item, where)...)
+	} else if b != nil && b.Write == domain.PageWriteTransition {
+		issues = append(issues, transitionBindingIssues(n, item, where)...)
 	} else if b != nil {
 		ds, ok := datasets[b.Dataset]
 		switch {
@@ -483,6 +492,45 @@ func moveBindingIssues(b domain.PageBinding, item *domain.Machine, where string)
 		return []string{fmt.Sprintf("%s: page: write: %s takes no dataset -- it moves the record of the Collection it sits in, and %q would be a second one (a join)", where, domain.PageWriteMove, b.Dataset)}
 	case item.AppendOnly:
 		return []string{fmt.Sprintf("%s: page: write: %s: machine %q is append-only, so no record of it can be moved", where, domain.PageWriteMove, item.ID)}
+	}
+	return nil
+}
+
+// transitionBindingIssues is what a `write: transition` Button asks, beyond what `move` does: that the Machine has a
+// status Field to move (its `status` Projection role, a Field with options), that `becomes:` is one of those options or
+// a sentinel the Machine's `completion:` can answer, and that a transition to it is not forbidden outright -- an edge
+// declared to some other Action is refused by the patch route for every viewer, so the Button would never be drawn.
+// Whether it is drawn *this* time, for this record and viewer, is the resolver's question and is asked per request.
+func transitionBindingIssues(n domain.PageNode, item *domain.Machine, where string) []string {
+	b := *n.Binding
+	switch {
+	case item == nil:
+		return []string{fmt.Sprintf("%s: page: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", where, domain.PageWriteTransition, domain.PageRowsRecords)}
+	case b.Dataset != "":
+		return []string{fmt.Sprintf("%s: page: write: %s takes no dataset -- it changes the status of the record of the Collection it sits in, and %q would be a second one (a join)", where, domain.PageWriteTransition, b.Dataset)}
+	case item.AppendOnly:
+		return []string{fmt.Sprintf("%s: page: write: %s: machine %q is append-only, so no record of it can be changed", where, domain.PageWriteTransition, item.ID)}
+	}
+	fieldID := item.CardFieldFor(domain.CardFieldRoleStatus)
+	field, ok := item.FieldByID(fieldID)
+	if fieldID == "" || !ok || len(field.Options) == 0 {
+		return []string{fmt.Sprintf("%s: page: write: %s needs machine %q to declare a `card_fields` entry with role %s over a Field that has options", where, domain.PageWriteTransition, item.ID, domain.CardFieldRoleStatus)}
+	}
+	becomes, target := n.Props["becomes"], n.Props["becomes"]
+	switch becomes {
+	case domain.PageTransitionDone:
+		if item.Completion == nil {
+			return []string{fmt.Sprintf("%s: page: becomes: %s needs machine %q to declare a `completion:`", where, becomes, item.ID)}
+		}
+		target = item.Completion.Done
+	case domain.PageTransitionReopen:
+		if item.Completion == nil {
+			return []string{fmt.Sprintf("%s: page: becomes: %s needs machine %q to declare a `completion:`", where, becomes, item.ID)}
+		}
+		target = item.ReopenValue()
+	}
+	if !slices.Contains(field.Options, target) {
+		return []string{fmt.Sprintf("%s: page: becomes: %q is not an option of %s on machine %q (options: %s)", where, target, fieldID, item.ID, strings.Join(field.Options, ", "))}
 	}
 	return nil
 }

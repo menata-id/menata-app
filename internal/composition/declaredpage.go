@@ -3,6 +3,7 @@ package composition
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
+	"menata.app/internal/behavior"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
@@ -129,18 +131,20 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	edits := make([]ir.FormSpec, 0, len(records))
 	deletes := make([]ir.RecordAction, 0, len(records))
 	moves := make([]ir.RecordMove, 0, len(records))
+	transitions := make([]ir.RecordTransition, 0, len(records))
 	for i, r := range records {
 		item := ProjectedByRole(src, r, people)
 		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
 		edits = append(edits, recordEditForm(src, r, viewer))
 		deletes = append(deletes, recordDeleteAction(src, r, viewer))
 		moves = append(moves, recordMove(src, r, viewer, i > 0, i < len(records)-1 || sel.Truncated))
+		transitions = append(transitions, recordTransition(src, r, viewer))
 		for _, rel := range ds.Relations {
 			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(sel.Related(rel.ID, r.ID)))
 		}
 		out = append(out, item)
 	}
-	return ir.RecordSet{Records: out, Edits: edits, Deletes: deletes, Moves: moves, Truncated: sel.Truncated, Limit: sel.Limit}, nil
+	return ir.RecordSet{Records: out, Edits: edits, Deletes: deletes, Moves: moves, Transitions: transitions, Truncated: sel.Truncated, Limit: sel.Limit}, nil
 }
 
 // recordPeople is the display name of every person the listed records name in a `person` Field, as the
@@ -217,6 +221,37 @@ func recordDeleteAction(src *domain.Machine, r *data.Record, viewer domain.Actor
 func recordMove(src *domain.Machine, r *data.Record, viewer domain.Actor, hasPrev, hasNext bool) ir.RecordMove {
 	permitted := !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer)
 	return ir.RecordMove{Route: RecordRoute(src.ID, r.ID), Up: permitted && hasPrev, Down: permitted && hasNext}
+}
+
+// recordTransition is what a `transition` Button inside a records template needs of one record: the route that
+// patches it, the Field it sets (the Machine's `status` Projection role, so a page names no Field), the two values
+// `$done` and `$reopen` stand for (the Machine's `completion:`), and, for any target, whether moving *this* record
+// there is a change worth offering. A target equal to the current value is not; one the state model's declared edges
+// refuse (`behavior.CheckTransitions` as the `edit` route calls it) is not; and neither is one this viewer's `edit`
+// Permission, read against this record's own values, would refuse, nor any on an append-only Machine. A courtesy, as
+// the others: the patch route runs every one of these checks again.
+func recordTransition(src *domain.Machine, r *data.Record, viewer domain.Actor) ir.RecordTransition {
+	field := src.CardFieldFor(domain.CardFieldRoleStatus)
+	t := ir.RecordTransition{Route: RecordRoute(src.ID, r.ID), Field: field, Reopen: src.ReopenValue()}
+	if src.Completion != nil {
+		t.Done = src.Completion.Done
+	}
+	f, ok := src.FieldByID(field)
+	if !ok {
+		return t
+	}
+	editable := !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer)
+	current := DisplayString(r.Values[field])
+	t.Allows = func(target string) (bool, bool) {
+		if !slices.Contains(f.Options, target) {
+			return false, false
+		}
+		if !editable || target == current {
+			return false, true
+		}
+		return behavior.CheckTransitions(src, domain.ActionEdit, r.Values, map[string]any{field: target}) == nil, true
+	}
+	return t
 }
 
 // RecordRoute is the runtime's generic route to one record (`GET /machines/{machineID}/records/{id}`, which

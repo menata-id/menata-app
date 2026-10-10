@@ -1338,6 +1338,30 @@ Down on the last** -- a button that cannot do anything is not drawn (when `limit
 shown record keeps Down). A successful move refreshes the page; whatever else reads the Machine's order (a board's
 columns) follows.
 
+**A button that moves the record's status (K13, 2026-10-10).** A `Button` with `binding: {write: transition}` and
+`becomes: <target>` sends `PATCH /machines/<id>/records/<rid>` for *that item's* record, writing the Machine's
+**status Field** (its `card_fields` entry with role `status`) with `<target>`. `becomes` is an option of that Field,
+or `$done` / `$reopen`, which read the Machine's own `completion:` (the finished value, and the Field's default or
+first option), so the page names neither a Field nor a literal status. The route is the generic edit route, so its
+Permission, `transitions:` edges and events are the only rule; a successful move refreshes the page. It asks nothing,
+so `confirm` is refused.
+
+```yaml
+        - component: Button
+          label: Mark done
+          variant: secondary
+          becomes: $done
+          binding: {write: transition}   # no dataset, like update, delete and move
+```
+
+Refused at load: `transition` outside a records Collection's item template, with a `dataset:`, over an append-only
+Machine, over a Machine with no `status` role over a Field that has options, a `becomes` that is not an option, a
+`$done`/`$reopen` over a Machine with no `completion:`, and a typed `action`, `method`, `name`, `value` or `confirm`.
+**Who sees it** is per record: a button is drawn only where the move is a change the viewer may make -- not toward
+the value the record already holds, not where the Machine's declared edges refuse it, not where the viewer's `edit`
+Permission does not reach that record. (Showing "Reopen" only on finished tasks falls out of that for a Machine with
+edges; a Machine with none offers it on every other status until a page can say when a node is visible, 007 §15.2.)
+
 **A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
 may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,
 with the author's own words around it.

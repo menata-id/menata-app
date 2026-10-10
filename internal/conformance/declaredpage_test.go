@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -581,7 +582,9 @@ func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
 }
 
 // TestEveryInstalledButtonIsADeclaredRecordWrite holds T3b's and T5's rule against the real manifests: an
-// installed `Button` on a page is a record write -- `binding: {write: delete}` or `{write: move}` -- inside a
+// installed `Button` on a page is a record write -- `binding: {write: delete}`, `{write: move}` or (K13, 2026-10-10)
+// `{write: transition}`, which names `becomes:` -- an option of the Machine's status Field or `$done`/`$reopen` read from
+// its `completion:` -- and asks nothing -- inside a
 // records Collection, of a Machine that is not append-only, and nothing else that names a request: no `action`,
 // `method`, `href`, `name` or `value`. A delete carries the sentence it asks first (`confirm`); a move carries
 // `direction: up|down`, asks nothing, and sits only over a Dataset that lists the Machine's own order (no `where:`,
@@ -599,7 +602,7 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 		machine *domain.Machine
 		dataset domain.Dataset
 	}
-	deletes, moves := 0, 0
+	deletes, moves, transitions := 0, 0, 0
 	for _, slug := range sortedKeys(wss) {
 		ws := wss[slug].Workspace
 		sourceOf := map[string]source{}
@@ -622,8 +625,8 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 						write = n.Binding.Write
 					}
 					switch {
-					case write != domain.PageWriteDelete && write != domain.PageWriteMove:
-						t.Errorf("%s: a Button on a page is bound with write: %s or %s", where, domain.PageWriteDelete, domain.PageWriteMove)
+					case write != domain.PageWriteDelete && write != domain.PageWriteMove && write != domain.PageWriteTransition:
+						t.Errorf("%s: a Button on a page is bound with write: %s, %s or %s", where, domain.PageWriteDelete, domain.PageWriteMove, domain.PageWriteTransition)
 					case item == nil:
 						t.Errorf("%s: write: %s outside the item template of a records Collection", where, write)
 					case n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "":
@@ -634,6 +637,33 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 						deletes++
 						if strings.TrimSpace(n.Props["confirm"]) == "" {
 							t.Errorf("%s: a delete states its consequence in confirm", where)
+						}
+					case write == domain.PageWriteTransition:
+						transitions++
+						if _, asks := n.Props["confirm"]; asks {
+							t.Errorf("%s: a transition is undone by its opposite and asks nothing", where)
+						}
+						// Re-derived from the Machine, not from metadata's own check: a `becomes:` the Machine cannot
+						// reach is a Button that is never drawn, which reads exactly like a page with nothing to do.
+						m := item.machine
+						field, ok := m.FieldByID(m.CardFieldFor(domain.CardFieldRoleStatus))
+						target := n.Props["becomes"]
+						switch target {
+						case domain.PageTransitionDone:
+							if m.Completion == nil {
+								t.Errorf("%s: becomes: %s on machine %s, which declares no completion:", where, target, m.ID)
+							} else {
+								target = m.Completion.Done
+							}
+						case domain.PageTransitionReopen:
+							if m.Completion == nil {
+								t.Errorf("%s: becomes: %s on machine %s, which declares no completion:", where, target, m.ID)
+							} else {
+								target = m.ReopenValue()
+							}
+						}
+						if !ok || !slices.Contains(field.Options, target) {
+							t.Errorf("%s: becomes: %q is no option of machine %s's status Field", where, n.Props["becomes"], m.ID)
 						}
 					default:
 						moves++
@@ -647,8 +677,8 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 							t.Errorf("%s: a move sits over dataset %s, which declares a where: or sort:, so its list is not the Machine's order", where, item.dataset.ID)
 						}
 					}
-				} else if n.Binding != nil && (n.Binding.Write == domain.PageWriteDelete || n.Binding.Write == domain.PageWriteMove) {
-					t.Errorf("%s: write: %s is bound to a %s; only a Button deletes or moves", where, n.Binding.Write, n.Type)
+				} else if n.Binding != nil && (n.Binding.Write == domain.PageWriteDelete || n.Binding.Write == domain.PageWriteMove || n.Binding.Write == domain.PageWriteTransition) {
+					t.Errorf("%s: write: %s is bound to a %s; only a Button deletes, moves or transitions", where, n.Binding.Write, n.Type)
 				}
 				childItem := item
 				if n.Binding != nil && n.Binding.Rows == domain.PageRowsRecords {
@@ -674,6 +704,9 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 	}
 	if moves == 0 {
 		t.Fatal("no installed page declares a move Button -- the move half of this gate is measuring nothing")
+	}
+	if transitions == 0 {
+		t.Fatal("no installed page declares a transition Button -- the transition half of this gate is measuring nothing")
 	}
 }
 
