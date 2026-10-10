@@ -337,6 +337,7 @@ card_fields:
   - { field: fld_document_type, role: status }
   - { field: fld_status, role: status }
   - { field: fld_due_date, role: date }
+  - { field: fld_submitted_by, role: person }
 
 views:
   - id: vw_document_table

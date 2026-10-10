@@ -277,6 +277,11 @@ navigation:
                   tone: info
                   from:
                     label: status
+                # `person` is the Field the Machine projects as who a record belongs to; a page resolves it to the
+                # member's display name (and to nothing for someone who is no longer a member).
+                - static: caption
+                  from:
+                    text: person
         # list_of: is the other way to name a destination, for a Machine no navigation item points at: the
         # runtime's own list page of the Machine this Dataset reads. A Dataset id, never a route, and it has
         # no menu label to default to, so the words are written.
@@ -319,3 +324,8 @@ navigation:
                   tone: info
                   from:
                     label: status
+                # `person` is the Field the Machine projects as who a record belongs to; a page resolves it to the
+                # member's display name (and to nothing for someone who is no longer a member).
+                - static: caption
+                  from:
+                    text: person

@@ -125,6 +125,42 @@ func TestDeclaredPageListsRecordsFromTheMachinesProjection(t *testing.T) {
 	}
 }
 
+// TestDeclaredPageNamesThePersonARecordBelongsTo: a records template takes `text` from the `person` role, and
+// the Field behind it is a reference to a member. The page draws the member's display name, never the stored id,
+// and a person who is no longer a member is drawn as nothing rather than as their user id.
+func TestDeclaredPageNamesThePersonARecordBelongsTo(t *testing.T) {
+	h, cookie, ctx, store, files, ws, actorID := routerSetupFor(t, "declaredperson", "nana-2-workspace")
+	seedRecordForEveryMachine(t, ctx, store, files, ws, actorID)
+
+	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	if doc == nil {
+		t.Fatal("nana-2-workspace casts no document role")
+	}
+	titleField, personField := doc.CardFieldFor(domain.CardFieldRoleTitle), doc.CardFieldFor(domain.CardFieldRolePerson)
+	if titleField == "" || personField == "" {
+		t.Fatalf("the Document Machine projects no title/person role (title=%q person=%q)", titleField, personField)
+	}
+	const goneID = "usr_no_longer_a_member"
+	for title, who := range map[string]string{"Personprobe by a member": actorID, "Personprobe by a stranger": goneID} {
+		rec, err := store.CreateRecord(ctx, doc.ID, map[string]any{titleField: title, personField: who})
+		if err != nil {
+			t.Fatalf("CreateRecord: %v", err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, doc.ID, rec.ID) })
+	}
+
+	body := getPage(t, h, cookie, "/pages/nav_documents_by_status")
+	if !strings.Contains(body, "declaredperson@example.com") {
+		t.Error("the member's display name is not on the page")
+	}
+	if strings.Contains(body, actorID) && strings.Contains(strings.ReplaceAll(body, "/records/", ""), ">"+actorID+"<") {
+		t.Error("the member's user id is printed where their name belongs")
+	}
+	if strings.Contains(body, goneID) {
+		t.Error("a user id that names no member was printed")
+	}
+}
+
 // TestDeclaredPageLinkComesFromNavigationNotFromTheYAML: the page writes `to: nav_approval_inbox` and nothing
 // else, so the href and the words must be what the Application's own navigation declares. Expected values are
 // read out of the loaded navigation rather than typed, which is the property under test.

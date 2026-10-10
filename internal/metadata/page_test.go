@@ -17,7 +17,19 @@ import (
 // it and a records Dataset, which is every shape a Binding can be wrong about.
 func pageFixture(t *testing.T, nav string) error {
 	t.Helper()
+	return pageFixtureWith(t, nav, "relation\n    machine: mch_doc")
+}
+
+// pageFixtureWith is pageFixture with the Field in the `person` role declared as `parentType` (a `type:` value,
+// possibly followed by more lines), so a test can say which kind of reference that role is.
+func pageFixtureWith(t *testing.T, nav, parentType string) error {
+	t.Helper()
 	dir := t.TempDir()
+	machineFiles, appMachines := "  - doc.yaml\n", "  - mch_doc\n"
+	if parentType == "person" {
+		writeFile(t, dir, "user.yaml", "id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n")
+		machineFiles, appMachines = "  - user.yaml\n"+machineFiles, "  - mch_user\n"+appMachines
+	}
 	writeFile(t, dir, "doc.yaml", `
 id: mch_doc
 name: Doc
@@ -33,6 +45,9 @@ fields:
     name: Parent
     type: relation
     machine: mch_doc
+  - id: fld_owner
+    name: Owner
+    type: `+parentType+`
   - id: fld_color
     name: Color
     type: status
@@ -41,7 +56,7 @@ card_fields:
   - { field: fld_title, role: title }
   - { field: fld_status, role: status }
   - { field: fld_color, role: color }
-  - { field: fld_parent, role: person }
+  - { field: fld_owner, role: person }
 datasets:
   - id: ds_by_status
     dimension: fld_status
@@ -70,20 +85,8 @@ datasets:
       op: equals
       value: $parameters.title
 `)
-	writeFile(t, dir, "app.yaml", `
-workspace: default
-machines:
-  - doc.yaml
-applications:
-  - app-main.yaml
-`)
-	writeFile(t, dir, "app-main.yaml", `
-id: app_docs
-name: Docs
-machines:
-  - mch_doc
-navigation:
-`+nav)
+	writeFile(t, dir, "app.yaml", "\nworkspace: default\nmachines:\n"+machineFiles+"applications:\n  - app-main.yaml\n")
+	writeFile(t, dir, "app-main.yaml", "\nid: app_docs\nname: Docs\nmachines:\n"+appMachines+"navigation:\n"+nav)
 	_, err := LoadApplication(filepath.Join(dir, "app.yaml"))
 	return err
 }
@@ -196,6 +199,20 @@ func TestPage_aTagLoadsAndItsPaletteIsHeldAtLoad(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: error = %v; want a refusal mentioning %q", name, err, c.want)
 		}
+	}
+}
+
+// TestPage_aPersonRoleIsTheOneReferenceAPageResolves: a records template may take its text from a role whose Field
+// is a person, because the Workspace's members are answered by the Loader's memoized PersonNames; a relation to
+// any other Machine stays refused (it would read that whole Machine, 007 §20).
+func TestPage_aPersonRoleIsTheOneReferenceAPageResolves(t *testing.T) {
+	page := "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n" + list("ds_rows", "person")
+	if err := pageFixtureWith(t, page, "person"); err != nil {
+		t.Errorf("a person role was refused: %v", err)
+	}
+	err := pageFixtureWith(t, page, "relation\n    machine: mch_doc")
+	if err == nil || !strings.Contains(err.Error(), "only a person Field is resolved") {
+		t.Errorf("a relation role: error = %v; want it refused", err)
 	}
 }
 

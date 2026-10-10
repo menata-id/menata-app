@@ -240,7 +240,7 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 					switch {
 					case fieldID == "" || !ok:
 						out = append(out, "from: "+role+" -- "+m.ID+" declares no such card_fields role")
-					case f.IsReference():
+					case f.IsReference() && f.RelatedMachine != domain.UserMachineID:
 						out = append(out, "from: "+role+" -- the Field behind it is a reference, which would read a whole Machine (007 §20)")
 					}
 				}
@@ -293,6 +293,16 @@ func TestRecordsBindingProblemsSeesEachFault(t *testing.T) {
 	}
 	if got := recordsBindingProblems(list("ds_list", "title"), owner); len(got) != 0 {
 		t.Errorf("a sound list reported %v", got)
+	}
+	// A reference to the runtime's own people is the one reference a page resolves (PersonNames, no Machine read).
+	people := &domain.Machine{
+		ID:         "mch_p",
+		Fields:     []domain.Field{{ID: "fld_u", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID}},
+		CardFields: []domain.CardField{{Field: "fld_u", Role: domain.CardFieldRolePerson}},
+		Datasets:   []domain.Dataset{{ID: "ds_people", Source: "mch_p", Select: domain.SelectRecords, Limit: 5}},
+	}
+	if got := recordsBindingProblems(list("ds_people", "person"), map[string]*domain.Machine{"ds_people": people}); len(got) != 0 {
+		t.Errorf("a person role reported %v", got)
 	}
 	for name, page := range map[string]domain.PageNode{
 		"aggregate dataset": list("ds_agg", "title"),

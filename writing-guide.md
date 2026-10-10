@@ -984,7 +984,12 @@ Machine already said about its shape. Rules, all checked at load:
 - `from:` is valid only inside a records-bound Collection's template, a property cannot be both written and
   `from:`, and a records binding does not nest inside a template;
 - a role whose Field is a **reference** to another Machine is refused: resolving it reads the whole related
-  Machine (007 §20), which a list would repeat per page view. Ask for a role backed by a plain Field;
+  Machine (007 §20), which a list would repeat per page view. Ask for a role backed by a plain Field. **One
+  reference is resolved: a `person` Field** (the one that points at `mch_user`). A page draws the member's display
+  name (their email until they set one), through the same per-request member list the runtime's own screens use
+  -- one query however many records the list shows -- and draws **nothing** for someone who is no longer a member,
+  never their user id. `{ field: fld_submitted_by, role: person }` in `card_fields:` and `from: {text: person}` on
+  a `static` node is the whole declaration. Adding the role also gives that Machine's generic cards an avatar for it;
 - a role the Machine does not declare is a load error, not a blank cell.
 
 A records-bound Collection may also carry `empty: <words>`: what the page says when the Dataset lists no

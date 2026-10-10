@@ -83,9 +83,9 @@ func bindingForm(l *Loader, viewer domain.Actor, b domain.PageBinding) (ir.FormS
 // with the Dataset's bound when it bit (`Selection.Truncated`, which a page may then say -- `complete: true`).
 //
 // The Projection is the Machine's `card_fields` (007 §7.6), so what a page can show of a record is what the
-// Machine already declared about its shape, and the page names no Field. `RelationOptions` is deliberately
-// empty: the loader refuses a `from:` whose role is a reference Field, because resolving one means reading the
-// whole related Machine. Order is the Dataset's declared `sort:`, applied by the database.
+// Machine already declared about its shape, and the page names no Field. The only reference it resolves is a
+// person (`recordPeople`): the loader refuses a `from:` whose role is any other reference Field, because
+// resolving one means reading the whole related Machine. Order is the Dataset's declared `sort:`, applied by the database.
 func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, b domain.PageBinding) (ir.RecordSet, error) {
 	viewerID := viewer.ID
 	ds, ok := l.Dataset(b.Dataset)
@@ -114,12 +114,16 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		return ir.RecordSet{}, err
 	}
 	records := sel.Records
+	people, err := recordPeople(ctx, l, src, records)
+	if err != nil {
+		return ir.RecordSet{}, err
+	}
 	out := make([]map[string]string, 0, len(records))
 	edits := make([]ir.FormSpec, 0, len(records))
 	deletes := make([]ir.RecordAction, 0, len(records))
 	moves := make([]ir.RecordMove, 0, len(records))
 	for i, r := range records {
-		item := ProjectedByRole(src, r, rendering.RelationOptions{})
+		item := ProjectedByRole(src, r, people)
 		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
 		edits = append(edits, recordEditForm(src, r, viewer))
 		deletes = append(deletes, recordDeleteAction(src, r, viewer))
@@ -130,6 +134,42 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		out = append(out, item)
 	}
 	return ir.RecordSet{Records: out, Edits: edits, Deletes: deletes, Moves: moves, Truncated: sel.Truncated, Limit: sel.Limit}, nil
+}
+
+// recordPeople is the display name of every person the listed records name in a `person` Field, as the
+// RelationOptions the Projection resolves a reference through. It asks the Loader's memoized PersonNames (one
+// read of the Workspace's members however many records there are, and none at all when the Machine declares no
+// such Field) and keeps only the people actually listed, so the options grow with the page and not the Workspace.
+//
+// A person with no name -- someone no longer a member -- gets an option with an empty label, not none: an absent
+// option makes RelationLabel fall back to the raw id, and a user id is not something a page should print.
+func recordPeople(ctx context.Context, l *Loader, src *domain.Machine, records []*data.Record) (rendering.RelationOptions, error) {
+	var fields []string
+	for _, cf := range src.CardFields {
+		if f, ok := src.FieldByID(cf.Field); ok && f.IsReference() && f.RelatedMachine == domain.UserMachineID {
+			fields = append(fields, f.ID)
+		}
+	}
+	if len(fields) == 0 {
+		return rendering.RelationOptions{}, nil
+	}
+	names, err := l.PersonNames(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var options []rendering.RelationOption
+	for _, r := range records {
+		for _, fieldID := range fields {
+			id := DisplayString(r.Values[fieldID])
+			if id == "" || seen[id] {
+				continue
+			}
+			seen[id] = true
+			options = append(options, rendering.RelationOption{ID: id, Label: names[id]})
+		}
+	}
+	return rendering.RelationOptions{domain.UserMachineID: options}, nil
 }
 
 // recordEditForm is what an `update` Form inside a records template needs of one record: the route that patches
