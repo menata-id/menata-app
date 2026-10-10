@@ -53,6 +53,19 @@ func declarableIconEnum() []string {
 	return names
 }
 
+// fieldTypeEnum is a generated Field's type Enum, read from domain.FieldTypes. It was a literal list until
+// 2026-10-10 and had drifted: it held ten types while the prompt, generated from the same catalogue, named
+// eleven, so the model was told about long_text and contractually unable to return it. The prompt and the
+// schema now read one list; TestFieldTypeEnumIsTheCatalogue holds it.
+func fieldTypeEnum() []string {
+	types := domain.FieldTypes()
+	out := make([]string, 0, len(types))
+	for _, t := range types {
+		out = append(out, string(t))
+	}
+	return out
+}
+
 var generatedFieldSchema = geminiSchema{
 	PropertyOrdering: []string{"id", "name", "type", "required", "options", "related_machine", "compute"},
 	Type:             "OBJECT",
@@ -60,7 +73,7 @@ var generatedFieldSchema = geminiSchema{
 	Properties: map[string]geminiSchema{
 		"id":       stringSchema,
 		"name":     stringSchema,
-		"type":     {Type: "STRING", Enum: []string{"text", "number", "boolean", "date", "status", "person", "money", "relation", "file", "group"}},
+		"type":     {Type: "STRING", Enum: fieldTypeEnum()},
 		"required": {Type: "BOOLEAN", Description: "Always false for a field with \"compute\": nobody enters it."},
 		"options": {
 			Type: "ARRAY", Items: &stringSchema,

@@ -87,3 +87,24 @@ func TestCopyTitleFieldIsDerivedFromWhatTheMachineAlreadyDeclares(t *testing.T) 
 		}
 	}
 }
+
+// TestFieldTypeOrderIsExactlyKnownFieldTypes holds the ordered list against the map in both directions.
+// Everything generated from the catalogue (the AI prompt's sentence, its schema Enum) ranges over the list,
+// so a type in the map and missing here would reach the loader and never the model -- the drift K02 found.
+func TestFieldTypeOrderIsExactlyKnownFieldTypes(t *testing.T) {
+	seen := map[FieldType]bool{}
+	for _, ft := range FieldTypes() {
+		if seen[ft] {
+			t.Errorf("FieldTypes lists %q twice", ft)
+		}
+		seen[ft] = true
+		if _, ok := KnownFieldTypes[ft]; !ok {
+			t.Errorf("FieldTypes lists %q, which KnownFieldTypes does not declare", ft)
+		}
+	}
+	for ft := range KnownFieldTypes {
+		if !seen[ft] {
+			t.Errorf("KnownFieldTypes declares %q and FieldTypes does not list it -- the AI's prompt and schema would never offer it", ft)
+		}
+	}
+}

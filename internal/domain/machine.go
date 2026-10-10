@@ -86,13 +86,23 @@ var KnownFieldTypes = map[FieldType]FieldTypeSpec{
 	FieldTypeGroup:    {Label: "group"},
 }
 
-// FieldTypeLabels lists every type's label in a stable order, which is what a generated description needs
-// -- a map range would reorder the sentence between builds, and 007 §4.6 states determinism as a MUST.
+// fieldTypeOrder is KnownFieldTypes' members in the one stable order everything generated from the catalogue
+// uses. TestFieldTypeOrderIsExactlyKnownFieldTypes holds it to the map's key set in both directions, so a type
+// added to the map and not here fails a test instead of silently missing from the AI's prompt and schema.
+var fieldTypeOrder = []FieldType{FieldTypeText, FieldTypeLongText, FieldTypeNumber, FieldTypeBoolean, FieldTypeDate,
+	FieldTypeStatus, FieldTypePerson, FieldTypeMoney, FieldTypeRelation, FieldTypeFile, FieldTypeGroup}
+
+// FieldTypes lists every member of KnownFieldTypes in a stable order -- a map range would reorder anything
+// generated from it between builds, and 007 §4.6 states determinism as a MUST. A copy, so a caller cannot
+// reorder the catalogue.
+func FieldTypes() []FieldType {
+	return append([]FieldType(nil), fieldTypeOrder...)
+}
+
+// FieldTypeLabels lists every type's label in FieldTypes' order, which is what a generated description needs.
 func FieldTypeLabels() []string {
-	order := []FieldType{FieldTypeText, FieldTypeLongText, FieldTypeNumber, FieldTypeBoolean, FieldTypeDate, FieldTypeStatus,
-		FieldTypePerson, FieldTypeMoney, FieldTypeRelation, FieldTypeFile, FieldTypeGroup}
-	out := make([]string, 0, len(order))
-	for _, t := range order {
+	out := make([]string, 0, len(fieldTypeOrder))
+	for _, t := range fieldTypeOrder {
 		out = append(out, KnownFieldTypes[t].Label)
 	}
 	return out
