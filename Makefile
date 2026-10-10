@@ -11,7 +11,13 @@ TAILWIND_VERSION = v4.3.3
 TAILWIND_SHA256  = dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a
 TAILWIND         = bin/tailwindcss
 
-.PHONY: generate css build run test conformance threshold vet tidy migrate-up migrate-down migrate-status check-generated install-hooks
+.PHONY: deploy generate css build run test conformance threshold vet tidy migrate-up migrate-down migrate-status check-generated install-hooks
+
+# Builds the committed HEAD (not the working tree), restarts menata-app.service, checks the running
+# process executes the binary just built, and smokes five routes. scripts/deploy.sh says why it does not
+# call `build`: that target regenerates every .templ, which only the UI session may do.
+deploy:
+	scripts/deploy.sh
 
 generate: css
 	$(TEMPL) generate
