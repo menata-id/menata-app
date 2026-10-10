@@ -827,3 +827,78 @@ func TestLower_refusesADeleteButtonThatCouldNotBeBuiltHonestly(t *testing.T) {
 		t.Errorf("a delete Button outside a records template: err = %v", err)
 	}
 }
+
+func moveInTemplate(direction string, moves []RecordMove) (domain.PageNode, Resolver) {
+	coll := domain.PageNode{
+		Kind: "component", Type: string(domain.ComponentCollection),
+		Binding: &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords},
+		Children: []domain.PageNode{{
+			Kind: "component", Type: string(domain.ComponentButton),
+			Props:   map[string]string{"label": "Move " + direction, "variant": "secondary", "direction": direction},
+			Binding: &domain.PageBinding{Write: domain.PageWriteMove},
+		}},
+	}
+	res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{{"title": "a"}, {"title": "b"}, {"title": "c"}}, Moves: moves}, nil
+	}}
+	return formPage(coll), res
+}
+
+func TestLower_moveButtonPostsToTheItemsMoveRouteAndIsDrawnOnlyWhereItCanGo(t *testing.T) {
+	moves := []RecordMove{
+		{Route: "/machines/mch_x/records/r1", Up: false, Down: true},
+		{Route: "/machines/mch_x/records/r2", Up: true, Down: true},
+		{Route: "/machines/mch_x/records/r3", Up: true, Down: false},
+	}
+	for dir, wantRoutes := range map[string][]string{
+		"up":   {"/machines/mch_x/records/r2/move?direction=up", "/machines/mch_x/records/r3/move?direction=up"},
+		"down": {"/machines/mch_x/records/r1/move?direction=down", "/machines/mch_x/records/r2/move?direction=down"},
+	} {
+		root, res := moveInTemplate(dir, moves)
+		got, err := Lower(root, res)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var routes []string
+		for _, item := range got.Children[0].Children {
+			p := item.Props
+			if p["method"] != domain.ButtonMethodPost || p["direction"] != "" || p["confirm"] != "" {
+				t.Errorf("%s: button props = %v", dir, p)
+			}
+			routes = append(routes, p["action"])
+		}
+		if strings.Join(routes, " ") != strings.Join(wantRoutes, " ") {
+			t.Errorf("%s: routes = %v, want %v (no Up on the first record, no Down on the last)", dir, routes, wantRoutes)
+		}
+	}
+}
+
+func TestLower_refusesAMoveButtonThatCouldNotBeBuiltHonestly(t *testing.T) {
+	mv := []RecordMove{{Route: "/machines/mch_x/records/r", Up: true, Down: true}, {Route: "/machines/mch_x/records/r", Up: true, Down: true}, {Route: "/machines/mch_x/records/r", Up: true, Down: true}}
+	cases := map[string]struct {
+		mutate func(n *domain.PageNode)
+		moves  []RecordMove
+		want   string
+	}{
+		"a dataset of its own": {func(n *domain.PageNode) { n.Children[0].Binding.Dataset = "ds_b" }, mv, "no dataset"},
+		"no direction":         {func(n *domain.PageNode) { delete(n.Children[0].Props, "direction") }, mv, "direction"},
+		"sideways":             {func(n *domain.PageNode) { n.Children[0].Props["direction"] = "left" }, mv, "direction"},
+		"a confirm":            {func(n *domain.PageNode) { n.Children[0].Props["confirm"] = "Sure?" }, mv, "asks nothing"},
+		"typed method":         {func(n *domain.PageNode) { n.Children[0].Props["method"] = "post" }, mv, "method"},
+		"typed action":         {func(n *domain.PageNode) { n.Children[0].Props["action"] = "/x" }, mv, "action"},
+		"no resolver answer":   {func(n *domain.PageNode) {}, nil, "no move"},
+	}
+	for name, tc := range cases {
+		root, res := moveInTemplate("up", tc.moves)
+		tc.mutate(&root.Children[0])
+		if _, err := Lower(root, res); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want it to contain %q", name, err, tc.want)
+		}
+	}
+	outside := domain.PageNode{Kind: "component", Type: string(domain.ComponentButton),
+		Props:   map[string]string{"label": "Move up", "variant": "secondary", "direction": "up"},
+		Binding: &domain.PageBinding{Write: domain.PageWriteMove}}
+	if _, err := Lower(formPage(outside), Resolver{}); err == nil || !strings.Contains(err.Error(), "item template") {
+		t.Errorf("a move Button outside a records template: err = %v", err)
+	}
+}

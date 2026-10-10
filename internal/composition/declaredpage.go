@@ -117,17 +117,19 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	out := make([]map[string]string, 0, len(records))
 	edits := make([]ir.FormSpec, 0, len(records))
 	deletes := make([]ir.RecordAction, 0, len(records))
-	for _, r := range records {
+	moves := make([]ir.RecordMove, 0, len(records))
+	for i, r := range records {
 		item := ProjectedByRole(src, r, rendering.RelationOptions{})
 		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
 		edits = append(edits, recordEditForm(src, r, viewer))
 		deletes = append(deletes, recordDeleteAction(src, r, viewer))
+		moves = append(moves, recordMove(src, r, viewer, i > 0, i < len(records)-1 || sel.Truncated))
 		for _, rel := range ds.Relations {
 			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(sel.Related(rel.ID, r.ID)))
 		}
 		out = append(out, item)
 	}
-	return ir.RecordSet{Records: out, Edits: edits, Deletes: deletes, Truncated: sel.Truncated, Limit: sel.Limit}, nil
+	return ir.RecordSet{Records: out, Edits: edits, Deletes: deletes, Moves: moves, Truncated: sel.Truncated, Limit: sel.Limit}, nil
 }
 
 // recordEditForm is what an `update` Form inside a records template needs of one record: the route that patches
@@ -158,6 +160,16 @@ func recordDeleteAction(src *domain.Machine, r *data.Record, viewer domain.Actor
 		Route:     RecordRoute(src.ID, r.ID),
 		Permitted: !src.AppendOnly && deletable && authorization.AllowsAction(src, domain.ActionDelete, r.Values, viewer),
 	}
+}
+
+// recordMove is what a `move` Button inside a records template needs of one record. `hasPrev`/`hasNext` say
+// whether the list has a record on that side; a list cut short by its `limit:` always has a next, because the
+// records past the cut are still in the Machine's order. Moving is an edit of the record's place, so it asks the
+// `edit` Permission, and an append-only Machine is never offered it. A courtesy as the others: the move route
+// asks again and computes the neighbour itself.
+func recordMove(src *domain.Machine, r *data.Record, viewer domain.Actor, hasPrev, hasNext bool) ir.RecordMove {
+	permitted := !src.AppendOnly && authorization.AllowsAction(src, domain.ActionEdit, r.Values, viewer)
+	return ir.RecordMove{Route: RecordRoute(src.ID, r.ID), Up: permitted && hasPrev, Down: permitted && hasNext}
 }
 
 // RecordRoute is the runtime's generic route to one record (`GET /machines/{machineID}/records/{id}`, which

@@ -141,10 +141,13 @@ templ button(label string, variant domain.ButtonVariant, name, value string) {
 // `hx-swap="none"` because the generic delete route answers a request from a declared page with
 // `HX-Refresh: true`, so the list re-reads without the record; a refusal (403/422) surfaces through the shell's
 // shared `htmx:responseError` notice. `confirm` is the author's sentence and the browser asks it before anything
-// is sent (`hx-confirm`). `type="button"` so a delete placed inside a form's subtree never submits it.
+// is sent (`hx-confirm`). A derived `post` is a move: the same request shape without the question, because the
+// generic move route answers a declared page with the same `HX-Refresh`. `type="button"` so a delete placed inside a form's subtree never submits it.
 templ requestButton(label string, variant domain.ButtonVariant, name, value, action, method, confirm string) {
 	if method == domain.ButtonMethodDelete {
 		<button type="button" hx-delete={ action } hx-swap="none" hx-confirm={ confirm } class={ buttonClasses(ctx, variant) }>{ label }</button>
+	} else if method == domain.ButtonMethodPost {
+		<button type="button" hx-post={ action } hx-swap="none" class={ buttonClasses(ctx, variant) }>{ label }</button>
 	} else {
 		@button(label, variant, name, value)
 	}

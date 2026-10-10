@@ -64,8 +64,8 @@ navigation:
   # Board Settings, declared rather than written (Case 19 PM06): the Lists a board groups by beside the Labels
   # its cards carry, each a Subheading and a link to that Machine's own list page over a divided Collection.
   # Every name, colour and count is the Machine's own card_fields / Relation -- this page names no Field, no
-  # route and no class. Not declared, deliberately: reordering and per-row Rename/Edit are writes, and a
-  # handle the page cannot honour would promise them (007 §12.3 `actions`).
+  # route and no class. Each List also carries Rename, Move up/down and Delete, all writes through the
+  # runtime's generic record routes (007 §11.3); the Labels carry no order, so no Move.
   - id: nav_board_settings
     label: Board Settings
     route: /pages/nav_board_settings
@@ -108,6 +108,18 @@ navigation:
                       from:
                         text: title
                         href: record
+                    - component: Button
+                      label: Move up
+                      variant: secondary
+                      direction: up
+                      binding:
+                        write: move
+                    - component: Button
+                      label: Move down
+                      variant: secondary
+                      direction: down
+                      binding:
+                        write: move
                     - component: Form
                       submit: Rename
                       binding:

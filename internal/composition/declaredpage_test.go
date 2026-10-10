@@ -356,3 +356,34 @@ func TestRecordDeleteActionIsPerRecordAndRefusesAppendOnly(t *testing.T) {
 		t.Error("an append-only Machine was offered a delete")
 	}
 }
+
+// A `move` Button is offered per record: never on the end the list has nothing past, only to a viewer who may edit
+// *that* record, and never for an append-only Machine.
+func TestRecordMoveIsPerRecordAndRefusesAppendOnly(t *testing.T) {
+	m := &domain.Machine{
+		ID:          "mch_note",
+		Fields:      []domain.Field{{ID: "fld_title", Type: domain.FieldTypeText}, {ID: "fld_owner", Type: domain.FieldTypePerson}},
+		Permissions: []domain.Permission{{ID: "perm_edit", Action: domain.ActionEdit, ActorField: "fld_owner"}},
+	}
+	mine := &data.Record{ID: "rec_mine", Values: map[string]any{"fld_owner": "usr_me"}}
+	theirs := &data.Record{ID: "rec_theirs", Values: map[string]any{"fld_owner": "usr_other"}}
+	viewer := domain.Actor{ID: "usr_me"}
+
+	a := recordMove(m, mine, viewer, true, true)
+	if !a.Up || !a.Down || a.Route != "/machines/mch_note/records/rec_mine" {
+		t.Errorf("own record in the middle: %+v", a)
+	}
+	if b := recordMove(m, theirs, viewer, true, true); b.Up || b.Down {
+		t.Errorf("another's record was offered a move: %+v", b)
+	}
+	if c := recordMove(m, mine, viewer, false, true); c.Up || !c.Down {
+		t.Errorf("first record: %+v, want no Up", c)
+	}
+	if d := recordMove(m, mine, viewer, true, false); !d.Up || d.Down {
+		t.Errorf("last record: %+v, want no Down", d)
+	}
+	m.AppendOnly = true
+	if e := recordMove(m, mine, viewer, true, true); e.Up || e.Down {
+		t.Errorf("an append-only Machine was offered a move: %+v", e)
+	}
+}

@@ -767,3 +767,101 @@ func TestDeclaredPageDeleteButtonDeletesTheRecordItSitsBesideAndRefreshesThePage
 		t.Errorf("a delete from the Machine's own page answered %d, HX-Refresh=%q, %d body bytes -- the hand-written sites' contract moved", own.Code, own.Header().Get("HX-Refresh"), own.Body.Len())
 	}
 }
+
+func TestMoveTarget(t *testing.T) {
+	ids := []string{"a", "b", "c", "d"}
+	cases := []struct {
+		id, dir, before      string
+		wantFound, wantMoves bool
+	}{
+		{"c", "up", "b", true, true},
+		{"a", "up", "", true, false},
+		{"b", "down", "d", true, true},
+		{"c", "down", "", true, true},
+		{"d", "down", "", true, false},
+		{"zz", "up", "", false, false},
+	}
+	for _, tc := range cases {
+		before, found, moves := moveTarget(ids, tc.id, tc.dir)
+		if before != tc.before || found != tc.wantFound || moves != tc.wantMoves {
+			t.Errorf("moveTarget(%s,%s) = %q,%v,%v; want %q,%v,%v", tc.id, tc.dir, before, found, moves, tc.before, tc.wantFound, tc.wantMoves)
+		}
+	}
+}
+
+// TestDeclaredPageMoveButtonsReorderTheListAndRefreshThePage: `write: move` inside a records template. The first
+// list has no "Move up" and the last no "Move down"; the route finds the neighbour itself, so the page names only
+// a direction; the answer to a request from a declared page is HX-Refresh, and the order the page redraws is the
+// order the board's columns follow (both read the Machine's `sort_order`).
+func TestDeclaredPageMoveButtonsReorderTheListAndRefreshThePage(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredmove", "default")
+	var list *domain.Machine
+	for _, m := range ws.Machines {
+		for _, ds := range m.Datasets {
+			if ds.ID == "ds_board_lists" {
+				list = m
+			}
+		}
+	}
+	if list == nil {
+		t.Fatal("default installs no Machine providing ds_board_lists")
+	}
+	existing, err := store.ListRecords(ctx, list.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nameField := list.CardFieldFor(domain.CardFieldRoleTitle)
+	mk := func(name string) *data.Record {
+		rec, err := store.CreateRecord(ctx, list.ID, map[string]any{nameField: name})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", name, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, list.ID, rec.ID) })
+		return rec
+	}
+	first, second := mk("Move-probe-first"), mk("Move-probe-second")
+	route := func(rec *data.Record, dir string) string {
+		return "/machines/" + list.ID + "/records/" + rec.ID + "/move?direction=" + dir
+	}
+
+	body := getPage(t, h, cookie, "/pages/nav_board_settings")
+	if !strings.Contains(body, `hx-post="`+route(first, "down")+`"`) || !strings.Contains(body, `hx-post="`+route(second, "up")+`"`) {
+		t.Fatal("the page draws no Move buttons for the records it lists")
+	}
+	if strings.Contains(body, `hx-post="`+route(second, "down")+`"`) {
+		t.Error("the last list is offered Move down")
+	}
+	if len(existing) == 0 && strings.Contains(body, `hx-post="`+route(first, "up")+`"`) {
+		t.Error("the first list is offered Move up")
+	}
+
+	post := func(path string) *httptest.ResponseRecorder {
+		tok := csrfTokenFor(t, h, "/login")
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		req.Header.Set("X-CSRF-Token", tok.value)
+		req.Header.Set("HX-Request", "true")
+		req.Header.Set("HX-Current-URL", "http://x/pages/nav_board_settings")
+		req.AddCookie(tok.cookie)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+	if got := post(route(second, "up")); got.Code != http.StatusOK || got.Header().Get("HX-Refresh") != "true" {
+		t.Fatalf("a move from the declared page answered %d with HX-Refresh=%q", got.Code, got.Header().Get("HX-Refresh"))
+	}
+	after := getPage(t, h, cookie, "/pages/nav_board_settings")
+	if strings.Index(after, "Move-probe-second") > strings.Index(after, "Move-probe-first") {
+		t.Error("moving the second list up did not put it before the first")
+	}
+	// Past the end: nothing moves, and the answer is still a refresh so a stale page redraws.
+	if got := post(route(second, "down")); got.Code != http.StatusOK || got.Header().Get("HX-Refresh") != "true" {
+		t.Errorf("a move past the end answered %d with HX-Refresh=%q", got.Code, got.Header().Get("HX-Refresh"))
+	}
+	if got := post(route(first, "sideways")); got.Code != http.StatusBadRequest {
+		t.Errorf("a direction that is neither up nor down answered %d, want 400", got.Code)
+	}
+	if got := post("/machines/" + list.ID + "/records/rec_nope/move?direction=up"); got.Code != http.StatusNotFound {
+		t.Errorf("a move of a record that does not exist answered %d, want 404", got.Code)
+	}
+}

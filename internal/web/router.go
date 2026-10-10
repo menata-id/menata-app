@@ -285,6 +285,7 @@ func Routes(d Deps) http.Handler {
 		pr.Patch("/machines/{machineID}/records/{id}", patchRecordForm(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/copy", copyRecord(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Delete("/machines/{machineID}/records/{id}", deleteRecord(d.Store, d.Cfg))
+		pr.Post("/machines/{machineID}/records/{id}/move", moveRecord(d.Store, d.Cfg))
 		pr.Post("/machines/{machineID}/records/{id}/decide", decideStep(d.Store, d.Files, d.Mailer, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/review", showReviewDocument(d.Store, d.Files, d.Cfg))
 		pr.Get("/machines/{machineID}/records/{id}/signature-placement", showSignaturePlacement(d.Store, d.Files, d.Cfg))

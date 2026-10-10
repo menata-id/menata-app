@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -563,6 +564,72 @@ func deleteRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
 		}
 		// Empty response: HTMX swaps the row's outerHTML with nothing, removing it.
 	}
+}
+
+// moveRecord is the generic route that moves one record a step in its Machine's order
+// (`POST .../records/{id}/move?direction=up|down`), for a `write: move` Button on a declared page. The neighbour
+// is found here, at request time, from the Machine's own order -- the page names a direction and never an id, so
+// a stale page cannot aim a record at a position that has since changed. Moving is an edit of the record's
+// place: it asks the `edit` Permission and an append-only Machine refuses it. At an end of the order it does
+// nothing and still answers, so a page that went stale redraws itself.
+func moveRecord(store *data.Store, cfg config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		machine, ok := resolveMachine(w, req)
+		if !ok || refusesAppendOnlyWrite(w, machine) {
+			return
+		}
+		direction := req.URL.Query().Get("direction")
+		if direction != domain.MoveUp && direction != domain.MoveDown {
+			http.Error(w, "direction must be up or down", http.StatusBadRequest)
+			return
+		}
+		id := chi.URLParam(req, "id")
+		if !allowsRecordEdit(w, req, store, machine, id, currentActor(req, store, cfg)) {
+			return
+		}
+		records, err := store.ListRecords(req.Context(), machine.ID)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		ids := make([]string, len(records))
+		for i, r := range records {
+			ids[i] = r.ID
+		}
+		before, found, moves := moveTarget(ids, id, direction)
+		if !found {
+			http.Error(w, data.ErrRecordNotFound.Error(), http.StatusNotFound)
+			return
+		}
+		if moves {
+			if err := store.PlaceRecord(req.Context(), machine.ID, id, before); err != nil {
+				recordError(w, err)
+				return
+			}
+		}
+		if fromDeclaredPage(req) {
+			w.Header().Set("HX-Refresh", "true")
+		}
+	}
+}
+
+// moveTarget answers where id goes when it moves one step in direction through ids (the Machine's order): the id
+// it should sit immediately before, "" meaning last. found is false when id is not in ids; moves is false at the
+// end of the order the direction points away from.
+func moveTarget(ids []string, id, direction string) (before string, found, moves bool) {
+	i := slices.Index(ids, id)
+	switch {
+	case i < 0:
+		return "", false, false
+	case direction == domain.MoveUp && i > 0:
+		return ids[i-1], true, true
+	case direction == domain.MoveDown && i < len(ids)-1:
+		if i+2 < len(ids) {
+			return ids[i+2], true, true
+		}
+		return "", true, true
+	}
+	return "", true, false
 }
 
 // deleteAllowed guards the generic delete route two ways, business-state and identity, evaluated

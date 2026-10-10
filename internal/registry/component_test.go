@@ -185,13 +185,18 @@ func TestValidateButton(t *testing.T) {
 		"method no action":   {"label": "x", "variant": "secondary", "method": "delete", "confirm": "Sure?"},
 		"no confirm":         {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete"},
 		"confirm no request": {"label": "x", "variant": "secondary", "confirm": "Sure?"},
-		"unknown verb":       {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "post", "confirm": "Sure?"},
+		"unknown verb":       {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "put", "confirm": "Sure?"},
+		"move that asks":     {"label": "x", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post", "confirm": "Sure?"},
 		"foreign route":      {"label": "x", "variant": "secondary", "action": "/elsewhere", "method": "delete", "confirm": "Sure?"},
 		"request and name":   {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete", "confirm": "Sure?", "name": "a", "value": "b"},
 	} {
 		if issues := ValidateComponentUse(domain.ComponentButton, in); len(issues) == 0 {
 			t.Errorf("%s must be refused, but validated clean", name)
 		}
+	}
+	move := map[string]string{"label": "Move up", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post"}
+	if issues := ValidateComponentUse(domain.ComponentButton, move); len(issues) != 0 {
+		t.Errorf("a lowered move Button is valid, got %v", issues)
 	}
 	del := map[string]string{"label": "Delete", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete", "confirm": "Delete this record?"}
 	if issues := ValidateComponentUse(domain.ComponentButton, del); len(issues) != 0 {

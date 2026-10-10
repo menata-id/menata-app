@@ -256,7 +256,8 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			// One delete the viewer may do, for the same reason: whether the real Machine can be deleted from is
 			// `deleteBindingIssues`' question.
 			del := ir.RecordAction{Route: domain.FormRoute("machine") + "/x", Permitted: true}
-			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}}, nil
+			mv := ir.RecordMove{Route: domain.FormRoute("machine") + "/x", Up: true, Down: true}
+			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}, Moves: []ir.RecordMove{mv}}, nil
 		},
 	}
 }
@@ -337,6 +338,8 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		issues = append(issues, updateBindingIssues(*b, item, where)...)
 	} else if b != nil && b.Write == domain.PageWriteDelete {
 		issues = append(issues, deleteBindingIssues(*b, item, where)...)
+	} else if b != nil && b.Write == domain.PageWriteMove {
+		issues = append(issues, moveBindingIssues(*b, item, where)...)
 	} else if b != nil {
 		ds, ok := datasets[b.Dataset]
 		switch {
@@ -435,6 +438,9 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	if ds.Select != domain.SelectRecords {
 		issues = append(issues, fmt.Sprintf("%s: page: rows: %s needs a dataset that selects records, and %q is an aggregate", where, domain.PageRowsRecords, ds.ID))
 	}
+	if (ds.Where != nil || len(ds.Sort) > 0) && hasMoveBinding(n.Children) {
+		issues = append(issues, fmt.Sprintf("%s: page: write: %s needs a Dataset that lists the Machine's records in the Machine's own order, and %q declares a where: or sort: -- a record's neighbour in a filtered or re-sorted list is not its neighbour in the order a move changes", where, domain.PageWriteMove, ds.ID))
+	}
 	if source == nil {
 		return issues
 	}
@@ -449,6 +455,31 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 		}
 	}
 	return issues
+}
+
+// hasMoveBinding reports whether any node under nodes is bound with `write: move`.
+func hasMoveBinding(nodes []domain.PageNode) bool {
+	for _, n := range nodes {
+		if (n.Binding != nil && n.Binding.Write == domain.PageWriteMove) || hasMoveBinding(n.Children) {
+			return true
+		}
+	}
+	return false
+}
+
+// moveBindingIssues is what a `write: move` binding asks: to sit inside a records Collection, to name no dataset of
+// its own, and a Machine whose records can be written at all (an append-only Machine refuses a reorder as it refuses
+// any write). The Dataset's own shape is `recordsBindingIssues`' question, asked where the Dataset is in hand.
+func moveBindingIssues(b domain.PageBinding, item *domain.Machine, where string) []string {
+	switch {
+	case item == nil:
+		return []string{fmt.Sprintf("%s: page: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", where, domain.PageWriteMove, domain.PageRowsRecords)}
+	case b.Dataset != "":
+		return []string{fmt.Sprintf("%s: page: write: %s takes no dataset -- it moves the record of the Collection it sits in, and %q would be a second one (a join)", where, domain.PageWriteMove, b.Dataset)}
+	case item.AppendOnly:
+		return []string{fmt.Sprintf("%s: page: write: %s: machine %q is append-only, so no record of it can be moved", where, domain.PageWriteMove, item.ID)}
+	}
+	return nil
 }
 
 // fromRoles collects every Projection role named by a `from:` anywhere under nodes.

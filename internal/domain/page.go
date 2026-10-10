@@ -112,18 +112,21 @@ const (
 // of a records Collection, where the record it changes is the item's own and the Dataset is the Collection's, so
 // a binding there names no dataset of its own (a second one would be a join the page has no grammar for).
 // `delete` acts on a record in the same place and on the same terms, through a `Button` and not a `Form`: there is
-// nothing to ask, only a consequence to confirm.
+// nothing to ask, only a consequence to confirm. `move` is the same place and terms again, a `Button` that sends the
+// record one step up or down in its Machine's order (`direction: up|down`); it needs no confirmation because it is
+// undone by the opposite button.
 const (
 	PageWriteCreate = "create"
 	PageWriteUpdate = "update"
 	PageWriteDelete = "delete"
+	PageWriteMove   = "move"
 )
 
 // WritableComponents maps each registered Component a Binding may write through to the Write modes it takes, the
 // way BindableComponents does for reading. Vocabulary, so it lives here and not in `internal/registry`.
 var WritableComponents = map[ComponentType][]string{
 	ComponentForm:   {PageWriteCreate, PageWriteUpdate},
-	ComponentButton: {PageWriteDelete},
+	ComponentButton: {PageWriteDelete, PageWriteMove},
 }
 
 // PageRecordRole is the one `from:` role that is not a Projection role: `from: {href: record}` on a

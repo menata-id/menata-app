@@ -38,11 +38,12 @@ type RecordResolver func(b domain.PageBinding) (RecordSet, error)
 // answer differs per record), and the controls starting as its current values. It is empty when the resolver has
 // nothing to say, which makes an update Form in the template an error and not a form posting nowhere.
 //
-// Deletes is the same for a `delete` Button: one per record, in order.
+// Deletes is the same for a `delete` Button: one per record, in order. Moves is the same for a `move` Button.
 type RecordSet struct {
 	Records   []map[string]string
 	Edits     []FormSpec
 	Deletes   []RecordAction
+	Moves     []RecordMove
 	Truncated bool
 	Limit     int
 }
@@ -55,12 +56,22 @@ type RecordAction struct {
 	Permitted bool
 }
 
+// RecordMove is the answer for a `move` Button: the record's route to move, and which of the two directions are
+// worth offering this viewer for *this* record. The first record has no "up" and the last no "down" -- a button
+// that can only do nothing is not drawn. Like RecordAction it is courtesy; the route is the guard.
+type RecordMove struct {
+	Route string
+	Up    bool
+	Down  bool
+}
+
 // RecordWrites is what a records Collection's resolver decided about one record's writes, handed down to the
 // nodes of that record's item template. A nil field means the resolver said nothing, which makes the matching
 // binding an error and not a control wired to nowhere.
 type RecordWrites struct {
 	Edit   *FormSpec
 	Delete *RecordAction
+	Move   *RecordMove
 }
 
 // RouteResolver answers a `to:`: the route and the label of the navigation item named navID, or ok=false when
@@ -152,6 +163,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteDelete {
 		return lowerDeleteButton(n, path, record, writes)
+	}
+	if n.Binding != nil && n.Binding.Write == domain.PageWriteMove {
+		return lowerMoveButton(n, path, record, writes)
 	}
 	if n.Binding != nil {
 		if n.Count != nil {
@@ -499,6 +513,9 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		if i < len(set.Deletes) {
 			writes.Delete = &set.Deletes[i]
 		}
+		if i < len(set.Moves) {
+			writes.Move = &set.Moves[i]
+		}
 		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec, writes)
 		if err != nil {
 			return nil, fmt.Errorf("record %d: %w", i, err)
@@ -656,6 +673,50 @@ func lowerDeleteButton(n domain.PageNode, path string, record map[string]string,
 	}
 	props[formActionProp] = writes.Delete.Route
 	props[formMethodProp] = domain.ButtonMethodDelete
+	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
+}
+
+// buttonDirectionProp is the one thing an author writes on a move Button beyond its label: which way it sends the
+// record. Lowering consumes it into the derived route, so it never reaches the renderer.
+const buttonDirectionProp = "direction"
+
+// lowerMoveButton turns a `Button` bound with `write: move` into a Button that sends `POST` to the item's own move
+// route, one step in `direction:`. It takes no dataset and is valid only inside a records template, like the other
+// record writes. It asks nothing (`confirm:` is refused: a move is undone by the opposite button), and the end of
+// the list that has nowhere to go gets no node, as does a viewer the resolver does not permit.
+func lowerMoveButton(n domain.PageNode, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
+	if err := checkFormNode(n, path); err != nil {
+		return nil, err
+	}
+	if record == nil {
+		return nil, fmt.Errorf("%s: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageWriteMove, domain.PageRowsRecords)
+	}
+	if n.Binding.Dataset != "" {
+		return nil, fmt.Errorf("%s: write: %s takes no dataset -- it moves the record of the Collection it sits in, and a second dataset would be a join the page has no grammar for", path, domain.PageWriteMove)
+	}
+	dir := n.Props[buttonDirectionProp]
+	if dir != domain.MoveUp && dir != domain.MoveDown {
+		return nil, fmt.Errorf("%s: a move Button names direction: %s or %s, not %q", path, domain.MoveUp, domain.MoveDown, dir)
+	}
+	for _, p := range []string{"name", "value", "confirm"} {
+		if _, typed := n.Props[p]; typed {
+			return nil, fmt.Errorf("%s: a move Button sends a request and asks nothing, so it takes no %s", path, p)
+		}
+	}
+	if writes == nil || writes.Move == nil {
+		return nil, fmt.Errorf("%s: the Collection's resolver supplied no move for this record", path)
+	}
+	if (dir == domain.MoveUp && !writes.Move.Up) || (dir == domain.MoveDown && !writes.Move.Down) {
+		return nil, nil
+	}
+	props := make(map[string]string, len(n.Props)+1)
+	for k, v := range n.Props {
+		if k != buttonDirectionProp {
+			props[k] = v
+		}
+	}
+	props[formActionProp] = domain.RecordMoveRoute(writes.Move.Route, dir)
+	props[formMethodProp] = domain.ButtonMethodPost
 	return []UINode{{Kind: NodeComponent, Type: string(domain.ComponentButton), Props: props}}, nil
 }
 

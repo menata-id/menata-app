@@ -569,55 +569,83 @@ func TestEveryInstalledFormNamesNoRouteOrField(t *testing.T) {
 	}
 }
 
-// TestEveryInstalledButtonIsADeclaredDelete holds T3b's rule against the real manifests: an installed `Button`
-// on a page is a delete (`binding: {write: delete}`) inside a records Collection, of a Machine that is not
-// append-only, with the sentence it asks first (`confirm`) and nothing else that names a request -- no
-// `action`, `method`, `href`, `name` or `value`. The route is the record's own generic one and the verb is
-// derived, so a page that typed either would be a second write path beside the generic one. It reads the
-// declaration directly rather than leaning on `ir.lowerDeleteButton`'s refusals, and fails when no installed
-// page holds a delete, so it cannot pass by measuring nothing.
-func TestEveryInstalledButtonIsADeclaredDelete(t *testing.T) {
+// TestEveryInstalledButtonIsADeclaredRecordWrite holds T3b's and T5's rule against the real manifests: an
+// installed `Button` on a page is a record write -- `binding: {write: delete}` or `{write: move}` -- inside a
+// records Collection, of a Machine that is not append-only, and nothing else that names a request: no `action`,
+// `method`, `href`, `name` or `value`. A delete carries the sentence it asks first (`confirm`); a move carries
+// `direction: up|down`, asks nothing, and sits only over a Dataset that lists the Machine's own order (no `where:`,
+// no `sort:`), because a record's neighbour in any other list is not its neighbour in the order a move changes.
+// The route is the record's own generic one and the verb is derived, so a page that typed either would be a
+// second write path beside the generic one. It reads the declaration directly rather than leaning on
+// `ir.lowerDeleteButton`'s or `ir.lowerMoveButton`'s refusals, and fails when no installed page holds a delete or
+// a move, so neither half can pass by measuring nothing.
+func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
 	if err != nil {
 		t.Fatalf("load workspaces: %v", err)
 	}
-	deletes := 0
+	type source struct {
+		machine *domain.Machine
+		dataset domain.Dataset
+	}
+	deletes, moves := 0, 0
 	for _, slug := range sortedKeys(wss) {
 		ws := wss[slug].Workspace
-		machineOf := map[string]*domain.Machine{}
+		sourceOf := map[string]source{}
 		for i := range ws.Machines {
 			for _, ds := range ws.Machines[i].Datasets {
-				machineOf[ds.ID] = ws.Machines[i]
+				sourceOf[ds.ID] = source{ws.Machines[i], ds}
 			}
 		}
 		for _, app := range ws.Applications {
-			var walk func(n domain.PageNode, where string, item *domain.Machine)
-			walk = func(n domain.PageNode, where string, item *domain.Machine) {
+			var walk func(n domain.PageNode, where string, item *source)
+			walk = func(n domain.PageNode, where string, item *source) {
 				if n.Kind == "component" && n.Type == string(domain.ComponentButton) {
-					deletes++
 					for _, key := range []string{"action", "method", "href", "name", "value"} {
 						if _, typed := n.Props[key]; typed {
 							t.Errorf("%s: a Button writes %q itself; the route and the verb are derived from the record", where, key)
 						}
 					}
-					switch {
-					case n.Binding == nil || n.Binding.Write != domain.PageWriteDelete:
-						t.Errorf("%s: a Button on a page is bound with write: %s", where, domain.PageWriteDelete)
-					case item == nil:
-						t.Errorf("%s: write: delete outside the item template of a records Collection", where)
-					case n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "":
-						t.Errorf("%s: write: delete removes the Collection's own record and names no dataset, rows or measure", where)
-					case item.AppendOnly:
-						t.Errorf("%s: machine %s is append-only, so no record of it can be deleted", where, item.ID)
-					case strings.TrimSpace(n.Props["confirm"]) == "":
-						t.Errorf("%s: a delete states its consequence in confirm", where)
+					write := ""
+					if n.Binding != nil {
+						write = n.Binding.Write
 					}
-				} else if n.Binding != nil && n.Binding.Write == domain.PageWriteDelete {
-					t.Errorf("%s: write: delete is bound to a %s; only a Button deletes", where, n.Type)
+					switch {
+					case write != domain.PageWriteDelete && write != domain.PageWriteMove:
+						t.Errorf("%s: a Button on a page is bound with write: %s or %s", where, domain.PageWriteDelete, domain.PageWriteMove)
+					case item == nil:
+						t.Errorf("%s: write: %s outside the item template of a records Collection", where, write)
+					case n.Binding.Dataset != "" || n.Binding.Rows != "" || n.Binding.Measure != "":
+						t.Errorf("%s: write: %s acts on the Collection's own record and names no dataset, rows or measure", where, write)
+					case item.machine.AppendOnly:
+						t.Errorf("%s: machine %s is append-only, so no record of it can be changed", where, item.machine.ID)
+					case write == domain.PageWriteDelete:
+						deletes++
+						if strings.TrimSpace(n.Props["confirm"]) == "" {
+							t.Errorf("%s: a delete states its consequence in confirm", where)
+						}
+					default:
+						moves++
+						if d := n.Props["direction"]; d != domain.MoveUp && d != domain.MoveDown {
+							t.Errorf("%s: a move names direction: %s or %s, not %q", where, domain.MoveUp, domain.MoveDown, d)
+						}
+						if _, asks := n.Props["confirm"]; asks {
+							t.Errorf("%s: a move is undone by its opposite and asks nothing", where)
+						}
+						if item.dataset.Where != nil || len(item.dataset.Sort) > 0 {
+							t.Errorf("%s: a move sits over dataset %s, which declares a where: or sort:, so its list is not the Machine's order", where, item.dataset.ID)
+						}
+					}
+				} else if n.Binding != nil && (n.Binding.Write == domain.PageWriteDelete || n.Binding.Write == domain.PageWriteMove) {
+					t.Errorf("%s: write: %s is bound to a %s; only a Button deletes or moves", where, n.Binding.Write, n.Type)
 				}
 				childItem := item
 				if n.Binding != nil && n.Binding.Rows == domain.PageRowsRecords {
-					childItem = machineOf[n.Binding.Dataset]
+					if src, ok := sourceOf[n.Binding.Dataset]; ok {
+						childItem = &src
+					} else {
+						childItem = nil
+					}
 				}
 				for _, c := range n.Children {
 					walk(c, where, childItem)
@@ -631,6 +659,9 @@ func TestEveryInstalledButtonIsADeclaredDelete(t *testing.T) {
 		}
 	}
 	if deletes == 0 {
-		t.Fatal("no installed page declares a Button -- this gate is measuring nothing")
+		t.Fatal("no installed page declares a delete Button -- the delete half of this gate is measuring nothing")
+	}
+	if moves == 0 {
+		t.Fatal("no installed page declares a move Button -- the move half of this gate is measuring nothing")
 	}
 }

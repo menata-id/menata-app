@@ -1155,7 +1155,7 @@ is one a form cannot ask yet (a reference to another Machine, a group). An *opti
 left out. **Who sees it:** a viewer without the Machine's `create` Permission gets no Form at all (nothing is hidden
 by CSS), and the route still refuses a forged post. **When a post is refused** (validation 422, permission 403) the
 shell's shared error notice says so and the form keeps what was typed; a success refreshes the page, so the new
-record appears in the list beside it. Not built: reordering (T5) and reference Fields (T4).
+record appears in the list beside it. Not built: reference Fields (T4).
 **Installing copies**, so add the Form to your Workspace's own copy of the Application.
 
 **A form that edits the record beside it (T3a, 2026-10-09).** Inside the item template of a records `Collection`,
@@ -1205,6 +1205,28 @@ plus the business-state rule the generic route applies -- an approved Document, 
 route would refuse gets no button); the route still enforces, and a refusal shows through the shell's error notice.
 A successful delete refreshes the page, so the list is re-read without the record. It is the same route the record's own
 page uses, so whatever deleting does to related records happens here too; word `confirm` for that.
+
+**A button that moves the record beside it (T5, 2026-10-10).** A `Button` with `binding: {write: move}` and
+`direction: up` or `direction: down` sends `POST /machines/<id>/records/<rid>/move?direction=<d>` for *that item's*
+record. The route finds the neighbour itself, so the page names a direction and nothing else; it asks nothing (a
+move is undone by its opposite), so `confirm` is refused.
+
+```yaml
+        - component: Button
+          label: Move up
+          variant: secondary
+          direction: up
+          binding: {write: move}       # no dataset, like update and delete
+```
+
+Refused at load: `move` outside a records Collection's item template, with a `dataset:`, over an append-only
+Machine, a `direction` that is not `up`/`down`, a typed `action`, `method`, `name`, `value` or `confirm`, and **a
+Collection whose Dataset declares a `where:` or a `sort:`** -- a move changes the Machine's own order
+(`sort_order`), and a filtered or re-sorted list shows a neighbour the move would not step over. **Who sees it** is
+per record (the `edit` Permission against that record's values), and **there is no Up on the first record and no
+Down on the last** -- a button that cannot do anything is not drawn (when `limit:` truncates the list, the last
+shown record keeps Down). A successful move refreshes the page; whatever else reads the Machine's order (a board's
+columns) follows.
 
 **A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
 may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,

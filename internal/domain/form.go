@@ -32,6 +32,22 @@ const (
 // ButtonMethodDelete is the verb a `Button` bound with `write: delete` sends. Derived, never written, like a Form's.
 const ButtonMethodDelete = "delete"
 
+// ButtonMethodPost is the verb a `Button` bound with `write: move` sends. Derived, never written.
+const ButtonMethodPost = "post"
+
+// The two directions a `write: move` Button names. A direction is relative to the order the records are listed in,
+// which for a move is the Machine's own (`sort_order`), so "up" is toward the first record.
+const (
+	MoveUp   = "up"
+	MoveDown = "down"
+)
+
+// RecordMoveRoute is the runtime's generic route that moves one record a step in its Machine's order
+// (`POST /machines/{machineID}/records/{id}/move?direction=up|down`). recordRoute is the record's own route.
+func RecordMoveRoute(recordRoute, direction string) string {
+	return recordRoute + "/move?direction=" + direction
+}
+
 // CreateFormInputs is every control a create form for m asks for, and the Fields it cannot yet draw.
 //
 // The rule is the generic create form's own (`rendering.newCardPopover`): a Field is asked for unless it is

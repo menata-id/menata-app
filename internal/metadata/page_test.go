@@ -532,3 +532,48 @@ func TestDeleteBindingIssues(t *testing.T) {
 		t.Errorf("a delete Button over an append-only Machine: %q", got)
 	}
 }
+
+func TestMoveBindingIssues(t *testing.T) {
+	movable := &domain.Machine{ID: "mch_x"}
+	logOnly := &domain.Machine{ID: "mch_log", AppendOnly: true}
+	node := func(dataset string) domain.PageNode {
+		return domain.PageNode{Kind: "component", Type: "Button", Binding: &domain.PageBinding{Dataset: dataset, Write: domain.PageWriteMove}}
+	}
+	issues := func(n domain.PageNode, item *domain.Machine) string {
+		return strings.Join(bindingIssues(n, nil, nil, item, "w"), "\n")
+	}
+	if got := issues(node(""), movable); got != "" {
+		t.Errorf("a move Button inside a Collection of a movable Machine was refused: %s", got)
+	}
+	if got := issues(node(""), nil); !strings.Contains(got, "acts on a record") {
+		t.Errorf("a move Button outside a records Collection: %q", got)
+	}
+	if got := issues(node("ds_other"), movable); !strings.Contains(got, "takes no dataset") {
+		t.Errorf("a move Button naming a dataset: %q", got)
+	}
+	if got := issues(node(""), logOnly); !strings.Contains(got, "append-only") {
+		t.Errorf("a move Button over an append-only Machine: %q", got)
+	}
+}
+
+// A move changes the Machine's own order, so the list it sits in must be that order: a Dataset with a `where:` or a
+// `sort:` shows a neighbour the move would not step over.
+func TestRecordsBindingRefusesAMoveOverAFilteredOrSortedDataset(t *testing.T) {
+	coll := domain.PageNode{Kind: "component", Type: "Collection",
+		Binding:  &domain.PageBinding{Dataset: "ds_a", Rows: domain.PageRowsRecords},
+		Children: []domain.PageNode{{Kind: "component", Type: "Button", Binding: &domain.PageBinding{Write: domain.PageWriteMove}}}}
+	m := &domain.Machine{ID: "mch_x"}
+	plain := domain.Dataset{ID: "ds_a", Select: domain.SelectRecords}
+	sorted := plain
+	sorted.Sort = []domain.SortKey{{Field: "created_at"}}
+	run := func(ds domain.Dataset) string {
+		return strings.Join(bindingIssues(coll, map[string]domain.Dataset{"ds_a": ds}, map[string]*domain.Machine{"mch_x": m}, nil, "w"), "\n")
+	}
+	ds := func(d domain.Dataset) domain.Dataset { d.Source = "mch_x"; return d }
+	if got := run(ds(plain)); strings.Contains(got, "Machine's own order") {
+		t.Errorf("a plain Dataset was refused: %s", got)
+	}
+	if got := run(ds(sorted)); !strings.Contains(got, "Machine's own order") {
+		t.Errorf("a sorted Dataset under a move was accepted: %q", got)
+	}
+}
