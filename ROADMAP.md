@@ -551,9 +551,9 @@ there and are deliberately not here.
 **P1 -- a broken Workspace never stops another (005 Failure Handling, 001 #9)**
 
 **Mockup canvas -- 72 artboards (`Sx`: slices in `menata-app-document`'s `audits/2026-10-10-rencana-pengerjaan-gap-mockup-kanvas.md`)**
-- S0, S1, S2.1 and S2.2 shipped (2026-10-10; a few S1 items wait on S2.3 or owner decisions): an Application's Settings page is drawn from its own navigation
-  (Document Approval and Project Management both declare one), with a per-Application Members & roles page inside it.
-- S2.3-S2.8 Workspace settings navigation, a mobile bar without "More", account menu, My Documents table, PM activity
+- S0, S1, S2.1-S2.3 shipped (2026-10-10; a few S1 items wait on owner decisions): an Application's Settings page is drawn from its own navigation, with
+  a per-Application Members & roles page, and the Workspace admin screens carry a settings sidebar on desktop.
+- S2.4-S2.8 a mobile bar without "More", account menu, My Documents table, PM activity
   panel, touch and keyboard drag -- several wait on owner decisions M-D1..M-D7.
 - S3 Proposal first: account deletion with a grace period, Application deactivation, per-Application notifications, card actions.
 
