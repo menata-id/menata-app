@@ -894,6 +894,13 @@ func documentSignaturePlacementView(ctx context.Context, ld *composition.Loader,
 	return &rendering.DocumentSignaturePlacement{View: view}
 }
 
+// previewCache holds rendered preview pages for the process (K19). Package-level rather than on Deps because
+// Reload rebuilds the route table and a cache keyed by content stays valid across it; 64 MB is about 150
+// pages at the sizes below, small beside the file bytes already read per request.
+var previewCache = pdf.NewCache(64 << 20)
+
+const previewWidth, previewHeight = 900, 1200
+
 // servePDFPreview rasterizes one page of a Document's own PDF to PNG (Step 3's internal/pdf),
 // for showSignaturePlacement's own <img> -- not exposed for any other Machine or file field, same
 // hardcoded scope as the rest of Case 3's Action/screen code.
@@ -919,7 +926,17 @@ func servePDFPreview(store *data.Store, files *storage.Store) http.HandlerFunc {
 		}
 		page := pageFromQuery(req, totalPages)
 
-		png, err := pdf.RenderPagePNG(fileData, page-1, 900, 1200)
+		// The page is a pure function of the file's bytes, page and size, so the content hash is its ETag and
+		// its cache key (K19): a revalidating browser costs no render, and neither does a second viewer.
+		// "private, no-cache" because this route is authenticated -- the browser may keep it but must ask.
+		etag := `"` + pdf.Key(fileData, page-1, previewWidth, previewHeight) + `"`
+		w.Header().Set("ETag", etag)
+		w.Header().Set("Cache-Control", "private, no-cache")
+		if req.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		png, _, err := previewCache.RenderPagePNG(fileData, page-1, previewWidth, previewHeight)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("unable to render page: %v", err), http.StatusUnprocessableEntity)
 			return

@@ -626,3 +626,44 @@ func csrfTokenFor(t *testing.T, h http.Handler, path string) csrfPair {
 	t.Fatalf("no CSRF cookie was issued for %s -- csrfProtect is not in the chain", path)
 	return csrfPair{}
 }
+
+// TestPDFPreviewIsCachedByContentAndRevalidates is K19 through the real router: the second request for a page
+// is answered from the cache (same bytes, same ETag), and a revalidating client gets 304 with no body.
+func TestPDFPreviewIsCachedByContentAndRevalidates(t *testing.T) {
+	h, cookie, fx := newPerRecordSweepSetup(t, "pdfcache")
+	doc := fx.ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	if doc == nil {
+		t.Fatal("this Workspace casts no document role")
+	}
+	url := "/machines/" + doc.ID + "/records/" + fx.records[doc.ID] + "/pdf-preview?page=1"
+	get := func(etag string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, url, nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: cookie})
+		if etag != "" {
+			req.Header.Set("If-None-Match", etag)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		return rec
+	}
+
+	first := get("")
+	if first.Code != http.StatusOK {
+		t.Fatalf("first preview = %d", first.Code)
+	}
+	etag := first.Header().Get("ETag")
+	if etag == "" {
+		t.Fatal("preview carries no ETag")
+	}
+	second := get("")
+	if second.Code != http.StatusOK || second.Header().Get("ETag") != etag || !bytes.Equal(first.Body.Bytes(), second.Body.Bytes()) {
+		t.Errorf("second preview differs from the first: %d, etag %q vs %q", second.Code, second.Header().Get("ETag"), etag)
+	}
+	revalidated := get(etag)
+	if revalidated.Code != http.StatusNotModified || revalidated.Body.Len() != 0 {
+		t.Errorf("revalidation = %d with %d body bytes, want 304 and none", revalidated.Code, revalidated.Body.Len())
+	}
+	if stale := get(`"not-the-etag"`); stale.Code != http.StatusOK {
+		t.Errorf("a mismatched If-None-Match = %d, want a full 200", stale.Code)
+	}
+}
