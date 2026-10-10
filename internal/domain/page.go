@@ -186,16 +186,22 @@ const PageRecordRole = "record"
 // keeps them out of every Projection role, as it does for PageCountRole.
 //
 // A record with no date holds both as the empty string, and a node that reads one of them for such a record is not
-// drawn -- a pill without a date is a defect, not a design. That omission is this set's, and nothing else's: any
-// other empty role is drawn as an empty string.
+// drawn -- a pill without a date is a defect, not a design. That omission belongs to the derived roles
+// (PageDerivedRole) and nothing else: any other empty role is drawn as an empty string.
 const (
 	PageDateLabelRole = "date:label"
 	PageDateToneRole  = "date:tone"
 )
 
-// PageDerivedRole reports whether role is one of the derived date roles above.
+// PageGroupLabelRole is the third derived role: the name of the group the record sits in under its Machine's default
+// View -- the list a Task is in, for a board grouped by a relation, or the option itself for one grouped by a Field
+// of options. Like the date roles it is empty when the record has no group, and a node reading it is then not drawn.
+const PageGroupLabelRole = "group:label"
+
+// PageDerivedRole reports whether role is one of the derived roles above, each of which leaves a node undrawn when
+// the record has nothing to say for it.
 func PageDerivedRole(role string) bool {
-	return role == PageDateLabelRole || role == PageDateToneRole
+	return role == PageDateLabelRole || role == PageDateToneRole || role == PageGroupLabelRole
 }
 
 // BindableComponents maps each registered Component a Binding may supply to the Rows modes it takes. A

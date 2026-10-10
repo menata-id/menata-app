@@ -288,6 +288,7 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			rec[string(domain.CardFieldRoleColor)] = string(domain.TagSlate)
 			// The derived date roles: a label, and a tone out of the closed set a StatusBadge validates against.
 			rec[domain.PageDateLabelRole], rec[domain.PageDateToneRole] = "x", string(domain.ToneNeutral)
+			rec[domain.PageGroupLabelRole] = "x"
 			// A count exists exactly for the Relations the bound Dataset declares, so a `count: {of: ...}`
 			// naming any other fails to lower -- the same way a mistyped role does.
 			for _, rel := range datasets[b.Dataset].Relations {
@@ -526,7 +527,10 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	if source == nil {
 		return issues
 	}
-	if readsDerivedDate(n.Children) && source.CardFieldFor(domain.CardFieldRoleDate) == "" {
+	if readsDerivedRole(n.Children, domain.PageGroupLabelRole) && source.DefaultView().GroupBy == "" {
+		issues = append(issues, fmt.Sprintf("%s: page: from: %s -- machine %q's default View groups by no Field to derive it from", where, domain.PageGroupLabelRole, source.ID))
+	}
+	if (readsDerivedRole(n.Children, domain.PageDateLabelRole) || readsDerivedRole(n.Children, domain.PageDateToneRole)) && source.CardFieldFor(domain.CardFieldRoleDate) == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: from: %s/%s -- machine %q declares no card_fields role %q to derive them from", where, domain.PageDateLabelRole, domain.PageDateToneRole, source.ID, domain.CardFieldRoleDate))
 	}
 	for _, role := range sortedKeys(fromRoles(n.Children)) {
@@ -542,17 +546,17 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	return issues
 }
 
-// readsDerivedDate reports whether any node under nodes reads a derived date role.
-func readsDerivedDate(nodes []domain.PageNode) bool {
+// readsDerivedRole reports whether any node under nodes reads the given derived role.
+func readsDerivedRole(nodes []domain.PageNode, derived string) bool {
 	for _, n := range nodes {
 		if n.Each == "" {
 			for _, role := range n.From {
-				if domain.PageDerivedRole(role) {
+				if role == derived {
 					return true
 				}
 			}
 		}
-		if readsDerivedDate(n.Children) {
+		if readsDerivedRole(n.Children, derived) {
 			return true
 		}
 	}

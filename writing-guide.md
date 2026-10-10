@@ -1444,6 +1444,21 @@ empty value leaves the node out; an empty `title` or `container` still draws its
 on is the request's, not the renderer's clock (007 §4.6). Not built: a pill for a different Field than the `date` role,
 and any wording such as "3 days left" (the pill shows the date only).
 
+**The list a record sits in (`"group:label"`, K15, 2026-10-10).** The third derived role is the name of the group the
+record falls under in its Machine's *default View* (`views:`, first entry, `group_by:`): the title of the record a
+relation points at (the List a Task is in), or the stored option itself when the Field is not a reference. It is read the
+same way as the date roles, and like them a record with no group leaves the node undrawn.
+
+```yaml
+- component: StatusBadge
+  tone: neutral          # written, because a badge requires one and a group has no tone of its own
+  from:
+    label: "group:label"
+```
+
+Refused at load when the Machine's default View groups by nothing. The titles are read in one statement per related
+Machine, however many records are listed.
+
 **A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
 may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,
 with the author's own words around it.

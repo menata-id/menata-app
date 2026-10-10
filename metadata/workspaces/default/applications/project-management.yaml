@@ -263,6 +263,10 @@ navigation:
                       align: center
                       children:
                         - component: StatusBadge
+                          tone: neutral
+                          from:
+                            label: "group:label"
+                        - component: StatusBadge
                           from:
                             label: "date:label"
                             tone: "date:tone"
@@ -299,6 +303,10 @@ navigation:
                       gap: tight
                       align: center
                       children:
+                        - component: StatusBadge
+                          tone: neutral
+                          from:
+                            label: "group:label"
                         - component: StatusBadge
                           from:
                             label: "date:label"
@@ -337,6 +345,10 @@ navigation:
                       align: center
                       children:
                         - component: StatusBadge
+                          tone: neutral
+                          from:
+                            label: "group:label"
+                        - component: StatusBadge
                           from:
                             label: "date:label"
                             tone: "date:tone"
@@ -373,6 +385,10 @@ navigation:
                       gap: tight
                       align: center
                       children:
+                        - component: StatusBadge
+                          tone: neutral
+                          from:
+                            label: "group:label"
                         - component: StatusBadge
                           from:
                             label: "date:label"

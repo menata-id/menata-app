@@ -1367,6 +1367,59 @@ func TestDeclaredPageDrawsADatePillPerDatedTask(t *testing.T) {
 	}
 }
 
+// TestDeclaredPageNamesTheListEachTaskSitsIn: a Task's row carries a badge with the title of the list its board
+// groups it under, and a Task in no list carries none. The page names no Field; the group is the Machine's own
+// default View.
+func TestDeclaredPageNamesTheListEachTaskSitsIn(t *testing.T) {
+	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declaredlistname", "default")
+	var task, list *domain.Machine
+	for _, m := range ws.Machines {
+		switch m.ID {
+		case "mch_task":
+			task = m
+		case "mch_list":
+			list = m
+		}
+	}
+	if task == nil || list == nil {
+		t.Fatal("default installs no mch_task / mch_list")
+	}
+	lrec, err := store.CreateRecord(ctx, list.ID, map[string]any{"fld_name": "Listprobe-Doing"})
+	if err != nil {
+		t.Fatalf("CreateRecord list: %v", err)
+	}
+	t.Cleanup(func() { _ = store.DeleteRecord(ctx, list.ID, lrec.ID) })
+	mk := func(title string, listID any) {
+		v := map[string]any{"fld_title": title, "fld_status": task.ReopenValue(), "fld_assignee": actorID}
+		if listID != nil {
+			v["fld_list"] = listID
+		}
+		rec, err := store.CreateRecord(ctx, task.ID, v)
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+	mk("Listprobe-filed", lrec.ID)
+	mk("Listprobe-loose", nil)
+
+	body := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	row := func(title string) string {
+		i := strings.Index(body, ">"+title+"<")
+		if i < 0 {
+			t.Fatalf("no row for %q:\n%s", title, body)
+		}
+		end := strings.Index(body[i:], "</li>")
+		return body[i : i+end]
+	}
+	if r := row("Listprobe-filed"); !strings.Contains(r, ">Listprobe-Doing<") {
+		t.Errorf("a Task in a list needs its list's title:\n%s", r)
+	}
+	if r := row("Listprobe-loose"); strings.Contains(r, "inline-flex") {
+		t.Errorf("a Task in no list must carry no badge:\n%s", r)
+	}
+}
+
 // TestDeclaredPageRecentActivityShowsOnlyThisApplicationsNewestTen: the panel reads ds_recent_activity, whose
 // `$parameters.application` the runtime sets to the page's own Application. Eleven events of this Application
 // show the newest ten, another Application's event never shows, and a query string naming that other

@@ -14,6 +14,7 @@ import (
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
 	"menata.app/internal/ir"
+	"menata.app/internal/rendering"
 )
 
 // testToday is the fixed clock every page in this file is composed at.
@@ -617,5 +618,39 @@ func TestFillDerivedDateUsesTheRequestsClockAndTheMachinesCompletion(t *testing.
 	}
 	if k := fill(&domain.Machine{ID: "mch_y"}, nil); len(k) != 0 {
 		t.Errorf("a Machine with no date role gets no derived keys: %v", k)
+	}
+}
+
+func TestFillDerivedGroupNamesTheListOrTheOption(t *testing.T) {
+	ref := &domain.Machine{
+		ID:     "mch_x",
+		Fields: []domain.Field{{ID: "fld_list", Type: domain.FieldTypeRelation, RelatedMachine: "mch_list"}},
+		Views:  []domain.View{{ID: "vw", Type: domain.ViewBoard, GroupBy: "fld_list"}},
+	}
+	rels := rendering.RelationOptions{"mch_list": {{ID: "l1", Label: "Doing"}, {ID: "l2", Label: ""}}}
+	fill := func(m *domain.Machine, vals map[string]any) map[string]string {
+		item := map[string]string{}
+		fillDerivedGroup(item, m, &data.Record{Values: vals}, rels)
+		return item
+	}
+	if got := fill(ref, map[string]any{"fld_list": "l1"})[domain.PageGroupLabelRole]; got != "Doing" {
+		t.Errorf("a reference group is named by the related record's title, got %q", got)
+	}
+	if got := fill(ref, map[string]any{"fld_list": "l2"})[domain.PageGroupLabelRole]; got != "" {
+		t.Errorf("a deleted list must not leak its id, got %q", got)
+	}
+	if got := fill(ref, nil)[domain.PageGroupLabelRole]; got != "" {
+		t.Errorf("a record in no list has no group, got %q", got)
+	}
+	opt := &domain.Machine{
+		ID:     "mch_y",
+		Fields: []domain.Field{{ID: "fld_s", Type: domain.FieldTypeStatus}},
+		Views:  []domain.View{{ID: "vw", Type: domain.ViewBoard, GroupBy: "fld_s"}},
+	}
+	if got := fill(opt, map[string]any{"fld_s": "todo"})[domain.PageGroupLabelRole]; got != "todo" {
+		t.Errorf("an option group is the option itself, got %q", got)
+	}
+	if k := fill(&domain.Machine{ID: "mch_z"}, nil); len(k) != 0 {
+		t.Errorf("a Machine whose View groups by nothing gets no derived key: %v", k)
 	}
 }

@@ -127,3 +127,22 @@ func TestAnEmptyOrdinaryRoleStillDrawsItsEmptyString(t *testing.T) {
 		t.Fatalf("an empty container role must still draw its caption, got %d nodes", got)
 	}
 }
+
+func TestLowerLeavesUndrawnTheNodeReadingAGroupARecordLacks(t *testing.T) {
+	badge := domain.PageNode{Kind: "component", Type: "StatusBadge", Props: map[string]string{"tone": "neutral"}, From: map[string]string{"label": domain.PageGroupLabelRole}}
+	item := domain.PageNode{Kind: "layout", Type: "row", Children: []domain.PageNode{badge}}
+	r := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{{domain.PageGroupLabelRole: "Doing"}, {domain.PageGroupLabelRole: ""}}}, nil
+	}}
+	tree, err := Lower(domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{listBound(item)}}, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := tree.Children[0].Children
+	if len(rows) != 2 || len(rows[0].Children) != 1 || len(rows[1].Children) != 0 {
+		t.Fatalf("want a badge in the grouped row only, got %+v", rows)
+	}
+	if p := rows[0].Children[0].Props; p["label"] != "Doing" || p["tone"] != "neutral" {
+		t.Fatalf("badge props %v", p)
+	}
+}

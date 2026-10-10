@@ -145,6 +145,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		item := ProjectedByRole(src, r, people)
 		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
 		fillDerivedDate(item, src, r, now)
+		fillDerivedGroup(item, src, r, people)
 		edits = append(edits, recordEditForm(src, r, viewer))
 		deletes = append(deletes, recordDeleteAction(src, r, viewer))
 		moves = append(moves, recordMove(src, r, viewer, i > 0, i < len(records)-1 || sel.Truncated))
@@ -164,6 +165,21 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		set.Done, set.Reopen = src.Completion.Done, src.ReopenValue()
 	}
 	return set, nil
+}
+
+// fillDerivedGroup puts the name of the group the record sits in under `group:label`: the title of the record its
+// default View's group Field points at, or the stored option itself when that Field is not a reference. "" when
+// the Machine's default View groups by nothing or the record has no value, which leaves a node reading it undrawn.
+func fillDerivedGroup(item map[string]string, src *domain.Machine, r *data.Record, relations rendering.RelationOptions) {
+	f, ok := src.FieldByID(src.DefaultView().GroupBy)
+	if !ok {
+		return
+	}
+	value := DisplayString(r.Values[f.ID])
+	if f.IsReference() {
+		value = rendering.RelationLabel(relations, f.RelatedMachine, value)
+	}
+	item[domain.PageGroupLabelRole] = value
 }
 
 // recordRelations is what the Projection resolves a reference through for the listed records: the display name of
@@ -189,6 +205,10 @@ func recordRelations(ctx context.Context, l *Loader, src *domain.Machine, record
 		case cf.Role == domain.CardFieldRoleContainer:
 			containers[f.ID] = f.RelatedMachine
 		}
+	}
+	// The Field the default View groups by is read the same way: the group's name is the related record's title.
+	if g, ok := src.FieldByID(src.DefaultView().GroupBy); ok && g.IsReference() && g.RelatedMachine != domain.UserMachineID {
+		containers[g.ID] = g.RelatedMachine
 	}
 	out := rendering.RelationOptions{}
 	if len(people) > 0 {
