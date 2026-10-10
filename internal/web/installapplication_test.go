@@ -301,3 +301,93 @@ func TestRestoreSnapshotRouteBringsBackTheInstallationAndRefusesABadOne(t *testi
 		t.Errorf("%d snapshots after a restore, want 2: the restore keeps what it replaced", len(after))
 	}
 }
+
+// TestWorkspaceSettingsListsSavedInstallationsFromTheRealStore drives GET /workspace-settings as the Workspace admin
+// with a real snapshot on disk: the hub offers a restore form carrying that snapshot's id, the reload button is
+// there, and with no snapshot saved the hub says so instead of listing nothing.
+func TestWorkspaceSettingsListsSavedInstallationsFromTheRealStore(t *testing.T) {
+	s := newInstallTestSetup(t, "settingslist")
+	s.deps.Cfg.BackupDir = t.TempDir()
+	s.handler = Routes(s.deps)
+	get := func() string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/workspace-settings", nil)
+		req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: s.cookie})
+		rec := httptest.NewRecorder()
+		s.handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET /workspace-settings answered %d: %s", rec.Code, rec.Body.String())
+		}
+		return rec.Body.String()
+	}
+
+	before := get()
+	if !strings.Contains(before, `action="/reload-workspace"`) || !strings.Contains(before, "No saved installations yet.") {
+		t.Error("the hub with no snapshot should carry the reload button and say none are saved")
+	}
+	if _, err := installer.SnapshotWorkspace(s.manifestPath, s.deps.Cfg.BackupDir, time.Now().Add(-time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	list, err := installer.ListSnapshots(s.manifestPath, s.deps.Cfg.BackupDir)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("ListSnapshots = %v, %v", list, err)
+	}
+	after := get()
+	if !strings.Contains(after, `value="`+list[0].ID+`"`) || !strings.Contains(after, `action="/restore-workspace-snapshot"`) {
+		t.Errorf("the hub does not offer to restore snapshot %s", list[0].ID)
+	}
+}
+
+// TestValidateFilesRouteAnswersWithTheLoadersVerdictAndWritesNothing drives POST /workspace-settings/validate as
+// the admin: a file that would still load answers "valid", one that would not answers 422 with the loader's
+// error, a file nothing loads is said to be unchecked, and the live Machine file is the same afterwards.
+func TestValidateFilesRouteAnswersWithTheLoadersVerdictAndWritesNothing(t *testing.T) {
+	s := newInstallTestSetup(t, "validateroute")
+	live := filepath.Join(filepath.Dir(s.manifestPath), s.slug, "document.yaml")
+	before, err := os.ReadFile(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ask := func(path, body string) *httptest.ResponseRecorder {
+		return s.postTo(t, "/workspace-settings/validate", url.Values{"path": {path}, "yaml": {body}})
+	}
+
+	good := ask("document.yaml", string(before)+"  - id: fld_extra\n    name: Extra\n    type: text\n")
+	if good.Code != http.StatusOK || !strings.Contains(good.Body.String(), "valid") {
+		t.Errorf("a loadable file: %d %q", good.Code, good.Body.String())
+	}
+	bad := ask("document.yaml", strings.Replace(string(before), "type: text", "type: bogus", 1))
+	if bad.Code != http.StatusUnprocessableEntity {
+		t.Errorf("a file the loader rejects answered %d, want 422", bad.Code)
+	}
+	orphan := ask("orphan.yaml", "id: mch_orphan\nname: Orphan\nfields:\n  - id: fld_a\n    name: A\n    type: text\n")
+	if orphan.Code != http.StatusOK || !strings.Contains(orphan.Body.String(), "not checked") {
+		t.Errorf("a file nothing loads: %d %q", orphan.Code, orphan.Body.String())
+	}
+	if escape := ask("../user.yaml", "id: x\n"); escape.Code != http.StatusUnprocessableEntity {
+		t.Errorf("a path outside the workspace directory answered %d, want 422", escape.Code)
+	}
+	if after, _ := os.ReadFile(live); string(after) != string(before) {
+		t.Error("validation changed the live file")
+	}
+}
+
+// TestReloadWorkspaceSnapshotsAHandEditOnce: a hand edit is not a write the runtime made, so pressing reload is the
+// moment to save it -- once, not on every press.
+func TestReloadWorkspaceSnapshotsAHandEditOnce(t *testing.T) {
+	s := newInstallTestSetup(t, "reloadsnap")
+	s.deps.Cfg.BackupDir = t.TempDir()
+	s.handler = Routes(s.deps)
+	body, _ := os.ReadFile(s.manifestPath)
+	writeTestFile(t, s.manifestPath, string(body)+"# hand edit\n")
+
+	for i := 0; i < 3; i++ {
+		if rec := s.postTo(t, "/reload-workspace", url.Values{}); rec.Code != http.StatusSeeOther && rec.Code != http.StatusOK {
+			t.Fatalf("reload %d answered %d: %s", i, rec.Code, rec.Body.String())
+		}
+	}
+	list, err := installer.ListSnapshots(s.manifestPath, s.deps.Cfg.BackupDir)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("ListSnapshots = %v, %v; want the hand edit saved exactly once across three reloads", list, err)
+	}
+}

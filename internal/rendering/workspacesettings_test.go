@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -21,7 +22,7 @@ func TestWorkspaceSettingsPage_realRowsAndPlaceholders(t *testing.T) {
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Dokter Kecil", false)
 
 	var buf bytes.Buffer
-	if err := WorkspaceSettingsPage("Dokter Kecil", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+	if err := WorkspaceSettingsPage("Dokter Kecil", Viewer{Initials: "AN"}, "", nil).Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := buf.String()
@@ -88,7 +89,7 @@ func TestWorkspaceSettingsFrame_sidebarOnTheAdminScreens(t *testing.T) {
 	}
 
 	var hub bytes.Buffer
-	if err := WorkspaceSettingsPage("Acme", viewer, "").Render(ctx, &hub); err != nil {
+	if err := WorkspaceSettingsPage("Acme", viewer, "", nil).Render(ctx, &hub); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if strings.Contains(hub.String(), "<aside") {
@@ -96,5 +97,53 @@ func TestWorkspaceSettingsFrame_sidebarOnTheAdminScreens(t *testing.T) {
 	}
 	if !strings.Contains(hub.String(), `id="danger-zone"`) {
 		t.Error("the hub's Danger zone has no anchor for the sidebar to link to")
+	}
+}
+
+// TestWorkspaceSettingsPage_installationSection pins the reload button and the snapshot list: the reload form posts
+// to the admin route, each snapshot is its own form carrying its id and the csrf token, the confirm names the undo,
+// and with none saved the page says so instead of drawing an empty list.
+func TestWorkspaceSettingsPage_installationSection(t *testing.T) {
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Acme", false)
+	render := func(rows []SnapshotRow) string {
+		var buf bytes.Buffer
+		if err := WorkspaceSettingsPage("Acme", Viewer{Initials: "AN"}, "", rows).Render(ctx, &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+
+	empty := render(nil)
+	for _, want := range []string{`action="/reload-workspace"`, "Reload from disk", "No saved installations yet."} {
+		if !strings.Contains(empty, want) {
+			t.Errorf("page with no snapshots missing %q", want)
+		}
+	}
+	if strings.Contains(empty, "/restore-workspace-snapshot") {
+		t.Error("page with no snapshots drew a restore form")
+	}
+
+	rows := []SnapshotRow{
+		{ID: "20261010T221500.000000001Z", TakenAt: time.Date(2026, 10, 10, 22, 15, 0, 1, time.UTC), Size: 2048},
+		{ID: "20261009T080000.000000002Z", TakenAt: time.Date(2026, 10, 9, 8, 0, 0, 2, time.UTC), Size: 1},
+	}
+	html := render(rows)
+	if got := strings.Count(html, `action="/restore-workspace-snapshot"`); got != 2 {
+		t.Errorf("restore forms = %d, want one per snapshot (2)", got)
+	}
+	if got := strings.Count(html, `name="csrf_token"`); got < 3 {
+		t.Errorf("csrf inputs = %d, want one in the reload form and one per restore form (3 at least)", got)
+	}
+	for _, want := range []string{
+		`name="snapshot"`, `value="20261010T221500.000000001Z"`, `value="20261009T080000.000000002Z"`,
+		"2026-10-10 22:15:00 UTC · 2 KB", "2026-10-09 08:00:00 UTC · 1 KB",
+		"The current one is saved first.",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("page with snapshots missing %q", want)
+		}
+	}
+	if strings.Contains(html, "No saved installations yet.") {
+		t.Error("page with snapshots still says there are none")
 	}
 }

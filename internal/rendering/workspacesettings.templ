@@ -1,6 +1,23 @@
 package rendering
 
-import "menata.app/internal/domain"
+import (
+	"fmt"
+	"time"
+
+	"menata.app/internal/domain"
+)
+
+// SnapshotRow is one saved installation of this Workspace as the Settings hub lists it. The handler maps
+// installer.Snapshot onto it (rendering may not import the installer); ID is what the restore form posts back.
+type SnapshotRow struct {
+	ID      string
+	TakenAt time.Time
+	Size    int64
+}
+
+func snapshotLabel(r SnapshotRow) string {
+	return fmt.Sprintf("%s UTC · %d KB", r.TakenAt.UTC().Format("2006-01-02 15:04:05"), (r.Size+1023)/1024)
+}
 
 // WorkspaceSettingsPage is the Workspace-level Settings hub (Flow 2 gap study Tahap 5,
 // 2026-09-25, M04a-Settings.dc.html) -- Application Settings hub's Workspace-level counterpart
@@ -51,6 +68,16 @@ const (
 	wsSectionMembers     = "members"
 	wsSectionGroups      = "groups"
 	wsDangerZoneAnchorID = "danger-zone"
+
+	wsInstallationAnchorID = "installation"
+	wsInstallationTitle    = "Installation"
+	wsReloadLabel          = "Reload from disk"
+	wsReloadBlurb          = "Re-read this workspace's files after editing them by hand. A file that does not load changes nothing."
+	wsSnapshotsTitle       = "Saved installations"
+	wsSnapshotsBlurb       = "Taken before each install, publish or restore. Restoring saves the current one first, so it can be undone."
+	wsSnapshotsEmpty       = "No saved installations yet."
+	wsRestoreLabel         = "Restore"
+	wsRestoreConfirm       = "Restore this saved installation? The current one is saved first."
 )
 
 // workspaceSettingsFrame puts a sidebar of the Workspace's settings sections beside an admin screen (S2.3;
@@ -82,7 +109,7 @@ templ workspaceSettingsFrame(active string) {
 	}
 }
 
-templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceHref string, snapshots []SnapshotRow) {
 	@appShell(titleByID(ctx, "nav_workspace_settings"), workspaceName, viewer, switchWorkspaceHref) {
 		<div class="flex flex-col gap-1">
 			@staticText(domain.StaticHeading, titleByID(ctx, "nav_workspace_settings"))
@@ -103,6 +130,35 @@ templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspace
 				<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Security</h2>
 				@settingsPlaceholderRow(wsAuthTitle, wsAuthBlurb)
 				@settingsPlaceholderRow(wsAuditTitle, wsAuditBlurb)
+			</div>
+			<div id={ wsInstallationAnchorID } class="flex flex-col gap-2">
+				<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">{ wsInstallationTitle }</h2>
+				<form method="POST" action="/reload-workspace" class="flex flex-col gap-2 px-3">
+					@csrfHiddenInput()
+					@staticText(domain.StaticCaption, wsReloadBlurb)
+					<div>
+						@button(wsReloadLabel, domain.ButtonSecondary, "", "")
+					</div>
+				</form>
+				<div class="flex flex-col gap-2 px-3">
+					@staticText(domain.StaticSubheading, wsSnapshotsTitle)
+					if len(snapshots) == 0 {
+						@staticText(domain.StaticCaption, wsSnapshotsEmpty)
+					} else {
+						@staticText(domain.StaticCaption, wsSnapshotsBlurb)
+						<ul class="m-0 flex list-none flex-col p-0">
+							for _, snap := range snapshots {
+								<li class={ "flex items-center justify-between gap-3 border-b py-2 last:border-b-0", borderClass(ctx, domain.BorderDivider) }>
+									<span class="text-sm text-slate-700">{ snapshotLabel(snap) }</span>
+									<form method="POST" action="/restore-workspace-snapshot" hx-confirm={ wsRestoreConfirm }>
+										@csrfHiddenInput()
+										@button(wsRestoreLabel, domain.ButtonSecondary, "snapshot", snap.ID)
+									</form>
+								</li>
+							}
+						</ul>
+					}
+				</div>
 			</div>
 			<div id={ wsDangerZoneAnchorID } class="flex flex-col gap-0.5 rounded-lg border border-red-200">
 				<h2 class="px-3 pt-2 pb-1 text-3xs font-medium tracking-wide text-red-400 uppercase">{ wsDangerTitle }</h2>

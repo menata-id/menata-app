@@ -55,6 +55,15 @@ func showWorkspaceSettings(store *data.Store, cfg config.Config) http.HandlerFun
 		}
 		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 		_, switchHref := viewerWorkspaceContext(ctx, store, userID)
-		render(ctx, w, rendering.WorkspaceSettingsPage(chrome.WorkspaceName, chrome.Viewer(), switchHref))
+		snaps, err := workspaceSnapshots(ctx, store, cfg)
+		if err != nil {
+			serverError(w, err)
+			return
+		}
+		rows := make([]rendering.SnapshotRow, 0, len(snaps))
+		for _, sn := range snaps {
+			rows = append(rows, rendering.SnapshotRow{ID: sn.ID, TakenAt: sn.TakenAt, Size: sn.Size})
+		}
+		render(ctx, w, rendering.WorkspaceSettingsPage(chrome.WorkspaceName, chrome.Viewer(), switchHref, rows))
 	}
 }
