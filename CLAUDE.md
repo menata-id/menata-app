@@ -246,10 +246,12 @@ the Dataset ids the Machine cast in that role must provide, checked at load by
 `metadata.validateWorkflowDatasets` — by **role**, never by file or id, which matters because
 dokter-kecil's `document` role is `mch_document_approval` while its own unrelated `mch_document` is the
 unbound Machine that has panicked two pages. A load error, for the same reason a missing Required role
-is: an engine that cannot select its own records cannot run, and refusing to start beats serving a
-screen that throws. Note what that costs and accept it deliberately — one Workspace's missing Dataset now
-stops the **whole process**, which is how every other invalid manifest already behaves (005 Phase 3) and
-why `internal/installer` load-verifies and rolls back.
+is: an engine that cannot select its own records cannot run, and refusing to serve that Workspace beats serving a
+screen that throws. Since 2026-10-10 (K09) that refusal is **per Workspace**: `metadata.LoadWorkspacesTolerant`
+marks the manifest unavailable (`web.Deps.UnavailableWorkspaces`, a 503 for requests in it, the error logged as
+`WORKSPACE UNAVAILABLE` with its file) and the process serves the rest. It used to stop the whole process. Only
+"no Workspace loaded at all" is still fatal, and a *reload* that breaks a previously healthy Workspace is still
+rejected whole — which is why `internal/installer` still load-verifies and rolls back.
 
 **The general rule: when you add a Dataset id (or any metadata key) that Go names, ask which Workspaces
 already installed the Machine that must declare it.** The library is a template, not a live reference.

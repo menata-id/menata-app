@@ -545,17 +545,10 @@ past `capability-lifecycle.md` §2). Items waiting on a trigger, and the six own
 there and are deliberately not here.
 
 **P0 -- defects, no dependencies**
-- K02 The AI schema's Field types come from `KnownFieldTypes` (`long_text` missing today).
-- K03 Rate limiters read the client address from the trusted proxy -- `capability-lifecycle.md` §3b.
-- K04 Password-reset tokens are single-use -- §3b.
-- K05 `make deploy`: build, restart, compare the running binary, smoke five routes.
 - K06 Fonts and icons fingerprinted, or `assets.go`'s comment corrected.
 - K07 Stale numbers out of CLAUDE.md, writing-guide, capabilities, getting-started and code comments.
-- K08 `TestWholeMachineReadsOnlyShrink` counts `loader.go`, `internal/web` and `internal/execution` too.
 
 **P1 -- a broken Workspace never stops another (005 Failure Handling, 001 #9)**
-- K09 Metadata loads per Workspace; a broken one is marked unavailable, startup is not fatal, every error names
-  its file and every validator stage reports.
 - K10 Reload per Workspace with an admin action; a reload failing after a write rolls it back (005 Hot Reload).
   Its storage shape waits on owner decision D1.
 
