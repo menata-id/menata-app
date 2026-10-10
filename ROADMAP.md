@@ -553,8 +553,7 @@ there and are deliberately not here.
   Its storage shape waits on owner decision D1.
 
 **Mockup canvas -- 72 artboards (`Sx`: slices in `menata-app-document`'s `audits/2026-10-10-rencana-pengerjaan-gap-mockup-kanvas.md`)**
-- S0 (defects, any time) Applications listed only when the viewer can open them; board-card controls reachable on touch.
-- S1 Copy and layout deltas per canvas page. S2.1 A generic Application Settings frame, rows declared per Application
+- S0 and S1 shipped (2026-10-10; a few S1 items wait on S2.1/S2.3 or owner decisions). S2.1 A generic Application Settings frame, rows declared per Application
   (K11's consumer); S2.2 per-Application Members & roles inside it.
 - S2.3-S2.8 Workspace settings navigation, a mobile bar without "More", account menu, My Documents table, PM activity
   panel, touch and keyboard drag -- several wait on owner decisions M-D1..M-D7.

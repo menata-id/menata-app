@@ -92,7 +92,7 @@ var roadmapDiaryLines = map[string]int{
 var roadmapSectionLines = map[string]int{
 	"Shipped":     138,
 	"In progress": 393,
-	"Planned":     53,
+	"Planned":     52,
 }
 
 func TestRoadmapStaysAReleasePlan(t *testing.T) {
