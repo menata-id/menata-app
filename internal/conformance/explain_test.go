@@ -421,34 +421,62 @@ func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
 // So: **this number will not fall again without a new primitive.** The map stays a gate against
 // regression, and is not a target. `capabilities.md`'s whole-Machine-read row carries the same figures
 // once; it is referenced here rather than restated, which is the lesson the retraction above cost.
+// **The population was wrong until 2026-10-10 (K08), and a directive gate that under-reports is worse than none.**
+// It scanned `internal/composition` only and excluded `loader.go` as "plumbing", so it reported 6 of 15 sites.
+// `loader.go` holds four readers of an entire Machine (RelationOptions, BoardColumns, ConstraintRelatedRecords,
+// AggregateDataset) -- the exclusion was right about the one line that *implements* the call and wrong about its
+// four callers -- and the same shape sat in `internal/web` (4) and `internal/execution` (1), which nobody
+// scanned. Keys are `<package>/<file>`. The 2026-09-29 and 2026-09-30 counts in the paragraphs above are composition alone.
+//
+// The new entries are frozen, not judged: nobody has read whether each `internal/web` site legitimately
+// needs every record (a generic list or export would) or is a correlation waiting on a Dataset.
 var wholeMachineReadRatchet = map[string]int{
-	"approval.go": 1,
-	"assigned.go": 1,
-	"pages.go":    2,
-	"review.go":   2,
+	"composition/approval.go": 1,
+	"composition/assigned.go": 1,
+	"composition/loader.go":   4,
+	"composition/pages.go":    2,
+	"composition/review.go":   2,
+	"execution/events.go":     1,
+	"web/api.go":              1,
+	"web/machine.go":          1,
+	"web/record.go":           2,
 }
 
-var wholeMachineRead = regexp.MustCompile(`l\.ListRecords\(ctx`)
+// wholeMachineRead matches a call reading every record of a Machine through a Loader or a Store. The
+// implementation line in composition/loader.go (`l.store.ListRecords`) is the one thing it must not count.
+var wholeMachineRead = regexp.MustCompile(`\b\w+\.ListRecords\(`)
+
+// wholeMachineReadPackages is the scanned population: every package above internal/data that may reach a
+// Store or a Loader. internal/data itself defines the method and is not a caller.
+var wholeMachineReadPackages = []string{"composition", "web", "execution"}
 
 func TestWholeMachineReadsOnlyShrink(t *testing.T) {
-	dir := filepath.Join(repoRoot(), "internal", "composition")
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read %s: %v", dir, err)
-	}
-
 	found := map[string]int{}
-	for _, e := range entries {
-		name := e.Name()
-		// loader.go is the plumbing these calls go through, not a site that reads a Machine whole;
-		// counting it would make the memo's own implementation look like four violations.
-		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || name == "loader.go" {
-			continue
+	for _, pkg := range wholeMachineReadPackages {
+		dir := filepath.Join(repoRoot(), "internal", pkg)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("read %s: %v", dir, err)
 		}
-		n := len(wholeMachineRead.FindAllString(readFile(t, filepath.Join(dir, name)), -1))
-		if n > 0 {
-			found[name] = n
+		for _, e := range entries {
+			name := e.Name()
+			if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+				continue
+			}
+			n := 0
+			for _, line := range strings.Split(readFile(t, filepath.Join(dir, name)), "\n") {
+				if trimmed := strings.TrimSpace(line); strings.HasPrefix(trimmed, "//") || strings.Contains(line, "l.store.ListRecords(") {
+					continue
+				}
+				n += len(wholeMachineRead.FindAllString(line, -1))
+			}
+			if n > 0 {
+				found[pkg+"/"+name] = n
+			}
 		}
+	}
+	if len(found) == 0 {
+		t.Fatal("no whole-Machine read found anywhere -- this gate would pass by measuring nothing")
 	}
 
 	total, budgetTotal := 0, 0
