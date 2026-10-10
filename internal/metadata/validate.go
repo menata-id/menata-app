@@ -731,7 +731,7 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if c.Value == expression.SentinelDone {
 				issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, doneIssue(m, c)))
 			} else if expression.IsSentinel(c.Value) && !expression.KnownSentinel(c.Value) {
-				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s, %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelToday, expression.SentinelParameterPrefix))
+				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s[+-n], %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelToday, expression.SentinelParameterPrefix))
 			}
 		}
 	} else {
@@ -804,7 +804,7 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 				switch {
 				case c.Value == expression.SentinelDone:
 					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, doneIssue(m, c)))
-				case expression.IsSentinel(c.Value) && c.Value != expression.SentinelToday:
+				case expression.IsSentinel(c.Value) && !expression.IsToday(c.Value):
 					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q names a runtime context value an aggregate cannot resolve -- it has no viewer and no request parameters, only %s and %s", ds.ID, ms.ID, c.Value, expression.SentinelToday, expression.SentinelDone))
 				default:
 					for _, msg := range orderedComparisonIssues(whereField, c) {
@@ -842,8 +842,8 @@ func doneIssue(m *domain.Machine, c expression.Comparison) string {
 // that is not a date is refused whatever the operator, since a date compared against a status is never meant.
 func orderedComparisonIssues(f domain.Field, c expression.Comparison) []string {
 	var issues []string
-	if c.Value == expression.SentinelToday && f.Type != domain.FieldTypeDate {
-		issues = append(issues, fmt.Sprintf("value %s is a date, but field %q is type %q", expression.SentinelToday, f.ID, f.Type))
+	if expression.IsToday(c.Value) && f.Type != domain.FieldTypeDate {
+		issues = append(issues, fmt.Sprintf("value %s is a date, but field %q is type %q", c.Value, f.ID, f.Type))
 	}
 	if !expression.IsOrdered(c.Op) {
 		return issues

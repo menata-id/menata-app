@@ -1,6 +1,10 @@
 package expression
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+	"time"
+)
 
 // Context is what a Predicate may resolve besides the record in front of it.
 //
@@ -10,7 +14,7 @@ import "strings"
 //	record
 //	old
 //	current_user     <- built
-//	today            <- built
+//	today            <- built (`$today`, and `$today+n` / `$today-n` days from it)
 //	now
 //	parameters       <- built
 //
@@ -52,6 +56,47 @@ const (
 // IsSentinel reports whether a declared value references the Context.
 func IsSentinel(value string) bool { return strings.HasPrefix(value, SentinelPrefix) }
 
+// MaxTodayOffsetDays bounds `$today+n` / `$today-n`. A page that reaches past a century is a typo (a year
+// written as days), and an unbounded n would hand time.AddDate a date it cannot represent.
+const MaxTodayOffsetDays = 36500
+
+// TodayOffset reads a `$today`, `$today+n` or `$today-n` value: whole days from the request's date, n a plain
+// non-negative integer (no sign-only, no spaces, no unit -- a day is the only grain a date Field has). ok is
+// false for anything else, including an n past MaxTodayOffsetDays, so a malformed one fails closed instead of
+// being compared as text.
+func TodayOffset(value string) (days int, ok bool) {
+	rest, found := strings.CutPrefix(value, SentinelToday)
+	if !found {
+		return 0, false
+	}
+	if rest == "" {
+		return 0, true
+	}
+	sign := 1
+	switch rest[0] {
+	case '+':
+	case '-':
+		sign = -1
+	default:
+		return 0, false
+	}
+	digits := rest[1:]
+	if digits == "" || strings.TrimLeft(digits, "0123456789") != "" {
+		return 0, false
+	}
+	n, err := strconv.Atoi(digits)
+	if err != nil || n > MaxTodayOffsetDays {
+		return 0, false
+	}
+	return sign * n, true
+}
+
+// IsToday reports whether value is `$today` itself or an offset of it -- what a date Field may be compared to.
+func IsToday(value string) bool {
+	_, ok := TodayOffset(value)
+	return ok
+}
+
 // KnownSentinel reports whether value is one this runtime resolves.
 //
 // **This is the half that matters**, and 007 §9.2 states it as a requirement rather than a nicety:
@@ -61,7 +106,7 @@ func IsSentinel(value string) bool { return strings.HasPrefix(value, SentinelPre
 // like a screen with no data. That is the same class of silent-empty failure as the /review 404,
 // and it is why this is validated at load rather than discovered at runtime.
 func KnownSentinel(value string) bool {
-	if value == SentinelCurrentUser || value == SentinelToday {
+	if value == SentinelCurrentUser || IsToday(value) {
 		return true
 	}
 	return strings.HasPrefix(value, SentinelParameterPrefix) && len(value) > len(SentinelParameterPrefix)
@@ -81,8 +126,18 @@ func (c Context) Resolve(value string) (string, bool) {
 	if value == SentinelCurrentUser {
 		return c.CurrentUser, c.CurrentUser != ""
 	}
-	if value == SentinelToday {
-		return c.Today, c.Today != ""
+	if days, ok := TodayOffset(value); ok {
+		if c.Today == "" {
+			return "", false
+		}
+		if days == 0 {
+			return c.Today, true
+		}
+		day, err := time.Parse("2006-01-02", c.Today)
+		if err != nil {
+			return "", false
+		}
+		return day.AddDate(0, 0, days).Format("2006-01-02"), true
 	}
 	if name, found := strings.CutPrefix(value, SentinelParameterPrefix); found {
 		got, ok := c.Parameters[name]

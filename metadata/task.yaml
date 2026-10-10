@@ -126,6 +126,20 @@ datasets:
       - id: msr_completed
         aggregate: count
         where: { field: fld_status, op: equals, value: $done }
+      - id: msr_due_today
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_due_date, op: equals, value: $today }
+      # `$today+7` is a week from the request's date: the window My Tasks calls "Next 7 days", today included.
+      - id: msr_due_week
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_due_date, op: gte, value: $today }
+            - { field: fld_due_date, op: lte, value: $today+7 }
 
 # card_fields: what a Task's own records show wherever a screen renders them without picking
 # Fields itself (007 §7.6 Projection). Added 2026-09-28, when the Case 19 screens stopped reading

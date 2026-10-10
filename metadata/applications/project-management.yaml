@@ -81,6 +81,19 @@ navigation:
               label: Completed
               tone: good
               binding: { dataset: ds_task_figures, measure: msr_completed, rows: total }
+        - layout: grid
+          gap: default
+          mobile: 2
+          columns: 4
+          children:
+            - component: Metric
+              label: Due today
+              hint: Not finished yet
+              binding: { dataset: ds_task_figures, measure: msr_due_today, rows: total }
+            - component: Metric
+              label: Due in 7 days
+              hint: Today included
+              binding: { dataset: ds_task_figures, measure: msr_due_week, rows: total }
   - id: nav_calendar
     label: Calendar
     route: /calendar

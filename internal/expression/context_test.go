@@ -9,7 +9,7 @@ import "testing"
 // prevents is quiet: a filter comparing a Field against the string "$current_usr" matches nothing,
 // renders an empty list, and is indistinguishable from a screen that legitimately has no rows.
 func TestKnownSentinel_failsClosed(t *testing.T) {
-	known := []string{"$current_user", "$parameters.document", "$parameters.x", "$today"}
+	known := []string{"$current_user", "$parameters.document", "$parameters.x", "$today", "$today+7", "$today-1", "$today+0"}
 	for _, v := range known {
 		if !KnownSentinel(v) {
 			t.Errorf("KnownSentinel(%q) = false, want true", v)
@@ -26,6 +26,14 @@ func TestKnownSentinel_failsClosed(t *testing.T) {
 		"$record.fld_x",    // §9.2 names `record`; not built either
 		"$",                //
 		"$anything_at_all", //
+		"$today+",          // an offset with no number
+		"$today-",          //
+		"$today+7d",        // a unit: a day is the only grain
+		"$today + 7",       // spaces
+		"$today+-7",        //
+		"$today+1.5",       // whole days
+		"$todays",          // a longer name, not an offset
+		"$today+36501",     // past MaxTodayOffsetDays
 	}
 	for _, v := range unknown {
 		if KnownSentinel(v) {
@@ -85,5 +93,35 @@ func TestResolve_today(t *testing.T) {
 	}
 	if got, ok := (Context{}).Resolve("$today"); ok {
 		t.Errorf("Resolve($today) with no date = %q, true; want not-ok", got)
+	}
+}
+
+// $today+n / $today-n are whole days from the request's date, resolved by the one place that resolves a
+// sentinel, so the SQL realisation and the in-memory one cannot disagree about what a week from now is.
+func TestResolve_todayOffset(t *testing.T) {
+	c := Context{Today: "2026-10-10"}
+	for value, want := range map[string]string{
+		"$today":     "2026-10-10",
+		"$today+0":   "2026-10-10",
+		"$today+7":   "2026-10-17",
+		"$today-1":   "2026-10-09",
+		"$today+22":  "2026-11-01", // across a month
+		"$today-10":  "2026-09-30",
+		"$today+100": "2027-01-18", // across a year
+	} {
+		if got, ok := c.Resolve(value); !ok || got != want {
+			t.Errorf("Resolve(%q) = %q, %v; want %q, true", value, got, ok, want)
+		}
+	}
+	if got, ok := (Context{Today: "2028-02-28"}).Resolve("$today+1"); !ok || got != "2028-02-29" {
+		t.Errorf("Resolve($today+1) from 2028-02-28 = %q, %v; want the leap day", got, ok)
+	}
+	for _, value := range []string{"$today+7", "$today-1"} {
+		if got, ok := (Context{}).Resolve(value); ok {
+			t.Errorf("Resolve(%q) with no date = %q, true; want not-ok", value, got)
+		}
+	}
+	if got, ok := (Context{Today: "not a date"}).Resolve("$today+1"); ok {
+		t.Errorf("Resolve($today+1) from an unparsable date = %q, true; want not-ok", got)
 	}
 }

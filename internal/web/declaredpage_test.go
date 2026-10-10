@@ -951,12 +951,13 @@ func TestDeclaredPageMoveButtonsReorderTheListAndRefreshThePage(t *testing.T) {
 	}
 }
 
-// TestDeclaredPageTotalsCountEachFigureFromItsMeasure: "Task figures" is four Metrics bound with `rows: total`,
+// TestDeclaredPageTotalsCountEachFigureFromItsMeasure: "Task figures" is six Metrics bound with `rows: total`,
 // and each figure is a Measure's `where:` over the Task Machine -- open is "not $done", overdue is "not $done
-// AND due before $today", completed is "$done". Five tasks sit on either side of every boundary (a finished one
-// that is late, a late open one, one due today, one in the future, one undated), so a figure that treated
+// AND due before $today", completed is "$done". Eight tasks sit on either side of every boundary (a finished one
+// that is late, a late open one, one due today, one in the future, one undated, and the week's two edges and a
+// finished one due today), so a figure that treated
 // "finished" as a literal, dropped the conjunction, or compared the date with <= instead of < shows a number the
-// records contradict. The workspace is created for the test, so the figures are exactly these five.
+// records contradict. The workspace is created for the test, so the figures are exactly these eight.
 func TestDeclaredPageTotalsCountEachFigureFromItsMeasure(t *testing.T) {
 	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredtotals", "default")
 	var task *domain.Machine
@@ -975,6 +976,11 @@ func TestDeclaredPageTotalsCountEachFigureFromItsMeasure(t *testing.T) {
 		"Fig-open-today":   {"fld_status": "in_progress", "fld_due_date": day(0)},
 		"Fig-open-future":  {"fld_status": "todo", "fld_due_date": day(5)},
 		"Fig-open-undated": {"fld_status": "todo"},
+		// The week's edges: +7 is inside `$today+7`, +8 is outside, and a finished card due today is neither
+		// "due today" nor "due in 7 days".
+		"Fig-open-week-end": {"fld_status": "todo", "fld_due_date": day(7)},
+		"Fig-open-beyond":   {"fld_status": "todo", "fld_due_date": day(8)},
+		"Fig-done-today":    {"fld_status": task.Completion.Done, "fld_due_date": day(0)},
 	} {
 		v["fld_title"] = title
 		rec, err := store.CreateRecord(ctx, task.ID, v)
@@ -985,7 +991,7 @@ func TestDeclaredPageTotalsCountEachFigureFromItsMeasure(t *testing.T) {
 	}
 
 	body := getPage(t, h, cookie, "/pages/nav_task_figures")
-	for label, want := range map[string]int{"All cards": 5, "Open": 4, "Overdue": 1, "Completed": 1} {
+	for label, want := range map[string]int{"All cards": 8, "Open": 6, "Overdue": 1, "Completed": 2, "Due today": 1, "Due in 7 days": 3} {
 		pair := regexp.MustCompile(`>` + strconv.Itoa(want) + `</div><div[^>]*>` + regexp.QuoteMeta(label) + `</div>`)
 		if !pair.MatchString(body) {
 			t.Errorf("no Metric shows %q with a value of %d", label, want)

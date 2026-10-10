@@ -1059,7 +1059,8 @@ four figures of the Task Machine (`nav_task_figures`):
 ```
 
 A Measure's `where:` takes the same one-level `all:` conjunction a records Dataset does, and two sentinels:
-`$today` (the request's date, against a date Field) and **`$done`** -- whatever the Machine's own `completion:`
+`$today` (the request's date, against a date Field; `$today+7` / `$today-30` are whole days from it, so "the next
+week" is `gte $today` and `lte $today+7` rather than a date typed into the file) and **`$done`** -- whatever the Machine's own `completion:`
 block names as finished, so "finished" is declared once, there, and never retyped as `done` or `closed`. `$done`
 is accepted only as `equals`/`not_equals` against the completion Field itself, and a Machine with no `completion:`
 refuses it at load. `$current_user` and `$parameters.<name>` are refused in a Measure: an aggregate has no viewer
