@@ -561,7 +561,6 @@ there and are deliberately not here.
 - K11 Conditional visibility on a `page:` node (007 §15.2) -- consumer: the S2.1 Settings frame (S2.1 -> K11 -> K15).
 - K12 A `Table` Component (006 View lowering) -- consumers: the hand-written tables.
 - K13 `write: transition`, a Button moving a status through `CheckTransitions` (007 §11.3) -- consumer: My Tasks.
-- K14 Date arithmetic in expressions, `$today +/- n` (007 §9) -- consumers: My Tasks, Calendar.
 - K15 Dashboard, My Tasks, Calendar and Application Settings migrate to `page:` (re-check each screen first).
 - K16 AI schema from the loader's grammar (D2 = option G). Field types and colours done; owed: the rest of the
   schema, removals and renames with confirmation in an installed Application, YAML at review.
@@ -576,7 +575,7 @@ there and are deliberately not here.
   (`requires_role:`) waits for a second real case, likely an Application role.
 - Three Go screens still scope to "mine" by hand (`PersonalTasks`, `ApprovalInbox`, `AssignedToMe`); the Case 19
   constants in `internal/composition/pages.go` await a B1-B5 owner decision.
-- Ordered comparisons left: My Tasks counts, hour-scale SLA (needs a datetime Field), `$today` in constraints, money.
+- Ordered comparisons left: My Tasks counts (`$today +/- n` exists now, K14), hour-scale SLA (needs a datetime Field), `$today` in constraints, money.
   Deleting a Field still orphans its data; change classification rides with K09-K10.
 - A second unrelated background job triggers a dedicated worker; the wider portfolio (HR, inventory, POS,
   e-commerce, helpdesk) follows the triggered capabilities in §10.
