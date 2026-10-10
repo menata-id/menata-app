@@ -9,11 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"menata.app/internal/authorization"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/installer"
 	"menata.app/internal/metadata"
 	"menata.app/internal/storage"
 )
@@ -207,8 +209,13 @@ func newInstallTestSetup(t *testing.T, name string) *installTestSetup {
 // renders and csrf_test.go already exercises.
 func (s *installTestSetup) post(t *testing.T, form url.Values) *httptest.ResponseRecorder {
 	t.Helper()
+	return s.postTo(t, "/install-application", form)
+}
+
+func (s *installTestSetup) postTo(t *testing.T, path string, form url.Values) *httptest.ResponseRecorder {
+	t.Helper()
 	form.Set("csrf_token", "install-test-token")
-	req := httptest.NewRequest(http.MethodPost, "/install-application", strings.NewReader(form.Encode()))
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: s.cookie})
 	req.AddCookie(&http.Cookie{Name: authorization.CSRFCookieName, Value: "install-test-token"})
@@ -252,4 +259,45 @@ func userMachineFor(t *testing.T, loaded *metadata.App) *domain.Machine {
 	}
 	t.Fatal("the fixture Workspace has no mch_user")
 	return nil
+}
+
+// TestRestoreSnapshotRouteBringsBackTheInstallationAndRefusesABadOne drives POST /restore-workspace-snapshot as the
+// Workspace admin: a snapshot taken before an edit is restored through the router and the edit is gone, a made-up id
+// answers 422 and leaves the files alone, and the restore itself left a snapshot behind (so it can be undone).
+func TestRestoreSnapshotRouteBringsBackTheInstallationAndRefusesABadOne(t *testing.T) {
+	s := newInstallTestSetup(t, "restoreroute")
+	s.deps.Cfg.BackupDir = t.TempDir()
+	s.handler = Routes(s.deps)
+	original, err := os.ReadFile(s.manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := installer.SnapshotWorkspace(s.manifestPath, s.deps.Cfg.BackupDir, time.Now().Add(-time.Hour))
+	if err != nil || snap == "" {
+		t.Fatalf("SnapshotWorkspace = %q, %v", snap, err)
+	}
+	writeTestFile(t, s.manifestPath, string(original)+"# edited after the snapshot\n")
+	list, err := installer.ListSnapshots(s.manifestPath, s.deps.Cfg.BackupDir)
+	if err != nil || len(list) != 1 {
+		t.Fatalf("ListSnapshots = %v, %v", list, err)
+	}
+
+	bad := s.postTo(t, "/restore-workspace-snapshot", url.Values{"snapshot": {"20200101T000000.000000000Z"}})
+	if bad.Code != http.StatusUnprocessableEntity {
+		t.Errorf("an unknown snapshot answered %d, want 422", bad.Code)
+	}
+	if got, _ := os.ReadFile(s.manifestPath); !strings.Contains(string(got), "# edited") {
+		t.Error("a refused restore changed the manifest")
+	}
+
+	ok := s.postTo(t, "/restore-workspace-snapshot", url.Values{"snapshot": {list[0].ID}})
+	if ok.Code != http.StatusSeeOther && ok.Code != http.StatusOK {
+		t.Fatalf("restore answered %d: %s", ok.Code, ok.Body.String())
+	}
+	if got, _ := os.ReadFile(s.manifestPath); string(got) != string(original) {
+		t.Errorf("manifest after restore = %q, want the snapshot's", got)
+	}
+	if after, _ := installer.ListSnapshots(s.manifestPath, s.deps.Cfg.BackupDir); len(after) != 2 {
+		t.Errorf("%d snapshots after a restore, want 2: the restore keeps what it replaced", len(after))
+	}
 }
