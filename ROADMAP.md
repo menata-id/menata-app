@@ -532,17 +532,16 @@ forcing conditions, verification steps -- is tracked in a private companion repo
   removes. 007 §21.4 becomes live at the 50,000-row threshold, not now.
   Measurements and the conditional refusal in full:
   `menata-app-document`'s `audits/2026-09-22-lapisan-query-dan-indeks-kajian.md`.
-- **The Flow 2 mockup -- gap recorded 2026-09-23, nothing scheduled.** A second owner canvas of 39
-  artboards, audited board by board against the running app. Tahap 4-8 shipped from it (see
-  `## Shipped`); the rest is recorded, not planned.
-  Findings, per-board deltas and the two false positives the re-audit found:
-  `menata-app-document`'s `audits/2026-09-23-kajian-gap-mockup-flow2.md` and
-  `development-history.md`.
-- **Flow 2 canvas re-audit -- the canvas is fully ported; what remains is a short named list** (2026-09-27): SLA drawn in hours
-  needs a datetime Field type; uploaded file byte size is never captured; one signature box for a Group-held step is undefined;
-  SLA-breach/policy notification triggers beyond the two shipped; the desktop topbar width differs from `<main>`'s `max-w-[1180px]`;
-  and owner Q3 (pending invitations merged into the Members table or separate) is still open. Per-board detail and the four
-  gaps the re-run found (all shipped): `development-history.md`, "2026-10-05 -- Narrative moved out of ROADMAP.md".
+- **The owner's mockup canvas -- "Flow 2 mockup" (2026-09-23), "Flow 2 canvas re-audit" (2026-09-27), and the 72-artboard
+  review (2026-10-10).** The canvas grew from 39 boards to five pages: account, Workspace, Applications, Case 03 and Case 19.
+  Still open from 2026-09-27: hour-precision SLA (a datetime Field), uploaded byte size, SLA-breach triggers beyond the two
+  shipped, owner Q3; the canvas now draws one signature box per Group-held step. The 2026-10-10 review adds, in priority
+  order: two visible defects (Applications listed that the viewer cannot open; board-card controls unreachable on touch),
+  ~30 small copy and layout deltas, a generic Application Settings frame (seven boards; K11's consumer), per-Application
+  Members & roles, Workspace settings navigation, a mobile bar without the parked "More" sheet; then new capability --
+  account deletion with a grace period, Application deactivation, per-Application notification policy, Case 19 card
+  actions. Sixteen owner decisions gate parts of it. Detail and the work plan: `menata-app-document`'s
+  `audits/2026-10-10-kajian-gap-mockup-kanvas-72-artboard.md` and `audits/2026-10-10-rencana-pengerjaan-gap-mockup-kanvas.md`.
 
 ## Planned
 Only items that qualify now, in priority order. `Kxx` is the row in `menata-app-document`'s

@@ -88,7 +88,7 @@ var roadmapDiaryLines = map[string]int{
 // work list K01-K21 whose reasons live in the companion repo's 2026-10-10 audit §10.
 var roadmapSectionLines = map[string]int{
 	"Shipped":     138,
-	"In progress": 400,
+	"In progress": 399,
 	"Planned":     54,
 }
 
