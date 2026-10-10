@@ -42,6 +42,9 @@ type EngineFields struct {
 	ActorType      string
 	ActorGroup     string
 	DocumentStatus string
+	// Submitter is the document Machine's Field holding whoever created the record: the actor_field of its
+	// create Permission. Empty when the Machine declares none.
+	Submitter string
 }
 
 // DeclaredFields derives the set for one step Machine and its document Machine. Either may be nil --
@@ -65,6 +68,7 @@ func DeclaredFields(stepMachine, docMachine *domain.Machine) EngineFields {
 	}
 	if docMachine != nil {
 		f.DocumentStatus = docMachine.StatusField()
+		f.Submitter = docMachine.ActorFieldFor(domain.ActionCreate)
 	}
 	return f
 }

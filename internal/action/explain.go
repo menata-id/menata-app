@@ -50,7 +50,7 @@ var allDerivations = []string{
 	domain.DerivationActor, domain.DerivationActorType, domain.DerivationActorGroup,
 	domain.DerivationParent, domain.DerivationStatusTargets, domain.DerivationActionWrites,
 	domain.DerivationSignaturePlacement, domain.DerivationCompositeSource,
-	domain.DerivationDocumentStatus, domain.DerivationSignatureStore,
+	domain.DerivationDocumentStatus, domain.DerivationSubmitter, domain.DerivationSignatureStore,
 	domain.DerivationFlowTemplate, domain.DerivationFlowTemplateStep,
 }
 
@@ -169,6 +169,8 @@ func valueOf(derivation string, m, doc *domain.Machine) string {
 		}
 	case domain.DerivationDocumentStatus:
 		return m.StatusField()
+	case domain.DerivationSubmitter:
+		return m.ActorFieldFor(domain.ActionCreate)
 	case domain.DerivationSignaturePlacement:
 		// The five raw Fields, deliberately *not* SignaturePlacement.Fields(): that method skips the
 		// undeclared ones, so a block declaring an image and no coordinates would come back as three
@@ -221,6 +223,8 @@ func sourceOf(derivation string) string {
 		return "signature_store:"
 	case domain.DerivationCompositeSource:
 		return "events[].then.composite.source_field"
+	case domain.DerivationSubmitter:
+		return "permissions[create].actor_field"
 	case domain.DerivationFlowTemplate:
 		return "flow_template:"
 	case domain.DerivationFlowTemplateStep:

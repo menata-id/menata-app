@@ -11,14 +11,9 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
-	"menata.app/internal/expression"
 	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
-
-// firstEventsDataset is metadata/activity.yaml's earliest-events-of-one-record Dataset; its id is named from Go,
-// so a Workspace carrying mch_activity must declare it (it does: activity.yaml is one shared file).
-const firstEventsDataset = "ds_record_first_events"
 
 // ReviewDocument composes board 10 (ui-sample/case-03-flow1/10-review-document.html, Fase 6b):
 // one Approval Step, seen by the person who has to decide it, with the Document it belongs to.
@@ -56,19 +51,6 @@ func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine, sig
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
-	// Only this Document's earliest events, through a Dataset (K18) -- not the whole activity log filtered in
-	// Go. Absent when the Workspace carries no activity log: the screen then shows no submitter, the same
-	// answer an unlogged Document already got.
-	var activities []*data.Record
-	if _, ok := l.Dataset(firstEventsDataset); ok {
-		sel, err := l.SelectRelated(ctx, firstEventsDataset, expression.Context{
-			Parameters: map[string]string{"machine": docMachine.ID, "record": documentID},
-		})
-		if err != nil {
-			return rendering.ReviewView{}, err
-		}
-		activities = sel.Records
-	}
 	names, err := l.PersonNames(ctx)
 	if err != nil {
 		return rendering.ReviewView{}, err
@@ -77,7 +59,7 @@ func ReviewDocument(ctx context.Context, l *Loader, stepMachine, docMachine, sig
 	if err != nil {
 		return rendering.ReviewView{}, err
 	}
-	return buildReview(step, document, siblings, activities, names, stepMachine, docMachine, viewer, pdfPages, hasSignature, now, savedSignatures), nil
+	return buildReview(step, document, siblings, names, stepMachine, docMachine, viewer, pdfPages, hasSignature, now, savedSignatures), nil
 }
 
 // savedSignatureImages maps a person's own id to their reusable signature's stored image key
@@ -118,7 +100,7 @@ func savedSignatureImages(ctx context.Context, l *Loader, signatureMachine *doma
 // split buildInbox uses, and for the same reason: the rules worth testing (whose step is
 // actionable, which approver is you, whether a signature placement exists) need related record
 // sets and a fixed clock, not a database.
-func buildReview(step, document *data.Record, siblings, activities []*data.Record, names map[string]string, stepMachine, docMachine *domain.Machine, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time, savedSignatures map[string]string) rendering.ReviewView {
+func buildReview(step, document *data.Record, siblings []*data.Record, names map[string]string, stepMachine, docMachine *domain.Machine, viewer domain.Actor, pdfPages int, hasSignature bool, now time.Time, savedSignatures map[string]string) rendering.ReviewView {
 	// One derivation for every Field id this screen reads (action.DeclaredFields) -- see buildInbox.
 	f := action.DeclaredFields(stepMachine, docMachine)
 
@@ -173,7 +155,7 @@ func buildReview(step, document *data.Record, siblings, activities []*data.Recor
 		v.FileHref = "/uploads/" + key
 	}
 
-	if s, ok := submittersFromActivity(activities)[document.ID]; ok {
+	if s, ok := submissionsOf([]*data.Record{document}, f.Submitter)[document.ID]; ok {
 		v.SubmittedBy = names[s.actor]
 		v.SubmittedAt = s.at.Format("2 Jan 2006")
 	}

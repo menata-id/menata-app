@@ -71,10 +71,6 @@ func AssignedToMe(ctx context.Context, l *Loader, viewerID string, viewerGroups 
 	if err != nil {
 		return Assigned{}, err
 	}
-	activities, err := l.ListRecords(ctx, "mch_activity")
-	if err != nil {
-		return Assigned{}, err
-	}
 	names, err := l.PersonNames(ctx)
 	if err != nil {
 		return Assigned{}, err
@@ -86,7 +82,7 @@ func AssignedToMe(ctx context.Context, l *Loader, viewerID string, viewerGroups 
 	for _, g := range viewerGroups {
 		myGroupNames[g.ID] = g.Name
 	}
-	return buildAssigned(sel, activities, names, myGroupNames, viewerID, now, stepMachine, docMachine), nil
+	return buildAssigned(sel, names, myGroupNames, viewerID, now, stepMachine, docMachine), nil
 }
 
 // SearchAssignedRows is composition.SearchCards' own counterpart for this screen's row shape
@@ -109,7 +105,7 @@ func SearchAssignedRows(rows []rendering.AssignedRow, q string) []rendering.Assi
 // buildAssigned is AssignedToMe's whole derivation, over records someone else already fetched --
 // the same split buildInbox uses, and for the same reason: which of the four states a step is in,
 // and which Document it belongs to, is worth testing without a database.
-func buildAssigned(sel Selection, activities []*data.Record, names, myGroupNames map[string]string, viewerID string, now time.Time, stepMachine, docMachine *domain.Machine) Assigned {
+func buildAssigned(sel Selection, names, myGroupNames map[string]string, viewerID string, now time.Time, stepMachine, docMachine *domain.Machine) Assigned {
 	documents := sel.Records
 	// See buildInbox: one derivation for every Field id this screen reads.
 	f := action.DeclaredFields(stepMachine, docMachine)
@@ -123,7 +119,7 @@ func buildAssigned(sel Selection, activities []*data.Record, names, myGroupNames
 		stepsByDoc[d.ID] = children
 		steps = append(steps, children...)
 	}
-	submissions := submittersFromActivity(activities)
+	submissions := submissionsOf(documents, f.Submitter)
 
 	var seq *domain.Sequencing
 	if stepMachine != nil {

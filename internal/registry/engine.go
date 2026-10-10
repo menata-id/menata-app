@@ -168,7 +168,7 @@ var KnownWorkflowEngines = map[string]WorkflowEngineSpec{
 				{Derivation: domain.DerivationSignaturePlacement, Optional: true},
 				{Derivation: domain.DerivationCompositeSource, Optional: true},
 			},
-			domain.WorkflowRoleDocument: {{Derivation: domain.DerivationDocumentStatus}},
+			domain.WorkflowRoleDocument: {{Derivation: domain.DerivationDocumentStatus}, {Derivation: domain.DerivationSubmitter}},
 			// Each optional role's own block is optional *within* the role too: a Workspace that casts
 			// the role at all is installing the feature, but the cast and the block are two separate
 			// declarations and a Machine can be cast before it is finished.

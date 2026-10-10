@@ -693,15 +693,19 @@ func TestPDFPreviewIsCachedByContentAndRevalidates(t *testing.T) {
 	}
 }
 
-// TestReviewShowsTheSubmitterFromTheDocumentsFirstEvent is K18's behaviour: the Review screen reads the
-// Document's earliest logged event through ds_record_first_events, not the whole activity log, and still
-// names who submitted it.
-func TestReviewShowsTheSubmitterFromTheDocumentsFirstEvent(t *testing.T) {
+// TestReviewShowsTheSubmitterFromTheDocumentsOwnField is K18's behaviour through the real router: the Review
+// screen names who submitted a Document from the Field its create Permission stamps, with no activity log
+// involved -- so a Document with the Field empty names nobody, and one with it filled does.
+func TestReviewShowsTheSubmitterFromTheDocumentsOwnField(t *testing.T) {
 	h, cookie, fx := newPerRecordSweepSetup(t, "reviewsubmitter")
 	doc := fx.ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
 	step := fx.ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleStep, "")
 	if doc == nil || step == nil {
 		t.Fatal("this Workspace casts no document/step role")
+	}
+	field := doc.ActorFieldFor(domain.ActionCreate)
+	if field == "" {
+		t.Fatal("the document Machine declares no create actor_field -- the engine requires one")
 	}
 	review := func() string {
 		req := httptest.NewRequest(http.MethodGet, "/machines/"+step.ID+"/records/"+fx.records[step.ID]+"/review", nil)
@@ -713,15 +717,22 @@ func TestReviewShowsTheSubmitterFromTheDocumentsFirstEvent(t *testing.T) {
 		}
 		return rec.Body.String()
 	}
-	if strings.Contains(review(), "submitted by") {
-		t.Fatal("the Document has no logged event yet but the screen names a submitter")
+	record, err := fx.store.GetRecord(fx.ctx, doc.ID, fx.records[doc.ID])
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := fx.store.CreateRecord(fx.ctx, "mch_activity", map[string]any{
-		"fld_machine_id": doc.ID, "fld_record_id": fx.records[doc.ID], "fld_summary": "submitted", "fld_actor": fx.actorID,
-	}); err != nil {
-		t.Fatalf("log the submission: %v", err)
+	delete(record.Values, field)
+	if _, err := fx.store.UpdateRecord(fx.ctx, doc.ID, record.ID, record.Values); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(review(), "submitted by") {
+		t.Fatal("the Document's submitter Field is empty but the screen names a submitter")
+	}
+	record.Values[field] = fx.actorID
+	if _, err := fx.store.UpdateRecord(fx.ctx, doc.ID, record.ID, record.Values); err != nil {
+		t.Fatal(err)
 	}
 	if !strings.Contains(review(), "submitted by") {
-		t.Error("the Review screen does not name the submitter after the Document's first event was logged")
+		t.Error("the Review screen does not name the submitter once the Document's own Field holds one")
 	}
 }

@@ -30,7 +30,7 @@ func TestBuildAssigned_SequentialStepIsNotYetYourTurn(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 	}
 
-	got := buildAssigned(inboxFixture(docs, steps), nil, personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+	got := buildAssigned(inboxFixture(docs, steps), personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 	if len(got.Rows) != 1 {
 		t.Fatalf("usr_ana's own step must appear even though it is locked; got %d row(s)", len(got.Rows))
 	}
@@ -51,7 +51,7 @@ func TestBuildAssigned_ActionableStepIsWaiting(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 	}
 
-	got := buildAssigned(inboxFixture(docs, steps), nil, personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+	got := buildAssigned(inboxFixture(docs, steps), personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 	if len(got.Rows) != 1 || got.Rows[0].DecisionKey != AssignedWaiting {
 		t.Fatalf("got %+v, want one row keyed %q", got.Rows, AssignedWaiting)
 	}
@@ -75,7 +75,7 @@ func TestBuildAssigned_DecidedStepsStay(t *testing.T) {
 		step("stp_no", "doc_1", "usr_ana", action.DecisionRejected, 2),
 	}
 
-	got := buildAssigned(inboxFixture(docs, steps), nil, personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+	got := buildAssigned(inboxFixture(docs, steps), personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 	if len(got.Rows) != 2 {
 		t.Fatalf("got %d row(s), want 2 -- a decided step must not disappear", len(got.Rows))
 	}
@@ -94,7 +94,7 @@ func TestBuildAssigned_GroupHeldStepIsMineWhenIAmAMember(t *testing.T) {
 	}
 	myGroups := map[string]string{"grp_legal": "Legal Group"}
 
-	got := buildAssigned(inboxFixture(docs, steps), nil, personNames, myGroups, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+	got := buildAssigned(inboxFixture(docs, steps), personNames, myGroups, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 	if len(got.Rows) != 1 {
 		t.Fatalf("got %d row(s), want 1 (the Group-held step)", len(got.Rows))
 	}
@@ -118,21 +118,20 @@ func TestBuildAssigned_GroupHeldStepIsNotMineWhenIAmNotAMember(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
 	steps := []*data.Record{groupStep("stp_1", "doc_1", action.DecisionPending, 1, "grp_legal")}
 
-	got := buildAssigned(inboxFixture(docs, steps), nil, personNames, map[string]string{"grp_finance": "Finance"}, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+	got := buildAssigned(inboxFixture(docs, steps), personNames, map[string]string{"grp_finance": "Finance"}, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 	if len(got.Rows) != 0 {
 		t.Errorf("got %d row(s), want 0 -- usr_ana is not in grp_legal", len(got.Rows))
 	}
 }
 
-// FROM/REQUESTED come from the submission activity, the same source buildInbox's own Submitter/
-// SubmittedAt use (TestBuildInbox_SubmitterFromEarliestEvent) -- one resolver, not two that could
-// name a different submitter for the same Document on two different screens.
-func TestBuildAssigned_FromAndRequestedFromActivity(t *testing.T) {
-	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
+// FROM/REQUESTED come from the submitter Field and creation time, the same source buildInbox's own
+// Submitter/SubmittedAt use (TestBuildInbox_SubmitterFromTheDeclaredField) -- one resolver, not two that
+// could name a different submitter for the same Document on two different screens.
+func TestBuildAssigned_FromAndRequestedFromTheSubmitterField(t *testing.T) {
+	docs := []*data.Record{submitted(doc("doc_1", "Contract", "parallel", ""), "usr_budi", at(3))}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
-	activities := []*data.Record{event("doc_1", "usr_budi", at(3))}
 
-	got := buildAssigned(inboxFixture(docs, steps), activities, personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+	got := buildAssigned(inboxFixture(docs, steps), personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 	if len(got.Rows) != 1 {
 		t.Fatalf("got %d row(s), want 1", len(got.Rows))
 	}
@@ -148,19 +147,14 @@ func TestBuildAssigned_FromAndRequestedFromActivity(t *testing.T) {
 // later one must lead.
 func TestBuildAssigned_NewestRequestFirst(t *testing.T) {
 	docs := []*data.Record{
-		doc("doc_old", "Older", "parallel", ""),
-		doc("doc_new", "Newer", "parallel", ""),
+		submitted(doc("doc_old", "Older", "parallel", ""), "usr_budi", at(1)),
+		submitted(doc("doc_new", "Newer", "parallel", ""), "usr_budi", at(9)),
 	}
 	steps := []*data.Record{
 		step("stp_old", "doc_old", "usr_ana", action.DecisionPending, 1),
 		step("stp_new", "doc_new", "usr_ana", action.DecisionPending, 1),
 	}
-	activities := []*data.Record{
-		event("doc_old", "usr_budi", at(1)),
-		event("doc_new", "usr_budi", at(9)),
-	}
-
-	got := buildAssigned(inboxFixture(docs, steps), activities, personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+	got := buildAssigned(inboxFixture(docs, steps), personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 	if len(got.Rows) != 2 {
 		t.Fatalf("got %d row(s), want 2", len(got.Rows))
 	}
@@ -175,7 +169,7 @@ func TestBuildAssigned_NewestRequestFirst(t *testing.T) {
 func TestBuildAssigned_OrphanStepIsSkipped(t *testing.T) {
 	steps := []*data.Record{step("stp_1", "doc_missing", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildAssigned(inboxFixture(nil, steps), nil, personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+	got := buildAssigned(inboxFixture(nil, steps), personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 	if len(got.Rows) != 0 {
 		t.Errorf("got %d row(s), want 0 -- the step's own Document does not exist in this read", len(got.Rows))
 	}
@@ -187,7 +181,7 @@ func TestBuildAssigned_SkipsOtherPeoplesSteps(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_budi", action.DecisionPending, 1)}
 
-	got := buildAssigned(inboxFixture(docs, steps), nil, personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+	got := buildAssigned(inboxFixture(docs, steps), personNames, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 	if len(got.Rows) != 0 {
 		t.Errorf("got %d row(s), want 0", len(got.Rows))
 	}

@@ -431,15 +431,13 @@ func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
 // The new entries are frozen, not judged: nobody has read whether each `internal/web` site legitimately
 // needs every record (a generic list or export would) or is a correlation waiting on a Dataset.
 var wholeMachineReadRatchet = map[string]int{
-	"composition/approval.go": 1,
-	"composition/assigned.go": 1,
-	"composition/loader.go":   4,
-	"composition/pages.go":    2,
-	"composition/review.go":   1,
-	"execution/events.go":     1,
-	"web/api.go":              1,
-	"web/machine.go":          1,
-	"web/record.go":           2,
+	"composition/loader.go": 4,
+	"composition/pages.go":  2,
+	"composition/review.go": 1,
+	"execution/events.go":   1,
+	"web/api.go":            1,
+	"web/machine.go":        1,
+	"web/record.go":         2,
 }
 
 // wholeMachineRead matches a call reading every record of a Machine through a Loader or a Store. The

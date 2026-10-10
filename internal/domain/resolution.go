@@ -80,14 +80,18 @@ func (r Resolution) IsDefect() bool {
 // naming the same things is the drift this repo has already paid for three times (checkDocs mirrors,
 // closed-registry members).
 const (
-	DerivationDecision           = "decision"
-	DerivationOpenValue          = "open_value"
-	DerivationOrder              = "order"
-	DerivationActor              = "actor"
-	DerivationActorType          = "actor_type"
-	DerivationActorGroup         = "actor_group"
-	DerivationParent             = "parent"
-	DerivationDocumentStatus     = "document_status"
+	DerivationDecision       = "decision"
+	DerivationOpenValue      = "open_value"
+	DerivationOrder          = "order"
+	DerivationActor          = "actor"
+	DerivationActorType      = "actor_type"
+	DerivationActorGroup     = "actor_group"
+	DerivationParent         = "parent"
+	DerivationDocumentStatus = "document_status"
+	// DerivationSubmitter is the Field a document Machine stamps with whoever created it: the actor_field of
+	// its own create Permission. Added 2026-10-10 (K18) so the approval screens stop recovering who submitted
+	// from the activity log -- a log row, which is evidence of an event and a poor input to anything else.
+	DerivationSubmitter          = "submitter"
 	DerivationSignaturePlacement = "signature_placement"
 	DerivationSignatureStore     = "signature_store"
 	DerivationCompositeSource    = "composite_source"
@@ -159,7 +163,7 @@ const (
 var (
 	EngineDerivations = []string{
 		DerivationDecision, DerivationOpenValue, DerivationOrder, DerivationActor,
-		DerivationActorType, DerivationActorGroup, DerivationParent, DerivationDocumentStatus,
+		DerivationActorType, DerivationActorGroup, DerivationParent, DerivationDocumentStatus, DerivationSubmitter,
 		DerivationSignaturePlacement, DerivationSignatureStore, DerivationCompositeSource,
 		DerivationFlowTemplate, DerivationFlowTemplateStep, DerivationStatusTargets,
 		DerivationActionWrites,

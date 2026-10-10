@@ -141,10 +141,9 @@ func TestEveryCastRoleProvidesItsEngineDatasets(t *testing.T) {
 // Building the route-to-Dataset walk is the work; the trigger is a Case 19 Machine diverging between
 // Workspaces the way the approval Machines already have.
 var goNamedDatasetsWithNoEngineRequirement = map[string]string{
-	"ds_record_activity":     "on mch_activity, same shared copy; and the detail page treats an absent Dataset as no section, not an error",
-	"ds_record_first_events": "on mch_activity, same shared copy; ReviewDocument treats an absent Dataset as no submitter line, not an error",
-	"ds_my_tasks":            "on mch_task (Task Tracker); reachable only from routes that Workspace's Applications declare",
-	"ds_all_tasks":           "on mch_task; same",
+	"ds_record_activity": "on mch_activity, same shared copy; and the detail page treats an absent Dataset as no section, not an error",
+	"ds_my_tasks":        "on mch_task (Task Tracker); reachable only from routes that Workspace's Applications declare",
+	"ds_all_tasks":       "on mch_task; same",
 }
 
 // TestGoNamedDatasetsWithNoEngineRequirement keeps the list above honest in both directions: an id that

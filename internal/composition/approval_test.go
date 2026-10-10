@@ -25,12 +25,12 @@ func rec(id string, values map[string]any) *data.Record {
 
 func at(day int) time.Time { return time.Date(2026, 9, day, 12, 0, 0, 0, time.UTC) }
 
-func event(docID, actor string, when time.Time) *data.Record {
-	return &data.Record{
-		ID:        "act_" + docID + actor,
-		Values:    map[string]any{"fld_record_id": docID, "fld_actor": actor},
-		CreatedAt: when,
-	}
+// submitted stamps a Document the way the create Permission's actor_field does: who created it, and when.
+// A Document's submission is read from these two, not from the activity log (K18).
+func submitted(d *data.Record, actor string, when time.Time) *data.Record {
+	d.Values[action.FieldDocumentSubmittedBy] = actor
+	d.CreatedAt = when
+	return d
 }
 
 func step(id, docID, assignee, decision string, seq float64) *data.Record {
@@ -196,14 +196,14 @@ func TestBuildInbox_SequentialLocksLaterSteps(t *testing.T) {
 		step("stp_2", "doc_1", "usr_ana", action.DecisionPending, 2),
 	}
 
-	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("step 2 is locked behind step 1, so it must not appear as pending; got %d card(s)", len(got.Pending))
 	}
 
 	// Same records, parallel mode: nothing is waiting on anything.
 	docs[0].Values[action.FieldDocumentMode] = "parallel"
-	got = buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got = buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("parallel mode makes every pending step actionable; got %d card(s)", len(got.Pending))
 	}
@@ -217,7 +217,7 @@ func TestBuildInbox_SkipsOtherPeopleAndDecidedSteps(t *testing.T) {
 		step("stp_mine", "doc_1", "usr_ana", action.DecisionPending, 3),
 	}
 
-	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want only my own still-pending step, got %d", len(got.Pending))
 	}
@@ -279,7 +279,7 @@ func TestBuildInbox_BucketsByDay(t *testing.T) {
 			docs := []*data.Record{doc("doc_1", "Contract", "parallel", tc.due)}
 			steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-			got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+			got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 			if len(got.Buckets) != 1 {
 				t.Fatalf("want one card, got %d", len(got.Buckets))
 			}
@@ -302,7 +302,7 @@ func TestBuildInbox_CountsMatchBuckets(t *testing.T) {
 		step("stp_3", "doc_later", "usr_ana", action.DecisionPending, 1),
 	}
 
-	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if got.OverdueCount != 1 || got.TodayCount != 1 {
 		t.Errorf("OverdueCount/TodayCount = %d/%d, want 1/1", got.OverdueCount, got.TodayCount)
 	}
@@ -311,18 +311,14 @@ func TestBuildInbox_CountsMatchBuckets(t *testing.T) {
 	}
 }
 
-// "Submitted by" comes from the activity log's earliest event per Document. A later event must
-// not overwrite it, and a Document with no logged event at all falls back rather than rendering
-// an empty name.
-func TestBuildInbox_SubmitterFromEarliestEvent(t *testing.T) {
-	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
+// "Submitted by" comes from the Field the document Machine's create Permission stamps, and the time from
+// the record's creation. An activity event by someone else (a later decision) cannot change it, and a
+// Document with nothing in the Field falls back rather than rendering an empty name.
+func TestBuildInbox_SubmitterFromTheDeclaredField(t *testing.T) {
+	docs := []*data.Record{submitted(doc("doc_1", "Contract", "parallel", ""), "usr_budi", at(8))}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
-	activities := []*data.Record{
-		event("doc_1", "usr_ana", at(9)),  // a later decision by someone else
-		event("doc_1", "usr_budi", at(8)), // the actual submission, logged first
-	}
 
-	got := buildInbox(inboxFixture(docs, steps), activities, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("want one card, got %d", len(got.Pending))
 	}
@@ -338,28 +334,24 @@ func TestBuildInbox_UnknownSubmitterFallsBack(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "parallel", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if got.Pending[0].Submitter != "someone" {
 		t.Errorf("Submitter = %q, want %q", got.Pending[0].Submitter, "someone")
 	}
 	if got.Pending[0].SubmittedAt != "" {
-		t.Errorf("SubmittedAt = %q, want empty -- no activity event was found", got.Pending[0].SubmittedAt)
+		t.Errorf("SubmittedAt = %q, want empty -- the Document carries no submitter", got.Pending[0].SubmittedAt)
 	}
 }
 
 // Mine answers a different question from Pending -- "what did I submit", not "what waits on me"
-// -- so it is keyed off the activity log and ignores assignment entirely.
+// -- so it is keyed off the submitter Field and ignores assignment entirely.
 func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 	docs := []*data.Record{
-		doc("doc_mine", "Mine", "parallel", ""),
-		doc("doc_theirs", "Theirs", "parallel", ""),
-	}
-	activities := []*data.Record{
-		event("doc_mine", "usr_ana", at(8)),
-		event("doc_theirs", "usr_budi", at(8)),
+		submitted(doc("doc_mine", "Mine", "parallel", ""), "usr_ana", at(8)),
+		submitted(doc("doc_theirs", "Theirs", "parallel", ""), "usr_budi", at(8)),
 	}
 
-	got := buildInbox(inboxFixture(docs, nil), activities, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, nil), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Mine) != 1 {
 		t.Fatalf("want one submitted Document, got %d", len(got.Mine))
 	}
@@ -388,7 +380,7 @@ func TestBuildInbox_MineIsWhatISubmitted(t *testing.T) {
 func TestBuildInbox_OrphanStepIsSkipped(t *testing.T) {
 	steps := []*data.Record{step("stp_1", "doc_gone", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(inboxFixture(nil, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(nil, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 0 {
 		t.Errorf("a step pointing at a missing Document must be skipped, got %d card(s)", len(got.Pending))
 	}
@@ -397,23 +389,6 @@ func TestBuildInbox_OrphanStepIsSkipped(t *testing.T) {
 // SLA-breach detection moved off buildInbox entirely (Flow 2 canvas re-audit, 2026-09-27) -- see
 // internal/execution's own tests (RunScheduledEvents, behavior.MatchedScheduleEvents) for the
 // detect/dedupe/skip-not-overdue/skip-decided coverage the four tests here used to hold.
-
-// submittersFromActivity must not reorder its input: with a request-scoped Loader the slice it
-// receives is the cache's own, and sorting it in place would leave every later reader of
-// mch_activity in this request with silently reordered records.
-func TestSubmittersFromActivity_DoesNotReorderCallersSlice(t *testing.T) {
-	activities := []*data.Record{
-		event("doc_1", "usr_ana", at(9)),
-		event("doc_1", "usr_budi", at(8)),
-	}
-	first := activities[0]
-
-	submittersFromActivity(activities)
-
-	if activities[0] != first {
-		t.Error("input slice was reordered; the Loader's cached records must be left alone")
-	}
-}
 
 // TestBuildInbox_ProjectsCardFields is the Fase 1 pilot's end-to-end proof: a stepMachine
 // declaring card_fields (the same shape metadata/approval_step.yaml would carry, had it
@@ -431,7 +406,7 @@ func TestBuildInbox_ProjectsCardFields(t *testing.T) {
 		"mch_user": {{ID: "usr_ana", Label: "Ana Putri"}, {ID: "usr_budi", Label: "Budi"}},
 	}
 
-	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachine, docMachineForTest(), relations)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachine, docMachineForTest(), relations)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
 	}
@@ -448,7 +423,7 @@ func TestBuildInbox_NilStepMachineProjectsNothing(t *testing.T) {
 	docs := []*data.Record{doc("doc_1", "Contract", "sequential", "")}
 	steps := []*data.Record{step("stp_1", "doc_1", "usr_ana", action.DecisionPending, 1)}
 
-	got := buildInbox(inboxFixture(docs, steps), nil, personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+	got := buildInbox(inboxFixture(docs, steps), personNames, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1", len(got.Pending))
 	}
@@ -634,7 +609,7 @@ func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
 		{ID: "lkh_2", Values: map[string]any{"fld_surat": "srt_1", "fld_petugas": "usr_budi", "fld_putusan": "menunggu", "fld_urutan": float64(2)}},
 	}
 
-	got := buildInbox(inboxFixtureOver(docs, steps, stepMachine, docMachine), nil, map[string]string{"usr_ana": "Ana Putri"}, "usr_ana", at(10), stepMachine, docMachine, nil)
+	got := buildInbox(inboxFixtureOver(docs, steps, stepMachine, docMachine), map[string]string{"usr_ana": "Ana Putri"}, "usr_ana", at(10), stepMachine, docMachine, nil)
 	if len(got.Pending) != 1 {
 		t.Fatalf("len(Pending) = %d, want 1 -- Ana's own undecided step, found through declarations alone", len(got.Pending))
 	}
@@ -649,7 +624,7 @@ func TestBuildInbox_overAMachineThatNamesItsFieldsDifferently(t *testing.T) {
 	// And a decided step drops out, which is the open value being read from the edges' own `from:`
 	// rather than compared against the literal "pending".
 	steps[0].Values["fld_putusan"] = "setuju"
-	if got := buildInbox(inboxFixture(docs, steps), nil, nil, "usr_ana", at(10), stepMachine, docMachine, nil); len(got.Pending) != 0 {
+	if got := buildInbox(inboxFixture(docs, steps), nil, "usr_ana", at(10), stepMachine, docMachine, nil); len(got.Pending) != 0 {
 		t.Errorf("a decided step still appears as pending: %d card(s)", len(got.Pending))
 	}
 }

@@ -28,11 +28,11 @@ func TestBuildersCarryTheBoundToTheirView(t *testing.T) {
 	sel.Truncated, sel.Limit = true, 41
 
 	t.Run("inbox", func(t *testing.T) {
-		got := buildInbox(sel, nil, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
+		got := buildInbox(sel, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil)
 		assertBound(t, got.Truncated, 41)
 	})
 	t.Run("assigned", func(t *testing.T) {
-		got := buildAssigned(sel, nil, nil, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
+		got := buildAssigned(sel, nil, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest())
 		assertBound(t, got.Truncated, 41)
 	})
 
@@ -40,12 +40,12 @@ func TestBuildersCarryTheBoundToTheirView(t *testing.T) {
 	// does -- it would put a false notice on every ordinary render.
 	whole := inboxFixture(docs, nil)
 	t.Run("inbox within its bound", func(t *testing.T) {
-		if got := buildInbox(whole, nil, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil); got.Truncated.Hit {
+		if got := buildInbox(whole, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest(), nil); got.Truncated.Hit {
 			t.Error("an untruncated Selection produced a view claiming its list was cut short")
 		}
 	})
 	t.Run("assigned within its bound", func(t *testing.T) {
-		if got := buildAssigned(whole, nil, nil, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest()); got.Truncated.Hit {
+		if got := buildAssigned(whole, nil, nil, "usr_ana", at(10), stepMachineForTest(), docMachineForTest()); got.Truncated.Hit {
 			t.Error("an untruncated Selection produced a view claiming its list was cut short")
 		}
 	})

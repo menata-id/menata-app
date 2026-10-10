@@ -88,10 +88,6 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 	if err != nil {
 		return Inbox{}, err
 	}
-	activities, err := l.ListRecords(ctx, "mch_activity")
-	if err != nil {
-		return Inbox{}, err
-	}
 	names, err := l.PersonNames(ctx)
 	if err != nil {
 		return Inbox{}, err
@@ -103,7 +99,7 @@ func ApprovalInbox(ctx context.Context, l *Loader, userID string, now time.Time,
 			return Inbox{}, err
 		}
 	}
-	return buildInbox(sel, activities, names, userID, now, stepMachine, docMachine, relations), nil
+	return buildInbox(sel, names, userID, now, stepMachine, docMachine, relations), nil
 }
 
 // pendingStepsFor selects the Approval Steps this viewer can act on right now: assigned to them,
@@ -254,7 +250,7 @@ func SearchCards(cards []rendering.PendingApprovalCard, q string) []rendering.Pe
 // buildInbox is the whole of the inbox's derivation, over records someone else already fetched.
 // Keeping it free of I/O is what makes the sequencing, bucketing and submitter-resolution rules
 // testable at all: they need four related record sets and a fixed clock, not a database.
-func buildInbox(sel Selection, activities []*data.Record, names map[string]string, userID string, now time.Time, stepMachine, docMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
+func buildInbox(sel Selection, names map[string]string, userID string, now time.Time, stepMachine, docMachine *domain.Machine, relations rendering.RelationOptions) Inbox {
 	documents := sel.Records
 	// Every Field id this function reads comes from the two Machines' own declarations, once
 	// (action.DeclaredFields) -- 001 Principle #8, and what lets the inbox compose a Machine whose
@@ -271,7 +267,7 @@ func buildInbox(sel Selection, activities []*data.Record, names map[string]strin
 		stepsByDoc[d.ID] = children
 		steps = append(steps, children...)
 	}
-	submissions := submittersFromActivity(activities)
+	submissions := submissionsOf(documents, f.Submitter)
 
 	// stepMachine is optional for this builder's other callers, so the ordering rule it declares
 	// is resolved once here rather than nil-checked at each use.
@@ -416,28 +412,25 @@ type submission struct {
 	at    time.Time
 }
 
-// submittersFromActivity maps a Document id to its submission -- the actor and time of its
-// earliest logged event, which is its submission (Phase 13 logs "submitted" at creation). Events
-// are sorted oldest-first and the first actor per Document wins, so a later decision event never
-// overwrites the submitter.
-func submittersFromActivity(activities []*data.Record) map[string]submission {
-	sorted := make([]*data.Record, len(activities))
-	copy(sorted, activities)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].CreatedAt.Before(sorted[j].CreatedAt)
-	})
-
-	submissions := make(map[string]submission, len(sorted))
-	for _, a := range sorted {
-		docID := DisplayString(a.Values["fld_record_id"])
-		if _, ok := submissions[docID]; ok {
-			continue
-		}
-		if actor := DisplayString(a.Values["fld_actor"]); actor != "" {
-			submissions[docID] = submission{actor: actor, at: a.CreatedAt}
+// submissionsOf maps a Document id to its submission: the person in the Field its create Permission stamps
+// (action.EngineFields.Submitter) and the record's creation time, which is when it was submitted.
+//
+// It read the activity log until 2026-10-10 (K18) and that was the wrong source in two ways: it needed every
+// event of the Workspace in memory to answer a question about the Documents on one screen, and a log row is
+// evidence that something happened, not the declared owner of a record -- `fld_submitted_by`'s own comment
+// records the authorization review that found exactly this. A Document with nothing in the Field has no
+// submission, and the screens already say "someone" for that.
+func submissionsOf(documents []*data.Record, submitterField string) map[string]submission {
+	out := make(map[string]submission, len(documents))
+	if submitterField == "" {
+		return out
+	}
+	for _, d := range documents {
+		if actor := DisplayString(d.Values[submitterField]); actor != "" {
+			out[d.ID] = submission{actor: actor, at: d.CreatedAt}
 		}
 	}
-	return submissions
+	return out
 }
 
 // stepStates derives each of a Document's own Approval Steps as done/current/rejected/waiting,
