@@ -50,7 +50,7 @@ func TestLoginRateLimiter_windowExpires(t *testing.T) {
 func TestRateLimitLogin_blocksAfterLimit(t *testing.T) {
 	limiter := newLoginRateLimiter(2, time.Minute)
 	called := 0
-	handler := rateLimitLogin(limiter, func(w http.ResponseWriter, _ *http.Request) {
+	handler := rateLimitLogin(limiter, nil, func(w http.ResponseWriter, _ *http.Request) {
 		called++
 		w.WriteHeader(http.StatusOK)
 	})
@@ -82,7 +82,7 @@ func TestRateLimitLogin_blocksAfterLimit(t *testing.T) {
 func TestRateLimitByAddress_blocksByAddressAlone(t *testing.T) {
 	limiter := newLoginRateLimiter(1, time.Minute)
 	called := 0
-	handler := rateLimitByAddress(limiter, "too many attempts", func(w http.ResponseWriter, _ *http.Request) {
+	handler := rateLimitByAddress(limiter, nil, "too many attempts", func(w http.ResponseWriter, _ *http.Request) {
 		called++
 		w.WriteHeader(http.StatusOK)
 	})
@@ -107,5 +107,63 @@ func TestRateLimitByAddress_blocksByAddressAlone(t *testing.T) {
 	}
 	if called != 1 {
 		t.Errorf("wrapped handler called %d times, want 1", called)
+	}
+}
+
+func TestClientAddr_readsForwardedForOnlyFromATrustedPeer(t *testing.T) {
+	trusted, err := parseTrustedProxies([]string{"127.0.0.1", "::1", "10.0.0.0/8"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name, remote, xff, want string
+	}{
+		{"direct client, no header", "1.2.3.4:5555", "", "1.2.3.4"},
+		{"untrusted peer cannot choose its address", "1.2.3.4:5555", "8.8.8.8", "1.2.3.4"},
+		{"trusted proxy names the client", "127.0.0.1:5555", "203.0.113.7", "203.0.113.7"},
+		{"client-forged left entry is ignored", "127.0.0.1:5555", "6.6.6.6, 203.0.113.7", "203.0.113.7"},
+		{"trusted hops are skipped", "127.0.0.1:5555", "203.0.113.7, 10.1.1.1", "203.0.113.7"},
+		{"no header from a trusted peer falls back to it", "127.0.0.1:5555", "", "127.0.0.1"},
+		{"malformed hop falls back to the peer", "127.0.0.1:5555", "203.0.113.7, junk", "127.0.0.1"},
+		{"ipv6 client", "[::1]:5555", "2001:db8::1", "2001:db8::1"},
+	}
+	for _, c := range cases {
+		req := httptest.NewRequest(http.MethodPost, "/login", nil)
+		req.RemoteAddr = c.remote
+		if c.xff != "" {
+			req.Header.Set("X-Forwarded-For", c.xff)
+		}
+		if got := clientAddr(req, trusted); got != c.want {
+			t.Errorf("%s: clientAddr = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+func TestRateLimitByAddress_twoClientsBehindOneProxyHaveSeparateBudgets(t *testing.T) {
+	trusted, _ := parseTrustedProxies([]string{"127.0.0.1"})
+	limiter := newLoginRateLimiter(1, time.Minute)
+	handler := rateLimitByAddress(limiter, trusted, "too many", func(w http.ResponseWriter, _ *http.Request) {})
+	send := func(client string) int {
+		req := httptest.NewRequest(http.MethodPost, "/register", nil)
+		req.RemoteAddr = "127.0.0.1:4000"
+		req.Header.Set("X-Forwarded-For", client)
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		return rec.Code
+	}
+	if c := send("203.0.113.1"); c != http.StatusOK {
+		t.Fatalf("first client: %d", c)
+	}
+	if c := send("203.0.113.2"); c != http.StatusOK {
+		t.Errorf("second client behind the same proxy: %d, want 200 -- the budget is still global", c)
+	}
+	if c := send("203.0.113.1"); c != http.StatusTooManyRequests {
+		t.Errorf("first client again: %d, want 429", c)
+	}
+}
+
+func TestParseTrustedProxies_refusesATypo(t *testing.T) {
+	if _, err := parseTrustedProxies([]string{"127.0.0.1", "10.0.0.0/33"}); err == nil {
+		t.Error("a malformed entry was accepted -- it would silently trust the wrong set")
 	}
 }

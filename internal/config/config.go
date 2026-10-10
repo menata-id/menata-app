@@ -76,6 +76,12 @@ type Config struct {
 	// default: frequent enough that "overdue" reads as roughly real-time, infrequent enough that
 	// it never competes meaningfully with request traffic for the pool.
 	ScheduleIntervalMinutes int
+
+	// TrustedProxies lists the addresses (CIDRs or bare IPs, comma-separated in TRUSTED_PROXIES) whose
+	// X-Forwarded-For this app believes when rate limiting. Default is loopback, which is where the Caddy
+	// reverse proxy on this host connects from; behind anything else the limiter would see the proxy as
+	// the only client. A peer outside the list is never trusted, so a client cannot choose its own budget.
+	TrustedProxies []string
 }
 
 // Load reads Config from the environment, applying defaults where unset.
@@ -101,6 +107,7 @@ func Load() Config {
 		GeminiAPIKey:            getenv("GEMINI_API_KEY", ""),
 		AndroidPackageName:      getenv("ANDROID_PACKAGE_NAME", ""),
 		AndroidCertFingerprints: splitList(getenv("ANDROID_CERT_FINGERPRINTS", "")),
+		TrustedProxies:          splitList(getenv("TRUSTED_PROXIES", "127.0.0.1,::1")),
 		ScheduleIntervalMinutes: getenvInt("SCHEDULE_INTERVAL_MINUTES", 15),
 	}
 }
