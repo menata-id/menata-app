@@ -154,3 +154,27 @@ func TestValidateRefusesAnUnknownLayoutPropertyValue(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateChecksColumnsAlignAgainstItsOwnSet pins the per-type value lookup K17 added: `align` is RowAlign on
+// a row and ColumnsAlign on columns, so `stretch` -- a row member -- must be refused on columns, and `start` --
+// a columns member the row set also lacks -- accepted. Without the type-qualified lookup one of the two is wrong.
+func TestValidateChecksColumnsAlignAgainstItsOwnSet(t *testing.T) {
+	cols := func(align string) UINode {
+		return UINode{Kind: NodeLayout, Type: "columns", Props: map[string]string{"gap": "default", "align": align},
+			Children: []UINode{heading("x")}}
+	}
+	if issues := Validate(cols("start")); len(issues) != 0 {
+		t.Errorf("columns align=start refused: %v", issues)
+	}
+	if issues := Validate(cols("stretch")); len(issues) == 0 {
+		t.Error("columns align=stretch accepted; it is a row value, not a columns one")
+	}
+	sec := UINode{Kind: NodeLayout, Type: "section", Props: map[string]string{"gap": "default"}, Children: []UINode{heading("x")}}
+	if issues := Validate(sec); len(issues) != 0 {
+		t.Errorf("section with a gap refused: %v", issues)
+	}
+	sec.Props["align"] = "start"
+	if issues := Validate(sec); len(issues) == 0 {
+		t.Error("section accepted an align it does not declare")
+	}
+}

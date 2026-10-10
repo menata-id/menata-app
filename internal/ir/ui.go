@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 
 	"menata.app/internal/domain"
@@ -208,6 +209,8 @@ var allowedProps = map[string][]string{
 	"layout/row":            {"gap", "align", "justify"},
 	"layout/grid":           {"gap", "mobile", "columns"},
 	"layout/split":          {"gap", "side", "aside"},
+	"layout/columns":        {"gap", "align"},
+	"layout/section":        {"gap"},
 	"layout/panel":          {},
 	"static/eyebrow":        {"text"},
 	"static/heading":        {"text"},
@@ -219,7 +222,7 @@ var allowedProps = map[string][]string{
 	"static/message":        {"text"},
 	"static/note":           {"text"},
 	"static/link":           {"href", "text"},
-	"component/StatusBadge": {"label", "tone"},
+	"component/StatusBadge": {"label", "tone", "size"},
 	"component/Avatar":      {"initials", "label", "size", "presence"},
 	"component/Metric":      {"label", "value", "hint", "tone", "href"},
 	"component/Collection":  {"gap", "empty", "ordered", "divided", "truncated"},
@@ -238,14 +241,19 @@ var allowedProps = map[string][]string{
 // falls back to the default: a declaration that loads, renders and silently does something other than what it
 // says. Probed 2026-10-07 by raising an installed page's `columns` to 9 with the loader's page check disabled --
 // the sweep stayed green, because nothing past the key was read.
+//
+// A key is looked up as `<type>/<key>` first, then as `<key>`: `align` is a different closed set on a `row`
+// (RowAlign) and on `columns` (ColumnsAlign), and checking both against one would accept `columns: align: stretch`
+// while the renderer falls back to its default.
 var layoutPropValues = map[string]func(string) bool{
-	"gap":     func(v string) bool { return domain.KnownGaps[domain.Gap(v)] },
-	"align":   func(v string) bool { return domain.KnownRowAligns[domain.RowAlign(v)] },
-	"justify": func(v string) bool { return domain.KnownRowJustifies[domain.RowJustify(v)] },
-	"side":    func(v string) bool { return domain.KnownSplitSides[domain.SplitSide(v)] },
-	"aside":   func(v string) bool { return domain.KnownAsideWidths[domain.AsideWidth(v)] },
-	"mobile":  gridColsKnown,
-	"columns": gridColsKnown,
+	"gap":           func(v string) bool { return domain.KnownGaps[domain.Gap(v)] },
+	"align":         func(v string) bool { return domain.KnownRowAligns[domain.RowAlign(v)] },
+	"columns/align": func(v string) bool { return domain.KnownColumnsAligns[domain.ColumnsAlign(v)] },
+	"justify":       func(v string) bool { return domain.KnownRowJustifies[domain.RowJustify(v)] },
+	"side":          func(v string) bool { return domain.KnownSplitSides[domain.SplitSide(v)] },
+	"aside":         func(v string) bool { return domain.KnownAsideWidths[domain.AsideWidth(v)] },
+	"mobile":        gridColsKnown,
+	"columns":       gridColsKnown,
 }
 
 func gridColsKnown(v string) bool {
@@ -261,7 +269,10 @@ func propValueAllowed(n UINode, key, value string) bool {
 	if n.Kind != NodeLayout || value == "" {
 		return true
 	}
-	check, ok := layoutPropValues[key]
+	check, ok := layoutPropValues[n.Type+"/"+key]
+	if !ok {
+		check, ok = layoutPropValues[key]
+	}
 	return !ok || check(value)
 }
 
@@ -272,4 +283,13 @@ func propAllowed(n UINode, key string) bool {
 		}
 	}
 	return false
+}
+
+// PermittedProps is the property keys a node of this kind and type may carry, sorted -- `allowedProps` read
+// from outside the package, so the documentation of what a page may write can be checked against the list
+// that decides it instead of being a second copy. Nil for a type with no entry.
+func PermittedProps(kind NodeKind, typ string) []string {
+	keys := append([]string(nil), allowedProps[string(kind)+"/"+typ]...)
+	slices.Sort(keys)
+	return keys
 }

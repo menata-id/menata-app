@@ -104,24 +104,34 @@ navigation:
               label: Due in 7 days
               hint: Today included
               binding: { dataset: ds_task_figures, measure: msr_due_week, rows: total }
-        - static: subheading
-          text: Open cards by project
-        - layout: grid
+        - layout: columns
           gap: default
-          mobile: 2
-          columns: 4
+          align: start
           children:
-            - component: Metric
-              binding: { dataset: ds_open_by_project, measure: msr_open, rows: dimension }
-        - static: subheading
-          text: Open cards by person
-        - layout: grid
-          gap: default
-          mobile: 2
-          columns: 4
-          children:
-            - component: Metric
-              binding: { dataset: ds_open_by_assignee, measure: msr_open, rows: dimension }
+            - layout: section
+              gap: default
+              children:
+                - static: subheading
+                  text: Open cards by project
+                - layout: grid
+                  gap: default
+                  mobile: 2
+                  columns: 2
+                  children:
+                    - component: Metric
+                      binding: { dataset: ds_open_by_project, measure: msr_open, rows: dimension }
+            - layout: section
+              gap: default
+              children:
+                - static: subheading
+                  text: Open cards by person
+                - layout: grid
+                  gap: default
+                  mobile: 2
+                  columns: 2
+                  children:
+                    - component: Metric
+                      binding: { dataset: ds_open_by_assignee, measure: msr_open, rows: dimension }
   # Status moves as a declared page (K13, 2026-10-10): each Task assigned to you with a Mark done and a Reopen
   # Button, both `write: transition`. A Button names the status it moves to (`becomes:`; `$done` / `$reopen` read
   # the Machine's `completion:`), never a Field or a route, and is drawn only on a Task for which that move is

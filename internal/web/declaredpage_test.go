@@ -1042,6 +1042,13 @@ func TestDeclaredPageNamesEachOpenCardGroupByTheProjectAndPersonItBelongsTo(t *t
 	}
 
 	body := getPage(t, h, cookie, "/pages/nav_task_figures")
+	// K17: the two groups sit in a `columns` (aligned to the start) of two `section`s, all written in the YAML.
+	if !strings.Contains(body, "sm:items-start") || !strings.Contains(body, "sm:flex-row") {
+		t.Error("the two open-card groups are not drawn as a columns layout aligned to the start")
+	}
+	if got := strings.Count(body, "Open cards by"); got != 2 {
+		t.Errorf("want the two group headings once each, got %d", got)
+	}
 	for label, want := range map[string]int{"Refprobe Zulu": 2, "Refprobe Alpha": 1, "declaredbyref@example.com": 1} {
 		pair := regexp.MustCompile(`>` + strconv.Itoa(want) + `</div><div[^>]*>` + regexp.QuoteMeta(label) + `</div>`)
 		if !pair.MatchString(body) {

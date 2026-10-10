@@ -1000,9 +1000,11 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 
 | Key | Value | Meaning |
 |---|---|---|
-| `layout:` | `stack`, `row`, `grid`, `split`, `panel` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `stack` `gap`; `row` `gap`, `align`, `justify`; `grid` `gap`, `mobile`, `columns`; `split` `gap`, `side`, `aside`; `panel` none |
+| `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `gap`; `split` `aside`, `gap`, `side`; `stack` `gap` |
 | `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
 | `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, ...) | Drawn from its contract; properties are that Component's declared inputs |
+
+`columns` puts different content side by side from the small breakpoint up and stacks it on a phone (`align`: `start`, `center` or `end`, the cross axis); `section` is a bordered surface that stacks its children with a `gap`. A `StatusBadge` may carry `size: compact` for a dense row. The Layout row above is checked against `ir.PermittedProps` by `conformance.TestGuideLayoutTableIsTheAllowedPropsList`, so it cannot fall behind the list that decides what loads. Worked example: `nav_task_figures`' two open-card groups, a `columns` of two `section`s.
 
 `children:` is a list of nodes. The root must be a `layout:`. Any key a node's type does not declare is a
 **load error**, not an ignored typo (`ir.Validate`, 007 §15.3), and the same sweep refuses a cycle, a tree
