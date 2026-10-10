@@ -549,8 +549,6 @@ there and are deliberately not here.
 - K07 Stale numbers out of CLAUDE.md, writing-guide, capabilities, getting-started and code comments.
 
 **P1 -- a broken Workspace never stops another (005 Failure Handling, 001 #9)**
-- K10 Reload per Workspace with an admin action; a reload failing after a write rolls it back (005 Hot Reload).
-  Its storage shape waits on owner decision D1.
 
 **Mockup canvas -- 72 artboards (`Sx`: slices in `menata-app-document`'s `audits/2026-10-10-rencana-pengerjaan-gap-mockup-kanvas.md`)**
 - S0, S1, S2.1 and S2.2 shipped (2026-10-10; a few S1 items wait on S2.3 or owner decisions): an Application's Settings page is drawn from its own navigation

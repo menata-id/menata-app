@@ -373,7 +373,7 @@ func TestPublishNewApplication_grantsThePublisherTheirChosenRole(t *testing.T) {
 	reqCtx := rendering.WithCurrentWorkspace(wsCtx, testWorkspace, "Publish Role Test", false)
 
 	r := chi.NewRouter()
-	r.Post("/new-application/{session}/publish", publishNewApplication(store, nil, cfg, func() error { return nil }))
+	r.Post("/new-application/{session}/publish", publishNewApplication(store, nil, cfg, func(string) error { return nil }))
 	req := httptest.NewRequest(http.MethodPost, "/new-application/"+session.ID+"/publish", nil)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user.ID, 0)})
 	req = req.WithContext(reqCtx)
@@ -476,7 +476,7 @@ func TestPublishNewApplication_failureReturnsToTheConversation(t *testing.T) {
 	ai := &recordingAIClient{reply: aiassist.Reply{Message: "Understood -- renaming it."}}
 
 	r := chi.NewRouter()
-	r.Post("/new-application/{session}/publish", publishNewApplication(store, ai, cfg, func() error { return nil }))
+	r.Post("/new-application/{session}/publish", publishNewApplication(store, ai, cfg, func(string) error { return nil }))
 	req := httptest.NewRequest(http.MethodPost, "/new-application/"+session.ID+"/publish", nil)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, user.ID, 0)})
 	req = req.WithContext(rendering.WithCurrentWorkspace(wsCtx, occupied, "Publish Failure Test", false))

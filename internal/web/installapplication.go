@@ -76,7 +76,7 @@ func installableRows(ws domain.Workspace, templates []installer.Template) []rend
 // Nothing partial survives a failure: installer.Install rolls its own writes back before returning, and
 // a failed reload leaves the previous route table serving traffic while the files on disk are correct
 // for the next restart.
-func submitInstallApplication(store *data.Store, cfg config.Config, reload func() error) http.HandlerFunc {
+func submitInstallApplication(store *data.Store, cfg config.Config, reload func(slug string) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		if err := req.ParseForm(); err != nil {
@@ -101,6 +101,7 @@ func submitInstallApplication(store *data.Store, cfg config.Config, reload func(
 			http.Error(w, "this application cannot be installed here: "+strings.Join(plan.Refusals, "; "), http.StatusUnprocessableEntity)
 			return
 		}
+		snapshotBeforeWrite(cfg, manifestPath)
 		appID, err := installer.Install(plan, cfg.TemplatePath, manifestPath)
 		if err != nil {
 			serverError(w, err)
@@ -110,7 +111,7 @@ func submitInstallApplication(store *data.Store, cfg config.Config, reload func(
 			serverError(w, fmt.Errorf("%s was installed but this process has no reload hook configured -- a restart will pick it up", appID))
 			return
 		}
-		if err := reload(); err != nil {
+		if err := reloadCurrentWorkspace(ctx, store, reload); err != nil {
 			serverError(w, fmt.Errorf("%s was installed but the live reload failed -- a process restart will pick it up: %w", appID, err))
 			return
 		}

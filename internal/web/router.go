@@ -71,8 +71,12 @@ type Deps struct {
 	// (development-history.md Phase 21 Step 4).
 	DefaultWorkspaceID string
 
-	// ReloadMetadata rebuilds this whole route table from metadata on disk and swaps it in
-	// atomically -- the AI Metadata Assistant's own publish handler (internal/web/newapplication.go,
+	// ReloadMetadata re-reads ONE Workspace's manifest from disk (named by slug) and swaps a rebuilt route
+	// table in atomically (K10). The other Workspaces are not re-read, so a hand-edit in one never decides
+	// whether a publish into another succeeds. A manifest that does not load changes nothing: the previous
+	// version of that Workspace keeps serving and the error comes back naming its file.
+	//
+	// It is what the AI Metadata Assistant's own publish handler (internal/web/newapplication.go,
 	// Flow 2 gap study Tahap 8) calls it after writing a purely-additive change, so the new
 	// Application is reachable with no process restart.
 	//
@@ -83,7 +87,7 @@ type Deps struct {
 	// owns metadata.LoadWorkspaces and web.Routes) and hands it in here, the same injection shape
 	// Mailer already uses for a capability this package must invoke but not implement. Nil in any
 	// test/fixture Deps that never exercises the AI assistant's publish path.
-	ReloadMetadata func() error
+	ReloadMetadata func(slug string) error
 }
 
 // Routes builds the application's complete route table.
@@ -353,6 +357,7 @@ func Routes(d Deps) http.Handler {
 			// read (TestGetRoutesDoNotWrite).
 			ar.Get("/install-application", showInstallApplication(d.Store, d.Cfg))
 			ar.Post("/install-application", submitInstallApplication(d.Store, d.Cfg, d.ReloadMetadata))
+			ar.Post("/reload-workspace", submitReloadWorkspace(d.Store, d.Cfg, d.ReloadMetadata))
 
 			// What the runtime inferred (2026-09-29): 001 #6's second clause, "Inference must be
 			// inspectable". Admin-gated for the same stated reason as the two lines above -- it

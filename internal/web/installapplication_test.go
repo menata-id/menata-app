@@ -189,7 +189,7 @@ func newInstallTestSetup(t *testing.T, name string) *installTestSetup {
 		// The real hook reloads the process's whole route table; here the assertions read the files on
 		// disk, so re-reading the manifest into the same map is the honest equivalent -- it proves the
 		// install produced something loadable, which is what a real reload would discover.
-		ReloadMetadata: func() error {
+		ReloadMetadata: func(string) error {
 			reloaded, err := metadata.LoadApplication(manifestPath)
 			if err != nil {
 				return err
@@ -221,7 +221,7 @@ func (s *installTestSetup) post(t *testing.T, form url.Values) *httptest.Respons
 // a successful install, and what makes a *second* install see the first one's routes.
 func (s *installTestSetup) reloadWorkspace(t *testing.T) {
 	t.Helper()
-	if err := s.deps.ReloadMetadata(); err != nil {
+	if err := s.deps.ReloadMetadata(s.slug); err != nil {
 		t.Fatalf("reload: %v", err)
 	}
 	s.handler = Routes(s.deps)

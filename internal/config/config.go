@@ -87,6 +87,10 @@ type Config struct {
 	// slowest statement measured at this app's volume is a small fraction of a second, so the bound exists to
 	// stop a runaway query holding a pooled connection, not to shape normal traffic. 0 disables it.
 	StatementTimeoutSeconds int
+
+	// BackupDir is where installer.SnapshotWorkspace writes a Workspace's installation before an install or an
+	// assistant publish rewrites it (K10). Empty disables snapshots.
+	BackupDir string
 }
 
 // Load reads Config from the environment, applying defaults where unset.
@@ -113,6 +117,7 @@ func Load() Config {
 		AndroidPackageName:      getenv("ANDROID_PACKAGE_NAME", ""),
 		AndroidCertFingerprints: splitList(getenv("ANDROID_CERT_FINGERPRINTS", "")),
 		TrustedProxies:          splitList(getenv("TRUSTED_PROXIES", "127.0.0.1,::1")),
+		BackupDir:               getenv("BACKUP_DIR", "backups/metadata"),
 		StatementTimeoutSeconds: getenvInt("STATEMENT_TIMEOUT_SECONDS", 20),
 		ScheduleIntervalMinutes: getenvInt("SCHEDULE_INTERVAL_MINUTES", 15),
 	}

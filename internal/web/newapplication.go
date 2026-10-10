@@ -268,7 +268,7 @@ func showNewApplicationReview(store *data.Store, cfg config.Config) http.Handler
 // (TestPlaneBoundaries). On any failure at any step nothing partial is left live: aiassist.Write's
 // own temp-file-then-rename discipline means a failed write leaves no half-written file, and a
 // failed reload leaves the previous route table serving traffic untouched.
-func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg config.Config, reload func() error) http.HandlerFunc {
+func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg config.Config, reload func(slug string) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		workspaceID, _ := data.WorkspaceScope(ctx)
@@ -298,6 +298,7 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			return
 		}
 
+		snapshotBeforeWrite(cfg, manifestPath)
 		newAppID, err := aiassist.Write(manifestPath, *change, aiassist.FileMachineResolver{WorkspaceManifestPath: manifestPath})
 		if err != nil {
 			failPublish(ctx, w, req, store, aiClient, cfg, session, err)
@@ -307,7 +308,7 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			serverError(w, fmt.Errorf("metadata was written but this process has no reload hook configured -- a restart will pick it up"))
 			return
 		}
-		if err := reload(); err != nil {
+		if err := reloadCurrentWorkspace(ctx, store, reload); err != nil {
 			serverError(w, fmt.Errorf("metadata was written but the live reload failed -- a process restart will pick it up: %w", err))
 			return
 		}

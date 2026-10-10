@@ -94,7 +94,7 @@ func newManifestlessWorkspace(t *testing.T, name, email string) manifestlessSetu
 func (s manifestlessSetup) publish(t *testing.T, cfg config.Config, ai aiassist.Client) *httptest.ResponseRecorder {
 	t.Helper()
 	r := chi.NewRouter()
-	r.Post("/new-application/{session}/publish", publishNewApplication(s.store, ai, cfg, func() error { return nil }))
+	r.Post("/new-application/{session}/publish", publishNewApplication(s.store, ai, cfg, func(string) error { return nil }))
 	req := httptest.NewRequest(http.MethodPost, "/new-application/"+s.session.ID+"/publish", nil)
 	req.AddCookie(&http.Cookie{Name: authorization.SessionCookieName, Value: sessionCookieValueForTest(t, cfg, s.userID, 0)})
 	// The zero Workspace: what currentWorkspace resolves for a Workspace with no manifest.

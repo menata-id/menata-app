@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -161,10 +163,10 @@ type dynamicHandler struct {
 	// without a process restart, the same property current already gives request handling.
 	schedulerState atomic.Pointer[schedulerSnapshot]
 
-	// unavailable is the last load's set of Workspace slugs whose manifest did not load (K09). Guarded by mu.
-	// Reload consults it to tell "this Workspace was already broken" (tolerated) from "this reload broke it"
-	// (rejected, so the live table stays as it was).
-	unavailable map[string]bool
+	// state is what the live route table was built from (K09/K10), guarded by mu. Reload consults its
+	// unavailable set to tell "this Workspace was already broken" (tolerated) from "this reload broke it"
+	// (rejected); ReloadWorkspace copies it and replaces one Workspace.
+	state *metadataState
 
 	cfg                config.Config
 	store              *data.Store
@@ -233,9 +235,9 @@ func (dh *dynamicHandler) Reload() error {
 	// loaded before and fails now was broken by whatever triggered this reload, so the change is rejected and
 	// the live table stays untouched -- exactly what a failed reload did before it was per-Workspace.
 	// A Workspace already unavailable stays unavailable without blocking an unrelated publish.
-	if dh.current.Load() != nil {
+	if dh.state != nil {
 		for _, f := range failures {
-			if !dh.unavailable[f.Slug] {
+			if !dh.state.unavailable[f.Slug] {
 				return f.Err
 			}
 		}
@@ -245,24 +247,84 @@ func (dh *dynamicHandler) Reload() error {
 		unavailable[f.Slug] = true
 		log.Printf("WORKSPACE UNAVAILABLE %q: %v", f.Slug, f.Err)
 	}
+	dh.install(metadataState{userMachine: userMachine, workspaces: workspaces, unavailable: unavailable})
+	return nil
+}
 
+// ReloadWorkspace re-reads one Workspace's manifest and swaps in a route table carrying it (K10). Every other
+// Workspace stays exactly as last loaded -- not re-read -- so one Workspace's hand-edit never decides whether
+// another's publish succeeds, and a manifest that fails to load changes nothing: the previous version keeps
+// serving and the error (which names the file) goes back to the caller. A Workspace that was unavailable
+// becomes available the moment its manifest loads.
+//
+// This is the hook the publish and install handlers and the admin "reload" action call (Deps.ReloadMetadata).
+// Reload (all Workspaces) remains for the first build.
+func (dh *dynamicHandler) ReloadWorkspace(slug string) error {
+	dh.mu.Lock()
+	defer dh.mu.Unlock()
+	if dh.state == nil {
+		return errors.New("no metadata has been loaded yet")
+	}
+	if slug == "" || strings.ContainsAny(slug, `/\.`) {
+		return fmt.Errorf("%q is not a workspace slug", slug)
+	}
+	path := filepath.Join(dh.cfg.MetadataPath, slug+".yaml")
+	app, err := metadata.LoadApplication(path)
+	if err != nil {
+		if !strings.Contains(err.Error(), path) {
+			err = fmt.Errorf("%s: %w", path, err)
+		}
+		return err
+	}
+	if app.Workspace.Slug != slug {
+		return fmt.Errorf("%s declares workspace %q, not %q", path, app.Workspace.Slug, slug)
+	}
+	next := dh.state.clone()
+	next.workspaces[slug] = app.Workspace
+	delete(next.unavailable, slug)
+	dh.install(next)
+	return nil
+}
+
+// metadataState is everything a route table is built from. Copied, never mutated in place, because the
+// previous route table's handlers still hold the previous maps until their in-flight requests finish.
+type metadataState struct {
+	userMachine *domain.Machine
+	workspaces  map[string]domain.Workspace
+	unavailable map[string]bool
+}
+
+func (st *metadataState) clone() metadataState {
+	out := metadataState{userMachine: st.userMachine,
+		workspaces:  make(map[string]domain.Workspace, len(st.workspaces)),
+		unavailable: make(map[string]bool, len(st.unavailable))}
+	for k, v := range st.workspaces {
+		out.workspaces[k] = v
+	}
+	for k, v := range st.unavailable {
+		out.unavailable[k] = v
+	}
+	return out
+}
+
+// install builds a route table from st and swaps it in, with the scheduler's snapshot. Caller holds dh.mu.
+func (dh *dynamicHandler) install(st metadataState) {
 	deps := web.Deps{
-		UserMachine:           userMachine,
+		UserMachine:           st.userMachine,
 		Store:                 dh.store,
 		Files:                 dh.files,
 		Mailer:                dh.mailer,
 		Cfg:                   dh.cfg,
-		Workspaces:            workspaces,
-		UnavailableWorkspaces: unavailable,
+		Workspaces:            st.workspaces,
+		UnavailableWorkspaces: st.unavailable,
 		DefaultWorkspaceID:    dh.defaultWorkspaceID,
 		AIClient:              dh.aiClient,
-		ReloadMetadata:        dh.Reload,
+		ReloadMetadata:        dh.ReloadWorkspace,
 	}
 	handler := web.Routes(deps)
 	dh.current.Store(&handler)
-	dh.unavailable = unavailable
-	dh.schedulerState.Store(&schedulerSnapshot{workspaces: workspaces})
-	return nil
+	dh.state = &st
+	dh.schedulerState.Store(&schedulerSnapshot{workspaces: st.workspaces})
 }
 
 // loadMetadataState loads every installed Workspace it can, for both the first build and every later
