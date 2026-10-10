@@ -56,7 +56,7 @@ func tableHeadCellClasses(ctx context.Context) string {
 // default theme renders the same bytes (`TestFieldClasses_defaultIsTheLiteralItReplaced`).
 //
 // It replaced `controlField`, one literal read by 24 sites, and it returns no width on purpose: every caller has
-// an opinion (`w-full` in a table cell, `min-w-44 grow` in the wizard's approver row, `w-36` for a filter), and
+// an opinion (`w-full` in a table cell, `min-w-44 grow` in the wizard's approver row, a fixed width for a filter), and
 // baking one in would make each fight it with a second width utility whose winner depends on the order Tailwind
 // emits them.
 //

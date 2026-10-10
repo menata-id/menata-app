@@ -35,7 +35,16 @@ var RuntimeScreens = []NavigationItem{
 		Title:       "Applications",
 		Description: "The applications you can open here, based on the roles assigned to you.",
 	},
-	{ID: "nav_workspace_members", Label: "Workspace Members", Route: "/workspace-members"},
+	// "Members" is the board's own heading (04); "Workspace Members" stays the menu's word, where "Members"
+	// alone would not say whose. The description cannot name the Workspace for the reason nav_home's
+	// cannot.
+	{
+		ID:          "nav_workspace_members",
+		Label:       "Workspace Members",
+		Route:       "/workspace-members",
+		Title:       "Members",
+		Description: "Everyone in this workspace, their workspace role and the applications they can open.",
+	},
 	{ID: "nav_workspace_groups", Label: "Groups", Route: "/workspace-groups"},
 	// nav_role_matrix ("Authorization Matrix", /authorization-matrix) lived here until 2026-09-27,
 	// when it was deleted rather than merely left unlinked: Q1 of the Flow 2 canvas re-audit

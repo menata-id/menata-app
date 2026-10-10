@@ -570,6 +570,6 @@ func showHomeDraftApplications(store *data.Store) http.HandlerFunc {
 				ReviewHref:  "/new-application/" + s.ID + "/review",
 			})
 		}
-		render(ctx, w, rendering.HomeDraftApplicationRows(rows))
+		render(ctx, w, rendering.HomeDraftApplicationRows(rows, req.URL.Query().Get("in") == "list"))
 	}
 }

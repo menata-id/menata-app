@@ -53,14 +53,14 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	//     signature legend carries `text-3xs text-slate-500`.
 	//   - `rolematrix` (`gap-x-3 gap-y-1`): an asymmetric gap; `machine`'s is `gap-x-2`, so the two are not even
 	//     one case, and a second Gap ladder for two different pairs is the thing §12.3 stops.
-	//   - `workspacemembers` x2 (`sm:w-32`, `sm:w-36`): a cell's width in a column the header row above fixes;
+	//   - `workspacemembers` x1 (`sm:w-32`; the role cell no longer wraps two badges and is a plain width): a cell's width in a column the header row above fixes;
 	//     sizing, which is not layout.
 	// Building nothing is the result, and it is the boundary working: each site stays hand-written because
 	// absorbing it would make the primitive accept a CSS class string, a second gap ladder, or an element choice
 	// the vocabulary has no word for (§12.5 Slot / §12.3 Component, Stage 2).
 	"row": {
 		"appsettings.templ": 1, "inference.templ": 1, "installapplication.templ": 1, "machine.templ": 1,
-		"reviewdocument.templ": 2, "rolematrix.templ": 1, "workspacemembers.templ": 2,
+		"reviewdocument.templ": 2, "rolematrix.templ": 1, "workspacemembers.templ": 1,
 	},
 	// `split`: a main area beside a fixed-width aside. **§12.2 lists `split`, and an earlier measurement of
 	// mine claimed it had zero uses.** It had five, all migrated on 2026-10-03; what is left is the two
