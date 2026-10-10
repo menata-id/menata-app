@@ -1128,6 +1128,18 @@ Dataset's `limit:` is a safety cap in one Dataset and a window ("the latest five
 which, and a "showing the first N" line over a window is false. A page that knows its list is a cap opts in with
 `complete: true` (below).
 
+**A section that is hidden when it is empty, with a heading and a count (K15, 2026-10-10).** A records-bound
+Collection may carry `heading: <words>` (drawn as a panel heading, then a small badge with the number of rows
+under it) and `hint: <words>` (a note after the count; a `hint:` without a `heading:` is a load error). Add
+`hide_empty: true` and a Collection whose Dataset lists nothing is **not drawn at all** -- no heading over an empty
+list. `hide_empty:` and `empty:` answer the same question in opposite ways, so writing both is a load error, and
+`hide_empty:` (like `empty:`) is valid only on a Collection bound with `rows: records`; its value is `true` or
+`false`. Because a page whose every section is hidden would be a layout with nothing in it, **a layout may carry
+`empty: <words>`**: drawn as a `message` only when every one of its children was left out, and never beside
+real content. A layout with no children cannot carry it. The count is the rows drawn; a list cut at its Dataset's
+`limit:` says so through `complete: true`, not here. The worked page is `nav_task_buckets` (Overdue / Next 7 days /
+Later / Completed) in Project Management.
+
 **`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and
 nothing else:
 

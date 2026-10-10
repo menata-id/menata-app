@@ -1149,3 +1149,94 @@ func TestLower_whenHoldsForEveryNodeInAShapeOnlySet(t *testing.T) {
 		t.Errorf("a shape-only set must keep the node so its subtree is validated: err = %v", err)
 	}
 }
+
+func hideEmptyList(extra map[string]string) domain.PageNode {
+	bound := listBound(rowTemplate())
+	bound.Props = map[string]string{"gap": "tight", "hide_empty": "true"}
+	for k, v := range extra {
+		bound.Props[k] = v
+	}
+	return bound
+}
+
+func TestLower_hideEmptyLeavesOutACollectionThatListsNothingAndNeverReachesTheNode(t *testing.T) {
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		hideEmptyList(map[string]string{"heading": "Overdue"}),
+		{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "kept"}},
+	}}
+	none, err := Lower(root, fixedRecords())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(none.Children) != 1 || none.Children[0].Type != "paragraph" {
+		t.Errorf("a hide_empty Collection over no records was drawn: %+v", none.Children)
+	}
+	some, err := Lower(root, fixedRecords(map[string]string{"title": "t", "status": "s"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(some.Children) != 2 || some.Children[0].Props["heading"] != "Overdue" {
+		t.Fatalf("a hide_empty Collection over a record was not drawn with its heading: %+v", some.Children)
+	}
+	if _, leaked := some.Children[0].Props["hide_empty"]; leaked {
+		t.Errorf("hide_empty reached the lowered Collection: %+v", some.Children[0].Props)
+	}
+}
+
+func TestLower_hideEmptyFaults(t *testing.T) {
+	unbound := domain.PageNode{Kind: "component", Type: "Collection", Props: map[string]string{"gap": "tight", "hide_empty": "true"},
+		Children: []domain.PageNode{{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "x"}}}}
+	for name, c := range map[string]struct {
+		node domain.PageNode
+		want string
+	}{
+		"beside empty":             {hideEmptyList(map[string]string{"empty": "none"}), "opposite ways"},
+		"not a boolean":            {hideEmptyList(map[string]string{"hide_empty": "yes"}), "not true or false"},
+		"on an unbound Collection": {unbound, "bound with rows"},
+	} {
+		root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{c.node}}
+		if _, err := Lower(root, fixedRecords()); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v; want it to mention %q", name, err, c.want)
+		}
+	}
+}
+
+func TestLower_layoutEmptySaysItsWordsOnlyWhenEverythingWasHidden(t *testing.T) {
+	root := domain.PageNode{Kind: "layout", Type: "stack", Props: map[string]string{"gap": "default", "empty": "Nothing assigned."},
+		Children: []domain.PageNode{hideEmptyList(nil), hideEmptyList(nil)}}
+	quiet, err := Lower(root, fixedRecords())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(quiet.Children) != 1 || quiet.Children[0].Type != string(domain.StaticMessage) || quiet.Children[0].Props["text"] != "Nothing assigned." {
+		t.Fatalf("a layout whose children were all hidden did not say its words: %+v", quiet.Children)
+	}
+	if err := Validate(quiet); err != nil {
+		t.Errorf("the quiet page does not validate: %v", err)
+	}
+	busy, err := Lower(root, fixedRecords(map[string]string{"title": "t", "status": "s"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range busy.Children {
+		if c.Type == string(domain.StaticMessage) {
+			t.Errorf("the quiet message was drawn beside real content: %+v", busy.Children)
+		}
+	}
+	if _, leaked := busy.Props["empty"]; leaked {
+		t.Errorf("empty reached the lowered layout: %+v", busy.Props)
+	}
+}
+
+func TestLower_layoutEmptyNeedsChildrenAndWords(t *testing.T) {
+	for name, props := range map[string]map[string]string{"no words": {"empty": ""}} {
+		root := domain.PageNode{Kind: "layout", Type: "stack", Props: props, Children: []domain.PageNode{hideEmptyList(nil)}}
+		if _, err := Lower(root, fixedRecords()); err == nil || !strings.Contains(err.Error(), "no words") {
+			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+	childless := domain.PageNode{Kind: "layout", Type: "stack", Props: map[string]string{"empty": "x"}}
+	if _, err := Lower(childless, fixedRecords()); err == nil || !strings.Contains(err.Error(), "needs children") {
+		t.Errorf("a childless layout with empty: = %v", err)
+	}
+}

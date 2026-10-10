@@ -405,3 +405,14 @@ func TestFormIsSlottedAndInputIsALeaf(t *testing.T) {
 		t.Errorf("Input is a leaf and declares slots %v", got)
 	}
 }
+
+// TestCollectionHintQualifiesAHeading: a hint is the words beside a section's title, so one with no title
+// to sit beside is refused rather than drawn as a stray line.
+func TestCollectionHintQualifiesAHeading(t *testing.T) {
+	if issues := ValidateComponentUse(domain.ComponentCollection, map[string]string{"gap": "tight", "heading": "Overdue", "hint": "needs a date"}); len(issues) != 0 {
+		t.Errorf("heading with hint refused: %v", issues)
+	}
+	if issues := ValidateComponentUse(domain.ComponentCollection, map[string]string{"gap": "tight", "hint": "needs a date"}); len(issues) == 0 {
+		t.Error("a hint with no heading passed validation")
+	}
+}

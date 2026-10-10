@@ -1515,3 +1515,59 @@ func TestDeclaredPageDrawsEachTasksOwnTagsInItsRow(t *testing.T) {
 		t.Errorf("the other Task's row should carry only backend:\n%s", r)
 	}
 }
+
+// TestDeclaredPageHidesAnEmptyBucketAndCountsTheOthers: a section with no Tasks is not on the page -- neither its
+// heading nor an empty list -- and one with Tasks carries its heading, a count of the rows under it and its hint.
+// A viewer with nothing assigned gets the page's own words in place of four hidden sections, and not a layout with
+// no children. Both halves are asserted, because "hides when empty" and "always hides" look the same on a page
+// whose viewer happens to have nothing.
+func TestDeclaredPageHidesAnEmptyBucketAndCountsTheOthers(t *testing.T) {
+	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declaredhideempty", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil || task.Completion == nil {
+		t.Fatal("default installs no mch_task with a completion: block")
+	}
+	quiet := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	if !strings.Contains(quiet, "Nothing is assigned to you.") {
+		t.Errorf("a viewer with no Tasks was not told so:\n%s", quiet)
+	}
+	for _, heading := range []string{"Overdue", "Next 7 days", "Later", "Completed"} {
+		if strings.Contains(quiet, ">"+heading+"<") {
+			t.Errorf("the %q section is on a page with no Tasks", heading)
+		}
+	}
+
+	late := time.Now().UTC().AddDate(0, 0, -30).Format("2006-01-02")
+	for _, title := range []string{"Hideprobe-late-a", "Hideprobe-late-b"} {
+		rec, err := store.CreateRecord(ctx, task.ID, map[string]any{"fld_title": title, "fld_status": task.ReopenValue(), "fld_assignee": actorID, "fld_due_date": late})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+	busy := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	i := strings.Index(busy, ">Overdue<")
+	if i < 0 {
+		t.Fatalf("no Overdue section for a viewer with overdue Tasks:\n%s", busy)
+	}
+	head := busy[i:]
+	if j := strings.Index(head, "Hideprobe-late-a"); j < 0 || !strings.Contains(head[:j], ">2<") {
+		t.Errorf("the Overdue heading is not followed by a count of 2 before its first row:\n%s", head)
+	}
+	if !strings.Contains(head, "needs a new date or a tick") {
+		t.Error("the Overdue hint is missing")
+	}
+	for _, heading := range []string{"Next 7 days", "Later", "Completed"} {
+		if strings.Contains(busy, ">"+heading+"<") {
+			t.Errorf("the empty %q section is on the page", heading)
+		}
+	}
+	if strings.Contains(busy, "Nothing is assigned to you.") {
+		t.Error("the quiet-page words are drawn beside real Tasks")
+	}
+}

@@ -233,171 +233,157 @@ navigation:
     page:
       layout: stack
       gap: default
+      empty: Nothing is assigned to you.
       children:
-        - layout: stack
+        - component: Collection
+          heading: Overdue
+          hint: needs a new date or a tick
           gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding:
+            dataset: ds_my_tasks_overdue
+            rows: records
           children:
-            - static: subheading
-              text: Overdue
-            - component: Collection
+            - layout: stack
               gap: tight
-              divided: true
-              empty: Nothing is overdue.
-              complete: true
-              binding:
-                dataset: ds_my_tasks_overdue
-                rows: records
               children:
-                - layout: stack
+                - static: link
+                  from:
+                    text: title
+                    href: record
+                - static: caption
+                  from:
+                    text: container
+                - layout: row
                   gap: tight
+                  align: center
                   children:
-                    - static: link
+                    - component: StatusBadge
+                      tone: neutral
                       from:
-                        text: title
-                        href: record
-                    - static: caption
+                        label: "group:label"
+                    - component: StatusBadge
                       from:
-                        text: container
-                    - layout: row
-                      gap: tight
-                      align: center
-                      children:
-                        - component: StatusBadge
-                          tone: neutral
-                          from:
-                            label: "group:label"
-                        - component: StatusBadge
-                          from:
-                            label: "date:label"
-                            tone: "date:tone"
-                        - component: Tag
-                          each: tags
-                          from:
-                            label: title
-                            color: color
-        - layout: stack
+                        label: "date:label"
+                        tone: "date:tone"
+                    - component: Tag
+                      each: tags
+                      from:
+                        label: title
+                        color: color
+        - component: Collection
+          heading: Next 7 days
           gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding:
+            dataset: ds_my_tasks_next7
+            rows: records
           children:
-            - static: subheading
-              text: Next 7 days
-            - component: Collection
+            - layout: stack
               gap: tight
-              divided: true
-              empty: Nothing is due this week.
-              complete: true
-              binding:
-                dataset: ds_my_tasks_next7
-                rows: records
               children:
-                - layout: stack
+                - static: link
+                  from:
+                    text: title
+                    href: record
+                - static: caption
+                  from:
+                    text: container
+                - layout: row
                   gap: tight
+                  align: center
                   children:
-                    - static: link
+                    - component: StatusBadge
+                      tone: neutral
                       from:
-                        text: title
-                        href: record
-                    - static: caption
+                        label: "group:label"
+                    - component: StatusBadge
                       from:
-                        text: container
-                    - layout: row
-                      gap: tight
-                      align: center
-                      children:
-                        - component: StatusBadge
-                          tone: neutral
-                          from:
-                            label: "group:label"
-                        - component: StatusBadge
-                          from:
-                            label: "date:label"
-                            tone: "date:tone"
-                        - component: Tag
-                          each: tags
-                          from:
-                            label: title
-                            color: color
-        - layout: stack
+                        label: "date:label"
+                        tone: "date:tone"
+                    - component: Tag
+                      each: tags
+                      from:
+                        label: title
+                        color: color
+        - component: Collection
+          heading: Later
           gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding:
+            dataset: ds_my_tasks_later
+            rows: records
           children:
-            - static: subheading
-              text: Later
-            - component: Collection
+            - layout: stack
               gap: tight
-              divided: true
-              empty: Nothing is waiting.
-              complete: true
-              binding:
-                dataset: ds_my_tasks_later
-                rows: records
               children:
-                - layout: stack
+                - static: link
+                  from:
+                    text: title
+                    href: record
+                - static: caption
+                  from:
+                    text: container
+                - layout: row
                   gap: tight
+                  align: center
                   children:
-                    - static: link
+                    - component: StatusBadge
+                      tone: neutral
                       from:
-                        text: title
-                        href: record
-                    - static: caption
+                        label: "group:label"
+                    - component: StatusBadge
                       from:
-                        text: container
-                    - layout: row
-                      gap: tight
-                      align: center
-                      children:
-                        - component: StatusBadge
-                          tone: neutral
-                          from:
-                            label: "group:label"
-                        - component: StatusBadge
-                          from:
-                            label: "date:label"
-                            tone: "date:tone"
-                        - component: Tag
-                          each: tags
-                          from:
-                            label: title
-                            color: color
-        - layout: stack
+                        label: "date:label"
+                        tone: "date:tone"
+                    - component: Tag
+                      each: tags
+                      from:
+                        label: title
+                        color: color
+        - component: Collection
+          heading: Completed
           gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding:
+            dataset: ds_my_tasks_completed
+            rows: records
           children:
-            - static: subheading
-              text: Completed
-            - component: Collection
+            - layout: stack
               gap: tight
-              divided: true
-              empty: Nothing is finished yet.
-              complete: true
-              binding:
-                dataset: ds_my_tasks_completed
-                rows: records
               children:
-                - layout: stack
+                - static: link
+                  from:
+                    text: title
+                    href: record
+                - static: caption
+                  from:
+                    text: container
+                - layout: row
                   gap: tight
+                  align: center
                   children:
-                    - static: link
+                    - component: StatusBadge
+                      tone: neutral
                       from:
-                        text: title
-                        href: record
-                    - static: caption
+                        label: "group:label"
+                    - component: StatusBadge
                       from:
-                        text: container
-                    - layout: row
-                      gap: tight
-                      align: center
-                      children:
-                        - component: StatusBadge
-                          tone: neutral
-                          from:
-                            label: "group:label"
-                        - component: StatusBadge
-                          from:
-                            label: "date:label"
-                            tone: "date:tone"
-                        - component: Tag
-                          each: tags
-                          from:
-                            label: title
-                            color: color
+                        label: "date:label"
+                        tone: "date:tone"
+                    - component: Tag
+                      each: tags
+                      from:
+                        label: title
+                        color: color
   - id: nav_calendar
     label: Calendar
     route: /calendar

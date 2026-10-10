@@ -482,9 +482,30 @@ func truncationFromProp(limit string) Truncation {
 	return Truncation{Limit: n, Hit: true}
 }
 
-templ collection(gap domain.Gap, empty string, ordered bool, divided bool, truncated Truncation, items []templ.Component) {
-	@collectionBody(gap, empty, ordered, divided, items)
-	@truncationNotice(truncated)
+templ collection(gap domain.Gap, empty string, ordered bool, divided bool, truncated Truncation, heading string, hint string, items []templ.Component) {
+	if heading != "" {
+		@stackLayout(domain.GapTight) {
+			@collectionHeading(heading, hint, len(items))
+			@collectionBody(gap, empty, ordered, divided, items)
+			@truncationNotice(truncated)
+		}
+	} else {
+		@collectionBody(gap, empty, ordered, divided, items)
+		@truncationNotice(truncated)
+	}
+}
+
+// collectionHeading is a section's title row: the heading, how many items sit under it, and an optional qualifier.
+// The count is the number of items drawn -- what the reader can check by counting -- and a list cut short says so in
+// its truncation notice rather than here.
+templ collectionHeading(heading string, hint string, count int) {
+	@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
+		@staticText(domain.StaticPanelHeading, heading)
+		@statusBadge(strconv.Itoa(count), domain.ToneNeutral, domain.BadgeCompact)
+		if hint != "" {
+			@staticText(domain.StaticNote, hint)
+		}
+	}
 }
 
 templ collectionBody(gap domain.Gap, empty string, ordered bool, divided bool, items []templ.Component) {
@@ -753,7 +774,7 @@ templ uiNode(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.ComponentCollection:
-					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", truncationFromProp(n.Props["truncated"]), uiChildComponents(n))
+					@collection(domain.Gap(n.Props["gap"]), n.Props["empty"], n.Props["ordered"] == "true", n.Props["divided"] == "true", truncationFromProp(n.Props["truncated"]), n.Props["heading"], n.Props["hint"], uiChildComponents(n))
 				case domain.ComponentMetric:
 					@metric(n.Props["label"], n.Props["value"], n.Props["hint"], n.Props["href"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentAvatar:

@@ -360,7 +360,7 @@ func TestAvatar_rendersEachCallSiteCombination(t *testing.T) {
 func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 	var buf bytes.Buffer
 	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
-	if err := collection(domain.GapTight, "", false, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, false, Truncation{}, "", "", items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -377,7 +377,7 @@ func TestCollection_rendersTheListShapeBothCallersHad(t *testing.T) {
 	// With no `empty` words an empty collection still renders the list, not nothing: the two hand-written
 	// callers say "no rows" themselves, and a Component that vanished would change what they draw.
 	buf.Reset()
-	if err := collection(domain.GapTight, "", false, false, Truncation{}, nil).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, false, Truncation{}, "", "", nil).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if got := buf.String(); !strings.Contains(got, "<ul") || strings.Contains(got, "<li") {
@@ -1056,7 +1056,7 @@ func TestDividedRowClasses_defaultsAreTheLiteralsThreeSitesReplaced(t *testing.T
 func TestCollection_drawsItsEmptyWordsInPlaceOfAnEmptyList(t *testing.T) {
 	render := func(empty string, items []templ.Component) string {
 		var buf bytes.Buffer
-		if err := collection(domain.GapTight, empty, false, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+		if err := collection(domain.GapTight, empty, false, false, Truncation{}, "", "", items).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
 		return buf.String()
@@ -1114,7 +1114,7 @@ func TestUINode_drawsATagFromItsDeclaredProps(t *testing.T) {
 func TestCollection_orderedDrawsAnOlWithOneOrdinalPerItem(t *testing.T) {
 	var buf bytes.Buffer
 	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
-	if err := collection(domain.GapTight, "", true, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", true, false, Truncation{}, "", "", items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()
@@ -1132,7 +1132,7 @@ func TestCollection_orderedDrawsAnOlWithOneOrdinalPerItem(t *testing.T) {
 	}
 
 	buf.Reset()
-	if err := collection(domain.GapTight, "", false, false, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+	if err := collection(domain.GapTight, "", false, false, Truncation{}, "", "", items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	if strings.Contains(buf.String(), "aria-hidden") {
@@ -1148,7 +1148,7 @@ func TestCollection_dividedDrawsOneSurfaceWithARuleBetweenRows(t *testing.T) {
 	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two")}
 	render := func(ordered, divided bool) string {
 		var buf bytes.Buffer
-		if err := collection(domain.GapTight, "", ordered, divided, Truncation{}, items).Render(context.Background(), &buf); err != nil {
+		if err := collection(domain.GapTight, "", ordered, divided, Truncation{}, "", "", items).Render(context.Background(), &buf); err != nil {
 			t.Fatalf("Render() error = %v", err)
 		}
 		return buf.String()
@@ -1243,5 +1243,27 @@ func TestRequestButton_patchSendsTheNamePairAsOneJSONObjectAndAsksNothing(t *tes
 	}
 	if requestVals("a", "b") != `{"a":"b"}` {
 		t.Errorf("requestVals = %q", requestVals("a", "b"))
+	}
+}
+
+// TestCollection_headingDrawsATitleAndACountOfWhatIsUnderIt: a headed Collection is a section -- the title as a
+// heading element, the number of items as a badge, the hint after both -- and an unheaded one draws none of it.
+func TestCollection_headingDrawsATitleAndACountOfWhatIsUnderIt(t *testing.T) {
+	items := []templ.Component{staticText(domain.StaticParagraph, "one"), staticText(domain.StaticParagraph, "two"), staticText(domain.StaticParagraph, "three")}
+	var buf bytes.Buffer
+	if err := collection(domain.GapTight, "", false, false, Truncation{}, "Overdue", "needs a tick", items).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	got := buf.String()
+	h, c, hint, first := strings.Index(got, ">Overdue<"), strings.Index(got, ">3<"), strings.Index(got, "needs a tick"), strings.Index(got, ">one<")
+	if !strings.Contains(got, "<h2") || h < 0 || c < h || hint < c || first < hint {
+		t.Errorf("want heading, count, hint, then the first item in that order; got %q", got)
+	}
+	buf.Reset()
+	if err := collection(domain.GapTight, "", false, false, Truncation{}, "", "", items).Render(context.Background(), &buf); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if strings.Contains(buf.String(), "<h2") || strings.Contains(buf.String(), ">3<") {
+		t.Errorf("an unheaded Collection drew a heading or a count: %q", buf.String())
 	}
 }

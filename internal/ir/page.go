@@ -294,8 +294,10 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 			return nil, err
 		}
 	}
-	if _, written := n.Props[collectionEmptyProp]; written && n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentCollection) {
-		return nil, fmt.Errorf("%s: %s: is the words shown when a records binding lists nothing, so it is valid only on a Collection bound with rows: %s -- a Collection that holds its own children is empty by being written empty", path, collectionEmptyProp, domain.PageRowsRecords)
+	for _, p := range []string{collectionEmptyProp, collectionHideEmptyProp} {
+		if _, written := n.Props[p]; written && n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentCollection) {
+			return nil, fmt.Errorf("%s: %s: speaks of what a records binding lists when it lists nothing, so it is valid only on a Collection bound with rows: %s -- a Collection that holds its own children is empty by being written empty", path, p, domain.PageRowsRecords)
+		}
 	}
 	for _, p := range []string{collectionCompleteProp, collectionTruncatedProp} {
 		if _, written := n.Props[p]; written && n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentCollection) {
@@ -318,7 +320,40 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 		}
 		out.Children = append(out.Children, kids...)
 	}
+	if err := lowerLayoutEmpty(n, &out, path); err != nil {
+		return nil, err
+	}
 	return []UINode{out}, nil
+}
+
+// lowerLayoutEmpty consumes a layout's `empty:` -- the words a page says when everything it holds was hidden by its
+// data (every Collection `hide_empty`, every record condition false). When something is drawn the prop is dropped;
+// when nothing is, the layout holds one `static: message` with those words, so a quiet day is a short page and
+// not a layout with no children, which Validate refuses. It is valid only on a layout that declares children (an
+// empty one is a fault whatever it says); on any other kind `empty` means something else or nothing, and is left
+// for that kind's own check.
+func lowerLayoutEmpty(n domain.PageNode, out *UINode, path string) error {
+	words, written := n.Props[collectionEmptyProp]
+	if !written || NodeKind(n.Kind) != NodeLayout {
+		return nil
+	}
+	if len(n.Children) == 0 {
+		return fmt.Errorf("%s: %s: is what a layout says when everything it holds is hidden, so it needs children to be hidden", path, collectionEmptyProp)
+	}
+	if words == "" {
+		return fmt.Errorf("%s: %s: is written with no words", path, collectionEmptyProp)
+	}
+	props := make(map[string]string, len(out.Props))
+	for k, v := range out.Props {
+		if k != collectionEmptyProp {
+			props[k] = v
+		}
+	}
+	out.Props = props
+	if len(out.Children) == 0 {
+		out.Children = []UINode{{Kind: NodeStatic, Type: string(domain.StaticMessage), Props: map[string]string{"text": words}}}
+	}
+	return nil
 }
 
 // lowerEach draws the node once for each of the current record's tags, or not at all when it has none. The copy is
@@ -402,6 +437,13 @@ func lowerCount(n domain.PageNode, props map[string]string, record map[string]st
 // list's shape: what to say when the Dataset has no records. It is written by the author (words are content)
 // and is meaningful only where a binding can produce zero items.
 const collectionEmptyProp = "empty"
+
+// collectionHideEmptyProp is the other thing an author can say about a records Collection that lists nothing: draw
+// nothing at all, its heading (a Collection's own `heading`) included, so a section with no rows is not on the page.
+// It is consumed by lowering and never reaches the lowered node, and it is exclusive with `empty`, which says the
+// opposite -- draw these words in the list's place. A page whose every section is hidden says so with the `empty`
+// of the layout that holds them (lowerLayoutEmpty), because a layout with nothing in it is a fault, not a design.
+const collectionHideEmptyProp = "hide_empty"
 
 // The two halves of an author-opted truncation notice. `complete` is written by the author: *this list claims to
 // show every record its Dataset matches*, which is the one fact nothing else declares -- a `limit:` is a safety
@@ -674,6 +716,29 @@ func lowerTotal(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	return []UINode{{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}}, nil
 }
 
+// lowerHideEmpty consumes `hide_empty` and reports whether the Collection is to be left out altogether: the author
+// asked for that and the Dataset listed no records. The prop never reaches the lowered node (the outcome travels, not
+// the claim -- lowerComplete's rule), and it cannot sit beside `empty`, which would be two answers to one question.
+func lowerHideEmpty(n domain.PageNode, props map[string]string, records int, path string) (bool, map[string]string, error) {
+	v, written := n.Props[collectionHideEmptyProp]
+	if !written {
+		return false, props, nil
+	}
+	if v != "true" && v != "false" {
+		return false, nil, fmt.Errorf("%s: %s: %q is not true or false", path, collectionHideEmptyProp, v)
+	}
+	if _, both := n.Props[collectionEmptyProp]; both {
+		return false, nil, fmt.Errorf("%s: %s: and %s: answer the same question (what a list that shows nothing does) in opposite ways; a Collection has one", path, collectionHideEmptyProp, collectionEmptyProp)
+	}
+	out := make(map[string]string, len(props))
+	for k, val := range props {
+		if k != collectionHideEmptyProp {
+			out[k] = val
+		}
+	}
+	return v == "true" && records == 0, out, nil
+}
+
 func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	b := n.Binding
 	if b.Measure != "" {
@@ -697,6 +762,10 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 	}
 	props, err := lowerComplete(n, set, path)
 	if err != nil {
+		return nil, err
+	}
+	hidden, props, err := lowerHideEmpty(n, props, len(set.Records), path)
+	if err != nil || hidden {
 		return nil, err
 	}
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
