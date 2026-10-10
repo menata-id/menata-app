@@ -568,7 +568,7 @@ there and are deliberately not here.
 - S3 Proposal first: account deletion with a grace period, Application deactivation, per-Application notifications, card actions.
 
 **P2 -- the Experience Plane meets 007 §12.4**
-- K11 Conditional visibility on a `page:` node (007 §15.2) -- consumer: Application Settings.
+- K11 Conditional visibility on a `page:` node (007 §15.2) -- consumer: the S2.1 Settings frame (S2.1 -> K11 -> K15).
 - K12 A `Table` Component (006 View lowering) -- consumers: the hand-written tables.
 - K13 `write: transition`, a Button moving a status through `CheckTransitions` (007 §11.3) -- consumer: My Tasks.
 - K14 Date arithmetic in expressions, `$today +/- n` (007 §9) -- consumers: My Tasks, Calendar.

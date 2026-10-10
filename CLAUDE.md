@@ -1045,6 +1045,25 @@ The gates are what make this safe: they are the shared contract that lets one se
 another wrote. Breaking someone else's gate is a conversation, not a wall — lower the number if it is
 an improvement, or fix the code.
 
+**Two sessions on `ROADMAP.md` `## Planned` at once: split by the files a lane touches, not by priority
+number** (2026-10-10). Two sessions rarely collide in logic; they collide in a handful of shared files.
+The lane table, the order inside each lane and the reasons are `menata-app-document`'s
+`audits/2026-10-10-pembagian-dua-sesi-roadmap.md`; the rules every session follows are these:
+
+- **Lane A (runtime)** owns `internal/metadata`, `data`, `execution`, `authorization`, `aiassist`,
+  `cmd/server`, `internal/web/ratelimit.go`, non-design gates, and `metadata/activity.yaml`. **Lane B (UI)**
+  owns `internal/rendering`, `ir`, `composition`, screen handlers in `internal/web`, and every Application
+  file under `metadata/applications/` with all its Workspace copies. **Only lane B edits a `.templ`**:
+  `make generate` rebuilds `static/css/app.css` and `*_templ.go` from every templ file, and two sessions
+  doing it produce a generated file no merge can reconcile.
+- **Claim before starting** (one line to the other session, `SendMessage`), and when blocked on an owner
+  decision take the next item in your own lane, never one from the other.
+- **`ROADMAP.md` and `roadmap_test.go` change only at a slice's end**, as their own small commit, after
+  `git pull --rebase`; recompute the ratchet numbers from the rebased file instead of keeping yours.
+- **A shared file is edited only on the lines your item owns** (`capabilities.md`, `writing-guide.md`,
+  `router.go`); a conflict at the tail of `development-history.md` keeps both entries.
+- **Restart `menata-app.service` only from the session that just pushed**, and verify the running binary.
+
 ## Commands
 
 - `make generate` — regenerate `*_templ.go` from `*.templ` (needed after any `.templ` edit).
