@@ -92,14 +92,18 @@ func resolveMeasureFilters(ds domain.Dataset, ctx expression.Context) (map[strin
 		if ms.Where == nil {
 			continue
 		}
-		resolved := &expression.Predicate{All: make([]expression.Comparison, 0, len(ms.Where.All))}
-		for _, c := range ms.Where.All {
-			value, ok := ctx.Resolve(c.Value)
-			if !ok {
-				return nil, fmt.Errorf("composition: dataset %s measure %s filters on %s, which this request cannot resolve", ds.ID, ms.ID, c.Value)
+		resolved := &expression.Predicate{}
+		for _, group := range []struct{ from, to *[]expression.Comparison }{
+			{&ms.Where.All, &resolved.All}, {&ms.Where.Any, &resolved.Any},
+		} {
+			for _, c := range *group.from {
+				value, ok := ctx.Resolve(c.Value)
+				if !ok {
+					return nil, fmt.Errorf("composition: dataset %s measure %s filters on %s, which this request cannot resolve", ds.ID, ms.ID, c.Value)
+				}
+				c.Value = value
+				*group.to = append(*group.to, c)
 			}
-			c.Value = value
-			resolved.All = append(resolved.All, c)
 		}
 		out[ms.ID] = resolved
 	}

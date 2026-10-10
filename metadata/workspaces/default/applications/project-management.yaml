@@ -192,6 +192,116 @@ navigation:
                         is: $done
                       binding:
                         write: transition
+  # My Tasks' buckets as a declared page (K15, 2026-10-10): four Collections over four Datasets that say what
+  # buildMyTasks used to compute in Go -- overdue, the next seven days, later (undated, or past the window: the
+  # first `any:` group) and completed. An experimental consumer; the bespoke /my-tasks still draws the real screen
+  # until the date badge, tags and list name are bound too.
+  - id: nav_task_buckets
+    label: Task buckets
+    route: /pages/nav_task_buckets
+    priority: 10
+    icon: check-square
+    description: Your open tasks by when they are due, then the ones you finished.
+    page:
+      layout: stack
+      gap: default
+      children:
+        - layout: stack
+          gap: tight
+          children:
+            - static: subheading
+              text: Overdue
+            - component: Collection
+              gap: tight
+              divided: true
+              empty: Nothing is overdue.
+              complete: true
+              binding:
+                dataset: ds_my_tasks_overdue
+                rows: records
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - static: caption
+                      from:
+                        text: container
+        - layout: stack
+          gap: tight
+          children:
+            - static: subheading
+              text: Next 7 days
+            - component: Collection
+              gap: tight
+              divided: true
+              empty: Nothing is due this week.
+              complete: true
+              binding:
+                dataset: ds_my_tasks_next7
+                rows: records
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - static: caption
+                      from:
+                        text: container
+        - layout: stack
+          gap: tight
+          children:
+            - static: subheading
+              text: Later
+            - component: Collection
+              gap: tight
+              divided: true
+              empty: Nothing is waiting.
+              complete: true
+              binding:
+                dataset: ds_my_tasks_later
+                rows: records
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - static: caption
+                      from:
+                        text: container
+        - layout: stack
+          gap: tight
+          children:
+            - static: subheading
+              text: Completed
+            - component: Collection
+              gap: tight
+              divided: true
+              empty: Nothing is finished yet.
+              complete: true
+              binding:
+                dataset: ds_my_tasks_completed
+                rows: records
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - static: caption
+                      from:
+                        text: container
   - id: nav_calendar
     label: Calendar
     route: /calendar

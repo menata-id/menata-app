@@ -54,10 +54,12 @@ func stampCompletion(m *domain.Machine) {
 		if p == nil {
 			return
 		}
-		for i := range p.All {
-			c := &p.All[i]
-			if c.Value == expression.SentinelDone && c.Field == m.Completion.Field && (c.Op == expression.OpEquals || c.Op == expression.OpNotEquals) {
-				c.Value = m.Completion.Done
+		for _, group := range [][]expression.Comparison{p.All, p.Any} {
+			for i := range group {
+				c := &group[i]
+				if c.Value == expression.SentinelDone && c.Field == m.Completion.Field && (c.Op == expression.OpEquals || c.Op == expression.OpNotEquals) {
+					c.Value = m.Completion.Done
+				}
 			}
 		}
 	}

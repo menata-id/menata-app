@@ -727,6 +727,9 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 					issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, msg))
 				}
 			}
+			if msg := emptyComparisonIssue(c); msg != "" {
+				issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, msg))
+			}
 			// 007 §9.2: "Access outside this context must fail closed." A sentinel the runtime cannot
 			// resolve must be refused here, because at runtime it would become a literal -- a filter
 			// comparing a Field against the string "$current_usr" matches nothing, renders an empty
@@ -797,11 +800,14 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			whereField, ok := fieldsByID[c.Field]
 			if !ok {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.field %q is not a field of machine %q", ds.ID, ms.ID, c.Field, m.ID))
-			} else if !expression.IsSentinel(c.Value) && whereField.ViolatesOptions(c.Value) {
+			} else if c.Op != expression.OpIsEmpty && !expression.IsSentinel(c.Value) && whereField.ViolatesOptions(c.Value) {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q is not one of field %q's options %v", ds.ID, ms.ID, c.Value, c.Field, whereField.Options))
 			}
 			if !expression.KnownOps[c.Op] {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.op %q is not a known operator", ds.ID, ms.ID, c.Op))
+			}
+			if msg := emptyComparisonIssue(c); msg != "" {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, msg))
 			}
 			if ok {
 				switch {
@@ -843,6 +849,15 @@ func doneIssue(m *domain.Machine, c expression.Comparison) string {
 // a literal date for a date, a number for a number -- or a context value (`$today` for a date only, a
 // `$parameters.<name>` for either, which cannot be checked until a request supplies it). `$today` on a Field
 // that is not a date is refused whatever the operator, since a date compared against a status is never meant.
+// emptyComparisonIssue refuses a value beside `is_empty`: the operator asks whether the Field has one, so a value
+// is either a mistake for `equals` or a comparison that silently ignores half of what it says.
+func emptyComparisonIssue(c expression.Comparison) string {
+	if c.Op == expression.OpIsEmpty && c.Value != "" {
+		return fmt.Sprintf("op %q asks whether field %q has a value, so it takes none (got %q)", c.Op, c.Field, c.Value)
+	}
+	return ""
+}
+
 func orderedComparisonIssues(f domain.Field, c expression.Comparison) []string {
 	var issues []string
 	if expression.IsToday(c.Value) && f.Type != domain.FieldTypeDate {

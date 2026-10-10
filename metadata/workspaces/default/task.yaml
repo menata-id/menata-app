@@ -91,6 +91,52 @@ datasets:
       value: $current_user
     limit: 200
 
+  # My Tasks' four buckets as Datasets (K15, 2026-10-10), so a `page:` can draw each without Go bucketing the
+  # viewer's Tasks. They are the same facts composition.buildMyTasks tests per record, said in the Dataset:
+  # "finished" is `$done` (the `completion:` block), the window is `$today` .. `$today+7` (myTasksWindowDays), and
+  # "Later" is the first Dataset to need a disjunction -- an open Task that is undated, or due past the window.
+  # `is_empty` is how "undated" is said: `equals ""` cannot, an absent Field not being the empty string.
+  - id: ds_my_tasks_overdue
+    select: records
+    where:
+      all:
+        - { field: fld_assignee, op: equals, value: $current_user }
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_due_date, op: lt, value: $today }
+    sort:
+      - field: fld_due_date
+        direction: asc
+    limit: 200
+  - id: ds_my_tasks_next7
+    select: records
+    where:
+      all:
+        - { field: fld_assignee, op: equals, value: $current_user }
+        - { field: fld_status, op: not_equals, value: $done }
+        - { field: fld_due_date, op: gte, value: $today }
+        - { field: fld_due_date, op: lte, value: $today+7 }
+    sort:
+      - field: fld_due_date
+        direction: asc
+    limit: 200
+  - id: ds_my_tasks_later
+    select: records
+    where:
+      all:
+        - { field: fld_assignee, op: equals, value: $current_user }
+        - { field: fld_status, op: not_equals, value: $done }
+      any:
+        - { field: fld_due_date, op: is_empty }
+        - { field: fld_due_date, op: gt, value: $today+7 }
+    limit: 200
+  - id: ds_my_tasks_completed
+    select: records
+    where:
+      all:
+        - { field: fld_assignee, op: equals, value: $current_user }
+        - { field: fld_status, op: equals, value: $done }
+    limit: 200
+
   # The Dashboard's whole Task set, as records rather than counts (2026-10-05, Case 19 PM04). It replaces
   # ds_task_by_project, which counted `msr_total_open` with `value: done` -- a second statement of which
   # status means finished, beside `completion:` below. The Dashboard's own subtitle says a card is

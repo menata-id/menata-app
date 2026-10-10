@@ -658,3 +658,60 @@ func TestStore_PlaceRecord(t *testing.T) {
 		t.Errorf("a refused placement changed the order: %s", order())
 	}
 }
+
+// TestStore_ListRecordsSelectGroupsAlternativesAndFindsEmpty: the SQL for `any:` and `is_empty` must select what
+// expression.Predicate.Evaluate selects. The cases that differ if either is built wrong are the absent Field (SQL
+// NULL), the Field stored as "" and the OR-group being ANDed with the conjunction rather than flattened into it.
+func TestStore_ListRecordsSelectGroupsAlternativesAndFindsEmpty(t *testing.T) {
+	pool := storePool(t)
+	cleanupStoreTest(t, pool)
+	store := NewStore(pool)
+	ctx := storeTestContext()
+
+	for _, v := range []map[string]any{
+		{"fld_name": "soon", "fld_status": "todo", "fld_due": "2026-10-12"},
+		{"fld_name": "late", "fld_status": "todo", "fld_due": "2026-10-20"},
+		{"fld_name": "undated", "fld_status": "todo"},
+		{"fld_name": "blank", "fld_status": "todo", "fld_due": ""},
+		{"fld_name": "undated-done", "fld_status": "done"},
+		{"fld_name": "late-done", "fld_status": "done", "fld_due": "2026-10-20"},
+	} {
+		if _, err := store.CreateRecord(ctx, storeTestMachine, v); err != nil {
+			t.Fatalf("seed %v: %v", v, err)
+		}
+	}
+	names := func(where ...FieldPredicate) map[string]bool {
+		t.Helper()
+		got, _, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", where, nil, 50)
+		if err != nil {
+			t.Fatalf("ListRecordsSelect: %v", err)
+		}
+		out := map[string]bool{}
+		for _, r := range got {
+			out[r.Values["fld_name"].(string)] = true
+		}
+		return out
+	}
+	same := func(label string, got map[string]bool, want ...string) {
+		t.Helper()
+		if len(got) != len(want) {
+			t.Errorf("%s: got %v, want %v", label, got, want)
+			return
+		}
+		for _, w := range want {
+			if !got[w] {
+				t.Errorf("%s: got %v, want %v", label, got, want)
+			}
+		}
+	}
+
+	same("is_empty alone", names(FieldPredicate{Field: "fld_due", Empty: true}), "undated", "blank", "undated-done")
+	same("open and (undated or late)", names(
+		FieldPredicate{Field: "fld_status", Negate: true, Value: "done"},
+		FieldPredicate{Field: "fld_due", Empty: true, Alternative: true},
+		FieldPredicate{Field: "fld_due", Order: ">", Value: "2026-10-17", Alternative: true},
+	), "late", "undated", "blank")
+	same("one alternative only is just that predicate", names(
+		FieldPredicate{Field: "fld_due", Order: ">", Value: "2026-10-17", Alternative: true},
+	), "late", "late-done")
+}

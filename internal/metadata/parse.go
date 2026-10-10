@@ -152,10 +152,11 @@ type relationDoc struct {
 
 // predicateDoc is the YAML serialization of an expression.Predicate. It accepts both shapes on
 // purpose: a bare field/op/value, which is what every filter in this repo already writes and what
-// 007 §7.7 keeps valid as syntax sugar, or an `all:` list when more than one must hold.
+// 007 §7.7 keeps valid as syntax sugar, or an `all:` list when more than one must hold, with an `any:` list beside it when one of several must.
 type predicateDoc struct {
 	comparisonDoc `yaml:",inline"`
 	All           []comparisonDoc `yaml:"all"`
+	Any           []comparisonDoc `yaml:"any"`
 }
 
 // predicate lowers the doc into the one representation, so a single comparison and a one-element
@@ -165,19 +166,21 @@ func (d *predicateDoc) predicate() *expression.Predicate {
 	if d == nil {
 		return nil
 	}
-	if len(d.All) > 0 {
-		out := &expression.Predicate{}
-		for _, c := range d.All {
-			out.All = append(out.All, expression.Comparison{Field: c.Field, Op: expression.Op(c.Op), Value: c.Value})
+	lower := func(docs []comparisonDoc) []expression.Comparison {
+		var out []expression.Comparison
+		for _, c := range docs {
+			out = append(out, expression.Comparison{Field: c.Field, Op: expression.Op(c.Op), Value: c.Value})
 		}
 		return out
 	}
-	if d.Field == "" && d.Op == "" && d.Value == "" {
+	out := &expression.Predicate{All: lower(d.All), Any: lower(d.Any)}
+	if len(out.All) == 0 && (d.Field != "" || d.Op != "" || d.Value != "") {
+		out.All = lower([]comparisonDoc{d.comparisonDoc})
+	}
+	if len(out.All) == 0 && len(out.Any) == 0 {
 		return nil
 	}
-	return &expression.Predicate{All: []expression.Comparison{
-		{Field: d.Field, Op: expression.Op(d.Op), Value: d.Value},
-	}}
+	return out
 }
 
 // sortDoc is the YAML serialization of a domain.SortKey. `direction` rather than a bool, because

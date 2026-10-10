@@ -1229,3 +1229,82 @@ func TestDeclaredPageTransitionButtonsMoveTheStatusAndAreDrawnOnlyWhereTheMoveIs
 		t.Error("after finishing a Task the page still offers Mark done, or no Reopen")
 	}
 }
+
+// TestDeclaredPageFilesEachTaskInItsOwnBucket: the four My Tasks Datasets through the real store. Later is the case
+// that needs `any:` and `is_empty` -- a Task that never had a due date (the Field absent) and one due well past the
+// window must both land there, and an undated Task that is finished must land only in Completed. Dates sit 3, 30 and
+// 60 days from today so the viewer's clock cannot move one across a boundary.
+func TestDeclaredPageFilesEachTaskInItsOwnBucket(t *testing.T) {
+	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declaredbuckets", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil || task.Completion == nil {
+		t.Fatal("default installs no mch_task with a completion: block")
+	}
+	day := func(offset int) string { return time.Now().UTC().AddDate(0, 0, offset).Format("2006-01-02") }
+	mk := func(title, status, due string) {
+		v := map[string]any{"fld_title": title, "fld_status": status, "fld_assignee": actorID}
+		if due != "" {
+			v["fld_due_date"] = due
+		}
+		rec, err := store.CreateRecord(ctx, task.ID, v)
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+	open, done := task.ReopenValue(), task.Completion.Done
+	mk("Bucket-probe-overdue", open, day(-30))
+	mk("Bucket-probe-soon", open, day(3))
+	mk("Bucket-probe-far", open, day(60))
+	mk("Bucket-probe-undated", open, "")
+	mk("Bucket-probe-finished-undated", done, "")
+	mk("Bucket-probe-finished-overdue", done, day(-30))
+
+	body := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	at := func(heading string) int {
+		i := strings.Index(body, ">"+heading+"<")
+		if i < 0 {
+			t.Fatalf("no %q heading on the page:\n%s", heading, body)
+		}
+		return i
+	}
+	bounds := []struct {
+		name       string
+		start, end int
+	}{}
+	order := []string{"Overdue", "Next 7 days", "Later", "Completed"}
+	for i, name := range order {
+		end := len(body)
+		if i+1 < len(order) {
+			end = at(order[i+1])
+		}
+		bounds = append(bounds, struct {
+			name       string
+			start, end int
+		}{name, at(name), end})
+	}
+	section := map[string]string{}
+	for _, b := range bounds {
+		section[b.name] = body[b.start:b.end]
+	}
+	want := map[string]string{
+		"Bucket-probe-overdue":          "Overdue",
+		"Bucket-probe-soon":             "Next 7 days",
+		"Bucket-probe-far":              "Later",
+		"Bucket-probe-undated":          "Later",
+		"Bucket-probe-finished-undated": "Completed",
+		"Bucket-probe-finished-overdue": "Completed",
+	}
+	for title, home := range want {
+		for name, text := range section {
+			if got := strings.Contains(text, title); got != (name == home) {
+				t.Errorf("%s: in %q = %v, want it only in %q", title, name, got, home)
+			}
+		}
+	}
+}

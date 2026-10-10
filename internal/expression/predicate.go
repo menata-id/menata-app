@@ -1,6 +1,7 @@
 package expression
 
-// Predicate is a conjunction of Comparisons: every one must hold.
+// Predicate is a conjunction of Comparisons -- every one of All must hold -- and, when Any is declared, at
+// least one of Any must hold as well: "all of these, and some of those".
 //
 // **It wraps Comparison rather than replacing it**, which is why the four existing users --
 // Constraint's block_if.condition, a Measure's where, a Schedule's guard and a member-removal block
@@ -15,12 +16,14 @@ package expression
 // replace proliferation of independent mini-languages". A second filter syntax for record selection
 // would be that proliferation.
 //
-// **Conjunction only, and that is a measured boundary rather than a first instalment.** Disjunction
-// has no case: the site that forced this one needs `assignee == me AND status != done`, and nothing
-// in the codebase filters on an OR. Adding `any:` now would be the premature declaration B5 refuses
-// -- the same rule that kept KnownActions at one entry and left `now` out of KnownWriteSources.
+// **Disjunction arrived with its first case (2026-10-10, K15).** Until then the boundary was that nothing
+// filtered on an OR; My Tasks' "Later" bucket is "open, and either undated or due after next week", which no
+// conjunction says. It is one group beside All rather than a nested tree, because that is the shape the case
+// has and a recursive boolean language would be the proliferation 007 §9 warns about; a second case that
+// needs nesting is the trigger to generalise.
 type Predicate struct {
 	All []Comparison
+	Any []Comparison
 }
 
 // Evaluate reports whether values satisfies every Comparison.
@@ -37,14 +40,28 @@ func (p *Predicate) Evaluate(values map[string]any) bool {
 			return false
 		}
 	}
-	return true
+	if len(p.Any) == 0 {
+		return true
+	}
+	for _, c := range p.Any {
+		if c.Evaluate(values) {
+			return true
+		}
+	}
+	return false
 }
 
-// Comparisons returns the leaves, so a caller lowering this into another representation -- SQL, for
-// instance -- walks one list rather than reaching into the struct.
+// Comparisons returns every leaf, All then Any, for a caller that asks about the comparisons regardless of how
+// they combine -- validation, "does this name $current_user". A caller lowering the predicate into another
+// representation (SQL) must keep the two groups apart and reads All and Any itself.
 func (p *Predicate) Comparisons() []Comparison {
 	if p == nil {
 		return nil
 	}
-	return p.All
+	if len(p.Any) == 0 {
+		return p.All
+	}
+	out := make([]Comparison, 0, len(p.All)+len(p.Any))
+	out = append(out, p.All...)
+	return append(out, p.Any...)
 }

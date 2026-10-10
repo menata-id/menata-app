@@ -183,6 +183,12 @@ type FieldPredicate struct {
 	// A stored value that is not a number then satisfies nothing, exactly as expression.Ordered answers.
 	Numeric bool
 	Value   string
+	// Empty asks that the Field have no value (expression.OpIsEmpty): absent, or stored as nothing. Value,
+	// Negate and Order are ignored.
+	Empty bool
+	// Alternative marks this predicate as one of an OR-group. Every Alternative predicate of a statement is
+	// joined with OR into a single clause, which is then ANDed with the rest (expression.Predicate's Any).
+	Alternative bool
 }
 
 var orderedSQL = map[string]bool{"<": true, "<=": true, ">": true, ">=": true}
@@ -241,27 +247,20 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 	// runtime may change that without touching metadata.
 	args := []any{machineID, workspaceID}
 	filter := ""
+	var alternatives []string
 	for _, p := range where {
-		args = append(args, p.Value)
-		if p.Order != "" {
-			if !orderedSQL[p.Order] {
-				return nil, false, fmt.Errorf("data: %q is not an ordering operator", p.Order)
-			}
-			// An absent or empty stored value satisfies no ordering (expression.Ordered), so the empty
-			// string is excluded explicitly: as text it would sort before every date.
-			if p.Numeric {
-				filter += fmt.Sprintf(" AND CASE WHEN data->>'%s' ~ '%s' THEN (data->>'%s')::numeric END %s $%d::numeric",
-					p.Field, numberPattern, p.Field, p.Order, len(args))
-			} else {
-				filter += fmt.Sprintf(" AND data->>'%s' <> '' AND data->>'%s' %s $%d", p.Field, p.Field, p.Order, len(args))
-			}
+		clause, err := predicateSQL(p, &args)
+		if err != nil {
+			return nil, false, err
+		}
+		if p.Alternative {
+			alternatives = append(alternatives, clause)
 			continue
 		}
-		op := "="
-		if p.Negate {
-			op = "IS DISTINCT FROM"
-		}
-		filter += fmt.Sprintf(" AND data->>'%s' %s $%d", p.Field, op, len(args))
+		filter += " AND " + clause
+	}
+	if len(alternatives) > 0 {
+		filter += " AND (" + strings.Join(alternatives, " OR ") + ")"
 	}
 
 	orderBy := "sort_order ASC, created_at ASC"
@@ -296,6 +295,33 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 		return rows[:limit], true, nil
 	}
 	return rows, false, nil
+}
+
+// predicateSQL is one predicate's clause, its value (when it has one) appended to args as a bind parameter. Only
+// the JSONB path is built into the text, from an id metadata validation already accepted.
+func predicateSQL(p FieldPredicate, args *[]any) (string, error) {
+	if p.Empty {
+		return fmt.Sprintf("(data->>'%s' IS NULL OR data->>'%s' = '')", p.Field, p.Field), nil
+	}
+	*args = append(*args, p.Value)
+	n := len(*args)
+	if p.Order != "" {
+		if !orderedSQL[p.Order] {
+			return "", fmt.Errorf("data: %q is not an ordering operator", p.Order)
+		}
+		// An absent or empty stored value satisfies no ordering (expression.Ordered), so the empty
+		// string is excluded explicitly: as text it would sort before every date.
+		if p.Numeric {
+			return fmt.Sprintf("CASE WHEN data->>'%s' ~ '%s' THEN (data->>'%s')::numeric END %s $%d::numeric",
+				p.Field, numberPattern, p.Field, p.Order, n), nil
+		}
+		return fmt.Sprintf("(data->>'%s' <> '' AND data->>'%s' %s $%d)", p.Field, p.Field, p.Order, n), nil
+	}
+	op := "="
+	if p.Negate {
+		op = "IS DISTINCT FROM"
+	}
+	return fmt.Sprintf("data->>'%s' %s $%d", p.Field, op, n), nil
 }
 
 // ListRecordsByAny returns every Record of machineID whose fieldID value is one of ids -- the child

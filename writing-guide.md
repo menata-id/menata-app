@@ -1073,6 +1073,16 @@ is accepted only as `equals`/`not_equals` against the completion Field itself, a
 refuses it at load. `$current_user` and `$parameters.<name>` are refused in a Measure: an aggregate has no viewer
 and no request, so they would be compared as literal text and count nothing.
 
+**`any:` and `is_empty` — "one of these", and "has no value" (K15, 2026-10-10).** A `where:` (a records Dataset's or a
+Measure's) may carry an `any:` list beside `all:`: the record is listed when **every** `all:` comparison holds **and**,
+when `any:` is declared, **at least one** `any:` comparison does. It is one OR-group and not a boolean tree -- there is
+no nesting, no `not`, and `any:` alone is valid. `op: is_empty` holds when the Field was never set or holds nothing, and
+takes **no** `value:` (one is a load error). It is the only way to say "undated" or "unassigned": `equals` with an
+empty value cannot, because an absent Field is not the empty string. An ordered operator (`lt`, `gt`, ...) is false for
+an empty Field, so "overdue" needs no `is_empty` guard, and "later" -- undated, or due past the window -- is
+`any: [{field: fld_due_date, op: is_empty}, {field: fld_due_date, op: gt, value: $today+7}]` beside the `all:` that
+names whose and whether open (the four `ds_my_tasks_*` Datasets in `task.yaml`).
+
 **`rows: records` — a list of a Machine's records.** A `component: Collection` may carry
 `binding: {dataset: ds_x, rows: records}` and **exactly one child**, the item template. The template is cloned once
 per record, in the Dataset's own `sort:` order, and a node inside it fills a property from the record with
@@ -1857,7 +1867,7 @@ shows for it with no code edit.
 | Services | `log_activity` `rollup_parent_status` `send_notification` | `registry.Services` |
 | Schedule triggers | `overdue` | `domain.KnownScheduleWhens` |
 | Notification preference keys | `assigned` `decided` `sla_breach` | `domain.KnownNotificationPreferenceKeys` |
-| Comparison operators | `equals` `not_equals` | `expression.KnownOps` |
+| Comparison operators | `equals` `not_equals` `is_empty` `lt` `lte` `gt` `gte` | `expression.KnownOps` |
 | Navigation badges | `approval_inbox_pending` | `domain.KnownNavigationBadges` |
 
 Every one of these is a deliberate static seam (007 §14). Writing a value outside the set fails the

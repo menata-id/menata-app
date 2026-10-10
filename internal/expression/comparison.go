@@ -13,6 +13,11 @@ const (
 	OpEquals    Op = "equals"
 	OpNotEquals Op = "not_equals"
 
+	// OpIsEmpty holds when the Field has no value: never set, or set to nothing. It takes no value, so a
+	// comparison declaring one is refused at load. It is the one way to say "undated" or "unassigned"; `equals`
+	// with an empty value cannot, because an absent Field is not the empty string (SQL NULL, Go nil).
+	OpIsEmpty Op = "is_empty"
+
 	// The four ordered operators. They compare by what the declared value is, not by what the Field is
 	// (see Ordered): a number against a number, anything else as text, which orders ISO dates correctly.
 	OpLessThan       Op = "lt"
@@ -25,6 +30,7 @@ const (
 var KnownOps = map[Op]bool{
 	OpEquals:    true,
 	OpNotEquals: true,
+	OpIsEmpty:   true,
 
 	OpLessThan:       true,
 	OpLessOrEqual:    true,
@@ -110,6 +116,10 @@ type Comparison struct {
 // rather than panicking -- Comparison is meant to be validated (internal/metadata) before it is
 // ever evaluated.
 func (c Comparison) Evaluate(values map[string]any) bool {
+	if c.Op == OpIsEmpty {
+		v := values[c.Field]
+		return v == nil || fmt.Sprint(v) == ""
+	}
 	actual := fmt.Sprint(values[c.Field])
 	switch c.Op {
 	case OpEquals:

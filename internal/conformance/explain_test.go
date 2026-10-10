@@ -330,6 +330,10 @@ func readFile(t *testing.T, path string) string {
 var perViewerDatasets = map[string]string{
 	"ds_my_tasks": "My Tasks shows one identity its own assigned work; without the predicate every " +
 		"viewer sees every assignee's Tasks",
+	"ds_my_tasks_overdue":   "a bucket of My Tasks; without the assignee predicate it lists everyone's overdue work",
+	"ds_my_tasks_next7":     "a bucket of My Tasks; without the assignee predicate it lists everyone's work due this week",
+	"ds_my_tasks_later":     "a bucket of My Tasks; without the assignee predicate it lists everyone's undated work",
+	"ds_my_tasks_completed": "a bucket of My Tasks; without the assignee predicate it lists everyone's finished work",
 }
 
 func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {

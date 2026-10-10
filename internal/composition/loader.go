@@ -299,15 +299,22 @@ var orderSQL = map[expression.Op]string{
 func predicatesFor(ds domain.Dataset, ctx expression.Context) ([]data.FieldPredicate, error) {
 	comparisons := ds.Where.Comparisons()
 	out := make([]data.FieldPredicate, 0, len(comparisons))
-	for _, c := range comparisons {
+	// Comparisons lists All then Any; the first len(All) are the conjunction and the rest the OR-group.
+	conjunction := 0
+	if ds.Where != nil {
+		conjunction = len(ds.Where.All)
+	}
+	for i, c := range comparisons {
 		value, ok := ctx.Resolve(c.Value)
 		if !ok {
 			return nil, fmt.Errorf("composition: dataset %s filters on %s, which this request cannot resolve", ds.ID, c.Value)
 		}
 		p := data.FieldPredicate{
-			Field:  c.Field,
-			Negate: c.Op == expression.OpNotEquals,
-			Value:  value,
+			Field:       c.Field,
+			Negate:      c.Op == expression.OpNotEquals,
+			Empty:       c.Op == expression.OpIsEmpty,
+			Value:       value,
+			Alternative: i >= conjunction,
 		}
 		if expression.IsOrdered(c.Op) {
 			p.Order = orderSQL[c.Op]
