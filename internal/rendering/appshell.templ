@@ -940,7 +940,14 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 					<span class="text-slate-500">
 						@icon("settings", "size-4")
 					</span>
-					{ labelByID(ctx, "nav_workspace_settings") }
+					<span class="flex flex-col">
+						{ labelByID(ctx, "nav_workspace_settings") }
+						// Board 14's one-line hint under each Administration row. A hint is not the screen's own
+						// `description:` (that is the subtitle on the screen itself, and says something else), and
+						// no navigation key declares a menu hint -- the missing capability is 007 §12.3's ActionBar
+						// (below). It names what the destination holds, so it moves with that screen.
+						<span class={ "text-xs text-slate-400", weightClass(ctx, domain.WeightBody) }>Members, applications, security</span>
+					</span>
 				</a>
 				// METADATA CANNOT EXPRESS THIS YET, same exception workspaceMenu's own copy of
 				// this link already carries (CLAUDE.md, "Deciding whether a literal is a
@@ -953,7 +960,10 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 					<span class="text-slate-500">
 						@icon("sparkle", "size-4")
 					</span>
-					New application
+					<span class="flex flex-col">
+						New application
+						<span class={ "text-xs text-slate-400", weightClass(ctx, domain.WeightBody) }>Describe it, Menata builds a draft</span>
+					</span>
 				</a>
 			}
 			if switchWorkspaceHref != "" {
