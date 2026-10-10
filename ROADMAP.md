@@ -560,8 +560,7 @@ there and are deliberately not here.
 **P2 -- the Experience Plane meets 007 §12.4**
 - K11 Conditional visibility on a `page:` node (007 §15.2) -- consumer: the S2.1 Settings frame (S2.1 -> K11 -> K15).
 - K12 A `Table` Component (006 View lowering) -- consumers: the hand-written tables.
-- K13 `write: transition`, a Button moving a status through `CheckTransitions` (007 §11.3) -- consumer: My Tasks.
-- K15 Dashboard, My Tasks, Calendar and Application Settings migrate to `page:` (re-check each screen first).
+- K15 Dashboard, My Tasks, Calendar and Application Settings migrate to `page:` (re-check each screen first; `write: transition` exists, K13).
 - K16 AI schema from the loader's grammar (D2 = option G). Field types and colours done; owed: the rest of the
   schema, removals and renames with confirmation in an installed Application, YAML at review.
 - K17 `columns`, `section` and `StatusBadge.size` writable; writing-guide §12.1a generated from `allowedProps`.
