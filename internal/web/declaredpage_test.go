@@ -1310,6 +1310,63 @@ func TestDeclaredPageFilesEachTaskInItsOwnBucket(t *testing.T) {
 	}
 }
 
+// TestDeclaredPageDrawsADatePillPerDatedTask: each dated Task row carries a pill with its short date, red while an
+// open Task is past due and green once it is finished, and an undated Task carries none. The pill is a registered
+// StatusBadge filled from the derived date roles; nothing on the page says what red means.
+func TestDeclaredPageDrawsADatePillPerDatedTask(t *testing.T) {
+	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declareddatepill", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil || task.Completion == nil {
+		t.Fatal("default installs no mch_task with a completion: block")
+	}
+	past := time.Now().UTC().AddDate(0, 0, -30)
+	mk := func(title, status string, due *time.Time) {
+		v := map[string]any{"fld_title": title, "fld_status": status, "fld_assignee": actorID}
+		if due != nil {
+			v["fld_due_date"] = due.Format("2006-01-02")
+		}
+		rec, err := store.CreateRecord(ctx, task.ID, v)
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+	mk("Pillprobe-open-late", task.ReopenValue(), &past)
+	mk("Pillprobe-done-late", task.Completion.Done, &past)
+	mk("Pillprobe-undated", task.ReopenValue(), nil)
+
+	body := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	row := func(title string) string {
+		i := strings.Index(body, ">"+title+"<")
+		if i < 0 {
+			t.Fatalf("no row for %q:\n%s", title, body)
+		}
+		end := strings.Index(body[i:], "</li>")
+		if end < 0 {
+			t.Fatalf("row for %q has no end", title)
+		}
+		return body[i : i+end]
+	}
+	label := past.Format("2 Jan")
+	if past.Year() != time.Now().UTC().Year() {
+		label = past.Format("2 Jan 2006")
+	}
+	if r := row("Pillprobe-open-late"); !strings.Contains(r, label) || !strings.Contains(r, "bg-red-50") {
+		t.Errorf("an open Task past due needs a red pill reading %q:\n%s", label, r)
+	}
+	if r := row("Pillprobe-done-late"); !strings.Contains(r, label) || !strings.Contains(r, "bg-emerald-50") || strings.Contains(r, "bg-red-50") {
+		t.Errorf("a finished Task needs a green pill reading %q:\n%s", label, r)
+	}
+	if r := row("Pillprobe-undated"); strings.Contains(r, "bg-red-50") || strings.Contains(r, "bg-emerald-50") || strings.Contains(r, "inline-flex") {
+		t.Errorf("an undated Task must carry no pill:\n%s", r)
+	}
+}
+
 // TestDeclaredPageRecentActivityShowsOnlyThisApplicationsNewestTen: the panel reads ds_recent_activity, whose
 // `$parameters.application` the runtime sets to the page's own Application. Eleven events of this Application
 // show the newest ten, another Application's event never shows, and a query string naming that other

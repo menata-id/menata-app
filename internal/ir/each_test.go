@@ -84,3 +84,46 @@ func TestLowerEachIsRefusedWhereItCannotMeanAThing(t *testing.T) {
 		})
 	}
 }
+
+func datePill() domain.PageNode {
+	return domain.PageNode{Kind: "component", Type: "StatusBadge", From: map[string]string{"label": domain.PageDateLabelRole, "tone": domain.PageDateToneRole}}
+}
+
+// TestLowerLeavesUndrawnTheNodeReadingADateARecordLacks: the pill reads the derived date roles, and a record that
+// holds them as "" has no date, so no pill; a dated record beside it draws one with its own label and tone.
+func TestLowerLeavesUndrawnTheNodeReadingADateARecordLacks(t *testing.T) {
+	item := domain.PageNode{Kind: "layout", Type: "row", Children: []domain.PageNode{datePill()}}
+	r := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{
+			{domain.PageDateLabelRole: "2 Jan", domain.PageDateToneRole: "bad"},
+			{domain.PageDateLabelRole: "", domain.PageDateToneRole: ""},
+		}}, nil
+	}}
+	tree, err := Lower(domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{listBound(item)}}, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := tree.Children[0].Children
+	if len(rows) != 2 || len(rows[0].Children) != 1 || len(rows[1].Children) != 0 {
+		t.Fatalf("want a pill in the dated row only, got %+v", rows)
+	}
+	if p := rows[0].Children[0].Props; p["label"] != "2 Jan" || p["tone"] != "bad" {
+		t.Fatalf("pill props %v", p)
+	}
+}
+
+// TestAnEmptyOrdinaryRoleStillDrawsItsEmptyString: the omission belongs to the derived date roles alone.
+func TestAnEmptyOrdinaryRoleStillDrawsItsEmptyString(t *testing.T) {
+	item := domain.PageNode{Kind: "layout", Type: "row", Children: []domain.PageNode{
+		{Kind: "static", Type: string(domain.StaticCaption), From: map[string]string{"text": "container"}}}}
+	r := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: []map[string]string{{"container": ""}}}, nil
+	}}
+	tree, err := Lower(domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{listBound(item)}}, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(tree.Children[0].Children[0].Children); got != 1 {
+		t.Fatalf("an empty container role must still draw its caption, got %d nodes", got)
+	}
+}

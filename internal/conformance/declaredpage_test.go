@@ -290,6 +290,9 @@ func fromRolesUnder(nodes []domain.PageNode) []string {
 		for prop, role := range n.From {
 			// The reserved word is the record's route, not a Projection role; it is judged where it is used
 			// (a link's href) by TestEveryInstalledLinkNamesItsDestinationOnce, and by ir.Lower for any other prop.
+			if domain.PageDerivedRole(role) {
+				continue
+			}
 			if role == domain.PageRecordRole && n.Kind == "static" && n.Type == string(domain.StaticLink) && prop == "href" {
 				continue
 			}

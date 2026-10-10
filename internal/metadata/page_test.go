@@ -272,6 +272,7 @@ func TestPage_faultsAreRefusedAtLoad(t *testing.T) {
 		{"record link shows the route as text", item("/pages/nav_p", recordLink("{ text: record, href: record }")), "valid only as a link's href"},
 		{"record link with nothing to say", item("/pages/nav_p", recordLink("{ href: record }")), "text"},
 		{"record link to a role the machine does not declare", item("/pages/nav_p", recordLink("{ text: money, href: record }")), "declares no card_fields role"},
+		{"derived date role over a machine with no date role", item("/pages/nav_p", "      layout: stack\n      children:\n        - component: Collection\n          gap: tight\n          binding: { dataset: ds_rows, rows: records }\n          children:\n            - component: StatusBadge\n              from: { label: \"date:label\", tone: \"date:tone\" }\n"), "declares no card_fields role \"date\" to derive them from"},
 		{"depth beyond the maximum", item("/pages/nav_p", deep(12)), "depth"},
 	}
 	for _, c := range cases {

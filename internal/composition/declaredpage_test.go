@@ -587,3 +587,35 @@ func TestDeclaredPage_aReferenceDimensionIsNamedByTheRelatedRecordsTitle(t *test
 		}
 	}
 }
+
+// TestFillDerivedDateUsesTheRequestsClockAndTheMachinesCompletion: the same date is bad while open and good once
+// the record is complete, at a `now` the test chooses; no date leaves both roles empty, and a Machine with no
+// `date` role gets neither key.
+func TestFillDerivedDateUsesTheRequestsClockAndTheMachinesCompletion(t *testing.T) {
+	m := &domain.Machine{
+		ID:         "mch_x",
+		Fields:     []domain.Field{{ID: "fld_due"}, {ID: "fld_status"}},
+		CardFields: []domain.CardField{{Field: "fld_due", Role: domain.CardFieldRoleDate}},
+		Completion: &domain.Completion{Field: "fld_status", Done: "done"},
+	}
+	now := time.Date(2026, 10, 10, 12, 0, 0, 0, time.UTC)
+	fill := func(m *domain.Machine, vals map[string]any) map[string]string {
+		item := map[string]string{}
+		fillDerivedDate(item, m, &data.Record{Values: vals}, now)
+		return item
+	}
+	open := fill(m, map[string]any{"fld_due": "2026-10-01", "fld_status": "todo"})
+	if open[domain.PageDateLabelRole] != "1 Oct" || open[domain.PageDateToneRole] != string(domain.ToneBad) {
+		t.Errorf("open and past: %v", open)
+	}
+	done := fill(m, map[string]any{"fld_due": "2026-10-01", "fld_status": "done"})
+	if done[domain.PageDateToneRole] != string(domain.ToneGood) {
+		t.Errorf("complete and past: %v", done)
+	}
+	if none := fill(m, map[string]any{"fld_status": "todo"}); none[domain.PageDateLabelRole] != "" || none[domain.PageDateToneRole] != "" {
+		t.Errorf("no date must leave both empty: %v", none)
+	}
+	if k := fill(&domain.Machine{ID: "mch_y"}, nil); len(k) != 0 {
+		t.Errorf("a Machine with no date role gets no derived keys: %v", k)
+	}
+}

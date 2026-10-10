@@ -1426,6 +1426,24 @@ Refused at load: `each:` outside a records template, a value other than `tags`, 
 identically), one that also carries `binding:`, and one inside another `each:`. A node under `each:` holds no write of its own, so a
 Button there cannot act on the parent record. The tags of every listed record are read in two statements, however many records.
 
+**A date pill from the record's date (K15, 2026-10-10).** Inside a records Collection's item template, a `StatusBadge`
+may read two **derived** roles, `"date:label"` and `"date:tone"`, instead of projecting a Field: the short date ("2 Jan",
+with the year when it is not this year's) and the tone the runtime works out from it -- `bad` once an open record is past due,
+`good` once the record is finished (the Machine's `completion:`), `neutral` otherwise. The page writes none of that rule.
+
+```yaml
+- component: StatusBadge
+  from:
+    label: "date:label"
+    tone: "date:tone"
+```
+
+The Machine must declare a `date` role in `card_fields:` (a load error otherwise), and the colon-quoted names are reserved
+-- they are never `card_fields` roles. **A record with no date draws no pill:** these two roles are the only ones whose
+empty value leaves the node out; an empty `title` or `container` still draws its empty string. The day the rule is judged
+on is the request's, not the renderer's clock (007 §4.6). Not built: a pill for a different Field than the `date` role,
+and any wording such as "3 days left" (the pill shows the date only).
+
 **A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
 may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,
 with the author's own words around it.

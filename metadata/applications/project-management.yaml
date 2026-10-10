@@ -252,6 +252,10 @@ navigation:
                       gap: tight
                       align: center
                       children:
+                        - component: StatusBadge
+                          from:
+                            label: "date:label"
+                            tone: "date:tone"
                         - component: Tag
                           each: tags
                           from:
@@ -285,6 +289,10 @@ navigation:
                       gap: tight
                       align: center
                       children:
+                        - component: StatusBadge
+                          from:
+                            label: "date:label"
+                            tone: "date:tone"
                         - component: Tag
                           each: tags
                           from:
@@ -318,6 +326,10 @@ navigation:
                       gap: tight
                       align: center
                       children:
+                        - component: StatusBadge
+                          from:
+                            label: "date:label"
+                            tone: "date:tone"
                         - component: Tag
                           each: tags
                           from:
@@ -351,6 +363,10 @@ navigation:
                       gap: tight
                       align: center
                       children:
+                        - component: StatusBadge
+                          from:
+                            label: "date:label"
+                            tone: "date:tone"
                         - component: Tag
                           each: tags
                           from:

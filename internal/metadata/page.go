@@ -286,6 +286,8 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			// definition, so a Tag filled from it must validate. Every other role stays "x", which is how
 			// `from: {color: title}` is a load error -- a title is not a palette entry.
 			rec[string(domain.CardFieldRoleColor)] = string(domain.TagSlate)
+			// The derived date roles: a label, and a tone out of the closed set a StatusBadge validates against.
+			rec[domain.PageDateLabelRole], rec[domain.PageDateToneRole] = "x", string(domain.ToneNeutral)
 			// A count exists exactly for the Relations the bound Dataset declares, so a `count: {of: ...}`
 			// naming any other fails to lower -- the same way a mistyped role does.
 			for _, rel := range datasets[b.Dataset].Relations {
@@ -524,6 +526,9 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	if source == nil {
 		return issues
 	}
+	if readsDerivedDate(n.Children) && source.CardFieldFor(domain.CardFieldRoleDate) == "" {
+		issues = append(issues, fmt.Sprintf("%s: page: from: %s/%s -- machine %q declares no card_fields role %q to derive them from", where, domain.PageDateLabelRole, domain.PageDateToneRole, source.ID, domain.CardFieldRoleDate))
+	}
 	for _, role := range sortedKeys(fromRoles(n.Children)) {
 		fieldID := source.CardFieldFor(domain.CardFieldRole(role))
 		f, ok := source.FieldByID(fieldID)
@@ -535,6 +540,23 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 		}
 	}
 	return issues
+}
+
+// readsDerivedDate reports whether any node under nodes reads a derived date role.
+func readsDerivedDate(nodes []domain.PageNode) bool {
+	for _, n := range nodes {
+		if n.Each == "" {
+			for _, role := range n.From {
+				if domain.PageDerivedRole(role) {
+					return true
+				}
+			}
+		}
+		if readsDerivedDate(n.Children) {
+			return true
+		}
+	}
+	return false
 }
 
 // hasMoveBinding reports whether any node under nodes is bound with `write: move`.
@@ -642,7 +664,7 @@ func fromRoles(nodes []domain.PageNode) map[string]bool {
 			continue
 		}
 		for _, role := range n.From {
-			if role != domain.PageRecordRole { // reserved: the record's route, not a Projection role
+			if role != domain.PageRecordRole && !domain.PageDerivedRole(role) { // reserved: the record's route and the derived date roles, not Projection roles
 				out[role] = true
 			}
 		}

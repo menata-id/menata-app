@@ -178,6 +178,26 @@ var WritableComponents = map[ComponentType][]string{
 // link's `href`, so a record's route is never shown as text or handed to another property.
 const PageRecordRole = "record"
 
+// PageDateLabelRole and PageDateToneRole are the two `from:` roles that are *derived* from a Machine's `date`
+// card_fields role instead of projected from it: the short date a pill shows ("2 Jan"), and the tone it takes
+// (neutral while the date is ahead, bad once it has passed, good once the record is complete -- the Machine's own
+// `completion:`). A page reads them to draw a `StatusBadge` without any of that rule being retyped in YAML or
+// worked out in a renderer (007 §4.4), and the clock is the request's, injected, never read (§4.6). The colon
+// keeps them out of every Projection role, as it does for PageCountRole.
+//
+// A record with no date holds both as the empty string, and a node that reads one of them for such a record is not
+// drawn -- a pill without a date is a defect, not a design. That omission is this set's, and nothing else's: any
+// other empty role is drawn as an empty string.
+const (
+	PageDateLabelRole = "date:label"
+	PageDateToneRole  = "date:tone"
+)
+
+// PageDerivedRole reports whether role is one of the derived date roles above.
+func PageDerivedRole(role string) bool {
+	return role == PageDateLabelRole || role == PageDateToneRole
+}
+
 // BindableComponents maps each registered Component a Binding may supply to the Rows modes it takes. A
 // Binding on any other node, or in a mode not listed, is a load error rather than a property the renderer
 // ignores.

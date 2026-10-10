@@ -15,6 +15,7 @@ import (
 	"menata.app/internal/behavior"
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
+	"menata.app/internal/experience"
 	"menata.app/internal/expression"
 	"menata.app/internal/ir"
 	"menata.app/internal/rendering"
@@ -143,6 +144,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	for i, r := range records {
 		item := ProjectedByRole(src, r, people)
 		item[domain.PageRecordRole] = RecordRoute(src.ID, r.ID)
+		fillDerivedDate(item, src, r, now)
 		edits = append(edits, recordEditForm(src, r, viewer))
 		deletes = append(deletes, recordDeleteAction(src, r, viewer))
 		moves = append(moves, recordMove(src, r, viewer, i > 0, i < len(records)-1 || sel.Truncated))
@@ -427,4 +429,20 @@ func aggregateContext(now time.Time) expression.Context {
 
 func formatMeasure(v float64) string {
 	return strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+// fillDerivedDate puts the two derived date roles (domain.PageDerivedRole) in a record's map, for a Machine that
+// declares a `date` card_fields role. experience.ResolveCardDate does the rule -- the short date, bad once past,
+// good once the record is complete -- with the request's `now` and not the clock (007 §4.6). A record with no date
+// holds both as "", which is how a node reading them is left undrawn (ir.omittedForWantOfDate).
+func fillDerivedDate(item map[string]string, src *domain.Machine, r *data.Record, now time.Time) {
+	fieldID := src.CardFieldFor(domain.CardFieldRoleDate)
+	if fieldID == "" {
+		return
+	}
+	d := experience.ResolveCardDate(r.Values[fieldID], IsComplete(src, r), now)
+	item[domain.PageDateLabelRole], item[domain.PageDateToneRole] = d.Label, string(d.Tone)
+	if !d.Present {
+		item[domain.PageDateLabelRole], item[domain.PageDateToneRole] = "", ""
+	}
 }

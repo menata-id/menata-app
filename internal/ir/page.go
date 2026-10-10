@@ -254,6 +254,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 			return nil, err
 		}
 	}
+	if omittedForWantOfDate(n, record) {
+		return nil, nil
+	}
 	if n.Each != "" {
 		return lowerEach(n, r, path, record, writes)
 	}
@@ -521,6 +524,20 @@ func lowerListOf(n domain.PageNode, props map[string]string, r Resolver, path st
 	}
 	out["href"] = domain.MachineListRoute(machineID)
 	return out, nil
+}
+
+// omittedForWantOfDate: a node reading a derived date role (domain.PageDerivedRole) for a record that has no date is
+// not drawn. Only those two roles do this, so an empty title or container still draws the empty string it is.
+func omittedForWantOfDate(n domain.PageNode, record map[string]string) bool {
+	if record == nil {
+		return false
+	}
+	for _, role := range n.From {
+		if v, present := record[role]; present && v == "" && domain.PageDerivedRole(role) {
+			return true
+		}
+	}
+	return false
 }
 
 func fillFrom(n domain.PageNode, record map[string]string, path string) (map[string]string, error) {
