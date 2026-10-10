@@ -334,6 +334,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 // for that kind's own check.
 func lowerLayoutEmpty(n domain.PageNode, out *UINode, path string) error {
 	words, written := n.Props[collectionEmptyProp]
+	if NodeKind(n.Kind) == NodeLayout && !written && len(n.Children) > 0 && allHideEmpty(n.Children) {
+		return fmt.Errorf("%s: every child is a %s Collection, so on a day with no records the layout would hold nothing; write %s: <words> on the layout for that day", path, collectionHideEmptyProp, collectionEmptyProp)
+	}
 	if !written || NodeKind(n.Kind) != NodeLayout {
 		return nil
 	}
@@ -354,6 +357,18 @@ func lowerLayoutEmpty(n domain.PageNode, out *UINode, path string) error {
 		out.Children = []UINode{{Kind: NodeStatic, Type: string(domain.StaticMessage), Props: map[string]string{"text": words}}}
 	}
 	return nil
+}
+
+// allHideEmpty reports whether every child is a Collection that leaves itself out when it lists nothing -- the one
+// shape whose layout can end up with no children whatever the data, and which load cannot see happen, since the
+// load-time placeholder record means nothing is ever empty then.
+func allHideEmpty(children []domain.PageNode) bool {
+	for _, c := range children {
+		if NodeKind(c.Kind) != NodeComponent || c.Type != string(domain.ComponentCollection) || c.Props[collectionHideEmptyProp] != "true" {
+			return false
+		}
+	}
+	return true
 }
 
 // lowerEach draws the node once for each of the current record's tags, or not at all when it has none. The copy is

@@ -1240,3 +1240,30 @@ func TestLower_layoutEmptyNeedsChildrenAndWords(t *testing.T) {
 		t.Errorf("a childless layout with empty: = %v", err)
 	}
 }
+
+func TestLower_hideEmptyFalseKeepsTheCollectionOverNoRecords(t *testing.T) {
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{hideEmptyList(map[string]string{"hide_empty": "false"})}}
+	got, err := Lower(root, fixedRecords())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Children) != 1 {
+		t.Errorf("hide_empty: false hid the Collection: %+v", got.Children)
+	}
+}
+
+func TestLower_aLayoutOfOnlyHideEmptyCollectionsNeedsItsOwnWords(t *testing.T) {
+	flat := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{hideEmptyList(nil), hideEmptyList(nil)}}
+	nested := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "x"}},
+		{Kind: "layout", Type: "stack", Children: []domain.PageNode{hideEmptyList(nil)}}}}
+	for name, root := range map[string]domain.PageNode{"flat": flat, "nested": nested} {
+		if _, err := Lower(root, fixedRecords()); err == nil || !strings.Contains(err.Error(), "write empty:") {
+			t.Errorf("%s: err = %v; want it to ask for empty:", name, err)
+		}
+	}
+	mixed := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{hideEmptyList(nil), {Kind: "static", Type: "paragraph", Props: map[string]string{"text": "x"}}}}
+	if _, err := Lower(mixed, fixedRecords()); err != nil {
+		t.Errorf("a layout that also holds fixed content was refused: %v", err)
+	}
+}

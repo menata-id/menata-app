@@ -1137,7 +1137,7 @@ list. `hide_empty:` and `empty:` answer the same question in opposite ways, so w
 `false`. Because a page whose every section is hidden would be a layout with nothing in it, **a layout may carry
 `empty: <words>`**: drawn as a `message` only when every one of its children was left out, and never beside
 real content. A layout with no children cannot carry it. The count is the rows drawn; a list cut at its Dataset's
-`limit:` says so through `complete: true`, not here. The worked page is `nav_task_buckets` (Overdue / Next 7 days /
+`limit:` says so through `complete: true`, not here. A layout whose children are **all** `hide_empty` Collections must write `empty:` (a load error otherwise -- load lowers with one placeholder record, where nothing is empty, so the bare case would first fail on a viewer's quiet day). `hide_empty` and the count read the rows the Dataset returned; a `when:` that hides every item of a non-empty list still leaves the heading with its count. The worked page is `nav_task_buckets` (Overdue / Next 7 days /
 Later / Completed) in Project Management.
 
 **`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and
