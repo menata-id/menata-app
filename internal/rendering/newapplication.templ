@@ -195,15 +195,19 @@ func planOpLabel(op string) string {
 }
 
 // planItemsFor is the plan's items for one op, in plan order.
-func planItemsFor(plan aiassist.Plan, op string) []string {
-	var out []string
+func planItemsFor(plan aiassist.Plan, op string) []aiassist.PlanItem {
+	var out []aiassist.PlanItem
 	for _, item := range plan.Items {
 		if item.Op == op {
-			out = append(out, item.What)
+			out = append(out, item)
 		}
 	}
 	return out
 }
+
+// publishFormID ties a plan item's confirmation checkbox, which sits in the plan, to the publish form in the
+// aside: a checkbox outside a <form> is submitted by naming it with the form attribute.
+const publishFormID = "publish-application"
 
 // updatePlan is an update's review: what it adds, changes and removes, computed by
 // aiassist.PlanUpdate from the installed Application and the one the conversation proposes -- the
@@ -215,8 +219,16 @@ templ updatePlan(plan aiassist.Plan) {
 				<div class="flex flex-col gap-1">
 					<span class="text-3xs text-slate-400 uppercase">{ planOpLabel(op) }</span>
 					<ul class="m-0 flex flex-col gap-1 pl-4 text-slate-700">
-						for _, what := range items {
-							<li>{ what }</li>
+						for _, item := range items {
+							<li>
+								{ item.What }
+								if item.Confirm != "" {
+									<label class="mt-1 flex items-center gap-2 text-xs text-slate-600">
+										<input type="checkbox" name="confirm_remove" value={ item.Confirm } form={ publishFormID }/>
+										Remove it from the Application. Values already stored in records are kept, unseen.
+									</label>
+								}
+							</li>
 						}
 					</ul>
 				</div>
@@ -260,7 +272,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				} else {
 					@staticText(domain.StaticNote, "Nothing that holds records is removed: machines, fields, options, roles and permissions can only be added or relabelled. Who holds which role does not change.")
 				}
-				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/publish") } class="flex flex-col gap-2">
+				<form id={ publishFormID } method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/publish") } class="flex flex-col gap-2">
 					@csrfHiddenInput()
 					@button("Publish to workspace", domain.ButtonPrimary, "", "")
 				</form>

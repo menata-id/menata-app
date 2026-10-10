@@ -36,3 +36,32 @@ func TestNewApplicationReviewPage_draftBadgeKeepsItsContentWidth(t *testing.T) {
 		t.Error("the Draft badge does not draw the warn palette")
 	}
 }
+
+// TestUpdateReview_aRemovalThatNeedsConfirmationCarriesOneCheckboxForThePublishForm: the publish handler answers
+// 422 for a removal whose key is not posted as `confirm_remove`, so without this box a Field removal could not be
+// published from the UI. The box sits in the plan and belongs to the form in the aside, by id; a removal that needs
+// no confirmation, and an add, draw none.
+func TestUpdateReview_aRemovalThatNeedsConfirmationCarriesOneCheckboxForThePublishForm(t *testing.T) {
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
+	change := aiassist.GeneratedChange{Kind: aiassist.KindUpdateApplication, TargetAppID: "app_x"}
+	key := aiassist.RemovalKey("mch_a", "fld_b")
+	plan := aiassist.Plan{Items: []aiassist.PlanItem{
+		{Op: "add", What: "Field Added"},
+		{Op: "remove", What: "Field Gone", Confirm: key},
+		{Op: "remove", What: "Option Gone"},
+	}}
+	var buf bytes.Buffer
+	if err := NewApplicationReviewPage(change, plan, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	html := buf.String()
+	if got := strings.Count(html, `name="confirm_remove"`); got != 1 {
+		t.Fatalf("%d confirm_remove checkboxes, want exactly 1 (only the removal that asks)", got)
+	}
+	if !strings.Contains(html, `value="`+key+`"`) {
+		t.Errorf("the checkbox does not carry the plan item's confirmation key %q", key)
+	}
+	if !strings.Contains(html, `form="`+publishFormID+`"`) || !strings.Contains(html, `<form id="`+publishFormID+`"`) {
+		t.Error("the checkbox is not bound to the publish form by id, so it would never be submitted")
+	}
+}
