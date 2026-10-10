@@ -175,8 +175,21 @@ type FieldPredicate struct {
 	Field string
 	// Negate inverts the comparison (`op: not_equals`).
 	Negate bool
-	Value  string
+	// Order, when set, makes this an ordered comparison (`<`, `<=`, `>`, `>=`) instead of an equality;
+	// Negate is then ignored. It is one of the four SQL spellings, never an author's text: the caller
+	// maps a validated expression.Op onto it.
+	Order string
+	// Numeric orders the Field as a number, which is what a numeric declared value means (expression.IsNumber).
+	// A stored value that is not a number then satisfies nothing, exactly as expression.Ordered answers.
+	Numeric bool
+	Value   string
 }
+
+var orderedSQL = map[string]bool{"<": true, "<=": true, ">": true, ">=": true}
+
+// numberPattern is a stored value that reads as a plain number; anything else is not cast, because a
+// ::numeric on a non-number is an error that would fail the whole statement rather than one row.
+const numberPattern = `^-?[0-9]+(\.[0-9]+)?$`
 
 type SortKey struct {
 	// Column is a validated SQL fragment: either a bare column name from a closed set, or a
@@ -230,6 +243,20 @@ func (s *Store) ListRecordsSelect(ctx context.Context, machineID, datasetID stri
 	filter := ""
 	for _, p := range where {
 		args = append(args, p.Value)
+		if p.Order != "" {
+			if !orderedSQL[p.Order] {
+				return nil, false, fmt.Errorf("data: %q is not an ordering operator", p.Order)
+			}
+			// An absent or empty stored value satisfies no ordering (expression.Ordered), so the empty
+			// string is excluded explicitly: as text it would sort before every date.
+			if p.Numeric {
+				filter += fmt.Sprintf(" AND CASE WHEN data->>'%s' ~ '%s' THEN (data->>'%s')::numeric END %s $%d::numeric",
+					p.Field, numberPattern, p.Field, p.Order, len(args))
+			} else {
+				filter += fmt.Sprintf(" AND data->>'%s' <> '' AND data->>'%s' %s $%d", p.Field, p.Field, p.Order, len(args))
+			}
+			continue
+		}
 		op := "="
 		if p.Negate {
 			op = "IS DISTINCT FROM"

@@ -280,6 +280,15 @@ func (l *Loader) selectRecords(ctx context.Context, datasetID string, where expr
 	return records, truncated, nil
 }
 
+// orderSQL is the SQL spelling of each ordered operator. A closed map, so an operator added to
+// expression.KnownOps without a spelling here is an error at the first query rather than an equality.
+var orderSQL = map[expression.Op]string{
+	expression.OpLessThan:       "<",
+	expression.OpLessOrEqual:    "<=",
+	expression.OpGreaterThan:    ">",
+	expression.OpGreaterOrEqual: ">=",
+}
+
 // predicatesFor resolves a declared `where:` into the literals internal/data compares against.
 //
 // **An unresolvable sentinel is an error, not an empty filter.** `$current_user` with no viewer
@@ -295,11 +304,16 @@ func predicatesFor(ds domain.Dataset, ctx expression.Context) ([]data.FieldPredi
 		if !ok {
 			return nil, fmt.Errorf("composition: dataset %s filters on %s, which this request cannot resolve", ds.ID, c.Value)
 		}
-		out = append(out, data.FieldPredicate{
+		p := data.FieldPredicate{
 			Field:  c.Field,
 			Negate: c.Op == expression.OpNotEquals,
 			Value:  value,
-		})
+		}
+		if expression.IsOrdered(c.Op) {
+			p.Order = orderSQL[c.Op]
+			p.Numeric = expression.IsNumber(value)
+		}
+		out = append(out, p)
 	}
 	return out, nil
 }

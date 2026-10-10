@@ -981,6 +981,12 @@ Machine already said about its shape. Rules, all checked at load:
   `/pages/<id>?status=...`). A request that sends no such value lists **nothing and reads nothing** (007 §9.2,
   fail closed -- an absent value is an ordinary request, not "everyone"), so write `empty:` words that serve both
   that and a value matching nothing; the value is compared as data;
+- a `where:` may also order a **number or date** Field with `lt`/`lte`/`gt`/`gte`, and `value: $today` is the request's
+  date (`YYYY-MM-DD`, from the clock the handler reads and injected, never read by the evaluator). `$today` is valid
+  only against a `date` Field and only in a records Dataset's `where:` -- a `Measure.Where` refuses every
+  `$`-value. A record with no value for the Field, or an empty one, satisfies none of the four; a number Field
+  compares as a number ("10" is above "9"). Example, "past due": `fld_due_date lt $today` beside
+  `fld_status equals in_review`, which `nav_documents_by_status` draws under a "Past due" subheading;
 - `from:` is valid only inside a records-bound Collection's template, a property cannot be both written and
   `from:`, and a records binding does not nest inside a template;
 - a role whose Field is a **reference** to another Machine is refused: resolving it reads the whole related

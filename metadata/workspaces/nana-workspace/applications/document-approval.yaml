@@ -288,6 +288,27 @@ navigation:
         - static: link
           list_of: ds_recent_documents
           text: All documents
+        # Past due: the same shape as the list above, over a Dataset whose `where:` compares the due date with
+        # `$today`. The page names no Field and no date; "past due" is the Dataset's meaning.
+        - static: subheading
+          text: Past due
+        - component: Collection
+          gap: tight
+          complete: true
+          empty: Nothing is past due.
+          binding:
+            dataset: ds_overdue_documents
+            rows: records
+          children:
+            - layout: row
+              children:
+                - static: link
+                  from:
+                    text: title
+                    href: record
+                - static: caption
+                  from:
+                    text: person
         # A link names its destination by navigation item id, never by route: to: resolves against this
         # Application's own navigation, and its text defaults to that item's label (the menu's own words).
         - static: link

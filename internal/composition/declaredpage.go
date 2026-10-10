@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"menata.app/internal/action"
 	"menata.app/internal/authorization"
@@ -34,9 +35,12 @@ import (
 // `$parameters.<name>` its bound Datasets filter on, so what a request may supply is whatever the Datasets
 // already say and nothing a page author could mistype. A name no bound Dataset reads is never looked at.
 //
+// now is the request's clock, handed in because 007 §4.6 makes the same input give the same page: it is
+// the `$today` a Dataset's `where:` may compare a date against, and the only place a page can learn the date.
+//
 // navigation is the Application's `AllNavigation`, which a `to:` resolves against; a page is a body the
 // Application declared, so its links reach that Application's own screens.
-func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, navigation []domain.NavigationItem, page domain.PageNode) (ir.UINode, error) {
+func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, navigation []domain.NavigationItem, page domain.PageNode) (ir.UINode, error) {
 	return ir.Lower(page, ir.Resolver{
 		Route: ir.NavigationRoutes(navigation),
 		Source: func(datasetID string) (string, bool) {
@@ -47,7 +51,7 @@ func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params ma
 			return bindingRows(ctx, l, b)
 		},
 		Records: func(b domain.PageBinding) (ir.RecordSet, error) {
-			return bindingRecords(ctx, l, viewer, params, b)
+			return bindingRecords(ctx, l, viewer, params, now, b)
 		},
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
 			return bindingForm(l, viewer, b)
@@ -86,7 +90,7 @@ func bindingForm(l *Loader, viewer domain.Actor, b domain.PageBinding) (ir.FormS
 // Machine already declared about its shape, and the page names no Field. The only reference it resolves is a
 // person (`recordPeople`): the loader refuses a `from:` whose role is any other reference Field, because
 // resolving one means reading the whole related Machine. Order is the Dataset's declared `sort:`, applied by the database.
-func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, b domain.PageBinding) (ir.RecordSet, error) {
+func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, b domain.PageBinding) (ir.RecordSet, error) {
 	viewerID := viewer.ID
 	ds, ok := l.Dataset(b.Dataset)
 	if !ok {
@@ -99,7 +103,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	// A Dataset filtering on a parameter this request did not send lists nothing and reads nothing: fail closed
 	// (007 §9.2) without an error, because an absent query value is an ordinary request and not a fault. The
 	// page's `empty:` words are what the viewer sees, so an author writes them for this case too.
-	where := expression.Context{CurrentUser: viewerID, Parameters: params}
+	where := expression.Context{CurrentUser: viewerID, Parameters: params, Today: now.Format("2006-01-02")}
 	for _, c := range ds.Where.Comparisons() {
 		if strings.HasPrefix(c.Value, expression.SentinelParameterPrefix) {
 			if _, ok := where.Resolve(c.Value); !ok {

@@ -568,13 +568,9 @@ forcing conditions, verification steps -- is tracked in a private companion repo
 - **A filter that reads the viewing identity, not a literal** -- `$current_user` now exists in `datasets:`; three Go screens
   (`PersonalTasks`, `ApprovalInbox`, `AssignedToMe`) still scope to "mine" by hand, and `AssignedToMe`'s two-armed test is not
   `where:`'s shape. Rationale for why the third case did not generalize it: `development-history.md`.
-- **Ordered comparison operators in `internal/expression`** (`lt`/`lte`/`gt`/`gte`, type-aware
-  rather than the current `fmt.Sprint` string compare). Named here because two unrelated gaps are
-  waiting on the same three lines: My Tasks' Overdue/Due-today counts compare a date against now,
-  and the hour-scale SLA wording in the deferral table needs the same ordering once a datetime
-  Field type exists. `expression.Comparison`'s own doc comment asks for a second differently-shaped
-  Constraint before growing the vocabulary; these two are that evidence arriving from the filter
-  side instead.
+- **Ordered comparison operators: what remains** -- `lt`/`lte`/`gt`/`gte` and the `$today` sentinel are built in a records Dataset's
+  `where:` (2026-10-10; "Past due" on `nav_documents_by_status`). Still open: My Tasks' Overdue/Due-today counts (hand-written),
+  hour-scale SLA wording (needs a datetime Field), `$today` in a `Measure.Where` or a constraint condition, and money Fields.
 - **Metadata hot reload and change classification** — tracked in `capabilities.md`'s limits as two
   separate deliberate deferrals (a `*.yaml` edit needs a restart; deleting a Field silently orphans
   its data in every record's JSONB) and in the companion repo's own

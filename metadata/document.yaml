@@ -326,6 +326,24 @@ datasets:
         direction: desc
     limit: 200
 
+  # Documents still in review whose due date has passed, oldest first. `$today` is the request's date, and it is
+  # the only reason this needs an ordered operator: a Document with no due date is not past due, and `lt` says so.
+  # `limit: 200` is a safety cap, not a window, so the page may claim it is complete.
+  - id: ds_overdue_documents
+    select: records
+    where:
+      all:
+        - field: fld_due_date
+          op: lt
+          value: $today
+        - field: fld_status
+          op: equals
+          value: in_review
+    sort:
+      - field: fld_due_date
+        direction: asc
+    limit: 200
+
 # How a Document's records look wherever they appear -- the detail page selects no View, so
 # these are Machine-level rather than per-arrangement.
 sla_field: fld_due_date

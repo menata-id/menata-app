@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"menata.app/internal/domain"
 	"menata.app/internal/expression"
@@ -717,12 +718,17 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if !expression.KnownOps[c.Op] {
 				issues = append(issues, fmt.Sprintf("dataset %q: where op %q is not a known operator", ds.ID, c.Op))
 			}
+			if f, ok := fieldsByID[c.Field]; ok {
+				for _, msg := range orderedComparisonIssues(f, c) {
+					issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, msg))
+				}
+			}
 			// 007 §9.2: "Access outside this context must fail closed." A sentinel the runtime cannot
 			// resolve must be refused here, because at runtime it would become a literal -- a filter
 			// comparing a Field against the string "$current_usr" matches nothing, renders an empty
 			// list, and is indistinguishable from a screen that legitimately has no rows.
 			if expression.IsSentinel(c.Value) && !expression.KnownSentinel(c.Value) {
-				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelParameterPrefix))
+				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s, %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelToday, expression.SentinelParameterPrefix))
 			}
 		}
 	} else {
@@ -791,9 +797,53 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if !expression.KnownOps[ms.Where.Op] {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.op %q is not a known operator", ds.ID, ms.ID, ms.Where.Op))
 			}
+			if ok {
+				if expression.IsSentinel(ms.Where.Value) {
+					issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where.value %q names a runtime context value, which only a `select: records` Dataset's `where:` resolves -- here it would be compared as a literal", ds.ID, ms.ID, ms.Where.Value))
+				} else {
+					for _, msg := range orderedComparisonIssues(whereField, *ms.Where) {
+						issues = append(issues, fmt.Sprintf("dataset %q: measure %q: where %s", ds.ID, ms.ID, msg))
+					}
+				}
+			}
 		}
 	}
 
+	return issues
+}
+
+// orderedComparisonIssues checks what an ordered operator (`lt`/`lte`/`gt`/`gte`) is asked to order. It
+// speaks only of the Field and the value, so each caller prefixes where the comparison was found.
+//
+// Only a number or a date has an order worth declaring: a status orders by the sequence its options happen
+// to be written in, and text by an alphabet nobody chose. The value must then be one the Field could hold --
+// a literal date for a date, a number for a number -- or a context value (`$today` for a date only, a
+// `$parameters.<name>` for either, which cannot be checked until a request supplies it). `$today` on a Field
+// that is not a date is refused whatever the operator, since a date compared against a status is never meant.
+func orderedComparisonIssues(f domain.Field, c expression.Comparison) []string {
+	var issues []string
+	if c.Value == expression.SentinelToday && f.Type != domain.FieldTypeDate {
+		issues = append(issues, fmt.Sprintf("value %s is a date, but field %q is type %q", expression.SentinelToday, f.ID, f.Type))
+	}
+	if !expression.IsOrdered(c.Op) {
+		return issues
+	}
+	if f.Type != domain.FieldTypeNumber && f.Type != domain.FieldTypeDate {
+		return append(issues, fmt.Sprintf("op %q orders a number or a date, and field %q is type %q", c.Op, f.ID, f.Type))
+	}
+	if expression.IsSentinel(c.Value) {
+		return issues
+	}
+	switch f.Type {
+	case domain.FieldTypeNumber:
+		if !expression.IsNumber(c.Value) {
+			issues = append(issues, fmt.Sprintf("value %q is not a number, and field %q is one", c.Value, f.ID))
+		}
+	case domain.FieldTypeDate:
+		if _, err := time.Parse("2006-01-02", c.Value); err != nil {
+			issues = append(issues, fmt.Sprintf("value %q is not a YYYY-MM-DD date, and field %q is one", c.Value, f.ID))
+		}
+	}
 	return issues
 }
 

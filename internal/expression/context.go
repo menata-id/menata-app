@@ -10,14 +10,15 @@ import "strings"
 //	record
 //	old
 //	current_user     <- built
-//	today
+//	today            <- built
 //	now
 //	parameters       <- built
 //
-// **`today` and `now` are named there and deliberately not built.** They have about two cases
-// (My Tasks' Overdue/DueToday buckets and experience.EvaluateSLA's own day truncation), which is
-// where B5 refuses a declaration. KnownContextValues being a closed registry makes adding one a
-// single line the day a third case arrives.
+// **`today` is built, `now` is not.** `today` arrived with the ordered operators and a Dataset that
+// needs them (documents past their due date): a date Field compared against a date, which is all a
+// day-grained value can mean. `now` has no case -- there is no datetime Field type to compare it with.
+// The value is injected by the caller, never read here: the same request must give the same answer
+// (007 §4.6 Determinism), and this package may not read the clock.
 //
 // Fields are plain strings because internal/expression may import nothing from internal/ at all
 // (boundary_test.go: "a pure evaluator -- no I/O, and no dependency on any other plane"). The caller
@@ -27,6 +28,8 @@ type Context struct {
 	CurrentUser string
 	// Parameters are the request's own named values -- a record id from a route, typically.
 	Parameters map[string]string
+	// Today is the request's date as YYYY-MM-DD, or "" when a caller supplies none.
+	Today string
 }
 
 // SentinelPrefix marks a Comparison value as a reference to the Context rather than a literal.
@@ -35,6 +38,8 @@ const SentinelPrefix = "$"
 const (
 	// SentinelCurrentUser is 007 §9.2's `current_user`.
 	SentinelCurrentUser = "$current_user"
+	// SentinelToday is 007 §9.2's `today`: the request's date, resolved by the caller.
+	SentinelToday = "$today"
 	// SentinelParameterPrefix is `$parameters.<name>`; the name after the dot is the key.
 	SentinelParameterPrefix = "$parameters."
 )
@@ -51,7 +56,7 @@ func IsSentinel(value string) bool { return strings.HasPrefix(value, SentinelPre
 // like a screen with no data. That is the same class of silent-empty failure as the /review 404,
 // and it is why this is validated at load rather than discovered at runtime.
 func KnownSentinel(value string) bool {
-	if value == SentinelCurrentUser {
+	if value == SentinelCurrentUser || value == SentinelToday {
 		return true
 	}
 	return strings.HasPrefix(value, SentinelParameterPrefix) && len(value) > len(SentinelParameterPrefix)
@@ -70,6 +75,9 @@ func (c Context) Resolve(value string) (string, bool) {
 	}
 	if value == SentinelCurrentUser {
 		return c.CurrentUser, c.CurrentUser != ""
+	}
+	if value == SentinelToday {
+		return c.Today, c.Today != ""
 	}
 	if name, found := strings.CutPrefix(value, SentinelParameterPrefix); found {
 		got, ok := c.Parameters[name]

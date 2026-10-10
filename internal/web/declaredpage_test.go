@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"menata.app/internal/authorization"
 	"menata.app/internal/data"
@@ -161,6 +162,53 @@ func TestDeclaredPageNamesThePersonARecordBelongsTo(t *testing.T) {
 	}
 }
 
+// TestDeclaredPagePastDueListsOnlyWhatIsInReviewAndLate: the "Past due" section is a Dataset whose `where:`
+// compares the due date with `$today`. A document in review with an earlier date is listed; the same date on an
+// approved one, a future date, today's own date and a document with no date at all are not. The dates are
+// built from the clock the handler reads, so the test states the property and not a calendar day.
+func TestDeclaredPagePastDueListsOnlyWhatIsInReviewAndLate(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredpastdue", "nana-2-workspace")
+	doc := ws.MachineInWorkflowRole(domain.WorkflowEngineDocumentApproval, domain.WorkflowRoleDocument, "")
+	if doc == nil || doc.SLAField == "" || doc.StatusField() == "" {
+		t.Fatal("nana-2-workspace casts no document role with a due date and a status")
+	}
+	titleField := doc.CardFieldFor(domain.CardFieldRoleTitle)
+	day := func(offset int) string { return time.Now().AddDate(0, 0, offset).Format("2006-01-02") }
+	for title, v := range map[string]map[string]any{
+		"Pastdue-late-in-review": {doc.SLAField: day(-3), doc.StatusField(): "in_review"},
+		"Pastdue-late-approved":  {doc.SLAField: day(-3), doc.StatusField(): "approved"},
+		"Pastdue-future":         {doc.SLAField: day(3), doc.StatusField(): "in_review"},
+		"Pastdue-today":          {doc.SLAField: day(0), doc.StatusField(): "in_review"},
+		"Pastdue-no-date":        {doc.StatusField(): "in_review"},
+	} {
+		v[titleField] = title
+		rec, err := store.CreateRecord(ctx, doc.ID, v)
+		if err != nil {
+			t.Fatalf("CreateRecord: %v", err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, doc.ID, rec.ID) })
+	}
+
+	body := getPage(t, h, cookie, "/pages/nav_documents_by_status")
+	i := strings.Index(body, "Past due")
+	if i < 0 {
+		t.Fatal("the page has no Past due section")
+	}
+	section := body[i:]
+	// The recent list above also holds these titles; only what follows the heading is the past-due list.
+	if end := strings.Index(section, "Recent documents"); end > 0 {
+		t.Fatal("the Past due section must follow the recent list in the page's order")
+	}
+	if !strings.Contains(section, "Pastdue-late-in-review") {
+		t.Error("a document in review with a past due date is not listed")
+	}
+	for _, not := range []string{"Pastdue-late-approved", "Pastdue-future", "Pastdue-today", "Pastdue-no-date"} {
+		if strings.Contains(section, not) {
+			t.Errorf("%s is listed as past due", not)
+		}
+	}
+}
+
 // TestDeclaredPageLinkComesFromNavigationNotFromTheYAML: the page writes `to: nav_approval_inbox` and nothing
 // else, so the href and the words must be what the Application's own navigation declares. Expected values are
 // read out of the loaded navigation rather than typed, which is the property under test.
@@ -295,7 +343,8 @@ func TestDeclaredPageSaysItsEmptyWordsOnlyWhenTheListIsEmpty(t *testing.T) {
 	var words string
 	var find func(n domain.PageNode)
 	find = func(n domain.PageNode) {
-		if n.Type == string(domain.ComponentCollection) && n.Props["empty"] != "" {
+		// The first Collection with words is the recent list; a later one (past due) has its own.
+		if n.Type == string(domain.ComponentCollection) && n.Props["empty"] != "" && words == "" {
 			words = n.Props["empty"]
 		}
 		for _, c := range n.Children {

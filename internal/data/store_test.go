@@ -503,6 +503,65 @@ func TestStore_ListRecordsSelectFiltersInTheDatabase(t *testing.T) {
 	}
 }
 
+// TestStore_ListRecordsSelectOrdersByValueNotByText: the database's `<` must mean what
+// expression.Ordered means. A date orders as text (ISO sorts), a number orders as a number ("10" is above "9",
+// which text gets backwards), and a record with the Field absent, empty or not a number satisfies nothing --
+// where plain SQL would put "" before every date and raise on a ::numeric cast of "abc".
+func TestStore_ListRecordsSelectOrdersByValueNotByText(t *testing.T) {
+	pool := storePool(t)
+	cleanupStoreTest(t, pool)
+	store := NewStore(pool)
+	ctx := storeTestContext()
+
+	seed := []map[string]any{
+		{"fld_name": "old", "fld_due": "2026-10-01", "fld_points": "10"},
+		{"fld_name": "today", "fld_due": "2026-10-10", "fld_points": "9"},
+		{"fld_name": "later", "fld_due": "2026-10-20", "fld_points": "abc"},
+		{"fld_name": "empty", "fld_due": "", "fld_points": ""},
+		{"fld_name": "absent"},
+	}
+	for _, v := range seed {
+		if _, err := store.CreateRecord(ctx, storeTestMachine, v); err != nil {
+			t.Fatalf("seed %v: %v", v, err)
+		}
+	}
+	names := func(where ...FieldPredicate) map[string]bool {
+		t.Helper()
+		got, _, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", where, nil, 50)
+		if err != nil {
+			t.Fatalf("ListRecordsSelect: %v", err)
+		}
+		out := map[string]bool{}
+		for _, r := range got {
+			out[r.Values["fld_name"].(string)] = true
+		}
+		return out
+	}
+
+	before := names(FieldPredicate{Field: "fld_due", Order: "<", Value: "2026-10-10"})
+	if len(before) != 1 || !before["old"] {
+		t.Errorf("due < today = %v, want only old (empty and absent must not count as earlier)", before)
+	}
+	upTo := names(FieldPredicate{Field: "fld_due", Order: "<=", Value: "2026-10-10"})
+	if len(upTo) != 2 || !upTo["old"] || !upTo["today"] {
+		t.Errorf("due <= today = %v, want old and today", upTo)
+	}
+	big := names(FieldPredicate{Field: "fld_points", Order: ">", Numeric: true, Value: "9"})
+	if len(big) != 1 || !big["old"] {
+		t.Errorf("points > 9 = %v, want only old: 10 is above 9 as a number, and \"abc\" must satisfy nothing without erroring", big)
+	}
+	both := names(
+		FieldPredicate{Field: "fld_due", Order: "<", Value: "2026-10-10"},
+		FieldPredicate{Field: "fld_points", Order: ">=", Numeric: true, Value: "10"},
+	)
+	if len(both) != 1 || !both["old"] {
+		t.Errorf("conjunction = %v, want only old", both)
+	}
+	if _, _, err := store.ListRecordsSelect(ctx, storeTestMachine, "ds_test", []FieldPredicate{{Field: "fld_due", Order: "; DROP", Value: "x"}}, nil, 5); err == nil {
+		t.Error("an operator outside the four ordering spellings reached the statement")
+	}
+}
+
 // TestStore_ListRecordsSelectReportsTruncation is 007 §21.9's requirement applied to the bound rather
 // than to the work: "a composed experience that exceeds configured budgets should fail clearly or
 // degrade through an explicit runtime policy". A limit that silently drops rows is the same class of

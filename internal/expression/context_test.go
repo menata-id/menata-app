@@ -9,7 +9,7 @@ import "testing"
 // prevents is quiet: a filter comparing a Field against the string "$current_usr" matches nothing,
 // renders an empty list, and is indistinguishable from a screen that legitimately has no rows.
 func TestKnownSentinel_failsClosed(t *testing.T) {
-	known := []string{"$current_user", "$parameters.document", "$parameters.x"}
+	known := []string{"$current_user", "$parameters.document", "$parameters.x", "$today"}
 	for _, v := range known {
 		if !KnownSentinel(v) {
 			t.Errorf("KnownSentinel(%q) = false, want true", v)
@@ -21,7 +21,7 @@ func TestKnownSentinel_failsClosed(t *testing.T) {
 		"$currentuser",     //
 		"$parameters.",     // no name after the dot
 		"$parameters",      // the prefix alone names nothing
-		"$today",           // named by §9.2, deliberately not built
+		"$Today",           // case matters
 		"$now",             //
 		"$record.fld_x",    // §9.2 names `record`; not built either
 		"$",                //
@@ -74,5 +74,16 @@ func TestResolve_unresolvableIsNotAnEmptyString(t *testing.T) {
 	}
 	if _, ok := c.Resolve("$parameters.missing"); ok {
 		t.Error("a missing parameter resolved successfully")
+	}
+}
+
+// $today is the request's date, injected: this package may not read the clock (007 §4.6). A caller that
+// supplies none gets not-ok, never "" -- a filter on "" would be a different query, quietly.
+func TestResolve_today(t *testing.T) {
+	if got, ok := (Context{Today: "2026-10-10"}).Resolve("$today"); !ok || got != "2026-10-10" {
+		t.Errorf("Resolve($today) = %q, %v; want 2026-10-10, true", got, ok)
+	}
+	if got, ok := (Context{}).Resolve("$today"); ok {
+		t.Errorf("Resolve($today) with no date = %q, true; want not-ok", got)
 	}
 }
