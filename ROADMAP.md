@@ -562,7 +562,6 @@ there and are deliberately not here.
 - K15 Dashboard, My Tasks, Calendar and Application Settings migrate to `page:` (re-check each screen first; `write: transition` (K13) and record-scoped `when:` (K11) exist; a viewer- or Application-scoped condition does not; stage 1 shipped: a Dimension over a reference Field is named by the related record).
 - K16 AI schema from the loader's grammar (D2 = option G). Field types and colours done; owed: the rest of the
   schema, removals and renames with confirmation in an installed Application, YAML at review.
-- K17 `columns`, `section` and `StatusBadge.size` writable; writing-guide §12.1a generated from `allowedProps`.
 
 **P3 -- bounded work (007 §18.8, §28)**
 
