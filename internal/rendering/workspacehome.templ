@@ -93,18 +93,31 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 	@appShell(labelByID(ctx, "nav_home"), workspaceName, viewer, switchHref) {
 		<div class="flex flex-col gap-1.5">
 			<h1 class="m-0 text-2xl font-medium">{ titleByID(ctx, "nav_home") }</h1>
-			if len(apps) == 0 {
+			// apps holds only what this viewer can open (internal/web.canOpenApplication, S0.1), so an
+			// empty list means one of two things and the copy must say which: nothing installed, or
+			// installed Applications that all declare roles this viewer holds none of.
+			if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
 				<div class="text-sm text-slate-500">No applications are installed in this workspace yet.</div>
+			} else if len(apps) == 0 {
+				<div class="text-sm text-slate-500">You have no role in any application here yet.</div>
 			} else {
 				<div class="text-sm text-slate-500">{ descriptionByID(ctx, "nav_home") }</div>
 			}
 		</div>
-		if len(apps) == 0 {
+		if len(apps) == 0 && len(CurrentWorkspace(ctx).Applications) == 0 {
 			<div class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
 				<span class="text-sm font-medium text-slate-700">Nothing installed here yet</span>
 				<span class="max-w-md text-2xs text-slate-500">
 					An application appears here once it is installed into this workspace. Until then this
 					workspace holds only its members and their records.
+				</span>
+			</div>
+		} else if len(apps) == 0 {
+			<div class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+				<span class="text-sm font-medium text-slate-700">No application to open yet</span>
+				<span class="max-w-md text-2xs text-slate-500">
+					Applications appear here based on the roles assigned to you. Ask a workspace admin to
+					give you one.
 				</span>
 			</div>
 		} else {

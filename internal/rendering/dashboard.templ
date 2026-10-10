@@ -52,9 +52,11 @@ type ActivityEntry struct {
 	Comment bool
 }
 
-// DashboardPage is Case 19 PM04: four headline tiles, then Tasks by project beside Open cards per person, and
-// nothing else -- the mockup draws no Documents or Recent activity panel. Every figure comes from one bounded
-// selection of Task records, so "finished" means what the board's circle means.
+// DashboardPage is Case 19 PM04: four headline tiles, then Tasks by project beside Open cards per person.
+// The canvas's P04 now also draws a Recent activity panel, which this screen does not have yet: it arrives
+// as a windowed Dataset over the activity log in a `page:` Collection (canvas work plan S2.7, ROADMAP.md
+// "Mockup canvas"). Every figure comes from one bounded selection of Task records, so "finished" means what
+// the board's circle means.
 templ DashboardPage(c DashboardContent, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_dashboard"), workspaceName, viewer, switchWorkspaceHref) {
 		@pageHeader("nav_dashboard")

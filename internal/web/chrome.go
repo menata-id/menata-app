@@ -8,6 +8,7 @@ import (
 	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
+	"menata.app/internal/domain"
 	"menata.app/internal/rendering"
 )
 
@@ -30,6 +31,10 @@ type shellChrome struct {
 	// either, which is correct rather than unfortunate: cfg.AdminUserID is a break-glass login,
 	// not a Workspace member.
 	WorkspaceRole string
+	// Applications is the installed Applications this viewer can open (openableApplications), for
+	// the launcher and the mobile "More" sheet. It reads the Actor the same membership already
+	// resolved, so it costs no query.
+	Applications []domain.Application
 }
 
 // resolveChrome reads both values for one request. The three Workspace-level handlers
@@ -60,7 +65,8 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 		if id.workspace != nil {
 			workspaceName = id.workspace.Name
 		}
-		return shellChrome{WorkspaceName: workspaceName, Name: name, Email: email, UserInitials: composition.Initials(name), WorkspaceRole: role}, nil
+		apps := openableApplications(rendering.CurrentWorkspace(ctx), id.Actor(ctx), cfg)
+		return shellChrome{WorkspaceName: workspaceName, Name: name, Email: email, UserInitials: composition.Initials(name), WorkspaceRole: role, Applications: apps}, nil
 	}
 
 	// Fallback for a handler mounted without resolveIdentity -- in this repo, a test mounting one
@@ -84,13 +90,14 @@ func resolveChrome(ctx context.Context, req *http.Request, store *data.Store, cf
 		userName = viewerNameFor(membership, cred)
 	}
 
-	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName), WorkspaceRole: userRole}, nil
+	apps := openableApplications(rendering.CurrentWorkspace(ctx), currentActor(req, store, cfg), cfg)
+	return shellChrome{WorkspaceName: ws.Name, Name: userName, Email: userEmail, UserInitials: composition.Initials(userName), WorkspaceRole: userRole, Applications: apps}, nil
 }
 
 // Viewer is shellChrome's three identity fields as rendering.appShell's own parameter type, so
 // every call site builds it the same way instead of repeating the field-by-field literal.
 func (c shellChrome) Viewer() rendering.Viewer {
-	return rendering.Viewer{Name: c.Name, Email: c.Email, Initials: c.UserInitials, WorkspaceRole: c.WorkspaceRole}
+	return rendering.Viewer{Name: c.Name, Email: c.Email, Initials: c.UserInitials, WorkspaceRole: c.WorkspaceRole, Applications: c.Applications}
 }
 
 // viewerWorkspaceContext resolves two per-viewer facts. switchWorkspaceHref (the launcher's "All

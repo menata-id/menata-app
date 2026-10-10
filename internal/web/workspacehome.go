@@ -67,13 +67,15 @@ func showWorkspaceHome(store *data.Store, cfg config.Config) http.HandlerFunc {
 
 		render(ctx, w, rendering.WorkspaceHomePage(
 			chrome.WorkspaceName, chrome.Viewer(), switchHref,
-			applicationCards(ctx, store, machines, ws, membership, pending),
+			applicationCards(ctx, store, machines, chrome.Applications, membership, pending),
 			ws.SuggestedApplications,
 		))
 	}
 }
 
-// applicationCards builds one card per Application in the Workspace.
+// applicationCards builds one card per Application the viewer can open -- apps is
+// shellChrome.Applications, already filtered by canOpenApplication, so Home never offers a card
+// whose link would answer 403 (S0.1, 2026-10-10).
 //
 // Each card's link is that Application's own declared HomeRoute (its `home_card: true` navigation
 // item), never a literal here or in workspacehome.templ -- the route/label conformance gates hold
@@ -93,9 +95,9 @@ func showWorkspaceHome(store *data.Store, cfg config.Config) http.HandlerFunc {
 // Machine's own Name -- so "4 Tasks" is two metadata reads, not a retyped literal. A counting
 // failure degrades to no count rather than failing the page: Workspace Home's job is to list the
 // Applications, and losing one number is not worth losing the screen.
-func applicationCards(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, ws domain.Workspace, membership *data.Membership, pending int) []rendering.ApplicationCard {
-	cards := make([]rendering.ApplicationCard, 0, len(ws.Applications))
-	for _, app := range ws.Applications {
+func applicationCards(ctx context.Context, store *data.Store, machines map[string]*domain.Machine, apps []domain.Application, membership *data.Membership, pending int) []rendering.ApplicationCard {
+	cards := make([]rendering.ApplicationCard, 0, len(apps))
+	for _, app := range apps {
 		route := app.HomeRoute
 		if route == "" {
 			route = "/home"

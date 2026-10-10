@@ -154,17 +154,38 @@ func requireApplicationAccess(store *data.Store, cfg config.Config) func(http.Ha
 				return
 			}
 			actor := currentActor(req, store, cfg)
-			if actor.ID != "" && actor.ID == cfg.AdminUserID {
-				next.ServeHTTP(w, req)
-				return
-			}
-			if len(actor.Roles[app.ID]) == 0 {
+			if !canOpenApplication(app, actor, cfg) {
 				http.Error(w, noRoleMessage(app, actor), http.StatusForbidden)
 				return
 			}
 			next.ServeHTTP(w, req)
 		})
 	}
+}
+
+// canOpenApplication is requireApplicationAccess's rule as a predicate, so the lists that offer an
+// Application -- Workspace Home's cards, the launcher, the mobile "More" sheet -- ask the same question
+// the gate answers instead of restating it (001 #8). Before it existed they offered every installed
+// Application, so a member with no role in one saw its card ("Your role: —") and met a 403 on opening it.
+func canOpenApplication(app domain.Application, actor domain.Actor, cfg config.Config) bool {
+	if len(app.Roles) == 0 {
+		return true
+	}
+	if actor.ID != "" && actor.ID == cfg.AdminUserID {
+		return true
+	}
+	return len(actor.Roles[app.ID]) > 0
+}
+
+// openableApplications is ws's Applications filtered by canOpenApplication, in declaration order.
+func openableApplications(ws domain.Workspace, actor domain.Actor, cfg config.Config) []domain.Application {
+	apps := make([]domain.Application, 0, len(ws.Applications))
+	for _, app := range ws.Applications {
+		if canOpenApplication(app, actor, cfg) {
+			apps = append(apps, app)
+		}
+	}
+	return apps
 }
 
 // applicationOwnedRoutes is the set of paths that exist only because some Application declares them

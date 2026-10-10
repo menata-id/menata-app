@@ -54,13 +54,10 @@ func personInitials(name, email string) string {
 // WorkspaceMembersPage lists every member of the signed-in identity's Workspace, ported to
 // ui-sample/case-03-flow1/04-workspace-members.html (Fase 2, 2026-09-20).
 //
-// Three elements of that board are deliberately absent, each because the capability behind it does
-// not exist rather than because the port was partial. ROADMAP.md's Case 03 deferral table carries
-// the same list with the phase that closes each one:
-//
-//   - The search box. Search, filtering and pagination are unbuilt everywhere in this app
-//     (ROADMAP.md, "Planned") -- a box that filters nothing would be worse than none, the same
-//     call made for "Keep me signed in" in Fase 1.
+// The search box this comment once listed as absent is drawn now (searchBox, below the heading),
+// and filters the member list by the `q` parameter. What the 72-artboard canvas adds to this board
+// -- a Status column, the closing note, a Source column and Effective access -- is canvas work plan
+// S1b, the last two waiting on owner decision M-D1 (ROADMAP.md, "Mockup canvas").
 //
 // The board's own "full name above the email" row works as of 2026-09-22: names maps each
 // member's record id to the display name of the identity behind it (data.Store.MemberNames),

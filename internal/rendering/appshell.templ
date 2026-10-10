@@ -71,6 +71,12 @@ type Viewer struct {
 	// server-side gate is the real one and is untouched, exactly as the deleted hiddenNavIDs
 	// parameter's own note records.
 	WorkspaceRole string
+	// Applications is the installed Applications this viewer can open, in declaration order --
+	// internal/web.openableApplications, the same predicate requireApplicationAccess gates with. The
+	// launcher and the mobile "More" sheet list these rather than CurrentWorkspace(ctx).Applications,
+	// so neither offers an Application that would only answer 403 (S0.1, 2026-10-10). Presentation
+	// only, like WorkspaceRole: the middleware is the real gate.
+	Applications []domain.Application
 }
 //
 // TWO PARAMETERS WERE REMOVED ON 2026-09-21, both dead the moment the launcher stopped listing
@@ -200,7 +206,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 				{ children... }
 			</main>
 			if hasAppMenu {
-				@applicationBottomBar(bottomBarItems(menu), currentApp, workspaceName, switchWorkspaceHref)
+				@applicationBottomBar(bottomBarItems(menu), currentApp, workspaceName, switchWorkspaceHref, viewer)
 			}
 			@pwaRegistrationScript()
 		</body>
@@ -452,7 +458,7 @@ templ navBadge(badge, class string) {
 //
 // Four columns: three declared items (bottomBarItems) and "More", whose sheet is the one way out
 // of an Application on a phone -- see moreSheet.
-templ applicationBottomBar(items []navMenuItem, app domain.Application, workspaceName, switchWorkspaceHref string) {
+templ applicationBottomBar(items []navMenuItem, app domain.Application, workspaceName, switchWorkspaceHref string, viewer Viewer) {
 	<nav aria-label="Application" class={ "fixed inset-x-0 bottom-0 z-30 flex h-19 items-start border-t", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundRaised), "px-1 pb-3 sm:hidden" }>
 		for _, item := range items {
 			<a
@@ -469,7 +475,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 				{ item.Label }
 			</a>
 		}
-		@moreSheet(app, workspaceName, switchWorkspaceHref)
+		@moreSheet(app, workspaceName, switchWorkspaceHref, viewer)
 	</nav>
 }
 
@@ -501,7 +507,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 // and the account menu since 2026-09-24. It was written here first and *only* here, which is what
 // let the account menu keep its old bare panel for a day: no shade, sitting over the bottom bar,
 // so the one thing that would dismiss it was the avatar that opened it.
-templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string) {
+templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref string, viewer Viewer) {
 	<div class="flex flex-1 flex-col">
 		<button
 			type="button"
@@ -542,7 +548,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 				</a>
 			}
 			<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
-			for _, other := range CurrentWorkspace(ctx).Applications {
+			for _, other := range viewer.Applications {
 				<a
 					href={ templ.SafeURL(launcherAppHomeRoute(ctx, other)) }
 					class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50"
@@ -918,7 +924,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 				<span class="text-3xs font-medium tracking-wide text-blue-600 uppercase">Workspace</span>
 				<span class="text-sm font-medium text-slate-900">{ workspaceName }</span>
 			</a>
-			for _, app := range CurrentWorkspace(ctx).Applications {
+			for _, app := range viewer.Applications {
 				@launcherAppCard(app)
 			}
 			// Administration (AppLauncher.dc.html, Flow 2 canvas re-audit -- ROADMAP.md,

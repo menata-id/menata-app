@@ -219,6 +219,14 @@ func TestBoardScreen_completionCircleAndQuickEdit(t *testing.T) {
 	if strings.Contains(open, "text-slate-500 after") || strings.Contains(open, "text-slate-500 block") {
 		t.Errorf("an open card must not grey its title")
 	}
+	// A touch screen has no hover to reveal the circle and the pencil (S0.2, mockup MP01): both carry the
+	// coarse-pointer variant, and the title makes room for them the same way hover does.
+	if got := strings.Count(open, "pointer-coarse:opacity-100"); got != 2 {
+		t.Errorf("pointer-coarse:opacity-100 appears %d times, want 2 -- the completion circle and the pencil:\n%s", got, open)
+	}
+	if !strings.Contains(open, "pointer-coarse:pl-7") || !strings.Contains(open, "pointer-coarse:pr-6") {
+		t.Errorf("on a coarse pointer the title must leave room for both controls:\n%s", open)
+	}
 	done := render(true, domain.Actor{ID: "usr_ana"})
 	for _, want := range []string{`<input type="hidden" name="fld_status" value="todo">`, `aria-pressed="true"`, "not complete", "opacity-100", "bg-emerald-600"} {
 		if !strings.Contains(done, want) {

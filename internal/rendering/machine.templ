@@ -882,7 +882,8 @@ templ tagChip(label string, color domain.TagColor) {
 // is what lets the completion circle and the quick-edit pencil be real buttons -- a button inside an <a>
 // is invalid HTML. Both come before the link in the source so that their static position is the title's
 // row, and they only show on hover
-// or focus (a finished card keeps its circle). Both write through PATCH, which changes the Field named and
+// or focus (a finished card keeps its circle) -- except on a coarse pointer, where there is no hover to
+// reveal them, so both are always shown (S0.2, 2026-10-10; mockup MP01). Both write through PATCH, which changes the Field named and
 // nothing else, and both answer with the board.
 templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove) {
 	{{ title := cardRole(c, domain.CardFieldRoleTitle) }}
@@ -906,7 +907,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 		<span class="block">
 			if c.Complete != nil && canEdit {
 				<form
-					class={ "absolute left-2.5 z-10 opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100", templ.KV("opacity-100", done) }
+					class={ "absolute left-2.5 z-10 opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100", templ.KV("opacity-100", done) }
 					hx-patch={ cardPatchURL(m, c) }
 					hx-target="#machine-body"
 					hx-swap="innerHTML"
@@ -925,7 +926,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 				</form>
 			}
 			if canEdit {
-				<details class="group/edit absolute right-2 z-10 rounded-md opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 open:inset-x-0 open:top-0 open:rounded-md open:border open:border-slate-200 open:bg-white open:p-2 open:opacity-100 open:shadow-md">
+				<details class="group/edit absolute right-2 z-10 rounded-md opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 pointer-coarse:opacity-100 open:inset-x-0 open:top-0 open:rounded-md open:border open:border-slate-200 open:bg-white open:p-2 open:opacity-100 open:shadow-md">
 					<summary aria-label={ "Edit " + title } class="grid size-5 cursor-pointer list-none place-items-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 group-open/edit:hidden">
 						@icon("pencil", "size-3.5")
 					</summary>
@@ -958,7 +959,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 			<a
 				href={ templ.URL("/machines/" + m.ID + "/records/" + c.Record.ID) }
 				draggable="false"
-				class={ "block text-sm leading-snug after:absolute after:inset-0", templ.KV("text-slate-500", done), templ.KV("group-hover/card:pl-7 group-hover/card:pr-6 group-focus-within/card:pl-7 group-focus-within/card:pr-6", canEdit && c.Complete != nil), templ.KV("pl-7 pr-6", done && canEdit) }
+				class={ "block text-sm leading-snug after:absolute after:inset-0", templ.KV("text-slate-500", done), templ.KV("group-hover/card:pl-7 group-hover/card:pr-6 group-focus-within/card:pl-7 group-focus-within/card:pr-6 pointer-coarse:pl-7", canEdit && c.Complete != nil), templ.KV("pointer-coarse:pr-6", canEdit), templ.KV("pl-7 pr-6", done && canEdit) }
 			>{ title }</a>
 		</span>
 		{{ person := cardRole(c, domain.CardFieldRolePerson) }}
