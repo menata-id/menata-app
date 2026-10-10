@@ -25,7 +25,7 @@ import (
 // failure class that does not exist yet, only that the inventory of what the primitive replaces stays true.
 //
 // **Method, stated beside the claim (2026-10-07):** `grep -E '^templ [A-Z][A-Za-z]*Page\('` over
-// `internal/rendering/*.templ` -- 34 functions. Counting what is *present* by syntax is sound; the
+// `internal/rendering/*.templ` -- the functions the map below lists (the count was 34 on 2026-10-07 and is read from the map now). Counting what is *present* by syntax is sound; the
 // *categories* are a reading of each screen and the owning route, not a measurement, and `candidate` is a
 // hypothesis the plan's Tahap 0.2 tests by reading the screen (an Application screen whose figures are not
 // Dataset measures cannot migrate without an aggregate Dataset -- plan §2.2). Do not read an `outside`

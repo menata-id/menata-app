@@ -14,8 +14,10 @@ import (
 
 // Write applies a validated GeneratedChange to disk: a brand-new Application into the target
 // Workspace's **own** directory, or a surgical append into an already-installed one's own files
-// for an extension. Every write is provably additive by construction (see this package's own doc
-// comment) -- nothing here ever rewrites an existing value or removes a line.
+// for an extension. A new Application only adds files. An update edits the files it was shown as
+// yaml.Node documents: it adds, may change display text and a Permission's roles, drops a menu item,
+// and removes a Field only when the owner confirmed it (GeneratedChange.ConfirmedRemovals) -- see
+// PlanUpdate for the whole policy, which is the one place that says what an update may do.
 //
 // workspaceManifestPath is the target Workspace's own metadata/workspaces/<slug>.yaml, and
 // everything a new Application brings is written beside it under metadata/workspaces/<slug>/ --

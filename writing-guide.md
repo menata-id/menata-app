@@ -1509,9 +1509,9 @@ first column) and takes its colours from the Theme (`border.surface`, `border.di
 ```
 
 **What it is not.** It does not migrate an existing screen: a bespoke Go screen stays bespoke until its
-own route is replaced, and the screens declared this way are new ones. There is no write side
-(a form input's `name=` is 007 §11.3 Binding, still unbuilt), no filter by a request parameter,
-and no ordered comparison. **Installing copies**, so a Dataset a `page:` binds must exist in the Machine your
+own route is replaced, and the screens declared this way are new ones. Writes (`Form`,
+`Button` with `write:`), request-parameter filters (`$parameters`) and ordered comparisons (`$today`) are
+declared in the sections that follow, each on its own terms. **Installing copies**, so a Dataset a `page:` binds must exist in the Machine your
 Workspace's own copy declares; the loader refuses the Workspace otherwise.
 
 ### 12.2 A Machine file
@@ -2155,16 +2155,17 @@ Honest current limits, not a roadmap — some of these may change over time:
   database — a page fetches a Machine's full record set and reduces it in application code. This
   is fine well past ten thousand records in one Machine, and becomes a real cost somewhere between
   ten and fifty thousand.
-- **Metadata loads once, at process startup.** Editing a `*.yaml` file requires a restart to take
-  effect — there's no hot reload.
-- **A Workspace cannot install a template whose ids it already uses.** Installing an Application
-  copies its metadata into the Workspace's own directory, and two Machines cannot share an id
-  inside one Workspace — so if your Workspace already has an `mch_document`, it cannot also take a
-  template that declares one, and nothing offers to rename either. This is the one collision the
-  isolation model does *not* relax: the same name in a **different** Workspace is always fine. The
-  AI Metadata Assistant avoids the problem when it generates (it is told every id already taken in
-  your Workspace), but installing a hand-written template gets no such help. Planned:
-  `ROADMAP.md`, "Installing a template into a Workspace that already uses its ids".
+- **A hand edit takes effect on a reload, not on save.** A Workspace is re-read when an Application is
+  installed or published, when a snapshot is restored, and when a workspace admin presses Reload in
+  Workspace Settings (`POST /reload-workspace`); the other Workspaces are not touched, and a manifest that
+  does not load changes nothing live and names its file. A process restart re-reads everything.
+- **Installing a template renames a colliding Machine or Application id; other collisions are refused.**
+  Installing copies the template into the Workspace's own directory, and two Machines cannot share an id
+  inside one Workspace, so `mch_document` becomes `mch_document_approval` when the Workspace already has
+  one (a Workspace with no collision gets a byte-identical copy). A collision on a navigation id, a
+  navigation route or a Dataset id is refused with its reason instead, because Go still names those. The
+  same name in a **different** Workspace is always fine. `/install-application` is workspace-admin only,
+  and the install is load-verified and rolled back if the result does not load.
 - **No metadata versioning.** Removing a Field from a Machine's YAML doesn't migrate or warn about
   existing data already stored under that field's id — it's simply no longer read.
 - **Constraints are intentionally limited.** Only `equals`/`not_equals` against a literal value,

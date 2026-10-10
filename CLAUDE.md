@@ -643,8 +643,9 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   reads an entire Machine, shrink-only on the usual terms (a higher count fails, a *lower* one fails
   until the entry is lowered, a new file fails). It measures what 007 objects to in three places —
   §28 invariant 4, §4.4, and §20, which names the shape with the word *never*. **A falling number is
-  not a composable Data Plane**: ten of the remaining reads correlate two Machines and wait on 007
-  §7.5 Relation, four legitimately read everything.
+  not a composable Data Plane**: the reads that remain either correlate two Machines and wait on 007
+  §7.5 Relation or legitimately read everything (the classification is in `capabilities.md`'s Dataset row
+  and the audit it cites; the count is in `wholeMachineReadRatchet`, not here).
   The second guards a class that became *silent* when it became declarative: a Dataset whose whole
   purpose is showing one identity its own records must declare a `$current_user` predicate. That
   scoping used to be a line in Go where deleting it failed a unit test; deleting it from metadata
@@ -704,8 +705,8 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   rather than from remembering to read a plan.
   Counted **syntactically** on purpose — "is this really a row" is a judgement, and a gate making it would
   be the ~50%-false-finding shape deleted twice here. What syntax cannot separate is noted per entry:
-  `split`'s floor is **2, not 0**, because `automation.templ`'s `[6rem_1fr]` definition list and
-  `rolematrix.templ`'s bordered grid are genuine one-offs, and a one-off is what a primitive is not for.
+  `split`'s floor is not 0 (read the entries out of `layoutdebt_test.go`: what is left is `rolematrix.templ`'s
+  bordered grid, a genuine one-off, and a one-off is what a primitive is not for).
   **All three reached their floor on 2026-10-03** — `grid`'s key was *removed* (an entry naming a kind with no
   sites fails too), `split` dropped to its two one-offs, `row` to eleven. 45 sites in 20 files -> **13 in
   10**. Read the current numbers out of the map, and **read a floor as a finding rather than as debt**: a site
@@ -954,7 +955,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   repo has shipped Workspaces no test loaded. The second checks the *other* direction, which fails
   silently: a registry entry no composed screen selects through forces every Workspace to declare
   something nothing reads — worse than the outage, since it breaks a Workspace that worked. The third
-  records the **remainder** (`goNamedDatasetsWithNoEngineRequirement`, seven ids) rather than gating it,
+  records the **remainder** (`goNamedDatasetsWithNoEngineRequirement`, read the ids out of the map) rather than gating it,
   because "which Workspaces can reach the screen that selects through this id" needs a route-to-Dataset
   call-graph walk nobody has built. **So the class is closed for the engine's Datasets and open for Case
   19's** — say that, rather than reading a green run as the whole class.

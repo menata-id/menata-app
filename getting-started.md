@@ -11,8 +11,10 @@ development to prove the runtime out on real, different kinds of business proces
 limit of what it can do. Open one to see a real metadata-driven application in action.
 
 Today, every Workspace on the hosted instance runs the same example applications; defining your
-own Machine (what [writing-guide.md](writing-guide.md) walks through) currently means running your
-own instance (below) and editing metadata files directly.
+own Machine from full YAML (what [writing-guide.md](writing-guide.md) walks through) currently means running your
+own instance (below) and editing metadata files directly. A workspace admin on a hosted instance can
+already install a ready-made Application from the template library, or describe one to the AI
+Assistant and change an installed one the same way.
 
 ## Run it yourself
 
