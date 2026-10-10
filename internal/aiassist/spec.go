@@ -38,6 +38,10 @@ type GeneratedChange struct {
 	// Application is the whole Application: a new one, or an installed one as it should be after
 	// the update. For an update, anything left out is read as a removal (PlanUpdate).
 	Application *GeneratedApplication `json:"application,omitempty"`
+	// ConfirmedRemovals are the removals the owner confirmed at review (PlanItem.Confirm). It is never part
+	// of what the model returns or sees (json:"-"): a removal the model could confirm for itself is not
+	// confirmed.
+	ConfirmedRemovals []string `json:"-"`
 }
 
 const (

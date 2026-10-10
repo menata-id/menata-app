@@ -298,6 +298,9 @@ func publishNewApplication(store *data.Store, aiClient aiassist.Client, cfg conf
 			return
 		}
 
+		if !confirmRemovals(w, req, change, ws) {
+			return
+		}
 		snapshotBeforeWrite(cfg, manifestPath)
 		newAppID, err := aiassist.Write(manifestPath, *change, aiassist.FileMachineResolver{WorkspaceManifestPath: manifestPath})
 		if err != nil {
@@ -573,4 +576,19 @@ func showHomeDraftApplications(store *data.Store) http.HandlerFunc {
 		}
 		render(ctx, w, rendering.HomeDraftApplicationRows(rows, req.URL.Query().Get("in") == "list"))
 	}
+}
+
+// confirmRemovals reads the removals the owner ticked at review into the change and answers 422 itself when
+// the plan asks for one that is not ticked. The model cannot tick them: ConfirmedRemovals is not in its schema.
+func confirmRemovals(w http.ResponseWriter, req *http.Request, change *aiassist.GeneratedChange, ws domain.Workspace) bool {
+	if err := req.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return false
+	}
+	change.ConfirmedRemovals = req.Form["confirm_remove"]
+	if open := reviewPlan(*change, ws).Unconfirmed(change.ConfirmedRemovals); len(open) > 0 {
+		http.Error(w, "this update removes something the owner has not confirmed: "+strings.Join(open, ", "), http.StatusUnprocessableEntity)
+		return false
+	}
+	return true
 }

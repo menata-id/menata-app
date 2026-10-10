@@ -91,6 +91,23 @@ type Plan struct {
 type PlanItem struct {
 	Op   string // "add", "change", "remove"
 	What string
+	// Confirm is non-empty on a removal the owner must confirm before it is written, and is the key
+	// GeneratedChange.ConfirmedRemovals must then carry. A removal that needs none leaves it empty.
+	Confirm string
+}
+
+// RemovalKey names one field removal for confirmation.
+func RemovalKey(machineID, fieldID string) string { return "field:" + machineID + "/" + fieldID }
+
+// Unconfirmed is the confirmation keys this plan asks for that the change does not carry.
+func (p Plan) Unconfirmed(confirmed []string) []string {
+	var out []string
+	for _, it := range p.Items {
+		if it.Confirm != "" && !slices.Contains(confirmed, it.Confirm) {
+			out = append(out, it.Confirm)
+		}
+	}
+	return out
 }
 
 func (p *Plan) add(what string, args ...any) {
@@ -114,8 +131,9 @@ func (p *Plan) refuse(what string, args ...any) {
 //   - display text may change (names, labels, the description, icon and color, the menu order), and
 //     so may which roles a Permission names and whether a Field is required or computed;
 //   - a menu item opening a Machine may be removed -- the Machine and its records stay;
-//   - nothing that holds records or grants access may be removed or retyped: a Machine, a Field, a
-//     declared option, a role, a Permission (removing one opens that action to everyone), a
+//   - a Field may be removed only with the owner's confirmation (PlanItem.Confirm): the declaration
+//     goes, the stored values stay. Everything else listed next may not;
+//   - nothing that holds records or grants access may be removed or retyped: a Machine, a declared option, a role, a Permission (removing one opens that action to everyone), a
 //     Transition, an Event, a menu item opening a screen the model cannot name again, or a Field's
 //     type or relation target. Each is refused with its reason, and a plan with a refusal does not
 //     validate, so it goes back to the model rather than to review.
@@ -202,7 +220,8 @@ func planMachine(p *Plan, old, m GeneratedMachine) {
 	}
 	for _, f := range old.Fields {
 		if !seen[f.ID] {
-			p.refuse("field %s (%q) on %s cannot be removed: its values would be lost", f.ID, f.Name, m.ID)
+			p.Items = append(p.Items, PlanItem{Op: "remove", Confirm: RemovalKey(m.ID, f.ID),
+				What: fmt.Sprintf("field %q on %q -- it disappears from every screen; values already stored stay in the records but can no longer be seen or edited", f.Name, m.Name)})
 		}
 	}
 

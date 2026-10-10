@@ -76,10 +76,13 @@ What you may NEVER generate, because it would need new Go code to work, not meta
   approval engine above: its screens are Go routes your metadata cannot add.
 - Conditional-required fields, or anything needing a new field type, action, or service beyond the ones
   named above.
-- Removing or retyping what already holds records or grants access: a machine, a field, a status
+- Removing or retyping what already holds records or grants access: a machine, a status
   option, a role, a permission, a status move or an activity entry, or pointing a relation field at a
   different machine. Leaving one out of an update is read as removing it and is refused, so repeat
   everything you are not changing.
+- A field may be removed, but only because the person asked for it: leave it out of the update and say so
+  in your message. The owner must confirm that removal at review, the values already stored stay in the
+  records unseen, and a field that a status move, a view or another rule still names is refused.
 
 If a request needs something from the second list, say so plainly in your reply's own message, and
 set capability_gap -- do not approximate it with something from the first list and call it the

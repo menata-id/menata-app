@@ -35,6 +35,8 @@ func writeUpdate(written *installer.WriteSet, workspaceManifestPath string, chan
 	desired := *change.Application
 	if plan := PlanUpdate(current, desired); len(plan.Refusals) > 0 {
 		return installer.Rejected(fmt.Errorf("the update is refused: %s", strings.Join(plan.Refusals, "; ")))
+	} else if open := plan.Unconfirmed(change.ConfirmedRemovals); len(open) > 0 {
+		return installer.Rejected(fmt.Errorf("removals not confirmed: %s", strings.Join(open, ", ")))
 	}
 
 	workspaceDir := filepath.Dir(workspaceManifestPath)
@@ -168,6 +170,19 @@ func updateMachineFile(written *installer.WriteSet, workspaceDir string, resolve
 					return err
 				}
 			}
+		}
+	}
+
+	kept := map[string]bool{}
+	for _, f := range m.Fields {
+		kept[f.ID] = true
+	}
+	for _, f := range old.Fields {
+		if kept[f.ID] {
+			continue
+		}
+		if err := removeFieldNode(doc, fields, f.ID); err != nil {
+			return installer.Rejected(fmt.Errorf("field %s on %s: %w", f.ID, m.ID, err))
 		}
 	}
 
@@ -422,4 +437,54 @@ func navItemByID(seq *yaml.Node, id string) *yaml.Node {
 		}
 	}
 	return nil
+}
+
+// removeFieldNode drops one Field's declaration from a Machine file. It refuses while anything else in the
+// same file still names the id -- a transition, a card projection, a view, a Dataset, a constraint, which
+// include blocks the assistant never saw -- since removing the Field under them would leave a Machine the
+// loader rejects (or worse, accepts and renders blank). Another Machine's reference is caught by the load
+// verification Write ends with.
+func removeFieldNode(doc, fields *yaml.Node, id string) error {
+	idx := -1
+	for i, n := range fields.Content {
+		if v := mapValue(n, "id"); v != nil && v.Value == id {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return fmt.Errorf("is not declared in this file")
+	}
+	target := fields.Content[idx]
+	if where := mentionOutside(doc, target, id, ""); where != "" {
+		return fmt.Errorf("is still used by %s -- remove that first", where)
+	}
+	fields.Content = append(fields.Content[:idx], fields.Content[idx+1:]...)
+	return nil
+}
+
+// mentionOutside finds a scalar equal to id anywhere under n except inside skip, returning the key path.
+func mentionOutside(n, skip *yaml.Node, id, path string) string {
+	if n == nil || n == skip {
+		return ""
+	}
+	if n.Kind == yaml.ScalarNode {
+		if n.Value == id {
+			return path
+		}
+		return ""
+	}
+	for i, c := range n.Content {
+		next := path
+		if n.Kind == yaml.MappingNode && i%2 == 1 {
+			next = strings.TrimPrefix(path+"."+n.Content[i-1].Value, ".")
+		}
+		if n.Kind == yaml.MappingNode && i%2 == 0 {
+			continue
+		}
+		if w := mentionOutside(c, skip, id, next); w != "" {
+			return w
+		}
+	}
+	return ""
 }

@@ -206,7 +206,6 @@ func TestUpdate_refusesWhatHoldsRecordsOrGrantsAccess(t *testing.T) {
 		want string
 	}{
 		"machine":    {func(a *GeneratedApplication) { a.Machines = a.Machines[:1] }, "machine mch_pencatatan_sampah"},
-		"field":      {func(a *GeneratedApplication) { a.Machines[0].Fields = nil }, "field fld_nama_cabang"},
 		"role":       {func(a *GeneratedApplication) { a.Roles = []string{"approver"} }, `role "submitter"`},
 		"permission": {func(a *GeneratedApplication) { a.Machines[0].Permissions = nil }, "open to everyone"},
 		"type":       {func(a *GeneratedApplication) { a.Machines[0].Fields[0].Type = "number" }, "cannot change type"},
@@ -273,5 +272,67 @@ func TestUpdate_prioritizedMenu(t *testing.T) {
 	}))
 	if got := strings.Join(renderedMenu(loaded.Workspace.Applications[0]), ","); got != "Data Sampah,Pengelolaan Sampah" {
 		t.Errorf("after reordering, menu = %s", got)
+	}
+}
+
+// TestUpdate_removingAFieldNeedsConfirmation: a Field's declaration may go, but only when the owner confirmed
+// that removal at review; the model cannot confirm it, a Field something else still names stays, and the
+// stored values are not touched by the write.
+func TestUpdate_removingAFieldNeedsConfirmation(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	publish(t, manifestPath, update(t, manifestPath, func(a *GeneratedApplication) {
+		a.Machines[0].Fields = append(a.Machines[0].Fields, GeneratedField{ID: "fld_kota", Name: "Kota", Type: "text"})
+	}))
+	drop := func(a *GeneratedApplication) { a.Machines[0].Fields = a.Machines[0].Fields[:1] }
+	resolve := FileMachineResolver{WorkspaceManifestPath: manifestPath}
+	fieldsOf := func() int {
+		_, loaded := stateOf(t, manifestPath)
+		for _, m := range loaded.Workspace.Machines {
+			if m.ID == "mch_cabang" {
+				return len(m.Fields)
+			}
+		}
+		return -1
+	}
+
+	change := update(t, manifestPath, drop)
+	state, _ := stateOf(t, manifestPath)
+	if err := Validate(change, state); err != nil {
+		t.Fatalf("a field removal is a plan item, not a refusal: %v", err)
+	}
+	plan := PlanUpdate(DescribeApplication(change.TargetAppID, state.Applications[change.TargetAppID]), *change.Application)
+	if got := plan.Unconfirmed(nil); len(got) != 1 || got[0] != RemovalKey("mch_cabang", "fld_kota") {
+		t.Fatalf("Unconfirmed = %v", got)
+	}
+	before := fieldsOf()
+	if _, err := Write(manifestPath, change, resolve); err == nil || !strings.Contains(err.Error(), "not confirmed") {
+		t.Fatalf("unconfirmed Write = %v, want a not-confirmed rejection", err)
+	}
+	if fieldsOf() != before {
+		t.Fatal("an unconfirmed removal changed the file")
+	}
+
+	change.ConfirmedRemovals = []string{RemovalKey("mch_cabang", "fld_kota")}
+	publish(t, manifestPath, change)
+	if fieldsOf() != before-1 {
+		t.Fatalf("confirmed removal left %d fields, want %d", fieldsOf(), before-1)
+	}
+}
+
+// TestUpdate_aFieldStillInUseCannotBeRemoved: the status Field is named by the Machine's own options and
+// transitions, so confirming its removal still cannot orphan them.
+func TestUpdate_aFieldStillInUseCannotBeRemoved(t *testing.T) {
+	manifestPath := installedWasteApp(t)
+	publish(t, manifestPath, update(t, manifestPath, func(a *GeneratedApplication) {
+		m := &a.Machines[1]
+		m.Transitions = []GeneratedTransition{{ID: "trn_send", Name: "Send", Field: "fld_status", From: "draft", To: "sent"}}
+	}))
+	change := update(t, manifestPath, func(a *GeneratedApplication) {
+		a.Machines[1].Fields = nil
+		a.Machines[1].Fields = append(a.Machines[1].Fields, GeneratedField{ID: "fld_note", Name: "Note", Type: "text"})
+	})
+	change.ConfirmedRemovals = []string{RemovalKey("mch_pencatatan_sampah", "fld_status")}
+	if _, err := Write(manifestPath, change, FileMachineResolver{WorkspaceManifestPath: manifestPath}); err == nil || !strings.Contains(err.Error(), "still used") {
+		t.Fatalf("Write = %v, want a still-used rejection", err)
 	}
 }
