@@ -411,7 +411,7 @@ card_fields:
 ```
 
 Each entry names one of this Machine's own Fields plus the semantic **role** it renders as —
-`title`, `person`, `money`, `status`, `date`, `color`, `file` or `comment` (`internal/domain.KnownCardFieldRoles`; `color` only on a tag Machine, see 7.06; `file` on a `file` Field of a child Machine, which draws it as an attachments list; `comment` on a `long_text` Field of a child Machine that also has a `stamp: current_user` person Field, which draws the Machine as the record's "Comments and activity" feed — copy `metadata/comment.yaml`). The
+`title`, `person`, `money`, `status`, `date`, `color`, `file`, `comment` or `container` (`internal/domain.KnownCardFieldRoles`; `container` on a `relation` Field naming the record this one sits inside, a Task's Project, drawn by that record's own title; `color` only on a tag Machine, see 7.06; `file` on a `file` Field of a child Machine, which draws it as an attachments list; `comment` on a `long_text` Field of a child Machine that also has a `stamp: current_user` person Field, which draws the Machine as the record's "Comments and activity" feed — copy `metadata/comment.yaml`). The
 renderer picks markup by role, not by the Field's storage type, so the same declaration works
 whether the underlying Field is plain text or a relation.
 
@@ -1076,7 +1076,7 @@ and no request, so they would be compared as literal text and count nothing.
 **`rows: records` — a list of a Machine's records.** A `component: Collection` may carry
 `binding: {dataset: ds_x, rows: records}` and **exactly one child**, the item template. The template is cloned once
 per record, in the Dataset's own `sort:` order, and a node inside it fills a property from the record with
-`from: {property: role}`, where `role` is a Projection role (`title`, `status`, `person`, `money`, `date`) the
+`from: {property: role}`, where `role` is a Projection role (`title`, `status`, `person`, `money`, `date`, `container`) the
 Machine declares in `card_fields:` -- so the page names no Field, and what a list shows of a record is what its
 Machine already said about its shape. Rules, all checked at load:
 
@@ -1096,8 +1096,13 @@ Machine already said about its shape. Rules, all checked at load:
 - `from:` is valid only inside a records-bound Collection's template, a property cannot be both written and
   `from:`, and a records binding does not nest inside a template;
 - a role whose Field is a **reference** to another Machine is refused: resolving it reads the whole related
-  Machine (007 §20), which a list would repeat per page view. Ask for a role backed by a plain Field. **One
-  reference is resolved: a `person` Field** (the one that points at `mch_user`). A page draws the member's display
+  Machine (007 §20), which a list would repeat per page view. Ask for a role backed by a plain Field. **Two
+  references are resolved. A `container` Field** (a `relation` Field declared `{ field: fld_project, role: container }`)
+  draws the related record's own title -- its Machine's `title` role, or its first Field when it declares none --
+  read for only the records the list shows, in one statement by id (`composition.Loader.RelatedLabels`), so it does
+  not grow with the Workspace; a record that no longer exists draws nothing, never its id. `from: {text: container}`
+  on a `static` node is the whole declaration (`nav_task_moves` captions each Task with its Project). **The other is a
+  `person` Field** (the one that points at `mch_user`). A page draws the member's display
   name (their email until they set one), through the same per-request member list the runtime's own screens use
   -- one query however many records the list shows -- and draws **nothing** for someone who is no longer a member,
   never their user id. `{ field: fld_submitted_by, role: person }` in `card_fields:` and `from: {text: person}` on
@@ -1703,7 +1708,7 @@ no View at all, so putting them on one arrangement would have forced an arbitrar
 | `sla_field` | `fld_*` | Must be a `date` field. Renders as OVERDUE / "N days left" |
 | `card_tags` | `{machine, via, tag}` | `machine` an installed join Machine; `via` a reference on it pointing back at this Machine; `tag` a reference on it naming the tag. The tag Machine needs `card_fields` with `title` and (for colour) `color` roles. Read by a board card's chips | Also drawn as chips under a record's own heading on its detail page. A Workspace that carries `mch_activity` and its `ds_record_activity` Dataset also gets a **History** section there (events naming this Machine and record, newest first, at most 50) — nothing to declare per Machine
 | `completion` | `{field: fld_*, done: <option>}` | `field` must be a `status` field and `done` one of its options. Read by a board card's date pill (`composition.IsComplete`). A Machine that is a *child* of another (a relation to it) and declares this plus a `title` card field is drawn on the parent's detail page as a **checklist** — "2 of 4", a completion circle per item, an add-item input — rather than a table (`mch_checklist_item`); declare nothing else |
-| `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date\|color\|file\|comment}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week and the Dashboard's Project rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
+| `card_fields[]` | `{field: fld_*, role: title\|person\|money\|status\|date\|color\|file\|comment\|container}` | Projection (007 §7.6). Consumed by any `cards` View (`mch_document`'s `vw_document_cards`), and by `internal/composition` for any composed screen that renders a record outside a View — My Tasks, the Calendar week and the Dashboard's Project rows all read their title/status/date from here since 2026-09-28, which is what took them out of `internal/conformance`'s projection ratchet |
 
 **There is no singular `view:` block any more.** It was one anonymous arrangement per Machine until
 2026-09-20; a second arrangement of the same records could not be expressed at all. If you write
@@ -1846,7 +1851,7 @@ shows for it with no code edit.
 |---|---|---|
 | Field types | `text` `long_text` `number` `boolean` `date` `status` `person` `money` `relation` `file` | `domain.KnownFieldTypes` |
 | Layouts | `table` `board` | `domain.KnownLayouts` |
-| Card field roles | `title` `person` `money` `status` `date` `color` `file` `comment` | `domain.KnownCardFieldRoles` |
+| Card field roles | `title` `person` `money` `status` `date` `color` `file` `comment` `container` | `domain.KnownCardFieldRoles` |
 | Aggregates | `count` `sum` | `domain.KnownAggregates` |
 | Actions | `decide` `edit` `delete` | `domain.KnownActions` |
 | Services | `log_activity` `rollup_parent_status` `send_notification` | `registry.Services` |

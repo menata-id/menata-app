@@ -60,6 +60,11 @@ const (
 	// Who wrote it is not a second role: it is the Machine's person Field that declares `stamp: current_user`,
 	// which validation requires.
 	CardFieldRoleComment CardFieldRole = "comment"
+	// CardFieldRoleContainer is a relation Field naming the record this one sits inside -- a Task's Project. A
+	// page draws that record's own title (its Machine's `title` role, or its first Field when it declares none),
+	// resolved for only the records the page lists. A person Field is not a container: people are the `person`
+	// role, labelled through the Workspace's members.
+	CardFieldRoleContainer CardFieldRole = "container"
 )
 
 // TagColor is one entry of the closed palette a tag may be drawn in. A Workspace picks a name, never a
@@ -106,14 +111,15 @@ type CardTags struct {
 
 // KnownCardFieldRoles is the closed set of roles card_fields may declare.
 var KnownCardFieldRoles = map[CardFieldRole]bool{
-	CardFieldRoleTitle:   true,
-	CardFieldRolePerson:  true,
-	CardFieldRoleMoney:   true,
-	CardFieldRoleStatus:  true,
-	CardFieldRoleDate:    true,
-	CardFieldRoleColor:   true,
-	CardFieldRoleFile:    true,
-	CardFieldRoleComment: true,
+	CardFieldRoleTitle:     true,
+	CardFieldRolePerson:    true,
+	CardFieldRoleMoney:     true,
+	CardFieldRoleStatus:    true,
+	CardFieldRoleDate:      true,
+	CardFieldRoleColor:     true,
+	CardFieldRoleFile:      true,
+	CardFieldRoleComment:   true,
+	CardFieldRoleContainer: true,
 }
 
 // CardField names one of this Machine's own Fields to project onto a composed card (Approval

@@ -572,6 +572,12 @@ func TestValidate_cardFieldsUnknownRole(t *testing.T) {
 	assertIssue(t, m, "has unknown role")
 }
 
+func TestValidate_containerRoleNeedsARelationField(t *testing.T) {
+	m := validMachine()
+	m.CardFields = []domain.CardField{{Field: "fld_title", Role: domain.CardFieldRoleContainer}}
+	assertIssue(t, m, "has the container role, so it must be a relation field")
+}
+
 // permissionMachine is a Machine shaped like mch_approval_step: a person Field an Action can be
 // scoped to (development-history.md Phase 16).
 func permissionMachine() *domain.Machine {

@@ -227,6 +227,9 @@ func Validate(m *domain.Machine) error {
 		if f, ok := fieldsByID[cf.Field]; ok && cf.Role == domain.CardFieldRoleFile && f.Type != domain.FieldTypeFile {
 			issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q has the file role, so it must be a file field, got %q", m.ID, cf.Field, f.Type))
 		}
+		if f, ok := fieldsByID[cf.Field]; ok && cf.Role == domain.CardFieldRoleContainer && f.Type != domain.FieldTypeRelation {
+			issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q has the container role, so it must be a relation field, got %q", m.ID, cf.Field, f.Type))
+		}
 		if f, ok := fieldsByID[cf.Field]; ok && cf.Role == domain.CardFieldRoleComment {
 			if f.Type != domain.FieldTypeLongText {
 				issues = append(issues, fmt.Sprintf("machine %q: card_fields entry %q has the comment role, so it must be a long_text field, got %q", m.ID, cf.Field, f.Type))

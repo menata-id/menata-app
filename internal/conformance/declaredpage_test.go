@@ -242,8 +242,8 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 					switch {
 					case fieldID == "" || !ok:
 						out = append(out, "from: "+role+" -- "+m.ID+" declares no such card_fields role")
-					case f.IsReference() && f.RelatedMachine != domain.UserMachineID:
-						out = append(out, "from: "+role+" -- the Field behind it is a reference, which would read a whole Machine (007 §20)")
+					case f.IsReference() && f.RelatedMachine != domain.UserMachineID && domain.CardFieldRole(role) != domain.CardFieldRoleContainer:
+						out = append(out, "from: "+role+" -- the Field behind it is a reference, which would read a whole Machine (007 §20); only a person and a container are read bounded")
 					}
 				}
 			}

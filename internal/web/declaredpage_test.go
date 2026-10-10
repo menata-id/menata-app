@@ -1094,6 +1094,43 @@ func TestProjectManagementSettingsHubListsItsDeclaredMemberAndNoAccess(t *testin
 	}
 }
 
+// TestDeclaredPageNamesEachTaskByTheProjectItSitsIn: a `container` role resolved on a records page. The Task's
+// Project is drawn by its own title under the Task's, a Project no listed Task names is not drawn, and a Task whose
+// Project no longer exists draws no caption rather than its id. That the read is bounded to the listed ids is held by
+// the statement's name in the GET sweep's log (`mch_project by ids`), not by this test.
+func TestDeclaredPageNamesEachTaskByTheProjectItSitsIn(t *testing.T) {
+	h, cookie, ctx, store, _, _, actorID := routerSetupFor(t, "declaredcontainer", "default")
+	mkProject := func(name string) *data.Record {
+		rec, err := store.CreateRecord(ctx, "mch_project", map[string]any{"fld_name": name})
+		if err != nil {
+			t.Fatalf("CreateRecord project %s: %v", name, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_project", rec.ID) })
+		return rec
+	}
+	mkTask := func(title, project string) {
+		rec, err := store.CreateRecord(ctx, "mch_task", map[string]any{"fld_title": title, "fld_assignee": actorID, "fld_project": project})
+		if err != nil {
+			t.Fatalf("CreateRecord task %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, "mch_task", rec.ID) })
+	}
+	named, unlisted := mkProject("Container-probe-named"), mkProject("Container-probe-unlisted")
+	_ = unlisted
+	mkTask("Container-probe-task", named.ID)
+	mkTask("Container-probe-orphan", "rec_does_not_exist")
+	body := getPage(t, h, cookie, "/pages/nav_task_moves")
+	if !strings.Contains(body, "Container-probe-named") {
+		t.Fatalf("the Task is not captioned with its Project's title:\n%s", body)
+	}
+	if strings.Contains(body, "Container-probe-unlisted") {
+		t.Error("a Project no listed Task names appears on the page")
+	}
+	if strings.Contains(body, "rec_does_not_exist") {
+		t.Error("a Task whose Project is gone prints the Project's id")
+	}
+}
+
 // TestDeclaredPageTransitionButtonsMoveTheStatusAndAreDrawnOnlyWhereTheMoveIsAnChange: `write: transition` inside a
 // records template. Two of the viewer's Tasks, one open and one finished, must each carry only the Button that is a
 // change for *them* ("Mark done" on the open one, "Reopen" on the finished one); the Button must send a PATCH of the

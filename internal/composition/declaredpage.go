@@ -3,6 +3,7 @@ package composition
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strconv"
@@ -92,9 +93,9 @@ func bindingForm(l *Loader, viewer domain.Actor, b domain.PageBinding) (ir.FormS
 // with the Dataset's bound when it bit (`Selection.Truncated`, which a page may then say -- `complete: true`).
 //
 // The Projection is the Machine's `card_fields` (007 §7.6), so what a page can show of a record is what the
-// Machine already declared about its shape, and the page names no Field. The only reference it resolves is a
-// person (`recordPeople`): the loader refuses a `from:` whose role is any other reference Field, because
-// resolving one means reading the whole related Machine. Order is the Dataset's declared `sort:`, applied by the database.
+// Machine already declared about its shape, and the page names no Field. The only references it resolves are a
+// person and a container (`recordRelations`): the loader refuses a `from:` whose role is any other reference
+// Field, because resolving one means reading the whole related Machine. Order is the Dataset's declared `sort:`, applied by the database.
 func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params map[string]string, now time.Time, b domain.PageBinding) (ir.RecordSet, error) {
 	viewerID := viewer.ID
 	ds, ok := l.Dataset(b.Dataset)
@@ -123,7 +124,7 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		return ir.RecordSet{}, err
 	}
 	records := sel.Records
-	people, err := recordPeople(ctx, l, src, records)
+	people, err := recordRelations(ctx, l, src, records)
 	if err != nil {
 		return ir.RecordSet{}, err
 	}
@@ -151,40 +152,81 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	return set, nil
 }
 
-// recordPeople is the display name of every person the listed records name in a `person` Field, as the
-// RelationOptions the Projection resolves a reference through. It asks the Loader's memoized PersonNames (one
-// read of the Workspace's members however many records there are, and none at all when the Machine declares no
-// such Field) and keeps only the people actually listed, so the options grow with the page and not the Workspace.
+// recordRelations is what the Projection resolves a reference through for the listed records: the display name of
+// every person they name in a `person` Field, and the title of every record they name in a `container` Field.
 //
-// A person with no name -- someone no longer a member -- gets an option with an empty label, not none: an absent
-// option makes RelationLabel fall back to the raw id, and a user id is not something a page should print.
-func recordPeople(ctx context.Context, l *Loader, src *domain.Machine, records []*data.Record) (rendering.RelationOptions, error) {
-	var fields []string
+// People ask the Loader's memoized PersonNames (one read of the Workspace's members however many records there
+// are, and none at all when the Machine declares no such Field) and keep only those actually listed, so the options
+// grow with the page and not the Workspace. A container asks Loader.RelatedLabels for exactly the ids listed, one
+// statement per related Machine. Neither reads a whole Machine.
+//
+// A reference to someone or something that no longer exists gets an option with an empty label, not none: an
+// absent option makes RelationLabel fall back to the raw id, and an id is not something a page should print.
+func recordRelations(ctx context.Context, l *Loader, src *domain.Machine, records []*data.Record) (rendering.RelationOptions, error) {
+	people, containers := map[string]string{}, map[string]string{}
 	for _, cf := range src.CardFields {
-		if f, ok := src.FieldByID(cf.Field); ok && f.IsReference() && f.RelatedMachine == domain.UserMachineID {
-			fields = append(fields, f.ID)
+		f, ok := src.FieldByID(cf.Field)
+		if !ok || !f.IsReference() {
+			continue
+		}
+		switch {
+		case f.RelatedMachine == domain.UserMachineID:
+			people[f.ID] = f.RelatedMachine
+		case cf.Role == domain.CardFieldRoleContainer:
+			containers[f.ID] = f.RelatedMachine
 		}
 	}
-	if len(fields) == 0 {
-		return rendering.RelationOptions{}, nil
+	out := rendering.RelationOptions{}
+	if len(people) > 0 {
+		names, err := l.PersonNames(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out[domain.UserMachineID] = listedOptions(records, people, names)
 	}
-	names, err := l.PersonNames(ctx)
-	if err != nil {
-		return nil, err
+	targets := map[string]bool{}
+	for _, machineID := range containers {
+		targets[machineID] = true
 	}
+	for _, machineID := range slices.Sorted(maps.Keys(targets)) {
+		fields := map[string]string{}
+		var ids []string
+		for fieldID, target := range containers {
+			if target != machineID {
+				continue
+			}
+			fields[fieldID] = target
+			for _, r := range records {
+				if id := DisplayString(r.Values[fieldID]); id != "" {
+					ids = append(ids, id)
+				}
+			}
+		}
+		labels, err := l.RelatedLabels(ctx, machineID, ids)
+		if err != nil {
+			return nil, err
+		}
+		out[machineID] = listedOptions(records, fields, labels)
+	}
+	return out, nil
+}
+
+// listedOptions is one option per distinct id the records name in any of the given Fields, labelled from labels
+// (empty when the id has none), in the order the records list them.
+func listedOptions(records []*data.Record, fields map[string]string, labels map[string]string) []rendering.RelationOption {
 	seen := map[string]bool{}
 	var options []rendering.RelationOption
 	for _, r := range records {
-		for _, fieldID := range fields {
+		for _, fieldID := range slices.Sorted(maps.Keys(fields)) {
 			id := DisplayString(r.Values[fieldID])
 			if id == "" || seen[id] {
 				continue
 			}
 			seen[id] = true
-			options = append(options, rendering.RelationOption{ID: id, Label: names[id]})
+			options = append(options, rendering.RelationOption{ID: id, Label: labels[id]})
 		}
 	}
-	return rendering.RelationOptions{domain.UserMachineID: options}, nil
+	return options
 }
 
 // recordEditForm is what an `update` Form inside a records template needs of one record: the route that patches

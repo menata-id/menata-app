@@ -481,12 +481,13 @@ func writeBindingIssues(b domain.PageBinding, ds domain.Dataset, source *domain.
 //   - it may filter on `$current_user` (the viewer) and on `$parameters.<name>` (a query value of the page's
 //     own request); a request that sends no such value lists nothing, which is 007 §9.2's fail closed;
 //   - every `from:` role in the item template is one the Dataset's Machine declares in `card_fields`, and the
-//     Field behind it **is not a reference to a Machine other than the runtime's own people**. A reference
-//     Field resolves through `rendering.RelationOptions`, which is a read of the whole related Machine (007 §20:
-//     no plane may read everything and trim later), so it is refused here until a records binding can follow a
-//     declared Relation instead. The one reference that needs no such read is a `person` Field: the Workspace's
-//     members are answered by `composition.Loader.PersonNames`, which the Loader already memoizes per request
-//     and which does not grow with the records listed.
+//     Field behind it **is not a reference to a Machine other than the runtime's own people**, with one
+//     exception. A reference Field resolves through `rendering.RelationOptions`, which is a read of the whole
+//     related Machine (007 §20: no plane may read everything and trim later), so it is refused here. The two
+//     references that need no such read are a `person` Field (the Workspace's members are answered by
+//     `composition.Loader.PersonNames`, memoized per request and not growing with the records listed) and a
+//     `container` Field (`composition.Loader.RelatedLabels` reads only the records the page lists name, in one
+//     statement by id).
 func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.Machine, where string) []string {
 	var issues []string
 	if ds.Select != domain.SelectRecords {
@@ -504,8 +505,8 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 		switch {
 		case fieldID == "" || !ok:
 			issues = append(issues, fmt.Sprintf("%s: page: from: %s -- machine %q declares no card_fields role %q", where, role, source.ID, role))
-		case f.IsReference() && f.RelatedMachine != domain.UserMachineID:
-			issues = append(issues, fmt.Sprintf("%s: page: from: %s -- role %q is a reference to another machine, which a page cannot yet resolve without reading that whole machine (007 §20); only a person Field is resolved", where, role, role))
+		case f.IsReference() && f.RelatedMachine != domain.UserMachineID && domain.CardFieldRole(role) != domain.CardFieldRoleContainer:
+			issues = append(issues, fmt.Sprintf("%s: page: from: %s -- role %q is a reference to another machine, which a page cannot yet resolve without reading that whole machine (007 §20); only a person Field and a container Field are resolved", where, role, role))
 		}
 	}
 	return issues

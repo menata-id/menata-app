@@ -690,6 +690,32 @@ func (l *Loader) CardTagsFor(ctx context.Context, m *domain.Machine, records []*
 	return out, nil
 }
 
+// RelatedLabels is the display label of the given records of one Machine, keyed by record id: the Machine's own
+// `title` role, or its first Field when it declares none (the convention optionsOf already follows). It reads
+// only the ids it is handed, in one statement, so a page listing five Tasks reads five Projects however many the
+// Workspace has -- the difference from RelationOptions, which reads the whole target. An id naming no record is
+// absent from the result, and a Machine that is not loaded or has nothing to label by answers nothing.
+func (l *Loader) RelatedLabels(ctx context.Context, machineID string, ids []string) (map[string]string, error) {
+	target, ok := l.machines[machineID]
+	if !ok || len(target.Fields) == 0 || len(ids) == 0 {
+		return nil, nil
+	}
+	records, err := l.store.ListRecordsByIDs(ctx, target.ID, ids)
+	if err != nil {
+		return nil, err
+	}
+	l.reads++
+	labelField := FieldForRole(target, domain.CardFieldRoleTitle)
+	if labelField == "" {
+		labelField = target.Fields[0].ID
+	}
+	labels := make(map[string]string, len(records))
+	for _, r := range records {
+		labels[r.ID] = DisplayString(r.Values[labelField])
+	}
+	return labels, nil
+}
+
 // ConstraintRelatedRecords fetches every record of each Constraint's related Machine, keyed by
 // that Machine's ID, for behavior.CheckConstraints to evaluate against.
 func (l *Loader) ConstraintRelatedRecords(ctx context.Context, m *domain.Machine) (map[string][]*data.Record, error) {

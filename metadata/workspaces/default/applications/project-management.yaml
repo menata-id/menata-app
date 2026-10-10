@@ -160,10 +160,16 @@ navigation:
               align: center
               justify: spread
               children:
-                - static: link
-                  from:
-                    text: title
-                    href: record
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - static: caption
+                      from:
+                        text: container
                 - layout: row
                   gap: tight
                   align: center

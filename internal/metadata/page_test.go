@@ -57,6 +57,7 @@ card_fields:
   - { field: fld_status, role: status }
   - { field: fld_color, role: color }
   - { field: fld_owner, role: person }
+  - { field: fld_parent, role: container }
 datasets:
   - id: ds_by_status
     dimension: fld_status
@@ -211,8 +212,18 @@ func TestPage_aPersonRoleIsTheOneReferenceAPageResolves(t *testing.T) {
 		t.Errorf("a person role was refused: %v", err)
 	}
 	err := pageFixtureWith(t, page, "relation\n    machine: mch_doc")
-	if err == nil || !strings.Contains(err.Error(), "only a person Field is resolved") {
+	if err == nil || !strings.Contains(err.Error(), "only a person Field and a container Field are resolved") {
 		t.Errorf("a relation role: error = %v; want it refused", err)
+	}
+}
+
+// TestPage_aContainerRoleLoadsWhereARelationRoleIsRefused: the other reference a page resolves. A `container` Field
+// is a relation, and its title is read for only the records the page lists (composition.Loader.RelatedLabels), so a
+// page may take its text from it; the same relation declared under any other role is still the whole-Machine read.
+func TestPage_aContainerRoleLoadsWhereARelationRoleIsRefused(t *testing.T) {
+	page := "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n" + list("ds_rows", "container")
+	if err := pageFixtureWith(t, page, "person"); err != nil {
+		t.Errorf("a container role was refused: %v", err)
 	}
 }
 

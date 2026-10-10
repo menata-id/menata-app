@@ -181,6 +181,7 @@ card_fields:
   - { field: fld_status, role: status }
   - { field: fld_due_date, role: date }
   - { field: fld_assignee, role: person }
+  - { field: fld_project, role: container }
 
 views:
   - id: vw_task_board
