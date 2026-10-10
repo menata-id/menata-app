@@ -545,7 +545,6 @@ past `capability-lifecycle.md` §2). Items waiting on a trigger, and the six own
 there and are deliberately not here.
 
 **P0 -- defects, no dependencies**
-- K06 Fonts and icons fingerprinted, or `assets.go`'s comment corrected.
 - K07 Stale numbers out of CLAUDE.md, writing-guide, capabilities, getting-started and code comments.
 
 **P1 -- a broken Workspace never stops another (005 Failure Handling, 001 #9)**
