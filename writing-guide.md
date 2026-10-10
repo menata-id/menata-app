@@ -1404,6 +1404,28 @@ role and one comparison -- no `and`/`or`, no comparing two roles, and no test on
 shown only to an admin is a different scope, 007 §15.2, and is not built). It hides a node; it is not a permission --
 a Button's own rule (Permission, `transitions:`) still decides whether it is drawn for that viewer.
 
+**One node per tag of the record (`each: tags`, K15, 2026-10-10).** Inside a records Collection's item template,
+a node may carry `each: tags` and is then drawn once for every tag the current record owns -- the Machine's
+`card_tags:` (the join Machine's Labels) -- or not at all when it has none. The node takes `from:` as usual, but the
+roles are the **tag's**, not the record's: `title` (the Label's name) and `color`.
+
+```yaml
+- component: Collection
+  binding: {dataset: ds_my_tasks_overdue, rows: records}
+  children:
+    - layout: row
+      gap: tight
+      children:
+        - component: Tag
+          each: tags
+          from: {label: title, color: color}
+```
+
+Refused at load: `each:` outside a records template, a value other than `tags`, a Machine with no `card_tags:`, a
+`from:` role other than `title`/`color`; refused at lowering: an `each:` node with no `from:` (it would repeat
+identically), one that also carries `binding:`, and one inside another `each:`. A node under `each:` holds no write of its own, so a
+Button there cannot act on the parent record. The tags of every listed record are read in two statements, however many records.
+
 **A count with plural text (3c-4, 2026-10-09).** A `static` node inside a records Collection's item template
 may take `count:` instead of `text:`: the number of children a Relation (007 §7.5) found for *that record*,
 with the author's own words around it.

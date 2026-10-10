@@ -58,6 +58,10 @@ type RecordSet struct {
 	Deletes     []RecordAction
 	Moves       []RecordMove
 	Transitions []RecordTransition
+	// Tags is each record's tag list for an `each: tags` node, in the same order: per tag, its `title` and
+	// `color` roles. Empty when the resolver has none to offer, which makes an `each:` an error and not a chip
+	// that is silently never drawn.
+	Tags [][]map[string]string
 	// Done and Reopen are the Machine's `completion:` values, what the `$done`/`$reopen` of a `when:` mean ("" when
 	// it declares none). ShapeOnly marks the load-time placeholder, for which every `when:` holds.
 	Done, Reopen string
@@ -108,6 +112,11 @@ type RecordWrites struct {
 	Move   *RecordMove
 	// Transition is the status move this record's resolver offered.
 	Transition *RecordTransition
+	// Tags is this record's tag list (RecordSet.Tags), and nil when the resolver offered none. InEach marks the
+	// writes handed to the copies an `each:` draws, which hold no write of their own: a Button there would act on
+	// the parent record under a tag's name, and a second `each:` has nothing to walk.
+	Tags   []map[string]string
+	InEach bool
 	// Done, Reopen and ShapeOnly are the RecordSet's, shared by every record: what a `when:` sentinel means.
 	Done, Reopen string
 	ShapeOnly    bool
@@ -245,6 +254,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 			return nil, err
 		}
 	}
+	if n.Each != "" {
+		return lowerEach(n, r, path, record, writes)
+	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteUpdate {
 		return lowerUpdateForm(n, path, record, writes)
 	}
@@ -304,6 +316,37 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 		out.Children = append(out.Children, kids...)
 	}
 	return []UINode{out}, nil
+}
+
+// lowerEach draws the node once for each of the current record's tags, or not at all when it has none. The copy is
+// lowered with the tag as its record, so `from: {label: title, color: color}` reads the tag and the node needs no
+// other grammar; it is lowered with writes of its own that carry only the shared completion words, since a
+// write there would be the parent record's under a tag's name.
+func lowerEach(n domain.PageNode, r Resolver, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
+	if n.Each != domain.PageEachTags {
+		return nil, fmt.Errorf("%s: each: %q is not a list a record owns (%s)", path, n.Each, domain.PageEachTags)
+	}
+	if record == nil || writes == nil || writes.InEach {
+		return nil, fmt.Errorf("%s: each: %s is valid only directly in the item template of a Collection bound with rows: %s", path, n.Each, domain.PageRowsRecords)
+	}
+	if len(n.From) == 0 {
+		return nil, fmt.Errorf("%s: each: %s draws the node once per tag, so it must take something from the tag with from:", path, n.Each)
+	}
+	if n.Binding != nil {
+		return nil, fmt.Errorf("%s: each: %s and binding: are two ways to repeat a node, and a node has one", path, n.Each)
+	}
+	each := n
+	each.Each = ""
+	inner := &RecordWrites{Done: writes.Done, Reopen: writes.Reopen, ShapeOnly: writes.ShapeOnly, InEach: true}
+	var out []UINode
+	for i, tag := range writes.Tags {
+		kids, err := lower(each, r, path, tag, inner)
+		if err != nil {
+			return nil, fmt.Errorf("tag %d: %w", i, err)
+		}
+		out = append(out, kids...)
+	}
+	return out, nil
 }
 
 // lowerCount turns `count: {of, one, other}` into the node's `text`: the number of children the record's
@@ -656,6 +699,9 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		}
 		if i < len(set.Transitions) {
 			writes.Transition = &set.Transitions[i]
+		}
+		if i < len(set.Tags) {
+			writes.Tags = set.Tags[i]
 		}
 		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec, writes)
 		if err != nil {

@@ -723,3 +723,30 @@ func TestBindingIssuesWalksIntoWhen(t *testing.T) {
 		t.Errorf("a misspelt option reached no check: %q", got)
 	}
 }
+
+func eachPage(inTemplate bool, each string) string {
+	tag := "            - component: Tag\n              each: " + each + "\n              from: { label: title, color: color }\n"
+	if !inTemplate {
+		return "  - id: nav_e\n    label: E\n    route: /pages/nav_e\n    page:\n      layout: stack\n      children:\n        - component: Tag\n          each: " + each + "\n          from: { label: title, color: color }\n"
+	}
+	return "  - id: nav_e\n    label: E\n    route: /pages/nav_e\n    page:\n      layout: stack\n      children:\n        - component: Collection\n          gap: tight\n          binding: { dataset: ds_rows, rows: records }\n          children:\n" + tag
+}
+
+// TestPage_eachTagsNeedsAMachineThatDeclaresCardTags: `each: tags` is valid only inside a records template over a
+// Machine with `card_tags:`; the fixture's Machine has none, so an otherwise well-formed page is refused naming
+// why, and so is one outside a template, one with a list that is not tags, and an empty value.
+func TestPage_eachTagsNeedsAMachineThatDeclaresCardTags(t *testing.T) {
+	for name, c := range map[string]struct{ nav, want string }{
+		"a Machine with no card_tags": {eachPage(true, "tags"), "declares no card_tags"},
+		"outside a template":          {eachPage(false, "tags"), "item template"},
+		"a list that is not tags":     {eachPage(true, "comments"), "not a list"},
+	} {
+		err := pageFixture(t, c.nav)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error = %v; want it to mention %q", name, err, c.want)
+		}
+	}
+	if err := pageFixture(t, strings.Replace(eachPage(true, "tags"), "each: tags", "each: ", 1)); err == nil {
+		t.Error("an empty each: loaded")
+	}
+}

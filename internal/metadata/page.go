@@ -24,7 +24,7 @@ import (
 // ones the node's type does not declare. The strictness lives in one place, the one that already knows the
 // vocabulary.
 //
-// The reserved keys are the three discriminators, `children`, `binding`, `from`, `to`, `param` and `list_of`. Exactly one discriminator per
+// The reserved keys are the three discriminators, `children`, `binding`, `from`, `to`, `param`, `list_of` and `each`. Exactly one discriminator per
 // node: `layout:`, `static:` or `component:`, whose value is the type.
 type pageNodeDoc struct {
 	kind     string
@@ -37,6 +37,7 @@ type pageNodeDoc struct {
 	param    string
 	count    *domain.PageCount
 	when     *domain.PageCondition
+	each     string
 	children []pageNodeDoc
 }
 
@@ -99,6 +100,11 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return err
 			}
 			p.count = c
+		case "each":
+			if val.Kind != yaml.ScalarNode || val.Value == "" {
+				return fmt.Errorf("line %d: each: names the list a record owns, which is %s", key.Line, domain.PageEachTags)
+			}
+			p.each = val.Value
 		case "when":
 			w, err := decodePageWhen(val)
 			if err != nil {
@@ -228,7 +234,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, When: p.when}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, When: p.when, Each: p.each}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -303,7 +309,10 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			}
 			// ShapeOnly: every `when:` holds here, so the nodes a real record would hide are still checked. Whether
 			// the role and the operand are right for the real Machine is `conditionIssues`' question.
-			return ir.RecordSet{Records: []map[string]string{rec}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}, Moves: []ir.RecordMove{mv}, Transitions: []ir.RecordTransition{tr}, Done: "x", Reopen: "x", ShapeOnly: true}, nil
+			// One tag, a palette entry for the same reason `color` above is one: an `each: tags` node is checked as a
+			// Tag would be drawn. Whether the real Machine declares `card_tags:` is `bindingIssues`' question.
+			tags := []map[string]string{{string(domain.CardFieldRoleTitle): "x", string(domain.CardFieldRoleColor): string(domain.TagSlate)}}
+			return ir.RecordSet{Records: []map[string]string{rec}, Tags: [][]map[string]string{tags}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}, Moves: []ir.RecordMove{mv}, Transitions: []ir.RecordTransition{tr}, Done: "x", Reopen: "x", ShapeOnly: true}, nil
 		},
 	}
 }
@@ -411,6 +420,22 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 	}
 	if n.When != nil {
 		issues = append(issues, conditionIssues(*n.When, item, where)...)
+	}
+	if n.Each != "" {
+		switch {
+		case n.Each != domain.PageEachTags:
+			issues = append(issues, fmt.Sprintf("%s: page: each: %q is not a list a record owns (%s)", where, n.Each, domain.PageEachTags))
+		case item == nil:
+			issues = append(issues, fmt.Sprintf("%s: page: each: %s is valid only inside the item template of a Collection bound with rows: records", where, n.Each))
+		case item.CardTags == nil:
+			issues = append(issues, fmt.Sprintf("%s: page: each: %s: machine %q declares no card_tags:, so its records have no tags to draw", where, n.Each, item.ID))
+		default:
+			for _, role := range sortedKeys(rolesOf(n.From)) {
+				if role != string(domain.CardFieldRoleTitle) && role != string(domain.CardFieldRoleColor) {
+					issues = append(issues, fmt.Sprintf("%s: page: each: %s: from: %s -- a tag has the roles %s and %s", where, n.Each, role, domain.CardFieldRoleTitle, domain.CardFieldRoleColor))
+				}
+			}
+		}
 	}
 	if n.ListOf != "" {
 		if _, ok := datasets[n.ListOf]; !ok {
@@ -612,6 +637,10 @@ func conditionIssues(c domain.PageCondition, item *domain.Machine, where string)
 func fromRoles(nodes []domain.PageNode) map[string]bool {
 	out := map[string]bool{}
 	for _, n := range nodes {
+		if n.Each != "" {
+			// An `each:` node reads its tag, not the record: its roles are checked against the tag's two.
+			continue
+		}
 		for _, role := range n.From {
 			if role != domain.PageRecordRole { // reserved: the record's route, not a Projection role
 				out[role] = true
@@ -620,6 +649,14 @@ func fromRoles(nodes []domain.PageNode) map[string]bool {
 		for role := range fromRoles(n.Children) {
 			out[role] = true
 		}
+	}
+	return out
+}
+
+func rolesOf(from map[string]string) map[string]bool {
+	out := map[string]bool{}
+	for _, role := range from {
+		out[role] = true
 	}
 	return out
 }

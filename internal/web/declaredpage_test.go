@@ -1349,3 +1349,59 @@ func TestDeclaredPageRecentActivityShowsOnlyThisApplicationsNewestTen(t *testing
 		}
 	}
 }
+
+// TestDeclaredPageDrawsEachTasksOwnTagsInItsRow: `each: tags` through the real store. A Task with two Labels draws two
+// chips in its own row, a Task with none draws none, and one Task's Label never lands on another's row. Titles are
+// compared per row so a chip read from the wrong record would show.
+func TestDeclaredPageDrawsEachTasksOwnTagsInItsRow(t *testing.T) {
+	h, cookie, ctx, store, _, _, actorID := routerSetupFor(t, "declaredtags", "default")
+	mk := func(machine string, v map[string]any) string {
+		rec, err := store.CreateRecord(ctx, machine, v)
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", machine, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, machine, rec.ID) })
+		return rec.ID
+	}
+	late := time.Now().UTC().AddDate(0, 0, -30).Format("2006-01-02")
+	task := func(title string) string {
+		return mk("mch_task", map[string]any{"fld_title": title, "fld_status": "todo", "fld_assignee": actorID, "fld_due_date": late})
+	}
+	tagged, plain, other := task("Tagprobe-tagged"), task("Tagprobe-plain"), task("Tagprobe-other")
+	urgent := mk("mch_label", map[string]any{"fld_name": "Tagprobe-urgent", "fld_color": "rose"})
+	backend := mk("mch_label", map[string]any{"fld_name": "Tagprobe-backend", "fld_color": "cyan"})
+	for _, j := range [][2]string{{tagged, urgent}, {tagged, backend}, {other, backend}} {
+		mk("mch_card_label", map[string]any{"fld_task": j[0], "fld_label": j[1]})
+	}
+	_ = plain
+
+	body := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	rowOf := func(title string) string {
+		i := strings.Index(body, ">"+title+"<")
+		if i < 0 {
+			t.Fatalf("no row for %q:\n%s", title, body)
+		}
+		end := len(body)
+		// The row ends where the next Task's title link starts: the next ">Tagprobe-<" with a closing bracket.
+		from := i + len(title) + 2
+		if j := strings.Index(body[from:], "</li>"); j >= 0 {
+			end = from + j
+		}
+		for _, next := range []string{"Tagprobe-tagged", "Tagprobe-plain", "Tagprobe-other"} {
+			if j := strings.Index(body[from:], ">"+next+"<"); j >= 0 && from+j < end {
+				end = from + j
+			}
+		}
+		return body[i:end]
+	}
+	has := func(row, label string) bool { return strings.Contains(row, label) }
+	if r := rowOf("Tagprobe-tagged"); !has(r, "Tagprobe-urgent") || !has(r, "Tagprobe-backend") {
+		t.Errorf("the tagged Task's row misses a chip:\n%s", r)
+	}
+	if r := rowOf("Tagprobe-plain"); strings.Contains(r, "rounded-full border") {
+		t.Errorf("a Task with no Label drew a chip:\n%s", r)
+	}
+	if r := rowOf("Tagprobe-other"); !has(r, "Tagprobe-backend") || has(r, "Tagprobe-urgent") {
+		t.Errorf("the other Task's row should carry only backend:\n%s", r)
+	}
+}

@@ -236,6 +236,7 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 				if ds.Select != domain.SelectRecords {
 					out = append(out, "records binding over "+ds.ID+", which is an aggregate")
 				}
+				out = append(out, eachProblems(n.Children, m)...)
 				for _, role := range fromRolesUnder(n.Children) {
 					fieldID := m.CardFieldFor(domain.CardFieldRole(role))
 					f, ok := m.FieldByID(fieldID)
@@ -256,9 +257,36 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 	return out
 }
 
+// eachProblems holds an `each: tags` node to what it needs, stated again here and not by calling metadata: its Machine
+// declares `card_tags:`, and it reads only the tag's two roles. Such a node's `from:` is not the record's, so
+// fromRolesUnder leaves its subtree out.
+func eachProblems(nodes []domain.PageNode, m *domain.Machine) []string {
+	var out []string
+	for _, n := range nodes {
+		if n.Each != "" {
+			if n.Each != domain.PageEachTags {
+				out = append(out, "each: "+n.Each+" is not a list a record owns")
+			}
+			if m.CardTags == nil {
+				out = append(out, "each: "+n.Each+" -- "+m.ID+" declares no card_tags:")
+			}
+			for _, role := range n.From {
+				if role != string(domain.CardFieldRoleTitle) && role != string(domain.CardFieldRoleColor) {
+					out = append(out, "each: "+n.Each+" -- from: "+role+" is not a role of a tag")
+				}
+			}
+		}
+		out = append(out, eachProblems(n.Children, m)...)
+	}
+	return out
+}
+
 func fromRolesUnder(nodes []domain.PageNode) []string {
 	var out []string
 	for _, n := range nodes {
+		if n.Each != "" {
+			continue
+		}
 		for prop, role := range n.From {
 			// The reserved word is the record's route, not a Projection role; it is judged where it is used
 			// (a link's href) by TestEveryInstalledLinkNamesItsDestinationOnce, and by ir.Lower for any other prop.
@@ -296,6 +324,16 @@ func TestRecordsBindingProblemsSeesEachFault(t *testing.T) {
 	if got := recordsBindingProblems(list("ds_list", "title"), owner); len(got) != 0 {
 		t.Errorf("a sound list reported %v", got)
 	}
+	eachList := func(each, role string) domain.PageNode {
+		l := list("ds_list", "title")
+		l.Children[0].Children = []domain.PageNode{{Kind: "component", Type: "Tag", Each: each, From: map[string]string{"label": role}}}
+		return l
+	}
+	tagged := *m
+	tagged.CardTags = &domain.CardTags{Machine: "mch_j", Via: "fld_a", Tag: "fld_b"}
+	if got := recordsBindingProblems(eachList("tags", "title"), map[string]*domain.Machine{"ds_list": &tagged}); len(got) != 0 {
+		t.Errorf("a sound each: tags reported %v", got)
+	}
 	// A reference to the runtime's own people is the one reference a page resolves (PersonNames, no Machine read).
 	people := &domain.Machine{
 		ID:         "mch_p",
@@ -307,10 +345,13 @@ func TestRecordsBindingProblemsSeesEachFault(t *testing.T) {
 		t.Errorf("a person role reported %v", got)
 	}
 	for name, page := range map[string]domain.PageNode{
-		"aggregate dataset": list("ds_agg", "title"),
-		"unknown dataset":   list("ds_none", "title"),
-		"undeclared role":   list("ds_list", "money"),
-		"reference role":    list("ds_list", "person"),
+		"aggregate dataset":                   list("ds_agg", "title"),
+		"unknown dataset":                     list("ds_none", "title"),
+		"undeclared role":                     list("ds_list", "money"),
+		"reference role":                      list("ds_list", "person"),
+		"each on a Machine with no card_tags": eachList("tags", "title"),
+		"each over another list":              eachList("comments", "title"),
+		"each reading a record role":          eachList("tags", "status"),
 	} {
 		if got := recordsBindingProblems(page, owner); len(got) == 0 {
 			t.Errorf("%s: no problem reported", name)

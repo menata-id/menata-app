@@ -248,6 +248,15 @@ navigation:
                     - static: caption
                       from:
                         text: container
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: Tag
+                          each: tags
+                          from:
+                            label: title
+                            color: color
         - layout: stack
           gap: tight
           children:
@@ -272,6 +281,15 @@ navigation:
                     - static: caption
                       from:
                         text: container
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: Tag
+                          each: tags
+                          from:
+                            label: title
+                            color: color
         - layout: stack
           gap: tight
           children:
@@ -296,6 +314,15 @@ navigation:
                     - static: caption
                       from:
                         text: container
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: Tag
+                          each: tags
+                          from:
+                            label: title
+                            color: color
         - layout: stack
           gap: tight
           children:
@@ -320,6 +347,15 @@ navigation:
                     - static: caption
                       from:
                         text: container
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: Tag
+                          each: tags
+                          from:
+                            label: title
+                            color: color
   - id: nav_calendar
     label: Calendar
     route: /calendar

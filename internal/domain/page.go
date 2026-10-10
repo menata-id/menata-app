@@ -51,9 +51,18 @@ type PageNode struct {
 	// `when: {role: status, is_not: $done}`. It is a statement about the record's own Projection role, so it
 	// is valid only inside a records-bound Collection's item template, and a node it hides is not lowered at
 	// all -- its children are not either, which is what makes it a visibility rule and not a CSS class.
-	When     *PageCondition
+	When *PageCondition
+	// Each makes the node repeat once for every item of a list the current record owns (`each: tags`): the chips
+	// a Machine's `card_tags:` (007 §7.6) attaches to it. The copy takes its `from:` out of that item, whose roles
+	// are `title` and `color` and nothing else, and a record with none draws none. Valid only directly in a
+	// records-bound Collection's item template over a Machine that declares `card_tags:`; the one value is
+	// PageEachTags, a closed set, because a second list would be a second case to measure first.
+	Each     string
 	Children []PageNode
 }
+
+// PageEachTags is the one list `each:` can walk: a record's tags, as its Machine's `card_tags:` declares them.
+const PageEachTags = "tags"
 
 // PageCondition is a record-scoped test on a Projection role: Role is a `card_fields` role, and exactly one of Is
 // and IsNot is set. The operand is a literal value or one of the two sentinels a transition's `becomes:` already

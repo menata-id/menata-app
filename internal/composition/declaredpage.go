@@ -128,7 +128,14 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	if err != nil {
 		return ir.RecordSet{}, err
 	}
+	// The tags of exactly the listed records, in two statements however many there are (CardTagsFor), and none at
+	// all when the Machine declares no `card_tags:`.
+	tags, err := l.CardTagsFor(ctx, src, records)
+	if err != nil {
+		return ir.RecordSet{}, err
+	}
 	out := make([]map[string]string, 0, len(records))
+	tagLists := make([][]map[string]string, 0, len(records))
 	edits := make([]ir.FormSpec, 0, len(records))
 	deletes := make([]ir.RecordAction, 0, len(records))
 	moves := make([]ir.RecordMove, 0, len(records))
@@ -144,8 +151,13 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 			item[domain.PageCountRole(rel.ID)] = strconv.Itoa(len(sel.Related(rel.ID, r.ID)))
 		}
 		out = append(out, item)
+		var list []map[string]string
+		for _, t := range tags[r.ID] {
+			list = append(list, map[string]string{string(domain.CardFieldRoleTitle): t.Label, string(domain.CardFieldRoleColor): string(t.Color)})
+		}
+		tagLists = append(tagLists, list)
 	}
-	set := ir.RecordSet{Records: out, Edits: edits, Deletes: deletes, Moves: moves, Transitions: transitions, Truncated: sel.Truncated, Limit: sel.Limit}
+	set := ir.RecordSet{Records: out, Tags: tagLists, Edits: edits, Deletes: deletes, Moves: moves, Transitions: transitions, Truncated: sel.Truncated, Limit: sel.Limit}
 	if src.Completion != nil {
 		set.Done, set.Reopen = src.Completion.Done, src.ReopenValue()
 	}
