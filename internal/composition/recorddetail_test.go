@@ -14,6 +14,7 @@ import (
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
 	"menata.app/internal/metadata"
+	"menata.app/internal/rendering"
 	"menata.app/internal/storage"
 )
 
@@ -83,7 +84,7 @@ func TestRecordExtrasShowsOnlyThisRecordsEventsNewestFirst(t *testing.T) {
 		}
 	}
 
-	extras, err := l.RecordExtras(ctx, l.Machine("mch_task"), &data.Record{ID: "rec_a"})
+	extras, err := l.RecordExtras(ctx, l.Machine("mch_task"), &data.Record{ID: "rec_a"}, nil)
 	if err != nil {
 		t.Fatalf("RecordExtras: %v", err)
 	}
@@ -101,7 +102,7 @@ func TestRecordExtrasShowsOnlyThisRecordsEventsNewestFirst(t *testing.T) {
 // A Workspace that carries no activity Machine has no history to show; the page must still render.
 func TestRecordExtras_AWorkspaceWithoutAnActivityLogHasNoSectionAndNoError(t *testing.T) {
 	l, _, ctx := recordExtrasLoader(t, false)
-	extras, err := l.RecordExtras(ctx, l.Machine("mch_task"), &data.Record{ID: "rec_a"})
+	extras, err := l.RecordExtras(ctx, l.Machine("mch_task"), &data.Record{ID: "rec_a"}, nil)
 	if err != nil {
 		t.Fatalf("RecordExtras: %v", err)
 	}
@@ -169,7 +170,7 @@ func moveFixture(t *testing.T) (*Loader, *domain.Machine, context.Context, map[s
 // among the cards of its own list, and the board View the PATCH has to name so the server places it as a drop would.
 func TestRecordExtras_MoveNamesTheListsTheCurrentOneAndThePositionInIt(t *testing.T) {
 	l, task, ctx, made := moveFixture(t)
-	extras, err := l.RecordExtras(ctx, task, made["b"])
+	extras, err := l.RecordExtras(ctx, task, made["b"], nil)
 	if err != nil {
 		t.Fatalf("RecordExtras: %v", err)
 	}
@@ -195,7 +196,7 @@ func TestRecordExtras_MoveNamesTheListsTheCurrentOneAndThePositionInIt(t *testin
 // Position is read from the record's own list: one bounded statement, not the whole Machine.
 func TestRecordExtras_MoveReadsOnlyTheRecordsOwnList(t *testing.T) {
 	l, task, ctx, made := moveFixture(t)
-	if _, err := l.RecordExtras(ctx, task, made["d"]); err != nil {
+	if _, err := l.RecordExtras(ctx, task, made["d"], nil); err != nil {
 		t.Fatalf("RecordExtras: %v", err)
 	}
 	if _, whole := l.listed["mch_task"]; whole {
@@ -208,14 +209,14 @@ func TestRecordExtras_MoveReadsOnlyTheRecordsOwnList(t *testing.T) {
 func TestRecordExtras_NoMoveWithoutABoardOrWithoutAKnownList(t *testing.T) {
 	l, task, ctx, made := moveFixture(t)
 	task.Views = []domain.View{{ID: "vw_table", Type: domain.ViewTable}}
-	extras, err := l.RecordExtras(ctx, task, made["a"])
+	extras, err := l.RecordExtras(ctx, task, made["a"], nil)
 	if err != nil || extras.Move != nil {
 		t.Errorf("a Machine with no board drew a Move panel (err %v)", err)
 	}
 
 	task.Views = []domain.View{{ID: "vw_board", Type: domain.ViewBoard, GroupBy: "fld_list"}}
 	orphan := &data.Record{ID: "rec_orphan", Values: map[string]any{"fld_list": "lst_deleted"}}
-	extras, err = l.RecordExtras(ctx, task, orphan)
+	extras, err = l.RecordExtras(ctx, task, orphan, nil)
 	if err != nil || extras.Move != nil {
 		t.Errorf("a card in a deleted list drew a Move panel (err %v)", err)
 	}
@@ -370,7 +371,7 @@ func TestRecordExtras_CommentsJoinTheFeedAndAreNotAChildTable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	extras, err := l.RecordExtras(ctx, task, &data.Record{ID: "rec_a"})
+	extras, err := l.RecordExtras(ctx, task, &data.Record{ID: "rec_a"}, nil)
 	if err != nil {
 		t.Fatalf("RecordExtras: %v", err)
 	}
@@ -401,5 +402,33 @@ func TestRecordCopy_NamesTheCopyAfterTheRecordAndIsAbsentWhereACopyIsNotAllowed(
 	m.AppendOnly = true
 	if recordCopy(m, r) != nil {
 		t.Error("an append-only Machine was offered a copy")
+	}
+}
+
+// The Move panel offers every further relation Field of the Machine beside the List (a Task's Project), from the
+// options the page already loaded, and a person Field is not one; Position offers the list's cards plus one.
+func TestRecordExtras_MoveOffersOtherRelationsAndOneSlotPastTheList(t *testing.T) {
+	l, task, ctx, made := moveFixture(t)
+	task.Fields = append(task.Fields,
+		domain.Field{ID: "fld_project", Name: "Project", Type: domain.FieldTypeRelation, RelatedMachine: "mch_project"},
+		domain.Field{ID: "fld_assignee", Name: "Assignee", Type: domain.FieldTypePerson, RelatedMachine: domain.UserMachineID},
+	)
+	relations := rendering.RelationOptions{
+		"mch_project":        {{ID: "prj_1", Label: "Launch"}, {ID: "prj_2", Label: "Retro"}},
+		domain.UserMachineID: {{ID: "usr_1", Label: "Ana"}},
+	}
+	extras, err := l.RecordExtras(ctx, task, made["b"], relations)
+	if err != nil {
+		t.Fatalf("RecordExtras: %v", err)
+	}
+	mv := extras.Move
+	if mv == nil || len(mv.Scopes) != 1 {
+		t.Fatalf("scopes = %+v, want exactly the Project (the List is the group Field and the assignee is a person)", mv)
+	}
+	if sc := mv.Scopes[0]; sc.Field != "fld_project" || sc.Label != "Project" || len(sc.Targets) != 2 {
+		t.Errorf("scope = %+v, want Project with its two records", sc)
+	}
+	if mv.Positions != 4 {
+		t.Errorf("positions = %d, want 4 (three cards in Backlog, plus one to put it last)", mv.Positions)
 	}
 }

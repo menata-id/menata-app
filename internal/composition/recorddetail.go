@@ -29,7 +29,7 @@ const recordActivityDataset = "ds_record_activity"
 // absent rather than an error -- an activity log is a runtime reference some Workspace may not carry, and
 // a detail page that 500s for lacking it would be the outage class CLAUDE.md warns about, for a section
 // that is not load-bearing.
-func (l *Loader) RecordExtras(ctx context.Context, m *domain.Machine, r *data.Record) (rendering.RecordExtras, error) {
+func (l *Loader) RecordExtras(ctx context.Context, m *domain.Machine, r *data.Record, relations rendering.RelationOptions) (rendering.RecordExtras, error) {
 	var out rendering.RecordExtras
 
 	tags, err := l.CardTagsFor(ctx, m, []*data.Record{r})
@@ -38,7 +38,7 @@ func (l *Loader) RecordExtras(ctx context.Context, m *domain.Machine, r *data.Re
 	}
 	out.Tags = tags[r.ID]
 
-	if out.Move, err = l.recordMove(ctx, m, r); err != nil {
+	if out.Move, err = l.recordMove(ctx, m, r, relations); err != nil {
 		return out, err
 	}
 	out.Copy = recordCopy(m, r)
@@ -152,7 +152,7 @@ func recordCopy(m *domain.Machine, r *data.Record) *rendering.RecordCopy {
 //
 // Position is read from the record's own list only -- the cards sharing its group value, in the order a board
 // draws them -- not from the whole Machine, so the cost is one bounded statement whatever else exists.
-func (l *Loader) recordMove(ctx context.Context, m *domain.Machine, r *data.Record) (*rendering.RecordMove, error) {
+func (l *Loader) recordMove(ctx context.Context, m *domain.Machine, r *data.Record, relations rendering.RelationOptions) (*rendering.RecordMove, error) {
 	v, ok := m.BoardView()
 	if !ok {
 		return nil, nil
@@ -180,9 +180,34 @@ func (l *Loader) recordMove(ctx context.Context, m *domain.Machine, r *data.Reco
 		}
 	}
 	return &rendering.RecordMove{
-		CardMove: rendering.CardMove{Field: v.GroupBy, Targets: targets, Current: current, Position: position},
-		ViewID:   v.ID,
+		CardMove:  rendering.CardMove{Field: v.GroupBy, Targets: targets, Current: current, Position: position},
+		ViewID:    v.ID,
+		Scopes:    moveScopes(m, v, r, relations),
+		Positions: max(len(siblings)+1, position),
 	}, nil
+}
+
+// moveScopes are the other places a record can be filed besides its list: every further relation Field the
+// Machine declares (a Task's Project beside its List), each with the records it may name. A person Field is
+// not one -- assigning someone is not moving a card. The options are what the page already loaded, so this
+// costs no statement; a relation whose target offered nothing is left out rather than drawn empty.
+func moveScopes(m *domain.Machine, v domain.View, r *data.Record, relations rendering.RelationOptions) []rendering.MoveScope {
+	var out []rendering.MoveScope
+	for _, f := range m.Fields {
+		if f.Type != domain.FieldTypeRelation || f.ID == v.GroupBy || f.RelatedMachine == domain.UserMachineID {
+			continue
+		}
+		opts := relations[f.RelatedMachine]
+		if len(opts) == 0 {
+			continue
+		}
+		targets := make([]rendering.MoveTarget, 0, len(opts))
+		for _, o := range opts {
+			targets = append(targets, rendering.MoveTarget{Value: o.ID, Label: o.Label})
+		}
+		out = append(out, rendering.MoveScope{Field: f.ID, Label: f.Name, Current: DisplayString(r.Values[f.ID]), Targets: targets})
+	}
+	return out
 }
 
 // checklistFor is how a child collection becomes a to-do list instead of a table: its Machine declares

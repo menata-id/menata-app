@@ -132,7 +132,7 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				return
 			}
 			sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
-			extras, err := ld.RecordExtras(req.Context(), machine, record)
+			extras, err := ld.RecordExtras(req.Context(), machine, record, relations)
 			if err != nil {
 				serverError(w, err)
 				return
@@ -152,7 +152,7 @@ func showRecordRow(store *data.Store, files *storage.Store, cfg config.Config) h
 				return
 			}
 			sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
-			extras, err := ld.RecordExtras(req.Context(), machine, record)
+			extras, err := ld.RecordExtras(req.Context(), machine, record, relations)
 			if err != nil {
 				serverError(w, err)
 				return
@@ -517,7 +517,7 @@ func renderRecord(w http.ResponseWriter, req *http.Request, machines map[string]
 			return
 		}
 		sigPlacement := documentSignaturePlacementView(req.Context(), ld, files, machines, machine, record.ID, actor)
-		extras, err := ld.RecordExtras(req.Context(), machine, record)
+		extras, err := ld.RecordExtras(req.Context(), machine, record, relations)
 		if err != nil {
 			serverError(w, err)
 			return

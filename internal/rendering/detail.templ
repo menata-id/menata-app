@@ -65,6 +65,18 @@ type RecordCopy struct {
 type RecordMove struct {
 	CardMove
 	ViewID string
+	// Scopes are the record's other relation Fields (a Task's Project beside its List), each offered as a select.
+	Scopes []MoveScope
+	// Positions is how many slots the Position select offers: the cards in the current list plus one, so a card
+	// can be put last. A slot past a longer target list is clamped to its end by the server (placeCard).
+	Positions int
+}
+
+// MoveScope is one further relation Field the Move panel can change: the Field it writes, what to call it, the
+// record it names now ("" for none) and the records it may name.
+type MoveScope struct {
+	Field, Label, Current string
+	Targets               []MoveTarget
 }
 
 // CurrentLabel is the name of the list the record is in now: the target whose value it holds. Composition
@@ -281,9 +293,26 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 								}
 							</select>
 						</label>
+						for _, sc := range move.Scopes {
+							<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+								{ sc.Label }
+								<select name={ sc.Field } class={ fieldClasses(ctx) + " w-full" }>
+									if sc.Current == "" {
+										<option value="" selected>—</option>
+									}
+									for _, t := range sc.Targets {
+										<option value={ t.Value } selected?={ t.Value == sc.Current }>{ t.Label }</option>
+									}
+								</select>
+							</label>
+						}
 						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
 							Position
-							<input type="number" name="position" min="1" value={ fmt.Sprint(move.Position) } class={ fieldClasses(ctx) + " w-full" }/>
+							<select name="position" class={ fieldClasses(ctx) + " w-full" }>
+								for i := 1; i <= move.Positions; i++ {
+									<option value={ fmt.Sprint(i) } selected?={ i == move.Position }>{ fmt.Sprint(i) }</option>
+								}
+							</select>
 						</label>
 						@button("Move", domain.ButtonPrimary, "", "")
 					</form>

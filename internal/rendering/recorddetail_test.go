@@ -64,6 +64,8 @@ func moveForDetail() *RecordMove {
 		CardMove: CardMove{Field: "fld_list", Current: "lst_b", Position: 3, Targets: []MoveTarget{
 			{Value: "lst_a", Label: "Backlog"}, {Value: "lst_b", Label: "Doing"},
 		}},
+		Positions: 4,
+		Scopes:    []MoveScope{{Field: "fld_project", Label: "Project", Current: "prj_2", Targets: []MoveTarget{{Value: "prj_1", Label: "Launch"}, {Value: "prj_2", Label: "Retro"}}}},
 	}
 }
 
@@ -73,7 +75,8 @@ func TestRecordDetail_MovePanelPatchesTheGroupFieldAndPositionThroughTheBoardVie
 	for _, want := range []string{
 		"Move…", `hx-patch="/machines/mch_task/records/rec_1?view=vw_board"`,
 		`name="fld_list"`, `<option value="lst_b" selected>Doing</option>`, `<option value="lst_a">Backlog</option>`,
-		`name="position"`, `value="3"`,
+		`<select name="position"`, `<option value="3" selected>3</option>`, `<option value="4">4</option>`,
+		`<select name="fld_project"`, `<option value="prj_2" selected>Retro</option>`, `<option value="prj_1">Launch</option>`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("detail is missing %q", want)
