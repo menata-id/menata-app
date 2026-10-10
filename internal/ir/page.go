@@ -12,9 +12,21 @@ import (
 
 // Row is one resolved dimension row of a Binding: the Dimension's value and the Measure's number, already
 // formatted. The resolver decides ordering and formatting; Lower only places them.
+//
+// Key is the Dimension's stored value when it is not what the row is called: a reference Field stores an id and
+// the row shows the record's title, and a link that carried the title would send a destination something it
+// cannot compare against. Empty means the label is the value.
 type Row struct {
 	Label string
+	Key   string
 	Value string
+}
+
+func (r Row) linkValue() string {
+	if r.Key != "" {
+		return r.Key
+	}
+	return r.Label
 }
 
 // RowResolver answers a dimension Binding. It is injected, not imported, for the reason `knownComponents` is:
@@ -550,7 +562,7 @@ func lowerDimension(n domain.PageNode, r Resolver, path string) ([]UINode, error
 		if route != "" {
 			// The row's Dimension value travels as data: url.Values escapes it, and the destination compares it
 			// as a bind parameter (007 §9.2), so a value holding `&` or a quote reaches it as itself.
-			props["href"] = route + "?" + url.Values{n.Param: {row.Label}}.Encode()
+			props["href"] = route + "?" + url.Values{n.Param: {row.linkValue()}}.Encode()
 		}
 		out = append(out, UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props})
 	}

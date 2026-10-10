@@ -285,16 +285,19 @@ func bindingRows(ctx context.Context, l *Loader, now time.Time, b domain.PageBin
 	if err != nil {
 		return nil, err
 	}
+	var dim domain.Field
+	if src := l.Machine(ds.Source); src != nil {
+		dim, _ = src.FieldByID(ds.Dimension)
+	}
+	if dim.IsReference() {
+		return referenceRows(ctx, l, dim, agg, b.Measure)
+	}
 	var order []string
 	seen := map[string]bool{}
-	if src := l.Machine(ds.Source); src != nil {
-		if f, ok := src.FieldByID(ds.Dimension); ok {
-			for _, o := range f.Options {
-				if !seen[o] {
-					seen[o] = true
-					order = append(order, o)
-				}
-			}
+	for _, o := range dim.Options {
+		if !seen[o] {
+			seen[o] = true
+			order = append(order, o)
 		}
 	}
 	var rest []string
@@ -312,6 +315,39 @@ func bindingRows(ctx context.Context, l *Loader, now time.Time, b domain.PageBin
 			continue // records with the Dimension unset have no label to show
 		}
 		rows = append(rows, ir.Row{Label: k, Value: formatMeasure(agg.ByDimension[k][b.Measure])})
+	}
+	return rows, nil
+}
+
+// referenceRows is a Dimension over a reference Field (a Project, a person): its stored value is a record id, so
+// each row is named by that record's title -- the label a picker offers for the same record (`optionsOf`) -- and
+// keeps the id as its Key. Ordered by title, then id, since an id carries no order worth showing and §4.6 forbids
+// leaving it to map iteration. A value naming no record that exists (one deleted since) has no title to show and is
+// left out, as an unset one is, rather than drawn as an opaque id.
+func referenceRows(ctx context.Context, l *Loader, dim domain.Field, agg Aggregation, measure string) ([]ir.Row, error) {
+	options, _, err := l.optionsOf(ctx, dim.RelatedMachine)
+	if err != nil {
+		return nil, err
+	}
+	titles := make(map[string]string, len(options))
+	for _, o := range options {
+		titles[o.ID] = o.Label
+	}
+	var keys []string
+	for k := range agg.ByDimension {
+		if titles[k] != "" {
+			keys = append(keys, k)
+		}
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		if titles[keys[i]] != titles[keys[j]] {
+			return titles[keys[i]] < titles[keys[j]]
+		}
+		return keys[i] < keys[j]
+	})
+	rows := make([]ir.Row, 0, len(keys))
+	for _, k := range keys {
+		rows = append(rows, ir.Row{Label: titles[k], Key: k, Value: formatMeasure(agg.ByDimension[k][measure])})
 	}
 	return rows, nil
 }

@@ -141,6 +141,22 @@ datasets:
             - { field: fld_due_date, op: gte, value: $today }
             - { field: fld_due_date, op: lte, value: $today+7 }
 
+  # Open cards per project and per person (K15, 2026-10-10). The Dimension is a reference Field -- a stored id --
+  # so the page draws each row under the related record's title (a Project's name, a person's name) and a row
+  # whose value names no record is left out rather than shown as an id.
+  - id: ds_open_by_project
+    dimension: fld_project
+    measures:
+      - id: msr_open
+        aggregate: count
+        where: { field: fld_status, op: not_equals, value: $done }
+  - id: ds_open_by_assignee
+    dimension: fld_assignee
+    measures:
+      - id: msr_open
+        aggregate: count
+        where: { field: fld_status, op: not_equals, value: $done }
+
 # card_fields: what a Task's own records show wherever a screen renders them without picking
 # Fields itself (007 §7.6 Projection). Added 2026-09-28, when the Case 19 screens stopped reading
 # fld_title/fld_status/fld_due_date off the record in their own .templ files: My Tasks, Calendar and

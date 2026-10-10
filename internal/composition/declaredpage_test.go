@@ -516,3 +516,74 @@ func TestRecordTransitionIsPerRecordAndFollowsTheStateModel(t *testing.T) {
 		t.Error("an append-only Machine was offered a transition")
 	}
 }
+
+// referenceDimensionLoader seeds two Projects and Tasks pointing at them, one pointing at a Project that no longer
+// exists and one pointing at none, so a Dimension over the relation Field has every case to name.
+func referenceDimensionLoader(t *testing.T) (*Loader, context.Context, map[string]string) {
+	t.Helper()
+	url := os.Getenv("DATABASE_URL")
+	if url == "" {
+		t.Skip("set DATABASE_URL to run the declared-page integration tests")
+	}
+	pool, err := pgxpool.New(context.Background(), url)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	store := data.NewStore(pool)
+	ctx := data.WithWorkspaceScope(context.Background(), "ws_declared_page_test")
+	const projectID, taskID = "mch_dp_ref_project", "mch_dp_ref_task"
+	t.Cleanup(func() {
+		if _, err := pool.Exec(context.Background(), `DELETE FROM records WHERE machine_id = ANY($1)`, []string{projectID, taskID}); err != nil {
+			t.Errorf("cleanup: %v", err)
+		}
+	})
+	ids := map[string]string{}
+	for _, name := range []string{"Zebra launch", "Alpha launch"} {
+		rec, err := store.CreateRecord(ctx, projectID, map[string]any{"fld_name": name})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[name] = rec.ID
+	}
+	for ref, n := range map[string]int{ids["Zebra launch"]: 1, ids["Alpha launch"]: 2, "rec_deleted_long_ago": 4} {
+		for range n {
+			if _, err := store.CreateRecord(ctx, taskID, map[string]any{"fld_project": ref}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if _, err := store.CreateRecord(ctx, taskID, map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	project := &domain.Machine{ID: projectID, Fields: []domain.Field{{ID: "fld_name", Type: domain.FieldTypeText}}}
+	task := &domain.Machine{
+		ID:     taskID,
+		Fields: []domain.Field{{ID: "fld_project", Type: domain.FieldTypeRelation, RelatedMachine: projectID}},
+		Datasets: []domain.Dataset{{
+			ID: "ds_by_project", Source: taskID, Dimension: "fld_project",
+			Measures: []domain.Measure{{ID: "msr_total", Aggregate: domain.AggregateCount}},
+		}},
+	}
+	return NewLoader(store, map[string]*domain.Machine{projectID: project, taskID: task}), ctx, ids
+}
+
+// A Dimension over a reference Field names each row by the related record's title, in title order, keeps the id
+// for a link, and leaves out a value naming nothing and an unset one -- never an opaque id as a label.
+func TestDeclaredPage_aReferenceDimensionIsNamedByTheRelatedRecordsTitle(t *testing.T) {
+	l, ctx, ids := referenceDimensionLoader(t)
+	b := domain.PageBinding{Dataset: "ds_by_project", Measure: "msr_total", Rows: domain.PageRowsDimension}
+	for i := range 20 {
+		rows, err := bindingRows(ctx, NewLoader(l.store, l.machines), testToday, b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []ir.Row{
+			{Label: "Alpha launch", Key: ids["Alpha launch"], Value: "2"},
+			{Label: "Zebra launch", Key: ids["Zebra launch"], Value: "1"},
+		}
+		if !reflect.DeepEqual(rows, want) {
+			t.Fatalf("run %d: rows = %v, want %v", i, rows, want)
+		}
+	}
+}

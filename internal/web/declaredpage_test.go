@@ -999,6 +999,65 @@ func TestDeclaredPageTotalsCountEachFigureFromItsMeasure(t *testing.T) {
 	}
 }
 
+// TestDeclaredPageNamesEachOpenCardGroupByTheProjectAndPersonItBelongsTo: a Dimension over a reference Field
+// stores an id. Task figures groups open cards by Project and by assignee, so each tile must carry the Project's
+// name and the person's name -- and never the id the record holds. A finished card is not counted, and a card
+// pointing at a Project that no longer exists adds no tile.
+func TestDeclaredPageNamesEachOpenCardGroupByTheProjectAndPersonItBelongsTo(t *testing.T) {
+	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declaredbyref", "default")
+	var task, project *domain.Machine
+	for _, m := range ws.Machines {
+		switch m.ID {
+		case "mch_task":
+			task = m
+		case "mch_project":
+			project = m
+		}
+	}
+	if task == nil || project == nil || task.Completion == nil {
+		t.Fatal("default installs no mch_task/mch_project, or mch_task has no completion: block")
+	}
+	ids := map[string]string{}
+	for _, name := range []string{"Refprobe Zulu", "Refprobe Alpha"} {
+		rec, err := store.CreateRecord(ctx, project.ID, map[string]any{"fld_name": name, "fld_status": "active"})
+		if err != nil {
+			t.Fatalf("CreateRecord(project): %v", err)
+		}
+		ids[name] = rec.ID
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, project.ID, rec.ID) })
+	}
+	for i, v := range []map[string]any{
+		{"fld_project": ids["Refprobe Zulu"], "fld_status": "todo", "fld_assignee": actorID},
+		{"fld_project": ids["Refprobe Zulu"], "fld_status": "in_progress"},
+		{"fld_project": ids["Refprobe Alpha"], "fld_status": "todo"},
+		{"fld_project": ids["Refprobe Alpha"], "fld_status": task.Completion.Done},
+		{"fld_project": "rec_gone_project", "fld_status": "todo"},
+	} {
+		v["fld_title"] = "Refprobe card " + strconv.Itoa(i)
+		rec, err := store.CreateRecord(ctx, task.ID, v)
+		if err != nil {
+			t.Fatalf("CreateRecord(task): %v", err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+
+	body := getPage(t, h, cookie, "/pages/nav_task_figures")
+	for label, want := range map[string]int{"Refprobe Zulu": 2, "Refprobe Alpha": 1, "declaredbyref@example.com": 1} {
+		pair := regexp.MustCompile(`>` + strconv.Itoa(want) + `</div><div[^>]*>` + regexp.QuoteMeta(label) + `</div>`)
+		if !pair.MatchString(body) {
+			t.Errorf("no Metric shows %q with a value of %d", label, want)
+		}
+	}
+	for _, id := range []string{ids["Refprobe Zulu"], ids["Refprobe Alpha"], actorID, "rec_gone_project"} {
+		if strings.Contains(body, ">"+id+"<") {
+			t.Errorf("the id %q is printed where a name belongs", id)
+		}
+	}
+	if strings.Index(body, "Refprobe Alpha") > strings.Index(body, "Refprobe Zulu") {
+		t.Error("project tiles are not in title order")
+	}
+}
+
 // TestProjectManagementSettingsHubListsItsDeclaredMemberAndNoAccess: the Application's Settings page is drawn
 // from its own navigation (S2.1b). Board Settings is a declared member, so its row links to the screen it
 // always was; Project Management declares no roles, so the hub has no Access section, and the page names no

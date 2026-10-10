@@ -1018,6 +1018,11 @@ that Dataset's Dimension**: `label` is the value, `value` is the Measure. Rules,
   number the author typed, which is what `binding:` exists to avoid;
 - rows follow the Dimension's declared option order, then any unseen values sorted; a declared option with
   no record shows an explicit `0`;
+- when the Dimension is a **reference Field** (a `relation` to another Machine, or a `person`), the stored value is
+  an id, so each tile is named by the related record's title -- a Project's name, a member's display name -- and
+  ordered by that title; a value naming no record that exists, and a record with the Dimension unset, get no tile
+  rather than an id as a label. A link (`to:`/`param:`) still carries the stored id, which is what the destination
+  compares. Worked example: `ds_open_by_project` and `ds_open_by_assignee` on `nav_task_figures`;
 - there is no expression and no path (007 §9.2): a Dataset, a Measure and a mode;
 - a bound Metric may **link each of its rows** with `to: <navigation item id>` and `param: <name>` together:
   every tile becomes `<route>?<name>=<the row's own value>`, the value escaped as data. The destination must be

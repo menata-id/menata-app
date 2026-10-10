@@ -43,7 +43,7 @@ func rowTemplate() domain.PageNode {
 func TestLower_boundNodeBecomesOneNodePerRowInResolverOrder(t *testing.T) {
 	root := domain.PageNode{Kind: "layout", Type: "grid", Props: map[string]string{"gap": "default"},
 		Children: []domain.PageNode{metricBound(map[string]string{"tone": "warn"})}}
-	got, err := Lower(root, fixedRows(Row{"b", "2"}, Row{"a", "1"}))
+	got, err := Lower(root, fixedRows(Row{Label: "b", Value: "2"}, Row{Label: "a", Value: "1"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestLower_refusesADeclarationThatIsNotAWellFormedBinding(t *testing.T) {
 	}
 	for name, n := range cases {
 		t.Run(name, func(t *testing.T) {
-			if _, err := Lower(wrap(n), fixedRows(Row{"a", "1"})); err == nil {
+			if _, err := Lower(wrap(n), fixedRows(Row{Label: "a", Value: "1"})); err == nil {
 				t.Fatal("Lower accepted it")
 			}
 		})
@@ -97,7 +97,7 @@ func TestLower_refusesADeclarationThatIsNotAWellFormedBinding(t *testing.T) {
 }
 
 func TestLower_rootMustBeOneUnboundNode(t *testing.T) {
-	if _, err := Lower(metricBound(nil), fixedRows(Row{"a", "1"})); err == nil || !strings.Contains(err.Error(), "root") {
+	if _, err := Lower(metricBound(nil), fixedRows(Row{Label: "a", Value: "1"})); err == nil || !strings.Contains(err.Error(), "root") {
 		t.Errorf("err = %v; want a root refusal", err)
 	}
 }
@@ -180,7 +180,7 @@ func TestLower_refusesARecordsDeclarationThatIsNotWellFormed(t *testing.T) {
 	for name, n := range cases {
 		t.Run(name, func(t *testing.T) {
 			if _, err := Lower(n, Resolver{
-				Rows:    func(domain.PageBinding) ([]Row, error) { return []Row{{"a", "1"}}, nil },
+				Rows:    func(domain.PageBinding) ([]Row, error) { return []Row{{Label: "a", Value: "1"}}, nil },
 				Records: func(domain.PageBinding) (RecordSet, error) { return RecordSet{Records: []map[string]string{rec}}, nil },
 			}); err == nil {
 				t.Fatal("Lower accepted it")
@@ -565,6 +565,19 @@ func TestLower_aLinkingMetricCarriesEachRowsValueToItsDestination(t *testing.T) 
 	}
 	if _, has := plain.Children[0].Props["href"]; has {
 		t.Error("a Metric that declares no destination acquired an href")
+	}
+}
+
+// A reference Dimension stores an id and shows a title: the link must carry what the destination can compare
+// against (the id), while the Metric shows the title.
+func TestLower_aLinkCarriesTheRowsKeyWhenItsLabelIsNotTheStoredValue(t *testing.T) {
+	tree, err := Lower(linkingMetric("nav_x", "project", nil), rowsAndRoutes("/pages/nav_x", Row{Label: "Website relaunch", Key: "rec_abc", Value: "3"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := tree.Children[0]
+	if c.Props["label"] != "Website relaunch" || c.Props["href"] != "/pages/nav_x?project=rec_abc" {
+		t.Errorf("label=%q href=%q, want the title shown and the id linked", c.Props["label"], c.Props["href"])
 	}
 }
 
