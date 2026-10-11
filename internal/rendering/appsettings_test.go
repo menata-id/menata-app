@@ -3,6 +3,8 @@ package rendering
 import (
 	"bytes"
 	"context"
+	"io"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -106,5 +108,59 @@ func TestApplicationSettingsPage_permissionsPaneNamesTheApplicationAndLinksMembe
 	}
 	if strings.Contains(card.String(), "href=") {
 		t.Error("the roles card linked Members & roles for a viewer who may not open it")
+	}
+}
+
+// The Settings hub reads its type, ink, weight and fills from the Theme and from nothing else. Every role the
+// page can reach is moved off its default at once, so any size, ink, weight or fill the page still hand-writes
+// survives as a default-looking class in the output -- the dynamic twin of conformance's
+// TestHandWrittenTypeAndInkOnlyShrink, which sees the source but not a literal arriving through a Go function.
+func TestApplicationSettingsHub_hasNoTypeInkWeightOrFillTheThemeCannotMove(t *testing.T) {
+	th := domain.Theme{
+		Text: map[domain.TextRole]domain.TextScale{},
+		Ink: map[domain.InkRole]domain.InkShade{
+			domain.InkStrong: domain.InkShadeDark, domain.InkBody: domain.InkShadeDark,
+			domain.InkSecondary: domain.InkShadeDark, domain.InkFaint: domain.InkShadeDark,
+		},
+		Weight: map[domain.WeightRole]domain.WeightStep{domain.WeightEmphasis: domain.WeightStepNormal},
+		Background: map[domain.BackgroundRole]domain.BackgroundShade{
+			domain.BackgroundRaised: domain.BackgroundShadeLighter, domain.BackgroundSunken: domain.BackgroundShadeLighter,
+		},
+	}
+	for r := range domain.KnownTextRoles {
+		th.Text[r] = domain.TextHuge
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "t", Theme: th}, "T", false)
+
+	hub := SettingsHubView{HubRoute: "/settings/nav_t", Title: "Tally settings", Description: "Applies to Tally only.",
+		ShowAccess: true, ShowMembersAndGroups: true, MembersHref: "/settings/nav_t/members", AppName: "Tally", AppDescription: "Counts things.",
+		Members: []SettingsMember{{Href: "/machines/mch_unit", Label: "Units", Description: "What a count is measured in."}}}
+	matrix := RoleMatrixApp{Name: "Tally", Roles: []string{"a", "b"}, RolesSummary: "A, B",
+		Groups: []RoleMatrixGroup{{Label: "Count", Rows: []RoleMatrixRow{
+			{Action: "Edit", Qualifier: "Only your own", Who: "A"},
+			{Action: "Delete", Qualifier: "Anyone", Open: true, Who: "B"},
+		}}},
+		Automatic: []string{"Counts close themselves."}}
+
+	var buf bytes.Buffer
+	for _, c := range []interface {
+		Render(context.Context, io.Writer) error
+	}{
+		settingsLists(hub), settingsSidebar(hub, true), settingsPermissionsPane(hub, matrix), settingsHubHeader(hub),
+	} {
+		if err := c.Render(ctx, &buf); err != nil {
+			t.Fatalf("render: %v", err)
+		}
+	}
+	residue := regexp.MustCompile(`(?:^|[\s"])(text-(?:3xs|2xs|xs|sm|base|xl)|text-slate-(?:400|500|900)|font-medium|bg-slate-100|bg-white)(?:[\s"]|$)`)
+	if got := residue.FindAllStringSubmatch(buf.String(), -1); len(got) > 0 {
+		seen := map[string]bool{}
+		for _, m := range got {
+			seen[m[1]] = true
+		}
+		t.Errorf("a Theme moving every type, ink, weight and fill role left default classes on the Settings hub: %v -- read the role through textClass/inkClass/weightClass/backgroundClass instead of writing the literal", seen)
+	}
+	if !strings.Contains(buf.String(), "text-2xl") {
+		t.Error("the moved theme never reached the page: no text-2xl in the output, so the assertion above proved nothing")
 	}
 }

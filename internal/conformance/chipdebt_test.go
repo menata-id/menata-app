@@ -14,13 +14,16 @@ import (
 // it should have used.
 //
 // Built after two slices moved 25 chips onto `statusBadge` (2026-10-05); the build-migrate-then-gate order
-// this repo uses. **Four floors remain, and none is debt** -- each carries something `statusBadge` must
+// this repo uses. **Three floors remain, and none is debt** -- each carries something `statusBadge` must
 // not accept, which is the boundary working:
 //
 //   - `approvalinbox.templ`: the pending card's SLA chip. Uppercase, tracking and semibold on the same
 //     element: typography is the Component's, not an input (007 §12.3 "arbitrary properties"). Its tone is
 //     also two-valued by a local `overdue`, where the Component takes the resolved tone.
-//   - `appsettings.templ`: "Not built yet", the same uppercase/tracking shape on a muted ground.
+//   - `appsettings.templ` left 2026-10-11: "Not built yet" now reads `radiusClass`/`backgroundClass`/`textClass`/
+//     `inkClass`/`weightClass`, so no literal tint or size remains for this pattern to see. It is still a
+//     hand-written chip (uppercase and tracking are what `statusBadge` must not accept); what changed is that its
+//     colours follow the Theme, and the typography gate below is what now holds that.
 //   - `machine.templ`: the **selected tab**. Chip-shaped, but not a status -- it is §12.2's `tabs`, which
 //     design-system-decisions D0b records as unbuilt. It will leave this list when that primitive does.
 //   - `reviewdocument.templ`: a `<code>` reference. Monospace content in a different element; choosing the
@@ -35,7 +38,6 @@ import (
 // judgement rather than a miss). Concluding a chip is absent still needs reading the screen.
 var handWrittenChips = map[string]int{
 	"approvalinbox.templ":  1,
-	"appsettings.templ":    1,
 	"machine.templ":        1,
 	"reviewdocument.templ": 1,
 }

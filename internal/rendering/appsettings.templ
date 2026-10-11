@@ -86,12 +86,12 @@ templ settingsRow(href, label, description string, current bool) {
 		if current {
 			aria-current="page"
 		}
-		class={ "flex items-start gap-3 rounded-md p-3", templ.KV("bg-slate-100", current), templ.KV("hover:bg-slate-50", !current) }
+		class={ "flex items-start gap-3 p-3", radiusClass(ctx, domain.RadiusControl), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV("hover:bg-slate-50", !current) }
 	>
 		<span class="flex min-w-0 grow flex-col gap-0.5">
-			<span class={ "text-sm text-slate-900", templ.KV("font-medium", current) }>{ label }</span>
+			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong), templ.KV(weightClass(ctx, domain.WeightEmphasis), current) }>{ label }</span>
 			if description != "" {
-				<span class="text-xs text-slate-500">{ description }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ description }</span>
 			}
 		</span>
 		<span class="shrink-0 text-slate-300">
@@ -102,27 +102,26 @@ templ settingsRow(href, label, description string, current bool) {
 
 // notBuiltYetTag is the muted tag a placeholder row wears instead of a link.
 templ notBuiltYetTag() {
-	<span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-3xs font-medium tracking-wide text-slate-400 uppercase">Not built yet</span>
+	<span class={ radiusClass(ctx, domain.RadiusPill), backgroundClass(ctx, domain.BackgroundSunken), "px-1.5 py-0.5", textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightEmphasis), "tracking-wide", inkClass(ctx, domain.InkFaint), "uppercase" }>Not built yet</span>
 }
 
 // settingsPlaceholderRow is an honest, non-interactive row for a section this runtime cannot serve
 // yet -- no <a href>, so it can never be a link to nowhere, plus a muted tag saying so rather than
 // leaving the reason to be guessed.
 templ settingsPlaceholderRow(label, description string) {
-	<div class="flex items-start gap-3 rounded-md p-3">
-		@settingsPlaceholderBody(label, description, "text-sm")
+	<div class={ "flex items-start gap-3 p-3", radiusClass(ctx, domain.RadiusControl) }>
+		@settingsPlaceholderBody(label, description)
 	</div>
 }
 
-// settingsPlaceholderBody is the muted label-plus-tag and description both placeholder rows share; labelSize
-// is the one thing they differ in (a sidebar row's 14px, a list row's 15px).
-templ settingsPlaceholderBody(label, description, labelSize string) {
+// settingsPlaceholderBody is the muted label-plus-tag and description both placeholder rows share.
+templ settingsPlaceholderBody(label, description string) {
 	<span class="flex min-w-0 grow flex-col gap-0.5">
-		<span class={ "flex flex-wrap items-center gap-2 text-slate-400", labelSize }>
+		<span class={ "flex flex-wrap items-center gap-2", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkFaint) }>
 			{ label }
 			@notBuiltYetTag()
 		</span>
-		<span class="text-xs text-slate-400">{ description }</span>
+		<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkFaint) }>{ description }</span>
 	</span>
 }
 
@@ -138,14 +137,15 @@ templ settingsSection(title string) {
 	}
 }
 
-// settingsListRow is one linked destination inside a settingsSection: 60px tall, a 15px label, a faint
-// description and a chevron.
+// settingsListRow is one linked destination inside a settingsSection: 60px tall, a body-size label, a
+// secondary description and a chevron. The mockup sets the label at 15px; the type ladder has no step
+// between body (14) and subheading (16), so it reads body rather than adding a literal.
 templ settingsListRow(href, label, description string) {
 	<a href={ templ.SafeURL(href) } class={ "flex min-h-15 items-center gap-3 border-b px-4 py-2.5 last:border-b-0 hover:bg-slate-50", borderClass(ctx, domain.BorderDivider) }>
 		<span class="flex min-w-0 grow flex-col gap-0.5">
-			<span class="text-[15px] text-slate-900">{ label }</span>
+			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ label }</span>
 			if description != "" {
-				<span class="text-xs text-slate-500">{ description }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ description }</span>
 			}
 		</span>
 		<span class="shrink-0 text-slate-300">
@@ -157,7 +157,7 @@ templ settingsListRow(href, label, description string) {
 // settingsListPlaceholder is settingsListRow's honest twin for what this runtime cannot serve yet.
 templ settingsListPlaceholder(label, description string) {
 	<div class={ "flex min-h-15 items-center gap-3 border-b px-4 py-2.5 last:border-b-0", borderClass(ctx, domain.BorderDivider) }>
-		@settingsPlaceholderBody(label, description, "text-[15px]")
+		@settingsPlaceholderBody(label, description)
 	</div>
 }
 
@@ -168,7 +168,7 @@ templ settingsNavLink(href, label string, current bool) {
 		if current {
 			aria-current="page"
 		}
-		class={ "flex items-center rounded-md px-3 py-2 text-sm", templ.KV("bg-slate-100 font-medium text-slate-900", current), templ.KV("text-slate-700 hover:bg-slate-50", !current) }
+		class={ "flex items-center px-3 py-2", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(weightClass(ctx, domain.WeightEmphasis), current), templ.KV(inkClass(ctx, domain.InkStrong), current), templ.KV(inkClass(ctx, domain.InkBody), !current), templ.KV("hover:bg-slate-50", !current) }
 	>
 		{ label }
 	</a>
@@ -187,7 +187,7 @@ templ settingsNavGroup(title string) {
 // settingsTurnOffNote says the one thing the hub cannot do from here: turning an Application off is a
 // Workspace-level decision, so it points there.
 templ settingsTurnOffNote() {
-	<span class="text-xs leading-5 text-slate-400">
+	<span class={ textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkFaint) }>
 		To turn this application off, use
 		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_settings") }</a>.
 	</span>
@@ -223,12 +223,12 @@ templ settingsLists(hub SettingsHubView) {
 	}
 	@settingsSection("About") {
 		<div class="flex flex-col gap-1 px-4 py-3">
-			<span class="text-[15px] text-slate-900">{ hub.AppName }</span>
+			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ hub.AppName }</span>
 			if hub.AppDescription != "" {
-				<span class="text-xs text-slate-500">{ hub.AppDescription }</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ hub.AppDescription }</span>
 			}
 			if !hub.ShowAccess {
-				<span class="text-xs text-slate-500">This application declares no roles, so everyone in this workspace can open it.</span>
+				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>This application declares no roles, so everyone in this workspace can open it.</span>
 			}
 		</div>
 	}
@@ -248,7 +248,7 @@ templ settingsSidebar(hub SettingsHubView, showingDetail bool) {
 			@settingsNavLink(permissionsHref(hub), permissionsTitle, showingDetail)
 		}
 		@settingsNavGroup("Communication") {
-			<div class="flex items-center gap-2 px-3 py-2 text-sm text-slate-400">
+			<div class={ "flex items-center gap-2 px-3 py-2", textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkFaint) }>
 				{ notificationsTitle }
 				@notBuiltYetTag()
 			</div>
@@ -264,9 +264,9 @@ templ settingsSidebar(hub SettingsHubView, showingDetail bool) {
 			}
 		}
 		<div class={ "flex flex-col gap-1 border-t pt-4", borderClass(ctx, domain.BorderSurface) }>
-			<span class="px-3 text-sm font-medium text-slate-900">{ hub.AppName }</span>
+			<span class={ "px-3", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ hub.AppName }</span>
 			if hub.AppDescription != "" {
-				<span class="px-3 text-xs text-slate-500">{ hub.AppDescription }</span>
+				<span class={ "px-3", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ hub.AppDescription }</span>
 			}
 			<span class="px-3">
 				@settingsTurnOffNote()
@@ -293,7 +293,7 @@ templ settingsHubHeader(hub SettingsHubView) {
 	<div class="flex flex-col gap-1">
 		@staticText(domain.StaticHeading, hub.Title)
 		if hub.Description != "" {
-			<p class="m-0 text-sm leading-6 text-slate-500">{ hub.Description }</p>
+			<p class={ "m-0", textClass(ctx, domain.RoleBody), "leading-6", inkClass(ctx, domain.InkSecondary) }>{ hub.Description }</p>
 		}
 		@staticText(domain.StaticCaption, hubCounts(hub))
 	</div>
@@ -304,7 +304,7 @@ templ settingsHubHeader(hub SettingsHubView) {
 templ settingsPermissionsPane(hub SettingsHubView, permissions RoleMatrixApp) {
 	<div class="flex flex-col gap-1">
 		@staticText(domain.StaticHeading, permissionsTitle)
-		<p class="m-0 text-sm leading-6 text-slate-500">{ permissionsSubtitle(hub.AppName) }</p>
+		<p class={ "m-0", textClass(ctx, domain.RoleBody), "leading-6", inkClass(ctx, domain.InkSecondary) }>{ permissionsSubtitle(hub.AppName) }</p>
 	</div>
 	@roleMatrixApp(permissions, membersLinkFor(hub))
 	@roleMatrixClosingNote()
@@ -339,7 +339,7 @@ templ ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, ac
 		} else {
 			<div class="flex flex-col gap-5 sm:hidden">
 				if showingDetail {
-					<a href={ templ.SafeURL(hub.HubRoute) } class="text-xs text-blue-600 hover:text-blue-800">
+					<a href={ templ.SafeURL(hub.HubRoute) } class={ textClass(ctx, domain.RoleMeta), "text-blue-600 hover:text-blue-800" }>
 						← { hub.Title }
 					</a>
 					@settingsPermissionsPane(hub, permissions)

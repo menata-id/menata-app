@@ -17,12 +17,13 @@ import (
 //
 //   - `approvalinbox.templ` (2): a sentence holding an inline `<span>` and a conditional tail. Inline markup
 //     inside a text run is exactly what `staticText` does not draw (007 §12.6 static content is a leaf).
-//   - `appsettings.templ` (2), `installapplication.templ`, `workspacesettings.templ`: a page's description at
-//     `leading-6`. Four sites sharing a line-height no text role names -- a **finding**, not a miss: if a role
-//     for it is ever declared, these four are the first consumers.
-//   - `rolematrix.templ` (3): the sentence carries its own spacing (`py-3`, `mt-1.5`, `px-4
-//     py-4`) or width (`max-w-[760px]`). Spacing and width are Layout's (§12.2), and a Static kind accepting them
-//     is §12.3's "arbitrary properties".
+//   - `installapplication.templ`, `workspacesettings.templ`: a page's description at `leading-6`. Sharing a
+//     line-height no text role names -- a **finding**, not a miss: if a role for it is ever declared, these
+//     are the first consumers. (`appsettings.templ`'s two left 2026-10-11: they read `textClass`/`inkClass`
+//     and keep `leading-6` as a literal, which is the same boundary drawn from the Theme side.)
+//   - `rolematrix.templ` left 2026-10-11 the same way as `appsettings.templ`'s two: size and ink read the Theme,
+//     while the spacing and width (`py-3`, `max-w-[760px]`) and board 06's inline link stay as they were --
+//     Layout's (§12.2) and a leaf Static kind must not accept them (§12.3's "arbitrary properties").
 //   - `inference.templ` (3): two add `max-w-prose`; the third is a multi-line sentence whose surrounding
 //     whitespace is part of today's output.
 //   - `newapplication.templ` (1), `workspacemembers.templ` (1): an interpolated sentence carrying `'` or `"`.
@@ -39,15 +40,12 @@ import (
 // one at `text-2xs` (16 sites in 6 files by exact literal, a caption that no text role names -- see domain.StaticNote), or one
 // using another ink shade. Concluding a muted sentence is absent still needs reading the screen.
 var handWrittenMutedParagraphs = map[string]int{
-	"appsettings.templ":        2,
 	"approvalinbox.templ":      2,
 	"inference.templ":          3,
 	"installapplication.templ": 1,
 	"newapplication.templ":     1,
-	// 4th: board 06's closing sentence carries an inline link to the Members screen, which a Static kind must not accept.
-	"rolematrix.templ":        4,
-	"workspacemembers.templ":  1,
-	"workspacesettings.templ": 1,
+	"workspacemembers.templ":   1,
+	"workspacesettings.templ":  1,
 }
 
 var (
