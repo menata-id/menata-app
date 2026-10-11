@@ -1833,3 +1833,38 @@ func TestDeclaredPageSetsTodayApartInTheWeekInView(t *testing.T) {
 		t.Error("next week marks a day as current")
 	}
 }
+
+func TestDeclaredPageWeekToolbarFollowsTheWeekInView(t *testing.T) {
+	h, cookie, _, _, _, _, _ := routerSetupFor(t, "declaredtoolbar", "default")
+	this := getPage(t, h, cookie, "/pages/nav_week_tasks")
+	for _, want := range []string{`href="/pages/nav_week_tasks?week=1"`, `href="/pages/nav_week_tasks?week=-1"`} {
+		if !strings.Contains(this, want) {
+			t.Errorf("this week lacks %s", want)
+		}
+	}
+	// The navigation names the page "This week" too, so the toolbar's link is the count that differs between weeks.
+	const backLink = ">This week<"
+	navOnly := strings.Count(this, backLink)
+	if strings.Contains(this, "week=0") {
+		t.Error("a link carries ?week=0 instead of the plain route")
+	}
+	monday := time.Now()
+	for monday.Weekday() != time.Monday {
+		monday = monday.AddDate(0, 0, -1)
+	}
+	if want := monday.Format("02"); !strings.Contains(this, want+" – ") && !strings.Contains(this, want+" "+monday.Format("Jan")+" – ") {
+		t.Errorf("this week does not say it starts on %s", monday.Format("02 Jan"))
+	}
+	third := getPage(t, h, cookie, "/pages/nav_week_tasks?week=3")
+	if got := strings.Count(third, backLink); got != navOnly+1 {
+		t.Errorf("week 3 has %d \"This week\" links, this week had %d: want exactly one more, the toolbar's way back", got, navOnly)
+	}
+	for _, want := range []string{`href="/pages/nav_week_tasks?week=4"`, `href="/pages/nav_week_tasks?week=2"`, `href="/pages/nav_week_tasks"`} {
+		if !strings.Contains(third, want) {
+			t.Errorf("week 3 lacks %s", want)
+		}
+	}
+	if back := getPage(t, h, cookie, "/pages/nav_week_tasks?week=1"); strings.Contains(back, "week=0") || !strings.Contains(back, `href="/pages/nav_week_tasks"`) {
+		t.Error("week 1's way back to this week is not the plain route")
+	}
+}

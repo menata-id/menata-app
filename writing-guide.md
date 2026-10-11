@@ -1204,7 +1204,24 @@ resolves to no date. A bound that names a parameter the request did not send dra
 Collection's `empty:` words, as an ungrouped list does. `complete:` and `hide_empty:` are refused -- an empty day is drawn on
 purpose, and a window is complete by construction, so **when the Dataset's `limit:` cut it short the page says so by
 itself**, once, above the first day. The heading template may not carry a record link, `count:`, `each:` or `when:`. Worked page: `nav_week_tasks` in Project Management.
-The section holding the request's own date (today, from the same `$today` the Dataset resolves) is set apart without anything being written: it is announced as `aria-current="date"` and takes the `info` tone's fill instead of the raised background, so a `theme: tones:` declaration moves it. A page cannot write `current:` itself -- it cannot know which day it is read on. Not built yet: the previous/next-week links.
+The section holding the request's own date (today, from the same `$today` the Dataset resolves) is set apart without anything being written: it is announced as `aria-current="date"` and takes the `info` tone's fill instead of the raised background, so a `theme: tones:` declaration moves it. A page cannot write `current:` itself -- it cannot know which day it is read on.
+
+**Week links (K15 Calendar stage 4, 2026-10-11).** Three keys let a page step through weeks without a route of its own, all for the one parameter the runtime names -- `week`, the `?week=N` that `$week` reads (a closed set of one):
+
+```yaml
+- static: link
+  to: nav_week_tasks
+  text: Next week
+  step: {parameter: week, by: 1}      # the request's own week plus one, never the default's
+- static: caption
+  window: ds_tasks_due_week            # the words for that Dataset's window: "12 - 18 Oct 2026"
+- static: link
+  to: nav_week_tasks
+  text: This week
+  when: {parameter: week, is_not: "0"} # drawn only away from this week
+```
+
+`step:` is valid only on a `static: link` that has `to:`, and `by:` is a whole number other than zero. The link's address is the destination's route plus `?week=<offset>`, and a step that lands on this week links to the **plain route**, not to `?week=0`. It is checked at load that the destination page binds a Dataset reading `$week` -- a link moving a parameter nothing reads would draw and change nothing. `window:` takes a Dataset id and writes the text itself (so `text:`/`from:` beside it are refused): the Dataset must close a `date` window the way `group: date` requires, and the words are read from the same two bounds the day sections are drawn from, so the two cannot disagree. `when: {parameter: week, is: N}` / `is_not: N` is the first **request-scoped** condition: it needs no record and is valid on any node, `N` is compared as a whole number of weeks, and `role:` and `parameter:` together are refused. A node it would hide is still validated at load.
 
 **`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and
 nothing else:

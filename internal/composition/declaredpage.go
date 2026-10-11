@@ -63,6 +63,21 @@ func DeclaredPage(ctx context.Context, l *Loader, viewer domain.Actor, params ma
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
 			return bindingForm(l, viewer, b)
 		},
+		Parameter: func(name string) string {
+			if name == domain.PageParameterWeek {
+				return strconv.Itoa(expression.RequestWeek(params))
+			}
+			return ""
+		},
+		Step: func(name string, by int) string {
+			if name != domain.PageParameterWeek {
+				return ""
+			}
+			return weekStep(params, by)
+		},
+		Window: func(datasetID string) (string, error) {
+			return datasetWindowWords(l, datasetID, expression.Context{Parameters: params, Today: now.Format("2006-01-02")})
+		},
 	})
 }
 
@@ -172,6 +187,70 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 	return set, nil
 }
 
+// weekStep is the `?week=` value a link `by` weeks from the request's own should carry: the offset moved and
+// clamped to the same bound the Dataset's `$week` reads, and "" for this week, which is the plain route rather
+// than `?week=0` -- the form every other link to the page already has.
+func weekStep(params map[string]string, by int) string {
+	next := max(-expression.MaxWeekOffset, min(expression.MaxWeekOffset, expression.RequestWeek(params)+by))
+	if next == 0 {
+		return ""
+	}
+	return strconv.Itoa(next)
+}
+
+// datasetWindowWords is `window:`: the Dataset's window as calendarRange says it ("12 \u2013 18 Oct 2026").
+func datasetWindowWords(l *Loader, datasetID string, where expression.Context) (string, error) {
+	ds, ok := l.Dataset(datasetID)
+	if !ok {
+		return "", fmt.Errorf("composition: window names dataset %q, which no machine declares", datasetID)
+	}
+	src := l.Machine(ds.Source)
+	if src == nil {
+		return "", fmt.Errorf("composition: dataset %q reads machine %q, which this Workspace does not install", datasetID, ds.Source)
+	}
+	return windowWords(ds, src, where)
+}
+
+func windowWords(ds domain.Dataset, src *domain.Machine, where expression.Context) (string, error) {
+	lo, hi, err := dateWindow(ds, src, where)
+	if err != nil {
+		return "", err
+	}
+	return calendarRange(lo, hi), nil
+}
+
+// dateWindow reads a Dataset's window: the day its `gte` and the day its `lte` bound on the Machine's `date` card
+// role, resolved against the request. `group: date` draws one bucket for each day between them and `window:` says
+// them in words, so both read here and cannot disagree about which days the Dataset holds.
+func dateWindow(ds domain.Dataset, src *domain.Machine, where expression.Context) (lo, hi time.Time, err error) {
+	field := src.CardFieldFor(domain.CardFieldRoleDate)
+	for _, c := range ds.Where.All {
+		if c.Field != field || (c.Op != expression.OpGreaterOrEqual && c.Op != expression.OpLessOrEqual) {
+			continue
+		}
+		v, ok := where.Resolve(c.Value)
+		if !ok {
+			return lo, hi, fmt.Errorf("composition: dataset %q: the %s bound %q resolves to nothing", ds.ID, c.Op, c.Value)
+		}
+		day, perr := time.Parse("2006-01-02", v)
+		if perr != nil {
+			return lo, hi, fmt.Errorf("composition: dataset %q: the %s bound %q resolved to %q, which is not a date", ds.ID, c.Op, c.Value, v)
+		}
+		if c.Op == expression.OpGreaterOrEqual {
+			lo = day
+		} else {
+			hi = day
+		}
+	}
+	if lo.IsZero() || hi.IsZero() || hi.Before(lo) {
+		return lo, hi, fmt.Errorf("composition: dataset %q: window %s..%s is not a range of days", ds.ID, lo.Format("2006-01-02"), hi.Format("2006-01-02"))
+	}
+	if days := int(hi.Sub(lo).Hours()/24) + 1; days > domain.PageGroupMaxBuckets {
+		return lo, hi, fmt.Errorf("composition: dataset %q: window of %d days exceeds the %d a group draws", ds.ID, days, domain.PageGroupMaxBuckets)
+	}
+	return lo, hi, nil
+}
+
 // dateBuckets is `group: date`: one bucket per day from the Dataset's own `gte` to its own `lte` on the Machine's
 // `date` card role, and for each record the day it falls on. The window is **read from the Dataset's `where:`**,
 // resolved the way the database resolves it (`$week`, `$today+n`, a written date), so the days drawn and the
@@ -181,30 +260,9 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 // not a skipped row, since the Dataset's own filter is what put it here.
 func dateBuckets(ds domain.Dataset, src *domain.Machine, records []*data.Record, where expression.Context) ([]ir.Bucket, []string, error) {
 	field := src.CardFieldFor(domain.CardFieldRoleDate)
-	var lo, hi time.Time
-	for _, c := range ds.Where.All {
-		if c.Field != field || (c.Op != expression.OpGreaterOrEqual && c.Op != expression.OpLessOrEqual) {
-			continue
-		}
-		v, ok := where.Resolve(c.Value)
-		if !ok {
-			return nil, nil, fmt.Errorf("composition: dataset %q: the %s bound %q resolves to nothing", ds.ID, c.Op, c.Value)
-		}
-		day, err := time.Parse("2006-01-02", v)
-		if err != nil {
-			return nil, nil, fmt.Errorf("composition: dataset %q: the %s bound %q resolved to %q, which is not a date", ds.ID, c.Op, c.Value, v)
-		}
-		if c.Op == expression.OpGreaterOrEqual {
-			lo = day
-		} else {
-			hi = day
-		}
-	}
-	if lo.IsZero() || hi.IsZero() || hi.Before(lo) {
-		return nil, nil, fmt.Errorf("composition: dataset %q: window %s..%s is not a range of days", ds.ID, lo.Format("2006-01-02"), hi.Format("2006-01-02"))
-	}
-	if days := int(hi.Sub(lo).Hours()/24) + 1; days > domain.PageGroupMaxBuckets {
-		return nil, nil, fmt.Errorf("composition: dataset %q: window of %d days exceeds the %d a group draws", ds.ID, days, domain.PageGroupMaxBuckets)
+	lo, hi, err := dateWindow(ds, src, where)
+	if err != nil {
+		return nil, nil, err
 	}
 	var buckets []ir.Bucket
 	for d := lo; !d.After(hi); d = d.AddDate(0, 0, 1) {

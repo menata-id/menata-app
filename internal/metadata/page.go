@@ -5,6 +5,7 @@ import (
 	"menata.app/internal/expression"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -24,7 +25,7 @@ import (
 // ones the node's type does not declare. The strictness lives in one place, the one that already knows the
 // vocabulary.
 //
-// The reserved keys are the three discriminators, `children`, `binding`, `from`, `to`, `param`, `list_of`, `count`, `hint_figure`, `when` and `each`. Exactly one discriminator per
+// The reserved keys are the three discriminators, `children`, `binding`, `from`, `to`, `param`, `list_of`, `count`, `hint_figure`, `when`, `each`, `step` and `window`. Exactly one discriminator per
 // node: `layout:`, `static:` or `component:`, whose value is the type.
 type pageNodeDoc struct {
 	kind     string
@@ -39,6 +40,8 @@ type pageNodeDoc struct {
 	hint     *domain.PageCount
 	when     *domain.PageCondition
 	each     string
+	step     *domain.PageStep
+	window   string
 	children []pageNodeDoc
 }
 
@@ -113,6 +116,17 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 				return fmt.Errorf("line %d: each: names the list a record owns, which is %s", key.Line, domain.PageEachTags)
 			}
 			p.each = val.Value
+		case "step":
+			st, err := decodePageStep(val)
+			if err != nil {
+				return err
+			}
+			p.step = st
+		case "window":
+			if val.Kind != yaml.ScalarNode || val.Value == "" {
+				return fmt.Errorf("line %d: window: names one dataset id, such as ds_tasks_due_week -- the Dataset whose date window the text says", key.Line)
+			}
+			p.window = val.Value
 		case "when":
 			w, err := decodePageWhen(val)
 			if err != nil {
@@ -187,6 +201,36 @@ func decodePageCount(n *yaml.Node, name string) (*domain.PageCount, error) {
 	return c, nil
 }
 
+// decodePageStep reads `step: {parameter: week, by: 1}`: the parameter and a whole number of steps, both scalars.
+func decodePageStep(n *yaml.Node) (*domain.PageStep, error) {
+	if n.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("line %d: step: is a mapping of parameter and by", n.Line)
+	}
+	st := &domain.PageStep{}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		key, val := n.Content[i], n.Content[i+1]
+		if val.Kind != yaml.ScalarNode || val.Value == "" {
+			return nil, fmt.Errorf("line %d: step.%s: a single value, not an expression or a list", key.Line, key.Value)
+		}
+		switch key.Value {
+		case "parameter":
+			st.Parameter = val.Value
+		case "by":
+			by, err := strconv.Atoi(val.Value)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: step.by: %q is not a whole number", key.Line, val.Value)
+			}
+			st.By = by
+		default:
+			return nil, fmt.Errorf("line %d: %q is not a key step declares (parameter, by)", key.Line, key.Value)
+		}
+	}
+	if st.Parameter == "" || st.By == 0 {
+		return nil, fmt.Errorf("line %d: step: names a parameter and a by: that is not zero", n.Line)
+	}
+	return st, nil
+}
+
 // decodePageWhen reads `when: {role: status, is_not: $done}`: one role and exactly one comparison, both scalars.
 func decodePageWhen(n *yaml.Node) (*domain.PageCondition, error) {
 	if n.Kind != yaml.MappingNode {
@@ -201,16 +245,18 @@ func decodePageWhen(n *yaml.Node) (*domain.PageCondition, error) {
 		switch key.Value {
 		case "role":
 			c.Role = val.Value
+		case "parameter":
+			c.Parameter = val.Value
 		case "is":
 			c.Is = val.Value
 		case "is_not":
 			c.IsNot = val.Value
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key when declares (role, is, is_not)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key when declares (role or parameter, is, is_not)", key.Line, key.Value)
 		}
 	}
-	if c.Role == "" || (c.Is == "") == (c.IsNot == "") {
-		return nil, fmt.Errorf("line %d: when: names a role and exactly one of is: and is_not:", n.Line)
+	if (c.Role == "") == (c.Parameter == "") || (c.Is == "") == (c.IsNot == "") {
+		return nil, fmt.Errorf("line %d: when: names a role or a parameter (not both) and exactly one of is: and is_not:", n.Line)
 	}
 	return c, nil
 }
@@ -244,7 +290,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each, Step: p.step, Window: p.window}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -285,6 +331,10 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 		},
 		// A non-zero figure, so a `tone:` on a total is checked rather than dropped as a zero's would be.
 		Total: func(domain.PageBinding) (string, error) { return "1", nil },
+		// A window is words: any Dataset id answers, whether the Workspace declares it and can read a window out of
+		// it is `windowIssues`' question, which has the Datasets.
+		Window: func(string) (string, error) { return "x", nil },
+		Step:   func(string, int) string { return "1" },
 		// A form's shape is checked with one text control: whether the real Machine can be written by a form at
 		// all is `bindingIssues`' question, which has the Machine and this resolver does not.
 		Form: func(b domain.PageBinding) (ir.FormSpec, error) {
@@ -397,6 +447,7 @@ func validatePages(applications []domain.Application, machines []*domain.Machine
 			issues = append(issues, bindingIssues(*item.Page, datasets, byID, nil, where)...)
 			issues = append(issues, shapeIssues(*item.Page, app.AllNavigation, datasets, where)...)
 			issues = append(issues, paramLinkIssues(*item.Page, app.AllNavigation, datasets, where)...)
+			issues = append(issues, stepIssues(*item.Page, app.AllNavigation, datasets, where)...)
 		}
 	}
 	if len(issues) > 0 {
@@ -449,8 +500,11 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 			}
 		}
 	}
-	if n.When != nil {
+	if n.When != nil && n.When.Parameter == "" {
 		issues = append(issues, conditionIssues(*n.When, item, where)...)
+	}
+	if n.Window != "" {
+		issues = append(issues, windowIssues(n.Window, datasets, machines, where)...)
 	}
 	if n.Each != "" {
 		switch {
@@ -656,6 +710,56 @@ func transitionBindingIssues(n domain.PageNode, item *domain.Machine, where stri
 		return []string{fmt.Sprintf("%s: page: becomes: %q is not an option of %s on machine %q (options: %s)", where, target, fieldID, item.ID, strings.Join(field.Options, ", "))}
 	}
 	return nil
+}
+
+// windowIssues is what a `window:` asks: that the Dataset exists in this Workspace and closes a date window the same
+// way `group: date` reads one (a `select: records` Dataset over a Machine with a `date` role, one `gte` and one `lte`),
+// since the words are read from those two bounds.
+func windowIssues(datasetID string, datasets map[string]domain.Dataset, machines map[string]*domain.Machine, where string) []string {
+	ds, ok := datasets[datasetID]
+	if !ok {
+		return []string{fmt.Sprintf("%s: page: window names dataset %q, which no machine in this workspace declares", where, datasetID)}
+	}
+	return groupBindingIssues(domain.PageGroupDate, ds, machines[ds.Source], where)
+}
+
+// stepIssues checks the one thing `ir.Lower` cannot: that a link's `step:` moves a parameter its destination reads.
+// A calendar page reads the week through `$week` in a Dataset's `where:`; a link stepping `week` to a page whose
+// Datasets read no such thing would draw a working link that selects nothing different.
+func stepIssues(n domain.PageNode, navigation []domain.NavigationItem, datasets map[string]domain.Dataset, where string) []string {
+	var issues []string
+	if n.Step != nil && n.To != "" {
+		for _, dest := range navigation {
+			if dest.ID != n.To {
+				continue
+			}
+			if dest.Page == nil || !pageReadsWeek(*dest.Page, datasets) {
+				issues = append(issues, fmt.Sprintf("%s: page: to: %s with step: %s, but that page binds no Dataset reading $week", where, n.To, n.Step.Parameter))
+			}
+		}
+	}
+	for _, c := range n.Children {
+		issues = append(issues, stepIssues(c, navigation, datasets, where)...)
+	}
+	return issues
+}
+
+func pageReadsWeek(n domain.PageNode, datasets map[string]domain.Dataset) bool {
+	if n.Binding != nil {
+		if ds, ok := datasets[n.Binding.Dataset]; ok {
+			for _, c := range ds.Where.Comparisons() {
+				if strings.HasPrefix(c.Value, expression.SentinelWeek) {
+					return true
+				}
+			}
+		}
+	}
+	for _, c := range n.Children {
+		if pageReadsWeek(c, datasets) {
+			return true
+		}
+	}
+	return false
 }
 
 // conditionIssues is what a `when:` asks of the Machine of the records it sits over: that it projects the role, that

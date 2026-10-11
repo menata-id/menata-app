@@ -794,3 +794,40 @@ func TestDateBucketsMarkTheRequestsOwnDay(t *testing.T) {
 		}
 	}
 }
+
+// A step moves the request's own offset, never the default's: from week 3 a "next" link is week 4, and a link back
+// to this week is the plain route (""), not ?week=0. The clamp is the one `$week` reads.
+func TestWeekStepMovesTheRequestsOwnOffsetAndClampsWhereTheDatasetDoes(t *testing.T) {
+	for name, c := range map[string]struct {
+		params map[string]string
+		by     int
+		want   string
+	}{
+		"forward from this week":       {nil, 1, "1"},
+		"back from this week":          {nil, -1, "-1"},
+		"on from a later week":         {map[string]string{"week": "3"}, 1, "4"},
+		"back onto this week is plain": {map[string]string{"week": "1"}, -1, ""},
+		"a junk offset is this week":   {map[string]string{"week": "abc"}, 1, "1"},
+		"the upper bound holds":        {map[string]string{"week": "520"}, 1, "520"},
+		"the lower bound holds":        {map[string]string{"week": "-520"}, -1, "-520"},
+	} {
+		if got := weekStep(c.params, c.by); got != c.want {
+			t.Errorf("%s: weekStep = %q, want %q", name, got, c.want)
+		}
+	}
+}
+
+// `window:` says the Dataset's own window in words, through the reader the day buckets use, so the words and the
+// days drawn cannot disagree; an unreadable window is an error and not blank words.
+func TestWindowWordsAreTheDatasetsOwnWindow(t *testing.T) {
+	ds, src := weekDataset("$week", "$week+6")
+	for week, want := range map[string]string{"0": "12 – 18 Oct 2026", "1": "19 – 25 Oct 2026", "-3": "21 – 27 Sep 2026"} {
+		got, err := windowWords(ds, src, expression.Context{Today: "2026-10-14", Parameters: map[string]string{"week": week}})
+		if err != nil || got != want {
+			t.Errorf("?week=%s: windowWords = %q (%v), want %q", week, got, err, want)
+		}
+	}
+	if _, err := windowWords(ds, src, expression.Context{}); err == nil {
+		t.Error("a window with no date to resolve against answered words instead of an error")
+	}
+}

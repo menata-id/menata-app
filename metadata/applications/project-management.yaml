@@ -400,8 +400,8 @@ navigation:
     icon: calendar
     description: Cards sit on the day they are due. Tick a circle to finish one; step through the weeks to see what is coming.
   # Stages 1-2 of the Calendar's move to `page:` (K15; `menata-app-document` audits/2026-10-11-pengukuran-k15-calendar.md):
-  # the seven days of the week `?week=N` selects, one section per day through `group: date`. It stands in for
-  # the Calendar's body until stages 3-5 (today's highlight, week links) replace `nav_calendar` with it.
+  # the seven days of the week `?week=N` selects, one section per day through `group: date`. Stages 3-4 added today's
+  # highlight and the week links; stage 5 replaces `nav_calendar` with it.
   - id: nav_week_tasks
     label: This week
     route: /pages/nav_week_tasks
@@ -409,42 +409,63 @@ navigation:
     icon: calendar
     description: Every task due from Monday to Sunday of the week in view. Add ?week=1 for next week, ?week=-1 for last.
     page:
-      layout: grid
-      gap: tight
-      mobile: 1
-      columns: 7
+      layout: stack
+      gap: default
       children:
-        - component: Collection
-          gap: tight
-          empty: "—"
-          binding:
-            dataset: ds_tasks_due_week
-            rows: records
-            group: date
+        - layout: row
+          gap: default
+          align: center
           children:
-            - static: subheading
-              from:
-                text: "bucket:label"
-            - layout: stack
+            - static: link
+              to: nav_week_tasks
+              text: Previous week
+              step: {parameter: week, by: -1}
+            - static: link
+              to: nav_week_tasks
+              text: Next week
+              step: {parameter: week, by: 1}
+            - static: caption
+              window: ds_tasks_due_week
+            - static: link
+              to: nav_week_tasks
+              text: This week
+              when: {parameter: week, is_not: "0"}
+        - layout: grid
+          gap: tight
+          mobile: 1
+          columns: 7
+          children:
+            - component: Collection
               gap: tight
+              empty: "—"
+              binding:
+                dataset: ds_tasks_due_week
+                rows: records
+                group: date
               children:
-                - static: link
+                - static: subheading
                   from:
-                    text: title
-                    href: record
-                - layout: row
+                    text: "bucket:label"
+                - layout: stack
                   gap: tight
-                  align: center
                   children:
-                    - component: StatusBadge
+                    - static: link
                       from:
-                        label: "date:label"
-                        tone: "date:tone"
-                    - component: Tag
-                      each: tags
-                      from:
-                        label: title
-                        color: color
+                        text: title
+                        href: record
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: StatusBadge
+                          from:
+                            label: "date:label"
+                            tone: "date:tone"
+                        - component: Tag
+                          each: tags
+                          from:
+                            label: title
+                            color: color
   # Board Settings, declared rather than written (Case 19 PM06): the Lists a board groups by beside the Labels
   # its cards carry, each a Subheading and a link to that Machine's own list page over a divided Collection.
   # Every name, colour and count is the Machine's own card_fields / Relation -- this page names no Field, no

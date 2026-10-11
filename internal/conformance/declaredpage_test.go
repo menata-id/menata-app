@@ -1061,7 +1061,16 @@ func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 				for _, b := range pageBindings(*item.Page) {
 					pageDataset = b.Dataset
 				}
-				pageEmpty = item.Page.Children[0].Props["empty"]
+				var find func(n domain.PageNode)
+				find = func(n domain.PageNode) {
+					if n.Binding != nil {
+						pageEmpty = n.Props["empty"]
+					}
+					for _, c := range n.Children {
+						find(c)
+					}
+				}
+				find(*item.Page)
 			}
 		}
 	}
@@ -1115,5 +1124,14 @@ func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 	}
 	if copies == 0 {
 		t.Error("no Workspace holds a copy, so the equality above measured nothing")
+	}
+}
+
+// TestPageParameterWeekIsTheExpressionOne: `domain.PageParameterWeek` is the name a page's `step:` and `when:` give
+// and `expression.WeekParameter` the query key `$week` reads. They are one word in two packages because domain
+// cannot import expression; if they drift, a page's toolbar moves a parameter the Dataset never reads.
+func TestPageParameterWeekIsTheExpressionOne(t *testing.T) {
+	if domain.PageParameterWeek != expression.WeekParameter {
+		t.Errorf("domain.PageParameterWeek = %q, expression.WeekParameter = %q; they must be one name", domain.PageParameterWeek, expression.WeekParameter)
 	}
 }

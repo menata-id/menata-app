@@ -208,3 +208,14 @@ func TestResolve_weekNeedsADateAndIsNotAParameterOrToday(t *testing.T) {
 		t.Error("IsWeek($today+1) = true")
 	}
 }
+
+func TestRequestWeekIsTheOffsetWeekReadsAndClampsIt(t *testing.T) {
+	for param, want := range map[string]int{"": 0, "abc": 0, "1.5": 0, "3": 3, "-2": -2, "9999": MaxWeekOffset, "-9999": -MaxWeekOffset, "99999999999999999999": MaxWeekOffset, "-99999999999999999999": -MaxWeekOffset} {
+		if got := RequestWeek(map[string]string{"week": param}); got != want {
+			t.Errorf("RequestWeek(?week=%q) = %d, want %d", param, got, want)
+		}
+	}
+	if got := RequestWeek(nil); got != 0 {
+		t.Errorf("RequestWeek(nil) = %d, want 0", got)
+	}
+}

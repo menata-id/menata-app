@@ -909,3 +909,78 @@ func TestPage_aBucketNameIsNotAProjectionRole(t *testing.T) {
 		t.Error("an ungrouped list read the bucket's name")
 	}
 }
+
+func weekToolbar(link, caption, when string) string {
+	return `
+  - id: nav_week
+    label: Week
+    route: /pages/nav_week
+    page:
+      layout: stack
+      children:
+        - static: link
+          to: nav_week
+          text: Next
+` + link + `
+        - static: caption
+` + caption + `
+        - static: paragraph
+          text: back
+` + when + `
+        - component: Collection
+          gap: tight
+          empty: none
+          binding: { dataset: ds_week, rows: records, group: date }
+          children:
+            - static: subheading
+              from: { text: "bucket:label" }
+            - static: paragraph
+              from: { text: title }
+`
+}
+
+const (
+	okStep    = "          step: { parameter: week, by: 1 }"
+	okWindow  = "          window: ds_week"
+	okWhenKey = "          when: { parameter: week, is_not: \"0\" }"
+)
+
+// `step:`, `window:` and `when: {parameter: ...}` are the week toolbar's three keys. Each is checked at load for what
+// ir.Lower cannot see: that the Dataset exists and closes a readable window, and that a stepped link lands on a page
+// whose Datasets read $week -- a link that moves a parameter nothing reads draws and selects the same days.
+func TestPage_aWeekToolbarLoadsAndEachKeyIsCheckedAtLoad(t *testing.T) {
+	if err := pageFixture(t, weekToolbar(okStep, okWindow, okWhenKey)); err != nil {
+		t.Fatalf("a well-formed week toolbar was refused: %v", err)
+	}
+	for name, c := range map[string]struct{ step, window, when, want string }{
+		"a window on a dataset nobody declares": {okStep, "          window: ds_nope", okWhenKey, "ds_nope"},
+		"a window with no closed range":         {okStep, "          window: ds_week_open", okWhenKey, "exactly one gte and one lte"},
+		"a step to a page that reads no $week":  {okStep, okWindow, okWhenKey, "reading $week"},
+		"a step by zero":                        {"          step: { parameter: week, by: 0 }", okWindow, okWhenKey, "not zero"},
+		"a step by a word":                      {"          step: { parameter: week, by: soon }", okWindow, okWhenKey, "whole number"},
+		"a step with an unknown key":            {"          step: { parameter: week, by: 1, wrap: true }", okWindow, okWhenKey, "wrap"},
+		"a step on a parameter nothing names":   {"          step: { parameter: page, by: 1 }", okWindow, okWhenKey, "week"},
+		"a window that is a list":               {okStep, "          window: [ds_week]", okWhenKey, "window"},
+		"a when with a role and a parameter":    {okStep, okWindow, "          when: { parameter: week, role: status, is_not: \"0\" }", "not both"},
+		"a when comparing a week to a word":     {okStep, okWindow, "          when: { parameter: week, is_not: soon }", "whole number"},
+	} {
+		nav := weekToolbar(c.step, c.window, c.when)
+		if strings.HasPrefix(name, "a step to a page") {
+			nav = "  - id: nav_other\n    label: Other\n    route: /other\n" + strings.Replace(nav, "to: nav_week", "to: nav_other", 1)
+		}
+		err := pageFixture(t, nav)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: want an error mentioning %q, got %v", name, c.want, err)
+		}
+	}
+}
+
+// A node a request-scoped `when:` would hide is still validated at load, because the load-time lowering holds every
+// condition: a "This week" link that names a missing destination must stop the load on the week it happens to be
+// hidden in, not be found the first time someone steps away from this week.
+func TestPage_aNodeHiddenByAParameterConditionIsStillChecked(t *testing.T) {
+	nav := strings.Replace(weekToolbar(okStep, okWindow, okWhenKey), "- static: paragraph\n          text: back", "- static: link\n          to: nav_missing", 1)
+	if err := pageFixture(t, nav); err == nil || !strings.Contains(err.Error(), "nav_missing") {
+		t.Errorf("a guarded link to a missing destination loaded: %v", err)
+	}
+}

@@ -62,9 +62,32 @@ type PageNode struct {
 	// are `title` and `color` and nothing else, and a record with none draws none. Valid only directly in a
 	// records-bound Collection's item template over a Machine that declares `card_tags:`; the one value is
 	// PageEachTags, a closed set, because a second list would be a second case to measure first.
-	Each     string
+	Each string
+	// Step is the other end of a request-relative parameter a link sends: `step: {parameter: week, by: 1}` on a
+	// `static: link` with `to:` points at that destination one week on from the week the request is looking at.
+	// The value is never written -- it depends on the request, which a page cannot know -- so `ir.Lower` asks the
+	// Resolver for it. Valid only on a link that names its destination with `to:`.
+	Step *PageStep
+	// Window is the Dataset whose date window a `static` node says in words (`window: ds_tasks_due_week` -> "12 --
+	// 18 Oct 2026"): the very bounds a `group: date` Collection over it draws its days from, so the label above a
+	// list and the days in it cannot disagree. The node's text is produced, never written. Valid only on a
+	// `static` node.
+	Window   string
 	Children []PageNode
 }
+
+// PageStep is a link's request-relative parameter: Parameter is the one the runtime names (PageParameterWeek) and
+// By the whole number of steps from the request's own value, never zero (a link to where you already are is a
+// link to nothing).
+type PageStep struct {
+	Parameter string
+	By        int
+}
+
+// PageParameterWeek names the query parameter a calendar steps through and a page may test. It repeats
+// `expression.WeekParameter`, which `internal/domain` may not import; `TestPageParameterWeekIsTheExpressionOne`
+// holds the two equal.
+const PageParameterWeek = "week"
 
 // PageEachTags is the one list `each:` can walk: a record's tags, as its Machine's `card_tags:` declares them.
 const PageEachTags = "tags"
@@ -75,9 +98,14 @@ const PageEachTags = "tags"
 // done" without retyping the word the Machine already declares (001 #8). No grammar beyond that (007 §9.2): one
 // role, one comparison, no `and`/`or`.
 type PageCondition struct {
-	Role  string
-	Is    string
-	IsNot string
+	Role string
+	// Parameter is the second kind of condition: a statement about the request instead of a record
+	// (`when: {parameter: week, is_not: "0"}`), valid anywhere on a page. Exactly one of Role and Parameter is set.
+	// The only parameter a page may test is PageParameterWeek, compared as the runtime reads it -- a whole number,
+	// "0" for this week whatever was sent -- so a page says "not this week" without caring how it was spelt.
+	Parameter string
+	Is        string
+	IsNot     string
 }
 
 // PageCount is a node's plural text over a Relation's child count. Of is a Relation id of the Dataset the

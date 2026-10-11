@@ -2,7 +2,9 @@ package ir
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -1474,5 +1476,151 @@ func TestValidateRefusesACurrentSectionThatIsNotTrue(t *testing.T) {
 	n.Props["current"] = "true"
 	if err := Validate(n); err != nil {
 		t.Errorf("current: true was refused: %v", err)
+	}
+}
+
+func stepLink(step *domain.PageStep) domain.PageNode {
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "link", To: "nav_x", Step: step, Props: map[string]string{"text": "go"}}}}
+}
+
+func weekRequest(week int) Resolver {
+	r := navFixture("/cal")
+	r.Parameter = func(string) string { return strconv.Itoa(week) }
+	r.Step = func(_ string, by int) string {
+		if week+by == 0 {
+			return ""
+		}
+		return strconv.Itoa(week + by)
+	}
+	return r
+}
+
+func TestLowerStepSendsTheParameterOneStepOnFromTheRequestsOwn(t *testing.T) {
+	for name, c := range map[string]struct {
+		week, by int
+		want     string
+	}{
+		"forward":              {0, 1, "/cal?week=1"},
+		"back":                 {0, -1, "/cal?week=-1"},
+		"on from a later week": {3, 1, "/cal?week=4"},
+		"back to this week is the plain route, not ?week=0": {1, -1, "/cal"},
+	} {
+		tree, err := Lower(stepLink(&domain.PageStep{Parameter: "week", By: c.by}), weekRequest(c.week))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got := tree.Children[0].Props["href"]; got != c.want {
+			t.Errorf("%s: href = %q, want %q", name, got, c.want)
+		}
+	}
+}
+
+func TestLowerRefusesAStepThatCouldNotBeHonest(t *testing.T) {
+	notALink := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "paragraph", Step: &domain.PageStep{Parameter: "week", By: 1}}}}
+	noDestination := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "link", ListOf: "ds_x", Step: &domain.PageStep{Parameter: "week", By: 1}, Props: map[string]string{"text": "go"}}}}
+	for name, c := range map[string]struct {
+		root domain.PageNode
+		want string
+	}{
+		"zero":                      {stepLink(&domain.PageStep{Parameter: "week"}), "other than zero"},
+		"a parameter nothing names": {stepLink(&domain.PageStep{Parameter: "page", By: 1}), "week"},
+		"on a node that is no link": {notALink, "static: link"},
+		"on a link with no to:":     {noDestination, "to:"},
+	} {
+		if _, err := Lower(c.root, weekRequest(0)); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v; want it to mention %q", name, err, c.want)
+		}
+	}
+}
+
+func parameterCondition(is, isNot string) domain.PageNode {
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: "static", Type: "paragraph", Props: map[string]string{"text": "shown"},
+			When: &domain.PageCondition{Parameter: "week", Is: is, IsNot: isNot}}}}
+}
+
+func TestLowerParameterConditionFollowsTheRequestAndNeedsNoRecord(t *testing.T) {
+	for name, c := range map[string]struct {
+		week      int
+		is, isNot string
+		wantDrawn bool
+	}{
+		"is_not 0 away from this week": {2, "", "0", true},
+		"is_not 0 on this week":        {0, "", "0", false},
+		"is 0 on this week":            {0, "0", "", true},
+		"is 0 away from it":            {-1, "0", "", false},
+		"an operand spelt 00 is 0":     {0, "", "00", false},
+	} {
+		tree, err := Lower(parameterCondition(c.is, c.isNot), weekRequest(c.week))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if drawn := len(tree.Children) == 1; drawn != c.wantDrawn {
+			t.Errorf("%s: drawn = %v, want %v", name, drawn, c.wantDrawn)
+		}
+	}
+}
+
+func TestLowerParameterConditionHoldsWhenOnlyTheShapeIsBeingChecked(t *testing.T) {
+	tree, err := Lower(parameterCondition("", "0"), Resolver{})
+	if err != nil || len(tree.Children) != 1 {
+		t.Errorf("err = %v, children = %d; a shape-only lowering must draw the node so it is validated", err, len(tree.Children))
+	}
+}
+
+func TestLowerRefusesAParameterConditionThatCouldNotBeHonest(t *testing.T) {
+	both := parameterCondition("", "0")
+	both.Children[0].When.Role = "status"
+	other := parameterCondition("", "0")
+	other.Children[0].When.Parameter = "page"
+	for name, c := range map[string]struct {
+		root domain.PageNode
+		want string
+	}{
+		"a role beside a parameter":  {both, "not both"},
+		"a parameter nothing names":  {other, "week"},
+		"an operand that is no week": {parameterCondition("", "soon"), "whole number"},
+		"both comparisons":           {parameterCondition("0", "0"), "exactly one"},
+	} {
+		if _, err := Lower(c.root, weekRequest(0)); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v; want it to mention %q", name, err, c.want)
+		}
+	}
+}
+
+func windowNode(kind string, props map[string]string, count *domain.PageCount) domain.PageNode {
+	return domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{
+		{Kind: kind, Type: "caption", Window: "ds_w", Props: props, Count: count}}}
+}
+
+func TestLowerWindowSaysTheDatasetsWindowInWordsAndWritesNoText(t *testing.T) {
+	r := Resolver{Window: func(id string) (string, error) { return "words for " + id, nil }}
+	tree, err := Lower(windowNode("static", nil, nil), r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tree.Children[0].Props["text"]; got != "words for ds_w" {
+		t.Errorf("text = %q", got)
+	}
+	if issues := Validate(tree); len(issues) != 0 {
+		t.Errorf("a window's static must validate: %v", issues)
+	}
+	failing := Resolver{Window: func(string) (string, error) { return "", fmt.Errorf("no range") }}
+	for name, c := range map[string]struct {
+		root domain.PageNode
+		res  Resolver
+		want string
+	}{
+		"text also written":  {windowNode("static", map[string]string{"text": "x"}, nil), r, "window:"},
+		"a component":        {windowNode("component", nil, nil), r, "static node"},
+		"no resolver":        {windowNode("static", nil, nil), Resolver{}, "resolver"},
+		"a resolver failure": {windowNode("static", nil, nil), failing, "no range"},
+	} {
+		if _, err := Lower(c.root, c.res); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v; want it to mention %q", name, err, c.want)
+		}
 	}
 }

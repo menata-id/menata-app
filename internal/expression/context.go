@@ -181,6 +181,15 @@ func (c Context) Resolve(value string) (string, bool) {
 	return "", false
 }
 
+// RequestWeek is the week the request is looking at, in whole weeks from the one containing `$today`: 0 when the
+// parameter is missing or not a whole number, and clamped to +-MaxWeekOffset. It is the one place that reading
+// lives, so the Dataset that selects the week, the link that steps from it and the condition that asks whether it is
+// this week cannot disagree about what `?week=abc` or `?week=99999` meant.
+func RequestWeek(parameters map[string]string) int {
+	weeks, _ := strconv.Atoi(parameters[WeekParameter])
+	return max(-MaxWeekOffset, min(MaxWeekOffset, weeks))
+}
+
 // weekDay is the Monday of the request's week plus days. The week is `Parameters[WeekParameter]` whole weeks from
 // the one containing Today; a missing or non-numeric value is this week, and a number is clamped to MaxWeekOffset.
 func (c Context) weekDay(days int) (string, bool) {
@@ -191,8 +200,7 @@ func (c Context) weekDay(days int) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	weeks, _ := strconv.Atoi(c.Parameters[WeekParameter])
-	weeks = max(-MaxWeekOffset, min(MaxWeekOffset, weeks))
+	weeks := RequestWeek(c.Parameters)
 	// Go's Weekday starts on Sunday and a calendar week here starts on Monday, so Sunday is six days after it.
 	sinceMonday := (int(today.Weekday()) + 6) % 7
 	return today.AddDate(0, 0, -sinceMonday+7*weeks+days).Format("2006-01-02"), true

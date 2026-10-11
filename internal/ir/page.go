@@ -179,6 +179,60 @@ func conditionHolds(c domain.PageCondition, record map[string]string, writes *Re
 	return (have == operand) != negate, nil
 }
 
+// parameterHolds answers a `when: {parameter: ...}`. It is a statement about the request, so it needs no record and
+// is valid anywhere; the only parameter a page may test is the week one, and it is compared as the runtime reads it.
+func parameterHolds(c domain.PageCondition, r Resolver, path string) (bool, error) {
+	if c.Role != "" {
+		return false, fmt.Errorf("%s: when: tests a record's role or a request parameter, not both", path)
+	}
+	if (c.Is == "") == (c.IsNot == "") {
+		return false, fmt.Errorf("%s: when: takes exactly one of is: and is_not:", path)
+	}
+	if c.Parameter != domain.PageParameterWeek {
+		return false, fmt.Errorf("%s: when: parameter: %q is not one a page may test (%s)", path, c.Parameter, domain.PageParameterWeek)
+	}
+	operand, negate := c.Is, false
+	if c.IsNot != "" {
+		operand, negate = c.IsNot, true
+	}
+	weeks, err := strconv.Atoi(operand)
+	if err != nil {
+		return false, fmt.Errorf("%s: when: %s is compared as a whole number of weeks, and %q is not one -- it would never (or always) hold", path, c.Parameter, operand)
+	}
+	operand = strconv.Itoa(weeks)
+	if r.Parameter == nil {
+		return true, nil
+	}
+	return (r.Parameter(c.Parameter) == operand) != negate, nil
+}
+
+// lowerWindow is `window:`: a static node whose text is the date window of a Dataset, in words. The text is the
+// resolver's, so a page that also wrote one (or took it from a record, or counted into it) would be saying it twice.
+func lowerWindow(n domain.PageNode, props map[string]string, r Resolver, path string) (map[string]string, error) {
+	if n.Window == "" {
+		return props, nil
+	}
+	if NodeKind(n.Kind) != NodeStatic {
+		return nil, fmt.Errorf("%s: window: produces text, so it is valid only on a static node", path)
+	}
+	if _, written := props["text"]; written || n.Count != nil {
+		return nil, fmt.Errorf("%s: text comes from window:, so it may not also be written, taken from a record or counted", path)
+	}
+	if r.Window == nil {
+		return nil, fmt.Errorf("%s: no resolver for windows", path)
+	}
+	words, err := r.Window(n.Window)
+	if err != nil {
+		return nil, fmt.Errorf("%s: window: %w", path, err)
+	}
+	out := make(map[string]string, len(props)+1)
+	for k, v := range props {
+		out[k] = v
+	}
+	out["text"] = words
+	return out, nil
+}
+
 // RouteResolver answers a `to:`: the route and the label of the navigation item named navID, or ok=false when
 // the Application declares none. It is injected for the same reason the two above are, and it is a closure
 // over *data* (the Application's `navigation:`), so it carries no id of its own.
@@ -230,7 +284,25 @@ type Resolver struct {
 	Source  SourceResolver
 	Form    FormResolver
 	Total   TotalResolver
+	// Parameter answers a `when: {parameter: ...}`: the value of a request parameter in the form the runtime reads
+	// it (the week one is a whole number, "0" for this week). Nil is a shape-only lowering -- the load-time
+	// placeholder, for which there is no request -- and every parameter condition then holds, so the nodes a real
+	// request would hide are still validated, as ShapeOnly does for a record's.
+	Parameter ParameterResolver
+	// Step answers a link's `step:`: the value of the parameter `by` steps on from the request's own, "" when that is
+	// the value a request without the parameter already means (so a step back to this week links to the plain
+	// route, not to `?week=0`).
+	Step StepResolver
+	// Window answers a `window:`: the words that say a Dataset's date window.
+	Window WindowResolver
 }
+
+// ParameterResolver, StepResolver and WindowResolver are the three things a page asks of the request itself rather
+// than of the database. They are injected for the reason RouteResolver is: `ir` reads nothing and may not import
+// the packages that do.
+type ParameterResolver func(name string) string
+type StepResolver func(name string, by int) string
+type WindowResolver func(datasetID string) (string, error)
 
 // TotalResolver answers a `rows: total` Binding: the Measure's figure over the whole Dataset, already formatted.
 type TotalResolver func(b domain.PageBinding) (string, error)
@@ -271,7 +343,13 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 		return nil, fmt.Errorf("%s: hint_figure: words a hint around a figure of the bound Dataset, so it is valid only on a Metric bound with rows: %s", path, domain.PageRowsTotal)
 	}
 	if n.When != nil {
-		show, err := conditionHolds(*n.When, record, writes, path)
+		var show bool
+		var err error
+		if n.When.Parameter != "" {
+			show, err = parameterHolds(*n.When, r, path)
+		} else {
+			show, err = conditionHolds(*n.When, record, writes, path)
+		}
 		if err != nil || !show {
 			return nil, err
 		}
@@ -330,6 +408,10 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 		}
 	}
 	props, err := lowerCount(n, props, record, path)
+	if err != nil {
+		return nil, err
+	}
+	props, err = lowerWindow(n, props, r, path)
 	if err != nil {
 		return nil, err
 	}
@@ -532,6 +614,9 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 	if n.Param != "" { // lowerLink sees only unbound nodes, and a bound Metric is the only node that takes one
 		return nil, fmt.Errorf("%s: param: carries a row's value into a destination, so it is valid only beside to: on a Metric bound with rows: %s", path, domain.PageRowsDimension)
 	}
+	if n.Step != nil && !(isLink && n.To != "") {
+		return nil, fmt.Errorf("%s: step: moves the parameter a link sends, so it is valid only on a static: link that names its destination with to:", path)
+	}
 	if !isLink {
 		if n.To != "" {
 			return nil, fmt.Errorf("%s: to: is valid only on static: link, not %s %q", path, n.Kind, n.Type)
@@ -574,6 +659,19 @@ func lowerLink(n domain.PageNode, props map[string]string, r Resolver, path stri
 		out[k] = v
 	}
 	out["href"] = route
+	if n.Step != nil {
+		step := n.Step
+		if step.Parameter != domain.PageParameterWeek || step.By == 0 {
+			return nil, fmt.Errorf("%s: step: moves %s by a whole number of weeks other than zero", path, domain.PageParameterWeek)
+		}
+		value := "1"
+		if r.Step != nil {
+			value = r.Step(step.Parameter, step.By)
+		}
+		if value != "" {
+			out["href"] = route + "?" + url.QueryEscape(step.Parameter) + "=" + url.QueryEscape(value)
+		}
+	}
 	if _, has := out["text"]; !has && n.From["text"] == "" {
 		out["text"] = label
 	}
