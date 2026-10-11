@@ -220,6 +220,9 @@ func decodePageStep(n *yaml.Node) (*domain.PageStep, error) {
 			if err != nil {
 				return nil, fmt.Errorf("line %d: step.by: %q is not a whole number", key.Line, val.Value)
 			}
+			if by > expression.MaxWeekOffset || by < -expression.MaxWeekOffset {
+				return nil, fmt.Errorf("line %d: step.by: %d is beyond the %d weeks either way a request can be moved", key.Line, by, expression.MaxWeekOffset)
+			}
 			st.By = by
 		default:
 			return nil, fmt.Errorf("line %d: %q is not a key step declares (parameter, by)", key.Line, key.Value)
@@ -257,6 +260,12 @@ func decodePageWhen(n *yaml.Node) (*domain.PageCondition, error) {
 	}
 	if (c.Role == "") == (c.Parameter == "") || (c.Is == "") == (c.IsNot == "") {
 		return nil, fmt.Errorf("line %d: when: names a role or a parameter (not both) and exactly one of is: and is_not:", n.Line)
+	}
+	if c.Parameter != "" {
+		operand := c.Is + c.IsNot
+		if weeks, err := strconv.Atoi(operand); err == nil && (weeks > expression.MaxWeekOffset || weeks < -expression.MaxWeekOffset) {
+			return nil, fmt.Errorf("line %d: when: %s %s is beyond the %d weeks either way a request is clamped to, so the comparison could never (or would always) hold", n.Line, c.Parameter, operand, expression.MaxWeekOffset)
+		}
 	}
 	return c, nil
 }

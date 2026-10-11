@@ -360,6 +360,12 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if n.Each != "" {
 		return lowerEach(n, r, path, record, writes)
 	}
+	if n.Step != nil && !(NodeKind(n.Kind) == NodeStatic && n.Type == string(domain.StaticLink) && n.To != "") {
+		return nil, fmt.Errorf("%s: step: moves a link's address, so it is valid only on a static: link with to:", path)
+	}
+	if n.Window != "" && NodeKind(n.Kind) != NodeStatic {
+		return nil, fmt.Errorf("%s: window: produces text, so it is valid only on a static node", path)
+	}
 	if n.Binding != nil && n.Binding.Write == domain.PageWriteUpdate {
 		return lowerUpdateForm(n, path, record, writes)
 	}
@@ -384,7 +390,8 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	if n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentFormInput) {
 		return nil, fmt.Errorf("%s: Input is produced by lowering a bound Form, never written: a control's name= is its Machine's Field id, and a typed one is exactly the retyped identifier a Binding exists to remove (007 §11.3)", path)
 	}
-	if _, written := n.Props[SectionCurrentProp]; written && NodeKind(n.Kind) == NodeLayout {
+	_, fromCurrent := n.From[SectionCurrentProp]
+	if _, written := n.Props[SectionCurrentProp]; (written || fromCurrent) && NodeKind(n.Kind) == NodeLayout {
 		return nil, fmt.Errorf("%s: %s: is produced by lowering for the day a grouped list is drawing on, and is never written -- a page cannot know which day it is read on", path, SectionCurrentProp)
 	}
 	props := n.Props
@@ -831,7 +838,7 @@ func recordlessTemplateIssue(n domain.PageNode, path, subject string) error {
 	case n.Each != "":
 		return fmt.Errorf("%s: each: lists one record's tags, and %s is not a record", path, subject)
 	case n.When != nil:
-		return fmt.Errorf("%s: when: tests one record's role, and %s is not a record", path, subject)
+		return fmt.Errorf("%s: when: is not supported inside %s's template, which stands for a group rather than for one record -- a record condition has no record to read, and a request condition is not built here", path, subject)
 	}
 	for prop, role := range n.From {
 		if role == domain.PageRecordRole {

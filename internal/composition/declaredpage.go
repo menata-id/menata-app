@@ -191,6 +191,8 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 // clamped to the same bound the Dataset's `$week` reads, and "" for this week, which is the plain route rather
 // than `?week=0` -- the form every other link to the page already has.
 func weekStep(params map[string]string, by int) string {
+	// by is clamped first: the sum of two ints near the extremes wraps, and a wrapped sum clamps to the wrong end.
+	by = max(-expression.MaxWeekOffset, min(expression.MaxWeekOffset, by))
 	next := max(-expression.MaxWeekOffset, min(expression.MaxWeekOffset, expression.RequestWeek(params)+by))
 	if next == 0 {
 		return ""
