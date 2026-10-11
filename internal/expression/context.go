@@ -15,6 +15,8 @@ import (
 //	old
 //	current_user     <- built
 //	today            <- built (`$today`, and `$today+n` / `$today-n` days from it)
+//	week             <- built (`$week`, and `$week+n` / `$week-n` days from it: the Monday of the week the
+//	                    request's `week` parameter selects, see WeekParameter)
 //	now
 //	parameters       <- built
 //
@@ -44,6 +46,10 @@ const (
 	SentinelCurrentUser = "$current_user"
 	// SentinelToday is 007 §9.2's `today`: the request's date, resolved by the caller.
 	SentinelToday = "$today"
+	// SentinelWeek is the Monday of the week the request is looking at: `$week` itself, or `$week+n` / `$week-n`
+	// days from it, so a seven-day window is `$week` and `$week+6`. Which week is the request's `week` parameter
+	// (WeekParameter), counted in whole weeks from the one containing `$today`.
+	SentinelWeek = "$week"
 	// SentinelDone is "the value that means finished" for the Machine the comparison is on. It is **not** a
 	// Context value: the Machine's own `completion:` answers it, so `metadata.Normalize` replaces it with that
 	// declared value at load and Resolve never sees one. KnownSentinel deliberately does not list it, so one
@@ -56,6 +62,17 @@ const (
 // IsSentinel reports whether a declared value references the Context.
 func IsSentinel(value string) bool { return strings.HasPrefix(value, SentinelPrefix) }
 
+// WeekParameter is the one query parameter the runtime itself names: `?week=N` is N weeks from the week containing
+// `$today` (0, the default, is this week; -1 the last). It is named here, and not declared per page, because a
+// calendar's previous/next links and its Datasets must agree on it and a page has nowhere to declare a parameter
+// (DeclaredPage: what a request may supply is what the bound Datasets read). A value that is not a whole number
+// is this week, as the bespoke Calendar always treated it, and is clamped to +-MaxWeekOffset.
+const WeekParameter = "week"
+
+// MaxWeekOffset bounds `?week=N`: ten years either way is more than any plan reaches, and it keeps a request from
+// asking time.AddDate for a date it cannot represent (the bound the bespoke Calendar used).
+const MaxWeekOffset = 520
+
 // MaxTodayOffsetDays bounds `$today+n` / `$today-n`. A page that reaches past a century is a typo (a year
 // written as days), and an unbounded n would hand time.AddDate a date it cannot represent.
 const MaxTodayOffsetDays = 36500
@@ -64,8 +81,14 @@ const MaxTodayOffsetDays = 36500
 // non-negative integer (no sign-only, no spaces, no unit -- a day is the only grain a date Field has). ok is
 // false for anything else, including an n past MaxTodayOffsetDays, so a malformed one fails closed instead of
 // being compared as text.
-func TodayOffset(value string) (days int, ok bool) {
-	rest, found := strings.CutPrefix(value, SentinelToday)
+func TodayOffset(value string) (days int, ok bool) { return dayOffset(SentinelToday, value) }
+
+// WeekOffset reads a `$week`, `$week+n` or `$week-n` value: whole days from the Monday of the request's week, on
+// the same terms as TodayOffset.
+func WeekOffset(value string) (days int, ok bool) { return dayOffset(SentinelWeek, value) }
+
+func dayOffset(prefix, value string) (days int, ok bool) {
+	rest, found := strings.CutPrefix(value, prefix)
 	if !found {
 		return 0, false
 	}
@@ -97,6 +120,15 @@ func IsToday(value string) bool {
 	return ok
 }
 
+// IsWeek reports whether value is `$week` itself or an offset of it.
+func IsWeek(value string) bool {
+	_, ok := WeekOffset(value)
+	return ok
+}
+
+// IsDate reports whether value stands for a calendar date, which only a date Field may be compared to.
+func IsDate(value string) bool { return IsToday(value) || IsWeek(value) }
+
 // KnownSentinel reports whether value is one this runtime resolves.
 //
 // **This is the half that matters**, and 007 §9.2 states it as a requirement rather than a nicety:
@@ -106,7 +138,7 @@ func IsToday(value string) bool {
 // like a screen with no data. That is the same class of silent-empty failure as the /review 404,
 // and it is why this is validated at load rather than discovered at runtime.
 func KnownSentinel(value string) bool {
-	if value == SentinelCurrentUser || IsToday(value) {
+	if value == SentinelCurrentUser || IsDate(value) {
 		return true
 	}
 	return strings.HasPrefix(value, SentinelParameterPrefix) && len(value) > len(SentinelParameterPrefix)
@@ -139,9 +171,29 @@ func (c Context) Resolve(value string) (string, bool) {
 		}
 		return day.AddDate(0, 0, days).Format("2006-01-02"), true
 	}
+	if days, ok := WeekOffset(value); ok {
+		return c.weekDay(days)
+	}
 	if name, found := strings.CutPrefix(value, SentinelParameterPrefix); found {
 		got, ok := c.Parameters[name]
 		return got, ok && got != ""
 	}
 	return "", false
+}
+
+// weekDay is the Monday of the request's week plus days. The week is `Parameters[WeekParameter]` whole weeks from
+// the one containing Today; a missing or non-numeric value is this week, and a number is clamped to MaxWeekOffset.
+func (c Context) weekDay(days int) (string, bool) {
+	if c.Today == "" {
+		return "", false
+	}
+	today, err := time.Parse("2006-01-02", c.Today)
+	if err != nil {
+		return "", false
+	}
+	weeks, _ := strconv.Atoi(c.Parameters[WeekParameter])
+	weeks = max(-MaxWeekOffset, min(MaxWeekOffset, weeks))
+	// Go's Weekday starts on Sunday and a calendar week here starts on Monday, so Sunday is six days after it.
+	sinceMonday := (int(today.Weekday()) + 6) % 7
+	return today.AddDate(0, 0, -sinceMonday+7*weeks+days).Format("2006-01-02"), true
 }

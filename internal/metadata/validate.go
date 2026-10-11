@@ -737,7 +737,7 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if c.Value == expression.SentinelDone {
 				issues = append(issues, fmt.Sprintf("dataset %q: where %s", ds.ID, doneIssue(m, c)))
 			} else if expression.IsSentinel(c.Value) && !expression.KnownSentinel(c.Value) {
-				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s[+-n], %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelToday, expression.SentinelParameterPrefix))
+				issues = append(issues, fmt.Sprintf("dataset %q: where value %q is not a runtime context value this runtime resolves (%s, %s[+-n], %s[+-n], %s<name>) -- an unknown one would be compared as a literal and silently match nothing", ds.ID, c.Value, expression.SentinelCurrentUser, expression.SentinelToday, expression.SentinelWeek, expression.SentinelParameterPrefix))
 			}
 		}
 	} else {
@@ -896,7 +896,7 @@ func emptyComparisonIssue(c expression.Comparison) string {
 
 func orderedComparisonIssues(f domain.Field, c expression.Comparison) []string {
 	var issues []string
-	if expression.IsToday(c.Value) && f.Type != domain.FieldTypeDate {
+	if expression.IsDate(c.Value) && f.Type != domain.FieldTypeDate {
 		issues = append(issues, fmt.Sprintf("value %s is a date, but field %q is type %q", c.Value, f.ID, f.Type))
 	}
 	if !expression.IsOrdered(c.Op) {

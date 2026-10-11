@@ -102,6 +102,18 @@ datasets:
       - field: sort_order
         direction: asc
     limit: 200
+  - id: ds_tasks_due_week
+    select: records
+    where:
+      all:
+        - { field: fld_due_date, op: gte, value: $week }
+        - { field: fld_due_date, op: lte, value: $week+6 }
+    sort:
+      - field: fld_due_date
+        direction: asc
+      - field: sort_order
+        direction: asc
+    limit: 200
   - id: ds_my_tasks_later
     select: records
     where:

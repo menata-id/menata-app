@@ -1686,3 +1686,69 @@ func TestDeclaredPageWordsTheTileHintsAroundDerivedMeasures(t *testing.T) {
 		}
 	}
 }
+
+// TestDeclaredPageListsOnlyTheTasksDueInTheWeekInView: `$week` and `$week+6` bound a Dataset to Monday..Sunday of
+// the week `?week=N` selects, N whole weeks from this one. The edges are the point -- the Sunday that closes the
+// window belongs to it and the Monday after does not, and a Sunday must not read as the start of the next week
+// (Go counts it as day 0) -- and so is that every assignee's Task is listed, since a week is not a personal bucket.
+func TestDeclaredPageListsOnlyTheTasksDueInTheWeekInView(t *testing.T) {
+	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declaredweek", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil {
+		t.Fatal("default installs no mch_task")
+	}
+	today := time.Now().UTC()
+	monday := today.AddDate(0, 0, -((int(today.Weekday()) + 6) % 7))
+	day := func(offset int) string { return monday.AddDate(0, 0, offset).Format("2006-01-02") }
+	for _, c := range []struct {
+		title, due, assignee string
+	}{
+		{"Week-probe-prev-sunday", day(-1), actorID},
+		{"Week-probe-monday", day(0), actorID},
+		{"Week-probe-wednesday-theirs", day(2), "usr_somebody_else"},
+		{"Week-probe-sunday", day(6), actorID},
+		{"Week-probe-next-monday", day(7), actorID},
+		{"Week-probe-next-sunday", day(13), actorID},
+		{"Week-probe-after-next-monday", day(14), actorID},
+		{"Week-probe-undated", "", actorID},
+	} {
+		v := map[string]any{"fld_title": c.title, "fld_status": task.ReopenValue(), "fld_assignee": c.assignee}
+		if c.due != "" {
+			v["fld_due_date"] = c.due
+		}
+		rec, err := store.CreateRecord(ctx, task.ID, v)
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", c.title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+	for _, c := range []struct {
+		query string
+		want  []string
+	}{
+		{"", []string{"Week-probe-monday", "Week-probe-wednesday-theirs", "Week-probe-sunday"}},
+		{"?week=0", []string{"Week-probe-monday", "Week-probe-wednesday-theirs", "Week-probe-sunday"}},
+		{"?week=1", []string{"Week-probe-next-monday", "Week-probe-next-sunday"}},
+		{"?week=-1", []string{"Week-probe-prev-sunday"}},
+		{"?week=abc", []string{"Week-probe-monday", "Week-probe-wednesday-theirs", "Week-probe-sunday"}},
+	} {
+		body := getPage(t, h, cookie, "/pages/nav_week_tasks"+c.query)
+		listed := map[string]bool{}
+		for _, m := range regexp.MustCompile(`>(Week-probe-[a-z-]+)<`).FindAllStringSubmatch(body, -1) {
+			listed[m[1]] = true
+		}
+		if len(listed) != len(c.want) {
+			t.Errorf("%q lists %v, want exactly %v", c.query, listed, c.want)
+		}
+		for _, w := range c.want {
+			if !listed[w] {
+				t.Errorf("%q does not list %s (listed %v)", c.query, w, listed)
+			}
+		}
+	}
+}

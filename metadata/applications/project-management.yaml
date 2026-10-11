@@ -399,6 +399,47 @@ navigation:
     priority: 4
     icon: calendar
     description: Cards sit on the day they are due. Tick a circle to finish one; step through the weeks to see what is coming.
+  # Stage 1 of the Calendar's move to `page:` (K15; `menata-app-document` audits/2026-10-11-pengukuran-k15-calendar.md):
+  # the seven days of the week `?week=N` selects, as one list. It exists to give `$week` its first reader -- the
+  # grouped Collection that will draw one column per day arrives in stage 2 and replaces this page with the Calendar.
+  - id: nav_week_tasks
+    label: This week
+    route: /pages/nav_week_tasks
+    priority: 9
+    icon: calendar
+    description: Every task due from Monday to Sunday of the week in view. Add ?week=1 for next week, ?week=-1 for last.
+    page:
+      layout: stack
+      gap: default
+      children:
+        - component: Collection
+          gap: tight
+          divided: true
+          empty: Nothing is due this week.
+          binding:
+            dataset: ds_tasks_due_week
+            rows: records
+          children:
+            - layout: stack
+              gap: tight
+              children:
+                - static: link
+                  from:
+                    text: title
+                    href: record
+                - layout: row
+                  gap: tight
+                  align: center
+                  children:
+                    - component: StatusBadge
+                      from:
+                        label: "date:label"
+                        tone: "date:tone"
+                    - component: Tag
+                      each: tags
+                      from:
+                        label: title
+                        color: color
   # Board Settings, declared rather than written (Case 19 PM06): the Lists a board groups by beside the Labels
   # its cards carry, each a Subheading and a link to that Machine's own list page over a divided Collection.
   # Every name, colour and count is the Machine's own card_fields / Relation -- this page names no Field, no

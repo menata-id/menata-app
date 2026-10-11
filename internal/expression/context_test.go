@@ -125,3 +125,84 @@ func TestResolve_todayOffset(t *testing.T) {
 		t.Errorf("Resolve($today+1) from an unparsable date = %q, true; want not-ok", got)
 	}
 }
+
+// $week is the Monday of the request's week, with `?week=N` stepping whole weeks. 2026-10-10 is a Saturday, so
+// its week starts on 2026-10-05; every day of the week -- Sunday included, which Go counts as day 0 -- must land
+// on the same Monday.
+func TestResolve_weekIsTheMondayOfTheSelectedWeek(t *testing.T) {
+	for today, want := range map[string]string{
+		"2026-10-05": "2026-10-05", // Monday
+		"2026-10-06": "2026-10-05",
+		"2026-10-10": "2026-10-05", // Saturday
+		"2026-10-11": "2026-10-05", // Sunday: the end of this week, not the start of the next
+		"2026-10-12": "2026-10-12", // the next Monday
+		"2026-03-01": "2026-02-23", // across a month
+		"2027-01-01": "2026-12-28", // across a year
+	} {
+		if got, ok := (Context{Today: today}).Resolve("$week"); !ok || got != want {
+			t.Errorf("Resolve($week) on %s = %q, %v; want %q, true", today, got, ok, want)
+		}
+	}
+}
+
+func TestResolve_weekOffsetsAreDaysFromThatMonday(t *testing.T) {
+	c := Context{Today: "2026-10-10"}
+	for value, want := range map[string]string{
+		"$week+0": "2026-10-05",
+		"$week+6": "2026-10-11", // the Sunday that closes the window
+		"$week+7": "2026-10-12",
+		"$week-1": "2026-10-04",
+		"$week+4": "2026-10-09",
+	} {
+		if got, ok := c.Resolve(value); !ok || got != want {
+			t.Errorf("Resolve(%q) = %q, %v; want %q, true", value, got, ok, want)
+		}
+	}
+}
+
+func TestResolve_weekParameterStepsWholeWeeksAndFailsSafeToThisWeek(t *testing.T) {
+	for param, want := range map[string]string{
+		"":      "2026-10-05",
+		"0":     "2026-10-05",
+		"1":     "2026-10-12",
+		"-1":    "2026-09-28",
+		"abc":   "2026-10-05", // not a number is this week, as the bespoke Calendar read it
+		"1.5":   "2026-10-05",
+		"9999":  "2036-09-22",
+		"-9999": "2016-10-17", // clamped to 520 weeks, not asking time for a date it cannot represent
+	} {
+		c := Context{Today: "2026-10-10", Parameters: map[string]string{"week": param}}
+		if got, ok := c.Resolve("$week"); !ok || got != want {
+			t.Errorf("Resolve($week) with ?week=%q = %q, %v; want %q, true", param, got, ok, want)
+		}
+	}
+	// The Sunday of a stepped week is still six days after its own Monday.
+	c := Context{Today: "2026-10-10", Parameters: map[string]string{"week": "2"}}
+	if got, _ := c.Resolve("$week+6"); got != "2026-10-25" {
+		t.Errorf("Resolve($week+6) with ?week=2 = %q; want 2026-10-25", got)
+	}
+}
+
+func TestResolve_weekNeedsADateAndIsNotAParameterOrToday(t *testing.T) {
+	for _, value := range []string{"$week", "$week+6"} {
+		if got, ok := (Context{}).Resolve(value); ok {
+			t.Errorf("Resolve(%q) with no date = %q, true; want not-ok", value, got)
+		}
+	}
+	if got, ok := (Context{Today: "not a date"}).Resolve("$week"); ok {
+		t.Errorf("Resolve($week) from an unparsable date = %q, true; want not-ok", got)
+	}
+	for _, bad := range []string{"$weeks", "$week+", "$week+x", "$week 1", "$week+99999999", "$weekday"} {
+		if KnownSentinel(bad) {
+			t.Errorf("KnownSentinel(%q) = true; a malformed week value must be a load error, not a literal", bad)
+		}
+	}
+	for _, good := range []string{"$week", "$week+6", "$week-1"} {
+		if !KnownSentinel(good) || IsToday(good) || !IsWeek(good) || !IsDate(good) {
+			t.Errorf("%q must be a known week value and not a today value", good)
+		}
+	}
+	if IsWeek("$today+1") {
+		t.Error("IsWeek($today+1) = true")
+	}
+}

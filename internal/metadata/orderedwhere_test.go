@@ -35,6 +35,8 @@ func TestDatasetWhere_orderedOperatorsAreCheckedAgainstTheField(t *testing.T) {
 		cmp("fld_due", expression.OpEquals, expression.SentinelToday),
 		cmp("fld_due", expression.OpLessOrEqual, "$today+7"),
 		cmp("fld_due", expression.OpGreaterThan, "$today-30"),
+		cmp("fld_due", expression.OpGreaterOrEqual, expression.SentinelWeek),
+		cmp("fld_due", expression.OpLessOrEqual, "$week+6"),
 	} {
 		if got := run(ok); got != "" {
 			t.Errorf("%+v was refused: %s", ok, got)
@@ -52,6 +54,10 @@ func TestDatasetWhere_orderedOperatorsAreCheckedAgainstTheField(t *testing.T) {
 		"$today+7 on a number":       {cmp("fld_points", expression.OpLessThan, "$today+7"), "is a date"},
 		"$today+7d, a unit":          {cmp("fld_due", expression.OpLessThan, "$today+7d"), "not a runtime context value"},
 		"$today+, no number":         {cmp("fld_due", expression.OpLessThan, "$today+"), "not a runtime context value"},
+		"$week on a number":          {cmp("fld_points", expression.OpLessThan, expression.SentinelWeek), "is a date"},
+		"$week+6 on a text, equals":  {cmp("fld_name", expression.OpEquals, "$week+6"), "is a date"},
+		"$week+x, not a number":      {cmp("fld_due", expression.OpLessThan, "$week+x"), "not a runtime context value"},
+		"$weeks, a misspelling":      {cmp("fld_due", expression.OpLessThan, "$weeks"), "not a runtime context value"},
 	} {
 		if got := run(c.cmp); !strings.Contains(got, c.want) {
 			t.Errorf("%s: issues = %q, want one containing %q", name, got, c.want)
@@ -79,7 +85,7 @@ func TestMeasureWhere_resolvesTodayAndRefusesTheRest(t *testing.T) {
 	if got := measureIssues(m, fields, expression.Comparison{Field: "fld_due", Op: expression.OpLessOrEqual, Value: "$today+7"}); got != "" {
 		t.Errorf("a measure comparing a date against $today+7 was refused: %q", got)
 	}
-	for _, v := range []string{expression.SentinelCurrentUser, "$parameters.x", "$today+7d"} {
+	for _, v := range []string{expression.SentinelCurrentUser, "$parameters.x", "$today+7d", expression.SentinelWeek, "$week+6"} {
 		got := measureIssues(m, fields, expression.Comparison{Field: "fld_name", Op: expression.OpEquals, Value: v})
 		if !strings.Contains(got, "cannot resolve") {
 			t.Errorf("a measure comparing against %s was accepted: %q", v, got)

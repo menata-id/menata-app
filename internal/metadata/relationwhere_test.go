@@ -81,10 +81,11 @@ func TestRelationWhere_refusesWhatItCannotResolve(t *testing.T) {
 			"        where: { field: fld_status, op: not_equals, value: $done }\n", false, "completion"},
 		"$done on a field that is not the completion field": {
 			"        where: { field: fld_note, op: equals, value: $done }\n", true, "completion"},
-		"is_empty given a value":               {"        where: { field: fld_due, op: is_empty, value: x }\n", true, "takes none"},
-		"an ordered op on a text field":        {"        where: { field: fld_note, op: lt, value: x }\n", true, "orders a number or a date"},
-		"$today on a field that is not a date": {"        where: { field: fld_note, op: equals, value: $today }\n", true, "is a date"},
-		"$done with an ordered op":             {"        where: { field: fld_status, op: lt, value: $done }\n", true, "is a state"},
+		"is_empty given a value":                 {"        where: { field: fld_due, op: is_empty, value: x }\n", true, "takes none"},
+		"an ordered op on a text field":          {"        where: { field: fld_note, op: lt, value: x }\n", true, "orders a number or a date"},
+		"$today on a field that is not a date":   {"        where: { field: fld_note, op: equals, value: $today }\n", true, "is a date"},
+		"$week, which needs a request parameter": {"        where: { field: fld_due, op: gte, value: $week }\n", true, "cannot resolve"},
+		"$done with an ordered op":               {"        where: { field: fld_status, op: lt, value: $done }\n", true, "is a state"},
 		"$current_user, which a relation cannot resolve": {
 			"        where: { field: fld_note, op: equals, value: $current_user }\n", true, "cannot resolve"},
 	} {

@@ -1144,7 +1144,12 @@ Machine already said about its shape. Rules, all checked at load:
   date (`YYYY-MM-DD`, from the clock the handler reads and injected, never read by the evaluator). `$today` is valid
   only against a `date` Field and only in a records Dataset's `where:` -- a `Measure.Where` refuses every
   `$`-value. A record with no value for the Field, or an empty one, satisfies none of the four; a number Field
-  compares as a number ("10" is above "9"). Example, "past due": `fld_due_date lt $today` beside
+  compares as a number ("10" is above "9"). **`$week`** is the Monday of the week the request's `?week=N` selects
+  (N whole weeks from this one; absent or not a whole number means this week, and N is clamped to 520), and `$week+6`
+  is that week's Sunday -- so "the week in view" is `gte $week` and `lte $week+6`, with no date typed into the file.
+  Like `$today` it is a date and only a date, and it is valid only in a records Dataset's `where:` (a Measure or a
+  Relation has no request parameters and refuses it). The parameter name `week` is the runtime's own
+  (`expression.WeekParameter`), the one request parameter it names. Example, "past due": `fld_due_date lt $today` beside
   `fld_status equals in_review`, which `nav_documents_by_status` draws under a "Past due" subheading;
 - `from:` is valid only inside a records-bound Collection's template, a property cannot be both written and
   `from:`, and a records binding does not nest inside a template;
