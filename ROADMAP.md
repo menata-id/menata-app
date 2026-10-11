@@ -552,7 +552,7 @@ there and are deliberately not here.
 - S0, S1, S2.1-S2.3 shipped (2026-10-10), then a 77-board re-audit (2026-10-11, `audits/2026-10-11-audit-ulang-kanvas-77-board-terhadap-kode-dan-kajian.md`):
   Settings drawn from navigation, per-Application Members & roles, a settings sidebar; Board in every PM install, editable label colours (S3.6).
 - Open: S2.4-S2.8 (mobile bar, account menu, My Documents table, the PM Dashboard's activity panel, touch drag; several wait on M-D1..M-D7),
-  the Apps Builder page (a scope decision) and the interim K15 pages in the PM menu (an owner decision).
+  the interim K15 pages leave the PM menu by deletion once K15 migrates them; the Apps Builder page is out of scope for now (owner, 2026-10-11).
 - S3 Proposal first: account deletion with a grace period, Application deactivation, per-Application notifications, card actions.
 
 **P2 -- the Experience Plane meets 007 §12.4**
