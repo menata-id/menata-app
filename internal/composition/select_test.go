@@ -188,14 +188,15 @@ func TestSelectDataset_refusesAnAggregatingDataset(t *testing.T) {
 	}
 }
 
-// TestPersonalTasks_returnsOnlyTheViewersTasks is where "another identity's Tasks never appear in my
-// list" lives now. It used to be a line in buildMyTasks and a fixture row in its unit test; the
-// predicate moved into ds_my_tasks and the database, so the assertion moved with it rather than
-// being quietly dropped.
+// TestSelectDataset_currentUserReturnsOnlyTheViewersRecords is where "another identity's records never appear
+// in my list" lives. It used to be a line in buildMyTasks and a fixture row in its unit test; the predicate is a
+// Dataset's `$current_user` and runs in the database, so the assertion is made there.
 //
 // Asserted against a real database precisely because the filter is now SQL: a Go-level test would
 // prove nothing about the query that actually runs.
-func TestPersonalTasks_returnsOnlyTheViewersTasks(t *testing.T) {
+const personalProbeDataset = "ds_personal_probe"
+
+func TestSelectDataset_currentUserReturnsOnlyTheViewersRecords(t *testing.T) {
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
 		t.Skip("set DATABASE_URL to run the personal-tasks selection test")
@@ -233,7 +234,7 @@ func TestPersonalTasks_returnsOnlyTheViewersTasks(t *testing.T) {
 			{ID: "fld_status", Type: domain.FieldTypeStatus},
 		},
 		Datasets: []domain.Dataset{{
-			ID: myTasksDataset, Source: machineID, Select: domain.SelectRecords, Limit: 200,
+			ID: personalProbeDataset, Source: machineID, Select: domain.SelectRecords, Limit: 200,
 			Where: &expression.Predicate{All: []expression.Comparison{
 				{Field: "fld_assignee", Op: expression.OpEquals, Value: expression.SentinelCurrentUser},
 			}},
@@ -241,7 +242,7 @@ func TestPersonalTasks_returnsOnlyTheViewersTasks(t *testing.T) {
 	}
 	l := NewLoader(store, map[string]*domain.Machine{machineID: machine})
 
-	got, err := l.SelectDataset(ctx, myTasksDataset, expression.Context{CurrentUser: "usr_ana"})
+	got, err := l.SelectDataset(ctx, personalProbeDataset, expression.Context{CurrentUser: "usr_ana"})
 	if err != nil {
 		t.Fatalf("SelectDataset: %v", err)
 	}
@@ -253,8 +254,7 @@ func TestPersonalTasks_returnsOnlyTheViewersTasks(t *testing.T) {
 		t.Error("another identity's Task appeared in the viewer's selection -- the $current_user " +
 			"predicate did not reach the query")
 	}
-	// Completed Tasks must still come back: `done` is a bucket in buildMyTasks, not a filter, and
-	// pushing it into the query would empty the Completed section.
+	// A Dataset that does not name status must not drop a finished record.
 	if !titles["mine-done"] || !titles["mine-1"] {
 		t.Errorf("viewer's own Tasks are missing: %v", titles)
 	}

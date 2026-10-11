@@ -174,25 +174,26 @@ func TestValidateButton(t *testing.T) {
 		t.Errorf("a complete name/value pair is valid, got %v", issues)
 	}
 	for name, in := range map[string]map[string]string{
-		"name without value": {"label": "x", "variant": "primary", "name": "intent"},
-		"value without name": {"label": "x", "variant": "primary", "value": "draft"},
-		"unknown variant":    {"label": "x", "variant": "ghost"},
-		"no label":           {"variant": "primary"},
-		"no variant":         {"label": "x"},
-		"hx attribute":       {"label": "x", "variant": "primary", "hx-get": "/x"},
-		"class":              {"label": "x", "variant": "primary", "class": "mr-1"},
-		"action no method":   {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "confirm": "Sure?"},
-		"method no action":   {"label": "x", "variant": "secondary", "method": "delete", "confirm": "Sure?"},
-		"no confirm":         {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete"},
-		"confirm no request": {"label": "x", "variant": "secondary", "confirm": "Sure?"},
-		"unknown verb":       {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "put", "confirm": "Sure?"},
-		"move that asks":     {"label": "x", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post", "confirm": "Sure?"},
-		"foreign route":      {"label": "x", "variant": "secondary", "action": "/elsewhere", "method": "delete", "confirm": "Sure?"},
-		"patch that asks":    {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "f", "value": "v", "confirm": "Sure?"},
-		"patch no pair":      {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch"},
-		"patch name only":    {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "f"},
-		"post with a pair":   {"label": "x", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post", "name": "f", "value": "v"},
-		"request and name":   {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete", "confirm": "Sure?", "name": "a", "value": "b"},
+		"name without value":   {"label": "x", "variant": "primary", "name": "intent"},
+		"value without name":   {"label": "x", "variant": "primary", "value": "draft"},
+		"unknown variant":      {"label": "x", "variant": "ghost"},
+		"no label":             {"variant": "primary"},
+		"no variant":           {"label": "x"},
+		"hx attribute":         {"label": "x", "variant": "primary", "hx-get": "/x"},
+		"class":                {"label": "x", "variant": "primary", "class": "mr-1"},
+		"action no method":     {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "confirm": "Sure?"},
+		"method no action":     {"label": "x", "variant": "secondary", "method": "delete", "confirm": "Sure?"},
+		"no confirm":           {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete"},
+		"confirm no request":   {"label": "x", "variant": "secondary", "confirm": "Sure?"},
+		"unknown verb":         {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "put", "confirm": "Sure?"},
+		"move that asks":       {"label": "x", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post", "confirm": "Sure?"},
+		"foreign route":        {"label": "x", "variant": "secondary", "action": "/elsewhere", "method": "delete", "confirm": "Sure?"},
+		"patch that asks":      {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "f", "value": "v", "confirm": "Sure?"},
+		"patch no pair":        {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch"},
+		"patch name only":      {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "f"},
+		"post with a pair":     {"label": "x", "variant": "secondary", "action": "/machines/m/records/r/move?direction=up", "method": "post", "name": "f", "value": "v"},
+		"describes no request": {"label": "x", "variant": "secondary", "describes": "Write the spec"},
+		"request and name":     {"label": "x", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete", "confirm": "Sure?", "name": "a", "value": "b"},
 	} {
 		if issues := ValidateComponentUse(domain.ComponentButton, in); len(issues) == 0 {
 			t.Errorf("%s must be refused, but validated clean", name)
@@ -205,6 +206,10 @@ func TestValidateButton(t *testing.T) {
 	transition := map[string]string{"label": "Mark done", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "fld_status", "value": "done"}
 	if issues := ValidateComponentUse(domain.ComponentButton, transition); len(issues) != 0 {
 		t.Errorf("a lowered transition Button is valid, got %v", issues)
+	}
+	named := map[string]string{"label": "Mark done", "variant": "secondary", "action": "/machines/m/records/r", "method": "patch", "name": "fld_status", "value": "done", "describes": "Write the spec"}
+	if issues := ValidateComponentUse(domain.ComponentButton, named); len(issues) != 0 {
+		t.Errorf("a transition Button naming its record is valid, got %v", issues)
 	}
 	del := map[string]string{"label": "Delete", "variant": "secondary", "action": "/machines/m/records/r", "method": "delete", "confirm": "Delete this record?"}
 	if issues := ValidateComponentUse(domain.ComponentButton, del); len(issues) != 0 {

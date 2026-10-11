@@ -414,7 +414,6 @@ func TestHandWrittenFieldsOnlyShrink(t *testing.T) {
 var handWrittenDividerFloors = map[string]int{
 	"appshell.templ":       1, // region rule under the header
 	"inference.templ":      1, // heading underline
-	"mytasks.templ":        1, // divide-y utility
 	"newapplication.templ": 1, // card body / footer rule
 }
 

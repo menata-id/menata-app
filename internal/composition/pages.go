@@ -29,7 +29,6 @@ const (
 // which one it wants.
 const (
 	calendarTasksDataset = "ds_all_tasks"
-	myTasksDataset       = "ds_my_tasks"
 	// The one declared Relation (007 §7.5, Tahap A) and its id. The Dataset id is domain's, not a
 	// literal here: registry.KnownWorkflowEngines declares that the approval engine's `document` role must
 	// provide it, so the selector and the requirement are one string (001 #8). Two agreeing literals is
@@ -54,22 +53,9 @@ const (
 	measureTotal = "msr_total"
 )
 
-// MyTasks is one identity's personal work queue (development-history.md Phase 14), bucketed by due date:
-// Overdue, due within the next seven days (today included), Later (including undated), and Completed --
-// "completed" being the Machine's own `completion:` declaration, not a status literal.
-type MyTasks struct {
-	Overdue   []rendering.TaskRow
-	Next7Days []rendering.TaskRow
-	Later     []rendering.TaskRow
-	Completed []rendering.TaskRow
-}
-
-// myTasksWindowDays is how far ahead "Next 7 days" reaches, counting today.
-const myTasksWindowDays = 7
-
 // MyNotifications lists the viewer's own mch_notification records, newest first (Flow 2 gap study
-// Tahap 6) -- the same "filter by identity in Go" shape PersonalTasks/PendingApprovalCount already
-// are (007 §20's named, accepted pattern for this class of per-viewer worklist), keyed by the
+// Tahap 6) -- the same "filter by identity in Go" shape PendingApprovalCount already
+// is (007 §20's named, accepted pattern for this class of per-viewer worklist), keyed by the
 // already-declared prm_edit_own_notification's own actor_field, fld_recipient.
 func MyNotifications(ctx context.Context, l *Loader, viewerID string) ([]rendering.NotificationRow, error) {
 	records, err := l.ListRecordsBy(ctx, notificationMachineID, "fld_recipient", viewerID)
@@ -108,106 +94,15 @@ func UnreadNotificationCount(ctx context.Context, l *Loader, viewerID string) (i
 	return count, nil
 }
 
-// PersonalTasks composes My Tasks for one identity. Bucketing reuses experience.EvaluateSLA
-// (Phase 13) rather than re-deriving day-truncation logic.
-//
-// This is the one screen of the five the decomposition audit counted that a declared Dataset
-// cannot express. Its counts are filtered by the viewing identity (assignee == userID), and a
-// declared where: is a comparison against a literal, not against a value supplied per request --
-// so a Dataset would need parameterized filters. Its other two counts (Overdue, DueToday) compare
-// a due date against now, which a Measure's `where` still cannot (`$today` is refused there).
-//
-// **This comment used to end "neither has a second case yet", and that was already false when it
-// was written** (kajian 2026-09-29, ROADMAP.md). Seven exported functions in this package take a
-// viewing identity and then filter records in Go after reading them all: ApprovalInbox,
-// PendingApprovalCount, AssignedToMe, MyNotifications, UnreadNotificationCount, PersonalTasks and
-// ReviewStepForDocument. MyNotifications' own comment, forty lines up, says so in as many words --
-// "the same 'filter by identity in Go' shape PersonalTasks/PendingApprovalCount already are". Two
-// comments in one file contradicting each other is how a met trigger stays invisible: CLAUDE.md's
-// step 3 fires on the *second* case of a shape, and this is the seventh.
-//
-// **The two halves are not equally ripe, which is why only one moved.** The identity half's trigger
-// is met seven times over. The date half was parked here at two cases; `lt`/`lte`/`gt`/`gte` and
-// `$today` shipped 2026-10-10 (internal/expression) with the documents page's "Past due" list as
-// consumer. This screen's own Overdue/Due-today counts are still hand-written: they exclude finished
-// Tasks, which a Dataset can state only by restating `completion:` (001 #8).
-//
-// **And "seven cases" is right about the coupling and wrong as a forcing case -- measured 2026-09-29,
-// after this comment had already carried the number through three answers unchecked.** All seven do
-// filter by identity in Go. **None of them is closed by an identity-aware `where:` alone.** Four
-// (ApprovalInbox, AssignedToMe, MyNotifications, ReviewStepForDocument) need record *selection*,
-// which a Dataset cannot do -- it produces numbers. PendingApprovalCount reads a *sibling*
-// (behavior.CanAct) and can never be a Dataset at all. UnreadNotificationCount and this screen need
-// a second predicate, and Measure.Where is a single expression.Comparison with no conjunction. So
-// the sentinel on its own would have landed with zero consumers, which is the premature declaration
-// B5 refuses -- the very rule this comment invokes two paragraphs up.
-//
-// The lesson is the one about numbers, not about filters: a count of *sites sharing a shape* is not a
-// count of *cases a primitive would close*, and the two were conflated here until someone checked
-// each site against the thing being built. ROADMAP.md's "(c)" entry carries the per-site
-// classification, and the work that follows from it is `select: records` (007 §7.7-§7.9), not the
-// sentinel alone.
-//
-// It was also **detached**: this block sat above MyNotifications' comment with no blank line
-// between them, so godoc fused the two and PersonalTasks itself had no documentation at all -- and
-// the text it fused into was one of the cases contradicting it.
-func PersonalTasks(ctx context.Context, l *Loader, userID string, now time.Time) (MyTasks, error) {
-	// The assignee filter is declared now (ds_my_tasks) and runs in the database, so this no longer
-	// reads every Task in the Workspace to keep the viewer's own. What did *not* move is the status
-	// bucketing below: `done` sends a Task to the Completed section rather than dropping it, so it is
-	// not a filter and pushing it down would empty that section.
-	tasks, err := l.SelectDataset(ctx, myTasksDataset, expression.Context{CurrentUser: userID})
-	if err != nil {
-		return MyTasks{}, err
-	}
-	names, err := projectNames(ctx, l)
-	if err != nil {
-		return MyTasks{}, err
-	}
-	m := l.Machine(taskMachineID)
-	tags, err := l.CardTagsFor(ctx, m, tasks)
-	if err != nil {
-		return MyTasks{}, err
-	}
-	columns, err := l.BoardColumns(ctx, m, m.DefaultView())
-	if err != nil {
-		return MyTasks{}, err
-	}
-	return buildMyTasks(tasks, names, now, m, tags, columns), nil
-}
-
-// listName is the name of the list a record sits in: its value of the Machine's default View's `group_by`
-// Field, resolved through that View's columns for a relation-grouped board (the list's own title) and read
-// as it is for an option-grouped one. "" when the default View is not grouped.
-func listName(m *domain.Machine, r *data.Record, columns []experience.Column) string {
-	group := m.DefaultView().GroupBy
-	if group == "" {
-		return ""
-	}
-	value := DisplayString(r.Values[group])
-	for _, c := range columns {
-		if c.ID != "" && c.ID == value {
-			return c.Label
-		}
-	}
-	if f, ok := m.FieldByID(group); ok && f.Type != domain.FieldTypeRelation {
-		return value
-	}
-	return ""
-}
-
 // taskRow resolves one Task row's display shape from the Machine's own card_fields declaration. All
-// three screens that render a Task row go through it -- My Tasks, the Sprint dashboard's Attention
-// list and the Calendar week, which share taskRowList's markup -- so none of them names fld_title,
-// fld_status or fld_due_date, and a Machine whose Fields are called something else still renders
-// (2026-09-28; this is what let mytasks.templ/calendar.templ stop reading Values["fld_title"]).
+// screens that render a Task row go through it, so none of them names fld_title, fld_status or
+// fld_due_date, and a Machine whose Fields are called something else still renders.
 //
 // **DueText stays the *raw* stored value rather than the projected display string**, and that is not the
 // same decision as the one this comment used to describe. Projection formats a date for reading
-// ("2 Jan 2006"), which nothing can parse back, so the bucketing below needs the stored form -- but the
-// *badge* is resolved here now instead of in the Page. `rendering.TaskRow.Due any` existed so
-// mytasks.templ could parse a date and evaluate a rule against `time.Now()`; that is 007 §4.4's division
-// and §4.6's determinism rule, and it is why `now` is a parameter.
+// ("2 Jan 2006"), which nothing can parse back, so the Calendar's bucketing by day needs the stored form -- but
+// the *badge* is resolved here instead of in the Page: a Page parsing a date and evaluating a rule against
+// `time.Now()` breaks 007 §4.4's division and §4.6's determinism rule, which is why `now` is a parameter.
 func taskRow(t *data.Record, projects map[string]string, taskMachine *domain.Machine, now time.Time) rendering.TaskRow {
 	shape := ProjectedByRole(taskMachine, t, nil)
 	return rendering.TaskRow{
@@ -218,49 +113,6 @@ func taskRow(t *data.Record, projects map[string]string, taskMachine *domain.Mac
 		DueText:     DisplayString(t.Values[FieldForRole(taskMachine, domain.CardFieldRoleDate)]),
 		SLA:         experience.ResolveSLABadge(t.Values[FieldForRole(taskMachine, domain.CardFieldRoleDate)], now),
 	}
-}
-
-// buildMyTasks buckets the viewer's Tasks. Completed is the Machine's own declaration (IsComplete) and is
-// kept apart from the dated buckets whatever the date says; an undated Task is Later rather than dropped
-// ("someday" is a real answer). Overdue and Next 7 days are ordered by date, so the soonest is on top.
-func buildMyTasks(tasks []*data.Record, projects map[string]string, now time.Time, taskMachine *domain.Machine, tags map[string][]rendering.CardTag, columns []experience.Column) MyTasks {
-	var out MyTasks
-	y, mo, d := now.Date()
-	today := time.Date(y, mo, d, 0, 0, 0, 0, time.UTC)
-	for _, t := range tasks {
-		row := taskRow(t, projects, taskMachine, now)
-		done := IsComplete(taskMachine, t)
-		row.Complete = cardComplete(taskMachine, t)
-		row.Date = experience.ResolveCardDate(t.Values[FieldForRole(taskMachine, domain.CardFieldRoleDate)], done, now)
-		row.ListName = listName(taskMachine, t, columns)
-		row.Tags = tags[t.ID]
-
-		if done {
-			out.Completed = append(out.Completed, row)
-			continue
-		}
-		due, err := time.Parse("2006-01-02", row.DueText)
-		status := experience.SLAOK
-		if err == nil {
-			status, _ = experience.EvaluateSLA(due, now)
-		}
-		switch {
-		case err != nil:
-			out.Later = append(out.Later, row)
-		case status == experience.SLAOverdue:
-			out.Overdue = append(out.Overdue, row)
-		case due.Before(today.AddDate(0, 0, myTasksWindowDays+1)):
-			out.Next7Days = append(out.Next7Days, row)
-		default:
-			out.Later = append(out.Later, row)
-		}
-	}
-	byDue := func(rows []rendering.TaskRow) {
-		sort.SliceStable(rows, func(i, j int) bool { return rows[i].DueText < rows[j].DueText })
-	}
-	byDue(out.Overdue)
-	byDue(out.Next7Days)
-	return out
 }
 
 // maxCalendarWeeks bounds how far from this week the Calendar will navigate: ten years either way is more

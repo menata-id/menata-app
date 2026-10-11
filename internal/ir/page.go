@@ -1130,6 +1130,10 @@ func lowerMoveButton(n domain.PageNode, path string, record map[string]string, w
 // the record to. Lowering consumes it into the derived name/value pair, so it never reaches the renderer.
 const buttonBecomesProp = "becomes"
 
+// buttonDescribesProp is the one property a transition Button may take from its record: the record's name, spent on
+// the rendered `aria-label` so the Buttons down a list are not all called the same thing.
+const buttonDescribesProp = "describes"
+
 // lowerTransitionButton turns a `Button` bound with `write: transition` into a Button that sends `PATCH` of the
 // record's status Field to the value `becomes:` names: an option of that Field, or `$done` / `$reopen`, which are
 // read from the Machine's `completion:` so a page never retypes which status means finished. It takes no dataset
@@ -1137,8 +1141,15 @@ const buttonBecomesProp = "becomes"
 // transition), and a record the move is not allowed on, or a viewer the resolver does not permit, gets no node.
 // The Field is the Machine's, never typed: `name:` and `value:` are refused as a typed route is.
 func lowerTransitionButton(n domain.PageNode, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
+	from := n.From
+	n.From = nil
 	if err := checkFormNode(n, path); err != nil {
 		return nil, err
+	}
+	for prop := range from {
+		if prop != buttonDescribesProp {
+			return nil, fmt.Errorf("%s: a transition Button takes only from: {%s: <role>}, the record's own name for assistive technology; %q is not an input it reads from a record", path, buttonDescribesProp, prop)
+		}
 	}
 	if record == nil {
 		return nil, fmt.Errorf("%s: write: %s acts on a record, so it is valid only inside the item template of a Collection bound with rows: %s", path, domain.PageWriteTransition, domain.PageRowsRecords)
@@ -1176,11 +1187,18 @@ func lowerTransitionButton(n domain.PageNode, path string, record map[string]str
 	if !allowed {
 		return nil, nil
 	}
-	props := make(map[string]string, len(n.Props)+3)
+	props := make(map[string]string, len(n.Props)+4)
 	for k, v := range n.Props {
 		if k != buttonBecomesProp {
 			props[k] = v
 		}
+	}
+	if len(from) > 0 {
+		filled, err := fillFrom(domain.PageNode{Props: n.Props, From: from}, record, path)
+		if err != nil {
+			return nil, err
+		}
+		props[buttonDescribesProp] = filled[buttonDescribesProp]
 	}
 	props[formActionProp] = t.Route
 	props[formMethodProp] = domain.ButtonMethodPatch

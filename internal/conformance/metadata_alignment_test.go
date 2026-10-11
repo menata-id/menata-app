@@ -586,10 +586,6 @@ func TestHandlersHaveNoHardcodedApplicationLabel(t *testing.T) {
 // TestNavigationRoutesAreRegistered already closes for routes.
 var composedScreenDatasets = map[string]map[string][]string{
 	"task.yaml": {
-		// My Tasks' record selection. Its *predicate* is separately gated by
-		// TestPerViewerDatasetsScopeByIdentity, which also fails if it stops existing -- but that gate
-		// is about identity scoping, and this one is about the id resolving at all. Both, on purpose.
-		"ds_my_tasks": {},
 		// The whole Task set, as records (the Calendar's selection; the Dashboard moved to Measures in K15 D4).
 		"ds_all_tasks": {},
 	},

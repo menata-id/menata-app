@@ -240,11 +240,12 @@ var buttonContract = domain.ComponentContract{
 		{Name: "confirm", Kind: "string"},
 		{Name: "action", Kind: "string"},
 		{Name: "method", Kind: "string"},
+		{Name: "describes", Kind: "string"},
 	},
 	DataRequirements: nil,
 	Slots:            nil,
 	Actions:          []string{"submit", "delete", "move", "transition"},
-	Accessibility:    "the label is the accessible name, so it is required and never an icon alone; the element is a real <button>, focusable and activated by Enter and Space without a role or a script; a delete states its consequence in `confirm`, which the browser asks before anything is sent; a move's label names the direction in words, since an arrow alone is not a name; a transition's label names the status it moves to",
+	Accessibility:    "the label is the accessible name, so it is required and never an icon alone; the element is a real <button>, focusable and activated by Enter and Space without a role or a script; a delete states its consequence in `confirm`, which the browser asks before anything is sent; a move's label names the direction in words, since an arrow alone is not a name; a transition's label names the status it moves to; a request Button repeated down a list takes `describes`, the record's own name, and the renderer spends it on `aria-label` so no two buttons on a page share a bare name",
 	Renderer:         "requestButton",
 }
 
@@ -274,6 +275,9 @@ func buttonRequestIssues(inputs map[string]string) []string {
 		issues = append(issues, "Button `action` and `method` are one pair: a route with no verb, or a verb with no route, sends nothing")
 	}
 	if action == "" {
+		if inputs["describes"] != "" {
+			issues = append(issues, "Button `describes` names the record a request acts on, and this Button sends none")
+		}
 		if confirm != "" {
 			issues = append(issues, "Button `confirm` asks before a request is sent, and this Button sends none")
 		}

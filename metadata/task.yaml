@@ -68,34 +68,13 @@ events:
 # Declared Datasets (007 §7.2): what the Dashboard and My Tasks select through. Each is a
 # named selection or count, so a screen names a Dataset id and no query.
 datasets:
-  # My Tasks' own selection (007 §7.7 Filter, ROADMAP.md "(c)" Slice B/C/D, 2026-09-29).
-  #
-  # **Only the assignee is a filter here.** buildMyTasks also reads fld_status, but `done` is a
-  # *bucket* -- completed Tasks still render, in their own section -- so pushing `status != done`
-  # into the query would empty that section. The plan for this slice predicted this Dataset would
-  # need a conjunction and the code says otherwise; bucketing is not filtering.
-  #
-  # `limit: 200` is the cost of requiring a bound (domain.Dataset.Limit's own comment). This list had
-  # none: it showed every Task assigned to you. Two hundred is chosen as a number past which a
-  # personal worklist has a different problem than pagination, and it is declared rather than
-  # implied so the day it truncates someone's list, the number is findable.
-  #
-  # No `sort:`, deliberately -- that keeps the Store's own sort_order ordering, which is what this
-  # screen showed before. Declaring an ordering here would be a change of behaviour wearing the
-  # clothes of a migration.
-  - id: ds_my_tasks
-    select: records
-    where:
-      field: fld_assignee
-      op: equals
-      value: $current_user
-    limit: 200
-
   # My Tasks' four buckets as Datasets (K15, 2026-10-10), so a `page:` can draw each without Go bucketing the
-  # viewer's Tasks. They are the same facts composition.buildMyTasks tests per record, said in the Dataset:
-  # "finished" is `$done` (the `completion:` block), the window is `$today` .. `$today+7` (myTasksWindowDays), and
+  # viewer's Tasks. Each says one fact about the viewer's own Tasks:
+  # "finished" is `$done` (the `completion:` block), the window is `$today` .. `$today+7`, and
   # "Later" is the first Dataset to need a disjunction -- an open Task that is undated, or due past the window.
   # `is_empty` is how "undated" is said: `equals ""` cannot, an absent Field not being the empty string.
+  # `limit: 200` is a safety cap, declared so the day it truncates a worklist the number is findable; the page
+  # claims `complete: true` and says so when the cap bites. Later and Completed declare no `sort:`, which keeps the Store's own ordering.
   - id: ds_my_tasks_overdue
     select: records
     where:
@@ -105,6 +84,8 @@ datasets:
         - { field: fld_due_date, op: lt, value: $today }
     sort:
       - field: fld_due_date
+        direction: asc
+      - field: sort_order
         direction: asc
     limit: 200
   - id: ds_my_tasks_next7
@@ -117,6 +98,8 @@ datasets:
         - { field: fld_due_date, op: lte, value: $today+7 }
     sort:
       - field: fld_due_date
+        direction: asc
+      - field: sort_order
         direction: asc
     limit: 200
   - id: ds_my_tasks_later

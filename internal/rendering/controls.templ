@@ -186,14 +186,15 @@ templ button(label string, variant domain.ButtonVariant, name, value string) {
 // generic move route answers a declared page with the same `HX-Refresh`. A derived `patch` is a status transition:
 // the same request shape again, carrying the one Field it sets as `hx-vals` (the Button's own name/value pair), and
 // answered by the generic patch route with the same `HX-Refresh`. `type="button"` so a request placed inside a form's
-// subtree never submits it.
-templ requestButton(label string, variant domain.ButtonVariant, name, value, action, method, confirm string) {
+// subtree never submits it. `describes` is the record's own name: a list repeats one label per row, and a screen reader
+// listing the buttons would hear "Mark done" N times, so it is spent on `aria-label` ("Mark done: <title>").
+templ requestButton(label string, variant domain.ButtonVariant, name, value, action, method, confirm, describes string) {
 	if method == domain.ButtonMethodDelete {
-		<button type="button" hx-delete={ action } hx-swap="none" hx-confirm={ confirm } class={ buttonClasses(ctx, variant) }>{ label }</button>
+		<button type="button" hx-delete={ action } hx-swap="none" hx-confirm={ confirm } if describes != "" { aria-label={ label + ": " + describes } } class={ buttonClasses(ctx, variant) }>{ label }</button>
 	} else if method == domain.ButtonMethodPost {
-		<button type="button" hx-post={ action } hx-swap="none" class={ buttonClasses(ctx, variant) }>{ label }</button>
+		<button type="button" hx-post={ action } hx-swap="none" if describes != "" { aria-label={ label + ": " + describes } } class={ buttonClasses(ctx, variant) }>{ label }</button>
 	} else if method == domain.ButtonMethodPatch {
-		<button type="button" hx-patch={ action } hx-swap="none" hx-vals={ requestVals(name, value) } class={ buttonClasses(ctx, variant) }>{ label }</button>
+		<button type="button" hx-patch={ action } hx-swap="none" hx-vals={ requestVals(name, value) } if describes != "" { aria-label={ label + ": " + describes } } class={ buttonClasses(ctx, variant) }>{ label }</button>
 	} else {
 		@button(label, variant, name, value)
 	}

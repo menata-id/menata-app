@@ -1131,7 +1131,7 @@ func TestDeclaredPageNamesEachTaskByTheProjectItSitsIn(t *testing.T) {
 	_ = unlisted
 	mkTask("Container-probe-task", named.ID)
 	mkTask("Container-probe-orphan", "rec_does_not_exist")
-	body := getPage(t, h, cookie, "/pages/nav_task_moves")
+	body := getPage(t, h, cookie, "/pages/nav_my_tasks")
 	if !strings.Contains(body, "Container-probe-named") {
 		t.Fatalf("the Task is not captioned with its Project's title:\n%s", body)
 	}
@@ -1195,11 +1195,19 @@ func TestDeclaredPageTransitionButtonsMoveTheStatusAndAreDrawnOnlyWhereTheMoveIs
 		}
 		return ""
 	}
-	const page = "/pages/nav_task_moves"
+	const page = "/pages/nav_my_tasks"
 	body := getPage(t, h, cookie, page)
 	markDone := button(body, open, task.Completion.Done)
 	if markDone == "" || !strings.Contains(markDone, "Mark done") || !strings.Contains(markDone, `hx-swap="none"`) || !strings.Contains(markDone, `type="button"`) || strings.Contains(markDone, "hx-confirm") {
 		t.Fatalf("the open Task is offered no plain Mark done request:\n%s", body)
+	}
+	if want := `aria-label="Mark done: ` + open.Values[task.CardFieldFor(domain.CardFieldRoleTitle)].(string) + `"`; !strings.Contains(markDone, want) {
+		t.Errorf("the Mark done button does not carry its Task's title in its accessible name (%s):\n%s", want, markDone)
+	}
+	for _, b := range regexp.MustCompile(`<button[^>]*hx-patch=[^>]*>`).FindAllString(body, -1) {
+		if !strings.Contains(b, `aria-label="`) {
+			t.Errorf("a transition button on the page has no accessible name beyond its bare label: %s", b)
+		}
 	}
 	if button(body, open, task.ReopenValue()) != "" {
 		t.Error("an open Task is offered Reopen, which would write the value it already holds")
@@ -1276,8 +1284,29 @@ func TestDeclaredPageFilesEachTaskInItsOwnBucket(t *testing.T) {
 	mk("Bucket-probe-undated", open, "")
 	mk("Bucket-probe-finished-undated", done, "")
 	mk("Bucket-probe-finished-overdue", done, day(-30))
+	// The window's edges: today and today+7 are in Next 7 days, today+8 is Later. A comparison turned from lte to lt
+	// (or gte to gt) moves exactly one of these.
+	mk("Bucket-probe-today", open, day(0))
+	mk("Bucket-probe-day7", open, day(7))
+	mk("Bucket-probe-day8", open, day(8))
+	mk("Bucket-probe-yesterday", open, day(-1))
+	// Another person's Task, in every bucket's shape: the page must list none of them (the assignee predicate runs
+	// in each bucket Dataset's own SQL, so a bucket missing it would show here).
+	for i, theirs := range []map[string]any{
+		{"fld_status": open, "fld_due_date": day(-30)},
+		{"fld_status": open, "fld_due_date": day(3)},
+		{"fld_status": open},
+		{"fld_status": done},
+	} {
+		theirs["fld_title"], theirs["fld_assignee"] = fmt.Sprintf("Bucket-probe-theirs-%d", i), "usr_someone_else"
+		other, err := store.CreateRecord(ctx, task.ID, theirs)
+		if err != nil {
+			t.Fatalf("CreateRecord theirs: %v", err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, other.ID) })
+	}
 
-	body := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	body := getPage(t, h, cookie, "/pages/nav_my_tasks")
 	at := func(heading string) int {
 		i := strings.Index(body, ">"+heading+"<")
 		if i < 0 {
@@ -1289,6 +1318,9 @@ func TestDeclaredPageFilesEachTaskInItsOwnBucket(t *testing.T) {
 		name       string
 		start, end int
 	}{}
+	if strings.Contains(body, "Bucket-probe-theirs-") {
+		t.Error("another person's Task is on the viewer's My Tasks page")
+	}
 	order := []string{"Overdue", "Next 7 days", "Later", "Completed"}
 	for i, name := range order {
 		end := len(body)
@@ -1311,12 +1343,50 @@ func TestDeclaredPageFilesEachTaskInItsOwnBucket(t *testing.T) {
 		"Bucket-probe-undated":          "Later",
 		"Bucket-probe-finished-undated": "Completed",
 		"Bucket-probe-finished-overdue": "Completed",
+		"Bucket-probe-today":            "Next 7 days",
+		"Bucket-probe-day7":             "Next 7 days",
+		"Bucket-probe-day8":             "Later",
+		"Bucket-probe-yesterday":        "Overdue",
 	}
 	for title, home := range want {
 		for name, text := range section {
 			if got := strings.Contains(text, title); got != (name == home) {
 				t.Errorf("%s: in %q = %v, want it only in %q", title, name, got, home)
 			}
+		}
+	}
+}
+
+// TestDeclaredPageOrdersABucketByDateThenByTheBoardsOwnOrder: Overdue and Next 7 days sort by due date, and Tasks
+// sharing a date keep the order the Store holds them in (the old screen's stable sort did the same). Without the
+// second key the database is free to return same-day Tasks in any order between two requests.
+func TestDeclaredPageOrdersABucketByDateThenByTheBoardsOwnOrder(t *testing.T) {
+	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declaredbucketorder", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil {
+		t.Fatal("default installs no mch_task")
+	}
+	day := func(offset int) string { return time.Now().UTC().AddDate(0, 0, offset).Format("2006-01-02") }
+	// Created out of date order on purpose: later date first, then two on one earlier date.
+	for _, c := range []struct{ title, due string }{
+		{"Order-probe-c-late", day(5)}, {"Order-probe-a-same", day(2)}, {"Order-probe-b-same", day(2)}, {"Order-probe-d-same", day(2)},
+	} {
+		rec, err := store.CreateRecord(ctx, task.ID, map[string]any{"fld_title": c.title, "fld_status": task.ReopenValue(), "fld_assignee": actorID, "fld_due_date": c.due})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", c.title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+	for i := 0; i < 5; i++ {
+		body := getPage(t, h, cookie, "/pages/nav_my_tasks")
+		at := func(title string) int { return strings.Index(body, ">"+title+"<") }
+		if !(at("Order-probe-a-same") >= 0 && at("Order-probe-a-same") < at("Order-probe-b-same") && at("Order-probe-b-same") < at("Order-probe-d-same") && at("Order-probe-d-same") < at("Order-probe-c-late")) {
+			t.Fatalf("request %d: the bucket is not ordered by date, then by the Store's own order (a,b,d same day, then c)", i)
 		}
 	}
 }
@@ -1351,7 +1421,7 @@ func TestDeclaredPageDrawsADatePillPerDatedTask(t *testing.T) {
 	mk("Pillprobe-done-late", task.Completion.Done, &past)
 	mk("Pillprobe-undated", task.ReopenValue(), nil)
 
-	body := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	body := getPage(t, h, cookie, "/pages/nav_my_tasks")
 	row := func(title string) string {
 		i := strings.Index(body, ">"+title+"<")
 		if i < 0 {
@@ -1373,7 +1443,7 @@ func TestDeclaredPageDrawsADatePillPerDatedTask(t *testing.T) {
 	if r := row("Pillprobe-done-late"); !strings.Contains(r, label) || !strings.Contains(r, "bg-emerald-50") || strings.Contains(r, "bg-red-50") {
 		t.Errorf("a finished Task needs a green pill reading %q:\n%s", label, r)
 	}
-	if r := row("Pillprobe-undated"); strings.Contains(r, "bg-red-50") || strings.Contains(r, "bg-emerald-50") || strings.Contains(r, "inline-flex") {
+	if r := row("Pillprobe-undated"); strings.Contains(r, "bg-red-50") || strings.Contains(r, "bg-emerald-50") || strings.Contains(r, `<span class="inline-flex`) {
 		t.Errorf("an undated Task must carry no pill:\n%s", r)
 	}
 }
@@ -1414,7 +1484,7 @@ func TestDeclaredPageNamesTheListEachTaskSitsIn(t *testing.T) {
 	mk("Listprobe-filed", lrec.ID)
 	mk("Listprobe-loose", nil)
 
-	body := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	body := getPage(t, h, cookie, "/pages/nav_my_tasks")
 	row := func(title string) string {
 		i := strings.Index(body, ">"+title+"<")
 		if i < 0 {
@@ -1426,7 +1496,7 @@ func TestDeclaredPageNamesTheListEachTaskSitsIn(t *testing.T) {
 	if r := row("Listprobe-filed"); !strings.Contains(r, ">Listprobe-Doing<") {
 		t.Errorf("a Task in a list needs its list's title:\n%s", r)
 	}
-	if r := row("Listprobe-loose"); strings.Contains(r, "inline-flex") {
+	if r := row("Listprobe-loose"); strings.Contains(r, `<span class="inline-flex`) {
 		t.Errorf("a Task in no list must carry no badge:\n%s", r)
 	}
 }
@@ -1496,7 +1566,7 @@ func TestDeclaredPageDrawsEachTasksOwnTagsInItsRow(t *testing.T) {
 	}
 	_ = plain
 
-	body := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	body := getPage(t, h, cookie, "/pages/nav_my_tasks")
 	rowOf := func(title string) string {
 		i := strings.Index(body, ">"+title+"<")
 		if i < 0 {
@@ -1543,7 +1613,7 @@ func TestDeclaredPageHidesAnEmptyBucketAndCountsTheOthers(t *testing.T) {
 	if task == nil || task.Completion == nil {
 		t.Fatal("default installs no mch_task with a completion: block")
 	}
-	quiet := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	quiet := getPage(t, h, cookie, "/pages/nav_my_tasks")
 	if !strings.Contains(quiet, "Nothing is assigned to you.") {
 		t.Errorf("a viewer with no Tasks was not told so:\n%s", quiet)
 	}
@@ -1561,7 +1631,7 @@ func TestDeclaredPageHidesAnEmptyBucketAndCountsTheOthers(t *testing.T) {
 		}
 		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
 	}
-	busy := getPage(t, h, cookie, "/pages/nav_task_buckets")
+	busy := getPage(t, h, cookie, "/pages/nav_my_tasks")
 	i := strings.Index(busy, ">Overdue<")
 	if i < 0 {
 		t.Fatalf("no Overdue section for a viewer with overdue Tasks:\n%s", busy)

@@ -570,7 +570,7 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   gates of the `page:` block (2026-10-07; plan `menata-app-document`'s
   `audits/2026-10-07-rencana-page-yaml-dan-gate-yang-akan-terkena.md`), installed **before** the primitive and
   testing nothing that does not exist yet. The first is a directive ratchet over the `templ …Page(` functions
-  in `internal/rendering`: a closed map, a category and a reason per entry, **35 across five categories, 4 of
+  in `internal/rendering`: a closed map, a category and a reason per entry, **35 across five categories, 2 of
   them `candidate`** (read the numbers out of the map); a new function fails and says to ask whether `page:` can
   declare it, and an entry whose function is gone fails until deleted. Its categories are a *reading*, not a
   measurement, and `candidate` was a hypothesis until Tahap 0.2 read all six (2026-10-07): none is Jalur A, and `InferencePage` moved to `workspace` because the runtime, not an Application, owns it. The second is a declared deferral in

@@ -59,7 +59,7 @@ func currentWorkspace(store *data.Store, workspaces map[string]domain.Workspace)
 // derivation would return nothing for exactly the pages the proof of concept cares about.
 //
 // So the Machine the route concerns is asked first (it is right there in the path), and
-// navigation is the fallback for routes naming no Machine (/calendar, /my-tasks, ...). The
+// navigation is the fallback for routes naming no Machine (/calendar, ...). The
 // Machine -> Application map is metadata the Application already declares, so this costs no extra
 // declaration; metadata.validateApplicationClaims keeps it unambiguous by refusing a Machine
 // claimed twice.
@@ -269,7 +269,7 @@ func ownedApplicationRoutes(d Deps) map[string]bool {
 // `requireApplicationAccess` lets a request in no Application pass untouched (correctly: Workspace
 // Home has none), and so a request for `/calendar` in a Workspace that never installed Task Tracker
 // reached `showCalendar`, which asks `routeByID` for an id this Workspace does not have and panics --
-// or, for `/dashboard`, `/my-tasks`, `/sprint` and `/team-capacity`, answered 500. Measured
+// or, for `/dashboard`, `/my-tasks`, `/sprint` and `/team-capacity` (all since deleted or declared), answered 500. Measured
 // 2026-10-05: eight routes in each of four Workspaces. The shape is `ds_documents_with_steps` again,
 // a requirement that lived only in Go and was reachable only through the failure it caused.
 //

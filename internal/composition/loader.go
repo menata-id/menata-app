@@ -157,7 +157,7 @@ type Selection struct {
 	//
 	// **It is also the whole reason Truncated is not rendered everywhere, which measuring found and the
 	// plan for this slice had missed.** `limit:` means two different things in the four Datasets that
-	// declare it. For `ds_documents_with_steps` (500) and `ds_my_tasks` (200) it is a *safety cap* on a
+	// declare it. For `ds_documents_with_steps` (500) and a bucket's 200 it is a *safety cap* on a
 	// list that means to show everything, so a bound that bites makes the screen lie. For
 	// the Dashboard's activity tail and the Activity feed (`ds_recent_activity` at 10 and `ds_activity_feed` at 50, both removed 2026-10-05) it was the list's *meaning* -- "recent" is
 	// defined by the bound -- and mch_activity holds 30 records today, so a naive pass of this slice
@@ -197,10 +197,10 @@ func (l *Loader) SelectDataset(ctx context.Context, datasetID string, where expr
 	if err != nil {
 		return nil, err
 	}
-	// **This drops Selection.Truncated, and that is the reason My Tasks does not render the notice the
-	// approval inbox does (2026-09-30).** ds_my_tasks' limit of 200 is a safety cap in exactly the same
-	// sense as ds_documents_with_steps' 500, so the screen has the same claim to make -- it just calls
-	// the convenience wrapper, which throws the signal away at the boundary. **A wrapper that discards a
+	// **This drops Selection.Truncated, and that is why a screen that calls this wrapper cannot render the
+	// truncation notice (2026-09-30).** A safety cap like ds_documents_with_steps' 500 gives its screen a claim to
+	// make, and the wrapper throws the signal away at the boundary (a declared page claims it through
+	// SelectRelated instead, `complete: true`). **A wrapper that discards a
 	// diagnostic is how the diagnostic stays unread**, which is the shape TestPoolInstallsQueryTracer
 	// exists over: the app works and the log quietly reports less.
 	//

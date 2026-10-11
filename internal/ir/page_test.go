@@ -1039,6 +1039,37 @@ func TestLower_transitionButtonPatchesTheStatusFieldAndIsDrawnOnlyWhereTheMoveIs
 	}
 }
 
+// TestLower_transitionButtonTakesItsRecordsNameForAssistiveTechnology: a list repeats one label per row, so the
+// Button may take `describes` from a role, and from nothing else.
+func TestLower_transitionButtonTakesItsRecordsNameForAssistiveTechnology(t *testing.T) {
+	ts := []RecordTransition{transitionTo("/r1", "todo"), transitionTo("/r2", "todo")}
+	root, res := transitionInTemplate(domain.PageTransitionDone, ts)
+	root.Children[0].Children[0].From = map[string]string{"describes": "title"}
+	got, err := Lower(root, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := got.Children[0].Children
+	if len(items) != 2 || items[0].Props["describes"] != "a" || items[1].Props["describes"] != "b" {
+		t.Errorf("describes = %v / %v, want each record's own title", items[0].Props, items[1].Props)
+	}
+	for name, from := range map[string]map[string]string{
+		"another prop":    {"label": "title"},
+		"an unknown role": {"describes": "no_such_role"},
+		"also written":    {"describes": "title"},
+	} {
+		root, res = transitionInTemplate(domain.PageTransitionDone, ts)
+		btn := &root.Children[0].Children[0]
+		btn.From = from
+		if name == "also written" {
+			btn.Props["describes"] = "typed"
+		}
+		if _, err := Lower(root, res); err == nil {
+			t.Errorf("%s must be refused", name)
+		}
+	}
+}
+
 func TestLower_refusesATransitionButtonThatCouldNotBeBuiltHonestly(t *testing.T) {
 	ts := []RecordTransition{transitionTo("/r1", "todo"), transitionTo("/r2", "todo")}
 	cases := map[string]struct {

@@ -108,7 +108,7 @@ func (w Workspace) ApplicationForMachine(machineID string) (Application, bool) {
 }
 
 // ApplicationForRoute is the fallback half: the Application whose own navigation declares this
-// exact route. Used only when the route names no Machine (/calendar, /my-tasks, ...).
+// exact route. Used only when the route names no Machine (/calendar, ...).
 //
 // It matches against the *unfiltered* navigation (AllNavigation), so a route whose menu chrome is
 // suppressed by show_nav still resolves to its Application -- the same reason routeByID resolves

@@ -693,6 +693,9 @@ func TestEveryInstalledButtonIsADeclaredRecordWrite(t *testing.T) {
 						}
 					case write == domain.PageWriteTransition:
 						transitions++
+						if n.From["describes"] == "" {
+							t.Errorf("%s: a transition Button repeats down a list, so it names its record with from: {describes: <role>} -- otherwise a screen reader hears the same bare label once per row", where)
+						}
 						if _, asks := n.Props["confirm"]; asks {
 							t.Errorf("%s: a transition is undone by its opposite and asks nothing", where)
 						}

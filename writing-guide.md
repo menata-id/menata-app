@@ -1154,7 +1154,7 @@ Machine already said about its shape. Rules, all checked at load:
   draws the related record's own title -- its Machine's `title` role, or its first Field when it declares none --
   read for only the records the list shows, in one statement by id (`composition.Loader.RelatedLabels`), so it does
   not grow with the Workspace; a record that no longer exists draws nothing, never its id. `from: {text: container}`
-  on a `static` node is the whole declaration (`nav_task_moves` captions each Task with its Project). **The other is a
+  on a `static` node is the whole declaration (`nav_my_tasks` captions each Task with its Project). **The other is a
   `person` Field** (the one that points at `mch_user`). A page draws the member's display
   name (their email until they set one), through the same per-request member list the runtime's own screens use
   -- one query however many records the list shows -- and draws **nothing** for someone who is no longer a member,
@@ -1180,7 +1180,7 @@ list. `hide_empty:` and `empty:` answer the same question in opposite ways, so w
 `false`. Because a page whose every section is hidden would be a layout with nothing in it, **a layout may carry
 `empty: <words>`**: drawn as a `message` only when every one of its children was left out, and never beside
 real content. A layout with no children cannot carry it. The count is the rows drawn; a list cut at its Dataset's
-`limit:` says so through `complete: true`, not here. A layout whose children are **all** `hide_empty` Collections must write `empty:` (a load error otherwise -- load lowers with one placeholder record, where nothing is empty, so the bare case would first fail on a viewer's quiet day). `hide_empty` and the count read the rows the Dataset returned; a `when:` that hides every item of a non-empty list still leaves the heading with its count. The worked page is `nav_task_buckets` (Overdue / Next 7 days /
+`limit:` says so through `complete: true`, not here. A layout whose children are **all** `hide_empty` Collections must write `empty:` (a load error otherwise -- load lowers with one placeholder record, where nothing is empty, so the bare case would first fail on a viewer's quiet day). `hide_empty` and the count read the rows the Dataset returned; a `when:` that hides every item of a non-empty list still leaves the heading with its count. The worked page is `nav_my_tasks` (Overdue / Next 7 days /
 Later / Completed) in Project Management.
 
 **`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and
@@ -1431,6 +1431,21 @@ so `confirm` is refused.
           variant: secondary
           becomes: $done
           binding: {write: transition}   # no dataset, like update, delete and move
+```
+
+A list repeats one label per row, so a screen reader listing the buttons would hear "Mark done" once per task. Add
+`from: {describes: title}` (any projected role) and the button's accessible name becomes `Mark done: <the task's
+title>` (`aria-label`). It is the only property a transition Button may take from its record, and
+`conformance.TestEveryInstalledButtonIsADeclaredRecordWrite` requires it of every installed one. (`delete` and `move`
+Buttons do not take it yet; the renderer would draw it, the lowering has not been opened for them.)
+
+```yaml
+        - component: Button
+          label: Mark done
+          variant: secondary
+          becomes: $done
+          from: {describes: title}
+          binding: {write: transition}
 ```
 
 Refused at load: `transition` outside a records Collection's item template, with a `dataset:`, over an append-only

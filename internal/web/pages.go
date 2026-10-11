@@ -33,29 +33,6 @@ func pageChrome(ctx context.Context, req *http.Request, store *data.Store, cfg c
 	return chrome.WorkspaceName, chrome.Viewer(), switchHref, nil
 }
 
-// showMyTasks is Case 19's personal work queue (development-history.md Phase 14). "Assigned to me" resolves
-// to authorization.CurrentUserID -- the same shared-admin-credential-to-real-mch_user resolution
-// Phase 8 already built, not a new per-user login mechanism.
-func showMyTasks(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		machines := machinesFor(ctx)
-		userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
-
-		t, err := composition.PersonalTasks(ctx, composition.NewLoader(store, machines), userID, time.Now())
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		render(ctx, w, rendering.MyTasksPage(t.Overdue, t.Next7Days, t.Later, t.Completed, workspaceName, viewer, switchHref))
-	}
-}
-
 // showCalendar is Case 19's week-grid Layout (Case 19 PM05): every mch_task due in one Monday-Sunday week,
 // one column per day. `?week=N` steps N weeks from the current one; anything that is not a number is this week.
 func showCalendar(store *data.Store, cfg config.Config) http.HandlerFunc {

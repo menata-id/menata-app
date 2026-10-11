@@ -319,7 +319,7 @@ func readFile(t *testing.T, path string) string {
 //
 // **This exists because the scoping became declarative, and a declaration can be deleted.** Before
 // 2026-09-29, composition.buildMyTasks filtered `fld_assignee != userID` in Go, where removing it
-// would have failed a unit test. The predicate now lives in metadata/task.yaml's ds_my_tasks, and
+// would have failed a unit test. The predicate now lives in metadata/task.yaml's ds_my_tasks_* buckets, and
 // deleting it there is silent: the Dataset still loads, the screen still renders, and every viewer
 // sees every assignee's Tasks bounded only by `limit: 200`. Measured by removing it -- the whole
 // suite stayed green.
@@ -328,8 +328,6 @@ func readFile(t *testing.T, path string) string {
 // screen is for, which no scan can make. Same shape as readPathWriters and
 // unexplainedDerivationAccessors: the judgement is recorded once and reviewed.
 var perViewerDatasets = map[string]string{
-	"ds_my_tasks": "My Tasks shows one identity its own assigned work; without the predicate every " +
-		"viewer sees every assignee's Tasks",
 	"ds_my_tasks_overdue":   "a bucket of My Tasks; without the assignee predicate it lists everyone's overdue work",
 	"ds_my_tasks_next7":     "a bucket of My Tasks; without the assignee predicate it lists everyone's work due this week",
 	"ds_my_tasks_later":     "a bucket of My Tasks; without the assignee predicate it lists everyone's undated work",
@@ -353,9 +351,13 @@ func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
 				found[ds.ID] = true
 
 				scoped := false
-				for _, c := range ds.Where.Comparisons() {
-					if c.Value == expression.SentinelCurrentUser {
-						scoped = true
+				// Only a top-level `all:` equality scopes. A sentinel inside `any:` widens the result to
+				// everyone's records, and `not_equals` inverts it -- both used to satisfy this check.
+				if ds.Where != nil {
+					for _, c := range ds.Where.All {
+						if c.Value == expression.SentinelCurrentUser && c.Op == expression.OpEquals {
+							scoped = true
+						}
 					}
 				}
 				if !scoped {

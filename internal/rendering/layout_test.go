@@ -1226,7 +1226,7 @@ func TestMetric_hrefWrapsTheSameTileInOneAnchor(t *testing.T) {
 // not break out of the attribute), the swap is `none` like the other request Buttons, and no `hx-confirm` is drawn.
 func TestRequestButton_patchSendsTheNamePairAsOneJSONObjectAndAsksNothing(t *testing.T) {
 	var buf bytes.Buffer
-	if err := requestButton("Mark done", domain.ButtonSecondary, "fld_status", `do"ne`, "/machines/m/records/r", domain.ButtonMethodPatch, "").Render(context.Background(), &buf); err != nil {
+	if err := requestButton("Mark done", domain.ButtonSecondary, "fld_status", `do"ne`, "/machines/m/records/r", domain.ButtonMethodPatch, "", "").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	got := buf.String()

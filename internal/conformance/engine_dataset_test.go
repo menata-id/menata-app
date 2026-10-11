@@ -142,7 +142,6 @@ func TestEveryCastRoleProvidesItsEngineDatasets(t *testing.T) {
 // Workspaces the way the approval Machines already have.
 var goNamedDatasetsWithNoEngineRequirement = map[string]string{
 	"ds_record_activity": "on mch_activity, same shared copy; and the detail page treats an absent Dataset as no section, not an error",
-	"ds_my_tasks":        "on mch_task (Task Tracker); reachable only from routes that Workspace's Applications declare",
 	"ds_all_tasks":       "on mch_task; same",
 }
 

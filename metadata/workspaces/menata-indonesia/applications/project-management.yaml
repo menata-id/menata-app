@@ -42,13 +42,224 @@ navigation:
     priority: 1
     icon: board
     description: Tasks grouped by List.
+  # My Tasks, declared (K15, 2026-10-11): four Collections over four Datasets (the Task Machine's ds_my_tasks_*) that
+  # say what the bespoke My Tasks screen computed in Go -- overdue, the next seven days, later (undated, or past
+  # the window: the first `any:` group) and completed. Each row's date badge, list name, tags and project come from
+  # the Machine's own declarations (`date:`/`group:` derived roles, `card_tags:`, the `container` role); the
+  # "Mark done"/"Reopen" control is a `write: transition` Button (it replaced the finished circle), so the page names no status, Field or route.
   - id: nav_my_tasks
     label: My Tasks
-    route: /my-tasks
+    route: /pages/nav_my_tasks
     priority: 2
     home_card: true
     icon: check-square
-    description: Everything assigned to you, from every board in this workspace. Tick a circle to finish a task without opening it.
+    description: Everything assigned to you, from every board in this workspace. Press Mark done to finish a task without opening it.
+    page:
+      layout: stack
+      gap: default
+      empty: Nothing is assigned to you.
+      children:
+        - component: Collection
+          heading: Overdue
+          hint: needs a new date or a tick
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding:
+            dataset: ds_my_tasks_overdue
+            rows: records
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - static: caption
+                      from:
+                        text: container
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: StatusBadge
+                          tone: neutral
+                          from:
+                            label: "group:label"
+                        - component: StatusBadge
+                          from:
+                            label: "date:label"
+                            tone: "date:tone"
+                        - component: Tag
+                          each: tags
+                          from:
+                            label: title
+                            color: color
+                - component: Button
+                  label: Mark done
+                  variant: secondary
+                  becomes: $done
+                  from:
+                    describes: title
+                  binding:
+                    write: transition
+        - component: Collection
+          heading: Next 7 days
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding:
+            dataset: ds_my_tasks_next7
+            rows: records
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - static: caption
+                      from:
+                        text: container
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: StatusBadge
+                          tone: neutral
+                          from:
+                            label: "group:label"
+                        - component: StatusBadge
+                          from:
+                            label: "date:label"
+                            tone: "date:tone"
+                        - component: Tag
+                          each: tags
+                          from:
+                            label: title
+                            color: color
+                - component: Button
+                  label: Mark done
+                  variant: secondary
+                  becomes: $done
+                  from:
+                    describes: title
+                  binding:
+                    write: transition
+        - component: Collection
+          heading: Later
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding:
+            dataset: ds_my_tasks_later
+            rows: records
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - static: caption
+                      from:
+                        text: container
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: StatusBadge
+                          tone: neutral
+                          from:
+                            label: "group:label"
+                        - component: StatusBadge
+                          from:
+                            label: "date:label"
+                            tone: "date:tone"
+                        - component: Tag
+                          each: tags
+                          from:
+                            label: title
+                            color: color
+                - component: Button
+                  label: Mark done
+                  variant: secondary
+                  becomes: $done
+                  from:
+                    describes: title
+                  binding:
+                    write: transition
+        - component: Collection
+          heading: Completed
+          gap: tight
+          divided: true
+          hide_empty: true
+          complete: true
+          binding:
+            dataset: ds_my_tasks_completed
+            rows: records
+          children:
+            - layout: row
+              gap: default
+              align: center
+              justify: spread
+              children:
+                - layout: stack
+                  gap: tight
+                  children:
+                    - static: link
+                      from:
+                        text: title
+                        href: record
+                    - static: caption
+                      from:
+                        text: container
+                    - layout: row
+                      gap: tight
+                      align: center
+                      children:
+                        - component: StatusBadge
+                          tone: neutral
+                          from:
+                            label: "group:label"
+                        - component: StatusBadge
+                          from:
+                            label: "date:label"
+                            tone: "date:tone"
+                        - component: Tag
+                          each: tags
+                          from:
+                            label: title
+                            color: color
+                - component: Button
+                  label: Reopen
+                  variant: secondary
+                  becomes: $reopen
+                  from:
+                    describes: title
+                  binding:
+                    write: transition
   # Moved here from document-approval.yaml (2026-09-21): the page composes Projects, Tasks and
   # their Activity -- this Application's Machines -- and had only ever been declared over there
   # because both Applications were one before Fase 3 split them.
