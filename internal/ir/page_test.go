@@ -1298,3 +1298,88 @@ func TestLower_aLayoutOfOnlyHideEmptyCollectionsNeedsItsOwnWords(t *testing.T) {
 		t.Errorf("a layout that also holds fixed content was refused: %v", err)
 	}
 }
+
+func groupedList() domain.PageNode {
+	n := listBound(domain.PageNode{Kind: "static", Type: "subheading", From: map[string]string{"text": domain.PageBucketLabelRole}})
+	n.Binding.Group = domain.PageGroupDate
+	n.Props = map[string]string{"gap": "tight", "empty": "—"}
+	n.Children = append(n.Children, rowTemplate())
+	return domain.PageNode{Kind: "layout", Type: "grid", Props: map[string]string{"gap": "tight"}, Children: []domain.PageNode{n}}
+}
+
+func groupedRecords(buckets []Bucket, keys []string, recs ...map[string]string) Resolver {
+	return Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{Records: recs, Buckets: buckets, BucketKeys: keys}, nil
+	}}
+}
+
+// A grouped Collection becomes one section per bucket, as siblings in the parent, each holding the heading and
+// the bucket's own list. The empty bucket is drawn with the author's `empty:` words, and the records stay in the
+// order the resolver gave them inside the bucket they name.
+func TestLowerGroupedDrawsEveryBucketOnceWithItsOwnRecords(t *testing.T) {
+	days := []Bucket{{"d1", "Mon 05 Oct"}, {"d2", "Tue 06 Oct"}, {"d3", "Wed 07 Oct"}}
+	got, err := Lower(groupedList(), groupedRecords(days, []string{"d3", "d1", "d3"},
+		map[string]string{"title": "c", "status": "s"}, map[string]string{"title": "a", "status": "s"}, map[string]string{"title": "d", "status": "s"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Children) != 3 {
+		t.Fatalf("a grid of three buckets lowered to %d children", len(got.Children))
+	}
+	for i, want := range []struct {
+		label string
+		items int
+	}{{"Mon 05 Oct", 1}, {"Tue 06 Oct", 0}, {"Wed 07 Oct", 2}} {
+		cell := got.Children[i]
+		if cell.Kind != NodeLayout || cell.Type != string(domain.LayoutSection) || len(cell.Children) != 2 {
+			t.Fatalf("bucket %d is not a section of heading + list: %+v", i, cell)
+		}
+		if cell.Children[0].Props["text"] != want.label {
+			t.Errorf("bucket %d heading = %q, want %q", i, cell.Children[0].Props["text"], want.label)
+		}
+		list := cell.Children[1]
+		if len(list.Children) != want.items {
+			t.Errorf("bucket %d holds %d records, want %d", i, len(list.Children), want.items)
+		}
+		if list.Props["empty"] != "—" {
+			t.Errorf("bucket %d lost the author's empty words: %+v", i, list.Props)
+		}
+	}
+	if first := got.Children[2].Children[1].Children[0].Children[0].Props["text"]; first != "c" {
+		t.Errorf("a bucket's records lost the resolver's order: first is %q, want c", first)
+	}
+}
+
+func TestLowerGroupedRefusesWhatItCannotHonour(t *testing.T) {
+	days := []Bucket{{"d1", "Mon"}}
+	one := map[string]string{"title": "a", "status": "s"}
+	with := func(edit func(*domain.PageNode)) domain.PageNode {
+		root := groupedList()
+		edit(&root.Children[0])
+		return root
+	}
+	for name, c := range map[string]struct {
+		root domain.PageNode
+		res  Resolver
+		want string
+	}{
+		"a record outside every bucket": {groupedList(), groupedRecords(days, []string{"elsewhere"}, one), "does not draw"},
+		"keys and records disagree":     {groupedList(), groupedRecords(days, nil, one), "bucket keys"},
+		"two buckets of one key":        {groupedList(), groupedRecords([]Bucket{{"d1", "a"}, {"d1", "b"}}, nil), "twice"},
+		"complete":                      {with(func(n *domain.PageNode) { n.Props["complete"] = "true" }), groupedRecords(days, nil), "not built for a grouped"},
+		"hide_empty":                    {with(func(n *domain.PageNode) { n.Props["hide_empty"] = "true" }), groupedRecords(days, nil), "not built for a grouped"},
+		"one child":                     {with(func(n *domain.PageNode) { n.Children = n.Children[:1] }), groupedRecords(days, nil), "exactly two"},
+		"an unknown dimension":          {with(func(n *domain.PageNode) { n.Binding.Group = "status" }), groupedRecords(days, nil), "not a dimension"},
+		"a record link in the heading": {with(func(n *domain.PageNode) {
+			n.Children[0] = domain.PageNode{Kind: "static", Type: "link", From: map[string]string{"text": domain.PageBucketLabelRole, "href": domain.PageRecordRole}}
+		}), groupedRecords(days, nil), "has none"},
+		"the bucket's name in a record's template": {with(func(n *domain.PageNode) {
+			n.Children[1] = domain.PageNode{Kind: "static", Type: "paragraph", From: map[string]string{"text": domain.PageBucketLabelRole}}
+		}), groupedRecords(days, []string{"d1"}, one), "bucket:label"},
+	} {
+		_, err := Lower(c.root, c.res)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: want an error mentioning %q, got %v", name, c.want, err)
+		}
+	}
+}

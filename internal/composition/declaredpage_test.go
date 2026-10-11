@@ -679,3 +679,59 @@ func TestFillDerivedGroupNamesTheListOrTheOption(t *testing.T) {
 		t.Errorf("a Machine whose View groups by nothing gets no derived key: %v", k)
 	}
 }
+
+func weekDataset(lo, hi string) (domain.Dataset, *domain.Machine) {
+	src := &domain.Machine{ID: "mch_t", CardFields: []domain.CardField{{Field: "fld_due", Role: domain.CardFieldRoleDate}}}
+	return domain.Dataset{ID: "ds_w", Source: "mch_t", Where: &expression.Predicate{All: []expression.Comparison{
+		{Field: "fld_due", Op: expression.OpGreaterOrEqual, Value: lo},
+		{Field: "fld_due", Op: expression.OpLessOrEqual, Value: hi},
+	}}}, src
+}
+
+// The days a grouped list draws are the Dataset's own window, read back the way the database reads it: Monday to
+// Sunday for `$week`..`$week+6`, a written range for literals, in order, each exactly once, and the label is the
+// day's short name.
+func TestDateBucketsAreTheDatasetsOwnWindow(t *testing.T) {
+	ds, src := weekDataset("$week", "$week+6")
+	rec := func(due string) *data.Record { return &data.Record{Values: map[string]any{"fld_due": due}} }
+	b, keys, err := dateBuckets(ds, src, []*data.Record{rec("2026-10-12"), rec("2026-10-18")},
+		expression.Context{Today: "2026-10-14", Parameters: map[string]string{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b) != 7 || b[0].Key != "2026-10-12" || b[0].Label != "Mon 12 Oct" || b[6].Key != "2026-10-18" || b[6].Label != "Sun 18 Oct" {
+		t.Fatalf("buckets = %+v", b)
+	}
+	if !reflect.DeepEqual(keys, []string{"2026-10-12", "2026-10-18"}) {
+		t.Errorf("keys = %v", keys)
+	}
+	// next week, through the parameter the page's link sends
+	b, _, err = dateBuckets(ds, src, nil, expression.Context{Today: "2026-10-14", Parameters: map[string]string{"week": "1"}})
+	if err != nil || b[0].Key != "2026-10-19" {
+		t.Errorf("?week=1 starts at %+v (%v), want 2026-10-19", b, err)
+	}
+	ds, src = weekDataset("2026-02-27", "2026-03-02") // across a month end, not a leap year
+	b, _, err = dateBuckets(ds, src, nil, expression.Context{})
+	if err != nil || len(b) != 4 || b[1].Key != "2026-02-28" || b[2].Key != "2026-03-01" {
+		t.Errorf("a literal window over a month end = %+v (%v)", b, err)
+	}
+}
+
+func TestDateBucketsRefuseAWindowThatIsNotARangeOfDays(t *testing.T) {
+	for name, c := range map[string]struct{ lo, hi, want string }{
+		"inverted":                  {"2026-10-18", "2026-10-12", "not a range"},
+		"longer than a group draws": {"2026-01-01", "2026-12-31", "exceeds"},
+		"a bound that is no date":   {"soon", "2026-10-12", "not a date"},
+		"a parameter not sent":      {"$parameters.from", "2026-10-12", "resolves to nothing"},
+	} {
+		ds, src := weekDataset(c.lo, c.hi)
+		_, _, err := dateBuckets(ds, src, nil, expression.Context{Parameters: map[string]string{}})
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: want an error mentioning %q, got %v", name, c.want, err)
+		}
+	}
+	ds, src := weekDataset("2026-10-12", "2026-10-12")
+	if b, _, err := dateBuckets(ds, src, nil, expression.Context{}); err != nil || len(b) != 1 {
+		t.Errorf("a one-day window = %+v (%v), want one bucket", b, err)
+	}
+}

@@ -72,6 +72,17 @@ type RecordSet struct {
 	ShapeOnly    bool
 	Truncated    bool
 	Limit        int
+	// Buckets and BucketKeys serve a binding with `group:` (domain.PageGroupDate): the buckets in the order they
+	// are drawn, empty ones included, and for each record the Key of the bucket it sits in. A record whose key
+	// matches no bucket is a defect in the resolver -- the window comes from the Dataset's own `where:` -- and
+	// lowering refuses it rather than drawing a page that quietly lacks a task.
+	Buckets    []Bucket
+	BucketKeys []string
+}
+
+// Bucket is one group of a grouped records binding: Key is what records name it by, Label what its heading says.
+type Bucket struct {
+	Key, Label string
 }
 
 // RecordTransition is the answer for a `transition` Button: the record's route, the status Field a transition moves
@@ -678,7 +689,7 @@ func lowerDimensionCollection(n domain.PageNode, r Resolver, path string) ([]UIN
 	if len(n.Children) != 1 {
 		return nil, fmt.Errorf("%s: a dimension-bound collection holds exactly one child, the item template cloned for each row, and has %d", path, len(n.Children))
 	}
-	if err := dimensionTemplateIssue(n.Children[0], fmt.Sprintf("%s.children[0]", path)); err != nil {
+	if err := recordlessTemplateIssue(n.Children[0], fmt.Sprintf("%s.children[0]", path), "a dimension row"); err != nil {
 		return nil, err
 	}
 	if r.Rows == nil {
@@ -704,25 +715,26 @@ func lowerDimensionCollection(n domain.PageNode, r Resolver, path string) ([]UIN
 	return []UINode{out}, nil
 }
 
-// dimensionTemplateIssue refuses, anywhere in a dimension row's template, what only a record could answer.
-func dimensionTemplateIssue(n domain.PageNode, path string) error {
+// recordlessTemplateIssue refuses, anywhere in a template that stands for a group (a dimension row, a bucket's
+// heading) rather than for one record, what only a record could answer. subject names the group in the message.
+func recordlessTemplateIssue(n domain.PageNode, path, subject string) error {
 	switch {
 	case n.Binding != nil:
-		return fmt.Errorf("%s: a binding inside a dimension row's template is not supported -- a row is a group of records, so there is no record to write and a second Dataset would be a join", path)
+		return fmt.Errorf("%s: a binding inside %s's template is not supported -- it is a group of records, so there is no record to write and a second Dataset would be a join", path, subject)
 	case n.Count != nil:
-		return fmt.Errorf("%s: count: counts one record's children, and a dimension row is not a record", path)
+		return fmt.Errorf("%s: count: counts one record's children, and %s is not a record", path, subject)
 	case n.Each != "":
-		return fmt.Errorf("%s: each: lists one record's tags, and a dimension row is not a record", path)
+		return fmt.Errorf("%s: each: lists one record's tags, and %s is not a record", path, subject)
 	case n.When != nil:
-		return fmt.Errorf("%s: when: tests one record's role, and a dimension row is not a record", path)
+		return fmt.Errorf("%s: when: tests one record's role, and %s is not a record", path, subject)
 	}
 	for prop, role := range n.From {
 		if role == domain.PageRecordRole {
-			return fmt.Errorf("%s: from: %s: %s is a record's address, and a dimension row has none", path, prop, role)
+			return fmt.Errorf("%s: from: %s: %s is a record's address, and %s has none", path, prop, role, subject)
 		}
 	}
 	for i, c := range n.Children {
-		if err := dimensionTemplateIssue(c, fmt.Sprintf("%s.children[%d]", path, i)); err != nil {
+		if err := recordlessTemplateIssue(c, fmt.Sprintf("%s.children[%d]", path, i), subject); err != nil {
 			return err
 		}
 	}
@@ -883,6 +895,9 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 	if n.To != "" || n.Param != "" {
 		return nil, fmt.Errorf("%s: to:/param: belong on a Metric bound with rows: %s; a records-bound Collection links through its item template", path, domain.PageRowsDimension)
 	}
+	if b.Group != "" {
+		return lowerGrouped(n, r, path)
+	}
 	if len(n.Children) != 1 {
 		return nil, fmt.Errorf("%s: a records-bound collection holds exactly one child, the item template cloned for each record, and has %d", path, len(n.Children))
 	}
@@ -902,33 +917,122 @@ func lowerRecords(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		return nil, err
 	}
 	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
-	for i, rec := range set.Records {
-		if rec == nil {
-			rec = map[string]string{} // lower reads non-nil as "inside a template"
-		}
-		writes := &RecordWrites{Done: set.Done, Reopen: set.Reopen, ShapeOnly: set.ShapeOnly}
-		if i < len(set.Edits) {
-			writes.Edit = &set.Edits[i]
-		}
-		if i < len(set.Deletes) {
-			writes.Delete = &set.Deletes[i]
-		}
-		if i < len(set.Moves) {
-			writes.Move = &set.Moves[i]
-		}
-		if i < len(set.Transitions) {
-			writes.Transition = &set.Transitions[i]
-		}
-		if i < len(set.Tags) {
-			writes.Tags = set.Tags[i]
-		}
-		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec, writes)
+	for i := range set.Records {
+		items, err := lowerRecordItem(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), set, i)
 		if err != nil {
-			return nil, fmt.Errorf("record %d: %w", i, err)
+			return nil, err
 		}
 		out.Children = append(out.Children, items...)
 	}
 	return []UINode{out}, nil
+}
+
+// lowerRecordItem clones the item template for set.Records[i], with the writes that record is offered.
+func lowerRecordItem(tmpl domain.PageNode, r Resolver, itemPath string, set RecordSet, i int) ([]UINode, error) {
+	rec := set.Records[i]
+	if rec == nil {
+		rec = map[string]string{} // lower reads non-nil as "inside a template"
+	}
+	writes := &RecordWrites{Done: set.Done, Reopen: set.Reopen, ShapeOnly: set.ShapeOnly}
+	if i < len(set.Edits) {
+		writes.Edit = &set.Edits[i]
+	}
+	if i < len(set.Deletes) {
+		writes.Delete = &set.Deletes[i]
+	}
+	if i < len(set.Moves) {
+		writes.Move = &set.Moves[i]
+	}
+	if i < len(set.Transitions) {
+		writes.Transition = &set.Transitions[i]
+	}
+	if i < len(set.Tags) {
+		writes.Tags = set.Tags[i]
+	}
+	items, err := lower(tmpl, r, itemPath, rec, writes)
+	if err != nil {
+		return nil, fmt.Errorf("record %d: %w", i, err)
+	}
+	return items, nil
+}
+
+// bucketGap is the space inside a bucket between its heading and its list.
+const bucketGap = string(domain.GapTight)
+
+// lowerGrouped expands a records Collection whose binding names `group:` (domain.PageGroupDate) into one `section`
+// per bucket, **as siblings in the parent** -- the way a bound Metric expands into one Metric per row -- so the
+// layout around it (a seven-column grid for a week, a stack for an agenda) is the author's and the primitive
+// carries none. Each section holds the bucket's heading, lowered from the Collection's first child with `from:
+// bucket:label`, then a Collection of the bucket's records lowered from its second child, which keeps the node's
+// own presentation (`empty`, `ordered`, `divided`, `gap`) so a day with nothing says so in the author's words.
+//
+// Two things a grouped Collection does not take, refused by name and not ignored. `complete:` is the claim that a
+// list shows every record its Dataset matches, and a notice for that has no place to be drawn among the sections;
+// `hide_empty:` would drop the empty buckets, which are the reason for grouping by a window. Neither is built.
+func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	b := n.Binding
+	if b.Group != domain.PageGroupDate {
+		return nil, fmt.Errorf("%s: group: %q is not a dimension a records binding groups by (%s)", path, b.Group, domain.PageGroupDate)
+	}
+	if NodeKind(n.Kind) != NodeComponent || n.Type != string(domain.ComponentCollection) {
+		return nil, fmt.Errorf("%s: group: is valid only on a Collection", path)
+	}
+	for _, p := range []string{collectionCompleteProp, collectionHideEmptyProp, collectionTruncatedProp} {
+		if _, written := n.Props[p]; written {
+			return nil, fmt.Errorf("%s: %s: is not built for a grouped Collection -- the notice has no place among the groups, and an empty group is drawn on purpose", path, p)
+		}
+	}
+	if len(n.Children) != 2 {
+		return nil, fmt.Errorf("%s: a grouped collection holds exactly two children, the heading template (from: %s) then the item template cloned for each record, and has %d", path, domain.PageBucketLabelRole, len(n.Children))
+	}
+	if err := recordlessTemplateIssue(n.Children[0], fmt.Sprintf("%s.children[0]", path), "a group heading"); err != nil {
+		return nil, err
+	}
+	if r.Records == nil {
+		return nil, fmt.Errorf("%s: no resolver for records", path)
+	}
+	set, err := r.Records(*b)
+	if err != nil {
+		return nil, err
+	}
+	if len(set.BucketKeys) != len(set.Records) {
+		return nil, fmt.Errorf("%s: the resolver named %d bucket keys for %d records", path, len(set.BucketKeys), len(set.Records))
+	}
+	byKey := make(map[string]int, len(set.Buckets))
+	for i, bk := range set.Buckets {
+		if _, dup := byKey[bk.Key]; dup {
+			return nil, fmt.Errorf("%s: bucket %q is named twice", path, bk.Key)
+		}
+		byKey[bk.Key] = i
+	}
+	members := make([][]int, len(set.Buckets))
+	for i, key := range set.BucketKeys {
+		at, ok := byKey[key]
+		if !ok {
+			return nil, fmt.Errorf("record %d: sits in bucket %q, which the group does not draw -- the window comes from the Dataset's own where:, so a record outside it is a resolver defect", i, key)
+		}
+		members[at] = append(members[at], i)
+	}
+	out := make([]UINode, 0, len(set.Buckets))
+	for at, bk := range set.Buckets {
+		cell := UINode{Kind: NodeLayout, Type: string(domain.LayoutSection), Props: map[string]string{"gap": bucketGap}}
+		head, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), map[string]string{domain.PageBucketLabelRole: bk.Label}, &RecordWrites{})
+		if err != nil {
+			return nil, fmt.Errorf("bucket %q: %w", bk.Key, err)
+		}
+		cell.Children = append(cell.Children, head...)
+		list := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: n.Props}
+		for _, i := range members[at] {
+			items, err := lowerRecordItem(n.Children[1], r, fmt.Sprintf("%s.children[1]", path), set, i)
+			if err != nil {
+				return nil, err
+			}
+			list.Children = append(list.Children, items...)
+		}
+		cell.Children = append(cell.Children, list)
+		out = append(out, cell)
+	}
+	return out, nil
 }
 
 // dimensionRoute resolves a bound Metric's `to:` to the route its rows link to, or "" when the node links

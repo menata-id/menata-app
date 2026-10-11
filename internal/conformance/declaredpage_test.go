@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -246,6 +247,7 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 				if ds.Select != domain.SelectRecords {
 					out = append(out, "records binding over "+ds.ID+", which is an aggregate")
 				}
+				out = append(out, groupProblems(n.Binding.Group, ds, m, len(n.Children))...)
 				out = append(out, eachProblems(n.Children, m)...)
 				for _, role := range fromRolesUnder(n.Children) {
 					fieldID := m.CardFieldFor(domain.CardFieldRole(role))
@@ -264,6 +266,42 @@ func recordsBindingProblems(page domain.PageNode, owner map[string]*domain.Machi
 		}
 	}
 	walk(page)
+	return out
+}
+
+// groupProblems holds a `group:` binding to what grouping needs, stated again here and not by calling metadata: it
+// groups by the one dimension built, the Machine names the Field to bucket by, the Dataset closes a window on that
+// Field with exactly one gte and one lte (the days a page draws are read from them), and the Collection holds the
+// heading template and the item template and nothing else.
+func groupProblems(group string, ds domain.Dataset, m *domain.Machine, children int) []string {
+	if group == "" {
+		return nil
+	}
+	var out []string
+	if group != domain.PageGroupDate {
+		return []string{"group: " + group + " is not a dimension a records binding groups by"}
+	}
+	field := m.CardFieldFor(domain.CardFieldRoleDate)
+	if field == "" {
+		return []string{"group: date -- " + m.ID + " declares no date card_fields role"}
+	}
+	lo, hi := 0, 0
+	if ds.Where != nil && len(ds.Where.Any) == 0 {
+		for _, c := range ds.Where.All {
+			if c.Field == field && c.Op == expression.OpGreaterOrEqual {
+				lo++
+			}
+			if c.Field == field && c.Op == expression.OpLessOrEqual {
+				hi++
+			}
+		}
+	}
+	if lo != 1 || hi != 1 {
+		out = append(out, "group: date -- "+ds.ID+" must close its window on "+field+" with exactly one gte and one lte in an all: ("+strconv.Itoa(lo)+" and "+strconv.Itoa(hi)+")")
+	}
+	if children != 2 {
+		out = append(out, "group: date -- a grouped Collection holds a heading template and an item template, and has "+strconv.Itoa(children)+" children")
+	}
 	return out
 }
 
@@ -300,7 +338,7 @@ func fromRolesUnder(nodes []domain.PageNode) []string {
 		for prop, role := range n.From {
 			// The reserved word is the record's route, not a Projection role; it is judged where it is used
 			// (a link's href) by TestEveryInstalledLinkNamesItsDestinationOnce, and by ir.Lower for any other prop.
-			if domain.PageDerivedRole(role) {
+			if domain.PageDerivedRole(role) || role == domain.PageBucketLabelRole {
 				continue
 			}
 			if role == domain.PageRecordRole && n.Kind == "static" && n.Type == string(domain.StaticLink) && prop == "href" {

@@ -161,10 +161,60 @@ func bindingRecords(ctx context.Context, l *Loader, viewer domain.Actor, params 
 		tagLists = append(tagLists, list)
 	}
 	set := ir.RecordSet{Records: out, Tags: tagLists, Edits: edits, Deletes: deletes, Moves: moves, Transitions: transitions, Truncated: sel.Truncated, Limit: sel.Limit}
+	if b.Group == domain.PageGroupDate {
+		if set.Buckets, set.BucketKeys, err = dateBuckets(ds, src, records, where); err != nil {
+			return ir.RecordSet{}, err
+		}
+	}
 	if src.Completion != nil {
 		set.Done, set.Reopen = src.Completion.Done, src.ReopenValue()
 	}
 	return set, nil
+}
+
+// dateBuckets is `group: date`: one bucket per day from the Dataset's own `gte` to its own `lte` on the Machine's
+// `date` card role, and for each record the day it falls on. The window is **read from the Dataset's `where:`**,
+// resolved the way the database resolves it (`$week`, `$today+n`, a written date), so the days drawn and the
+// records selected cannot disagree. metadata.groupBindingIssues guarantees exactly one of each bound at load;
+// what is checked again here is what only a request can break -- a bound that resolves to no date, an inverted
+// window, one longer than domain.PageGroupMaxBuckets days. A record whose date is not a bucket is an error and
+// not a skipped row, since the Dataset's own filter is what put it here.
+func dateBuckets(ds domain.Dataset, src *domain.Machine, records []*data.Record, where expression.Context) ([]ir.Bucket, []string, error) {
+	field := src.CardFieldFor(domain.CardFieldRoleDate)
+	var lo, hi time.Time
+	for _, c := range ds.Where.All {
+		if c.Field != field || (c.Op != expression.OpGreaterOrEqual && c.Op != expression.OpLessOrEqual) {
+			continue
+		}
+		v, ok := where.Resolve(c.Value)
+		if !ok {
+			return nil, nil, fmt.Errorf("composition: dataset %q: the %s bound %q resolves to nothing", ds.ID, c.Op, c.Value)
+		}
+		day, err := time.Parse("2006-01-02", v)
+		if err != nil {
+			return nil, nil, fmt.Errorf("composition: dataset %q: the %s bound %q resolved to %q, which is not a date", ds.ID, c.Op, c.Value, v)
+		}
+		if c.Op == expression.OpGreaterOrEqual {
+			lo = day
+		} else {
+			hi = day
+		}
+	}
+	if lo.IsZero() || hi.IsZero() || hi.Before(lo) {
+		return nil, nil, fmt.Errorf("composition: dataset %q: window %s..%s is not a range of days", ds.ID, lo.Format("2006-01-02"), hi.Format("2006-01-02"))
+	}
+	if days := int(hi.Sub(lo).Hours()/24) + 1; days > domain.PageGroupMaxBuckets {
+		return nil, nil, fmt.Errorf("composition: dataset %q: window of %d days exceeds the %d a group draws", ds.ID, days, domain.PageGroupMaxBuckets)
+	}
+	var buckets []ir.Bucket
+	for d := lo; !d.After(hi); d = d.AddDate(0, 0, 1) {
+		buckets = append(buckets, ir.Bucket{Key: d.Format("2006-01-02"), Label: d.Format("Mon 02 Jan")})
+	}
+	keys := make([]string, len(records))
+	for i, r := range records {
+		keys[i] = DisplayString(r.Values[field])
+	}
+	return buckets, keys, nil
 }
 
 // fillDerivedGroup puts the name of the group the record sits in under `group:label`: the title of the record its

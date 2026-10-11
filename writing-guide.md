@@ -1189,6 +1189,20 @@ real content. A layout with no children cannot carry it. The count is the rows d
 `limit:` says so through `complete: true`, not here. A layout whose children are **all** `hide_empty` Collections must write `empty:` (a load error otherwise -- load lowers with one placeholder record, where nothing is empty, so the bare case would first fail on a viewer's quiet day). `hide_empty` and the count read the rows the Dataset returned; a `when:` that hides every item of a non-empty list still leaves the heading with its count. The worked page is `nav_my_tasks` (Overdue / Next 7 days /
 Later / Completed) in Project Management.
 
+**A list grouped by day (K15 Calendar stage 2, 2026-10-11).** A records Collection whose binding adds `group: date`
+draws one **section per day** of the Dataset's own window -- a `Mon 05 Oct` heading, then that day's records --
+and draws a day with nothing in it too, with the Collection's `empty:` words. The sections are siblings in
+the parent, so the layout around the Collection is yours (`layout: grid` with `columns: 7` and `mobile: 1` is a week;
+a `stack` is an agenda). The Collection holds **exactly two children**: the heading template (read
+`from: {text: "bucket:label"}`, the day's name -- a role of that template alone, never of a record) and the item
+template cloned for each record. Three things are checked at load and refused with their reason: the Machine
+declares a `date` role in `card_fields:`; the Dataset closes its window on that Field with an `all:` holding exactly
+one `gte` and one `lte` (`$week`/`$week+6` is a week; the days drawn are *read from* these two, so the page cannot
+draw days its records are not selected from); and the window is at most 62 days. `complete:`, `hide_empty:` and a
+heading template carrying a record link, `count:`, `each:` or `when:` are refused -- an empty day is drawn on
+purpose, and a truncation notice has no place among the days. Worked page: `nav_week_tasks` in Project Management.
+Not built yet: highlighting today's section, and the previous/next-week links.
+
 **`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and
 nothing else:
 

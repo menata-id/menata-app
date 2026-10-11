@@ -1758,3 +1758,59 @@ func TestDeclaredPageListsOnlyTheTasksDueInTheWeekInView(t *testing.T) {
 		t.Error("the week's tasks are not listed in due-date order")
 	}
 }
+
+// TestDeclaredPageGroupsTheWeekIntoSevenDays: the grouped Collection draws every day of the week in view once, in
+// order, a task under the day it is due and no other, and a day with nothing says so in the page's own words.
+// Placement is the point -- the count and the order of headings alone would pass a page that listed every task
+// under Monday -- so each probe is located between its own day's heading and the next one.
+func TestDeclaredPageGroupsTheWeekIntoSevenDays(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredgroup", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil {
+		t.Fatal("default installs no mch_task")
+	}
+	today := time.Now()
+	monday := today.AddDate(0, 0, -((int(today.Weekday()) + 6) % 7))
+	for title, offset := range map[string]int{"Group-probe-mon": 0, "Group-probe-wed-a": 2, "Group-probe-wed-b": 2, "Group-probe-sun": 6} {
+		rec, err := store.CreateRecord(ctx, task.ID, map[string]any{
+			"fld_title": title, "fld_status": task.ReopenValue(), "fld_due_date": monday.AddDate(0, 0, offset).Format("2006-01-02"),
+		})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+	body := getPage(t, h, cookie, "/pages/nav_week_tasks")
+	head := func(offset int) int {
+		at := strings.Index(body, ">"+monday.AddDate(0, 0, offset).Format("Mon 02 Jan")+"<")
+		if at < 0 {
+			t.Fatalf("no heading for day %d of the week", offset)
+		}
+		return at
+	}
+	for d := 1; d < 7; d++ {
+		if head(d) <= head(d-1) {
+			t.Errorf("day %d is not after day %d", d, d-1)
+		}
+	}
+	for title, want := range map[string]int{"Group-probe-mon": 0, "Group-probe-wed-a": 2, "Group-probe-wed-b": 2, "Group-probe-sun": 6} {
+		at := strings.Index(body, ">"+title+"<")
+		upper := len(body)
+		if want < 6 {
+			upper = head(want + 1)
+		}
+		if at < head(want) || at > upper {
+			t.Errorf("%s is not under its own day's heading", title)
+		}
+	}
+	// Tuesday, Thursday, Friday and Saturday hold nothing of ours, but the shared database may hold other
+	// people's tasks, so the check is on the page's own words appearing at all rather than on a count.
+	if !strings.Contains(body, "—") {
+		t.Error("an empty day does not say so")
+	}
+}

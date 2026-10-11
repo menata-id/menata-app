@@ -47,6 +47,7 @@ type pageBindingDoc struct {
 	Measure string
 	Rows    string
 	Write   string
+	Group   string
 }
 
 var pageDiscriminators = []string{"layout", "static", "component"}
@@ -216,7 +217,7 @@ func decodePageWhen(n *yaml.Node) (*domain.PageCondition, error) {
 
 func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 	if n.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("line %d: binding: is a mapping of dataset, measure, rows and write", n.Line)
+		return nil, fmt.Errorf("line %d: binding: is a mapping of dataset, measure, rows, write and group", n.Line)
 	}
 	b := &pageBindingDoc{}
 	for i := 0; i+1 < len(n.Content); i += 2 {
@@ -233,8 +234,10 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 			b.Rows = val.Value
 		case "write":
 			b.Write = val.Value
+		case "group":
+			b.Group = val.Value
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key a binding declares (dataset, measure, rows, write, group)", key.Line, key.Value)
 		}
 	}
 	return b, nil
@@ -246,7 +249,7 @@ func (p pageNodeDoc) toDomain() domain.PageNode {
 		out.Props = nil
 	}
 	if p.binding != nil {
-		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write}
+		out.Binding = &domain.PageBinding{Dataset: p.binding.Dataset, Measure: p.binding.Measure, Rows: p.binding.Rows, Write: p.binding.Write, Group: p.binding.Group}
 	}
 	if len(p.from) > 0 {
 		out.From = p.from
@@ -328,7 +331,12 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 			// One tag, a palette entry for the same reason `color` above is one: an `each: tags` node is checked as a
 			// Tag would be drawn. Whether the real Machine declares `card_tags:` is `bindingIssues`' question.
 			tags := []map[string]string{{string(domain.CardFieldRoleTitle): "x", string(domain.CardFieldRoleColor): string(domain.TagSlate)}}
-			return ir.RecordSet{Records: []map[string]string{rec}, Tags: [][]map[string]string{tags}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}, Moves: []ir.RecordMove{mv}, Transitions: []ir.RecordTransition{tr}, Done: "x", Reopen: "x", ShapeOnly: true}, nil
+			set := ir.RecordSet{Records: []map[string]string{rec}, Tags: [][]map[string]string{tags}, Edits: []ir.FormSpec{edit}, Deletes: []ir.RecordAction{del}, Moves: []ir.RecordMove{mv}, Transitions: []ir.RecordTransition{tr}, Done: "x", Reopen: "x", ShapeOnly: true}
+			if b.Group != "" {
+				// One bucket holding the one record, so both templates of a grouped Collection are lowered and checked.
+				set.Buckets, set.BucketKeys = []ir.Bucket{{Key: "x", Label: "x"}}, []string{"x"}
+			}
+			return set, nil
 		},
 	}
 }
@@ -547,6 +555,9 @@ func recordsBindingIssues(n domain.PageNode, ds domain.Dataset, source *domain.M
 	if source == nil {
 		return issues
 	}
+	if n.Binding != nil && n.Binding.Group != "" {
+		issues = append(issues, groupBindingIssues(n.Binding.Group, ds, source, where)...)
+	}
 	if readsDerivedRole(n.Children, domain.PageGroupLabelRole) && source.DefaultView().GroupBy == "" {
 		issues = append(issues, fmt.Sprintf("%s: page: from: %s -- machine %q's default View groups by no Field to derive it from", where, domain.PageGroupLabelRole, source.ID))
 	}
@@ -679,6 +690,40 @@ func conditionIssues(c domain.PageCondition, item *domain.Machine, where string)
 	return nil
 }
 
+// groupBindingIssues is what `group: date` asks of its Dataset and Machine: the Machine declares the `date` role
+// to bucket by, and the Dataset closes a window on that Field with exactly one `gte` and one `lte` in an `all:`.
+// An `any:` would let a record in without either bound holding, and a second bound makes "the window" ambiguous;
+// both are refused here because the days a page draws are *read from* those two comparisons (composition's
+// dateBuckets), and a window that cannot be read has to be a load error and not an empty calendar.
+func groupBindingIssues(group string, ds domain.Dataset, source *domain.Machine, where string) []string {
+	if group != domain.PageGroupDate {
+		return []string{fmt.Sprintf("%s: page: group: %q is not a dimension a records binding groups by (%s)", where, group, domain.PageGroupDate)}
+	}
+	field := source.CardFieldFor(domain.CardFieldRoleDate)
+	if field == "" {
+		return []string{fmt.Sprintf("%s: page: group: %s -- machine %q declares no card_fields role %q to bucket by", where, group, source.ID, domain.CardFieldRoleDate)}
+	}
+	if ds.Where == nil || len(ds.Where.Any) > 0 {
+		return []string{fmt.Sprintf("%s: page: group: %s -- dataset %q must close its window with an all: of one gte and one lte on %s, and has no all-only where:", where, group, ds.ID, field)}
+	}
+	var lower, upper int
+	for _, c := range ds.Where.All {
+		if c.Field != field {
+			continue
+		}
+		switch c.Op {
+		case expression.OpGreaterOrEqual:
+			lower++
+		case expression.OpLessOrEqual:
+			upper++
+		}
+	}
+	if lower != 1 || upper != 1 {
+		return []string{fmt.Sprintf("%s: page: group: %s -- dataset %q must close its window on %s with exactly one gte and one lte, and has %d and %d", where, group, ds.ID, field, lower, upper)}
+	}
+	return nil
+}
+
 // fromRoles collects every Projection role named by a `from:` anywhere under nodes.
 func fromRoles(nodes []domain.PageNode) map[string]bool {
 	out := map[string]bool{}
@@ -688,7 +733,7 @@ func fromRoles(nodes []domain.PageNode) map[string]bool {
 			continue
 		}
 		for _, role := range n.From {
-			if role != domain.PageRecordRole && !domain.PageDerivedRole(role) { // reserved: the record's route and the derived date roles, not Projection roles
+			if role != domain.PageRecordRole && role != domain.PageBucketLabelRole && !domain.PageDerivedRole(role) { // reserved: the record's route, a bucket's name and the derived date roles, not Projection roles
 				out[role] = true
 			}
 		}

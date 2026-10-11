@@ -399,9 +399,9 @@ navigation:
     priority: 4
     icon: calendar
     description: Cards sit on the day they are due. Tick a circle to finish one; step through the weeks to see what is coming.
-  # Stage 1 of the Calendar's move to `page:` (K15; `menata-app-document` audits/2026-10-11-pengukuran-k15-calendar.md):
-  # the seven days of the week `?week=N` selects, as one list. It exists to give `$week` its first reader -- the
-  # grouped Collection that will draw one column per day arrives in stage 2 and replaces this page with the Calendar.
+  # Stages 1-2 of the Calendar's move to `page:` (K15; `menata-app-document` audits/2026-10-11-pengukuran-k15-calendar.md):
+  # the seven days of the week `?week=N` selects, one section per day through `group: date`. It stands in for
+  # the Calendar's body until stages 3-5 (today's highlight, week links) replace `nav_calendar` with it.
   - id: nav_week_tasks
     label: This week
     route: /pages/nav_week_tasks
@@ -409,17 +409,22 @@ navigation:
     icon: calendar
     description: Every task due from Monday to Sunday of the week in view. Add ?week=1 for next week, ?week=-1 for last.
     page:
-      layout: stack
-      gap: default
+      layout: grid
+      gap: tight
+      mobile: 1
+      columns: 7
       children:
         - component: Collection
           gap: tight
-          divided: true
-          empty: Nothing is due this week.
+          empty: "—"
           binding:
             dataset: ds_tasks_due_week
             rows: records
+            group: date
           children:
+            - static: subheading
+              from:
+                text: "bucket:label"
             - layout: stack
               gap: tight
               children:

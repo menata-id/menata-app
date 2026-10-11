@@ -30,6 +30,12 @@ func pageFixtureWith(t *testing.T, nav, parentType string) error {
 		writeFile(t, dir, "user.yaml", "id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n")
 		machineFiles, appMachines = "  - user.yaml\n"+machineFiles, "  - mch_user\n"+appMachines
 	}
+	// The Machine declares a `date` card role only for a page that groups by it: another test needs a Machine
+	// that declares none, to prove the derived date roles refuse one.
+	dateRole := ""
+	if strings.Contains(nav, "group:") && !strings.Contains(nav, "label: Undated") {
+		dateRole = "  - { field: fld_due, role: date }\n"
+	}
 	writeFile(t, dir, "doc.yaml", `
 id: mch_doc
 name: Doc
@@ -52,8 +58,11 @@ fields:
     name: Color
     type: status
     options: [blue, amber]
+  - id: fld_due
+    name: Due
+    type: date
 card_fields:
-  - { field: fld_title, role: title }
+`+dateRole+`  - { field: fld_title, role: title }
   - { field: fld_status, role: status }
   - { field: fld_color, role: color }
   - { field: fld_owner, role: person }
@@ -78,6 +87,27 @@ datasets:
       - id: rel_children
         machine: mch_doc
         via: fld_parent
+  - id: ds_week
+    select: records
+    limit: 10
+    where:
+      all:
+        - { field: fld_due, op: gte, value: $week }
+        - { field: fld_due, op: lte, value: $week+6 }
+  - id: ds_week_open
+    select: records
+    limit: 10
+    where:
+      field: fld_due
+      op: gte
+      value: $week
+  - id: ds_week_any
+    select: records
+    limit: 10
+    where:
+      any:
+        - { field: fld_due, op: gte, value: $week }
+        - { field: fld_due, op: lte, value: $week+6 }
   - id: ds_by_param
     select: records
     limit: 10
@@ -789,5 +819,68 @@ func TestPage_aHintFigureNamesAMeasureOfTheBoundDataset(t *testing.T) {
 	}
 	if err := pageFixture(t, page("msr_nope")); err == nil || !strings.Contains(err.Error(), "msr_nope") {
 		t.Errorf("err = %v, want the undeclared Measure named", err)
+	}
+}
+
+func groupedPage(dataset, group string) string {
+	return `
+  - id: nav_week
+    label: Week
+    route: /pages/nav_week
+    page:
+      layout: grid
+      columns: "7"
+      mobile: "1"
+      children:
+        - component: Collection
+          gap: tight
+          empty: none
+          binding: { dataset: ` + dataset + `, rows: records, group: ` + group + ` }
+          children:
+            - static: subheading
+              from: { text: "bucket:label" }
+            - static: paragraph
+              from: { text: title }
+`
+}
+
+// `group: date` asks two things of what it groups: the Machine names a Field to bucket by, and the Dataset closes
+// a window on it with one gte and one lte -- the days drawn are read from those bounds, so a window that cannot
+// be read has to stop the load and not draw an empty calendar.
+func TestPage_aGroupedListNeedsAWindowItCanRead(t *testing.T) {
+	if err := pageFixture(t, groupedPage("ds_week", "date")); err != nil {
+		t.Fatalf("a grouped list over a closed week was refused: %v", err)
+	}
+	for name, c := range map[string]struct{ dataset, group, want string }{
+		"no upper bound":    {"ds_week_open", "date", "exactly one gte and one lte"},
+		"bounds in an any:": {"ds_week_any", "date", "all-only"},
+		"no window at all":  {"ds_rows", "date", "all-only"},
+		"another dimension": {"ds_week", "status", "not a dimension"},
+	} {
+		err := pageFixture(t, groupedPage(c.dataset, c.group))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: want an error mentioning %q, got %v", name, c.want, err)
+		}
+	}
+}
+
+func TestPage_aGroupNeedsTheMachineToNameADateRole(t *testing.T) {
+	nav := strings.Replace(groupedPage("ds_week", "date"), "label: Week", "label: Undated", 1)
+	err := pageFixture(t, nav)
+	if err == nil || !strings.Contains(err.Error(), "declares no card_fields role") {
+		t.Errorf("want a refusal naming the missing date role, got %v", err)
+	}
+}
+
+// The bucket's name is a role of the heading template only: a record's template reading it is a lowering error,
+// and it is never a card_fields role a Machine could be asked for.
+func TestPage_aBucketNameIsNotAProjectionRole(t *testing.T) {
+	bad := strings.Replace(groupedPage("ds_week", "date"), "from: { text: title }", `from: { text: "bucket:label" }`, 1)
+	if err := pageFixture(t, bad); err == nil {
+		t.Error("a record's template read the bucket's name")
+	}
+	ungrouped := strings.Replace(validListPage, "from: { text: title }", `from: { text: "bucket:label" }`, 1)
+	if err := pageFixture(t, ungrouped); err == nil {
+		t.Error("an ungrouped list read the bucket's name")
 	}
 }

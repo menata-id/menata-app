@@ -130,7 +130,28 @@ type PageBinding struct {
 	// template to the item's own record, through the generic patch route. It is a mode of its own and never
 	// beside Rows or Measure, which read.
 	Write string
+	// Group splits a records binding's items into the buckets of one Machine role, each drawn once and in order,
+	// the empty ones too (007 §24: "calendar = collection + date dimension", "board = collection + group
+	// dimension"). The only value built is PageGroupDate. It is a property of the *binding* because it decides
+	// what the Data Plane hands back -- which buckets exist, and which record is in which -- and not how the
+	// Collection looks; the page declares what a bucket and a record look like as its two child templates.
+	Group string
 }
+
+// PageGroupDate buckets a records binding by the Machine's `date` card_fields role, one bucket per day of the
+// window the Dataset's own `where:` closes on that Field (a `gte` and a `lte`, which is what a week or a month is).
+// The window is *derived* from the Dataset and never written beside it, so the days a page draws and the records
+// it selects cannot disagree (001 #8). PageGroupMaxBuckets bounds it: a window of years is a mistake, not a page.
+const (
+	PageGroupDate       = "date"
+	PageGroupMaxBuckets = 62
+)
+
+// PageBucketLabelRole is the one `from:` role a bucket's heading template has: the bucket's own name, derived
+// ("Mon 05 Oct" for a day). It exists only in the heading template -- a record's template has no such role, so
+// reading it there is a lowering error rather than a blank -- and is reserved by its colon, as the other derived
+// roles are, so it can never be a Projection role.
+const PageBucketLabelRole = "bucket:label"
 
 // The Rows modes. `dimension` is a Metric per Dimension value (or, on a Collection, one item per Dimension value,
 // its template reading the value and every Measure through PageRowLabelRole/PageMeasureRole), `records` a
