@@ -76,6 +76,7 @@ navigation:
           children:
             - component: Metric
               label: All cards
+              hint_figure: { of: msr_projects, one: "In {n} project", other: "In {n} projects" }
               binding: { dataset: ds_task_figures, measure: msr_all, rows: total }
             - component: Metric
               label: Open
@@ -89,6 +90,7 @@ navigation:
             - component: Metric
               label: Completed
               tone: good
+              hint_figure: { of: msr_completed_share, other: "{n}% of all cards" }
               binding: { dataset: ds_task_figures, measure: msr_completed, rows: total }
         - layout: grid
           gap: default

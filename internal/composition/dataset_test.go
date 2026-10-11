@@ -152,3 +152,38 @@ func TestAggregate_failsClosedWhenTodayCannotBeResolved(t *testing.T) {
 		t.Error("Aggregate answered a `$today` filter with no date to resolve it against")
 	}
 }
+
+// count_distinct counts the distinct non-empty values a Field holds, overall and per group; a percentage divides
+// two final Measures, rounds down, and is 0 over a zero denominator -- never a division by zero.
+func TestAggregate_countDistinctAndPercentage(t *testing.T) {
+	ds := domain.Dataset{
+		ID: "ds_t", Dimension: "fld_assignee",
+		Measures: []domain.Measure{
+			{ID: "msr_all", Aggregate: domain.AggregateCount},
+			{ID: "msr_done", Aggregate: domain.AggregateCount, Where: &expression.Predicate{All: []expression.Comparison{{Field: "fld_status", Op: expression.OpEquals, Value: "done"}}}},
+			{ID: "msr_projects", Aggregate: domain.AggregateCountDistinct, Field: "fld_project"},
+			{ID: "msr_share", Aggregate: domain.AggregatePercentage, Numerator: "msr_done", Denominator: "msr_all"},
+		},
+	}
+	records := []*data.Record{
+		rec("t1", map[string]any{"fld_assignee": "ana", "fld_project": "p1", "fld_status": "done"}),
+		rec("t2", map[string]any{"fld_assignee": "ana", "fld_project": "p1", "fld_status": "todo"}),
+		rec("t3", map[string]any{"fld_assignee": "ana", "fld_project": "p2", "fld_status": "todo"}),
+		rec("t4", map[string]any{"fld_assignee": "budi", "fld_project": "", "fld_status": "todo"}),
+		rec("t5", map[string]any{"fld_assignee": "budi", "fld_status": "todo"}),
+	}
+	got := mustAggregate(t, ds, records, expression.Context{})
+	if want := map[string]float64{"msr_all": 5, "msr_done": 1, "msr_projects": 2, "msr_share": 20}; !reflect.DeepEqual(got.Total, want) {
+		t.Errorf("Total = %v, want %v", got.Total, want)
+	}
+	if want := map[string]float64{"msr_all": 3, "msr_done": 1, "msr_projects": 2, "msr_share": 33}; !reflect.DeepEqual(got.ByDimension["ana"], want) {
+		t.Errorf("ana = %v, want %v (33%% rounded down from 33.3)", got.ByDimension["ana"], want)
+	}
+	if want := map[string]float64{"msr_all": 2, "msr_done": 0, "msr_projects": 0, "msr_share": 0}; !reflect.DeepEqual(got.ByDimension["budi"], want) {
+		t.Errorf("budi = %v, want %v (an empty project is no project)", got.ByDimension["budi"], want)
+	}
+	empty := mustAggregate(t, ds, nil, expression.Context{})
+	if empty.Total["msr_share"] != 0 || empty.Total["msr_projects"] != 0 {
+		t.Errorf("no records: %v, want every figure 0", empty.Total)
+	}
+}

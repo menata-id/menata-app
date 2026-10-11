@@ -172,6 +172,14 @@ datasets:
       - id: msr_completed
         aggregate: count
         where: { field: fld_status, op: equals, value: $done }
+      # The two derived hints (K15 D1): how many Projects the cards sit in, and finished as a share of all.
+      - id: msr_projects
+        aggregate: count_distinct
+        field: fld_project
+      - id: msr_completed_share
+        aggregate: percentage
+        numerator: msr_completed
+        denominator: msr_all
       - id: msr_due_today
         aggregate: count
         where:

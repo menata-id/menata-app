@@ -794,6 +794,15 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 			if ms.Field != "" {
 				issues = append(issues, fmt.Sprintf("dataset %q: measure %q is a count, which counts records, so field %q must not be set", ds.ID, ms.ID, ms.Field))
 			}
+		case domain.AggregateCountDistinct:
+			if _, ok := fieldsByID[ms.Field]; !ok {
+				issues = append(issues, fmt.Sprintf("dataset %q: measure %q counts the distinct values of a field, so field %q must be a field of machine %q", ds.ID, ms.ID, ms.Field, m.ID))
+			}
+		case domain.AggregatePercentage:
+			issues = append(issues, percentageIssues(ds, ms)...)
+		}
+		if ms.Aggregate != domain.AggregatePercentage && (ms.Numerator != "" || ms.Denominator != "") {
+			issues = append(issues, fmt.Sprintf("dataset %q: measure %q: numerator/denominator belong to a percentage, and this is a %s", ds.ID, ms.ID, ms.Aggregate))
 		}
 
 		for _, c := range ms.Where.Comparisons() {
@@ -824,6 +833,33 @@ func validateDataset(m *domain.Machine, ds domain.Dataset, fieldsByID map[string
 		}
 	}
 
+	return issues
+}
+
+// percentageIssues is what a derived percentage asks: two Measures of its own Dataset, neither derived itself (so
+// evaluation is one pass, and bounded -- 007 §7.4), and nothing of its own to count or filter.
+func percentageIssues(ds domain.Dataset, ms domain.Measure) []string {
+	var issues []string
+	if ms.Field != "" || ms.Where != nil {
+		issues = append(issues, fmt.Sprintf("dataset %q: measure %q is a percentage of two other measures, so it takes no field: and no where: of its own", ds.ID, ms.ID))
+	}
+	for role, id := range map[string]string{"numerator": ms.Numerator, "denominator": ms.Denominator} {
+		var found *domain.Measure
+		for i := range ds.Measures {
+			if ds.Measures[i].ID == id {
+				found = &ds.Measures[i]
+			}
+		}
+		switch {
+		case id == "":
+			issues = append(issues, fmt.Sprintf("dataset %q: measure %q is a percentage and names no %s:", ds.ID, ms.ID, role))
+		case found == nil:
+			issues = append(issues, fmt.Sprintf("dataset %q: measure %q: %s %q is not a measure of this dataset", ds.ID, ms.ID, role, id))
+		case found.Aggregate == domain.AggregatePercentage:
+			issues = append(issues, fmt.Sprintf("dataset %q: measure %q: %s %q is itself a percentage -- a percentage is derived from counted or summed measures only", ds.ID, ms.ID, role, id))
+		}
+	}
+	sort.Strings(issues)
 	return issues
 }
 

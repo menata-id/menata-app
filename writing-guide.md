@@ -1090,6 +1090,24 @@ four figures of the Task Machine (`nav_task_figures`):
   binding: { dataset: ds_task_figures, measure: msr_overdue, rows: total }
 ```
 
+**Two derived figures (2026-10-11): `count_distinct` and `percentage`.** `aggregate: count_distinct` with a
+`field:` counts the distinct non-empty values that Field holds (how many Projects the cards sit in). `aggregate:
+percentage` with `numerator:` and `denominator:` names two other Measures of the same Dataset -- neither itself a
+percentage -- and is the first as a whole percentage of the second, rounded down, and `0` when the denominator is
+`0`; it takes no `field:` and no `where:` of its own. A total Metric can word its hint around one of them with
+`hint_figure: {of: <measure>, one: ..., other: ...}` -- `{n}` is the figure, `one` is optional, and a written
+`hint:` beside it is a load error:
+
+```yaml
+- { id: msr_projects, aggregate: count_distinct, field: fld_project }
+- { id: msr_completed_share, aggregate: percentage, numerator: msr_completed, denominator: msr_all }
+
+- component: Metric
+  label: All cards
+  hint_figure: { of: msr_projects, one: "In {n} project", other: "In {n} projects" }
+  binding: { dataset: ds_task_figures, measure: msr_all, rows: total }
+```
+
 A Measure's `where:` takes the same one-level `all:` conjunction a records Dataset does, and two sentinels:
 `$today` (the request's date, against a date Field; `$today+7` / `$today-30` are whole days from it, so "the next
 week" is `gte $today` and `lte $today+7` rather than a date typed into the file) and **`$done`** -- whatever the Machine's own `completion:`

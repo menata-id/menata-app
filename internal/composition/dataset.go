@@ -2,6 +2,7 @@ package composition
 
 import (
 	"fmt"
+	"math"
 
 	"menata.app/internal/data"
 	"menata.app/internal/domain"
@@ -57,10 +58,14 @@ func Aggregate(ds domain.Dataset, records []*data.Record, ctx expression.Context
 		agg.Total[ms.ID] = 0
 	}
 
+	// count_distinct keeps the values it has seen, over all records and per group; the counts are taken at the end.
+	distinctTotal := map[string]map[string]bool{}
+	distinctGroup := map[string]map[string]map[string]bool{}
 	for _, r := range records {
 		var group map[string]float64
+		key := ""
 		if ds.Dimension != "" {
-			key := DisplayString(r.Values[ds.Dimension])
+			key = DisplayString(r.Values[ds.Dimension])
 			group = agg.ByDimension[key]
 			if group == nil {
 				group = make(map[string]float64, len(ds.Measures))
@@ -71,7 +76,19 @@ func Aggregate(ds domain.Dataset, records []*data.Record, ctx expression.Context
 			}
 		}
 		for _, ms := range ds.Measures {
-			if !filters[ms.ID].Evaluate(r.Values) {
+			if ms.Aggregate == domain.AggregatePercentage || !filters[ms.ID].Evaluate(r.Values) {
+				continue
+			}
+			if ms.Aggregate == domain.AggregateCountDistinct {
+				if v := DisplayString(r.Values[ms.Field]); v != "" {
+					addDistinct(distinctTotal, ms.ID, v)
+					if group != nil {
+						if distinctGroup[key] == nil {
+							distinctGroup[key] = map[string]map[string]bool{}
+						}
+						addDistinct(distinctGroup[key], ms.ID, v)
+					}
+				}
 				continue
 			}
 			v := measureValue(ms, r)
@@ -81,7 +98,41 @@ func Aggregate(ds domain.Dataset, records []*data.Record, ctx expression.Context
 			}
 		}
 	}
+	for id, seen := range distinctTotal {
+		agg.Total[id] = float64(len(seen))
+	}
+	for key, perMeasure := range distinctGroup {
+		for id, seen := range perMeasure {
+			agg.ByDimension[key][id] = float64(len(seen))
+		}
+	}
+	// Percentages last, once every count and sum they divide is final.
+	for _, ms := range ds.Measures {
+		if ms.Aggregate != domain.AggregatePercentage {
+			continue
+		}
+		agg.Total[ms.ID] = percentage(agg.Total[ms.Numerator], agg.Total[ms.Denominator])
+		for _, group := range agg.ByDimension {
+			group[ms.ID] = percentage(group[ms.Numerator], group[ms.Denominator])
+		}
+	}
 	return agg, nil
+}
+
+func addDistinct(sets map[string]map[string]bool, measureID, value string) {
+	if sets[measureID] == nil {
+		sets[measureID] = map[string]bool{}
+	}
+	sets[measureID][value] = true
+}
+
+// percentage is part as a whole percentage of whole, rounded down -- the Dashboard's "18% of all cards" -- and 0
+// when whole is 0, since nothing out of nothing is no share rather than a division by zero.
+func percentage(part, whole float64) float64 {
+	if whole <= 0 {
+		return 0
+	}
+	return math.Floor(part * 100 / whole)
 }
 
 // resolveMeasureFilters is each Measure's `where:` with its context values replaced by the literals they mean

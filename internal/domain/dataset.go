@@ -11,15 +11,25 @@ import "menata.app/internal/expression"
 // KnownActions at one entry until a second real case reached it.
 type AggregateKind string
 
+// count_distinct and percentage arrived 2026-10-11 with the Dashboard's two derived hints (K15 D1): "In 2 projects"
+// is how many distinct Projects the cards sit in, and "18% of all cards" is one count as a share of another --
+// §7.4's own "derived measures may use ... percentage".
 const (
 	AggregateCount AggregateKind = "count"
 	AggregateSum   AggregateKind = "sum"
+	// AggregateCountDistinct counts the distinct non-empty values a Field holds across the records.
+	AggregateCountDistinct AggregateKind = "count_distinct"
+	// AggregatePercentage is a derived Measure: Numerator as a whole percentage of Denominator (both Measures of
+	// the same Dataset, neither itself derived), rounded down, and 0 when the Denominator is 0.
+	AggregatePercentage AggregateKind = "percentage"
 )
 
 // KnownAggregates is the closed set of aggregates a Measure may declare.
 var KnownAggregates = map[AggregateKind]bool{
-	AggregateCount: true,
-	AggregateSum:   true,
+	AggregateCount:         true,
+	AggregateSum:           true,
+	AggregateCountDistinct: true,
+	AggregatePercentage:    true,
 }
 
 // Measure is one named calculation over a Dataset's records (007 §7.4 Measure).
@@ -39,6 +49,9 @@ type Measure struct {
 	Aggregate AggregateKind
 	Field     string
 	Where     *expression.Predicate
+	// Numerator and Denominator are the two Measures a percentage is derived from; empty for every other kind.
+	Numerator   string
+	Denominator string
 }
 
 // Dataset is a named, reusable semantic data definition over one Machine's own records (007 §7.2

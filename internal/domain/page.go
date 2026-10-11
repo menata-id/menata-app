@@ -41,6 +41,11 @@ type PageNode struct {
 	// and neither is the node's `text`, which this produces. Valid only on a `static` node inside a
 	// records-bound Collection's item template; `ir.Lower` refuses it anywhere else.
 	Count *PageCount
+	// HintFigure is a Metric's hint worded around another Measure's figure of the same Dataset
+	// (`hint_figure: {of: msr_projects, one: "In {n} project", other: "In {n} projects"}`): the number comes from
+	// the binding, never typed, for the reason a Metric's value never is. Valid only on a Metric bound with
+	// `rows: total`, and instead of a written `hint:`.
+	HintFigure *PageCount
 	// Param is the query-string parameter a dimension-bound Metric carries its row's Dimension value in when it
 	// links (`to: nav_documents_in_status`, `param: status` -> `/pages/nav_documents_in_status?status=<value>`).
 	// It is the other end of a destination's `$parameters.<name>`: the page that reads the parameter declares

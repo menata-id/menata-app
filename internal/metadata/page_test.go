@@ -776,3 +776,18 @@ func TestPage_aDimensionCollectionReadsTheDatasetsOwnMeasures(t *testing.T) {
 		}
 	}
 }
+
+// The load-time total answers any Measure id, so hint_figure's Measure is checked against the Dataset itself.
+func TestPage_aHintFigureNamesAMeasureOfTheBoundDataset(t *testing.T) {
+	page := func(of string) string {
+		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n" +
+			"        - component: Metric\n          label: All\n          hint_figure: { of: " + of + ", other: \"{n} in all\" }\n" +
+			"          binding: { dataset: ds_by_status, measure: msr_total, rows: total }\n"
+	}
+	if err := pageFixture(t, page("msr_total")); err != nil {
+		t.Fatalf("a hint_figure over a declared Measure was refused: %v", err)
+	}
+	if err := pageFixture(t, page("msr_nope")); err == nil || !strings.Contains(err.Error(), "msr_nope") {
+		t.Errorf("err = %v, want the undeclared Measure named", err)
+	}
+}

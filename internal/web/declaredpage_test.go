@@ -1580,3 +1580,37 @@ func TestDeclaredPageHidesAnEmptyBucketAndCountsTheOthers(t *testing.T) {
 		t.Error("the quiet-page words are drawn beside real Tasks")
 	}
 }
+
+// TestDeclaredPageWordsTheTileHintsAroundDerivedMeasures (K15 D1): "All cards" says how many Projects its cards
+// sit in (count_distinct over fld_project) and "Completed" says its share of all cards (a percentage Measure),
+// both numbers coming from ds_task_figures and none typed in the YAML.
+func TestDeclaredPageWordsTheTileHintsAroundDerivedMeasures(t *testing.T) {
+	h, cookie, ctx, store, _, ws, _ := routerSetupFor(t, "declaredhints", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil || task.Completion == nil {
+		t.Fatal("default installs no mch_task with a completion: block")
+	}
+	for i, v := range []map[string]any{
+		{"fld_project": "rec_hint_p1", "fld_status": task.Completion.Done},
+		{"fld_project": "rec_hint_p1", "fld_status": "todo"},
+		{"fld_project": "rec_hint_p2", "fld_status": "todo"},
+	} {
+		v["fld_title"] = "Hint card " + strconv.Itoa(i)
+		rec, err := store.CreateRecord(ctx, task.ID, v)
+		if err != nil {
+			t.Fatalf("CreateRecord: %v", err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+	}
+	body := getPage(t, h, cookie, "/pages/nav_task_figures")
+	for _, want := range []string{">In 2 projects<", ">33% of all cards<"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the page does not say %q", want)
+		}
+	}
+}

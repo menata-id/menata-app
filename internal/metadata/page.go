@@ -24,7 +24,7 @@ import (
 // ones the node's type does not declare. The strictness lives in one place, the one that already knows the
 // vocabulary.
 //
-// The reserved keys are the three discriminators, `children`, `binding`, `from`, `to`, `param`, `list_of` and `each`. Exactly one discriminator per
+// The reserved keys are the three discriminators, `children`, `binding`, `from`, `to`, `param`, `list_of`, `count`, `hint_figure`, `when` and `each`. Exactly one discriminator per
 // node: `layout:`, `static:` or `component:`, whose value is the type.
 type pageNodeDoc struct {
 	kind     string
@@ -36,6 +36,7 @@ type pageNodeDoc struct {
 	listOf   string
 	param    string
 	count    *domain.PageCount
+	hint     *domain.PageCount
 	when     *domain.PageCondition
 	each     string
 	children []pageNodeDoc
@@ -95,11 +96,17 @@ func (p *pageNodeDoc) UnmarshalYAML(n *yaml.Node) error {
 			}
 			p.listOf = val.Value
 		case "count":
-			c, err := decodePageCount(val)
+			c, err := decodePageCount(val, "count")
 			if err != nil {
 				return err
 			}
 			p.count = c
+		case "hint_figure":
+			c, err := decodePageCount(val, "hint_figure")
+			if err != nil {
+				return err
+			}
+			p.hint = c
 		case "each":
 			if val.Kind != yaml.ScalarNode || val.Value == "" {
 				return fmt.Errorf("line %d: each: names the list a record owns, which is %s", key.Line, domain.PageEachTags)
@@ -155,15 +162,15 @@ func decodePageFrom(n *yaml.Node) (map[string]string, error) {
 
 // decodePageCount reads `count: {of, one, other}`. The wording is checked in `ir.Lower` where the record is
 // known; here only the shape of the block is.
-func decodePageCount(n *yaml.Node) (*domain.PageCount, error) {
+func decodePageCount(n *yaml.Node, name string) (*domain.PageCount, error) {
 	if n.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("line %d: count: is a mapping of of, one and other", n.Line)
+		return nil, fmt.Errorf("line %d: %s: is a mapping of of, one and other", n.Line, name)
 	}
 	c := &domain.PageCount{}
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		key, val := n.Content[i], n.Content[i+1]
 		if val.Kind != yaml.ScalarNode {
-			return nil, fmt.Errorf("line %d: count.%s: a single value, not an expression or a list", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %s.%s: a single value, not an expression or a list", key.Line, name, key.Value)
 		}
 		switch key.Value {
 		case "of":
@@ -173,7 +180,7 @@ func decodePageCount(n *yaml.Node) (*domain.PageCount, error) {
 		case "other":
 			c.Other = val.Value
 		default:
-			return nil, fmt.Errorf("line %d: %q is not a key count declares (of, one, other)", key.Line, key.Value)
+			return nil, fmt.Errorf("line %d: %q is not a key %s declares (of, one, other)", key.Line, key.Value, name)
 		}
 	}
 	return c, nil
@@ -234,7 +241,7 @@ func decodePageBinding(n *yaml.Node) (*pageBindingDoc, error) {
 }
 
 func (p pageNodeDoc) toDomain() domain.PageNode {
-	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, When: p.when, Each: p.each}
+	out := domain.PageNode{Kind: p.kind, Type: p.typ, Props: p.props, To: p.to, ListOf: p.listOf, Param: p.param, Count: p.count, HintFigure: p.hint, When: p.when, Each: p.each}
 	if len(out.Props) == 0 {
 		out.Props = nil
 	}
@@ -427,6 +434,10 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 			}
 			if b.Rows == domain.PageRowsDimension && ds.Dimension == "" {
 				issues = append(issues, fmt.Sprintf("%s: page: dataset %q declares no dimension, so it has no rows to expand", where, b.Dataset))
+			}
+			// The load-time total answers any id, so whether hint_figure's Measure exists is asked here.
+			if h := n.HintFigure; h != nil && !slicesHasMeasure(ds, h.Of) {
+				issues = append(issues, fmt.Sprintf("%s: page: hint_figure names measure %q, which dataset %q does not declare", where, h.Of, b.Dataset))
 			}
 		}
 	}

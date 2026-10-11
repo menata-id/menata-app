@@ -252,6 +252,9 @@ func Lower(root domain.PageNode, r Resolver) (UINode, error) {
 // lower expands one node. record is non-nil exactly while lowering inside a records template, which is what
 // makes `from:` legal and a nested Binding illegal.
 func lower(n domain.PageNode, r Resolver, path string, record map[string]string, writes *RecordWrites) ([]UINode, error) {
+	if n.HintFigure != nil && (n.Binding == nil || n.Binding.Rows != domain.PageRowsTotal || n.Type != string(domain.ComponentMetric)) {
+		return nil, fmt.Errorf("%s: hint_figure: words a hint around a figure of the bound Dataset, so it is valid only on a Metric bound with rows: %s", path, domain.PageRowsTotal)
+	}
 	if n.When != nil {
 		show, err := conditionHolds(*n.When, record, writes, path)
 		if err != nil || !show {
@@ -812,7 +815,38 @@ func lowerTotal(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	if value == "0" {
 		delete(props, "tone")
 	}
+	if h := n.HintFigure; h != nil {
+		hint, err := lowerHintFigure(*h, *b, props, r, path)
+		if err != nil {
+			return nil, err
+		}
+		props["hint"] = hint
+	}
 	return []UINode{{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}}, nil
+}
+
+// lowerHintFigure is a total Metric's `hint_figure: {of, one, other}`: the hint worded around another Measure of
+// the same Dataset, its figure substituted for `{n}`. The number is the binding's, never typed, so `hint:` may not
+// also be written; and the figure is asked of the same resolver as the Metric's own value.
+func lowerHintFigure(h domain.PageCount, b domain.PageBinding, props map[string]string, r Resolver, path string) (string, error) {
+	if _, written := props["hint"]; written {
+		return "", fmt.Errorf("%s: hint comes from hint_figure:, so it may not also be written", path)
+	}
+	if h.Of == "" {
+		return "", fmt.Errorf("%s: hint_figure: of: names the Measure whose figure the hint carries", path)
+	}
+	if !strings.Contains(h.Other, domain.PageCountToken) {
+		return "", fmt.Errorf("%s: hint_figure.other must carry %s, or the number is never shown", path, domain.PageCountToken)
+	}
+	figure, err := r.Total(domain.PageBinding{Dataset: b.Dataset, Measure: h.Of, Rows: domain.PageRowsTotal})
+	if err != nil {
+		return "", err
+	}
+	words := h.Other
+	if figure == "1" && h.One != "" {
+		words = h.One
+	}
+	return strings.ReplaceAll(words, domain.PageCountToken, figure), nil
 }
 
 // lowerHideEmpty consumes `hide_empty` and reports whether the Collection is to be left out altogether: the author
