@@ -46,10 +46,13 @@ card_fields:
 # Every Project with how many cards it holds and how many of those are still open (K15 Dashboard D3, 2026-10-11).
 # Records, not a Dimension over the cards, so a Project with no cards is a row of 0 -- what the PM04 table shows.
 # The two Relations read the same cards once; the second keeps the unfinished ones (`$done` is mch_task's own
-# completion value). `limit: 200` is a safety cap for a list that means "every Project".
+# completion value). Sorted by name, as the table it replaced was. `limit: 200` is a safety cap for a list that means "every Project".
 datasets:
   - id: ds_projects_with_tasks
     select: records
+    sort:
+      - field: fld_name
+        direction: asc
     limit: 200
     relations:
       - { id: rel_project_tasks, machine: mch_task, via: fld_project }

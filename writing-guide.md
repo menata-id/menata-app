@@ -1024,7 +1024,7 @@ that Dataset's Dimension**: `label` is the value, `value` is the Measure. Rules,
   an id, so each tile is named by the related record's title -- a Project's name, a member's display name -- and
   ordered by that title; a value naming no record that exists, and a record with the Dimension unset, get no tile
   rather than an id as a label. A link (`to:`/`param:`) still carries the stored id, which is what the destination
-  compares. Worked example: `ds_open_by_project` and `ds_open_by_assignee` on `nav_task_figures`;
+  compares. Worked example: `ds_open_by_assignee` on `nav_task_figures`;
 - there is no expression and no path (007 §9.2): a Dataset, a Measure and a mode;
 - a bound Metric may **link each of its rows** with `to: <navigation item id>` and `param: <name>` together:
   every tile becomes `<route>?<name>=<the row's own value>`, the value escaped as data. The destination must be
@@ -1570,6 +1570,9 @@ Two context values resolve: `$done` (the child Machine's own `completion:` value
 `$today` (the request's date). Anything else (`$current_user`, `$parameters.*`) is a load error, because a Relation is
 read once per page with no viewer to answer it. A field the child lacks, an option it does not declare, or `$done` on a
 child with no `completion:` is a load error too. Relations over the same child Machine and `via:` share one read.
+`$today` resolves only on a declared `page:` (the one reader that supplies the request's date); a Dataset also read by
+the approval engine's or My Tasks' own screens must not use it in a Relation `where:` -- those callers pass no date, and
+the read fails with an error rather than keeping the wrong children.
 **Installing copies**: the Dataset lives in the *parent's* Machine file, so every Workspace that installed the page needs it there.
 
 **A truncation notice, only when you claim it (3c-5, 2026-10-09).** A Dataset's `limit:` is a safety cap in

@@ -41,6 +41,9 @@ fields:
   - id: fld_note
     name: Note
     type: text
+  - id: fld_due
+    name: Due
+    type: date
 `+tail)
 	writeFile(t, dir, "app.yaml", "workspace: default\nmachines:\n  - parent.yaml\n  - child.yaml\napplications:\n  - app-main.yaml\n")
 	writeFile(t, dir, "app-main.yaml", "id: app_rw\nname: RW\nmachines:\n  - mch_parent\n  - mch_child\n")
@@ -52,6 +55,10 @@ func TestRelationWhere_acceptsTheDeclarationsItCanResolve(t *testing.T) {
 		"$done on the completion field": "        where: { field: fld_status, op: not_equals, value: $done }\n",
 		"a literal option":              "        where: { field: fld_status, op: equals, value: todo }\n",
 		"no where at all":               "",
+		"$today on a date field":        "        where: { field: fld_due, op: lte, value: $today }\n",
+		"$today+n on a date field":      "        where: { field: fld_due, op: lte, value: $today+7 }\n",
+		"an any: group":                 "        where:\n          any:\n            - { field: fld_status, op: equals, value: todo }\n            - { field: fld_due, op: lt, value: $today }\n",
+		"is_empty without a value":      "        where: { field: fld_due, op: is_empty }\n",
 	} {
 		if _, err := LoadApplication(relationWhereManifest(t, where, true)); err != nil {
 			t.Errorf("%s: LoadApplication() = %v, want it to load", name, err)
@@ -74,6 +81,10 @@ func TestRelationWhere_refusesWhatItCannotResolve(t *testing.T) {
 			"        where: { field: fld_status, op: not_equals, value: $done }\n", false, "completion"},
 		"$done on a field that is not the completion field": {
 			"        where: { field: fld_note, op: equals, value: $done }\n", true, "completion"},
+		"is_empty given a value":               {"        where: { field: fld_due, op: is_empty, value: x }\n", true, "takes none"},
+		"an ordered op on a text field":        {"        where: { field: fld_note, op: lt, value: x }\n", true, "orders a number or a date"},
+		"$today on a field that is not a date": {"        where: { field: fld_note, op: equals, value: $today }\n", true, "is a date"},
+		"$done with an ordered op":             {"        where: { field: fld_status, op: lt, value: $done }\n", true, "is a state"},
 		"$current_user, which a relation cannot resolve": {
 			"        where: { field: fld_note, op: equals, value: $current_user }\n", true, "cannot resolve"},
 	} {

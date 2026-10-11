@@ -1072,6 +1072,9 @@ func TestDeclaredPageNamesEachOpenCardGroupByTheProjectAndPersonItBelongsTo(t *t
 			t.Errorf("the id %q is printed where a name belongs", id)
 		}
 	}
+	if alpha, empty, zulu := strings.Index(body, "Refprobe Alpha"), strings.Index(body, "Refprobe Empty"), strings.Index(body, "Refprobe Zulu"); !(alpha < empty && empty < zulu) {
+		t.Error("project rows are not in name order")
+	}
 }
 
 // TestProjectManagementSettingsHubListsItsDeclaredMemberAndNoAccess: the Application's Settings page is drawn
