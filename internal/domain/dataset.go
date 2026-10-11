@@ -190,4 +190,9 @@ type Relation struct {
 	Machine string
 	// Via is the reference Field on Machine whose value is the declaring Machine's record id.
 	Via string
+	// Where narrows the children to the ones a comparison on the child Machine keeps -- "the cards still open" --
+	// so a count over the Relation answers a filtered question (2026-10-11, the Dashboard's per-project Open).
+	// Comparisons name the child's Fields; `$done` is the child's own `completion:` value and `$today` the request's
+	// date. Nil keeps every child.
+	Where *expression.Predicate
 }

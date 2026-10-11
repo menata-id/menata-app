@@ -231,20 +231,66 @@ func (l *Loader) SelectRelated(ctx context.Context, datasetID string, where expr
 	}
 
 	sel := Selection{Records: records, Truncated: truncated, Limit: ds.Limit, related: map[string]map[string][]*data.Record{}}
+	// Relations over the same child Machine and Field share one read -- a Relation with a `where:` is the same
+	// children, filtered -- so "all cards" beside "open cards" costs one query, not two of the same.
+	read := map[[2]string][]*data.Record{}
 	for _, rel := range ds.Relations {
-		children, err := l.store.ListRecordsByAny(ctx, rel.Machine, ds.ID, rel.Via, ids)
+		key := [2]string{rel.Machine, rel.Via}
+		children, ok := read[key]
+		if !ok {
+			var err error
+			if children, err = l.store.ListRecordsByAny(ctx, rel.Machine, ds.ID, rel.Via, ids); err != nil {
+				return Selection{}, err
+			}
+			l.reads++
+			read[key] = children
+		}
+		keep, err := relationFilter(rel, l.Machine(rel.Machine), where)
 		if err != nil {
 			return Selection{}, err
 		}
-		l.reads++
 		byParent := make(map[string][]*data.Record, len(records))
 		for _, c := range children {
+			if keep != nil && !keep.Evaluate(c.Values) {
+				continue
+			}
 			byParent[DisplayString(c.Values[rel.Via])] = append(byParent[DisplayString(c.Values[rel.Via])], c)
 		}
 		sel.related[rel.ID] = byParent
 	}
 	l.related[datasetID] = sel.related
 	return sel, nil
+}
+
+// relationFilter is a Relation's `where:` with its context values replaced: `$done` by the child Machine's own
+// completion value, `$today` by the request's date. Nil when the Relation keeps every child. A value it cannot
+// resolve is an error, not a filter that keeps nothing -- 007 §9.2's fail-closed, the posture Aggregate takes.
+func relationFilter(rel domain.Relation, child *domain.Machine, where expression.Context) (*expression.Predicate, error) {
+	if rel.Where == nil {
+		return nil, nil
+	}
+	out := &expression.Predicate{}
+	for _, group := range []struct{ from, to *[]expression.Comparison }{
+		{&rel.Where.All, &out.All}, {&rel.Where.Any, &out.Any},
+	} {
+		for _, c := range *group.from {
+			switch {
+			case c.Value == expression.SentinelDone:
+				if child == nil || child.Completion == nil {
+					return nil, fmt.Errorf("composition: relation %s filters on %s, and machine %s declares no completion", rel.ID, c.Value, rel.Machine)
+				}
+				c.Value = child.Completion.Done
+			case expression.IsSentinel(c.Value):
+				v, ok := where.Resolve(c.Value)
+				if !ok {
+					return nil, fmt.Errorf("composition: relation %s filters on %s, which this request cannot resolve", rel.ID, c.Value)
+				}
+				c.Value = v
+			}
+			*group.to = append(*group.to, c)
+		}
+	}
+	return out, nil
 }
 
 func (l *Loader) selectRecords(ctx context.Context, datasetID string, where expression.Context) ([]*data.Record, bool, error) {

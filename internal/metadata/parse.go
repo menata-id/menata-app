@@ -145,9 +145,10 @@ type datasetDoc struct {
 
 // relationDoc is the YAML serialization of a domain.Relation (007 §7.5).
 type relationDoc struct {
-	ID      string `yaml:"id"`
-	Machine string `yaml:"machine"`
-	Via     string `yaml:"via"`
+	ID      string        `yaml:"id"`
+	Machine string        `yaml:"machine"`
+	Via     string        `yaml:"via"`
+	Where   *predicateDoc `yaml:"where"`
 }
 
 // predicateDoc is the YAML serialization of an expression.Predicate. It accepts both shapes on
@@ -509,7 +510,7 @@ func Parse(data []byte) (*domain.Machine, error) {
 			Select: dd.Select, Limit: dd.Limit, Where: dd.Where.predicate(),
 		}
 		for _, rd := range dd.Relations {
-			ds.Relations = append(ds.Relations, domain.Relation{ID: rd.ID, Machine: rd.Machine, Via: rd.Via})
+			ds.Relations = append(ds.Relations, domain.Relation{ID: rd.ID, Machine: rd.Machine, Via: rd.Via, Where: rd.Where.predicate()})
 		}
 		for _, sd := range dd.Sort {
 			// The declared direction is carried through unreduced so validateDataset can reject an

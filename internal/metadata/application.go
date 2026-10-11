@@ -12,6 +12,7 @@ import (
 
 	"menata.app/internal/domain"
 	"menata.app/internal/experience"
+	"menata.app/internal/expression"
 	"menata.app/internal/registry"
 )
 
@@ -1026,6 +1027,9 @@ func validateDatasetRelations(machines []*domain.Machine) error {
 				if f.RelatedMachine != m.ID {
 					issues = append(issues, fmt.Sprintf("machine %q dataset %q relation %q: %s.%s references %q, not %q -- a relation follows a field that points back at the declaring machine", m.ID, ds.ID, rel.ID, rel.Machine, rel.Via, f.RelatedMachine, m.ID))
 				}
+				for _, msg := range relationWhereIssues(child, rel.Where) {
+					issues = append(issues, fmt.Sprintf("machine %q dataset %q relation %q: where %s", m.ID, ds.ID, rel.ID, msg))
+				}
 			}
 		}
 	}
@@ -1033,6 +1037,42 @@ func validateDatasetRelations(machines []*domain.Machine) error {
 		return &ValidationError{Issues: issues}
 	}
 	return nil
+}
+
+// relationWhereIssues checks a Relation's `where:` against the child Machine it filters: each comparison names one
+// of the child's Fields, a known operator and a value the Field could hold; the only context values are `$done`
+// (the child's own completion value) and `$today` -- a Relation is read once per page, with no viewer or request
+// parameter to resolve anything else against, so those are refused rather than compared as literal text.
+func relationWhereIssues(child *domain.Machine, where *expression.Predicate) []string {
+	var issues []string
+	for _, c := range where.Comparisons() {
+		f, ok := child.FieldByID(c.Field)
+		if !ok {
+			issues = append(issues, fmt.Sprintf("field %q is not a field of machine %q", c.Field, child.ID))
+			continue
+		}
+		if !expression.KnownOps[c.Op] {
+			issues = append(issues, fmt.Sprintf("op %q is not a known operator", c.Op))
+			continue
+		}
+		if msg := emptyComparisonIssue(c); msg != "" {
+			issues = append(issues, msg)
+			continue
+		}
+		switch {
+		case c.Value == expression.SentinelDone:
+			if child.Completion == nil || c.Field != child.Completion.Field || (c.Op != expression.OpEquals && c.Op != expression.OpNotEquals) {
+				issues = append(issues, doneIssue(child, c))
+			}
+		case expression.IsSentinel(c.Value) && !expression.IsToday(c.Value):
+			issues = append(issues, fmt.Sprintf("value %q is a runtime context value a relation cannot resolve -- only %s and %s", c.Value, expression.SentinelDone, expression.SentinelToday))
+		case c.Op != expression.OpIsEmpty && !expression.IsSentinel(c.Value) && f.ViolatesOptions(c.Value):
+			issues = append(issues, fmt.Sprintf("value %q is not one of field %q's options %v", c.Value, c.Field, f.Options))
+		default:
+			issues = append(issues, orderedComparisonIssues(f, c)...)
+		}
+	}
+	return issues
 }
 
 // validateCardTags checks every `card_tags:` against the Machines it names, which a per-Machine Validate

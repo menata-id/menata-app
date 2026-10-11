@@ -1024,7 +1024,7 @@ func TestDeclaredPageNamesEachOpenCardGroupByTheProjectAndPersonItBelongsTo(t *t
 		t.Fatal("default installs no mch_task/mch_project, or mch_task has no completion: block")
 	}
 	ids := map[string]string{}
-	for _, name := range []string{"Refprobe Zulu", "Refprobe Alpha"} {
+	for _, name := range []string{"Refprobe Zulu", "Refprobe Alpha", "Refprobe Empty"} {
 		rec, err := store.CreateRecord(ctx, project.ID, map[string]any{"fld_name": name, "fld_status": "active"})
 		if err != nil {
 			t.Fatalf("CreateRecord(project): %v", err)
@@ -1052,26 +1052,25 @@ func TestDeclaredPageNamesEachOpenCardGroupByTheProjectAndPersonItBelongsTo(t *t
 	if !strings.Contains(body, "sm:items-start") || !strings.Contains(body, "sm:flex-row") {
 		t.Error("the two open-card groups are not drawn as a columns layout aligned to the start")
 	}
-	if strings.Count(body, "Open cards by project") != 1 || strings.Count(body, "Open cards per person") != 1 {
+	if strings.Count(body, "Tasks by project") != 1 || strings.Count(body, "Open cards per person") != 1 {
 		t.Error("want the two group headings once each")
 	}
 	// K15 stage D2: a person is a Progress bar, open out of everything assigned, named and never an id.
 	if !regexp.MustCompile(`role="progressbar" aria-label="declaredbyref@example.com"[^>]*aria-valuetext="1 of 1"`).MatchString(body) {
 		t.Error("no Progress bar shows declaredbyref@example.com with 1 of 1")
 	}
-	for label, want := range map[string]int{"Refprobe Zulu": 2, "Refprobe Alpha": 1} {
-		pair := regexp.MustCompile(`>` + strconv.Itoa(want) + `</div><div[^>]*>` + regexp.QuoteMeta(label) + `</div>`)
-		if !pair.MatchString(body) {
-			t.Errorf("no Metric shows %q with a value of %d", label, want)
+	// K15 stage D3: every Project is a row with its card count and its open count over two Relations -- a
+	// finished card counts toward the first only, and a Project with no cards is a row of zeroes, not missing.
+	for label, want := range map[string][2]string{"Refprobe Zulu": {"2 cards", "2 open"}, "Refprobe Alpha": {"2 cards", "1 open"}, "Refprobe Empty": {"0 cards", "0 open"}} {
+		row := regexp.MustCompile(regexp.QuoteMeta(label) + `<[\s\S]{0,900}?>` + want[0] + `<[\s\S]{0,300}?>` + want[1] + `<`)
+		if !row.MatchString(body) {
+			t.Errorf("no project row shows %q with %s and %s", label, want[0], want[1])
 		}
 	}
 	for _, id := range []string{ids["Refprobe Zulu"], ids["Refprobe Alpha"], actorID, "rec_gone_project"} {
 		if strings.Contains(body, ">"+id+"<") {
 			t.Errorf("the id %q is printed where a name belongs", id)
 		}
-	}
-	if strings.Index(body, "Refprobe Alpha") > strings.Index(body, "Refprobe Zulu") {
-		t.Error("project tiles are not in title order")
 	}
 }
 

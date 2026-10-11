@@ -114,14 +114,38 @@ navigation:
               gap: default
               children:
                 - static: subheading
-                  text: Open cards by project
-                - layout: grid
-                  gap: default
-                  mobile: 2
-                  columns: 2
+                  text: Tasks by project
+                # Every Project, a card count and an open count over two Relations -- a Project with no cards is
+                # a row of zeroes rather than missing (K15 Dashboard D3).
+                - component: Collection
+                  gap: tight
+                  divided: true
+                  complete: true
+                  empty: No projects yet.
+                  binding: { dataset: ds_projects_with_tasks, rows: records }
                   children:
-                    - component: Metric
-                      binding: { dataset: ds_open_by_project, measure: msr_open, rows: dimension }
+                    - layout: row
+                      gap: default
+                      align: center
+                      justify: spread
+                      children:
+                        - layout: row
+                          gap: tight
+                          align: center
+                          children:
+                            - static: message
+                              from: { text: title }
+                            - component: StatusBadge
+                              tone: muted
+                              from: { label: status }
+                        - layout: row
+                          gap: default
+                          align: center
+                          children:
+                            - static: caption
+                              count: { of: rel_project_tasks, one: "{n} card", other: "{n} cards" }
+                            - static: caption
+                              count: { of: rel_project_open_tasks, other: "{n} open" }
             - layout: section
               gap: default
               children:

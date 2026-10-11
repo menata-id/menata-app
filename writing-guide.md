@@ -1548,6 +1548,30 @@ what English and Indonesian need -- a language with more plural categories is a 
 child rows to count them; that strategy is invisible to metadata and may become a `COUNT ... GROUP BY` later.
 **Installing copies**, so the Dataset and its Relation must be in your Workspace's own Machine copy.
 
+**A Relation can count only some children: `where:` (K15 Dashboard D3, 2026-10-11).** A Relation may carry the same
+one-level `all:` / `any:` conjunction a records Dataset does, over the **child** Machine's Fields, so "open cards"
+is a count beside "all cards" and a parent with none still has a row (a Dimension over the children cannot list it):
+
+```yaml
+# metadata/project.yaml
+datasets:
+  - id: ds_projects_with_tasks
+    select: records
+    limit: 200
+    relations:
+      - {id: rel_project_tasks, machine: mch_task, via: fld_project}
+      - id: rel_project_open_tasks
+        machine: mch_task
+        via: fld_project
+        where: {field: fld_status, op: not_equals, value: $done}
+```
+
+Two context values resolve: `$done` (the child Machine's own `completion:` value -- never type the status) and
+`$today` (the request's date). Anything else (`$current_user`, `$parameters.*`) is a load error, because a Relation is
+read once per page with no viewer to answer it. A field the child lacks, an option it does not declare, or `$done` on a
+child with no `completion:` is a load error too. Relations over the same child Machine and `via:` share one read.
+**Installing copies**: the Dataset lives in the *parent's* Machine file, so every Workspace that installed the page needs it there.
+
 **A truncation notice, only when you claim it (3c-5, 2026-10-09).** A Dataset's `limit:` is a safety cap in
 one Dataset and a window in another, and nothing on the Dataset says which -- so the runtime never guesses. A
 records `Collection` over a Dataset whose `limit:` is only a cap may say so itself:
