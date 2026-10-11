@@ -61,6 +61,7 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 	"GroupDetailPage":          {"workspace", "Workspace groups, registered as a fixed literal"},
 	"NotificationsPage":        {"workspace", "the person's inbox across Applications"},
 	"InferencePage":            {"workspace", "nav_inference is in domain.RuntimeScreens (the runtime owns it, not an Application) and its subject is a runtime artifact, not a Dataset; read 2026-10-07"},
+	"WorkspaceFilesPage":       {"workspace", "2026-10-11: replaces one of the Workspace's own YAML files (pick, edit, review verdict and diff, apply); nav_workspace_files is in domain.RuntimeScreens, and the editor is a textarea plus a write -- form binding is 007 §11.3 (item 3), unbuilt"},
 	"InstallApplicationPage":   {"workspace", "installs into the Workspace; form binding is 007 §11.3 (item 3), unbuilt"},
 	"NewApplicationPage":       {"workspace", "the AI assistant's prompt form; form binding is 007 §11.3 (item 3), unbuilt"},
 	"NewApplicationReviewPage": {"workspace", "the AI assistant's review pane; form binding is 007 §11.3 (item 3), unbuilt"},

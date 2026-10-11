@@ -1,0 +1,156 @@
+package rendering
+
+import (
+	"menata.app/internal/domain"
+	"net/url"
+	"strings"
+)
+
+// FileDiffView is one file of a review: where it lives and what applying the pasted content would change.
+type FileDiffView struct {
+	Path    string
+	Changed bool
+	Diff    string
+}
+
+// FileReview is the loader's answer about a pasted file, already resolved by the handler -- a Page renders
+// what it was given (007 §20). CanApply is the handler's decision and the only thing that shows the Apply
+// button, so the button can never be offered for a file the loader refused.
+type FileReview struct {
+	VerdictLabel string
+	Tone         domain.BadgeTone
+	Reason       string
+	Diffs        []FileDiffView
+	CanApply     bool
+}
+
+// WorkspaceFilesView is what the screen needs: the files the Workspace owns (the picker), the one being edited
+// with its content, and -- after a Review -- the verdict.
+type WorkspaceFilesView struct {
+	Files  []string
+	Path   string
+	YAML   string
+	Review *FileReview
+}
+
+const (
+	wfOverline     = "Administration"
+	wfPickerBlurb  = "Choose the file to replace. Only a file this workspace already has can be replaced here."
+	wfPickerEmpty  = "This workspace has no files of its own yet."
+	wfEditingLabel = "Editing"
+	wfYAMLLabel    = "New content"
+	wfReviewLabel  = "Review changes"
+	wfApplyLabel   = "Apply"
+	wfApplyConfirm = "Replace this file now? The current installation is saved first, so it can be restored."
+	wfUnchanged    = "Nothing would change: the pasted content is the same as the file."
+	wfBack         = "← All files"
+)
+
+// WorkspaceFilesPage is the admin door for replacing one of the Workspace's own YAML files: pick a file, edit
+// its content, review what the loader says and what would change, then apply. It draws what
+// `/workspace-settings/validate` and `/apply` already did as plain text -- those two routes are unchanged.
+//
+// **A named departure**: no mockup draws this screen; the capability (D2, option G's emergency door) did not
+// exist when the boards were drawn. Structurally it follows the Workspace-level screens beside it.
+templ WorkspaceFilesPage(view WorkspaceFilesView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+	@appShell(titleByID(ctx, "nav_workspace_files"), workspaceName, viewer, switchWorkspaceHref) {
+		<div class="flex flex-col gap-1">
+			@staticText(domain.StaticOverline, wfOverline)
+			@staticText(domain.StaticHeading, titleByID(ctx, "nav_workspace_files"))
+			@staticText(domain.StaticMessage, descriptionByID(ctx, "nav_workspace_files"))
+		</div>
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="text-xs text-blue-600 hover:text-blue-800">← { labelByID(ctx, "nav_workspace_settings") }</a>
+		if view.Path == "" {
+			@workspaceFilePicker(view.Files)
+		} else {
+			@workspaceFileEditor(view)
+		}
+		if view.Review != nil {
+			@workspaceFileReview(view)
+		}
+	}
+}
+
+templ workspaceFilePicker(files []string) {
+	@stackLayout(domain.GapTight) {
+		@staticText(domain.StaticCaption, wfPickerBlurb)
+		if len(files) == 0 {
+			@staticText(domain.StaticMessage, wfPickerEmpty)
+		} else {
+			<ul class={ surfaceClasses(ctx), "m-0 flex list-none flex-col p-0" }>
+				for _, f := range files {
+					<li class={ "border-b px-4 py-3 last:border-b-0", borderClass(ctx, domain.BorderDivider) }>
+						<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_files") + "?path=" + url.QueryEscape(f)) } class="font-mono text-sm text-blue-600 hover:text-blue-800">{ f }</a>
+					</li>
+				}
+			</ul>
+		}
+	}
+}
+
+templ workspaceFileEditor(view WorkspaceFilesView) {
+	<form method="POST" action={ templ.SafeURL(routeByID(ctx, "nav_workspace_files")) }>
+		@csrfHiddenInput()
+		<input type="hidden" name="path" value={ view.Path }/>
+		@stackLayout(domain.GapComfortable) {
+			<div class="flex flex-col gap-1">
+				@staticText(domain.StaticOverline, wfEditingLabel)
+				<span class="font-mono text-sm text-slate-700">{ view.Path }</span>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_files")) } class="text-xs text-blue-600 hover:text-blue-800">{ wfBack }</a>
+			</div>
+			<label class="flex flex-col gap-1">
+				@staticText(domain.StaticCaption, wfYAMLLabel)
+				<textarea name="yaml" rows="18" spellcheck="false" class={ fieldClasses(ctx) + " h-auto w-full py-2 font-mono text-xs leading-5" }>{ view.YAML }</textarea>
+			</label>
+			<div>
+				@button(wfReviewLabel, domain.ButtonPrimary, "", "")
+			</div>
+		}
+	</form>
+}
+
+templ workspaceFileReview(view WorkspaceFilesView) {
+	@sectionLayout(domain.GapComfortable) {
+		<div class="flex items-center gap-2">
+			@statusBadge(view.Review.VerdictLabel, view.Review.Tone, domain.BadgeRegular)
+		</div>
+		if view.Review.Reason != "" {
+			<pre class="m-0 overflow-x-auto text-xs leading-5 whitespace-pre-wrap text-slate-700">{ view.Review.Reason }</pre>
+		}
+		for _, d := range view.Review.Diffs {
+			<div class="flex flex-col gap-1">
+				<span class="font-mono text-xs text-slate-700">{ d.Path }</span>
+				if d.Changed {
+					<pre class={ tileClasses(ctx), "m-0 overflow-x-auto py-2 text-xs leading-5" }>
+						for _, line := range strings.Split(strings.TrimSuffix(d.Diff, "\n"), "\n") {
+							<div class={ diffLineClass(line) }>{ line }</div>
+						}
+					</pre>
+				} else {
+					@staticText(domain.StaticCaption, wfUnchanged)
+				}
+			</div>
+		}
+		if view.Review.CanApply {
+			<form method="POST" action="/workspace-settings/apply" hx-confirm={ wfApplyConfirm }>
+				@csrfHiddenInput()
+				<input type="hidden" name="path" value={ view.Path }/>
+				<input type="hidden" name="yaml" value={ view.YAML }/>
+				@button(wfApplyLabel, domain.ButtonPrimary, "", "")
+			</form>
+		}
+	}
+}
+
+func diffLineClass(line string) string {
+	switch {
+	case strings.HasPrefix(line, "+"):
+		return "bg-green-50 px-3 text-green-800"
+	case strings.HasPrefix(line, "-"):
+		return "bg-red-50 px-3 text-red-800"
+	case strings.HasPrefix(line, "@@"):
+		return "px-3 text-slate-400"
+	default:
+		return "px-3 text-slate-600"
+	}
+}

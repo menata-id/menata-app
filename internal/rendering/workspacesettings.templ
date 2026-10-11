@@ -73,6 +73,7 @@ const (
 	wsInstallationTitle    = "Installation"
 	wsReloadLabel          = "Reload from disk"
 	wsReloadBlurb          = "Re-read this workspace's files after editing them by hand. A file that does not load changes nothing."
+	wsFilesBlurb           = "Paste a corrected YAML file and see what would change first."
 	wsSnapshotsTitle       = "Saved installations"
 	wsSnapshotsBlurb       = "Taken before each install, publish or restore. Restoring saves the current one first, so it can be undone."
 	wsSnapshotsEmpty       = "No saved installations yet."
@@ -140,6 +141,7 @@ templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspace
 						@button(wsReloadLabel, domain.ButtonSecondary, "", "")
 					</div>
 				</form>
+				@settingsRow(routeByID(ctx, "nav_workspace_files"), titleByID(ctx, "nav_workspace_files"), wsFilesBlurb, false)
 				<div class="flex flex-col gap-2 px-3">
 					@staticText(domain.StaticSubheading, wsSnapshotsTitle)
 					if len(snapshots) == 0 {

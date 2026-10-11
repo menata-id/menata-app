@@ -77,6 +77,18 @@ var RuntimeScreens = []NavigationItem{
 		Title:       "Workspace settings",
 		Description: "Applies to everyone in this workspace. Only workspace admins can see it.",
 	},
+	// nav_workspace_files (2026-10-11): the screen for replacing one of the Workspace's own YAML files -- pick, edit,
+	// review the loader's verdict and the diff, apply. A runtime screen for the reason nav_workspace_settings is: it
+	// exists identically in a Workspace with any number of Applications, and what it edits is the Workspace's
+	// installation rather than an Application. It draws /workspace-settings/validate and /apply; those routes are
+	// unchanged.
+	{
+		ID:          "nav_workspace_files",
+		Label:       "Workspace files",
+		Route:       "/workspace-settings/files",
+		Title:       "Replace a file",
+		Description: "Paste the new content of a file this workspace already has. You see what the loader says and what would change before anything is written.",
+	},
 	// nav_inference (2026-09-29): the diagnostics surface 001 Principle #6's second clause requires --
 	// "**Inference must be inspectable.** … the runtime should be able to expose the resolved result
 	// through diagnostics or equivalent tooling", restated by 004 §Inference and 005 Phase 4.

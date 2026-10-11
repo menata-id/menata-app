@@ -360,6 +360,8 @@ func Routes(d Deps) http.Handler {
 			ar.Post("/reload-workspace", submitReloadWorkspace(d.Store, d.Cfg, d.ReloadMetadata))
 			ar.Post("/restore-workspace-snapshot", submitRestoreSnapshot(d.Store, d.Cfg, d.ReloadMetadata))
 			ar.Post("/workspace-settings/validate", submitValidateFiles(d.Store, d.Cfg))
+			ar.Get("/workspace-settings/files", showWorkspaceFiles(d.Store, d.Cfg))
+			ar.Post("/workspace-settings/files", reviewWorkspaceFiles(d.Store, d.Cfg))
 			ar.Post("/workspace-settings/apply", submitApplyFiles(d.Store, d.Cfg, d.ReloadMetadata))
 
 			// What the runtime inferred (2026-09-29): 001 #6's second clause, "Inference must be
