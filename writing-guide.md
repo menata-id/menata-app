@@ -1000,7 +1000,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 
 | Key | Value | Meaning |
 |---|---|---|
-| `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `gap`; `split` `aside`, `gap`, `side`; `stack` `gap` |
+| `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `current`, `gap`; `split` `aside`, `gap`, `side`; `stack` `gap` |
 | `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
 | `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
@@ -1204,7 +1204,7 @@ resolves to no date. A bound that names a parameter the request did not send dra
 Collection's `empty:` words, as an ungrouped list does. `complete:` and `hide_empty:` are refused -- an empty day is drawn on
 purpose, and a window is complete by construction, so **when the Dataset's `limit:` cut it short the page says so by
 itself**, once, above the first day. The heading template may not carry a record link, `count:`, `each:` or `when:`. Worked page: `nav_week_tasks` in Project Management.
-Not built yet: highlighting today's section, and the previous/next-week links.
+The section holding the request's own date (today, from the same `$today` the Dataset resolves) is set apart without anything being written: it is announced as `aria-current="date"` and takes the `info` tone's fill instead of the raised background, so a `theme: tones:` declaration moves it. A page cannot write `current:` itself -- it cannot know which day it is read on. Not built yet: the previous/next-week links.
 
 **`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and
 nothing else:

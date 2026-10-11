@@ -83,6 +83,10 @@ type RecordSet struct {
 // Bucket is one group of a grouped records binding: Key is what records name it by, Label what its heading says.
 type Bucket struct {
 	Key, Label string
+	// Current marks the bucket that holds the request's own moment (today's day), which lowering names on the
+	// section it draws so a renderer can set it apart. The resolver decides it from the request's date; a bucket
+	// is never current by what its heading says.
+	Current bool
 }
 
 // RecordTransition is the answer for a `transition` Button: the record's route, the status Field a transition moves
@@ -301,6 +305,9 @@ func lower(n domain.PageNode, r Resolver, path string, record map[string]string,
 	}
 	if n.Kind == string(NodeComponent) && n.Type == string(domain.ComponentFormInput) {
 		return nil, fmt.Errorf("%s: Input is produced by lowering a bound Form, never written: a control's name= is its Machine's Field id, and a typed one is exactly the retyped identifier a Binding exists to remove (007 §11.3)", path)
+	}
+	if _, written := n.Props[SectionCurrentProp]; written && NodeKind(n.Kind) == NodeLayout {
+		return nil, fmt.Errorf("%s: %s: is produced by lowering for the day a grouped list is drawing on, and is never written -- a page cannot know which day it is read on", path, SectionCurrentProp)
 	}
 	props := n.Props
 	if len(n.From) > 0 {
@@ -959,6 +966,10 @@ func lowerRecordItem(tmpl domain.PageNode, r Resolver, itemPath string, set Reco
 // bucketGap is the space inside a bucket between its heading and its list.
 const bucketGap = string(domain.GapTight)
 
+// SectionCurrentProp, "true" on a bucket's section when the bucket is the one the request is on (today, for a day
+// group). Lowering produces it from Bucket.Current; an author never writes it.
+const SectionCurrentProp = "current"
+
 // lowerGrouped expands a records Collection whose binding names `group:` (domain.PageGroupDate) into one `section`
 // per bucket, **as siblings in the parent** -- the way a bound Metric expands into one Metric per row -- so the
 // layout around it (a seven-column grid for a week, a stack for an agenda) is the author's and the primitive
@@ -1019,6 +1030,9 @@ func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 	out := make([]UINode, 0, len(set.Buckets))
 	for at, bk := range set.Buckets {
 		cell := UINode{Kind: NodeLayout, Type: string(domain.LayoutSection), Props: map[string]string{"gap": bucketGap}}
+		if bk.Current {
+			cell.Props[SectionCurrentProp] = "true"
+		}
 		head, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), map[string]string{domain.PageBucketLabelRole: bk.Label}, &RecordWrites{})
 		if err != nil {
 			return nil, fmt.Errorf("bucket %q: %w", bk.Key, err)

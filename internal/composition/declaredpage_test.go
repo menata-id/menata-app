@@ -770,3 +770,27 @@ func TestDateBucketsReadOnlyTheDateRolesBounds(t *testing.T) {
 		t.Errorf("buckets = %+v (%v), want the date role's own week", b, err)
 	}
 }
+
+// The day the request is on is the one bucket marked current; a request with no date, or a window that does not
+// reach it, marks none.
+func TestDateBucketsMarkTheRequestsOwnDay(t *testing.T) {
+	for name, tc := range map[string]struct {
+		today string
+		want  []bool
+	}{
+		"inside":  {"2026-10-14", []bool{false, false, true, false, false, false, false}},
+		"no date": {"", make([]bool, 7)},
+		"outside": {"2026-11-01", make([]bool, 7)},
+	} {
+		ds, src := weekDataset("2026-10-12", "2026-10-18")
+		b, _, err := dateBuckets(ds, src, nil, expression.Context{Today: tc.today})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, bk := range b {
+			if bk.Current != tc.want[i] {
+				t.Errorf("%s: bucket %s current = %v, want %v", name, bk.Key, bk.Current, tc.want[i])
+			}
+		}
+	}
+}

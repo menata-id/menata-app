@@ -1814,3 +1814,22 @@ func TestDeclaredPageGroupsTheWeekIntoSevenDays(t *testing.T) {
 		t.Error("an empty day does not say so")
 	}
 }
+
+// TestDeclaredPageSetsTodayApartInTheWeekInView: the section of today's heading, and only it, is announced as the
+// current date; a week that does not hold today has none. Located by the heading inside the section, since a
+// count alone would pass a page that marked the wrong day.
+func TestDeclaredPageSetsTodayApartInTheWeekInView(t *testing.T) {
+	h, cookie, _, _, _, _, _ := routerSetupFor(t, "declaredtoday", "default")
+	todayHeading := ">" + time.Now().Format("Mon 02 Jan") + "<"
+	body := getPage(t, h, cookie, "/pages/nav_week_tasks")
+	if n := strings.Count(body, `aria-current="date"`); n != 1 {
+		t.Fatalf("this week marks %d days as current, want exactly 1", n)
+	}
+	mark, head := strings.Index(body, `aria-current="date"`), strings.Index(body, todayHeading)
+	if head < mark || strings.Contains(body[mark:head], "<section") {
+		t.Errorf("the marked section is not the one holding today's heading (mark %d, heading %d)", mark, head)
+	}
+	if next := getPage(t, h, cookie, "/pages/nav_week_tasks?week=1"); strings.Contains(next, `aria-current="date"`) {
+		t.Error("next week marks a day as current")
+	}
+}

@@ -1287,3 +1287,32 @@ func TestCollection_aHeadedSectionStillSaysItsEmptyWordsAndItsTruncation(t *test
 		t.Errorf("a headed section lost its truncation notice: %q", cut)
 	}
 }
+
+// The current section keeps the surface of every other section and swaps its fill for the info tone's, with no
+// text colour; the ordinary one is byte-for-byte what sectionLayout drew before the current variant existed.
+func TestUINode_aCurrentSectionIsTintedAndAnnounced(t *testing.T) {
+	draw := func(props map[string]string) string {
+		var buf bytes.Buffer
+		n := ir.UINode{Kind: ir.NodeLayout, Type: string(domain.LayoutSection), Props: props,
+			Children: []ir.UINode{{Kind: ir.NodeStatic, Type: string(domain.StaticNote), Props: map[string]string{"text": "x"}}}}
+		if err := uiNode(n).Render(context.Background(), &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	plain := draw(map[string]string{"gap": "tight"})
+	if strings.Contains(plain, "aria-current") || !strings.Contains(plain, "bg-white") || strings.Contains(plain, "bg-blue-50") {
+		t.Errorf("an ordinary section changed:\n%s", plain)
+	}
+	cur := draw(map[string]string{"gap": "tight", "current": "true"})
+	for _, want := range []string{`aria-current="date"`, "bg-blue-50", "border-slate-200", "rounded-lg"} {
+		if !strings.Contains(cur, want) {
+			t.Errorf("current section missing %q:\n%s", want, cur)
+		}
+	}
+	for _, not := range []string{"bg-white", "text-blue-700"} {
+		if strings.Contains(cur, not) {
+			t.Errorf("current section carries %q:\n%s", not, cur)
+		}
+	}
+}

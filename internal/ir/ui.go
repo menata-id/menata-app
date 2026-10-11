@@ -210,7 +210,7 @@ var allowedProps = map[string][]string{
 	"layout/grid":           {"gap", "mobile", "columns"},
 	"layout/split":          {"gap", "side", "aside"},
 	"layout/columns":        {"gap", "align"},
-	"layout/section":        {"gap"},
+	"layout/section":        {"gap", "current"},
 	"layout/panel":          {},
 	"static/eyebrow":        {"text"},
 	"static/heading":        {"text"},
@@ -247,14 +247,15 @@ var allowedProps = map[string][]string{
 // (RowAlign) and on `columns` (ColumnsAlign), and checking both against one would accept `columns: align: stretch`
 // while the renderer falls back to its default.
 var layoutPropValues = map[string]func(string) bool{
-	"gap":           func(v string) bool { return domain.KnownGaps[domain.Gap(v)] },
-	"align":         func(v string) bool { return domain.KnownRowAligns[domain.RowAlign(v)] },
-	"columns/align": func(v string) bool { return domain.KnownColumnsAligns[domain.ColumnsAlign(v)] },
-	"justify":       func(v string) bool { return domain.KnownRowJustifies[domain.RowJustify(v)] },
-	"side":          func(v string) bool { return domain.KnownSplitSides[domain.SplitSide(v)] },
-	"aside":         func(v string) bool { return domain.KnownAsideWidths[domain.AsideWidth(v)] },
-	"mobile":        gridColsKnown,
-	"columns":       gridColsKnown,
+	"gap":             func(v string) bool { return domain.KnownGaps[domain.Gap(v)] },
+	"align":           func(v string) bool { return domain.KnownRowAligns[domain.RowAlign(v)] },
+	"columns/align":   func(v string) bool { return domain.KnownColumnsAligns[domain.ColumnsAlign(v)] },
+	"justify":         func(v string) bool { return domain.KnownRowJustifies[domain.RowJustify(v)] },
+	"side":            func(v string) bool { return domain.KnownSplitSides[domain.SplitSide(v)] },
+	"aside":           func(v string) bool { return domain.KnownAsideWidths[domain.AsideWidth(v)] },
+	"section/current": func(v string) bool { return v == "true" },
+	"mobile":          gridColsKnown,
+	"columns":         gridColsKnown,
 }
 
 func gridColsKnown(v string) bool {

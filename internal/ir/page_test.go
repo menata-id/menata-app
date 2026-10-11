@@ -1317,7 +1317,7 @@ func groupedRecords(buckets []Bucket, keys []string, recs ...map[string]string) 
 // the bucket's own list. The empty bucket is drawn with the author's `empty:` words, and the records stay in the
 // order the resolver gave them inside the bucket they name.
 func TestLowerGroupedDrawsEveryBucketOnceWithItsOwnRecords(t *testing.T) {
-	days := []Bucket{{"d1", "Mon 05 Oct"}, {"d2", "Tue 06 Oct"}, {"d3", "Wed 07 Oct"}}
+	days := []Bucket{{Key: "d1", Label: "Mon 05 Oct"}, {Key: "d2", Label: "Tue 06 Oct"}, {Key: "d3", Label: "Wed 07 Oct"}}
 	got, err := Lower(groupedList(), groupedRecords(days, []string{"d3", "d1", "d3"},
 		map[string]string{"title": "c", "status": "s"}, map[string]string{"title": "a", "status": "s"}, map[string]string{"title": "d", "status": "s"}))
 	if err != nil {
@@ -1351,7 +1351,7 @@ func TestLowerGroupedDrawsEveryBucketOnceWithItsOwnRecords(t *testing.T) {
 }
 
 func TestLowerGroupedRefusesWhatItCannotHonour(t *testing.T) {
-	days := []Bucket{{"d1", "Mon"}}
+	days := []Bucket{{Key: "d1", Label: "Mon"}}
 	one := map[string]string{"title": "a", "status": "s"}
 	with := func(edit func(*domain.PageNode)) domain.PageNode {
 		root := groupedList()
@@ -1365,7 +1365,7 @@ func TestLowerGroupedRefusesWhatItCannotHonour(t *testing.T) {
 	}{
 		"a record outside every bucket": {groupedList(), groupedRecords(days, []string{"elsewhere"}, one), "does not draw"},
 		"keys and records disagree":     {groupedList(), groupedRecords(days, nil, one), "bucket keys"},
-		"two buckets of one key":        {groupedList(), groupedRecords([]Bucket{{"d1", "a"}, {"d1", "b"}}, nil), "twice"},
+		"two buckets of one key":        {groupedList(), groupedRecords([]Bucket{{Key: "d1", Label: "a"}, {Key: "d1", Label: "b"}}, nil), "twice"},
 		"complete":                      {with(func(n *domain.PageNode) { n.Props["complete"] = "true" }), groupedRecords(days, nil), "not built for a grouped"},
 		"hide_empty":                    {with(func(n *domain.PageNode) { n.Props["hide_empty"] = "true" }), groupedRecords(days, nil), "not built for a grouped"},
 		"one child":                     {with(func(n *domain.PageNode) { n.Children = n.Children[:1] }), groupedRecords(days, nil), "exactly two"},
@@ -1387,7 +1387,7 @@ func TestLowerGroupedRefusesWhatItCannotHonour(t *testing.T) {
 // A window that was cut short by its Dataset's limit is a week missing tasks, and the page says so once, above the
 // first day, without the author claiming anything. A window that was not cut carries nothing.
 func TestLowerGroupedNamesTheBoundOnlyWhenItBit(t *testing.T) {
-	days := []Bucket{{"d1", "Mon"}, {"d2", "Tue"}}
+	days := []Bucket{{Key: "d1", Label: "Mon"}, {Key: "d2", Label: "Tue"}}
 	for _, truncated := range []bool{false, true} {
 		res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
 			return RecordSet{Records: []map[string]string{{"title": "a", "status": "s"}}, Buckets: days, BucketKeys: []string{"d2"}, Truncated: truncated, Limit: 200}, nil
@@ -1427,7 +1427,7 @@ func TestLowerGroupedKeepsEachRecordsWritesAndTagsAndTheSectionGap(t *testing.T)
 	res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
 		return RecordSet{
 			Records:     []map[string]string{{"title": "c"}, {"title": "a"}, {"title": "b"}},
-			Transitions: ts, Buckets: []Bucket{{"d1", "Mon"}, {"d2", "Tue"}}, BucketKeys: []string{"d2", "d1", "d2"},
+			Transitions: ts, Buckets: []Bucket{{Key: "d1", Label: "Mon"}, {Key: "d2", Label: "Tue"}}, BucketKeys: []string{"d2", "d1", "d2"},
 		}, nil
 	}}
 	got, err := Lower(root, res)
@@ -1441,5 +1441,38 @@ func TestLowerGroupedKeepsEachRecordsWritesAndTagsAndTheSectionGap(t *testing.T)
 	mon, tue := got.Children[0].Children[1].Children, got.Children[1].Children[1].Children
 	if len(mon) != 1 || route(mon[0]) != "/r/1" || len(tue) != 2 || route(tue[0]) != "/r/0" || route(tue[1]) != "/r/2" {
 		t.Errorf("writes landed on the wrong records: Mon %v, Tue %v", mon, tue)
+	}
+}
+
+// A bucket the resolver marks current is a section that says so, and only that one; the prop is produced by
+// lowering and an author who writes it is refused (a page cannot know which day it is read on).
+func TestLowerGroupedMarksOnlyTheCurrentBucket(t *testing.T) {
+	days := []Bucket{{Key: "d1", Label: "Mon"}, {Key: "d2", Label: "Tue", Current: true}, {Key: "d3", Label: "Wed"}}
+	got, err := Lower(groupedList(), groupedRecords(days, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []string{"", "true", ""} {
+		if v := got.Children[i].Props[SectionCurrentProp]; v != want {
+			t.Errorf("bucket %d current = %q, want %q", i, v, want)
+		}
+	}
+}
+
+func TestLowerRefusesAnAuthoredCurrentSection(t *testing.T) {
+	page := domain.PageNode{Kind: "layout", Type: "section", Props: map[string]string{"current": "true"}, Children: []domain.PageNode{{Kind: "static", Type: "note", Props: map[string]string{"text": "x"}}}}
+	if _, err := Lower(page, Resolver{}); err == nil || !strings.Contains(err.Error(), "never written") {
+		t.Errorf("an authored current: want a refusal, got %v", err)
+	}
+}
+
+func TestValidateRefusesACurrentSectionThatIsNotTrue(t *testing.T) {
+	n := UINode{Kind: NodeLayout, Type: "section", Props: map[string]string{"current": "yes"}, Children: []UINode{{Kind: NodeStatic, Type: "note", Props: map[string]string{"text": "x"}}}}
+	if err := Validate(n); err == nil {
+		t.Error("current: yes was accepted")
+	}
+	n.Props["current"] = "true"
+	if err := Validate(n); err != nil {
+		t.Errorf("current: true was refused: %v", err)
 	}
 }

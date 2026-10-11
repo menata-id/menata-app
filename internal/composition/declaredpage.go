@@ -208,7 +208,8 @@ func dateBuckets(ds domain.Dataset, src *domain.Machine, records []*data.Record,
 	}
 	var buckets []ir.Bucket
 	for d := lo; !d.After(hi); d = d.AddDate(0, 0, 1) {
-		buckets = append(buckets, ir.Bucket{Key: d.Format("2006-01-02"), Label: d.Format("Mon 02 Jan")})
+		key := d.Format("2006-01-02")
+		buckets = append(buckets, ir.Bucket{Key: key, Label: d.Format("Mon 02 Jan"), Current: where.Today != "" && key == where.Today})
 	}
 	keys := make([]string, len(records))
 	for i, r := range records {

@@ -190,21 +190,42 @@ func paddingClass(ctx context.Context, role domain.PaddingRole) string {
 // declare a background without its text colour and produce an unreadable badge, which is the kind of
 // half-valid state a closed set exists to prevent.
 func toneClass(ctx context.Context, tone domain.BadgeTone) string {
+	return toneFillClass(ctx, tone) + " " + toneInkClass(ctx, tone)
+}
+
+// toneFillClass and toneInkClass are the two halves of toneClass's pair, for the one caller (a tinted section) that
+// wants the fill without the text colour. toneClass joins them, so a palette is still declared once.
+func toneFillClass(ctx context.Context, tone domain.BadgeTone) string {
 	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
-	case domain.PaletteGrey:
-		return "bg-slate-100 text-slate-600"
 	case domain.PaletteGreyFaint:
-		return "bg-slate-50 text-slate-400"
+		return "bg-slate-50"
 	case domain.PaletteBlue:
-		return "bg-blue-50 text-blue-700"
+		return "bg-blue-50"
 	case domain.PaletteGreen:
-		return "bg-emerald-50 text-emerald-700"
+		return "bg-emerald-50"
 	case domain.PaletteRed:
-		return "bg-red-50 text-red-700"
+		return "bg-red-50"
 	case domain.PaletteAmber:
-		return "bg-amber-50 text-amber-800"
+		return "bg-amber-50"
 	default:
-		return "bg-slate-100 text-slate-600"
+		return "bg-slate-100"
+	}
+}
+
+func toneInkClass(ctx context.Context, tone domain.BadgeTone) string {
+	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
+	case domain.PaletteGreyFaint:
+		return "text-slate-400"
+	case domain.PaletteBlue:
+		return "text-blue-700"
+	case domain.PaletteGreen:
+		return "text-emerald-700"
+	case domain.PaletteRed:
+		return "text-red-700"
+	case domain.PaletteAmber:
+		return "text-amber-800"
+	default:
+		return "text-slate-600"
 	}
 }
 
@@ -314,9 +335,39 @@ templ panelLayout() {
 // It takes no title parameter. `sectionHeaderRow` (appshell.templ, 9 callers) is the heading half and takes
 // a link target; a Layout that accepted one would be a Layout that knows about routes.
 templ sectionLayout(gap domain.Gap) {
-	<section class={ "flex flex-col", layoutGap(ctx, gap), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
+	@sectionSurface(gap, false) {
+		{ children... }
+	}
+}
+
+// currentSectionLayout is sectionLayout for the one section a group marks as the request's own moment (today's
+// day in a week). It keeps the surface's radius, border and padding and takes its fill from the `info` tone's
+// palette instead of the raised background, so a Workspace's Theme moves it with the rest; `aria-current="date"`
+// is what a screen reader hears. The palette's text colour is deliberately left out (toneFillClass): a section's
+// children carry their own ink, and a colour inherited into whichever one does not would be a surprise.
+templ currentSectionLayout(gap domain.Gap) {
+	@sectionSurface(gap, true) {
+		{ children... }
+	}
+}
+
+// sectionSurface is the one `<section>` both section layouts draw, so the surface is declared once.
+templ sectionSurface(gap domain.Gap, current bool) {
+	<section
+		if current {
+			aria-current="date"
+		}
+		class={ "flex flex-col", layoutGap(ctx, gap), radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), sectionFillClass(ctx, current), paddingClass(ctx, domain.PaddingSection) }
+	>
 		{ children... }
 	</section>
+}
+
+func sectionFillClass(ctx context.Context, current bool) string {
+	if current {
+		return toneFillClass(ctx, domain.ToneInfo)
+	}
+	return backgroundClass(ctx, domain.BackgroundRaised)
 }
 
 // gridColsBelowBreakpoint and gridColsFromBreakpoint are **two switches rather than one**, and each emits a
@@ -738,8 +789,14 @@ templ uiNode(n ir.UINode) {
 						@uiChildren(n)
 					}
 				case domain.LayoutSection:
-					@sectionLayout(domain.Gap(n.Props["gap"])) {
-						@uiChildren(n)
+					if n.Props[ir.SectionCurrentProp] == "true" {
+						@currentSectionLayout(domain.Gap(n.Props["gap"])) {
+							@uiChildren(n)
+						}
+					} else {
+						@sectionLayout(domain.Gap(n.Props["gap"])) {
+							@uiChildren(n)
+						}
 					}
 				case domain.LayoutColumns:
 					@columnsLayout(domain.Gap(n.Props["gap"]), domain.ColumnsAlign(n.Props["align"])) {
