@@ -1,0 +1,104 @@
+package rendering
+
+import "menata.app/internal/domain"
+
+// leaveWorkspaceGuard is the Workspace-switch confirmation (boards 02c / M02c, S3.4): a modal that stands between
+// a page holding input nobody has saved and the link that would leave it. It is runtime chrome beside the
+// launcher, not an Application screen -- there is no Application to declare it -- and it is drawn only where
+// appShell offers a switch link at all (switchHref != "").
+//
+// **What it is not, so the board is not read as shipped whole.** The board's dialog also names the destination
+// (a TO half, "Open Happy Eyes in a new tab") and counts the documents waiting in the Workspace being left. Neither
+// exists at this point in the flow: the destination is chosen on /switch-workspace, which is the next page, and a
+// Workspace-wide pending count is a read the shell does not make on every page (the query budgets are per route).
+// Both wait on the switch itself moving into the menu (S2.5), where the destination is known before the click.
+// The board's "Save as draft" is not named either -- only the pages that have a draft say so themselves.
+//
+// The two buttons are real forms rather than links styled as buttons: `method="dialog"` closes the dialog with no
+// script, and a GET form navigates to the picker. That keeps both on `button`, so nothing here adds to
+// `TestHandWrittenButtonsOnlyShrink`. The script only decides when the dialog opens: a click on a link carrying
+// `data-leave-guard` while a write form on the page has been edited by a person and not yet submitted.
+templ leaveWorkspaceGuard(workspaceName, role, switchHref string) {
+	<dialog
+		id="menata-leave-guard"
+		aria-label={ "Leave " + workspaceName + "?" }
+		class={ "m-auto w-[calc(100%-2rem)] max-w-md", surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), "shadow-lg backdrop:bg-slate-900/40" }
+	>
+		@stackLayout(domain.GapDefault) {
+			@stackLayout(domain.GapTight) {
+				@staticText(domain.StaticSubheading, "Leave "+workspaceName+"?")
+				@staticText(domain.StaticMessage, "You have changes on this page that have not been saved.")
+			}
+			<div class={ tileClasses(ctx), backgroundClass(ctx, domain.BackgroundBase), "px-3 py-3" }>
+				@stackLayout(domain.GapTight) {
+					@staticText(domain.StaticOverline, "From")
+					@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
+						<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ workspaceName }</span>
+						if role != "" {
+							@statusBadge(displayRole(role), roleTone(role), domain.BadgeCompact)
+						}
+					}
+				}
+			</div>
+			<div class={ radiusClass(ctx, domain.RadiusControl), "border border-amber-200", toneFillClass(ctx, domain.ToneWarn), toneInkClass(ctx, domain.ToneWarn), textClass(ctx, domain.RoleMeta), "px-3 py-3" }>
+				What you have filled in on this page is <b>not saved</b>. Stay and save it first if you want to keep it.
+			</div>
+			<form method="get" action={ templ.SafeURL(switchHref) } class="m-0">
+				@button("Leave and switch", domain.ButtonSecondary, "", "")
+			</form>
+			<form method="dialog" class="m-0">
+				@button("Stay in "+workspaceName, domain.ButtonPrimary, "", "")
+			</form>
+		}
+	</dialog>
+	<script>
+		(function () {
+			var dialog = document.getElementById("menata-leave-guard");
+			if (!dialog || typeof dialog.showModal !== "function") return;
+			var edited = new Set();
+			function writeForm(el) {
+				var form = el.form || el.closest("form");
+				if (!form || form.closest("dialog") || el.type === "hidden") return null;
+				if ((form.getAttribute("method") || "").toLowerCase() === "post") return form;
+				for (var i = 0; i < form.attributes.length; i++) {
+					if (/^(hx|data-hx)-(post|put|patch|delete)$/.test(form.attributes[i].name)) return form;
+				}
+				return null;
+			}
+			function touched(e) {
+				if (!e.isTrusted) return;
+				var form = writeForm(e.target);
+				if (form) edited.add(form);
+			}
+			document.addEventListener("input", touched);
+			document.addEventListener("change", touched);
+			document.addEventListener("submit", function (e) { edited.delete(e.target); }, true);
+			function unsaved() {
+				var found = false;
+				edited.forEach(function (form) {
+					if (form.isConnected) found = true; else edited.delete(form);
+				});
+				return found;
+			}
+			document.addEventListener("click", function (e) {
+				if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+				var link = e.target.closest("a[data-leave-guard]");
+				if (!link || !unsaved()) return;
+				e.preventDefault();
+				document.querySelectorAll("[popover]").forEach(function (p) {
+					try { if (p.matches(":popover-open")) p.hidePopover(); } catch (err) {}
+				});
+				dialog.showModal();
+			});
+		})();
+	</script>
+}
+
+// roleTone is the badge tone a Workspace role is drawn in: the administrator is the one a reader should notice, the
+// plain member is the default and says nothing extra.
+func roleTone(role string) domain.BadgeTone {
+	if role == domain.WorkspaceRoleAdmin {
+		return domain.ToneInfo
+	}
+	return domain.ToneNeutral
+}

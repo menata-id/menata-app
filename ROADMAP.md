@@ -550,7 +550,7 @@ there and are deliberately not here.
 
 **Mockup canvas -- 77 boards (`Sx`: slices in `menata-app-document`'s `audits/2026-10-10-rencana-pengerjaan-gap-mockup-kanvas.md`)**
 - S0, S1, S2.1-S2.3 shipped (2026-10-10), then a 77-board re-audit (2026-10-11, `audits/2026-10-11-audit-ulang-kanvas-77-board-terhadap-kode-dan-kajian.md`):
-  Settings drawn from navigation, per-Application Members & roles, a settings sidebar; Board in every PM install, editable label colours (S3.6).
+  Settings drawn from navigation, per-Application Members & roles, a settings sidebar; Board in every PM install, editable label colours (S3.6), a leave-Workspace confirmation when a form holds unsaved input (S3.4; its destination and pending count wait on S2.5).
 - Open: S2.4-S2.8 (mobile bar, account menu, My Documents table, the PM Dashboard's activity panel, touch drag; several wait on M-D1..M-D7),
   the interim K15 pages are gone; the Apps Builder page is out of scope for now (owner, 2026-10-11).
 - S3 Proposal first: account deletion with a grace period, Application deactivation, per-Application notifications, card actions.

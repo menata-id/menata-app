@@ -206,6 +206,9 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			if hasAppMenu {
 				@applicationBottomBar(bottomBarItems(menu), currentApp, workspaceName, switchWorkspaceHref, viewer)
 			}
+			if switchWorkspaceHref != "" {
+				@leaveWorkspaceGuard(workspaceName, viewer.WorkspaceRole, switchWorkspaceHref)
+			}
 			@pwaRegistrationScript()
 		</body>
 	</html>
@@ -569,7 +572,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 			}
 			if switchWorkspaceHref != "" {
 				<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
-				<a href={ templ.SafeURL(switchWorkspaceHref) } class="block rounded-lg p-3 text-sm font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class="block rounded-lg p-3 text-sm font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
 			}
 		}
 	</div>
@@ -661,7 +664,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				</a>
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
 					<span class="text-slate-500">
 						@icon("switch", "size-4")
 					</span>
@@ -963,7 +966,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 				</a>
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } class="mt-1 block rounded-md p-3 text-xs font-medium text-blue-600 hover:bg-slate-50 sm:p-2">All Workspaces →</a>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class="mt-1 block rounded-md p-3 text-xs font-medium text-blue-600 hover:bg-slate-50 sm:p-2">All Workspaces →</a>
 			}
 		}
 	</div>
