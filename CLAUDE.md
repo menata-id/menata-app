@@ -371,6 +371,33 @@ extra CTA button on a card) just because older code already had one. If porting 
 a pre-existing hardcoded value that should have come from metadata, fix it as part of the port
 rather than carrying it forward unreviewed.
 
+### The design system has three homes: know which one answers your question (2026-10-11)
+
+| Question | Where the answer lives | Link / path |
+|---|---|---|
+| What does the runtime render today, and what can a Workspace override? | **Code**: `internal/domain/theme.go` (roles → steps), readers in `internal/rendering/layout.templ`/`controls.templ`, `registry.Components`, `static/css/input.css` | this repo |
+| What tokens, type scale, and components do the **mockups** use, and which proposals were accepted or rejected? | **Design System artifact "Menata App"**: `project/README.md` (decisions with reasons) and `project/tokens.json` (64 tokens, oklch values, `status: accepted` on the ones not yet in code) | `https://claude.ai/artifact/Xi4TYQPxsMQUmL3chScmaS` |
+| What should a screen look like? | **Mockup canvases**. Both have the Design System installed (`project/ds/menata-app/tokens.json` plus a `designSystems` record). On the UI mockups canvas, each of the 88 artboards' `:root` blocks is *generated* from it (version `1791712965-71ec`). The Builder canvas holds an older copy (`1791342370-dabf`) | UI mockups `https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`; Application Builder (process-map components: ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessMap; Halaman 4) `https://claude.ai/artifact/4tdbksPLQdwogQ19a9rPbq` |
+| Why was a Theme role decided the way it was? | `menata-app-document`'s `guides/design-system-decisions.md` (D1–D9, and its "where everything lives" header) | companion repo |
+
+**Read the Design System artifact's README before proposing a token, a type step, or a mockup component.**
+An agent that skipped it on 2026-10-11 invented 18 canvas tokens for the process map while the README had
+already decided *"Tidak ada token baru"* for exactly those components. It also proposed a `-500` indicator
+the README had rejected for contrast (2.1:1, below WCAG 1.4.11's 3:1). It also read the README's canonical
+`oklch` values in the Builder artboards as a "second dialect". All three were reverted the same day. The
+record is in `menata-app-document`'s `audits/2026-10-11-kajian-mockup-vs-design-system.md`.
+
+Rules that follow from it:
+- **Change a token in the Design System artifact, then regenerate the canvas `:root` blocks from its
+  `tokens.json`.** Never edit one artboard's block by hand: the 88 copies drift.
+- **An artboard should reference tokens (`var(--accent)`), not copy their values.** Only U04's process map does
+  so today. Migrating others is a pure substitution, provable by resolving every `var()` back to the original
+  literal.
+- **The artifact and the code are not yet in sync, in either direction.** The artifact was built from code at
+  `bbb3726` (2026-10-07), so it lists D6–D8 as open, which the code decided that day. It also holds accepted
+  tokens the code lacks: `gap-region`, `gap-xtight`, `control-height-compact`, `mark-good`, `auth-subtitle`
+  15px. Treat a difference as a sync item to record, not as permission to pick one side silently.
+
 ## The component inventory: `capabilities.md`
 
 `capabilities.md` is where every composable piece is already catalogued — README.md's own
