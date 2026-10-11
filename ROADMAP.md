@@ -552,12 +552,12 @@ there and are deliberately not here.
 - S0, S1, S2.1-S2.3 shipped (2026-10-10), then a 77-board re-audit (2026-10-11, `audits/2026-10-11-audit-ulang-kanvas-77-board-terhadap-kode-dan-kajian.md`):
   Settings drawn from navigation, per-Application Members & roles, a settings sidebar; Board in every PM install, editable label colours (S3.6).
 - Open: S2.4-S2.8 (mobile bar, account menu, My Documents table, the PM Dashboard's activity panel, touch drag; several wait on M-D1..M-D7),
-  the interim K15 pages leave the PM menu by deletion once K15 migrates them; the Apps Builder page is out of scope for now (owner, 2026-10-11).
+  the interim K15 pages are gone; the Apps Builder page is out of scope for now (owner, 2026-10-11).
 - S3 Proposal first: account deletion with a grace period, Application deactivation, per-Application notifications, card actions.
 
 **P2 -- the Experience Plane meets 007 §12.4**
 - K12 A `Table` Component (006 View lowering) -- consumers: the hand-written tables.
-- K15 My Tasks, Calendar and Application Settings migrate to `page:` (the Dashboard did on 2026-10-11 and its bespoke screen is gone; re-check each screen first; `write: transition` (K13) and record-scoped `when:` (K11) exist; a viewer- or Application-scoped condition does not; stage 1 shipped: a Dimension over a reference Field is named by the related record; stage 2 shipped: a `container` card role draws a record's Project by title, read by id for the listed records only; stage 3 shipped: a Dataset's `where:` takes an `any:` OR-group and `is_empty`, so My Tasks' four buckets are Datasets on an experimental page; the real `/my-tasks` still buckets in Go; a node can be drawn once per tag of a record, `each: tags`, so those buckets draw their Labels).
+- K15 Calendar and Application Settings migrate to `page:` (the Dashboard and My Tasks did on 2026-10-11 and their bespoke screens are gone; re-check each screen first; `write: transition` (K13) and record-scoped `when:` (K11) exist; a viewer- or Application-scoped condition does not; stage 1 shipped: a Dimension over a reference Field is named by the related record; stage 2 shipped: a `container` card role draws a record's Project by title, read by id for the listed records only; stage 3 shipped: a Dataset's `where:` takes an `any:` OR-group and `is_empty`, so My Tasks' four buckets are Datasets on a declared page; a node can be drawn once per tag of a record, `each: tags`, so those buckets draw their Labels).
 - K16 AI schema from the loader's grammar (D2 = option G). Field types, colours and Field removal (owner-confirmed) done; owed: the
   rest of the schema (the generated YAML is shown at review since 2026-10-11, and a pasted file has its own screen, `/workspace-settings/files`).
 
