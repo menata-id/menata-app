@@ -929,3 +929,59 @@ func TestEveryPercentageNamesTwoCountedMeasures(t *testing.T) {
 		t.Fatal("no percentage measure found -- the gate measured nothing")
 	}
 }
+
+// TestEveryLibraryApplicationInstallsIntoAnEmptyWorkspace takes each Application in the template library
+// through the real installer (PlanInstall, then Install, which load-verifies through metadata.LoadApplication)
+// into a scratch Workspace. It exists because nothing else ever loaded a library Application's `page:`: the
+// installed copies are swept, the library files are not, and a break-read of K15 D4 (2026-10-11) set a library
+// `nav_dashboard` route back to a retired path and bound a page to a Dataset that did not exist -- neither
+// failed a single test, and either would have surfaced only when someone installed the template. Installing is
+// the one check that runs the loader's own page validation over the library's files exactly as an admin's
+// install would. Empty scratch Workspace, so a collision refusal here means the template collides with itself.
+func TestEveryLibraryApplicationInstallsIntoAnEmptyWorkspace(t *testing.T) {
+	library, err := filepath.Abs(filepath.Join(repoRoot(), "metadata"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	templates, err := installer.Templates(library)
+	if err != nil {
+		t.Fatalf("read the template library: %v", err)
+	}
+	if len(templates) == 0 {
+		t.Fatal("the template library holds no Application -- this gate is measuring nothing")
+	}
+	pages := 0
+	for _, tmpl := range templates {
+		id := tmpl.Application.ID
+		t.Run(id, func(t *testing.T) {
+			dir := t.TempDir()
+			manifest := filepath.Join(dir, "scratch.yaml")
+			rel, err := filepath.Rel(dir, filepath.Join(library, "user.yaml"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(manifest, []byte("workspace: scratch\nmachines:\n  - "+filepath.ToSlash(rel)+"\napplications: []\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			ws, err := metadata.LoadApplication(manifest)
+			if err != nil {
+				t.Fatalf("the empty scratch Workspace must load: %v", err)
+			}
+			plan := installer.PlanInstall(tmpl, ws.Workspace)
+			if !plan.OK() {
+				t.Fatalf("PlanInstall refused the library's own template in an empty Workspace: %v", plan.Refusals)
+			}
+			if _, err := installer.Install(plan, library, manifest); err != nil {
+				t.Fatalf("installing %s into an empty Workspace failed: %v", id, err)
+			}
+		})
+		for _, item := range tmpl.Application.AllNavigation {
+			if item.Page != nil {
+				pages++
+			}
+		}
+	}
+	if pages == 0 {
+		t.Fatal("no library Application declares a `page:` -- the load this gate runs is not reaching one")
+	}
+}
