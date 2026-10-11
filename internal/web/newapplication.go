@@ -258,8 +258,30 @@ func showNewApplicationReview(store *data.Store, cfg config.Config) http.Handler
 		}
 		actorID := currentActor(req, store, cfg).ID
 		_, switchHref := viewerWorkspaceContext(ctx, store, actorID)
-		render(ctx, w, rendering.NewApplicationReviewPage(*change, reviewPlan(*change, ws), session.ID, chrome.WorkspaceName, chrome.Viewer(), switchHref))
+		render(ctx, w, rendering.NewApplicationReviewPage(*change, reviewPlan(*change, ws), generatedFiles(ctx, store, cfg, *change), session.ID, chrome.WorkspaceName, chrome.Viewer(), switchHref))
 	}
+}
+
+// generatedFiles is aiassist.Preview for the review page: the writer's own output against a staged copy, never a second
+// rendering of the change. A process with no metadata directory has nothing to stage and shows no panel; a change the
+// writer refuses shows its reason in place of the files.
+func generatedFiles(ctx context.Context, store *data.Store, cfg config.Config, change aiassist.GeneratedChange) rendering.GeneratedFilesView {
+	if cfg.MetadataPath == "" {
+		return rendering.GeneratedFilesView{}
+	}
+	manifestPath, _, err := workspaceInstallation(ctx, store, cfg)
+	if err != nil {
+		return rendering.GeneratedFilesView{Reason: err.Error()}
+	}
+	changes, err := aiassist.Preview(manifestPath, change)
+	if err != nil {
+		return rendering.GeneratedFilesView{Reason: err.Error()}
+	}
+	view := rendering.GeneratedFilesView{}
+	for _, f := range changes {
+		view.Files = append(view.Files, rendering.FileDiffView{Path: f.Path, Changed: true, Diff: f.Diff})
+	}
+	return view
 }
 
 // publishNewApplication re-validates (never trusting a stale review render), writes the change to

@@ -237,10 +237,30 @@ templ updatePlan(plan aiassist.Plan) {
 	</div>
 }
 
+// GeneratedFilesView is the YAML a change would write, as aiassist.Preview produced it: the files with their diffs,
+// or -- when the writer refused the change -- the reason. Both empty means no preview was available (a process with no
+// metadata directory), and the panel is not drawn.
+type GeneratedFilesView struct {
+	Files  []FileDiffView
+	Reason string
+}
+
+templ generatedFiles(v GeneratedFilesView) {
+	if len(v.Files) > 0 || v.Reason != "" {
+		<div class="flex flex-col gap-3">
+			@staticText(domain.StaticPanelHeading, "The files this would write")
+			if v.Reason != "" {
+				@staticText(domain.StaticNote, "The files could not be previewed: " + v.Reason)
+			}
+			@fileDiffList(v.Files)
+		</div>
+	}
+}
+
 // NewApplicationReviewPage is NewAppReview.dc.html's shape: what will be built, and -- for
 // new_application only, the mockup's own scope -- who gets access before publishing. An
 // update_application review shows its plan instead: what is added, changed and removed.
-templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Plan, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
+templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Plan, files GeneratedFilesView, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Review new application", workspaceName, viewer, switchWorkspaceHref) {
 		<a href={ templ.SafeURL("/new-application?session=" + sessionID) } class="text-xs text-blue-600 hover:text-blue-700">← Back to conversation</a>
 		<div class="flex flex-col gap-2">
@@ -262,6 +282,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				} else {
 					@changeSummary(change)
 				}
+				@generatedFiles(files)
 			}
 			<aside class={ "flex flex-col gap-3", surfaceClasses(ctx), "p-5" }>
 				@staticText(domain.StaticPanelHeading, "Before you publish")

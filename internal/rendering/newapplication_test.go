@@ -19,7 +19,7 @@ func TestNewApplicationReviewPage_draftBadgeKeepsItsContentWidth(t *testing.T) {
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
 	change := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication, Application: &aiassist.GeneratedApplication{Name: "Acme"}}
 	var buf bytes.Buffer
-	if err := NewApplicationReviewPage(change, aiassist.Plan{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+	if err := NewApplicationReviewPage(change, aiassist.Plan{}, GeneratedFilesView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
 	html := buf.String()
@@ -51,7 +51,7 @@ func TestUpdateReview_aRemovalThatNeedsConfirmationCarriesOneCheckboxForThePubli
 		{Op: "remove", What: "Option Gone"},
 	}}
 	var buf bytes.Buffer
-	if err := NewApplicationReviewPage(change, plan, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+	if err := NewApplicationReviewPage(change, plan, GeneratedFilesView{}, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
 	html := buf.String()
@@ -63,5 +63,36 @@ func TestUpdateReview_aRemovalThatNeedsConfirmationCarriesOneCheckboxForThePubli
 	}
 	if !strings.Contains(html, `form="`+publishFormID+`"`) || !strings.Contains(html, `<form id="`+publishFormID+`"`) {
 		t.Error("the checkbox is not bound to the publish form by id, so it would never be submitted")
+	}
+}
+
+// TestGeneratedFilesPanel_showsTheWritersDiffOrItsRefusalAndNothingWhenThereIsNoPreview: the panel under a proposal
+// is the YAML the writer would put on disk. Added lines are drawn as additions, a change the writer refused shows
+// its reason instead of an empty panel, and a process with no preview (no metadata directory) draws no heading at all.
+func TestGeneratedFilesPanel_showsTheWritersDiffOrItsRefusalAndNothingWhenThereIsNoPreview(t *testing.T) {
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "Test Workspace", false)
+	change := aiassist.GeneratedChange{Kind: aiassist.KindNewApplication}
+	render := func(v GeneratedFilesView) string {
+		var buf bytes.Buffer
+		if err := NewApplicationReviewPage(change, aiassist.Plan{}, v, "s1", "Acme", Viewer{Initials: "AN"}, "").Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+
+	files := render(GeneratedFilesView{Files: []FileDiffView{{Path: "acme/leave.yaml", Changed: true, Diff: "+id: mch_leave\n-id: old\n"}}})
+	for _, want := range []string{"The files this would write", "acme/leave.yaml", "bg-green-50 px-3 text-green-800", "bg-red-50 px-3 text-red-800"} {
+		if !strings.Contains(files, want) {
+			t.Errorf("the panel is missing %q", want)
+		}
+	}
+
+	refused := render(GeneratedFilesView{Reason: "machine mch_x is already installed <b>"})
+	if !strings.Contains(refused, "could not be previewed") || !strings.Contains(refused, "mch_x is already installed &lt;b&gt;") {
+		t.Errorf("a refused change must show its reason, escaped; got no such text")
+	}
+
+	if none := render(GeneratedFilesView{}); strings.Contains(none, "The files this would write") {
+		t.Error("with no preview the page must not draw an empty files panel")
 	}
 }

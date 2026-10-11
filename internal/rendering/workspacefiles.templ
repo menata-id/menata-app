@@ -117,20 +117,7 @@ templ workspaceFileReview(view WorkspaceFilesView) {
 		if view.Review.Reason != "" {
 			<pre class="m-0 overflow-x-auto text-xs leading-5 whitespace-pre-wrap text-slate-700">{ view.Review.Reason }</pre>
 		}
-		for _, d := range view.Review.Diffs {
-			<div class="flex flex-col gap-1">
-				<span class="font-mono text-xs text-slate-700">{ d.Path }</span>
-				if d.Changed {
-					<pre class={ tileClasses(ctx), "m-0 overflow-x-auto py-2 text-xs leading-5" }>
-						for _, line := range strings.Split(strings.TrimSuffix(d.Diff, "\n"), "\n") {
-							<div class={ diffLineClass(line) }>{ line }</div>
-						}
-					</pre>
-				} else {
-					@staticText(domain.StaticCaption, wfUnchanged)
-				}
-			</div>
-		}
+		@fileDiffList(view.Review.Diffs)
 		if view.Review.CanApply {
 			<form method="POST" action="/workspace-settings/apply" hx-confirm={ wfApplyConfirm }>
 				@csrfHiddenInput()
@@ -139,6 +126,25 @@ templ workspaceFileReview(view WorkspaceFilesView) {
 				@button(wfApplyLabel, domain.ButtonPrimary, "", "")
 			</form>
 		}
+	}
+}
+
+// fileDiffList draws each file's diff as the unified text the writer produced: added lines green, removed red.
+// Shared by the pasted-file review and the generated-change review, so both show a diff the same way.
+templ fileDiffList(diffs []FileDiffView) {
+	for _, d := range diffs {
+		<div class="flex flex-col gap-1">
+			<span class="font-mono text-xs text-slate-700">{ d.Path }</span>
+			if d.Changed {
+				<pre class={ tileClasses(ctx), "m-0 overflow-x-auto py-2 text-xs leading-5" }>
+					for _, line := range strings.Split(strings.TrimSuffix(d.Diff, "\n"), "\n") {
+						<div class={ diffLineClass(line) }>{ line }</div>
+					}
+				</pre>
+			} else {
+				@staticText(domain.StaticCaption, wfUnchanged)
+			}
+		</div>
 	}
 }
 

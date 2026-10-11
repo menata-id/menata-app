@@ -654,6 +654,18 @@ func TestShowNewApplicationReview_rendersTheProposalAndRefusesAnotherWorkspaces(
 		t.Errorf("the review screen does not name the proposed Application")
 	}
 
+	// The review shows the YAML the writer would produce -- from a staged copy, so nothing is on disk yet.
+	body := rec.Body.String()
+	if !strings.Contains(body, "The files this would write") || !strings.Contains(body, "app_leave_permits") {
+		t.Errorf("the review does not show the generated files; body=%s", firstChars(body))
+	}
+	if strings.Contains(body, "could not be previewed") {
+		t.Errorf("the review reports a failed preview for a valid proposal: %s", firstChars(body))
+	}
+	if left, _ := filepath.Glob(filepath.Join(s.cfg.MetadataPath, "*", "*.yaml")); len(left) != 0 {
+		t.Errorf("reviewing wrote %v into the live directory; a preview must not", left)
+	}
+
 	// A session belonging to somebody else's Workspace is not found here, the same property the discard
 	// route was missing.
 	other, err := s.store.CreateWorkspace(context.Background(), "Review Theirs", "assistant-review-theirs")
