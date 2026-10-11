@@ -1,12 +1,14 @@
 package installer
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -154,14 +156,8 @@ func ValidateFiles(manifestPath string, files map[string][]byte) (unreferenced [
 func ApplyFiles(manifestPath string, files map[string][]byte) error {
 	slug := strings.TrimSuffix(filepath.Base(manifestPath), filepath.Ext(manifestPath))
 	ownDir := filepath.Join(filepath.Dir(manifestPath), slug)
-	for name := range files {
-		clean := path.Clean(filepath.ToSlash(name))
-		if clean == "." || path.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../") || !strings.HasSuffix(clean, ".yaml") {
-			return Rejected(fmt.Errorf("%q is not a .yaml path inside the workspace's own directory", name))
-		}
-		if info, err := os.Stat(filepath.Join(ownDir, filepath.FromSlash(clean))); err != nil || !info.Mode().IsRegular() {
-			return Rejected(fmt.Errorf("%q is not a file this workspace has: only an existing file can be replaced here; a new Machine or Application is added by installing a template or through the assistant", name))
-		}
+	if err := requireOwnedFiles(ownDir, files); err != nil {
+		return err
 	}
 	unreferenced, err := ValidateFiles(manifestPath, files)
 	if err != nil {
@@ -186,6 +182,88 @@ func ApplyFiles(manifestPath string, files map[string][]byte) error {
 	if _, err := metadata.LoadApplication(manifestPath); err != nil {
 		written.Rollback()
 		return Rejected(fmt.Errorf("the files were written but the workspace does not load, so they were put back: %w", err))
+	}
+	return nil
+}
+
+// Verdicts of PreviewFiles, in the words the loader's answer comes to.
+const (
+	PreviewValid        = "valid"        // the Workspace loads with these files and something reads each of them
+	PreviewUnreferenced = "unreferenced" // it loads, but nothing loads at least one file, so it was not checked
+	PreviewRejected     = "rejected"     // it would not load, or a path is not a file this Workspace has
+)
+
+// FileDiff is one file of a PreviewFiles answer: Status is "changed" or "unchanged" (the door is replace-only, so
+// a file is never added), and Diff is UnifiedDiff of the live file against the new content, empty when unchanged.
+type FileDiff struct {
+	Path   string
+	Status string
+	Diff   string
+}
+
+// FilesPreview is what the upload screen shows before the owner applies a file: the loader's verdict and, per file,
+// what would change. Reason carries the loader's error text, or the files nothing loads; it is empty for "valid".
+type FilesPreview struct {
+	Verdict string
+	Reason  string
+	Files   []FileDiff
+}
+
+// PreviewFiles is ValidateFiles plus the diff against the live files, for the same replace-only door ApplyFiles
+// guards: a path the Workspace does not already own is a "rejected" verdict with the reason, not an error. Nothing
+// live is written. The returned error is for failures that are not a verdict (an unreadable directory).
+func PreviewFiles(manifestPath string, files map[string][]byte) (FilesPreview, error) {
+	slug := strings.TrimSuffix(filepath.Base(manifestPath), filepath.Ext(manifestPath))
+	ownDir := filepath.Join(filepath.Dir(manifestPath), slug)
+	if err := requireOwnedFiles(ownDir, files); err != nil {
+		return rejectedPreview(err)
+	}
+	unreferenced, err := ValidateFiles(manifestPath, files)
+	if err != nil {
+		return rejectedPreview(err)
+	}
+	out := FilesPreview{Verdict: PreviewValid}
+	if len(unreferenced) > 0 {
+		sort.Strings(unreferenced)
+		out.Verdict = PreviewUnreferenced
+		out.Reason = strings.Join(unreferenced, ", ")
+	}
+	for name, body := range files {
+		clean := path.Clean(filepath.ToSlash(name))
+		was, err := os.ReadFile(filepath.Join(ownDir, filepath.FromSlash(clean)))
+		if err != nil {
+			return FilesPreview{}, err
+		}
+		d := FileDiff{Path: clean, Status: "unchanged"}
+		if string(was) != string(body) {
+			d.Status, d.Diff = "changed", UnifiedDiff(string(was), string(body))
+		}
+		out.Files = append(out.Files, d)
+	}
+	sort.Slice(out.Files, func(i, j int) bool { return out.Files[i].Path < out.Files[j].Path })
+	return out, nil
+}
+
+// rejectedPreview turns a RejectedError into a verdict and leaves any other error an error.
+func rejectedPreview(err error) (FilesPreview, error) {
+	var rejected *RejectedError
+	if errors.As(err, &rejected) {
+		return FilesPreview{Verdict: PreviewRejected, Reason: err.Error()}, nil
+	}
+	return FilesPreview{}, err
+}
+
+// requireOwnedFiles is ApplyFiles' replace-only check: every path is a .yaml inside the Workspace's own directory
+// and names a file that is already there.
+func requireOwnedFiles(ownDir string, files map[string][]byte) error {
+	for name := range files {
+		clean := path.Clean(filepath.ToSlash(name))
+		if clean == "." || path.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../") || !strings.HasSuffix(clean, ".yaml") {
+			return Rejected(fmt.Errorf("%q is not a .yaml path inside the workspace's own directory", name))
+		}
+		if info, err := os.Stat(filepath.Join(ownDir, filepath.FromSlash(clean))); err != nil || !info.Mode().IsRegular() {
+			return Rejected(fmt.Errorf("%q is not a file this workspace has: only an existing file can be replaced here; a new Machine or Application is added by installing a template or through the assistant", name))
+		}
 	}
 	return nil
 }

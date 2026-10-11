@@ -150,3 +150,40 @@ func TestValidateFiles_stagesAtTheSameDepthSoARelativePathOutsideTheRootStillRea
 		t.Errorf("the staging directory was left behind: %v", entries)
 	}
 }
+
+func TestPreviewFiles_givesTheVerdictAndTheDiffAndWritesNothing(t *testing.T) {
+	manifest := stageFixture(t)
+	live := filepath.Join(filepath.Dir(manifest), "acme", "doc.yaml")
+	added := stagedDoc + "  - id: fld_note\n    name: Note\n    type: text\n"
+
+	got, err := PreviewFiles(manifest, map[string][]byte{"doc.yaml": []byte(added)})
+	if err != nil || got.Verdict != PreviewValid || len(got.Files) != 1 {
+		t.Fatalf("a good replacement: %+v err=%v", got, err)
+	}
+	if f := got.Files[0]; f.Path != "doc.yaml" || f.Status != "changed" || !strings.Contains(f.Diff, "+  - id: fld_note\n") || strings.Contains(f.Diff, "-  - id: fld_title") {
+		t.Errorf("diff = %+v", f)
+	}
+	if b, _ := os.ReadFile(live); string(b) != stagedDoc {
+		t.Error("a preview changed the live file")
+	}
+
+	same, _ := PreviewFiles(manifest, map[string][]byte{"doc.yaml": []byte(stagedDoc)})
+	if same.Verdict != PreviewValid || same.Files[0].Status != "unchanged" || same.Files[0].Diff != "" {
+		t.Errorf("an identical file: %+v", same)
+	}
+
+	bad, err := PreviewFiles(manifest, map[string][]byte{"doc.yaml": []byte(strings.Replace(stagedDoc, "type: text", "type: bogus", 1))})
+	if err != nil || bad.Verdict != PreviewRejected || bad.Reason == "" || strings.Contains(bad.Reason, "menata-stage") {
+		t.Errorf("a bad type: %+v err=%v", bad, err)
+	}
+}
+
+func TestPreviewFiles_isReplaceOnlyAndSaysSoAsAVerdict(t *testing.T) {
+	manifest := stageFixture(t)
+	for _, name := range []string{"orphan.yaml", "../other.yaml", "doc.txt"} {
+		got, err := PreviewFiles(manifest, map[string][]byte{name: []byte(stagedDoc)})
+		if err != nil || got.Verdict != PreviewRejected || got.Reason == "" || len(got.Files) != 0 {
+			t.Errorf("%s: %+v err=%v, want a rejected verdict with a reason and no files", name, got, err)
+		}
+	}
+}
