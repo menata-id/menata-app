@@ -559,7 +559,7 @@ there and are deliberately not here.
 - K12 A `Table` Component (006 View lowering) -- consumers: the hand-written tables.
 - K15 Dashboard, My Tasks, Calendar and Application Settings migrate to `page:` (re-check each screen first; `write: transition` (K13) and record-scoped `when:` (K11) exist; a viewer- or Application-scoped condition does not; stage 1 shipped: a Dimension over a reference Field is named by the related record; stage 2 shipped: a `container` card role draws a record's Project by title, read by id for the listed records only; stage 3 shipped: a Dataset's `where:` takes an `any:` OR-group and `is_empty`, so My Tasks' four buckets are Datasets on an experimental page; the real `/my-tasks` still buckets in Go; a node can be drawn once per tag of a record, `each: tags`, so those buckets draw their Labels).
 - K16 AI schema from the loader's grammar (D2 = option G). Field types, colours and Field removal (owner-confirmed) done; owed: the
-  rest of the schema and the generated YAML at review (a pasted file already has its own review screen, `/workspace-settings/files`).
+  rest of the schema (the generated YAML is shown at review since 2026-10-11, and a pasted file has its own screen, `/workspace-settings/files`).
 
 **P3 -- bounded work (007 §18.8, §28)**
 
