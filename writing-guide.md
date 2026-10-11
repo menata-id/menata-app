@@ -1203,20 +1203,20 @@ cannot draw days its records are not selected from). The length of the window is
 resolves to no date. A bound that names a parameter the request did not send draws the list empty, with the
 Collection's `empty:` words, as an ungrouped list does. `complete:` and `hide_empty:` are refused -- an empty day is drawn on
 purpose, and a window is complete by construction, so **when the Dataset's `limit:` cut it short the page says so by
-itself**, once, above the first day. The heading template may not carry a record link, `count:`, `each:` or `when:`. Worked page: `nav_week_tasks` in Project Management.
+itself**, once, above the first day. The heading template may not carry a record link, `count:`, `each:` or `when:`. Worked page: `nav_calendar` in Project Management.
 The section holding the request's own date (today, from the same `$today` the Dataset resolves) is set apart without anything being written: it is announced as `aria-current="date"` and takes the `info` tone's fill instead of the raised background, so a `theme: tones:` declaration moves it. A page cannot write `current:` itself -- it cannot know which day it is read on.
 
 **Week links (K15 Calendar stage 4, 2026-10-11).** Three keys let a page step through weeks without a route of its own, all for the one parameter the runtime names -- `week`, the `?week=N` that `$week` reads (a closed set of one):
 
 ```yaml
 - static: link
-  to: nav_week_tasks
+  to: nav_calendar
   text: Next week
   step: {parameter: week, by: 1}      # the request's own week plus one, never the default's
 - static: caption
   window: ds_tasks_due_week            # the words for that Dataset's window: "12 - 18 Oct 2026"
 - static: link
-  to: nav_week_tasks
+  to: nav_calendar
   text: This week
   when: {parameter: week, is_not: "0"} # drawn only away from this week
 ```

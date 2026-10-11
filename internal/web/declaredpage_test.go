@@ -1737,7 +1737,7 @@ func TestDeclaredPageListsOnlyTheTasksDueInTheWeekInView(t *testing.T) {
 		{"?week=-1", []string{"Week-probe-prev-sunday"}},
 		{"?week=abc", []string{"Week-probe-monday", "Week-probe-wednesday-theirs", "Week-probe-sunday"}},
 	} {
-		body := getPage(t, h, cookie, "/pages/nav_week_tasks"+c.query)
+		body := getPage(t, h, cookie, "/pages/nav_calendar"+c.query)
 		listed := map[string]bool{}
 		for _, m := range regexp.MustCompile(`>(Week-probe-[a-z-]+)<`).FindAllStringSubmatch(body, -1) {
 			listed[m[1]] = true
@@ -1752,7 +1752,7 @@ func TestDeclaredPageListsOnlyTheTasksDueInTheWeekInView(t *testing.T) {
 		}
 	}
 	// The Dataset sorts by due date, so Monday precedes Wednesday precedes Sunday on the page.
-	body := getPage(t, h, cookie, "/pages/nav_week_tasks")
+	body := getPage(t, h, cookie, "/pages/nav_calendar")
 	at := func(title string) int { return strings.Index(body, ">"+title+"<") }
 	if !(at("Week-probe-monday") >= 0 && at("Week-probe-monday") < at("Week-probe-wednesday-theirs") && at("Week-probe-wednesday-theirs") < at("Week-probe-sunday")) {
 		t.Error("the week's tasks are not listed in due-date order")
@@ -1785,7 +1785,7 @@ func TestDeclaredPageGroupsTheWeekIntoSevenDays(t *testing.T) {
 		}
 		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
 	}
-	body := getPage(t, h, cookie, "/pages/nav_week_tasks")
+	body := getPage(t, h, cookie, "/pages/nav_calendar")
 	head := func(offset int) int {
 		at := strings.Index(body, ">"+monday.AddDate(0, 0, offset).Format("Mon 02 Jan")+"<")
 		if at < 0 {
@@ -1821,7 +1821,7 @@ func TestDeclaredPageGroupsTheWeekIntoSevenDays(t *testing.T) {
 func TestDeclaredPageSetsTodayApartInTheWeekInView(t *testing.T) {
 	h, cookie, _, _, _, _, _ := routerSetupFor(t, "declaredtoday", "default")
 	todayHeading := ">" + time.Now().Format("Mon 02 Jan") + "<"
-	body := getPage(t, h, cookie, "/pages/nav_week_tasks")
+	body := getPage(t, h, cookie, "/pages/nav_calendar")
 	if n := strings.Count(body, `aria-current="date"`); n != 1 {
 		t.Fatalf("this week marks %d days as current, want exactly 1", n)
 	}
@@ -1829,15 +1829,15 @@ func TestDeclaredPageSetsTodayApartInTheWeekInView(t *testing.T) {
 	if head < mark || strings.Contains(body[mark:head], "<section") {
 		t.Errorf("the marked section is not the one holding today's heading (mark %d, heading %d)", mark, head)
 	}
-	if next := getPage(t, h, cookie, "/pages/nav_week_tasks?week=1"); strings.Contains(next, `aria-current="date"`) {
+	if next := getPage(t, h, cookie, "/pages/nav_calendar?week=1"); strings.Contains(next, `aria-current="date"`) {
 		t.Error("next week marks a day as current")
 	}
 }
 
 func TestDeclaredPageWeekToolbarFollowsTheWeekInView(t *testing.T) {
 	h, cookie, _, _, _, _, _ := routerSetupFor(t, "declaredtoolbar", "default")
-	this := getPage(t, h, cookie, "/pages/nav_week_tasks")
-	for _, want := range []string{`href="/pages/nav_week_tasks?week=1"`, `href="/pages/nav_week_tasks?week=-1"`} {
+	this := getPage(t, h, cookie, "/pages/nav_calendar")
+	for _, want := range []string{`href="/pages/nav_calendar?week=1"`, `href="/pages/nav_calendar?week=-1"`} {
 		if !strings.Contains(this, want) {
 			t.Errorf("this week lacks %s", want)
 		}
@@ -1855,16 +1855,59 @@ func TestDeclaredPageWeekToolbarFollowsTheWeekInView(t *testing.T) {
 	if want := monday.Format("02"); !strings.Contains(this, want+" – ") && !strings.Contains(this, want+" "+monday.Format("Jan")+" – ") {
 		t.Errorf("this week does not say it starts on %s", monday.Format("02 Jan"))
 	}
-	third := getPage(t, h, cookie, "/pages/nav_week_tasks?week=3")
+	third := getPage(t, h, cookie, "/pages/nav_calendar?week=3")
 	if got := strings.Count(third, backLink); got != navOnly+1 {
 		t.Errorf("week 3 has %d \"This week\" links, this week had %d: want exactly one more, the toolbar's way back", got, navOnly)
 	}
-	for _, want := range []string{`href="/pages/nav_week_tasks?week=4"`, `href="/pages/nav_week_tasks?week=2"`, `href="/pages/nav_week_tasks"`} {
+	for _, want := range []string{`href="/pages/nav_calendar?week=4"`, `href="/pages/nav_calendar?week=2"`, `href="/pages/nav_calendar"`} {
 		if !strings.Contains(third, want) {
 			t.Errorf("week 3 lacks %s", want)
 		}
 	}
-	if back := getPage(t, h, cookie, "/pages/nav_week_tasks?week=1"); strings.Contains(back, "week=0") || !strings.Contains(back, `href="/pages/nav_week_tasks"`) {
+	if back := getPage(t, h, cookie, "/pages/nav_calendar?week=1"); strings.Contains(back, "week=0") || !strings.Contains(back, `href="/pages/nav_calendar"`) {
 		t.Error("week 1's way back to this week is not the plain route")
+	}
+}
+
+// TestDeclaredCalendarOffersDoneAndReopenAndNamesTheAssignee: a card on the migrated Calendar carries what the
+// bespoke screen's card did -- its assignee's name, and a plain request to finish an open task or reopen a
+// finished one -- and offers each only to the task it changes. Located per record route, since a count of
+// buttons would pass a page offering Mark done on a finished task.
+func TestDeclaredCalendarOffersDoneAndReopenAndNamesTheAssignee(t *testing.T) {
+	h, cookie, ctx, store, _, ws, actorID := routerSetupFor(t, "declaredcal", "default")
+	var task *domain.Machine
+	for _, m := range ws.Machines {
+		if m.ID == "mch_task" {
+			task = m
+		}
+	}
+	if task == nil || task.Completion == nil {
+		t.Fatal("default installs no mch_task with a completion: block")
+	}
+	due := time.Now().Format("2006-01-02")
+	mk := func(title, status string) *data.Record {
+		rec, err := store.CreateRecord(ctx, task.ID, map[string]any{"fld_title": title, "fld_status": status, "fld_assignee": actorID, "fld_due_date": due})
+		if err != nil {
+			t.Fatalf("CreateRecord %s: %v", title, err)
+		}
+		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
+		return rec
+	}
+	open, finished := mk("Cal-probe-open", task.ReopenValue()), mk("Cal-probe-finished", task.Completion.Done)
+	body := getPage(t, h, cookie, "/pages/nav_calendar")
+
+	button := func(rec *data.Record, label string) bool {
+		route := "/machines/" + task.ID + "/records/" + rec.ID
+		re := regexp.MustCompile(`<button[^>]*hx-patch="` + regexp.QuoteMeta(route) + `"[^>]*>` + label + `</button>`)
+		return re.MatchString(body)
+	}
+	if !button(open, "Mark done") || button(open, "Reopen") {
+		t.Error("the open task is not offered exactly Mark done")
+	}
+	if !button(finished, "Reopen") || button(finished, "Mark done") {
+		t.Error("the finished task is not offered exactly Reopen")
+	}
+	if n := strings.Count(body, "declaredcal@example.com"); n < 2 {
+		t.Errorf("the assignee is named on %d cards, want both of ours", n)
 	}
 }

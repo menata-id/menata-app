@@ -1029,12 +1029,11 @@ func TestEveryLibraryApplicationInstallsIntoAnEmptyWorkspace(t *testing.T) {
 	}
 }
 
-// TestWeekDatasetIsTheLibrarysAndEveryCopysAlike: `ds_tasks_due_week` is read by `nav_week_tasks` in `default`, and
+// TestWeekDatasetIsTheLibrarysAndEveryCopysAlike: `ds_tasks_due_week` is read by `nav_calendar` in every Workspace that installed Project Management, and
 // a fresh install copies the *library's* Dataset, which no web test serves. A probe changed the library's `$week+6`
 // to `$week+5`, to `$today`, dropped its `sort:` and pointed its page at another Dataset, and nothing failed. So the
 // library's Dataset is resolved here against a fixed date and read for what it means (Monday..Sunday, by due date),
-// and every Workspace copy must equal it. Interim, like the page: it goes with `nav_week_tasks` when the Calendar
-// takes the Dataset over (K15 Calendar stage 5).
+// and every Workspace copy must equal it.
 func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 	templates, err := installer.Templates(filepath.Join(repoRoot(), "metadata"))
 	if err != nil {
@@ -1057,13 +1056,15 @@ func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 			libMachines = append(libMachines, m.Machine)
 		}
 		for _, item := range tm.Application.AllNavigation {
-			if item.ID == "nav_week_tasks" && item.Page != nil {
+			if item.ID == "nav_calendar" && item.Page != nil {
 				for _, b := range pageBindings(*item.Page) {
-					pageDataset = b.Dataset
+					if b.Rows == domain.PageRowsRecords {
+						pageDataset = b.Dataset
+					}
 				}
 				var find func(n domain.PageNode)
 				find = func(n domain.PageNode) {
-					if n.Binding != nil {
+					if n.Binding != nil && n.Binding.Rows == domain.PageRowsRecords {
 						pageEmpty = n.Props["empty"]
 					}
 					for _, c := range n.Children {
@@ -1079,7 +1080,7 @@ func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
 		t.Fatal("the library declares no ds_tasks_due_week")
 	}
 	if pageDataset != lib.ID || pageEmpty == "" {
-		t.Errorf("the library's nav_week_tasks binds %q with empty %q, want %q and some words", pageDataset, pageEmpty, lib.ID)
+		t.Errorf("the library's nav_calendar binds %q with empty %q, want %q and some words", pageDataset, pageEmpty, lib.ID)
 	}
 
 	// 2026-10-08 is a Thursday; ?week=1 puts the window on 2026-10-12..2026-10-18.

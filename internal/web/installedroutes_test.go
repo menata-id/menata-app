@@ -51,7 +51,7 @@ func realLibraryApplications(t *testing.T) []domain.Application {
 func TestApplicationOwnedRoutesComeFromNavigation(t *testing.T) {
 	owned := applicationOwnedRoutes(allInstalledWorkspaces(t), realLibraryApplications(t))
 
-	for _, want := range []string{"/calendar", "/pages/nav_dashboard", "/approval-inbox", "/settings/nav_app_settings"} {
+	for _, want := range []string{"/pages/nav_calendar", "/pages/nav_dashboard", "/approval-inbox", "/settings/nav_app_settings"} {
 		if !owned[want] {
 			t.Errorf("%s is declared by an Application's navigation but is not owned", want)
 		}
@@ -77,7 +77,7 @@ func TestApplicationOwnedRoutesComeFromNavigation(t *testing.T) {
 // route in a request that resolved no Application is a 404; the same route once an Application
 // resolved passes; and a route nobody owns passes whatever the Application.
 func TestRequireInstalledApplication(t *testing.T) {
-	owned := map[string]bool{"/calendar": true}
+	owned := map[string]bool{"/pages/nav_calendar": true}
 	reached := false
 	h := requireInstalledApplication(owned)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		reached = true
@@ -89,8 +89,8 @@ func TestRequireInstalledApplication(t *testing.T) {
 		inApp   bool
 		want404 bool
 	}{
-		{"owned, Application not installed", "/calendar", false, true},
-		{"owned, Application installed", "/calendar", true, false},
+		{"owned, Application not installed", "/pages/nav_calendar", false, true},
+		{"owned, Application installed", "/pages/nav_calendar", true, false},
 		{"not owned by anyone", "/home", false, false},
 	}
 	for _, c := range cases {

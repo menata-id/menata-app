@@ -269,7 +269,6 @@ func Routes(d Deps) http.Handler {
 		pr.Get("/notifications", showNotifications(d.Store, d.Cfg))
 		pr.Post("/notifications/mark-all-read", submitMarkAllNotificationsRead(d.Store, d.Cfg))
 		pr.Get("/api/notifications/unread-count", showUnreadNotificationCount(d.Store, d.Cfg))
-		pr.Get("/calendar", showCalendar(d.Store, d.Cfg))
 		// Any navigation item declaring `page:` (007 §12.4): the one generic screen, found by id.
 		pr.Get("/pages/{navID}", showDeclaredPage(d.Store, d.Cfg))
 		pr.Get("/approval-inbox", showApprovalInbox(d.Store, d.Cfg))

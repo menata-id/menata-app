@@ -393,21 +393,16 @@ navigation:
                       from:
                         text: person
 
+  # The Calendar, declared (K15 Calendar, stages 1-5; `menata-app-document` audits/2026-10-11-pengukuran-k15-calendar.md):
+  # the seven days of the week `?week=N` selects, one section per day through `group: date`, today set apart, week
+  # links and the range in words. A finished task is a Reopen button, an open one a Mark done, as My Tasks does.
+  # Not built, as on the screen this replaced: a month view and dragging a card to another day (007 §12.3 `actions`).
   - id: nav_calendar
     label: Calendar
-    route: /calendar
+    route: /pages/nav_calendar
     priority: 4
     icon: calendar
-    description: Cards sit on the day they are due. Tick a circle to finish one; step through the weeks to see what is coming.
-  # Stages 1-2 of the Calendar's move to `page:` (K15; `menata-app-document` audits/2026-10-11-pengukuran-k15-calendar.md):
-  # the seven days of the week `?week=N` selects, one section per day through `group: date`. Stages 3-4 added today's
-  # highlight and the week links; stage 5 replaces `nav_calendar` with it.
-  - id: nav_week_tasks
-    label: This week
-    route: /pages/nav_week_tasks
-    priority: 9
-    icon: calendar
-    description: Every task due from Monday to Sunday of the week in view. Add ?week=1 for next week, ?week=-1 for last.
+    description: Tasks sit on the day they are due. Press Mark done to finish one; step through the weeks to see what is coming.
     page:
       layout: stack
       gap: default
@@ -417,17 +412,17 @@ navigation:
           align: center
           children:
             - static: link
-              to: nav_week_tasks
+              to: nav_calendar
               text: Previous week
               step: {parameter: week, by: -1}
             - static: link
-              to: nav_week_tasks
+              to: nav_calendar
               text: Next week
               step: {parameter: week, by: 1}
             - static: caption
               window: ds_tasks_due_week
             - static: link
-              to: nav_week_tasks
+              to: nav_calendar
               text: This week
               when: {parameter: week, is_not: "0"}
         - layout: grid
@@ -466,6 +461,27 @@ navigation:
                           from:
                             label: title
                             color: color
+                    - static: caption
+                      from:
+                        text: person
+                    - component: Button
+                      label: Mark done
+                      variant: secondary
+                      becomes: $done
+                      when: {role: status, is_not: $done}
+                      from:
+                        describes: title
+                      binding:
+                        write: transition
+                    - component: Button
+                      label: Reopen
+                      variant: secondary
+                      becomes: $reopen
+                      when: {role: status, is: $done}
+                      from:
+                        describes: title
+                      binding:
+                        write: transition
   # Board Settings, declared rather than written (Case 19 PM06): the Lists a board groups by beside the Labels
   # its cards carry, each a Subheading and a link to that Machine's own list page over a divided Collection.
   # Every name, colour and count is the Machine's own card_fields / Relation -- this page names no Field, no

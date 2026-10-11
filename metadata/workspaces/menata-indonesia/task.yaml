@@ -106,6 +106,18 @@ datasets:
       - field: sort_order
         direction: asc
     limit: 200
+  - id: ds_tasks_due_week
+    select: records
+    where:
+      all:
+        - { field: fld_due_date, op: gte, value: $week }
+        - { field: fld_due_date, op: lte, value: $week+6 }
+    sort:
+      - field: fld_due_date
+        direction: asc
+      - field: sort_order
+        direction: asc
+    limit: 200
   - id: ds_my_tasks_later
     select: records
     where:
@@ -123,19 +135,6 @@ datasets:
         - { field: fld_assignee, op: equals, value: $current_user }
         - { field: fld_status, op: equals, value: $done }
     limit: 200
-
-  # The whole Task set, as records rather than counts (2026-10-05, Case 19 PM04). Since K15 D4 (2026-10-11) the
-  # Dashboard reads Measures (ds_task_figures) and the Calendar is this Dataset's reader. Original rationale: it replaced
-  # ds_task_by_project, which counted `msr_total_open` with `value: done` -- a second statement of which
-  # status means finished, beside `completion:` below. The Dashboard's own subtitle says a card is
-  # finished only when its circle is ticked, so every figure on it (open, overdue, completed, per project,
-  # per person) has to read the one declaration; counting records is how it does.
-  #
-  # `limit: 1000` is the cost of requiring a bound. A Dashboard that sums past it would understate every
-  # tile, so the screen renders the truncation notice rather than a smaller number that looks complete.
-  - id: ds_all_tasks
-    select: records
-    limit: 1000
 
   # The Dashboard's four headline figures as Measures, so a `page:` can show each one as a Metric bound with
   # `rows: total` (2026-10-10). Both ends are read from declarations rather than restated: "finished" is

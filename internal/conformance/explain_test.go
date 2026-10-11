@@ -438,7 +438,6 @@ func TestPerViewerDatasetsScopeByIdentity(t *testing.T) {
 // needs every record (a generic list or export would) or is a correlation waiting on a Dataset.
 var wholeMachineReadRatchet = map[string]int{
 	"composition/loader.go": 4,
-	"composition/pages.go":  1,
 	"composition/review.go": 1,
 	"execution/events.go":   1,
 	"web/api.go":            1,

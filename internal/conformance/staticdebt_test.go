@@ -466,7 +466,6 @@ func TestHandWrittenDividersOnlyShrink(t *testing.T) {
 // danger zones are other border colours.
 var handWrittenSurfaceFloors = map[string]int{
 	"approvalinbox.templ":  1, // border colour is conditional (red when overdue); a reader would have to take the state
-	"calendar.templ":       1, // today's column swaps the border and fill; same shape
 	"notifications.templ":  1, // an unread row swaps the border and fill; same shape
 	"reviewdocument.templ": 1, // a <dialog> with no raised fill: the user agent paints its Canvas, and adding bg-white would be a change
 }

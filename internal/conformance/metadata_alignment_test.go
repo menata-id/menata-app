@@ -585,10 +585,6 @@ func TestHandlersHaveNoHardcodedApplicationLabel(t *testing.T) {
 // time someone opens the page -- exactly the class of metadata/code drift
 // TestNavigationRoutesAreRegistered already closes for routes.
 var composedScreenDatasets = map[string]map[string][]string{
-	"task.yaml": {
-		// The whole Task set, as records (the Calendar's selection; the Dashboard moved to Measures in K15 D4).
-		"ds_all_tasks": {},
-	},
 	// The `select: records` Dataset a record's detail page reads its history through. It declares no
 	// measures, so the *existence* check is the whole point.
 	"activity.yaml": {"ds_record_activity": {}},

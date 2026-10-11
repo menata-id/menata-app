@@ -89,7 +89,7 @@ var handWrittenLayoutSites = map[string]map[string]int{
 	// `sectionHeaderRow`'s five callers were counted here until 2026-10-07 and are not any more: it is the
 	// heading a section *holds*, not a layout, and every caller now sits inside `stackLayout`.
 	"section": {
-		"account.templ": 1, "calendar.templ": 1, "layout.templ": 2, "newapplication.templ": 1,
+		"account.templ": 1, "layout.templ": 2, "newapplication.templ": 1,
 		"workspacehome.templ": 2, "workspacemembers.templ": 1,
 	},
 }

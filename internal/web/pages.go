@@ -3,11 +3,8 @@ package web
 import (
 	"context"
 	"net/http"
-	"strconv"
-	"time"
 
 	"menata.app/internal/authorization"
-	"menata.app/internal/composition"
 	"menata.app/internal/config"
 	"menata.app/internal/data"
 	"menata.app/internal/rendering"
@@ -31,26 +28,4 @@ func pageChrome(ctx context.Context, req *http.Request, store *data.Store, cfg c
 	userID, _ := authorization.CurrentUserID(req, cfg.SessionSecret)
 	_, switchHref := viewerWorkspaceContext(ctx, store, userID)
 	return chrome.WorkspaceName, chrome.Viewer(), switchHref, nil
-}
-
-// showCalendar is Case 19's week-grid Layout (Case 19 PM05): every mch_task due in one Monday-Sunday week,
-// one column per day. `?week=N` steps N weeks from the current one; anything that is not a number is this week.
-func showCalendar(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		machines := machinesFor(ctx)
-
-		weekOffset, _ := strconv.Atoi(req.URL.Query().Get("week"))
-		c, err := composition.CalendarWeek(ctx, composition.NewLoader(store, machines), time.Now(), weekOffset)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		render(ctx, w, rendering.CalendarPage(c, workspaceName, viewer, switchHref))
-	}
 }
