@@ -416,3 +416,21 @@ func TestCollectionHintQualifiesAHeading(t *testing.T) {
 		t.Error("a hint with no heading passed validation")
 	}
 }
+
+// A Progress bar is two resolved numbers and a label: both numbers must be numbers of zero or more, and the
+// label is required so the bar is never unnamed.
+func TestValidateProgress(t *testing.T) {
+	if issues := ValidateComponentUse(domain.ComponentProgress, map[string]string{"label": "Silvia", "value": "2", "max": "3"}); len(issues) != 0 {
+		t.Errorf("a labelled bar of 2 of 3 was refused: %v", issues)
+	}
+	for name, in := range map[string]map[string]string{
+		"no label":      {"value": "2", "max": "3"},
+		"a word":        {"label": "x", "value": "two", "max": "3"},
+		"a negative":    {"label": "x", "value": "2", "max": "-1"},
+		"an extra prop": {"label": "x", "value": "2", "max": "3", "tone": "good"},
+	} {
+		if issues := ValidateComponentUse(domain.ComponentProgress, in); len(issues) == 0 {
+			t.Errorf("%s: passed validation", name)
+		}
+	}
+}

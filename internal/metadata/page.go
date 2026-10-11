@@ -264,8 +264,14 @@ func PlaceholderResolver(navigation []domain.NavigationItem, datasets map[string
 		// Any dataset id resolves here: whether this Workspace declares it is `bindingIssues`' question, which
 		// has the Workspace's Datasets, and this resolver only needs a Machine to name.
 		Source: func(string) (string, bool) { return "machine", true },
-		Rows: func(domain.PageBinding) ([]ir.Row, error) {
-			return []ir.Row{{Label: "label", Value: "0"}}, nil
+		// Every Measure the bound Dataset declares, so a dimension row's template reading `measure:<id>` lowers
+		// exactly when the id is one of them -- a mistyped Measure fails as a mistyped role does.
+		Rows: func(b domain.PageBinding) ([]ir.Row, error) {
+			measures := map[string]string{}
+			for _, m := range datasets[b.Dataset].Measures {
+				measures[m.ID] = "0"
+			}
+			return []ir.Row{{Label: "label", Value: "0", Measures: measures}}, nil
 		},
 		// A non-zero figure, so a `tone:` on a total is checked rather than dropped as a zero's would be.
 		Total: func(domain.PageBinding) (string, error) { return "1", nil },
@@ -413,7 +419,10 @@ func bindingIssues(n domain.PageNode, datasets map[string]domain.Dataset, machin
 		case ds.Select != "":
 			issues = append(issues, fmt.Sprintf("%s: page: binding dataset %q selects records, and a dimension binding needs an aggregate dataset with measures (use rows: %s on a Collection to list records)", where, b.Dataset, domain.PageRowsRecords))
 		default:
-			if !slicesHasMeasure(ds, b.Measure) {
+			// A Collection bound to dimension rows names its Measures in its template (`measure:<id>`), which the
+			// placeholder rows check; every other bound node names its one Measure here.
+			dimensionCollection := b.Rows == domain.PageRowsDimension && n.Type == string(domain.ComponentCollection)
+			if !dimensionCollection && !slicesHasMeasure(ds, b.Measure) {
 				issues = append(issues, fmt.Sprintf("%s: page: dataset %q declares no measure %q", where, b.Dataset, b.Measure))
 			}
 			if b.Rows == domain.PageRowsDimension && ds.Dimension == "" {

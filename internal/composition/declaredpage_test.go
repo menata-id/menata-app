@@ -580,8 +580,8 @@ func TestDeclaredPage_aReferenceDimensionIsNamedByTheRelatedRecordsTitle(t *test
 			t.Fatal(err)
 		}
 		want := []ir.Row{
-			{Label: "Alpha launch", Key: ids["Alpha launch"], Value: "2"},
-			{Label: "Zebra launch", Key: ids["Zebra launch"], Value: "1"},
+			{Label: "Alpha launch", Key: ids["Alpha launch"], Value: "2", Measures: map[string]string{"msr_total": "2"}},
+			{Label: "Zebra launch", Key: ids["Zebra launch"], Value: "1", Measures: map[string]string{"msr_total": "1"}},
 		}
 		if !reflect.DeepEqual(rows, want) {
 			t.Fatalf("run %d: rows = %v, want %v", i, rows, want)

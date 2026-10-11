@@ -56,7 +56,7 @@ func TestDashboardPage_drawsTheMockupSections(t *testing.T) {
 	for _, want := range []string{
 		"Tasks by project", "Apollo", "Open cards per person",
 		"Bar shows cards still open out of everything assigned.",
-		`role="progressbar"`, `aria-valuetext="2 of 3 open"`, ">2 of 3<", "width:66%",
+		`role="progressbar"`, `aria-valuetext="2 of 3"`, ">2 of 3<", "width:66%",
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("dashboard is missing %q", want)
@@ -73,5 +73,23 @@ func TestDashboardPage_drawsTheMockupSections(t *testing.T) {
 	}
 	if !strings.Contains(buf.String(), "Showing the first") || !strings.Contains(buf.String(), "1000") {
 		t.Error("a truncated selection did not say so, so every figure above it would read as complete")
+	}
+}
+
+// progressRow fills to value out of max, clamped, and always says the two numbers in words -- the fill is never
+// the only thing saying how much. Nothing out of nothing is an empty bar, not a division by zero.
+func TestProgressRow_fillsToTheShareAndSaysItInWords(t *testing.T) {
+	for _, tc := range []struct{ value, max, width string }{
+		{"2", "3", "width:66%"}, {"3", "3", "width:100%"}, {"5", "3", "width:100%"}, {"0", "0", "width:0%"}, {"1", "0", "width:0%"},
+	} {
+		var buf bytes.Buffer
+		if err := progressRow("Silvia", tc.value, tc.max).Render(context.Background(), &buf); err != nil {
+			t.Fatal(err)
+		}
+		html := buf.String()
+		words := tc.value + " of " + tc.max
+		if !strings.Contains(html, tc.width) || !strings.Contains(html, `aria-valuetext="`+words+`"`) || !strings.Contains(html, ">"+words+"<") || !strings.Contains(html, `aria-label="Silvia"`) {
+			t.Errorf("%s: want %s and the words %q:\n%s", words, tc.width, words, html)
+		}
 	}
 }

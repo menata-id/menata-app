@@ -123,14 +123,22 @@ navigation:
               gap: default
               children:
                 - static: subheading
-                  text: Open cards by person
-                - layout: grid
-                  gap: default
-                  mobile: 2
-                  columns: 2
+                  text: Open cards per person
+                - static: caption
+                  text: Bar shows cards still open out of everything assigned.
+                # One bar per assignee: a Collection bound to the Dimension's rows, each reading the row's name and
+                # two of its Measures (K15 Dashboard, stage D2).
+                - component: Collection
+                  gap: tight
+                  divided: true
+                  empty: No cards are assigned yet.
+                  binding: { dataset: ds_open_by_assignee, rows: dimension }
                   children:
-                    - component: Metric
-                      binding: { dataset: ds_open_by_assignee, measure: msr_open, rows: dimension }
+                    - component: Progress
+                      from:
+                        label: row:label
+                        value: measure:msr_open
+                        max: measure:msr_all
         # Recent activity (S2.7, Case 19 PM04): the newest events of this Application. The Dataset reads the
         # Application the page is drawn in from the runtime, so this names no Application id; "Open activity
         # feed" is not drawn because no such page exists.

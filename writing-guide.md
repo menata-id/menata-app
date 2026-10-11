@@ -1033,8 +1033,33 @@ that Dataset's Dimension**: `label` is the value, `value` is the Measure. Rules,
   nothing. `href` is never written (a route is declared once); `to:`/`param:` on any other node is a load error.
   Worked example: `nav_documents_by_status`'s tiles open `nav_documents_in_status`.
 
-Only `Metric` (`rows: dimension` or `rows: total`) and `Collection` (`rows: records`) are bindable
-(`domain.BindableComponents`). Cost: one query per distinct Dataset, however many nodes bind it.
+Only `Metric` (`rows: dimension` or `rows: total`) and `Collection` (`rows: records` or `rows: dimension`) are
+bindable (`domain.BindableComponents`). Cost: one query per distinct Dataset, however many nodes bind it.
+
+**A Collection over a Dimension's values (2026-10-11).** When each value needs more than one figure -- a bar of
+open cards out of everything assigned -- bind a `Collection` with `{dataset: ds_x, rows: dimension}` and **no
+measure**. Its one child is cloned per value, and `from:` reads the row: `row:label` is the value's display (an
+option, or a related record's title for a reference Dimension), and `measure:<id>` is any Measure the Dataset
+declares (a mistyped id is a load error). A row is a group of records, not a record, so the template may hold no
+binding, `count:`, `each:`, `when:` or `from: {href: record}`. `Progress` (a label, a `value`, a `max`) draws a
+bar with the two numbers in words beside it. Worked example, `nav_task_figures`' "Open cards per person":
+
+```yaml
+- id: ds_open_by_assignee          # metadata/task.yaml
+  dimension: fld_assignee
+  measures:
+    - { id: msr_open, aggregate: count, where: { field: fld_status, op: not_equals, value: $done } }
+    - { id: msr_all, aggregate: count }
+
+- component: Collection            # the page
+  gap: tight
+  divided: true
+  empty: No cards are assigned yet.
+  binding: { dataset: ds_open_by_assignee, rows: dimension }
+  children:
+    - component: Progress
+      from: { label: "row:label", value: "measure:msr_open", max: "measure:msr_all" }
+```
 
 **`rows: total` — one figure over the whole Dataset.** A `component: Metric` bound
 `{dataset: ds_x, measure: msr_y, rows: total}` is a single Metric holding that Measure's figure, for an

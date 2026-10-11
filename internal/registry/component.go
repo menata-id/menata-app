@@ -52,6 +52,39 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentTag:         {Contract: tagContract, Validate: validateTag},
 	domain.ComponentForm:        {Contract: formContract, Validate: validateForm},
 	domain.ComponentFormInput:   {Contract: formInputContract, Validate: validateFormInput},
+	domain.ComponentProgress:    {Contract: progressContract, Validate: validateProgress},
+}
+
+// progressContract is a part of a whole drawn as a bar. `value` and `max` are strings for the reason a Metric's
+// value is: the caller resolved them (a Measure, already formatted), and the Component only turns their ratio into
+// a width. What the contract forces: a bar always carries its words ("2 of 3") and its label, so the fill is never
+// the only thing saying how much -- a percentage-only bar tells a screen-reader user nothing about how many.
+var progressContract = domain.ComponentContract{
+	Type: domain.ComponentProgress,
+	Inputs: []domain.ComponentInput{
+		{Name: "label", Kind: "string", Required: true},
+		{Name: "value", Kind: "number", Required: true},
+		{Name: "max", Kind: "number", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    `role="progressbar" named by the label, with aria-valuetext "<value> of <max>"; the same words are drawn beside the bar`,
+	Renderer:         "progressRow",
+}
+
+func validateProgress(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(progressContract, inputs, "Progress")
+	for _, k := range []string{"value", "max"} {
+		v, ok := inputs[k]
+		if !ok {
+			continue
+		}
+		if f, err := strconv.ParseFloat(v, 64); err != nil || f < 0 {
+			issues = append(issues, fmt.Sprintf("Progress %s %q is not a number of zero or more", k, v))
+		}
+	}
+	return issues
 }
 
 // formContract is §12.3's `Form`, the write side of 007 §11.3 in its narrowest honest form: a submit label, the

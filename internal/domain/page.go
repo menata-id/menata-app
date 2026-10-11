@@ -127,7 +127,9 @@ type PageBinding struct {
 	Write string
 }
 
-// The Rows modes. `dimension` is a Metric per Dimension value, `records` a Collection item per record, and
+// The Rows modes. `dimension` is a Metric per Dimension value (or, on a Collection, one item per Dimension value,
+// its template reading the value and every Measure through PageRowLabelRole/PageMeasureRole), `records` a
+// Collection item per record, and
 // `total` one Metric holding a Measure's figure over the whole Dataset -- the mode for a number that has no
 // breakdown, whose label the author writes because there is no Dimension value to name it (2026-10-10).
 const (
@@ -193,6 +195,18 @@ const (
 	PageDateToneRole  = "date:tone"
 )
 
+// PageRowLabelRole and PageMeasureRole are the keys of the row map a Collection bound with `rows: dimension` hands
+// to its item template: the Dimension value's display (a status option, or a related record's title), and each of
+// the Dataset's Measures for that value, already formatted. Reserved like the count role -- the colon cannot appear
+// in a Projection role -- and they are the only keys such a row has: a Dimension row is a group of records, not a
+// record, so it has no route, no Projection and nothing a write could act on.
+const PageRowLabelRole = "row:label"
+
+// PageMeasureRole is the key of one Measure's figure in a Dimension row (see PageRowLabelRole).
+func PageMeasureRole(measureID string) string {
+	return "measure:" + measureID
+}
+
 // PageGroupLabelRole is the third derived role: the name of the group the record sits in under its Machine's default
 // View -- the list a Task is in, for a board grouped by a relation, or the option itself for one grouped by a Field
 // of options. Like the date roles it is empty when the record has no group, and a node reading it is then not drawn.
@@ -210,9 +224,10 @@ func PageDerivedRole(role string) bool {
 //
 // Vocabulary (a closed map of strings), so it lives here and not in `internal/registry`
 // (`conformance.TestDomainHoldsVocabularyAndRegistryHoldsDispatch`). `Metric` takes dimension rows or one
-// total: it is the Component whose contract is "a label and a resolved number". `Collection` takes records: it
-// is the one with an `item` slot, so a list of already-composed items is exactly what a record set is.
+// total: it is the Component whose contract is "a label and a resolved number". `Collection` takes records or
+// dimension rows: it is the one with an `item` slot, so a list of already-composed items is exactly what a record
+// set is, and what a Dimension's groups are when each needs more than one figure (a bar of open out of all).
 var BindableComponents = map[ComponentType][]string{
 	ComponentMetric:     {PageRowsDimension, PageRowsTotal},
-	ComponentCollection: {PageRowsRecords},
+	ComponentCollection: {PageRowsRecords, PageRowsDimension},
 }

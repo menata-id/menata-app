@@ -102,6 +102,13 @@ const (
 	// exists to remove (`ir.dimensionRoute` refuses a typed `href` for the same reason). Named `FormInput` and
 	// not `Input` because `ComponentInput` is already a contract's declared input.
 	ComponentFormInput ComponentType = "Input"
+	// ComponentProgress is a part of a whole drawn as a bar: a label, how many, out of how many.
+	//
+	// **It already existed unregistered, twice.** The Dashboard's "Open cards per person" (`personLoadRow`) and the
+	// approval card's progress (`approvalProgress`) each drew a `role="progressbar"` filled to value/max with the
+	// same words beside it. Registering it is what lets a `page:` draw one per Dimension value, the Dashboard's
+	// bars being the first (K15). Both numbers arrive resolved; the Component computes only the fill.
+	ComponentProgress ComponentType = "Progress"
 )
 
 // InputKind is the shape of control an `Input` draws, as a closed set. It is a semantic ("a date"), never an

@@ -20,6 +20,10 @@ type Row struct {
 	Label string
 	Key   string
 	Value string
+	// Measures is every Measure of the Dataset for this Dimension value, formatted, keyed by Measure id. A Metric
+	// reads Value (its one bound Measure); a Collection bound with `rows: dimension` hands all of them to its item
+	// template under domain.PageMeasureRole.
+	Measures map[string]string
 }
 
 func (r Row) linkValue() string {
@@ -633,13 +637,93 @@ func lowerBound(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	if b.Dataset == "" {
 		return nil, fmt.Errorf("%s: a binding names a dataset", path)
 	}
-	switch b.Rows {
-	case domain.PageRowsRecords:
+	switch {
+	case b.Rows == domain.PageRowsRecords:
 		return lowerRecords(n, r, path)
-	case domain.PageRowsTotal:
+	case b.Rows == domain.PageRowsTotal:
 		return lowerTotal(n, r, path)
+	case n.Type == string(domain.ComponentCollection):
+		return lowerDimensionCollection(n, r, path)
 	}
 	return lowerDimension(n, r, path)
+}
+
+// lowerDimensionCollection turns a Collection bound with `rows: dimension` into one item per Dimension value, its
+// one child cloned per row with `from:` reading the row: domain.PageRowLabelRole for the value's display and
+// domain.PageMeasureRole(<id>) for each Measure. It is the shape for a group that needs more than one figure -- a
+// bar of open cards out of all of them -- which a Metric per row cannot say.
+//
+// A Dimension row is a group of records, not a record, so the template may hold nothing that acts on or speaks of
+// one record: no Binding (a write, or a second Dataset), no `count:`, no `each:`, no `when:`, and no
+// `from: {href: record}`. Each is refused by name rather than failing later as an unprojected role.
+func lowerDimensionCollection(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
+	b := n.Binding
+	if b.Measure != "" {
+		return nil, fmt.Errorf("%s: a Collection bound with rows: %s takes no measure: -- its item template reads each Measure with from: %s", path, domain.PageRowsDimension, domain.PageMeasureRole("<id>"))
+	}
+	if len(n.From) > 0 {
+		return nil, fmt.Errorf("%s: from: belongs on the item template, not on the bound Collection", path)
+	}
+	if n.To != "" || n.Param != "" {
+		return nil, fmt.Errorf("%s: to:/param: belong on a Metric bound with rows: %s", path, domain.PageRowsDimension)
+	}
+	for _, p := range []string{collectionCompleteProp, collectionTruncatedProp, collectionHideEmptyProp} {
+		if _, written := n.Props[p]; written {
+			return nil, fmt.Errorf("%s: %s: speaks of a records binding, and rows: %s lists a Dimension's values", path, p, domain.PageRowsDimension)
+		}
+	}
+	if len(n.Children) != 1 {
+		return nil, fmt.Errorf("%s: a dimension-bound collection holds exactly one child, the item template cloned for each row, and has %d", path, len(n.Children))
+	}
+	if err := dimensionTemplateIssue(n.Children[0], fmt.Sprintf("%s.children[0]", path)); err != nil {
+		return nil, err
+	}
+	if r.Rows == nil {
+		return nil, fmt.Errorf("%s: no resolver for dimension rows", path)
+	}
+	rows, err := r.Rows(*b)
+	if err != nil {
+		return nil, err
+	}
+	out := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: n.Props}
+	for i, row := range rows {
+		rec := make(map[string]string, len(row.Measures)+1)
+		rec[domain.PageRowLabelRole] = row.Label
+		for id, v := range row.Measures {
+			rec[domain.PageMeasureRole(id)] = v
+		}
+		items, err := lower(n.Children[0], r, fmt.Sprintf("%s.children[0]", path), rec, &RecordWrites{})
+		if err != nil {
+			return nil, fmt.Errorf("row %d: %w", i, err)
+		}
+		out.Children = append(out.Children, items...)
+	}
+	return []UINode{out}, nil
+}
+
+// dimensionTemplateIssue refuses, anywhere in a dimension row's template, what only a record could answer.
+func dimensionTemplateIssue(n domain.PageNode, path string) error {
+	switch {
+	case n.Binding != nil:
+		return fmt.Errorf("%s: a binding inside a dimension row's template is not supported -- a row is a group of records, so there is no record to write and a second Dataset would be a join", path)
+	case n.Count != nil:
+		return fmt.Errorf("%s: count: counts one record's children, and a dimension row is not a record", path)
+	case n.Each != "":
+		return fmt.Errorf("%s: each: lists one record's tags, and a dimension row is not a record", path)
+	case n.When != nil:
+		return fmt.Errorf("%s: when: tests one record's role, and a dimension row is not a record", path)
+	}
+	for prop, role := range n.From {
+		if role == domain.PageRecordRole {
+			return fmt.Errorf("%s: from: %s: %s is a record's address, and a dimension row has none", path, prop, role)
+		}
+	}
+	for i, c := range n.Children {
+		if err := dimensionTemplateIssue(c, fmt.Sprintf("%s.children[%d]", path, i)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func lowerDimension(n domain.PageNode, r Resolver, path string) ([]UINode, error) {

@@ -752,3 +752,27 @@ func TestPage_eachTagsNeedsAMachineThatDeclaresCardTags(t *testing.T) {
 		t.Error("an empty each: loaded")
 	}
 }
+
+// A Collection bound to a Dimension's rows draws one item per value, its template reading the value and the
+// Dataset's own Measures. The Measure ids are checked at load: one the Dataset does not declare fails as a
+// mistyped role would, and the bound Collection itself names no measure and needs a Dimension to expand.
+func TestPage_aDimensionCollectionReadsTheDatasetsOwnMeasures(t *testing.T) {
+	page := func(dataset, measure, max string) string {
+		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n" +
+			"        - component: Collection\n          gap: tight\n          binding: { dataset: " + dataset + measure + ", rows: dimension }\n" +
+			"          children:\n            - component: Progress\n              from: { label: \"row:label\", value: \"measure:msr_total\", max: \"" + max + "\" }\n"
+	}
+	if err := pageFixture(t, page("ds_by_status", "", "measure:msr_total")); err != nil {
+		t.Fatalf("a dimension Collection of Progress bars over declared Measures was refused: %v", err)
+	}
+	for name, tc := range map[string]struct{ nav, want string }{
+		"an undeclared measure":       {page("ds_by_status", "", "measure:msr_nope"), "msr_nope"},
+		"a dataset with no dimension": {page("ds_flat", "", "measure:msr_total"), "no dimension"},
+		"a measure on the list":       {page("ds_by_status", ", measure: msr_total", "measure:msr_total"), "takes no measure"},
+		"a non-number into Progress":  {page("ds_by_status", "", "row:label"), "not a number"},
+	} {
+		if err := pageFixture(t, tc.nav); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want one mentioning %q", name, err, tc.want)
+		}
+	}
+}

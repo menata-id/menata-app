@@ -1052,10 +1052,14 @@ func TestDeclaredPageNamesEachOpenCardGroupByTheProjectAndPersonItBelongsTo(t *t
 	if !strings.Contains(body, "sm:items-start") || !strings.Contains(body, "sm:flex-row") {
 		t.Error("the two open-card groups are not drawn as a columns layout aligned to the start")
 	}
-	if got := strings.Count(body, "Open cards by"); got != 2 {
-		t.Errorf("want the two group headings once each, got %d", got)
+	if strings.Count(body, "Open cards by project") != 1 || strings.Count(body, "Open cards per person") != 1 {
+		t.Error("want the two group headings once each")
 	}
-	for label, want := range map[string]int{"Refprobe Zulu": 2, "Refprobe Alpha": 1, "declaredbyref@example.com": 1} {
+	// K15 stage D2: a person is a Progress bar, open out of everything assigned, named and never an id.
+	if !regexp.MustCompile(`role="progressbar" aria-label="declaredbyref@example.com"[^>]*aria-valuetext="1 of 1"`).MatchString(body) {
+		t.Error("no Progress bar shows declaredbyref@example.com with 1 of 1")
+	}
+	for label, want := range map[string]int{"Refprobe Zulu": 2, "Refprobe Alpha": 1} {
 		pair := regexp.MustCompile(`>` + strconv.Itoa(want) + `</div><div[^>]*>` + regexp.QuoteMeta(label) + `</div>`)
 		if !pair.MatchString(body) {
 			t.Errorf("no Metric shows %q with a value of %d", label, want)

@@ -202,6 +202,9 @@ datasets:
       - id: msr_open
         aggregate: count
         where: { field: fld_status, op: not_equals, value: $done }
+      # Everything assigned, so a bar can say open out of all (the Dashboard's "Open cards per person").
+      - id: msr_all
+        aggregate: count
 
 # card_fields: what a Task's own records show wherever a screen renders them without picking
 # Fields itself (007 §7.6 Projection). Added 2026-09-28, when the Case 19 screens stopped reading

@@ -390,7 +390,7 @@ func bindingRows(ctx context.Context, l *Loader, now time.Time, b domain.PageBin
 		if k == "" {
 			continue // records with the Dimension unset have no label to show
 		}
-		rows = append(rows, ir.Row{Label: k, Value: formatMeasure(agg.ByDimension[k][b.Measure])})
+		rows = append(rows, ir.Row{Label: k, Value: formatMeasure(agg.ByDimension[k][b.Measure]), Measures: rowMeasures(agg, k)})
 	}
 	return rows, nil
 }
@@ -423,7 +423,7 @@ func referenceRows(ctx context.Context, l *Loader, dim domain.Field, agg Aggrega
 	})
 	rows := make([]ir.Row, 0, len(keys))
 	for _, k := range keys {
-		rows = append(rows, ir.Row{Label: titles[k], Key: k, Value: formatMeasure(agg.ByDimension[k][measure])})
+		rows = append(rows, ir.Row{Label: titles[k], Key: k, Value: formatMeasure(agg.ByDimension[k][measure]), Measures: rowMeasures(agg, k)})
 	}
 	return rows, nil
 }
@@ -445,6 +445,16 @@ func bindingTotal(ctx context.Context, l *Loader, now time.Time, b domain.PageBi
 // has no viewer and no request parameters, and metadata refuses a Measure that names either.
 func aggregateContext(now time.Time) expression.Context {
 	return expression.Context{Today: now.Format("2006-01-02")}
+}
+
+// rowMeasures is every declared Measure's figure for one Dimension value -- the Measures are agg.Total's keys,
+// which always holds each one -- with a Measure the group has no value for as 0, as the Total's own zero is.
+func rowMeasures(agg Aggregation, key string) map[string]string {
+	out := make(map[string]string, len(agg.Total))
+	for id := range agg.Total {
+		out[id] = formatMeasure(agg.ByDimension[key][id])
+	}
+	return out
 }
 
 func formatMeasure(v float64) string {
