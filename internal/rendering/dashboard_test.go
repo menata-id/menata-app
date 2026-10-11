@@ -80,13 +80,16 @@ func TestDashboardPage_drawsTheMockupSections(t *testing.T) {
 // the only thing saying how much. Nothing out of nothing is an empty bar, not a division by zero.
 func TestProgressRow_fillsToTheShareAndSaysItInWords(t *testing.T) {
 	for _, tc := range []struct{ value, max, width string }{
-		{"2", "3", "width:66%"}, {"3", "3", "width:100%"}, {"5", "3", "width:100%"}, {"0", "0", "width:0%"}, {"1", "0", "width:0%"},
+		{"2", "3", "width:66%"}, {"3", "3", "width:100%"}, {"5", "3", "width:100%"}, {"0", "0", "width:0%"}, {"1", "0", "width:0%"}, {"-2", "3", "width:0%"},
 	} {
 		var buf bytes.Buffer
 		if err := progressRow("Silvia", tc.value, tc.max).Render(context.Background(), &buf); err != nil {
 			t.Fatal(err)
 		}
 		html := buf.String()
+		if !strings.HasPrefix(strings.TrimSpace(html), `<div class="w-full">`) {
+			t.Errorf("the bar's wrapper must fill its row, or a Collection item leaves the bar 0px wide:\n%s", html)
+		}
 		words := tc.value + " of " + tc.max
 		if !strings.Contains(html, tc.width) || !strings.Contains(html, `aria-valuetext="`+words+`"`) || !strings.Contains(html, ">"+words+"<") || !strings.Contains(html, `aria-label="Silvia"`) {
 			t.Errorf("%s: want %s and the words %q:\n%s", words, tc.width, words, html)

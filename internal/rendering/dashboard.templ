@@ -118,6 +118,9 @@ templ personLoadRow(p PersonLoad) {
 // about how many. The numbers arrive resolved; this computes only the fill, and a max of zero is an empty bar.
 templ progressRow(label, value, max string) {
 	{{ pct := progressShare(value, max) }}
+	// w-full: inside a Collection item (itself a wrapping flex row) a wrapper only as wide as its content leaves
+	// the bar's `grow` nothing to fill, and the bar drew 0px wide.
+	<div class="w-full">
 	@rowLayout(domain.GapComfortable, domain.RowAlignCenter, domain.RowJustifyStart) {
 		<span class="w-24 shrink-0 truncate text-sm" title={ label }>{ label }</span>
 		<div
@@ -133,6 +136,7 @@ templ progressRow(label, value, max string) {
 		</div>
 		<span class="w-16 shrink-0 text-right text-xs whitespace-nowrap text-slate-500">{ value + " of " + max }</span>
 	}
+	</div>
 }
 
 // progressShare is value as a whole percentage of max, clamped to 0..100; anything unparseable, or a max of zero,

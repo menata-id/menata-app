@@ -54,6 +54,13 @@ func TestLower_dimensionCollectionRefusesWhatOnlyARecordCouldAnswer(t *testing.T
 	count := domain.PageNode{Kind: "static", Type: "caption", Count: &domain.PageCount{Of: "rel_a", One: "{n}", Other: "{n}"}}
 	measureOnList := dimensionList(progressTemplate())
 	measureOnList.Binding.Measure = "msr_open"
+	each := progressTemplate()
+	each.Each = domain.PageEachTags
+	withProp := func(k, v string) domain.PageNode { n := dimensionList(progressTemplate()); n.Props[k] = v; return n }
+	fromOnList := dimensionList(progressTemplate())
+	fromOnList.From = map[string]string{"heading": domain.PageRowLabelRole}
+	linked := dimensionList(progressTemplate())
+	linked.To, linked.Param = "nav_x", "who"
 	typo := progressTemplate()
 	typo.From["max"] = domain.PageMeasureRole("msr_nope")
 	for name, tc := range map[string]struct {
@@ -66,6 +73,12 @@ func TestLower_dimensionCollectionRefusesWhatOnlyARecordCouldAnswer(t *testing.T
 		"a count":               {dimensionList(count), "count:"},
 		"a measure on the list": {measureOnList, "takes no measure"},
 		"an unknown measure":    {dimensionList(typo), "msr_nope"},
+		"each: tags":            {dimensionList(each), "each:"},
+		"complete":              {withProp("complete", "true"), "complete"},
+		"truncated":             {withProp("truncated", "5"), "truncated"},
+		"hide_empty":            {withProp("hide_empty", "true"), "hide_empty"},
+		"from on the list":      {fromOnList, "item template, not on the bound Collection"},
+		"to/param on the list":  {linked, "to:/param:"},
 		"two children": {func() domain.PageNode {
 			n := dimensionList(progressTemplate())
 			n.Children = append(n.Children, progressTemplate())

@@ -90,6 +90,31 @@ func TestDeclaredPage_rowsFollowOptionOrderAndKeepEmptyOptions(t *testing.T) {
 	}
 }
 
+// A Collection bound to an option Dimension's rows gets every Measure per row -- including a declared option no
+// record holds, as 0 -- so its template's `measure:<id>` resolves on every row, not only on a reference Dimension.
+func TestDeclaredPage_anOptionDimensionCollectionReadsEveryMeasurePerRow(t *testing.T) {
+	l, ctx := declaredPageLoader(t, "dimlist", map[string]int{"approved": 2, "draft": 1})
+	root := domain.PageNode{Kind: "layout", Type: "stack", Children: []domain.PageNode{{
+		Kind: "component", Type: string(domain.ComponentCollection), Props: map[string]string{"gap": "tight"},
+		Binding: &domain.PageBinding{Dataset: "ds_by_status", Rows: domain.PageRowsDimension},
+		Children: []domain.PageNode{{Kind: "component", Type: string(domain.ComponentProgress), From: map[string]string{
+			"label": domain.PageRowLabelRole, "value": domain.PageMeasureRole("msr_total"), "max": domain.PageMeasureRole("msr_total"),
+		}}},
+	}}}
+	tree, err := DeclaredPage(ctx, l, domain.Actor{}, nil, testToday, nil, root)
+	if err != nil {
+		t.Fatalf("DeclaredPage: %v", err)
+	}
+	var got [][2]string
+	for _, c := range tree.Children[0].Children {
+		got = append(got, [2]string{c.Props["label"], c.Props["value"]})
+	}
+	want := [][2]string{{"draft", "1"}, {"in_review", "0"}, {"approved", "2"}, {"rejected", "0"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("rows = %v, want %v", got, want)
+	}
+}
+
 // A map ranges differently every run (007 §4.6), so one call passing proves little: 40 fresh loaders.
 func TestDeclaredPage_rowOrderIsDeterministic(t *testing.T) {
 	l, ctx := declaredPageLoader(t, "determinism", map[string]int{"zeta": 1, "alpha": 1, "mid": 1, "approved": 1})

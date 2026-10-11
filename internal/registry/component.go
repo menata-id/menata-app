@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -73,6 +74,10 @@ var progressContract = domain.ComponentContract{
 	Renderer:         "progressRow",
 }
 
+// plainNumber is a number of zero or more written plainly: digits, optionally a decimal part. strconv.ParseFloat
+// would also take NaN, Inf, hex and underscores, each of which would draw a bar that says nothing true.
+var plainNumber = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
+
 func validateProgress(inputs map[string]string) []string {
 	issues := checkDeclaredInputs(progressContract, inputs, "Progress")
 	for _, k := range []string{"value", "max"} {
@@ -80,7 +85,7 @@ func validateProgress(inputs map[string]string) []string {
 		if !ok {
 			continue
 		}
-		if f, err := strconv.ParseFloat(v, 64); err != nil || f < 0 {
+		if !plainNumber.MatchString(v) {
 			issues = append(issues, fmt.Sprintf("Progress %s %q is not a number of zero or more", k, v))
 		}
 	}

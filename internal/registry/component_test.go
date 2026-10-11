@@ -428,6 +428,10 @@ func TestValidateProgress(t *testing.T) {
 		"a word":        {"label": "x", "value": "two", "max": "3"},
 		"a negative":    {"label": "x", "value": "2", "max": "-1"},
 		"an extra prop": {"label": "x", "value": "2", "max": "3", "tone": "good"},
+		"NaN":           {"label": "x", "value": "NaN", "max": "3"},
+		"Inf":           {"label": "x", "value": "2", "max": "+Inf"},
+		"hex":           {"label": "x", "value": "0x1p4", "max": "3"},
+		"underscore":    {"label": "x", "value": "1_0", "max": "30"},
 	} {
 		if issues := ValidateComponentUse(domain.ComponentProgress, in); len(issues) == 0 {
 			t.Errorf("%s: passed validation", name)
