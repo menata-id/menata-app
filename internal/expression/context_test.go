@@ -162,14 +162,16 @@ func TestResolve_weekOffsetsAreDaysFromThatMonday(t *testing.T) {
 
 func TestResolve_weekParameterStepsWholeWeeksAndFailsSafeToThisWeek(t *testing.T) {
 	for param, want := range map[string]string{
-		"":      "2026-10-05",
-		"0":     "2026-10-05",
-		"1":     "2026-10-12",
-		"-1":    "2026-09-28",
-		"abc":   "2026-10-05", // not a number is this week, as the bespoke Calendar read it
-		"1.5":   "2026-10-05",
-		"9999":  "2036-09-22",
-		"-9999": "2016-10-17", // clamped to 520 weeks, not asking time for a date it cannot represent
+		"":                      "2026-10-05",
+		"0":                     "2026-10-05",
+		"1":                     "2026-10-12",
+		"-1":                    "2026-09-28",
+		"abc":                   "2026-10-05", // not a number is this week, as the bespoke Calendar read it
+		"1.5":                   "2026-10-05",
+		"9999":                  "2036-09-22",
+		"-9999":                 "2016-10-17",
+		"99999999999999999999":  "2036-09-22", // out of int range: still clamped, not read as 0
+		"-99999999999999999999": "2016-10-17", // clamped to 520 weeks, not asking time for a date it cannot represent
 	} {
 		c := Context{Today: "2026-10-10", Parameters: map[string]string{"week": param}}
 		if got, ok := c.Resolve("$week"); !ok || got != want {

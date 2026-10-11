@@ -1149,7 +1149,8 @@ Machine already said about its shape. Rules, all checked at load:
   is that week's Sunday -- so "the week in view" is `gte $week` and `lte $week+6`, with no date typed into the file.
   Like `$today` it is a date and only a date, and it is valid only in a records Dataset's `where:` (a Measure or a
   Relation has no request parameters and refuses it). The parameter name `week` is the runtime's own
-  (`expression.WeekParameter`), the one request parameter it names. Example, "past due": `fld_due_date lt $today` beside
+  (`expression.WeekParameter`), the one request parameter a *Dataset* reads by a name the runtime chose rather than
+  an author. Example, "past due": `fld_due_date lt $today` beside
   `fld_status equals in_review`, which `nav_documents_by_status` draws under a "Past due" subheading;
 - `from:` is valid only inside a records-bound Collection's template, a property cannot be both written and
   `from:`, and a records binding does not nest inside a template;

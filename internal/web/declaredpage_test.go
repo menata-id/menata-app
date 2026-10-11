@@ -1702,7 +1702,7 @@ func TestDeclaredPageListsOnlyTheTasksDueInTheWeekInView(t *testing.T) {
 	if task == nil {
 		t.Fatal("default installs no mch_task")
 	}
-	today := time.Now().UTC()
+	today := time.Now() // the handler reads the local clock, so this does too
 	monday := today.AddDate(0, 0, -((int(today.Weekday()) + 6) % 7))
 	day := func(offset int) string { return monday.AddDate(0, 0, offset).Format("2006-01-02") }
 	for _, c := range []struct {
@@ -1750,5 +1750,11 @@ func TestDeclaredPageListsOnlyTheTasksDueInTheWeekInView(t *testing.T) {
 				t.Errorf("%q does not list %s (listed %v)", c.query, w, listed)
 			}
 		}
+	}
+	// The Dataset sorts by due date, so Monday precedes Wednesday precedes Sunday on the page.
+	body := getPage(t, h, cookie, "/pages/nav_week_tasks")
+	at := func(title string) int { return strings.Index(body, ">"+title+"<") }
+	if !(at("Week-probe-monday") >= 0 && at("Week-probe-monday") < at("Week-probe-wednesday-theirs") && at("Week-probe-wednesday-theirs") < at("Week-probe-sunday")) {
+		t.Error("the week's tasks are not listed in due-date order")
 	}
 }

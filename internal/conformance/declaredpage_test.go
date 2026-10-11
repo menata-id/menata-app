@@ -3,12 +3,14 @@ package conformance
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
 	"menata.app/internal/domain"
+	"menata.app/internal/expression"
 	"menata.app/internal/installer"
 	"menata.app/internal/ir"
 	"menata.app/internal/metadata"
@@ -986,5 +988,94 @@ func TestEveryLibraryApplicationInstallsIntoAnEmptyWorkspace(t *testing.T) {
 	}
 	if pages == 0 {
 		t.Fatal("no library Application declares a `page:` -- the load this gate runs is not reaching one")
+	}
+}
+
+// TestWeekDatasetIsTheLibrarysAndEveryCopysAlike: `ds_tasks_due_week` is read by `nav_week_tasks` in `default`, and
+// a fresh install copies the *library's* Dataset, which no web test serves. A probe changed the library's `$week+6`
+// to `$week+5`, to `$today`, dropped its `sort:` and pointed its page at another Dataset, and nothing failed. So the
+// library's Dataset is resolved here against a fixed date and read for what it means (Monday..Sunday, by due date),
+// and every Workspace copy must equal it. Interim, like the page: it goes with `nav_week_tasks` when the Calendar
+// takes the Dataset over (K15 Calendar stage 5).
+func TestWeekDatasetIsTheLibrarysAndEveryCopysAlike(t *testing.T) {
+	templates, err := installer.Templates(filepath.Join(repoRoot(), "metadata"))
+	if err != nil {
+		t.Fatalf("read the template library: %v", err)
+	}
+	find := func(machines []*domain.Machine) *domain.Dataset {
+		for _, m := range machines {
+			for i := range m.Datasets {
+				if m.Datasets[i].ID == "ds_tasks_due_week" {
+					return &m.Datasets[i]
+				}
+			}
+		}
+		return nil
+	}
+	var libMachines []*domain.Machine
+	var pageDataset, pageEmpty string
+	for _, tm := range templates {
+		for _, m := range tm.Machines {
+			libMachines = append(libMachines, m.Machine)
+		}
+		for _, item := range tm.Application.AllNavigation {
+			if item.ID == "nav_week_tasks" && item.Page != nil {
+				for _, b := range pageBindings(*item.Page) {
+					pageDataset = b.Dataset
+				}
+				pageEmpty = item.Page.Children[0].Props["empty"]
+			}
+		}
+	}
+	lib := find(libMachines)
+	if lib == nil {
+		t.Fatal("the library declares no ds_tasks_due_week")
+	}
+	if pageDataset != lib.ID || pageEmpty == "" {
+		t.Errorf("the library's nav_week_tasks binds %q with empty %q, want %q and some words", pageDataset, pageEmpty, lib.ID)
+	}
+
+	// 2026-10-08 is a Thursday; ?week=1 puts the window on 2026-10-12..2026-10-18.
+	ctx := expression.Context{Today: "2026-10-08", Parameters: map[string]string{"week": "1"}}
+	var lo, hi string
+	for _, c := range lib.Where.Comparisons() {
+		v, ok := ctx.Resolve(c.Value)
+		switch {
+		case !ok:
+			t.Errorf("the library's where value %q does not resolve", c.Value)
+		case c.Field != "fld_due_date":
+			t.Errorf("the library's where names %q, want only fld_due_date", c.Field)
+		case c.Op == expression.OpGreaterOrEqual:
+			lo = v
+		case c.Op == expression.OpLessOrEqual:
+			hi = v
+		default:
+			t.Errorf("the library's where uses op %q, want gte and lte", c.Op)
+		}
+	}
+	if lo != "2026-10-12" || hi != "2026-10-18" {
+		t.Errorf("the library's window resolves to %s..%s, want 2026-10-12..2026-10-18 (Monday..Sunday)", lo, hi)
+	}
+	if len(lib.Sort) == 0 || lib.Sort[0].Field != "fld_due_date" || lib.Sort[0].Direction != "asc" || lib.Limit <= 0 {
+		t.Errorf("the library's sort/limit = %+v / %d, want fld_due_date asc first and a limit", lib.Sort, lib.Limit)
+	}
+
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+	copies := 0
+	for _, slug := range sortedKeys(wss) {
+		cp := find(wss[slug].Workspace.Machines)
+		if cp == nil {
+			continue
+		}
+		copies++
+		if !reflect.DeepEqual(cp, lib) {
+			t.Errorf("%s: ds_tasks_due_week differs from the library's:\n got %+v\nwant %+v", slug, *cp, *lib)
+		}
+	}
+	if copies == 0 {
+		t.Error("no Workspace holds a copy, so the equality above measured nothing")
 	}
 }

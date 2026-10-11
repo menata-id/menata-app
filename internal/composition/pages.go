@@ -117,7 +117,7 @@ func taskRow(t *data.Record, projects map[string]string, taskMachine *domain.Mac
 
 // maxCalendarWeeks bounds how far from this week the Calendar will navigate: ten years either way is more
 // than any plan reaches, and it keeps `?week=` from asking time.AddDate for a date it cannot represent.
-const maxCalendarWeeks = 520
+const maxCalendarWeeks = expression.MaxWeekOffset
 
 // CalendarWeek composes the Monday-Sunday week `weekOffset` weeks from the one containing now (0 is this
 // week, -1 the last), one column per day (Case 19 PM05). Tasks with no due date are simply absent -- a week
