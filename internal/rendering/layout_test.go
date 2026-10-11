@@ -1267,3 +1267,24 @@ func TestCollection_headingDrawsATitleAndACountOfWhatIsUnderIt(t *testing.T) {
 		t.Errorf("an unheaded Collection drew a heading or a count: %q", buf.String())
 	}
 }
+
+// TestCollection_aHeadedSectionStillSaysItsEmptyWordsAndItsTruncation: the headed branch draws the body and the
+// notice itself, so a section with a title must keep both -- the empty words over no items (the badge says 0),
+// and the truncation notice after a cut list.
+func TestCollection_aHeadedSectionStillSaysItsEmptyWordsAndItsTruncation(t *testing.T) {
+	render := func(empty string, truncated Truncation, items []templ.Component) string {
+		var buf bytes.Buffer
+		if err := collection(domain.GapTight, empty, false, false, truncated, "Later", "", items).Render(context.Background(), &buf); err != nil {
+			t.Fatalf("Render() error = %v", err)
+		}
+		return buf.String()
+	}
+	none := render("Nothing here yet.", Truncation{}, nil)
+	if !strings.Contains(none, ">Later<") || !strings.Contains(none, ">0<") || !strings.Contains(none, "Nothing here yet.") {
+		t.Errorf("a headed empty section lost its heading, its 0 or its words: %q", none)
+	}
+	cut := render("", Truncation{Limit: 200, Hit: true}, []templ.Component{staticText(domain.StaticParagraph, "one")})
+	if !strings.Contains(cut, "Showing the first 200 only") {
+		t.Errorf("a headed section lost its truncation notice: %q", cut)
+	}
+}
