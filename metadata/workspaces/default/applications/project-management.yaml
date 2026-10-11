@@ -506,7 +506,7 @@ navigation:
                             one: used on {n} card
                             other: used on {n} cards
                     - component: Form
-                      submit: Rename
+                      submit: Save
                       binding:
                         write: update
                     - component: Button

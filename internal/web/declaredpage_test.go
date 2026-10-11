@@ -413,6 +413,11 @@ func TestDeclaredPageDrawsEachLabelAsATagInItsOwnColour(t *testing.T) {
 	if !strings.Contains(odd, "text-slate-600") {
 		t.Errorf("a colour outside the palette must fall back to the neutral chip:\n%s", odd)
 	}
+	// The colour is a status no Transition names, so each label's update form asks for it (domain.EditFormInputs)
+	// as well as the one create form: at least one select per probe label plus the create form's.
+	if n := len(regexp.MustCompile(`<select[^>]*name="`+colorField+`"`).FindAllString(body, -1)); n < 4 {
+		t.Errorf("%d colour selects, want the create form's plus one per label's update form (>= 4)", n)
+	}
 }
 
 // TestDeclaredPageNumbersTheBoardListsInColumnOrder: `ordered: true` on a Collection draws an <ol> whose

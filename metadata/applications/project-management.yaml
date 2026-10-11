@@ -29,10 +29,19 @@ machines:
   - mch_checklist_item
 
 navigation:
+  # Board leads, matching the Case 19 mockup (PM01..PM06): Board / My Tasks / Dashboard / Calendar,
+  # then the rest behind "More" (rendering.appMenuTabLimit). mch_task's default view is vw_task_board;
+  # until 2026-10-11 only `default`'s copy declared this item, so every other install had no Board in its menu.
+  - id: nav_board
+    label: Board
+    route: /machines/mch_task
+    priority: 1
+    icon: board
+    description: Tasks grouped by List.
   - id: nav_my_tasks
     label: My Tasks
     route: /my-tasks
-    priority: 1
+    priority: 2
     home_card: true
     icon: check-square
     description: Everything assigned to you, from every board in this workspace. Tick a circle to finish a task without opening it.
@@ -42,7 +51,7 @@ navigation:
   - id: nav_dashboard
     label: Dashboard
     route: /dashboard
-    priority: 1
+    priority: 3
     icon: dashboard
     description: How much work is open, overdue and finished, by project and by person. A card counts as finished only when its circle is ticked, so overdue never includes work that is already done.
   # The Dashboard's four figures as a declared page (Stage 1 of moving nav_dashboard to `page:`, 2026-10-10).
@@ -377,7 +386,7 @@ navigation:
   - id: nav_calendar
     label: Calendar
     route: /calendar
-    priority: 2
+    priority: 4
     icon: calendar
     description: Cards sit on the day they are due. Tick a circle to finish one; step through the weeks to see what is coming.
   # Board Settings, declared rather than written (Case 19 PM06): the Lists a board groups by beside the Labels
@@ -496,7 +505,7 @@ navigation:
                             one: used on {n} card
                             other: used on {n} cards
                     - component: Form
-                      submit: Rename
+                      submit: Save
                       binding:
                         write: update
                     - component: Button

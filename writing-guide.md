@@ -1323,9 +1323,11 @@ Field; the controls are the Machine's own editable Fields, in declared order.
 
 Refused at load: `update` outside a records Collection's item template (there is no record to edit), `update` with a
 `dataset:` (it would be a second Collection, a join), and a Machine with nothing an edit form can ask for. **What an
-edit form leaves out, and why:** computed, stamped, file, group, status and reference Fields, and **checkboxes** --
+edit form leaves out, and why:** computed, stamped, file, group and reference Fields, a **status that `transitions:`
+names** (it moves only along those edges, through the Action that names one), and **checkboxes** --
 an unticked box sends nothing, and the route reads "nothing" as `false`, so a form that did not mean to touch a
-checkbox would clear it. The route changes only the Fields the request names. **Who sees it** is decided per record
+checkbox would clear it. A status **no** Transition names is an ordinary choice and is asked for as a select of its
+options -- a Label's colour is the worked example (since 2026-10-11). The route changes only the Fields the request names. **Who sees it** is decided per record
 (`edit` Permission evaluated against that record's values; an append-only Machine is never offered one), the route
 still enforces.
 

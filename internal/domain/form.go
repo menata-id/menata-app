@@ -92,9 +92,10 @@ func (m *Machine) CreateFormInputs() (inputs []FormInput, unsupported []Field) {
 //
 //   - a **boolean** is left out, because an unticked checkbox sends nothing and `PATCH` changes only the Fields a
 //     request names, so a form could tick a box and never clear it;
-//   - a **status** is left out, because a status moves along the Machine's declared `transitions:` edges and is
-//     reserved to the Action that names the edge -- offering it as a free select would offer moves the route
-//     refuses;
+//   - a **status the Machine governs** (any `transitions:` names it) is left out, because it moves along those
+//     edges and is reserved to the Action that names one -- a free select would offer moves the route refuses. A
+//     status no Transition names is unrestricted (`GovernsTransitions`), so it is an ordinary choice and is asked
+//     for, as a select of its options;
 //   - a reference or group Field is left out for the create form's reason (its options are another Machine's
 //     records, 007 §20), and costs nothing here: a record that exists already holds its required values.
 //
@@ -103,7 +104,7 @@ func (m *Machine) EditFormInputs(values map[string]any) []FormInput {
 	var inputs []FormInput
 	for _, f := range m.Fields {
 		if f.Compute != nil || f.Stamp != "" || f.Type == FieldTypeFile || f.Type == FieldTypeGroup ||
-			f.Type == FieldTypeBoolean || f.Type == FieldTypeStatus || f.IsReference() {
+			f.Type == FieldTypeBoolean || (f.Type == FieldTypeStatus && m.GovernsTransitions(f.ID)) || f.IsReference() {
 			continue
 		}
 		in := formInputOf(f)
