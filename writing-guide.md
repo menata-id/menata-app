@@ -1196,11 +1196,14 @@ the parent, so the layout around the Collection is yours (`layout: grid` with `c
 a `stack` is an agenda). The Collection holds **exactly two children**: the heading template (read
 `from: {text: "bucket:label"}`, the day's name -- a role of that template alone, never of a record) and the item
 template cloned for each record. Three things are checked at load and refused with their reason: the Machine
-declares a `date` role in `card_fields:`; the Dataset closes its window on that Field with an `all:` holding exactly
-one `gte` and one `lte` (`$week`/`$week+6` is a week; the days drawn are *read from* these two, so the page cannot
-draw days its records are not selected from); and the window is at most 62 days. `complete:`, `hide_empty:` and a
-heading template carrying a record link, `count:`, `each:` or `when:` are refused -- an empty day is drawn on
-purpose, and a truncation notice has no place among the days. Worked page: `nav_week_tasks` in Project Management.
+declares a `date` role in `card_fields:`; and the Dataset closes its window on that Field with an `all:` holding
+exactly one `gte` and one `lte` (`$week`/`$week+6` is a week; the days drawn are *read from* these two, so the page
+cannot draw days its records are not selected from). The length of the window is checked **per request**, since
+`$week` and a `$parameters.x` bound only have a value then: more than 62 days is an error, and so is a bound that
+resolves to no date. A bound that names a parameter the request did not send draws the list empty, with the
+Collection's `empty:` words, as an ungrouped list does. `complete:` and `hide_empty:` are refused -- an empty day is drawn on
+purpose, and a window is complete by construction, so **when the Dataset's `limit:` cut it short the page says so by
+itself**, once, above the first day. The heading template may not carry a record link, `count:`, `each:` or `when:`. Worked page: `nav_week_tasks` in Project Management.
 Not built yet: highlighting today's section, and the previous/next-week links.
 
 **`static: link` — a link to one of the Application's own screens.** Write `to:` with a navigation item id and

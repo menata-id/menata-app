@@ -735,3 +735,38 @@ func TestDateBucketsRefuseAWindowThatIsNotARangeOfDays(t *testing.T) {
 		t.Errorf("a one-day window = %+v (%v), want one bucket", b, err)
 	}
 }
+
+// The most days a group draws is a limit on the span, counted inclusively: sixty-two days are drawn and sixty-three
+// are refused, and a window missing either bound is no range at all.
+func TestDateBucketsCapIsInclusiveAndNeedsBothBounds(t *testing.T) {
+	ds, src := weekDataset("2026-01-01", "2026-03-03") // 31 + 28 + 3 = 62 days
+	if b, _, err := dateBuckets(ds, src, nil, expression.Context{}); err != nil || len(b) != domain.PageGroupMaxBuckets {
+		t.Errorf("62 days = %d buckets (%v), want all drawn", len(b), err)
+	}
+	ds, src = weekDataset("2026-01-01", "2026-03-04")
+	if _, _, err := dateBuckets(ds, src, nil, expression.Context{}); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("63 days: want a refusal, got %v", err)
+	}
+	for name, keep := range map[string]func([]expression.Comparison) []expression.Comparison{
+		"no upper bound": func(c []expression.Comparison) []expression.Comparison { return c[:1] },
+		"no lower bound": func(c []expression.Comparison) []expression.Comparison { return c[1:] },
+	} {
+		ds, src = weekDataset("2026-10-12", "2026-10-18")
+		ds.Where.All = keep(ds.Where.All)
+		if _, _, err := dateBuckets(ds, src, nil, expression.Context{}); err == nil || !strings.Contains(err.Error(), "not a range") {
+			t.Errorf("%s: want a refusal that it is no range, got %v", name, err)
+		}
+	}
+}
+
+// Bounds on a Field other than the date role are that Field's own and do not move the window.
+func TestDateBucketsReadOnlyTheDateRolesBounds(t *testing.T) {
+	ds, src := weekDataset("2026-10-12", "2026-10-18")
+	ds.Where.All = append(ds.Where.All,
+		expression.Comparison{Field: "fld_other", Op: expression.OpGreaterOrEqual, Value: "2026-01-01"},
+		expression.Comparison{Field: "fld_other", Op: expression.OpLessOrEqual, Value: "2026-01-02"})
+	b, _, err := dateBuckets(ds, src, nil, expression.Context{})
+	if err != nil || len(b) != 7 || b[0].Key != "2026-10-12" {
+		t.Errorf("buckets = %+v (%v), want the date role's own week", b, err)
+	}
+}

@@ -61,6 +61,9 @@ fields:
   - id: fld_due
     name: Due
     type: date
+  - id: fld_start
+    name: Start
+    type: date
 card_fields:
 `+dateRole+`  - { field: fld_title, role: title }
   - { field: fld_status, role: status }
@@ -94,6 +97,23 @@ datasets:
       all:
         - { field: fld_due, op: gte, value: $week }
         - { field: fld_due, op: lte, value: $week+6 }
+  - id: ds_week_twice
+    select: records
+    limit: 10
+    where:
+      all:
+        - { field: fld_due, op: gte, value: $week }
+        - { field: fld_due, op: gte, value: $week+1 }
+        - { field: fld_due, op: lte, value: $week+6 }
+  - id: ds_week_beside_another
+    select: records
+    limit: 10
+    where:
+      all:
+        - { field: fld_due, op: gte, value: $week }
+        - { field: fld_due, op: lte, value: $week+6 }
+        - { field: fld_start, op: gte, value: $week }
+        - { field: fld_start, op: lte, value: $week+6 }
   - id: ds_week_open
     select: records
     limit: 10
@@ -851,8 +871,13 @@ func TestPage_aGroupedListNeedsAWindowItCanRead(t *testing.T) {
 	if err := pageFixture(t, groupedPage("ds_week", "date")); err != nil {
 		t.Fatalf("a grouped list over a closed week was refused: %v", err)
 	}
+	// Bounds on another Field are that Field's, not a second window on the one grouped by.
+	if err := pageFixture(t, groupedPage("ds_week_beside_another", "date")); err != nil {
+		t.Fatalf("a window beside another Field's bounds was refused: %v", err)
+	}
 	for name, c := range map[string]struct{ dataset, group, want string }{
 		"no upper bound":    {"ds_week_open", "date", "exactly one gte and one lte"},
+		"two lower bounds":  {"ds_week_twice", "date", "exactly one gte and one lte"},
 		"bounds in an any:": {"ds_week_any", "date", "all-only"},
 		"no window at all":  {"ds_rows", "date", "all-only"},
 		"another dimension": {"ds_week", "status", "not a dimension"},

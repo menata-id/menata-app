@@ -967,15 +967,12 @@ const bucketGap = string(domain.GapTight)
 // own presentation (`empty`, `ordered`, `divided`, `gap`) so a day with nothing says so in the author's words.
 //
 // Two things a grouped Collection does not take, refused by name and not ignored. `complete:` is the claim that a
-// list shows every record its Dataset matches, and a notice for that has no place to be drawn among the sections;
-// `hide_empty:` would drop the empty buckets, which are the reason for grouping by a window. Neither is built.
+// list shows every record its Dataset matches, which a window is by construction -- so the notice is produced
+// whenever the bound bit (see below) and an author's claim would be a second statement of it; `hide_empty:` would drop the empty buckets, which are the reason for grouping by a window. Neither is built.
 func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) {
 	b := n.Binding
 	if b.Group != domain.PageGroupDate {
 		return nil, fmt.Errorf("%s: group: %q is not a dimension a records binding groups by (%s)", path, b.Group, domain.PageGroupDate)
-	}
-	if NodeKind(n.Kind) != NodeComponent || n.Type != string(domain.ComponentCollection) {
-		return nil, fmt.Errorf("%s: group: is valid only on a Collection", path)
 	}
 	for _, p := range []string{collectionCompleteProp, collectionHideEmptyProp, collectionTruncatedProp} {
 		if _, written := n.Props[p]; written {
@@ -1013,6 +1010,12 @@ func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 		}
 		members[at] = append(members[at], i)
 	}
+	if len(set.Buckets) == 0 {
+		// A Dataset that filters on a request parameter the request did not send lists nothing and has no window to
+		// draw days from (composition.bindingRecords fails it closed). The list is drawn empty, so the author's
+		// `empty:` words are what the viewer sees, as they are for an ungrouped list.
+		return []UINode{{Kind: NodeKind(n.Kind), Type: n.Type, Props: n.Props}}, nil
+	}
 	out := make([]UINode, 0, len(set.Buckets))
 	for at, bk := range set.Buckets {
 		cell := UINode{Kind: NodeLayout, Type: string(domain.LayoutSection), Props: map[string]string{"gap": bucketGap}}
@@ -1021,7 +1024,18 @@ func lowerGrouped(n domain.PageNode, r Resolver, path string) ([]UINode, error) 
 			return nil, fmt.Errorf("bucket %q: %w", bk.Key, err)
 		}
 		cell.Children = append(cell.Children, head...)
-		list := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: n.Props}
+		props := n.Props
+		if at == 0 && set.Truncated && set.Limit > 0 {
+			// A window is complete by construction -- the Dataset selects every record between its two bounds -- so
+			// a bound that bit is a week quietly missing tasks, and no author's claim is needed to say so. The notice
+			// is drawn once, above the first day's list.
+			props = make(map[string]string, len(n.Props)+1)
+			for k, v := range n.Props {
+				props[k] = v
+			}
+			props[collectionTruncatedProp] = strconv.Itoa(set.Limit)
+		}
+		list := UINode{Kind: NodeKind(n.Kind), Type: n.Type, Props: props}
 		for _, i := range members[at] {
 			items, err := lowerRecordItem(n.Children[1], r, fmt.Sprintf("%s.children[1]", path), set, i)
 			if err != nil {

@@ -1383,3 +1383,63 @@ func TestLowerGroupedRefusesWhatItCannotHonour(t *testing.T) {
 		}
 	}
 }
+
+// A window that was cut short by its Dataset's limit is a week missing tasks, and the page says so once, above the
+// first day, without the author claiming anything. A window that was not cut carries nothing.
+func TestLowerGroupedNamesTheBoundOnlyWhenItBit(t *testing.T) {
+	days := []Bucket{{"d1", "Mon"}, {"d2", "Tue"}}
+	for _, truncated := range []bool{false, true} {
+		res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+			return RecordSet{Records: []map[string]string{{"title": "a", "status": "s"}}, Buckets: days, BucketKeys: []string{"d2"}, Truncated: truncated, Limit: 200}, nil
+		}}
+		got, err := Lower(groupedList(), res)
+		if err != nil {
+			t.Fatal(err)
+		}
+		first, second := got.Children[0].Children[1], got.Children[1].Children[1]
+		if want := map[bool]string{false: "", true: "200"}[truncated]; first.Props["truncated"] != want || second.Props["truncated"] != "" {
+			t.Errorf("truncated=%v: first list says %q, second says %q; want %q on the first only", truncated, first.Props["truncated"], second.Props["truncated"], want)
+		}
+	}
+}
+
+// No window to draw (a Dataset whose parameter was not sent lists nothing) is an empty list carrying the author's
+// `empty:` words, not a page body with nothing in it.
+func TestLowerGroupedWithNoWindowDrawsTheEmptyList(t *testing.T) {
+	got, err := Lower(groupedList(), Resolver{Records: func(domain.PageBinding) (RecordSet, error) { return RecordSet{}, nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Children) != 1 || got.Children[0].Type != string(domain.ComponentCollection) || got.Children[0].Props["empty"] != "\u2014" && got.Children[0].Props["empty"] != "—" {
+		t.Fatalf("children = %+v, want one empty Collection carrying the empty: words", got.Children)
+	}
+}
+
+// Each bucket's section is the tight gap, and a write or a tag lands on the record it belongs to however the
+// records are spread across buckets (the resolver's index is the record's, not its place in the bucket).
+func TestLowerGroupedKeepsEachRecordsWritesAndTagsAndTheSectionGap(t *testing.T) {
+	root := groupedList()
+	root.Children[0].Children[1] = domain.PageNode{Kind: "layout", Type: "row", Children: []domain.PageNode{
+		{Kind: "static", Type: "paragraph", From: map[string]string{"text": "title"}},
+		{Kind: "component", Type: string(domain.ComponentButton), Props: map[string]string{"label": "Go", "variant": "secondary", "becomes": "in_progress"}, Binding: &domain.PageBinding{Write: domain.PageWriteTransition}},
+	}}
+	ts := []RecordTransition{transitionTo("/r/0", "todo"), transitionTo("/r/1", "todo"), transitionTo("/r/2", "todo")}
+	res := Resolver{Records: func(domain.PageBinding) (RecordSet, error) {
+		return RecordSet{
+			Records:     []map[string]string{{"title": "c"}, {"title": "a"}, {"title": "b"}},
+			Transitions: ts, Buckets: []Bucket{{"d1", "Mon"}, {"d2", "Tue"}}, BucketKeys: []string{"d2", "d1", "d2"},
+		}, nil
+	}}
+	got, err := Lower(root, res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	route := func(item UINode) string { return item.Children[1].Props["action"] }
+	if g := got.Children[0].Props["gap"]; g != string(domain.GapTight) {
+		t.Errorf("section gap = %q, want %q", g, domain.GapTight)
+	}
+	mon, tue := got.Children[0].Children[1].Children, got.Children[1].Children[1].Children
+	if len(mon) != 1 || route(mon[0]) != "/r/1" || len(tue) != 2 || route(tue[0]) != "/r/0" || route(tue[1]) != "/r/2" {
+		t.Errorf("writes landed on the wrong records: Mon %v, Tue %v", mon, tue)
+	}
+}
