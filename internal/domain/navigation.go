@@ -20,7 +20,7 @@ var KnownNavigationBadges = map[string]bool{
 //
 // It is a declared pointer to an already-existing route, not something that generates a route
 // the way declaring a Machine generates that Machine's own CRUD page -- most of this
-// Application's real destinations (/dashboard, /approval-inbox, ...) are bespoke composed
+// Application's real destinations (/calendar, /approval-inbox, ...) are bespoke composed
 // routes in internal/web, not generic Machine pages, so a navigation schema here can only name
 // *where to go*, never *what's there* (006 §Navigation: "must remain separate from business
 // execution and physical data access"). Route existence is therefore not cross-checked against

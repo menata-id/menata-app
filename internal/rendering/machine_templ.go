@@ -3875,25 +3875,6 @@ func projectedFieldValue(p ProjectedField) templ.Component {
 	})
 }
 
-// SummaryItem is one label/value pair on a summary-counts strip. Promoted to a shared component
-// (development-history.md Phase 15 Step 0) after the same shape was found hand-rendered independently across
-// the Dashboard, My Tasks, Sprint Dashboard, and Team Capacity pages -- real cross-domain
-// recurrence (four different business questions), the same admission bar `slaBadge` itself already
-// cleared in Phase 13. summaryCounts, the `pageStyles` templ that rendered it, and activityFeedList
-// beside it, were both deleted 2026-09-22 with their last callers: all four pages ported from
-// `pageShell` to `appShell` the same day, onto summaryCountTiles/activityFeedListRow
-// (appshell.templ) instead -- the type stays, the two pageStyles-era renderers of it did not
-// (capabilities.md, "component with zero callers is a claim capabilities.md would be making on the
-// code's behalf, and this repo gates exactly that kind of drift").
-type SummaryItem struct {
-	Label string
-	Value string
-	// Hint is the qualifier under the label ("Past its due date"); Tone is the signal on the value. Both are
-	// optional and both are Metric's own optional inputs, passed through unchanged.
-	Hint string
-	Tone domain.BadgeTone
-}
-
 // SummaryCard / recordSummaryCard / summaryCardList were deleted on 2026-09-21, with their last
 // caller. They drew the Approval Inbox's My Documents list as plain rows -- avatar, title,
 // subtitle, status badge -- which is what board 11 specified before that board was retired; the

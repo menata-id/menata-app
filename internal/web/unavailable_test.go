@@ -36,10 +36,10 @@ func TestBlockUnavailableWorkspace(t *testing.T) {
 		return rec.Code
 	}
 
-	if code := get(broken.ID, "/dashboard"); code != http.StatusServiceUnavailable {
+	if code := get(broken.ID, "/calendar"); code != http.StatusServiceUnavailable {
 		t.Errorf("a screen in the unavailable Workspace = %d, want 503", code)
 	}
-	if code := get(fine.ID, "/dashboard"); code != http.StatusOK {
+	if code := get(fine.ID, "/calendar"); code != http.StatusOK {
 		t.Errorf("a screen in another Workspace = %d, want 200 -- one broken Workspace stopped a healthy one", code)
 	}
 	for _, path := range []string{"/switch-workspace", "/account-profile", "/logout", "/api/account-menu/workspaces", "/create-workspace"} {

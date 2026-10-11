@@ -33,27 +33,6 @@ func pageChrome(ctx context.Context, req *http.Request, store *data.Store, cfg c
 	return chrome.WorkspaceName, chrome.Viewer(), switchHref, nil
 }
 
-// showDashboard combines Project and Task data on one page -- development-history.md Phase 6's own forcing
-// case, exercised here for real.
-func showDashboard(store *data.Store, cfg config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		machines := machinesFor(ctx)
-
-		d, err := composition.DashboardData(ctx, composition.NewLoader(store, machines), time.Now())
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		workspaceName, viewer, switchHref, err := pageChrome(ctx, req, store, cfg)
-		if err != nil {
-			serverError(w, err)
-			return
-		}
-		render(ctx, w, rendering.DashboardPage(d, workspaceName, viewer, switchHref))
-	}
-}
-
 // showMyTasks is Case 19's personal work queue (development-history.md Phase 14). "Assigned to me" resolves
 // to authorization.CurrentUserID -- the same shared-admin-credential-to-real-mch_user resolution
 // Phase 8 already built, not a new per-user login mechanism.

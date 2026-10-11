@@ -137,7 +137,8 @@ datasets:
         - { field: fld_status, op: equals, value: $done }
     limit: 200
 
-  # The Dashboard's whole Task set, as records rather than counts (2026-10-05, Case 19 PM04). It replaces
+  # The whole Task set, as records rather than counts (2026-10-05, Case 19 PM04). Since K15 D4 (2026-10-11) the
+  # Dashboard reads Measures (ds_task_figures) and the Calendar is this Dataset's reader. Original rationale: it replaced
   # ds_task_by_project, which counted `msr_total_open` with `value: done` -- a second statement of which
   # status means finished, beside `completion:` below. The Dashboard's own subtitle says a card is
   # finished only when its circle is ticked, so every figure on it (open, overdue, completed, per project,

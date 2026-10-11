@@ -54,10 +54,137 @@ navigation:
   # because both Applications were one before Fase 3 split them.
   - id: nav_dashboard
     label: Dashboard
-    route: /dashboard
+    route: /pages/nav_dashboard
     priority: 3
     icon: dashboard
     description: How much work is open, overdue and finished, by project and by person. A card counts as finished only when its circle is ticked, so overdue never includes work that is already done.
+    page:
+      layout: stack
+      gap: default
+      children:
+        - layout: grid
+          gap: default
+          mobile: 2
+          columns: 4
+          children:
+            - component: Metric
+              label: All cards
+              hint_figure: { of: msr_projects, one: "In {n} project", other: "In {n} projects" }
+              binding: { dataset: ds_task_figures, measure: msr_all, rows: total }
+            - component: Metric
+              label: Open
+              hint: Not finished yet
+              binding: { dataset: ds_task_figures, measure: msr_open, rows: total }
+            - component: Metric
+              label: Overdue
+              hint: Past its due date
+              tone: bad
+              binding: { dataset: ds_task_figures, measure: msr_overdue, rows: total }
+            - component: Metric
+              label: Completed
+              tone: good
+              hint_figure: { of: msr_completed_share, other: "{n}% of all cards" }
+              binding: { dataset: ds_task_figures, measure: msr_completed, rows: total }
+        - layout: grid
+          gap: default
+          mobile: 2
+          columns: 4
+          children:
+            - component: Metric
+              label: Due today
+              hint: Not finished yet
+              binding: { dataset: ds_task_figures, measure: msr_due_today, rows: total }
+            - component: Metric
+              label: Due in 7 days
+              hint: Today included
+              binding: { dataset: ds_task_figures, measure: msr_due_week, rows: total }
+        - layout: columns
+          gap: default
+          align: start
+          children:
+            - layout: section
+              gap: default
+              children:
+                - static: subheading
+                  text: Tasks by project
+                # Every Project, a card count and an open count over two Relations -- a Project with no cards is
+                # a row of zeroes rather than missing (K15 Dashboard D3).
+                - component: Collection
+                  gap: tight
+                  divided: true
+                  complete: true
+                  empty: No projects yet.
+                  binding: { dataset: ds_projects_with_tasks, rows: records }
+                  children:
+                    - layout: row
+                      gap: default
+                      align: center
+                      justify: spread
+                      children:
+                        - layout: row
+                          gap: tight
+                          align: center
+                          children:
+                            - static: message
+                              from: { text: title }
+                            - component: StatusBadge
+                              tone: muted
+                              from: { label: status }
+                        - layout: row
+                          gap: default
+                          align: center
+                          children:
+                            - static: caption
+                              count: { of: rel_project_tasks, one: "{n} card", other: "{n} cards" }
+                            - static: caption
+                              count: { of: rel_project_open_tasks, other: "{n} open" }
+            - layout: section
+              gap: default
+              children:
+                - static: subheading
+                  text: Open cards per person
+                - static: caption
+                  text: Bar shows cards still open out of everything assigned.
+                # One bar per assignee: a Collection bound to the Dimension's rows, each reading the row's name and
+                # two of its Measures (K15 Dashboard, stage D2).
+                - component: Collection
+                  gap: tight
+                  divided: true
+                  empty: No cards are assigned yet.
+                  binding: { dataset: ds_open_by_assignee, rows: dimension }
+                  children:
+                    - component: Progress
+                      from:
+                        label: row:label
+                        value: measure:msr_open
+                        max: measure:msr_all
+        # Recent activity (S2.7, Case 19 PM04): the newest events of this Application. The Dataset reads the
+        # Application the page is drawn in from the runtime, so this names no Application id; "Open activity
+        # feed" is not drawn because no such page exists.
+        - layout: section
+          gap: default
+          children:
+            - static: subheading
+              text: Recent activity
+            - component: Collection
+              gap: tight
+              divided: true
+              empty: No activity yet.
+              binding:
+                dataset: ds_recent_activity
+                rows: records
+              children:
+                - layout: row
+                  gap: default
+                  align: center
+                  justify: spread
+                  children:
+                    - static: message
+                      from:
+                        text: title
+                    - static: caption
+                      from:
+                        text: person
   - id: nav_calendar
     label: Calendar
     route: /calendar

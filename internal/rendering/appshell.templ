@@ -2,12 +2,10 @@ package rendering
 
 import (
 	"context"
-	"strconv"
 	"sort"
 	"strings"
 
 	"menata.app/internal/domain"
-	"menata.app/internal/ir"
 )
 
 // launcherAppHomeRoute is an Application card's link target: its own declared HomeRoute, falling
@@ -998,55 +996,13 @@ templ launcherAppCard(app domain.Application) {
 // it no longer shows that screen. Putting a count on an Application *card* is a different feature
 // (Workspace Home's cards already do it) and was not folded in here.
 
-// summaryCountTiles / activityFeedListRow / sectionHeaderRow are the Tailwind twins of
-// machine.templ's summaryCounts / activityFeedList / sectionHeader -- same data shapes
-// (SummaryItem, ActivityEntry), different markup, for the same reason reviewdocument.templ's own
-// reviewProgress is deliberately not approvalStepper even though both draw a []StepApprover:
-// Preflight ties chrome to content (capabilities.md, "Styling: two systems, on purpose"), so a
-// pageStyles class name (.summary-counts, .activity-feed, .section-link) renders unstyled under
-// appShell's app.css. Dashboard, Sprint Dashboard, My Tasks, Team Capacity and Activity (Project
-// Management's own pageShell -> appShell port, 2026-09-22) use these; detail.templ still uses the
-// originals, being still pageStyles.
-// summaryCountTiles is the count strip four screens share, and since 2026-10-03 it is **UI IR**: a `grid`
-// node holding one `Metric` component node per item, validated and walked rather than assembled in templ.
-//
-// It is the second screen content lowered into data, after `headerTree`, and the first whose children are
-// Components rather than static text -- which is what made `uiNode`'s `grid` and `component` arms real
-// instead of unreachable. Those arms existed for a day with nothing to exercise them: `ir.Validate` accepted
-// a `layout/grid` or `component/Avatar` node and the walker drew nothing, silently.
-// `conformance.TestEveryAcceptedNodeTypeHasAWalkerArm` holds that now.
-templ summaryCountTiles(items []SummaryItem) {
-	@uiNode(summaryTileTree(items))
-}
-
-// summaryTileTree builds the strip as a tree. The grid's two column counts and its gap are the same values
-// the hand-written call passed, carried as resolved properties -- `ir.Validate` refuses a property the node
-// type does not declare, so a typo here is a rejection rather than a silently ignored key.
-func summaryTileTree(items []SummaryItem) ir.UINode {
-	children := make([]ir.UINode, 0, len(items))
-	for _, it := range items {
-		props := map[string]string{"label": it.Label, "value": it.Value}
-		if it.Hint != "" {
-			props["hint"] = it.Hint
-		}
-		if it.Tone != "" {
-			props["tone"] = string(it.Tone)
-		}
-		children = append(children, ir.UINode{
-			Kind: ir.NodeComponent, Type: string(domain.ComponentMetric), Props: props,
-		})
-	}
-	return ir.UINode{
-		Kind: ir.NodeLayout, Type: string(domain.LayoutGrid), Identity: "summary_tiles",
-		Props: map[string]string{
-			"gap":     string(domain.GapDefault),
-			"mobile":  strconv.Itoa(int(domain.GridCols2)),
-			"columns": strconv.Itoa(int(domain.GridCols4)),
-		},
-		Children: children,
-	}
-}
-
+// activityFeedListRow / sectionHeaderRow are the Tailwind twins of machine.templ's activityFeedList /
+// sectionHeader -- same data shape (ActivityEntry), different markup, for the same reason
+// reviewdocument.templ's own reviewProgress is deliberately not approvalStepper even though both draw a
+// []StepApprover: Preflight ties chrome to content (capabilities.md, "Styling: two systems, on purpose"), so a
+// pageStyles class name (.activity-feed, .section-link) renders unstyled under appShell's app.css.
+// The count strip these once shared with `summaryCountTiles` is a `page:` grid of Metrics now (K15 D4,
+// 2026-10-11); the helper and its `SummaryItem` went with the last bespoke screen that called it.
 // activityFeedListRow is the activity feed as a `Collection` whose item slot holds one entry row. It and
 // `taskRowList` were structurally identical and are the two independent callers `Collection` arrived with.
 templ activityFeedListRow(entries []ActivityEntry) {

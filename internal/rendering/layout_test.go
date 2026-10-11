@@ -37,7 +37,6 @@ func TestGridLayout_rendersTheClassStringEachCallSiteReplaced(t *testing.T) {
 		columns domain.GridCols
 		want    string
 	}{
-		{"appshell.summaryCountTiles", domain.GapDefault, domain.GridCols2, domain.GridCols4, "grid grid-cols-2 gap-3 sm:grid-cols-4"},
 		{"calendar.CalendarPage", domain.GapDefault, domain.GridCols1, domain.GridCols7, "grid grid-cols-1 gap-3 sm:grid-cols-7"},
 		{"approvalinbox.pendingApprovalCardGrid", domain.GapComfortable, domain.GridCols1, domain.GridCols2, "grid grid-cols-1 gap-4 sm:grid-cols-2"},
 		{"groups.GroupsPage", domain.GapComfortable, domain.GridCols1, domain.GridCols2, "grid grid-cols-1 gap-4 sm:grid-cols-2"},

@@ -208,7 +208,7 @@ func TestNavigationRoutesAreRegistered(t *testing.T) {
 // equal a metadata-declared navigation route: destinations that exist regardless of which
 // Application is configured -- wired as fixed literals in internal/web/router.go itself
 // (pr.Get("/home", ...), etc.), not something metadata *defines* so much as *labels* for the
-// topbar. An Application's own screens (/dashboard, /approval-inbox, /documents/new, ...) have no
+// topbar. An Application's own screens (/calendar, /approval-inbox, /documents/new, ...) have no
 // such exemption: those routes only exist because this Application's metadata says so, so a page
 // linking to one of its own siblings must call routeByID(id) (internal/rendering/machine.templ),
 // never retype the route -- exactly the drift this session found twice (workspacehome.templ's
@@ -590,8 +590,7 @@ var composedScreenDatasets = map[string]map[string][]string{
 		// TestPerViewerDatasetsScopeByIdentity, which also fails if it stops existing -- but that gate
 		// is about identity scoping, and this one is about the id resolving at all. Both, on purpose.
 		"ds_my_tasks": {},
-		// The Dashboard's whole Task set (PM04). Records, not counts: its tiles, per-project rows and
-		// per-person bars are all derived from them through the Machine's own `completion:`.
+		// The whole Task set, as records (the Calendar's selection; the Dashboard moved to Measures in K15 D4).
 		"ds_all_tasks": {},
 	},
 	// The `select: records` Dataset a record's detail page reads its history through. It declares no

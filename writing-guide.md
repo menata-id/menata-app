@@ -1004,7 +1004,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 | `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
 | `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
-`columns` puts different content side by side from the small breakpoint up and stacks it on a phone (`align`: `start`, `center` or `end`, the cross axis); `section` is a bordered surface that stacks its children with a `gap`. A `StatusBadge` may carry `size: compact` for a dense row. The Layout row above is checked against `ir.PermittedProps` by `conformance.TestGuideLayoutTableIsTheAllowedPropsList`, so it cannot fall behind the list that decides what loads. Worked example: `nav_task_figures`' two open-card groups, a `columns` of two `section`s.
+`columns` puts different content side by side from the small breakpoint up and stacks it on a phone (`align`: `start`, `center` or `end`, the cross axis); `section` is a bordered surface that stacks its children with a `gap`. A `StatusBadge` may carry `size: compact` for a dense row. The Layout row above is checked against `ir.PermittedProps` by `conformance.TestGuideLayoutTableIsTheAllowedPropsList`, so it cannot fall behind the list that decides what loads. Worked example: `nav_dashboard`' two open-card groups, a `columns` of two `section`s.
 
 `children:` is a list of nodes. The root must be a `layout:`. Any key a node's type does not declare is a
 **load error**, not an ignored typo (`ir.Validate`, 007 §15.3), and the same sweep refuses a cycle, a tree
@@ -1024,7 +1024,7 @@ that Dataset's Dimension**: `label` is the value, `value` is the Measure. Rules,
   an id, so each tile is named by the related record's title -- a Project's name, a member's display name -- and
   ordered by that title; a value naming no record that exists, and a record with the Dimension unset, get no tile
   rather than an id as a label. A link (`to:`/`param:`) still carries the stored id, which is what the destination
-  compares. Worked example: `ds_open_by_assignee` on `nav_task_figures`;
+  compares. Worked example: `ds_open_by_assignee` on `nav_dashboard`;
 - there is no expression and no path (007 §9.2): a Dataset, a Measure and a mode;
 - a bound Metric may **link each of its rows** with `to: <navigation item id>` and `param: <name>` together:
   every tile becomes `<route>?<name>=<the row's own value>`, the value escaped as data. The destination must be
@@ -1042,7 +1042,7 @@ measure**. Its one child is cloned per value, and `from:` reads the row: `row:la
 option, or a related record's title for a reference Dimension), and `measure:<id>` is any Measure the Dataset
 declares (a mistyped id is a load error). A row is a group of records, not a record, so the template may hold no
 binding, `count:`, `each:`, `when:` or `from: {href: record}`. `Progress` (a label, a `value`, a `max`) draws a
-bar with the two numbers in words beside it. Worked example, `nav_task_figures`' "Open cards per person":
+bar with the two numbers in words beside it. Worked example, `nav_dashboard`'s "Open cards per person":
 
 ```yaml
 - id: ds_open_by_assignee          # metadata/task.yaml
@@ -1068,7 +1068,7 @@ needs none (`ds_task_figures` has none). There is no
 Dimension value to name the figure, so **the node writes its own `label:`** (a load error if it does not, and
 `value:` is still never written), and it takes no `to:`/`param:` (there are no rows to link). `tone:` is a signal
 and is drawn only while the figure is not `0` -- "Overdue: 0" is not a problem, so it is not red. Worked example,
-four figures of the Task Machine (`nav_task_figures`):
+four figures of the Task Machine (`nav_dashboard`):
 
 ```yaml
 # metadata/task.yaml -- the Measures
@@ -2170,7 +2170,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 | — | **Conditional required** — "this Field is required only when a sibling Field holds a given value". `Constraint` has one shape (block a transition while a *related Machine* has a matching record), which cannot condition on a sibling Field of the same record. The one real case is `mch_approval_step`: `fld_assignee` is required when `fld_approver_type` is User and meaningless when it is Group, so the Field is declared optional and `internal/web`'s `parseStepInputs` enforces the pairing (Fase 6c-2). Upstream states the same rule as two conditional Constraints, so the shape is known — it is this runtime's Constraint that has to grow |
 | SLA badges (`sla_field`) | **A Page's own primary action** — the Approval Inbox's "+ New Document" button, and (2026-09-26) the Workspace menu's own "New application" link into the AI Metadata Assistant (Flow 2 gap study Tahap 8). `navigation:` declares menu *destinations*; it cannot say "this screen has a call to action pointing at that screen", nor can it declare a Workspace-level action that exists whether zero or ten Applications are installed. `nav_new_approval` was deleted on 2026-09-21 (owner instruction) precisely because declaring a submit form as a menu item was the wrong shape for it, which left the route and the label as literals in `approvalinbox.templ`/`documentsubmit.templ` and `appshell.templ`, and an entry each in `internal/conformance`'s `applicationSubScreens`. Forward-checkable pointer: 007 §12.3's `ActionBar` component, still unbuilt |
 | Declared Views (`views:` — `table`/`board`/`cards`/`stepper`) | A View composing *other* Views, rather than one Machine's own records, has one real case built (2026-09-26): `stepper` (`domain.ViewStepper`, menata-runtime's CAP-V20) renders a parent's own children as a sequential done/current/waiting progress indicator — `mch_approval_step`'s `vw_step_progress`, composed by `internal/rendering/detail.templ` via `domain.Machine.StepperView`, not selected by `?view=`. What's still hardcoded is the Review Document screen's own orchestration around it (Approve/Reject bar, signature canvas/placement) — see the row above |
-| Counting/summing a Machine's own records (`datasets:`), and — since 2026-09-28 — **which Field a composed screen shows in a row** (`card_fields:`, §7.1): My Tasks, the Calendar and the Dashboard's Project rows resolve title/status/date through Projection | Composed screens: Approval Inbox. What stays Go on the migrated screens is their *layout* — which measure lands in which column and how rows are bucketed (overdue/today/upcoming), a temporal predicate that `where:` cannot express. Board Settings reads a Label's name and colour through `mch_label`'s `title`/`color` card_fields and its three Datasets, so `projectionRatchet` is empty |
+| Counting/summing a Machine's own records (`datasets:`), and — since 2026-09-28 — **which Field a composed screen shows in a row** (`card_fields:`, §7.1): My Tasks and the Calendar resolve title/status/date through Projection | Composed screens: Approval Inbox. What stays Go on the migrated screens is their *layout* — which measure lands in which column and how rows are bucketed (overdue/today/upcoming), a temporal predicate that `where:` cannot express. Board Settings reads a Label's name and colour through `mch_label`'s `title`/`color` card_fields and its three Datasets, so `projectionRatchet` is empty |
 | Notifications (`send_notification`, in-app + email, `domain.Notify`) — a declared Event writes an `mch_notification` record and, if the recipient's own preference allows it, emails them | **A notification's own link target.** `internal/execution.notificationLinkFor` special-cases `mch_approval_step` → its `/review` route rather than the generic `/machines/{id}/records/{id}` detail page, which is explicitly "POC scaffolding no real approver should land on" (`detailBackLink`'s own reasoning). Every other Machine (`mch_document` today) gets the generic detail route. Forward-checkable pointer: a second notification-emitting Machine needing its own non-generic destination is the trigger to turn this into a declared Field rather than a per-Machine-id branch |
 | — | **The ⋯ menu's Share item** — a clipboard write of the page's own address, inline in `detail.templ`. A copy-to-clipboard gesture has no declarative form: it is 007 §12.3's `actions` slot, not built, the same class as the board's drag script. Listed per `CLAUDE.md`'s exception rule; revisit when `actions` lands |
 

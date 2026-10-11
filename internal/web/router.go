@@ -263,10 +263,9 @@ func Routes(d Deps) http.Handler {
 		// Account menu's own "Workspaces" section (Flow 2 canvas re-audit -- ROADMAP.md,
 		// 2026-09-27), fetched lazily by accountMenu's own hx-get, not on every appShell render.
 		pr.Get("/api/account-menu/workspaces", showAccountMenuWorkspaces(d.Store, d.Cfg))
-		pr.Get("/dashboard", showDashboard(d.Store, d.Cfg))
 		pr.Get("/my-tasks", showMyTasks(d.Store, d.Cfg))
 		// Notifications (Flow 2 gap study Tahap 6) -- Workspace-level runtime routes, same category
-		// as /dashboard and /account-profile: reachable by any authenticated member regardless of
+		// as /home and /account-profile: reachable by any authenticated member regardless of
 		// Application access, since a notification can concern any Application's own Machine.
 		pr.Get("/notifications", showNotifications(d.Store, d.Cfg))
 		pr.Post("/notifications/mark-all-read", submitMarkAllNotificationsRead(d.Store, d.Cfg))

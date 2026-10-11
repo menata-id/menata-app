@@ -13,7 +13,7 @@ import (
 
 // showNotifications is Tahap 6's own worklist (Flow 2 gap study): every mch_notification this
 // identity is the recipient of, newest first (composition.MyNotifications) -- a Workspace-level
-// runtime route (names no Application, same category as /dashboard and /account-profile),
+// runtime route (names no Application, same category as /home and /account-profile),
 // reachable by any authenticated member regardless of which Applications they have access to.
 func showNotifications(store *data.Store, cfg config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {

@@ -2,7 +2,6 @@ package composition
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"time"
 
@@ -29,8 +28,8 @@ const (
 // rendering.routeByID("nav_xxx") already draws: the *value* lives in metadata, the code only says
 // which one it wants.
 const (
-	dashboardTasksDataset = "ds_all_tasks"
-	myTasksDataset        = "ds_my_tasks"
+	calendarTasksDataset = "ds_all_tasks"
+	myTasksDataset       = "ds_my_tasks"
 	// The one declared Relation (007 §7.5, Tahap A) and its id. The Dataset id is domain's, not a
 	// literal here: registry.KnownWorkflowEngines declares that the approval engine's `document` role must
 	// provide it, so the selector and the requirement are one string (001 #8). Two agreeing literals is
@@ -54,154 +53,6 @@ const (
 	// and "status == active" in another. A qualifier must not collide with a real option value.
 	measureTotal = "msr_total"
 )
-
-// DashboardData composes the dashboard (Case 19 PM04). Every Task figure on it -- the four tiles, the
-// per-project rows, the per-person bars -- is derived from one bounded selection of Task records
-// (ds_all_tasks) through the Machine's own `completion:`, so "finished" has one definition on this screen
-// rather than the Dataset's `value: done` and the board's circle each holding one. The mockup has nothing
-// else on the page, so nothing else is composed.
-func DashboardData(ctx context.Context, l *Loader, now time.Time) (rendering.DashboardContent, error) {
-	tasks, err := l.SelectRelated(ctx, dashboardTasksDataset, expression.Context{})
-	if err != nil {
-		return rendering.DashboardContent{}, err
-	}
-	projects, err := l.ListRecords(ctx, projectMachineID)
-	if err != nil {
-		return rendering.DashboardContent{}, err
-	}
-	people, err := l.PersonNames(ctx)
-	if err != nil {
-		return rendering.DashboardContent{}, err
-	}
-
-	d := buildDashboard(tasks.Records, projects, people, l.Machine(taskMachineID), l.Machine(projectMachineID), now)
-	d.TasksTruncation = rendering.Truncation{Hit: tasks.Truncated, Limit: tasks.Limit}
-	return d, nil
-}
-
-// buildDashboard is the pure half. Tasks are the only input for every figure on the page.
-//
-// Which Field names a Task's Project and its person come from the Machine rather than from a literal: the
-// person is the `person` card_fields role, the Project is the one Field referencing the Project Machine.
-// A Task Machine with neither simply yields no per-project or per-person rows.
-func buildDashboard(tasks, projects []*data.Record, people map[string]string, taskMachine, projectMachine *domain.Machine, now time.Time) rendering.DashboardContent {
-	var d rendering.DashboardContent
-	projectField := fieldReferencing(taskMachine, projectMachineID)
-	personField := FieldForRole(taskMachine, domain.CardFieldRolePerson)
-
-	perProject := map[string]taskLoad{}
-	perPerson := map[string]taskLoad{}
-	open, overdue := 0, 0
-	for _, t := range tasks {
-		done := IsComplete(taskMachine, t)
-		if !done {
-			open++
-			if isOverdue(taskMachine, t, now) {
-				overdue++
-			}
-		}
-		bump := func(m map[string]taskLoad, key string) {
-			if key == "" {
-				return
-			}
-			l := m[key]
-			l.total++
-			if !done {
-				l.open++
-			}
-			m[key] = l
-		}
-		bump(perProject, DisplayString(t.Values[projectField]))
-		bump(perPerson, DisplayString(t.Values[personField]))
-	}
-	total := len(tasks)
-	completed := total - open
-
-	d.Tiles = []rendering.SummaryItem{
-		{Label: "All cards", Value: fmt.Sprint(total), Hint: projectCountHint(perProject)},
-		{Label: "Open", Value: fmt.Sprint(open), Hint: "Not finished yet", Tone: domain.ToneNeutral},
-		{Label: "Overdue", Value: fmt.Sprint(overdue), Hint: "Past its due date", Tone: toneIf(overdue > 0, domain.ToneBad)},
-		{Label: "Completed", Value: fmt.Sprint(completed), Hint: fmt.Sprintf("%d%% of all cards", percentOf(completed, total)), Tone: toneIf(completed > 0, domain.ToneGood)},
-	}
-
-	d.Projects = make([]rendering.ProjectSummary, 0, len(projects))
-	for _, p := range projects {
-		mine := perProject[p.ID]
-		shape := ProjectedByRole(projectMachine, p, nil)
-		d.Projects = append(d.Projects, rendering.ProjectSummary{
-			OpenTasks:  mine.open,
-			TotalTasks: mine.total,
-			Name:       shape[string(domain.CardFieldRoleTitle)],
-			Status:     shape[string(domain.CardFieldRoleStatus)],
-		})
-	}
-
-	for id, l := range perPerson {
-		// An assignee the Workspace no longer has a name for is left off the list rather than shown as an id.
-		// The tiles above still count their cards, so the figures can differ.
-		if people[id] == "" {
-			continue
-		}
-		d.People = append(d.People, rendering.PersonLoad{Name: people[id], Open: l.open, Total: l.total})
-	}
-	sort.Slice(d.People, func(i, j int) bool {
-		a, b := d.People[i], d.People[j]
-		if a.Open != b.Open {
-			return a.Open > b.Open
-		}
-		return a.Name < b.Name
-	})
-
-	return d
-}
-
-// isOverdue reports whether an unfinished record's date has passed. The caller has already ruled out
-// finished ones -- a finished card is never overdue, which is the sentence the Dashboard's own subtitle says.
-func isOverdue(m *domain.Machine, r *data.Record, now time.Time) bool {
-	due, err := time.Parse("2006-01-02", DisplayString(r.Values[FieldForRole(m, domain.CardFieldRoleDate)]))
-	if err != nil {
-		return false
-	}
-	status, _ := experience.EvaluateSLA(due, now)
-	return status == experience.SLAOverdue
-}
-
-// fieldReferencing is the id of the Field on m that points at the Machine target, "" when there is none. The
-// first such Field wins; a Machine with two Fields to the same target would need to say which, and Task has one.
-func fieldReferencing(m *domain.Machine, target string) string {
-	for _, f := range m.Fields {
-		if f.IsReference() && f.RelatedMachine == target {
-			return f.ID
-		}
-	}
-	return ""
-}
-
-// taskLoad is a count of Tasks and how many of them are unfinished, per Project or per person.
-type taskLoad struct{ open, total int }
-
-func projectCountHint(perProject map[string]taskLoad) string {
-	if len(perProject) == 1 {
-		return "In 1 project"
-	}
-	return fmt.Sprintf("In %d projects", len(perProject))
-}
-
-func percentOf(part, whole int) int {
-	if whole <= 0 {
-		return 0
-	}
-	return part * 100 / whole
-}
-
-// toneIf is the signal tone when a figure is worth signalling and the neutral one when it is zero -- a red
-// "0" would read as a problem on a screen whose point is that there is none.
-func toneIf(signal bool, tone domain.BadgeTone) domain.BadgeTone {
-	if signal {
-		return tone
-	}
-	return domain.ToneNeutral
-}
 
 // MyTasks is one identity's personal work queue (development-history.md Phase 14), bucketed by due date:
 // Overdue, due within the next seven days (today included), Later (including undated), and Completed --
@@ -420,11 +271,11 @@ const maxCalendarWeeks = 520
 // week, -1 the last), one column per day (Case 19 PM05). Tasks with no due date are simply absent -- a week
 // grid has nowhere to put them.
 //
-// The Tasks come from the same bounded selection the Dashboard counts (ds_all_tasks) instead of a whole-Machine
+// The Tasks come from the bounded selection ds_all_tasks instead of a whole-Machine
 // read, and Truncation says so when that bound bit: a calendar that silently dropped the tail of a large
 // Workspace would show an empty day for work that exists.
 func CalendarWeek(ctx context.Context, l *Loader, now time.Time, weekOffset int) (rendering.CalendarContent, error) {
-	sel, err := l.SelectRelated(ctx, dashboardTasksDataset, expression.Context{})
+	sel, err := l.SelectRelated(ctx, calendarTasksDataset, expression.Context{})
 	if err != nil {
 		return rendering.CalendarContent{}, err
 	}

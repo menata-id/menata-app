@@ -20,7 +20,7 @@ import (
 //   - `appsettings.templ` (2), `installapplication.templ`, `workspacesettings.templ`: a page's description at
 //     `leading-6`. Four sites sharing a line-height no text role names -- a **finding**, not a miss: if a role
 //     for it is ever declared, these four are the first consumers.
-//   - `dashboard.templ`, `rolematrix.templ` (3): the sentence carries its own spacing (`py-3`, `mt-1.5`, `px-4
+//   - `rolematrix.templ` (3): the sentence carries its own spacing (`py-3`, `mt-1.5`, `px-4
 //     py-4`) or width (`max-w-[760px]`). Spacing and width are Layout's (§12.2), and a Static kind accepting them
 //     is §12.3's "arbitrary properties".
 //   - `inference.templ` (3): two add `max-w-prose`; the third is a multi-line sentence whose surrounding
@@ -41,7 +41,6 @@ import (
 var handWrittenMutedParagraphs = map[string]int{
 	"appsettings.templ":        2,
 	"approvalinbox.templ":      2,
-	"dashboard.templ":          1,
 	"inference.templ":          3,
 	"installapplication.templ": 1,
 	"newapplication.templ":     1,

@@ -6,6 +6,18 @@ import (
 	"menata.app/internal/domain"
 )
 
+// ActivityEntry is one already-resolved row of a record's own History on its detail page: the actor's
+// display name is resolved ahead of render time, the same way relation ids are resolved to labels
+// elsewhere, so this templ stays a pure renderer.
+type ActivityEntry struct {
+	Summary string
+	Actor   string
+	When    string
+	// Comment marks an entry someone wrote, as against one the runtime recorded: Summary is then what they
+	// said, and the feed draws it with the author named first.
+	Comment bool
+}
+
 // commentsFeed is PM02's "Comments and activity": the comments someone wrote and the events the runtime
 // recorded, in one list newest first, under a "Write a comment" box. Composition has already merged and
 // ordered them (composition.buildRecordActivity); this only draws. The events can be hidden with "Show

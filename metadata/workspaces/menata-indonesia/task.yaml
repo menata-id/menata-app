@@ -95,7 +95,8 @@ datasets:
       value: $current_user
     limit: 200
 
-  # The Dashboard's whole Task set, as records rather than counts (2026-10-05, Case 19 PM04). It replaces
+  # The whole Task set, as records rather than counts (2026-10-05, Case 19 PM04). Since K15 D4 (2026-10-11) the
+  # Dashboard reads Measures (ds_task_figures) and the Calendar is this Dataset's reader. Original rationale: it replaced
   # ds_task_by_project, which counted `msr_total_open` with `value: done` -- a second statement of which
   # status means finished, beside `completion:` below. The Dashboard's own subtitle says a card is
   # finished only when its circle is ticked, so every figure on it (open, overdue, completed, per project,
@@ -106,6 +107,65 @@ datasets:
   - id: ds_all_tasks
     select: records
     limit: 1000
+
+  # The Dashboard's four headline figures as Measures, so a `page:` can show each one as a Metric bound with
+  # `rows: total` (2026-10-10). Both ends are read from declarations rather than restated: "finished" is
+  # `$done`, the `completion:` block below, and "overdue" is not-finished AND due before `$today` -- the same
+  # two facts `composition.isOverdue` tests per record in Go.
+  #
+  # No `select:`, so this reads the Machine's whole record set (it has no `limit:` to truncate it): a count
+  # that silently stopped at a bound would understate every tile.
+  - id: ds_task_figures
+    measures:
+      - id: msr_all
+        aggregate: count
+      - id: msr_open
+        aggregate: count
+        where: { field: fld_status, op: not_equals, value: $done }
+      - id: msr_overdue
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_due_date, op: lt, value: $today }
+      - id: msr_completed
+        aggregate: count
+        where: { field: fld_status, op: equals, value: $done }
+      # The two derived hints (K15 D1): how many Projects the cards sit in, and finished as a share of all.
+      - id: msr_projects
+        aggregate: count_distinct
+        field: fld_project
+      - id: msr_completed_share
+        aggregate: percentage
+        numerator: msr_completed
+        denominator: msr_all
+      - id: msr_due_today
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_due_date, op: equals, value: $today }
+      # `$today+7` is a week from the request's date: the window My Tasks calls "Next 7 days", today included.
+      - id: msr_due_week
+        aggregate: count
+        where:
+          all:
+            - { field: fld_status, op: not_equals, value: $done }
+            - { field: fld_due_date, op: gte, value: $today }
+            - { field: fld_due_date, op: lte, value: $today+7 }
+
+  # Open cards per person (K15, 2026-10-10). The Dimension is a reference Field -- a stored id -- so the page
+  # draws each row under the related record's title (a person's name) and a row whose value names no record is
+  # left out rather than shown as an id. Per project is `ds_projects_with_tasks` (a Relation, so an empty Project shows).
+  - id: ds_open_by_assignee
+    dimension: fld_assignee
+    measures:
+      - id: msr_open
+        aggregate: count
+        where: { field: fld_status, op: not_equals, value: $done }
+      # Everything assigned, so a bar can say open out of all (the Dashboard's "Open cards per person").
+      - id: msr_all
+        aggregate: count
 
 # card_fields: what a Task's own records show wherever a screen renders them without picking
 # Fields itself (007 §7.6 Projection). Added 2026-09-28, when the Case 19 screens stopped reading

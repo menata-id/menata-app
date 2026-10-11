@@ -59,7 +59,7 @@ func currentWorkspace(store *data.Store, workspaces map[string]domain.Workspace)
 // derivation would return nothing for exactly the pages the proof of concept cares about.
 //
 // So the Machine the route concerns is asked first (it is right there in the path), and
-// navigation is the fallback for routes naming no Machine (/dashboard, /my-tasks, ...). The
+// navigation is the fallback for routes naming no Machine (/calendar, /my-tasks, ...). The
 // Machine -> Application map is metadata the Application already declares, so this costs no extra
 // declaration; metadata.validateApplicationClaims keeps it unambiguous by refusing a Machine
 // claimed twice.

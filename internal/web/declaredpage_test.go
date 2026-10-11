@@ -996,7 +996,7 @@ func TestDeclaredPageTotalsCountEachFigureFromItsMeasure(t *testing.T) {
 		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
 	}
 
-	body := getPage(t, h, cookie, "/pages/nav_task_figures")
+	body := getPage(t, h, cookie, "/pages/nav_dashboard")
 	for label, want := range map[string]int{"All cards": 8, "Open": 6, "Overdue": 1, "Completed": 2, "Due today": 1, "Due in 7 days": 3} {
 		pair := regexp.MustCompile(`>` + strconv.Itoa(want) + `</div><div[^>]*>` + regexp.QuoteMeta(label) + `</div>`)
 		if !pair.MatchString(body) {
@@ -1047,7 +1047,7 @@ func TestDeclaredPageNamesEachOpenCardGroupByTheProjectAndPersonItBelongsTo(t *t
 		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
 	}
 
-	body := getPage(t, h, cookie, "/pages/nav_task_figures")
+	body := getPage(t, h, cookie, "/pages/nav_dashboard")
 	// K17: the two groups sit in a `columns` (aligned to the start) of two `section`s, all written in the YAML.
 	if !strings.Contains(body, "sm:items-start") || !strings.Contains(body, "sm:flex-row") {
 		t.Error("the two open-card groups are not drawn as a columns layout aligned to the start")
@@ -1452,7 +1452,7 @@ func TestDeclaredPageRecentActivityShowsOnlyThisApplicationsNewestTen(t *testing
 	}
 	add("Pmact-foreign", "app_document_approval")
 
-	for _, path := range []string{"/pages/nav_task_figures", "/pages/nav_task_figures?application=app_document_approval"} {
+	for _, path := range []string{"/pages/nav_dashboard", "/pages/nav_dashboard?application=app_document_approval"} {
 		body := getPage(t, h, cookie, path)
 		if strings.Contains(body, "Pmact-foreign") {
 			t.Errorf("%s: another Application's event is drawn", path)
@@ -1609,7 +1609,7 @@ func TestDeclaredPageWordsTheTileHintsAroundDerivedMeasures(t *testing.T) {
 		}
 		t.Cleanup(func() { _ = store.DeleteRecord(ctx, task.ID, rec.ID) })
 	}
-	body := getPage(t, h, cookie, "/pages/nav_task_figures")
+	body := getPage(t, h, cookie, "/pages/nav_dashboard")
 	for _, want := range []string{">In 2 projects<", ">33% of all cards<"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page does not say %q", want)
