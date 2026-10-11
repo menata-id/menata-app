@@ -26,9 +26,15 @@ func StageWorkspace(manifestPath string) (stagedManifest string, cleanup func(),
 	manifestDir := filepath.Dir(manifestPath)
 	root := filepath.Dir(manifestDir)
 	slug := strings.TrimSuffix(filepath.Base(manifestPath), filepath.Ext(manifestPath))
-	tmp, err := os.MkdirTemp("", "menata-stage-*")
+	// The copy is made beside the real tree, not in the system temp directory: a manifest may name a file outside the
+	// metadata directory by a relative path (`../../library/user.yaml`), and that path only reaches the same file from
+	// a copy that sits at the same depth. The system temp directory is the fallback, where such a manifest cannot be
+	// staged faithfully and the load below says so.
+	tmp, err := os.MkdirTemp(filepath.Dir(root), ".menata-stage-*")
 	if err != nil {
-		return "", nil, err
+		if tmp, err = os.MkdirTemp("", "menata-stage-*"); err != nil {
+			return "", nil, err
+		}
 	}
 	cleanup = func() { os.RemoveAll(tmp) }
 	var total int64

@@ -126,3 +126,27 @@ func TestApplyFiles_replacesOnlyWhatLoadsAndPutsBackWhatDoesNot(t *testing.T) {
 		t.Error("a refused new file was created")
 	}
 }
+
+// TestValidateFiles_stagesAtTheSameDepthSoARelativePathOutsideTheRootStillReachesTheSameFile: the manifest names its shared
+// Machine by a path that leaves the metadata directory (`../../lib/user.yaml`). A copy in the system temp directory
+// would resolve that path somewhere else; the copy beside the real tree resolves it to the same file.
+func TestValidateFiles_stagesAtTheSameDepthSoARelativePathOutsideTheRootStillReachesTheSameFile(t *testing.T) {
+	top := t.TempDir()
+	root := filepath.Join(top, "meta")
+	for _, d := range []string{filepath.Join(root, "workspaces", "acme"), filepath.Join(top, "lib")} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.WriteFile(filepath.Join(top, "lib", "user.yaml"), []byte("id: mch_user\nname: User\nfields:\n  - id: fld_name\n    name: Name\n    type: text\n"), 0o644)
+	os.WriteFile(filepath.Join(root, "workspaces", "acme", "doc.yaml"), []byte(stagedDoc), 0o644)
+	manifest := filepath.Join(root, "workspaces", "acme.yaml")
+	os.WriteFile(manifest, []byte("workspace: acme\nmachines:\n  - ../../lib/user.yaml\n  - acme/doc.yaml\napplications: []\n"), 0o644)
+
+	if _, err := ValidateFiles(manifest, map[string][]byte{"doc.yaml": []byte(stagedDoc)}); err != nil {
+		t.Fatalf("a manifest naming a file outside the metadata directory could not be validated: %v", err)
+	}
+	if entries, _ := filepath.Glob(filepath.Join(top, ".menata-stage-*")); len(entries) != 0 {
+		t.Errorf("the staging directory was left behind: %v", entries)
+	}
+}
