@@ -1067,6 +1067,19 @@ The lane table, the order inside each lane and the reasons are `menata-app-docum
   `router.go`); a conflict at the tail of `development-history.md` keeps both entries.
 - **Restart `menata-app.service` only from the session that just pushed**, and verify the running binary.
 
+**Since 2026-10-11 development runs in one session, and the lane rules above are a fallback, not the
+default** (owner direction 2026-10-10 that further work is mostly lane B; session A has an exhausted queue
+and is idle). While only one session is active: the lane-A files may be edited by that session, no claim
+message is needed, and `make generate` is safe to run. **What stays**: every gate, mutation proof and
+re-measurement; `git commit -- <paths>` and never `git add -A`, because the checkout can still be used by
+another session at any time; and **deploy**, which still waits for the owner's permission (the permission
+classifier refused it once for the working session). The lost second pair of eyes is replaced, for a slice
+that adds a gate or a primitive, by a fresh-context agent whose only job is to break the result -- the
+independent read of K15 item 3 found five surviving renderer mutations and a `StageWorkspace` defect that
+the author's own mutations had not. If a second session starts, it reads
+`menata-app-document`'s `audits/2026-10-10-pembagian-dua-sesi-roadmap.md` §10.5 first and the lane rules
+above apply again from that moment.
+
 ## Commands
 
 - `make generate` — regenerate `*_templ.go` from `*.templ` (needed after any `.templ` edit).
