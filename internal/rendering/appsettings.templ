@@ -15,6 +15,10 @@ const permissionsSection = "permissions"
 const (
 	permissionsTitle       = "Permissions"
 	permissionsDescription = "Who can do what in this application."
+	roleMatrixTitle        = "Roles in this application"
+	settingsSidebarTitle   = "Settings"
+	notificationsTitle     = "Notifications"
+	notificationsBlurb     = "Which emails you receive from this application."
 	membersRolesTitle      = "Members & roles"
 	membersRolesBlurb      = "Who can use this application, and with which role."
 )
@@ -27,6 +31,12 @@ func pageTitle(hub SettingsHubView, showingDetail bool) string {
 		return permissionsTitle
 	}
 	return hub.Title
+}
+
+// permissionsSubtitle is the line under the Permissions heading. It carries the sentence that used to head the
+// role card ("a role here means nothing in other applications"), since it is about the page, not one card.
+func permissionsSubtitle(appName string) string {
+	return "Who can do what in " + appName + ". A role here means nothing in other applications."
 }
 
 // permissionsHref is the Permissions view of hub: the hub's own route plus the section query.
@@ -66,11 +76,10 @@ type SettingsHubView struct {
 	RoleCount      int
 }
 
-// settingsRow is one real, linked destination in the Access section -- styled like
-// workspacehome.templ's own Application row (label, description, trailing chevron), reused rather
-// than a new shape invented for this page. current marks the row for the screen already showing
-// (only ever true for Permissions, and only on desktop -- the mobile list never renders alongside
-// its own detail view, so current has nothing to highlight there).
+// settingsRow is one real, linked destination -- styled like workspacehome.templ's own Application row
+// (label, description, trailing chevron), reused rather than a new shape invented for this page. current
+// marks the row for the screen already showing. It is the Workspace Settings sidebar's row; this hub's
+// own lists draw settingsListRow, which is the same destination on a divided surface.
 templ settingsRow(href, label, description string, current bool) {
 	<a
 		href={ templ.SafeURL(href) }
@@ -91,78 +100,179 @@ templ settingsRow(href, label, description string, current bool) {
 	</a>
 }
 
+// notBuiltYetTag is the muted tag a placeholder row wears instead of a link.
+templ notBuiltYetTag() {
+	<span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-3xs font-medium tracking-wide text-slate-400 uppercase">Not built yet</span>
+}
+
 // settingsPlaceholderRow is an honest, non-interactive row for a section this runtime cannot serve
 // yet -- no <a href>, so it can never be a link to nowhere, plus a muted tag saying so rather than
 // leaving the reason to be guessed.
 templ settingsPlaceholderRow(label, description string) {
 	<div class="flex items-start gap-3 rounded-md p-3">
-		<span class="flex min-w-0 grow flex-col gap-0.5">
-			<span class="flex flex-wrap items-center gap-2 text-sm text-slate-400">
-				{ label }
-				<span class="rounded-full bg-slate-100 px-1.5 py-0.5 text-3xs font-medium tracking-wide text-slate-400 uppercase">Not built yet</span>
-			</span>
-			<span class="text-xs text-slate-400">{ description }</span>
-		</span>
+		@settingsPlaceholderBody(label, description, "text-sm")
 	</div>
 }
 
-// settingsAccessRows is the Access section: Members & roles (admins only), then Permissions, gated
-// on hub.ShowAccess/ShowMembersAndGroups -- never on which nav items happen to be declared. Shared
-// verbatim between the desktop sidebar and the mobile list so the two can never disagree.
-//
-// Members & roles points at this Application's own scoped page (hub.MembersHref, S2.2) and, like
-// Permissions, carries the runtime's own title and description -- it is a runtime view of the
-// Application's `roles:`, not a navigation item the Application declares.
-templ settingsAccessRows(hub SettingsHubView, showingDetail bool) {
-	if hub.ShowAccess {
-		<div class="flex flex-col gap-0.5">
-			@settingsGroupHeading("Access")
-			if hub.ShowMembersAndGroups {
-				@settingsRow(hub.MembersHref, membersRolesTitle, membersRolesBlurb, false)
-			}
-			@settingsRow(permissionsHref(hub), permissionsTitle, permissionsDescription, showingDetail)
+// settingsPlaceholderBody is the muted label-plus-tag and description both placeholder rows share; labelSize
+// is the one thing they differ in (a sidebar row's 14px, a list row's 15px).
+templ settingsPlaceholderBody(label, description, labelSize string) {
+	<span class="flex min-w-0 grow flex-col gap-0.5">
+		<span class={ "flex flex-wrap items-center gap-2 text-slate-400", labelSize }>
+			{ label }
+			@notBuiltYetTag()
+		</span>
+		<span class="text-xs text-slate-400">{ description }</span>
+	</span>
+}
+
+// settingsSection is one titled group of a Settings hub (board M06a): an overline, then a bordered list
+// surface whose rows are ruled by the divider shade. Both the phone's list and the role-less desktop page
+// draw it; children are settingsListRow / settingsListPlaceholder / settingsAboutRow.
+templ settingsSection(title string) {
+	@stackLayout(domain.GapTight) {
+		@staticText(domain.StaticOverline, title)
+		<div class={ "overflow-hidden", surfaceClasses(ctx) }>
+			{ children... }
 		</div>
 	}
 }
 
-// settingsConfigRows is Configuration: one row per declared settings_hub_member item, then Groups for
-// an admin of an Application with roles (a Workspace-level screen, placed here pending owner decision
-// M-D1 -- a link placement only). A section with no row is absent.
-templ settingsConfigRows(hub SettingsHubView) {
-	if len(hub.Members) > 0 || hub.ShowMembersAndGroups {
-		<div class="flex flex-col gap-0.5">
-			@settingsGroupHeading("Configuration")
-			for _, m := range hub.Members {
-				@settingsRow(m.Href, m.Label, m.Description, false)
+// settingsListRow is one linked destination inside a settingsSection: 60px tall, a 15px label, a faint
+// description and a chevron.
+templ settingsListRow(href, label, description string) {
+	<a href={ templ.SafeURL(href) } class={ "flex min-h-15 items-center gap-3 border-b px-4 py-2.5 last:border-b-0 hover:bg-slate-50", borderClass(ctx, domain.BorderDivider) }>
+		<span class="flex min-w-0 grow flex-col gap-0.5">
+			<span class="text-[15px] text-slate-900">{ label }</span>
+			if description != "" {
+				<span class="text-xs text-slate-500">{ description }</span>
 			}
-			if hub.ShowMembersAndGroups {
-				@settingsRow(routeByID(ctx, "nav_workspace_groups"), labelByID(ctx, "nav_workspace_groups"), "Named groups of members, used where a step is assigned to a group.", false)
-			}
-		</div>
-	}
+		</span>
+		<span class="shrink-0 text-slate-300">
+			@icon("chevron-right", "size-4")
+		</span>
+	</a>
 }
 
-// settingsAbout is the About section: the Application's own name, description and what it holds, and
-// the one thing the hub cannot do from here -- turning the Application off is a Workspace-level
-// decision, so it points there. No install date or source template: nothing stores them.
-templ settingsAbout(hub SettingsHubView) {
+// settingsListPlaceholder is settingsListRow's honest twin for what this runtime cannot serve yet.
+templ settingsListPlaceholder(label, description string) {
+	<div class={ "flex min-h-15 items-center gap-3 border-b px-4 py-2.5 last:border-b-0", borderClass(ctx, domain.BorderDivider) }>
+		@settingsPlaceholderBody(label, description, "text-[15px]")
+	</div>
+}
+
+// settingsNavLink is a destination in the desktop sidebar: label only, the current one set apart.
+templ settingsNavLink(href, label string, current bool) {
+	<a
+		href={ templ.SafeURL(href) }
+		if current {
+			aria-current="page"
+		}
+		class={ "flex items-center rounded-md px-3 py-2 text-sm", templ.KV("bg-slate-100 font-medium text-slate-900", current), templ.KV("text-slate-700 hover:bg-slate-50", !current) }
+	>
+		{ label }
+	</a>
+}
+
+// settingsNavGroup is one overline plus its links in the desktop sidebar.
+templ settingsNavGroup(title string) {
 	<div class="flex flex-col gap-0.5">
-		@settingsGroupHeading("About")
-		<div class="flex flex-col gap-1 rounded-md p-3">
-			<span class="text-sm font-medium text-slate-900">{ hub.AppName }</span>
+		<div class="px-3 pb-1">
+			@staticText(domain.StaticOverline, title)
+		</div>
+		{ children... }
+	</div>
+}
+
+// settingsTurnOffNote says the one thing the hub cannot do from here: turning an Application off is a
+// Workspace-level decision, so it points there.
+templ settingsTurnOffNote() {
+	<span class="text-xs leading-5 text-slate-400">
+		To turn this application off, use
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_settings") }</a>.
+	</span>
+}
+
+// settingsLists is the whole hub as list surfaces -- Access, Communication, Configuration, About -- each
+// present only when it has a row (never gated on which nav items happen to be declared). Members & roles
+// points at this Application's own scoped page and, like Permissions, carries the runtime's own title: it
+// is a runtime view of the Application's `roles:`, not a navigation item the Application declares.
+// Groups is a Workspace-level screen placed under Configuration pending owner decision M-D1 -- a link
+// placement only. Communication holds one honest placeholder, and only for an Application with roles.
+templ settingsLists(hub SettingsHubView) {
+	if hub.ShowAccess {
+		@settingsSection("Access") {
+			if hub.ShowMembersAndGroups {
+				@settingsListRow(hub.MembersHref, membersRolesTitle, membersRolesBlurb)
+			}
+			@settingsListRow(permissionsHref(hub), permissionsTitle, permissionsDescription)
+		}
+		@settingsSection("Communication") {
+			@settingsListPlaceholder(notificationsTitle, notificationsBlurb)
+		}
+	}
+	if len(hub.Members) > 0 || hub.ShowMembersAndGroups {
+		@settingsSection("Configuration") {
+			for _, m := range hub.Members {
+				@settingsListRow(m.Href, m.Label, m.Description)
+			}
+			if hub.ShowMembersAndGroups {
+				@settingsListRow(routeByID(ctx, "nav_workspace_groups"), labelByID(ctx, "nav_workspace_groups"), "Named groups of members, used where a step is assigned to a group.")
+			}
+		}
+	}
+	@settingsSection("About") {
+		<div class="flex flex-col gap-1 px-4 py-3">
+			<span class="text-[15px] text-slate-900">{ hub.AppName }</span>
 			if hub.AppDescription != "" {
 				<span class="text-xs text-slate-500">{ hub.AppDescription }</span>
 			}
 			if !hub.ShowAccess {
 				<span class="text-xs text-slate-500">This application declares no roles, so everyone in this workspace can open it.</span>
 			}
-			<span class="text-xs text-slate-400">
-				To turn this application off, use
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_settings") }</a>
-				.
+		</div>
+	}
+	@settingsTurnOffNote()
+}
+
+// settingsSidebar is the desktop sidebar beside the Permissions pane (board RoleMatrix): the same sections
+// as settingsLists as plain links with the current one highlighted, and the Application's own name,
+// description and the turn-off note under a rule. Only drawn for an Application with roles.
+templ settingsSidebar(hub SettingsHubView, showingDetail bool) {
+	<aside class="flex w-55 shrink-0 flex-col gap-5" aria-label={ settingsSidebarTitle }>
+		@staticText(domain.StaticSubheading, settingsSidebarTitle)
+		@settingsNavGroup("Access") {
+			if hub.ShowMembersAndGroups {
+				@settingsNavLink(hub.MembersHref, membersRolesTitle, false)
+			}
+			@settingsNavLink(permissionsHref(hub), permissionsTitle, showingDetail)
+		}
+		@settingsNavGroup("Communication") {
+			<div class="flex items-center gap-2 px-3 py-2 text-sm text-slate-400">
+				{ notificationsTitle }
+				@notBuiltYetTag()
+			</div>
+		}
+		if len(hub.Members) > 0 || hub.ShowMembersAndGroups {
+			@settingsNavGroup("Configuration") {
+				for _, m := range hub.Members {
+					@settingsNavLink(m.Href, m.Label, false)
+				}
+				if hub.ShowMembersAndGroups {
+					@settingsNavLink(routeByID(ctx, "nav_workspace_groups"), labelByID(ctx, "nav_workspace_groups"), false)
+				}
+			}
+		}
+		<div class={ "flex flex-col gap-1 border-t pt-4", borderClass(ctx, domain.BorderSurface) }>
+			<span class="px-3 text-sm font-medium text-slate-900">{ hub.AppName }</span>
+			if hub.AppDescription != "" {
+				<span class="px-3 text-xs text-slate-500">{ hub.AppDescription }</span>
+			}
+			<span class="px-3">
+				@settingsTurnOffNote()
 			</span>
 		</div>
-	</div>
+	</aside>
 }
 
 func countWords(n int, one, other string) string {
@@ -178,66 +288,72 @@ func hubCounts(hub SettingsHubView) string {
 	return countWords(hub.RoleCount, "role", "roles") + " · " + countWords(hub.MachineCount, "machine", "machines")
 }
 
-// settingsList is the whole hub as a list: Access, Configuration, About. The mobile page and the
-// desktop sidebar both draw exactly this, so they cannot disagree.
-templ settingsList(hub SettingsHubView, showingDetail bool) {
-	@settingsAccessRows(hub, showingDetail)
-	@settingsConfigRows(hub)
-	@settingsAbout(hub)
+// settingsHubHeader is the landing view's heading block: title, the hub's description and the counts line.
+templ settingsHubHeader(hub SettingsHubView) {
+	<div class="flex flex-col gap-1">
+		@staticText(domain.StaticHeading, hub.Title)
+		if hub.Description != "" {
+			<p class="m-0 text-sm leading-6 text-slate-500">{ hub.Description }</p>
+		}
+		@staticText(domain.StaticCaption, hubCounts(hub))
+	</div>
+}
+
+// settingsPermissionsPane is the Permissions view -- heading, the sentence about roles, the matrix card and
+// the closing note -- shared by the phone's detail view and the desktop pane.
+templ settingsPermissionsPane(hub SettingsHubView, permissions RoleMatrixApp) {
+	<div class="flex flex-col gap-1">
+		@staticText(domain.StaticHeading, permissionsTitle)
+		<p class="m-0 text-sm leading-6 text-slate-500">{ permissionsSubtitle(hub.AppName) }</p>
+	</div>
+	@roleMatrixApp(permissions, membersLinkFor(hub))
+	@roleMatrixClosingNote()
+}
+
+// membersLinkFor is the Members & roles address for a viewer who may open it, "" for one who may not.
+func membersLinkFor(hub SettingsHubView) string {
+	if hub.ShowMembersAndGroups {
+		return hub.MembersHref
+	}
+	return ""
 }
 
 // ApplicationSettingsPage draws any Application's Settings hub from a SettingsHubView, with one
 // function for the landing view and the Permissions view (activeSection), the same mobile/desktop
-// pair in one file every ported screen uses, extended with a third axis:
+// pair in one file every ported screen uses, extended with a third axis (boards M06a, RoleMatrix):
 //
-//   - Desktop with Access: a sidebar (settingsList) beside a pane that always shows the role matrix
-//     (the Flow 2 mockup's RoleMatrix.dc.html always shows both together).
-//   - Desktop without Access: the list alone -- a role matrix for an Application with no roles would
-//     be an empty card.
-//   - Mobile shows either the list (landing) or a back link plus the role matrix (Permissions) --
+//   - Desktop with Access: a sidebar (settingsSidebar) beside the Permissions pane -- the mockup always
+//     shows both together, so the page's own heading is the pane's, not the hub's.
+//   - Without Access, on either breakpoint: the landing list alone -- a role matrix for an Application
+//     with no roles would be an empty card.
+//   - Mobile with Access shows either the list (landing) or a back link plus the Permissions pane --
 //     never both, which is why the Permissions view has its own address.
 templ ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, activeSection, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	{{ showingDetail := hub.ShowAccess && activeSection == permissionsSection }}
 	@appShell(pageTitle(hub, showingDetail), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-1 sm:hidden">
-			if showingDetail {
-				<a href={ templ.SafeURL(hub.HubRoute) } class="text-xs text-blue-600 hover:text-blue-800">
-					← { hub.Title }
-				</a>
-				@staticText(domain.StaticHeading, permissionsTitle)
-			} else {
-				@staticText(domain.StaticHeading, hub.Title)
-				if hub.Description != "" {
-					<p class="m-0 text-sm leading-6 text-slate-500">{ hub.Description }</p>
+		if !hub.ShowAccess {
+			<div class="flex flex-col gap-5 sm:max-w-xl">
+				@settingsHubHeader(hub)
+				@settingsLists(hub)
+			</div>
+		} else {
+			<div class="flex flex-col gap-5 sm:hidden">
+				if showingDetail {
+					<a href={ templ.SafeURL(hub.HubRoute) } class="text-xs text-blue-600 hover:text-blue-800">
+						← { hub.Title }
+					</a>
+					@settingsPermissionsPane(hub, permissions)
+				} else {
+					@settingsHubHeader(hub)
+					@settingsLists(hub)
 				}
-				@staticText(domain.StaticCaption, hubCounts(hub))
-			}
-		</div>
-		<div class="hidden flex-col gap-1 sm:flex">
-			@staticText(domain.StaticHeading, hub.Title)
-			if hub.Description != "" {
-				<p class="m-0 text-sm leading-6 text-slate-500">{ hub.Description }</p>
-			}
-			@staticText(domain.StaticCaption, hubCounts(hub))
-		</div>
-		<div class="sm:hidden">
-			if showingDetail {
-				@roleMatrixApp(permissions)
-			} else {
-				<div class="flex flex-col gap-4">
-					@settingsList(hub, showingDetail)
+			</div>
+			<div class="hidden gap-8 sm:flex">
+				@settingsSidebar(hub, showingDetail)
+				<div class="flex min-w-0 flex-1 flex-col gap-4">
+					@settingsPermissionsPane(hub, permissions)
 				</div>
-			}
-		</div>
-		<div class="hidden gap-8 sm:flex">
-			<aside class="flex w-55 shrink-0 flex-col gap-5">
-				@settingsList(hub, showingDetail)
-			</aside>
-			if hub.ShowAccess {
-				<div class="min-w-0 flex-1">
-					@roleMatrixApp(permissions)
-				</div>
-			}
-		</div>
+			</div>
+		}
 	}
 }

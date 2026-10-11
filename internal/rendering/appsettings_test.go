@@ -70,3 +70,41 @@ func TestApplicationSettingsPage_permissionsViewHasABackLinkToTheHub(t *testing.
 		t.Error("an Application with no roles drew a Permissions view")
 	}
 }
+
+// Board M06a: Communication holds one honest placeholder, and only an Application with roles has it -- the
+// role-less page above bans "Not built yet" outright.
+func TestApplicationSettingsPage_communicationIsAPlaceholderOnlyWithRoles(t *testing.T) {
+	hub := SettingsHubView{HubRoute: "/settings/nav_t", Title: "Tally settings", ShowAccess: true, AppName: "Tally"}
+	html := renderSettingsHub(t, hub, "")
+	// The phone's list and the desktop sidebar each draw it, and the page renders both.
+	if n := strings.Count(html, "Not built yet"); n != 2 {
+		t.Errorf("want the Communication placeholder in the list and in the sidebar, got %d", n)
+	}
+	if strings.Contains(html, `href="/settings/nav_t/notifications"`) {
+		t.Error("the Notifications placeholder became a link to nowhere")
+	}
+}
+
+// Board RoleMatrix: the desktop pane carries its own heading and the sentence that a role means nothing
+// elsewhere; the card is titled for the roles, and links Members & roles only for a viewer who may open it.
+func TestApplicationSettingsPage_permissionsPaneNamesTheApplicationAndLinksMembersOnlyForAdmins(t *testing.T) {
+	hub := SettingsHubView{HubRoute: "/settings/nav_t", Title: "Tally settings", ShowAccess: true, ShowMembersAndGroups: true,
+		MembersHref: "/settings/nav_t/members", AppName: "Tally"}
+	html := renderSettingsHub(t, hub, "")
+	for _, want := range []string{"Who can do what in Tally. A role here means nothing in other applications.", "Roles in this application", "Some rules aren’t this application’s to decide"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("page missing %q", want)
+		}
+	}
+	if !strings.Contains(strings.ReplaceAll(html, "\n", ""), `href="/settings/nav_t/members"`) {
+		t.Error("an admin has no link to the Application's Members & roles page")
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{}, "T", false)
+	var card bytes.Buffer
+	if err := roleMatrixApp(RoleMatrixApp{Roles: []string{"a"}, RolesSummary: "A"}, "").Render(ctx, &card); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(card.String(), "href=") {
+		t.Error("the roles card linked Members & roles for a viewer who may not open it")
+	}
+}

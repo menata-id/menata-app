@@ -79,7 +79,7 @@ var bespokeScreens = map[string]struct{ category, reason string }{
 
 	// candidate: an Application's own screen, declared by that Application's `navigation:`. These are what
 	// `page:` is for. Tahap 0.2 reads each to decide Jalur A (figures are Dataset measures) or B.
-	"ApplicationSettingsPage": {"candidate", "nav_app_settings; read 2026-10-07: reads no Dataset and no record -- links plus a role matrix derived from Machine permissions at request time; re-read 2026-10-08: NOT static/link nodes alone -- rows shown by viewer role and by len(app.Roles) (007 has no visibility concept), a role-matrix with no Component, a row with one clean site, and a desktop/mobile pair of routes; never Jalur A"},
+	"ApplicationSettingsPage": {"candidate", "nav_app_settings; read 2026-10-07: reads no Dataset and no record -- links plus a role matrix derived from Machine permissions at request time; re-read 2026-10-08: NOT static/link nodes alone -- rows shown by viewer role and by len(app.Roles) (007 has no visibility concept), a role-matrix with no Component, a row with one clean site, and a desktop/mobile pair of routes; never Jalur A; restyled 2026-10-11 to the tokens-v1 boards M06a/RoleMatrix as bespoke templ, which is not a migration: P-a..P-e of the 2026-10-10 measurement are all still open"},
 }
 
 var bespokeScreenCategories = map[string]bool{

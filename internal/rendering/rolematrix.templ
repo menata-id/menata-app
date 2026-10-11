@@ -52,39 +52,33 @@ type RoleMatrixRow struct {
 	Open bool
 }
 
-// roleMatrixApp is one Application's card: a header naming its role vocabulary, then one
-// two-column list per Machine ("What you can do" / "Who can do it") -- a plain responsive list, not
-// a grid, matching how Flow 2's RoleMatrix.dc.html/M06-RoleMatrix.dc.html draw both breakpoints.
+// roleMatrixApp is one Application's Permissions card (boards RoleMatrix, M06-RoleMatrix): a header
+// titled "Roles in this application" naming the role vocabulary, then one two-column list per Machine
+// ("What you can do" / "Who can do it"), then the band for what happens on its own. membersHref is the
+// Application's own Members & roles page, or "" for a viewer who may not open it -- the link is absent,
+// not shown-then-403, and the page names no Application. The Application's own name and the sentence
+// saying a role means nothing elsewhere belong to the page's heading, not to the card.
 //
-// Its only caller today is appsettings.templ's ApplicationSettingsPage (composition.
-// RoleMatrixForApplication feeds it), which is a real second call site -- desktop's content pane
-// and mobile's detail view render the same component, not a page-internal shape. It used to have a
-// second caller, a Workspace-wide overview page at /authorization-matrix with its own Workspace
-// section (RoleMatrixNote) alongside one of these per Application; that page was deleted 2026-09-27
-// (Q1 of the Flow 2 canvas re-audit, ROADMAP.md: board-06-new, this one, supersedes board-06-old,
-// the deleted one) rather than left an unreachable second implementation of the same fact.
+// Its only caller is appsettings.templ's ApplicationSettingsPage (composition.RoleMatrixForApplication
+// feeds it): desktop's content pane and mobile's detail view render the same component.
 //
 // An Application declaring no roles renders a sentence rather than an empty section: it has
 // nothing to draw, and an empty list would suggest roles are simply unassigned there when in fact
 // none has ever been declared.
-templ roleMatrixApp(app RoleMatrixApp) {
+templ roleMatrixApp(app RoleMatrixApp, membersHref string) {
 	<div class={ "overflow-hidden", surfaceClasses(ctx) }>
 		<div class={ "flex flex-col gap-1 border-b", borderClass(ctx, domain.BorderSurface), "px-4 py-4" }>
 			<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-				<span class="text-[15px] font-medium">{ app.Name }</span>
-				if len(app.Roles) > 0 {
-					<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="shrink-0 text-xs text-blue-600 hover:text-blue-800">
-						{ labelByID(ctx, "nav_workspace_members") } →
+				<span class="text-[15px] font-medium">{ roleMatrixTitle }</span>
+				if len(app.Roles) > 0 && membersHref != "" {
+					<a href={ templ.SafeURL(membersHref) } class="shrink-0 text-xs text-blue-600 hover:text-blue-800">
+						{ membersRolesTitle } →
 					</a>
 				}
 			</div>
-			if app.Description != "" {
-				<span class="text-xs text-slate-500">{ app.Description }</span>
-			}
 			if len(app.Roles) > 0 {
-				<p class="m-0 mt-1.5 text-xs leading-5 text-slate-500">
-					<span class="font-medium text-slate-700">Roles in this application:</span>
-					{ " " }{ app.RolesSummary }. A role here means nothing in other applications.
+				<p class="m-0 text-xs leading-5 text-slate-500">
+					{ app.RolesSummary }. Given to people and groups in { membersRolesTitle }.
 				</p>
 			}
 		</div>
@@ -94,7 +88,7 @@ templ roleMatrixApp(app RoleMatrixApp) {
 				in the workspace can do everything in it.
 			</p>
 		} else {
-			<div class={ "hidden gap-6 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-3xs tracking-wide text-slate-500 uppercase sm:grid sm:grid-cols-[320px_minmax(0,1fr)]" }>
+			<div class={ "hidden gap-6 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-3xs tracking-wide text-slate-500 uppercase sm:grid sm:grid-cols-[minmax(0,1fr)_220px]" }>
 				<span>What you can do</span>
 				<span>Who can do it</span>
 			</div>
@@ -103,7 +97,7 @@ templ roleMatrixApp(app RoleMatrixApp) {
 					{ group.Label }
 				</div>
 				for _, row := range group.Rows {
-					<div class={ "grid gap-1 border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:grid-cols-[320px_minmax(0,1fr)] sm:gap-6" }>
+					<div class={ "grid gap-1 border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_220px] sm:gap-6" }>
 						<div class="flex flex-col gap-0.5">
 							<span class="text-sm text-slate-900">{ row.Action }</span>
 							if row.Qualifier != "" {
@@ -127,15 +121,19 @@ templ roleMatrixApp(app RoleMatrixApp) {
 				}
 			</div>
 		}
-		// Board 06's closing sentence: two rules no Application's roles can reach. Who manages people is the
-		// Workspace's (the Members screen, named by id so its label cannot drift), and the activity history
-		// is append-only for everyone -- mch_activity declares append_only.
-		<div class={ "border-t", borderClass(ctx, domain.BorderSurface), "px-4 py-3.5" }>
-			<p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">
-				Some rules aren’t this application’s to decide: who can manage people is set in
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_members") }</a>,
-				and the activity history can’t be changed by anyone.
-			</p>
-		</div>
+	</div>
+}
+
+// roleMatrixClosingNote is board 06's closing sentence, a muted card of its own beneath the matrix: two
+// rules no Application's roles can reach. Who manages people is the Workspace's (the Members screen,
+// named by id so its label cannot drift), and the activity history is append-only for everyone --
+// mch_activity declares append_only.
+templ roleMatrixClosingNote() {
+	<div class={ tileClasses(ctx), "bg-slate-50 px-4 py-3.5" }>
+		<p class="m-0 max-w-[760px] text-xs leading-5 text-slate-500">
+			Some rules aren’t this application’s to decide: who can manage people is set in
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_members") }</a>,
+			and the activity history can’t be changed by anyone.
+		</p>
 	</div>
 }
