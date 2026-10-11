@@ -77,7 +77,15 @@ func TestEveryInstalledPageLowersAndValidates(t *testing.T) {
 				}
 				res.Rows = func(b domain.PageBinding) ([]ir.Row, error) { declared(b); return rows(b) }
 				res.Records = func(b domain.PageBinding) (ir.RecordSet, error) { declared(b); return records(b) }
-				res.Total = func(b domain.PageBinding) (string, error) { declared(b); return total(b) }
+				// The placeholder total answers any Measure id, so whether a total Metric's Measure -- or its
+				// hint_figure's -- is one the Dataset declares is asked here, independently of the loader.
+				res.Total = func(b domain.PageBinding) (string, error) {
+					declared(b)
+					if ds, ok := datasets[b.Dataset]; ok && !datasetDeclaresMeasure(ds, b.Measure) {
+						t.Errorf("%s: a total asks dataset %q for measure %q, which it does not declare -- the figure would be a silent 0", where, b.Dataset, b.Measure)
+					}
+					return total(b)
+				}
 				tree, err := ir.Lower(*item.Page, res)
 				if err != nil {
 					t.Errorf("%s: does not lower: %v", where, err)
@@ -860,5 +868,64 @@ func TestTotalBindingProblemsSeesEachFault(t *testing.T) {
 	var c int
 	if got := totalBindingProblems(node("ds_agg", "msr_n", map[string]string{"label": "x"}), datasets, &c); len(got) != 0 || c != 1 {
 		t.Errorf("a sound total reported %v (counted %d)", got, c)
+	}
+}
+
+func datasetDeclaresMeasure(ds domain.Dataset, id string) bool {
+	for _, ms := range ds.Measures {
+		if ms.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// TestEveryPercentageNamesTwoCountedMeasures: a percentage whose numerator or denominator names nothing is a silent
+// 0% at request time, not an error, so every installed Workspace's and every library template's percentages are
+// re-checked here, independently of metadata.percentageIssues.
+func TestEveryPercentageNamesTwoCountedMeasures(t *testing.T) {
+	wss, err := metadata.LoadWorkspaces(filepath.Join(repoRoot(), "metadata", "workspaces"))
+	if err != nil {
+		t.Fatalf("load workspaces: %v", err)
+	}
+	templates, err := installer.Templates(filepath.Join(repoRoot(), "metadata"))
+	if err != nil {
+		t.Fatalf("read the template library: %v", err)
+	}
+	machines := map[string]*domain.Machine{}
+	for _, slug := range sortedKeys(wss) {
+		for _, m := range wss[slug].Workspace.Machines {
+			machines[slug+"/"+m.ID] = m
+		}
+	}
+	for _, tm := range templates {
+		for _, m := range tm.Machines {
+			machines["library/"+m.Machine.ID] = m.Machine
+		}
+	}
+	checked := 0
+	for _, key := range sortedKeys(machines) {
+		for _, ds := range machines[key].Datasets {
+			for _, ms := range ds.Measures {
+				if ms.Aggregate != domain.AggregatePercentage {
+					continue
+				}
+				checked++
+				for _, part := range []string{ms.Numerator, ms.Denominator} {
+					ok := false
+					for _, other := range ds.Measures {
+						if other.ID == part && other.Aggregate != domain.AggregatePercentage {
+							ok = true
+						}
+					}
+					if !ok {
+						t.Errorf("%s: %s.%s is a percentage of %q, which is not a counted or summed measure of that dataset", key, ds.ID, ms.ID, part)
+					}
+				}
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no percentage measure found -- the gate measured nothing")
 	}
 }

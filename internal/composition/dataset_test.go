@@ -187,3 +187,40 @@ func TestAggregate_countDistinctAndPercentage(t *testing.T) {
 		t.Errorf("no records: %v, want every figure 0", empty.Total)
 	}
 }
+
+// A percentage rounds down (2 of 3 is 66, not 67), is computed after a count_distinct it divides, keeps a decimal
+// share that is whole in decimal whole (0.29 of 1 is 29, not 28), and a filtered count_distinct honours its filter.
+func TestAggregate_percentageRoundsDownAfterDistinctAndDistinctHonoursWhere(t *testing.T) {
+	done := &expression.Predicate{All: []expression.Comparison{{Field: "fld_status", Op: expression.OpEquals, Value: "done"}}}
+	ds := domain.Dataset{ID: "ds_t", Measures: []domain.Measure{
+		{ID: "msr_all", Aggregate: domain.AggregateCount},
+		{ID: "msr_done", Aggregate: domain.AggregateCount, Where: done},
+		{ID: "msr_projects", Aggregate: domain.AggregateCountDistinct, Field: "fld_project"},
+		{ID: "msr_done_projects", Aggregate: domain.AggregateCountDistinct, Field: "fld_project", Where: done},
+		{ID: "msr_two_thirds", Aggregate: domain.AggregatePercentage, Numerator: "msr_done", Denominator: "msr_all"},
+		{ID: "msr_project_share", Aggregate: domain.AggregatePercentage, Numerator: "msr_done_projects", Denominator: "msr_projects"},
+		{ID: "msr_spent", Aggregate: domain.AggregateSum, Field: "fld_spent"},
+		{ID: "msr_budget", Aggregate: domain.AggregateSum, Field: "fld_budget"},
+		{ID: "msr_spent_share", Aggregate: domain.AggregatePercentage, Numerator: "msr_spent", Denominator: "msr_budget"},
+	}}
+	records := []*data.Record{
+		rec("t1", map[string]any{"fld_project": "p1", "fld_status": "done", "fld_spent": 0.29, "fld_budget": 1.0}),
+		rec("t2", map[string]any{"fld_project": "p2", "fld_status": "done"}),
+		rec("t3", map[string]any{"fld_project": "p2", "fld_status": "todo"}),
+		rec("t4", map[string]any{"fld_project": "p3", "fld_status": "todo"}),
+	}
+	got := mustAggregate(t, ds, records, expression.Context{})
+	for id, want := range map[string]float64{"msr_done_projects": 2, "msr_projects": 3, "msr_project_share": 66, "msr_spent_share": 29} {
+		if got.Total[id] != want {
+			t.Errorf("%s = %v, want %v", id, got.Total[id], want)
+		}
+	}
+	three := mustAggregate(t, ds, records[1:], expression.Context{})
+	if three.Total["msr_two_thirds"] != 33 {
+		t.Errorf("1 of 3 = %v, want 33", three.Total["msr_two_thirds"])
+	}
+	two := mustAggregate(t, ds, append(records[:2:2], records[3]), expression.Context{})
+	if two.Total["msr_two_thirds"] != 66 {
+		t.Errorf("2 of 3 = %v, want 66 (rounded down, not 67)", two.Total["msr_two_thirds"])
+	}
+}

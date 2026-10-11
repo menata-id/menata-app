@@ -56,3 +56,16 @@ func TestLower_hintFigureRefusals(t *testing.T) {
 		}
 	}
 }
+
+// With no `one:`, a figure of 1 is worded by `other` -- the installed "{n}% of all cards" at exactly 1% must say
+// "1% of all cards", never an empty hint.
+func TestLower_hintFigureWithoutOneUsesOtherForOne(t *testing.T) {
+	h := &domain.PageCount{Of: "msr_share", Other: "{n}% of all cards"}
+	got, err := Lower(inStack(totalMetric(h, nil)), totals(map[string]string{"msr_all": "100", "msr_share": "1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hint := got.Children[0].Props["hint"]; hint != "1% of all cards" {
+		t.Errorf("hint = %q, want %q", hint, "1% of all cards")
+	}
+}

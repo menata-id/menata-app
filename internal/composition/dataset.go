@@ -132,7 +132,9 @@ func percentage(part, whole float64) float64 {
 	if whole <= 0 {
 		return 0
 	}
-	return math.Floor(part * 100 / whole)
+	// The epsilon keeps a share that is whole in decimal whole in binary: 0.29/1*100 is 28.999999999999996, which
+	// Floor alone would show as 28.
+	return math.Floor(part*100/whole + 1e-9)
 }
 
 // resolveMeasureFilters is each Measure's `where:` with its context values replaced by the literals they mean
