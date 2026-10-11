@@ -60,7 +60,7 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 		<div class="flex flex-col gap-1">
 			<a href={ templ.SafeURL(v.HubRoute) } class="text-xs text-blue-600 hover:text-blue-800">← { v.HubTitle }</a>
 			@staticText(domain.StaticHeading, membersRolesTitle)
-			@staticText(domain.StaticMessage, membersRolesBlurb)
+			@staticText(domain.StaticMessage, "Who can use "+v.App.Name+", and with which role. A role here means nothing in other applications.")
 		</div>
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 			@staticText(domain.StaticCaption, membersCoverage(v))
@@ -70,6 +70,12 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 			if len(v.Rows) == 0 {
 				<div class="px-4 py-6">
 					@staticText(domain.StaticMessage, "This Workspace has no members yet.")
+				</div>
+			}
+			if len(v.Rows) > 0 {
+				<div class={ "hidden items-center gap-4 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
+					<span class="grow">Member</span>
+					<span>Role in this application</span>
 				</div>
 			}
 			for _, row := range v.Rows {
@@ -100,6 +106,6 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 				</div>
 			}
 		</div>
-		@staticText(domain.StaticNote, "Only workspace admins can change roles. The Workspace role, invitations and removing someone are on the Workspace members page.")
+		@staticText(domain.StaticNote, "Only workspace admins can change roles. Setting a role to No access removes someone from this application only; their workspace role, invitations and removal from the workspace are on the Workspace members page.")
 	}
 }

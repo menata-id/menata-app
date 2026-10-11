@@ -400,7 +400,7 @@ navigation:
     priority: 4
     icon: settings
     settings_hub_member: true
-    description: 'The lists a board groups by, and the labels cards can carry. Both are ordinary records, shared by every project in this workspace.'
+    description: 'The lists a board groups by, and the labels cards can carry — shared by every project in this workspace.'
     page:
       layout: split
       gap: default

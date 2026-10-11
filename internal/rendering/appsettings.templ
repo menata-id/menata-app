@@ -116,7 +116,7 @@ templ settingsPlaceholderRow(label, description string) {
 templ settingsAccessRows(hub SettingsHubView, showingDetail bool) {
 	if hub.ShowAccess {
 		<div class="flex flex-col gap-0.5">
-			<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Access</h2>
+			@settingsGroupHeading("Access")
 			if hub.ShowMembersAndGroups {
 				@settingsRow(hub.MembersHref, membersRolesTitle, membersRolesBlurb, false)
 			}
@@ -131,7 +131,7 @@ templ settingsAccessRows(hub SettingsHubView, showingDetail bool) {
 templ settingsConfigRows(hub SettingsHubView) {
 	if len(hub.Members) > 0 || hub.ShowMembersAndGroups {
 		<div class="flex flex-col gap-0.5">
-			<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Configuration</h2>
+			@settingsGroupHeading("Configuration")
 			for _, m := range hub.Members {
 				@settingsRow(m.Href, m.Label, m.Description, false)
 			}
@@ -147,13 +147,15 @@ templ settingsConfigRows(hub SettingsHubView) {
 // decision, so it points there. No install date or source template: nothing stores them.
 templ settingsAbout(hub SettingsHubView) {
 	<div class="flex flex-col gap-0.5">
-		<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">About</h2>
+		@settingsGroupHeading("About")
 		<div class="flex flex-col gap-1 rounded-md p-3">
 			<span class="text-sm font-medium text-slate-900">{ hub.AppName }</span>
 			if hub.AppDescription != "" {
 				<span class="text-xs text-slate-500">{ hub.AppDescription }</span>
 			}
-			<span class="text-xs text-slate-500">{ countWords(hub.MachineCount, "machine", "machines") }{ aboutRoles(hub.RoleCount) }</span>
+			if !hub.ShowAccess {
+				<span class="text-xs text-slate-500">This application declares no roles, so everyone in this workspace can open it.</span>
+			}
 			<span class="text-xs text-slate-400">
 				To turn this application off, use
 				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_settings") }</a>
@@ -170,11 +172,10 @@ func countWords(n int, one, other string) string {
 	return strconv.Itoa(n) + " " + other
 }
 
-func aboutRoles(n int) string {
-	if n == 0 {
-		return ""
-	}
-	return " · " + countWords(n, "role", "roles")
+// hubCounts is the line under a Settings hub's heading (board CompareAppSettings): roles first, since they are
+// what this hub configures, then the Machines the Application holds.
+func hubCounts(hub SettingsHubView) string {
+	return countWords(hub.RoleCount, "role", "roles") + " · " + countWords(hub.MachineCount, "machine", "machines")
 }
 
 // settingsList is the whole hub as a list: Access, Configuration, About. The mobile page and the
@@ -209,6 +210,7 @@ templ ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, ac
 				if hub.Description != "" {
 					<p class="m-0 text-sm leading-6 text-slate-500">{ hub.Description }</p>
 				}
+				@staticText(domain.StaticCaption, hubCounts(hub))
 			}
 		</div>
 		<div class="hidden flex-col gap-1 sm:flex">
@@ -216,6 +218,7 @@ templ ApplicationSettingsPage(hub SettingsHubView, permissions RoleMatrixApp, ac
 			if hub.Description != "" {
 				<p class="m-0 text-sm leading-6 text-slate-500">{ hub.Description }</p>
 			}
+			@staticText(domain.StaticCaption, hubCounts(hub))
 		</div>
 		<div class="sm:hidden">
 			if showingDetail {

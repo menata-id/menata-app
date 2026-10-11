@@ -675,14 +675,14 @@ func assignedTable(rows []AssignedRow) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</span></div><div class=\"text-xs text-slate-500 sm:w-32\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</span></div><div class=\"text-xs text-slate-500 sm:w-32\"><span class=\"sm:hidden\">From </span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(r.From)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 305, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 305, Col: 92}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -1320,7 +1320,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = approvalProgress(c.Status, c.Approved, c.TotalSteps).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = approvalProgress(c.Status, rejectedBy(c.Approvers), c.Approved, c.TotalSteps).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1458,7 +1458,7 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<button type=\"submit\" class=\"cursor-pointer text-xs text-blue-600 hover:text-blue-700\">Revise</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<button type=\"submit\" class=\"cursor-pointer text-xs text-blue-600 hover:text-blue-700\">Revise →</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1597,7 +1597,7 @@ func approverStateLabel(state string) string {
 // screen-reader user nothing about how many approvals remain. The visible line carries the Document's
 // state before the count ("Ongoing · 1 of 3 approved"), so the bar is no longer the only thing saying
 // where the document stands.
-func approvalProgress(status string, approved, total int) templ.Component {
+func approvalProgress(status, rejecter string, approved, total int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1662,9 +1662,9 @@ func approvalProgress(status string, approved, total int) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var74 string
-		templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(approvalStatusLine(status, approved, total))
+		templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(approvalStatusLine(status, rejecter, approved, total))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 574, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/approvalinbox.templ`, Line: 574, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 		if templ_7745c5c3_Err != nil {
@@ -1681,7 +1681,7 @@ func approvalProgress(status string, approved, total int) templ.Component {
 // approvalStatusLine names the Document's state, then the count. in_review reads "Ongoing" -- the
 // board's word -- and a settled Document reads its own status; a status this does not know prints
 // the count alone rather than guessing a word for it.
-func approvalStatusLine(status string, approved, total int) string {
+func approvalStatusLine(status, rejecter string, approved, total int) string {
 	count := fmt.Sprintf("%d of %d approved", approved, total)
 	switch status {
 	case "in_review":
@@ -1689,9 +1689,23 @@ func approvalStatusLine(status string, approved, total int) string {
 	case "approved":
 		return "Approved · " + count
 	case "rejected":
+		if rejecter != "" {
+			return "Rejected by " + rejecter + " · " + count
+		}
 		return "Rejected · " + count
 	}
 	return count
+}
+
+// rejectedBy names the approver whose step rejected the Document (board M07a's "Rejected by …"), or "" when
+// no step carries that state.
+func rejectedBy(approvers []StepApprover) string {
+	for _, a := range approvers {
+		if a.State == "rejected" {
+			return a.Name
+		}
+	}
+	return ""
 }
 
 func progressPercent(approved, total int) int {

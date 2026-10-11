@@ -56,6 +56,9 @@ func snapshotLabel(r SnapshotRow) string {
 // word the same section two ways. General, Authentication and Audit log have no page (see the hub's comment),
 // which is why the sidebar draws them as settingsPlaceholderRow rather than hiding them: M04a shows them.
 const (
+	wsGroupWorkspace     = "Workspace"
+	wsGroupPeople        = "People"
+	wsGroupSecurity      = "Security"
 	wsGeneralTitle       = "General"
 	wsGeneralBlurb       = "Name, logo, time zone and language."
 	wsInvitationsTitle   = "Invitations"
@@ -89,16 +92,28 @@ const (
 // Every destination is a navigation item looked up by id. "Applications" is nav_home until S3.2 gives it a
 // page of its own (boards 04b/04c), and "Invitations" shares Members' route because one page lists both
 // (an invitation is not a membership, but it is drawn beside one).
+// settingsGroupHeading names one group of rows, in the hub and in the sidebar that mirrors it (boards 04, M04a).
+templ settingsGroupHeading(text string) {
+	<h2 class="m-0 px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">{ text }</h2>
+}
+
 templ workspaceSettingsFrame(active string) {
 	@columnsLayout(domain.GapLoose, domain.ColumnsAlignStart) {
 		<aside class="hidden w-55 shrink-0 flex-col gap-5 sm:flex" aria-label={ labelByID(ctx, "nav_workspace_settings") }>
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="px-3 text-xs text-blue-600 hover:text-blue-800">← { labelByID(ctx, "nav_workspace_settings") }</a>
 			<div class="flex flex-col gap-0.5">
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="px-3 pb-1 text-xs text-blue-600 hover:text-blue-800">← { labelByID(ctx, "nav_workspace_settings") }</a>
+				@settingsGroupHeading(wsGroupWorkspace)
 				@settingsPlaceholderRow(wsGeneralTitle, wsGeneralBlurb)
 				@settingsRow(routeByID(ctx, "nav_home"), titleByID(ctx, "nav_home"), "", false)
+			</div>
+			<div class="flex flex-col gap-0.5">
+				@settingsGroupHeading(wsGroupPeople)
 				@settingsRow(routeByID(ctx, "nav_workspace_members"), labelByID(ctx, "nav_workspace_members"), "", active == wsSectionMembers)
 				@settingsRow(routeByID(ctx, "nav_workspace_groups"), labelByID(ctx, "nav_workspace_groups"), "", active == wsSectionGroups)
 				@settingsRow(routeByID(ctx, "nav_workspace_members"), wsInvitationsTitle, "", false)
+			</div>
+			<div class="flex flex-col gap-0.5">
+				@settingsGroupHeading(wsGroupSecurity)
 				@settingsPlaceholderRow(wsAuthTitle, wsAuthBlurb)
 				@settingsPlaceholderRow(wsAuditTitle, wsAuditBlurb)
 				@settingsRow(routeByID(ctx, "nav_workspace_settings")+"#"+wsDangerZoneAnchorID, wsDangerTitle, "", false)
@@ -118,22 +133,22 @@ templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspace
 		</div>
 		<div class="flex max-w-md flex-col gap-4">
 			<div class="flex flex-col gap-0.5">
-				<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Workspace</h2>
+				@settingsGroupHeading(wsGroupWorkspace)
 				@settingsPlaceholderRow(wsGeneralTitle, wsGeneralBlurb)
 				@settingsRow(routeByID(ctx, "nav_home"), titleByID(ctx, "nav_home"), descriptionByID(ctx, "nav_home"), false)
 			</div>
 			<div class="flex flex-col gap-0.5">
-				<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">People</h2>
+				@settingsGroupHeading(wsGroupPeople)
 				@settingsRow(routeByID(ctx, "nav_workspace_members"), labelByID(ctx, "nav_workspace_members"), "Workspace role and application access.", false)
 				@settingsRow(routeByID(ctx, "nav_workspace_members"), wsInvitationsTitle, wsInvitationsBlurb, false)
 			</div>
 			<div class="flex flex-col gap-0.5">
-				<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Security</h2>
+				@settingsGroupHeading(wsGroupSecurity)
 				@settingsPlaceholderRow(wsAuthTitle, wsAuthBlurb)
 				@settingsPlaceholderRow(wsAuditTitle, wsAuditBlurb)
 			</div>
 			<div id={ wsInstallationAnchorID } class="flex flex-col gap-2">
-				<h2 class="px-3 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">{ wsInstallationTitle }</h2>
+				@settingsGroupHeading(wsInstallationTitle)
 				<form method="POST" action="/reload-workspace" class="flex flex-col gap-2 px-3">
 					@csrfHiddenInput()
 					@staticText(domain.StaticCaption, wsReloadBlurb)

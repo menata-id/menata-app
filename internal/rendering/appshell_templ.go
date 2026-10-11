@@ -1986,7 +1986,7 @@ func accountMenu(viewer Viewer, aboveBar bool) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, " <a href=\"/account-profile\" class=\"block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50\">Profile</a> <a href=\"/account-security\" class=\"block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50\">Security</a> <a href=\"/account-notifications\" class=\"block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50\">Notifications</a><div class=\"my-1 h-px bg-slate-100\"></div>            <div id=\"account-menu-workspaces\" hx-get=\"/api/account-menu/workspaces\" hx-trigger=\"toggle once from:#menata-account-menu\" hx-swap=\"innerHTML\"></div><div class=\"my-1 h-px bg-slate-100\"></div><form method=\"POST\" action=\"/logout\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 135, " <a href=\"/account-profile\" class=\"block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50\">Profile</a> <a href=\"/account-notifications\" class=\"block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50\">Notifications</a> <a href=\"/account-security\" class=\"block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50\">Security</a><div class=\"my-1 h-px bg-slate-100\"></div>            <div id=\"account-menu-workspaces\" hx-get=\"/api/account-menu/workspaces\" hx-trigger=\"toggle once from:#menata-account-menu\" hx-swap=\"innerHTML\"></div><div class=\"my-1 h-px bg-slate-100\"></div><form method=\"POST\" action=\"/logout\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
