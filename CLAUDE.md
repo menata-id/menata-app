@@ -652,8 +652,10 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   leaves the Dataset loading, the screen rendering, and every viewer seeing everyone's records —
   measured, the whole suite stayed green. A named list (`perViewerDatasets`), because "is this
   per-viewer" is a judgement no scan can make.
-  **When declaring `select: records`**: `limit:` is required (007 §7.9), `where:` values may name only
-  `$current_user` or `$parameters.<name>` (§9.2 — anything else is a load error, on purpose), and
+  **When declaring `select: records`**: `limit:` is required (007 §7.9), a `where:` value is a literal
+  or a context value the runtime resolves -- `$current_user`, `$today[±n]`, `$parameters.<name>`, and `$done` over
+  a Machine's `completion:` (§9.2: an unknown `$…` is a load error, on purpose; this line said "only
+  `$current_user` or `$parameters`" until 2026-10-11, after `$today` had shipped with K14), and
   `sort:` may name a Field or a record column (`created_at`, `updated_at`, `sort_order`).
 - `TestServiceRegistryAndExecutorsAgree` / `TestRegistryDependsOnDomainOnly` /
   `TestDomainHoldsVocabularyAndRegistryHoldsDispatch` — the dispatch-seam family (2026-09-30,
