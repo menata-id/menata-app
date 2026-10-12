@@ -578,8 +578,8 @@ func settingsSection(title string) templ.Component {
 }
 
 // settingsListRow is one linked destination inside a settingsSection: 60px tall, a body-size label, a
-// secondary description and a chevron. The mockup sets the label at 15px; the type ladder has no step
-// between body (14) and subheading (16), so it reads body rather than adding a literal.
+// secondary description and a chevron. The label is an item title at 15px (RoleItem, owner decision DS-D13,
+// 2026-10-12), as the mockup sets it; it read body (14px) while the ladder had no step between body and subheading.
 func settingsListRow(href, label, description string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -658,7 +658,7 @@ func settingsListRow(href, label, description string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var38 = []any{textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong)}
+		var templ_7745c5c3_Var38 = []any{textClass(ctx, domain.RoleItem), inkClass(ctx, domain.InkStrong)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var38...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

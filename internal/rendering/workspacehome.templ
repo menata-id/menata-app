@@ -135,7 +135,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 							}
 						</span>
 						<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-							<span class="text-[15px] font-medium">{ app.Name }</span>
+							<span class={ textClass(ctx, domain.RoleItem), "font-medium" }>{ app.Name }</span>
 							if app.Description != "" {
 								<span class="text-xs leading-4.5 text-slate-500">{ app.Description }</span>
 							}
@@ -233,7 +233,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 	<section aria-labelledby="new-application-h" class={ "flex flex-col gap-3.5", surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-			<h2 id="new-application-h" class="m-0 text-[15px] font-medium">Add an application</h2>
+			<h2 id="new-application-h" class={ "m-0", textClass(ctx, domain.RoleItem), "font-medium" }>Add an application</h2>
 			<span class="max-w-xl text-xs leading-5 text-slate-500">
 				Describe what your team needs. Menata asks a few questions, shows what it will build,
 				then generates it as a draft — nobody else sees it until you publish.
@@ -292,7 +292,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 					@icon("sparkle", "size-5")
 				</span>
 				<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-					<span class="text-[15px] font-medium">{ r.Name }</span>
+					<span class={ textClass(ctx, domain.RoleItem), "font-medium" }>{ r.Name }</span>
 					<span class="text-xs leading-4.5 text-slate-500">Generated from your description. Review it before anyone else can open it.</span>
 				</span>
 				@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)
@@ -306,7 +306,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 				@icon("sparkle", "size-5")
 			</span>
 			<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-				<span class="text-[15px] font-medium">{ r.Name }</span>
+				<span class={ textClass(ctx, domain.RoleItem), "font-medium" }>{ r.Name }</span>
 				<span class="text-xs leading-4.5 text-slate-500">Generated from your description. Review it before anyone else can open it.</span>
 			</span>
 			@statusBadge("Draft", domain.ToneWarn, domain.BadgeRegular)

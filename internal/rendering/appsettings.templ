@@ -139,12 +139,12 @@ templ settingsSection(title string) {
 }
 
 // settingsListRow is one linked destination inside a settingsSection: 60px tall, a body-size label, a
-// secondary description and a chevron. The mockup sets the label at 15px; the type ladder has no step
-// between body (14) and subheading (16), so it reads body rather than adding a literal.
+// secondary description and a chevron. The label is an item title at 15px (RoleItem, owner decision DS-D13,
+// 2026-10-12), as the mockup sets it; it read body (14px) while the ladder had no step between body and subheading.
 templ settingsListRow(href, label, description string) {
 	<a href={ templ.SafeURL(href) } class={ "flex min-h-15 items-center", layoutGap(ctx, domain.GapDefault), "border-b px-4 py-2.5 last:border-b-0", hoverWashClass(ctx), borderClass(ctx, domain.BorderDivider) }>
 		<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ label }</span>
+			<span class={ textClass(ctx, domain.RoleItem), inkClass(ctx, domain.InkStrong) }>{ label }</span>
 			if description != "" {
 				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ description }</span>
 			}

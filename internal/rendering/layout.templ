@@ -65,6 +65,8 @@ func textClass(ctx context.Context, role domain.TextRole) string {
 		return "text-xs"
 	case domain.TextNormal:
 		return "text-sm"
+	case domain.TextNormalPlus:
+		return "text-item"
 	case domain.TextMedium:
 		return "text-base"
 	case domain.TextLarge:

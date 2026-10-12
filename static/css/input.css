@@ -48,6 +48,11 @@
 	   ~15.7px, not 16.5px). menata-app-document audits/2026-10-11-kajian-sinkron-design-system-kode-css.md, C2. */
 	--text-2xs--line-height: 1.5;
 	--text-3xs--line-height: 1.5;
+
+	/* 15px for an item's title (owner decision DS-D13, 2026-10-12; the Design System's `item` style), with the
+	   mockups' 22px line height. Read through textClass(ctx, domain.RoleItem), never written by hand. */
+	--text-item: 0.9375rem; /* 15px */
+	--text-item--line-height: calc(1.375 / 0.9375); /* 22px */
 }
 
 /* Ubuntu 400/500/700, latin-ext then latin. Weight 500 carries most of the UI (labels, buttons,

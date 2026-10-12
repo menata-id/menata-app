@@ -105,12 +105,16 @@ const (
 	// job -- a label is the text *inside* a badge, a caption is prose *beside* a block -- so a Workspace can size
 	// them apart. Eight sites moved to it (2026-10-06).
 	RoleCaption TextRole = "caption"
+	// RoleItem is the title of one item in a list or on a card: an Application's name, a group's, a member's, a
+	// document card's title (owner decision DS-D13, 2026-10-12). The mockups set these at 15px 223 times; the ladder had
+	// no step between body (14) and subheading (16), so they were a literal `text-[15px]` no theme could move.
+	RoleItem TextRole = "item"
 )
 
 // KnownTextRoles is the closed set.
 var KnownTextRoles = map[TextRole]bool{
 	RoleDisplay: true, RoleHeading: true, RoleSubheading: true, RoleBody: true,
-	RoleMeta: true, RoleLabel: true, RoleEyebrow: true, RoleCaption: true,
+	RoleMeta: true, RoleLabel: true, RoleEyebrow: true, RoleCaption: true, RoleItem: true,
 }
 
 // TextScale is a step on the type ladder, named by **amount in plain words** rather than by framework token —
@@ -123,14 +127,17 @@ const (
 	TextTiny   TextScale = "tiny"
 	TextSmall  TextScale = "small"
 	TextNormal TextScale = "normal"
-	TextMedium TextScale = "medium"
-	TextLarge  TextScale = "large"
-	TextHuge   TextScale = "huge"
+	// TextNormalPlus is 15px (`text-item`, a custom size with its own 22px line height), the step between normal and
+	// medium that DS-D13 added for RoleItem.
+	TextNormalPlus TextScale = "normal-plus"
+	TextMedium     TextScale = "medium"
+	TextLarge      TextScale = "large"
+	TextHuge       TextScale = "huge"
 )
 
 // KnownTextScales is the closed set.
 var KnownTextScales = map[TextScale]bool{
-	TextMicro: true, TextTiny: true, TextSmall: true, TextNormal: true,
+	TextMicro: true, TextTiny: true, TextSmall: true, TextNormal: true, TextNormalPlus: true,
 	TextMedium: true, TextLarge: true, TextHuge: true,
 }
 
@@ -505,14 +512,15 @@ func DefaultTheme() Theme {
 			WeightEmphasis: WeightStepMedium, // was font-medium
 		},
 		Text: map[TextRole]TextScale{
-			RoleDisplay:    TextHuge,   // was text-2xl
-			RoleHeading:    TextLarge,  // was text-xl
-			RoleSubheading: TextMedium, // was text-base
-			RoleBody:       TextNormal, // was text-sm
-			RoleMeta:       TextSmall,  // was text-xs
-			RoleLabel:      TextTiny,   // was text-2xs
-			RoleEyebrow:    TextMicro,  // was text-3xs
-			RoleCaption:    TextTiny,   // was text-2xs, beside RoleLabel
+			RoleDisplay:    TextHuge,       // was text-2xl
+			RoleHeading:    TextLarge,      // was text-xl
+			RoleSubheading: TextMedium,     // was text-base
+			RoleBody:       TextNormal,     // was text-sm
+			RoleMeta:       TextSmall,      // was text-xs
+			RoleLabel:      TextTiny,       // was text-2xs
+			RoleEyebrow:    TextMicro,      // was text-3xs
+			RoleCaption:    TextTiny,       // was text-2xs, beside RoleLabel
+			RoleItem:       TextNormalPlus, // was text-[15px] (owner decision DS-D13, 2026-10-12)
 		},
 		Gap: map[Gap]GapAmount{
 			GapXtight:      GapAmountOneHalf, // was gap-1.5 (hand-written; the Design System's gap-xtight)

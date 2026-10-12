@@ -14,6 +14,7 @@
     "display": "huge",
     "eyebrow": "micro",
     "heading": "large",
+    "item": "normal-plus",
     "label": "tiny",
     "meta": "small",
     "subheading": "medium"

@@ -2138,7 +2138,8 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     meta:    small    # dates, counts, names       (default: small)
 >     label:   tiny     # badge and pill text        (default: tiny)
 >     eyebrow: micro    # the uppercase line above a title (default: micro)
-    caption: tiny     # the help line under a panel title or control (default: tiny)
+>     caption: tiny     # the help line under a panel title or control (default: tiny)
+>     item:    normal-plus  # one item's title in a list or on a card: an Application, a member, a document (default: normal-plus, 15px)
 >   gap:
 >     hair:        half   # the smallest step: tightly stacked lines, a name over its email (default: half)
 >     micro:       one    # a title over its subtitle, a label beside its value (default: one)
@@ -2206,8 +2207,9 @@ similar-looking metadata for a *different* Machine does not activate it.
 > caller already says `tight` rather than a raw class — there is no role to invent. Amounts, smallest first:
 > `half`, `one`, `one-half`, `two`, `three`, `four`, `five`, `six`.
 >
-> The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
-> `medium` is the one no role claims by default.
+> The eight text scales, smallest first: `micro` (10px), `tiny` (11), `small` (12), `normal` (14), `normal-plus` (15),
+> `medium` (16), `large` (20), `huge` (24). `normal-plus` arrived with `item` (2026-10-12); 13px was rejected as a step
+> and stays out (the Design System records why).
 >
 > **`border.control` and `radius.control` move every field a signed-in person types into, and no field on a pre-auth screen.** Sign in, register, forgot/reset password, accept-invite and choose-workspace render before a Workspace exists on the request, so a `theme:` block cannot reach them -- they always draw the default theme (2026-10-07; read from the router, so a screen moving behind the login gate would start following the theme). Account's name field, the invite-role select and the signature width box read the theme; four fields on the sign-in and register kit are the ones that cannot.
 >

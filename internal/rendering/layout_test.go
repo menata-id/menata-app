@@ -1530,3 +1530,15 @@ func TestHoverRecipes_followTheTheme(t *testing.T) {
 		}
 	}
 }
+
+// DS-D13 (R9): an item's title follows theme.text.item. Under item: medium every migrated site draws text-base, and
+// no default 15px survives on the pages that carry one.
+func TestRoleItem_followsTheTheme(t *testing.T) {
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: domain.Theme{Text: map[domain.TextRole]domain.TextScale{domain.RoleItem: domain.TextMedium}}}, "WS", false)
+	if got := textClass(ctx, domain.RoleItem); got != "text-base" {
+		t.Errorf("item under medium: %q, want text-base", got)
+	}
+	if got := textClass(context.Background(), domain.RoleItem); got != "text-item" {
+		t.Errorf("item by default: %q, want text-item", got)
+	}
+}

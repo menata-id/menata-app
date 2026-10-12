@@ -83,6 +83,7 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 		"meta":          {textClass(ctx, domain.RoleMeta), weightClass(ctx, domain.WeightBody)},
 		"label":         {textClass(ctx, domain.RoleLabel), weightClass(ctx, domain.WeightBody)},
 		"caption":       {textClass(ctx, domain.RoleCaption), weightClass(ctx, domain.WeightBody)},
+		"item":          {textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis)},
 		"eyebrow":       {textClass(ctx, domain.RoleEyebrow), weightClass(ctx, domain.WeightBody)},
 	}
 
