@@ -27,3 +27,10 @@ repo, so download its `project/*.dc.html` first (Artifact `read` with `paths`).
   - Measured 2026-10-12 on canvas version 155: 0 stale blocks; 130 references, all in one artboard (U04); 1,623
     literals equal a token value and 6,728 do not. Most of the 6,728 are the same palette written in old hex notation
     (`#e2e8f0` for slate-200); that is the canvas's remaining R3 debt.
+
+`canvas_vars.py` (rencana 0.6) replaces oklch colour literals in the canvas artboards that equal a token with
+`var(--token)`. The name comes from the CSS property's family: `color` reads ink, `background` reads fill, and
+`border`/`outline` read edge. Every file is verified by resolving each `var()` back to its value. Hex is out of
+scope; see the script's docstring and decision K1. The first run, on 2026-10-12, covered canvas version 157: 466
+literals in the five Builder artboards (A01, U01–U04). 26 were left, because their colour belongs to another
+family (a dot, a tab underline, a chevron).

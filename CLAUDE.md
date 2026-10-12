@@ -377,7 +377,7 @@ rather than carrying it forward unreviewed.
 |---|---|---|
 | What does the runtime render today, and what can a Workspace override? | **Code**: `internal/domain/theme.go` (roles → steps), readers in `internal/rendering/layout.templ`/`controls.templ`, `registry.Components`, `static/css/input.css` | this repo |
 | What tokens, type scale, and components do the **mockups** use, and which proposals were accepted or rejected? | **Design System artifact "Menata App"**: `project/README.md` (decisions with reasons) and `project/tokens.json` (64 tokens, oklch values, `status: accepted` on the ones not yet in code) | `https://claude.ai/artifact/Xi4TYQPxsMQUmL3chScmaS` |
-| What should a screen look like? | **Mockup canvases**. Both have the Design System installed (`project/ds/menata-app/tokens.json` plus a `designSystems` record). On the UI mockups canvas, each of the 88 artboards' `:root` blocks is *generated* from it (version `1791770746-0d9d`). The Builder canvas holds an older copy (`1791342370-dabf`) | UI mockups `https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`; Application Builder (process-map components: ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessMap; Halaman 4) `https://claude.ai/artifact/4tdbksPLQdwogQ19a9rPbq` |
+| What should a screen look like? | **Mockup canvases**. Both have the Design System installed (`project/ds/menata-app/tokens.json` plus a `designSystems` record). On the UI mockups canvas, each of the 88 artboards' `:root` blocks is *generated* from it (version `1791770746-0d9d`). The Builder canvas's copy was updated to `1791770746-0d9d` on 2026-10-12 | UI mockups `https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`; Application Builder (process-map components: ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessMap; Halaman 4) `https://claude.ai/artifact/4tdbksPLQdwogQ19a9rPbq` |
 | Why was a Theme role decided the way it was? | `menata-app-document`'s `guides/design-system-decisions.md` (D1–D9, and its "where everything lives" header) | companion repo |
 
 **Governance, lessons and the gate design live in `menata-app-document`'s `guides/menjaga-design-system.md`.** It
@@ -399,9 +399,10 @@ record is in `menata-app-document`'s `audits/2026-10-11-kajian-mockup-vs-design-
 Rules that follow from it:
 - **Change a token in the Design System artifact, then regenerate the canvas `:root` blocks from its
   `tokens.json`.** Never edit one artboard's block by hand: the 88 copies drift.
-- **An artboard should reference tokens (`var(--accent)`), not copy their values.** Only U04's process map does
-  so today. Migrating others is a pure substitution, provable by resolving every `var()` back to the original
-  literal.
+- **An artboard should reference tokens (`var(--accent)`), not copy their values.** Since 2026-10-12 the
+  five Builder artboards (A01, U01–U04) do, through `design-system/canvas_vars.py`. It is a pure substitution,
+  oklch literals only, verified by resolving every `var()` back. The rest of the canvas is Tailwind **v3 hex**, a
+  slightly different palette from the v4 tokens, so converting it is owner decision K1, not a substitution.
 - **Artifact and code are held in sync by GS1** (`TestDesignSystemTokensMatchTheCode` over
   `design-system/tokens.json`). As of 2026-10-12, all four tokens the artifact accepted are in code (`mark-good`,
   `gap-xtight`, `gap-region`, `control-height-compact`), so `dsAcceptedNotInCode` is empty. Still open:
