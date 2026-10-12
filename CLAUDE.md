@@ -381,9 +381,10 @@ rather than carrying it forward unreviewed.
 | Why was a Theme role decided the way it was? | `menata-app-document`'s `guides/design-system-decisions.md` (D1–D9, and its "where everything lives" header) | companion repo |
 
 **Governance, lessons and the gate design live in `menata-app-document`'s `guides/menjaga-design-system.md`.** It
-records eleven measured inconsistencies between code, artifact and canvas (2026-10-03 to 10-12), and none of them
-turned a build red. It also holds rules R1–R8 and cross-source gates GS1–GS7. The rule that would have prevented
-four of the eleven: **folding, normalising or replacing a value is a decision, not a tidy-up.** Test it on the
+records thirteen measured inconsistencies between code, artifact and canvas (2026-10-03 to 10-12), and none of them
+turned a build red. It also holds rules R1–R9 and cross-source gates GS1–GS7. R9 says a migration to a Theme reader
+is also tested under a moved theme, because the default theme cannot show a collision. The rule that would have
+prevented four of the first eleven: **folding, normalising or replacing a value is a decision, not a tidy-up.** Test it on the
 densest surface, measure, record it with its reversal condition, and leave it as a reasoned floor until then. The
 2026-10-03 `row` migration folded 6px into 8px "as an accident"; four days later the artifact showed 8px breaks
 lane titles, and `GapXtight` reversed it.
