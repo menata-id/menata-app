@@ -2167,6 +2167,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     faint:     light    # hints, placeholders, decoration          (default: light)
 >     accent:    blue     # links and accent text, hover included; a HUE: blue, indigo, violet, emerald,
 >                         #   rose or cyan (default: blue). A grey role may not take a hue, nor accent a grey.
+>                         #   Or a colour value, "#be123c" -- see below.
 >   background:
 >     raised: lightest    # cards, panels, the header and bottom bar   (default: lightest)
 >     base:   lighter     # the page behind everything                (default: lighter)
@@ -2189,6 +2190,13 @@ similar-looking metadata for a *different* Machine does not activate it.
 > that may be missed -- the default `light` shade is about 2.6:1 on white, below WCAG AA, so mapping real
 > content to it makes that content hard to read. Only the runtime's shared components (a Metric, a static
 > paragraph) follow `ink:`; text a screen draws by hand keeps its own colour.
+>
+> **An ink role may also take a colour value** instead of a shade -- your brand colour, written `"#rrggbb"` (quoted,
+> because YAML reads `#` as a comment): `accent: "#be123c"`, `body: "#1f2937"`. Every role takes one except `faint`.
+> The runtime checks the value when it loads the Workspace: text must read at **4.5:1** against your `raised` and
+> `base` backgrounds, and a colour that does not is a load error that names the ratio, so pick a darker one. The
+> accent's hover is the same colour, slightly darker. A value applies to the screens a Workspace renders; the sign-in
+> pages, which belong to no Workspace, keep the default colours.
 >
 > `background:` is the colour of light surfaces: three roles, three shades (`lightest` is white, `lighter` and
 > `light` step toward grey). Dark surfaces (the primary button, a menu) are not part of it. Like `ink:`, it

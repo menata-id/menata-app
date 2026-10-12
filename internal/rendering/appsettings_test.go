@@ -153,7 +153,9 @@ func TestApplicationSettingsHub_hasNoTypeInkWeightOrFillTheThemeCannotMove(t *te
 		}
 	}
 	residue := regexp.MustCompile(`(?:^|[\s"])(text-(?:3xs|2xs|xs|sm|base|xl)|text-slate-(?:400|500|900)|font-medium|bg-slate-100|bg-white)(?:[\s"]|$)`)
-	if got := residue.FindAllStringSubmatch(buf.String(), -1); len(got) > 0 {
+	// Resolved first (DS-D15 stage 2): a role class reads the same under every theme, so what is checked is what it
+	// computes to here. A literal is left as it is, so it is still residue.
+	if got := residue.FindAllStringSubmatch(resolveColourRoles(t, ctx, buf.String()), -1); len(got) > 0 {
 		seen := map[string]bool{}
 		for _, m := range got {
 			seen[m[1]] = true
@@ -175,8 +177,8 @@ func TestSettingsNavLink_keepsItsInkWhenTwoInkRolesShareAShade(t *testing.T) {
 		if err := settingsNavLink("/x", "Members", current).Render(ctx, &buf); err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(buf.String(), "text-slate-900") {
-			t.Errorf("current=%v: the link lost its ink class: %s", current, buf.String())
+		if got := resolveColourRoles(t, ctx, buf.String()); !strings.Contains(got, "text-slate-900") {
+			t.Errorf("current=%v: the link lost its ink class: %s", current, got)
 		}
 	}
 }

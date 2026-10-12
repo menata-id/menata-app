@@ -58,8 +58,15 @@ func TestThemeColourPairsMeetContrast(t *testing.T) {
 			continue
 		}
 		hued := WithCurrentWorkspace(ctx, domain.Workspace{Theme: domain.Theme{Ink: map[domain.InkRole]domain.InkShade{domain.InkAccent: shade}}}, "", false)
+		// inkClass answers `text-accent` under every theme (DS-D15 stage 2); what the hue draws is the Workspace's
+		// override, so the class is resolved under that Workspace first. Without it this loop measured the default
+		// blue once per hue and passed.
+		accent := resolveColourRoles(t, hued, inkClass(hued, domain.InkAccent))
+		if accent == inkClass(ctx, domain.InkAccent) || accent == resolveColourRoles(t, ctx, inkClass(ctx, domain.InkAccent)) {
+			t.Fatalf("accent=%s resolves to %q, the default -- the hue never reached the measurement", shade, accent)
+		}
 		for _, bg := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundBase} {
-			pairs = append(pairs, pair{fmt.Sprintf("ink accent=%s on %s", shade, bg), inkClass(hued, domain.InkAccent), backgroundClass(ctx, bg), 4.5})
+			pairs = append(pairs, pair{fmt.Sprintf("ink accent=%s on %s", shade, bg), accent, backgroundClass(ctx, bg), 4.5})
 		}
 	}
 	pairs = append(pairs,
@@ -122,6 +129,13 @@ func compiledColours(t *testing.T) compiledCSS {
 		h, _ := strconv.ParseFloat(m[4], 64)
 		out[m[1]] = oklchColour{L: l / 100, C: c, H: h}
 	}
+	// Colour roles alias a palette step (DS-D15 stage 2: `--color-ink-body:var(--color-slate-700)`); each resolves
+	// to the step's value, as the browser resolves it on a page with no Workspace override.
+	for _, m := range regexp.MustCompile(`--color-([a-z]+(?:-[a-z]+)*):var\(--color-([a-z]+-[0-9]+)\)`).FindAllStringSubmatch(string(b), -1) {
+		if col, ok := out[m[2]]; ok {
+			out[m[1]] = col
+		}
+	}
 	if len(out) < 20 {
 		t.Fatalf("found only %d oklch colour variables in app.css -- the pattern no longer matches what Tailwind emits", len(out))
 	}
@@ -161,4 +175,42 @@ func luminance(c oklchColour) float64 {
 	g := clamp(-1.2684380046*l + 2.6097574011*m - 0.3413193965*s)
 	bl := clamp(-0.0041960863*l - 0.7034186147*m + 1.7076147010*s)
 	return 0.2126*r + 0.7152*g + 0.0722*bl
+}
+
+// TestBackgroundShadeColoursMatchTheCompiledCSS holds domain.BackgroundShadeColour -- what the loader measures a
+// Workspace's free ink value against (DS-D15 stage 2) -- to the colour each shade's class really compiles to. The
+// table lives in domain because the loader may not read app.css; this is what keeps the two from drifting.
+func TestBackgroundShadeColoursMatchTheCompiledCSS(t *testing.T) {
+	css := compiledColours(t)
+	white := oklchColour{L: 1}
+	for shade := range domain.KnownBackgroundShades {
+		ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: domain.Theme{Background: map[domain.BackgroundRole]domain.BackgroundShade{domain.BackgroundRaised: shade}}}, "", false)
+		class := backgroundClass(ctx, domain.BackgroundRaised)
+		got, err := css.lookup(class, white)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := domain.BackgroundShadeColour(shade)
+		if math.Abs(got.L-want.L) > 1e-6 || math.Abs(got.C-want.C) > 1e-6 || (got.C > 0 && math.Abs(got.H-want.H) > 1e-3) {
+			t.Errorf("shade %q: domain says %+v, %s compiles to %+v -- move domain.BackgroundShadeColour", shade, want, class, got)
+		}
+		if r := domain.ContrastRatio(domain.Colour(got), want); r > 1.0001 {
+			t.Errorf("shade %q: the two colours differ by %.4f:1", shade, r)
+		}
+	}
+}
+
+// TestDomainContrastAgreesWithThisGate: the loader's contrast (domain.ContrastRatio) and this gate's (contrastRatio)
+// are the same formula written twice, because this file predates the loader needing one. They must agree on every
+// pair the gate measures.
+func TestDomainContrastAgreesWithThisGate(t *testing.T) {
+	css := compiledColours(t)
+	for a, ca := range css {
+		for _, b := range []string{"slate-50", "slate-100", "slate-900"} {
+			cb := css[b]
+			if d := math.Abs(contrastRatio(ca, cb) - domain.ContrastRatio(domain.Colour(ca), domain.Colour(cb))); d > 1e-9 {
+				t.Errorf("%s on %s: the gate and domain differ by %g", a, b, d)
+			}
+		}
+	}
 }

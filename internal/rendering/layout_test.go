@@ -399,7 +399,7 @@ func TestStaticLink_rendersAnAnchorNotLiteralText(t *testing.T) {
 	if err := staticLink("/register", "Create a workspace").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	got := buf.String()
+	got := resolveColourRoles(t, context.Background(), buf.String())
 	if want := `<a href="/register" class="text-blue-600 hover:text-blue-700">Create a workspace</a>`; got != want {
 		t.Errorf("staticLink emitted %q, want %q -- this is the pre-migration literal from git history, not from the renderer", got, want)
 	}
@@ -418,7 +418,7 @@ func TestMetric_inkFollowsTheWorkspaceTheme(t *testing.T) {
 		}
 		return buf.String()
 	}
-	def := render(context.Background())
+	def := resolveColourRoles(t, context.Background(), render(context.Background()))
 	for _, want := range []string{"text-slate-900", "text-xs text-slate-500", "text-2xs text-slate-400"} {
 		if !strings.Contains(def, want) {
 			t.Errorf("default Metric lost %q; got %q", want, def)
@@ -429,7 +429,8 @@ func TestMetric_inkFollowsTheWorkspaceTheme(t *testing.T) {
 		domain.InkSecondary: domain.InkShadeDark,
 		domain.InkFaint:     domain.InkShadeMedium,
 	}}}
-	got := render(WithCurrentWorkspace(context.Background(), ws, "Test Workspace", false))
+	wctx := WithCurrentWorkspace(context.Background(), ws, "Test Workspace", false)
+	got := resolveColourRoles(t, wctx, render(wctx))
 	if !strings.Contains(got, "text-xs text-slate-700") || !strings.Contains(got, "text-2xs text-slate-500") {
 		t.Errorf("a declared ink theme should recolour the label and hint; got %q", got)
 	}
@@ -467,7 +468,7 @@ func renderWithTheme(t *testing.T, th domain.Theme, c templ.Component) string {
 	if err := c.Render(templ.WithChildren(ctx, templ.Raw("x")), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	return buf.String()
+	return resolveColourRoles(t, ctx, buf.String())
 }
 
 // TestPaddingFollowsTheWorkspaceTheme pins the **pre-migration literal beside the intended one** for all three
@@ -541,8 +542,8 @@ func TestStaticMessageAndNote_defaultIsTheLiteralEachSiteReplaced(t *testing.T) 
 		if err := staticText(tc.kind, "hi").Render(context.Background(), &buf); err != nil {
 			t.Fatalf("Render(%q) error = %v", tc.kind, err)
 		}
-		if buf.String() != tc.want {
-			t.Errorf("%s rendered %q, want %q", tc.kind, buf.String(), tc.want)
+		if got := resolveColourRoles(t, context.Background(), buf.String()); got != tc.want {
+			t.Errorf("%s rendered %q, want %q", tc.kind, got, tc.want)
 		}
 	}
 
@@ -601,8 +602,8 @@ func TestStaticHeadingEyebrowParagraph_followTheTheme(t *testing.T) {
 		if err := staticText(c.kind, "T").Render(context.Background(), &buf); err != nil {
 			t.Fatalf("%s: Render() error = %v", c.kind, err)
 		}
-		if buf.String() != c.want {
-			t.Errorf("%s rendered %q, want %q", c.kind, buf.String(), c.want)
+		if got := resolveColourRoles(t, context.Background(), buf.String()); got != c.want {
+			t.Errorf("%s rendered %q, want %q", c.kind, got, c.want)
 		}
 		if got := renderWithTheme(t, c.theme, staticText(c.kind, "T")); !strings.Contains(got, c.moved) {
 			t.Errorf("%s: declared theme should give %q; got %q", c.kind, c.moved, got)
@@ -617,8 +618,8 @@ func TestStaticOverline_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 	if err := staticText(domain.StaticOverline, "Account").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	if want := `<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>`; buf.String() != want {
-		t.Errorf("overline rendered %q, want %q", buf.String(), want)
+	if got, want := resolveColourRoles(t, context.Background(), buf.String()), `<span class="text-3xs tracking-wide text-slate-400 uppercase">Account</span>`; got != want {
+		t.Errorf("overline rendered %q, want %q", got, want)
 	}
 	th := domain.Theme{
 		Text: map[domain.TextRole]domain.TextScale{domain.RoleEyebrow: domain.TextSmall},
@@ -658,8 +659,8 @@ func TestStaticCaption_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 	if err := staticText(domain.StaticCaption, "Help").Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	if want := `<p class="m-0 text-2xs text-slate-500">Help</p>`; buf.String() != want {
-		t.Errorf("caption rendered %q, want %q", buf.String(), want)
+	if got, want := resolveColourRoles(t, context.Background(), buf.String()), `<p class="m-0 text-2xs text-slate-500">Help</p>`; got != want {
+		t.Errorf("caption rendered %q, want %q", got, want)
 	}
 	th := domain.Theme{
 		Text: map[domain.TextRole]domain.TextScale{domain.RoleCaption: domain.TextNormal},
@@ -685,7 +686,7 @@ func TestButtonClasses_defaultIsTheLiteralEachSiteReplaced(t *testing.T) {
 		domain.ButtonSecondary: "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-4 font-sans text-sm text-slate-700 hover:bg-slate-50",
 		domain.ButtonDanger:    "inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-red-200 bg-white px-4 font-sans text-sm text-red-700 hover:bg-red-50",
 	} {
-		if got := buttonClasses(ctx, variant); got != want {
+		if got := resolveColourRoles(t, ctx, buttonClasses(ctx, variant)); got != want {
 			t.Errorf("%s button rendered %q, want %q", variant, got, want)
 		}
 	}
@@ -704,7 +705,7 @@ func TestButtonClasses_followTheTheme(t *testing.T) {
 	}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
 	primary := buttonClasses(ctx, domain.ButtonPrimary)
-	secondary := buttonClasses(ctx, domain.ButtonSecondary)
+	secondary := resolveColourRoles(t, ctx, buttonClasses(ctx, domain.ButtonSecondary))
 	danger := buttonClasses(ctx, domain.ButtonDanger)
 	for name, got := range map[string]string{"primary": primary, "secondary": secondary, "danger": danger} {
 		if !strings.Contains(got, "rounded-full") || strings.Contains(got, "rounded-md") {
@@ -789,7 +790,7 @@ func TestButton_reproducesTheUnreachedReviewAndInstallSites(t *testing.T) {
 // its focus ring at all (measured in Chromium: outline-style none on a focused input).
 func TestFieldClasses_defaultIsTheLiteralItReplaced(t *testing.T) {
 	const want = "h-9 rounded-md border border-slate-300 bg-white px-3 font-sans text-sm text-slate-900 focus:outline-solid focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
-	if got := fieldClasses(context.Background()); got != want {
+	if got := resolveColourRoles(t, context.Background(), fieldClasses(context.Background())); got != want {
 		t.Errorf("default field rendered %q, want the pre-migration controlField literal %q", got, want)
 	}
 }
@@ -805,7 +806,7 @@ func TestFieldClasses_followTheTheme(t *testing.T) {
 		Text:   map[domain.TextRole]domain.TextScale{domain.RoleBody: domain.TextSmall},
 	}
 	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Slug: "test", Theme: th}, "Test Workspace", false)
-	got := fieldClasses(ctx)
+	got := resolveColourRoles(t, ctx, fieldClasses(ctx))
 	for _, want := range []string{"rounded-full", "border-slate-200", "text-slate-500", "text-xs", "bg-white", "focus:outline-blue-300"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("a declared theme should yield %q; got %q", want, got)
@@ -1118,7 +1119,7 @@ func TestCollection_orderedDrawsAnOlWithOneOrdinalPerItem(t *testing.T) {
 	if err := collection(domain.GapTight, "", true, false, Truncation{}, "", "", items).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	got := buf.String()
+	got := resolveColourRoles(t, context.Background(), buf.String())
 	if !strings.Contains(got, `<ol class="m-0 flex list-none flex-col p-0 gap-2">`) || strings.Contains(got, "<ul") {
 		t.Errorf("ordered collection should be an <ol>; got %q", got)
 	}
@@ -1444,15 +1445,15 @@ func TestAccentInk_followsTheThemeAtMigratedSites(t *testing.T) {
 	if err := staticLink("/x", "Open").Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
-	if got := buf.String(); got != `<a href="/x" class="text-violet-600 hover:text-violet-700">Open</a>` {
+	if got := resolveColourRoles(t, ctx, buf.String()); got != `<a href="/x" class="text-violet-600 hover:text-violet-700">Open</a>` {
 		t.Errorf("a static link must take the accent and its hover from the theme: %s", got)
 	}
 	buf.Reset()
 	if err := staticText(domain.StaticEyebrow, "Account").Render(ctx, &buf); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(buf.String(), "text-violet-600") || strings.Contains(buf.String(), "blue") {
-		t.Errorf("the eyebrow is accent text and must follow theme.ink.accent: %s", buf.String())
+	if got := resolveColourRoles(t, ctx, buf.String()); !strings.Contains(got, "text-violet-600") || strings.Contains(got, "blue") {
+		t.Errorf("the eyebrow is accent text and must follow theme.ink.accent: %s", got)
 	}
 	if (domain.Theme{Ink: map[domain.InkRole]domain.InkShade{domain.InkStrong: domain.InkHueViolet}}).InkFor(domain.InkStrong) != domain.InkShadeDarkest {
 		t.Error("a grey role must not take a hue: InkFor must fall back to the default")

@@ -51,6 +51,18 @@
 
 	/* 15px for an item's title (owner decision DS-D13, 2026-10-12; the Design System's `item` style), with the
 	   mockups' 22px line height. Read through textClass(ctx, domain.RoleItem), never written by hand. */
+	/* Text-colour roles (owner decision DS-D15 stage 2, 2026-10-12), named as the Design System names them. Each holds
+	   its default shade; a Workspace that moves one overrides the property in its page's <head> (rendering.themeStyle),
+	   so a page with no Workspace -- every pre-auth screen -- still draws these. Read through rendering.inkClass and
+	   accentHoverClass, never written by hand. Not `@theme inline`: the utility must reference the property, or an
+	   override could not reach it. */
+	--color-ink-strong: var(--color-slate-900);
+	--color-ink-body: var(--color-slate-700);
+	--color-ink-secondary: var(--color-slate-500);
+	--color-ink-faint: var(--color-slate-400);
+	--color-accent: var(--color-blue-600);
+	--color-accent-hover: var(--color-blue-700);
+
 	--text-item: 0.9375rem; /* 15px */
 	--text-item--line-height: calc(1.375 / 0.9375); /* 22px */
 }

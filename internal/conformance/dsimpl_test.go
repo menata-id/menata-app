@@ -44,8 +44,11 @@ func themeRoleDefaults(t *testing.T) []themeRoleDefault {
 	for r := range domain.KnownBorderRoles {
 		add("Border", string(r), armFor(arms("borderClass"), string(th.BorderFor(r))))
 	}
+	// Since DS-D15 stage 2 inkClass answers one class per role (`text-ink-body`) and the shade is a custom property;
+	// the palette step a role draws by default is inkShadeVar's arm, and a hand-written copy of that is what the ink
+	// ratchet must count.
 	for r := range domain.KnownInkRoles {
-		add("Ink", string(r), armFor(arms("inkClass"), string(th.InkFor(r))))
+		add("Ink", string(r), "text-"+strings.TrimPrefix(armFor(arms("inkShadeVar"), string(th.InkFor(r))), "--color-"))
 	}
 	for r := range domain.KnownBackgroundRoles {
 		add("Background", string(r), armFor(arms("backgroundClass"), string(th.BackgroundFor(r))))

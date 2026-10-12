@@ -1089,6 +1089,27 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   had `accentInkClass`. G1 and GS3 asked `inkClass` for the accent and silently measured the grey default:
   "17.84:1" for a link that is really 5.26:1. One reader leaves no road around it. GS3 measures every hue, not only
   the default. Mutation-proved three ways.
+- `TestColourRoleClassesComeOnlyFromTheirReaders` and `internal/rendering`'s `TestThemeCSS*` family — owner decision
+  DS-D15 stage 2 (2026-10-12): **a colour role is a CSS custom property, and a Workspace may give it a value.** Ink
+  is the first category (border, background and tone follow, then radius and space):
+  - `inkClass` answers one class per role (`text-ink-body`, `text-accent`), the same under every theme. The
+    property's default sits in `static/css/input.css`'s `@theme` under the Design System's own token names, so a
+    page with no Workspace (pre-auth) draws the default. A moved role is an override in the page's `<head>`
+    (`rendering.themeCSS`/`themeStyle`), empty for the default theme.
+  - `theme.ink.<role>` takes a shade **or** `"#rrggbb"` (not on `faint`). The loader refuses a value below 4.5:1 on
+    the Workspace's own `raised` and `base` (`metadata.inkContrastIssues`, `domain.ContrastRatio`);
+    `TestBackgroundShadeColoursMatchTheCompiledCSS` holds domain's background table to `app.css`.
+  - **A byte-diff no longer proves a colour migration.** Tests compare what a class computes to:
+    `resolveColourRoles` rewrites a role class through the override and the `@theme` default, and leaves a literal
+    alone, so an R9 test still fails on a hand-written colour. GS1 and GS3 follow the `var()` alias in `app.css`;
+    GS3 resolves each accent hue under its own Workspace (without that it measured the default blue six times and
+    passed, mutation-proved). The slice itself was verified as computed style in Chromium: 106 pages, 15,607
+    elements, 0 differences.
+  - **Tailwind emits any `--color-*` a scanned file mentions**, so `inkShadeVar`'s literals keep every choosable
+    step in the bundle. `TestEveryPaletteVariableTheOverrideCanNameIsCompiled` catches a name the scanner cannot
+    read (a runtime-assembled one), not a renamed step.
+  - The gate refuses a role class anywhere in `internal/rendering` outside its reader, Go strings included.
+    Mutation-proved: a class attribute, a Go string, a renamed reader.
 - `TestHandWrittenToneEdgesOnlyShrink` — owner decision DS-D16 (2026-10-12). A tone is a **triple** now:
   `toneEdgeClass(ctx, domain.Tone*)` gives the edge from the same palette as the fill and ink. No Theme key was added,
   and a Workspace remapping `warn` to red no longer keeps an amber rim. Six edges moved byte-identically (components

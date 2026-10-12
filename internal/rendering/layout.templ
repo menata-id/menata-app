@@ -92,56 +92,135 @@ func borderClass(ctx context.Context, role domain.BorderRole) string {
 	}
 }
 
-// inkClass maps a text-colour role through this request's Workspace theme, on the same terms as radiusClass.
+// inkClass is a text-colour role's class (owner decision DS-D15 stage 2, 2026-10-12). It no longer switches on the
+// Workspace's shade: each role is one CSS custom property, `--color-ink-<role>` (the Design System's own token names,
+// declared in input.css's `@theme` with the default shade), and a Workspace that moves a role overrides the property
+// in its page's `<head>` (themeStyle). So the class is the same under every theme, a Workspace may give a role a
+// colour value as well as a closed shade, and a page with no Workspace (the pre-auth screens) still draws the default.
+//
+// ctx stays in the signature because 120-odd call sites pass it and a reader that ignores it today may read it again
+// tomorrow; what it no longer does is choose the class. The accent is a role of this reader, not a separate one, so
+// no caller (a gate included) can ask inkClass for the accent and silently get the grey default.
 func inkClass(ctx context.Context, role domain.InkRole) string {
-	switch CurrentWorkspace(ctx).Theme.InkFor(role) {
-	case domain.InkShadeDarkest:
-		return "text-slate-900"
-	case domain.InkShadeDark:
-		return "text-slate-700"
-	case domain.InkShadeMedium:
-		return "text-slate-500"
-	case domain.InkShadeLight:
-		return "text-slate-400"
-	// The accent hues (owner decision DS-D10, 2026-10-12): only `ink.accent` can take one (domain.InkShadeFits), so
-	// the grey roles never reach these arms. Each is the step that reads at 4.5:1 on white and on the page background
-	// (TestThemeColourPairsMeetContrast measures every hue), which is why emerald, rose and cyan sit one step darker.
-	// The accent lives in this reader, not a separate one, so that no caller (a gate included) can ask inkClass for
-	// the accent and silently get the grey default: G1 and GS3 did exactly that for an hour.
-	case domain.InkHueBlue:
-		return "text-blue-600"
-	case domain.InkHueIndigo:
-		return "text-indigo-600"
-	case domain.InkHueViolet:
-		return "text-violet-600"
-	case domain.InkHueEmerald:
-		return "text-emerald-700"
-	case domain.InkHueRose:
-		return "text-rose-700"
-	case domain.InkHueCyan:
-		return "text-cyan-700"
+	switch role {
+	case domain.InkStrong:
+		return "text-ink-strong"
+	case domain.InkBody:
+		return "text-ink-body"
+	case domain.InkSecondary:
+		return "text-ink-secondary"
+	case domain.InkFaint:
+		return "text-ink-faint"
+	case domain.InkAccent:
+		return "text-accent"
 	default:
-		return "text-slate-900"
+		return "text-ink-strong"
 	}
 }
 
-// accentHoverClass is the accent's hover, one step darker than the accent inkClass answers, in the same hue: the Design System's
-// `accent-hover`. Hover is a state of the accent, not a role of its own (DS-D11: hover lives in recipes), so it reads
-// the same `ink.accent` key. Each arm is a whole literal so Tailwind's scanner emits it.
+// accentHoverClass is the accent's hover, the Design System's `accent-hover`: one step darker than the accent, in the
+// same hue. Hover is a state of the accent, not a role of its own (DS-D11), so `ink.accent` moves both (themeStyle).
 func accentHoverClass(ctx context.Context) string {
-	switch CurrentWorkspace(ctx).Theme.InkFor(domain.InkAccent) {
+	return "hover:text-accent-hover"
+}
+
+// inkShadeVar is the palette variable each closed ink shade renders as -- the step→colour map the Theme's ink roles
+// choose from, written once here and read by themeStyle (a Workspace's override) and by the conformance gates that
+// need a role's default palette class. Each hue is the step that reads at 4.5:1 or better on white and on the page
+// background (TestThemeColourPairsMeetContrast measures every one), which is why emerald, rose and cyan sit one step
+// darker than blue, indigo and violet.
+func inkShadeVar(shade domain.InkShade) string {
+	switch shade {
+	case domain.InkShadeDarkest:
+		return "--color-slate-900"
+	case domain.InkShadeDark:
+		return "--color-slate-700"
+	case domain.InkShadeMedium:
+		return "--color-slate-500"
+	case domain.InkShadeLight:
+		return "--color-slate-400"
+	case domain.InkHueBlue:
+		return "--color-blue-600"
 	case domain.InkHueIndigo:
-		return "hover:text-indigo-700"
+		return "--color-indigo-600"
 	case domain.InkHueViolet:
-		return "hover:text-violet-700"
+		return "--color-violet-600"
 	case domain.InkHueEmerald:
-		return "hover:text-emerald-800"
+		return "--color-emerald-700"
 	case domain.InkHueRose:
-		return "hover:text-rose-800"
+		return "--color-rose-700"
 	case domain.InkHueCyan:
-		return "hover:text-cyan-800"
+		return "--color-cyan-700"
 	default:
-		return "hover:text-blue-700"
+		return "--color-slate-900"
+	}
+}
+
+// accentHoverShadeVar is the hover step beside each accent hue: one step darker, in the same hue.
+func accentHoverShadeVar(shade domain.InkShade) string {
+	switch shade {
+	case domain.InkHueIndigo:
+		return "--color-indigo-700"
+	case domain.InkHueViolet:
+		return "--color-violet-700"
+	case domain.InkHueEmerald:
+		return "--color-emerald-800"
+	case domain.InkHueRose:
+		return "--color-rose-800"
+	case domain.InkHueCyan:
+		return "--color-cyan-800"
+	default:
+		return "--color-blue-700"
+	}
+}
+
+// accentHoverMix darkens a free accent value for its hover. A colour value has no "next step", so the hover is the
+// value mixed with black, which is darker and so never less readable on a light surface than the accent itself.
+const accentHoverMix = "black 15%"
+
+// inkRoleVar is the custom property each ink role is drawn through (input.css's `@theme`).
+func inkRoleVar(role domain.InkRole) string {
+	if role == domain.InkAccent {
+		return "--color-accent"
+	}
+	return "--color-ink-" + string(role)
+}
+
+// themeCSS is the `:root` override for this request's Workspace: one declaration per colour role whose value differs
+// from the default Theme, and nothing at all for a Workspace that declares no colour (so the default theme adds no
+// bytes). A closed shade becomes `var(--color-…)`, a colour value is written as itself; the loader accepts only
+// `#rrggbb` (domain.IsColourValue), and this checks again before writing, because the result goes into a `<style>`.
+func themeCSS(ctx context.Context) string {
+	th, def := CurrentWorkspace(ctx).Theme, domain.DefaultTheme()
+	var decl []string
+	for _, role := range []domain.InkRole{domain.InkStrong, domain.InkBody, domain.InkSecondary, domain.InkFaint, domain.InkAccent} {
+		shade := th.InkFor(role)
+		if shade == def.InkFor(role) {
+			continue
+		}
+		if v := string(shade); domain.IsColourValue(v) {
+			decl = append(decl, inkRoleVar(role)+":"+v)
+			if role == domain.InkAccent {
+				decl = append(decl, "--color-accent-hover:color-mix(in oklab,"+v+","+accentHoverMix+")")
+			}
+			continue
+		}
+		decl = append(decl, inkRoleVar(role)+":var("+inkShadeVar(shade)+")")
+		if role == domain.InkAccent {
+			decl = append(decl, "--color-accent-hover:var("+accentHoverShadeVar(shade)+")")
+		}
+	}
+	if len(decl) == 0 {
+		return ""
+	}
+	return ":root{" + strings.Join(decl, ";") + "}"
+}
+
+// themeStyle writes themeCSS into the page's `<head>`. CSP already allows an inline `<style>`
+// (`style-src 'self' 'unsafe-inline'`, internal/web/secureheaders.go).
+templ themeStyle() {
+	if css := themeCSS(ctx); css != "" {
+		@templ.Raw("<style>" + css + "</style>")
 	}
 }
 

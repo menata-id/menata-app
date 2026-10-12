@@ -334,6 +334,14 @@ func (c cssVars) colourOf(t *testing.T, class string) string {
 	if !ok {
 		t.Fatalf("class %s: no --color-%s in app.css", class, name)
 	}
+	// A colour role is a property aliasing a palette step (DS-D15 stage 2: `--color-ink-body:var(--color-slate-700)`),
+	// so follow the alias to the value it draws by default.
+	for i := 0; strings.HasPrefix(v, "var(--color-"); i++ {
+		next := strings.TrimSuffix(strings.TrimPrefix(v, "var(--"), ")")
+		if v, ok = c[next]; !ok || i > 4 {
+			t.Fatalf("class %s: --%s does not resolve in app.css", class, next)
+		}
+	}
 	return v
 }
 

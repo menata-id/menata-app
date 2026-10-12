@@ -263,7 +263,14 @@ func IsInkHue(s InkShade) bool {
 // InkShadeFits reports whether a role may take a shade: the accent role takes a hue, the grey roles a grey. Mixing
 // them would put a link colour on body text or a grey on links, and it would also let the grey and accent readers
 // answer the same class, which TestNoTwoKVKeysFromOneThemeReader relies on not happening.
+//
+// **A colour value (`#rrggbb`) fits every role but `faint`** (DS-D15 stage 2). The loader also measures it against the
+// Workspace's own `raised` and `base` backgrounds (TextContrastMin). `faint` is low contrast on purpose, so there is no
+// floor a free value could be held to, and it keeps its closed shades.
 func InkShadeFits(role InkRole, s InkShade) bool {
+	if IsColourValue(string(s)) {
+		return KnownInkRoles[role] && role != InkFaint
+	}
 	return KnownInkShades[s] && (role == InkAccent) == IsInkHue(s)
 }
 

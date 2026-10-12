@@ -1642,6 +1642,45 @@ func TestResolveTheme_ink(t *testing.T) {
 }
 
 // TestResolveTheme_background holds the `theme.background` block's two closed sets, failing closed like the others.
+// DS-D15 stage 2 (2026-10-12): an ink role may take a colour value, and the loader measures it against the
+// Workspace's own raised and base backgrounds. Condition 2 of the decision: a value that would make text unreadable
+// is a load error, with its ratio, never a silent fallback.
+func TestResolveTheme_inkColourValue(t *testing.T) {
+	th, issues := resolveTheme(&themeDoc{Ink: map[string]string{"accent": "#BE123C", "body": "#1f2937"}})
+	if len(issues) != 0 {
+		t.Fatalf("a dark brand accent and body should load: %v", issues)
+	}
+	if th.InkFor(domain.InkAccent) != "#be123c" || th.InkFor(domain.InkBody) != "#1f2937" {
+		t.Errorf("the values must load lowercased and resolve: %+v", th.Ink)
+	}
+
+	for _, tc := range []struct {
+		doc  themeDoc
+		want []string
+	}{
+		// rose-400: a brand pink that reads well as a fill and fails as text (about 2.6:1 on white).
+		{themeDoc{Ink: map[string]string{"accent": "#fb7185"}}, []string{"theme.ink.accent: #fb7185 is", "on the raised background", "on the base background"}},
+		// Contrast is measured against the Workspace's own backgrounds, not white: a grey that passes on white can
+		// fail on a darker base.
+		{themeDoc{Ink: map[string]string{"secondary": "#717171"}, Background: map[string]string{"base": "light"}}, []string{"theme.ink.secondary: #717171 is", "on the base background"}},
+		{themeDoc{Ink: map[string]string{"faint": "#111111"}}, []string{"does not fit this role"}},
+		{themeDoc{Ink: map[string]string{"accent": "#e11d48;}body{display:none"}}, []string{"is not a text-colour shade"}},
+		{themeDoc{Ink: map[string]string{"accent": "#fff"}}, []string{"is not a text-colour shade"}},
+	} {
+		_, issues := resolveTheme(&tc.doc)
+		joined := strings.Join(issues, "\n")
+		for _, w := range tc.want {
+			if !strings.Contains(joined, w) {
+				t.Errorf("%+v: want an issue containing %q, got %v", tc.doc, w, issues)
+			}
+		}
+	}
+	// The same grey passes on the default (white and slate-50) backgrounds, so the failure above is the background's.
+	if _, issues := resolveTheme(&themeDoc{Ink: map[string]string{"secondary": "#717171"}}); len(issues) != 0 {
+		t.Errorf("#717171 should pass on the default backgrounds: %v", issues)
+	}
+}
+
 func TestResolveTheme_background(t *testing.T) {
 	th, issues := resolveTheme(&themeDoc{Background: map[string]string{"base": "light", "raised": "lighter", "sunken": "lightest"}})
 	if len(issues) != 0 {
