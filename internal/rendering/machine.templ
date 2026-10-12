@@ -1089,7 +1089,7 @@ templ RecordRow(m *domain.Machine, r *data.Record, relations RelationOptions, gr
 		for i, f := range m.Fields {
 			<td class={ tableCellClasses(ctx) }>
 				if i == 0 {
-					<a class="font-medium text-blue-600 hover:text-blue-700" href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
+					<a class={ "font-medium", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) } href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s", m.ID, r.ID)) }>{ fmt.Sprint(r.Values[f.ID]) }</a>
 				} else if f.ID == m.SLAField {
 					@slaBadge(experience.ResolveSLABadge(r.Values[f.ID], now))
 				} else if f.Type == domain.FieldTypeFile {

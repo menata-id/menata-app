@@ -64,7 +64,7 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 		</div>
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 			@staticText(domain.StaticCaption, membersCoverage(v))
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">{ labelByID(ctx, "nav_workspace_members") } →</a>
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ labelByID(ctx, "nav_workspace_members") } →</a>
 		}
 		<div class={ "overflow-hidden", surfaceClasses(ctx) }>
 			if len(v.Rows) == 0 {

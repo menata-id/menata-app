@@ -44,6 +44,8 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 	colour := map[string]string{
 		"ink-strong": inkClass(ctx, domain.InkStrong), "ink-body": inkClass(ctx, domain.InkBody),
 		"ink-secondary": inkClass(ctx, domain.InkSecondary), "ink-faint": inkClass(ctx, domain.InkFaint),
+		// DS-D10 (2026-10-12): the accent is a role now. Its hover is a state of the same key; compared as its colour.
+		"accent": inkClass(ctx, domain.InkAccent), "accent-hover": strings.TrimPrefix(accentHoverClass(ctx), "hover:"),
 		"bg-raised": backgroundClass(ctx, domain.BackgroundRaised), "bg-base": backgroundClass(ctx, domain.BackgroundBase),
 		"bg-sunken":      backgroundClass(ctx, domain.BackgroundSunken),
 		"border-divider": borderClass(ctx, domain.BorderDivider), "border-surface": borderClass(ctx, domain.BorderSurface),
@@ -157,7 +159,6 @@ var dsAcceptedNotInCode = map[string]string{}
 // dsUnmapped: tokens no Theme reader answers for, with the reason. Each is a record, not a check.
 var dsUnmapped = map[string]string{
 	"brand": "--color-brand in input.css; the M mark only, not a Theme role", "brand-icon": "the PWA PNGs' fill, not CSS",
-	"accent": "links are literal text-blue-600 by owner decision (DH 10-11); no ink role", "accent-hover": "as accent",
 	"accent-ring": "the stepper's current-step ring, literal", "focus-ring": "not a reader: a base :focus-visible rule in input.css (DS-D14) and the field focus utilities, both blue-300 (TestKeyboardFocusRuleCoversInteractiveElements)",
 	"primary": "buttonClasses' literal bg-slate-900", "primary-hover": "buttonClasses' literal hover",
 	"hover-wash": "hover is state, not a role (theme.go)", "avatar-fill": "avatarClasses' literal",

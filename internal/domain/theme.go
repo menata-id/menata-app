@@ -205,10 +205,14 @@ const (
 	InkSecondary InkRole = "secondary"
 	// InkFaint is text that may be missed without loss: hints, placeholders, decoration.
 	InkFaint InkRole = "faint"
+	// InkAccent is the text that says "this does something": links and accent text (owner decision DS-D10,
+	// 2026-10-12). Unlike the four grey roles it takes a **hue** (`InkHue*`), so a Workspace can carry its brand
+	// colour into its links. Only text: an accent *fill* stays the primary Button's own recipe (DSD D3 holds).
+	InkAccent InkRole = "accent"
 )
 
 // KnownInkRoles is the closed set.
-var KnownInkRoles = map[InkRole]bool{InkStrong: true, InkBody: true, InkSecondary: true, InkFaint: true}
+var KnownInkRoles = map[InkRole]bool{InkStrong: true, InkBody: true, InkSecondary: true, InkFaint: true, InkAccent: true}
 
 // InkShade is how dark a text colour is, named by weight of presence rather than by palette number —
 // `slate-700` is a Tailwind token and 007 §15.2 keeps those out of the logical plane.
@@ -221,8 +225,40 @@ const (
 	InkShadeLight   InkShade = "light"
 )
 
-// KnownInkShades is the closed set.
-var KnownInkShades = map[InkShade]bool{InkShadeDarkest: true, InkShadeDark: true, InkShadeMedium: true, InkShadeLight: true}
+// The accent hues (DS-D10). Each renders at the palette step that reads at 4.5:1 or better on white and on the page
+// background (`TestThemeColourPairsMeetContrast` measures every one), which is why emerald, rose and cyan sit one
+// step darker than blue, indigo and violet.
+const (
+	InkHueBlue    InkShade = "blue"
+	InkHueIndigo  InkShade = "indigo"
+	InkHueViolet  InkShade = "violet"
+	InkHueEmerald InkShade = "emerald"
+	InkHueRose    InkShade = "rose"
+	InkHueCyan    InkShade = "cyan"
+)
+
+// KnownInkShades is the closed set: the four greys and the accent hues. Which role may take which is
+// `InkShadeFits`, checked at load.
+var KnownInkShades = map[InkShade]bool{
+	InkShadeDarkest: true, InkShadeDark: true, InkShadeMedium: true, InkShadeLight: true,
+	InkHueBlue: true, InkHueIndigo: true, InkHueViolet: true, InkHueEmerald: true, InkHueRose: true, InkHueCyan: true,
+}
+
+// IsInkHue reports whether a shade is an accent hue rather than a grey.
+func IsInkHue(s InkShade) bool {
+	switch s {
+	case InkHueBlue, InkHueIndigo, InkHueViolet, InkHueEmerald, InkHueRose, InkHueCyan:
+		return true
+	}
+	return false
+}
+
+// InkShadeFits reports whether a role may take a shade: the accent role takes a hue, the grey roles a grey. Mixing
+// them would put a link colour on body text or a grey on links, and it would also let the grey and accent readers
+// answer the same class, which TestNoTwoKVKeysFromOneThemeReader relies on not happening.
+func InkShadeFits(role InkRole, s InkShade) bool {
+	return KnownInkShades[s] && (role == InkAccent) == IsInkHue(s)
+}
 
 // BackgroundRole is what a surface is *for*, as a closed set — the eighth token category: **background
 // colour**, light surfaces only.
@@ -498,6 +534,7 @@ func DefaultTheme() Theme {
 			InkBody:      InkShadeDark,    // was text-slate-700
 			InkSecondary: InkShadeMedium,  // was text-slate-500 (and slate-600 as running text, folded)
 			InkFaint:     InkShadeLight,   // was text-slate-400
+			InkAccent:    InkHueBlue,      // was text-blue-600 (DS-D10, 2026-10-12)
 		},
 		Background: map[BackgroundRole]BackgroundShade{
 			BackgroundRaised: BackgroundShadeLightest, // was bg-white
@@ -517,7 +554,7 @@ func DefaultTheme() Theme {
 
 // InkFor resolves a text-colour role, falling back to the default for the same reason RadiusFor does.
 func (t Theme) InkFor(role InkRole) InkShade {
-	if s, ok := t.Ink[role]; ok && KnownInkShades[s] {
+	if s, ok := t.Ink[role]; ok && InkShadeFits(role, s) {
 		return s
 	}
 	return DefaultTheme().Ink[role]

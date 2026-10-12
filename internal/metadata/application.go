@@ -172,6 +172,10 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				issues = append(issues, fmt.Sprintf("theme.ink.%s: %q is not a text-colour shade this runtime realizes", role, shade))
 				continue
 			}
+			if !domain.InkShadeFits(r, s) {
+				issues = append(issues, fmt.Sprintf("theme.ink.%s: %q does not fit this role -- accent takes a hue (blue, indigo, violet, emerald, rose, cyan), the other roles a grey (darkest, dark, medium, light)", role, shade))
+				continue
+			}
 			t.Ink[r] = s
 		}
 	}

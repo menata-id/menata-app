@@ -82,12 +82,12 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				<div class="text-sm text-slate-500">{ descriptionByID(ctx, "nav_workspace_members") }</div>
 			</div>
 			<div class={ "flex items-center", layoutGap(ctx, domain.GapComfortable) }>
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">{ labelByID(ctx, "nav_workspace_groups") } →</a>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ labelByID(ctx, "nav_workspace_groups") } →</a>
 				<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", totalMembers) }{ pluralS(totalMembers) }</span>
 			</div>
 		}
 		<details class={ surfaceClasses(ctx) }>
-			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ Invite member</summary>
+			<summary class={ "cursor-pointer list-none px-5 py-3 text-sm font-medium", inkClass(ctx, domain.InkAccent), "[&::-webkit-details-marker]:hidden" }>+ Invite member</summary>
 			<form method="POST" action="/workspace-members/invite" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
 				@csrfHiddenInput()
 				// Email and roles only. The invitee's own name is theirs to state when they accept
@@ -159,7 +159,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 						}
 					</div>
 					<div class="sm:w-16">
-						<a href={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class="text-sm text-blue-600 hover:text-blue-700">Edit →</a>
+						<a href={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class={ "text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Edit →</a>
 					</div>
 				</div>
 			}
@@ -222,7 +222,7 @@ templ workspaceRoleBadge(role string) {
 templ EditMemberPage(m data.Membership, name string, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
 	@appShell("Edit member", workspaceName, viewer, switchWorkspaceHref) {
 		@workspaceSettingsFrame(wsSectionMembers) {
-		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 			← { labelByID(ctx, "nav_workspace_members") }
 		</a>
 		<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault) }>

@@ -212,7 +212,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 					@statusBadge(viewer.WorkspaceRole, domain.ToneNeutral, domain.BadgeCompact)
 				}
 				<span class="grow">You manage { workspaceName }</span>
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex shrink-0 items-center", layoutGap(ctx, domain.GapXtight), "text-blue-600 hover:text-blue-700" }>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex shrink-0 items-center", layoutGap(ctx, domain.GapXtight), inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 					@icon("settings", "size-3.5")
 					{ labelByID(ctx, "nav_workspace_settings") }
 				</a>
@@ -263,7 +263,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 		// competing with it. Route and label come from its own runtime screen, never retyped.
 		<span class="text-xs text-slate-500">
 			Already know what you need?
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_install_application")) } class="text-blue-600 hover:text-blue-700">
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_install_application")) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 				{ labelByID(ctx, "nav_install_application") } →
 			</a>
 		</span>

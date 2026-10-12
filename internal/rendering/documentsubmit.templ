@@ -42,7 +42,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 	// §12.3 ActionBar). activeNavID is "" -- this screen is a sub-page of the Approval Inbox, the
 	// same way Edit member is one of Workspace Members.
 	@appShell("New Document", workspaceName, viewer, switchWorkspaceHref) {
-		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 			← { labelByID(ctx, "nav_approval_inbox") }
 		</a>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
@@ -96,7 +96,7 @@ templ DocumentSubmitPage(documentType, mode domain.Field, approvers RelationOpti
 							hx-get="/documents/new/approver-row"
 							hx-target="#approver-rows"
 							hx-swap="beforeend"
-							class="cursor-pointer text-xs text-blue-600 hover:text-blue-700"
+							class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }
 						>+ Add approver</button>
 					}
 					<p class="m-0 text-2xs text-slate-500">

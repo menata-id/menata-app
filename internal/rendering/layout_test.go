@@ -1434,3 +1434,27 @@ func TestSurfaceEdges_eachMigratedSiteReadsTheSurfaceRole(t *testing.T) {
 		}
 	}
 }
+
+// DS-D10 (R9): a Workspace that declares `theme.ink.accent: violet` moves links, accent text, the eyebrow and the
+// active bottom tab together, hover included, and nothing grey moves with them.
+func TestAccentInk_followsTheThemeAtMigratedSites(t *testing.T) {
+	th := domain.Theme{Ink: map[domain.InkRole]domain.InkShade{domain.InkAccent: domain.InkHueViolet}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	var buf strings.Builder
+	if err := staticLink("/x", "Open").Render(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if got := buf.String(); got != `<a href="/x" class="text-violet-600 hover:text-violet-700">Open</a>` {
+		t.Errorf("a static link must take the accent and its hover from the theme: %s", got)
+	}
+	buf.Reset()
+	if err := staticText(domain.StaticEyebrow, "Account").Render(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "text-violet-600") || strings.Contains(buf.String(), "blue") {
+		t.Errorf("the eyebrow is accent text and must follow theme.ink.accent: %s", buf.String())
+	}
+	if (domain.Theme{Ink: map[domain.InkRole]domain.InkShade{domain.InkStrong: domain.InkHueViolet}}).InkFor(domain.InkStrong) != domain.InkShadeDarkest {
+		t.Error("a grey role must not take a hue: InkFor must fall back to the default")
+	}
+}

@@ -51,7 +51,7 @@ templ DeleteAccountInfoPage(done bool) {
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 					<p class="m-0 font-medium">How to delete your account</p>
 					<ol class="m-0 flex list-decimal flex-col gap-1 pl-5 text-slate-700">
-						<li><a href="/login" class="text-blue-600 hover:text-blue-700">Sign in</a> to Menata. If you've forgotten your password, <a href="/forgot-password" class="text-blue-600 hover:text-blue-700">reset it</a> first.</li>
+						<li><a href="/login" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Sign in</a> to Menata. If you've forgotten your password, <a href="/forgot-password" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>reset it</a> first.</li>
 						<li>Open your account menu, then Security, then Delete account.</li>
 						<li>Enter your password and confirm.</li>
 					</ol>

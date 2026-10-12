@@ -28,12 +28,12 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 					assignment plus every role their Groups hold there.
 				</div>
 			</div>
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-xs text-blue-600 hover:text-blue-700">
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 				{ labelByID(ctx, "nav_workspace_members") } →
 			</a>
 		}
 		<details class={ surfaceClasses(ctx) }>
-			<summary class="cursor-pointer list-none px-5 py-3 text-sm font-medium text-blue-600 [&::-webkit-details-marker]:hidden">+ New group</summary>
+			<summary class={ "cursor-pointer list-none px-5 py-3 text-sm font-medium", inkClass(ctx, domain.InkAccent), "[&::-webkit-details-marker]:hidden" }>+ New group</summary>
 			<form method="POST" action={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "border-t", borderClass(ctx, domain.BorderSurface), "px-5 py-4" }>
 				@csrfHiddenInput()
 				@authField("group_name", "name", "Group name", "text", "off", false)
@@ -91,7 +91,7 @@ type GroupMemberChoice struct {
 templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceName string, viewer Viewer, roleApps []RoleApplication, switchWorkspaceHref string) {
 	@appShell(group.Name, workspaceName, viewer, switchWorkspaceHref) {
 		@workspaceSettingsFrame(wsSectionGroups) {
-		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID(ctx, "nav_workspace_groups") }</a>
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_groups")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { labelByID(ctx, "nav_workspace_groups") }</a>
 		<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
 			@staticText(domain.StaticHeading, group.Name)
 			<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", group.MemberCount) }{ pluralS(group.MemberCount) }</span>

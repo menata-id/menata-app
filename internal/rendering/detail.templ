@@ -135,11 +135,11 @@ templ RecordDetailPage(m *domain.Machine, r *data.Record, relations RelationOpti
 // other Machine with no bespoke flow.
 templ detailBackLink(m *domain.Machine, extras RecordExtras) {
 	if (action.IsDocument(m) || action.IsStep(m)) && hasNavItem(ctx, "nav_approval_inbox") {
-		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class="text-xs text-blue-600 hover:text-blue-700">← { labelByID(ctx, "nav_approval_inbox") }</a>
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_approval_inbox")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { labelByID(ctx, "nav_approval_inbox") }</a>
 	} else if extras.Move != nil {
 		@recordBreadcrumb(m, *extras.Move)
 	} else {
-		<a href={ templ.URL("/machines/" + m.ID) } class="text-xs text-blue-600 hover:text-blue-700">← { m.Name }</a>
+		<a href={ templ.URL("/machines/" + m.ID) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { m.Name }</a>
 	}
 }
 
@@ -149,7 +149,7 @@ templ detailBackLink(m *domain.Machine, extras RecordExtras) {
 // the card is.
 templ recordBreadcrumb(m *domain.Machine, mv RecordMove) {
 	<nav aria-label="Breadcrumb" class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "text-xs text-slate-500" }>
-		<a href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, mv.ViewID)) } class="text-blue-600 hover:text-blue-700">{ machineHeading(ctx, m) }</a>
+		<a href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, mv.ViewID)) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ machineHeading(ctx, m) }</a>
 		<span aria-hidden="true">/</span>
 		<span aria-current="page">{ mv.CurrentLabel() }</span>
 	</nav>
@@ -208,7 +208,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 			// run for every Machine's detail page, mch_task included. Board 10 is that screen now;
 			// this links to it rather than rendering a second, quietly diverging copy of the same
 			// decision.
-			<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)) } class="text-sm font-medium text-blue-600 hover:text-blue-700">Review and decide →</a>
+			<a href={ templ.URL(fmt.Sprintf("/machines/%s/records/%s/review", m.ID, r.ID)) } class={ "text-sm font-medium", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Review and decide →</a>
 		}
 		{{ deletable, blockedReason := canDeleteInView(m, r, children, actor) }}
 		@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
@@ -510,7 +510,7 @@ templ longText(text string) {
 		<details class="group/fold">
 			<summary class="cursor-pointer list-none group-open/fold:hidden">
 				<span class="whitespace-pre-wrap">{ string([]rune(text)[:longTextFold]) }…</span>
-				<span class="text-xs text-blue-600 hover:text-blue-700"> Read more</span>
+				<span class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }> Read more</span>
 			</summary>
 			<div class="whitespace-pre-wrap">{ text }</div>
 		</details>

@@ -2162,6 +2162,8 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     body:      dark     # text people read or click  (default: dark; read by the secondary Button)
 >     secondary: medium   # captions, descriptions, meta lines       (default: medium)
 >     faint:     light    # hints, placeholders, decoration          (default: light)
+>     accent:    blue     # links and accent text, hover included; a HUE: blue, indigo, violet, emerald,
+>                         #   rose or cyan (default: blue). A grey role may not take a hue, nor accent a grey.
 >   background:
 >     raised: lightest    # cards, panels, the header and bottom bar   (default: lightest)
 >     base:   lighter     # the page behind everything                (default: lighter)

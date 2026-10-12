@@ -37,7 +37,7 @@ type ConversationTurn struct {
 // simplification for a screen used rarely and deliberately.
 templ NewApplicationPage(view ConversationView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("New application", workspaceName, viewer, switchWorkspaceHref) {
-		<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class="text-xs text-blue-600 hover:text-blue-700">← { titleByID(ctx, "nav_home") }</a>
+		<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← { titleByID(ctx, "nav_home") }</a>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@staticText(domain.StaticOverline, "Step 1 of 2")
 			@staticText(domain.StaticHeading, "New application")
@@ -262,7 +262,7 @@ templ generatedFiles(v GeneratedFilesView) {
 // update_application review shows its plan instead: what is added, changed and removed.
 templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Plan, files GeneratedFilesView, sessionID, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Review new application", workspaceName, viewer, switchWorkspaceHref) {
-		<a href={ templ.SafeURL("/new-application?session=" + sessionID) } class="text-xs text-blue-600 hover:text-blue-700">← Back to conversation</a>
+		<a href={ templ.SafeURL("/new-application?session=" + sessionID) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>← Back to conversation</a>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 			@staticText(domain.StaticOverline, "Step 2 of 2")
 			@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {

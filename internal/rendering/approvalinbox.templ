@@ -324,7 +324,7 @@ templ assignedTable(rows []AssignedRow) {
 					@reviewStatusPill(r.Status)
 				</div>
 				<div class="sm:w-14">
-					<a href={ templ.SafeURL(r.Href) } class="text-sm text-blue-600 hover:text-blue-700">
+					<a href={ templ.SafeURL(r.Href) } class={ "text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 							if r.Action != "" {
 								{ r.Action }
 							} else {
@@ -492,7 +492,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 					}
 				</span>
 				if c.Action != "" {
-					<a href={ templ.SafeURL(c.Href) } class="text-sm text-blue-600 hover:text-blue-700">{ c.Action }</a>
+					<a href={ templ.SafeURL(c.Href) } class={ "text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ c.Action }</a>
 				}
 			</div>
 		}
@@ -507,7 +507,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 				class="self-start"
 			>
 				@csrfHiddenInput()
-				<button type="submit" class="cursor-pointer text-xs text-blue-600 hover:text-blue-700">Revise →</button>
+				<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Revise →</button>
 			</form>
 		}
 	</div>

@@ -1045,6 +1045,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   does the same. Fields now write `focus:outline-solid`, and the second gate refuses the trap in class attributes
   and in Go helpers' strings. The first version of that gate missed `fieldClasses` (a Go function), which a mutation
   showed. Both gates are mutation-proved.
+- `TestHandWrittenAccentInksOnlyShrink` — owner decision DS-D10 (2026-10-12). Links and accent text read
+  `inkClass(ctx, domain.InkAccent)`, with hover from `accentHoverClass(ctx)`. A Workspace may declare
+  `theme.ink.accent` as one of six hues, each at the step GS3 measures above 4.5:1. `domain.InkShadeFits` keeps hues
+  on the accent and greys on the other four roles. 42 sites moved, and the 106-page diff showed only `&`→`&amp;`
+  inside one arbitrary-variant class, which is the same DOM. Floors:
+  - ten links that hover to blue-800, not 700 (folding the two link hovers is a decision not taken);
+  - pre-auth sites;
+  - the Tag palette's blue;
+  - a signature marker.
+
+  **The accent lives in `inkClass`, not a separate reader, and that is the lesson of the slice.** A first version
+  had `accentInkClass`. G1 and GS3 asked `inkClass` for the accent and silently measured the grey default:
+  "17.84:1" for a link that is really 5.26:1. One reader leaves no road around it. GS3 measures every hue, not only
+  the default. Mutation-proved three ways.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token

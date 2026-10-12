@@ -75,7 +75,7 @@ templ attachmentRow(m *domain.Machine, it AttachmentItem, canEdit bool) {
 				<span class="truncate text-sm">{ it.Name }</span>
 				<span class="text-xs text-slate-400">{ attachmentMeta(it) }</span>
 			</span>
-			<a href={ templ.URL("/uploads/" + it.Key) } target="_blank" class="shrink-0 text-xs text-blue-600 hover:text-blue-700">Download</a>
+			<a href={ templ.URL("/uploads/" + it.Key) } target="_blank" class={ "shrink-0 text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Download</a>
 			if canEdit {
 				<button
 					type="button"

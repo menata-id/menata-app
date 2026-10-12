@@ -91,7 +91,7 @@ type PlacementFields struct {
 // every step on the board is pre-placed.
 templ SignaturePlacementPage(v PlacementView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Signature positions", workspaceName, viewer, switchWorkspaceHref) {
-		<a href={ templ.URL("/machines/" + approvalMachineID(ctx, domain.WorkflowRoleDocument) + "/records/" + v.DocumentID) } class="text-xs text-blue-600 hover:text-blue-700">
+		<a href={ templ.URL("/machines/" + approvalMachineID(ctx, domain.WorkflowRoleDocument) + "/records/" + v.DocumentID) } class={ "text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 			← { v.DocumentTitle }
 		</a>
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
@@ -348,7 +348,7 @@ templ placeStepForm(s PlacementStep, page int) {
 		<input type="hidden" name={ s.Fields.X } value="50"/>
 		<input type="hidden" name={ s.Fields.Y } value="50"/>
 		<input type="hidden" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) }/>
-		<button type="submit" class="cursor-pointer text-xs text-blue-600 hover:text-blue-700">
+		<button type="submit" class={ "cursor-pointer text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>
 			if s.Placed && s.Page == page {
 				Re-centre on this page
 			} else {

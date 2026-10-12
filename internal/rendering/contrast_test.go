@@ -51,6 +51,17 @@ func TestThemeColourPairsMeetContrast(t *testing.T) {
 			pairs = append(pairs, pair{fmt.Sprintf("ink %s on %s", ink, bg), inkClass(ctx, ink), backgroundClass(ctx, bg), 4.5})
 		}
 	}
+	// Every accent hue a Workspace may pick (DS-D10), not only the default: a hue that fails here would be a
+	// declarable `theme.ink.accent` that makes every link unreadable. Measured on the default backgrounds.
+	for shade := range domain.KnownInkShades {
+		if !domain.IsInkHue(shade) || shade == domain.DefaultTheme().InkFor(domain.InkAccent) {
+			continue
+		}
+		hued := WithCurrentWorkspace(ctx, domain.Workspace{Theme: domain.Theme{Ink: map[domain.InkRole]domain.InkShade{domain.InkAccent: shade}}}, "", false)
+		for _, bg := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundBase} {
+			pairs = append(pairs, pair{fmt.Sprintf("ink accent=%s on %s", shade, bg), inkClass(hued, domain.InkAccent), backgroundClass(ctx, bg), 4.5})
+		}
+	}
 	pairs = append(pairs,
 		pair{"mark-good on raised", markGoodFill(), backgroundClass(ctx, domain.BackgroundRaised), 3},
 		pair{"mark-good on sunken (a progress track)", markGoodFill(), backgroundClass(ctx, domain.BackgroundSunken), 3},

@@ -463,7 +463,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 		for _, item := range items {
 			<a
 				href={ templ.SafeURL(item.Href) }
-				class={ "flex flex-1 flex-col items-center gap-1 py-2 text-2xs", templ.KV("font-medium text-blue-600", item.Active), templ.KV("text-slate-500", !item.Active) }
+				class={ "flex flex-1 flex-col items-center gap-1 py-2 text-2xs", templ.KV("font-medium "+inkClass(ctx, domain.InkAccent), item.Active), templ.KV("text-slate-500", !item.Active) }
 				if item.Active {
 					aria-current="page"
 				}
@@ -572,7 +572,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 			}
 			if switchWorkspaceHref != "" {
 				<div class="mx-2.5 my-1.5 h-px bg-slate-100"></div>
-				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class="block rounded-lg p-3 text-sm font-medium text-blue-600 hover:bg-slate-50">All Workspaces →</a>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "block rounded-lg p-3 text-sm font-medium", inkClass(ctx, domain.InkAccent), "hover:bg-slate-50" }>All Workspaces →</a>
 			}
 		}
 	</div>
@@ -866,7 +866,7 @@ templ AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID str
 	for _, c := range choices {
 		<a href="/switch-workspace" class={ "flex items-center gap-2.5", radiusClass(ctx, domain.RadiusControl), "px-3 py-2 text-sm text-slate-900 hover:bg-slate-50" }>
 			if c.ID == currentWorkspaceID {
-				@icon("check", "size-3.5 shrink-0 text-blue-600")
+				@icon("check", "size-3.5 shrink-0 "+inkClass(ctx, domain.InkAccent))
 			} else {
 				<span class="size-3.5 shrink-0"></span>
 			}
@@ -874,7 +874,7 @@ templ AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID str
 			<span class="shrink-0 text-xs text-slate-400">{ displayRole(c.Role) }</span>
 		</a>
 	}
-	<a href="/switch-workspace" class="block px-3 py-2 text-xs text-blue-600">Switch workspace →</a>
+	<a href="/switch-workspace" class={ "block px-3 py-2 text-xs", inkClass(ctx, domain.InkAccent) }>Switch workspace →</a>
 }
 
 // appLauncher is the 9-dot menu at the head of the bar (redesigned 2026-09-20, by owner request,
@@ -920,7 +920,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 		</button>
 		@sheetPanel("menata-app-launcher", aboveBar, "left") {
 			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ "mb-1 flex flex-col gap-0.5", radiusClass(ctx, domain.RadiusControl), "p-3 hover:bg-slate-50 sm:p-2" }>
-				<span class="text-3xs font-medium tracking-wide text-blue-600 uppercase">Workspace</span>
+				<span class={ "text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkAccent), "uppercase" }>Workspace</span>
 				<span class="text-sm font-medium text-slate-900">{ workspaceName }</span>
 			</a>
 			for _, app := range viewer.Applications {
@@ -966,7 +966,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 				</a>
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "mt-1 block", radiusClass(ctx, domain.RadiusControl), "p-3 text-xs font-medium text-blue-600 hover:bg-slate-50 sm:p-2" }>All Workspaces →</a>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "mt-1 block", radiusClass(ctx, domain.RadiusControl), "p-3 text-xs font-medium", inkClass(ctx, domain.InkAccent), "hover:bg-slate-50 sm:p-2" }>All Workspaces →</a>
 			}
 		}
 	</div>
@@ -1034,7 +1034,7 @@ templ sectionHeaderRow(title, linkHref, linkLabel string) {
 	<div class="flex items-center justify-between">
 		@staticText(domain.StaticSubheading, title)
 		if linkHref != "" {
-			<a href={ templ.URL(linkHref) } class="text-sm text-blue-600 hover:text-blue-700">{ linkLabel }</a>
+			<a href={ templ.URL(linkHref) } class={ "text-sm", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ linkLabel }</a>
 		}
 	</div>
 }

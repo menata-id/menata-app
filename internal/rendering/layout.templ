@@ -101,8 +101,45 @@ func inkClass(ctx context.Context, role domain.InkRole) string {
 		return "text-slate-500"
 	case domain.InkShadeLight:
 		return "text-slate-400"
+	// The accent hues (owner decision DS-D10, 2026-10-12): only `ink.accent` can take one (domain.InkShadeFits), so
+	// the grey roles never reach these arms. Each is the step that reads at 4.5:1 on white and on the page background
+	// (TestThemeColourPairsMeetContrast measures every hue), which is why emerald, rose and cyan sit one step darker.
+	// The accent lives in this reader, not a separate one, so that no caller (a gate included) can ask inkClass for
+	// the accent and silently get the grey default: G1 and GS3 did exactly that for an hour.
+	case domain.InkHueBlue:
+		return "text-blue-600"
+	case domain.InkHueIndigo:
+		return "text-indigo-600"
+	case domain.InkHueViolet:
+		return "text-violet-600"
+	case domain.InkHueEmerald:
+		return "text-emerald-700"
+	case domain.InkHueRose:
+		return "text-rose-700"
+	case domain.InkHueCyan:
+		return "text-cyan-700"
 	default:
 		return "text-slate-900"
+	}
+}
+
+// accentHoverClass is the accent's hover, one step darker than the accent inkClass answers, in the same hue: the Design System's
+// `accent-hover`. Hover is a state of the accent, not a role of its own (DS-D11: hover lives in recipes), so it reads
+// the same `ink.accent` key. Each arm is a whole literal so Tailwind's scanner emits it.
+func accentHoverClass(ctx context.Context) string {
+	switch CurrentWorkspace(ctx).Theme.InkFor(domain.InkAccent) {
+	case domain.InkHueIndigo:
+		return "hover:text-indigo-700"
+	case domain.InkHueViolet:
+		return "hover:text-violet-700"
+	case domain.InkHueEmerald:
+		return "hover:text-emerald-800"
+	case domain.InkHueRose:
+		return "hover:text-rose-800"
+	case domain.InkHueCyan:
+		return "hover:text-cyan-800"
+	default:
+		return "hover:text-blue-700"
 	}
 }
 
@@ -716,7 +753,7 @@ func rowClasses(ctx context.Context, gap domain.Gap, align domain.RowAlign, just
 templ staticText(kind domain.StaticKind, text string) {
 	switch kind {
 		case domain.StaticEyebrow:
-			<span class={ textClass(ctx, domain.RoleEyebrow), "tracking-wide text-blue-600 uppercase" }>{ text }</span>
+			<span class={ textClass(ctx, domain.RoleEyebrow), "tracking-wide", inkClass(ctx, domain.InkAccent), "uppercase" }>{ text }</span>
 		case domain.StaticHeading:
 			<h1 class={ "m-0", textClass(ctx, domain.RoleHeading), weightClass(ctx, domain.WeightEmphasis) }>{ text }</h1>
 		case domain.StaticParagraph:
@@ -753,7 +790,7 @@ templ staticText(kind domain.StaticKind, text string) {
 // it; for internal routes the output is identical, and the byte-diff is what proved that rather than the
 // assumption.
 templ staticLink(href, text string) {
-	<a href={ templ.URL(href) } class="text-blue-600 hover:text-blue-700">{ text }</a>
+	<a href={ templ.URL(href) } class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ text }</a>
 }
 
 // pageHeader is the primitives' first consumer: the eyebrow / heading / subtitle block that **eleven**

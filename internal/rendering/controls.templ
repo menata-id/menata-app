@@ -166,7 +166,7 @@ func foldTail[T any](rows []T, n int) []T {
 // disclosure, not a Component a Page can declare -- what is folded and after how many rows is the caller's.
 templ foldedRest(summary string) {
 	<details class="group/fold">
-		<summary class="cursor-pointer list-none text-xs text-blue-600 hover:text-blue-700 group-open/fold:hidden">{ summary }</summary>
+		<summary class={ "cursor-pointer list-none text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx), "group-open/fold:hidden" }>{ summary }</summary>
 		{ children... }
 	</details>
 }
@@ -333,7 +333,7 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 		case f.Type == domain.FieldTypeFile:
 			if key := toString(current); key != "" {
 				<div class="flex flex-col gap-1">
-					<a href={ templ.URL("/uploads/" + key) } target="_blank" class="truncate text-xs text-blue-600 hover:text-blue-700">{ storage.DisplayName(key) }</a>
+					<a href={ templ.URL("/uploads/" + key) } target="_blank" class={ "truncate text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ storage.DisplayName(key) }</a>
 					<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-500"/>
 				</div>
 			} else {
@@ -347,7 +347,7 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 // fileLink renders a FieldTypeFile value as a download link, or nothing if unset.
 templ fileLink(v any) {
 	if key := toString(v); key != "" {
-		<a href={ templ.URL("/uploads/" + key) } target="_blank" class="text-blue-600 hover:text-blue-700">{ storage.DisplayName(key) }</a>
+		<a href={ templ.URL("/uploads/" + key) } target="_blank" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ storage.DisplayName(key) }</a>
 	}
 }
 

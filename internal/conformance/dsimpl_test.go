@@ -86,7 +86,7 @@ func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
 			return countThemeTokens(probe(c)).weight > 0 || dividerToken.MatchString(probe(c))
 		},
 		"Text":       func(c string) bool { return countThemeTokens(probe(c)).size > 0 },
-		"Ink":        func(c string) bool { return countThemeTokens(probe(c)).ink > 0 },
+		"Ink":        func(c string) bool { return countThemeTokens(probe(c)).ink > 0 || literal(accentInkToken)(c) },
 		"Background": func(c string) bool { return countThemeTokens(probe(c)).fill > 0 },
 		"Gap": func(c string) bool {
 			return ladderGapToken.MatchString(c) || halfStepGapToken.MatchString(probe(c)) || regionGapToken.MatchString(probe(c))
