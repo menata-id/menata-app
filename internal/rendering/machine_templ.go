@@ -965,7 +965,7 @@ func MachineList(machines []*domain.Machine, workspaceName string, viewer Viewer
 				return templ_7745c5c3_Err
 			}
 			for i, m := range machines {
-				var templ_7745c5c3_Var37 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 text-sm text-slate-900 hover:bg-slate-50", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0)}
+				var templ_7745c5c3_Var37 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 text-sm text-slate-900", hoverWashClass(ctx), templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var37...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

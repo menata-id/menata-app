@@ -299,7 +299,7 @@ templ NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pl
 				</form>
 				// The draft is already stored (Home lists it as a row), so this is a way out that says so, not
 				// a save: it only leaves.
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ tileClasses(ctx), "inline-flex h-9 items-center justify-center bg-white px-4 text-sm text-slate-900 hover:bg-slate-50" }>Keep as draft</a>
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ tileClasses(ctx), "inline-flex h-9 items-center justify-center bg-white px-4 text-sm text-slate-900", hoverWashClass(ctx) }>Keep as draft</a>
 				<form method="post" action={ templ.SafeURL("/new-application/" + sessionID + "/discard") }>
 					@csrfHiddenInput()
 					<button type="submit" class="cursor-pointer text-xs text-slate-400 hover:text-red-600">

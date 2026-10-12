@@ -249,6 +249,41 @@ func toneFillClass(ctx context.Context, tone domain.BadgeTone) string {
 	}
 }
 
+// hoverWashClass is the Design System's `hover-wash`: the fill a list row, a menu row or a secondary button takes on
+// hover (owner decision DS-D11, 2026-10-12: hover lives in recipes, not as a role of its own). The artifact defines
+// `hover-wash` as an alias of `bg-base`, so this reads `background.base` and a Workspace moves both together. Each arm
+// is a whole literal for Tailwind's scanner.
+func hoverWashClass(ctx context.Context) string {
+	switch CurrentWorkspace(ctx).Theme.BackgroundFor(domain.BackgroundBase) {
+	case domain.BackgroundShadeLightest:
+		return "hover:bg-white"
+	case domain.BackgroundShadeLight:
+		return "hover:bg-slate-100"
+	default:
+		return "hover:bg-slate-50"
+	}
+}
+
+// toneHoverFillClass is a tone's fill as a hover (DS-D11): the danger button and the danger menu row wash to the
+// `bad` tone's fill on hover, so their edge, ink and hover all follow theme.tone together (DS-D16's triple, plus its
+// hover).
+func toneHoverFillClass(ctx context.Context, tone domain.BadgeTone) string {
+	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
+	case domain.PaletteGreyFaint:
+		return "hover:bg-slate-50"
+	case domain.PaletteBlue:
+		return "hover:bg-blue-50"
+	case domain.PaletteGreen:
+		return "hover:bg-emerald-50"
+	case domain.PaletteRed:
+		return "hover:bg-red-50"
+	case domain.PaletteAmber:
+		return "hover:bg-amber-50"
+	default:
+		return "hover:bg-slate-100"
+	}
+}
+
 // toneEdgeClass is the tone's edge (owner decision DS-D16, 2026-10-12): the pair becomes a triple of fill, ink and
 // edge, all from the same palette, so a Workspace that remaps `warn` to red no longer keeps an amber rim. No Theme key
 // was added: the edge follows `theme.tone` like the other two. The Design System names two of these

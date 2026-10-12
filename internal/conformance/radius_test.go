@@ -43,7 +43,7 @@ var handWrittenRadii = map[string]struct {
 	"account.templ":            {2, "the notification switch's track and knob (geometry)"},
 	"approvalinbox.templ":      {3, "the progress bar's track and fill, and the approver chip's initials circle (geometry)"},
 	"approvalstepper.templ":    {3, "three step circles (geometry)"},
-	"appshell.templ":           {13, "five rounded-lg menu rows beside rounded-md ones (a fold is a decision); four rounded-lg icon tiles and the workspace monogram (brand-mark); the bell and avatar buttons' circles and the sheet grabber (geometry)"},
+	"appshell.templ":           {8, "four rounded-lg icon tiles and the workspace monogram (brand-mark); the bell and avatar buttons' circles and the sheet grabber (geometry). The five rounded-lg menu rows moved to radius.control (owner decision P1, 2026-10-12)"},
 	"authshell.templ":          {3, "pre-auth inputs and submit button: no theme reaches them"},
 	"checklist.templ":          {1, "the completion circle (geometry)"},
 	"chooseworkspace.templ":    {1, "pre-auth dashed create-workspace link"},

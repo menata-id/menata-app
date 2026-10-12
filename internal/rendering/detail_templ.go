@@ -1067,7 +1067,7 @@ func recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *Re
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var56 = []any{"flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5 text-sm hover:bg-slate-50"}
+			var templ_7745c5c3_Var56 = []any{"flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5 text-sm", hoverWashClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var56...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1455,7 +1455,7 @@ func recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *Re
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var82 = []any{"flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5 text-sm hover:bg-slate-50"}
+			var templ_7745c5c3_Var82 = []any{"flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5 text-sm", hoverWashClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var82...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1591,7 +1591,7 @@ func recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *Re
 				return templ_7745c5c3_Err
 			}
 		}
-		var templ_7745c5c3_Var93 = []any{"flex cursor-pointer flex-col", radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1.5 text-left text-sm hover:bg-slate-50"}
+		var templ_7745c5c3_Var93 = []any{"flex cursor-pointer flex-col", radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1.5 text-left text-sm", hoverWashClass(ctx)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var93...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

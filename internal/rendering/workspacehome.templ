@@ -125,7 +125,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 				for i, app := range apps {
 					<a
 						href={ templ.SafeURL(app.HomeRoute) }
-						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
+						class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3.5 text-slate-900", hoverWashClass(ctx), "sm:gap-4 sm:px-5", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 					>
 						<span class={ "flex size-10 shrink-0 items-center justify-center rounded-lg text-base font-medium", appIconClasses(app.Color) }>
 							if app.Icon != "" {
@@ -287,7 +287,7 @@ type HomeDraftApplicationRow struct {
 templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 	for _, r := range rows {
 		if inList {
-			<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "border-t px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5", borderClass(ctx, domain.BorderDivider) }>
+			<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "border-t px-4 py-3.5 text-slate-900", hoverWashClass(ctx), "sm:gap-4 sm:px-5", borderClass(ctx, domain.BorderDivider) }>
 				<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
 					@icon("sparkle", "size-5")
 				</span>
@@ -301,7 +301,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 				</span>
 			</a>
 		} else {
-		<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 text-slate-900 hover:bg-slate-50 sm:gap-4 sm:px-5" }>
+		<a href={ templ.SafeURL(r.ReviewHref) } class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-indigo-200 bg-white px-4 py-3.5 text-slate-900", hoverWashClass(ctx), "sm:gap-4 sm:px-5" }>
 			<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
 				@icon("sparkle", "size-5")
 			</span>

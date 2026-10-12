@@ -119,7 +119,7 @@ func NotificationsPage(rows []NotificationRow, workspaceName string, viewer View
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var7 = []any{"flex h-9 shrink-0 cursor-pointer items-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm font-medium text-slate-900 hover:bg-slate-50"}
+				var templ_7745c5c3_Var7 = []any{"flex h-9 shrink-0 cursor-pointer items-center", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm font-medium text-slate-900", hoverWashClass(ctx)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

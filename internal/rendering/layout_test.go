@@ -1511,3 +1511,22 @@ func TestToneEdgeClass_eachPaletteHasItsEdge(t *testing.T) {
 		t.Errorf("pinned %d palettes, the domain has %d -- pin the new one", len(want), len(domain.KnownTonePalettes))
 	}
 }
+
+// DS-D11 (R9): hover lives in recipes. A secondary button and a menu row hover with background.base (the Design
+// System's hover-wash alias); a danger control hovers with the bad tone's fill, edge and ink moving with it.
+func TestHoverRecipes_followTheTheme(t *testing.T) {
+	th := domain.Theme{
+		Background: map[domain.BackgroundRole]domain.BackgroundShade{domain.BackgroundBase: domain.BackgroundShadeLight},
+		Tone:       map[domain.BadgeTone]domain.TonePalette{domain.ToneBad: domain.PaletteAmber},
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	if got := buttonClasses(ctx, domain.ButtonSecondary); !strings.HasSuffix(got, " hover:bg-slate-100") {
+		t.Errorf("a secondary button must hover with background.base, got %q", got)
+	}
+	got := buttonClasses(ctx, domain.ButtonDanger)
+	for _, want := range []string{"border-amber-200", "text-amber-800", "hover:bg-amber-50"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("a danger button under bad=amber must carry %s: %q", want, got)
+		}
+	}
+}

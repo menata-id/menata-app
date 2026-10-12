@@ -1491,7 +1491,7 @@ func NewApplicationReviewPage(change aiassist.GeneratedChange, plan aiassist.Pla
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var90 = []any{tileClasses(ctx), "inline-flex h-9 items-center justify-center bg-white px-4 text-sm text-slate-900 hover:bg-slate-50"}
+				var templ_7745c5c3_Var90 = []any{tileClasses(ctx), "inline-flex h-9 items-center justify-center bg-white px-4 text-sm text-slate-900", hoverWashClass(ctx)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var90...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

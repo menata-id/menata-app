@@ -1660,7 +1660,7 @@ func removeFromWorkspaceSection(m data.Membership, workspaceName string) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var97 = []any{"h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm text-slate-900 hover:bg-slate-50"}
+			var templ_7745c5c3_Var97 = []any{"h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderControl), "bg-white px-3 text-sm text-slate-900", hoverWashClass(ctx)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var97...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1704,7 +1704,7 @@ func removeFromWorkspaceSection(m data.Membership, workspaceName string) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var100 = []any{"h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border border-red-200 bg-white px-3 text-sm text-red-700 hover:bg-red-50"}
+			var templ_7745c5c3_Var100 = []any{"h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border", toneEdgeClass(ctx, domain.ToneBad), "bg-white px-3 text-sm", toneInkClass(ctx, domain.ToneBad), toneHoverFillClass(ctx, domain.ToneBad)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var100...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

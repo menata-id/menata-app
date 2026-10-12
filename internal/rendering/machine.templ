@@ -433,7 +433,7 @@ templ MachineList(machines []*domain.Machine, workspaceName string, viewer Viewe
 			for i, m := range machines {
 				<a
 					href={ templ.URL("/machines/" + m.ID) }
-					class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 text-sm text-slate-900 hover:bg-slate-50", templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
+					class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-4 py-3 text-sm text-slate-900", hoverWashClass(ctx), templ.KV("border-t "+borderClass(ctx, domain.BorderDivider), i > 0) }
 				>
 					<span class="grow font-medium">{ m.Name }</span>
 					<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>

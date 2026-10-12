@@ -110,7 +110,7 @@ func settingsRow(href, label, description string, current bool) templ.Component 
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var2 = []any{"flex items-start", layoutGap(ctx, domain.GapDefault), "p-3", radiusClass(ctx, domain.RadiusControl), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV("hover:bg-slate-50", !current)}
+		var templ_7745c5c3_Var2 = []any{"flex items-start", layoutGap(ctx, domain.GapDefault), "p-3", radiusClass(ctx, domain.RadiusControl), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(hoverWashClass(ctx), !current)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var2...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -601,7 +601,7 @@ func settingsListRow(href, label, description string) templ.Component {
 			templ_7745c5c3_Var32 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var33 = []any{"flex min-h-15 items-center", layoutGap(ctx, domain.GapDefault), "border-b px-4 py-2.5 last:border-b-0 hover:bg-slate-50", borderClass(ctx, domain.BorderDivider)}
+		var templ_7745c5c3_Var33 = []any{"flex min-h-15 items-center", layoutGap(ctx, domain.GapDefault), "border-b px-4 py-2.5 last:border-b-0", hoverWashClass(ctx), borderClass(ctx, domain.BorderDivider)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var33...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -834,7 +834,7 @@ func settingsNavLink(href, label string, current bool) templ.Component {
 			templ_7745c5c3_Var47 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var48 = []any{"flex items-center px-3 py-2", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(weightClass(ctx, domain.WeightEmphasis), current), settingsNavLinkInk(ctx, current), templ.KV("hover:bg-slate-50", !current)}
+		var templ_7745c5c3_Var48 = []any{"flex items-center px-3 py-2", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(weightClass(ctx, domain.WeightEmphasis), current), settingsNavLinkInk(ctx, current), templ.KV(hoverWashClass(ctx), !current)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var48...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

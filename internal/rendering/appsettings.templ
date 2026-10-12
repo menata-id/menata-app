@@ -87,7 +87,7 @@ templ settingsRow(href, label, description string, current bool) {
 		if current {
 			aria-current="page"
 		}
-		class={ "flex items-start", layoutGap(ctx, domain.GapDefault), "p-3", radiusClass(ctx, domain.RadiusControl), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV("hover:bg-slate-50", !current) }
+		class={ "flex items-start", layoutGap(ctx, domain.GapDefault), "p-3", radiusClass(ctx, domain.RadiusControl), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(hoverWashClass(ctx), !current) }
 	>
 		<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong), templ.KV(weightClass(ctx, domain.WeightEmphasis), current) }>{ label }</span>
@@ -142,7 +142,7 @@ templ settingsSection(title string) {
 // secondary description and a chevron. The mockup sets the label at 15px; the type ladder has no step
 // between body (14) and subheading (16), so it reads body rather than adding a literal.
 templ settingsListRow(href, label, description string) {
-	<a href={ templ.SafeURL(href) } class={ "flex min-h-15 items-center", layoutGap(ctx, domain.GapDefault), "border-b px-4 py-2.5 last:border-b-0 hover:bg-slate-50", borderClass(ctx, domain.BorderDivider) }>
+	<a href={ templ.SafeURL(href) } class={ "flex min-h-15 items-center", layoutGap(ctx, domain.GapDefault), "border-b px-4 py-2.5 last:border-b-0", hoverWashClass(ctx), borderClass(ctx, domain.BorderDivider) }>
 		<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ label }</span>
 			if description != "" {
@@ -179,7 +179,7 @@ templ settingsNavLink(href, label string, current bool) {
 		if current {
 			aria-current="page"
 		}
-		class={ "flex items-center px-3 py-2", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(weightClass(ctx, domain.WeightEmphasis), current), settingsNavLinkInk(ctx, current), templ.KV("hover:bg-slate-50", !current) }
+		class={ "flex items-center px-3 py-2", radiusClass(ctx, domain.RadiusControl), textClass(ctx, domain.RoleBody), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV(weightClass(ctx, domain.WeightEmphasis), current), settingsNavLinkInk(ctx, current), templ.KV(hoverWashClass(ctx), !current) }
 	>
 		{ label }
 	</a>

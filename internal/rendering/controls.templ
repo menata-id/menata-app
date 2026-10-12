@@ -126,9 +126,10 @@ func buttonClasses(ctx context.Context, variant domain.ButtonVariant) string {
 	case domain.ButtonPrimary:
 		return strings.Join([]string{prefix, radius, "border-0 bg-slate-900 px-4 font-sans", text, weightClass(ctx, domain.WeightEmphasis), "text-white hover:bg-slate-800"}, " ")
 	case domain.ButtonDanger:
-		return strings.Join([]string{prefix, radius, "border border-red-200 bg-white px-4 font-sans", text, "text-red-700 hover:bg-red-50"}, " ")
+		// The danger recipe reads the `bad` tone's edge, ink and hover fill (DS-D16, DS-D11).
+		return strings.Join([]string{prefix, radius, "border", toneEdgeClass(ctx, domain.ToneBad), "bg-white px-4 font-sans", text, toneInkClass(ctx, domain.ToneBad), toneHoverFillClass(ctx, domain.ToneBad)}, " ")
 	default:
-		return strings.Join([]string{prefix, radius, "border", borderClass(ctx, domain.BorderSurface), "bg-white px-4 font-sans", text, inkClass(ctx, domain.InkBody), "hover:bg-slate-50"}, " ")
+		return strings.Join([]string{prefix, radius, "border", borderClass(ctx, domain.BorderSurface), "bg-white px-4 font-sans", text, inkClass(ctx, domain.InkBody), hoverWashClass(ctx)}, " ")
 	}
 }
 
