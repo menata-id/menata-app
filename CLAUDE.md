@@ -909,6 +909,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   markers) from emerald-500 (measured 2.46:1 on white, below WCAG 1.4.11's 3:1) to `mark-good` (3.67:1). The gate now
   refuses `bg-`/`border-emerald-500` too, except the closed `markGoodExempt` (the board's drag-and-drop slot, a
   JavaScript drop target, not a finished mark), which must match its count exactly. Mutation-proved both ways.
+- **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
+  mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
+  and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token
+  change (R8). Proved: a corrupted `--accent` fails it, and regenerating at the same version changes no file.
+- `TestDesignSimilarityReport` (GS7) is a **report**: run it with `-v`. It never fails (except on an empty scan). It
+  groups hand-written class sets by visual fingerprint and lists groups of three or more sites across two or more
+  files. The first reading (2026-10-12) gave 4 groups, all four genuine: the alert family (Callout candidate),
+  tinted wells, hover menu rows, and hand-written list header bands. The sample is too small to promote it to a
+  gate, and it misses shapes that occur only once or twice per fingerprint.
 - `TestRejectedDesignValuesStayOut` (GS2, 2026-10-12) — the Design System artifact now lists what it *rejected* for a
   meaning in a `rejected` token family (shown on its page). Today that is `body-compact` 13px and `mark-good-500`
   (emerald-500 as a finished mark). This gate reads the family from `design-system/tokens.json` and refuses the

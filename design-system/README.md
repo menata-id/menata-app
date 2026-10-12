@@ -14,3 +14,16 @@ compiled `static/css/app.css`. A token must be classified as one of three things
 
 **Never edit this file by hand.** Change the artifact, then copy its `project/tokens.json` here unchanged and update the
 version above, in the same commit as the code change that matches it (R8 of the guide).
+
+## `canvas.py` (GS6)
+
+`canvas.py` generates and checks the mockup canvas's `:root` token blocks from `tokens.json`. The canvas is not in this
+repo, so download its `project/*.dc.html` first (Artifact `read` with `paths`).
+
+- `python3 -I design-system/canvas.py generate design-system/tokens.json <folder> --version <artifact-version>`:
+  rewrites every artboard's block, and refuses if anything outside the block would change.
+- `python3 -I design-system/canvas.py check design-system/tokens.json <folder>`: exit 1 on any stale block. It also
+  reports adoption: `var(--)` references, and colour literals that do or do not equal a token value.
+  - Measured 2026-10-12 on canvas version 155: 0 stale blocks; 130 references, all in one artboard (U04); 1,623
+    literals equal a token value and 6,728 do not. Most of the 6,728 are the same palette written in old hex notation
+    (`#e2e8f0` for slate-200); that is the canvas's remaining R3 debt.
