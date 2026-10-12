@@ -89,7 +89,7 @@ var handWrittenThemeTokens = map[string]themeDebt{
 var (
 	themeClassValue = regexp.MustCompile(`class="([^"]*)"`)
 	themeSizeToken  = regexp.MustCompile(`^text-(?:3xs|2xs|xs|sm|base|xl|2xl)$`)
-	themeOffLadder  = regexp.MustCompile(`^text-\[\d+px\]$`)
+	themeOffLadder  = regexp.MustCompile(`^text-\[[\d.]+(?:px|rem|em)\]$`)
 	themeInkToken   = regexp.MustCompile(`^text-slate-(?:400|500|700|900)$`)
 	themeWeightTok  = regexp.MustCompile(`^font-(?:medium|normal)$`)
 )
@@ -209,7 +209,7 @@ var handWrittenOffLadderSizes = map[string]struct {
 }{
 	"account.templ":            {5, "authenticated; 15px labels and controls -- moves with a DS-D13 role"},
 	"approvalinbox.templ":      {1, "authenticated; 15px -- moves with a DS-D13 role"},
-	"appshell.templ":           {1, "the workspace monogram's 13px glyph; GS2's rejectedDesignExempt, sized to its 26px tile"},
+	"appshell.templ":           {1, "the workspace monogram's 13px glyph in its 36px (`size-9`) tile; GS2's rejectedDesignExempt"},
 	"authshell.templ":          {6, "pre-auth (4x 15px, the 21px and 26px brand/heading) -- no Workspace on ctx, no Theme reaches it"},
 	"checkyouremail.templ":     {1, "pre-auth; 15px -- no Theme reaches it"},
 	"chooseworkspace.templ":    {1, "pre-auth; 15px -- no Theme reaches it"},

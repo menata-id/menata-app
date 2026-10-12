@@ -148,6 +148,7 @@ func visualFingerprint(classes string) string {
 // joinClassExpressionsKeepingLines is joinClassExpressions that pads each joined expression with the newlines it
 // removed, so a report can still point at the right line.
 func joinClassExpressionsKeepingLines(src string) string {
+	src = radiusReadersAsLiterals(src) // a migrated corner is still part of the shape
 	return classExpression.ReplaceAllStringFunc(src, func(m string) string {
 		var parts []string
 		for _, lit := range stringLiteral.FindAllStringSubmatch(m, -1) {

@@ -665,7 +665,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			return templ_7745c5c3_Err
 		}
 		if app.Icon != "" {
-			var templ_7745c5c3_Var24 = []any{"flex size-6 shrink-0 items-center justify-center rounded-md", appIconClasses(app.Color)}
+			var templ_7745c5c3_Var24 = []any{"flex size-6 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), appIconClasses(app.Color)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var24...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -769,7 +769,7 @@ func applicationMenuRow(menu []navMenuItem, app domain.Application) templ.Compon
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = navBadge(item.Badge, "inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full "+toneFillClass(ctx, domain.ToneInfo)+" px-1.5 text-3xs font-medium "+toneInkClass(ctx, domain.ToneInfo)+" empty:hidden").Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = navBadge(item.Badge, "inline-flex h-4.5 min-w-4.5 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" "+toneFillClass(ctx, domain.ToneInfo)+" px-1.5 text-3xs font-medium "+toneInkClass(ctx, domain.ToneInfo)+" empty:hidden").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1113,7 +1113,7 @@ func applicationBottomBar(items []navMenuItem, app domain.Application, workspace
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-3xs text-white empty:hidden").Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" bg-red-600 px-1 text-3xs text-white empty:hidden").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

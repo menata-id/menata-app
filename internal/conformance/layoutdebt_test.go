@@ -129,7 +129,10 @@ func TestHandWrittenLayoutSitesOnlyShrink(t *testing.T) {
 		}
 		s := string(b)
 		if e.Name() != "layout.templ" { // the primitives' own renderers are what the patterns point *at*
-			s = joinClassExpressions(s)
+			// String literals only: these patterns anchor at the start of the class value (`class="flex flex-wrap…`),
+			// and the radius rewrite in joinClassExpressions would put a corner in front of a site whose expression
+			// opens with radiusClass, hiding it (found by the 2026-10-12 independent review).
+			s = joinClassLiterals(s)
 		}
 		splits := len(layoutSitePatterns["split"].FindAllString(s, -1))
 		for kind, pat := range layoutSitePatterns {

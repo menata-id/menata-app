@@ -193,7 +193,7 @@ templ reviewDocumentCard(v ReviewView) {
 			<p class="m-0 text-sm text-slate-400">No file is attached to this document.</p>
 		} else {
 			<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "bg-slate-50 p-3" }>
-				<span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-red-100 text-2xs font-medium text-red-700">PDF</span>
+				<span class={ "flex size-10 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), "bg-red-100 text-2xs font-medium text-red-700" }>PDF</span>
 				<span class="flex min-w-0 flex-col">
 					<span class="truncate text-sm">{ v.FileName }</span>
 					if v.PDFPages > 0 {

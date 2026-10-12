@@ -41,7 +41,6 @@ func TestHandWrittenLadderGapsOnlyShrink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read rendering: %v", err)
 	}
-	comment := regexp.MustCompile(`//[^\n]*`)
 	classAttr := regexp.MustCompile(`class="([^"]*)"`)
 	actual := map[string]int{}
 	readers := 0
@@ -53,7 +52,7 @@ func TestHandWrittenLadderGapsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := comment.ReplaceAllString(string(b), "")
+		src := stripTemplComments(string(b))
 		if e.Name() == "layout.templ" {
 			readers = len(regexp.MustCompile(`return "gap-[2-5]"`).FindAllString(src, -1))
 			continue

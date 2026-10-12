@@ -371,7 +371,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 	<nav aria-label="Application" class="hidden items-center gap-1 border-t border-slate-100 px-4 py-1.5 sm:flex sm:px-6">
 		<span class={ "mr-1 flex items-center", layoutGap(ctx, domain.GapTight) }>
 			if app.Icon != "" {
-				<span class={ "flex size-6 shrink-0 items-center justify-center rounded-md", appIconClasses(app.Color) }>
+				<span class={ "flex size-6 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), appIconClasses(app.Color) }>
 					@icon(app.Icon, "size-3.5")
 				</span>
 			}
@@ -388,7 +388,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 				}
 			>
 				{ item.Label }
-				@navBadge(item.Badge, "inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full "+toneFillClass(ctx, domain.ToneInfo)+" px-1.5 text-3xs font-medium "+toneInkClass(ctx, domain.ToneInfo)+" empty:hidden")
+				@navBadge(item.Badge, "inline-flex h-4.5 min-w-4.5 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" "+toneFillClass(ctx, domain.ToneInfo)+" px-1.5 text-3xs font-medium "+toneInkClass(ctx, domain.ToneInfo)+" empty:hidden")
 			</a>
 		}
 		if len(overflow) > 0 {
@@ -470,7 +470,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 			>
 				<span class="relative flex">
 					@icon(item.Icon, "size-5.5")
-					@navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-3xs text-white empty:hidden")
+					@navBadge(item.Badge, "absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center "+radiusClass(ctx, domain.RadiusPill)+" bg-red-600 px-1 text-3xs text-white empty:hidden")
 				</span>
 				{ item.Label }
 			</a>

@@ -29,7 +29,6 @@ func TestNoHandWrittenCallout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read rendering: %v", err)
 	}
-	comment := regexp.MustCompile(`//[^\n]*`)
 	classAttr := regexp.MustCompile(`class="([^"]*)"`)
 	tint := regexp.MustCompile(`^bg-(red|emerald|green|amber|blue)-50$`)
 	ink := regexp.MustCompile(`^text-(red|emerald|green|amber|blue)-[789]00$`)
@@ -43,7 +42,11 @@ func TestNoHandWrittenCallout(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := joinClassExpressions(toneReadersAsLiterals(comment.ReplaceAllString(string(b), "")))
+		raw := stripTemplComments(string(b))
+		src := joinClassExpressions(toneReadersAsLiterals(raw))
+		if e.Name() != "callout.templ" && strings.Contains(raw, "calloutClasses(") {
+			t.Errorf("%s: calls calloutClasses outside the Callout renderer -- borrowing the box without @callout drops the live-region role the contract decides", e.Name())
+		}
 		for _, m := range classAttr.FindAllStringSubmatch(src, -1) {
 			scanned++
 			if isToneBox(m[1], tint, ink) {
@@ -77,16 +80,31 @@ func TestNoHandWrittenCallout(t *testing.T) {
 // its tint and ink through `toneFillClass`/`toneInkClass`/`toneClass` is still seen as a hand-written tone box. Without
 // it, moving a floor's colours to the Theme (rencana 0.2c) made both floors vanish from this gate by an edit to an
 // attribute while neither became a Callout -- the blind spot `joinClassExpressions` exists for, one level down.
+//
+// A tone passed as a variable (`toneClass(ctx, t)`) counts as a message tone too: a hand-written box whose tone is
+// chosen at run time is still a hand-written callout (found by the 2026-10-12 independent review).
 func toneReadersAsLiterals(src string) string {
-	src = toneFillCall.ReplaceAllString(src, `"bg-red-50"`)
-	src = toneInkCall.ReplaceAllString(src, `"text-red-700"`)
-	return tonePairCall.ReplaceAllString(src, `"bg-red-50 text-red-700"`)
+	return toneReaderCall.ReplaceAllStringFunc(src, func(m string) string {
+		sub := toneReaderCall.FindStringSubmatch(m)
+		if sub[2] == "domain.ToneNeutral" || sub[2] == "domain.ToneMuted" {
+			return m
+		}
+		return map[string]string{"toneFillClass": `"bg-red-50"`, "toneInkClass": `"text-red-700"`, "toneClass": `"bg-red-50 text-red-700"`}[sub[1]]
+	})
+}
+
+var toneReaderCall = regexp.MustCompile(`\b(toneFillClass|toneInkClass|toneClass)\(ctx, ([\w.]+)\)`)
+
+// stripTemplComments removes `//` line comments and HTML comments, but not a `//` that is part of a URL scheme
+// (`https://`), which a plain `//[^\n]*` cut short together with the class after it on the same line.
+func stripTemplComments(src string) string {
+	src = htmlComment.ReplaceAllString(src, "")
+	return lineComment.ReplaceAllString(src, "$1")
 }
 
 var (
-	toneFillCall = regexp.MustCompile(`toneFillClass\(ctx, domain\.Tone(?:Info|Good|Bad|Warn)\)`)
-	toneInkCall  = regexp.MustCompile(`toneInkClass\(ctx, domain\.Tone(?:Info|Good|Bad|Warn)\)`)
-	tonePairCall = regexp.MustCompile(`toneClass\(ctx, domain\.Tone(?:Info|Good|Bad|Warn)\)`)
+	htmlComment = regexp.MustCompile(`(?s)<!--.*?-->`)
+	lineComment = regexp.MustCompile(`(^|[^:])//[^\n]*`)
 )
 
 // isToneBox reports whether one class set is a cornered box with a tone hue's tint and the same hue's ink.
@@ -97,7 +115,7 @@ func isToneBox(classes string, tint, ink *regexp.Regexp) bool {
 	for _, tok := range strings.Fields(classes) {
 		switch {
 		case strings.Contains(tok, ":"):
-		case tok == "rounded" || tok == "rounded-md" || tok == "rounded-lg":
+		case tok == "rounded" || tok == "rounded-sm" || tok == "rounded-md" || tok == "rounded-lg" || tok == "rounded-xl" || tok == "rounded-2xl":
 			cornered = true
 		case tint.MatchString(tok):
 			tints[tint.FindStringSubmatch(tok)[1]] = true
@@ -123,8 +141,9 @@ var calloutExempt = map[string]int{
 	"deleteaccount.templ": 1,
 	// `truncationNotice`, drawn by `Collection`: bordered and caption-sized (11px) inside a list. Moving it to a
 	// Callout would grow it to body size and drop the border, which is a design decision (menjaga-design-system R1),
-	// not a migration.
-	"machine.templ": 1,
+	// not a migration. And the board card's due-date chip (`toneClass(ctx, c.Date.Tone)`, a 4px label): a label,
+	// not a message, seen once tone variables counted (2026-10-12).
+	"machine.templ": 2,
 	// The workspace-switch leave guard's warning: bordered, meta-sized, and carrying inline `<b>` markup a Callout's
 	// `text` cannot hold. Unseen by this gate until 2026-10-12, because its corner and tint were both readers; the
 	// radius rewrite in joinClassExpressions (rencana 0.2b) made it visible.

@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"menata.app/internal/domain"
 )
 
 // handWrittenRadii freezes, per file, the literal corner classes left in `internal/rendering` (2026-10-12,
@@ -22,15 +24,18 @@ import (
 // one whose move would be a decision:
 //   - **circles and bars** (avatars, step circles, dots, progress bars, a switch, the sheet grabber): geometry. A
 //     theme moving `pill` would square them;
-//   - **icon tiles** (`size-9`/`size-10`, `rounded-lg`): the artifact's nearest token is `radius-brand-mark` (10px),
-//     which has no Theme role;
+//   - **icon tiles drawn `rounded-lg`** (`size-8`..`size-10`): the artifact's nearest token is `radius-brand-mark` (10px),
+//     which has no Theme role. A small `rounded-md` tile (a file-type tile, a `size-6` app icon) is a box inside a
+//     surface and reads `control`, the `tileClasses` precedent;
 //   - **menu rows drawn `rounded-lg`**, beside other menu rows drawn `rounded-md`. Folding them is a decision (R1);
 //   - **`rounded`** (4px) and **`rounded-xl`**: off the ladder, and owner decision DS-D17 (radius 4px/sheet) is open;
 //   - **pre-auth** screens: no Workspace on ctx, so no theme reaches them;
 //   - chat bubbles, which have their own shape.
 //
-// Counted after `joinClassLiterals` (string literals only, so a reader call is not a corner), unprefixed tokens only. Blind spots: a corner returned by a Go function
-// (`avatarClasses`, the nav badge's class argument) and a variant-prefixed corner (`rounded-t-2xl` on the sheet).
+// Counted after `joinClassLiterals` (string literals only, so a reader call is not a corner), whole-corner tokens only.
+// So the "117" is whole-corner tokens. **Not counted:** side corners and arbitrary values (`rounded-t-2xl` on the
+// sheet, `rounded-r-md` and `rounded-[10px]` in the pre-auth shell, `rounded-tl-sm` on a signature marker; four in
+// the tree on 2026-10-12), variant-prefixed corners, and a corner returned by a Go function (`avatarClasses`).
 var handWrittenRadii = map[string]struct {
 	n   int
 	why string
@@ -38,7 +43,7 @@ var handWrittenRadii = map[string]struct {
 	"account.templ":            {2, "the notification switch's track and knob (geometry)"},
 	"approvalinbox.templ":      {3, "the progress bar's track and fill, and the approver chip's initials circle (geometry)"},
 	"approvalstepper.templ":    {3, "three step circles (geometry)"},
-	"appshell.templ":           {14, "five rounded-lg menu rows beside rounded-md ones (a fold is a decision), five icon tiles and the workspace monogram (brand-mark), the icon-button and avatar-button circles, the sheet grabber"},
+	"appshell.templ":           {13, "five rounded-lg menu rows beside rounded-md ones (a fold is a decision); four rounded-lg icon tiles and the workspace monogram (brand-mark); the bell and avatar buttons' circles and the sheet grabber (geometry)"},
 	"authshell.templ":          {3, "pre-auth inputs and submit button: no theme reaches them"},
 	"checklist.templ":          {1, "the completion circle (geometry)"},
 	"chooseworkspace.templ":    {1, "pre-auth dashed create-workspace link"},
@@ -50,7 +55,7 @@ var handWrittenRadii = map[string]struct {
 	"newapplication.templ":     {2, "the assistant chat bubbles (their own shape)"},
 	"notifications.templ":      {2, "the unread dot and its placeholder (geometry)"},
 	"progress.templ":           {2, "the progress bar's track and fill (geometry)"},
-	"reviewdocument.templ":     {7, "rounded (4px) reference code and signature box (DS-D17); five signature-marker and timeline circles (geometry)"},
+	"reviewdocument.templ":     {6, "rounded (4px) reference code and signature box (DS-D17); four signature-marker and timeline circles (geometry)"},
 	"signatureplacement.templ": {5, "rounded (4px) signature markers and width input (DS-D17); two marker circles (geometry)"},
 	"workspacehome.templ":      {3, "three Application icon tiles (brand-mark)"},
 }
@@ -63,7 +68,6 @@ func TestHandWrittenRadiiOnlyShrink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read rendering: %v", err)
 	}
-	comment := regexp.MustCompile(`//[^\n]*`)
 	classAttr := regexp.MustCompile(`class="([^"]*)"`)
 	actual := map[string]int{}
 	for _, e := range entries {
@@ -74,7 +78,7 @@ func TestHandWrittenRadiiOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		for _, m := range classAttr.FindAllStringSubmatch(joinClassLiterals(comment.ReplaceAllString(string(b), "")), -1) {
+		for _, m := range classAttr.FindAllStringSubmatch(joinClassLiterals(stripTemplComments(string(b))), -1) {
 			for _, tok := range strings.Fields(m[1]) {
 				if radiusToken.MatchString(tok) {
 					actual[e.Name()]++
@@ -105,6 +109,36 @@ func TestHandWrittenRadiiOnlyShrink(t *testing.T) {
 				"so theme.radius moves it; a corner no role describes goes in handWrittenRadii with what it is", f, got, want)
 		case got < want:
 			t.Errorf("%s: %d literal corner(s), down from %d -- lower handWrittenRadii to lock it in", f, got, want)
+		}
+	}
+}
+
+// TestRadiusRewriteMatchesTheDefaultTheme holds `radiusDefaults`, the hand-written table `radiusReadersAsLiterals`
+// uses, to the code it stands for: `domain.DefaultTheme`'s step for each role, mapped through `radiusClass`'s own
+// arms in layout.templ. Without it a change to the default Theme would leave the shape gates reading the old corner
+// (found by the 2026-10-12 independent review).
+func TestRadiusRewriteMatchesTheDefaultTheme(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join(repoRoot(), "internal", "rendering", "layout.templ"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := regexp.MustCompile(`(?s)func radiusClass\(.*?\n\}`).FindString(string(b))
+	arms := map[string]string{}
+	for _, m := range regexp.MustCompile(`case domain\.(RadiusStep\w+):\s*return "([^"]+)"`).FindAllStringSubmatch(body, -1) {
+		arms[m[1]] = m[2]
+	}
+	steps := map[domain.RadiusStep]string{domain.RadiusStepSmall: "RadiusStepSmall", domain.RadiusStepLarge: "RadiusStepLarge", domain.RadiusStepFull: "RadiusStepFull"}
+	if len(arms) != len(steps) {
+		t.Fatalf("parsed %d radiusClass arms, want %d -- the scan is reading the wrong text", len(arms), len(steps))
+	}
+	roles := map[string]domain.RadiusRole{"RadiusControl": domain.RadiusControl, "RadiusSurface": domain.RadiusSurface, "RadiusPill": domain.RadiusPill}
+	if len(roles) != len(domain.KnownRadiusRoles) || len(radiusDefaults) != len(roles) {
+		t.Fatalf("radius roles %d, known %d, radiusDefaults %d -- a role was added; extend radiusDefaults and this map", len(roles), len(domain.KnownRadiusRoles), len(radiusDefaults))
+	}
+	for name, role := range roles {
+		want := arms[steps[domain.DefaultTheme().RadiusFor(role)]]
+		if radiusDefaults[name] != want {
+			t.Errorf("radiusDefaults[%s] = %q, but the default Theme renders %q", name, radiusDefaults[name], want)
 		}
 	}
 }

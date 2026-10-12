@@ -49,7 +49,6 @@ func TestHandWrittenTonePairsOnlyShrink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read rendering: %v", err)
 	}
-	comment := regexp.MustCompile(`(?m)^\s*//.*$`)
 	actual := map[string]int{}
 	readerPairs := 0
 	for _, e := range entries {
@@ -60,20 +59,21 @@ func TestHandWrittenTonePairsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := comment.ReplaceAllString(string(b), "")
-		for _, m := range tonePairLiteral.FindAllStringSubmatch(src, -1) {
-			if !holdsTonePair(m[1]) {
-				continue
-			}
-			if e.Name() == "layout.templ" {
-				readerPairs++
-				continue
-			}
-			actual[e.Name()]++
+		n, half := countTonePairs(stripTemplComments(string(b)))
+		for _, h := range half {
+			t.Errorf("%s: %q reads a tone through the Theme and writes the other half of the pair by hand -- a Workspace "+
+				"remapping the tone moves one half only; read both (toneClass, or toneFillClass and toneInkClass)", e.Name(), h)
+		}
+		if e.Name() == "layout.templ" {
+			readerPairs = n
+			continue
+		}
+		if n > 0 {
+			actual[e.Name()] = n
 		}
 	}
-	// The readers return the fill and the ink separately, so layout.templ holds no pair in one literal; a pair
-	// appearing there would be a reader that stopped splitting them. Zero is the sanity check that the scan reads text.
+	// The readers return the fill and the ink separately, so layout.templ holds no pair. This is a check on the
+	// readers, not on the scan; the scan's own check is the len(actual) fatal below.
 	if readerPairs != 0 {
 		t.Errorf("layout.templ holds %d tint+ink pair(s) in one literal -- toneFillClass and toneInkClass answer each half", readerPairs)
 	}
@@ -103,6 +103,49 @@ func TestHandWrittenTonePairsOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// countTonePairs counts hand-written pairs in one file. A class attribute counts the literals that each hold a pair, or
+// one if the pair is only split across its literals (`"bg-red-50 p-3", "text-red-700"`, or two `templ.KV`s). Every
+// other string literal, such as a Go helper's return, counts on its own. It also returns each class expression that
+// pairs a tone reader with a literal tint or ink, which is a half migration. Splits and half migrations were
+// surviving mutations in the 2026-10-12 independent review.
+func countTonePairs(src string) (int, []string) {
+	n := 0
+	var half []string
+	rest := classAnyAttr.ReplaceAllStringFunc(src, func(attr string) string {
+		lits := tonePairLiteral.FindAllStringSubmatch(attr, -1)
+		each, joined := 0, make([]string, 0, len(lits))
+		for _, l := range lits {
+			joined = append(joined, l[1])
+			if holdsTonePair(l[1]) {
+				each++
+			}
+		}
+		switch {
+		case each > 0:
+			n += each
+		case holdsTonePair(strings.Join(joined, " ")):
+			n++
+		}
+		if toneReaderCall.MatchString(attr) {
+			for _, tok := range strings.Fields(strings.Join(joined, " ")) {
+				if tonePairTint.MatchString(tok) || tonePairInk.MatchString(tok) {
+					half = append(half, strings.Join(strings.Fields(attr), " "))
+					break
+				}
+			}
+		}
+		return ""
+	})
+	for _, m := range tonePairLiteral.FindAllStringSubmatch(rest, -1) {
+		if holdsTonePair(m[1]) {
+			n++
+		}
+	}
+	return n, half
+}
+
+var classAnyAttr = regexp.MustCompile(`class=(?:"[^"]*"|\{[^}]*\})`)
 
 // holdsTonePair reports whether one string holds a tint and an ink of the same tone hue. Variant-prefixed tokens are
 // state and breakpoint, not the pair.

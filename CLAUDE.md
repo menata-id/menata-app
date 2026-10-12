@@ -959,11 +959,22 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 
   Also, the Callout gate now reads inline message-tone readers as their literals (`toneReadersAsLiterals`).
   Without that, its two floors vanished when their colours moved to the Theme.
-- `TestNoTwoKVKeysFromOneThemeReader` — a zero-floor gate (2026-10-12). One class expression may not hold two
-  `templ.KV` keys built from the **same** Theme reader. A `theme:` that maps two roles to one step makes the keys
-  one string, and templ keeps the last value. Two shipped sites lost their class this way: the approver chip, and
-  Application Settings' current link (pre-existing). Choose the class in Go instead. Keys from different readers
-  cannot collide and are allowed. Mutation-proved.
+  **After the independent review:**
+  - The tone-pair gate counts a pair split across literals or `templ.KV`s.
+  - It also fails a half migration (one half read through a reader, the other written by hand).
+  - The Callout gate counts a tone passed as a variable and the other corner sizes, and it refuses `calloutClasses`
+    outside its renderer. That last one is the box without the role.
+  - Comments are stripped by `stripTemplComments`, which keeps the `//` in `https://`. That `//` used to swallow
+    the class after it on the same line. HTML comments are stripped too.
+- `TestNoTwoKVKeysFromOneThemeReader` — a zero-floor gate (2026-10-12). In one class expression, a `templ.KV` key may
+  not be able to equal another class part under **any** Theme. templ keys classes on the whole string, and a later
+  `false` disables the same string. Each part's possible outputs are computed from the readers' own literal
+  `return`s, concatenated through `+`, and any intersection with a KV is a finding. Two shipped sites lost their
+  class this way (the approver chip, and Application Settings' current link); both now choose the class in Go.
+  **The first version only compared reader names, and the independent review broke it four ways.** "Different
+  readers cannot collide" was false: `inkClass(InkFaint)` and `toneInkClass(ToneMuted)` are both `text-slate-400`
+  under the default theme. It also missed a plain part beside a KV, and a literal key beside a reader key. Six
+  shapes are mutation-proved.
 - `TestHandWrittenRadiiOnlyShrink` — a directive ratchet (2026-10-12, rencana 0.2b). A control, surface or pill
   corner reads `radiusClass(ctx, domain.Radius*)`. **57 of 117 corners moved**, and two checks were byte-identical:
   - 106 authenticated pages (the GET sweep plus every per-record route, rendered through the router, with
@@ -984,6 +995,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   surfaced a box the Callout gate had never seen: the leave guard's warning, now a floor with its reason.
   `TestRadii_followTheThemeAtMigratedSites` covers R9. Mutation-proved: a literal put back, a lowered floor, and
   the rewrite removed, which fails three gates.
+  **The rewrite is not for every gate.** The independent review showed it blinded `TestHandWrittenLayoutSitesOnlyShrink`,
+  whose patterns anchor at the start of the class value: a site opening with `radiusClass` gained a leading corner.
+  That gate reads `joinClassLiterals` now. `TestRadiusRewriteMatchesTheDefaultTheme` holds `radiusDefaults` to
+  `domain.DefaultTheme()` and `radiusClass`'s arms. The same review completed two parts of the migration:
+  - the board card's open popover dropped a stray `open:rounded-md`;
+  - the two remaining count badges and both small file and app tiles now read the role too.
 - `TestHandWrittenLadderGapsOnlyShrink` — a directive ratchet (2026-10-12, rencana 0.2a). `gap-2` through `gap-5`
   are the Theme's gap ladder (`GapTight`..`GapLoose`). That ladder, unlike `xtight` and `region`, carries no meaning
   beyond size, so **every authenticated site reads `layoutGap`**. 137 moved, the audit's number exactly. Two checks
