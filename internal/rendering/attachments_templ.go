@@ -177,7 +177,7 @@ func attachmentsSection(m *domain.Machine, parentID string, a *Attachments, canE
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var7 = []any{buttonClasses(ctx, domain.ButtonSecondary), "cursor-pointer"}
+				var templ_7745c5c3_Var7 = []any{buttonClasses(ctx, domain.ButtonSecondary), "cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-offset-1 has-focus-visible:outline-blue-300"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

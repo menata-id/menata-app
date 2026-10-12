@@ -1045,6 +1045,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   does the same. Fields now write `focus:outline-solid`, and the second gate refuses the trap in class attributes
   and in Go helpers' strings. The first version of that gate missed `fieldClasses` (a Go function), which a mutation
   showed. Both gates are mutation-proved.
+  **After the independent review (same day):** the rule's selector covers `input`/`select`/`textarea` too (checkboxes,
+  radios and file inputs drew the browser's 1px ring). An `sr-only` input's stand-in draws the ring: the
+  notification toggle's track uses `peer-focus-visible:`, and the attachment button uses `has-focus-visible:`.
+  Measured in Chromium, all five draw 2px blue-300. The kill gate now reads class sets joined and `[]string{}`
+  recipes joined, and refuses any `outline-none`/`outline-hidden` without `focus:outline-solid`, because a utility
+  outranks the base rule.
 - `TestHandWrittenAccentInksOnlyShrink` — owner decision DS-D10 (2026-10-12). Links and accent text read
   `inkClass(ctx, domain.InkAccent)`, with hover from `accentHoverClass(ctx)`. A Workspace may declare
   `theme.ink.accent` as one of six hues, each at the step GS3 measures above 4.5:1. `domain.InkShadeFits` keeps hues

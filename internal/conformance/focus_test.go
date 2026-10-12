@@ -48,6 +48,8 @@ func TestKeyboardFocusRuleCoversInteractiveElements(t *testing.T) {
 // `outline-hidden` set `--tw-outline-style: none`, and `focus:outline-2` reuses that variable. So a field written
 // `outline-none focus:outline-2 ...` never draws its ring. That was every field in the app until DS-D14 measured it.
 // A focus ring declares its style with `focus:outline-solid` instead.
+var stringSlice = regexp.MustCompile(`\[\]string\{([^}]*)\}`)
+
 func TestNoOutlineNoneBesideAFocusRing(t *testing.T) {
 	dir := filepath.Join(repoRoot(), "internal", "rendering")
 	entries, err := os.ReadDir(dir)
@@ -65,11 +67,21 @@ func TestNoOutlineNoneBesideAFocusRing(t *testing.T) {
 			t.Fatal(err)
 		}
 		src := stripTemplComments(string(b))
-		// Class attributes (literals joined) and every other string literal: fieldClasses builds the field recipe in a
-		// Go function, which a class-attribute scan alone cannot see (mutation-proved).
+		// Three readings, each a set of classes that land on one element:
+		//   - a class attribute with its literals joined (a kill and a ring split across two literals);
+		//   - every `[]string{...}` with its literals joined (fieldClasses-style recipes built with strings.Join);
+		//   - every other string literal (a Go helper's whole class string).
+		// The first version read single literals only; the 2026-10-12 review split the kill from the ring and passed.
 		var sets []string
 		for _, m := range classAttr.FindAllStringSubmatch(joinClassLiterals(src), -1) {
 			sets = append(sets, m[1])
+		}
+		for _, m := range stringSlice.FindAllStringSubmatch(src, -1) {
+			var parts []string
+			for _, l := range tonePairLiteral.FindAllStringSubmatch(m[1], -1) {
+				parts = append(parts, l[1])
+			}
+			sets = append(sets, strings.Join(parts, " "))
 		}
 		for _, m := range tonePairLiteral.FindAllStringSubmatch(src, -1) {
 			sets = append(sets, m[1])
@@ -78,9 +90,10 @@ func TestNoOutlineNoneBesideAFocusRing(t *testing.T) {
 			scanned++
 			toks := " " + set + " "
 			kills := strings.Contains(toks, " outline-none ") || strings.Contains(toks, " outline-hidden ")
-			ring := strings.Contains(toks, " focus:outline-") || strings.Contains(toks, " focus-visible:outline-")
-			if kills && ring && !strings.Contains(toks, " focus:outline-solid ") && !strings.Contains(toks, " focus-visible:outline-solid ") {
-				t.Errorf("%s: %q removes the outline style and then sets only its width and colour on focus -- under Tailwind v4 the ring never shows; use focus:outline-solid", e.Name(), strings.TrimSpace(set))
+			if kills && !strings.Contains(toks, " focus:outline-solid ") && !strings.Contains(toks, " focus-visible:outline-solid ") {
+				// A kill with no ring at all beats the base :focus-visible rule (a utility outranks @layer base), and a kill
+				// beside a ring with no style hides that ring under Tailwind v4. Either way keyboard focus is invisible.
+				t.Errorf("%s: %q removes the outline with no focus:outline-solid -- keyboard focus would be invisible (Tailwind v4 reuses the killed style, and a utility outranks the base focus rule)", e.Name(), strings.TrimSpace(set))
 			}
 		}
 	}

@@ -70,6 +70,11 @@ func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
 		p := string(th.ToneFor(tone))
 		add("Tone", string(tone), armFor(arms("toneFillClass"), p)+" "+armFor(arms("toneInkClass"), p))
 	}
+	// The tone edge (DS-D16) is part of each tone's palette, probed like a role so a changed edge arm or a hand-written
+	// copy of a new default is seen (the 2026-10-12 review changed the green arm and nothing failed).
+	for tone := range domain.KnownBadgeTones {
+		add("ToneEdge", string(tone), armFor(arms("toneEdgeClass"), string(th.ToneFor(tone))))
+	}
 	for r := range domain.KnownPaddingRoles {
 		add("Padding", string(r), arms("paddingClass")[string(r.Axis())+"/"+string(th.PaddingFor(r))])
 	}
@@ -98,6 +103,9 @@ func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
 		},
 		"Tone":    func(c string) bool { n, _ := countTonePairs(probe(c)); return n > 0 },
 		"Padding": literal(panelPaddingToken),
+		"ToneEdge": func(c string) bool {
+			return toneEdgeToken.MatchString(c) || literal(surfaceEdgeToken)(c) || dividerToken.MatchString(probe(c))
+		},
 	}
 	exemptSeen := map[string]bool{}
 	var lines []string

@@ -177,9 +177,10 @@ var handWrittenToneEdges = map[string]struct {
 	"controls.templ":         {1, "the Danger Button recipe: edge, ink and hover fill move together with DS-D11's recipe slice"},
 	"workspacemembers.templ": {1, "the red Deactivate button: a button recipe, with DS-D11"},
 	"notifications.templ":    {1, "an unread row's blue edge beside a /40 tint: an unread highlight, not a tone"},
+	"reviewdocument.templ":   {1, "the signed signature marker's emerald-300 edge: a marker state beside mark-good, counted since the 2026-10-12 review widened the gate to -300"},
 }
 
-var toneEdgeToken = regexp.MustCompile(`^border-(?:red|emerald|green|amber|blue)-200$`)
+var toneEdgeToken = regexp.MustCompile(`^border-(?:red|emerald|green|amber|blue)-[23]00$`)
 
 func TestHandWrittenToneEdgesOnlyShrink(t *testing.T) {
 	dir := filepath.Join(repoRoot(), "internal", "rendering")

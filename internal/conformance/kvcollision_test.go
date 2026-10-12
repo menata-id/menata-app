@@ -109,7 +109,7 @@ func TestNoTwoKVKeysFromOneThemeReader(t *testing.T) {
 // themeReaderOutputs maps each `func name(ctx context.Context, x T) string` whose every return is a string literal to
 // the set of those literals.
 func themeReaderOutputs(src string) map[string]map[string]bool {
-	fn := regexp.MustCompile(`(?s)\nfunc (\w+)\(ctx context\.Context, \w+ [\w.]+\) string \{\n(.*?)\n\}`)
+	fn := regexp.MustCompile(`(?s)\nfunc (\w+)\(ctx context\.Context(?:, \w+ [\w.]+)?\) string \{\n(.*?)\n\}`)
 	ret := regexp.MustCompile(`(?m)^\s*return (.*)$`)
 	lit := regexp.MustCompile(`^"([^"]*)"$`)
 	out := map[string]map[string]bool{}

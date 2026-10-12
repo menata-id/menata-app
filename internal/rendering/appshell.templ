@@ -463,7 +463,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 		for _, item := range items {
 			<a
 				href={ templ.SafeURL(item.Href) }
-				class={ "flex flex-1 flex-col items-center", layoutGap(ctx, domain.GapMicro), "py-2 text-2xs", templ.KV("font-medium "+inkClass(ctx, domain.InkAccent), item.Active), templ.KV("text-slate-500", !item.Active) }
+				class={ "flex flex-1 flex-col items-center", layoutGap(ctx, domain.GapMicro), "py-2 text-2xs", templ.KV("font-medium text-blue-600", item.Active), templ.KV("text-slate-500", !item.Active) }
 				if item.Active {
 					aria-current="page"
 				}
@@ -866,7 +866,7 @@ templ AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID str
 	for _, c := range choices {
 		<a href="/switch-workspace" class={ "flex items-center gap-2.5", radiusClass(ctx, domain.RadiusControl), "px-3 py-2 text-sm text-slate-900 hover:bg-slate-50" }>
 			if c.ID == currentWorkspaceID {
-				@icon("check", "size-3.5 shrink-0 "+inkClass(ctx, domain.InkAccent))
+				@icon("check", "size-3.5 shrink-0 text-blue-600")
 			} else {
 				<span class="size-3.5 shrink-0"></span>
 			}

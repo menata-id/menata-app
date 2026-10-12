@@ -1493,3 +1493,21 @@ func TestWells_followTheirBackgroundRole(t *testing.T) {
 		t.Errorf("a progress track is a sunken well and must follow theme.background.sunken: %s", buf.String())
 	}
 }
+
+// DS-D16: every palette's edge, pinned. GS1 checks only the two edges the Design System names (warn, bad); this holds
+// the rest, so a changed arm (the 2026-10-12 review moved green to -300 and nothing failed) is seen.
+func TestToneEdgeClass_eachPaletteHasItsEdge(t *testing.T) {
+	want := map[domain.TonePalette]string{
+		domain.PaletteGrey: "border-slate-200", domain.PaletteGreyFaint: "border-slate-100", domain.PaletteBlue: "border-blue-200",
+		domain.PaletteGreen: "border-emerald-200", domain.PaletteRed: "border-red-200", domain.PaletteAmber: "border-amber-200",
+	}
+	for pal, w := range want {
+		ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: domain.Theme{Tone: map[domain.BadgeTone]domain.TonePalette{domain.ToneInfo: pal}}}, "WS", false)
+		if got := toneEdgeClass(ctx, domain.ToneInfo); got != w {
+			t.Errorf("palette %s: edge %q, want %q", pal, got, w)
+		}
+	}
+	if len(want) != len(domain.KnownTonePalettes) {
+		t.Errorf("pinned %d palettes, the domain has %d -- pin the new one", len(want), len(domain.KnownTonePalettes))
+	}
+}
