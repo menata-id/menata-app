@@ -2,7 +2,7 @@
 
 `tokens.json` is a **copy** of the Design System artifact "Menata App"
 (`https://claude.ai/artifact/Xi4TYQPxsMQUmL3chScmaS`, file `project/tokens.json`), taken at artifact version
-`1791767332-9b7f` (2026-10-12). It is the token source the mockup canvases are generated from.
+`1791770746-0d9d` (2026-10-12; adds the `rejected` family read by GS2). It is the token source the mockup canvases are generated from.
 
 It is here so a test can hold the artifact and the code to the same values without reading the network:
 `internal/rendering`'s `TestDesignSystemTokensMatchTheCode` (GS1 of `menata-app-document`'s

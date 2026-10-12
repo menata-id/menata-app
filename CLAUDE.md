@@ -377,7 +377,7 @@ rather than carrying it forward unreviewed.
 |---|---|---|
 | What does the runtime render today, and what can a Workspace override? | **Code**: `internal/domain/theme.go` (roles → steps), readers in `internal/rendering/layout.templ`/`controls.templ`, `registry.Components`, `static/css/input.css` | this repo |
 | What tokens, type scale, and components do the **mockups** use, and which proposals were accepted or rejected? | **Design System artifact "Menata App"**: `project/README.md` (decisions with reasons) and `project/tokens.json` (64 tokens, oklch values, `status: accepted` on the ones not yet in code) | `https://claude.ai/artifact/Xi4TYQPxsMQUmL3chScmaS` |
-| What should a screen look like? | **Mockup canvases**. Both have the Design System installed (`project/ds/menata-app/tokens.json` plus a `designSystems` record). On the UI mockups canvas, each of the 88 artboards' `:root` blocks is *generated* from it (version `1791763018-fa7c`). The Builder canvas holds an older copy (`1791342370-dabf`) | UI mockups `https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`; Application Builder (process-map components: ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessMap; Halaman 4) `https://claude.ai/artifact/4tdbksPLQdwogQ19a9rPbq` |
+| What should a screen look like? | **Mockup canvases**. Both have the Design System installed (`project/ds/menata-app/tokens.json` plus a `designSystems` record). On the UI mockups canvas, each of the 88 artboards' `:root` blocks is *generated* from it (version `1791770746-0d9d`). The Builder canvas holds an older copy (`1791342370-dabf`) | UI mockups `https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`; Application Builder (process-map components: ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessMap; Halaman 4) `https://claude.ai/artifact/4tdbksPLQdwogQ19a9rPbq` |
 | Why was a Theme role decided the way it was? | `menata-app-document`'s `guides/design-system-decisions.md` (D1–D9, and its "where everything lives" header) | companion repo |
 
 **Governance, lessons and the gate design live in `menata-app-document`'s `guides/menjaga-design-system.md`.** It
@@ -909,6 +909,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   markers) from emerald-500 (measured 2.46:1 on white, below WCAG 1.4.11's 3:1) to `mark-good` (3.67:1). The gate now
   refuses `bg-`/`border-emerald-500` too, except the closed `markGoodExempt` (the board's drag-and-drop slot, a
   JavaScript drop target, not a finished mark), which must match its count exactly. Mutation-proved both ways.
+- `TestRejectedDesignValuesStayOut` (GS2, 2026-10-12) — the Design System artifact now lists what it *rejected* for a
+  meaning in a `rejected` token family (shown on its page). Today that is `body-compact` 13px and `mark-good-500`
+  (emerald-500 as a finished mark). This gate reads the family from `design-system/tokens.json` and refuses the
+  matching Tailwind classes in `.templ`, except the closed `rejectedDesignExempt`: the workspace monogram's 13px
+  glyph, and the drag-and-drop slot. Every rejected entry must have a pattern, and stale patterns and exemption
+  counts fail. Mutation-proved three ways. The third attempt **did not apply at first** (`gofmt` had realigned the
+  line); `grep -c` caught it before a green run could pass for a gate that bites.
 - `TestDocumentedDesignSystemCountsMatchTheCode` (GS5, 2026-10-12) — the two fixed-wording count claims in the
   normative and agent docs are held to the code: the Theme category count against `domain.Theme`'s map fields
   (parsed from source), and the registry's contract count against `len(registry.Components)`. Both had gone stale
