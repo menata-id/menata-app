@@ -91,7 +91,7 @@ templ NewApplicationPage(view ConversationView, workspaceName string, viewer Vie
 				</div>
 			</section>
 			<aside aria-label="What will be built" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
-				<div class="flex flex-col gap-1">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					@staticText(domain.StaticPanelHeading, "What will be built")
 					<span class="text-xs text-slate-500">Updated as you answer.</span>
 				</div>
@@ -135,17 +135,17 @@ templ changeSummary(change aiassist.GeneratedChange) {
 	if change.Kind == aiassist.KindNewApplication && change.Application != nil {
 		{{ app := change.Application }}
 		<div class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "text-sm" }>
-			<div class="flex flex-col gap-1">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				<span class="text-3xs text-slate-400 uppercase">Name</span>
 				<span>{ app.Name }</span>
 			</div>
 			if app.Description != "" {
-				<div class="flex flex-col gap-1">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<span class="text-3xs text-slate-400 uppercase">What it does</span>
 					<span class="text-slate-700">{ app.Description }</span>
 				</div>
 			}
-			<div class="flex flex-col gap-1">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				<span class="text-3xs text-slate-400 uppercase">Data it keeps</span>
 				@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 					for _, m := range app.Machines {
@@ -154,9 +154,9 @@ templ changeSummary(change aiassist.GeneratedChange) {
 				}
 			</div>
 			if len(app.Navigation) > 0 {
-				<div class="flex flex-col gap-1">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<span class="text-3xs text-slate-400 uppercase">Menu</span>
-					<ol class="m-0 flex flex-col gap-0.5 pl-4 text-slate-700">
+					<ol class={ "m-0 flex flex-col", layoutGap(ctx, domain.GapHair), "pl-4 text-slate-700" }>
 						for _, item := range app.Navigation {
 							<li>{ item.Label }</li>
 						}
@@ -164,7 +164,7 @@ templ changeSummary(change aiassist.GeneratedChange) {
 				</div>
 			}
 			if len(app.Roles) > 0 {
-				<div class="flex flex-col gap-1">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<span class="text-3xs text-slate-400 uppercase">Roles</span>
 					@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {
 						for _, r := range app.Roles {
@@ -175,7 +175,7 @@ templ changeSummary(change aiassist.GeneratedChange) {
 			}
 		</div>
 	} else if change.Kind == aiassist.KindUpdateApplication && change.Application != nil {
-		<div class="flex flex-col gap-1 text-sm">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-sm" }>
 			<span class="text-3xs text-slate-400 uppercase">Updates</span>
 			<span>{ change.Application.Name }</span>
 		</div>
@@ -216,9 +216,9 @@ templ updatePlan(plan aiassist.Plan) {
 	<div class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable), "text-sm" }>
 		for _, op := range []string{"add", "change", "remove"} {
 			if items := planItemsFor(plan, op); len(items) > 0 {
-				<div class="flex flex-col gap-1">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<span class="text-3xs text-slate-400 uppercase">{ planOpLabel(op) }</span>
-					<ul class="m-0 flex flex-col gap-1 pl-4 text-slate-700">
+					<ul class={ "m-0 flex flex-col", layoutGap(ctx, domain.GapMicro), "pl-4 text-slate-700" }>
 						for _, item := range items {
 							<li>
 								{ item.What }

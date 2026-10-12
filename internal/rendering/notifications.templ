@@ -20,7 +20,7 @@ type NotificationRow struct {
 templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell("Notifications", workspaceName, viewer, switchWorkspaceHref) {
 		<div class={ "flex items-start justify-between", layoutGap(ctx, domain.GapDefault) }>
-			<div class="flex flex-col gap-1">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticHeading, "Notifications")
 				<div class="text-sm text-slate-500">Approval requests and decisions that concern you.</div>
 			</div>

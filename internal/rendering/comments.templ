@@ -29,7 +29,7 @@ templ commentsFeed(parentID string, extras RecordExtras, canEdit bool) {
 			@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 				@staticText(domain.StaticSubheading, "Comments and activity")
 				if hasEvents(extras.Activity) {
-					<label class="flex cursor-pointer items-center gap-1 text-xs text-slate-500">
+					<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), "text-xs text-slate-500" }>
 						<input type="checkbox" class="size-3.5"/>
 						Show details
 					</label>

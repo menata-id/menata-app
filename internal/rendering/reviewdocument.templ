@@ -219,7 +219,7 @@ templ reviewProgress(steps []StepApprover) {
 			for i, s := range steps {
 				<li aria-label={ s.Label + ", " + approverStateLabel(s.State) } class={ "flex items-start", layoutGap(ctx, domain.GapDefault) }>
 					@reviewStepMarker(s, i+1)
-					<span class="flex min-w-0 flex-col gap-0.5">
+					<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 						<span class={ "flex flex-wrap items-center", layoutGap(ctx, domain.GapTight) }>
 							<span class="text-sm">
 								if s.Label != "" {

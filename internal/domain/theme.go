@@ -521,6 +521,8 @@ func DefaultTheme() Theme {
 			GapComfortable: GapAmountFour,    // was gap-4
 			GapLoose:       GapAmountFive,    // was gap-5
 			GapRegion:      GapAmountSix,     // was gap-6 (the Design System's gap-region; DSD DS-G1)
+			GapMicro:       GapAmountOne,     // was gap-1 (owner decision G1, 2026-10-12; the Design System's gap-micro)
+			GapHair:        GapAmountHalf,    // was gap-0.5 (owner decision G1; the Design System's gap-hair)
 		},
 		Border: map[BorderRole]BorderShade{
 			BorderSurface: BorderSoft,    // was border-slate-200

@@ -51,7 +51,7 @@ type InstallRename struct {
 // sits beside (appShell, a heading read from its own runtime screen, cards in a column).
 templ InstallApplicationPage(templates []InstallableTemplate, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(titleByID(ctx, "nav_install_application"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticOverline, "Administration")
 			@staticText(domain.StaticHeading, titleByID(ctx, "nav_install_application"))
 			<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_install_application") }</p>
@@ -79,7 +79,7 @@ templ installableCard(t InstallableTemplate) {
 					@icon(t.Icon, "size-5.5")
 				}
 			</span>
-			<div class="flex flex-col gap-1">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				<h2 class="m-0 text-[15px] font-medium">{ t.Name }</h2>
 				if t.Description != "" {
 					<span class="text-xs leading-5 text-slate-500">{ t.Description }</span>

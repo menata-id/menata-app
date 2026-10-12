@@ -332,7 +332,7 @@ templ fieldInput(f domain.Field, current any, relations RelationOptions, groups 
 			<textarea name={ f.ID } rows="5" class={ fieldClasses(ctx) + " w-full" }>{ toString(current) }</textarea>
 		case f.Type == domain.FieldTypeFile:
 			if key := toString(current); key != "" {
-				<div class="flex flex-col gap-1">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					<a href={ templ.URL("/uploads/" + key) } target="_blank" class={ "truncate text-xs", inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>{ storage.DisplayName(key) }</a>
 					<input type="file" name={ f.ID } class="w-full font-sans text-xs text-slate-500"/>
 				</div>

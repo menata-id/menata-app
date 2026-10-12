@@ -121,7 +121,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 				<div class={ dividedRowClasses(ctx, domain.GapDefault) }>
 					<div class={ "flex grow items-center", layoutGap(ctx, domain.GapDefault) }>
 						@avatar(personInitials(names[m.UserRecordID], m.Email), avatarLabel(names[m.UserRecordID], m.Email), domain.AvatarInline, domain.AvatarPresent)
-						<span class="flex min-w-0 flex-col gap-0.5">
+						<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 							if names[m.UserRecordID] != "" && names[m.UserRecordID] != m.Email {
 								<span class="truncate text-sm">{ names[m.UserRecordID] }</span>
 								<span class="truncate text-2xs text-slate-400">{ m.Email }</span>
@@ -133,7 +133,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					<div class="sm:w-28">
 						@workspaceRoleBadge(m.WorkspaceRole)
 					</div>
-					<div class="flex flex-col gap-1 sm:w-44">
+					<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "sm:w-44" }>
 						if len(roleApps) == 0 {
 							<span class="text-sm text-slate-400">—</span>
 						}
@@ -141,7 +141,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 							<span class="text-2xs text-slate-500">{ app.Name } · { displayRole(m.AppRoles[app.ID]) }</span>
 						}
 					</div>
-					<div class="flex flex-wrap gap-1 sm:w-32">
+					<div class={ "flex flex-wrap", layoutGap(ctx, domain.GapMicro), "sm:w-32" }>
 						if len(m.Groups) == 0 {
 							<span class="text-2xs text-slate-400">Direct</span>
 						}
@@ -172,7 +172,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 					<div class="sm:w-28">
 						@workspaceRoleBadge(inv.WorkspaceRole)
 					</div>
-					<div class="flex flex-col gap-1 sm:w-44">
+					<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "sm:w-44" }>
 						if len(roleApps) == 0 {
 							<span class="text-sm text-slate-400">—</span>
 						}
@@ -227,7 +227,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 		</a>
 		<div class={ "flex items-center", layoutGap(ctx, domain.GapDefault) }>
 			@avatar(personInitials(name, m.Email), avatarLabel(name, m.Email), domain.AvatarLead, domain.AvatarPresent)
-			<span class="flex min-w-0 flex-col gap-0.5">
+			<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 				if name != "" && name != m.Email {
 					<span class="truncate text-[15px] font-medium">{ name }</span>
 					<span class="truncate text-2xs text-slate-400">{ m.Email }</span>
@@ -244,7 +244,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 		<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/edit") } class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
 			@csrfHiddenInput()
 			@sectionLayout(domain.GapComfortable) {
-				<div class="flex flex-col gap-1">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					@staticText(domain.StaticPanelHeading, "Workspace role")
 					@staticText(domain.StaticCaption, "Controls workspace administration, independent of what they can do inside an application.")
 				</div>
@@ -252,7 +252,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 				@workspaceRoleChoice("member", "Uses the applications they have access to.", m.WorkspaceRole == "member")
 			}
 			@sectionLayout(domain.GapComfortable) {
-				<div class="flex flex-col gap-1">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 					@staticText(domain.StaticPanelHeading, "Application access")
 					@staticText(domain.StaticCaption, "One role per application. Choosing No access removes them from that application; the same list can be edited inside the application itself.")
 				</div>
@@ -284,7 +284,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 // (data.Store.DeactivateMember/ReactivateMember's own doc comment).
 templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
 	<section class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border", toneEdgeClass(ctx, domain.ToneBad), paddingClass(ctx, domain.PaddingSection) }>
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<h2 class="m-0 text-sm font-medium text-red-700">Remove from workspace</h2>
 			@staticText(domain.StaticCaption, "Affects "+workspaceName+" only. Their account and other workspaces are untouched.")
 			<p class="m-0 text-2xs text-slate-500">
@@ -315,7 +315,7 @@ templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
 templ workspaceRoleChoice(role, description string, selected bool) {
 	<label class={ "flex cursor-pointer items-start", layoutGap(ctx, domain.GapDefault), tileClasses(ctx), "p-3 hover:border-blue-300" }>
 		<input type="radio" name="workspace_role" value={ role } checked?={ selected } class="mt-0.5 size-4 accent-blue-500"/>
-		<span class="flex flex-col gap-1">
+		<span class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<span class="text-sm font-medium">{ displayRole(role) }</span>
 			<span class="text-2xs text-slate-500">{ description }</span>
 		</span>
@@ -346,7 +346,7 @@ templ roleSelect(id string, app RoleApplication, selected string) {
 // panel repeats. Rendering it inside the form would suggest the whole picture is editable here.
 templ effectiveAccessPanel(m data.Membership, roleApps []RoleApplication) {
 	@sectionLayout(domain.GapComfortable) {
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticPanelHeading, "Effective access")
 			@staticText(domain.StaticCaption, "Direct roles combined with roles inherited from Groups.")
 		</div>

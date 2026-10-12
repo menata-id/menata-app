@@ -97,7 +97,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 			<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", group.MemberCount) }{ pluralS(group.MemberCount) }</span>
 		</div>
 		@sectionLayout(domain.GapComfortable) {
-			<div class="flex flex-col gap-1">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticPanelHeading, "Members")
 				<p class="m-0 text-2xs text-slate-500">Everyone ticked here holds this Group's roles.</p>
 			</div>
@@ -119,7 +119,7 @@ templ GroupDetailPage(group data.Group, members []GroupMemberChoice, workspaceNa
 			</form>
 		}
 		@sectionLayout(domain.GapComfortable) {
-			<div class="flex flex-col gap-1">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticPanelHeading, "Application roles")
 				@staticText(domain.StaticCaption, "The same role vocabulary each Application declares for a direct assignment.")
 			</div>

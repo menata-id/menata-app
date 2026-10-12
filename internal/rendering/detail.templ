@@ -160,7 +160,7 @@ templ recordBreadcrumb(m *domain.Machine, mv RecordMove) {
 // (development-history.md Phase 9), reusing RecordRow exactly as table/board Layouts already do.
 templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOptions, groups GroupOptions, children []ChildSection, actor domain.Actor, sigPlacement *DocumentSignaturePlacement, extras RecordExtras, now time.Time) {
 	<div id="record-detail" class={ "flex flex-col", layoutGap(ctx, domain.GapComfortable) }>
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticHeading, recordTitle(m, r))
 			if action.IsDocument(m) {
 				<code class="font-mono text-2xs text-slate-400">{ action.DocumentReference(r.SortOrder) }</code>
@@ -273,7 +273,7 @@ templ RecordDetailView(m *domain.Machine, r *data.Record, relations RelationOpti
 templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *RecordMove, canCopy bool, cp *RecordCopy) {
 	<details class="relative">
 		<summary aria-label="Card actions" class={ buttonClasses(ctx, domain.ButtonSecondary) + " cursor-pointer list-none" }>⋯</summary>
-		<div class={ "absolute top-full left-0 z-10 mt-1 flex w-72 flex-col gap-1", surfaceClasses(ctx), "p-2 shadow-lg" }>
+		<div class={ "absolute top-full left-0 z-10 mt-1 flex w-72 flex-col", layoutGap(ctx, domain.GapMicro), surfaceClasses(ctx), "p-2 shadow-lg" }>
 			if canMove && move != nil {
 				<details>
 					<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5 text-sm hover:bg-slate-50" }>
@@ -285,7 +285,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 						hx-patch={ fmt.Sprintf("/machines/%s/records/%s?view=%s", m.ID, r.ID, move.ViewID) }
 						hx-target="#record-detail"
 					>
-						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs font-medium tracking-wide text-slate-500 uppercase" }>
 							List
 							<select name={ move.Field } class={ fieldClasses(ctx) + " w-full" }>
 								for _, t := range move.Targets {
@@ -294,7 +294,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 							</select>
 						</label>
 						for _, sc := range move.Scopes {
-							<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs font-medium tracking-wide text-slate-500 uppercase" }>
 								{ sc.Label }
 								<select name={ sc.Field } class={ fieldClasses(ctx) + " w-full" }>
 									if sc.Current == "" {
@@ -306,7 +306,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 								</select>
 							</label>
 						}
-						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs font-medium tracking-wide text-slate-500 uppercase" }>
 							Position
 							<select name="position" class={ fieldClasses(ctx) + " w-full" }>
 								for i := 1; i <= move.Positions; i++ {
@@ -326,7 +326,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 						hx-post={ fmt.Sprintf("/machines/%s/records/%s/copy", m.ID, r.ID) }
 						hx-swap="none"
 					>
-						<label class="flex flex-col gap-1 text-2xs font-medium tracking-wide text-slate-500 uppercase">
+						<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs font-medium tracking-wide text-slate-500 uppercase" }>
 							Title
 							<input type="text" name={ cp.TitleField } value={ cp.Title } required class={ fieldClasses(ctx) + " w-full" }/>
 						</label>
@@ -407,7 +407,7 @@ templ RecordDetailEdit(m *domain.Machine, r *data.Record, relations RelationOpti
 			hx-swap="outerHTML"
 			hx-encoding="multipart/form-data"
 		>
-			<div class="flex flex-col gap-1">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 				@staticText(domain.StaticHeading, recordTitle(m, r))
 				<code class="font-mono text-2xs text-slate-400">{ r.ID }</code>
 			</div>

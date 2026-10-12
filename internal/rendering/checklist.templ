@@ -41,14 +41,14 @@ templ checklistSection(m *domain.Machine, parentID string, c *Checklist, canEdit
 			@staticText(domain.StaticSubheading, m.Name)
 			<span class="text-xs text-slate-500">{ checklistProgress(c) }</span>
 		}
-		<ul class="m-0 flex list-none flex-col gap-1 p-0">
+		<ul class={ "m-0 flex list-none flex-col", layoutGap(ctx, domain.GapMicro), "p-0" }>
 			for _, it := range foldHead(c.Items, foldAfter) {
 				@checklistItem(m, it, canEdit)
 			}
 		</ul>
 		if len(c.Items) > foldAfter {
 			@foldedRest(fmt.Sprintf("Show all %d items", len(c.Items))) {
-				<ul class="m-0 flex list-none flex-col gap-1 p-0">
+				<ul class={ "m-0 flex list-none flex-col", layoutGap(ctx, domain.GapMicro), "p-0" }>
 					for _, it := range foldTail(c.Items, foldAfter) {
 						@checklistItem(m, it, canEdit)
 					}

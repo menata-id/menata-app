@@ -89,7 +89,7 @@ templ settingsRow(href, label, description string, current bool) {
 		}
 		class={ "flex items-start", layoutGap(ctx, domain.GapDefault), "p-3", radiusClass(ctx, domain.RadiusControl), templ.KV(backgroundClass(ctx, domain.BackgroundSunken), current), templ.KV("hover:bg-slate-50", !current) }
 	>
-		<span class="flex min-w-0 grow flex-col gap-0.5">
+		<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong), templ.KV(weightClass(ctx, domain.WeightEmphasis), current) }>{ label }</span>
 			if description != "" {
 				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ description }</span>
@@ -117,7 +117,7 @@ templ settingsPlaceholderRow(label, description string) {
 
 // settingsPlaceholderBody is the muted label-plus-tag and description both placeholder rows share.
 templ settingsPlaceholderBody(label, description string) {
-	<span class="flex min-w-0 grow flex-col gap-0.5">
+	<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 		<span class={ "flex flex-wrap items-center", layoutGap(ctx, domain.GapTight), textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkFaint) }>
 			{ label }
 			@notBuiltYetTag()
@@ -143,7 +143,7 @@ templ settingsSection(title string) {
 // between body (14) and subheading (16), so it reads body rather than adding a literal.
 templ settingsListRow(href, label, description string) {
 	<a href={ templ.SafeURL(href) } class={ "flex min-h-15 items-center", layoutGap(ctx, domain.GapDefault), "border-b px-4 py-2.5 last:border-b-0 hover:bg-slate-50", borderClass(ctx, domain.BorderDivider) }>
-		<span class="flex min-w-0 grow flex-col gap-0.5">
+		<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ label }</span>
 			if description != "" {
 				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ description }</span>
@@ -187,7 +187,7 @@ templ settingsNavLink(href, label string, current bool) {
 
 // settingsNavGroup is one overline plus its links in the desktop sidebar.
 templ settingsNavGroup(title string) {
-	<div class="flex flex-col gap-0.5">
+	<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
 		<div class="px-3 pb-1">
 			@staticText(domain.StaticOverline, title)
 		</div>
@@ -233,7 +233,7 @@ templ settingsLists(hub SettingsHubView) {
 		}
 	}
 	@settingsSection("About") {
-		<div class="flex flex-col gap-1 px-4 py-3">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "px-4 py-3" }>
 			<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ hub.AppName }</span>
 			if hub.AppDescription != "" {
 				<span class={ textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ hub.AppDescription }</span>
@@ -274,7 +274,7 @@ templ settingsSidebar(hub SettingsHubView, showingDetail bool) {
 				}
 			}
 		}
-		<div class={ "flex flex-col gap-1 border-t pt-4", borderClass(ctx, domain.BorderSurface) }>
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "border-t pt-4", borderClass(ctx, domain.BorderSurface) }>
 			<span class={ "px-3", textClass(ctx, domain.RoleBody), weightClass(ctx, domain.WeightEmphasis), inkClass(ctx, domain.InkStrong) }>{ hub.AppName }</span>
 			if hub.AppDescription != "" {
 				<span class={ "px-3", textClass(ctx, domain.RoleMeta), inkClass(ctx, domain.InkSecondary) }>{ hub.AppDescription }</span>
@@ -301,7 +301,7 @@ func hubCounts(hub SettingsHubView) string {
 
 // settingsHubHeader is the landing view's heading block: title, the hub's description and the counts line.
 templ settingsHubHeader(hub SettingsHubView) {
-	<div class="flex flex-col gap-1">
+	<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 		@staticText(domain.StaticHeading, hub.Title)
 		if hub.Description != "" {
 			<p class={ "m-0", textClass(ctx, domain.RoleBody), "leading-6", inkClass(ctx, domain.InkSecondary) }>{ hub.Description }</p>
@@ -313,7 +313,7 @@ templ settingsHubHeader(hub SettingsHubView) {
 // settingsPermissionsPane is the Permissions view -- heading, the sentence about roles, the matrix card and
 // the closing note -- shared by the phone's detail view and the desktop pane.
 templ settingsPermissionsPane(hub SettingsHubView, permissions RoleMatrixApp) {
-	<div class="flex flex-col gap-1">
+	<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 		@staticText(domain.StaticHeading, permissionsTitle)
 		<p class={ "m-0", textClass(ctx, domain.RoleBody), "leading-6", inkClass(ctx, domain.InkSecondary) }>{ permissionsSubtitle(hub.AppName) }</p>
 	</div>

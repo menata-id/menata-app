@@ -1522,7 +1522,29 @@ func ApproverRow(approvers RelationOptions, groups GroupOptions, fields StepFiel
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "</select> <span class=\"ml-auto flex items-center gap-1\"><button type=\"button\" title=\"Move up\" aria-label=\"Move step up\" class=\"cursor-pointer px-1.5 text-slate-400 hover:text-slate-700\" _=\"on click if the previous &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; before the previous &lt;.approver-row/&gt; end\">▲</button> <button type=\"button\" title=\"Move down\" aria-label=\"Move step down\" class=\"cursor-pointer px-1.5 text-slate-400 hover:text-slate-700\" _=\"on click if the next &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; after the next &lt;.approver-row/&gt; end\">▼</button> <button type=\"button\" title=\"Remove\" aria-label=\"Remove step\" class=\"cursor-pointer px-1.5 text-slate-400 hover:text-red-600\" _=\"on click remove closest &lt;.approver-row/&gt;\">✕</button></span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "</select> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var83 = []any{"ml-auto flex items-center", layoutGap(ctx, domain.GapMicro)}
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var83...)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<span class=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var84 string
+		templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var83).String())
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 1, Col: 0}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var84)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "\"><button type=\"button\" title=\"Move up\" aria-label=\"Move step up\" class=\"cursor-pointer px-1.5 text-slate-400 hover:text-slate-700\" _=\"on click if the previous &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; before the previous &lt;.approver-row/&gt; end\">▲</button> <button type=\"button\" title=\"Move down\" aria-label=\"Move step down\" class=\"cursor-pointer px-1.5 text-slate-400 hover:text-slate-700\" _=\"on click if the next &lt;.approver-row/&gt; exists put closest &lt;.approver-row/&gt; after the next &lt;.approver-row/&gt; end\">▼</button> <button type=\"button\" title=\"Remove\" aria-label=\"Remove step\" class=\"cursor-pointer px-1.5 text-slate-400 hover:text-red-600\" _=\"on click remove closest &lt;.approver-row/&gt;\">✕</button></span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1572,9 +1594,9 @@ func ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, fi
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var83 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var83 == nil {
-			templ_7745c5c3_Var83 = templ.NopComponent
+		templ_7745c5c3_Var85 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var85 == nil {
+			templ_7745c5c3_Var85 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
 		if len(steps) == 0 {
@@ -1594,20 +1616,20 @@ func ApprovalFlowTemplateRows(approvers RelationOptions, groups GroupOptions, fi
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<span id=\"default-flow-type\" hx-swap-oob=\"true\" class=\"font-medium\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "<span id=\"default-flow-type\" hx-swap-oob=\"true\" class=\"font-medium\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var84 string
-		templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinStringErrs(defaultFlowTypeLabel(documentType))
+		var templ_7745c5c3_Var86 string
+		templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinStringErrs(defaultFlowTypeLabel(documentType))
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/documentsubmit.templ`, Line: 376, Col: 105}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "</span>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "</span>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -488,7 +488,7 @@ templ MachineBody(m *domain.Machine, v domain.View, records []*data.Record, rela
 // (boardScreen), because a board's header, create affordance and per-column composer are not a Fields
 // table with a different Layout under it.
 templ machineScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, cards []RecordCard, actor domain.Actor, now time.Time) {
-	<div class="flex flex-col gap-1">
+	<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 		@staticText(domain.StaticHeading, m.Name)
 		<code class="font-mono text-2xs text-slate-400">{ m.ID }</code>
 	</div>
@@ -556,7 +556,7 @@ templ tableLayout(m *domain.Machine, records []*data.Record, relations RelationO
 templ viewSwitcher(m *domain.Machine, selected domain.View) {
 	{{ views := selectableViews(m) }}
 	if len(views) > 1 {
-		<nav class={ "inline-flex gap-0.5", tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-0.5" } aria-label="View">
+		<nav class={ "inline-flex", layoutGap(ctx, domain.GapHair), tileClasses(ctx), backgroundClass(ctx, domain.BackgroundRaised), "p-0.5" } aria-label="View">
 			for _, o := range views {
 				if o.ID == selected.ID {
 					<span class="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900" aria-current="true">{ o.Name }</span>
@@ -629,7 +629,7 @@ type CardTag struct {
 // records and the View's own `group_by`: no count or Field name is typed here.
 templ boardScreen(m *domain.Machine, v domain.View, records []*data.Record, relations RelationOptions, groups GroupOptions, boardColumns []experience.Column, cards []RecordCard, actor domain.Actor) {
 	@columnsLayout(domain.GapDefault, domain.ColumnsAlignCenter) {
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<h1 class="m-0 text-2xl font-medium">{ machineHeading(ctx, m) }</h1>
 			@staticText(domain.StaticMessage, boardSummary(m, v, len(records), cards))
 		</div>
@@ -863,7 +863,7 @@ func tagClasses(c domain.TagColor) (chip, dot string) {
 // `CardTag` before it gets here, and the callers pass its two fields.
 templ tagChip(label string, color domain.TagColor) {
 	{{ chip, dot := tagClasses(color) }}
-	<span class={ "inline-flex items-center gap-1 whitespace-nowrap", radiusClass(ctx, domain.RadiusPill), "border px-2 py-0.5 text-2xs", chip }>
+	<span class={ "inline-flex items-center", layoutGap(ctx, domain.GapMicro), "whitespace-nowrap", radiusClass(ctx, domain.RadiusPill), "border px-2 py-0.5 text-2xs", chip }>
 		<span class={ "size-1.5 rounded-full", dot } aria-hidden="true"></span>
 		{ label }
 	</span>
@@ -933,7 +933,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 					</form>
 					if mv.Field != "" && len(mv.Targets) > 0 {
 						<form class={ "mt-2 flex flex-col gap-1.5 border-t", borderClass(ctx, domain.BorderSurface), "pt-2" } hx-patch={ cardPatchURL(m, c) } hx-target="#machine-body" hx-swap="innerHTML">
-							<label class="flex flex-col gap-1 text-2xs text-slate-500">
+							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs text-slate-500" }>
 								Move to list
 								<select name={ mv.Field } class={ fieldClasses(ctx) + " w-full" }>
 									for _, t := range mv.Targets {
@@ -941,7 +941,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 									}
 								</select>
 							</label>
-							<label class="flex flex-col gap-1 text-2xs text-slate-500">
+							<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-2xs text-slate-500" }>
 								Position
 								<input type="number" name="position" min="1" value={ fmt.Sprint(mv.Position) } class={ fieldClasses(ctx) + " w-full" }/>
 							</label>
@@ -960,7 +960,7 @@ templ boardCard(m *domain.Machine, c RecordCard, actor domain.Actor, mv CardMove
 		if c.Date.Present || person != "" {
 			<span class={ "flex items-center justify-between", layoutGap(ctx, domain.GapTight) }>
 				if c.Date.Present {
-					<span class={ "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs", toneClass(ctx, c.Date.Tone) }>
+					<span class={ "inline-flex items-center", layoutGap(ctx, domain.GapMicro), "rounded px-1.5 py-0.5 text-2xs", toneClass(ctx, c.Date.Tone) }>
 						if c.Date.Done {
 							@icon("check", "size-3")
 						} else {
@@ -1039,7 +1039,7 @@ templ newCardPopover(m *domain.Machine, relations RelationOptions, groups GroupO
 		>
 			for _, f := range m.Fields {
 				if f.Compute == nil && f.Type != domain.FieldTypeFile {
-					<label class="flex flex-col gap-1 text-xs text-slate-500">
+					<label class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "text-xs text-slate-500" }>
 						{ f.Name }
 						@fieldInput(f, nil, relations, groups)
 					</label>

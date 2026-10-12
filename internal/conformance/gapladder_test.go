@@ -21,6 +21,9 @@ import (
 // What stays is the pre-auth screens. They render with no Workspace on ctx, so no `theme.gap` reaches them, and the
 // field, radius and border ratchets keep their sites as floors for the same reason.
 //
+// **Extended by owner decision G1 (2026-10-12)** to `gap-1` and `gap-0.5`, the ladder's new lower steps `GapMicro`
+// and `GapHair`: 105 class sets moved, 106 pages byte-identical.
+//
 // Counted from string literals only (`joinClassLiterals`), unprefixed. `gap-x-*`/`gap-y-*` and `sm:gap-*` are not the
 // ladder. `gap-1.5` and `gap-6` have their own ratchets, and `gap-1`/`gap-0.5` wait on an owner decision.
 var handWrittenLadderGaps = map[string]struct {
@@ -29,11 +32,11 @@ var handWrittenLadderGaps = map[string]struct {
 }{
 	"authshell.templ":       {2, "pre-auth: no Workspace on ctx, no theme reaches it"},
 	"checkyouremail.templ":  {1, "pre-auth: no Workspace on ctx, no theme reaches it"},
-	"chooseworkspace.templ": {7, "pre-auth: no Workspace on ctx, no theme reaches it"},
+	"chooseworkspace.templ": {10, "pre-auth: no Workspace on ctx, no theme reaches it (7 ladder steps, 3 micro/hair)"},
 	"login.templ":           {2, "pre-auth: no Workspace on ctx, no theme reaches it"},
 }
 
-var ladderGapToken = regexp.MustCompile(`^gap-[2-5]$`)
+var ladderGapToken = regexp.MustCompile(`^gap-(?:[2-5]|1|0\.5)$`)
 
 func TestHandWrittenLadderGapsOnlyShrink(t *testing.T) {
 	dir := filepath.Join(repoRoot(), "internal", "rendering")

@@ -305,6 +305,12 @@ const (
 	// its one measured site (the pre-auth shell's brand block over its card); the two `gap-6` in rolematrix are
 	// column gutters, not regions, and stay hand-written (TestHandWrittenRegionGapsOnlyShrink).
 	GapRegion Gap = "region"
+	// GapMicro (4px) and GapHair (2px) extend the ladder's lower end (owner decision G1, 2026-10-12), the way
+	// GapRegion extends its upper end, so no middle step was inserted. They carry no meaning beyond size, like
+	// tight..loose: the 79 `gap-1` and 31 `gap-0.5` sites were the largest gap population left with no role. The Design
+	// System artifact names them `gap-micro` and `gap-hair`.
+	GapMicro Gap = "micro"
+	GapHair  Gap = "hair"
 )
 
 // GapAmount is how much space a Gap step actually renders — the fourth Theme category, and **the one with a
@@ -352,6 +358,8 @@ var KnownGaps = map[Gap]bool{
 	GapComfortable: true,
 	GapLoose:       true,
 	GapRegion:      true,
+	GapMicro:       true,
+	GapHair:        true,
 }
 
 // StaticKind is the closed set of static content nodes (§12.6): explanatory text and visual material

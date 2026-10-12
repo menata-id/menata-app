@@ -67,7 +67,7 @@ type RoleMatrixRow struct {
 // none has ever been declared.
 templ roleMatrixApp(app RoleMatrixApp, membersHref string) {
 	<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-		<div class={ "flex flex-col gap-1 border-b", borderClass(ctx, domain.BorderSurface), "px-4 py-4" }>
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), "border-b", borderClass(ctx, domain.BorderSurface), "px-4 py-4" }>
 			<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
 				@staticText(domain.StaticPanelHeading, roleMatrixTitle)
 				if len(app.Roles) > 0 && membersHref != "" {
@@ -97,8 +97,8 @@ templ roleMatrixApp(app RoleMatrixApp, membersHref string) {
 					@staticText(domain.StaticOverline, group.Label)
 				</div>
 				for _, row := range group.Rows {
-					<div class={ "grid gap-1 border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_220px] sm:gap-6" }>
-						<div class="flex flex-col gap-0.5">
+					<div class={ "grid", layoutGap(ctx, domain.GapMicro), "border-b", borderClass(ctx, domain.BorderDivider), "px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_220px] sm:gap-6" }>
+						<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
 							<span class={ textClass(ctx, domain.RoleBody), inkClass(ctx, domain.InkStrong) }>{ row.Action }</span>
 							if row.Qualifier != "" {
 								if row.Open {

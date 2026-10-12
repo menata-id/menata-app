@@ -8,7 +8,7 @@ import "menata.app/internal/domain"
 // reasons the deletion was refused on submit; passwordErr is a wrong confirmation password.
 templ DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref string, blockers []string, passwordErr string) {
 	@appShell("Delete account", workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticOverline, "Account")
 			@staticText(domain.StaticHeading, "Delete account")
 			<div class="text-sm text-slate-500">This signs you out everywhere and cannot be undone.</div>
@@ -16,9 +16,9 @@ templ DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref
 		@sectionLayout(domain.GapComfortable) {
 			@deletionFacts()
 			if len(blockers) > 0 {
-				<div role="alert" class={ "flex flex-col gap-1", radiusClass(ctx, domain.RadiusControl), toneFillClass(ctx, domain.ToneBad), "px-3 py-2 text-sm", toneInkClass(ctx, domain.ToneBad) }>
+				<div role="alert" class={ "flex flex-col", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), toneFillClass(ctx, domain.ToneBad), "px-3 py-2 text-sm", toneInkClass(ctx, domain.ToneBad) }>
 					<p class="m-0 font-medium">Your account can't be deleted yet.</p>
-					<ul class="m-0 flex list-disc flex-col gap-1 pl-5">
+					<ul class={ "m-0 flex list-disc flex-col", layoutGap(ctx, domain.GapMicro), "pl-5" }>
 						for _, b := range blockers {
 							<li>{ b }</li>
 						}
@@ -50,7 +50,7 @@ templ DeleteAccountInfoPage(done bool) {
 				}
 				<div class={ "flex flex-col", layoutGap(ctx, domain.GapTight) }>
 					<p class="m-0 font-medium">How to delete your account</p>
-					<ol class="m-0 flex list-decimal flex-col gap-1 pl-5 text-slate-700">
+					<ol class={ "m-0 flex list-decimal flex-col", layoutGap(ctx, domain.GapMicro), "pl-5 text-slate-700" }>
 						<li><a href="/login" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>Sign in</a> to Menata. If you've forgotten your password, <a href="/forgot-password" class={ inkClass(ctx, domain.InkAccent), accentHoverClass(ctx) }>reset it</a> first.</li>
 						<li>Open your account menu, then Security, then Delete account.</li>
 						<li>Enter your password and confirm.</li>
@@ -65,9 +65,9 @@ templ DeleteAccountInfoPage(done bool) {
 // deletionFacts is the shared statement of what deletion does, shown before and during the request.
 templ deletionFacts() {
 	<div class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), "text-sm text-slate-700" }>
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<p class="m-0 font-medium">Removed</p>
-			<ul class="m-0 flex list-disc flex-col gap-1 pl-5">
+			<ul class={ "m-0 flex list-disc flex-col", layoutGap(ctx, domain.GapMicro), "pl-5" }>
 				<li>Your email address, name and password. The address becomes free to register again.</li>
 				<li>Your access to every workspace, your roles and group memberships.</li>
 				<li>Invitations addressed to you.</li>
@@ -75,9 +75,9 @@ templ deletionFacts() {
 				<li>What you typed to the AI assistant.</li>
 			</ul>
 		</div>
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<p class="m-0 font-medium">Kept, without your name</p>
-			<ul class="m-0 flex list-disc flex-col gap-1 pl-5">
+			<ul class={ "m-0 flex list-disc flex-col", layoutGap(ctx, domain.GapMicro), "pl-5" }>
 				<li>Documents, tasks and other records you created, and approval decisions you made. They stay in their workspace, attributed to "Deleted user", because the people you worked with still need that history.</li>
 				<li>A name copied onto a decision when it was made, and a signature already placed on a finished PDF, remain part of that document.</li>
 			</ul>

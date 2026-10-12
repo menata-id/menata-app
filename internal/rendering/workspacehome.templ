@@ -134,7 +134,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 								{ app.Initials }
 							}
 						</span>
-						<span class="flex min-w-0 grow flex-col gap-0.5">
+						<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 							<span class="text-[15px] font-medium">{ app.Name }</span>
 							if app.Description != "" {
 								<span class="text-xs leading-4.5 text-slate-500">{ app.Description }</span>
@@ -232,7 +232,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 // declares its own.
 templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 	<section aria-labelledby="new-application-h" class={ "flex flex-col gap-3.5", surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<h2 id="new-application-h" class="m-0 text-[15px] font-medium">Add an application</h2>
 			<span class="max-w-xl text-xs leading-5 text-slate-500">
 				Describe what your team needs. Menata asks a few questions, shows what it will build,
@@ -291,7 +291,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 				<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
 					@icon("sparkle", "size-5")
 				</span>
-				<span class="flex min-w-0 grow flex-col gap-0.5">
+				<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 					<span class="text-[15px] font-medium">{ r.Name }</span>
 					<span class="text-xs leading-4.5 text-slate-500">Generated from your description. Review it before anyone else can open it.</span>
 				</span>
@@ -305,7 +305,7 @@ templ HomeDraftApplicationRows(rows []HomeDraftApplicationRow, inList bool) {
 			<span class="flex size-10 shrink-0 items-center justify-center rounded-lg border border-dashed border-indigo-200 bg-white text-indigo-600">
 				@icon("sparkle", "size-5")
 			</span>
-			<span class="flex min-w-0 grow flex-col gap-0.5">
+			<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 				<span class="text-[15px] font-medium">{ r.Name }</span>
 				<span class="text-xs leading-4.5 text-slate-500">Generated from your description. Review it before anyone else can open it.</span>
 			</span>

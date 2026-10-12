@@ -21,7 +21,9 @@
   "Gap": {
     "comfortable": "four",
     "default": "three",
+    "hair": "half",
     "loose": "five",
+    "micro": "one",
     "region": "six",
     "tight": "two",
     "xtight": "one-half"

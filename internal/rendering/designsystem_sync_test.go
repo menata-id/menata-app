@@ -60,6 +60,7 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 	}
 	length := map[string]string{
 		"gap-xtight": layoutGap(ctx, domain.GapXtight), "gap-tight": layoutGap(ctx, domain.GapTight),
+		"gap-micro": layoutGap(ctx, domain.GapMicro), "gap-hair": layoutGap(ctx, domain.GapHair), // G1, 2026-10-12
 		"gap-default": layoutGap(ctx, domain.GapDefault), "gap-comfortable": layoutGap(ctx, domain.GapComfortable),
 		"gap-loose":              layoutGap(ctx, domain.GapLoose),
 		"gap-region":             layoutGap(ctx, domain.GapRegion),

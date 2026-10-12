@@ -57,7 +57,7 @@ func pluralWord(n int, one, other string) string {
 // links). A role a Group grants is shown and left alone: it is changed on the Group.
 templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, viewer Viewer, switchWorkspaceHref string) {
 	@appShell(membersRolesTitle, workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			<a href={ templ.SafeURL(v.HubRoute) } class="text-xs text-blue-600 hover:text-blue-800">← { v.HubTitle }</a>
 			@staticText(domain.StaticHeading, membersRolesTitle)
 			@staticText(domain.StaticMessage, "Who can use "+v.App.Name+", and with which role. A role here means nothing in other applications.")
@@ -82,7 +82,7 @@ templ ApplicationMembersPage(v ApplicationMembersView, workspaceName string, vie
 				<div class={ dividedRowClasses(ctx, domain.GapDefault) }>
 					<div class={ "flex grow items-center", layoutGap(ctx, domain.GapDefault) }>
 						@avatar(personInitials(row.Name, row.Email), avatarLabel(row.Name, row.Email), domain.AvatarInline, domain.AvatarPresent)
-						<span class="flex min-w-0 flex-col gap-0.5">
+						<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 							if row.Name != "" && row.Name != row.Email {
 								<span class="truncate text-sm">{ row.Name }</span>
 								<span class="truncate text-2xs text-slate-400">{ row.Email }</span>

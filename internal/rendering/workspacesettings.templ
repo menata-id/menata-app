@@ -101,18 +101,18 @@ templ workspaceSettingsFrame(active string) {
 	@columnsLayout(domain.GapLoose, domain.ColumnsAlignStart) {
 		<aside class={ "hidden w-55 shrink-0 flex-col", layoutGap(ctx, domain.GapLoose), "sm:flex" } aria-label={ labelByID(ctx, "nav_workspace_settings") }>
 			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="px-3 text-xs text-blue-600 hover:text-blue-800">← { labelByID(ctx, "nav_workspace_settings") }</a>
-			<div class="flex flex-col gap-0.5">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
 				@settingsGroupHeading(wsGroupWorkspace)
 				@settingsPlaceholderRow(wsGeneralTitle, wsGeneralBlurb)
 				@settingsRow(routeByID(ctx, "nav_home"), titleByID(ctx, "nav_home"), "", false)
 			</div>
-			<div class="flex flex-col gap-0.5">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
 				@settingsGroupHeading(wsGroupPeople)
 				@settingsRow(routeByID(ctx, "nav_workspace_members"), labelByID(ctx, "nav_workspace_members"), "", active == wsSectionMembers)
 				@settingsRow(routeByID(ctx, "nav_workspace_groups"), labelByID(ctx, "nav_workspace_groups"), "", active == wsSectionGroups)
 				@settingsRow(routeByID(ctx, "nav_workspace_members"), wsInvitationsTitle, "", false)
 			</div>
-			<div class="flex flex-col gap-0.5">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
 				@settingsGroupHeading(wsGroupSecurity)
 				@settingsPlaceholderRow(wsAuthTitle, wsAuthBlurb)
 				@settingsPlaceholderRow(wsAuditTitle, wsAuditBlurb)
@@ -127,22 +127,22 @@ templ workspaceSettingsFrame(active string) {
 
 templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceHref string, snapshots []SnapshotRow) {
 	@appShell(titleByID(ctx, "nav_workspace_settings"), workspaceName, viewer, switchWorkspaceHref) {
-		<div class="flex flex-col gap-1">
+		<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
 			@staticText(domain.StaticHeading, titleByID(ctx, "nav_workspace_settings"))
 			<p class="m-0 text-sm leading-6 text-slate-500">{ descriptionByID(ctx, "nav_workspace_settings") }</p>
 		</div>
 		<div class={ "flex max-w-md flex-col", layoutGap(ctx, domain.GapComfortable) }>
-			<div class="flex flex-col gap-0.5">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
 				@settingsGroupHeading(wsGroupWorkspace)
 				@settingsPlaceholderRow(wsGeneralTitle, wsGeneralBlurb)
 				@settingsRow(routeByID(ctx, "nav_home"), titleByID(ctx, "nav_home"), descriptionByID(ctx, "nav_home"), false)
 			</div>
-			<div class="flex flex-col gap-0.5">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
 				@settingsGroupHeading(wsGroupPeople)
 				@settingsRow(routeByID(ctx, "nav_workspace_members"), labelByID(ctx, "nav_workspace_members"), "Workspace role and application access.", false)
 				@settingsRow(routeByID(ctx, "nav_workspace_members"), wsInvitationsTitle, wsInvitationsBlurb, false)
 			</div>
-			<div class="flex flex-col gap-0.5">
+			<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair) }>
 				@settingsGroupHeading(wsGroupSecurity)
 				@settingsPlaceholderRow(wsAuthTitle, wsAuthBlurb)
 				@settingsPlaceholderRow(wsAuditTitle, wsAuditBlurb)
@@ -177,13 +177,13 @@ templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspace
 					}
 				</div>
 			</div>
-			<div id={ wsDangerZoneAnchorID } class={ "flex flex-col gap-0.5", radiusClass(ctx, domain.RadiusSurface), "border", toneEdgeClass(ctx, domain.ToneBad) }>
+			<div id={ wsDangerZoneAnchorID } class={ "flex flex-col", layoutGap(ctx, domain.GapHair), radiusClass(ctx, domain.RadiusSurface), "border", toneEdgeClass(ctx, domain.ToneBad) }>
 				<h2 class="px-3 pt-2 pb-1 text-3xs font-medium tracking-wide text-red-400 uppercase">{ wsDangerTitle }</h2>
 				@settingsPlaceholderRow("Transfer ownership", "No single Workspace Owner exists yet to transfer.")
 				<form method="POST" action="/workspace-settings/archive" hx-confirm="Archive this workspace? It becomes read-only and hidden from members until an admin restores it.">
 					@csrfHiddenInput()
 					<button type="submit" class={ "flex w-full cursor-pointer items-start", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-left hover:bg-red-50" }>
-						<span class="flex min-w-0 grow flex-col gap-0.5">
+						<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 							<span class="text-sm font-medium text-red-700">Archive workspace</span>
 							<span class="text-xs text-slate-500">Read-only and hidden from members until restored.</span>
 						</span>

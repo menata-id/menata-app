@@ -191,7 +191,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 							}
 						</nav>
 					}
-					<span class="ml-auto flex items-center gap-1">
+					<span class={ "ml-auto flex items-center", layoutGap(ctx, domain.GapMicro) }>
 						@notificationBell()
 						@accountMenu(viewer, hasAppMenu)
 					</span>
@@ -368,7 +368,7 @@ func anyActive(items []navMenuItem) bool {
 // /authorization-matrix (a Workspace-level admin screen) and calling it this Application's own,
 // which would have been a worse lie than the gap.
 templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
-	<nav aria-label="Application" class="hidden items-center gap-1 border-t border-slate-100 px-4 py-1.5 sm:flex sm:px-6">
+	<nav aria-label="Application" class={ "hidden items-center", layoutGap(ctx, domain.GapMicro), "border-t border-slate-100 px-4 py-1.5 sm:flex sm:px-6" }>
 		<span class={ "mr-1 flex items-center", layoutGap(ctx, domain.GapTight) }>
 			if app.Icon != "" {
 				<span class={ "flex size-6 shrink-0 items-center justify-center", radiusClass(ctx, domain.RadiusControl), appIconClasses(app.Color) }>
@@ -395,7 +395,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 			<button
 				type="button"
 				popovertarget="menata-app-more-menu"
-				class={ "ml-auto flex cursor-pointer items-center gap-1", radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium text-blue-700", anyActive(overflow)), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !anyActive(overflow)) }
+				class={ "ml-auto flex cursor-pointer items-center", layoutGap(ctx, domain.GapMicro), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium text-blue-700", anyActive(overflow)), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !anyActive(overflow)) }
 			>
 				More
 				@icon("chevron-down", "size-3.5")
@@ -463,7 +463,7 @@ templ applicationBottomBar(items []navMenuItem, app domain.Application, workspac
 		for _, item := range items {
 			<a
 				href={ templ.SafeURL(item.Href) }
-				class={ "flex flex-1 flex-col items-center gap-1 py-2 text-2xs", templ.KV("font-medium "+inkClass(ctx, domain.InkAccent), item.Active), templ.KV("text-slate-500", !item.Active) }
+				class={ "flex flex-1 flex-col items-center", layoutGap(ctx, domain.GapMicro), "py-2 text-2xs", templ.KV("font-medium "+inkClass(ctx, domain.InkAccent), item.Active), templ.KV("text-slate-500", !item.Active) }
 				if item.Active {
 					aria-current="page"
 				}
@@ -512,7 +512,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 		<button
 			type="button"
 			popovertarget="menata-more-sheet"
-			class="menata-more-tab flex w-full cursor-pointer flex-col items-center gap-1 border-0 bg-transparent py-2 font-sans text-2xs text-slate-500"
+			class={ "menata-more-tab flex w-full cursor-pointer flex-col items-center", layoutGap(ctx, domain.GapMicro), "border-0 bg-transparent py-2 font-sans text-2xs text-slate-500" }
 		>
 			@icon("more", "size-5.5")
 			More
@@ -526,7 +526,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 				<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", backgroundClass(ctx, domain.BackgroundBase), "text-slate-500" }>
 					@icon("home", "size-5")
 				</span>
-				<span class="flex min-w-0 grow flex-col gap-0.5">
+				<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 					<span class="text-sm text-slate-900">{ labelByID(ctx, "nav_home") }</span>
 					<span class="truncate text-xs text-slate-400">{ workspaceName }</span>
 				</span>
@@ -539,7 +539,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 					<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", backgroundClass(ctx, domain.BackgroundBase), "text-slate-500" }>
 						@icon(hub.Icon, "size-5")
 					</span>
-					<span class="flex min-w-0 grow flex-col gap-0.5">
+					<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 						<span class="text-sm text-slate-900">{ hub.Title }</span>
 					</span>
 					<span class="text-slate-300">
@@ -559,7 +559,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 					<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", appIconClasses(other.Color) }>
 						@icon(other.Icon, "size-5")
 					</span>
-					<span class="flex min-w-0 grow flex-col gap-0.5">
+					<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
 						<span class={ "text-sm text-slate-900", templ.KV("font-medium", other.ID == app.ID) }>{ other.Name }</span>
 						if other.Description != "" {
 							<span class="truncate text-xs text-slate-400">{ other.Description }</span>
@@ -620,7 +620,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-[13px] font-medium text-white">
 					{ personInitials(workspaceName, "") }
 				</span>
-				<span class="flex min-w-0 flex-col gap-0.5">
+				<span class={ "flex min-w-0 flex-col", layoutGap(ctx, domain.GapHair) }>
 					<span class="truncate text-sm font-medium text-slate-900">{ workspaceName }</span>
 					if viewer.WorkspaceRole != "" {
 						<span class="text-xs text-slate-400">{ displayRole(viewer.WorkspaceRole) }</span>
@@ -813,7 +813,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 			// email (its avatar is the "?" glyph), so rendering the block unconditionally left an
 			// empty strip above a divider -- invisible as a bare dropdown, obvious as a sheet.
 			if viewer.Name != "" || viewer.Email != "" {
-				<div class="flex flex-col gap-0.5 px-3 pt-1 pb-2">
+				<div class={ "flex flex-col", layoutGap(ctx, domain.GapHair), "px-3 pt-1 pb-2" }>
 					if viewer.Name != "" {
 						<span class="truncate text-sm font-medium text-slate-900">{ viewer.Name }</span>
 					}
@@ -919,7 +919,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 			@icon("grid", "size-4")
 		</button>
 		@sheetPanel("menata-app-launcher", aboveBar, "left") {
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ "mb-1 flex flex-col gap-0.5", radiusClass(ctx, domain.RadiusControl), "p-3 hover:bg-slate-50 sm:p-2" }>
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ "mb-1 flex flex-col", layoutGap(ctx, domain.GapHair), radiusClass(ctx, domain.RadiusControl), "p-3 hover:bg-slate-50 sm:p-2" }>
 				<span class={ "text-3xs font-medium tracking-wide", inkClass(ctx, domain.InkAccent), "uppercase" }>Workspace</span>
 				<span class="text-sm font-medium text-slate-900">{ workspaceName }</span>
 			</a>

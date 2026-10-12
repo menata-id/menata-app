@@ -2140,6 +2140,8 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     eyebrow: micro    # the uppercase line above a title (default: micro)
     caption: tiny     # the help line under a panel title or control (default: tiny)
 >   gap:
+>     hair:        half   # the smallest step: tightly stacked lines, a name over its email (default: half)
+>     micro:       one    # a title over its subtitle, a label beside its value (default: one)
 >     xtight:      one-half  # an icon or dot with its label inside a compact component -- never between components (default: one-half)
 >     tight:       two    # (default: two)
 >     default:     three  # (default: three)
