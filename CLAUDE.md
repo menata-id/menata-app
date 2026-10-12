@@ -426,6 +426,11 @@ in the same change, not as a follow-up — `internal/conformance` (below) fails 
 Machines and Shared rendering components tables drift from the code, so an unrecorded addition is
 a matter of when, not if, it gets caught.
 
+Since 2026-10-12 the Shared rendering components table has **Kind** and **YAML** columns. Kind is one of: registered
+Component, layout primitive or static node, class reader, shell, shared fragment, page-internal. YAML says whether a
+`page:` can name it. Fill both when you add a row. The gate reads only the first column, so the two columns are kept
+by review, not by a test.
+
 ## Enforcement, not just prose
 
 `internal/conformance` holds executable tests for architectural obligations 001-007 and

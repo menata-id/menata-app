@@ -2124,9 +2124,9 @@ similar-looking metadata for a *different* Machine does not activate it.
 > ```yaml
 > theme:
 >   radius:
->     control: small    # buttons  (default: small)
+>     control: small    # inputs, buttons, menu rows, small boxes (default: small -> rounded-md)
 >     surface: large    # panels, sections     (default: large  -> rounded-lg)
->     pill:    full     # badges, avatars      (default: full   -> rounded-full)
+>     pill:    full     # badges, chips        (default: full   -> rounded-full; circles such as avatars stay round)
 >   weight:
 >     body:     normal  # text explicitly unemphasised  (table column headings and group headers)  (default: normal)
 >     emphasis: medium  # headings, labels, values      (default: medium)
