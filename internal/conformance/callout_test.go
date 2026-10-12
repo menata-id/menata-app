@@ -16,7 +16,8 @@ import (
 // What it counts is a **tone pair in a box**: one class set holding a corner (`rounded`, `rounded-md`,
 // `rounded-lg`), a `-50` tint and the same hue's `-700`/`-800`/`-900` ink. A pill (`rounded-full`) is a badge or a
 // chip, which other gates hold, so it is not counted. Class sets are read after `joinClassExpressions`, so a tint
-// spliced into a `class={ ... }` expression is seen too. **Blind spots:** a pair split across a parent and a child
+// spliced into a `class={ ... }` expression is seen too, and so is a tone reader called inline
+// (`toneReadersAsLiterals`). **Blind spots:** a pair split across a parent and a child
 // (the parent tinted, the child inked, as Install Application's refusal well is), a pair returned by a Go function,
 // and a box tinted with a hue outside the five tone hues.
 //
@@ -42,7 +43,7 @@ func TestNoHandWrittenCallout(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := joinClassExpressions(comment.ReplaceAllString(string(b), ""))
+		src := joinClassExpressions(toneReadersAsLiterals(comment.ReplaceAllString(string(b), "")))
 		for _, m := range classAttr.FindAllStringSubmatch(src, -1) {
 			scanned++
 			if isToneBox(m[1], tint, ink) {
@@ -70,6 +71,23 @@ func TestNoHandWrittenCallout(t *testing.T) {
 		}
 	}
 }
+
+// toneReadersAsLiterals rewrites an inline reader of a message tone (info, good, bad, warn; a neutral or muted
+// tint is a label, not a message) as the literal it answers by default, so a box that reads
+// its tint and ink through `toneFillClass`/`toneInkClass`/`toneClass` is still seen as a hand-written tone box. Without
+// it, moving a floor's colours to the Theme (rencana 0.2c) made both floors vanish from this gate by an edit to an
+// attribute while neither became a Callout -- the blind spot `joinClassExpressions` exists for, one level down.
+func toneReadersAsLiterals(src string) string {
+	src = toneFillCall.ReplaceAllString(src, `"bg-red-50"`)
+	src = toneInkCall.ReplaceAllString(src, `"text-red-700"`)
+	return tonePairCall.ReplaceAllString(src, `"bg-red-50 text-red-700"`)
+}
+
+var (
+	toneFillCall = regexp.MustCompile(`toneFillClass\(ctx, domain\.Tone(?:Info|Good|Bad|Warn)\)`)
+	toneInkCall  = regexp.MustCompile(`toneInkClass\(ctx, domain\.Tone(?:Info|Good|Bad|Warn)\)`)
+	tonePairCall = regexp.MustCompile(`toneClass\(ctx, domain\.Tone(?:Info|Good|Bad|Warn)\)`)
+)
 
 // isToneBox reports whether one class set is a cornered box with a tone hue's tint and the same hue's ink.
 // Variant-prefixed tokens (`hover:`, `sm:`) are state and breakpoint, not the box.

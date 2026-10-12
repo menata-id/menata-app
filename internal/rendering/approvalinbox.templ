@@ -1,6 +1,7 @@
 package rendering
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 
@@ -512,16 +513,32 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 	</div>
 }
 
+// approverChipTone is the chip's colour for its state, chosen in Go rather than as one `templ.KV` per state. The
+// settled states read the Theme's tone pairs, and a Workspace may map two tones to one palette: as `templ.KV` keys
+// the two classes would then be the same string, templ would keep the last value, and a done chip would draw with
+// no colour at all. Waiting has no tone with its steps (slate-100 on slate-500): its fill stays a literal and its text reads the
+// `secondary` ink, so moving it here out of a `class` attribute did not hide a literal from the ink ratchet.
+func approverChipTone(ctx context.Context, state string) string {
+	switch state {
+	case "done":
+		return toneClass(ctx, domain.ToneGood)
+	case "current":
+		return toneClass(ctx, domain.ToneInfo)
+	case "rejected":
+		return toneClass(ctx, domain.ToneBad)
+	case "waiting":
+		return "bg-slate-100 " + inkClass(ctx, domain.InkSecondary)
+	}
+	return ""
+}
+
 // approverChip is one approver on the card, labelled for a screen reader with their own state --
 // board 07 gives each list item an aria-label saying exactly that.
 templ approverChip(a StepApprover) {
 	<li
 		aria-label={ a.Name + ", " + approverStateLabel(a.State) }
 		class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "rounded-full py-0.5 pr-2.5 pl-0.5 text-2xs",
-			templ.KV("bg-emerald-50 text-emerald-700", a.State == "done"),
-			templ.KV("bg-blue-50 text-blue-700", a.State == "current"),
-			templ.KV("bg-red-50 text-red-700", a.State == "rejected"),
-			templ.KV("bg-slate-100 text-slate-500", a.State == "waiting") }
+			approverChipTone(ctx, a.State) }
 	>
 		<span class="flex size-5 items-center justify-center rounded-full bg-white/70 text-3xs font-medium">
 			if a.Initials != "" {

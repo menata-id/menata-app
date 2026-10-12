@@ -53,7 +53,7 @@ type themeDebt struct {
 var handWrittenThemeTokens = map[string]themeDebt{
 	"account.templ":            {size: 13, ink: 13, weight: 7, fill: 5},
 	"appmembers.templ":         {size: 8, ink: 4, weight: 0, fill: 0},
-	"approvalinbox.templ":      {size: 22, ink: 19, weight: 5, fill: 2},
+	"approvalinbox.templ":      {size: 22, ink: 18, weight: 5, fill: 2},
 	"approvalstepper.templ":    {size: 9, ink: 7, weight: 6, fill: 0},
 	"appshell.templ":           {size: 49, ink: 51, weight: 22, fill: 0},
 	"attachments.templ":        {size: 4, ink: 2, weight: 1, fill: 0},

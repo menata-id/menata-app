@@ -3,6 +3,7 @@ package rendering
 import (
 	"bytes"
 	"context"
+	"github.com/a-h/templ"
 	"strings"
 	"testing"
 
@@ -160,5 +161,29 @@ func TestPendingApprovalCard_SLALabelOnlyWhenUrgent(t *testing.T) {
 		if !strings.Contains(html, want) {
 			t.Errorf("overdue card missing %q", want)
 		}
+	}
+}
+
+// Rencana 0.2c: the approver chip's settled states and the archived banner read the Theme's tone pairs, so a
+// Workspace that remaps a tone moves them. Byte identity under the default theme is what the migration diff proved;
+// this is the other half, that the reader is really in the path.
+func TestTonePairs_followTheThemeAtMigratedSites(t *testing.T) {
+	th := domain.Theme{Tone: map[domain.BadgeTone]domain.TonePalette{
+		domain.ToneGood: domain.PaletteBlue,
+		domain.ToneWarn: domain.PaletteRed,
+	}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", true)
+	render := func(c templ.Component) string {
+		var buf strings.Builder
+		if err := c.Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	if got := render(approverChip(StepApprover{Name: "Ana", State: "done"})); !strings.Contains(got, "bg-blue-50 text-blue-700") || strings.Contains(got, "emerald") {
+		t.Errorf("a remapped good tone must move the done chip: %s", got)
+	}
+	if got := render(appShell("T", "WS", Viewer{}, "/s")); !strings.Contains(got, `border-amber-200 bg-red-50 px-4 py-2 text-center text-xs font-medium text-red-700">This workspace is archived`) {
+		t.Error("a remapped warn tone must move the archived banner's fill and ink")
 	}
 }

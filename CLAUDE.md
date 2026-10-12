@@ -942,6 +942,22 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   rencana 0.2e moved the approval wizard's Group picker to `fieldClasses`. That was the last approver picker
   carrying the recipe as a literal, and `TestApproverRow_groupPickerFollowsTheThemeLikeItsTwin` pins it, because
   the field ratchet cannot see a class returned by a Go function.
+- `TestHandWrittenTonePairsOnlyShrink` — a directive ratchet (2026-10-12, rencana 0.2c). A semantic tone reads
+  `toneClass`/`toneFillClass`/`toneInkClass`. Seven sites moved byte-identically: three approver-chip states, the
+  pending nav badge, the archived banner, Delete account's blockers, and the truncation notice. It reads **every
+  string literal**, so a pair returned from a Go helper is counted too. **Ten stay, by meaning:** a palette
+  (Application icons), a diff, a file type, a script string, the stepper's blue "done", and the urgent SLA pill
+  (amber-700 against warn's -800). The audit's "±60" was a count of tokens; reading found 17 pairs.
+  **Two things this slice taught:**
+  - **Never put a Theme reader in a `templ.KV` key beside another reader.** A Workspace may map two tones to one
+    palette, the keys then collide, and templ keeps the last value. The done chip drew with no colour. The default
+    theme cannot show this, so the byte-diff passed. `TestTonePairs_followTheThemeAtMigratedSites`, under a
+    remapped theme, found it. Choose the class in Go (`approverChipTone`).
+  - **Moving a literal into a Go string drops a ratchet count without migrating anything.** Check every fall: the
+    waiting chip's ink now really reads `InkSecondary`.
+
+  Also, the Callout gate now reads inline message-tone readers as their literals (`toneReadersAsLiterals`).
+  Without that, its two floors vanished when their colours moved to the Theme.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token
