@@ -41,7 +41,9 @@ templ approvalStepRow(seq *domain.Sequencing, parent *data.Record, s *data.Recor
 	{{ seqLabel := fmt.Sprint(s.Values[seq.OrderField]) }}
 	<li class={ "flex items-center", layoutGap(ctx, domain.GapDefault), "px-2 py-2" }>
 		if done {
-			<span class="flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium bg-blue-50 text-blue-700">✓</span>
+			// A finished step's ✓ is the Design System's mark-good with white, as the review screen draws it (owner decision
+			// M1, 2026-10-12). It was blue, the `info` tone, which means "in progress".
+			<span class={ "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium", markGoodFill(), "text-white" }>✓</span>
 			<span class="flex flex-col">
 				<span class="text-sm font-medium text-slate-900">{ assignee }</span>
 				<span class="text-xs text-slate-500">{ capitalize(decision) } · { s.UpdatedAt.Format("15:04") }</span>

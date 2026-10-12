@@ -29,11 +29,10 @@ var handWrittenTonePairs = map[string]struct {
 	n   int
 	why string
 }{
-	"approvalstepper.templ": {1, "a finished step's check circle is blue; reading `info` (in progress) would mislabel it and reading `good` would recolour it"},
-	"appshell.templ":        {1, "the error toast is a class string inside a <script>, built in the browser where no ctx reaches"},
-	"reviewdocument.templ":  {1, "the PDF file badge: red-100 is the file type's colour, not a bad state"},
-	"workspacefiles.templ":  {2, "added and removed lines of a diff (green and red -800): a diff's own colours, not tones"},
-	"workspacehome.templ":   {3, "an Application's icon colour: a palette an author picks (domain.KnownApplicationColors), like Tag, not a tone"},
+	"appshell.templ":       {1, "the error toast is a class string inside a <script>, built in the browser where no ctx reaches"},
+	"reviewdocument.templ": {1, "the PDF file badge: red-100 is the file type's colour, not a bad state"},
+	"workspacefiles.templ": {2, "added and removed lines of a diff (green and red -800): a diff's own colours, not tones"},
+	"workspacehome.templ":  {3, "an Application's icon colour: a palette an author picks (domain.KnownApplicationColors), like Tag, not a tone"},
 }
 
 var (
