@@ -12,25 +12,14 @@ import (
 	"menata.app/internal/domain"
 )
 
-// TestEveryThemeCategoryHasAnImplRatchet is G1 of rencana 0.4 (2026-10-12): **every Theme role's default class is
-// counted by a gate, or is listed in themeRolesWithoutImplRatchet with the reason it is not.**
-//
-// **Why per role, by probe.** The first version mapped each `domain.Theme` category to a gate *name* and checked only
-// that the name existed. The independent review satisfied it with `"Padding": {"TestAppManifestLoads"}`, and found
-// three categories whose role defaults nothing counted (background base/sunken, badge paddings, neutral/muted tone).
-// The hard-coded "Padding: 0" line hid it. So the gate now does three things:
-//   - it takes every role of every category from the `domain.Known*` sets;
-//   - it derives the role's default class **from the code**: the step from `domain.DefaultTheme()`, then the class
-//     from the reader's own `case … return` arms in layout.templ;
-//   - it feeds `<div class="…">` holding that class to the **same counting logic** the category's gate uses, and
-//     requires a count.
-//
-// Why a planned per-file `dsImplDebt` map was not built: 0.2 had already put a ratchet beside each category, so a
-// second map would count the same literals twice (001 #8).
-//
-// Blind spot: the probe proves the gate's pattern matches the default class. It cannot prove that the gate is wired to
-// read every file; each gate's own sanity check does that.
-func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
+// themeRoleDefault is one Theme role and the class its reader answers under domain.DefaultTheme().
+type themeRoleDefault struct{ category, name, class string }
+
+// themeRoleDefaults derives every Theme role's default class from the code: the role from the `domain.Known*` sets, the
+// step from `domain.DefaultTheme()`, and the class from the reader's own `case … return` arms in layout.templ. G1 and
+// the design bucket (TestEveryUnnamedDesignValueHasAReason) share it, so both read one answer to "which class is a role".
+func themeRoleDefaults(t *testing.T) []themeRoleDefault {
+	t.Helper()
 	consts := domainStringConsts(t)
 	layout, err := os.ReadFile(filepath.Join(repoRoot(), "internal", "rendering", "layout.templ"))
 	if err != nil {
@@ -38,13 +27,8 @@ func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
 	}
 	arms := func(fn string) map[string]string { return readerArms(t, string(layout), fn, consts) }
 	th := domain.DefaultTheme()
-	probe := func(class string) string { return `<div class="` + class + `"></div>` }
-	literal := func(tok string) func(string) bool {
-		return func(class string) bool { return strings.Contains(" "+class+" ", " "+tok+" ") }
-	}
-	type role struct{ category, name, class string }
-	var roles []role
-	add := func(cat, name, class string) { roles = append(roles, role{cat, name, class}) }
+	var roles []themeRoleDefault
+	add := func(cat, name, class string) { roles = append(roles, themeRoleDefault{cat, name, class}) }
 	for r := range domain.KnownRadiusRoles {
 		add("Radius", string(r), armFor(arms("radiusClass"), string(th.RadiusFor(r))))
 	}
@@ -77,6 +61,33 @@ func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
 	}
 	for r := range domain.KnownPaddingRoles {
 		add("Padding", string(r), arms("paddingClass")[string(r.Axis())+"/"+string(th.PaddingFor(r))])
+	}
+	return roles
+}
+
+// TestEveryThemeCategoryHasAnImplRatchet is G1 of rencana 0.4 (2026-10-12): **every Theme role's default class is
+// counted by a gate, or is listed in themeRolesWithoutImplRatchet with the reason it is not.**
+//
+// **Why per role, by probe.** The first version mapped each `domain.Theme` category to a gate *name* and checked only
+// that the name existed. The independent review satisfied it with `"Padding": {"TestAppManifestLoads"}`, and found
+// three categories whose role defaults nothing counted (background base/sunken, badge paddings, neutral/muted tone).
+// The hard-coded "Padding: 0" line hid it. So the gate now does three things:
+//   - it takes every role of every category from the `domain.Known*` sets;
+//   - it derives the role's default class **from the code**: the step from `domain.DefaultTheme()`, then the class
+//     from the reader's own `case … return` arms in layout.templ;
+//   - it feeds `<div class="…">` holding that class to the **same counting logic** the category's gate uses, and
+//     requires a count.
+//
+// Why a planned per-file `dsImplDebt` map was not built: 0.2 had already put a ratchet beside each category, so a
+// second map would count the same literals twice (001 #8).
+//
+// Blind spot: the probe proves the gate's pattern matches the default class. It cannot prove that the gate is wired to
+// read every file; each gate's own sanity check does that.
+func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
+	roles := themeRoleDefaults(t)
+	probe := func(class string) string { return `<div class="` + class + `"></div>` }
+	literal := func(tok string) func(string) bool {
+		return func(class string) bool { return strings.Contains(" "+class+" ", " "+tok+" ") }
 	}
 	counted := map[string]func(class string) bool{
 		"Radius": func(c string) bool {

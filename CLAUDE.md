@@ -1040,6 +1040,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
       element under the default theme, since the three border roles have different defaults.
   - Only the surface and tile shape gates read `borderClass` as its literal (`borderReadersAsLiterals`); the value
     gates do not.
+- `TestEveryUnnamedDesignValueHasAReason` / `TestDesignBucketAndImplRatchetsSplitTheTokens` — G1's `design` bucket
+  (2026-10-12, rencana 1.3). The impl ratchets count a role's **default** and say "read the Theme instead". That
+  advice is wrong for a value **no role names**, such as `text-white` on a filled mark, `bg-slate-900` (the Design
+  System's `primary`), `gap-2.5` or `accent-blue-500`. Such a value is counted here, per value, in
+  `unnamedDesignValues`, each with its reason. Read the numbers out of the map (126 tokens, 52 values when written).
+  - A new value fails with a different message: register a role through the governance guide's procedure, or add a
+    floor with its reason (R1).
+  - Families: size, weight, ink, fill, edge (border, divide, ring, outline, accent), gap, and side corners.
+  - Left out, each for its reason: padding (roles by job, D4), whole corners (the radius ratchet counts every one),
+    and `text-[Npx]` (`handWrittenOffLadderSizes` is this bucket's size part).
+  - The second test holds the line between the two buckets. A role G1 exempts (tone neutral's `text-slate-600`)
+    lands here, or no gate would count it.
+  - Mutation-proved in all seven families, plus a stale entry and the exempt-role split. Blind spots: variant
+    prefixes and a class from a Go function.
 - `TestKeyboardFocusRuleCoversInteractiveElements` / `TestNoOutlineNoneBesideAFocusRing` — owner decision DS-D14
   (2026-10-12). Keyboard focus is **one base rule** in `static/css/input.css`, as the mockups have it:
   `:where(a[href], button, summary, [tabindex]):focus-visible` draws a 2px `--color-blue-300` outline (the Design
