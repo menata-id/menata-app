@@ -187,3 +187,18 @@ func TestTonePairs_followTheThemeAtMigratedSites(t *testing.T) {
 		t.Error("a remapped warn tone must move the archived banner's edge, fill and ink (the edge since DS-D16)")
 	}
 }
+
+// S1 (owner decision, 2026-10-12): the urgent SLA pill reads the tones. Due today is now warn's ink (amber-800, was
+// a literal amber-700: the one visible change), overdue stays red, and both follow theme.tone.
+func TestSLAPill_readsTheBadAndWarnTones(t *testing.T) {
+	if got := slaPillTone(context.Background(), false); got != "bg-amber-50 text-amber-800" {
+		t.Errorf("due today must be warn's pair, got %q", got)
+	}
+	if got := slaPillTone(context.Background(), true); got != "bg-red-50 text-red-700" {
+		t.Errorf("overdue must be bad's pair, got %q", got)
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: domain.Theme{Tone: map[domain.BadgeTone]domain.TonePalette{domain.ToneWarn: domain.PaletteBlue}}}, "WS", false)
+	if got := slaPillTone(ctx, false); got != "bg-blue-50 text-blue-700" {
+		t.Errorf("a remapped warn tone must move the due-today pill, got %q", got)
+	}
+}

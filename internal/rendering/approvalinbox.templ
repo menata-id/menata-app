@@ -409,6 +409,17 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 //
 // Page-internal on purpose: capabilities.md records it as cataloged-but-not-yet-reused, which is
 // the honest state until a second, genuinely different screen needs the identical shape.
+// slaPillTone is the urgent SLA pill's colour (owner decision S1, 2026-10-12): overdue reads the `bad` tone and due
+// today reads `warn`, so theme.tone moves both. Before, due today was a literal amber-700, one step lighter than the
+// warn ink (amber-800); the Design System had already folded amber ink to `tone-warn-ink`. Chosen in Go so the two
+// states cannot collide as templ.KV keys (L12).
+func slaPillTone(ctx context.Context, overdue bool) string {
+	if overdue {
+		return toneClass(ctx, domain.ToneBad)
+	}
+	return toneClass(ctx, domain.ToneWarn)
+}
+
 // approvalCardEdge is the card's edge for its state, chosen in Go: as two templ.KV keys, a Workspace mapping `bad` to
 // the grey palette would make the overdue edge and the surface edge one string, and templ would drop it (L12).
 func approvalCardEdge(ctx context.Context, overdue bool) string {
@@ -431,8 +442,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 			if c.SLA.Present && c.SLA.Urgent {
 				<span
 					class={ "self-start", radiusClass(ctx, domain.RadiusPill), "px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase",
-						templ.KV("bg-red-50 text-red-700", overdue),
-						templ.KV("bg-amber-50 text-amber-700", !overdue) }
+						slaPillTone(ctx, overdue) }
 				>
 					{ c.SLA.Label }
 				</span>

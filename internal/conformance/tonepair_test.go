@@ -29,7 +29,6 @@ var handWrittenTonePairs = map[string]struct {
 	n   int
 	why string
 }{
-	"approvalinbox.templ":   {2, "the urgent SLA pill: overdue is red (a bad pair), due-today is amber-700 where warn's ink is amber-800; the pill stays whole until the amber is decided (the artifact folded amber ink to tone-warn-ink in the mockups)"},
 	"approvalstepper.templ": {1, "a finished step's check circle is blue; reading `info` (in progress) would mislabel it and reading `good` would recolour it"},
 	"appshell.templ":        {1, "the error toast is a class string inside a <script>, built in the browser where no ctx reaches"},
 	"reviewdocument.templ":  {1, "the PDF file badge: red-100 is the file type's colour, not a bad state"},

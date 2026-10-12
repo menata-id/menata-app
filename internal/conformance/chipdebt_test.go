@@ -69,7 +69,7 @@ func TestHandWrittenChipsOnlyShrink(t *testing.T) {
 		}
 		// A comment naming the shape is not a chip.
 		// A corner read through radiusClass is still a chip's corner (L13).
-		src := radiusReadersAsLiterals(chipNoLine.ReplaceAllString(string(b), ""))
+		src := toneHelpersAsLiterals(radiusReadersAsLiterals(chipNoLine.ReplaceAllString(string(b), "")))
 		for _, m := range chipTag.FindAllStringSubmatch(src, -1) {
 			a := m[1]
 			if chipRound.MatchString(a) && chipTint.MatchString(a) && chipPadX.MatchString(a) && chipSize.MatchString(a) {
@@ -95,3 +95,12 @@ func TestHandWrittenChipsOnlyShrink(t *testing.T) {
 		t.Fatal("no hand-written chip found anywhere -- either every chip uses statusBadge (say so in capabilities.md and keep this gate as an ordinary one) or the pattern has stopped matching")
 	}
 }
+
+// toneHelpersAsLiterals rewrites the Go helpers that choose a chip's tone pair by state as a tinted literal. A chip
+// whose tint comes from slaPillTone (owner decision S1) is still a hand-written chip, so it must stay in this count
+// rather than leave it by an edit to an attribute (L13).
+func toneHelpersAsLiterals(src string) string {
+	return toneHelperCall.ReplaceAllString(src, `"bg-red-50 text-red-700"`)
+}
+
+var toneHelperCall = regexp.MustCompile(`slaPillTone\(ctx, [^)]*\)`)
