@@ -283,7 +283,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 // their ability to open this Workspace again is what either action changes
 // (data.Store.DeactivateMember/ReactivateMember's own doc comment).
 templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
-	<section class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-red-200", paddingClass(ctx, domain.PaddingSection) }>
+	<section class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border", toneEdgeClass(ctx, domain.ToneBad), paddingClass(ctx, domain.PaddingSection) }>
 		<div class="flex flex-col gap-1">
 			<h2 class="m-0 text-sm font-medium text-red-700">Remove from workspace</h2>
 			@staticText(domain.StaticCaption, "Affects "+workspaceName+" only. Their account and other workspaces are untouched.")

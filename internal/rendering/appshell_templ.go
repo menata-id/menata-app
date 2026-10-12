@@ -245,7 +245,7 @@ func appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref st
 			return templ_7745c5c3_Err
 		}
 		if CurrentWorkspaceArchived(ctx) {
-			var templ_7745c5c3_Var10 = []any{"border-b border-amber-200", toneFillClass(ctx, domain.ToneWarn), "px-4 py-2 text-center text-xs font-medium", toneInkClass(ctx, domain.ToneWarn)}
+			var templ_7745c5c3_Var10 = []any{"border-b", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-4 py-2 text-center text-xs font-medium", toneInkClass(ctx, domain.ToneWarn)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var10...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

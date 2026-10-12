@@ -300,7 +300,7 @@ type Truncation struct {
 // Truncation unconditionally and the common case costs no markup.
 templ truncationNotice(t Truncation) {
 	if t.Hit && t.Limit > 0 {
-		<p class={ "m-0", radiusClass(ctx, domain.RadiusControl), "border border-amber-200", toneFillClass(ctx, domain.ToneWarn), "px-3 py-2 text-2xs", toneInkClass(ctx, domain.ToneWarn) }>
+		<p class={ "m-0", radiusClass(ctx, domain.RadiusControl), "border", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-3 py-2 text-2xs", toneInkClass(ctx, domain.ToneWarn) }>
 			Showing the first { fmt.Sprint(t.Limit) } only — more match than fit on this page.
 		</p>
 	}

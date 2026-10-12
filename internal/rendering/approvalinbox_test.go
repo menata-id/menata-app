@@ -183,7 +183,7 @@ func TestTonePairs_followTheThemeAtMigratedSites(t *testing.T) {
 	if got := render(approverChip(StepApprover{Name: "Ana", State: "done"})); !strings.Contains(got, "bg-blue-50 text-blue-700") || strings.Contains(got, "emerald") {
 		t.Errorf("a remapped good tone must move the done chip: %s", got)
 	}
-	if got := render(appShell("T", "WS", Viewer{}, "/s")); !strings.Contains(got, `border-amber-200 bg-red-50 px-4 py-2 text-center text-xs font-medium text-red-700">This workspace is archived`) {
-		t.Error("a remapped warn tone must move the archived banner's fill and ink")
+	if got := render(appShell("T", "WS", Viewer{}, "/s")); !strings.Contains(got, `border-b border-red-200 bg-red-50 px-4 py-2 text-center text-xs font-medium text-red-700">This workspace is archived`) {
+		t.Error("a remapped warn tone must move the archived banner's edge, fill and ink (the edge since DS-D16)")
 	}
 }

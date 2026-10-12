@@ -231,10 +231,17 @@ var (
 // an edge read through the Theme is still a hand-written surface's edge (L13). The **value** gates (control border,
 // region rule, field, button) must not, because for them a reader is exactly the migration they count.
 func borderReadersAsLiterals(src string) string {
+	src = stateEdgeHelperCall.ReplaceAllString(src, `"border-slate-200"`)
 	return borderReaderCall.ReplaceAllStringFunc(src, func(m string) string {
 		return `"` + borderDefaults[borderReaderCall.FindStringSubmatch(m)[1]] + `"`
 	})
 }
+
+// stateEdgeHelperCall names the Go helpers that choose a surface's edge by state (chosen in Go so two templ.KV keys
+// cannot collide, L12). Their rest state is the surface edge, so for the shape gates they read as that literal:
+// without this, moving the overdue approval card's edge into approvalCardEdge (DS-D16) dropped the card from the
+// surface ratchet while it stayed hand-written (L13).
+var stateEdgeHelperCall = regexp.MustCompile(`approvalCardEdge\(ctx, [^)]*\)`)
 
 var (
 	borderReaderCall = regexp.MustCompile(`borderClass\(ctx, domain\.(Border\w+)\)`)

@@ -658,7 +658,7 @@ func WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspaceH
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var28 = []any{"flex flex-col gap-0.5", radiusClass(ctx, domain.RadiusSurface), "border border-red-200"}
+			var templ_7745c5c3_Var28 = []any{"flex flex-col gap-0.5", radiusClass(ctx, domain.RadiusSurface), "border", toneEdgeClass(ctx, domain.ToneBad)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var28...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

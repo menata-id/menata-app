@@ -40,7 +40,7 @@ templ leaveWorkspaceGuard(workspaceName, role, switchHref string) {
 					}
 				}
 			</div>
-			<div class={ radiusClass(ctx, domain.RadiusControl), "border border-amber-200", toneFillClass(ctx, domain.ToneWarn), toneInkClass(ctx, domain.ToneWarn), textClass(ctx, domain.RoleMeta), "px-3 py-3" }>
+			<div class={ radiusClass(ctx, domain.RadiusControl), "border", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), toneInkClass(ctx, domain.ToneWarn), textClass(ctx, domain.RoleMeta), "px-3 py-3" }>
 				What you have filled in on this page is <b>not saved</b>. Stay and save it first if you want to keep it.
 			</div>
 			<form method="get" action={ templ.SafeURL(switchHref) } class="m-0">

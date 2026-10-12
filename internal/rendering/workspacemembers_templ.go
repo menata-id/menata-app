@@ -1407,7 +1407,7 @@ func removeFromWorkspaceSection(m data.Membership, workspaceName string) templ.C
 			templ_7745c5c3_Var75 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var76 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border border-red-200", paddingClass(ctx, domain.PaddingSection)}
+		var templ_7745c5c3_Var76 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border", toneEdgeClass(ctx, domain.ToneBad), paddingClass(ctx, domain.PaddingSection)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var76...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

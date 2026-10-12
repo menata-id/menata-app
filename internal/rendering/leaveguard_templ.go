@@ -239,7 +239,7 @@ func leaveWorkspaceGuard(workspaceName, role, switchHref string) templ.Component
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var14 = []any{radiusClass(ctx, domain.RadiusControl), "border border-amber-200", toneFillClass(ctx, domain.ToneWarn), toneInkClass(ctx, domain.ToneWarn), textClass(ctx, domain.RoleMeta), "px-3 py-3"}
+			var templ_7745c5c3_Var14 = []any{radiusClass(ctx, domain.RadiusControl), "border", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), toneInkClass(ctx, domain.ToneWarn), textClass(ctx, domain.RoleMeta), "px-3 py-3"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var14...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

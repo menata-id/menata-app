@@ -249,6 +249,27 @@ func toneFillClass(ctx context.Context, tone domain.BadgeTone) string {
 	}
 }
 
+// toneEdgeClass is the tone's edge (owner decision DS-D16, 2026-10-12): the pair becomes a triple of fill, ink and
+// edge, all from the same palette, so a Workspace that remaps `warn` to red no longer keeps an amber rim. No Theme key
+// was added: the edge follows `theme.tone` like the other two. The Design System names two of these
+// (`tone-warn-border`, `danger-border`); GS1 checks both.
+func toneEdgeClass(ctx context.Context, tone domain.BadgeTone) string {
+	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
+	case domain.PaletteGreyFaint:
+		return "border-slate-100"
+	case domain.PaletteBlue:
+		return "border-blue-200"
+	case domain.PaletteGreen:
+		return "border-emerald-200"
+	case domain.PaletteRed:
+		return "border-red-200"
+	case domain.PaletteAmber:
+		return "border-amber-200"
+	default:
+		return "border-slate-200"
+	}
+}
+
 func toneInkClass(ctx context.Context, tone domain.BadgeTone) string {
 	switch CurrentWorkspace(ctx).Theme.ToneFor(tone) {
 	case domain.PaletteGreyFaint:

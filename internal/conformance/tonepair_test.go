@@ -166,3 +166,62 @@ func holdsTonePair(s string) bool {
 	}
 	return false
 }
+
+// handWrittenToneEdges freezes the literal tone edges (`border-<hue>-200`) left after owner decision DS-D16
+// (2026-10-12) made the edge part of the tone palette: `toneEdgeClass(ctx, domain.Tone*)`. Six edges moved
+// byte-identically (the archived banner, the truncation notice, the leave guard's warning, the overdue approval card,
+// two danger zones). Counted in every string literal outside layout.templ.
+var handWrittenToneEdges = map[string]struct {
+	n   int
+	why string
+}{
+	"appshell.templ":         {1, "the error toast is a class string inside a <script>"},
+	"controls.templ":         {1, "the Danger Button recipe: edge, ink and hover fill move together with DS-D11's recipe slice"},
+	"workspacemembers.templ": {1, "the red Deactivate button: a button recipe, with DS-D11"},
+	"notifications.templ":    {1, "an unread row's blue edge beside a /40 tint: an unread highlight, not a tone"},
+}
+
+var toneEdgeToken = regexp.MustCompile(`^border-(?:red|emerald|green|amber|blue)-200$`)
+
+func TestHandWrittenToneEdgesOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range tonePairLiteral.FindAllStringSubmatch(stripTemplComments(string(b)), -1) {
+			for _, tok := range strings.Fields(m[1]) {
+				if toneEdgeToken.MatchString(tok) {
+					actual[e.Name()]++
+				}
+			}
+		}
+	}
+	files := map[string]bool{}
+	for f := range actual {
+		files[f] = true
+	}
+	for f := range handWrittenToneEdges {
+		files[f] = true
+	}
+	if len(actual) == 0 {
+		t.Fatal("no literal tone edge found -- every edge reads the Theme (keep this gate, empty) or the scan stopped matching")
+	}
+	for f := range files {
+		switch got, want := actual[f], handWrittenToneEdges[f].n; {
+		case got > want:
+			t.Errorf("%s: %d literal tone edge(s), frozen at %d -- a tone's edge reads toneEdgeClass(ctx, domain.Tone*), so theme.tone moves it with its fill and ink", f, got, want)
+		case got < want:
+			t.Errorf("%s: %d literal tone edge(s), down from %d -- lower handWrittenToneEdges to lock it in", f, got, want)
+		}
+	}
+}

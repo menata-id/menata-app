@@ -1059,6 +1059,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   had `accentInkClass`. G1 and GS3 asked `inkClass` for the accent and silently measured the grey default:
   "17.84:1" for a link that is really 5.26:1. One reader leaves no road around it. GS3 measures every hue, not only
   the default. Mutation-proved three ways.
+- `TestHandWrittenToneEdgesOnlyShrink` — owner decision DS-D16 (2026-10-12). A tone is a **triple** now:
+  `toneEdgeClass(ctx, domain.Tone*)` gives the edge from the same palette as the fill and ink. No Theme key was added,
+  and a Workspace remapping `warn` to red no longer keeps an amber rim. Six edges moved byte-identically (components
+  and 106 pages): the archived banner, the truncation notice, the leave guard, the overdue approval card, and two
+  danger zones. GS1 now checks `tone-warn-border` and `danger-border`. Floors are the script toast, the Danger and
+  Deactivate button recipes (they move with DS-D11), and an unread highlight. The overdue card's edge is chosen in Go
+  (`approvalCardEdge`), because two KV keys would collide under a grey `bad` (L12). The shape gates read that helper
+  as the surface edge (`stateEdgeHelperCall`), or the card would leave the surface ratchet unmigrated (L13).
+  Mutation-proved three ways.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token

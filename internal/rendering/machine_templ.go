@@ -385,7 +385,7 @@ func truncationNotice(t Truncation) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		if t.Hit && t.Limit > 0 {
-			var templ_7745c5c3_Var5 = []any{"m-0", radiusClass(ctx, domain.RadiusControl), "border border-amber-200", toneFillClass(ctx, domain.ToneWarn), "px-3 py-2 text-2xs", toneInkClass(ctx, domain.ToneWarn)}
+			var templ_7745c5c3_Var5 = []any{"m-0", radiusClass(ctx, domain.RadiusControl), "border", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-3 py-2 text-2xs", toneInkClass(ctx, domain.ToneWarn)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var5...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

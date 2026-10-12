@@ -177,7 +177,7 @@ templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspace
 					}
 				</div>
 			</div>
-			<div id={ wsDangerZoneAnchorID } class={ "flex flex-col gap-0.5", radiusClass(ctx, domain.RadiusSurface), "border border-red-200" }>
+			<div id={ wsDangerZoneAnchorID } class={ "flex flex-col gap-0.5", radiusClass(ctx, domain.RadiusSurface), "border", toneEdgeClass(ctx, domain.ToneBad) }>
 				<h2 class="px-3 pt-2 pb-1 text-3xs font-medium tracking-wide text-red-400 uppercase">{ wsDangerTitle }</h2>
 				@settingsPlaceholderRow("Transfer ownership", "No single Workspace Owner exists yet to transfer.")
 				<form method="POST" action="/workspace-settings/archive" hx-confirm="Archive this workspace? It becomes read-only and hidden from members until an admin restores it.">

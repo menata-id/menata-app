@@ -1458,3 +1458,21 @@ func TestAccentInk_followsTheThemeAtMigratedSites(t *testing.T) {
 		t.Error("a grey role must not take a hue: InkFor must fall back to the default")
 	}
 }
+
+// DS-D16 (R9): a tone's edge follows its palette with its fill and ink. A Workspace mapping `warn` to red gets a red
+// rim on the truncation notice, not an amber one; mapping `bad` to the grey palette keeps the overdue card's edge
+// distinct from the surface edge only in fill and ink, and the edge chosen in Go cannot be dropped.
+func TestToneEdge_followsTheToneAtMigratedSites(t *testing.T) {
+	th := domain.Theme{Tone: map[domain.BadgeTone]domain.TonePalette{domain.ToneWarn: domain.PaletteRed, domain.ToneBad: domain.PaletteGrey}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	var buf strings.Builder
+	if err := truncationNotice(Truncation{Limit: 5, Hit: true}).Render(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "border border-red-200 bg-red-50") || strings.Contains(buf.String(), "amber") {
+		t.Errorf("a warn remapped to red must take the red edge too: %s", buf.String())
+	}
+	if got := approvalCardEdge(ctx, true); got != "border-slate-200" {
+		t.Errorf("an overdue card under a grey bad tone must still carry an edge class, got %q", got)
+	}
+}

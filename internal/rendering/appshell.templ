@@ -136,7 +136,7 @@ templ appShell(title, workspaceName string, viewer Viewer, switchWorkspaceHref s
 			// enforces it. One banner on every authenticated page rather than disabling each
 			// individual form/button across the app -- the server refuses the write regardless.
 			if CurrentWorkspaceArchived(ctx) {
-				<div class={ "border-b border-amber-200", toneFillClass(ctx, domain.ToneWarn), "px-4 py-2 text-center text-xs font-medium", toneInkClass(ctx, domain.ToneWarn) }>This workspace is archived and read-only.</div>
+				<div class={ "border-b", toneEdgeClass(ctx, domain.ToneWarn), toneFillClass(ctx, domain.ToneWarn), "px-4 py-2 text-center text-xs font-medium", toneInkClass(ctx, domain.ToneWarn) }>This workspace is archived and read-only.</div>
 			}
 			// The current Application's own menu (defaultAppMenu below) -- owner spec, ui-sample/
 			// README.md's "Menu Navigasi": level 2 is "untuk desktop ada di atas" (a second row inside

@@ -45,6 +45,8 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 		"ink-strong": inkClass(ctx, domain.InkStrong), "ink-body": inkClass(ctx, domain.InkBody),
 		"ink-secondary": inkClass(ctx, domain.InkSecondary), "ink-faint": inkClass(ctx, domain.InkFaint),
 		// DS-D10 (2026-10-12): the accent is a role now. Its hover is a state of the same key; compared as its colour.
+		// DS-D16 (2026-10-12): the tone edge is part of the tone's palette now.
+		"tone-warn-border": toneEdgeClass(ctx, domain.ToneWarn), "danger-border": toneEdgeClass(ctx, domain.ToneBad),
 		"accent": inkClass(ctx, domain.InkAccent), "accent-hover": strings.TrimPrefix(accentHoverClass(ctx), "hover:"),
 		"bg-raised": backgroundClass(ctx, domain.BackgroundRaised), "bg-base": backgroundClass(ctx, domain.BackgroundBase),
 		"bg-sunken":      backgroundClass(ctx, domain.BackgroundSunken),
@@ -163,9 +165,8 @@ var dsUnmapped = map[string]string{
 	"primary": "buttonClasses' literal bg-slate-900", "primary-hover": "buttonClasses' literal hover",
 	"hover-wash": "hover is state, not a role (theme.go)", "avatar-fill": "avatarClasses' literal",
 	"scrim": "the dialog backdrop, literal", "danger-ink": "danger Button recipe literal; tone-bad-ink aliases it and is checked",
-	"danger-border": "danger Button recipe literal; no border role (D9)", "danger-wash": "tone-bad-bg aliases it and is checked",
-	"tone-warn-border": "the truncation notice's literal border; no border role for tones (D9)",
-	"pad-metric":       "metric's literal p-3", "pad-control-x": "buttonClasses' literal px-4",
+	"danger-wash": "tone-bad-bg aliases it and is checked",
+	"pad-metric":  "metric's literal p-3", "pad-control-x": "buttonClasses' literal px-4",
 	"control-height": "the literal h-9 in buttonClasses/fieldClasses; no height role", "brand-mark-size": "auth shell literal",
 	"radius-brand-mark": "auth shell one-off", "radius-sheet": "the mobile sheet's literal rounded-t-2xl",
 	"shadow-card-auth": "shadow is not a Theme category (D0a)", "shadow-hover": "as above", "shadow-popover": "as above",
