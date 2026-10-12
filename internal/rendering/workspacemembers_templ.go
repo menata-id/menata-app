@@ -1168,7 +1168,7 @@ func EditMemberPage(m data.Membership, name string, workspaceName string, viewer
 					return templ_7745c5c3_Err
 				}
 				if name != "" && name != m.Email {
-					var templ_7745c5c3_Var71 = []any{"truncate", textClass(ctx, domain.RoleItem), "font-medium"}
+					var templ_7745c5c3_Var71 = []any{"truncate", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var71...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1193,7 +1193,7 @@ func EditMemberPage(m data.Membership, name string, workspaceName string, viewer
 					var templ_7745c5c3_Var73 string
 					templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacemembers.templ`, Line: 232, Col: 86}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacemembers.templ`, Line: 232, Col: 112}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 					if templ_7745c5c3_Err != nil {
@@ -1217,7 +1217,7 @@ func EditMemberPage(m data.Membership, name string, workspaceName string, viewer
 						return templ_7745c5c3_Err
 					}
 				} else {
-					var templ_7745c5c3_Var75 = []any{"truncate", textClass(ctx, domain.RoleItem), "font-medium"}
+					var templ_7745c5c3_Var75 = []any{"truncate", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var75...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
@@ -1242,7 +1242,7 @@ func EditMemberPage(m data.Membership, name string, workspaceName string, viewer
 					var templ_7745c5c3_Var77 string
 					templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(m.Email)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacemembers.templ`, Line: 235, Col: 89}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/workspacemembers.templ`, Line: 235, Col: 115}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 					if templ_7745c5c3_Err != nil {

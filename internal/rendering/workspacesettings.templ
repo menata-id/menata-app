@@ -184,7 +184,7 @@ templ WorkspaceSettingsPage(workspaceName string, viewer Viewer, switchWorkspace
 					@csrfHiddenInput()
 					<button type="submit" class={ "flex w-full cursor-pointer items-start", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "p-3 text-left", toneHoverFillClass(ctx, domain.ToneBad) }>
 						<span class={ "flex min-w-0 grow flex-col", layoutGap(ctx, domain.GapHair) }>
-							<span class="text-sm font-medium text-red-700">Archive workspace</span>
+							<span class={ "text-sm font-medium", toneInkClass(ctx, domain.ToneBad) }>Archive workspace</span>
 							<span class="text-xs text-slate-500">Read-only and hidden from members until restored.</span>
 						</span>
 					</button>

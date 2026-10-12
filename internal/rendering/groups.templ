@@ -49,7 +49,7 @@ templ GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleA
 			for _, g := range groups {
 				<a href={ templ.SafeURL("/workspace-groups/" + g.ID) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), "text-slate-900 hover:border-blue-300" }>
 					<div class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault) }>
-						<span class={ textClass(ctx, domain.RoleItem), "font-medium" }>{ g.Name }</span>
+						<span class={ textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ g.Name }</span>
 						<span class="text-2xs text-slate-400">{ fmt.Sprintf("%d member", g.MemberCount) }{ pluralS(g.MemberCount) }</span>
 					</div>
 					@rowLayout(domain.GapTight, domain.RowAlignStretch, domain.RowJustifyStart) {

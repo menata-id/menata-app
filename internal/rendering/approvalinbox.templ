@@ -448,7 +448,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 				</span>
 			}
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-				<h2 class={ "m-0", textClass(ctx, domain.RoleItem), "font-medium" }>{ c.Title }</h2>
+				<h2 class={ "m-0", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ c.Title }</h2>
 				<p class="m-0 text-2xs text-slate-400">{ c.Reference } · { c.DocumentType }</p>
 			</div>
 			// A Draft's own line (Flow 2 mockup: "Not submitted / Last edited {date}") takes

@@ -54,7 +54,7 @@ type themeDebt struct {
 var handWrittenThemeTokens = map[string]themeDebt{
 	"account.templ":            {size: 13, ink: 13, weight: 7, fill: 5},
 	"appmembers.templ":         {size: 8, ink: 4, weight: 0, fill: 0},
-	"approvalinbox.templ":      {size: 22, ink: 18, weight: 5, fill: 2},
+	"approvalinbox.templ":      {size: 22, ink: 18, weight: 4, fill: 2},
 	"approvalstepper.templ":    {size: 9, ink: 7, weight: 6, fill: 0},
 	"appshell.templ":           {size: 49, ink: 51, weight: 22, fill: 0},
 	"attachments.templ":        {size: 4, ink: 2, weight: 1, fill: 0},
@@ -68,9 +68,9 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"detail.templ":             {size: 22, ink: 14, weight: 7, fill: 0},
 	"documentsubmit.templ":     {size: 12, ink: 8, weight: 5, fill: 0},
 	"forgotpassword.templ":     {size: 1, ink: 2, weight: 0, fill: 0},
-	"groups.templ":             {size: 14, ink: 9, weight: 2, fill: 1},
+	"groups.templ":             {size: 14, ink: 9, weight: 1, fill: 1},
 	"inference.templ":          {size: 8, ink: 16, weight: 0, fill: 0},
-	"installapplication.templ": {size: 10, ink: 8, weight: 3, fill: 0},
+	"installapplication.templ": {size: 10, ink: 8, weight: 2, fill: 0},
 	"layout.templ":             {size: 4, ink: 0, weight: 0, fill: 0},
 	"login.templ":              {size: 3, ink: 2, weight: 2, fill: 2},
 	"machine.templ":            {size: 23, ink: 19, weight: 8, fill: 1},
@@ -82,8 +82,8 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"signatureplacement.templ": {size: 14, ink: 8, weight: 3, fill: 0},
 	"table.templ":              {size: 1, ink: 0, weight: 0, fill: 0},
 	"workspacefiles.templ":     {size: 8, ink: 3, weight: 0, fill: 0},
-	"workspacehome.templ":      {size: 21, ink: 22, weight: 8, fill: 5},
-	"workspacemembers.templ":   {size: 29, ink: 18, weight: 6, fill: 3},
+	"workspacehome.templ":      {size: 21, ink: 22, weight: 4, fill: 5},
+	"workspacemembers.templ":   {size: 29, ink: 18, weight: 4, fill: 3},
 	"workspacesettings.templ":  {size: 7, ink: 4, weight: 3, fill: 0},
 }
 
@@ -196,14 +196,12 @@ func TestHandWrittenThemeTokensOnlyShrink(t *testing.T) {
 
 // handWrittenOffLadderSizes freezes, per file, the `text-[Npx]` sizes (2026-10-12, rencana 0.1). They sat in the
 // `size` bucket until then, which told a reader to "read the Theme instead" when **no Theme role names them**: the
-// ladder goes 14 (`body`) to 16 (`subheading`), so 15px is a question, not debt. Whether a 15px role should exist
-// is owner decision **DS-D13**, still open; the mockups use 15px 223 times across 58 artboards, and Application
-// Settings' move from 15 to 14 was a decision of its own (development-history 2026-10-11).
+// ladder went 14 (`body`) to 16 (`subheading`). Owner decision **DS-D13** (2026-10-12) added `item` (15px) for one
+// item's title, and the ten authenticated titles moved to it.
 //
-// The reason per entry separates the two populations the decision would treat differently: a **pre-auth** screen
-// renders with no Workspace on ctx, so even a 15px role could not reach it (it would need the pre-auth `auth-*` sizes
-// mapped first), while an **authenticated** site would move the day DS-D13 adds the role. Shrink-only both ways, on
-// the terms of handWrittenThemeTokens.
+// What stays has a different meaning: a **pre-auth** screen renders with no Workspace on ctx, so no role could reach
+// it (it would need the pre-auth `auth-*` sizes mapped first), and an authenticated 15px left here is a control's
+// mobile touch size, not an item title. Shrink-only both ways, on the terms of handWrittenThemeTokens.
 var handWrittenOffLadderSizes = map[string]struct {
 	n   int
 	why string

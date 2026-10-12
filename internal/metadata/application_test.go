@@ -1643,12 +1643,21 @@ func TestResolveTheme_ink(t *testing.T) {
 
 // TestResolveTheme_background holds the `theme.background` block's two closed sets, failing closed like the others.
 func TestResolveTheme_background(t *testing.T) {
-	th, issues := resolveTheme(&themeDoc{Background: map[string]string{"raised": "lighter", "sunken": "lightest"}})
+	th, issues := resolveTheme(&themeDoc{Background: map[string]string{"base": "light", "raised": "lighter", "sunken": "lightest"}})
 	if len(issues) != 0 {
 		t.Fatalf("a valid background block reported issues: %v", issues)
 	}
 	if th.Background[domain.BackgroundRaised] != domain.BackgroundShadeLighter || th.Background[domain.BackgroundSunken] != domain.BackgroundShadeLightest {
 		t.Errorf("declared entries not resolved: %v", th.Background)
+	}
+
+	// base is the page and the hover wash (DS-D11): equal to the surface or the selected-row fill, a hover draws
+	// nothing or looks selected. Each is refused, including when only the other role moved onto base's default.
+	for _, doc := range []map[string]string{{"base": "lightest"}, {"raised": "lighter"}, {"base": "light", "sunken": "light"}} {
+		_, issues = resolveTheme(&themeDoc{Background: doc})
+		if len(issues) != 1 || !strings.Contains(issues[0], "must differ") {
+			t.Errorf("%v: base equal to another role should be one load issue; got %v", doc, issues)
+		}
 	}
 
 	_, issues = resolveTheme(&themeDoc{Background: map[string]string{"floating": "light"}})

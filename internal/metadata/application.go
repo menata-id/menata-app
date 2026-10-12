@@ -193,6 +193,15 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 			}
 			t.Background[r] = s
 		}
+		// The page behind every surface (base) must differ from the surface (raised) and from the selected-row fill
+		// (sunken): base is also the hover wash (DS-D11), so base == raised draws no hover and no edge between page and
+		// panel, and base == sunken makes a hovered row look selected (2026-10-12 review of DS-D11).
+		th := domain.Theme{Background: t.Background}
+		for _, other := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundSunken} {
+			if th.BackgroundFor(domain.BackgroundBase) == th.BackgroundFor(other) {
+				issues = append(issues, fmt.Sprintf("theme.background: base and %s are both %q -- base is the page behind surfaces and the hover wash, so it must differ from %s", other, th.BackgroundFor(other), other))
+			}
+		}
 	}
 	if len(doc.Padding) > 0 {
 		t.Padding = map[domain.PaddingRole]domain.PaddingAmount{}

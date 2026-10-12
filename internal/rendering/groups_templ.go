@@ -365,7 +365,7 @@ func GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleAp
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						var templ_7745c5c3_Var26 = []any{textClass(ctx, domain.RoleItem), "font-medium"}
+						var templ_7745c5c3_Var26 = []any{textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis)}
 						templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var26...)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
@@ -390,7 +390,7 @@ func GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleAp
 						var templ_7745c5c3_Var28 string
 						templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(g.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/groups.templ`, Line: 52, Col: 77}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/rendering/groups.templ`, Line: 52, Col: 103}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 						if templ_7745c5c3_Err != nil {

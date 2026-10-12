@@ -80,7 +80,7 @@ templ installableCard(t InstallableTemplate) {
 				}
 			</span>
 			<div class={ "flex flex-col", layoutGap(ctx, domain.GapMicro) }>
-				<h2 class={ "m-0", textClass(ctx, domain.RoleItem), "font-medium" }>{ t.Name }</h2>
+				<h2 class={ "m-0", textClass(ctx, domain.RoleItem), weightClass(ctx, domain.WeightEmphasis) }>{ t.Name }</h2>
 				if t.Description != "" {
 					<span class="text-xs leading-5 text-slate-500">{ t.Description }</span>
 				}
