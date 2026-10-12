@@ -2,146 +2,239 @@ package conformance
 
 import (
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"testing"
+
+	"menata.app/internal/domain"
 )
 
-// themeCategoryImplRatchets is G1 of rencana 0.4 (2026-10-12): for every Theme category, the gate that holds the
-// literals which already have a reader (the `impl` bucket), and the maps it freezes them in.
+// TestEveryThemeCategoryHasAnImplRatchet is G1 of rencana 0.4 (2026-10-12): **every Theme role's default class is
+// counted by a gate, or is listed in themeRolesWithoutImplRatchet with the reason it is not.**
 //
-// **Why this shape, and not the planned `dsImplDebt` map.** The plan (written 2026-10-11) asked for one new map
-// per file per category. By the time it was built, 0.2 had already put a ratchet beside each category it migrated, and
-// `themedebt` held four more. A second map would count the same literals twice, which is 001 #8 at the test level.
-// So G1 is a **coverage** gate over the ratchets that exist:
-//   - every `domain.Theme` field (read from source) must name at least one gate here;
-//   - every named gate must exist in this package;
-//   - a new Theme category without an impl ratchet fails.
+// **Why per role, by probe.** The first version mapped each `domain.Theme` category to a gate *name* and checked only
+// that the name existed. The independent review satisfied it with `"Padding": {"TestAppManifestLoads"}`, and found
+// three categories whose role defaults nothing counted (background base/sunken, badge paddings, neutral/muted tone).
+// The hard-coded "Padding: 0" line hid it. So the gate now does three things:
+//   - it takes every role of every category from the `domain.Known*` sets;
+//   - it derives the role's default class **from the code**: the step from `domain.DefaultTheme()`, then the class
+//     from the reader's own `case … return` arms in layout.templ;
+//   - it feeds `<div class="…">` holding that class to the **same counting logic** the category's gate uses, and
+//     requires a count.
 //
-// Run with `-v` for the per-category floor totals.
+// Why a planned per-file `dsImplDebt` map was not built: 0.2 had already put a ratchet beside each category, so a
+// second map would count the same literals twice (001 #8).
 //
-// Measuring coverage found two categories with no impl ratchet. Each was migrated, then gated:
-//   - padding: 14 hand-written `p-5` on surfaces now read `paddingClass`;
-//   - border.surface: six loose `border-slate-200` and two state-swapped card edges now read `borderClass`.
-var themeCategoryImplRatchets = map[string][]string{
-	"Radius":     {"TestHandWrittenRadiiOnlyShrink"},
-	"Weight":     {"TestHandWrittenThemeTokensOnlyShrink"},
-	"Text":       {"TestHandWrittenThemeTokensOnlyShrink", "TestNoHandWrittenSubheading", "TestNoHandWrittenHeadingOrEyebrow"},
-	"Gap":        {"TestHandWrittenLadderGapsOnlyShrink", "TestHandWrittenHalfStepGapsOnlyShrink", "TestHandWrittenRegionGapsOnlyShrink"},
-	"Border":     {"TestHandWrittenControlBordersOnlyShrink", "TestHandWrittenSurfaceEdgesOnlyShrink", "TestHandWrittenDividersOnlyShrink", "TestNoHandWrittenRegionRule"},
-	"Tone":       {"TestHandWrittenTonePairsOnlyShrink"},
-	"Ink":        {"TestHandWrittenThemeTokensOnlyShrink"},
-	"Background": {"TestHandWrittenThemeTokensOnlyShrink"},
-	"Padding":    {"TestNoHandWrittenPanelPadding"},
-}
-
+// Blind spot: the probe proves the gate's pattern matches the default class. It cannot prove that the gate is wired to
+// read every file; each gate's own sanity check does that.
 func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, filepath.Join(repoRoot(), "internal", "domain", "theme.go"), nil, 0)
+	consts := domainStringConsts(t)
+	layout, err := os.ReadFile(filepath.Join(repoRoot(), "internal", "rendering", "layout.templ"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var fields []string
-	ast.Inspect(f, func(n ast.Node) bool {
-		ts, ok := n.(*ast.TypeSpec)
-		if !ok || ts.Name.Name != "Theme" {
-			return true
-		}
-		for _, fl := range ts.Type.(*ast.StructType).Fields.List {
-			if _, isMap := fl.Type.(*ast.MapType); isMap {
-				for _, nm := range fl.Names {
-					fields = append(fields, nm.Name)
+	arms := func(fn string) map[string]string { return readerArms(t, string(layout), fn, consts) }
+	th := domain.DefaultTheme()
+	probe := func(class string) string { return `<div class="` + class + `"></div>` }
+	literal := func(tok string) func(string) bool {
+		return func(class string) bool { return strings.Contains(" "+class+" ", " "+tok+" ") }
+	}
+	type role struct{ category, name, class string }
+	var roles []role
+	add := func(cat, name, class string) { roles = append(roles, role{cat, name, class}) }
+	for r := range domain.KnownRadiusRoles {
+		add("Radius", string(r), armFor(arms("radiusClass"), string(th.RadiusFor(r))))
+	}
+	for r := range domain.KnownWeightRoles {
+		add("Weight", string(r), armFor(arms("weightClass"), string(th.WeightFor(r))))
+	}
+	for r := range domain.KnownTextRoles {
+		add("Text", string(r), armFor(arms("textClass"), string(th.TextFor(r))))
+	}
+	for g := range domain.KnownGaps {
+		add("Gap", string(g), armFor(arms("layoutGap"), string(th.GapFor(g))))
+	}
+	for r := range domain.KnownBorderRoles {
+		add("Border", string(r), armFor(arms("borderClass"), string(th.BorderFor(r))))
+	}
+	for r := range domain.KnownInkRoles {
+		add("Ink", string(r), armFor(arms("inkClass"), string(th.InkFor(r))))
+	}
+	for r := range domain.KnownBackgroundRoles {
+		add("Background", string(r), armFor(arms("backgroundClass"), string(th.BackgroundFor(r))))
+	}
+	for tone := range domain.KnownBadgeTones {
+		p := string(th.ToneFor(tone))
+		add("Tone", string(tone), armFor(arms("toneFillClass"), p)+" "+armFor(arms("toneInkClass"), p))
+	}
+	for r := range domain.KnownPaddingRoles {
+		add("Padding", string(r), arms("paddingClass")[string(r.Axis())+"/"+string(th.PaddingFor(r))])
+	}
+	counted := map[string]func(class string) bool{
+		"Radius": func(c string) bool {
+			for _, tok := range strings.Fields(c) {
+				if radiusToken.MatchString(tok) {
+					return true
 				}
 			}
-		}
-		return false
-	})
-	if len(fields) == 0 {
-		t.Fatal("no map field found on domain.Theme -- the scan is reading the wrong text")
+			return false
+		},
+		"Weight": func(c string) bool {
+			return countThemeTokens(probe(c)).weight > 0 || dividerToken.MatchString(probe(c))
+		},
+		"Text":       func(c string) bool { return countThemeTokens(probe(c)).size > 0 },
+		"Ink":        func(c string) bool { return countThemeTokens(probe(c)).ink > 0 },
+		"Background": func(c string) bool { return countThemeTokens(probe(c)).fill > 0 },
+		"Gap": func(c string) bool {
+			return ladderGapToken.MatchString(c) || halfStepGapToken.MatchString(probe(c)) || regionGapToken.MatchString(probe(c))
+		},
+		"Border": func(c string) bool {
+			return literal(controlBorderToken)(c) || literal(surfaceEdgeToken)(c) || dividerToken.MatchString(probe(c))
+		},
+		"Tone":    func(c string) bool { n, _ := countTonePairs(probe(c)); return n > 0 },
+		"Padding": literal(panelPaddingToken),
 	}
-	tests := map[string]bool{}
-	entries, _ := os.ReadDir(".")
-	testFunc := regexp.MustCompile(`(?m)^func (Test\w+)\(t \*testing\.T\)`)
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), "_test.go") {
-			b, _ := os.ReadFile(e.Name())
-			for _, m := range testFunc.FindAllStringSubmatch(string(b), -1) {
-				tests[m[1]] = true
-			}
-		}
-	}
-	for _, fld := range fields {
-		gates, ok := themeCategoryImplRatchets[fld]
-		if !ok || len(gates) == 0 {
-			t.Errorf("Theme category %q has no impl ratchet -- a literal equal to its default can be written by hand and nothing counts it; "+
-				"migrate the sites that have a reader, gate the rest, and name the gate in themeCategoryImplRatchets", fld)
+	exemptSeen := map[string]bool{}
+	var lines []string
+	for _, r := range roles {
+		key := r.category + "/" + r.name
+		if r.class == "" || strings.TrimSpace(r.class) == "" {
+			t.Errorf("%s: no default class derived from the reader's arms -- the parse is reading the wrong text", key)
 			continue
 		}
-		for _, g := range gates {
-			if !tests[g] {
-				t.Errorf("themeCategoryImplRatchets[%q] names %s, which is not a test in internal/conformance", fld, g)
+		count, ok := counted[r.category]
+		if !ok {
+			t.Errorf("Theme category %q has no counting logic in G1 -- name the gate that counts its defaults", r.category)
+			continue
+		}
+		why, exempt := themeRolesWithoutImplRatchet[key]
+		switch hit := count(r.class); {
+		case hit && exempt:
+			t.Errorf("%s (%q) is counted by its gate but listed in themeRolesWithoutImplRatchet -- drop the stale entry", key, r.class)
+		case !hit && !exempt:
+			t.Errorf("%s: its default %q is counted by no gate -- a hand-written copy would never be seen; gate it, or list it in "+
+				"themeRolesWithoutImplRatchet with the reason it cannot be", key, r.class)
+		case exempt:
+			exemptSeen[key] = true
+			lines = append(lines, fmt.Sprintf("%-28s %-28s not counted: %s", key, r.class, why))
+		default:
+			lines = append(lines, fmt.Sprintf("%-28s %-28s counted", key, r.class))
+		}
+	}
+	for k := range themeRolesWithoutImplRatchet {
+		if !exemptSeen[k] {
+			found := false
+			for _, r := range roles {
+				found = found || r.category+"/"+r.name == k
+			}
+			if !found {
+				t.Errorf("themeRolesWithoutImplRatchet names %q, which is not a Theme role -- a stale entry", k)
 			}
 		}
 	}
-	for c := range themeCategoryImplRatchets {
-		found := false
-		for _, fld := range fields {
-			found = found || fld == c
+	if len(roles) < 30 {
+		t.Fatalf("only %d Theme roles enumerated -- the Known* sets are not being read", len(roles))
+	}
+	sort.Strings(lines)
+	t.Logf("G1, one line per Theme role:\n  %s", strings.Join(lines, "\n  "))
+}
+
+// themeRolesWithoutImplRatchet is the closed list of Theme roles whose default class no gate counts, with the reason.
+// It fails both ways: an entry whose default is now counted is stale.
+var themeRolesWithoutImplRatchet = map[string]string{
+	"Background/base":         "bg-slate-50 wells: whether a well is `base` or `sunken` is an open owner decision (DSD D3, DH 2026-10-11), so its hand-written lines (about 17 on 2026-10-12) are not debt yet",
+	"Background/sunken":       "bg-slate-100 wells and hovers: same open decision as base",
+	"Tone/neutral":            "bg-slate-100 text-slate-600 is also a well with body text and an app icon's grey; a pair count would be mostly false findings (tone-pair gate counts colour hues only)",
+	"Tone/muted":              "bg-slate-50 text-slate-400: same collision as neutral",
+	"Padding/badge-x":         "px-2.5 is generic spacing; a hand-written badge is held by the chip ratchet and StatusBadge, not by its padding token",
+	"Padding/badge-y":         "py-1 is generic spacing; see badge-x",
+	"Padding/badge-compact-x": "px-2 is generic spacing; see badge-x",
+	"Padding/badge-compact-y": "py-0.5 is generic spacing; see badge-x",
+}
+
+// domainStringConsts maps every string-typed constant in internal/domain to its value.
+func domainStringConsts(t *testing.T) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	re := regexp.MustCompile(`(?m)^\s*(\w+)\s+\w+\s*=\s*"([^"]*)"`)
+	files, _ := filepath.Glob(filepath.Join(repoRoot(), "internal", "domain", "*.go"))
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
 		}
-		if !found {
-			t.Errorf("themeCategoryImplRatchets names %q, which is not a field of domain.Theme -- a stale entry", c)
+		b, _ := os.ReadFile(f)
+		for _, m := range re.FindAllStringSubmatch(string(b), -1) {
+			out[m[1]] = m[2]
 		}
 	}
-	if testing.Verbose() {
-		var td themeDebt
-		for _, d := range handWrittenThemeTokens {
-			td.size, td.ink, td.weight, td.fill = td.size+d.size, td.ink+d.ink, td.weight+d.weight, td.fill+d.fill
-		}
-		sum := func(m map[string]int) (n int) {
-			for _, v := range m {
-				n += v
+	return out
+}
+
+// readerDefaultArm keys a reader's `default:` arm, which answers every value no `case` names (tone `neutral`'s palette).
+const readerDefaultArm = "<default>"
+
+// armFor is the class a reader answers for a value: its own arm, or the default arm.
+func armFor(arms map[string]string, v string) string {
+	if c, ok := arms[v]; ok {
+		return c
+	}
+	return arms[readerDefaultArm]
+}
+
+// readerArms maps a reader's `case domain.X:` labels (by the constant's value) to the class its arm returns. A
+// two-level switch (paddingClass: axis, then amount) keys the inner arms as "<axis>/<amount>", and an outer `default:`
+// stands for the axis the switch did not name ("all").
+func readerArms(t *testing.T, src, fn string, consts map[string]string) map[string]string {
+	t.Helper()
+	body := regexp.MustCompile(`(?s)\nfunc ` + fn + `\(.*?\n\}`).FindString(src)
+	if body == "" {
+		t.Fatalf("reader %s not found in layout.templ", fn)
+	}
+	out := map[string]string{}
+	label := regexp.MustCompile(`^(\t+)case (.*):$`)
+	ret := regexp.MustCompile(`^\t+return "([^"]*)"$`)
+	ident := regexp.MustCompile(`domain\.(\w+)`)
+	var outer string
+	var pending []string
+	for _, line := range strings.Split(body, "\n") {
+		if m := label.FindStringSubmatch(line); m != nil {
+			var vals []string
+			for _, id := range ident.FindAllStringSubmatch(m[2], -1) {
+				vals = append(vals, consts[id[1]])
 			}
-			return
+			if len(m[1]) == 1 && fn == "paddingClass" {
+				outer, pending = vals[0], nil
+				continue
+			}
+			pending = vals
+			continue
 		}
-		radii, ladder, tones, controls, edges, off := 0, 0, 0, 0, 0, 0
-		for _, v := range handWrittenRadii {
-			radii += v.n
+		if strings.TrimSpace(line) == "default:" {
+			if fn == "paddingClass" && !strings.HasPrefix(line, "\t\t") {
+				outer, pending = consts["PaddingAxisAll"], nil
+			} else {
+				pending = []string{readerDefaultArm}
+			}
+			continue
 		}
-		for _, v := range handWrittenLadderGaps {
-			ladder += v.n
+		if m := ret.FindStringSubmatch(line); m != nil && pending != nil {
+			for _, v := range pending {
+				if fn == "paddingClass" {
+					out[outer+"/"+v] = m[1]
+				} else {
+					out[v] = m[1]
+				}
+			}
+			pending = nil
 		}
-		for _, v := range handWrittenTonePairs {
-			tones += v.n
-		}
-		for _, v := range handWrittenControlBorders {
-			controls += v.n
-		}
-		for _, v := range handWrittenSurfaceEdges {
-			edges += v.n
-		}
-		for _, v := range handWrittenOffLadderSizes {
-			off += v.n
-		}
-		lines := []string{
-			fmt.Sprintf("Radius: %d corners", radii),
-			fmt.Sprintf("Weight: %d", td.weight),
-			fmt.Sprintf("Text: %d sizes, plus %d off-ladder (DS-D13)", td.size, off),
-			fmt.Sprintf("Gap: %d ladder, %d half-step, %d region", ladder, sum(handWrittenHalfStepGaps), sum(handWrittenRegionGaps)),
-			fmt.Sprintf("Border: %d control, %d surface edge, %d divider", controls, edges, sum(handWrittenDividerFloors)),
-			fmt.Sprintf("Tone: %d pairs", tones),
-			fmt.Sprintf("Ink: %d", td.ink),
-			fmt.Sprintf("Background: %d white fills", td.fill),
-			"Padding: 0 (zero-floor gate)",
-		}
-		sort.Strings(lines)
-		t.Logf("impl floors per Theme category (each with its reasons in its own map):\n  %s", strings.Join(lines, "\n  "))
 	}
+	if len(out) == 0 {
+		t.Fatalf("no arms parsed from %s", fn)
+	}
+	return out
 }
 
 // handWrittenSurfaceEdges freezes the literal `border-slate-200` left in `internal/rendering` (2026-10-12, rencana
@@ -157,7 +250,7 @@ var handWrittenSurfaceEdges = map[string]struct {
 }
 
 func TestHandWrittenSurfaceEdgesOnlyShrink(t *testing.T) {
-	counts := countLiteralTokens(t, "border-slate-200")
+	counts := countLiteralTokens(t, surfaceEdgeToken)
 	checkFloors(t, counts, func(f string) int { return handWrittenSurfaceEdges[f].n }, keysOf(handWrittenSurfaceEdges),
 		"literal border-slate-200", "a surface's edge reads borderClass(ctx, domain.BorderSurface), so theme.border.surface moves it; an edge that is not a surface's goes in handWrittenSurfaceEdges with what it is")
 }
@@ -165,11 +258,21 @@ func TestHandWrittenSurfaceEdgesOnlyShrink(t *testing.T) {
 // TestNoHandWrittenPanelPadding is a zero-floor gate (2026-10-12, rencana 0.4). `p-5` is the default of
 // `padding.panel` and `padding.section`. Every hand-written one sat on a surface, and all 14 moved byte-identically:
 // a `<section>` reads `PaddingSection` (the `sectionLayout` role), and any other card reads `PaddingPanel`.
+// Blind spots: `p-5` returned by a Go function, a variant (`sm:p-5`), and `px-5 py-5` (equal to `p-5`; none in the
+// tree is an exact pair today). Zero-floor with no floor map, so a `p-5` that is not a panel or section (a toast, a
+// pre-auth card) must first argue for a floor map here rather than borrow a role.
 func TestNoHandWrittenPanelPadding(t *testing.T) {
-	counts := countLiteralTokens(t, "p-5")
+	counts := countLiteralTokens(t, panelPaddingToken)
 	checkFloors(t, counts, func(string) int { return 0 }, nil,
 		"literal p-5", "a panel or section's padding reads paddingClass(ctx, domain.PaddingPanel|PaddingSection)")
 }
+
+// The tokens the value gates count, shared with G1 so its probe tests what the gates count, not a copy of it.
+const (
+	panelPaddingToken  = "p-5"
+	surfaceEdgeToken   = "border-slate-200"
+	controlBorderToken = "border-slate-300"
+)
 
 // countLiteralTokens counts one unprefixed token in the string literals of every class attribute outside layout.templ.
 func countLiteralTokens(t *testing.T, tok string) map[string]int {
@@ -183,7 +286,9 @@ func countLiteralTokens(t *testing.T, tok string) map[string]int {
 	out := map[string]int{}
 	scanned := 0
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+		// layout.templ is read too: its readers are `return "..."` statements, which this never reads, and skipping the
+		// file only let a new primitive written with literals through (2026-10-12 review).
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
 			continue
 		}
 		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
@@ -235,4 +340,39 @@ func keysOf[V any](m map[string]V) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// TestPanelAndSectionPaddingMatchTheirElement holds the rule rencana 0.4 migrated by: a hand-written `<section>` reads
+// `PaddingSection` (the `sectionLayout` role) and any other element reads `PaddingPanel`. The two roles share the default
+// `five`, so a byte-diff cannot tell them apart, and the 2026-10-12 review swapped five of them unseen. layout.templ is
+// skipped: its primitives choose their own role.
+func TestPanelAndSectionPaddingMatchTheirElement(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read rendering: %v", err)
+	}
+	site := regexp.MustCompile(`<(\w+)\b[^<>]*?class=\{[^}]*paddingClass\(ctx, domain\.Padding(Panel|Section)\)`)
+	seen := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		src := stripTemplComments(string(b))
+		for _, m := range site.FindAllStringSubmatchIndex(src, -1) {
+			seen++
+			tag, role := src[m[2]:m[3]], src[m[4]:m[5]]
+			line := strings.Count(src[:m[0]], "\n") + 1
+			if (tag == "section") != (role == "Section") {
+				t.Errorf("%s:%d: a <%s> reads Padding%s -- a <section> reads PaddingSection and any other element PaddingPanel", e.Name(), line, tag, role)
+			}
+		}
+	}
+	if seen < 14 {
+		t.Fatalf("found %d panel/section padding readers, want at least the 14 rencana 0.4 migrated -- the scan is reading the wrong text", seen)
+	}
 }

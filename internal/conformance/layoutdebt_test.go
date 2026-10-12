@@ -274,7 +274,6 @@ func TestHandWrittenHalfStepGapsOnlyShrink(t *testing.T) {
 		t.Fatal(err)
 	}
 	comment := regexp.MustCompile(`//[^\n]*`)
-	tok := regexp.MustCompile(`(?:^|[\s"{])gap-1\.5(?:$|[\s"}])`)
 	got := map[string]int{}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
@@ -284,7 +283,7 @@ func TestHandWrittenHalfStepGapsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if n := len(tok.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
+		if n := len(halfStepGapToken.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
 			got[e.Name()] = n
 		}
 	}
@@ -321,7 +320,6 @@ func TestHandWrittenRegionGapsOnlyShrink(t *testing.T) {
 		t.Fatal(err)
 	}
 	comment := regexp.MustCompile(`//[^\n]*`)
-	tok := regexp.MustCompile(`(?:^|[\s"{])gap-6(?:$|[\s"}])`)
 	got := map[string]int{}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
@@ -331,7 +329,7 @@ func TestHandWrittenRegionGapsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if n := len(tok.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
+		if n := len(regionGapToken.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
 			got[e.Name()] = n
 		}
 	}
@@ -388,3 +386,10 @@ func TestHandWrittenCompactHeightsOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// halfStepGapToken and regionGapToken are the two gap-value gates' patterns, at package level so G1
+// (TestEveryThemeCategoryHasAnImplRatchet) probes the same pattern the gate counts with.
+var (
+	halfStepGapToken = regexp.MustCompile(`(?:^|[\s"{])gap-1\.5(?:$|[\s"}])`)
+	regionGapToken   = regexp.MustCompile(`(?:^|[\s"{])gap-6(?:$|[\s"}])`)
+)

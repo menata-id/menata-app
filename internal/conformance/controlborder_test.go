@@ -58,7 +58,7 @@ func TestHandWrittenControlBordersOnlyShrink(t *testing.T) {
 		}
 		for _, m := range classAttr.FindAllStringSubmatch(joinClassExpressions(src), -1) {
 			for _, tok := range strings.Fields(m[1]) {
-				if tok == "border-slate-300" {
+				if tok == controlBorderToken {
 					actual[e.Name()]++
 				}
 			}

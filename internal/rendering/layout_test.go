@@ -1400,3 +1400,34 @@ func TestPanelPaddingAndSurfaceEdges_followTheThemeAtMigratedSites(t *testing.T)
 		t.Error("the home page's hand-written <section> must take section padding (p-4 here), not panel padding")
 	}
 }
+
+// Rencana 0.4, after the independent review: every surface edge that moved to borderClass(BorderSurface) is pinned
+// under the **default** theme, at its own element. `surface`, `control` and `divider` have different defaults
+// (slate-200/300/100), so reading the wrong role at any one site changes these bytes. The moved-theme test above
+// covers only two sites, and the review showed 6 of 8 edge swaps surviving it.
+func TestSurfaceEdges_eachMigratedSiteReadsTheSurfaceRole(t *testing.T) {
+	m, v := boardMachine()
+	records, cards, columns := boardFixture()
+	sla := experience.SLABadge{Label: "Due today", Tone: domain.ToneWarn, Urgent: true, Present: true}
+	for name, tc := range map[string]struct {
+		c    templ.Component
+		want string
+	}{
+		"approval card (rest)": {pendingApprovalCard(PendingApprovalCard{ID: "d", Title: "T", SLA: sla}), `class="flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-300 border-slate-200"`},
+		"notification row":     {notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}), `class="flex items-center gap-3 rounded-lg border bg-white p-3.5 hover:border-blue-300 border-slate-200"`},
+		"signature dialog":     {signatureModal("s1"), `class="sig-modal max-w-110 rounded-lg border border-slate-200 p-5 shadow-lg backdrop:bg-slate-900/40"`},
+		"signature frame":      {reviewSignaturePanel(ReviewView{SignaturePage: 1, SignaturePreviewHref: "/p", SignatureStepCount: 1}), `class="relative overflow-hidden rounded-md border border-slate-200 bg-slate-50"`},
+		"board lane":           {boardLayout(m, v, records, columns, cards, domain.Actor{}), `flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200 bg-slate-100 p-2`},
+		"pdf thumbnail":        {pdfThumbnail("mch_document", "rec_1"), `class="block max-w-40 rounded border border-slate-200"`},
+		"placement page frame": {placementCanvas(PlacementView{DocumentID: "d", Page: 1, TotalPages: 1}), `class="block w-full rounded-md border border-slate-200"`},
+		"home suggestion chip": {WorkspaceHomePage("WS", Viewer{}, "/s", nil, []domain.ApplicationSuggestion{{Label: "L", Prompt: "p"}}), `class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"`},
+	} {
+		var buf strings.Builder
+		if err := tc.c.Render(context.Background(), &buf); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !strings.Contains(buf.String(), tc.want) {
+			t.Errorf("%s: the surface edge is not border.surface's default here; want %s", name, tc.want)
+		}
+	}
+}

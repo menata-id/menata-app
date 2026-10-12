@@ -95,8 +95,9 @@ func toneReadersAsLiterals(src string) string {
 
 var toneReaderCall = regexp.MustCompile(`\b(toneFillClass|toneInkClass|toneClass)\(ctx, ([\w.]+)\)`)
 
-// stripTemplComments removes `//` line comments and HTML comments, but not a `//` that is part of a URL scheme
-// (`https://`), which a plain `//[^\n]*` cut short together with the class after it on the same line.
+// stripTemplComments removes `//` line comments and HTML comments, but not a `//` that is part of a URL: after a scheme
+// (`https://`) or opening a scheme-relative one (`"//host"`). A plain `//[^\n]*` cut either short together with the
+// class after it on the same line.
 func stripTemplComments(src string) string {
 	src = htmlComment.ReplaceAllString(src, "")
 	return lineComment.ReplaceAllString(src, "$1")
@@ -104,7 +105,7 @@ func stripTemplComments(src string) string {
 
 var (
 	htmlComment = regexp.MustCompile(`(?s)<!--.*?-->`)
-	lineComment = regexp.MustCompile(`(^|[^:])//[^\n]*`)
+	lineComment = regexp.MustCompile(`(^|[^:"'=(])//[^\n]*`)
 )
 
 // isToneBox reports whether one class set is a cornered box with a tone hue's tint and the same hue's ink.
