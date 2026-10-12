@@ -401,11 +401,17 @@ Rules that follow from it:
 - **An artboard should reference tokens (`var(--accent)`), not copy their values.** Only U04's process map does
   so today. Migrating others is a pure substitution, provable by resolving every `var()` back to the original
   literal.
-- **The artifact and the code are not fully in sync.** Decisions and the component list were re-synced to code
-  `a0e8616` on 2026-10-11. The artifact still holds accepted tokens the code lacks: `gap-region`, `gap-xtight`,
-  `control-height-compact`, `mark-good`, `auth-subtitle` 15px. Neither side owns `gap-1`/`gap-0.5`. The diff table
-  is in `menata-app-document`'s `guides/design-system-decisions.md`. Treat a difference as a sync item to record,
-  not as permission to pick one side silently.
+- **Artifact and code are held in sync by GS1** (`TestDesignSystemTokensMatchTheCode` over
+  `design-system/tokens.json`). As of 2026-10-12, all four tokens the artifact accepted are in code (`mark-good`,
+  `gap-xtight`, `gap-region`, `control-height-compact`), so `dsAcceptedNotInCode` is empty. Still open:
+  - `gap-1`/`gap-0.5`, which neither side owns;
+  - green-700 on Tag `emerald`;
+  - the 15px question;
+  - the pre-auth `auth-*` sizes (unmapped).
+  **The one status list for all design-system work** is `menata-app-document`'s
+  `audits/2026-10-11-rencana-design-system.md`, section "STATUS MENYELURUH". Update it at the end of every slice, and
+  do not keep a second list here. Treat a difference as a sync item to record, not as permission to pick one side
+  silently.
 
 ## The component inventory: `capabilities.md`
 
