@@ -380,6 +380,14 @@ rather than carrying it forward unreviewed.
 | What should a screen look like? | **Mockup canvases**. Both have the Design System installed (`project/ds/menata-app/tokens.json` plus a `designSystems` record). On the UI mockups canvas, each of the 88 artboards' `:root` blocks is *generated* from it (version `1791763018-fa7c`). The Builder canvas holds an older copy (`1791342370-dabf`) | UI mockups `https://claude.ai/artifact/Wzkc6reCNHBJvtq2DJHsU6`; Application Builder (process-map components: ProcessNode, ProcessStep, ProcessExit, ActorChip, IssuePin, ProcessMap; Halaman 4) `https://claude.ai/artifact/4tdbksPLQdwogQ19a9rPbq` |
 | Why was a Theme role decided the way it was? | `menata-app-document`'s `guides/design-system-decisions.md` (D1–D9, and its "where everything lives" header) | companion repo |
 
+**Governance, lessons and the gate design live in `menata-app-document`'s `guides/menjaga-design-system.md`.** It
+records eleven measured inconsistencies between code, artifact and canvas (2026-10-03 to 10-12), and none of them
+turned a build red. It also holds rules R1–R8 and cross-source gates GS1–GS7. The rule that would have prevented
+four of the eleven: **folding, normalising or replacing a value is a decision, not a tidy-up.** Test it on the
+densest surface, measure, record it with its reversal condition, and leave it as a reasoned floor until then. The
+2026-10-03 `row` migration folded 6px into 8px "as an accident"; four days later the artifact showed 8px breaks
+lane titles, and `GapXtight` reversed it.
+
 **Read the Design System artifact's README before proposing a token, a type step, or a mockup component.**
 An agent that skipped it on 2026-10-11 invented 18 canvas tokens for the process map while the README had
 already decided *"Tidak ada token baru"* for exactly those components. It also proposed a `-500` indicator
