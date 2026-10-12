@@ -890,6 +890,14 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   worktree render-diff instead, which is the honest order of events. A containment check is not a token
   check. Second, it reads the *committed* `app.css`, so `make check-generated` is the half that catches a
   leak committed without regenerating — neither alone is sufficient.
+- `TestCustomTextSizesDeclareTheirLineHeight` — every custom `--text-*` size in `input.css`'s `@theme` must
+  declare `--text-*--line-height` beside it (2026-10-11). Tailwind pairs each built-in size with one; a custom size
+  without it compiles to a `font-size`-only utility, and the element inherits its parent's line height. `text-2xs`
+  and `text-3xs` shipped that way. Measured in a browser, 416 of 738 such elements across 16 pages rendered an
+  11px label at 15.71px instead of the Design System's 16.5px. Both now say 1.5. **A CSS-only change leaves
+  every HTML byte identical, so a render-diff cannot see it**; it was measured as computed line heights, old CSS
+  against new. Only `/inference` changed height (+87px desktop). Mutation-proved twice: the line deleted, and the
+  line left inside a comment.
 - `TestClaimMatrixCitesRealArtifacts` / `TestConceptDocsCiteDocumentsThatExist` — the normative documents
   must cite artifacts a reader can open. **007 §40 described a different repository until 2026-10-02**: its
   evidence column cited `CAP-` rows, `CR-` gap numbers and `internal/metadata/compile.go`, none of which
