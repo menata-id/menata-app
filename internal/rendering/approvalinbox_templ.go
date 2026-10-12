@@ -1494,7 +1494,7 @@ func approverChip(a StepApprover) templ.Component {
 			templ_7745c5c3_Var64 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var65 = []any{"flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5 text-2xs",
+		var templ_7745c5c3_Var65 = []any{"flex items-center", layoutGap(ctx, domain.GapXtight), "rounded-full py-0.5 pr-2.5 pl-0.5 text-2xs",
 			templ.KV("bg-emerald-50 text-emerald-700", a.State == "done"),
 			templ.KV("bg-blue-50 text-blue-700", a.State == "current"),
 			templ.KV("bg-red-50 text-red-700", a.State == "rejected"),

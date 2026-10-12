@@ -2127,6 +2127,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     eyebrow: micro    # the uppercase line above a title (default: micro)
     caption: tiny     # the help line under a panel title or control (default: tiny)
 >   gap:
+>     xtight:      one-half  # an icon or dot with its label inside a compact component -- never between components (default: one-half)
 >     tight:       two    # (default: two)
 >     default:     three  # (default: three)
 >     comfortable: four   # (default: four)
@@ -2185,7 +2186,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >
 > `gap:` is the one category shaped differently: it maps a **spacing step straight to an amount**, because a
 > caller already says `tight` rather than a raw class — there is no role to invent. Amounts, smallest first:
-> `half`, `one`, `two`, `three`, `four`, `five`.
+> `half`, `one`, `one-half`, `two`, `three`, `four`, `five`.
 >
 > The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
 > `medium` is the one no role claims by default.

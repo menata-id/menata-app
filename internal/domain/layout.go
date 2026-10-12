@@ -282,9 +282,19 @@ var KnownLayoutKinds = map[LayoutKind]bool{
 // renders a `<div>` -- so it keeps its own class and no decision was needed about it. Worth saying because the
 // first count folded it in and was wrong by one: the gap ladder and the migrated population are two different
 // measurements.
+//
+// **The half-step arrived on 2026-10-11, reversing the call above with evidence it did not have.** The Design
+// System artifact ("Menata App") accepted `gap-xtight` 6px on 2026-10-07 after a test, not a count: raising 268
+// mockup sites from 6px to 8px broke the board's lane titles ("Pre-production") onto a second line, so 8px was
+// shown wrong for compact surfaces. Its scope is narrow and stated by the artifact: an icon or dot with its label
+// inside a compact component, **never the space between components**. So `GapXtight` exists for inline rows
+// (breadcrumbs, nav items, legends, chips, a lane header). The nine vertical `flex-col gap-1.5` stacks in the corpus
+// were left hand-written, because they are spacing between components. The five 2026-10-03 sites already folded into
+// `GapTight` stay there; moving them back would be a visual change no one has asked for.
 type Gap string
 
 const (
+	GapXtight      Gap = "xtight"
 	GapTight       Gap = "tight"
 	GapDefault     Gap = "default"
 	GapComfortable Gap = "comfortable"
@@ -310,22 +320,25 @@ const (
 type GapAmount string
 
 const (
-	GapAmountHalf  GapAmount = "half"
-	GapAmountOne   GapAmount = "one"
-	GapAmountTwo   GapAmount = "two"
-	GapAmountThree GapAmount = "three"
-	GapAmountFour  GapAmount = "four"
-	GapAmountFive  GapAmount = "five"
+	GapAmountHalf GapAmount = "half"
+	GapAmountOne  GapAmount = "one"
+	// GapAmountOneHalf is gap-1.5 (6px), GapXtight's default; it arrived with that step (2026-10-11).
+	GapAmountOneHalf GapAmount = "one-half"
+	GapAmountTwo     GapAmount = "two"
+	GapAmountThree   GapAmount = "three"
+	GapAmountFour    GapAmount = "four"
+	GapAmountFive    GapAmount = "five"
 )
 
 // KnownGapAmounts is the closed set.
 var KnownGapAmounts = map[GapAmount]bool{
-	GapAmountHalf: true, GapAmountOne: true, GapAmountTwo: true,
+	GapAmountHalf: true, GapAmountOne: true, GapAmountOneHalf: true, GapAmountTwo: true,
 	GapAmountThree: true, GapAmountFour: true, GapAmountFive: true,
 }
 
 // KnownGaps is the closed set. An empty Gap means GapDefault, resolved where the layout is rendered.
 var KnownGaps = map[Gap]bool{
+	GapXtight:      true,
 	GapTight:       true,
 	GapDefault:     true,
 	GapComfortable: true,

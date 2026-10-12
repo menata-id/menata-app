@@ -473,10 +473,11 @@ func DefaultTheme() Theme {
 			RoleCaption:    TextTiny,   // was text-2xs, beside RoleLabel
 		},
 		Gap: map[Gap]GapAmount{
-			GapTight:       GapAmountTwo,   // was gap-2
-			GapDefault:     GapAmountThree, // was gap-3
-			GapComfortable: GapAmountFour,  // was gap-4
-			GapLoose:       GapAmountFive,  // was gap-5
+			GapXtight:      GapAmountOneHalf, // was gap-1.5 (hand-written; the Design System's gap-xtight)
+			GapTight:       GapAmountTwo,     // was gap-2
+			GapDefault:     GapAmountThree,   // was gap-3
+			GapComfortable: GapAmountFour,    // was gap-4
+			GapLoose:       GapAmountFive,    // was gap-5
 		},
 		Border: map[BorderRole]BorderShade{
 			BorderSurface: BorderSoft,    // was border-slate-200

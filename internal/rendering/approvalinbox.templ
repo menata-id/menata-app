@@ -517,7 +517,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 templ approverChip(a StepApprover) {
 	<li
 		aria-label={ a.Name + ", " + approverStateLabel(a.State) }
-		class={ "flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-0.5 text-2xs",
+		class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "rounded-full py-0.5 pr-2.5 pl-0.5 text-2xs",
 			templ.KV("bg-emerald-50 text-emerald-700", a.State == "done"),
 			templ.KV("bg-blue-50 text-blue-700", a.State == "current"),
 			templ.KV("bg-red-50 text-red-700", a.State == "rejected"),

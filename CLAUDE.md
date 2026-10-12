@@ -901,6 +901,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   markers) from emerald-500 (measured 2.46:1 on white, below WCAG 1.4.11's 3:1) to `mark-good` (3.67:1). The gate now
   refuses `bg-`/`border-emerald-500` too, except the closed `markGoodExempt` (the board's drag-and-drop slot, a
   JavaScript drop target, not a finished mark), which must match its count exactly. Mutation-proved both ways.
+- `TestHandWrittenHalfStepGapsOnlyShrink` — the ratchet beside `domain.GapXtight` (2026-10-11), the Design System's
+  `gap-xtight` (6px). Thirteen inline icon/dot+label sites moved to `layoutGap(ctx, domain.GapXtight)`; 15 sweep pages
+  compared byte-identical. **Nine `gap-1.5` stay as floors** because they space *components* (vertical stacks, a
+  button row), which the artifact puts outside the token's scope. This reverses the 2026-10-03 `row` call ("no
+  half-step"), on evidence that call did not have: the artifact's tested finding that 8px breaks the board's lane
+  titles. The five sites folded into `GapTight` that day stay folded. Mutation-proved both ways.
 - `TestCustomTextSizesDeclareTheirLineHeight` — every custom `--text-*` size in `input.css`'s `@theme` must
   declare `--text-*--line-height` beside it (2026-10-11). Tailwind pairs each built-in size with one; a custom size
   without it compiles to a `font-size`-only utility, and the element inherits its parent's line height. `text-2xs`

@@ -236,7 +236,7 @@ templ placementMarker(s PlacementStep) {
 			<input type="hidden" class="sig-w-input" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) }/>
 			<button
 				type="button"
-				class="sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center gap-1.5 overflow-hidden rounded border-2 border-dashed border-blue-600 bg-blue-50/80 px-1.5 text-left"
+				class={ "sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none items-center", layoutGap(ctx, domain.GapXtight), "overflow-hidden rounded border-2 border-dashed border-blue-600 bg-blue-50/80 px-1.5 text-left" }
 				style={ placementBoxStyle(s) }
 				aria-label={ fmt.Sprintf("Signature box step %d, %s, drag to move, drag the corner to resize", s.Index, s.Approver) }
 			>
@@ -246,7 +246,7 @@ templ placementMarker(s PlacementStep) {
 		</form>
 	} else {
 		<span
-			class="sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 overflow-hidden rounded border-2 border-dashed border-slate-400 bg-slate-50/80 px-1.5"
+			class={ "sig-marker absolute flex -translate-x-1/2 -translate-y-1/2 items-center", layoutGap(ctx, domain.GapXtight), "overflow-hidden rounded border-2 border-dashed border-slate-400 bg-slate-50/80 px-1.5" }
 			style={ placementBoxStyle(s) }
 			aria-label={ fmt.Sprintf("Signature box step %d, %s", s.Index, s.Approver) }
 		>
@@ -366,7 +366,7 @@ templ widthControl(s PlacementStep, page int) {
 		<input type="hidden" name={ s.Fields.Page } value={ fmt.Sprint(placementPageOrCurrent(s, page)) }/>
 		<input type="hidden" name={ s.Fields.X } value={ fmt.Sprintf("%.1f", s.X) }/>
 		<input type="hidden" name={ s.Fields.Y } value={ fmt.Sprintf("%.1f", s.Y) }/>
-		<label class="sig-width-label flex items-center gap-1.5 text-2xs text-slate-500">
+		<label class={ "sig-width-label flex items-center", layoutGap(ctx, domain.GapXtight), "text-2xs text-slate-500" }>
 			Width
 			<input type="number" name={ s.Fields.Width } value={ fmt.Sprintf("%.0f", s.Width) } min="5" max="100" step="1" class={ "w-16 rounded border", borderClass(ctx, domain.BorderControl), "px-1.5 py-0.5 text-2xs" }/>
 			%

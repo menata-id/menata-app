@@ -148,7 +148,7 @@ templ detailBackLink(m *domain.Machine, extras RecordExtras) {
 // board View and the current list's title), so the breadcrumb and the Move panel cannot disagree about where
 // the card is.
 templ recordBreadcrumb(m *domain.Machine, mv RecordMove) {
-	<nav aria-label="Breadcrumb" class="flex items-center gap-1.5 text-xs text-slate-500">
+	<nav aria-label="Breadcrumb" class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "text-xs text-slate-500" }>
 		<a href={ templ.URL(fmt.Sprintf("/machines/%s?view=%s", m.ID, mv.ViewID)) } class="text-blue-600 hover:text-blue-700">{ machineHeading(ctx, m) }</a>
 		<span aria-hidden="true">/</span>
 		<span aria-current="page">{ mv.CurrentLabel() }</span>

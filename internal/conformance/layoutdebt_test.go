@@ -209,3 +209,55 @@ func joinClassExpressions(src string) string {
 		return `class="` + strings.Join(parts, " ") + `"`
 	})
 }
+
+// handWrittenHalfStepGaps freezes, per file, the `gap-1.5` literals left after `domain.GapXtight` arrived
+// (2026-10-11). Thirteen inline sites moved to `layoutGap(ctx, domain.GapXtight)` byte-identically; these nine stay,
+// each for one reason. They are spacing **between** components (vertical `flex-col` stacks, and one Save/Cancel
+// button row), and the Design System artifact scopes `gap-xtight` to an icon or dot with its label inside a compact
+// component, "never the space between components". They are a measured floor, not debt to clear blindly.
+// Shrink-only: a new literal fails and should read GapXtight if it is an inline label pair, or be argued here; a
+// lower count fails until the entry drops.
+var handWrittenHalfStepGaps = map[string]int{
+	"approvalinbox.templ":      1, // a card's stacked title and meta
+	"installapplication.templ": 2, // two stacked notice wells
+	"machine.templ":            4, // record card stack; card quick-edit form and its Save/Cancel row; move form
+	"newapplication.templ":     1, // stacked label and control
+	"workspacehome.templ":      1, // stacked heading block
+}
+
+func TestHandWrittenHalfStepGapsOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	tok := regexp.MustCompile(`(?:^|[\s"{])gap-1\.5(?:$|[\s"}])`)
+	got := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n := len(tok.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
+			got[e.Name()] = n
+		}
+	}
+	for file, n := range got {
+		want := handWrittenHalfStepGaps[file]
+		switch {
+		case n > want:
+			t.Errorf("%s: %d hand-written gap-1.5, frozen at %d -- an icon/dot with its label in a compact component reads layoutGap(ctx, domain.GapXtight); spacing between components is not what gap-xtight is for", file, n, want)
+		case n < want:
+			t.Errorf("%s: %d hand-written gap-1.5, down from %d -- lower the entry to lock the improvement in", file, n, want)
+		}
+	}
+	for file := range handWrittenHalfStepGaps {
+		if got[file] == 0 {
+			t.Errorf("handWrittenHalfStepGaps names %s, which has no gap-1.5 left -- remove the entry", file)
+		}
+	}
+}

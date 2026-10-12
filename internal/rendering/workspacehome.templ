@@ -212,7 +212,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 					@statusBadge(viewer.WorkspaceRole, domain.ToneNeutral, domain.BadgeCompact)
 				}
 				<span class="grow">You manage { workspaceName }</span>
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="flex shrink-0 items-center gap-1.5 text-blue-600 hover:text-blue-700">
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex shrink-0 items-center", layoutGap(ctx, domain.GapXtight), "text-blue-600 hover:text-blue-700" }>
 					@icon("settings", "size-3.5")
 					{ labelByID(ctx, "nav_workspace_settings") }
 				</a>
