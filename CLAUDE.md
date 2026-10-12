@@ -1100,8 +1100,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     so it reads `background.base`;
   - `toneHoverFillClass(ctx, tone)` gives a danger control its `bad` hover beside its edge and ink.
 
-  34 hovers moved byte-identically, including the secondary and Danger button recipes, the Deactivate button and
+  38 hovers moved byte-identically, including the secondary and Danger button recipes, the Deactivate button and
   the danger menu row. GS1 now checks `hover-wash`, and `hover:bg-slate-100` (a darker hover) stays an open finding.
+  **After the independent review (same day):**
+  - A theme whose `background.base` equals `raised` or `sunken` is a load error, because then the hover would draw
+    nothing or look like a selected row.
+  - The gate's sanity check counts the readers, not the forbidden token, so it can reach zero.
+  - Its pattern takes variant prefixes, opacity, `group-hover:` and every tone's `-50`.
   **P1 is the one visible change:** the five `rounded-lg` menu rows read `radius.control` (8→6px). It is the only
   token the 106-page diff showed moving.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
