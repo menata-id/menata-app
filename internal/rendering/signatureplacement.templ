@@ -165,7 +165,7 @@ templ placementBody(v PlacementView) {
 				for _, s := range v.Steps {
 					@placementStepCard(s, v.Page)
 				}
-				<p class={ "m-0", radiusClass(ctx, domain.RadiusControl), "bg-slate-50 p-3 text-2xs leading-5 text-slate-500" }>
+				<p class={ "m-0", radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "p-3 text-2xs leading-5 text-slate-500" }>
 					Approvers are supplied by Groups. Changing group membership is managed separately.
 				</p>
 			</aside>

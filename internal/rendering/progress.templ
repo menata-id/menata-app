@@ -24,7 +24,7 @@ templ progressRow(label, value, max string) {
 			aria-valuemin="0"
 			aria-valuemax="100"
 			aria-valuetext={ value + " of " + max }
-			class="h-2 grow overflow-hidden rounded-full bg-slate-100"
+			class={ "h-2 grow overflow-hidden rounded-full", backgroundClass(ctx, domain.BackgroundSunken) }
 		>
 			<div class={ "h-full rounded-full", markGoodFill() } style={ fmt.Sprintf("width:%d%%", pct) }></div>
 		</div>

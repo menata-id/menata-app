@@ -42,7 +42,8 @@ type themeDebt struct {
 //     boundary working a miss;
 //   - a class arriving from a Go function (`return "text-xs"` in a `.templ` helper, `tagClasses`, `appIconClasses`);
 //   - `text-slate-300` and `text-slate-600`, `text-blue-*`, `bg-slate-50`/`bg-slate-100`: no ink role maps to
-//     them, and the slate-50/100 wells are recorded in domain.BackgroundRole as having no role that draws them
+//     them here. The accent has its own gate since DS-D10 (TestHandWrittenAccentInksOnlyShrink), and the slate-50/100
+//     wells theirs since W1 (TestHandWrittenWellFillsOnlyShrink); the comment that once said they had no role
 //     without moving screens. A token with no role is a missing capability, not debt, and gating it would ask
 //     for a Theme key nobody has decided;
 //   - whether the *right* role was chosen. That a reader exists is what is checked, never that it is correct.

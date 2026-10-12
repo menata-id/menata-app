@@ -355,7 +355,7 @@ func installableCard(t InstallableTemplate) templ.Component {
 				}
 			} else {
 				if len(t.Renames) > 0 || len(t.AddShared) > 0 {
-					var templ_7745c5c3_Var18 = []any{"flex flex-col gap-1.5", radiusClass(ctx, domain.RadiusControl), "bg-slate-50 px-3.5 py-3"}
+					var templ_7745c5c3_Var18 = []any{"flex flex-col gap-1.5", radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "px-3.5 py-3"}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var18...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

@@ -85,9 +85,11 @@ func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
 		"Weight": func(c string) bool {
 			return countThemeTokens(probe(c)).weight > 0 || dividerToken.MatchString(probe(c))
 		},
-		"Text":       func(c string) bool { return countThemeTokens(probe(c)).size > 0 },
-		"Ink":        func(c string) bool { return countThemeTokens(probe(c)).ink > 0 || literal(accentInkToken)(c) },
-		"Background": func(c string) bool { return countThemeTokens(probe(c)).fill > 0 },
+		"Text": func(c string) bool { return countThemeTokens(probe(c)).size > 0 },
+		"Ink":  func(c string) bool { return countThemeTokens(probe(c)).ink > 0 || literal(accentInkToken)(c) },
+		"Background": func(c string) bool {
+			return countThemeTokens(probe(c)).fill > 0 || literal(baseFillToken)(c) || literal(sunkenFillToken)(c)
+		},
 		"Gap": func(c string) bool {
 			return ladderGapToken.MatchString(c) || halfStepGapToken.MatchString(probe(c)) || regionGapToken.MatchString(probe(c))
 		},
@@ -145,8 +147,6 @@ func TestEveryThemeCategoryHasAnImplRatchet(t *testing.T) {
 // themeRolesWithoutImplRatchet is the closed list of Theme roles whose default class no gate counts, with the reason.
 // It fails both ways: an entry whose default is now counted is stale.
 var themeRolesWithoutImplRatchet = map[string]string{
-	"Background/base":         "bg-slate-50 wells: whether a well is `base` or `sunken` is an open owner decision (DSD D3, DH 2026-10-11), so its hand-written lines (about 17 on 2026-10-12) are not debt yet",
-	"Background/sunken":       "bg-slate-100 wells and hovers: same open decision as base",
 	"Tone/neutral":            "bg-slate-100 text-slate-600 is also a well with body text and an app icon's grey; a pair count would be mostly false findings (tone-pair gate counts colour hues only)",
 	"Tone/muted":              "bg-slate-50 text-slate-400: same collision as neutral",
 	"Padding/badge-x":         "px-2.5 is generic spacing; a hand-written badge is held by the chip ratchet and StatusBadge, not by its padding token",

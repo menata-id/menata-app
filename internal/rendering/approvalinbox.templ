@@ -289,7 +289,7 @@ templ ApprovalInboxPage(filters []FilterChip, pending []PendingApprovalCard, dra
 // table idiom -- this screen's rows are exactly as tabular as that one's.
 templ assignedTable(rows []AssignedRow) {
 	<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-		<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
+		<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
 			<span class="grow">Document</span>
 			<span class="w-32">From</span>
 			<span class="w-28">Requested</span>
@@ -592,7 +592,7 @@ templ approvalProgress(status, rejecter string, approved, total int) {
 			aria-valuemin="0"
 			aria-valuemax="100"
 			aria-valuetext={ fmt.Sprintf("%d of %d approved", approved, total) }
-			class="h-1.5 overflow-hidden rounded-full bg-slate-100"
+			class={ "h-1.5 overflow-hidden rounded-full", backgroundClass(ctx, domain.BackgroundSunken) }
 		>
 			<div class={ "h-full rounded-full", markGoodFill() } style={ progressWidth(approved, total) }></div>
 		</div>

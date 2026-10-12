@@ -277,6 +277,12 @@ func InkShadeFits(role InkRole, s InkShade) bool {
 // gave `sunken` slate-50 could not draw the one slate-100 lane, and one that gave it slate-100 would move 16
 // screens, so the honest slice is the roles with a primitive or shared component to read them.
 //
+// **Revised by owner decision W1 (2026-10-12): a well follows its colour.** A slate-50 well reads `base` and a
+// slate-100 one `sunken`, which moves no pixel and gives a Workspace's theme reach over 13 wells (header bands, info
+// wells, icon wells, progress tracks). If a well ever needs to differ from the page, a `well` role is added beside
+// these rather than reversing W1. The greys that are not wells (dividers, chips, disabled controls) stay literal,
+// held by conformance.TestHandWrittenWellFillsOnlyShrink.
+//
 // **Dark surfaces are not a role** (D3): 17 uses that are three different jobs — the primary button, the
 // scrim, a menu — and a role needs one job. Likewise the `-50` tints belong to the BadgeTone palettes.
 type BackgroundRole string

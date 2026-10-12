@@ -609,7 +609,7 @@ func reviewDocumentCard(v ReviewView) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				var templ_7745c5c3_Var29 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), "bg-slate-50 p-3"}
+				var templ_7745c5c3_Var29 = []any{"flex items-center", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "p-3"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var29...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
@@ -1140,7 +1140,7 @@ func reviewSignaturePanel(v ReviewView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			var templ_7745c5c3_Var56 = []any{"relative overflow-hidden", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface), "bg-slate-50"}
+			var templ_7745c5c3_Var56 = []any{"relative overflow-hidden", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var56...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

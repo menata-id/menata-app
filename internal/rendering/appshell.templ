@@ -523,7 +523,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 				<span class="truncate text-xs text-slate-400">{ app.Name }</span>
 			</div>
 			<a href="/home" class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50">
-				<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+				<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", backgroundClass(ctx, domain.BackgroundBase), "text-slate-500" }>
 					@icon("home", "size-5")
 				</span>
 				<span class="flex min-w-0 grow flex-col gap-0.5">
@@ -536,7 +536,7 @@ templ moreSheet(app domain.Application, workspaceName, switchWorkspaceHref strin
 			</a>
 			if hub, ok := settingsHubItem(app); ok {
 				<a href={ templ.SafeURL(hub.Route) } class="flex items-center gap-3.5 rounded-lg p-3 text-left hover:bg-slate-50">
-					<span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-500">
+					<span class={ "flex size-9 shrink-0 items-center justify-center rounded-lg", backgroundClass(ctx, domain.BackgroundBase), "text-slate-500" }>
 						@icon(hub.Icon, "size-5")
 					</span>
 					<span class="flex min-w-0 grow flex-col gap-0.5">

@@ -274,7 +274,7 @@ func roleMatrixApp(app RoleMatrixApp, membersHref string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			var templ_7745c5c3_Var16 = []any{"hidden gap-6 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5", textClass(ctx, domain.RoleEyebrow), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase sm:grid sm:grid-cols-[minmax(0,1fr)_220px]"}
+			var templ_7745c5c3_Var16 = []any{"hidden gap-6 border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5", textClass(ctx, domain.RoleEyebrow), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase sm:grid sm:grid-cols-[minmax(0,1fr)_220px]"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var16...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -608,7 +608,7 @@ func roleMatrixClosingNote() templ.Component {
 			templ_7745c5c3_Var39 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var40 = []any{tileClasses(ctx), "bg-slate-50 px-4 py-3.5"}
+		var templ_7745c5c3_Var40 = []any{tileClasses(ctx), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-3.5"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var40...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

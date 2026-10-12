@@ -1068,6 +1068,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   (`approvalCardEdge`), because two KV keys would collide under a grey `bad` (L12). The shape gates read that helper
   as the surface edge (`stateEdgeHelperCall`), or the card would leave the surface ratchet unmigrated (L13).
   Mutation-proved three ways.
+- `TestHandWrittenWellFillsOnlyShrink` — owner decision W1 (2026-10-12): a well follows its colour. A slate-50
+  well reads `backgroundClass(ctx, domain.BackgroundBase)` and a slate-100 one `BackgroundSunken`. 13 moved
+  byte-identically: header bands, info wells, a file card, an image frame, menu icon wells, and two progress tracks.
+  G1 no longer exempts `background.base`/`sunken`. Floors are the same grey doing another job: seven `h-px`
+  dividers, chip fills, a selected tab, a step circle, disabled controls, a chat bubble, the pre-auth `<body>`.
+  The R9 test moves base and sunken apart, so a track reading the wrong one shows. Mutation-proved three ways.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token

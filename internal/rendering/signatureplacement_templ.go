@@ -463,7 +463,7 @@ func placementBody(v PlacementView) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			var templ_7745c5c3_Var21 = []any{"m-0", radiusClass(ctx, domain.RadiusControl), "bg-slate-50 p-3 text-2xs leading-5 text-slate-500"}
+			var templ_7745c5c3_Var21 = []any{"m-0", radiusClass(ctx, domain.RadiusControl), backgroundClass(ctx, domain.BackgroundBase), "p-3 text-2xs leading-5 text-slate-500"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var21...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

@@ -108,7 +108,7 @@ templ WorkspaceMembersPage(members []data.Membership, names map[string]string, p
 			<p class="m-0 text-sm text-slate-500">No member matches "{ q }".</p>
 		}
 		<div class={ "overflow-hidden", surfaceClasses(ctx) }>
-			<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
+			<div class={ "hidden items-center", layoutGap(ctx, domain.GapComfortable), "border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5 text-xs text-slate-500 sm:flex" }>
 				<span class="grow">Member</span>
 				<span class="w-28">Workspace role</span>
 				// Each cell names its own Application, one line per Application that declares a vocabulary (board 04).

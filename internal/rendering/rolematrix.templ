@@ -88,7 +88,7 @@ templ roleMatrixApp(app RoleMatrixApp, membersHref string) {
 				in the workspace can do everything in it.
 			</p>
 		} else {
-			<div class={ "hidden gap-6 border-b", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-4 py-2.5", textClass(ctx, domain.RoleEyebrow), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase sm:grid sm:grid-cols-[minmax(0,1fr)_220px]" }>
+			<div class={ "hidden gap-6 border-b", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-2.5", textClass(ctx, domain.RoleEyebrow), "tracking-wide", inkClass(ctx, domain.InkSecondary), "uppercase sm:grid sm:grid-cols-[minmax(0,1fr)_220px]" }>
 				<span>What you can do</span>
 				<span>Who can do it</span>
 			</div>
@@ -131,7 +131,7 @@ templ roleMatrixApp(app RoleMatrixApp, membersHref string) {
 // named by id so its label cannot drift), and the activity history is append-only for everyone --
 // mch_activity declares append_only.
 templ roleMatrixClosingNote() {
-	<div class={ tileClasses(ctx), "bg-slate-50 px-4 py-3.5" }>
+	<div class={ tileClasses(ctx), backgroundClass(ctx, domain.BackgroundBase), "px-4 py-3.5" }>
 		<p class={ "m-0 max-w-[760px]", textClass(ctx, domain.RoleMeta), "leading-5", inkClass(ctx, domain.InkSecondary) }>
 			Some rules aren’t this application’s to decide: who can manage people is set in
 			<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_members")) } class="text-blue-600 hover:text-blue-800">{ labelByID(ctx, "nav_workspace_members") }</a>,

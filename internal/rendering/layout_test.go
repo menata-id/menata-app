@@ -1476,3 +1476,20 @@ func TestToneEdge_followsTheToneAtMigratedSites(t *testing.T) {
 		t.Errorf("an overdue card under a grey bad tone must still carry an edge class, got %q", got)
 	}
 }
+
+// W1 (R9): wells follow their colour's background role. Moving `base` and `sunken` apart shows a well that read the
+// wrong one: the progress track is sunken, the role matrix's header band is base.
+func TestWells_followTheirBackgroundRole(t *testing.T) {
+	th := domain.Theme{Background: map[domain.BackgroundRole]domain.BackgroundShade{
+		domain.BackgroundBase:   domain.BackgroundShadeLight,
+		domain.BackgroundSunken: domain.BackgroundShadeLightest,
+	}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	var buf strings.Builder
+	if err := progressRow("Ana", "1", "2").Render(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "h-2 grow overflow-hidden rounded-full bg-white") {
+		t.Errorf("a progress track is a sunken well and must follow theme.background.sunken: %s", buf.String())
+	}
+}
