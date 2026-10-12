@@ -24,8 +24,8 @@ import (
 // intersect. Two plain parts are not a finding, since both are always on. This replaced a first version (same reader
 // name twice) that the 2026-10-12 independent review broke four ways:
 //   - a plain part beside a KV from the same reader;
-//   - two readers that share an output (`inkClass(InkFaint)` and `toneInkClass(ToneMuted)` are both `text-slate-400`
-//     under the default theme);
+//   - two readers that share an output (`inkClass(InkFaint)` and `toneInkClass(ToneMuted)` were both `text-slate-400`
+//     under the default theme, until DS-D15 stage 2 gave each ink role its own class);
 //   - a literal key beside a reader key;
 //   - a false finding on `inkClass(...)+" font-medium"`.
 //

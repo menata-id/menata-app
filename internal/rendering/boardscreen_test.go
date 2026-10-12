@@ -204,7 +204,7 @@ func TestBoardScreen_completionCircleAndQuickEdit(t *testing.T) {
 		if err := boardCard(m, c, actor, CardMove{}).Render(context.Background(), &buf); err != nil {
 			t.Fatal(err)
 		}
-		return buf.String()
+		return resolveColourRoles(t, context.Background(), buf.String())
 	}
 	open := render(false, domain.Actor{ID: "usr_ana"})
 	for _, want := range []string{

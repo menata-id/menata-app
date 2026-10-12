@@ -177,6 +177,80 @@ func luminance(c oklchColour) float64 {
 	return 0.2126*r + 0.7152*g + 0.0722*bl
 }
 
+// TestInkShadeColoursMatchTheCompiledCSS holds domain.InkShadeColour -- what the loader measures a closed ink shade
+// with -- to the step inkShadeVar names, as compiled into app.css.
+func TestInkShadeColoursMatchTheCompiledCSS(t *testing.T) {
+	css := compiledColours(t)
+	for shade := range domain.KnownInkShades {
+		name := strings.TrimPrefix(inkShadeVar(shade), "--color-")
+		got, ok := css[name]
+		if !ok {
+			t.Fatalf("shade %q: no --color-%s in app.css", shade, name)
+		}
+		want, ok := domain.InkShadeColour(shade)
+		if !ok || math.Abs(got.L-want.L) > 1e-9 || math.Abs(got.C-want.C) > 1e-9 || math.Abs(got.H-want.H) > 1e-9 {
+			t.Errorf("shade %q: domain says %+v, %s compiles to %+v -- move domain.InkShadeColour", shade, want, name, got)
+		}
+	}
+}
+
+// TestEveryAccentHueDrawsItsOwnHue: each hue's arm names that hue, and its hover is the same hue one step darker. A
+// swapped arm (emerald drawing cyan) passes every contrast check, because both hues clear 4.5:1 (the 2026-10-12
+// review's surviving mutation).
+func TestEveryAccentHueDrawsItsOwnHue(t *testing.T) {
+	step := regexp.MustCompile(`^--color-([a-z]+)-([0-9]+)$`)
+	for shade := range domain.KnownInkShades {
+		if !domain.IsInkHue(shade) {
+			continue
+		}
+		a, h := step.FindStringSubmatch(inkShadeVar(shade)), step.FindStringSubmatch(accentHoverShadeVar(shade))
+		if a == nil || h == nil || a[1] != string(shade) || h[1] != string(shade) {
+			t.Errorf("hue %q draws %s and hovers %s -- both must be the %s palette", shade, inkShadeVar(shade), accentHoverShadeVar(shade), shade)
+			continue
+		}
+		as, _ := strconv.Atoi(a[2])
+		hs, _ := strconv.Atoi(h[2])
+		if hs != as+100 {
+			t.Errorf("hue %q hovers at step %d, want one step darker than %d", shade, hs, as)
+		}
+	}
+}
+
+// TestAccentHoverIsAtLeastAsReadableAsTheAccent measures the hover the readers really draw: for every closed hue the
+// compiled step, and for a free value the colour-mix themeCSS writes, computed here as the same interpolation in
+// OKLab. Hover darkens, so on a light surface it must never read worse than the accent itself.
+func TestAccentHoverIsAtLeastAsReadableAsTheAccent(t *testing.T) {
+	css := compiledColours(t)
+	raised := domain.BackgroundShadeColour(domain.DefaultTheme().BackgroundFor(domain.BackgroundRaised))
+	for shade := range domain.KnownInkShades {
+		if !domain.IsInkHue(shade) {
+			continue
+		}
+		a := css[strings.TrimPrefix(inkShadeVar(shade), "--color-")]
+		h := css[strings.TrimPrefix(accentHoverShadeVar(shade), "--color-")]
+		if ra, rh := domain.ContrastRatio(domain.Colour(a), raised), domain.ContrastRatio(domain.Colour(h), raised); rh < ra {
+			t.Errorf("hue %q: hover %.2f:1 reads worse than the accent %.2f:1", shade, rh, ra)
+		}
+	}
+	m := regexp.MustCompile(`^black ([0-9]+)%$`).FindStringSubmatch(accentHoverMix)
+	if m == nil {
+		t.Fatalf("accentHoverMix %q is not a mix with black -- a free accent's hover could read worse than the accent", accentHoverMix)
+	}
+	p, _ := strconv.Atoi(m[1])
+	if p <= 0 || p > 50 {
+		t.Fatalf("accentHoverMix mixes %d%% black; want a visible darkening that keeps the hue (1-50)", p)
+	}
+	for _, v := range []string{"#be123c", "#2563eb", "#0f766e"} {
+		c, _ := domain.ParseColourValue(v)
+		// color-mix(in oklab, c, black p%): L, a and b scale by (1-p); chroma scales with them and hue is kept.
+		k := 1 - float64(p)/100
+		hover := domain.Colour{L: c.L * k, C: c.C * k, H: c.H}
+		if domain.ContrastRatio(hover, raised) < domain.ContrastRatio(c, raised) {
+			t.Errorf("%s: the mixed hover reads worse than the accent", v)
+		}
+	}
+}
+
 // TestBackgroundShadeColoursMatchTheCompiledCSS holds domain.BackgroundShadeColour -- what the loader measures a
 // Workspace's free ink value against (DS-D15 stage 2) -- to the colour each shade's class really compiles to. The
 // table lives in domain because the loader may not read app.css; this is what keeps the two from drifting.

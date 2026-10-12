@@ -10,8 +10,11 @@ import (
 )
 
 // colourRoleClass is a class drawn through a colour role's custom property (DS-D15 stage 2, 2026-10-12):
-// `text-ink-body`, `text-accent`, `hover:text-accent-hover`, and the same names on a fill or an edge.
-var colourRoleClass = regexp.MustCompile(`(?:^|[\s"'{` + "`" + `])((?:[a-z-]+:)*(?:text|bg|border|ring|outline|fill|stroke|decoration)-(?:ink-[a-z]+|accent-hover|accent))(?:$|[\s"'}` + "`" + `])`)
+// `text-ink-body`, `text-accent`, `hover:text-accent-hover`, and the same names on a fill or an edge. Bounded only
+// by "not part of a longer name", so any variant prefix (`group-hover/card:`, `[&>a]:`, `aria-[current=page]:`), an
+// opacity (`/80`) and an important mark (`!`, either end) are all still the class -- the first version stopped at
+// whitespace and quotes, and the 2026-10-12 review passed all five of those shapes through it.
+var colourRoleClass = regexp.MustCompile(`(?:^|[^a-z0-9-])((?:[^\s"'{}` + "`" + `]*:)?!?(?:text|bg|border|ring|outline|fill|stroke|decoration)-(?:ink-[a-z]+|accent-hover|accent))(?:[^a-z0-9-]|$)`)
 
 // colourRoleReaders are the only functions that may write a colour role's class. Each is in layout.templ.
 var colourRoleReaders = []string{"inkClass", "accentHoverClass"}

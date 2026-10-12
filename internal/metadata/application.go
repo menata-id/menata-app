@@ -169,7 +169,11 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 				continue
 			}
 			if !domain.KnownInkShades[s] && !domain.IsColourValue(string(s)) {
-				issues = append(issues, fmt.Sprintf("theme.ink.%s: %q is not a text-colour shade this runtime realizes", role, shade))
+				hint := ""
+				if shade == "" {
+					hint = ` -- a colour value must be quoted ("#be123c"), because YAML reads an unquoted # as a comment`
+				}
+				issues = append(issues, fmt.Sprintf("theme.ink.%s: %q is not a text-colour shade this runtime realizes%s", role, shade, hint))
 				continue
 			}
 			if !domain.InkShadeFits(r, s) {
@@ -222,27 +226,32 @@ func resolveTheme(doc *themeDoc) (domain.Theme, []string) {
 	return t, issues
 }
 
-// inkContrastIssues is DS-D15 stage 2's second condition: a free ink value is measured, at load, against the
-// Workspace's own `raised` and `base` backgrounds, and refused below WCAG 1.4.3's 4.5:1. A closed shade is not
-// measured here: TestThemeColourPairsMeetContrast holds those against the compiled CSS. Every failing pair is
-// reported, with its ratio, so an author can see how far off the colour is.
+// inkContrastIssues is DS-D15 stage 2's second condition: once a Theme moves any ink or background role, every ink
+// role -- a colour value or a closed shade -- is measured at load on the surfaces it is drawn on (domain.InkSurfaces)
+// and refused below WCAG 1.4.3's 4.5:1, with the ratio. A closed shade is measured too, because moving only the
+// background can make a default shade unreadable (the 2026-10-12 review: `base: light` put secondary at 4.35:1 with
+// nothing refusing it). A Theme that moves neither is the default, which TestThemeColourPairsMeetContrast holds.
 func inkContrastIssues(t domain.Theme) []string {
+	if len(t.Ink) == 0 && len(t.Background) == 0 {
+		return nil
+	}
 	var issues []string
-	roles := make([]string, 0, len(t.Ink))
-	for r := range t.Ink {
+	roles := make([]string, 0, len(domain.KnownInkRoles))
+	for r := range domain.KnownInkRoles {
 		roles = append(roles, string(r))
 	}
 	slices.Sort(roles)
 	for _, role := range roles {
-		v := t.Ink[domain.InkRole(role)]
-		fg, ok := domain.ParseColourValue(string(v))
+		shade := t.InkFor(domain.InkRole(role))
+		fg, ok := domain.InkColour(shade)
 		if !ok {
 			continue
 		}
-		for _, bg := range []domain.BackgroundRole{domain.BackgroundRaised, domain.BackgroundBase} {
-			ratio := domain.ContrastRatio(fg, domain.BackgroundShadeColour(t.BackgroundFor(bg)))
+		for _, bg := range domain.InkSurfaces(domain.InkRole(role)) {
+			bgShade := t.BackgroundFor(bg)
+			ratio := domain.ContrastRatio(fg, domain.BackgroundShadeColour(bgShade))
 			if ratio < domain.TextContrastMin {
-				issues = append(issues, fmt.Sprintf("theme.ink.%s: %s is %.2f:1 on the %s background, below the %.1f:1 text needs -- choose a darker colour", role, v, ratio, bg, domain.TextContrastMin))
+				issues = append(issues, fmt.Sprintf("theme.ink.%s: %s is %.2f:1 on the %s background (%s), below the %.1f:1 text needs -- choose a darker ink or a lighter background", role, shade, ratio, bg, bgShade, domain.TextContrastMin))
 			}
 		}
 	}

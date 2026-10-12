@@ -42,6 +42,28 @@ func TestContrastRatioMatchesKnownPairs(t *testing.T) {
 	}
 }
 
+// Chromatic references, because every grey has r = g = b and a channel swap passes them all (the 2026-10-12 review
+// swapped G and B and the suite stayed green). The OKLCH of the sRGB primaries is Björn Ottosson's published value;
+// the ratio pairs are WebAIM's.
+func TestParseColourValueOnChromaticReferences(t *testing.T) {
+	for _, tc := range []struct {
+		hex     string
+		l, c, h float64
+	}{{"#ff0000", 0.62796, 0.25768, 29.234}, {"#00ff00", 0.86644, 0.29483, 142.495}, {"#0000ff", 0.45201, 0.31321, 264.052}} {
+		got, _ := ParseColourValue(tc.hex)
+		if math.Abs(got.L-tc.l) > 1e-3 || math.Abs(got.C-tc.c) > 1e-3 || math.Abs(got.H-tc.h) > 0.05 {
+			t.Errorf("%s = %+v, want oklch(%.5f %.5f %.3f)", tc.hex, got, tc.l, tc.c, tc.h)
+		}
+	}
+	white, _ := ParseColourValue("#ffffff")
+	for hex, want := range map[string]float64{"#2563eb": 5.17, "#16a34a": 3.30, "#dc2626": 4.83, "#1d4ed8": 6.70} {
+		c, _ := ParseColourValue(hex)
+		if got := ContrastRatio(c, white); math.Abs(got-want) > 0.01 {
+			t.Errorf("%s on white = %.3f:1, want %.2f:1", hex, got, want)
+		}
+	}
+}
+
 func TestInkShadeFitsAColourValueOnEveryRoleButFaint(t *testing.T) {
 	for role := range KnownInkRoles {
 		if got, want := InkShadeFits(role, "#1f2937"), role != InkFaint; got != want {

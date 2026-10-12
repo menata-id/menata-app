@@ -2193,8 +2193,11 @@ similar-looking metadata for a *different* Machine does not activate it.
 >
 > **An ink role may also take a colour value** instead of a shade -- your brand colour, written `"#rrggbb"` (quoted,
 > because YAML reads `#` as a comment): `accent: "#be123c"`, `body: "#1f2937"`. Every role takes one except `faint`.
-> The runtime checks the value when it loads the Workspace: text must read at **4.5:1** against your `raised` and
-> `base` backgrounds, and a colour that does not is a load error that names the ratio, so pick a darker one. The
+> The runtime checks contrast when it loads the Workspace, for shades and values alike, as soon as your `theme:` moves
+> any `ink` or `background` role: text must read at **4.5:1** on the surfaces it sits on (`strong`, `body` and
+> `accent` on `raised`, `base` and `sunken`; `secondary` on `raised` and `base`). A pair that does not is a load
+> error naming the ratio, so pick a darker ink or a lighter background. So `secondary: light` is refused (2.6:1),
+> and so is a darker `base: light` unless you also darken `secondary`. The
 > accent's hover is the same colour, slightly darker. A value applies to the screens a Workspace renders; the sign-in
 > pages, which belong to no Workspace, keep the default colours.
 >

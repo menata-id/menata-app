@@ -83,6 +83,43 @@ func ContrastRatio(a, b Colour) float64 {
 // TextContrastMin is WCAG 1.4.3's floor for text that is not large; the runtime's text is 10–16px, never large.
 const TextContrastMin = 4.5
 
+// InkShadeColour is the colour each closed ink shade renders (the default step of each grey and hue), so the loader
+// can measure a closed shade on a moved background as well as a colour value. Held to `app.css` by
+// rendering.TestInkShadeColoursMatchTheCompiledCSS. ok is false for a colour value or an unknown shade.
+func InkShadeColour(s InkShade) (Colour, bool) {
+	c, ok := map[InkShade]Colour{
+		InkShadeDarkest: {0.208, 0.042, 265.755}, InkShadeDark: {0.372, 0.044, 257.287},
+		InkShadeMedium: {0.554, 0.046, 257.417}, InkShadeLight: {0.704, 0.04, 256.788},
+		InkHueBlue: {0.546, 0.245, 262.881}, InkHueIndigo: {0.511, 0.262, 276.966}, InkHueViolet: {0.541, 0.281, 293.009},
+		InkHueEmerald: {0.508, 0.118, 165.612}, InkHueRose: {0.514, 0.222, 16.935}, InkHueCyan: {0.52, 0.105, 223.128},
+	}[s]
+	return c, ok
+}
+
+// InkColour is what an ink shade draws: a colour value parsed, or a closed shade's colour.
+func InkColour(s InkShade) (Colour, bool) {
+	if c, ok := ParseColourValue(string(s)); ok {
+		return c, true
+	}
+	return InkShadeColour(s)
+}
+
+// InkSurfaces is where an ink role is held to TextContrastMin, at load, for every Theme that moves ink or background
+// (DS-D15 stage 2, condition 2). `strong`, `body` and `accent` are drawn on all three surfaces (the Application
+// Settings current link is strong ink on `sunken`, a board lane is sunken). `secondary` is held on raised and base
+// only: its default (slate-500) is 4.35:1 on the default `sunken`, so requiring it there would refuse the default
+// Theme -- a measured gap, recorded rather than hidden. `faint` is low contrast by design and held nowhere.
+func InkSurfaces(role InkRole) []BackgroundRole {
+	switch role {
+	case InkFaint:
+		return nil
+	case InkSecondary:
+		return []BackgroundRole{BackgroundRaised, BackgroundBase}
+	default:
+		return []BackgroundRole{BackgroundRaised, BackgroundBase, BackgroundSunken}
+	}
+}
+
 // BackgroundShadeColour is the colour each closed background shade renders, so the loader can measure a free ink
 // value against the Workspace's own surfaces. These are colour values, not Tailwind names (§15.2);
 // rendering.TestBackgroundShadeColoursMatchTheCompiledCSS holds them to what `app.css` really draws.

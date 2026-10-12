@@ -15,7 +15,9 @@ func renderMetric(t *testing.T, hint string, tone domain.BadgeTone) string {
 	if err := metric("Overdue", "3", hint, "", tone).Render(context.Background(), &buf); err != nil {
 		t.Fatalf("Render() error = %v", err)
 	}
-	return buf.String()
+	// Resolved (DS-D15 stage 2): the hint's faint ink is `text-ink-faint` now, and a negative assertion on
+	// `text-slate-400` passed whatever was drawn (the 2026-10-12 review removed the hint guard and stayed green).
+	return resolveColourRoles(t, context.Background(), buf.String())
 }
 
 // A Metric's value is drawn in its tone's ink and the hint line is optional: the three older screens pass

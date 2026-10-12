@@ -1622,11 +1622,11 @@ func TestResolveTheme_tone(t *testing.T) {
 
 // TestResolveTheme_ink holds the `theme.ink` block's two closed sets, failing closed like the other six.
 func TestResolveTheme_ink(t *testing.T) {
-	th, issues := resolveTheme(&themeDoc{Ink: map[string]string{"secondary": "light", "body": "darkest"}})
+	th, issues := resolveTheme(&themeDoc{Ink: map[string]string{"secondary": "dark", "body": "darkest"}})
 	if len(issues) != 0 {
 		t.Fatalf("a valid ink block reported issues: %v", issues)
 	}
-	if th.Ink[domain.InkSecondary] != domain.InkShadeLight || th.Ink[domain.InkBody] != domain.InkShadeDarkest {
+	if th.Ink[domain.InkSecondary] != domain.InkShadeDark || th.Ink[domain.InkBody] != domain.InkShadeDarkest {
 		t.Errorf("declared entries not resolved: %v", th.Ink)
 	}
 
@@ -1641,7 +1641,6 @@ func TestResolveTheme_ink(t *testing.T) {
 	}
 }
 
-// TestResolveTheme_background holds the `theme.background` block's two closed sets, failing closed like the others.
 // DS-D15 stage 2 (2026-10-12): an ink role may take a colour value, and the loader measures it against the
 // Workspace's own raised and base backgrounds. Condition 2 of the decision: a value that would make text unreadable
 // is a load error, with its ratio, never a silent fallback.
@@ -1664,6 +1663,15 @@ func TestResolveTheme_inkColourValue(t *testing.T) {
 		// fail on a darker base.
 		{themeDoc{Ink: map[string]string{"secondary": "#717171"}, Background: map[string]string{"base": "light"}}, []string{"theme.ink.secondary: #717171 is", "on the base background"}},
 		{themeDoc{Ink: map[string]string{"faint": "#111111"}}, []string{"does not fit this role"}},
+		// Closed shades are measured too once a Theme moves background (the 2026-10-12 review): the default
+		// secondary is 4.35:1 on a `light` base, and a mapping of secondary to `light` is 2.63:1 anywhere.
+		{themeDoc{Background: map[string]string{"base": "light", "sunken": "lighter"}}, []string{"theme.ink.secondary: medium is 4.35:1 on the base background"}},
+		{themeDoc{Ink: map[string]string{"secondary": "light"}}, []string{"theme.ink.secondary: light is 2.63:1 on the raised background"}},
+		// strong, body and accent are drawn on sunken too (the Settings current link, a board lane): this grey passes
+		// on white (4.83) and slate-50 (4.62) and is refused on slate-100 (4.41).
+		{themeDoc{Ink: map[string]string{"strong": "#6b7280"}}, []string{"theme.ink.strong: #6b7280 is 4.41:1 on the sunken background"}},
+		// An unquoted `accent: #be123c` reaches the loader as "", because YAML reads # as a comment.
+		{themeDoc{Ink: map[string]string{"accent": ""}}, []string{"must be quoted"}},
 		{themeDoc{Ink: map[string]string{"accent": "#e11d48;}body{display:none"}}, []string{"is not a text-colour shade"}},
 		{themeDoc{Ink: map[string]string{"accent": "#fff"}}, []string{"is not a text-colour shade"}},
 	} {
@@ -1681,8 +1689,11 @@ func TestResolveTheme_inkColourValue(t *testing.T) {
 	}
 }
 
+// TestResolveTheme_background holds the `theme.background` block's two closed sets, failing closed like the others.
+// Secondary ink moves with the darker base: the default (medium) would be 4.35:1 on it and is refused since DS-D15
+// stage 2 (TestResolveTheme_inkColourValue).
 func TestResolveTheme_background(t *testing.T) {
-	th, issues := resolveTheme(&themeDoc{Background: map[string]string{"base": "light", "raised": "lighter", "sunken": "lightest"}})
+	th, issues := resolveTheme(&themeDoc{Background: map[string]string{"base": "light", "raised": "lighter", "sunken": "lightest"}, Ink: map[string]string{"secondary": "dark"}})
 	if len(issues) != 0 {
 		t.Fatalf("a valid background block reported issues: %v", issues)
 	}
@@ -1694,7 +1705,7 @@ func TestResolveTheme_background(t *testing.T) {
 	// nothing or looks selected. Each is refused, including when only the other role moved onto base's default.
 	for _, doc := range []map[string]string{{"base": "lightest"}, {"raised": "lighter"}, {"base": "light", "sunken": "light"}} {
 		_, issues = resolveTheme(&themeDoc{Background: doc})
-		if len(issues) != 1 || !strings.Contains(issues[0], "must differ") {
+		if differ := strings.Count(strings.Join(issues, "\n"), "must differ"); differ != 1 {
 			t.Errorf("%v: base equal to another role should be one load issue; got %v", doc, issues)
 		}
 	}

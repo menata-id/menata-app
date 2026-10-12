@@ -1096,9 +1096,19 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
     property's default sits in `static/css/input.css`'s `@theme` under the Design System's own token names, so a
     page with no Workspace (pre-auth) draws the default. A moved role is an override in the page's `<head>`
     (`rendering.themeCSS`/`themeStyle`), empty for the default theme.
-  - `theme.ink.<role>` takes a shade **or** `"#rrggbb"` (not on `faint`). The loader refuses a value below 4.5:1 on
-    the Workspace's own `raised` and `base` (`metadata.inkContrastIssues`, `domain.ContrastRatio`);
-    `TestBackgroundShadeColoursMatchTheCompiledCSS` holds domain's background table to `app.css`.
+  - `theme.ink.<role>` takes a shade **or** `"#rrggbb"` (not on `faint`). Once a Theme moves any ink or background
+    role, **every** ink role, shade or value, is refused below 4.5:1 on the surfaces it is drawn on
+    (`domain.InkSurfaces`: `sunken` too, except for `secondary`, whose default is 4.35:1 there;
+    `metadata.inkContrastIssues`). Domain's ink and background colour tables are held to `app.css` by
+    `TestInkShadeColoursMatchTheCompiledCSS`/`TestBackgroundShadeColoursMatchTheCompiledCSS`.
+  - **The independent review found three survivors and two holes, all closed.**
+    - `ParseColourValue` survived a G/B swap, because every reference was a grey. It now has chromatic references.
+    - A hue arm swapped to another hue passed, because both cleared 4.5:1. `TestEveryAccentHueDrawsItsOwnHue` now
+      catches it.
+    - Hover was never measured. `TestAccentHoverIsAtLeastAsReadableAsTheAccent` covers the closed steps and the
+      free `color-mix`.
+    - Closed shades on a moved background, and ink on `sunken`, were not checked.
+    - One negative assertion (`text-2xs text-slate-400`) became vacuous.
   - **A byte-diff no longer proves a colour migration.** Tests compare what a class computes to:
     `resolveColourRoles` rewrites a role class through the override and the `@theme` default, and leaves a literal
     alone, so an R9 test still fails on a hand-written colour. GS1 and GS3 follow the `var()` alias in `app.css`;
@@ -1108,8 +1118,12 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   - **Tailwind emits any `--color-*` a scanned file mentions**, so `inkShadeVar`'s literals keep every choosable
     step in the bundle. `TestEveryPaletteVariableTheOverrideCanNameIsCompiled` catches a name the scanner cannot
     read (a runtime-assembled one), not a renamed step.
-  - The gate refuses a role class anywhere in `internal/rendering` outside its reader, Go strings included.
-    Mutation-proved: a class attribute, a Go string, a renamed reader.
+  - The gate refuses a role class anywhere in `internal/rendering` outside its reader, Go strings included, under any
+    variant prefix, opacity or `!`. Mutation-proved: a class attribute, a Go string, a renamed reader, and the five
+    shapes the review passed through the first regex.
+  - Open: in `app.css` the role classes sort before some palette classes, so an element carrying both a role and a
+    conflicting literal colour would change which one wins. None was found (the 106-page computed diff is 0), but
+    parameters and states the dev DB cannot reach are not covered.
 - `TestHandWrittenToneEdgesOnlyShrink` — owner decision DS-D16 (2026-10-12). A tone is a **triple** now:
   `toneEdgeClass(ctx, domain.Tone*)` gives the edge from the same palette as the fill and ink. No Theme key was added,
   and a Workspace remapping `warn` to red no longer keeps an amber rim. Six edges moved byte-identically (components
