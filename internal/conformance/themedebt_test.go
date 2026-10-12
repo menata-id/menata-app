@@ -11,10 +11,13 @@ import (
 
 // themeDebt is one file's count of hand-written class tokens that a Theme role already names.
 type themeDebt struct {
-	size   int // text-3xs..text-2xl, text-[Npx]  -> textClass(ctx, domain.Role*) or staticText
+	size   int // text-3xs..text-2xl             -> textClass(ctx, domain.Role*) or staticText
 	ink    int // text-slate-400/500/700/900      -> inkClass(ctx, domain.Ink*)
 	weight int // font-medium, font-normal        -> weightClass(ctx, domain.Weight*)
 	fill   int // bg-white                        -> backgroundClass(ctx, domain.BackgroundRaised) or surfaceClasses(ctx)
+	// offLadder is text-[Npx]: a size **no role names**, so it is not debt against a reader. It is counted apart and
+	// frozen in handWrittenOffLadderSizes, never in handWrittenThemeTokens.
+	offLadder int
 }
 
 // handWrittenThemeTokens counts, per file, the class tokens a `theme:` block can already move but a `.templ` wrote
@@ -48,27 +51,27 @@ type themeDebt struct {
 // written, mostly pre-auth screens (no Workspace on ctx, so no theme can reach them) and sites that predate
 // every Theme role. Read the entries out of the map; lower them as screens are touched.
 var handWrittenThemeTokens = map[string]themeDebt{
-	"account.templ":            {size: 18, ink: 13, weight: 7, fill: 5},
+	"account.templ":            {size: 13, ink: 13, weight: 7, fill: 5},
 	"appmembers.templ":         {size: 8, ink: 4, weight: 0, fill: 0},
-	"approvalinbox.templ":      {size: 23, ink: 19, weight: 5, fill: 2},
+	"approvalinbox.templ":      {size: 22, ink: 19, weight: 5, fill: 2},
 	"approvalstepper.templ":    {size: 9, ink: 7, weight: 6, fill: 0},
-	"appshell.templ":           {size: 50, ink: 51, weight: 22, fill: 0},
+	"appshell.templ":           {size: 49, ink: 51, weight: 22, fill: 0},
 	"attachments.templ":        {size: 4, ink: 2, weight: 1, fill: 0},
-	"authshell.templ":          {size: 9, ink: 6, weight: 3, fill: 2},
+	"authshell.templ":          {size: 3, ink: 6, weight: 3, fill: 2},
 	"checklist.templ":          {size: 2, ink: 2, weight: 0, fill: 0},
-	"checkyouremail.templ":     {size: 2, ink: 2, weight: 1, fill: 0},
-	"chooseworkspace.templ":    {size: 8, ink: 8, weight: 2, fill: 1},
+	"checkyouremail.templ":     {size: 1, ink: 2, weight: 1, fill: 0},
+	"chooseworkspace.templ":    {size: 7, ink: 8, weight: 2, fill: 1},
 	"comments.templ":           {size: 4, ink: 3, weight: 1, fill: 0},
 	"controls.templ":           {size: 5, ink: 3, weight: 0, fill: 0},
 	"deleteaccount.templ":      {size: 4, ink: 3, weight: 4, fill: 0},
 	"detail.templ":             {size: 22, ink: 14, weight: 7, fill: 0},
 	"documentsubmit.templ":     {size: 12, ink: 8, weight: 5, fill: 0},
 	"forgotpassword.templ":     {size: 1, ink: 2, weight: 0, fill: 0},
-	"groups.templ":             {size: 15, ink: 9, weight: 2, fill: 1},
+	"groups.templ":             {size: 14, ink: 9, weight: 2, fill: 1},
 	"inference.templ":          {size: 8, ink: 16, weight: 0, fill: 0},
-	"installapplication.templ": {size: 11, ink: 8, weight: 3, fill: 0},
+	"installapplication.templ": {size: 10, ink: 8, weight: 3, fill: 0},
 	"layout.templ":             {size: 4, ink: 0, weight: 0, fill: 0},
-	"login.templ":              {size: 5, ink: 2, weight: 2, fill: 2},
+	"login.templ":              {size: 3, ink: 2, weight: 2, fill: 2},
 	"machine.templ":            {size: 23, ink: 19, weight: 8, fill: 1},
 	"newapplication.templ":     {size: 25, ink: 19, weight: 0, fill: 1},
 	"notifications.templ":      {size: 5, ink: 5, weight: 2, fill: 2},
@@ -78,14 +81,15 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"signatureplacement.templ": {size: 14, ink: 8, weight: 3, fill: 0},
 	"table.templ":              {size: 1, ink: 0, weight: 0, fill: 0},
 	"workspacefiles.templ":     {size: 8, ink: 3, weight: 0, fill: 0},
-	"workspacehome.templ":      {size: 25, ink: 22, weight: 8, fill: 5},
-	"workspacemembers.templ":   {size: 32, ink: 18, weight: 6, fill: 3},
+	"workspacehome.templ":      {size: 21, ink: 22, weight: 8, fill: 5},
+	"workspacemembers.templ":   {size: 29, ink: 18, weight: 6, fill: 3},
 	"workspacesettings.templ":  {size: 7, ink: 4, weight: 3, fill: 0},
 }
 
 var (
 	themeClassValue = regexp.MustCompile(`class="([^"]*)"`)
-	themeSizeToken  = regexp.MustCompile(`^text-(?:3xs|2xs|xs|sm|base|xl|2xl|\[\d+px\])$`)
+	themeSizeToken  = regexp.MustCompile(`^text-(?:3xs|2xs|xs|sm|base|xl|2xl)$`)
+	themeOffLadder  = regexp.MustCompile(`^text-\[\d+px\]$`)
 	themeInkToken   = regexp.MustCompile(`^text-slate-(?:400|500|700|900)$`)
 	themeWeightTok  = regexp.MustCompile(`^font-(?:medium|normal)$`)
 )
@@ -97,6 +101,8 @@ func countThemeTokens(src string) themeDebt {
 	for _, m := range themeClassValue.FindAllStringSubmatch(src, -1) {
 		for _, tok := range strings.Fields(m[1]) {
 			switch {
+			case themeOffLadder.MatchString(tok):
+				d.offLadder++
 			case themeSizeToken.MatchString(tok):
 				d.size++
 			case themeInkToken.MatchString(tok):
@@ -119,6 +125,7 @@ func TestHandWrittenThemeTokensOnlyShrink(t *testing.T) {
 	}
 
 	actual := map[string]themeDebt{}
+	offLadder := map[string]int{}
 	var total themeDebt
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
@@ -128,7 +135,12 @@ func TestHandWrittenThemeTokensOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		if d := countThemeTokens(string(b)); d != (themeDebt{}) {
+		d := countThemeTokens(string(b))
+		if d.offLadder > 0 {
+			offLadder[e.Name()] = d.offLadder
+		}
+		d.offLadder = 0
+		if d != (themeDebt{}) {
 			actual[e.Name()] = d
 			total.size += d.size
 			total.ink += d.ink
@@ -158,6 +170,8 @@ func TestHandWrittenThemeTokensOnlyShrink(t *testing.T) {
 		}
 	}
 
+	checkOffLadderSizes(t, offLadder)
+
 	var frozen themeDebt
 	for _, d := range handWrittenThemeTokens {
 		frozen.size += d.size
@@ -175,6 +189,55 @@ func TestHandWrittenThemeTokensOnlyShrink(t *testing.T) {
 		for _, f := range sortedThemeFiles(actual, nil) {
 			d := actual[f]
 			fmt.Printf("\t%q: {size: %d, ink: %d, weight: %d, fill: %d},\n", f, d.size, d.ink, d.weight, d.fill)
+		}
+	}
+}
+
+// handWrittenOffLadderSizes freezes, per file, the `text-[Npx]` sizes (2026-10-12, rencana 0.1). They sat in the
+// `size` bucket until then, which told a reader to "read the Theme instead" when **no Theme role names them**: the
+// ladder goes 14 (`body`) to 16 (`subheading`), so 15px is a question, not debt. Whether a 15px role should exist
+// is owner decision **DS-D13**, still open; the mockups use 15px 223 times across 58 artboards, and Application
+// Settings' move from 15 to 14 was a decision of its own (development-history 2026-10-11).
+//
+// The reason per entry separates the two populations the decision would treat differently: a **pre-auth** screen
+// renders with no Workspace on ctx, so even a 15px role could not reach it (it would need the pre-auth `auth-*` sizes
+// mapped first), while an **authenticated** site would move the day DS-D13 adds the role. Shrink-only both ways, on
+// the terms of handWrittenThemeTokens.
+var handWrittenOffLadderSizes = map[string]struct {
+	n   int
+	why string
+}{
+	"account.templ":            {5, "authenticated; 15px labels and controls -- moves with a DS-D13 role"},
+	"approvalinbox.templ":      {1, "authenticated; 15px -- moves with a DS-D13 role"},
+	"appshell.templ":           {1, "the workspace monogram's 13px glyph; GS2's rejectedDesignExempt, sized to its 26px tile"},
+	"authshell.templ":          {6, "pre-auth (4x 15px, the 21px and 26px brand/heading) -- no Workspace on ctx, no Theme reaches it"},
+	"checkyouremail.templ":     {1, "pre-auth; 15px -- no Theme reaches it"},
+	"chooseworkspace.templ":    {1, "pre-auth; 15px -- no Theme reaches it"},
+	"groups.templ":             {1, "authenticated; 15px -- moves with a DS-D13 role"},
+	"installapplication.templ": {1, "authenticated; 15px -- moves with a DS-D13 role"},
+	"login.templ":              {2, "pre-auth; 15px -- no Theme reaches it"},
+	"workspacehome.templ":      {4, "authenticated; 15px -- moves with a DS-D13 role"},
+	"workspacemembers.templ":   {3, "authenticated; 15px -- moves with a DS-D13 role"},
+}
+
+func checkOffLadderSizes(t *testing.T, actual map[string]int) {
+	t.Helper()
+	files := map[string]themeDebt{}
+	for f := range actual {
+		files[f] = themeDebt{}
+	}
+	for f := range handWrittenOffLadderSizes {
+		files[f] = themeDebt{}
+	}
+	for _, f := range sortedThemeFiles(files, nil) {
+		got, want := actual[f], handWrittenOffLadderSizes[f].n
+		switch {
+		case got > want:
+			t.Errorf("%s: %d off-ladder text size(s) (text-[Npx]), frozen at %d -- no Theme role names this size, so "+
+				"pick a step of the ladder (textClass/staticText) or, for 15px, wait for owner decision DS-D13; a new "+
+				"arbitrary size is a design decision, not a literal (menjaga-design-system R1)", f, got, want)
+		case got < want:
+			t.Errorf("%s: %d off-ladder text size(s), down from %d -- lower handWrittenOffLadderSizes to lock it in", f, got, want)
 		}
 	}
 }
