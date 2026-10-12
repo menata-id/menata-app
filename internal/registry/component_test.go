@@ -443,3 +443,25 @@ func TestValidateProgress(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateCallout(t *testing.T) {
+	for tone := range domain.KnownCalloutTones {
+		if issues := ValidateComponentUse(domain.ComponentCallout, map[string]string{"text": "Password updated.", "tone": string(tone)}); len(issues) != 0 {
+			t.Errorf("tone %q is a message tone and must validate, got %v", tone, issues)
+		}
+	}
+	for name, in := range map[string]map[string]string{
+		"no text":       {"tone": "good"},
+		"no tone":       {"text": "Saved."},
+		"neutral tone":  {"text": "Saved.", "tone": "neutral"},
+		"muted tone":    {"text": "Saved.", "tone": "muted"},
+		"unknown tone":  {"text": "Saved.", "tone": "success"},
+		"a title":       {"text": "Saved.", "tone": "good", "title": "Done"},
+		"a class":       {"text": "Saved.", "tone": "good", "class": "mt-2"},
+		"a chosen role": {"text": "Saved.", "tone": "good", "role": "alert"},
+	} {
+		if issues := ValidateComponentUse(domain.ComponentCallout, in); len(issues) == 0 {
+			t.Errorf("%s must be refused, but validated clean", name)
+		}
+	}
+}

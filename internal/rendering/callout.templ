@@ -1,0 +1,33 @@
+package rendering
+
+import (
+	"context"
+	"strings"
+
+	"menata.app/internal/domain"
+)
+
+// callout is the registered renderer for `domain.ComponentCallout`: one message in a box tinted by its tone. The
+// fill and the ink come from the Theme's tone pair, the corner from `radius.control` and the size from `body`, so a
+// Workspace's `theme:` moves every callout at once. The role is decided here, by tone, never at the site.
+templ callout(text string, tone domain.BadgeTone) {
+	<p role={ calloutRole(tone) } class={ calloutClasses(ctx, tone) }>{ text }</p>
+}
+
+// calloutRole is the contract's accessibility clause: a failure interrupts (`alert`), anything else waits its
+// turn (`status`).
+func calloutRole(tone domain.BadgeTone) string {
+	if tone == domain.ToneBad {
+		return "alert"
+	}
+	return "status"
+}
+
+// calloutClasses keeps the class order the six hand-written sites had, so a migrated site differs from its
+// baseline only by the role attribute.
+func calloutClasses(ctx context.Context, tone domain.BadgeTone) string {
+	return strings.Join([]string{
+		"m-0", radiusClass(ctx, domain.RadiusControl), toneFillClass(ctx, tone), "px-3 py-2",
+		textClass(ctx, domain.RoleBody), toneInkClass(ctx, tone),
+	}, " ")
+}

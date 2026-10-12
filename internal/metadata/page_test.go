@@ -253,6 +253,27 @@ func TestPage_aTagLoadsAndItsPaletteIsHeldAtLoad(t *testing.T) {
 	}
 }
 
+// TestPage_aCalloutLoadsAndItsToneIsHeldAtLoad: a page may declare `component: Callout`, and the tones a message takes
+// are checked at load through the registered validator, so `neutral` (a label tone, not a message) is refused.
+func TestPage_aCalloutLoadsAndItsToneIsHeldAtLoad(t *testing.T) {
+	callout := func(props string) string {
+		return "  - id: nav_p\n    label: P\n    route: /pages/nav_p\n    page:\n      layout: stack\n      children:\n        - component: Callout\n" + props
+	}
+	if err := pageFixture(t, callout("          text: Nothing to review today.\n          tone: info\n")); err != nil {
+		t.Errorf("a valid Callout was refused: %v", err)
+	}
+	for name, c := range map[string]struct{ props, want string }{
+		"a label tone":  {"          text: Saved.\n          tone: neutral\n", "neutral"},
+		"no tone":       {"          text: Saved.\n", "tone"},
+		"a chosen role": {"          text: Saved.\n          tone: good\n          role: alert\n", "role"},
+	} {
+		err := pageFixture(t, callout(c.props))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error = %v; want a refusal mentioning %q", name, err, c.want)
+		}
+	}
+}
+
 // TestPage_aPersonRoleIsTheOneReferenceAPageResolves: a records template may take its text from a role whose Field
 // is a person, because the Workspace's members are answered by the Loader's memoized PersonNames; a relation to
 // any other Machine stays refused (it would read that whole Machine, 007 §20).

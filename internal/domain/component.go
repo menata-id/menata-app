@@ -109,7 +109,25 @@ const (
 	// same words beside it. Registering it is what lets a `page:` draw one per Dimension value, the Dashboard's
 	// bars being the first (K15). Both numbers arrive resolved; the Component computes only the fill.
 	ComponentProgress ComponentType = "Progress"
+	// ComponentCallout is one message about what just happened or what needs attention, drawn as a tinted box:
+	// "Password updated.", "Wrong password.".
+	//
+	// **It already existed unregistered, six times**, on the account screens: the same tinted `<p>` with the
+	// tone's fill and ink, written out by hand at each site, two of the six with no `role` and one with
+	// `role="status"`. The Design System artifact's similarity report (GS7) found it as the one fingerprint
+	// group that was one meaning in two files. Registering it moves the choice of live-region role from the
+	// site into the contract, where a tone decides it.
+	ComponentCallout ComponentType = "Callout"
 )
+
+// KnownCalloutTones is the part of `BadgeTone` a Callout may take. `neutral` and `muted` are labels, not
+// messages: a message that is neither news, nor good, nor bad, nor a warning has no reason to be boxed.
+var KnownCalloutTones = map[BadgeTone]bool{
+	ToneInfo: true,
+	ToneGood: true,
+	ToneBad:  true,
+	ToneWarn: true,
+}
 
 // InputKind is the shape of control an `Input` draws, as a closed set. It is a semantic ("a date"), never an
 // HTML attribute: the renderer decides the element, so a Theme can change a control without a page noticing.

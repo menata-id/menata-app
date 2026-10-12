@@ -915,6 +915,19 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   markers) from emerald-500 (measured 2.46:1 on white, below WCAG 1.4.11's 3:1) to `mark-good` (3.67:1). The gate now
   refuses `bg-`/`border-emerald-500` too, except the closed `markGoodExempt` (the board's drag-and-drop slot, a
   JavaScript drop target, not a finished mark), which must match its count exactly. Mutation-proved both ways.
+- `TestNoHandWrittenCallout` — a zero-floor gate beside `Callout`, the eleventh registered Component (2026-10-12;
+  build, migrate, then gate). It is the first registration to follow the governance guide's procedure, and the
+  first candidate found by GS7. A message box is `@callout(text, tone)`. The tone decides the Theme's fill and ink
+  pair, and also the live-region role (`bad` is `alert`; the others are `status`), so a site no longer chooses
+  the role. Six account-screen sites moved. The render-diff changed only the `role` attribute on five sites, plus
+  one `text-sm` the parent already set. The gate counts a cornered class set holding a tone hue's `-50` tint and
+  the same hue's ink, read after `joinClassExpressions`. Two floors sit in `calloutExempt`:
+  - Delete account's blocker list (a title plus items);
+  - `truncationNotice` (bordered and caption-sized; folding it is a design decision).
+
+  Blind spots: a pair split between a parent and a child, a pair from a Go function, and a hue outside the five
+  tones. Mutation-proved five ways. No installed `page:` uses Callout yet, because no declared screen shows a
+  message.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token

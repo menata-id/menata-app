@@ -20,7 +20,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 			<div class="text-sm text-slate-500">Manage your personal information.</div>
 		</div>
 		if errorMsg != "" {
-			<p class="m-0 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{ errorMsg }</p>
+			@callout(errorMsg, domain.ToneBad)
 		}
 		<form method="POST" action="/account-profile" class="flex flex-col gap-4">
 			@csrfHiddenInput()
@@ -127,10 +127,10 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 				<p class="m-0 text-2xs text-slate-500">Choose a strong password you don't use elsewhere.</p>
 			</div>
 			if passwordErr != "" {
-				<p class="m-0 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{ passwordErr }</p>
+				@callout(passwordErr, domain.ToneBad)
 			}
 			if passwordOK != "" {
-				<p class="m-0 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{ passwordOK }</p>
+				@callout(passwordOK, domain.ToneGood)
 			}
 			<form method="POST" action="/account-security/change-password" class="flex flex-col gap-4">
 				@csrfHiddenInput()
@@ -148,7 +148,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 				@staticText(domain.StaticCaption, "Sign every other session out, keeping this one.")
 			</div>
 			if signOutOK != "" {
-				<p class="m-0 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{ signOutOK }</p>
+				@callout(signOutOK, domain.ToneGood)
 			}
 			<form method="POST" action="/account-security/sign-out-other-devices">
 				@csrfHiddenInput()

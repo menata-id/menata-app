@@ -54,6 +54,40 @@ var Components = map[domain.ComponentType]Component{
 	domain.ComponentForm:        {Contract: formContract, Validate: validateForm},
 	domain.ComponentFormInput:   {Contract: formInputContract, Validate: validateFormInput},
 	domain.ComponentProgress:    {Contract: progressContract, Validate: validateProgress},
+	domain.ComponentCallout:     {Contract: calloutContract, Validate: validateCallout},
+}
+
+// calloutContract is one message in a tinted box: its words and the tone that says what kind of message it is.
+//
+// **Two inputs, both required.** A title, a list of reasons and a dismiss button are what callouts grow
+// elsewhere. None of the six sites has one, and an input with no caller is the shape-before-need this
+// registry refuses. The one tinted box that does carry a title and a list (Delete account's blockers) stays
+// hand-written, a floor in `conformance.calloutExempt`, until a second one makes the shape real.
+//
+// What the contract forces that a reviewer would not have asked for: **the live-region role is the tone's,
+// not the site's.** Before, one of the six sites said `role="status"`, and the other five said nothing, so a
+// screen reader heard "Wrong password." only if it happened to land on it. Now `bad` is `role="alert"` and the
+// other three tones are `role="status"`.
+var calloutContract = domain.ComponentContract{
+	Type: domain.ComponentCallout,
+	Inputs: []domain.ComponentInput{
+		{Name: "text", Kind: "string", Required: true},
+		{Name: "tone", Kind: "BadgeTone", Required: true},
+	},
+	DataRequirements: nil,
+	Slots:            nil,
+	Actions:          nil,
+	Accessibility:    `a live region whose role the tone decides: bad is role="alert", info/good/warn are role="status"; the text is the whole message, so colour never carries it alone`,
+	Renderer:         "callout",
+}
+
+// validateCallout checks a use against the declared inputs and the tones a message may take.
+func validateCallout(inputs map[string]string) []string {
+	issues := checkDeclaredInputs(calloutContract, inputs, "Callout")
+	if v := inputs["tone"]; v != "" && !domain.KnownCalloutTones[domain.BadgeTone(v)] {
+		issues = append(issues, fmt.Sprintf("Callout tone %q is not one a message takes (info, good, bad, warn)", v))
+	}
+	return issues
 }
 
 // progressContract is a part of a whole drawn as a bar. `value` and `max` are strings for the reason a Metric's

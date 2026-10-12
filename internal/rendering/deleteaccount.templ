@@ -26,7 +26,7 @@ templ DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref
 				</div>
 			}
 			if passwordErr != "" {
-				<p class="m-0 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{ passwordErr }</p>
+				@callout(passwordErr, domain.ToneBad)
 			}
 			<form method="POST" action="/account-delete" class="flex flex-col gap-4">
 				@csrfHiddenInput()
@@ -46,7 +46,7 @@ templ DeleteAccountInfoPage(done bool) {
 		@authCard("max-w-xl") {
 			<div class="flex flex-col gap-4 px-4 py-5 text-sm sm:p-6">
 				if done {
-					<p role="status" class="m-0 rounded-md bg-emerald-50 px-3 py-2 text-emerald-700">Your account has been deleted and you have been signed out.</p>
+					@callout("Your account has been deleted and you have been signed out.", domain.ToneGood)
 				}
 				<div class="flex flex-col gap-2">
 					<p class="m-0 font-medium">How to delete your account</p>

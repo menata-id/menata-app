@@ -1002,7 +1002,7 @@ A node is a mapping with **exactly one** of three discriminators, whose value is
 |---|---|---|
 | `layout:` | `columns`, `grid`, `panel`, `row`, `section`, `split`, `stack` | Arranges `children:`; a property's value must be one of its closed set (an unknown `columns: 9` or `gap: huge` is a load error, not a silent default). Properties: `columns` `align`, `gap`; `grid` `columns`, `gap`, `mobile`; `panel` none; `row` `align`, `gap`, `justify`; `section` `current`, `gap`; `split` `aside`, `gap`, `side`; `stack` `gap` |
 | `static:` | `eyebrow`, `heading`, `paragraph`, `subheading`, `overline`, `panel-heading`, `caption`, `message`, `note` | Text that is the same for everyone. Property: `text`. Each kind is a text role the Theme can restyle (`theme.text.*`), so a section title is `subheading`, not a `heading` made smaller. The tenth, `link`, takes `to: <navigation item id>` instead of text-and-route: see the next paragraph |
-| `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, ...) | Drawn from its contract; properties are that Component's declared inputs |
+| `component:` | a registered Component (`Metric`, `StatusBadge`, `Avatar`, `Button`, `Tag`, `Callout`, ...) | Drawn from its contract; properties are that Component's declared inputs |
 
 `columns` puts different content side by side from the small breakpoint up and stacks it on a phone (`align`: `start`, `center` or `end`, the cross axis); `section` is a bordered surface that stacks its children with a `gap`. A `StatusBadge` may carry `size: compact` for a dense row. The Layout row above is checked against `ir.PermittedProps` by `conformance.TestGuideLayoutTableIsTheAllowedPropsList`, so it cannot fall behind the list that decides what loads. Worked example: `nav_dashboard`' two open-card groups, a `columns` of two `section`s.
 
@@ -1324,6 +1324,19 @@ Machines.
 - component: Tag
   label: Urgent
   color: amber
+```
+
+**`component: Callout`** (2026-10-12) draws one message in a box tinted by its tone: `text` and `tone` are both
+required, and `tone` is one of `info`, `good`, `bad`, `warn`. `neutral` and `muted` are label tones, not message
+tones, so they are load errors. The tone also decides the live-region role: `bad` is `role="alert"`, and the other
+three are `role="status"`. A page never chooses the role, and never writes a class or a title. The fill, ink, corner
+and size follow the Workspace's `theme:` (`tone`, `radius.control`, `text.body`). The account screens use it in Go.
+No installed page declares one yet, because no declared screen shows a message today.
+
+```yaml
+- component: Callout
+  text: Nothing waits for your review today.
+  tone: info
 ```
 
 **A Tag taken from each record (3c-2, 2026-10-08).** As the one template child of a `Collection` bound with

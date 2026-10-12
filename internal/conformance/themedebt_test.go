@@ -48,7 +48,7 @@ type themeDebt struct {
 // written, mostly pre-auth screens (no Workspace on ctx, so no theme can reach them) and sites that predate
 // every Theme role. Read the entries out of the map; lower them as screens are touched.
 var handWrittenThemeTokens = map[string]themeDebt{
-	"account.templ":            {size: 22, ink: 13, weight: 7, fill: 5},
+	"account.templ":            {size: 18, ink: 13, weight: 7, fill: 5},
 	"appmembers.templ":         {size: 8, ink: 4, weight: 0, fill: 0},
 	"approvalinbox.templ":      {size: 23, ink: 19, weight: 5, fill: 2},
 	"approvalstepper.templ":    {size: 9, ink: 7, weight: 6, fill: 0},
@@ -60,7 +60,7 @@ var handWrittenThemeTokens = map[string]themeDebt{
 	"chooseworkspace.templ":    {size: 8, ink: 8, weight: 2, fill: 1},
 	"comments.templ":           {size: 4, ink: 3, weight: 1, fill: 0},
 	"controls.templ":           {size: 5, ink: 3, weight: 0, fill: 0},
-	"deleteaccount.templ":      {size: 5, ink: 3, weight: 4, fill: 0},
+	"deleteaccount.templ":      {size: 4, ink: 3, weight: 4, fill: 0},
 	"detail.templ":             {size: 22, ink: 14, weight: 7, fill: 0},
 	"documentsubmit.templ":     {size: 12, ink: 8, weight: 5, fill: 0},
 	"forgotpassword.templ":     {size: 1, ink: 2, weight: 0, fill: 0},

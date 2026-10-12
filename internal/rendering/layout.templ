@@ -881,6 +881,8 @@ templ uiNode(n ir.UINode) {
 					}
 				case domain.ComponentProgress:
 					@progressRow(n.Props["label"], n.Props["value"], n.Props["max"])
+				case domain.ComponentCallout:
+					@callout(n.Props["text"], domain.BadgeTone(n.Props["tone"]))
 				case domain.ComponentFormInput:
 					@formInput(n.Props["id"], n.Props["name"], n.Props["kind"], n.Props["options"], n.Props["value"], n.Props["required"] == "true")
 			}
