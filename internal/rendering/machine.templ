@@ -845,7 +845,9 @@ func tagClasses(c domain.TagColor) (chip, dot string) {
 	case domain.TagAmber:
 		return "border-amber-700/20 bg-amber-700/10 text-amber-700", "bg-amber-700"
 	case domain.TagEmerald:
-		return "border-green-700/20 bg-green-700/10 text-green-700", "bg-green-700"
+		// emerald-700, not green-700 (owner decision T1, 2026-10-12): green was the one hue outside the emerald family
+		// the Design System uses for every other green.
+		return "border-emerald-700/20 bg-emerald-700/10 text-emerald-700", "bg-emerald-700"
 	case domain.TagCyan:
 		return "border-cyan-700/20 bg-cyan-700/10 text-cyan-700", "bg-cyan-700"
 	case domain.TagRose:
