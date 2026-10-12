@@ -928,6 +928,20 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   Blind spots: a pair split between a parent and a child, a pair from a Go function, and a hue outside the five
   tones. Mutation-proved five ways. No installed `page:` uses Callout yet, because no declared screen shows a
   message.
+- `TestHandWrittenControlBordersOnlyShrink` — a directive ratchet (2026-10-12, rencana 0.2d; read, migrate, then
+  gate, with no new role). A control's rim reads `borderClass(ctx, domain.BorderControl)`. Six rims moved
+  byte-identically: Account's three button-shaped controls, the inactive filter chip, and both complete-checkbox
+  circles. **Twelve literal `border-slate-300` stay, read by meaning (R2), with a reason per file in
+  `handWrittenControlBorders`:**
+  - dashed empty states (4);
+  - signature markers (3);
+  - pre-auth inputs and links (5).
+
+  The plan's "14 sites" was a count of a value. Reading the sites found six controls. Blind spots: a token from a
+  Go function (the pending avatar's dashed ring), and variant prefixes. Mutation-proved four ways. Beside it,
+  rencana 0.2e moved the approval wizard's Group picker to `fieldClasses`. That was the last approver picker
+  carrying the recipe as a literal, and `TestApproverRow_groupPickerFollowsTheThemeLikeItsTwin` pins it, because
+  the field ratchet cannot see a class returned by a Go function.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token

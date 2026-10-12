@@ -49,7 +49,7 @@ templ ProfilePage(name, email, workspaceName string, viewer Viewer, switchWorksp
 				</div>
 			}
 			<div class="flex justify-end gap-2.5">
-				<a href="/home" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Cancel</a>
+				<a href="/home" class={ "flex h-11 items-center justify-center rounded-md border", borderClass(ctx, domain.BorderControl), "bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm" }>Cancel</a>
 				@authSubmit("Save changes")
 			</div>
 		</form>
@@ -81,7 +81,7 @@ templ AccountNotificationsPage(notifyAssigned, notifyDecided, notifySLABreach bo
 				@notificationToggle("notify_sla_breach", "My submitted document is overdue for approval", notifySLABreach)
 			}
 			<div class="flex justify-end gap-2.5">
-				<a href="/home" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Cancel</a>
+				<a href="/home" class={ "flex h-11 items-center justify-center rounded-md border", borderClass(ctx, domain.BorderControl), "bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm" }>Cancel</a>
 				@authSubmit("Save changes")
 			</div>
 		</form>
@@ -152,7 +152,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 			}
 			<form method="POST" action="/account-security/sign-out-other-devices">
 				@csrfHiddenInput()
-				<button type="submit" class="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm">Sign out of other devices</button>
+				<button type="submit" class={ "flex h-11 items-center justify-center rounded-md border", borderClass(ctx, domain.BorderControl), "bg-white px-4 text-[15px] font-medium text-slate-900 sm:h-9 sm:text-sm" }>Sign out of other devices</button>
 			</form>
 		}
 		@sectionLayout(domain.GapComfortable) {

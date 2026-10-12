@@ -365,7 +365,7 @@ func checklistItem(m *domain.Machine, it ChecklistItem, canEdit bool) templ.Comp
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var18 = []any{"grid size-5 place-items-center rounded-full border-2 text-white", templ.KV(markGoodBorder()+" "+markGoodFill(), it.Complete.Done), templ.KV("border-slate-300 "+markGoodHoverBorder(), !it.Complete.Done)}
+				var templ_7745c5c3_Var18 = []any{"grid size-5 place-items-center rounded-full border-2 text-white", templ.KV(markGoodBorder()+" "+markGoodFill(), it.Complete.Done), templ.KV(borderClass(ctx, domain.BorderControl)+" "+markGoodHoverBorder(), !it.Complete.Done)}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var18...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

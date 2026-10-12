@@ -1026,7 +1026,7 @@ func filterChip(f FilterChip, hrefPrefix string) templ.Component {
 		ctx = templ.ClearChildren(ctx)
 		var templ_7745c5c3_Var39 = []any{"rounded-full border px-3 py-1 text-xs",
 			templ.KV("border-slate-900 bg-slate-900 text-white", f.Active),
-			templ.KV("border-slate-300 text-slate-500 hover:border-slate-400", !f.Active)}
+			templ.KV(borderClass(ctx, domain.BorderControl)+" text-slate-500 hover:border-slate-400", !f.Active)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var39...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
