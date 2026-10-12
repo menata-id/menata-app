@@ -909,6 +909,15 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   markers) from emerald-500 (measured 2.46:1 on white, below WCAG 1.4.11's 3:1) to `mark-good` (3.67:1). The gate now
   refuses `bg-`/`border-emerald-500` too, except the closed `markGoodExempt` (the board's drag-and-drop slot, a
   JavaScript drop target, not a finished mark), which must match its count exactly. Mutation-proved both ways.
+- `TestDesignSystemTokensMatchTheCode` (`internal/rendering`, GS1 of the governance guide, 2026-10-12) — the gate
+  *between* sources. `design-system/tokens.json` is a copy of the Design System artifact's file, with the version in
+  `design-system/README.md`, and is never edited by hand. Every token and type style is compared, in the artifact's
+  own notation (oklch, px, size/line-height/weight), with what the default Theme's reader answers as compiled into
+  `app.css`. **Every one of the 64 tokens and 12 styles must be classified:** checked;
+  `dsAcceptedNotInCode` (shrink-only: `gap-region`, `control-height-compact`); or `dsUnmapped` with the reason no
+  reader answers. An unclassified new token fails, and so does a stale entry. Mutation-proved four ways: a colour
+  in the copy, a label line height in the copy, a new token in the copy, and `PaddingPanel` in code. **When the
+  artifact changes, copy its `tokens.json` here in the same commit as the matching code.**
 - `TestThemeColourPairsMeetContrast` (`internal/rendering`, GS3 of the governance guide, 2026-10-12) — asks the real
   readers for their default classes and resolves each to the `oklch` Tailwind compiled into `app.css`, then holds:
   every tone pair, every ink role on `raised`/`base` at 4.5:1, and `mark-good` at 3:1. `lowContrastByDesign` is
