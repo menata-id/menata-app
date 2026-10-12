@@ -355,7 +355,7 @@ func approverGroupClass(ctx context.Context, hide bool) string {
 	if hide {
 		class += " hidden"
 	}
-	return class + " h-9 min-w-44 grow rounded-md border border-slate-300 bg-white px-3 text-sm outline-none focus:outline-2 focus:outline-offset-1 focus:outline-blue-300"
+	return class + " min-w-44 grow " + fieldClasses(ctx)
 }
 
 // ApprovalFlowTemplateRows is the doc_type <select>'s own htmx fragment (CAP-V28, ROADMAP.md,

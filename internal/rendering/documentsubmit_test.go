@@ -115,3 +115,22 @@ func TestApproverRow_typePickerAlwaysSubmitsAValue(t *testing.T) {
 		t.Error("the row number must be a CSS counter -- a number passed from Go goes stale on the first reorder")
 	}
 }
+
+// The Group arm reads fieldClasses like its User twin (rencana 0.2e, 2026-10-12): it was the one `<select>` in
+// the row still carrying the field recipe as a literal, so a Workspace's `theme.border.control` moved the User
+// picker and left the Group picker on slate-300. The class arrives from a Go function, which the static field
+// ratchet cannot see, so it is pinned here under a moved theme.
+func TestApproverRow_groupPickerFollowsTheThemeLikeItsTwin(t *testing.T) {
+	th := domain.Theme{
+		Radius: map[domain.RadiusRole]domain.RadiusStep{domain.RadiusControl: domain.RadiusStepLarge},
+		Border: map[domain.BorderRole]domain.BorderShade{domain.BorderControl: domain.BorderSoft},
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	user, group := approverUserClass(ctx, false), approverGroupClass(ctx, false)
+	if strings.TrimPrefix(user, "approver-user") != strings.TrimPrefix(group, "approver-group") {
+		t.Errorf("the two approver pickers must share one recipe:\n user  %q\n group %q", user, group)
+	}
+	if strings.Contains(group, "border-slate-300") || strings.Contains(group, "rounded-md") {
+		t.Errorf("a declared theme must move the Group picker too: %q", group)
+	}
+}
