@@ -491,7 +491,7 @@ func TestHandWrittenSurfacesOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := joinClassExpressions(comment.ReplaceAllString(string(b), ""))
+		src := joinClassExpressions(borderReadersAsLiterals(comment.ReplaceAllString(string(b), "")))
 		for _, m := range surfaceClassAttr.FindAllStringSubmatch(src, -1) {
 			set := map[string]bool{}
 			for _, tok := range strings.Fields(m[1]) {
@@ -643,7 +643,7 @@ func TestHandWrittenTilesOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := joinClassExpressions(comment.ReplaceAllString(string(b), ""))
+		src := joinClassExpressions(borderReadersAsLiterals(comment.ReplaceAllString(string(b), "")))
 		for _, m := range surfaceClassAttr.FindAllStringSubmatch(src, -1) {
 			set := map[string]bool{}
 			for _, tok := range strings.Fields(m[1]) {

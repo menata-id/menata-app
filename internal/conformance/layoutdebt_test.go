@@ -226,6 +226,21 @@ var (
 	radiusDefaults   = map[string]string{"RadiusControl": "rounded-md", "RadiusSurface": "rounded-lg", "RadiusPill": "rounded-full"}
 )
 
+// borderReadersAsLiterals rewrites `borderClass(ctx, domain.Border*)` as the quoted class it answers under the default
+// Theme. Only the **shape** gates (surface, tile) apply it: they recognise a hand-written surface partly by its edge, and
+// an edge read through the Theme is still a hand-written surface's edge (L13). The **value** gates (control border,
+// region rule, field, button) must not, because for them a reader is exactly the migration they count.
+func borderReadersAsLiterals(src string) string {
+	return borderReaderCall.ReplaceAllStringFunc(src, func(m string) string {
+		return `"` + borderDefaults[borderReaderCall.FindStringSubmatch(m)[1]] + `"`
+	})
+}
+
+var (
+	borderReaderCall = regexp.MustCompile(`borderClass\(ctx, domain\.(Border\w+)\)`)
+	borderDefaults   = map[string]string{"BorderSurface": "border-slate-200", "BorderControl": "border-slate-300", "BorderDivider": "border-slate-100"}
+)
+
 // joinClassLiterals is joinClassExpressions without the reader rewrite: string literals only.
 func joinClassLiterals(src string) string {
 	return classExpression.ReplaceAllStringFunc(src, func(m string) string {

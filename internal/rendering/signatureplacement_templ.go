@@ -413,7 +413,7 @@ func placementBody(v PlacementView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var17 = []any{"flex h-fit flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5"}
+			var templ_7745c5c3_Var17 = []any{"flex h-fit flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -523,7 +523,7 @@ func placementCanvas(v PlacementView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var22 = []any{"block w-full", radiusClass(ctx, domain.RadiusControl), "border border-slate-200"}
+		var templ_7745c5c3_Var22 = []any{"block w-full", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var22...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

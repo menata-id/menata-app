@@ -1062,7 +1062,7 @@ func reviewSignaturePanel(v ReviewView) templ.Component {
 			templ_7745c5c3_Var50 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var51 = []any{"flex h-fit flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5"}
+		var templ_7745c5c3_Var51 = []any{"flex h-fit flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var51...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -1122,7 +1122,7 @@ func reviewSignaturePanel(v ReviewView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			var templ_7745c5c3_Var54 = []any{"relative overflow-hidden", radiusClass(ctx, domain.RadiusControl), "border border-slate-200 bg-slate-50"}
+			var templ_7745c5c3_Var54 = []any{"relative overflow-hidden", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface), "bg-slate-50"}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var54...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -1924,7 +1924,7 @@ func signatureModal(stepID string) templ.Component {
 			templ_7745c5c3_Var95 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var96 = []any{"sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 p-5 shadow-lg backdrop:bg-slate-900/40"}
+		var templ_7745c5c3_Var96 = []any{"sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), "shadow-lg backdrop:bg-slate-900/40"}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var96...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

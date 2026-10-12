@@ -320,7 +320,7 @@ func reviewStepSignatureLine(s StepApprover) string {
 // value), which renders as an explicit prompt rather than an empty page image with nothing on it --
 // the same posture the panel's previous single-marker shape took.
 templ reviewSignaturePanel(v ReviewView) {
-	<aside class={ "flex h-fit flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5" }>
+	<aside class={ "flex h-fit flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifySpread) {
 			@staticText(domain.StaticPanelHeading, "Signature positions")
 			if v.SignatureStepCount > 0 {
@@ -330,7 +330,7 @@ templ reviewSignaturePanel(v ReviewView) {
 		if v.SignaturePage == 0 {
 			@staticText(domain.StaticCaption, "No signature position has been placed for this document yet.")
 		} else {
-			<div class={ "relative overflow-hidden", radiusClass(ctx, domain.RadiusControl), "border border-slate-200 bg-slate-50" }>
+			<div class={ "relative overflow-hidden", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface), "bg-slate-50" }>
 				<img src={ v.SignaturePreviewHref } alt={ fmt.Sprintf("Page %d of the document", v.SignaturePage) } class="block w-full"/>
 				for _, b := range v.SignatureBoxes {
 					@reviewSignatureBox(b)
@@ -523,7 +523,7 @@ templ reviewDecisionBar(v ReviewView) {
 // before any bubble-phase document listener) -- without that, htmx would read the hidden
 // signature_image input before this had a chance to fill it from the canvas.
 templ signatureModal(stepID string) {
-	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 p-5 shadow-lg backdrop:bg-slate-900/40" }>
+	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border", borderClass(ctx, domain.BorderSurface), paddingClass(ctx, domain.PaddingPanel), "shadow-lg backdrop:bg-slate-900/40" }>
 		<h3 class="m-0 text-sm font-medium">Add your signature</h3>
 		<p class="mt-1.5 mb-3 text-2xs text-slate-500">Draw your signature below to approve. It's only used for this document unless you choose to save it.</p>
 		<canvas class={ "sig-modal-canvas block h-40 w-full cursor-crosshair touch-none", radiusClass(ctx, domain.RadiusControl), "border border-dashed border-slate-300 bg-white" } width={ fmt.Sprint(signatureCanvasWidth) } height={ fmt.Sprint(signatureCanvasHeight) }></canvas>

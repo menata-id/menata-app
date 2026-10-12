@@ -120,7 +120,7 @@ func InstallApplicationPage(templates []InstallableTemplate, workspaceName strin
 				return templ_7745c5c3_Err
 			}
 			if len(templates) == 0 {
-				var templ_7745c5c3_Var4 = []any{surfaceClasses(ctx), "p-5 text-sm text-slate-500"}
+				var templ_7745c5c3_Var4 = []any{surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), "text-sm text-slate-500"}
 				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var4...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

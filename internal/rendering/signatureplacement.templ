@@ -160,7 +160,7 @@ templ placementBody(v PlacementView) {
 				</p>
 				@placementCanvas(v)
 			}
-			<aside class={ "flex h-fit flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5" }>
+			<aside class={ "flex h-fit flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel) }>
 				@staticText(domain.StaticPanelHeading, "Approval steps")
 				for _, s := range v.Steps {
 					@placementStepCard(s, v.Page)
@@ -195,7 +195,7 @@ templ placementCanvas(v PlacementView) {
 		<img
 			src={ placementPreviewHref(ctx, v.DocumentID, v.Page) }
 			alt={ fmt.Sprintf("Page %d of the document", v.Page) }
-			class={ "block w-full", radiusClass(ctx, domain.RadiusControl), "border border-slate-200" }
+			class={ "block w-full", radiusClass(ctx, domain.RadiusControl), "border", borderClass(ctx, domain.BorderSurface) }
 		/>
 		for _, s := range v.Steps {
 			if s.Placed && s.Page == v.Page {

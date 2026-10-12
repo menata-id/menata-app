@@ -162,7 +162,7 @@ templ SecurityPage(workspaceName string, viewer Viewer, switchWorkspaceHref, pas
 			</div>
 			<div><a href="/account-delete" class="text-sm font-medium text-red-700 hover:text-red-800">Delete my account</a></div>
 		}
-		<section class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5" }>
+		<section class={ "flex items-center justify-between", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 			<div class="flex flex-col gap-1">
 				@staticText(domain.StaticPanelHeading, "Two-factor authentication")
 				<p class="m-0 text-2xs text-slate-500">Not enabled <span class="text-3xs text-slate-300">(planned)</span></p>

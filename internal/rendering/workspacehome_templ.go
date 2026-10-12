@@ -622,7 +622,7 @@ func addApplicationSection(suggestions []domain.ApplicationSuggestion) templ.Com
 			templ_7745c5c3_Var31 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var32 = []any{"flex flex-col gap-3.5", surfaceClasses(ctx), "p-5"}
+		var templ_7745c5c3_Var32 = []any{"flex flex-col gap-3.5", surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var32...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -688,7 +688,7 @@ func addApplicationSection(suggestions []domain.ApplicationSuggestion) templ.Com
 				}
 				ctx = templ.InitializeContext(ctx)
 				for _, s := range suggestions {
-					var templ_7745c5c3_Var37 = []any{radiusClass(ctx, domain.RadiusPill), "border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"}
+					var templ_7745c5c3_Var37 = []any{radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var37...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

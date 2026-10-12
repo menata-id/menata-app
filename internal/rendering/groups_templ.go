@@ -264,7 +264,7 @@ func GroupsPage(groups []data.Group, workspaceName string, viewer Viewer, roleAp
 					}
 					ctx = templ.InitializeContext(ctx)
 					for _, g := range groups {
-						var templ_7745c5c3_Var17 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5 text-slate-900 hover:border-blue-300"}
+						var templ_7745c5c3_Var17 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel), "text-slate-900 hover:border-blue-300"}
 						templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var17...)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err

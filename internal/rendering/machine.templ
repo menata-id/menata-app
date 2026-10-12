@@ -757,7 +757,7 @@ templ boardLayout(m *domain.Machine, v domain.View, records []*data.Record, boar
 	{{ targets := MoveTargets(m, v, columns) }}
 	<div class="flex items-start gap-2.5 overflow-x-auto pb-2">
 		for _, col := range columns {
-			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border border-slate-200", backgroundClass(ctx, domain.BackgroundSunken), "p-2" }>
+			<div role="group" aria-label={ col.Label } data-board-column data-field={ v.GroupBy } data-value={ columnValue(m, v, col) } class={ "flex w-46 shrink-0 flex-col gap-2.5 rounded-xl border", borderClass(ctx, domain.BorderSurface), backgroundClass(ctx, domain.BackgroundSunken), "p-2" }>
 				<header class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "px-1" }>
 					<h3 class="m-0 text-xs font-medium text-slate-700">{ col.Label }</h3>
 					<span class={ radiusClass(ctx, domain.RadiusPill), "bg-white px-1.5 text-2xs text-slate-500" }>{ fmt.Sprint(len(col.Records)) }</span>

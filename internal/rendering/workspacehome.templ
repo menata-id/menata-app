@@ -231,7 +231,7 @@ templ WorkspaceHomePage(workspaceName string, viewer Viewer, switchHref string, 
 // instruction, 2026-09-27: a Workspace whose business the mockup's own three examples don't fit
 // declares its own.
 templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
-	<section aria-labelledby="new-application-h" class={ "flex flex-col gap-3.5", surfaceClasses(ctx), "p-5" }>
+	<section aria-labelledby="new-application-h" class={ "flex flex-col gap-3.5", surfaceClasses(ctx), paddingClass(ctx, domain.PaddingSection) }>
 		<div class="flex flex-col gap-1">
 			<h2 id="new-application-h" class="m-0 text-[15px] font-medium">Add an application</h2>
 			<span class="max-w-xl text-xs leading-5 text-slate-500">
@@ -247,7 +247,7 @@ templ addApplicationSection(suggestions []domain.ApplicationSuggestion) {
 		if len(suggestions) > 0 {
 			@rowLayout(domain.GapTight, domain.RowAlignCenter, domain.RowJustifyStart) {
 				for _, s := range suggestions {
-					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class={ radiusClass(ctx, domain.RadiusPill), "border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100" }>
+					<a href={ templ.SafeURL("/new-application?idea=" + url.QueryEscape(s.Prompt)) } class={ radiusClass(ctx, domain.RadiusPill), "border", borderClass(ctx, domain.BorderSurface), "bg-slate-50 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100" }>
 						{ s.Label }
 					</a>
 				}

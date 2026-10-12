@@ -1371,3 +1371,32 @@ func TestLadderGaps_followTheThemeAtMigratedSites(t *testing.T) {
 		t.Error("a moved theme.gap must move the shell's main column gap")
 	}
 }
+
+// Rencana 0.4: hand-written panel/section paddings read paddingClass, and loose surface edges read borderClass, so
+// theme.padding and theme.border.surface move them (R9). Panel and section are both `five` by default and are moved
+// apart here, so a site reading the wrong one of the two shows.
+func TestPanelPaddingAndSurfaceEdges_followTheThemeAtMigratedSites(t *testing.T) {
+	th := domain.Theme{
+		Padding: map[domain.PaddingRole]domain.PaddingAmount{domain.PaddingPanel: domain.PaddingAmountThree, domain.PaddingSection: domain.PaddingAmountFour},
+		Border:  map[domain.BorderRole]domain.BorderShade{domain.BorderSurface: domain.BorderDefined},
+	}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	render := func(c templ.Component) string {
+		var buf strings.Builder
+		if err := c.Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	modal := render(signatureModal("s1"))
+	if !strings.Contains(modal, "border border-slate-300 p-3 shadow-lg") {
+		t.Errorf("the signature dialog must take panel padding and the surface edge from the theme: %s", modal)
+	}
+	home := render(WorkspaceHomePage("WS", Viewer{}, "/s", nil, []domain.ApplicationSuggestion{{Label: "L", Prompt: "p"}}))
+	if !strings.Contains(home, "border border-slate-300 bg-slate-50 px-3") {
+		t.Error("a suggestion chip's edge must follow theme.border.surface")
+	}
+	if !strings.Contains(home, `class="flex flex-col gap-3.5 rounded-lg border border-slate-300 bg-white p-4"`) {
+		t.Error("the home page's hand-written <section> must take section padding (p-4 here), not panel padding")
+	}
+}

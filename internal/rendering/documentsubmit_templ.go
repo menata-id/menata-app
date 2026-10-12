@@ -675,7 +675,7 @@ func modeFieldset(mode domain.Field, selected string) templ.Component {
 			templ_7745c5c3_Var33 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var34 = []any{"m-0 flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5"}
+		var templ_7745c5c3_Var34 = []any{"m-0 flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var34...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -736,7 +736,7 @@ func modeFieldsetOOB(mode domain.Field, selected string) templ.Component {
 			templ_7745c5c3_Var36 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var37 = []any{"m-0 flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), "p-5"}
+		var templ_7745c5c3_Var37 = []any{"m-0 flex flex-col", layoutGap(ctx, domain.GapDefault), surfaceClasses(ctx), paddingClass(ctx, domain.PaddingPanel)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var37...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

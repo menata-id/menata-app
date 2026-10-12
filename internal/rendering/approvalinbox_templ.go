@@ -1163,9 +1163,9 @@ func pendingApprovalCard(c PendingApprovalCard) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		overdue := c.SLA.Present && c.SLA.Tone == domain.ToneBad
-		var templ_7745c5c3_Var49 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white p-5 text-slate-900 hover:border-blue-300",
+		var templ_7745c5c3_Var49 = []any{"flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white", paddingClass(ctx, domain.PaddingPanel), "text-slate-900 hover:border-blue-300",
 			templ.KV("border-red-200", overdue),
-			templ.KV("border-slate-200", !overdue)}
+			templ.KV(borderClass(ctx, domain.BorderSurface), !overdue)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var49...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

@@ -412,9 +412,9 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 templ pendingApprovalCard(c PendingApprovalCard) {
 	{{ overdue := c.SLA.Present && c.SLA.Tone == domain.ToneBad }}
 	<div
-		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white p-5 text-slate-900 hover:border-blue-300",
+		class={ "flex flex-col", layoutGap(ctx, domain.GapDefault), radiusClass(ctx, domain.RadiusSurface), "border bg-white", paddingClass(ctx, domain.PaddingPanel), "text-slate-900 hover:border-blue-300",
 			templ.KV("border-red-200", overdue),
-			templ.KV("border-slate-200", !overdue) }
+			templ.KV(borderClass(ctx, domain.BorderSurface), !overdue) }
 	>
 		<a href={ templ.SafeURL(c.Href) } class={ "flex flex-col", layoutGap(ctx, domain.GapDefault) }>
 			// The pill above the title is for a card that needs attention now (board 07: overdue or

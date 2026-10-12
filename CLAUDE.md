@@ -1013,6 +1013,23 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   pre-auth screens keep literals (12 across 4 files). The layout ratchet's counts did not move. That was measured,
   not assumed, because its patterns do not key on the gap literal, so no reader rewrite was needed (unlike radius).
   `TestLadderGaps_followTheThemeAtMigratedSites` covers R9. Mutation-proved both ways.
+- `TestEveryThemeCategoryHasAnImplRatchet` — G1 (2026-10-12, rencana 0.4), a **coverage** gate over the impl
+  ratchets. Every `domain.Theme` map field (read by AST) must name at least one gate in
+  `themeCategoryImplRatchets`, every named gate must exist, and a stale category fails. Run it with `-v` for the
+  floor totals per category. The plan's per-file `dsImplDebt` map was not built: 0.2 had already put a ratchet beside
+  each category, and a second map would count the same literals twice (001 #8).
+  **Measuring coverage found two categories with none, and both were closed first:**
+  - padding: 14 hand-written `p-5` on surfaces. A `<section>` reads `PaddingSection`, any other card
+    `PaddingPanel`. Zero-floor `TestNoHandWrittenPanelPadding`.
+  - `border.surface`: a dialog, a lane, three image frames, a suggestion chip, and two cards' rest-state edges
+    read `borderClass(BorderSurface)`. `TestHandWrittenSurfaceEdgesOnlyShrink` keeps one floor, the read-only
+    email box.
+
+  Byte-identical across 106 pages and component renders, and app.css unchanged.
+  `TestPanelPaddingAndSurfaceEdges_followTheThemeAtMigratedSites` covers R9: it moves panel and section apart, so a
+  site reading the wrong one shows. **The border rewrite is local:** only the surface and tile shape gates apply
+  `borderReadersAsLiterals`. The value gates (control border, region rule, field, button) must not, because a reader
+  is the migration they count. Six mutations bit.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token
