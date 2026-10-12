@@ -22,6 +22,7 @@
     "comfortable": "four",
     "default": "three",
     "loose": "five",
+    "region": "six",
     "tight": "two",
     "xtight": "one-half"
   },

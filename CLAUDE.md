@@ -953,6 +953,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   with `testdata/default_theme.json`. Every Workspace without `theme:` renders it, so a one-line edit restyles the
   product. Passing means doing it on purpose: a DSD entry with its reversal condition, the Design System artifact
   mirrored, then `UPDATE_DEFAULT_THEME=1`. Mutation-proved (`PaddingPanel` back to `four`).
+- `TestHandWrittenRegionGapsOnlyShrink` — beside `domain.GapRegion` (2026-10-12), the Design System's `gap-region`
+  (24px). **Of three `gap-6` sites, one meant a region** (the pre-auth shell's brand block over its card); it moved
+  byte-identically. The two in `rolematrix` are column gutters, so the same value with a different meaning stays
+  hand-written (R2). One is frozen here; the other is a `sm:` variant. Mutation-proved both ways. GS1 now checks
+  `gap-region`, and the `DefaultTheme` snapshot moved with decision DS-G1 in `design-system-decisions.md`. **GS1
+  blind spot found on the way:** it cannot tell that an `accepted` token has since landed in code. `gap-region`
+  stayed unchecked until it was moved by hand.
 - `TestHandWrittenHalfStepGapsOnlyShrink` — the ratchet beside `domain.GapXtight` (2026-10-11), the Design System's
   `gap-xtight` (6px). Thirteen inline icon/dot+label sites moved to `layoutGap(ctx, domain.GapXtight)`; 15 sweep pages
   compared byte-identical. **Nine `gap-1.5` stay as floors** because they space *components* (vertical stacks, a

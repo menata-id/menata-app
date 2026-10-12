@@ -261,3 +261,46 @@ func TestHandWrittenHalfStepGapsOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// handWrittenRegionGaps freezes the `gap-6` literals left after `domain.GapRegion` arrived (2026-10-12), the
+// Design System's `gap-region` (24px): the space between a screen's large regions. Its one measured site, the
+// pre-auth shell's brand block over its card, moved byte-identically. What is left is a **column gutter**, the
+// two-column header of the role matrix. It has the same 24px and a different meaning, and rule R2 of the governance
+// guide says a value is not folded because it happens to match. The row below it uses `sm:gap-6`, a breakpoint
+// variant this count does not read. Shrink-only, both ways.
+var handWrittenRegionGaps = map[string]int{
+	"rolematrix.templ": 1, // the two-column header band's gutter
+}
+
+func TestHandWrittenRegionGapsOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	tok := regexp.MustCompile(`(?:^|[\s"{])gap-6(?:$|[\s"}])`)
+	got := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n := len(tok.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
+			got[e.Name()] = n
+		}
+	}
+	for file, n := range got {
+		if want := handWrittenRegionGaps[file]; n != want {
+			t.Errorf("%s: %d hand-written gap-6, frozen at %d -- the space between a screen's large regions reads layoutGap(ctx, domain.GapRegion); a column gutter is argued here, and a lower count lowers the entry", file, n, want)
+		}
+	}
+	for file := range handWrittenRegionGaps {
+		if got[file] == 0 {
+			t.Errorf("handWrittenRegionGaps names %s, which has no gap-6 left -- remove the entry", file)
+		}
+	}
+}

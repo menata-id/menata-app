@@ -57,8 +57,9 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 	length := map[string]string{
 		"gap-xtight": layoutGap(ctx, domain.GapXtight), "gap-tight": layoutGap(ctx, domain.GapTight),
 		"gap-default": layoutGap(ctx, domain.GapDefault), "gap-comfortable": layoutGap(ctx, domain.GapComfortable),
-		"gap-loose": layoutGap(ctx, domain.GapLoose),
-		"pad-panel": paddingClass(ctx, domain.PaddingPanel), "pad-section": paddingClass(ctx, domain.PaddingSection),
+		"gap-loose":  layoutGap(ctx, domain.GapLoose),
+		"gap-region": layoutGap(ctx, domain.GapRegion),
+		"pad-panel":  paddingClass(ctx, domain.PaddingPanel), "pad-section": paddingClass(ctx, domain.PaddingSection),
 		"pad-badge-x": paddingClass(ctx, domain.PaddingBadgeX), "pad-badge-y": paddingClass(ctx, domain.PaddingBadgeY),
 		"pad-badge-compact-x": paddingClass(ctx, domain.PaddingBadgeCompactX),
 		"pad-badge-compact-y": paddingClass(ctx, domain.PaddingBadgeCompactY),
@@ -150,7 +151,6 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 
 // dsAcceptedNotInCode: accepted by the artifact, not yet a Theme role. Shrinks as each lands (rencana 0.7).
 var dsAcceptedNotInCode = map[string]string{
-	"gap-region":             "24px; hand-written gap-6 at 3 sites until a slice adds the step",
 	"control-height-compact": "32px; hand-written h-8 until a slice adds it",
 }
 

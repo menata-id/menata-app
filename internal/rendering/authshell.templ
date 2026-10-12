@@ -1,5 +1,7 @@
 package rendering
 
+import "menata.app/internal/domain"
+
 // authShell is the page frame every pre-auth screen shares -- sign in, register, choose a
 // workspace, the three password/verification screens. It is the pageShell counterpart for pages
 // that have no Workspace or Application chosen yet, and therefore no navigation to project: what
@@ -30,7 +32,7 @@ templ authShell(title, heading, subtitle string) {
 			@headMeta(title)
 		</head>
 		<body class="m-0 bg-slate-50 font-sans text-slate-900">
-			<div class="flex min-h-screen flex-col items-center gap-6 px-4 pt-18 pb-8 sm:gap-7 sm:pt-28">
+			<div class={ "flex min-h-screen flex-col items-center", layoutGap(ctx, domain.GapRegion), "px-4 pt-18 pb-8 sm:gap-7 sm:pt-28" }>
 				<div class="flex flex-col items-center gap-2">
 					<div
 						role="img"

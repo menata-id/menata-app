@@ -299,6 +299,12 @@ const (
 	GapDefault     Gap = "default"
 	GapComfortable Gap = "comfortable"
 	GapLoose       Gap = "loose"
+	// GapRegion is the Design System's `gap-region` (24px, accepted 2026-10-07): one step past loose, for the space
+	// between a screen's large regions (a header from its content, a list from a side panel). It extends the
+	// ladder's end rather than inserting a middle step, which is why the artifact accepted it. Arrived 2026-10-12 with
+	// its one measured site (the pre-auth shell's brand block over its card); the two `gap-6` in rolematrix are
+	// column gutters, not regions, and stay hand-written (TestHandWrittenRegionGapsOnlyShrink).
+	GapRegion Gap = "region"
 )
 
 // GapAmount is how much space a Gap step actually renders — the fourth Theme category, and **the one with a
@@ -328,12 +334,14 @@ const (
 	GapAmountThree   GapAmount = "three"
 	GapAmountFour    GapAmount = "four"
 	GapAmountFive    GapAmount = "five"
+	// GapAmountSix is gap-6 (24px), GapRegion's default.
+	GapAmountSix GapAmount = "six"
 )
 
 // KnownGapAmounts is the closed set.
 var KnownGapAmounts = map[GapAmount]bool{
 	GapAmountHalf: true, GapAmountOne: true, GapAmountOneHalf: true, GapAmountTwo: true,
-	GapAmountThree: true, GapAmountFour: true, GapAmountFive: true,
+	GapAmountThree: true, GapAmountFour: true, GapAmountFive: true, GapAmountSix: true,
 }
 
 // KnownGaps is the closed set. An empty Gap means GapDefault, resolved where the layout is rendered.
@@ -343,6 +351,7 @@ var KnownGaps = map[Gap]bool{
 	GapDefault:     true,
 	GapComfortable: true,
 	GapLoose:       true,
+	GapRegion:      true,
 }
 
 // StaticKind is the closed set of static content nodes (§12.6): explanatory text and visual material

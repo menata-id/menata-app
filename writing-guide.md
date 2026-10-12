@@ -2132,6 +2132,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >     default:     three  # (default: three)
 >     comfortable: four   # (default: four)
 >     loose:       five   # (default: five)
+>     region:      six    # the space between a screen's large regions -- a header from its content (default: six)
 >   border:
 >     surface: soft     # panels, sections, cards, table wrappers, popovers (default: soft)
 >     control: defined  # an input's own box  (default: defined)
@@ -2186,7 +2187,7 @@ similar-looking metadata for a *different* Machine does not activate it.
 >
 > `gap:` is the one category shaped differently: it maps a **spacing step straight to an amount**, because a
 > caller already says `tight` rather than a raw class — there is no role to invent. Amounts, smallest first:
-> `half`, `one`, `one-half`, `two`, `three`, `four`, `five`.
+> `half`, `one`, `one-half`, `two`, `three`, `four`, `five`, `six`.
 >
 > The seven text scales, smallest first: `micro`, `tiny`, `small`, `normal`, `medium`, `large`, `huge`.
 > `medium` is the one no role claims by default.
