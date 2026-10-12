@@ -34,3 +34,12 @@ repo, so download its `project/*.dc.html` first (Artifact `read` with `paths`).
 scope; see the script's docstring and decision K1. The first run, on 2026-10-12, covered canvas version 157: 466
 literals in the five Builder artboards (A01, U01–U04). 26 were left, because their colour belongs to another
 family (a dot, a tab underline, a chevron).
+
+## `canvas_k1.py` (owner decision K1)
+
+`canvas_k1.py` replaced the mockup canvas's Tailwind v3 hex colours with the Tailwind v4 oklch of the same palette
+step (UI canvas version 159, 2026-10-12): 6,958 values in 84 artboards. `k1-v3-to-v4.json` records each of the 53
+colours with its OKLab distance (×100; about 2 is a just-noticeable difference). The mean, weighted by use, is 0.64.
+The largest are the blues and violets (blue-600 2.98 over 235 uses, violet-600 3.44). Afterwards `canvas_vars.py`
+turned 5,653 of the new values into `var(--token)`. Four hex outside the v3 palette (18 uses) were left alone.
+White and black were never touched.

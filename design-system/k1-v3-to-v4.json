@@ -1,0 +1,376 @@
+{
+ "note": "Owner decision K1 (2026-10-12): the mockup canvas's Tailwind v3 hex -> the Tailwind v4 oklch of the same palette step. deltaE_ok_x100 is the OKLab distance x100 (about 2 is a just-noticeable difference). Built from tailwindcss 3.4.19 colors.js and 4.1.18 theme.css; uses counted on UI canvas version 158. Read by canvas_k1.py.",
+ "colours": [
+  {
+   "hex": "#e2e8f0",
+   "name": "slate-200",
+   "v4": "oklch(92.9% .013 255.508)",
+   "deltaE_ok_x100": 0.04,
+   "uses": 832
+  },
+  {
+   "hex": "#94a3b8",
+   "name": "slate-400",
+   "v4": "oklch(70.4% .04 256.788)",
+   "deltaE_ok_x100": 0.83,
+   "uses": 776
+  },
+  {
+   "hex": "#64748b",
+   "name": "slate-500",
+   "v4": "oklch(55.4% .046 257.417)",
+   "deltaE_ok_x100": 0.53,
+   "uses": 774
+  },
+  {
+   "hex": "#0f172a",
+   "name": "slate-900",
+   "v4": "oklch(20.8% .042 265.755)",
+   "deltaE_ok_x100": 0.22,
+   "uses": 698
+  },
+  {
+   "hex": "#f1f5f9",
+   "name": "slate-100",
+   "v4": "oklch(96.8% .007 247.896)",
+   "deltaE_ok_x100": 0.03,
+   "uses": 569
+  },
+  {
+   "hex": "#475569",
+   "name": "slate-600",
+   "v4": "oklch(44.6% .043 257.281)",
+   "deltaE_ok_x100": 0.56,
+   "uses": 466
+  },
+  {
+   "hex": "#334155",
+   "name": "slate-700",
+   "v4": "oklch(37.2% .044 257.287)",
+   "deltaE_ok_x100": 0.49,
+   "uses": 420
+  },
+  {
+   "hex": "#cbd5e1",
+   "name": "slate-300",
+   "v4": "oklch(86.9% .022 252.894)",
+   "deltaE_ok_x100": 0.22,
+   "uses": 354
+  },
+  {
+   "hex": "#f8fafc",
+   "name": "slate-50",
+   "v4": "oklch(98.4% .003 247.858)",
+   "deltaE_ok_x100": 0.04,
+   "uses": 290
+  },
+  {
+   "hex": "#2563eb",
+   "name": "blue-600",
+   "v4": "oklch(54.6% .245 262.881)",
+   "deltaE_ok_x100": 2.98,
+   "uses": 235
+  },
+  {
+   "hex": "#1d4ed8",
+   "name": "blue-700",
+   "v4": "oklch(48.8% .243 264.376)",
+   "deltaE_ok_x100": 2.58,
+   "uses": 189
+  },
+  {
+   "hex": "#047857",
+   "name": "emerald-700",
+   "v4": "oklch(50.8% .118 165.612)",
+   "deltaE_ok_x100": 1.31,
+   "uses": 178
+  },
+  {
+   "hex": "#b91c1c",
+   "name": "red-700",
+   "v4": "oklch(50.5% .213 27.518)",
+   "deltaE_ok_x100": 2.25,
+   "uses": 177
+  },
+  {
+   "hex": "#eff6ff",
+   "name": "blue-50",
+   "v4": "oklch(97% .014 254.604)",
+   "deltaE_ok_x100": 0.05,
+   "uses": 148
+  },
+  {
+   "hex": "#92400e",
+   "name": "amber-800",
+   "v4": "oklch(47.3% .137 46.201)",
+   "deltaE_ok_x100": 1.23,
+   "uses": 98
+  },
+  {
+   "hex": "#93c5fd",
+   "name": "blue-300",
+   "v4": "oklch(80.9% .105 251.813)",
+   "deltaE_ok_x100": 0.94,
+   "uses": 95
+  },
+  {
+   "hex": "#059669",
+   "name": "emerald-600",
+   "v4": "oklch(59.6% .145 163.225)",
+   "deltaE_ok_x100": 1.76,
+   "uses": 65
+  },
+  {
+   "hex": "#bfdbfe",
+   "name": "blue-200",
+   "v4": "oklch(88.2% .059 254.128)",
+   "deltaE_ok_x100": 0.2,
+   "uses": 52
+  },
+  {
+   "hex": "#ecfdf5",
+   "name": "emerald-50",
+   "v4": "oklch(97.9% .021 166.113)",
+   "deltaE_ok_x100": 0.05,
+   "uses": 48
+  },
+  {
+   "hex": "#fffbeb",
+   "name": "amber-50",
+   "v4": "oklch(98.7% .022 95.277)",
+   "deltaE_ok_x100": 0.06,
+   "uses": 47
+  },
+  {
+   "hex": "#fecaca",
+   "name": "red-200",
+   "v4": "oklch(88.5% .062 18.334)",
+   "deltaE_ok_x100": 0.28,
+   "uses": 45
+  },
+  {
+   "hex": "#fef2f2",
+   "name": "red-50",
+   "v4": "oklch(97.1% .013 17.38)",
+   "deltaE_ok_x100": 0.05,
+   "uses": 39
+  },
+  {
+   "hex": "#d1fae5",
+   "name": "emerald-100",
+   "v4": "oklch(95% .052 163.051)",
+   "deltaE_ok_x100": 0.13,
+   "uses": 38
+  },
+  {
+   "hex": "#10b981",
+   "name": "emerald-500",
+   "v4": "oklch(69.6% .17 162.48)",
+   "deltaE_ok_x100": 2.09,
+   "uses": 28
+  },
+  {
+   "hex": "#fde68a",
+   "name": "amber-200",
+   "v4": "oklch(92.4% .12 95.746)",
+   "deltaE_ok_x100": 0.49,
+   "uses": 27
+  },
+  {
+   "hex": "#3b82f6",
+   "name": "blue-500",
+   "v4": "oklch(62.3% .214 259.815)",
+   "deltaE_ok_x100": 2.6,
+   "uses": 25
+  },
+  {
+   "hex": "#be123c",
+   "name": "rose-700",
+   "v4": "oklch(51.4% .222 16.935)",
+   "deltaE_ok_x100": 2.42,
+   "uses": 23
+  },
+  {
+   "hex": "#dbeafe",
+   "name": "blue-100",
+   "v4": "oklch(93.2% .032 255.585)",
+   "deltaE_ok_x100": 0.04,
+   "uses": 19
+  },
+  {
+   "hex": "#ffedd5",
+   "name": "orange-100",
+   "v4": "oklch(95.4% .038 75.164)",
+   "deltaE_ok_x100": 0.09,
+   "uses": 17
+  },
+  {
+   "hex": "#9a3412",
+   "name": "orange-800",
+   "v4": "oklch(47% .157 37.304)",
+   "deltaE_ok_x100": 1.4,
+   "uses": 17
+  },
+  {
+   "hex": "#6ee7b7",
+   "name": "emerald-300",
+   "v4": "oklch(84.5% .143 164.978)",
+   "deltaE_ok_x100": 1.31,
+   "uses": 15
+  },
+  {
+   "hex": "#4f46e5",
+   "name": "indigo-600",
+   "v4": "oklch(51.1% .262 276.966)",
+   "deltaE_ok_x100": 3.19,
+   "uses": 15
+  },
+  {
+   "hex": "#eef2ff",
+   "name": "indigo-50",
+   "v4": "oklch(96.2% .018 272.314)",
+   "deltaE_ok_x100": 0.01,
+   "uses": 13
+  },
+  {
+   "hex": "#a7f3d0",
+   "name": "emerald-200",
+   "v4": "oklch(90.5% .093 164.15)",
+   "deltaE_ok_x100": 0.35,
+   "uses": 13
+  },
+  {
+   "hex": "#0e7490",
+   "name": "cyan-700",
+   "v4": "oklch(52% .105 223.128)",
+   "deltaE_ok_x100": 1.14,
+   "uses": 12
+  },
+  {
+   "hex": "#7e22ce",
+   "name": "purple-700",
+   "v4": "oklch(49.6% .265 301.924)",
+   "deltaE_ok_x100": 2.81,
+   "uses": 10
+  },
+  {
+   "hex": "#7c3aed",
+   "name": "violet-600",
+   "v4": "oklch(54.1% .281 293.009)",
+   "deltaE_ok_x100": 3.44,
+   "uses": 10
+  },
+  {
+   "hex": "#fae8ff",
+   "name": "fuchsia-100",
+   "v4": "oklch(95.2% .037 318.852)",
+   "deltaE_ok_x100": 0.1,
+   "uses": 10
+  },
+  {
+   "hex": "#86198f",
+   "name": "fuchsia-800",
+   "v4": "oklch(45.2% .211 324.591)",
+   "deltaE_ok_x100": 1.88,
+   "uses": 10
+  },
+  {
+   "hex": "#065f46",
+   "name": "emerald-800",
+   "v4": "oklch(43.2% .095 166.913)",
+   "deltaE_ok_x100": 0.85,
+   "uses": 8
+  },
+  {
+   "hex": "#fef3c7",
+   "name": "amber-100",
+   "v4": "oklch(96.2% .059 95.617)",
+   "deltaE_ok_x100": 0.1,
+   "uses": 8
+  },
+  {
+   "hex": "#c7d2fe",
+   "name": "indigo-200",
+   "v4": "oklch(87% .065 274.039)",
+   "deltaE_ok_x100": 0.28,
+   "uses": 6
+  },
+  {
+   "hex": "#6366f1",
+   "name": "indigo-500",
+   "v4": "oklch(58.5% .233 277.117)",
+   "deltaE_ok_x100": 2.89,
+   "uses": 6
+  },
+  {
+   "hex": "#faf5ff",
+   "name": "purple-50",
+   "v4": "oklch(97.7% .014 308.299)",
+   "deltaE_ok_x100": 0.03,
+   "uses": 5
+  },
+  {
+   "hex": "#e9d5ff",
+   "name": "purple-200",
+   "v4": "oklch(90.2% .063 306.703)",
+   "deltaE_ok_x100": 0.26,
+   "uses": 5
+  },
+  {
+   "hex": "#f3e8ff",
+   "name": "purple-100",
+   "v4": "oklch(94.6% .033 307.174)",
+   "deltaE_ok_x100": 0.05,
+   "uses": 5
+  },
+  {
+   "hex": "#e0e7ff",
+   "name": "indigo-100",
+   "v4": "oklch(93% .034 272.788)",
+   "deltaE_ok_x100": 0.06,
+   "uses": 5
+  },
+  {
+   "hex": "#3730a3",
+   "name": "indigo-800",
+   "v4": "oklch(39.8% .195 277.366)",
+   "deltaE_ok_x100": 1.77,
+   "uses": 5
+  },
+  {
+   "hex": "#34d399",
+   "name": "emerald-400",
+   "v4": "oklch(76.5% .177 163.223)",
+   "deltaE_ok_x100": 2.48,
+   "uses": 2
+  },
+  {
+   "hex": "#1e3a8a",
+   "name": "blue-900",
+   "v4": "oklch(37.9% .146 265.522)",
+   "deltaE_ok_x100": 0.82,
+   "uses": 2
+  },
+  {
+   "hex": "#60a5fa",
+   "name": "blue-400",
+   "v4": "oklch(70.7% .165 254.624)",
+   "deltaE_ok_x100": 2.26,
+   "uses": 2
+  },
+  {
+   "hex": "#f0fdf4",
+   "name": "green-50",
+   "v4": "oklch(98.2% .018 155.826)",
+   "deltaE_ok_x100": 0.01,
+   "uses": 1
+  },
+  {
+   "hex": "#b45309",
+   "name": "amber-700",
+   "v4": "oklch(55.5% .163 48.998)",
+   "deltaE_ok_x100": 1.75,
+   "uses": 1
+  }
+ ]
+}
