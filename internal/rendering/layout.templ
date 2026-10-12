@@ -333,6 +333,18 @@ func markGoodBorder() string { return "border-emerald-600" }
 
 func markGoodHoverBorder() string { return "hover:border-emerald-600" }
 
+// controlHeightCompact is the Design System artifact's `control-height-compact`: 32px for a small control inside a row
+// (a row's own action links, an icon button, a filter chip). It is accepted with one condition: **mouse only**. On a
+// touch screen the target stays 44px (WCAG 2.5.5). That condition is the second half of the string, so a site
+// cannot take the height without the touch rule.
+//
+// It is a plain reader and not a Theme role, for the same reason `control-height` (36px, `h-9`) has none: Theme has
+// no height category, and adding one is a decision this slice does not take. It arrived 2026-10-12 with its two
+// measured sites, review's View PDF and Download links. Both were 32px on phones too, so on a touch screen they grow to
+// 44px; on a mouse nothing moves. The third `h-8` in the tree, the attachment kind tile, is not a control, and stays
+// (TestHandWrittenCompactHeightsOnlyShrink).
+func controlHeightCompact() string { return "h-8 pointer-coarse:h-11" }
+
 // panelLayout is the bordered, padded surface twelve sites across six screens carried as one identical
 // class string -- the only one of §12.2's remaining candidates that is genuinely *one shape*. Three near
 // variants (`p-5` twice, a `p-3` div once) are deliberately left alone: forcing them through this would

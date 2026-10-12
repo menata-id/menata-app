@@ -953,6 +953,13 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   with `testdata/default_theme.json`. Every Workspace without `theme:` renders it, so a one-line edit restyles the
   product. Passing means doing it on purpose: a DSD entry with its reversal condition, the Design System artifact
   mirrored, then `UPDATE_DEFAULT_THEME=1`. Mutation-proved (`PaddingPanel` back to `four`).
+- `TestHandWrittenCompactHeightsOnlyShrink` — beside `controlHeightCompact()` (2026-10-12), the Design System's
+  `control-height-compact`. It is 32px **with the artifact's condition built in**: the reader returns
+  `h-8 pointer-coarse:h-11`, so a site cannot take the height without keeping 44px on touch. Review's View
+  PDF/Download moved. Measured in Chromium: mouse 32→32px; touch emulation **32→44px**, a deliberate mobile change
+  the artifact had already decided. The attachment kind tile is not a control and stays. It is a plain reader,
+  not a Theme role: Theme has no height category, like `control-height` itself. With it, GS1's
+  `dsAcceptedNotInCode` is **empty**. Mutation-proved both ways.
 - `TestHandWrittenRegionGapsOnlyShrink` — beside `domain.GapRegion` (2026-10-12), the Design System's `gap-region`
   (24px). **Of three `gap-6` sites, one meant a region** (the pre-auth shell's brand block over its card); it moved
   byte-identically. The two in `rolematrix` are column gutters, so the same value with a different meaning stays

@@ -304,3 +304,45 @@ func TestHandWrittenRegionGapsOnlyShrink(t *testing.T) {
 		}
 	}
 }
+
+// handWrittenCompactHeights freezes the `h-8` literals left after `controlHeightCompact` arrived (2026-10-12), the Design
+// System's `control-height-compact`: 32px for a small control inside a row, **mouse only** (44px on touch). Its two
+// sites, review's View PDF and Download links, moved, and on a touch screen they grew from 32 to 44px, measured in
+// Chromium with touch emulation. What is left is the attachment kind tile: an aria-hidden label box, not a control.
+// Shrink-only, both ways.
+var handWrittenCompactHeights = map[string]int{
+	"attachments.templ": 1, // the file-kind tile beside an attachment -- not a control
+}
+
+func TestHandWrittenCompactHeightsOnlyShrink(t *testing.T) {
+	dir := filepath.Join(repoRoot(), "internal", "rendering")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	comment := regexp.MustCompile(`//[^\n]*`)
+	tok := regexp.MustCompile(`(?:^|[\s"{])h-8(?:$|[\s"}])`)
+	got := map[string]int{}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") || e.Name() == "layout.templ" {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n := len(tok.FindAllString(comment.ReplaceAllString(string(b), ""), -1)); n > 0 {
+			got[e.Name()] = n
+		}
+	}
+	for file, n := range got {
+		if want := handWrittenCompactHeights[file]; n != want {
+			t.Errorf("%s: %d hand-written h-8, frozen at %d -- a small control in a row reads controlHeightCompact() (which keeps 44px on touch); a non-control is argued here, and a lower count lowers the entry", file, n, want)
+		}
+	}
+	for file := range handWrittenCompactHeights {
+		if got[file] == 0 {
+			t.Errorf("handWrittenCompactHeights names %s, which has no h-8 left -- remove the entry", file)
+		}
+	}
+}

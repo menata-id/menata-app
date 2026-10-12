@@ -57,9 +57,10 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 	length := map[string]string{
 		"gap-xtight": layoutGap(ctx, domain.GapXtight), "gap-tight": layoutGap(ctx, domain.GapTight),
 		"gap-default": layoutGap(ctx, domain.GapDefault), "gap-comfortable": layoutGap(ctx, domain.GapComfortable),
-		"gap-loose":  layoutGap(ctx, domain.GapLoose),
-		"gap-region": layoutGap(ctx, domain.GapRegion),
-		"pad-panel":  paddingClass(ctx, domain.PaddingPanel), "pad-section": paddingClass(ctx, domain.PaddingSection),
+		"gap-loose":              layoutGap(ctx, domain.GapLoose),
+		"gap-region":             layoutGap(ctx, domain.GapRegion),
+		"control-height-compact": strings.Fields(controlHeightCompact())[0], // the mouse height; the touch half is pointer-coarse
+		"pad-panel":              paddingClass(ctx, domain.PaddingPanel), "pad-section": paddingClass(ctx, domain.PaddingSection),
 		"pad-badge-x": paddingClass(ctx, domain.PaddingBadgeX), "pad-badge-y": paddingClass(ctx, domain.PaddingBadgeY),
 		"pad-badge-compact-x": paddingClass(ctx, domain.PaddingBadgeCompactX),
 		"pad-badge-compact-y": paddingClass(ctx, domain.PaddingBadgeCompactY),
@@ -149,10 +150,9 @@ func TestDesignSystemTokensMatchTheCode(t *testing.T) {
 	}
 }
 
-// dsAcceptedNotInCode: accepted by the artifact, not yet a Theme role. Shrinks as each lands (rencana 0.7).
-var dsAcceptedNotInCode = map[string]string{
-	"control-height-compact": "32px; hand-written h-8 until a slice adds it",
-}
+// dsAcceptedNotInCode: accepted by the artifact, not yet in code. Shrinks as each lands (rencana 0.7). Empty since
+// 2026-10-12 (control-height-compact was the last); an empty map stays declared, like any emptied ratchet.
+var dsAcceptedNotInCode = map[string]string{}
 
 // dsUnmapped: tokens no Theme reader answers for, with the reason. Each is a record, not a check.
 var dsUnmapped = map[string]string{
