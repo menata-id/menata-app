@@ -1044,16 +1044,22 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   (2026-10-12, rencana 1.3). The impl ratchets count a role's **default** and say "read the Theme instead". That
   advice is wrong for a value **no role names**, such as `text-white` on a filled mark, `bg-slate-900` (the Design
   System's `primary`), `gap-2.5` or `accent-blue-500`. Such a value is counted here, per value, in
-  `unnamedDesignValues`, each with its reason. Read the numbers out of the map (126 tokens, 52 values when written).
+  `unnamedDesignValues`, each with its reason. Read the numbers out of the map (126 tokens, 48 values when written).
   - A new value fails with a different message: register a role through the governance guide's procedure, or add a
     floor with its reason (R1).
-  - Families: size, weight, ink, fill, edge (border, divide, ring, outline, accent), gap, and side corners.
-  - Left out, each for its reason: padding (roles by job, D4), whole corners (the radius ratchet counts every one),
-    and `text-[Npx]` (`handWrittenOffLadderSizes` is this bucket's size part).
-  - The second test holds the line between the two buckets. A role G1 exempts (tone neutral's `text-slate-600`)
-    lands here, or no gate would count it.
-  - Mutation-proved in all seven families, plus a stale entry and the exempt-role split. Blind spots: variant
-    prefixes and a class from a Go function.
+  - Families: size, weight, ink, fill, edge (border, divide, ring, outline, accent, ...), gap, and corners outside
+    `radiusToken`. Colours include `input.css`'s own `@theme` colours (`bg-brand`), arbitrary hex and `!important`.
+  - Left out, each for its reason: padding (roles by job, D4), the corners the radius ratchet counts, `text-[Npx]`
+    (`handWrittenOffLadderSizes` is this bucket's size part), and `transparent`/`current`.
+  - **One token, one gate.** `classifyClassSet` follows the impl ratchets' own patterns first: anything the tone-pair,
+    tone-edge or radius ratchet matches is theirs, even beyond the defaults (`bg-red-100` in a pair, `border-emerald-300`).
+  - **A tone's fill or ink written alone** has a role, but the pair ratchet cannot see half a pair. It is held in
+    `loneToneHalves` with the impl advice. Before the review, about 16 such sites were counted by nothing.
+  - `TestDesignBucketAndImplRatchetsSplitTheTokens` requires every role default, written alone, to land in one
+    bucket, and pins the classification with cases. Its first version compared the bucket's regexes with themselves
+    and could not fail.
+  - Mutation-proved in all seven families, plus a stale entry, a lone half, a pair, and the reviewer's narrowed
+    family. Blind spots: variant prefixes, Go strings (74 family tokens), and backticks or a `}` in a class expression.
 - `TestKeyboardFocusRuleCoversInteractiveElements` / `TestNoOutlineNoneBesideAFocusRing` — owner decision DS-D14
   (2026-10-12). Keyboard focus is **one base rule** in `static/css/input.css`, as the mockups have it:
   `:where(a[href], button, summary, [tabindex]):focus-visible` draws a 2px `--color-blue-300` outline (the Design

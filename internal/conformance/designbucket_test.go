@@ -9,27 +9,48 @@ import (
 	"testing"
 )
 
-// designFamilies are the class families a Theme category covers. A token in one of them that is **no counted role's
-// default** is a design value: the system does not name it, so no reader can stand in for it. The impl ratchets count
-// the role defaults; this bucket counts the rest (rencana 1.3, G1 stage two).
+// designFamilies are the class families a Theme category covers. A token in one of them that **no impl ratchet
+// counts** is a design value: the system does not name it, so no reader can stand in for it (rencana 1.3, G1 stage two).
+// A token is read with a leading or trailing `!` (important) removed.
 //
 // Not here, each for its reason:
 //   - padding: D4 made padding six roles by job, not a ladder, so a `px-3` is generic spacing rather than an unnamed
 //     value;
-//   - whole corners (`rounded`, `rounded-xl`, ...): TestHandWrittenRadiiOnlyShrink counts every corner already, with a
-//     reason per file; only side corners (`rounded-t-2xl`) are counted here;
-//   - arbitrary sizes (`text-[15px]`): handWrittenOffLadderSizes holds them per file, as the size part of this bucket.
-var designFamilies = []struct {
+//   - the corners `radiusToken` names (`rounded`, `-sm` .. `-2xl`, `-full`): TestHandWrittenRadiiOnlyShrink counts
+//     every one of them with a reason per file. Other corners (`rounded-none`, `rounded-[10px]`, side corners) are here;
+//   - arbitrary sizes (`text-[15px]`): handWrittenOffLadderSizes holds them per file, as the size part of this bucket;
+//   - `transparent` and `current`: the absence of a colour, or the parent's, not a value to name.
+var designFamilies = func() []struct {
 	name string
 	re   *regexp.Regexp
-}{
-	{"size", regexp.MustCompile(`^text-(?:3xs|2xs|xs|sm|item|base|lg|[2-9]?xl)$`)},
-	{"weight", regexp.MustCompile(`^font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)$`)},
-	{"ink", regexp.MustCompile(`^text-(?:white|black|[a-z]+-\d{2,3})(?:/\d+)?$`)},
-	{"fill", regexp.MustCompile(`^bg-(?:white|black|[a-z]+-\d{2,3})(?:/\d+)?$`)},
-	{"edge", regexp.MustCompile(`^(?:border|divide|ring|outline|accent|caret|fill|stroke)(?:-[xytrbl])?-(?:white|black|[a-z]+-\d{2,3})(?:/\d+)?$`)},
-	{"gap", regexp.MustCompile(`^gap(?:-[xy])?-(?:px|[\d.]+)$`)},
-	{"corner", regexp.MustCompile(`^rounded-(?:[trblse]|tl|tr|bl|br|ss|se|es|ee)(?:-\w+)?$`)},
+} {
+	colour := `(?:white|black|` + customThemeColours() + `[a-z]+-\d{2,3}|\[#[0-9a-fA-F]{3,8}\])(?:/(?:\d+|\[[\d.]+\]))?`
+	return []struct {
+		name string
+		re   *regexp.Regexp
+	}{
+		{"size", regexp.MustCompile(`^text-(?:3xs|2xs|xs|sm|item|base|lg|[2-9]?xl)(?:/[\w.\[\]]+)?$`)},
+		{"weight", regexp.MustCompile(`^font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black|\[\d+\])$`)},
+		{"ink", regexp.MustCompile(`^text-` + colour + `$`)},
+		{"fill", regexp.MustCompile(`^bg-` + colour + `$`)},
+		{"edge", regexp.MustCompile(`^(?:border|divide|ring|ring-offset|outline|accent|caret|fill|stroke|decoration|shadow|from|via|to)(?:-[xytrblse])?-` + colour + `$`)},
+		{"gap", regexp.MustCompile(`^gap(?:-[xy])?-(?:px|[\d.]+|\[[^\]]+\])$`)},
+		{"corner", regexp.MustCompile(`^rounded(?:-(?:[trblse]|tl|tr|bl|br|ss|se|es|ee))?(?:-(?:none|xs|sm|md|lg|[2-4]?xl|full|\[[^\]]+\]))?$`)},
+	}
+}()
+
+// customThemeColours reads the colours `static/css/input.css` adds in `@theme` (`--color-brand`), as regexp
+// alternatives, so `bg-brand` is a colour like any palette step.
+func customThemeColours() string {
+	b, err := os.ReadFile(filepath.Join(repoRoot(), "static", "css", "input.css"))
+	if err != nil {
+		panic(err)
+	}
+	var alt string
+	for _, m := range regexp.MustCompile(`(?m)^\s*--color-([a-z][a-z0-9-]*):`).FindAllStringSubmatch(string(b), -1) {
+		alt += regexp.QuoteMeta(m[1]) + "|"
+	}
+	return alt
 }
 
 // unnamedDesignValues is the design bucket: every value in a Theme family that no role names, with how many times the
@@ -39,10 +60,13 @@ var designFamilies = []struct {
 // The reasons group into four kinds, which is the reading worth keeping: a token the Design System names and code has
 // no role for (`primary`, `scrim`, `accent-ring`, `radius-sheet`; GS1's dsUnmapped); a tone colour at a step the tone
 // does not use; a fill or edge that is geometry or state (a track, a drag handle, a knock-out ring); and a half-step or
-// two-axis gap. Measured 2026-10-12: 126 tokens, 52 values. Read the numbers out of the map.
+// two-axis gap. Measured 2026-10-12: 126 tokens, 48 values. Read the numbers out of the map.
 //
-// Blind spots, as in the impl ratchets: a variant-prefixed token (`hover:`, `sm:`), and a class returned by a Go
-// function rather than written in a class attribute (`tagClasses`, `appIconClasses`, a helper's `return`).
+// Blind spots, as in the impl ratchets:
+//   - a variant-prefixed token (`hover:`, `sm:`);
+//   - a class in a Go string rather than a class attribute: a helper's `return`, a `strings.Join` recipe, a script
+//     string. That is large: 74 family tokens on 2026-10-12, the primary button recipe among them;
+//   - a backtick string in a class expression, and a `}` inside one (the shared `classExpression` stops at it).
 var unnamedDesignValues = map[string]struct {
 	n   int
 	why string
@@ -50,7 +74,7 @@ var unnamedDesignValues = map[string]struct {
 	// ink
 	"text-white":       {15, "ink on a filled mark (primary button, step circle, count badge, done check): the Design System has `primary` but no on-fill ink, and a role waits on a fill role beside it (D3 holds background.accent)"},
 	"text-slate-300":   {8, "chevrons and a '(planned)' aside: decorative and lighter than `faint`; no ink role sits below faint (rencana 1.2b reviews faint)"},
-	"text-slate-600":   {4, "the neutral tone's ink (DS tone-neutral-ink) outside a tone pair; no Ink role is slate-600, and Tone/neutral is exempt from the pair count (themeRolesWithoutImplRatchet)"},
+	"text-slate-600":   {4, "the neutral tone's ink (DS tone-neutral-ink): a reference code chip that is the neutral pair written by hand, and plain labels; no Ink role is slate-600, and Tone/neutral is exempt from the pair count (themeRolesWithoutImplRatchet)"},
 	"text-red-600":     {4, "a lone danger word (pre-auth error, Delete group link, overdue SLA, a 'yes'): DS danger-ink is red-700, and folding 600 into it is a decision (R1)"},
 	"text-indigo-600":  {2, "the review tile's indigo: a hue outside the five tones and the Design System's colours"},
 	"text-amber-600":   {1, "New Application's capability-gap note: a warn ink one step lighter than tone warn"},
@@ -58,14 +82,14 @@ var unnamedDesignValues = map[string]struct {
 	"text-emerald-600": {1, "the signed marker's ink beside markGoodBorder: mark-good is a mark, not an ink"},
 	"text-red-400":     {1, "the danger zone's heading: the bad tone has no faint step (open finding f of the Phase 1 review)"},
 	// weight
-	"font-semibold": {2, "two uppercase labels at 600; the weight ladder is normal and medium only"},
+	"font-semibold": {2, "two small labels at 600 (an uppercase pill, an inference role heading); the weight ladder is normal and medium only"},
 	"font-bold":     {1, "pre-auth brand glyph; no Theme reaches it"},
 	// fill
+	"bg-brand":        {1, "the pre-auth brand mark's fill, `--color-brand` in input.css (GS1 dsUnmapped `brand`); no Theme reaches it"},
 	"bg-blue-600":     {8, "the accent as a fill (current step, numbered approver, signature marker, unread dot): D3 held background.accent"},
 	"bg-slate-200":    {6, "DS avatar-fill, and the same grey as a track, a drag handle and a rule: geometry, not a surface"},
-	"bg-slate-900":    {4, "DS `primary` (GS1 dsUnmapped): the primary button recipe, the active filter chip, the monogram tile, the pre-auth button"},
-	"bg-slate-400":    {3, "a waiting signature marker's dot"},
-	"bg-red-100":      {1, "the PDF file-type tile: a file type, not a tone"},
+	"bg-slate-900":    {4, "DS `primary` (GS1 dsUnmapped): the active filter chip, the monogram tile, the New record summary button, the pre-auth button. The primary button recipe in controls.templ is a Go string and not counted here"},
+	"bg-slate-400":    {3, "a waiting signature chip's dot, and the read-only marker's"},
 	"bg-red-500":      {1, "the rejected step circle: a filled bad mark, which the bad tone (a -50 wash) does not name"},
 	"bg-red-600":      {1, "a notification count's red: a filled mark, not tone bad's wash"},
 	"bg-blue-50/40":   {1, "an unread notification's translucent wash: opacity has no role"},
@@ -76,17 +100,16 @@ var unnamedDesignValues = map[string]struct {
 	"bg-slate-900/40": {1, "DS `scrim` (GS1 dsUnmapped): the mobile sheet's backdrop"},
 	"bg-white/70":     {1, "the inbox count chip over a coloured tab"},
 	// edge
-	"border-indigo-200":  {3, "the review tile's dashed indigo rim; see text-indigo-600"},
-	"border-slate-400":   {2, "a waiting signature marker's rim, and a waiting chip's"},
-	"border-blue-400":    {1, "your signature box's dashed rim: the accent as an edge"},
-	"border-blue-500":    {1, "your signature chip's rim: the accent as an edge"},
-	"border-blue-600":    {1, "the editable signature marker's rim: the accent as an edge"},
-	"border-emerald-300": {1, "a signed signature box's rim: a good edge one step past tone good's -200"},
-	"border-slate-900":   {1, "the active filter chip's rim, with `primary`"},
-	"border-white":       {1, "a badge's knock-out ring over a mark"},
-	"ring-blue-100":      {2, "DS `accent-ring` (GS1 dsUnmapped): the current step's ring and your signature box"},
-	"accent-blue-500":    {5, "a native checkbox's or radio's accent-color; two steps for one job (see accent-blue-600), and folding them is a decision (R1)"},
-	"accent-blue-600":    {2, "a native checkbox's accent-color; see accent-blue-500"},
+	"border-indigo-200": {3, "the review tile's dashed indigo rim; see text-indigo-600"},
+	"border-slate-400":  {2, "a waiting signature marker's rim, and a waiting chip's"},
+	"border-blue-400":   {1, "your signature box's dashed rim: the accent as an edge"},
+	"border-blue-500":   {1, "your signature chip's rim: the accent as an edge"},
+	"border-blue-600":   {1, "the editable signature marker's rim: the accent as an edge"},
+	"border-slate-900":  {1, "the active filter chip's rim, with `primary`"},
+	"border-white":      {1, "a badge's knock-out ring over a mark"},
+	"ring-blue-100":     {2, "DS `accent-ring` (GS1 dsUnmapped): the current step's ring and your signature box"},
+	"accent-blue-500":   {5, "a native checkbox's or radio's accent-color; two steps for one job (see accent-blue-600), and folding them is a decision (R1)"},
+	"accent-blue-600":   {2, "a native checkbox's accent-color; see accent-blue-500"},
 	// gap
 	"gap-2.5": {10, "10px, between the ladder's rungs; xtight (6px) is the only half-step token, and folding is a decision (R1)"},
 	"gap-3.5": {6, "14px, between the ladder's rungs; see gap-2.5"},
@@ -98,32 +121,90 @@ var unnamedDesignValues = map[string]struct {
 	"gap-y-3": {2, "a two-axis gap (a definition list's rows); see gap-x-2"},
 	"gap-8":   {1, "Application Settings' 32px tab gutter: above the ladder's top (region, 24px)"},
 	// corner
-	"rounded-r-md":  {1, "pre-auth password reveal button; no Theme reaches it"},
-	"rounded-t-2xl": {1, "DS `radius-sheet` (GS1 dsUnmapped): the mobile sheet's top corners, kept literal by owner decision DS-D17 (c)"},
-	"rounded-tl-sm": {1, "the signature marker's resize handle"},
+	"rounded-[10px]": {1, "the pre-auth brand mark: DS `radius-brand-mark` (GS1 dsUnmapped); no Theme reaches it"},
+	"rounded-r-md":   {1, "pre-auth password reveal button; no Theme reaches it"},
+	"rounded-t-2xl":  {1, "DS `radius-sheet` (GS1 dsUnmapped): the mobile sheet's top corners, kept literal by owner decision DS-D17 (c)"},
+	"rounded-tl-sm":  {1, "the signature marker's resize handle"},
 }
 
-// countedRoleDefaults is the set of tokens some impl ratchet counts: every token of every Theme role's default class,
-// except the roles G1 lists as uncounted. Those stay in the design bucket, since nothing else would see them.
-func countedRoleDefaults(t *testing.T) map[string]bool {
+// designRoleSets is what classification needs to know about the Theme's defaults.
+type designRoleSets struct {
+	// counted holds every token of a role default that an impl ratchet counts on its own: every Theme role except the
+	// ones G1 exempts, and except the tones, whose fill and ink are counted only as a pair.
+	counted map[string]bool
+	// toneHalves holds the tones' default fill and ink tokens (bad, good, info, warn).
+	toneHalves map[string]bool
+}
+
+func designRoles(t *testing.T) designRoleSets {
 	t.Helper()
-	out := map[string]bool{}
+	sets := designRoleSets{counted: map[string]bool{}, toneHalves: map[string]bool{}}
 	for _, r := range themeRoleDefaults(t) {
 		if _, exempt := themeRolesWithoutImplRatchet[r.category+"/"+r.name]; exempt {
 			continue
 		}
 		for _, tok := range strings.Fields(r.class) {
-			out[tok] = true
+			if r.category == "Tone" {
+				sets.toneHalves[tok] = true
+			} else {
+				sets.counted[tok] = true
+			}
 		}
+	}
+	return sets
+}
+
+// The kinds a token in one class set can be.
+const (
+	designKindNone   = ""       // in no family this bucket reads
+	designKindImpl   = "impl"   // an impl ratchet counts it
+	designKindLone   = "lone"   // a tone's default fill or ink written without its partner: a role exists, nothing counts it
+	designKindDesign = "design" // in a family, and no role names it
+)
+
+// classifyClassSet sorts the tokens of one class set. The order is the gates' own: a token an impl ratchet counts is
+// impl, including what the tone-pair, tone-edge and radius ratchets match beyond the defaults (so no literal is told
+// both "read the Theme" and "no role exists"); a tone half whose partner is absent is lone; the rest of a family is a
+// design value.
+func classifyClassSet(set string, roles designRoleSets) map[string][]string {
+	toks := strings.Fields(set)
+	for i, tok := range toks {
+		toks[i] = strings.TrimSuffix(strings.TrimPrefix(tok, "!"), "!")
+	}
+	tints, inks := map[string]bool{}, map[string]bool{}
+	for _, tok := range toks {
+		if m := tonePairTint.FindStringSubmatch(tok); m != nil {
+			tints[m[1]] = true
+		}
+		if m := tonePairInk.FindStringSubmatch(tok); m != nil {
+			inks[m[1]] = true
+		}
+	}
+	out := map[string][]string{}
+	for _, tok := range toks {
+		kind := designKindNone
+		inFamily := false
+		for _, f := range designFamilies {
+			inFamily = inFamily || f.re.MatchString(tok)
+		}
+		tint, ink := tonePairTint.FindStringSubmatch(tok), tonePairInk.FindStringSubmatch(tok)
+		switch {
+		case roles.counted[tok], radiusToken.MatchString(tok), toneEdgeToken.MatchString(tok):
+			kind = designKindImpl
+		case tint != nil && inks[tint[1]], ink != nil && tints[ink[1]]:
+			kind = designKindImpl
+		case roles.toneHalves[tok]:
+			kind = designKindLone
+		case inFamily:
+			kind = designKindDesign
+		}
+		out[kind] = append(out[kind], tok)
 	}
 	return out
 }
 
-// designFamily names the family a token belongs to when it is a design value, and "" otherwise.
-func designFamily(tok string, counted map[string]bool) string {
-	if counted[tok] {
-		return ""
-	}
+// designFamily names the family a design value belongs to, for the error message.
+func designFamily(tok string) string {
 	for _, f := range designFamilies {
 		if f.re.MatchString(tok) {
 			return f.name
@@ -132,18 +213,36 @@ func designFamily(tok string, counted map[string]bool) string {
 	return ""
 }
 
+// loneToneHalves freezes, per token, a tone's default fill or ink written without its partner. The tone-pair ratchet
+// counts a pair and cannot see a half, and the token is a role's default, so it is not a design value either: before
+// 2026-10-12's review of this bucket, nothing counted these. They read toneInkClass/toneFillClass when the meaning is
+// the tone's. Measured 2026-10-12; read the numbers out of the map.
+var loneToneHalves = map[string]struct {
+	n   int
+	why string
+}{
+	"bg-amber-50":      {1, "Install Application's refusal box: a warn wash whose inks sit on its children (text-amber-900 title, text-amber-800 reason), so the pair is split across elements"},
+	"text-amber-800":   {1, "the refusal reason inside that box; see bg-amber-50"},
+	"bg-blue-50":       {2, "New Application's assistant bubble (a chat bubble, not the info tone) and your signature box"},
+	"bg-emerald-50":    {1, "a signed signature box, beside its -300 rim"},
+	"text-blue-700":    {6, "the active nav and inbox tab (open finding: desktop blue-700, mobile blue-600, to be decided together) and your signature's labels"},
+	"text-emerald-700": {1, "a signed signature's label"},
+	"text-red-700":     {4, "danger words outside a box: the Delete my account link, the Remove from workspace heading, urgent and overdue SLA text"},
+}
+
 // TestEveryUnnamedDesignValueHasAReason is rencana 1.3: the `design` bucket of G1. The impl ratchets say "read the
 // Theme instead"; that advice is wrong for a value no role names, so this gate says something else: register a role
 // through the procedure in menjaga-design-system, or record the value here as a floor with its reason. The two kinds of
-// literal therefore fail with two different messages, which is what the plan's "done" asks for.
+// literal therefore fail with two different messages, which is what the plan's "done" asks for. A lone tone half, a
+// role default no ratchet sees, is held here too (loneToneHalves), with the impl advice.
 func TestEveryUnnamedDesignValueHasAReason(t *testing.T) {
-	counted := countedRoleDefaults(t)
+	roles := designRoles(t)
 	dir := filepath.Join(repoRoot(), "internal", "rendering")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := map[string]int{}
+	got := map[string]map[string]int{designKindDesign: {}, designKindLone: {}}
 	where := map[string]map[string]bool{}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
@@ -155,15 +254,17 @@ func TestEveryUnnamedDesignValueHasAReason(t *testing.T) {
 		}
 		src := joinClassExpressions(chipNoLine.ReplaceAllString(string(b), ""))
 		for _, m := range themeClassValue.FindAllStringSubmatch(src, -1) {
-			for _, tok := range strings.Fields(m[1]) {
-				if designFamily(tok, counted) == "" {
+			for kind, toks := range classifyClassSet(m[1], roles) {
+				if got[kind] == nil {
 					continue
 				}
-				got[tok]++
-				if where[tok] == nil {
-					where[tok] = map[string]bool{}
+				for _, tok := range toks {
+					got[kind][tok]++
+					if where[tok] == nil {
+						where[tok] = map[string]bool{}
+					}
+					where[tok][e.Name()] = true
 				}
-				where[tok][e.Name()] = true
 			}
 		}
 	}
@@ -175,59 +276,91 @@ func TestEveryUnnamedDesignValueHasAReason(t *testing.T) {
 		sort.Strings(fs)
 		return strings.Join(fs, ", ")
 	}
-	for _, tok := range sortedKeys(got) {
-		entry, listed := unnamedDesignValues[tok]
-		switch {
-		case !listed:
-			t.Errorf("`%s` (%s, in %s) has no Theme role, so no reader can stand in for it. Register a role "+
-				"(menjaga-design-system, the registration procedure: Design System artifact first, then code), or add it to "+
-				"unnamedDesignValues as a floor with the reason it has none. A value the system does not name is a design "+
-				"decision, not a literal (R1)", tok, designFamily(tok, counted), files(tok))
-		case got[tok] > entry.n:
-			t.Errorf("`%s`: %d written (in %s), frozen at %d. It has no Theme role (%s); use a value the system names, or "+
-				"raise the floor only with a reason the entry does not already give", tok, got[tok], files(tok), entry.n, entry.why)
-		case got[tok] < entry.n:
-			t.Errorf("`%s`: %d written, down from %d -- lower unnamedDesignValues to lock it in", tok, got[tok], entry.n)
+	check := func(kind string, frozen map[string]struct {
+		n   int
+		why string
+	}, name, unlisted, raised string) {
+		for _, tok := range sortedKeys(got[kind]) {
+			entry, listed := frozen[tok]
+			switch n := got[kind][tok]; {
+			case !listed:
+				t.Errorf(unlisted, tok, designFamily(tok), files(tok))
+			case n > entry.n:
+				t.Errorf(raised, tok, n, files(tok), entry.n, entry.why)
+			case n < entry.n:
+				t.Errorf("`%s`: %d written, down from %d -- lower %s to lock it in", tok, n, entry.n, name)
+			}
+		}
+		for _, tok := range sortedKeys(frozen) {
+			if got[kind][tok] == 0 {
+				t.Errorf("%s lists `%s`, which no class attribute writes any more -- drop the stale entry", name, tok)
+			}
+			if strings.TrimSpace(frozen[tok].why) == "" {
+				t.Errorf("%s[%q] has no reason", name, tok)
+			}
 		}
 	}
-	for _, tok := range sortedKeys(unnamedDesignValues) {
-		if got[tok] == 0 {
-			t.Errorf("unnamedDesignValues lists `%s`, which no class attribute writes any more -- drop the stale entry", tok)
-		}
-		if strings.TrimSpace(unnamedDesignValues[tok].why) == "" {
-			t.Errorf("unnamedDesignValues[%q] has no reason", tok)
-		}
-	}
-	if len(got) == 0 {
+	check(designKindDesign, unnamedDesignValues, "unnamedDesignValues",
+		"`%s` (%s, in %s) has no Theme role, so no reader can stand in for it. Register a role "+
+			"(menjaga-design-system, the registration procedure: Design System artifact first, then code), or add it to "+
+			"unnamedDesignValues as a floor with the reason it has none. A value the system does not name is a design "+
+			"decision, not a literal (R1)",
+		"`%s`: %d written (in %s), frozen at %d. It has no Theme role (%s); use a value the system names, or "+
+			"raise the floor only with a reason the entry does not already give")
+	check(designKindLone, loneToneHalves, "loneToneHalves",
+		"`%s` (%s, in %s) is one half of a tone pair, written without its partner, so the tone-pair ratchet cannot "+
+			"see it. If the meaning is the tone's, read toneInkClass/toneFillClass(ctx, domain.Tone*); a Workspace's "+
+			"`theme:` moves the reader and not the literal (006). Otherwise add it to loneToneHalves with the reason",
+		"`%s`: %d written alone (in %s), frozen at %d (%s) -- read toneInkClass/toneFillClass(ctx, domain.Tone*) instead")
+	if len(got[designKindDesign]) == 0 {
 		t.Fatal("no design value found anywhere -- either every value has a role (keep the gate, empty) or the scan stopped reading class attributes")
 	}
 }
 
-// TestDesignBucketAndImplRatchetsSplitTheTokens holds the line between the two buckets: no counted role default is a
-// design value, and every role default that an impl ratchet does **not** count is one. Without the second half, a
-// role G1 exempts (tone neutral's slate-600) would be counted by neither gate.
+// TestDesignBucketAndImplRatchetsSplitTheTokens holds the line between the buckets. Every token of every role's
+// default (padding aside, see designFamilies) must land somewhere when written alone: counted by an impl ratchet, held
+// as a lone tone half, or a design value. The first version compared the bucket's regexes with themselves and could not
+// fail; narrowing a family so that tone neutral's `text-slate-600` fell out of both gates passed the whole suite. The
+// cases below pin the classification itself.
 func TestDesignBucketAndImplRatchetsSplitTheTokens(t *testing.T) {
-	counted := countedRoleDefaults(t)
-	for tok := range counted {
-		if f := designFamily(tok, counted); f != "" {
-			t.Errorf("`%s` is a counted role default and also a design value (%s)", tok, f)
-		}
-	}
+	roles := designRoles(t)
 	for _, r := range themeRoleDefaults(t) {
-		if _, exempt := themeRolesWithoutImplRatchet[r.category+"/"+r.name]; !exempt {
+		if r.category == "Padding" {
 			continue
 		}
 		for _, tok := range strings.Fields(r.class) {
-			if counted[tok] {
-				continue // another, counted role has the same default
+			if kinds := classifyClassSet(tok, roles); len(kinds[designKindNone]) > 0 {
+				t.Errorf("%s/%s's default `%s`, written alone, is counted by no impl ratchet and is no design value -- "+
+					"nothing would see a hand-written copy", r.category, r.name, tok)
 			}
-			inFamily := false
-			for _, f := range designFamilies {
-				inFamily = inFamily || f.re.MatchString(tok)
-			}
-			if inFamily && designFamily(tok, counted) == "" {
-				t.Errorf("%s/%s's `%s` is counted by neither the impl ratchets nor the design bucket", r.category, r.name, tok)
-			}
+		}
+	}
+	cases := []struct{ set, tok, want string }{
+		{"bg-red-50 text-red-700", "bg-red-50", designKindImpl},   // a pair: the tone-pair ratchet
+		{"bg-red-100 text-red-700", "bg-red-100", designKindImpl}, // a pair beyond the defaults, still that ratchet's
+		{"text-red-700", "text-red-700", designKindLone},
+		{"bg-amber-50 p-3", "bg-amber-50", designKindLone},
+		{"border-emerald-300", "border-emerald-300", designKindImpl}, // the tone-edge ratchet matches -300
+		{"rounded-xl", "rounded-xl", designKindImpl},                 // the radius ratchet
+		{"rounded-[10px]", "rounded-[10px]", designKindDesign},
+		{"rounded-none", "rounded-none", designKindDesign},
+		{"text-red-600", "text-red-600", designKindDesign}, // a tone hue at a step no role uses
+		{"!text-pink-600", "text-pink-600", designKindDesign},
+		{"bg-[#fff]", "bg-[#fff]", designKindDesign},
+		{"bg-brand", "bg-brand", designKindDesign},
+		{"text-slate-600", "text-slate-600", designKindDesign}, // tone neutral, exempt from G1
+		{"text-slate-500", "text-slate-500", designKindImpl},
+		{"bg-transparent", "bg-transparent", designKindNone},
+		{"px-3", "px-3", designKindNone},
+	}
+	for _, c := range cases {
+		got := classifyClassSet(c.set, roles)
+		found := false
+		for _, tok := range got[c.want] {
+			found = found || tok == c.tok
+		}
+		if !found {
+			t.Errorf("in %q, `%s` should be %q; classified as %v", c.set, c.tok, c.want, got)
 		}
 	}
 }
