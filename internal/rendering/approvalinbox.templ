@@ -569,7 +569,7 @@ templ approvalProgress(status, rejecter string, approved, total int) {
 			aria-valuetext={ fmt.Sprintf("%d of %d approved", approved, total) }
 			class="h-1.5 overflow-hidden rounded-full bg-slate-100"
 		>
-			<div class="h-full rounded-full bg-emerald-500" style={ progressWidth(approved, total) }></div>
+			<div class={ "h-full rounded-full", markGoodFill() } style={ progressWidth(approved, total) }></div>
 		</div>
 		<span class="text-2xs text-slate-400">{ approvalStatusLine(status, rejecter, approved, total) }</span>
 	</div>

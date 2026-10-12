@@ -773,7 +773,7 @@ func reviewStepMarker(s StepApprover, position int) templ.Component {
 		}
 		ctx = templ.ClearChildren(ctx)
 		var templ_7745c5c3_Var31 = []any{"flex size-6 shrink-0 items-center justify-center rounded-full text-3xs font-medium",
-			templ.KV("bg-emerald-500 text-white", s.State == "done"),
+			templ.KV(markGoodFill()+" text-white", s.State == "done"),
 			templ.KV("bg-blue-600 text-white ring-4 ring-blue-100", s.State == "current"),
 			templ.KV("bg-red-500 text-white", s.State == "rejected"),
 			templ.KV("bg-slate-200 text-slate-500", s.State == "waiting")}
@@ -1168,7 +1168,7 @@ func reviewSignatureBox(b ReviewSignatureBox) templ.Component {
 			}
 		}
 		var templ_7745c5c3_Var47 = []any{"absolute -top-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full border bg-white text-3xs font-medium",
-			templ.KV("border-emerald-500 text-emerald-600", b.Kind == "signed"),
+			templ.KV(markGoodBorder()+" text-emerald-600", b.Kind == "signed"),
 			templ.KV("border-blue-500 text-blue-600", b.Kind == "yours"),
 			templ.KV("border-slate-400 text-slate-500", b.Kind == "waiting")}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var47...)
@@ -1206,7 +1206,7 @@ func reviewSignatureBox(b ReviewSignatureBox) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var50 = []any{"absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full border border-white",
-			templ.KV("bg-emerald-500", b.Kind == "signed"),
+			templ.KV(markGoodFill(), b.Kind == "signed"),
 			templ.KV("bg-blue-600", b.Kind == "yours"),
 			templ.KV("bg-slate-400", b.Kind == "waiting")}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var50...)
@@ -1388,7 +1388,7 @@ func reviewSignatureLegend() templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var58 = []any{"flex size-3.5 items-center justify-center rounded-full",
-				templ.KV("bg-emerald-500", kind == "signed"),
+				templ.KV(markGoodFill(), kind == "signed"),
 				templ.KV("bg-blue-600", kind == "yours"),
 				templ.KV("bg-slate-400", kind == "waiting")}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var58...)

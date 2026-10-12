@@ -820,9 +820,13 @@ func TestNoHandWrittenTable(t *testing.T) {
 // card checklist, Progress); render output was compared at HEAD and after, 13,892 bytes each.
 //
 // It matches the token anywhere in a `.templ` outside `layout.templ`, `//` comments stripped, so a Go string built
-// for `templ.KV` is seen as well as a class attribute. **Blind spot, stated:** the five emerald-500 marks
-// (`approvalinbox`, `reviewdocument`) are a different value, the one the artifact rejected for contrast, and moving
-// them is an owner decision that darkens the approval screens. A gate over 600 cannot see them, by design.
+// for `templ.KV` is seen as well as a class attribute.
+//
+// It also refuses `bg-`/`border-emerald-500`, the value the artifact rejected for a finished mark. Measured, that
+// is 2.46:1 on white, below WCAG 1.4.11's 3:1, where emerald-600 is 3.67:1. Five approval-screen marks used it
+// until the owner moved them on 2026-10-12 (`approvalinbox`'s progress bar, and `reviewdocument`'s done step and
+// three "signed" markers). One use stays, in `markGoodExempt`: the board's drag-and-drop slot, a JavaScript string
+// for a transient drop target, which is not a finished mark.
 func TestNoHandWrittenMarkGood(t *testing.T) {
 	dir := filepath.Join(repoRoot(), "internal", "rendering")
 	entries, err := os.ReadDir(dir)
@@ -831,7 +835,9 @@ func TestNoHandWrittenMarkGood(t *testing.T) {
 	}
 	comment := regexp.MustCompile(`//[^\n]*`)
 	mark := regexp.MustCompile(`(?:^|[\s"])((?:hover:)?(?:bg|border)-emerald-600)\b`)
+	rejected := regexp.MustCompile(`(?:^|[\s"])((?:hover:)?(?:bg|border)-emerald-500)\b`)
 	readers := 0
+	exemptSeen := map[string]int{}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".templ") {
 			continue
@@ -849,8 +855,31 @@ func TestNoHandWrittenMarkGood(t *testing.T) {
 			t.Errorf("%s: hand-written %q -- a finished mark reads markGoodFill/markGoodBorder/markGoodHoverBorder "+
 				"(the Design System artifact's `mark-good`), so the colour stays decided in one place", e.Name(), m[1])
 		}
+		n := len(rejected.FindAllStringSubmatch(comment.ReplaceAllString(string(b), ""), -1))
+		if want := markGoodExempt[e.Name()]; n != want {
+			if want > 0 {
+				exemptSeen[e.Name()] = n
+				continue
+			}
+			t.Errorf("%s: %d use(s) of bg-/border-emerald-500 -- the Design System rejected it for a finished mark "+
+				"(2.46:1 on white); use markGoodFill/markGoodBorder, or, if this is not a finished mark, say why in markGoodExempt", e.Name(), n)
+		} else if want > 0 {
+			exemptSeen[e.Name()] = n
+		}
 	}
 	if readers != 3 {
 		t.Fatalf("expected the three mark-good readers in layout.templ, found %d -- the scan is looking at the wrong text", readers)
 	}
+	for file, want := range markGoodExempt {
+		if got := exemptSeen[file]; got != want {
+			t.Errorf("markGoodExempt[%q] = %d but the file has %d -- a closed exemption must match exactly; drop or lower it", file, want, got)
+		}
+	}
+}
+
+// markGoodExempt is the closed list of emerald-500 uses that are not a finished mark, with the count per file.
+var markGoodExempt = map[string]int{
+	// The board's drag-and-drop: `slot.className = "h-1 rounded-full bg-emerald-500"`, the line drawn where a dragged
+	// card will land. A transient drop target in JavaScript, not a record's finished state.
+	"machine.templ": 1,
 }

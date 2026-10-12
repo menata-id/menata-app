@@ -250,7 +250,7 @@ templ reviewStepMarker(s StepApprover, position int) {
 	<span
 		aria-hidden="true"
 		class={ "flex size-6 shrink-0 items-center justify-center rounded-full text-3xs font-medium",
-			templ.KV("bg-emerald-500 text-white", s.State == "done"),
+			templ.KV(markGoodFill()+" text-white", s.State == "done"),
 			templ.KV("bg-blue-600 text-white ring-4 ring-blue-100", s.State == "current"),
 			templ.KV("bg-red-500 text-white", s.State == "rejected"),
 			templ.KV("bg-slate-200 text-slate-500", s.State == "waiting") }
@@ -383,7 +383,7 @@ templ reviewSignatureBox(b ReviewSignatureBox) {
 			<span
 				aria-hidden="true"
 				class={ "absolute -top-1.5 -left-1.5 flex size-4 items-center justify-center rounded-full border bg-white text-3xs font-medium",
-					templ.KV("border-emerald-500 text-emerald-600", b.Kind == "signed"),
+					templ.KV(markGoodBorder()+" text-emerald-600", b.Kind == "signed"),
 					templ.KV("border-blue-500 text-blue-600", b.Kind == "yours"),
 					templ.KV("border-slate-400 text-slate-500", b.Kind == "waiting") }
 			>{ fmt.Sprint(b.Index) }</span>
@@ -391,7 +391,7 @@ templ reviewSignatureBox(b ReviewSignatureBox) {
 				role="img"
 				aria-label={ fmt.Sprintf("Step %d: %s", b.Index, reviewSignatureKindLabel(b.Kind)) }
 				class={ "absolute -top-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full border border-white",
-					templ.KV("bg-emerald-500", b.Kind == "signed"),
+					templ.KV(markGoodFill(), b.Kind == "signed"),
 					templ.KV("bg-blue-600", b.Kind == "yours"),
 					templ.KV("bg-slate-400", b.Kind == "waiting") }
 			>
@@ -447,7 +447,7 @@ templ reviewSignatureLegend() {
 				<span
 					aria-hidden="true"
 					class={ "flex size-3.5 items-center justify-center rounded-full",
-						templ.KV("bg-emerald-500", kind == "signed"),
+						templ.KV(markGoodFill(), kind == "signed"),
 						templ.KV("bg-blue-600", kind == "yours"),
 						templ.KV("bg-slate-400", kind == "waiting") }
 				>
