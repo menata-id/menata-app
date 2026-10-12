@@ -2105,7 +2105,7 @@ Every item on the left, any new Machine gets automatically, purely from YAML. Ev
 right is real, working code in this app, but wired to specific Machine ids in Go — declaring
 similar-looking metadata for a *different* Machine does not activate it.
 
-> **Six Theme token categories are declarable, and they are the first things in this app a Workspace can
+> **Nine Theme token categories are declarable, and they are the first things in this app a Workspace can
 > restyle from YAML.** A Workspace manifest may carry:
 >
 > ```yaml
