@@ -153,7 +153,7 @@ func notificationRow(n NotificationRow) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		var templ_7745c5c3_Var6 = []any{"flex items-center gap-3 rounded-lg border bg-white p-3.5 hover:border-blue-300", templ.KV("border-blue-200 bg-blue-50/40", n.Unread), templ.KV("border-slate-200", !n.Unread)}
+		var templ_7745c5c3_Var6 = []any{"flex items-center gap-3", radiusClass(ctx, domain.RadiusSurface), "border bg-white p-3.5 hover:border-blue-300", templ.KV("border-blue-200 bg-blue-50/40", n.Unread), templ.KV("border-slate-200", !n.Unread)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var6...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err

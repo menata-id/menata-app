@@ -70,7 +70,7 @@ templ attachmentsSection(m *domain.Machine, parentID string, a *Attachments, can
 templ attachmentRow(m *domain.Machine, it AttachmentItem, canEdit bool) {
 	<li class={ "border-t", borderClass(ctx, domain.BorderDivider), "py-2.5 first:border-t-0" }>
 		@rowLayout(domain.GapDefault, domain.RowAlignCenter, domain.RowJustifyStart) {
-			<span aria-hidden="true" class={ "grid h-8 w-11 shrink-0 place-items-center rounded-md text-2xs font-medium tracking-wide", toneClass(ctx, domain.ToneNeutral) }>{ it.Kind }</span>
+			<span aria-hidden="true" class={ "grid h-8 w-11 shrink-0 place-items-center", radiusClass(ctx, domain.RadiusControl), "text-2xs font-medium tracking-wide", toneClass(ctx, domain.ToneNeutral) }>{ it.Kind }</span>
 			<span class="flex min-w-0 grow flex-col gap-0.5">
 				<span class="truncate text-sm">{ it.Name }</span>
 				<span class="text-xs text-slate-400">{ attachmentMeta(it) }</span>
@@ -84,7 +84,7 @@ templ attachmentRow(m *domain.Machine, it AttachmentItem, canEdit bool) {
 					hx-swap="outerHTML"
 					hx-confirm={ "Remove " + it.Name + "?" }
 					aria-label={ "Remove " + it.Name }
-					class="grid size-7 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+					class={ "grid size-7 shrink-0 place-items-center", radiusClass(ctx, domain.RadiusControl), "text-slate-400 hover:bg-slate-100 hover:text-slate-600" }
 				>
 					@icon("trash", "size-4")
 				</button>

@@ -362,7 +362,7 @@ templ pendingApprovalCardGrid(cards []PendingApprovalCard) {
 }
 
 templ inboxEmpty(message string) {
-	<div class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+	<div class={ radiusClass(ctx, domain.RadiusSurface), "border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500" }>
 		{ message }
 	</div>
 }
@@ -388,7 +388,7 @@ func activeFilterKey(filters []FilterChip) string {
 templ filterChip(f FilterChip, hrefPrefix string) {
 	<a
 		href={ templ.SafeURL(hrefPrefix + url.QueryEscape(f.Key)) }
-		class={ "rounded-full border px-3 py-1 text-xs",
+		class={ radiusClass(ctx, domain.RadiusPill), "border px-3 py-1 text-xs",
 			templ.KV("border-slate-900 bg-slate-900 text-white", f.Active),
 			templ.KV(borderClass(ctx, domain.BorderControl)+" text-slate-500 hover:border-slate-400", !f.Active) }
 	>
@@ -412,7 +412,7 @@ templ filterChip(f FilterChip, hrefPrefix string) {
 templ pendingApprovalCard(c PendingApprovalCard) {
 	{{ overdue := c.SLA.Present && c.SLA.Tone == domain.ToneBad }}
 	<div
-		class={ "flex flex-col gap-3 rounded-lg border bg-white p-5 text-slate-900 hover:border-blue-300",
+		class={ "flex flex-col gap-3", radiusClass(ctx, domain.RadiusSurface), "border bg-white p-5 text-slate-900 hover:border-blue-300",
 			templ.KV("border-red-200", overdue),
 			templ.KV("border-slate-200", !overdue) }
 	>
@@ -422,7 +422,7 @@ templ pendingApprovalCard(c PendingApprovalCard) {
 			// a screen of calm cards is not a screen of amber labels.
 			if c.SLA.Present && c.SLA.Urgent {
 				<span
-					class={ "self-start rounded-full px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase",
+					class={ "self-start", radiusClass(ctx, domain.RadiusPill), "px-2 py-0.5 text-3xs font-semibold tracking-wide uppercase",
 						templ.KV("bg-red-50 text-red-700", overdue),
 						templ.KV("bg-amber-50 text-amber-700", !overdue) }
 				>
@@ -537,7 +537,7 @@ func approverChipTone(ctx context.Context, state string) string {
 templ approverChip(a StepApprover) {
 	<li
 		aria-label={ a.Name + ", " + approverStateLabel(a.State) }
-		class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "rounded-full py-0.5 pr-2.5 pl-0.5 text-2xs",
+		class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusPill), "py-0.5 pr-2.5 pl-0.5 text-2xs",
 			approverChipTone(ctx, a.State) }
 	>
 		<span class="flex size-5 items-center justify-center rounded-full bg-white/70 text-3xs font-medium">

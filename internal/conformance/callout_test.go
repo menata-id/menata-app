@@ -125,4 +125,8 @@ var calloutExempt = map[string]int{
 	// Callout would grow it to body size and drop the border, which is a design decision (menjaga-design-system R1),
 	// not a migration.
 	"machine.templ": 1,
+	// The workspace-switch leave guard's warning: bordered, meta-sized, and carrying inline `<b>` markup a Callout's
+	// `text` cannot hold. Unseen by this gate until 2026-10-12, because its corner and tint were both readers; the
+	// radius rewrite in joinClassExpressions (rencana 0.2b) made it visible.
+	"leaveguard.templ": 1,
 }

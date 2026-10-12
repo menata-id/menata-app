@@ -283,7 +283,7 @@ templ EditMemberPage(m data.Membership, name string, workspaceName string, viewe
 // their ability to open this Workspace again is what either action changes
 // (data.Store.DeactivateMember/ReactivateMember's own doc comment).
 templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
-	<section class="flex flex-col gap-3 rounded-lg border border-red-200 p-5">
+	<section class={ "flex flex-col gap-3", radiusClass(ctx, domain.RadiusSurface), "border border-red-200 p-5" }>
 		<div class="flex flex-col gap-1">
 			<h2 class="m-0 text-sm font-medium text-red-700">Remove from workspace</h2>
 			@staticText(domain.StaticCaption, "Affects "+workspaceName+" only. Their account and other workspaces are untouched.")
@@ -303,7 +303,7 @@ templ removeFromWorkspaceSection(m data.Membership, workspaceName string) {
 		} else {
 			<form method="POST" action={ templ.SafeURL("/workspace-members/" + m.UserRecordID + "/deactivate") } hx-confirm="Deactivate this member? They will no longer be able to open this workspace.">
 				@csrfHiddenInput()
-				<button type="submit" class="h-9 cursor-pointer rounded-md border border-red-200 bg-white px-3 text-sm text-red-700 hover:bg-red-50">Deactivate member</button>
+				<button type="submit" class={ "h-9 cursor-pointer", radiusClass(ctx, domain.RadiusControl), "border border-red-200 bg-white px-3 text-sm text-red-700 hover:bg-red-50" }>Deactivate member</button>
 			</form>
 		}
 	</section>

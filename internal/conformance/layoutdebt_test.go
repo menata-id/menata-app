@@ -200,7 +200,31 @@ var (
 // vanish from the count while staying hand-written -- a ratchet that fell by three and measured an edit to the
 // attribute, not a migration to a primitive. Only string literals are kept; the readers' own output is not
 // layout vocabulary.
+//
+// It also reads a radius reader called inline as the corner it answers by default (`radiusReadersAsLiterals`).
+// Shape gates recognise a chip, a surface or a tile partly by its literal corner, and rencana 0.2b moved 57 corners
+// to `radiusClass`: without this, five gates lost floors that were still hand-written in every other respect
+// (menjaga-design-system L13). `TestHandWrittenRadiiOnlyShrink`, which counts the corners themselves, reads the raw
+// form through `joinClassLiterals`.
 func joinClassExpressions(src string) string {
+	return joinClassLiterals(radiusReadersAsLiterals(src))
+}
+
+// radiusReadersAsLiterals rewrites `radiusClass(ctx, domain.Radius*)` as the quoted class it answers under the
+// default Theme.
+func radiusReadersAsLiterals(src string) string {
+	return radiusReaderCall.ReplaceAllStringFunc(src, func(m string) string {
+		return `"` + radiusDefaults[radiusReaderCall.FindStringSubmatch(m)[1]] + `"`
+	})
+}
+
+var (
+	radiusReaderCall = regexp.MustCompile(`radiusClass\(ctx, domain\.(Radius\w+)\)`)
+	radiusDefaults   = map[string]string{"RadiusControl": "rounded-md", "RadiusSurface": "rounded-lg", "RadiusPill": "rounded-full"}
+)
+
+// joinClassLiterals is joinClassExpressions without the reader rewrite: string literals only.
+func joinClassLiterals(src string) string {
 	return classExpression.ReplaceAllStringFunc(src, func(m string) string {
 		var parts []string
 		for _, lit := range stringLiteral.FindAllStringSubmatch(m, -1) {

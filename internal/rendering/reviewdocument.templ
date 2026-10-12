@@ -192,7 +192,7 @@ templ reviewDocumentCard(v ReviewView) {
 		if v.FileHref == "" {
 			<p class="m-0 text-sm text-slate-400">No file is attached to this document.</p>
 		} else {
-			<div class="flex items-center gap-3 rounded-md bg-slate-50 p-3">
+			<div class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "bg-slate-50 p-3" }>
 				<span class="flex size-10 shrink-0 items-center justify-center rounded-md bg-red-100 text-2xs font-medium text-red-700">PDF</span>
 				<span class="flex min-w-0 flex-col">
 					<span class="truncate text-sm">{ v.FileName }</span>
@@ -330,7 +330,7 @@ templ reviewSignaturePanel(v ReviewView) {
 		if v.SignaturePage == 0 {
 			@staticText(domain.StaticCaption, "No signature position has been placed for this document yet.")
 		} else {
-			<div class="relative overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+			<div class={ "relative overflow-hidden", radiusClass(ctx, domain.RadiusControl), "border border-slate-200 bg-slate-50" }>
 				<img src={ v.SignaturePreviewHref } alt={ fmt.Sprintf("Page %d of the document", v.SignaturePage) } class="block w-full"/>
 				for _, b := range v.SignatureBoxes {
 					@reviewSignatureBox(b)
@@ -523,10 +523,10 @@ templ reviewDecisionBar(v ReviewView) {
 // before any bubble-phase document listener) -- without that, htmx would read the hidden
 // signature_image input before this had a chance to fill it from the canvas.
 templ signatureModal(stepID string) {
-	<dialog id={ "sig-modal-" + stepID } class="sig-modal max-w-110 rounded-lg border border-slate-200 p-5 shadow-lg backdrop:bg-slate-900/40">
+	<dialog id={ "sig-modal-" + stepID } class={ "sig-modal max-w-110", radiusClass(ctx, domain.RadiusSurface), "border border-slate-200 p-5 shadow-lg backdrop:bg-slate-900/40" }>
 		<h3 class="m-0 text-sm font-medium">Add your signature</h3>
 		<p class="mt-1.5 mb-3 text-2xs text-slate-500">Draw your signature below to approve. It's only used for this document unless you choose to save it.</p>
-		<canvas class="sig-modal-canvas block h-40 w-full cursor-crosshair touch-none rounded-md border border-dashed border-slate-300 bg-white" width={ fmt.Sprint(signatureCanvasWidth) } height={ fmt.Sprint(signatureCanvasHeight) }></canvas>
+		<canvas class={ "sig-modal-canvas block h-40 w-full cursor-crosshair touch-none", radiusClass(ctx, domain.RadiusControl), "border border-dashed border-slate-300 bg-white" } width={ fmt.Sprint(signatureCanvasWidth) } height={ fmt.Sprint(signatureCanvasHeight) }></canvas>
 		<div class="mt-3 flex items-center justify-between gap-3">
 			<button type="button" class="sig-modal-clear cursor-pointer text-xs text-blue-600 hover:text-blue-700">Clear</button>
 			<label class={ "flex cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), "text-2xs text-slate-500" }>

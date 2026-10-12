@@ -382,7 +382,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 		for _, item := range tabs {
 			<a
 				href={ templ.SafeURL(item.Href) }
-				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "rounded-md px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-500 hover:bg-slate-50 hover:text-slate-900", !item.Active) }
+				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5 text-sm", templ.KV("font-medium text-blue-700", item.Active), templ.KV("text-slate-500 hover:bg-slate-50 hover:text-slate-900", !item.Active) }
 				if item.Active {
 					aria-current="page"
 				}
@@ -395,7 +395,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 			<button
 				type="button"
 				popovertarget="menata-app-more-menu"
-				class={ "ml-auto flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium text-blue-700", anyActive(overflow)), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !anyActive(overflow)) }
+				class={ "ml-auto flex cursor-pointer items-center gap-1", radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2.5 py-1.5 font-sans text-sm", templ.KV("font-medium text-blue-700", anyActive(overflow)), templ.KV("text-slate-600 hover:bg-slate-50 hover:text-slate-900", !anyActive(overflow)) }
 			>
 				More
 				@icon("chevron-down", "size-3.5")
@@ -417,7 +417,7 @@ templ applicationMenuRow(menu []navMenuItem, app domain.Application) {
 		if hub, ok := settingsHubItem(app); ok {
 			<a
 				href={ templ.SafeURL(hub.Route) }
-				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), "rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900", templ.KV("ml-auto", len(overflow) == 0) }
+				class={ "flex items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "px-2.5 py-1.5 text-sm text-slate-500 hover:bg-slate-50 hover:text-slate-900", templ.KV("ml-auto", len(overflow) == 0) }
 			>
 				@icon(hub.Icon, "size-4")
 				{ hub.Label }
@@ -610,7 +610,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 			type="button"
 			popovertarget="menata-workspace-menu"
 			aria-haspopup="menu"
-			class={ "flex min-w-0 cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), "rounded-md border-0 bg-transparent px-2 py-1 font-sans text-sm font-medium text-slate-900 hover:bg-slate-100" }
+			class={ "flex min-w-0 cursor-pointer items-center", layoutGap(ctx, domain.GapXtight), radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1 font-sans text-sm font-medium text-slate-900 hover:bg-slate-100" }
 		>
 			<span class="truncate">{ workspaceName }</span>
 			@icon("chevron-down", "size-3.5 shrink-0 text-slate-500")
@@ -634,7 +634,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 			// fully reachable -- one hop further, through the hub's own People section -- and
 			// Workspace Home's own "Manage members" link (workspacehome.templ) is untouched.
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5" }>
 					<span class="text-slate-500">
 						@icon("settings", "size-4")
 					</span>
@@ -656,7 +656,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				// §12.3's ActionBar component, still unbuilt. Listed in
 				// internal/conformance's applicationSubScreens and writing-guide.md's own
 				// "What comes free vs. what's hardcoded today" table.
-				<a href="/new-application" class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
+				<a href="/new-application" class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5" }>
 					<span class="text-slate-500">
 						@icon("sparkle", "size-4")
 					</span>
@@ -664,7 +664,7 @@ templ workspaceMenu(workspaceName string, viewer Viewer, switchWorkspaceHref str
 				</a>
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5">
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:py-2.5" }>
 					<span class="text-slate-500">
 						@icon("switch", "size-4")
 					</span>
@@ -790,7 +790,7 @@ templ notificationBell() {
 	>
 		@icon("bell", "size-4.5")
 		<span
-			class="absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-3xs text-white empty:hidden"
+			class={ "absolute top-0.5 right-0.5 flex h-4 min-w-4 items-center justify-center", radiusClass(ctx, domain.RadiusPill), "bg-red-600 px-1 text-3xs text-white empty:hidden" }
 			hx-get="/api/notifications/unread-count"
 			hx-trigger="load"
 			hx-swap="innerHTML"
@@ -823,9 +823,9 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 				</div>
 				<div class="my-1 h-px bg-slate-100"></div>
 			}
-			<a href="/account-profile" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Profile</a>
-			<a href="/account-notifications" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Notifications</a>
-			<a href="/account-security" class="block rounded-md px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">Security</a>
+			<a href="/account-profile" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50" }>Profile</a>
+			<a href="/account-notifications" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50" }>Notifications</a>
+			<a href="/account-security" class={ "block", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50" }>Security</a>
 			<div class="my-1 h-px bg-slate-100"></div>
 			// Workspaces (AccountMenu.dc.html, Flow 2 canvas re-audit -- ROADMAP.md, 2026-09-27):
 			// loaded lazily, not threaded through appShell's own parameters, because appShell
@@ -848,7 +848,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 			<div class="my-1 h-px bg-slate-100"></div>
 			<form method="POST" action="/logout">
 				@csrfHiddenInput()
-				<button type="submit" class="w-full rounded-md px-3 py-2.5 text-left font-sans text-sm text-slate-700 hover:bg-slate-50">Sign out</button>
+				<button type="submit" class={ "w-full", radiusClass(ctx, domain.RadiusControl), "px-3 py-2.5 text-left font-sans text-sm text-slate-700 hover:bg-slate-50" }>Sign out</button>
 			</form>
 		}
 	</div>
@@ -864,7 +864,7 @@ templ accountMenu(viewer Viewer, aboveBar bool) {
 templ AccountMenuWorkspaceRows(choices []WorkspaceChoice, currentWorkspaceID string) {
 	<div class="px-3 pt-1 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase">Workspaces</div>
 	for _, c := range choices {
-		<a href="/switch-workspace" class="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-slate-900 hover:bg-slate-50">
+		<a href="/switch-workspace" class={ "flex items-center gap-2.5", radiusClass(ctx, domain.RadiusControl), "px-3 py-2 text-sm text-slate-900 hover:bg-slate-50" }>
 			if c.ID == currentWorkspaceID {
 				@icon("check", "size-3.5 shrink-0 text-blue-600")
 			} else {
@@ -919,7 +919,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 			@icon("grid", "size-4")
 		</button>
 		@sheetPanel("menata-app-launcher", aboveBar, "left") {
-			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class="mb-1 flex flex-col gap-0.5 rounded-md p-3 hover:bg-slate-50 sm:p-2">
+			<a href={ templ.SafeURL(routeByID(ctx, "nav_home")) } class={ "mb-1 flex flex-col gap-0.5", radiusClass(ctx, domain.RadiusControl), "p-3 hover:bg-slate-50 sm:p-2" }>
 				<span class="text-3xs font-medium tracking-wide text-blue-600 uppercase">Workspace</span>
 				<span class="text-sm font-medium text-slate-900">{ workspaceName }</span>
 			</a>
@@ -935,7 +935,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 			if viewer.WorkspaceRole != domain.WorkspaceRoleMember {
 				<div class="my-1 h-px bg-slate-100"></div>
 				<div class="px-3 pt-1 pb-1 text-3xs font-medium tracking-wide text-slate-400 uppercase sm:px-2">Administration</div>
-				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2">
+				<a href={ templ.SafeURL(routeByID(ctx, "nav_workspace_settings")) } class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2" }>
 					<span class="text-slate-500">
 						@icon("settings", "size-4")
 					</span>
@@ -955,7 +955,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 				// capability: 007 §12.3's ActionBar component, still unbuilt. Listed in
 				// internal/conformance's applicationSubScreens and writing-guide.md's own "What
 				// comes free vs. what's hardcoded today" table.
-				<a href="/new-application" class="flex items-center gap-3 rounded-md p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2">
+				<a href="/new-application" class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusControl), "p-3 text-sm text-slate-900 hover:bg-slate-50 sm:p-2" }>
 					<span class="text-slate-500">
 						@icon("sparkle", "size-4")
 					</span>
@@ -966,7 +966,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 				</a>
 			}
 			if switchWorkspaceHref != "" {
-				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class="mt-1 block rounded-md p-3 text-xs font-medium text-blue-600 hover:bg-slate-50 sm:p-2">All Workspaces →</a>
+				<a href={ templ.SafeURL(switchWorkspaceHref) } data-leave-guard class={ "mt-1 block", radiusClass(ctx, domain.RadiusControl), "p-3 text-xs font-medium text-blue-600 hover:bg-slate-50 sm:p-2" }>All Workspaces →</a>
 			}
 		}
 	</div>
@@ -977,7 +977,7 @@ templ appLauncher(workspaceName, switchWorkspaceHref string, viewer Viewer, abov
 // appIconClasses (workspacehome.templ) so an Application's icon tile matches its own Workspace
 // Home card exactly.
 templ launcherAppCard(app domain.Application) {
-	<a href={ templ.SafeURL(launcherAppHomeRoute(ctx, app)) } class="flex items-start gap-3 rounded-md p-2 hover:bg-slate-50">
+	<a href={ templ.SafeURL(launcherAppHomeRoute(ctx, app)) } class={ "flex items-start gap-3", radiusClass(ctx, domain.RadiusControl), "p-2 hover:bg-slate-50" }>
 		<span class={ "flex size-8 shrink-0 items-center justify-center rounded-lg", appIconClasses(app.Color) }>
 			@icon(app.Icon, "size-4.5")
 		</span>

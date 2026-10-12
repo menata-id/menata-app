@@ -84,7 +84,7 @@ func DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref 
 					return templ_7745c5c3_Err
 				}
 				if len(blockers) > 0 {
-					var templ_7745c5c3_Var4 = []any{"flex flex-col gap-1 rounded-md", toneFillClass(ctx, domain.ToneBad), "px-3 py-2 text-sm", toneInkClass(ctx, domain.ToneBad)}
+					var templ_7745c5c3_Var4 = []any{"flex flex-col gap-1", radiusClass(ctx, domain.RadiusControl), toneFillClass(ctx, domain.ToneBad), "px-3 py-2 text-sm", toneInkClass(ctx, domain.ToneBad)}
 					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var4...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err

@@ -964,6 +964,26 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   one string, and templ keeps the last value. Two shipped sites lost their class this way: the approver chip, and
   Application Settings' current link (pre-existing). Choose the class in Go instead. Keys from different readers
   cannot collide and are allowed. Mutation-proved.
+- `TestHandWrittenRadiiOnlyShrink` — a directive ratchet (2026-10-12, rencana 0.2b). A control, surface or pill
+  corner reads `radiusClass(ctx, domain.Radius*)`. **57 of 117 corners moved**, and two checks were byte-identical:
+  - 106 authenticated pages (the GET sweep plus every per-record route, rendered through the router, with
+    volatile ids normalised);
+  - 12 component renders for the sites those pages cannot reach.
+
+  The 60 that stay are read by meaning, with a reason per file:
+  - circles and bars (geometry: a theme moving `pill` would square them);
+  - icon tiles (the artifact's `radius-brand-mark`, no role);
+  - `rounded-lg` menu rows beside `rounded-md` ones (a fold is a decision);
+  - `rounded`/`rounded-xl` (DS-D17);
+  - pre-auth sites and chat bubbles.
+
+  **The slice's second lesson was L13 again, at scale.** Five shape gates (chip, surface, tile, caption, Callout)
+  recognise a floor partly by its literal corner, and lost floors the moment corners became readers.
+  `joinClassExpressions` therefore now reads `radiusClass(ctx, domain.Radius*)` as its default class
+  (`radiusReadersAsLiterals`). Only this ratchet reads the raw form (`joinClassLiterals`). The rewrite then
+  surfaced a box the Callout gate had never seen: the leave guard's warning, now a floor with its reason.
+  `TestRadii_followTheThemeAtMigratedSites` covers R9. Mutation-proved: a literal put back, a lowered floor, and
+  the rewrite removed, which fails three gates.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token

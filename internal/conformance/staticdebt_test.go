@@ -225,7 +225,9 @@ func TestHandWrittenCaptionsOnlyShrink(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", e.Name(), err)
 		}
-		src := mutedParaNote.ReplaceAllString(string(b), "")
+		// Read through joinClassExpressions since 2026-10-12: rencana 0.2b spliced a radius reader into one caption's
+		// class, and a literal-only pattern lost the site by that edit alone (L13).
+		src := joinClassExpressions(mutedParaNote.ReplaceAllString(string(b), ""))
 		for _, m := range captionPara.FindAllStringSubmatch(src, -1) {
 			if has(m[1], "m-0") && has(m[1], "text-2xs") && has(m[1], "text-slate-500") {
 				actual[e.Name()]++

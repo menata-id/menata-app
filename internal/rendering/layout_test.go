@@ -1315,3 +1315,35 @@ func TestUINode_aCurrentSectionIsTintedAndAnnounced(t *testing.T) {
 		}
 	}
 }
+
+// Rencana 0.2b: corners that are a control, a surface or a pill read radiusClass, so theme.radius moves them. The
+// migration was byte-identical under the default theme; this is the other half (R9), one site of each role, under a
+// theme that moves all three -- including two roles onto one step, the shape that broke the approver chip (L12).
+func TestRadii_followTheThemeAtMigratedSites(t *testing.T) {
+	th := domain.Theme{Radius: map[domain.RadiusRole]domain.RadiusStep{
+		domain.RadiusControl: domain.RadiusStepFull,
+		domain.RadiusSurface: domain.RadiusStepFull,
+		domain.RadiusPill:    domain.RadiusStepSmall,
+	}}
+	ctx := WithCurrentWorkspace(context.Background(), domain.Workspace{Theme: th}, "WS", false)
+	render := func(c templ.Component) string {
+		var buf strings.Builder
+		if err := c.Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		return buf.String()
+	}
+	for name, tc := range map[string]struct {
+		c          templ.Component
+		want, gone string
+	}{
+		"control: the overflow menu's row":   {applicationMenuRow([]navMenuItem{{Label: "A", Href: "/a"}}, domain.Application{}), "rounded-full px-2.5", "rounded-md px-2.5"},
+		"surface: a notification row's card": {notificationRow(NotificationRow{ID: "n", Message: "m", Link: "/l"}), "gap-3 rounded-full border", "gap-3 rounded-lg border"},
+		"pill: the approver chip":            {approverChip(StepApprover{Name: "Ana", State: "done"}), "rounded-md py-0.5", "rounded-full py-0.5"},
+	} {
+		got := render(tc.c)
+		if !strings.Contains(got, tc.want) || strings.Contains(got, tc.gone) {
+			t.Errorf("%s: a moved theme.radius must move the corner (want %q, not %q):\n%s", name, tc.want, tc.gone, got)
+		}
+	}
+}

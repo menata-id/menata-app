@@ -276,7 +276,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 		<div class={ "absolute top-full left-0 z-10 mt-1 flex w-72 flex-col gap-1", surfaceClasses(ctx), "p-2 shadow-lg" }>
 			if canMove && move != nil {
 				<details>
-					<summary class="flex cursor-pointer list-none flex-col rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
+					<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5 text-sm hover:bg-slate-50" }>
 						Move…
 						<span class="text-2xs text-slate-500">Another list</span>
 					</summary>
@@ -320,7 +320,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 			}
 			if canCopy && cp != nil {
 				<details>
-					<summary class="flex cursor-pointer list-none flex-col rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">Copy…</summary>
+					<summary class={ "flex cursor-pointer list-none flex-col", radiusClass(ctx, domain.RadiusControl), "px-2 py-1.5 text-sm hover:bg-slate-50" }>Copy…</summary>
 					<form
 						class="flex flex-col gap-3 p-2"
 						hx-post={ fmt.Sprintf("/machines/%s/records/%s/copy", m.ID, r.ID) }
@@ -336,7 +336,7 @@ templ recordActionsMenu(m *domain.Machine, r *data.Record, canMove bool, move *R
 			}
 			<button
 				type="button"
-				class="flex cursor-pointer flex-col rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+				class={ "flex cursor-pointer flex-col", radiusClass(ctx, domain.RadiusControl), "border-0 bg-transparent px-2 py-1.5 text-left text-sm hover:bg-slate-50" }
 				onclick="navigator.clipboard.writeText(location.href).then(() => { this.querySelector('[data-share-hint]').textContent = 'Link copied' })"
 			>
 				Share

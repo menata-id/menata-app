@@ -88,7 +88,7 @@ templ installableCard(t InstallableTemplate) {
 			</div>
 		</div>
 		if len(t.Refusals) > 0 {
-			<div class="flex flex-col gap-1.5 rounded-md bg-amber-50 px-3.5 py-3">
+			<div class={ "flex flex-col gap-1.5", radiusClass(ctx, domain.RadiusControl), "bg-amber-50 px-3.5 py-3" }>
 				<span class="text-xs font-medium text-amber-900">Cannot be installed in this workspace</span>
 				for _, reason := range t.Refusals {
 					<span class="text-2xs leading-5 text-amber-800">{ reason }</span>
@@ -96,7 +96,7 @@ templ installableCard(t InstallableTemplate) {
 			</div>
 		} else {
 			if len(t.Renames) > 0 || len(t.AddShared) > 0 {
-				<div class="flex flex-col gap-1.5 rounded-md bg-slate-50 px-3.5 py-3">
+				<div class={ "flex flex-col gap-1.5", radiusClass(ctx, domain.RadiusControl), "bg-slate-50 px-3.5 py-3" }>
 					<span class="text-xs font-medium text-slate-700">What will change on the way in</span>
 					for _, r := range t.Renames {
 						<span class="text-2xs leading-5 text-slate-500">

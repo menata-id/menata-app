@@ -16,7 +16,7 @@ templ DeleteAccountPage(workspaceName string, viewer Viewer, switchWorkspaceHref
 		@sectionLayout(domain.GapComfortable) {
 			@deletionFacts()
 			if len(blockers) > 0 {
-				<div role="alert" class={ "flex flex-col gap-1 rounded-md", toneFillClass(ctx, domain.ToneBad), "px-3 py-2 text-sm", toneInkClass(ctx, domain.ToneBad) }>
+				<div role="alert" class={ "flex flex-col gap-1", radiusClass(ctx, domain.RadiusControl), toneFillClass(ctx, domain.ToneBad), "px-3 py-2 text-sm", toneInkClass(ctx, domain.ToneBad) }>
 					<p class="m-0 font-medium">Your account can't be deleted yet.</p>
 					<ul class="m-0 flex list-disc flex-col gap-1 pl-5">
 						for _, b := range blockers {

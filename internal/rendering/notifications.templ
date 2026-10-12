@@ -45,7 +45,7 @@ templ NotificationsPage(rows []NotificationRow, workspaceName string, viewer Vie
 templ notificationRow(n NotificationRow) {
 	<a
 		href={ templ.URL(n.Link) }
-		class={ "flex items-center gap-3 rounded-lg border bg-white p-3.5 hover:border-blue-300", templ.KV("border-blue-200 bg-blue-50/40", n.Unread), templ.KV("border-slate-200", !n.Unread) }
+		class={ "flex items-center gap-3", radiusClass(ctx, domain.RadiusSurface), "border bg-white p-3.5 hover:border-blue-300", templ.KV("border-blue-200 bg-blue-50/40", n.Unread), templ.KV("border-slate-200", !n.Unread) }
 	>
 		if n.Unread {
 			<span class="size-2 shrink-0 rounded-full bg-blue-600" aria-hidden="true"></span>
