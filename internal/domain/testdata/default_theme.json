@@ -1,0 +1,60 @@
+{
+  "Radius": {
+    "control": "small",
+    "pill": "full",
+    "surface": "large"
+  },
+  "Weight": {
+    "body": "normal",
+    "emphasis": "medium"
+  },
+  "Text": {
+    "body": "normal",
+    "caption": "tiny",
+    "display": "huge",
+    "eyebrow": "micro",
+    "heading": "large",
+    "label": "tiny",
+    "meta": "small",
+    "subheading": "medium"
+  },
+  "Gap": {
+    "comfortable": "four",
+    "default": "three",
+    "loose": "five",
+    "tight": "two",
+    "xtight": "one-half"
+  },
+  "Border": {
+    "control": "defined",
+    "divider": "faint",
+    "surface": "soft"
+  },
+  "Tone": {
+    "bad": "red",
+    "good": "green",
+    "info": "blue",
+    "muted": "grey-faint",
+    "neutral": "grey",
+    "warn": "amber"
+  },
+  "Ink": {
+    "body": "dark",
+    "faint": "light",
+    "secondary": "medium",
+    "strong": "darkest"
+  },
+  "Background": {
+    "base": "lighter",
+    "raised": "lightest",
+    "sunken": "light"
+  },
+  "Padding": {
+    "badge-compact-x": "two",
+    "badge-compact-y": "half",
+    "badge-x": "two-half",
+    "badge-y": "one",
+    "panel": "five",
+    "section": "five"
+  }
+}

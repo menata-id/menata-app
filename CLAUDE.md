@@ -909,6 +909,17 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
   markers) from emerald-500 (measured 2.46:1 on white, below WCAG 1.4.11's 3:1) to `mark-good` (3.67:1). The gate now
   refuses `bg-`/`border-emerald-500` too, except the closed `markGoodExempt` (the board's drag-and-drop slot, a
   JavaScript drop target, not a finished mark), which must match its count exactly. Mutation-proved both ways.
+- `TestThemeColourPairsMeetContrast` (`internal/rendering`, GS3 of the governance guide, 2026-10-12) — asks the real
+  readers for their default classes and resolves each to the `oklch` Tailwind compiled into `app.css`, then holds:
+  every tone pair, every ink role on `raised`/`base` at 4.5:1, and `mark-good` at 3:1. `lowContrastByDesign` is
+  closed both ways (`ink faint`, `tone muted`, each with a reason). Run with `-v` to see every ratio. The closest
+  pass is `ink secondary on base` at **4.55:1**: one step lighter would fail. Mutation-proved three ways (mark-good
+  to emerald-500, warn ink to amber-600, an exception deleted). The default Theme only; a Workspace remap is not
+  measured.
+- `TestDefaultThemeMatchesItsRecordedSnapshot` (`internal/domain`, GS4, 2026-10-12) — `DefaultTheme` is compared
+  with `testdata/default_theme.json`. Every Workspace without `theme:` renders it, so a one-line edit restyles the
+  product. Passing means doing it on purpose: a DSD entry with its reversal condition, the Design System artifact
+  mirrored, then `UPDATE_DEFAULT_THEME=1`. Mutation-proved (`PaddingPanel` back to `four`).
 - `TestHandWrittenHalfStepGapsOnlyShrink` — the ratchet beside `domain.GapXtight` (2026-10-11), the Design System's
   `gap-xtight` (6px). Thirteen inline icon/dot+label sites moved to `layoutGap(ctx, domain.GapXtight)`; 15 sweep pages
   compared byte-identical. **Nine `gap-1.5` stay as floors** because they space *components* (vertical stacks, a
