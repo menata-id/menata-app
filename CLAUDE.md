@@ -958,6 +958,11 @@ Prose gets skimmed; a failing `go test` doesn't. Currently gated, by name (`go t
 
   Also, the Callout gate now reads inline message-tone readers as their literals (`toneReadersAsLiterals`).
   Without that, its two floors vanished when their colours moved to the Theme.
+- `TestNoTwoKVKeysFromOneThemeReader` — a zero-floor gate (2026-10-12). One class expression may not hold two
+  `templ.KV` keys built from the **same** Theme reader. A `theme:` that maps two roles to one step makes the keys
+  one string, and templ keeps the last value. Two shipped sites lost their class this way: the approver chip, and
+  Application Settings' current link (pre-existing). Choose the class in Go instead. Keys from different readers
+  cannot collide and are allowed. Mutation-proved.
 - **GS6 is a tool, `design-system/canvas.py`, not a test**, because the canvas lives outside the repo. Its `generate`
   mode rebuilds every artboard's `:root` from `design-system/tokens.json`. Its `check` mode fails on a stale block
   and reports adoption (`var()` references; colour literals on and off the token values). Run it on every token
